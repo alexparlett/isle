@@ -87,6 +87,8 @@ config/
   applications/       .desktop entry for the settings window
   arch-update/        update notifier config
   xdg-desktop-portal/
+tests/               hl-mock.lua + test-config.lua — load the whole config
+                     against a mock of Hyprland's documented API
 packages/            repo.txt      what the desktop needs
                      extras.txt    agentic tooling and backups, also installed
                      aur.txt       the two theme packages
@@ -94,6 +96,24 @@ packages/            repo.txt      what the desktop needs
                      optional.txt  audited and not taken, kept as a record
 install.sh
 ```
+
+### Testing it without logging in
+
+```bash
+lua tests/test-config.lua
+```
+
+Loads every module against a mock `hl` built from the documented API. Anything
+not on that list raises, so a dispatcher that does not exist or a rule field
+that is misspelled fails here rather than at login. It then asserts on what the
+config produced: no two binds on the same keys, most binds carry a description
+(the `⌘?` cheatsheet reads them), every `hl.on` event is real, window rules only
+match on documented props, `GBM_BACKEND` is *not* set, VRR is fullscreen-only,
+and the GPU is pinned by a stable by-path name.
+
+It earns its keep — it caught `⌘⇧3/4/5/6` being bound to both the macOS
+screenshot shortcuts and send-window-to-workspace, which would have fired both
+actions on every press.
 
 ### Why Lua and not `hyprland.conf`
 

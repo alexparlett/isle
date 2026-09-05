@@ -21,6 +21,7 @@ hyprpaper
 hyprpicker
 hyprcursor
 hyprsunset
+hyprshutdown           # graceful exit; --vt 1 fixes the NVIDIA+SDDM black screen
 
 # --- Shell ---------------------------------------------------------------
 waybar

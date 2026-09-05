@@ -182,10 +182,13 @@ hl.bind(opt .. " + " .. cmd .. " + 0", hl.dsp.window.float({ action = "disable" 
 --  browsers switch tabs, and losing that hurts more than the exact match helps.
 --------------------------------------------------------------------------------
 
+-- Send-to-workspace sits on ⌃⌘ rather than the ⇧⌘ you might expect, because
+-- ⌘⇧3/4/5 are the macOS screenshot shortcuts and those win — they are used far
+-- more often, and macOS has no native send-to-desktop shortcut to conflict with.
 for i = 1, 10 do
     local key = i % 10 -- workspace 10 lives on the 0 key
     hl.bind(cmd .. " + " .. key, hl.dsp.focus({ workspace = i }), d("Workspace " .. i))
-    hl.bind(cmd .. " + " .. shift .. " + " .. key,
+    hl.bind(ctrl .. " + " .. cmd .. " + " .. key,
             hl.dsp.window.move({ workspace = i, follow = false }),
             d("Send window to workspace " .. i))
 end

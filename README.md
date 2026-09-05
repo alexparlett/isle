@@ -53,7 +53,7 @@ do, see [Retiring Plasma](#retiring-plasma).
 | Auth agent | hyprpolkitagent | |
 | Volume OSD | swayosd | |
 | Power menu | wlogout | |
-| Settings | custom GTK4 window | live-tunes what's worth tuning by feel |
+| Settings | System Settings (ours) + HyprMod | ours covers what Hyprland doesn't own; HyprMod owns compositor options |
 | Updates | cachy-update + Waybar module | |
 | Agent status | Claude Code + Codex hooks → Waybar | |
 | Theme | Catppuccin Mocha | best port coverage of any dark palette |

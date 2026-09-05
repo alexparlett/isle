@@ -3,21 +3,25 @@
 System Settings — a GTK4 control centre for a Hyprland desktop.
 
 Hyprland is a compositor, not a desktop environment: there is no settings
-daemon and no shared config framework for one window to drive. This is the
-pragmatic substitute. Everything Hyprland itself owns is edited natively and
-applies live through `hyprctl eval 'hl.config{...}'`. Everything it does not
-own — audio graphs, Bluetooth pairing, printers — is summarised here with the
-bits worth changing exposed directly, and the dedicated tool one click away.
+daemon and no shared config framework for one window to drive. This fills the
+gap around it — sound, network, Bluetooth, default applications, date and time,
+users, power, and the two things specific to this config, the shortcut profile
+and the rebind editor.
+
+Compositor options themselves are deliberately absent. HyprMod already covers
+every one of them with search, undo and profiles, and two apps writing the same
+options is a real conflict rather than mere duplication: this app saved to
+local.lua, which hyprland.lua requires *after* HyprMod's hyprland-gui.lua, so
+whatever was saved here silently overrode HyprMod on the next reload.
 
 On embedding: you cannot host another Wayland client inside this window.
 Wayland has no XEmbed and GTK4 dropped GtkSocket, both deliberately — a client
 cannot reparent another client's surface. So "Open pavucontrol" really does
 mean a separate window, and no amount of shell around it changes that.
 
-Hyprland options are live-applied but not saved until you press Save, which
-writes ~/.config/hypr/local.lua. Everything else here — shortcuts, defaults,
-timezone — is applied and persisted immediately, because those are files and
-services rather than compositor state.
+Everything here applies and persists immediately. Nothing writes a tracked
+file: shortcuts go to keybinds.conf, idle timeouts to the generated
+hypridle.conf, and the rest are system services.
 """
 
 import json
@@ -85,82 +89,10 @@ button.danger:hover { background: #f38ba8; color: #1e1e2e; }
 .saved { color: #a6e3a1; font-size: 11px; }
 """
 
-# --------------------------------------------------------------------------
-# Hyprland options, live-applied. `key` is the getoption path, `lua` is where
-# it sits in hl.config, `kind` picks the widget.
-# --------------------------------------------------------------------------
 
-APPEARANCE = [
-    dict(key="general:gaps_in", lua=("general", "gaps_in"), kind="scale-int",
-         title="Inner gaps", subtitle="Between windows", min=0, max=30, step=1),
-    dict(key="general:gaps_out", lua=("general", "gaps_out"), kind="scale-int",
-         title="Outer gaps", subtitle="Between windows and the screen edge", min=0, max=60, step=1),
-    dict(key="general:border_size", lua=("general", "border_size"), kind="scale-int",
-         title="Border width", subtitle=None, min=0, max=8, step=1),
-    dict(key="decoration:rounding", lua=("decoration", "rounding"), kind="scale-int",
-         title="Corner rounding", subtitle=None, min=0, max=24, step=1),
-    dict(key="decoration:inactive_opacity", lua=("decoration", "inactive_opacity"),
-         kind="scale-float", title="Inactive window opacity",
-         subtitle="1.0 is fully opaque", min=0.5, max=1.0, step=0.01),
-]
 
-EFFECTS = [
-    dict(key="decoration:blur:enabled", lua=("decoration", "blur", "enabled"), kind="switch",
-         title="Blur", subtitle="Behind translucent windows and the bar"),
-    dict(key="decoration:blur:size", lua=("decoration", "blur", "size"), kind="scale-int",
-         title="Blur size", subtitle=None, min=1, max=20, step=1),
-    dict(key="decoration:blur:passes", lua=("decoration", "blur", "passes"), kind="scale-int",
-         title="Blur passes", subtitle="Costs GPU time; 3 is plenty", min=1, max=5, step=1),
-    dict(key="decoration:shadow:enabled", lua=("decoration", "shadow", "enabled"), kind="switch",
-         title="Shadows", subtitle=None),
-    dict(key="animations:enabled", lua=("animations", "enabled"), kind="switch",
-         title="Animations", subtitle=None),
-]
 
-MOUSE = [
-    dict(key="input:sensitivity", lua=("input", "sensitivity"), kind="scale-float",
-         title="Pointer speed", subtitle="0 is the libinput default; negative is slower",
-         min=-1.0, max=1.0, step=0.05),
-    dict(key="input:accel_profile", lua=("input", "accel_profile"), kind="text-choice",
-         title="Acceleration", subtitle="Flat is raw input — what you want for games",
-         options=["flat", "adaptive"]),
-    dict(key="input:natural_scroll", lua=("input", "natural_scroll"), kind="switch",
-         title="Natural scrolling", subtitle="Content follows your fingers, macOS-style"),
-    dict(key="input:scroll_factor", lua=("input", "scroll_factor"), kind="scale-float",
-         title="Scroll speed", subtitle=None, min=0.1, max=3.0, step=0.1),
-    dict(key="input:left_handed", lua=("input", "left_handed"), kind="switch",
-         title="Swap mouse buttons", subtitle="Left-handed layout"),
-    dict(key="input:follow_mouse", lua=("input", "follow_mouse"), kind="choice",
-         title="Focus follows mouse", subtitle=None,
-         options=["Off", "Always", "Loose", "Click to focus"]),
-]
 
-KEYBOARD = [
-    dict(key="input:repeat_delay", lua=("input", "repeat_delay"), kind="scale-int",
-         title="Repeat delay", subtitle="Milliseconds before a held key repeats",
-         min=150, max=1000, step=25),
-    dict(key="input:repeat_rate", lua=("input", "repeat_rate"), kind="scale-int",
-         title="Repeat rate", subtitle="Repeats per second once it starts",
-         min=10, max=80, step=1),
-    dict(key="input:numlock_by_default", lua=("input", "numlock_by_default"), kind="switch",
-         title="Num Lock on at login", subtitle=None),
-    dict(key="input:kb_layout", lua=("input", "kb_layout"), kind="text-choice",
-         title="Layout", subtitle="Restart applications to pick up a change",
-         options=["gb", "us", "de", "fr", "es", "it", "no", "se", "dk"]),
-]
-
-BEHAVIOUR = [
-    dict(key="misc:vrr", lua=("misc", "vrr"), kind="choice",
-         title="Adaptive sync", subtitle="Fullscreen-only avoids desktop flicker on this panel",
-         options=["Off", "Always on", "Fullscreen only", "Fullscreen games"]),
-    dict(key="general:allow_tearing", lua=("general", "allow_tearing"), kind="switch",
-         title="Allow tearing", subtitle="Games opt in individually; this is the master switch"),
-    dict(key="misc:middle_click_paste", lua=("misc", "middle_click_paste"), kind="switch",
-         title="Middle-click paste", subtitle="Primary selection"),
-    dict(key="cursor:inactive_timeout", lua=("cursor", "inactive_timeout"), kind="scale-int",
-         title="Hide cursor after", subtitle="Seconds of stillness; 0 never hides",
-         min=0, max=20, step=1),
-]
 
 # Default-application categories: label, the mime types to set together, and a
 # hint for which apps are sensible. Setting several types at once is what
@@ -190,28 +122,6 @@ def hyprctl(args):
     return run(["hyprctl", *args])
 
 
-def get_option(path):
-    raw = hyprctl(["getoption", path, "-j"])
-    if not raw:
-        return None
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return None
-    for field in ("int", "float", "str", "custom"):
-        if data.get(field) is not None:
-            return data[field]
-    return None
-
-
-def lua_literal(value):
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, float):
-        return f"{value:g}"
-    if isinstance(value, str):
-        return '"%s"' % value.replace('"', '\\"')
-    return str(value)
 
 
 def desktop_entries():
@@ -245,7 +155,6 @@ class SystemSettings(Gtk.ApplicationWindow):
         super().__init__(application=app, title="System Settings")
         self.set_default_size(1000, 780)
 
-        self.controls = {}
         self._pending = None
         self._apps = desktop_entries()
 
@@ -257,14 +166,11 @@ class SystemSettings(Gtk.ApplicationWindow):
         self.status.add_css_class("saved")
         header.pack_start(self.status)
 
-        revert = Gtk.Button(label="Reload")
-        revert.connect("clicked", self.on_revert)
-        header.pack_end(revert)
+        reload_button = Gtk.Button(label="Reload Hyprland")
+        reload_button.connect("clicked", self.on_reload)
+        header.pack_end(reload_button)
 
-        save = Gtk.Button(label="Save")
-        save.add_css_class("suggested-action")
-        save.connect("clicked", self.on_save)
-        header.pack_end(save)
+
 
         self.stack = Gtk.Stack()
         self.stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
@@ -279,11 +185,7 @@ class SystemSettings(Gtk.ApplicationWindow):
         split.append(self.stack)
         self.set_child(split)
 
-        live = hyprctl(["version"]) is not None
-
-        self._add_page("appearance", "Appearance", self._page_appearance(live))
-        self._add_page("keyboard", "Keyboard", self._page_keyboard(live))
-        self._add_page("mouse", "Mouse", self._page_mouse(live))
+        self._add_page("keyboard", "Keyboard", self._page_keyboard())
         self._add_page("display", "Display", self._page_display())
         self._add_page("sound", "Sound", self._page_sound())
         self._add_page("network", "Network", self._page_network())
@@ -292,7 +194,7 @@ class SystemSettings(Gtk.ApplicationWindow):
         self._add_page("defaults", "Default Apps", self._page_defaults())
         self._add_page("datetime", "Date & Time", self._page_datetime())
         self._add_page("users", "Users", self._page_users())
-        self._add_page("system", "System", self._page_system(live))
+        self._add_page("system", "System", self._page_system())
 
     # ---- scaffolding -----------------------------------------------------
 
@@ -377,104 +279,41 @@ class SystemSettings(Gtk.ApplicationWindow):
         self.status.set_text(text)
         GLib.timeout_add_seconds(5, lambda: (self.status.set_text(""), GLib.SOURCE_REMOVE)[1])
 
-    # ---- live Hyprland options -------------------------------------------
+    # ---- compositor hand-off ---------------------------------------------
 
-    def _settings_card(self, specs, live):
+    def _hyprland_card(self, what):
+        """Compositor options live in HyprMod, not here.
+
+        Two settings apps writing the same options is the keybind collision
+        again in a worse form: this app saved to local.lua, which hyprland.lua
+        requires *after* hyprland-gui.lua, so anything saved here silently
+        overrode what HyprMod set. Rather than racing it, hand the whole
+        category over — HyprMod covers every option with search, undo and
+        profiles, which this window never would."""
         card = self._card()
-        for spec in specs:
-            card.append(self._row(spec["title"], spec["subtitle"], self._control(spec, live)))
+        if shutil.which("hyprmod"):
+            button = Gtk.Button(label="Open HyprMod")
+            button.add_css_class("link-tool")
+            button.connect("clicked", lambda _b: self._spawn("hyprmod"))
+            card.append(self._row(what, "Every Hyprland option, with search and undo", button))
+        else:
+            card.append(self._row(
+                what,
+                "Install hyprmod (in packages/aur.txt) for a full editor, or edit "
+                "~/.config/hypr/*.lua directly", None))
         return card
 
-    def _control(self, spec, live):
-        current = get_option(spec["key"]) if live else None
-        kind = spec["kind"]
-
-        if kind == "switch":
-            widget = Gtk.Switch(valign=Gtk.Align.CENTER)
-            widget.set_active(bool(current))
-            widget.connect("notify::active", lambda w, _p: self._changed(spec, w.get_active()))
-
-        elif kind == "choice":
-            widget = Gtk.DropDown.new_from_strings(spec["options"])
-            widget.set_valign(Gtk.Align.CENTER)
-            if isinstance(current, (int, float)) and 0 <= int(current) < len(spec["options"]):
-                widget.set_selected(int(current))
-            widget.connect("notify::selected", lambda w, _p: self._changed(spec, w.get_selected()))
-
-        elif kind == "text-choice":
-            widget = Gtk.DropDown.new_from_strings(spec["options"])
-            widget.set_valign(Gtk.Align.CENTER)
-            if isinstance(current, str) and current in spec["options"]:
-                widget.set_selected(spec["options"].index(current))
-            widget.connect("notify::selected",
-                           lambda w, _p: self._changed(spec, spec["options"][w.get_selected()]))
-
-        else:
-            is_float = kind == "scale-float"
-            widget = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL,
-                                              spec["min"], spec["max"], spec["step"])
-            widget.set_size_request(260, -1)
-            widget.set_draw_value(True)
-            widget.set_value_pos(Gtk.PositionType.RIGHT)
-            widget.set_digits(2 if is_float else 0)
-            widget.set_valign(Gtk.Align.CENTER)
-            if isinstance(current, (int, float)):
-                widget.set_value(float(current))
-            widget.connect("value-changed",
-                           lambda w: self._changed(spec, w.get_value() if is_float else int(w.get_value())))
-
-        widget.set_sensitive(live)
-        self.controls[id(widget)] = (spec, widget)
-        return widget
-
-    def _changed(self, spec, value):
-        if self._pending is not None:
-            GLib.source_remove(self._pending)
-        self._pending = GLib.timeout_add(80, self._apply, spec, value)
-
-    def _apply(self, spec, value):
-        self._pending = None
-        body = lua_literal(value)
-        for part in reversed(spec["lua"][1:]):
-            body = "{ " + f"{part} = {body}" + " }"
-        assignment = f"{spec['lua'][0]} = {body}"
-        if hyprctl(["eval", "hl.config({ " + assignment + " })"]) is None:
-            self._flash(f"Could not apply {spec['title'].lower()}")
-        else:
-            self._flash("Applied — not saved yet")
-        return GLib.SOURCE_REMOVE
-
-    # ---- pages -----------------------------------------------------------
-
-    def _page_appearance(self, live):
-        page = self._page("Appearance", "Applies as you drag. Save writes local.lua.")
-        page.append(self._group("Layout"))
-        page.append(self._settings_card(APPEARANCE, live))
-        page.append(self._group("Effects"))
-        page.append(self._settings_card(EFFECTS, live))
-        page.append(self._group("Theme"))
-        card = self._card()
-        card.append(self._tool_row("GTK applications", "Theme, icons and fonts", "Open nwg-look", "nwg-look"))
-        card.append(self._tool_row("Qt applications", "Non-KDE Qt theming", "Open qt6ct", "qt6ct"))
-        page.append(card)
-        return page
-
-    def _page_keyboard(self, live):
-        page = self._page("Keyboard", "Layout, repeat and every shortcut on the system.")
-
+    def _page_keyboard(self):
+        page = self._page("Keyboard", "Profile and shortcuts. Both are specific to this "
+                                      "config, so they live here rather than in HyprMod.")
         page.append(self._group("Shortcut profile"))
         page.append(self._keymap_card())
 
-        page.append(self._group("Typing"))
-        page.append(self._settings_card(KEYBOARD, live))
-
         page.append(self._group("Shortcuts"))
         page.append(self._shortcuts_card())
-        return page
 
-    def _page_mouse(self, live):
-        page = self._page("Mouse", "Pointer behaviour, applied live.")
-        page.append(self._settings_card(MOUSE, live))
+        page.append(self._group("Layout and repeat"))
+        page.append(self._hyprland_card("Keyboard options"))
         return page
 
     def _page_display(self):
@@ -836,14 +675,22 @@ class SystemSettings(Gtk.ApplicationWindow):
         page.append(actions)
         return page
 
-    def _page_system(self, live):
+    def _page_system(self):
         page = self._page("System", "Everything else.")
 
-        page.append(self._group("Behaviour"))
-        page.append(self._settings_card(BEHAVIOUR, live))
+        page.append(self._group("Compositor"))
+        page.append(self._hyprland_card("Appearance, input and behaviour"))
 
         page.append(self._group("Night light"))
         page.append(self._night_light_card())
+
+        page.append(self._group("Theme"))
+        theme = self._card()
+        theme.append(self._tool_row("GTK applications", "Theme, icons and fonts",
+                                    "Open nwg-look", "nwg-look"))
+        theme.append(self._tool_row("Qt applications", "Non-KDE Qt theming",
+                                    "Open qt6ct", "qt6ct"))
+        page.append(theme)
 
         page.append(self._group("Machine"))
         card = self._card()
@@ -867,8 +714,8 @@ class SystemSettings(Gtk.ApplicationWindow):
         page.append(tools)
 
         hint = Gtk.Label(
-            label="Hyprland options above apply live and are saved to local.lua with Save. "
-                  "Shortcuts, defaults and the timezone are written immediately.",
+            label="Everything here is written immediately. Compositor options live in "
+                  "HyprMod; this window covers what Hyprland does not own.",
             xalign=0, wrap=True)
         hint.add_css_class("hint")
         page.append(hint)
@@ -1128,73 +975,9 @@ class SystemSettings(Gtk.ApplicationWindow):
 
     # ---- save and revert -------------------------------------------------
 
-    def _current_values(self):
-        tree = {}
-        for spec, widget in self.controls.values():
-            if isinstance(widget, Gtk.Switch):
-                value = widget.get_active()
-            elif isinstance(widget, Gtk.DropDown):
-                value = (spec["options"][widget.get_selected()]
-                         if spec["kind"] == "text-choice" else widget.get_selected())
-            else:
-                value = widget.get_value()
-                value = int(value) if spec["kind"] == "scale-int" else round(value, 2)
-            node = tree
-            for part in spec["lua"][:-1]:
-                node = node.setdefault(part, {})
-            node[spec["lua"][-1]] = value
-        return tree
-
-    def _render_lua(self, tree, indent=1):
-        pad = "    " * indent
-        lines = []
-        for key, value in tree.items():
-            if isinstance(value, dict):
-                lines.append(f"{pad}{key} = {{")
-                lines.append(self._render_lua(value, indent + 1))
-                lines.append(f"{pad}}},")
-            else:
-                lines.append(f"{pad}{key} = {lua_literal(value)},")
-        return "\n".join(lines)
-
-    def on_save(self, _button):
-        content = (
-            f"{MARKER}\n"
-            "-- Written by System Settings. hyprland.lua requires this file last, so\n"
-            "-- anything here wins over the tracked config. Hand-edit freely; this block\n"
-            "-- is overwritten wholesale on the next Save.\n\n"
-            "hl.config({\n"
-            f"{self._render_lua(self._current_values())}\n"
-            "})\n"
-        )
-        try:
-            LOCAL_LUA.parent.mkdir(parents=True, exist_ok=True)
-            if LOCAL_LUA.exists() and MARKER not in LOCAL_LUA.read_text():
-                backup = LOCAL_LUA.with_suffix(".lua.bak")
-                shutil.copy2(LOCAL_LUA, backup)
-                self._flash(f"Existing local.lua backed up to {backup.name}")
-            LOCAL_LUA.write_text(content)
-            self.status.set_text(f"Saved to {LOCAL_LUA.name}")
-        except OSError as exc:
-            self._flash(f"Could not write {LOCAL_LUA}: {exc}")
-
-    def on_revert(self, _button):
+    def on_reload(self, _button):
         hyprctl(["reload"])
-        for spec, widget in self.controls.values():
-            current = get_option(spec["key"])
-            if current is None:
-                continue
-            if isinstance(widget, Gtk.Switch):
-                widget.set_active(bool(current))
-            elif isinstance(widget, Gtk.DropDown):
-                if spec["kind"] == "text-choice":
-                    if isinstance(current, str) and current in spec["options"]:
-                        widget.set_selected(spec["options"].index(current))
-                else:
-                    widget.set_selected(int(current))
-            else:
-                widget.set_value(float(current))
-        self._flash("Reloaded from config files")
+        self._flash("Hyprland reloaded")
 
 
 class App(Gtk.Application):

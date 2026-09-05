@@ -5,6 +5,11 @@ thing on a traditional desktop. Written after assembling the whole thing, partly
 as a reference and partly as an honest audit of where this setup is better,
 equivalent, or worse than KDE Plasma.
 
+Paths are relative to `config/` in this repo, which `install.sh` symlinks into
+`~/.config`. Two files are **generated rather than tracked** — `hypr/hypridle.conf`
+(from `hypridle.conf.in`) and `hypr/keybinds.conf` (written by System Settings) —
+because a GUI should never edit config you have committed.
+
 **Legend** — how you change a thing:
 
 - 🖱 **GUI** — a window with controls

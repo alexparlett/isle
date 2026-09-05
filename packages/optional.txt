@@ -1,0 +1,59 @@
+# Optional extras, grouped by purpose. NOT installed by install.sh — pick what
+# you want:
+#
+#     sudo pacman -S --needed $(sed -n '/^\[agentic\]/,/^\[/p' packages/optional.txt \
+#                              | sed 's/#.*//' | awk 'NF && !/^\[/')
+#
+# Findings from auditing this machine. Everything in packages/repo.txt is
+# required by the desktop itself; nothing here is.
+
+[agentic]
+# The largest real gap. Python is installed with no package manager at all, so
+# any agent asked to do Python work is stuck at the first import.
+uv                  # also replaces pyenv/pipx/virtualenv; the current default
+python-pip          # for the occasional thing that insists on pip
+
+# A disposable sandbox to let an agent run builds and tests without trusting
+# them against your actual system. podman is rootless by default, which is the
+# right shape for this; docker if you need compose files that assume it.
+podman
+podman-compose
+distrobox           # throwaway distro containers sharing your home
+
+# Reviewing what an agent actually changed. delta makes git diffs legible;
+# difftastic diffs syntax trees rather than lines, which is the difference
+# between reading a refactor and squinting at one.
+git-delta
+difftastic
+lazygit             # stage and review hunks without leaving the terminal
+
+# This repo alone has a dozen shell scripts.
+shellcheck
+shfmt
+
+direnv              # per-project env, so agents inherit the right toolchain
+
+[gaming]
+obs-studio          # recording and streaming; wf-recorder only does plain capture
+xpadneo-dkms        # Xbox controllers over Bluetooth, properly
+# game-devices-udev # AUR: broad controller support (PS, Switch Pro, 8BitDo)
+# vkbasalt          # AUR: post-processing (sharpening, CAS) for Vulkan titles
+
+[safety]
+# snapper + snap-pac already cover "a pacman update broke it". Neither covers
+# a dead NVMe or a stolen machine — these are the off-box half.
+restic              # encrypted, deduplicating, works to almost any backend
+rclone              # the transport, if you back up to cloud storage
+
+earlyoom            # kills the worst offender instead of letting the box lock
+                    # up. 60 GB of RAM makes this rare, not impossible: a build
+                    # and a game at once still gets there, and zram-only swap
+                    # thrashes hard when it does.
+
+[desktop]
+cups                # no printing stack at all currently
+system-config-printer
+flatpak             # escape hatch for anything not packaged for Arch
+bluez-obex          # sending files over Bluetooth
+easyeffects         # EQ and per-app audio effects on PipeWire
+qpwgraph            # visual PipeWire patchbay, invaluable when routing breaks

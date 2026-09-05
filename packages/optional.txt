@@ -28,3 +28,10 @@ qpwgraph            # visual PipeWire patchbay, invaluable when routing breaks
 # thunderbird       # Proton Mail's desktop app is already installed
 # keepassxc         # Proton Pass covers this
 # syncthing         # only if you sync between machines
+
+[testing]
+# Validating install.sh against a machine that is not yours. QEMU rather than
+# VirtualBox: AMD-V is already in the kernel and virtio-gpu-gl gives the guest
+# real GL, which Hyprland needs. See tools/test-vm.sh.
+qemu-desktop
+edk2-ovmf

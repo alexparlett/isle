@@ -37,7 +37,19 @@ hl.env("NVD_BACKEND", "direct")
 --
 -- by-path, not /dev/dri/cardN: card numbering is reassigned at boot. 01:00.0 is
 -- the NVIDIA PCI address on this machine (`lspci -d ::03xx` to re-check).
-hl.env("AQ_DRM_DEVICES", "/dev/dri/by-path/pci-0000:01:00.0-card")
+--
+-- Only set when the node actually exists. Pinning aquamarine to a device that
+-- is not there leaves it with no GPU at all and Hyprland does not start — which
+-- is exactly what would happen in a VM, on a different machine, or if the card
+-- moved slots. Absent the pin, aquamarine picks a device itself, which is the
+-- right behaviour everywhere except this specific dual-GPU box.
+local PRIMARY_GPU = "/dev/dri/by-path/pci-0000:01:00.0-card"
+
+local node = io.open(PRIMARY_GPU, "r")
+if node then
+    node:close()
+    hl.env("AQ_DRM_DEVICES", PRIMARY_GPU)
+end
 
 -- --- Cursor -----------------------------------------------------------------
 hl.env("XCURSOR_THEME", theme.cursor.theme)

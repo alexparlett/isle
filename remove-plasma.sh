@@ -321,7 +321,9 @@ printf '%s\n' "${plan[@]}" | column -c "${COLUMNS:-100}"
 printf '\n'
 
 if ((DO_APPS)); then
-    mapfile -t replacements < <(sed 's/#.*//' "$REPO/packages/gtk-replacements.txt" | awk 'NF')
+    # print $1, not just NF: an inline comment leaves trailing whitespace that
+    # pacman would treat as part of the package name.
+    mapfile -t replacements < <(sed 's/#.*//' "$REPO/packages/gtk-replacements.txt" | awk 'NF{print $1}')
     printf '%sand %d GTK replacements would be installed first:%s\n\n' \
         "$c_bold" "${#replacements[@]}" "$c_reset"
     printf '      %s\n' "${replacements[*]}"

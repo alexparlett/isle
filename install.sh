@@ -283,7 +283,11 @@ ok "user $USER, config dir $CONFIG"
 
 # --- packages ----------------------------------------------------------------
 
-pkglist() { sed 's/#.*//' "$1" | awk 'NF'; }
+# One package name per line, comments and surrounding whitespace removed.
+# `awk NF{print $1}` rather than `awk NF`: stripping "dex  # comment" leaves the
+# trailing spaces behind, and pacman then looks for a package literally called
+# "dex                     " and reports it missing.
+pkglist() { sed 's/#.*//' "$1" | awk 'NF{print $1}'; }
 
 if ((DO_PACKAGES)); then
     info "Installing packages from the repositories"

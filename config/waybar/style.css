@@ -54,6 +54,8 @@ window#waybar.hidden {
 #custom-codex,
 #custom-claude-app,
 #custom-chatgpt,
+#custom-gamemode,
+#custom-cputemp,
 #custom-updates,
 #cpu,
 #memory,
@@ -228,6 +230,36 @@ window#waybar.empty #window {
   margin: 0;
   border: none;
   min-width: 0;
+}
+
+/* GameMode: present only while it is actually holding the governor. */
+#custom-gamemode.active {
+  color: @base;
+  background: @green;
+  border-color: @green;
+  font-size: 15px;
+}
+
+#custom-gamemode.none {
+  opacity: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  min-width: 0;
+}
+
+#custom-cputemp {
+  color: @sky;
+}
+
+#custom-cputemp.warning {
+  color: @peach;
+}
+
+#custom-cputemp.critical {
+  color: @red;
+  background: alpha(@red, 0.15);
+  border-color: alpha(@red, 0.5);
 }
 
 #cpu {

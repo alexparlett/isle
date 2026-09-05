@@ -71,6 +71,9 @@ hl.bind(cmd .. " + " .. opt .. " + U",   hl.dsp.exec_cmd(term .. " -e cachy-upda
 -- behind ⌥.
 hl.bind(cmd .. " + " .. opt .. " + A", hl.dsp.exec_cmd(scripts .. "/ai.sh claude"),  d("Claude panel"))
 hl.bind(cmd .. " + " .. opt .. " + G", hl.dsp.exec_cmd(scripts .. "/ai.sh chatgpt"), d("ChatGPT panel"))
+-- Jump to whichever session is blocked waiting on you.
+hl.bind(cmd .. " + " .. opt .. " + " .. shift .. " + A",
+        hl.dsp.exec_cmd(scripts .. "/agent-attention.sh"), d("Go to the agent waiting on you"))
 
 --------------------------------------------------------------------------------
 --  Session

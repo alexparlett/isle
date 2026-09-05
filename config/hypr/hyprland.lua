@@ -15,6 +15,7 @@ require("look")
 require("binds")
 require("rules")
 require("gaming")
+require("dnd")
 require("autostart")
 
 -- Machine-local overrides, not tracked by git. Create ~/.config/hypr/local.lua

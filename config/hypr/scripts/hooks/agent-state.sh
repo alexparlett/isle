@@ -91,4 +91,21 @@ new=$(jq -n \
 printf "%s" "$new" > "$file.tmp" && mv "$file.tmp" "$file"
 
 refresh
+
+# A pill in the bar is easy to miss on a 3440px screen when you have looked
+# away. Toast the transition into `attention` — only the transition, so a
+# session sitting blocked does not nag on every subsequent hook.
+if [[ "$verb" == "attention" ]]; then
+    was=$(jq -r '.state // ""' <<< "$prev" 2>/dev/null)
+    if [[ "$was" != "attention" ]] && command -v notify-send >/dev/null; then
+        project=$(basename "${cwd:-$PWD}")
+        # Never let a missing notification daemon put noise on a hook's stderr —
+        # the agent surfaces that as a hook failure.
+        notify-send -a "${agent^}" -u normal -i dialog-question \
+            "${agent^} needs you" \
+            "${message:-Waiting for input}${project:+  ·  $project}" \
+            2>/dev/null || true
+    fi
+fi
+
 exit 0

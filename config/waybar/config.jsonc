@@ -27,7 +27,9 @@
     "custom/claude-app",
     "custom/chatgpt",
     "custom/updates",
+    "custom/gamemode",
     "cpu",
+    "custom/cputemp",
     "memory",
     "custom/gpu",
     "pulseaudio",
@@ -174,6 +176,25 @@
     "on-click": "alacritty -e cachy-update",
     "on-click-right": "alacritty -e cachy-update --news",
     "signal": 9
+  },
+
+  // Shows only while GameMode is actually holding the CPU governor — a typo in
+  // a launch option means gamemoderun silently does nothing, and this is how
+  // you find out.
+  "custom/gamemode": {
+    "exec": "~/.config/hypr/scripts/waybar-gamemode.sh",
+    "return-type": "json",
+    "interval": 5,
+    "format": "{}",
+    "tooltip": true
+  },
+
+  "custom/cputemp": {
+    "exec": "~/.config/hypr/scripts/waybar-cputemp.sh",
+    "return-type": "json",
+    "interval": 5,
+    "format": "󰔏 {}",
+    "on-click": "coolercontrol"
   },
 
   "cpu": {

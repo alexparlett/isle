@@ -57,6 +57,10 @@ hl.config({
 
     dwindle = {
         preserve_split = true,
+        -- Drop a dragged window where the cursor actually is, rather than
+        -- wherever the tree thinks it belongs. This is the difference between
+        -- dragging feeling like rearranging windows and feeling like a fight.
+        precise_mouse_move = true,
         -- On a 3440px-wide screen a new window should land beside the old one
         -- rather than under it until things actually get narrow.
         force_split            = 2,

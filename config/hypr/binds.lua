@@ -154,25 +154,14 @@ hl.bind(cmd .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true, descripti
 hl.bind(cmd .. " + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Resize window" })
 
 --------------------------------------------------------------------------------
---  Ultrawide thirds
+--  Window zones
 --
---  3440 wide, 10px gaps, ~40px bar: three columns of 1133px starting at
---  x = 10 / 1153 / 2296. ⌥⌘0 hands the window back to the tiler.
+--  ⌥⌘1-6 snap the focused window to thirds, halves and full width; the same
+--  zones are reachable by dragging a floating window to a screen edge. Both
+--  live in snap.lua so the geometry is computed once, from the monitor and the
+--  bar's real reserved height, rather than hardcoded here.
 --------------------------------------------------------------------------------
 
-local COL_W, COL_H, TOP = 1133, 1380, 50
-
-local function snap_to(x)
-    return function()
-        hl.dispatch(hl.dsp.window.float({ action = "enable" }))
-        hl.dispatch(hl.dsp.window.resize({ x = COL_W, y = COL_H, relative = false }))
-        hl.dispatch(hl.dsp.window.move({ x = x, y = TOP, relative = false }))
-    end
-end
-
-hl.bind(opt .. " + " .. cmd .. " + 1", snap_to(10),   d("Snap to left third"))
-hl.bind(opt .. " + " .. cmd .. " + 2", snap_to(1153), d("Snap to centre third"))
-hl.bind(opt .. " + " .. cmd .. " + 3", snap_to(2296), d("Snap to right third"))
 hl.bind(opt .. " + " .. cmd .. " + 0", hl.dsp.window.float({ action = "disable" }), d("Back to tiling"))
 
 --------------------------------------------------------------------------------

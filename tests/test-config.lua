@@ -21,7 +21,7 @@ end
 
 -- --- load every module, in the order hyprland.lua does ---------------------
 
-local MODULES = { "env", "monitors", "input", "look", "binds", "rules", "gaming", "dnd", "autostart" }
+local MODULES = { "env", "monitors", "input", "look", "binds", "snap", "rules", "gaming", "dnd", "autostart" }
 
 for _, name in ipairs(MODULES) do
     local ok, err = pcall(require, name)
@@ -42,6 +42,11 @@ for _, b in ipairs(c.bind) do
           kind == "function" or (kind == "table" and b.action.__dispatcher ~= nil),
           "got " .. kind)
 
+    -- `click`, `drag` and `release` are the documented way to hang different
+    -- gestures off one button, so those are not collisions.
+    local gesture = type(b.flags) == "table"
+        and (b.flags.drag or b.flags.click or b.flags.release or b.flags.long_press)
+
     -- Modifier order matters for duplicate detection, not for Hyprland.
     local mods, key = {}, nil
     for raw in b.keys:gmatch("[^+]+") do
@@ -50,8 +55,10 @@ for _, b in ipairs(c.bind) do
     end
     table.sort(mods)
     local norm = table.concat(mods, "+") .. "|" .. tostring(key)
-    if seen[norm] then table.insert(duplicates, b.keys .. "  collides with  " .. seen[norm]) end
-    seen[norm] = b.keys
+    if not gesture then
+        if seen[norm] then table.insert(duplicates, b.keys .. "  collides with  " .. seen[norm]) end
+        seen[norm] = b.keys
+    end
 end
 check("no duplicate keybinds", #duplicates == 0, table.concat(duplicates, "; "))
 
@@ -145,6 +152,54 @@ check("tearing is enabled for games to opt into", cfg.general and cfg.general.al
 check("VRR is fullscreen-only", cfg.misc and cfg.misc.vrr == 2,
       "full-desktop VRR flickers on this panel")
 check("keyboard layout is gb", cfg.input and cfg.input.kb_layout == "gb")
+
+-- --- snap zones ------------------------------------------------------------
+--
+-- Pure geometry, so it can be checked properly rather than eyeballed.
+
+local snap = require("snap")
+local g = { x = 0, y = 0, width = 3440, height = 1440, top = 50, bottom = 10 }
+
+local zones = {
+    { 5,    700,  "left",         "left edge" },
+    { 3435, 700,  "right",        "right edge" },
+    { 1700, 5,    "maximise",     "top edge, away from corners" },
+    { 5,    5,    "top-left",     "top-left corner" },
+    { 3435, 5,    "top-right",    "top-right corner" },
+    { 5,    1435, "bottom-left",  "bottom-left corner" },
+    { 3435, 1435, "bottom-right", "bottom-right corner" },
+    { 1700, 1435, "centre",       "bottom edge, away from corners" },
+    { 1700, 700,  nil,            "middle of the screen snaps to nothing" },
+    { 1700, 200,  nil,            "just below the top edge does not snap" },
+}
+
+for _, z in ipairs(zones) do
+    local got = snap.zone_for(z[1], z[2], g)
+    check("snap zone: " .. z[4], got == z[3],
+          ("(%d,%d) gave %s, expected %s"):format(z[1], z[2], tostring(got), tostring(z[3])))
+end
+
+-- Every zone must produce a rectangle that fits on the monitor, below the bar.
+for _, zone in ipairs({ "left", "right", "left-third", "right-third", "centre",
+                        "maximise", "top-left", "top-right", "bottom-left", "bottom-right" }) do
+    local placed = {}
+    local real_dispatch = hl.dispatch
+    -- Capture the resize/move pair without a live compositor.
+    _G.hl = setmetatable({ dispatch = function(d) table.insert(placed, d) end }, { __index = mock.hl })
+    snap.place(zone, g)
+    _G.hl = mock.hl
+    hl.dispatch = real_dispatch
+
+    check("zone '" .. zone .. "' emits a resize and a move", #placed == 2, ("%d calls"):format(#placed))
+    if #placed == 2 then
+        local size, pos = placed[1].args, placed[2].args
+        local fits = pos.x >= g.x and pos.y >= g.y + g.top
+                 and pos.x + size.x <= g.x + g.width
+                 and pos.y + size.y <= g.y + g.height - g.bottom + 1
+        check("zone '" .. zone .. "' fits on screen below the bar", fits,
+              ("%dx%d at %d,%d"):format(size.x, size.y, pos.x, pos.y))
+    end
+end
 
 -- --- report ----------------------------------------------------------------
 

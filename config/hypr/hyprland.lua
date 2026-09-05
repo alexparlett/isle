@@ -13,6 +13,7 @@ require("monitors")
 require("input")
 require("look")
 require("binds")
+require("snap")   -- after binds: it adds a release action to ⌘-drag
 require("rules")
 require("gaming")
 require("dnd")

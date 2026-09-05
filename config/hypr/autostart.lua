@@ -33,7 +33,15 @@ hl.on("hyprland.start", function()
 
     -- Plasma runs ~/.config/autostart/*.desktop for you; Hyprland does not.
     -- dex replays them so nothing you already rely on silently stops starting.
+    -- It honours OnlyShowIn, so the KDE-only entries (plasmashell, powerdevil,
+    -- kglobalacceld, baloo) are correctly skipped while KDE Connect still runs.
     hl.exec_cmd("dex --autostart --environment Hyprland")
+
+    -- Baloo is one of the entries dex skips, so Dolphin's search falls back to
+    -- matching filenames rather than content. Uncomment to get indexed search
+    -- back, at the cost of a background indexer churning your disk. `fd` and
+    -- `rg` from a terminal are the other answer.
+    -- hl.exec_cmd("/usr/lib/kf6/baloo_file")
 
     -- Night light. hyprsunset idles until something asks it for a temperature.
     hl.exec_cmd("hyprsunset")

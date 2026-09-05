@@ -230,6 +230,33 @@ printf '\n%s%d passed, %d warnings, %d failed%s\n' \
 # The whole point of keeping Plasma is to have somewhere to land while Hyprland
 # is unproven. This is the signal for when that stops being true.
 
+section "Login sessions"
+
+mapfile -t offered < <(
+    for d in /usr/local/share/wayland-sessions /usr/share/wayland-sessions; do
+        [[ -d "$d" ]] || continue
+        for f in "$d"/*.desktop; do
+            [[ -f "$f" ]] || continue
+            base=$(basename "$f")
+            # A mask in the higher-precedence dir hides the system one.
+            if [[ -f "/usr/local/share/wayland-sessions/$base" ]] &&
+               grep -qiE '^(Hidden|NoDisplay)=true' "/usr/local/share/wayland-sessions/$base"; then
+                continue
+            fi
+            grep -qiE '^(Hidden|NoDisplay)=true' "$f" && continue
+            printf '%s\n' "$base"
+        done
+    done | sort -u
+)
+for s in "${offered[@]}"; do note "SDDM offers: $s"; done
+
+if printf '%s\n' "${offered[@]}" | grep -q '^hyprland-uwsm.desktop$'; then
+    warn "the uwsm entry is still offered, and uwsm $(pacman -Q uwsm &>/dev/null && echo 'is installed' || echo 'is NOT installed — picking it would fail')"
+    note "re-run ./install.sh, or see the NoExtract fallback in the README"
+else
+    ok "only one Hyprland session offered"
+fi
+
 section "Plasma fallback"
 
 if ! pacman -Q plasma-desktop &>/dev/null; then

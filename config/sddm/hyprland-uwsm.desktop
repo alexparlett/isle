@@ -1,0 +1,20 @@
+# Masks the "Hyprland (uwsm)" entry SDDM would otherwise offer.
+#
+# The hyprland package ships two session files, hyprland.desktop and
+# hyprland-uwsm.desktop, so the login screen asks which one you want every
+# time. This config does not use uwsm — autostart.lua imports the environment
+# into systemd itself — and uwsm is not even installed, so picking that entry
+# would drop you back at the login screen wondering what you did wrong.
+#
+# Installed to /usr/local/share/wayland-sessions/, which SDDM reads *before*
+# /usr/share/wayland-sessions (see `sddm --example-config`, SessionDir). Local
+# wins, and pacman never touches /usr/local, so this survives every Hyprland
+# update. Delete the file to get the entry back.
+
+[Desktop Entry]
+Name=Hyprland (uwsm)
+Comment=Masked by the hyprland dotfiles — this config does not use uwsm
+Exec=false
+Type=Application
+Hidden=true
+NoDisplay=true

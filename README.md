@@ -300,9 +300,22 @@ Nothing in `install.sh` touches it.
 
 1. **`./install.sh`** — packages, symlinks, hooks, KDE colours. Plasma is not
    touched; it only *reads* `plasma-apply-colorscheme` while that exists.
-2. **Log out and pick `Hyprland`** at SDDM. The package ships two entries —
-   `Hyprland` and `Hyprland (uwsm)` — and this config wants the plain one.
-   Plasma stays in that menu the whole time.
+2. **Log out and pick `Hyprland`** at SDDM. Plasma stays in that menu the whole
+   time.
+
+   The hyprland package ships two session entries, `Hyprland` and
+   `Hyprland (uwsm)`, so the login screen would ask which one every time.
+   This config does not use uwsm — `autostart.lua` imports the environment into
+   systemd itself — so `install.sh` masks that entry by writing a `Hidden=true`
+   file to `/usr/local/share/wayland-sessions/`, which SDDM reads *before*
+   `/usr/share/wayland-sessions` and pacman never overwrites.
+
+   If it somehow still appears, the guaranteed fix is to stop pacman shipping
+   the file at all — add to `/etc/pacman.conf`:
+
+   ```conf
+   NoExtract = usr/share/wayland-sessions/hyprland-uwsm.desktop
+   ```
 3. **`./doctor.sh`** — checks what only a running session can prove. It ends by
    telling you whether the fallback is still earning its place.
 4. **Live with it.** Days, not minutes. Anything that goes wrong is one logout

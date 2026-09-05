@@ -421,6 +421,24 @@ else
     warn "arch-update.timer not found — is cachy-update installed?"
 fi
 
+# The hyprland package ships two session entries, so SDDM asks which Hyprland
+# you want on every login. This config does not use uwsm, so mask that one.
+# /usr/local wins over /usr/share in SDDM's SessionDir order and pacman never
+# writes there, so the mask survives package updates.
+sessions_dir=/usr/local/share/wayland-sessions
+if [[ -f "$sessions_dir/hyprland-uwsm.desktop" ]]; then
+    ok "uwsm session entry already masked"
+elif ((DRY_RUN)); then
+    skip "would mask the Hyprland (uwsm) session entry"
+else
+    if sudo install -Dm644 "$REPO/config/sddm/hyprland-uwsm.desktop" \
+                           "$sessions_dir/hyprland-uwsm.desktop"; then
+        ok "masked the Hyprland (uwsm) entry — SDDM will offer one Hyprland"
+    else
+        warn "could not mask the uwsm session entry"
+    fi
+fi
+
 # earlyoom does nothing until its service runs. Defaults are sensible: it acts
 # at 10% free memory, killing the largest offender rather than letting the
 # machine thrash itself unusable.

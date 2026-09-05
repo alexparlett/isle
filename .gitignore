@@ -1,0 +1,13 @@
+# Generated at install time, not committed — keeps binaries out of the repo.
+config/hypr/wallpapers/
+
+# Per-machine overrides, sourced by hyprland.lua if present.
+config/hypr/local.lua
+
+# Backups install.sh makes when it finds a real file where a symlink should go.
+*.bak-*
+
+# Editor and tooling state.
+.idea/
+.vscode/
+.claude/

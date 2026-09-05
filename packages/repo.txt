@@ -1,0 +1,76 @@
+# Packages from the CachyOS / Arch repositories.
+# Lines starting with # and blank lines are ignored by install.sh.
+
+# --- Compositor and session ---------------------------------------------
+hyprland
+hyprland-qt-support
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+hyprpolkitagent
+xorg-xwayland
+qt5-wayland
+qt6-wayland
+egl-wayland
+wireplumber
+dex                     # replays ~/.config/autostart/*.desktop, which Plasma did for us
+
+# --- Hypr* ecosystem -----------------------------------------------------
+hyprlock
+hypridle
+hyprpaper
+hyprpicker
+hyprcursor
+hyprsunset
+
+# --- Shell ---------------------------------------------------------------
+waybar
+rofi
+swaync
+swayosd
+wlogout
+
+# --- Terminal ------------------------------------------------------------
+alacritty
+
+# --- Clipboard, screenshots, recording -----------------------------------
+wl-clipboard
+cliphist
+grim
+slurp
+swappy
+wf-recorder
+
+# --- Tray, network, bluetooth, audio, media ------------------------------
+network-manager-applet
+blueman
+pavucontrol
+playerctl
+brightnessctl
+udiskie
+
+# --- Theming -------------------------------------------------------------
+papirus-icon-theme
+nwg-look
+qt6ct
+qt5ct
+
+# --- Fonts ---------------------------------------------------------------
+ttf-jetbrains-mono-nerd
+ttf-nerd-fonts-symbols
+ttf-nerd-fonts-symbols-mono
+noto-fonts
+noto-fonts-emoji
+
+# --- Gaming --------------------------------------------------------------
+gamemode
+lib32-gamemode
+mangohud
+lib32-mangohud
+
+# --- Updates and scripting helpers ---------------------------------------
+cachy-update            # CachyOS build of arch-update: notifier + interactive updater
+pacman-contrib          # checkupdates, used by the Waybar updates module
+jq
+socat
+imagemagick
+xdg-user-dirs

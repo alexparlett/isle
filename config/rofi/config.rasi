@@ -1,0 +1,28 @@
+/* rofi — launcher, run dialog, window switcher, clipboard picker */
+
+configuration {
+    modes: "drun,run,window";
+    font: "JetBrainsMono Nerd Font 11";
+
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    display-drun: "Apps";
+    display-run: "Run";
+    display-window: "Windows";
+    drun-display-format: "{name}";
+    window-format: "{w}  {c}  {t}";
+
+    terminal: "alacritty";
+    matching: "fuzzy";
+    sort: true;
+    sorting-method: "fzf";
+
+    kb-cancel: "Escape,MouseSecondary";
+    /* Free up Ctrl+Delete / Shift+Delete for the clipboard script's custom
+     * keybinds by unbinding their defaults. */
+    kb-delete-entry: "";
+    kb-remove-char-forward: "Delete";
+}
+
+/* Absolute path: a bare name would be looked up in the system theme dir. */
+@theme "~/.config/rofi/catppuccin-mocha.rasi"

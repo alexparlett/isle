@@ -1,0 +1,112 @@
+/* Catppuccin Mocha for rofi */
+
+* {
+    base:     #1e1e2eff;
+    mantle:   #181825ff;
+    crust:    #11111bff;
+    surface0: #313244ff;
+    surface1: #45475aff;
+    surface2: #585b70ff;
+    text:     #cdd6f4ff;
+    subtext0: #a6adc8ff;
+    overlay0: #6c7086ff;
+    mauve:    #cba6f7ff;
+    blue:     #89b4faff;
+    red:      #f38ba8ff;
+    green:    #a6e3a1ff;
+
+    background-color: transparent;
+    text-color:       @text;
+    margin:  0;
+    padding: 0;
+    spacing: 0;
+}
+
+window {
+    width:            38%;
+    background-color: @base;
+    border:           2px;
+    border-color:     @mauve;
+    border-radius:    14px;
+    location:         center;
+    anchor:           center;
+    transparency:     "real";
+}
+
+mainbox {
+    padding:  14px;
+    children: [ inputbar, message, listview ];
+}
+
+inputbar {
+    background-color: @mantle;
+    border:           1px;
+    border-color:     @surface0;
+    border-radius:    10px;
+    padding:          10px 14px;
+    spacing:          10px;
+    children:         [ prompt, entry ];
+}
+
+prompt {
+    text-color: @mauve;
+    font:       "JetBrainsMono Nerd Font Bold 11";
+}
+
+entry {
+    placeholder:            "Search…";
+    placeholder-color:      @overlay0;
+    cursor:                 text;
+}
+
+message {
+    margin:           10px 0 0 0;
+    padding:          8px 12px;
+    background-color: @mantle;
+    border-radius:    10px;
+}
+
+textbox {
+    text-color: @subtext0;
+}
+
+listview {
+    lines:         10;
+    columns:       1;
+    fixed-height:  false;
+    scrollbar:     false;
+    margin:        12px 0 0 0;
+    spacing:       4px;
+    cycle:         true;
+    dynamic:       true;
+}
+
+element {
+    padding:       9px 12px;
+    spacing:       12px;
+    border-radius: 10px;
+    cursor:        pointer;
+}
+
+element normal.normal   { text-color: @text; }
+element alternate.normal { text-color: @text; }
+
+element selected.normal {
+    background-color: @surface0;
+    text-color:       @mauve;
+}
+
+element urgent.normal   { text-color: @red; }
+element active.normal   { text-color: @green; }
+
+element-icon {
+    size:             1.15em;
+    vertical-align:   0.5;
+    background-color: transparent;
+}
+
+element-text {
+    vertical-align:   0.5;
+    background-color: transparent;
+    text-color:       inherit;
+}

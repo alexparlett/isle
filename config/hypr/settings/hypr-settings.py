@@ -29,6 +29,7 @@ from gi.repository import GLib, Gtk, Gdk  # noqa: E402
 
 LOCAL_LUA = Path.home() / ".config" / "hypr" / "local.lua"
 MARKER = "-- managed by hypr-settings"
+REBINDS = Path.home() / ".config" / "hypr" / "keybinds.conf"
 
 # --------------------------------------------------------------------------
 # Palette — Catppuccin Mocha, matching the rest of the desktop.
@@ -286,8 +287,9 @@ class SettingsWindow(Gtk.ApplicationWindow):
             page.append(self._group_title(group))
             page.append(self._card(specs))
 
-        page.append(self._group_title("Shortcut profile"))
+        page.append(self._group_title("Keyboard shortcuts"))
         page.append(self._keymap_card())
+        page.append(self._shortcuts_card())
 
         page.append(self._group_title("Power and idle"))
         page.append(self._idle_card())
@@ -534,6 +536,186 @@ class SettingsWindow(Gtk.ApplicationWindow):
         row.set_child(line)
         box.append(row)
         return box
+
+    # ---- shortcuts -------------------------------------------------------
+    #
+    # Binds are registered while the config loads, so there is no such thing as
+    # rebinding a live one. Overrides go to ~/.config/hypr/keybinds.conf as
+    # `description = keys`, and binds-shared.lua applies them as each bind
+    # registers. A bind's description is its identity — already unique, already
+    # what this list and the ⌘? cheatsheet show.
+
+    def _read_rebinds(self):
+        rebinds = {}
+        try:
+            for line in REBINDS.read_text().splitlines():
+                if line.strip().startswith("#") or "=" not in line:
+                    continue
+                desc, keys = line.split("=", 1)
+                rebinds[desc.strip()] = keys.strip()
+        except OSError:
+            pass
+        return rebinds
+
+    def _write_rebinds(self, rebinds):
+        lines = [
+            "# Rebound shortcuts, written by the settings window.",
+            "# One `description = keys` per line; the description identifies the bind.",
+            "# Delete a line to restore that shortcut's default.",
+            "",
+        ]
+        lines += [f"{desc} = {keys}" for desc, keys in sorted(rebinds.items())]
+        try:
+            REBINDS.parent.mkdir(parents=True, exist_ok=True)
+            REBINDS.write_text("\n".join(lines) + "\n")
+        except OSError as exc:
+            self._flash(f"Could not write {REBINDS.name}: {exc}")
+            return False
+        hyprctl(["reload"])
+        return True
+
+    @staticmethod
+    def _live_binds():
+        """Description → current keys, straight from the running compositor."""
+        raw = hyprctl(["binds", "-j"])
+        if not raw:
+            return []
+        try:
+            binds = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+
+        names = [(64, "SUPER"), (8, "ALT"), (4, "CTRL"), (1, "SHIFT")]
+        out, seen = [], set()
+        for b in binds:
+            desc = (b.get("description") or "").strip()
+            if not desc or desc in seen:
+                continue
+            seen.add(desc)
+            mods = [n for bit, n in names if int(b.get("modmask", 0)) & bit]
+            key = b.get("key") or f"code:{b.get('keycode')}"
+            out.append((desc, " + ".join(mods + [key])))
+        return sorted(out)
+
+    def _shortcuts_card(self):
+        box = Gtk.ListBox()
+        box.set_selection_mode(Gtk.SelectionMode.NONE)
+        box.add_css_class("card")
+
+        binds = self._live_binds()
+        rebinds = self._read_rebinds()
+
+        if not binds:
+            row = Gtk.ListBoxRow()
+            row.set_activatable(False)
+            label = Gtk.Label(
+                label="Shortcuts are read from the running compositor — "
+                      "start Hyprland to edit them.",
+                xalign=0, wrap=True)
+            label.add_css_class("row-subtitle")
+            row.set_child(label)
+            box.append(row)
+            return box
+
+        header = Gtk.ListBoxRow()
+        header.set_activatable(False)
+        head_line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        note = Gtk.Label(label=f"{len(binds)} shortcuts · click one to rebind", xalign=0, hexpand=True)
+        note.add_css_class("row-subtitle")
+        head_line.append(note)
+        reset_all = Gtk.Button(label="Reset all")
+        reset_all.add_css_class("link-tool")
+        reset_all.connect("clicked", self._reset_all_rebinds)
+        head_line.append(reset_all)
+        header.set_child(head_line)
+        box.append(header)
+
+        for desc, keys in binds:
+            row = Gtk.ListBoxRow()
+            row.set_activatable(False)
+            line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+            label = Gtk.Label(label=desc, xalign=0, hexpand=True)
+            label.add_css_class("row-title")
+            line.append(label)
+
+            if desc in rebinds:
+                changed = Gtk.Label(label="changed")
+                changed.add_css_class("row-subtitle")
+                line.append(changed)
+
+            button = Gtk.Button(label=keys)
+            button.add_css_class("link-tool")
+            button.connect("clicked", self._capture_shortcut, desc)
+            line.append(button)
+
+            row.set_child(line)
+            box.append(row)
+
+        return box
+
+    def _capture_shortcut(self, button, desc):
+        dialog = Gtk.Window(transient_for=self, modal=True, title="Rebind")
+        dialog.set_default_size(420, 170)
+
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        body.set_margin_top(24); body.set_margin_bottom(20)
+        body.set_margin_start(24); body.set_margin_end(24)
+
+        what = Gtk.Label(label=desc)
+        what.add_css_class("group-title")
+        body.append(what)
+
+        prompt = Gtk.Label(label="Press the new shortcut…")
+        prompt.add_css_class("row-title")
+        body.append(prompt)
+
+        hint = Gtk.Label(label="Esc cancels · Backspace restores the default")
+        hint.add_css_class("row-subtitle")
+        body.append(hint)
+
+        def on_key(_controller, keyval, _keycode, state):
+            name = Gdk.keyval_name(keyval)
+            if name in (None, "Escape"):
+                dialog.close()
+                return True
+            if name == "BackSpace":
+                rebinds = self._read_rebinds()
+                if rebinds.pop(desc, None) is not None and self._write_rebinds(rebinds):
+                    self._flash(f"“{desc}” restored to its default")
+                dialog.close()
+                return True
+
+            # Ignore a modifier pressed on its own — wait for the real key.
+            if name in ("Super_L", "Super_R", "Control_L", "Control_R",
+                        "Alt_L", "Alt_R", "Shift_L", "Shift_R", "Meta_L", "Meta_R"):
+                return True
+
+            mods = []
+            if state & Gdk.ModifierType.SUPER_MASK:   mods.append("SUPER")
+            if state & Gdk.ModifierType.ALT_MASK:     mods.append("ALT")
+            if state & Gdk.ModifierType.CONTROL_MASK: mods.append("CTRL")
+            if state & Gdk.ModifierType.SHIFT_MASK:   mods.append("SHIFT")
+
+            combo = " + ".join(mods + [name])
+            rebinds = self._read_rebinds()
+            rebinds[desc] = combo
+            if self._write_rebinds(rebinds):
+                self._flash(f"“{desc}” is now {combo} — reloaded")
+            dialog.close()
+            return True
+
+        controller = Gtk.EventControllerKey()
+        controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        controller.connect("key-pressed", on_key)
+        dialog.add_controller(controller)
+
+        dialog.set_child(body)
+        dialog.present()
+
+    def _reset_all_rebinds(self, _button):
+        if self._write_rebinds({}):
+            self._flash("All shortcuts restored to their profile defaults")
 
     def _night_light_card(self):
         box = Gtk.ListBox()

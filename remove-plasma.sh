@@ -76,14 +76,39 @@ plasma_targets() {
 APP_PKGS=(
     dolphin ark okular gwenview kate konsole kcalc filelight kdialog haruna
     kdeconnect
+
+    # The GUI wallet browser. The wallet itself stays — kwallet ships
+    # kwalletd6, ksecretd and kwallet-query, so the daemon keeps serving
+    # secrets and you can still inspect them from a terminal. This GUI is the
+    # only thing pinning kio, kservice, kcmutils and karchive once the rest of
+    # KDE is gone, which is a lot of stack for a window you never open.
+    kwalletmanager
+
+    # Explicitly installed, so pacman will not treat them as orphans and clean
+    # them up on its own. They exist to give Dolphin and Gwenview thumbnails
+    # and an admin:// handler; without those apps they do nothing.
+    kio-admin
+    ffmpegthumbs
+    kdegraphics-thumbnailers
 )
 
-# Removing any of these would break something this desktop actually relies on.
+# Removing any of these would break something this desktop actually relies on,
+# so the script aborts rather than proceeding if pacman's plan includes one.
+#
+# Keep this list to things that genuinely must survive. Anything listed here
+# that is merely *nice* to keep turns into a false alarm that blocks the very
+# cleanup you are running — kio was on this list originally on the assumption
+# that the wallet needed it. It is the other way round: kio depends on kwallet.
+# With every KDE app gone, nothing needs kio and it should be free to go.
 PROTECTED=(
-    kwallet kwallet-pam            # kio needs it; so do your Proton packages
-    kio kio-extras kwindowsystem kconfig kiconthemes
-    breeze-icons                   # icon fallback for every KDE app
-    sddm cachyos-themes-sddm       # the login manager stays
+    # The wallet is live: python-proton-keyring-linux keeps your Proton
+    # credentials in it, and kwallet-pam unlocks it at login.
+    kwallet kwallet-pam
+
+    # The login manager is independent of Plasma and stays.
+    sddm cachyos-themes-sddm
+
+    # The desktop itself.
     hyprland waybar rofi swaync swayosd wlogout hyprlock hypridle hyprpaper
     hyprpolkitagent xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
     pipewire wireplumber networkmanager polkit

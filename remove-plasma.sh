@@ -2,9 +2,12 @@
 #
 # Retire the Plasma fallback, once Hyprland has earned your trust.
 #
-#   ./remove-plasma.sh            show the plan, change nothing
-#   ./remove-plasma.sh --run      actually remove, after confirmation
+#   ./remove-plasma.sh                show the plan, change nothing
+#   ./remove-plasma.sh --run          actually remove, after confirmation
 #   ./remove-plasma.sh --run --apps   also remove the KDE applications
+#   ./remove-plasma.sh --drop-kwallet also remove KWallet — see the warning it
+#                                     prints; your stored secrets stop being
+#                                     readable and move to gnome-keyring
 #
 # Removes the Plasma *session* — the shell, KWin, the KCMs, the Plasma applets —
 # while keeping the parts of KDE that are just libraries or applications:
@@ -20,6 +23,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DO_RUN=0
 DO_APPS=0
+DO_DROP_KWALLET=0
 
 c_reset=$'\e[0m'; c_bold=$'\e[1m'; c_dim=$'\e[2m'
 c_green=$'\e[32m'; c_yellow=$'\e[33m'; c_red=$'\e[31m'; c_blue=$'\e[34m'
@@ -33,6 +37,7 @@ while (($#)); do
     case "$1" in
         --run)  DO_RUN=1 ;;
         --apps) DO_APPS=1 ;;
+        --drop-kwallet) DO_DROP_KWALLET=1 ;;
         -h|--help) sed -n '3,16p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;;
         *) err "unknown option: $1"; exit 2 ;;
     esac
@@ -101,10 +106,6 @@ APP_PKGS=(
 # that the wallet needed it. It is the other way round: kio depends on kwallet.
 # With every KDE app gone, nothing needs kio and it should be free to go.
 PROTECTED=(
-    # The wallet is live: python-proton-keyring-linux keeps your Proton
-    # credentials in it, and kwallet-pam unlocks it at login.
-    kwallet kwallet-pam
-
     # The login manager is independent of Plasma and stays.
     sddm cachyos-themes-sddm
 
@@ -113,7 +114,24 @@ PROTECTED=(
     hyprpolkitagent xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
     pipewire wireplumber networkmanager polkit
     qt5-wayland qt6-wayland xorg-xwayland
+
+    # The Secret Service. python-proton-keyring-linux depends on gnome-keyring
+    # directly, and PAM starts and unlocks it at login.
+    gnome-keyring
 )
+
+# kwallet is only removed with --drop-kwallet, because unlike everything else
+# here it is not just a package — it is where secrets currently live.
+KWALLET_PKGS=(kwallet kwallet-pam)
+
+# Unless you asked to drop it, kwallet has to be actively defended rather than
+# merely left off the target list. With kio and kwalletmanager gone nothing
+# requires it any more, so `pacman -Rsu` would collect it as an unneeded
+# dependency. Marking it explicitly installed is what actually prevents that;
+# the PROTECTED entry is the backstop that aborts if something still tries.
+if ! ((DO_DROP_KWALLET)); then
+    PROTECTED+=("${KWALLET_PKGS[@]}")
+fi
 
 # --- preflight ---------------------------------------------------------------
 
@@ -188,12 +206,38 @@ fi
 
 info "Secrets"
 
-if pacman -Q python-proton-keyring-linux &>/dev/null; then
-    ok "Proton packages use KWallet — kwallet is on the protected list and stays"
+# Both kwallet and gnome-keyring provide org.freedesktop.secrets, and on this
+# machine PAM starts and unlocks both at login. That ambiguity is fine while
+# Plasma is around and becomes a decision when it goes.
+if pacman -Q gnome-keyring &>/dev/null; then
+    ok "gnome-keyring installed — python-proton-keyring-linux depends on it directly"
+else
+    err "gnome-keyring missing; it is the Secret Service that survives this"
+    fatal=1
 fi
-if [[ -f "$HOME/.local/share/kwalletd/kdewallet.kwl" ]]; then
-    ok "existing wallet found; kwallet and kwallet-pam are kept so it keeps working"
-    skip "auto-unlock at login comes from pam_kwallet_init, which dex already starts"
+
+if grep -qE '^-?session.*pam_gnome_keyring\.so.*auto_start' /etc/pam.d/sddm 2>/dev/null; then
+    ok "PAM starts and unlocks gnome-keyring at login (sddm)"
+else
+    warn "pam_gnome_keyring auto_start not found in /etc/pam.d/sddm"
+    warn "secrets would need unlocking by hand — check before dropping kwallet"
+fi
+
+wallet="$HOME/.local/share/kwalletd/kdewallet.kwl"
+if ((DO_DROP_KWALLET)); then
+    if [[ -f "$wallet" ]]; then
+        warn "──────────────────────────────────────────────────────────────"
+        warn "  $wallet exists and holds secrets."
+        warn "  Removing kwallet does not delete it, but nothing will read it"
+        warn "  again. Anything stored there — Proton VPN sessions, git"
+        warn "  credentials, wifi keys saved per-user — must be re-entered"
+        warn "  against gnome-keyring."
+        warn ""
+        warn "  Export anything you need first:  kwallet-query -l kdewallet"
+        warn "──────────────────────────────────────────────────────────────"
+    fi
+else
+    skip "kwallet kept (--drop-kwallet to remove it; nothing actually depends on it)"
 fi
 
 # --- build the removal list --------------------------------------------------
@@ -208,6 +252,13 @@ if ((DO_APPS)); then
         pacman -Q "$p" &>/dev/null && targets+=("$p")
     done
     ok "KDE applications included (--apps)"
+fi
+
+if ((DO_DROP_KWALLET)); then
+    for p in "${KWALLET_PKGS[@]}"; do
+        pacman -Q "$p" &>/dev/null && targets+=("$p")
+    done
+    ok "KWallet included (--drop-kwallet) — gnome-keyring takes over"
 fi
 
 if ((${#targets[@]} == 0)); then
@@ -274,6 +325,18 @@ if ((DO_APPS)); then
         exit 1
     fi
     ok "replacements installed"
+fi
+
+# Keep pacman from sweeping kwallet up as a newly-unneeded dependency.
+if ! ((DO_DROP_KWALLET)); then
+    keep=()
+    for p in "${KWALLET_PKGS[@]}"; do
+        pacman -Q "$p" &>/dev/null && keep+=("$p")
+    done
+    if ((${#keep[@]})); then
+        sudo pacman -D --asexplicit "${keep[@]}" >/dev/null &&
+            ok "marked ${keep[*]} as explicitly installed so they survive"
+    fi
 fi
 
 info "Removing"

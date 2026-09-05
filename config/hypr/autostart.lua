@@ -13,6 +13,14 @@ hl.on("hyprland.start", function()
     -- Authentication dialogs (GUI apps asking for root, udisks mounts, ...)
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
+    -- Secret Service. pam_gnome_keyring (auto_start in /etc/pam.d/sddm) brings
+    -- the daemon up and unlocks it with your login password, but the secrets
+    -- and ssh components are normally started by autostart entries marked
+    -- OnlyShowIn=GNOME, which dex correctly skips. Without this, anything
+    -- asking for org.freedesktop.secrets finds nobody home — including the
+    -- Proton packages. Idempotent: it attaches to the running daemon.
+    hl.exec_cmd("gnome-keyring-daemon --start --components=secrets,pkcs11,ssh")
+
     -- Bar, notifications, on-screen volume popups
     hl.exec_cmd("waybar")
     hl.exec_cmd("swaync")

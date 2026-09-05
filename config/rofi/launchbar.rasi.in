@@ -1,4 +1,3 @@
-/* Generated from core/theme.lua by tools/render-theme.lua — edit the .in */
 /* Launch bar — Spotlight-style: a single centred bar, results underneath.
  *
  * Used by ALT+Space. Deliberately different from catppuccin-mocha.rasi, which
@@ -6,17 +5,17 @@
  */
 
 * {
-    base:     #1e1e2eff;
-    mantle:   #181825ff;
-    surface0: #313244ff;
-    surface1: #45475aff;
-    text:     #cdd6f4ff;
-    subtext0: #a6adc8ff;
-    overlay0: #6c7086ff;
-    mauve:    #cba6f7ff;
-    blue:     #89b4faff;
-    green:    #a6e3a1ff;
-    red:      #f38ba8ff;
+    base:     {{css:background:ff}};
+    mantle:   {{css:surface:ff}};
+    surface0: {{css:surface_alt:ff}};
+    surface1: {{css:surface1:ff}};
+    text:     {{css:foreground:ff}};
+    subtext0: {{css:dim:ff}};
+    overlay0: {{css:muted:ff}};
+    mauve:    {{css:accent:ff}};
+    blue:     {{css:accent_alt:ff}};
+    green:    {{css:success:ff}};
+    red:      {{css:urgent:ff}};
 
     background-color: transparent;
     text-color:       @text;

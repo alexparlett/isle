@@ -1,16 +1,15 @@
-/* Generated from core/theme.lua by tools/render-theme.lua — edit the .in */
 /* wlogout — Catppuccin Mocha
  *
  * Icons come from the wlogout package (/usr/share/wlogout/icons), recoloured
  * to the palette via a CSS filter so no icon fork is needed.
  */
 
-@define-color base   #1e1e2e;
-@define-color crust  #11111b;
-@define-color text   #cdd6f4;
-@define-color mauve  #cba6f7;
-@define-color red    #f38ba8;
-@define-color surface0 #313244;
+@define-color base   {{css:background}};
+@define-color crust  {{css:shadow}};
+@define-color text   {{css:foreground}};
+@define-color mauve  {{css:accent}};
+@define-color red    {{css:urgent}};
+@define-color surface0 {{css:surface_alt}};
 
 * {
   font-family: "JetBrainsMono Nerd Font", sans-serif;

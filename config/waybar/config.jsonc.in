@@ -1,4 +1,3 @@
-// Generated from core/theme.lua by tools/render-theme.lua — edit the .in
 // Waybar — top bar for a 3440x1440 ultrawide.
 // https://github.com/Alexays/Waybar/wiki/Configuration
 {
@@ -99,11 +98,11 @@
       "mode": "month",
       "weeks-pos": "right",
       "format": {
-        "months": "<span color='#cba6f7'><b>{}</b></span>",
-        "days": "<span color='#cdd6f4'>{}</span>",
-        "weeks": "<span color='#94e2d5'>W{}</span>",
-        "weekdays": "<span color='#f9e2af'><b>{}</b></span>",
-        "today": "<span color='#f38ba8'><b><u>{}</u></b></span>"
+        "months": "<span color='{{css:accent}}'><b>{}</b></span>",
+        "days": "<span color='{{css:foreground}}'>{}</span>",
+        "weeks": "<span color='{{css:teal}}'>W{}</span>",
+        "weekdays": "<span color='{{css:caution}}'><b>{}</b></span>",
+        "today": "<span color='{{css:urgent}}'><b><u>{}</u></b></span>"
       }
     },
     "actions": {
@@ -263,13 +262,13 @@
     "tooltip": false,
     "format": "{icon}",
     "format-icons": {
-      "notification": "<span foreground='#f38ba8'><sup></sup></span>󰂚",
+      "notification": "<span foreground='{{css:urgent}}'><sup></sup></span>󰂚",
       "none": "󰂚",
-      "dnd-notification": "<span foreground='#f38ba8'><sup></sup></span>󰂛",
+      "dnd-notification": "<span foreground='{{css:urgent}}'><sup></sup></span>󰂛",
       "dnd-none": "󰂛",
-      "inhibited-notification": "<span foreground='#f38ba8'><sup></sup></span>󰂚",
+      "inhibited-notification": "<span foreground='{{css:urgent}}'><sup></sup></span>󰂚",
       "inhibited-none": "󰂚",
-      "dnd-inhibited-notification": "<span foreground='#f38ba8'><sup></sup></span>󰂛",
+      "dnd-inhibited-notification": "<span foreground='{{css:urgent}}'><sup></sup></span>󰂛",
       "dnd-inhibited-none": "󰂛"
     },
     "return-type": "json",

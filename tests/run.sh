@@ -17,6 +17,10 @@ for profile in mac windows; do
 done
 
 echo
+echo "==> Generated theme files match core/theme.lua"
+lua tools/render-theme.lua --check || failed=1
+
+echo
 echo "==> Keybind interop with HyprMod"
 ./tests/test-interop.sh || failed=1
 

@@ -1,20 +1,19 @@
-/* Generated from core/theme.lua by tools/render-theme.lua — edit the .in */
 /* Catppuccin Mocha for rofi */
 
 * {
-    base:     #1e1e2eff;
-    mantle:   #181825ff;
-    crust:    #11111bff;
-    surface0: #313244ff;
-    surface1: #45475aff;
-    surface2: #585b70ff;
-    text:     #cdd6f4ff;
-    subtext0: #a6adc8ff;
-    overlay0: #6c7086ff;
-    mauve:    #cba6f7ff;
-    blue:     #89b4faff;
-    red:      #f38ba8ff;
-    green:    #a6e3a1ff;
+    base:     {{css:background:ff}};
+    mantle:   {{css:surface:ff}};
+    crust:    {{css:shadow:ff}};
+    surface0: {{css:surface_alt:ff}};
+    surface1: {{css:surface1:ff}};
+    surface2: {{css:surface2:ff}};
+    text:     {{css:foreground:ff}};
+    subtext0: {{css:dim:ff}};
+    overlay0: {{css:muted:ff}};
+    mauve:    {{css:accent:ff}};
+    blue:     {{css:accent_alt:ff}};
+    red:      {{css:urgent:ff}};
+    green:    {{css:success:ff}};
 
     background-color: transparent;
     text-color:       @text;

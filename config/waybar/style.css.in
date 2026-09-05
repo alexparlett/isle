@@ -1,29 +1,28 @@
-/* Generated from core/theme.lua by tools/render-theme.lua — edit the .in */
 /* Waybar — Catppuccin Mocha
  *
  * A single floating bar, grouped into pills so related modules read as one
  * unit rather than a long undifferentiated row.
  */
 
-@define-color base     #1e1e2e;
-@define-color mantle   #181825;
-@define-color crust    #11111b;
-@define-color surface0 #313244;
-@define-color surface1 #45475a;
-@define-color surface2 #585b70;
-@define-color text     #cdd6f4;
-@define-color subtext0 #a6adc8;
-@define-color overlay0 #6c7086;
-@define-color mauve    #cba6f7;
-@define-color blue     #89b4fa;
-@define-color sapphire #74c7ec;
-@define-color teal     #94e2d5;
-@define-color green    #a6e3a1;
-@define-color yellow   #f9e2af;
-@define-color peach    #fab387;
-@define-color red      #f38ba8;
-@define-color pink     #f5c2e7;
-@define-color lavender #b4befe;
+@define-color base     {{css:background}};
+@define-color mantle   {{css:surface}};
+@define-color crust    {{css:shadow}};
+@define-color surface0 {{css:surface_alt}};
+@define-color surface1 {{css:surface1}};
+@define-color surface2 {{css:surface2}};
+@define-color text     {{css:foreground}};
+@define-color subtext0 {{css:dim}};
+@define-color overlay0 {{css:muted}};
+@define-color mauve    {{css:accent}};
+@define-color blue     {{css:accent_alt}};
+@define-color sapphire {{css:info}};
+@define-color teal     {{css:teal}};
+@define-color green    {{css:success}};
+@define-color yellow   {{css:caution}};
+@define-color peach    {{css:warning}};
+@define-color red      {{css:urgent}};
+@define-color pink     {{css:pink}};
+@define-color lavender {{css:lavender}};
 
 * {
   font-family: "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;

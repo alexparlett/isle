@@ -445,6 +445,19 @@ else
     fi
 fi
 
+# Component colours are rendered from core/theme.lua rather than hand-copied
+# into six files. Committed as well as generated, so a fresh clone works before
+# this runs; tests/run.sh --check catches drift.
+if command -v lua &>/dev/null; then
+    if ((DRY_RUN)); then
+        skip "would render component configs from core/theme.lua"
+    elif (cd "$REPO" && lua tools/render-theme.lua >/dev/null 2>&1); then
+        ok "component colours rendered from core/theme.lua"
+    else
+        warn "theme render failed — component configs keep their committed colours"
+    fi
+fi
+
 # Files that System Settings edits are generated from a template rather than
 # symlinked, so a GUI change never dirties the tracked config. Never overwritten
 # once it exists — your timeouts are yours.

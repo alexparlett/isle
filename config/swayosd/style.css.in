@@ -1,11 +1,10 @@
-/* Generated from core/theme.lua by tools/render-theme.lua — edit the .in */
 /* swayosd — the volume / caps-lock popup. Catppuccin Mocha. */
 
 window#osd {
   padding: 12px 20px;
   border-radius: 18px;
-  border: 1px solid #313244;
-  background: alpha(#1e1e2e, 0.94);
+  border: 1px solid {{css:surface_alt}};
+  background: alpha({{css:background}}, 0.94);
 }
 
 window#osd #container {
@@ -14,7 +13,7 @@ window#osd #container {
 
 window#osd image,
 window#osd label {
-  color: #cdd6f4;
+  color: {{css:foreground}};
 }
 
 window#osd progressbar {
@@ -27,11 +26,11 @@ window#osd trough {
   min-height: 6px;
   border: none;
   border-radius: 999px;
-  background: #313244;
+  background: {{css:surface_alt}};
 }
 
 window#osd progress {
   min-height: 6px;
   border-radius: 999px;
-  background: #cba6f7;
+  background: {{css:accent}};
 }

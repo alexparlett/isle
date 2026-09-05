@@ -22,7 +22,8 @@ Then log out, pick **Hyprland** at SDDM, log back in.
 wallpaper, enables the daily update check, wires the coding-agent status hooks
 and recolours KDE apps. It is idempotent, it moves existing real files aside to
 `*.bak-<timestamp>` rather than deleting them, and it does not touch Plasma —
-that stays installed and selectable at SDDM as a fallback.
+that stays installed and selectable at SDDM until you decide otherwise. When you
+do, see [Retiring Plasma](#retiring-plasma).
 
 | Flag | Effect |
 |---|---|
@@ -266,6 +267,51 @@ What changes:
 - **KDE global shortcuts** don't apply; rebind them in `binds.lua`.
 - **HDR** — KWin's implementation is more mature than Hyprland's today.
 - **Plasma widgets, Activities, desktop icons** have no equivalent.
+
+## Retiring Plasma
+
+Plasma is a fallback, not a fixture. When Hyprland has earned your trust:
+
+```bash
+./remove-plasma.sh          # show the plan, change nothing
+./remove-plasma.sh --run    # do it, after typing REMOVE
+```
+
+It removes the Plasma **session** — plasmashell, KWin, KScreenLocker, PowerDevil,
+the KCMs, the Plasma applets, the CachyOS Plasma themes — and keeps everything
+that is a library or an application. It refuses to run unless it is satisfied
+you have a working desktop without them: it checks you are actually logged into
+Hyprland (not running this from inside the thing you'd be falling back to),
+that Waybar, swaync, hypridle and the polkit agent are alive, that hyprlock
+exists, and that your portal config isn't asking for the KDE file chooser that
+is about to be uninstalled.
+
+It also builds the removal list with `pacman -Rsu --print` and checks the result
+against a protected list before running anything. If pacman's plan would take out
+something load-bearing, it stops instead.
+
+**Deliberately kept:**
+
+| Kept | Why |
+|---|---|
+| `kwallet`, `kwallet-pam` | `kio` requires it, and so does `python-proton-keyring-linux` — your Proton credentials live there |
+| `breeze-icons` | icon fallback for every KDE app |
+| `sddm`, `cachyos-themes-sddm` | the login manager is independent of Plasma |
+| Dolphin, Ark, Okular, Kate, … | applications, not shell. `--apps` removes them too if you want |
+
+Two knock-on effects worth knowing:
+
+- **`plasma-apply-colorscheme` goes with `plasma-workspace`**, and that's what
+  keeps KDE apps Catppuccin-coloured. `config/color-schemes/apply-colors.py`
+  merges the scheme into `kdeglobals` directly instead — `install.sh` prefers the
+  Plasma tool while it exists and falls back to this, and `remove-plasma.sh`
+  re-applies it on the way out.
+- **`xdg-desktop-portal-kde` goes too** (it depends on plasma-workspace). The
+  portal config already asks for `hyprland;gtk`, so nothing changes — but don't
+  switch the file chooser to `kde` before removing.
+
+After removal there is no fallback session. `Ctrl+Alt+F2` gets you a TTY, and
+running `Hyprland` from there prints why it didn't start.
 
 ### Consistency
 

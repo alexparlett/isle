@@ -204,19 +204,29 @@ fi
 # else. Note this also recolours the Plasma fallback session — same kdeglobals.
 
 kde_colors_apply() {
-    if ! command -v plasma-apply-colorscheme &>/dev/null; then
-        skip "plasma-apply-colorscheme not found — KDE apps keep their current colours"
-        return
-    fi
     if ((DRY_RUN)); then
         skip "would apply the CatppuccinMocha colour scheme to KDE apps"
         return
     fi
+
     [[ -f "$HOME/.config/kdeglobals" ]] && cp "$HOME/.config/kdeglobals" "$HOME/.config/kdeglobals.bak-$STAMP"
-    if plasma-apply-colorscheme CatppuccinMocha &>/dev/null; then
+
+    # plasma-apply-colorscheme does the better job, but it ships in
+    # plasma-workspace — the package that disappears when you retire the Plasma
+    # fallback. Fall back to merging the scheme ourselves so this keeps working
+    # afterwards.
+    if command -v plasma-apply-colorscheme &>/dev/null &&
+       plasma-apply-colorscheme CatppuccinMocha &>/dev/null; then
         ok "KDE apps recoloured (kdeglobals backed up)"
+    elif command -v python3 &>/dev/null; then
+        if python3 "$REPO/config/color-schemes/apply-colors.py" \
+                   "$REPO/config/color-schemes/CatppuccinMocha.colors" --no-backup >/dev/null; then
+            ok "KDE apps recoloured via the standalone merger (kdeglobals backed up)"
+        else
+            warn "could not apply the colour scheme; KDE apps keep their current colours"
+        fi
     else
-        warn "could not apply the colour scheme; pick 'Catppuccin Mocha' in System Settings"
+        warn "no way to apply the colour scheme — install python3 or plasma-workspace"
     fi
 }
 

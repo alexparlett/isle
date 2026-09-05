@@ -5,6 +5,7 @@
 #   ./install.sh                        packages + symlinks + post-install
 #   ./install.sh --no-packages          symlinks only
 #   ./install.sh --no-aur               skip the AUR theme packages
+#   ./install.sh --no-extras            skip packages/extras.txt
 #   ./install.sh --no-agent-hooks       skip the Claude Code / Codex status hooks
 #   ./install.sh --remove-agent-hooks   remove those hooks, then exit
 #   ./install.sh --no-kde-colors        leave KDE app colours alone
@@ -23,6 +24,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 DO_PACKAGES=1
 DO_AUR=1
+DO_EXTRAS=1
 DO_AGENT_HOOKS=1
 REMOVE_AGENT_HOOKS=0
 DO_KDE_COLORS=1
@@ -81,12 +83,13 @@ run() {
     fi
 }
 
-usage() { sed -n '3,16p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0; }
+usage() { sed -n '3,17p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0; }
 
 while (($#)); do
     case "$1" in
         --no-packages)        DO_PACKAGES=0 ;;
         --no-aur)             DO_AUR=0 ;;
+        --no-extras)          DO_EXTRAS=0 ;;
         --no-agent-hooks)     DO_AGENT_HOOKS=0 ;;
         --remove-agent-hooks) REMOVE_AGENT_HOOKS=1 ;;
         --no-kde-colors)      DO_KDE_COLORS=0 ;;
@@ -301,6 +304,24 @@ if ((DO_PACKAGES)); then
         ok "repository packages installed"
     fi
 
+    if ((DO_EXTRAS)); then
+        info "Installing extras (agentic tooling, backups)"
+        mapfile -t extra_pkgs < <(pkglist "$REPO/packages/extras.txt")
+        extra_missing=()
+        for p in "${extra_pkgs[@]}"; do
+            pacman -Q "$p" &>/dev/null || extra_missing+=("$p")
+        done
+        if ((${#extra_missing[@]} == 0)); then
+            ok "extras already installed"
+        else
+            printf '  installing: %s\n' "${extra_missing[*]}"
+            run sudo pacman -S --needed --noconfirm "${extra_missing[@]}"
+            ok "extras installed"
+        fi
+    else
+        skip "extras skipped (--no-extras)"
+    fi
+
     if ((DO_AUR)); then
         info "Installing AUR packages"
         if ! command -v paru &>/dev/null; then
@@ -398,6 +419,14 @@ if systemctl --user list-unit-files arch-update.timer &>/dev/null; then
     ok "update checks enabled (arch-update.timer, daily)"
 else
     warn "arch-update.timer not found — is cachy-update installed?"
+fi
+
+# earlyoom does nothing until its service runs. Defaults are sensible: it acts
+# at 10% free memory, killing the largest offender rather than letting the
+# machine thrash itself unusable.
+if pacman -Q earlyoom &>/dev/null; then
+    run sudo systemctl enable --now earlyoom
+    ok "earlyoom enabled"
 fi
 
 # Agent session widgets

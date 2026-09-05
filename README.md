@@ -29,6 +29,7 @@ do, see [Retiring Plasma](#retiring-plasma).
 |---|---|
 | `--no-packages` | symlinks only |
 | `--no-aur` | skip the AUR theme packages |
+| `--no-extras` | skip `packages/extras.txt` (agentic tooling, backups) |
 | `--no-agent-hooks` | skip the Claude Code / Codex status hooks |
 | `--remove-agent-hooks` | remove those hooks and exit |
 | `--no-kde-colors` | leave KDE app colours alone |
@@ -86,7 +87,11 @@ config/
   applications/       .desktop entry for the settings window
   arch-update/        update notifier config
   xdg-desktop-portal/
-packages/            repo.txt and aur.txt, one package per line
+packages/            repo.txt      what the desktop needs
+                     extras.txt    agentic tooling and backups, also installed
+                     aur.txt       the two theme packages
+                     gtk-replacements.txt  for remove-plasma.sh --apps
+                     optional.txt  audited and not taken, kept as a record
 install.sh
 ```
 

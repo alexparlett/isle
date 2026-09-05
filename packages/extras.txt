@@ -1,0 +1,42 @@
+# Extras this machine has opted into. Installed by install.sh alongside
+# repo.txt; skip them with --no-extras.
+#
+# Kept separate from repo.txt on purpose: the desktop does not need any of
+# this to work. It is here because auditing the machine found real gaps for
+# the way it gets used — agentic coding, and a backup story that survives
+# hardware failure rather than only bad updates.
+
+# --- Agentic coding --------------------------------------------------------
+# Python was installed with no package manager at all, so an agent asked to do
+# Python work stopped at the first import.
+uv                  # also covers pyenv/pipx/virtualenv duties
+python-pip          # for the occasional thing that insists on pip
+
+# Somewhere to let an agent run a build or a test suite that isn't your actual
+# system. podman is rootless by default, which is the right shape for this.
+podman
+podman-compose
+distrobox           # throwaway distro containers sharing your home
+
+# Reading what an agent actually changed. delta makes git diffs legible;
+# difftastic compares syntax trees rather than lines, which is the difference
+# between reading a refactor and squinting at one.
+git-delta
+difftastic
+lazygit             # stage and review hunks without leaving the terminal
+
+shellcheck          # this repo alone carries a dozen shell scripts
+shfmt
+
+direnv              # per-project environment, so agents inherit the right tools
+
+# --- Not losing things -----------------------------------------------------
+# snapper and snap-pac already cover "a pacman update broke it". Neither covers
+# a dead NVMe or a stolen machine.
+restic              # encrypted, deduplicating, backs up to almost anything
+rclone              # the transport, for cloud destinations
+
+# Kills the worst offender instead of letting the machine lock up. 60 GB of RAM
+# makes this rare, not impossible — a compile and a game together still get
+# there, and zram-only swap thrashes hard when it does.
+earlyoom

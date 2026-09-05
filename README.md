@@ -48,8 +48,8 @@ do, see [Retiring Plasma](#retiring-plasma).
 | Lock / idle | hyprlock + hypridle | |
 | Wallpaper | hyprpaper | generated gradient, no binary in git |
 | Night light | hyprsunset | profiles by time of day |
-| Terminal | Alacritty | already installed and configured on this box |
-| File manager | Dolphin | kept from KDE; recoloured to match |
+| Terminal | kitty | graphics protocol, so yazi shows real image previews |
+| File manager | Dolphin + yazi | Dolphin on ⌘E, yazi in the terminal on ⌘⇧E |
 | Auth agent | hyprpolkitagent | |
 | Volume OSD | swayosd | |
 | Power menu | wlogout | |
@@ -86,7 +86,8 @@ config/
     scripts/           launcher, screenshots, clipboard, Waybar modules
       hooks/           agent-state.sh — the Claude/Codex → Waybar bridge
     settings/          the GTK4 settings window
-  waybar/ rofi/ swaync/ swayosd/ wlogout/ alacritty/ qt6ct/ gtk-3.0/ gtk-4.0/
+  waybar/ rofi/ swaync/ swayosd/ wlogout/ qt6ct/ gtk-3.0/ gtk-4.0/
+  kitty/ yazi/ alacritty/  terminal and terminal file manager
   claude/ codex/      lifecycle hook manifests, merged into the agents' configs
   keyd/               optional Mac keyboard profile
   color-schemes/      Catppuccin Mocha for KDE apps

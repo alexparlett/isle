@@ -1,0 +1,14 @@
+# yazi theme — Catppuccin Mocha via the official flavour.
+#
+# Flavours are yazi's packaged themes and its schema moves between releases, so
+# referencing the upstream one is more durable than hand-writing a full palette
+# that quietly breaks on the next update. install.sh fetches it with
+# `ya pkg add yazi-rs/flavors:catppuccin-mocha`.
+#
+# If that fetch never ran, yazi falls back to its built-in theme and everything
+# still works — the flavour line below is simply ignored when the flavour is
+# not installed.
+
+[flavor]
+dark  = "catppuccin-mocha"
+light = "catppuccin-mocha"

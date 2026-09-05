@@ -9,7 +9,7 @@
 local snap = require("snap")
 
 local M = {
-    term    = "alacritty",
+    term    = "kitty",
     scripts = "~/.config/hypr/scripts",
 }
 

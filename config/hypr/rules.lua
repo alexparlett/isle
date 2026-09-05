@@ -81,7 +81,7 @@ hl.window_rule({
 
 hl.window_rule({
     name    = "translucent-terminals",
-    match   = { class = "^(Alacritty|org\\.kde\\.dolphin)$" },
+    match   = { class = "^(kitty|org\\.kde\\.dolphin)$" },
     opacity = "0.95 0.88",
 })
 
@@ -166,7 +166,7 @@ hl.window_rule({
 
 hl.workspace_rule({
     workspace        = "special:scratchpad",
-    on_created_empty = "alacritty",
+    on_created_empty = "kitty",
 })
 
 hl.window_rule({

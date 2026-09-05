@@ -828,7 +828,7 @@ class SystemSettings(Gtk.ApplicationWindow):
         page.append(self._group("Actions"))
         actions = self._card()
         actions.append(self._tool_row("Change your password", "Opens passwd in a terminal",
-                                      "Change password", "alacritty -e passwd"))
+                                      "Change password", "kitty -e passwd"))
         actions.append(self._row(
             "Adding or removing accounts",
             "No GUI ships for this on Hyprland. Use useradd, userdel and gpasswd from a "
@@ -860,10 +860,10 @@ class SystemSettings(Gtk.ApplicationWindow):
 
         page.append(self._group("Tools"))
         tools = self._card()
-        tools.append(self._tool_row("Updates", "Repo and AUR packages", "Open", "alacritty -e cachy-update"))
+        tools.append(self._tool_row("Updates", "Repo and AUR packages", "Open", "kitty -e cachy-update"))
         tools.append(self._tool_row("Disks", "Partitions and SMART", "Open", "gnome-disk-utility"))
         tools.append(self._tool_row("Printers", "CUPS queues", "Open", "system-config-printer"))
-        tools.append(self._tool_row("System info", "Hardware summary", "Open", "alacritty -e fastfetch"))
+        tools.append(self._tool_row("System info", "Hardware summary", "Open", "kitty -e fastfetch"))
         page.append(tools)
 
         hint = Gtk.Label(

@@ -24,6 +24,7 @@ s.bind(ctrl .. " + " .. cmd .. " + Space", hl.dsp.exec_cmd("rofi -show emoji -mo
 
 s.bind(cmd .. " + Return", hl.dsp.exec_cmd(s.term),  d("Terminal"))
 s.bind(cmd .. " + E",      hl.dsp.exec_cmd(s.files), d("File manager"))
+s.bind(cmd .. " + " .. shift .. " + E", hl.dsp.exec_cmd(s.term .. " -e yazi"), d("File manager (terminal)"))
 
 s.bind(cmd .. " + comma", hl.dsp.exec_cmd("python3 ~/.config/hypr/settings/system-settings.py"), d("Settings"))
 s.bind(cmd .. " + " .. shift .. " + slash", hl.dsp.exec_cmd(s.scripts .. "/cheatsheet.sh"), d("Keybind cheatsheet"))

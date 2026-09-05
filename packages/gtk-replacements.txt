@@ -5,7 +5,7 @@
 # apps — the whole file is optional.
 #
 # Not listed because the job is already done elsewhere on this desktop:
-#   konsole    -> alacritty
+#   konsole    -> kitty
 #   spectacle  -> grim / slurp / swappy  (scripts/screenshot.sh)
 #   kcalc      -> the launch bar does maths (rofi-calc)
 #   okular     -> Vivaldi already handles application/pdf

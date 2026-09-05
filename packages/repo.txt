@@ -32,8 +32,10 @@ swaync
 swayosd
 wlogout
 
-# --- Terminal ------------------------------------------------------------
-alacritty
+# --- Terminal and files --------------------------------------------------
+kitty                  # graphics protocol: real image previews in yazi
+yazi                   # terminal file manager, ⌘⇧E
+alacritty              # kept as a fallback terminal
 
 # --- Clipboard, screenshots, recording -----------------------------------
 wl-clipboard

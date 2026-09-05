@@ -45,7 +45,7 @@
   "custom/logo": {
     "format": "󰣇",
     "tooltip-format": "CachyOS · click for updates",
-    "on-click": "alacritty -e cachy-update"
+    "on-click": "kitty -e cachy-update"
   },
 
   "hyprland/workspaces": {
@@ -84,7 +84,6 @@
     "rewrite": {
       "(.*) — Mozilla Firefox": "󰈹  $1",
       "(.*) - Dolphin": "󰉋  $1",
-      "(.*) - Alacritty": "  $1",
       "^$": "󰇄  Desktop"
     }
   },
@@ -173,8 +172,8 @@
     "interval": 1800,
     "format": "󰚰 {}",
     "tooltip": true,
-    "on-click": "alacritty -e cachy-update",
-    "on-click-right": "alacritty -e cachy-update --news",
+    "on-click": "kitty -e cachy-update",
+    "on-click-right": "kitty -e cachy-update --news",
     "signal": 9
   },
 
@@ -201,14 +200,14 @@
     "format": "󰻠 {usage}%",
     "interval": 3,
     "tooltip": true,
-    "on-click": "alacritty -e btop"
+    "on-click": "kitty -e btop"
   },
 
   "memory": {
     "format": "󰍛 {percentage}%",
     "tooltip-format": "{used:0.1f} GiB of {total:0.1f} GiB",
     "interval": 5,
-    "on-click": "alacritty -e btop"
+    "on-click": "kitty -e btop"
   },
 
   "custom/gpu": {

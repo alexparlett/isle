@@ -46,6 +46,8 @@ DIR_LINKS=(
     swayosd
     wlogout
     alacritty
+    kitty
+    yazi
     qt6ct
     arch-update
 )
@@ -440,6 +442,23 @@ else
         ok "masked the Hyprland (uwsm) entry — SDDM will offer one Hyprland"
     else
         warn "could not mask the uwsm session entry"
+    fi
+fi
+
+# Yazi's Catppuccin flavour. Referencing the upstream one rather than shipping a
+# hand-written palette: yazi's theme schema moves between releases, and a stale
+# copy breaks quietly. If this fetch fails, yazi falls back to its built-in
+# theme and everything still works.
+if command -v ya &>/dev/null; then
+    if ya pkg list 2>/dev/null | grep -q catppuccin-mocha; then
+        ok "yazi Catppuccin flavour already installed"
+    elif ((DRY_RUN)); then
+        skip "would fetch the yazi Catppuccin flavour"
+    elif ya pkg add yazi-rs/flavors:catppuccin-mocha &>/dev/null ||
+         ya pack -a yazi-rs/flavors:catppuccin-mocha &>/dev/null; then
+        ok "yazi Catppuccin flavour installed"
+    else
+        warn "could not fetch the yazi flavour — yazi will use its default theme"
     fi
 fi
 

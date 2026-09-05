@@ -95,9 +95,25 @@ hl.window_rule({
 --  Privacy — never leak a password manager or an auth prompt into a share.
 --------------------------------------------------------------------------------
 
+-- Hyprland matches with RE2, so (?i) works and saves enumerating capitalisation
+-- variants — Electron apps are inconsistent about whether the class is the
+-- binary name or the product name.
+--
+-- Covers what is actually installed (Proton Mail, and Proton Pass if you add
+-- it — `pacman -S proton-pass`, it is in the cachyos repo) as well as the usual
+-- password managers, so the rule keeps working if you switch.
 hl.window_rule({
     name  = "hide-secrets-from-screenshare",
-    match = { class = "^(1Password|Bitwarden|org\\.keepassxc\\.KeePassXC|hyprpolkitagent|org\\.kde\\.polkit-kde-authentication-agent-1)$" },
+    match = { class = "(?i)^(proton[- ]?(mail|pass)|1password|bitwarden|keepassxc|org\\.keepassxc\\.KeePassXC|gnome-keyring.*|seahorse|kwalletmanager5?)$" },
+
+    no_screen_share = true,
+})
+
+-- Auth prompts, separately, because these are transient and should also never
+-- be captured mid-share.
+hl.window_rule({
+    name  = "hide-auth-prompts-from-screenshare",
+    match = { class = "(?i)^(hyprpolkitagent|org\\.kde\\.polkit-kde-authentication-agent-1|polkit-gnome-authentication-agent-1)$" },
 
     no_screen_share = true,
 })

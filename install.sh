@@ -497,13 +497,31 @@ fi
 
 info "Verifying the NVIDIA setup"
 
-modeset=$(cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null || echo "?")
+# /sys/module/nvidia_drm/parameters/modeset is mode 0400 root-only, so reading
+# it as your user always fails. Fall back to evidence that is world-readable:
+# nvidia_drm registers DRM connectors only when modeset is enabled, so a
+# connector node on the NVIDIA card proves it.
+nvidia_modeset_state() {
+    local value card
+    if value=$(cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null) && [[ -n "$value" ]]; then
+        printf '%s' "$value"
+        return
+    fi
+    for card in /sys/class/drm/card[0-9]; do
+        [[ -e "$card/device/driver" ]] || continue
+        [[ "$(basename "$(readlink -f "$card/device/driver")")" == nvidia ]] || continue
+        compgen -G "$card-*" >/dev/null && { printf 'Y'; return; }
+    done
+    printf '?'
+}
+
+modeset=$(nvidia_modeset_state)
 if [[ "$modeset" == "Y" ]]; then
-    ok "nvidia_drm modeset is enabled"
+    ok "nvidia_drm modeset enabled (DRM connectors present on the NVIDIA card)"
 else
-    warn "nvidia_drm modeset reads '$modeset' — Hyprland needs Y."
-    warn "Add 'options nvidia_drm modeset=1' to /etc/modprobe.d/nvidia.conf, then"
-    warn "sudo mkinitcpio -P && reboot"
+    warn "nvidia_drm modeset could not be confirmed (read '$modeset')"
+    warn "If Hyprland fails to start, add 'options nvidia_drm modeset=1' to"
+    warn "/etc/modprobe.d/nvidia.conf, then sudo mkinitcpio -P && reboot"
 fi
 
 gpu_path=$(grep -oP 'AQ_DRM_DEVICES", "\K[^"]+' "$REPO/config/hypr/env.lua" || true)
@@ -514,10 +532,13 @@ elif [[ -n "$gpu_path" ]]; then
     warn "Run: ls -l /dev/dri/by-path   and fix AQ_DRM_DEVICES in config/hypr/env.lua"
 fi
 
-if pacman -Q nvidia-open-dkms linux-cachyos-nvidia-open nvidia-open &>/dev/null; then
-    ok "open kernel modules installed (required for the 50xx series)"
+# `pacman -Q a b c` is an AND — it fails unless every one is installed, which
+# reported a false warning on a machine that had exactly the right package.
+# Any package whose name contains nvidia-open is the open kernel module.
+if open_pkg=$(pacman -Qq 2>/dev/null | grep -m1 'nvidia-open'); then
+    ok "open kernel modules installed: $open_pkg (required for the 50xx series)"
 else
-    warn "could not confirm the open NVIDIA kernel modules; 50xx cards require them"
+    warn "no nvidia-open package found; 50xx cards require the open kernel modules"
 fi
 
 # --- done --------------------------------------------------------------------

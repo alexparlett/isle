@@ -93,8 +93,20 @@ if [[ -n "$mon" ]]; then
         && ok "VRR active" || note "VRR idle (fullscreen-only, so this is normal on the desktop)"
 fi
 
-modeset=$(cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null || echo "?")
-[[ "$modeset" == "Y" ]] && ok "nvidia_drm modeset enabled" || bad "nvidia_drm modeset is '$modeset', needs Y"
+# The sysfs parameter is root-only readable, so prove it the other way:
+# nvidia_drm only registers DRM connectors when modeset is enabled.
+modeset="?"
+if value=$(cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null) && [[ -n "$value" ]]; then
+    modeset="$value"
+else
+    for card in /sys/class/drm/card[0-9]; do
+        [[ -e "$card/device/driver" ]] || continue
+        [[ "$(basename "$(readlink -f "$card/device/driver")")" == nvidia ]] || continue
+        compgen -G "$card-*" >/dev/null && { modeset="Y"; break; }
+    done
+fi
+[[ "$modeset" == "Y" ]] && ok "nvidia_drm modeset enabled" \
+                        || bad "nvidia_drm modeset could not be confirmed (read '$modeset')"
 
 gpu=$(hyprctl getoption env 2>/dev/null | grep -o '/dev/dri/by-path/[^ ,]*' | head -1)
 gpu="${gpu:-/dev/dri/by-path/pci-0000:01:00.0-card}"

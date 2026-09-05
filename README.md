@@ -60,6 +60,10 @@ do, see [Retiring Plasma](#retiring-plasma).
 
 ## Layout
 
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md) is the lookup table for
+"where do I change X", with an honest comparison against how the same thing
+works on KDE.
+
 ```
 config/
   hypr/              Hyprland — Lua, one module per concern

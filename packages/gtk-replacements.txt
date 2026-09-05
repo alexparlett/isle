@@ -1,0 +1,42 @@
+# GTK replacements for the KDE applications.
+#
+# Installed by remove-plasma.sh --apps, before anything is removed, so you are
+# never left without a file manager. Nothing here is needed if you keep the KDE
+# apps — the whole file is optional.
+#
+# Not listed because the job is already done elsewhere on this desktop:
+#   konsole    -> alacritty
+#   spectacle  -> grim / slurp / swappy  (scripts/screenshot.sh)
+#   kcalc      -> the launch bar does maths (rofi-calc)
+#   okular     -> Vivaldi already handles application/pdf
+#   kdialog    -> zenity (already installed)
+#   haruna     -> mpv (already installed); celluloid below is the GUI frontend
+#
+# Deliberately NOT replaced:
+#   kwallet / kwalletmanager  python-proton-keyring-linux and kio both need the
+#                             wallet, and kwalletmanager is its only GUI
+#   kdeconnect                no equivalent in the repos (valent is AUR-only)
+
+# --- File manager (replaces dolphin) --------------------------------------
+thunar
+thunar-volman              # removable media handling
+thunar-archive-plugin      # right-click extract, needs file-roller below
+tumbler                    # thumbnails
+gvfs                       # trash, mounts, network shares
+gvfs-mtp                   # phones over USB
+
+# --- Archives (replaces ark) ----------------------------------------------
+file-roller
+
+# --- Images (replaces gwenview) -------------------------------------------
+loupe                      # GTK4 viewer with a proper browse UI
+imv                        # Wayland-native, instant, for a quick look
+
+# --- Text editor (replaces kate) ------------------------------------------
+gnome-text-editor
+
+# --- Disk usage (replaces filelight) --------------------------------------
+baobab
+
+# --- Video (replaces haruna) ----------------------------------------------
+celluloid                  # GTK frontend for the mpv you already have

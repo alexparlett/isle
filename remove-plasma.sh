@@ -41,36 +41,35 @@ done
 
 # --- what goes ---------------------------------------------------------------
 #
-# Leaf packages only. pacman -Rs works out the rest; the protected list below is
-# the safety net that catches it pulling out something load-bearing.
+# The Plasma set is derived from the `plasma` package group rather than written
+# out by hand — a hand-written list missed 27 installed packages when this was
+# first written (bluedevil, libplasma, plasma-systemmonitor, kactivitymanagerd
+# and friends), which left half the KF6 stack pinned by things nobody wanted.
+# The group is what pacman itself considers Plasma, so it stays correct.
+#
+# CachyOS ships its own Plasma theming outside the group; those are matched
+# separately. Anything on the PROTECTED list below is filtered back out.
 
-SESSION_PKGS=(
-    plasma-desktop          # the shell
-    plasma-workspace        # session, krunner, plasmashell, kcms
-    kwin                    # the compositor Hyprland replaces
-    kscreenlocker           # replaced by hyprlock
-    powerdevil              # replaced by hypridle
-    plasma-nm               # replaced by nm-applet
-    plasma-pa               # replaced by pavucontrol + swayosd
-    kscreen                 # replaced by monitors.lua
-    systemsettings
-    kinfocenter
-    sddm-kcm                # the SDDM config module, not SDDM itself
-    kde-gtk-config
-    plasma-integration
-    kdeplasma-addons
-    plasma-browser-integration
-    breeze-gtk
-    plasma-workspace-wallpapers
-    cachyos-kde-settings
-    cachyos-emerald-kde-theme-git
-    cachyos-iridescent-kde
-    cachyos-nord-kde-theme-git
-)
+plasma_targets() {
+    local group extras
+    mapfile -t group < <(comm -12 <(pacman -Sgq plasma 2>/dev/null | sort -u) <(pacman -Qq | sort))
+    mapfile -t extras < <(pacman -Qq | grep -E '^cachyos-.*(kde|plasma)')
 
+    local p guard keep
+    for p in "${group[@]}" "${extras[@]}"; do
+        keep=0
+        for guard in "${PROTECTED[@]}"; do
+            [[ "$p" == "$guard" ]] && keep=1 && break
+        done
+        ((keep)) || printf '%s\n' "$p"
+    done
+}
+
+# Applications, removed only with --apps. kwalletmanager and kdeconnect are
+# deliberately absent: the wallet is still in use by kio and the Proton
+# packages, and kdeconnect has no equivalent in the repos.
 APP_PKGS=(
-    dolphin ark okular gwenview kate konsole kcalc filelight spectacle
-    kwalletmanager kdeconnect
+    dolphin ark okular gwenview kate konsole kcalc filelight kdialog haruna
 )
 
 # Removing any of these would break something this desktop actually relies on.
@@ -170,14 +169,14 @@ fi
 
 info "Working out what would be removed"
 
-targets=()
-for p in "${SESSION_PKGS[@]}"; do
-    pacman -Q "$p" &>/dev/null && targets+=("$p")
-done
+mapfile -t targets < <(plasma_targets)
+ok "${#targets[@]} Plasma packages found via the plasma group"
+
 if ((DO_APPS)); then
     for p in "${APP_PKGS[@]}"; do
         pacman -Q "$p" &>/dev/null && targets+=("$p")
     done
+    ok "KDE applications included (--apps)"
 fi
 
 if ((${#targets[@]} == 0)); then
@@ -216,8 +215,12 @@ printf '%s\n' "${plan[@]}" | column -c "${COLUMNS:-100}"
 printf '\n'
 
 if ((DO_APPS)); then
-    warn "--apps given: Dolphin and the other KDE applications are in that list"
-    warn "binds.lua opens dolphin on ⌘E — change it before you log out"
+    mapfile -t replacements < <(sed 's/#.*//' "$REPO/packages/gtk-replacements.txt" | awk 'NF')
+    printf '%sand %d GTK replacements would be installed first:%s\n\n' \
+        "$c_bold" "${#replacements[@]}" "$c_reset"
+    printf '      %s\n' "${replacements[*]}"
+    printf '\n'
+    warn "⌘E picks the first installed file manager, so it follows the swap by itself"
 fi
 
 if ! ((DO_RUN)); then
@@ -230,6 +233,17 @@ fi
 printf '%sType REMOVE to proceed: %s' "$c_bold" "$c_reset"
 read -r answer
 [[ "$answer" == "REMOVE" ]] || { info "Nothing done."; exit 0; }
+
+# Install the replacements BEFORE removing anything, so a failure here leaves
+# you with a working desktop rather than no file manager.
+if ((DO_APPS)); then
+    info "Installing replacements first"
+    if ! sudo pacman -S --needed --noconfirm "${replacements[@]}"; then
+        err "replacement install failed — nothing removed"
+        exit 1
+    fi
+    ok "replacements installed"
+fi
 
 info "Removing"
 if ! sudo pacman -Rsu "${targets[@]}"; then

@@ -26,8 +26,23 @@ local ctrl    = "CTRL"         -- ⌃
 local shift   = "SHIFT"        -- ⇧
 
 local term    = "alacritty"
-local files   = "dolphin"
 local scripts = "~/.config/hypr/scripts"
+
+-- Pick whichever file manager is actually installed, so ⌘E keeps working if
+-- Dolphin is ever swapped for a GTK one. Checked once at config load, which is
+-- cheap; never do this inside a bind callback.
+local function first_installed(candidates, fallback)
+    for _, name in ipairs(candidates) do
+        local handle = io.open("/usr/bin/" .. name, "r")
+        if handle then
+            handle:close()
+            return name
+        end
+    end
+    return fallback
+end
+
+local files = first_installed({ "dolphin", "thunar", "nautilus", "nemo" }, "dolphin")
 
 local function d(text) return { description = text } end
 

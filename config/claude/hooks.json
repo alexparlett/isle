@@ -1,0 +1,47 @@
+{
+  "_comment": [
+    "Claude Code hooks that drive the Waybar status widget.",
+    "install.sh merges this into ~/.claude/settings.json, replacing __HOME__",
+    "with your home directory and backing the original up first.",
+    "Remove with: ./install.sh --remove-agent-hooks",
+    "",
+    "Exec form (command + args) is deliberate: no shell, no expansion, nothing",
+    "to quote wrong. Every hook is the same small script with a verb."
+  ],
+
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "start"], "timeout": 5 } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "working"], "timeout": 5 } ] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "attention"], "timeout": 5 } ] }
+    ],
+    "Elicitation": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "attention"], "timeout": 5 } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "attention"], "timeout": 5 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "idle"], "timeout": 5 } ] }
+    ],
+    "SubagentStart": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "agent+"], "timeout": 5 } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "agent-"], "timeout": 5 } ] }
+    ],
+    "TaskCreated": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "task+"], "timeout": 5 } ] }
+    ],
+    "TaskCompleted": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "task-"], "timeout": 5 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh", "args": ["claude", "end"], "timeout": 5 } ] }
+    ]
+  }
+}

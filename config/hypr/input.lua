@@ -3,12 +3,25 @@
 --  https://wiki.hypr.land/configuring/core/config-options/#input
 --------------------------------------------------------------------------------
 
+-- Mac keycaps: the ⌘ cap sits on the physical Alt key, so swap Alt and Super
+-- to make it send SUPER — which is what binds.lua treats as ⌘.
+--
+-- Unless the keyd profile is installed, in which case keyd already does the
+-- swap at the evdev level and doing it again here would undo it.
+local function keyd_owns_the_swap()
+    local f = io.open("/etc/keyd/default.conf", "r")
+    if not f then return false end
+    local body = f:read("*a")
+    f:close()
+    return body:find("hypr%-mac%-profile") ~= nil
+end
+
 hl.config({
     input = {
         kb_layout  = "gb", -- matches KEYMAP=uk in /etc/vconsole.conf
         kb_variant = "",
         kb_model   = "",
-        kb_options = "",
+        kb_options = keyd_owns_the_swap() and "" or "altwin:swap_alt_win",
         kb_rules   = "",
 
         follow_mouse       = 1,

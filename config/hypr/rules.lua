@@ -163,6 +163,45 @@ hl.window_rule({
 })
 
 --------------------------------------------------------------------------------
+--  AI assistants — Claude and ChatGPT, docked as right-hand columns.
+--
+--  Each gets its own special workspace so it overlays whatever you are doing
+--  and disappears again without touching the layout underneath. scripts/ai.sh
+--  toggles them; SUPER+A and SUPER+SHIFT+A are the binds.
+--
+--  Both are Electron. Claude declares StartupWMClass=com.anthropic.Claude;
+--  ChatGPT declares nothing, so the class match is deliberately loose.
+--------------------------------------------------------------------------------
+
+local AI_PANELS = {
+    { class = "^com\\.anthropic\\.Claude$", workspace = "claude" },
+    { class = "^([Cc]hat[Gg][Pp][Tt])$",    workspace = "chatgpt" },
+}
+
+for _, panel in ipairs(AI_PANELS) do
+    -- Send the app to its panel workspace and show it on launch.
+    hl.window_rule({
+        name      = "ai-" .. panel.workspace .. "-workspace",
+        match     = { class = panel.class },
+        workspace = "special:" .. panel.workspace,
+    })
+
+    -- A 1000px column down the right-hand edge: wide enough to read code in,
+    -- narrow enough to leave 2400px of actual work visible beside it.
+    hl.window_rule({
+        name  = "ai-" .. panel.workspace .. "-geometry",
+        match = { class = panel.class },
+
+        float = true,
+        size  = { 1000, "monitor_h-100" },
+        move  = { "monitor_w-1020", 50 },
+    })
+end
+
+-- No dimming behind them — the point is to read both at once.
+hl.config({ decoration = { dim_special = 0.0 } })
+
+--------------------------------------------------------------------------------
 --  Layers — the bar, launcher and notifications get blur.
 --------------------------------------------------------------------------------
 

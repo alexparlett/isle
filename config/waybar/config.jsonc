@@ -22,6 +22,10 @@
 
   "modules-right": [
     "mpris",
+    "custom/claude",
+    "custom/codex",
+    "custom/claude-app",
+    "custom/chatgpt",
     "custom/updates",
     "cpu",
     "memory",
@@ -116,6 +120,49 @@
     "player-icons": { "default": "󰎇", "mpv": "󰐹", "firefox": "󰈹" },
     "status-icons": { "paused": "󰏤" },
     "ignored-players": ["firefox"]
+  },
+
+  // Coding-agent sessions. Driven by the agents' own lifecycle hooks (see
+  // hypr/scripts/hooks/), which signal SIGRTMIN+8 (Claude) and +9 (Codex) on
+  // every state change — so the bar reacts the instant something needs you
+  // rather than up to `interval` seconds later. The interval is a safety net.
+  "custom/claude": {
+    "exec": "~/.config/hypr/scripts/waybar-agents.sh claude",
+    "return-type": "json",
+    "signal": 8,
+    "interval": 60,
+    "format": "󱚝 {}",
+    "tooltip": true,
+    "on-click": "~/.config/hypr/scripts/agent-sessions.sh claude",
+    "on-click-right": "~/.config/hypr/scripts/ai.sh claude"
+  },
+
+  "custom/codex": {
+    "exec": "~/.config/hypr/scripts/waybar-agents.sh codex",
+    "return-type": "json",
+    "signal": 9,
+    "interval": 60,
+    "format": "󰚩 {}",
+    "tooltip": true,
+    "on-click": "~/.config/hypr/scripts/agent-sessions.sh codex",
+    "on-click-right": "~/.config/hypr/scripts/ai.sh chatgpt"
+  },
+
+  // The desktop apps. Presence and urgency only — neither exposes task state.
+  "custom/claude-app": {
+    "exec": "~/.config/hypr/scripts/waybar-ai-app.sh claude",
+    "return-type": "json",
+    "interval": 5,
+    "format": "{}",
+    "on-click": "~/.config/hypr/scripts/ai.sh claude"
+  },
+
+  "custom/chatgpt": {
+    "exec": "~/.config/hypr/scripts/waybar-ai-app.sh chatgpt",
+    "return-type": "json",
+    "interval": 5,
+    "format": "{}",
+    "on-click": "~/.config/hypr/scripts/ai.sh chatgpt"
   },
 
   "custom/updates": {

@@ -1,12 +1,30 @@
 --------------------------------------------------------------------------------
---  Keybindings
+--  Keybindings — Mac layout
 --  https://wiki.hypr.land/configuring/core/binds/
 --
+--  This box has Mac keycaps, so the bottom row reads Ctrl / ⌥ / ⌘. On a PC
+--  board the ⌘ cap sits on the physical Alt key, so input.lua applies the xkb
+--  swap that makes it send SUPER. Everything below therefore treats:
+--
+--      SUPER = ⌘        ALT = ⌥        CTRL = ⌃        SHIFT = ⇧
+--
+--  Shortcuts follow macOS where macOS has a convention (⌘Space launcher,
+--  ⌃⌘F fullscreen, ⌘⇧4 region screenshot, ⌃⌘Q lock, ⌘, settings) and stay out
+--  of the way where apps already own a combo — nothing here binds bare ⌘C,
+--  ⌘S, ⌘F, ⌘A or ⌘←/→, which are text and app shortcuts on every Mac.
+--
+--  Install the optional keyd profile (./install.sh --mac-keys) to get ⌘C/⌘V/⌘T
+--  and friends translating to their Ctrl equivalents inside applications.
+--
 --  Descriptions are filled in because `hyprctl binds` exposes them — that is
---  what the SUPER+/ cheatsheet reads.
+--  what the ⌘? cheatsheet reads.
 --------------------------------------------------------------------------------
 
-local mod     = "SUPER"
+local cmd     = "SUPER"        -- ⌘
+local opt     = "ALT"          -- ⌥
+local ctrl    = "CTRL"         -- ⌃
+local shift   = "SHIFT"        -- ⇧
+
 local term    = "alacritty"
 local files   = "dolphin"
 local scripts = "~/.config/hypr/scripts"
@@ -14,83 +32,114 @@ local scripts = "~/.config/hypr/scripts"
 local function d(text) return { description = text } end
 
 --------------------------------------------------------------------------------
---  Applications
+--  Launching
 --------------------------------------------------------------------------------
 
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd(term),                     d("Terminal"))
-hl.bind(mod .. " + E",      hl.dsp.exec_cmd(files),                    d("File manager"))
-hl.bind(mod .. " + D",      hl.dsp.exec_cmd("rofi -show drun"),        d("App launcher"))
-hl.bind(mod .. " + R",      hl.dsp.exec_cmd("rofi -show run"),         d("Run a command"))
-hl.bind(mod .. " + Tab",    hl.dsp.exec_cmd("rofi -show window"),      d("Switch window"))
-hl.bind(mod .. " + V",      hl.dsp.exec_cmd(scripts .. "/clipboard.sh"), d("Clipboard history"))
-hl.bind(mod .. " + U",      hl.dsp.exec_cmd(term .. " -e cachy-update"), d("System update"))
-hl.bind(mod .. " + slash",  hl.dsp.exec_cmd(scripts .. "/cheatsheet.sh"), d("This cheatsheet"))
+-- ⌘Space is Spotlight; keep the muscle memory.
+hl.bind(cmd .. " + Space",                hl.dsp.exec_cmd(scripts .. "/launcher.sh"), d("Launch bar"))
+hl.bind(cmd .. " + " .. opt .. " + Space", hl.dsp.exec_cmd("rofi -show run"),          d("Run a command"))
+-- ⌃⌘Space is the macOS emoji picker.
+hl.bind(ctrl .. " + " .. cmd .. " + Space", hl.dsp.exec_cmd("rofi -show emoji -modes emoji"), d("Emoji picker"))
+
+hl.bind(cmd .. " + Return", hl.dsp.exec_cmd(term),  d("Terminal"))
+hl.bind(cmd .. " + E",      hl.dsp.exec_cmd(files), d("File manager"))
+
+-- ⌘, is Preferences in every Mac app.
+hl.bind(cmd .. " + comma", hl.dsp.exec_cmd("python3 ~/.config/hypr/settings/hypr-settings.py"), d("Settings"))
+-- ⌘? is Help.
+hl.bind(cmd .. " + " .. shift .. " + slash", hl.dsp.exec_cmd(scripts .. "/cheatsheet.sh"), d("Keybind cheatsheet"))
+
+hl.bind(cmd .. " + " .. shift .. " + V", hl.dsp.exec_cmd(scripts .. "/clipboard.sh"),  d("Clipboard history"))
+hl.bind(cmd .. " + " .. opt .. " + U",   hl.dsp.exec_cmd(term .. " -e cachy-update"),  d("System update"))
+
+-- AI assistants, docked as right-hand columns. ⌘A is Select All, so these sit
+-- behind ⌥.
+hl.bind(cmd .. " + " .. opt .. " + A", hl.dsp.exec_cmd(scripts .. "/ai.sh claude"),  d("Claude panel"))
+hl.bind(cmd .. " + " .. opt .. " + G", hl.dsp.exec_cmd(scripts .. "/ai.sh chatgpt"), d("ChatGPT panel"))
 
 --------------------------------------------------------------------------------
 --  Session
 --------------------------------------------------------------------------------
 
-hl.bind(mod .. " + L",         hl.dsp.exec_cmd("hyprlock"),               d("Lock screen"))
-hl.bind(mod .. " + Escape",    hl.dsp.exec_cmd("wlogout -p layer-shell"), d("Power menu"))
-hl.bind(mod .. " + Q",         hl.dsp.window.close(),                     d("Close window"))
-hl.bind(mod .. " + SHIFT + Q", hl.dsp.window.kill(),                      d("Force kill window"))
-hl.bind(mod .. " + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload"),         d("Reload config"))
+-- ⌃⌘Q locks the screen on macOS.
+hl.bind(ctrl .. " + " .. cmd .. " + Q", hl.dsp.exec_cmd("hyprlock"), d("Lock screen"))
+hl.bind(cmd .. " + Escape", hl.dsp.exec_cmd("wlogout -p layer-shell"), d("Power menu"))
+
+-- ⌘Q quits, ⌘W closes the window. With the keyd profile installed, apps see
+-- ⌘W as Ctrl+W (close tab) and this becomes the fallback for windows without
+-- tabs — which is exactly how it behaves on a Mac.
+hl.bind(cmd .. " + Q", hl.dsp.window.close(), d("Close window"))
+hl.bind(cmd .. " + W", hl.dsp.window.close(), d("Close window"))
+-- ⌥⌘Esc is Force Quit.
+hl.bind(opt .. " + " .. cmd .. " + Escape", hl.dsp.window.kill(), d("Force quit window"))
+
+hl.bind(cmd .. " + " .. shift .. " + R", hl.dsp.exec_cmd("hyprctl reload"), d("Reload config"))
 
 --------------------------------------------------------------------------------
 --  Notifications and bar
 --------------------------------------------------------------------------------
 
-hl.bind(mod .. " + N",         hl.dsp.exec_cmd("swaync-client -t -sw"),  d("Notification centre"))
-hl.bind(mod .. " + SHIFT + N", hl.dsp.exec_cmd("swaync-client -d -sw"),  d("Dismiss notifications"))
-hl.bind(mod .. " + B",         hl.dsp.exec_cmd("pkill -SIGUSR1 waybar"), d("Toggle the bar"))
+hl.bind(cmd .. " + " .. opt .. " + N", hl.dsp.exec_cmd("swaync-client -t -sw"), d("Notification centre"))
+hl.bind(cmd .. " + " .. opt .. " + D", hl.dsp.exec_cmd("swaync-client -d -sw"), d("Do not disturb"))
+hl.bind(cmd .. " + " .. opt .. " + B", hl.dsp.exec_cmd("pkill -SIGUSR1 waybar"), d("Toggle the bar"))
 
 --------------------------------------------------------------------------------
---  Window management
+--  Windows
 --------------------------------------------------------------------------------
 
-hl.bind(mod .. " + F",         hl.dsp.window.fullscreen({ mode = "fullscreen" }), d("Fullscreen"))
-hl.bind(mod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized" }),  d("Maximise within gaps"))
-hl.bind(mod .. " + Space",     hl.dsp.window.float(),                             d("Toggle floating"))
-hl.bind(mod .. " + P",         hl.dsp.window.pin(),                               d("Pin to all workspaces"))
-hl.bind(mod .. " + C",         hl.dsp.window.center(),                            d("Centre window"))
-hl.bind(mod .. " + J",         hl.dsp.layout("togglesplit"),                      d("Toggle split direction"))
-hl.bind(mod .. " + G",         hl.dsp.group.toggle(),                             d("Toggle tab group"))
-hl.bind(mod .. " + SHIFT + Tab", hl.dsp.group.next(),                             d("Next tab in group"))
+-- ⌃⌘F is Enter Full Screen on macOS.
+hl.bind(ctrl .. " + " .. cmd .. " + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }), d("Fullscreen"))
+hl.bind(opt .. " + " .. cmd .. " + F",  hl.dsp.window.fullscreen({ mode = "maximized" }),  d("Maximise within gaps"))
+hl.bind(cmd .. " + " .. shift .. " + F", hl.dsp.window.float(),                            d("Toggle floating"))
+hl.bind(cmd .. " + " .. shift .. " + P", hl.dsp.window.pin(),                              d("Pin to all workspaces"))
+hl.bind(cmd .. " + " .. opt .. " + C",   hl.dsp.window.center(),                           d("Centre window"))
 
--- Focus
-for key, dir in pairs({ left = "left", right = "right", up = "up", down = "down" }) do
-    hl.bind(mod .. " + " .. key, hl.dsp.focus({ direction = dir }), d("Focus " .. dir))
+-- ⌘Tab is the app switcher; ⌘` cycles windows of the same app.
+hl.bind(cmd .. " + Tab",   hl.dsp.exec_cmd("rofi -show window"), d("Window switcher"))
+hl.bind(cmd .. " + grave", hl.dsp.window.cycle_next(),           d("Cycle windows"))
+
+-- ⌘H hides, ⌘⇧H brings the hidden pile back. Mapped to the scratchpad, which
+-- is the closest thing a tiler has to minimising.
+hl.bind(cmd .. " + H",                   hl.dsp.window.move({ workspace = "special:scratchpad" }), d("Hide window"))
+hl.bind(cmd .. " + " .. shift .. " + H", hl.dsp.workspace.toggle_special("scratchpad"),            d("Show hidden windows"))
+
+hl.bind(cmd .. " + " .. opt .. " + J", hl.dsp.layout("togglesplit"), d("Toggle split direction"))
+hl.bind(cmd .. " + " .. opt .. " + T", hl.dsp.group.toggle(),        d("Toggle tab group"))
+hl.bind(ctrl .. " + Tab",              hl.dsp.group.next(),          d("Next tab in group"))
+
+-- Focus: ⌥⌘ + arrows. Bare ⌘ + arrows is line-start/end in every Mac text
+-- field, so it is deliberately left alone.
+for _, dir in ipairs({ "left", "right", "up", "down" }) do
+    hl.bind(opt .. " + " .. cmd .. " + " .. dir,
+            hl.dsp.focus({ direction = dir }), d("Focus " .. dir))
+    hl.bind(opt .. " + " .. cmd .. " + " .. shift .. " + " .. dir,
+            hl.dsp.window.move({ direction = dir }), d("Move window " .. dir))
 end
 
--- Move
-for key, dir in pairs({ left = "left", right = "right", up = "up", down = "down" }) do
-    hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = dir }), d("Move window " .. dir))
-end
-
--- Resize, repeatable while held
-local resize_step = 40
-for key, delta in pairs({
-    left  = { -resize_step, 0 },
-    right = { resize_step, 0 },
-    up    = { 0, -resize_step },
-    down  = { 0, resize_step },
+-- Resize: ⌃⌘ + arrows, repeatable while held.
+local step = 40
+for dir, delta in pairs({
+    left  = { -step, 0 },
+    right = { step, 0 },
+    up    = { 0, -step },
+    down  = { 0, step },
 }) do
     hl.bind(
-        mod .. " + CTRL + " .. key,
+        ctrl .. " + " .. cmd .. " + " .. dir,
         hl.dsp.window.resize({ x = delta[1], y = delta[2], relative = true }),
         { repeating = true, description = "Resize window" }
     )
 end
 
 -- Mouse
-hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true, description = "Drag window" })
-hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Resize window" })
+hl.bind(cmd .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true, description = "Drag window" })
+hl.bind(cmd .. " + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Resize window" })
 
 --------------------------------------------------------------------------------
 --  Ultrawide thirds
 --
 --  3440 wide, 10px gaps, ~40px bar: three columns of 1133px starting at
---  x = 10 / 1153 / 2296. ALT+0 hands the window back to the tiler.
+--  x = 10 / 1153 / 2296. ⌥⌘0 hands the window back to the tiler.
 --------------------------------------------------------------------------------
 
 local COL_W, COL_H, TOP = 1133, 1380, 50
@@ -103,44 +152,49 @@ local function snap_to(x)
     end
 end
 
-hl.bind(mod .. " + ALT + 1", snap_to(10),   d("Snap to left third"))
-hl.bind(mod .. " + ALT + 2", snap_to(1153), d("Snap to centre third"))
-hl.bind(mod .. " + ALT + 3", snap_to(2296), d("Snap to right third"))
-hl.bind(mod .. " + ALT + 0", hl.dsp.window.float({ action = "disable" }), d("Back to tiling"))
+hl.bind(opt .. " + " .. cmd .. " + 1", snap_to(10),   d("Snap to left third"))
+hl.bind(opt .. " + " .. cmd .. " + 2", snap_to(1153), d("Snap to centre third"))
+hl.bind(opt .. " + " .. cmd .. " + 3", snap_to(2296), d("Snap to right third"))
+hl.bind(opt .. " + " .. cmd .. " + 0", hl.dsp.window.float({ action = "disable" }), d("Back to tiling"))
 
 --------------------------------------------------------------------------------
 --  Workspaces
+--
+--  ⌘ + digit rather than macOS's ⌃ + digit: on Linux, Ctrl+1..9 is how
+--  browsers switch tabs, and losing that hurts more than the exact match helps.
 --------------------------------------------------------------------------------
 
 for i = 1, 10 do
     local key = i % 10 -- workspace 10 lives on the 0 key
-    hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = i }), d("Workspace " .. i))
-    hl.bind(
-        mod .. " + SHIFT + " .. key,
-        hl.dsp.window.move({ workspace = i, follow = false }),
-        d("Send window to workspace " .. i)
-    )
+    hl.bind(cmd .. " + " .. key, hl.dsp.focus({ workspace = i }), d("Workspace " .. i))
+    hl.bind(cmd .. " + " .. shift .. " + " .. key,
+            hl.dsp.window.move({ workspace = i, follow = false }),
+            d("Send window to workspace " .. i))
 end
 
-hl.bind(mod .. " + bracketright", hl.dsp.focus({ workspace = "e+1" }), d("Next workspace"))
-hl.bind(mod .. " + bracketleft",  hl.dsp.focus({ workspace = "e-1" }), d("Previous workspace"))
-hl.bind(mod .. " + mouse_down",   hl.dsp.focus({ workspace = "e+1" }), d("Next workspace"))
-hl.bind(mod .. " + mouse_up",     hl.dsp.focus({ workspace = "e-1" }), d("Previous workspace"))
-hl.bind(mod .. " + grave",        hl.dsp.focus({ workspace = "previous" }), d("Last workspace"))
-
--- Scratchpad
-hl.bind(mod .. " + S",         hl.dsp.workspace.toggle_special("scratchpad"),          d("Toggle scratchpad"))
-hl.bind(mod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:scratchpad" }), d("Send to scratchpad"))
+-- ⌃⌥ + arrows: Mission Control's ⌃ + arrows, shifted one modifier out of the
+-- way of word-wise text navigation.
+hl.bind(ctrl .. " + " .. opt .. " + right", hl.dsp.focus({ workspace = "e+1" }), d("Next workspace"))
+hl.bind(ctrl .. " + " .. opt .. " + left",  hl.dsp.focus({ workspace = "e-1" }), d("Previous workspace"))
+hl.bind(cmd .. " + mouse_down",             hl.dsp.focus({ workspace = "e+1" }), d("Next workspace"))
+hl.bind(cmd .. " + mouse_up",               hl.dsp.focus({ workspace = "e-1" }), d("Previous workspace"))
 
 --------------------------------------------------------------------------------
---  Screenshots and colour
+--  Screenshots — the macOS combos, plus the PrintScreen key for muscle memory
+--  that predates the Mac.
 --------------------------------------------------------------------------------
 
-hl.bind("Print",               hl.dsp.exec_cmd(scripts .. "/screenshot.sh region"), d("Screenshot a region"))
-hl.bind("SHIFT + Print",       hl.dsp.exec_cmd(scripts .. "/screenshot.sh screen"), d("Screenshot the screen"))
-hl.bind("CTRL + Print",        hl.dsp.exec_cmd(scripts .. "/screenshot.sh window"), d("Screenshot a window"))
-hl.bind(mod .. " + Print",     hl.dsp.exec_cmd(scripts .. "/screenshot.sh edit"),   d("Screenshot and annotate"))
-hl.bind(mod .. " + SHIFT + C", hl.dsp.exec_cmd("hyprpicker -a -n"),                 d("Pick a colour"))
+local shot = scripts .. "/screenshot.sh"
+
+hl.bind(cmd .. " + " .. shift .. " + 3", hl.dsp.exec_cmd(shot .. " screen"), d("Screenshot the screen"))
+hl.bind(cmd .. " + " .. shift .. " + 4", hl.dsp.exec_cmd(shot .. " region"), d("Screenshot a region"))
+hl.bind(cmd .. " + " .. shift .. " + 5", hl.dsp.exec_cmd(shot .. " edit"),   d("Screenshot and annotate"))
+hl.bind(cmd .. " + " .. shift .. " + 6", hl.dsp.exec_cmd(shot .. " window"), d("Screenshot a window"))
+
+hl.bind("Print",         hl.dsp.exec_cmd(shot .. " region"), d("Screenshot a region"))
+hl.bind(shift .. " + Print", hl.dsp.exec_cmd(shot .. " screen"), d("Screenshot the screen"))
+
+hl.bind(cmd .. " + " .. opt .. " + P", hl.dsp.exec_cmd("hyprpicker -a -n"), d("Pick a colour"))
 
 --------------------------------------------------------------------------------
 --  Media, volume, night light
@@ -162,5 +216,11 @@ hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("swayosd-client --output-volume 
 hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("swayosd-client --input-volume mute-toggle"),  media)
 hl.bind("Caps_Lock",            hl.dsp.exec_cmd("swayosd-client --caps-lock"),                 media)
 
-hl.bind(mod .. " + F9",  hl.dsp.exec_cmd("hyprctl hyprsunset temperature 4000"), d("Warm the display"))
-hl.bind(mod .. " + F10", hl.dsp.exec_cmd("hyprctl hyprsunset identity"),         d("Normal colour temperature"))
+-- Mac keyboards put volume on F10-F12 with no XF86 codes when the function-key
+-- row is in F-mode; these cover that case.
+hl.bind(cmd .. " + F10", hl.dsp.exec_cmd("swayosd-client --output-volume mute-toggle"), media)
+hl.bind(cmd .. " + F11", hl.dsp.exec_cmd("swayosd-client --output-volume lower"),       held)
+hl.bind(cmd .. " + F12", hl.dsp.exec_cmd("swayosd-client --output-volume raise"),       held)
+
+hl.bind(cmd .. " + " .. opt .. " + F1", hl.dsp.exec_cmd("hyprctl hyprsunset temperature 4000"), d("Warm the display"))
+hl.bind(cmd .. " + " .. opt .. " + F2", hl.dsp.exec_cmd("hyprctl hyprsunset identity"),         d("Normal colour temperature"))

@@ -2,11 +2,15 @@
 #
 # Install this Hyprland desktop on CachyOS.
 #
-#   ./install.sh                 packages + symlinks + post-install steps
-#   ./install.sh --no-packages   symlinks only
-#   ./install.sh --no-aur        skip the two AUR theme packages
-#   ./install.sh --dry-run       print what would happen, change nothing
-#   ./install.sh --unlink        remove the symlinks this script created
+#   ./install.sh                        packages + symlinks + post-install
+#   ./install.sh --no-packages          symlinks only
+#   ./install.sh --no-aur               skip the AUR theme packages
+#   ./install.sh --no-agent-hooks       skip the Claude Code / Codex status hooks
+#   ./install.sh --remove-agent-hooks   remove those hooks, then exit
+#   ./install.sh --no-kde-colors        leave KDE app colours alone
+#   ./install.sh --mac-keys             install the keyd Mac profile (needs sudo)
+#   ./install.sh --dry-run              print what would happen, change nothing
+#   ./install.sh --unlink               remove the symlinks this script created
 #
 # Safe to re-run. Existing real files are moved aside to *.bak-<timestamp>,
 # never deleted. Plasma is left completely alone.
@@ -19,8 +23,17 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 DO_PACKAGES=1
 DO_AUR=1
+DO_AGENT_HOOKS=1
+REMOVE_AGENT_HOOKS=0
+DO_KDE_COLORS=1
+DO_MAC_KEYS=0
 DRY_RUN=0
 UNLINK=0
+
+CLAUDE_SETTINGS="$HOME/.claude/settings.json"
+CODEX_HOOKS="$HOME/.codex/hooks.json"
+HOOK_MARKER="hypr/scripts/hooks/agent-state.sh"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 # Whole directories that become symlinks into the repo.
 DIR_LINKS=(
@@ -43,6 +56,12 @@ FILE_LINKS=(
     "xdg-desktop-portal/hyprland-portals.conf"
 )
 
+# Files under ~/.local/share rather than ~/.config. Same treatment.
+DATA_FILE_LINKS=(
+    "color-schemes/CatppuccinMocha.colors"
+    "applications/hypr-settings.desktop"
+)
+
 # --- plumbing ----------------------------------------------------------------
 
 c_reset=$'\e[0m'; c_bold=$'\e[1m'; c_dim=$'\e[2m'
@@ -62,19 +81,144 @@ run() {
     fi
 }
 
-usage() { sed -n '3,13p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0; }
+usage() { sed -n '3,16p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0; }
 
 while (($#)); do
     case "$1" in
-        --no-packages) DO_PACKAGES=0 ;;
-        --no-aur)      DO_AUR=0 ;;
-        --dry-run)     DRY_RUN=1 ;;
-        --unlink)      UNLINK=1 ;;
-        -h|--help)     usage ;;
+        --no-packages)        DO_PACKAGES=0 ;;
+        --no-aur)             DO_AUR=0 ;;
+        --no-agent-hooks)     DO_AGENT_HOOKS=0 ;;
+        --remove-agent-hooks) REMOVE_AGENT_HOOKS=1 ;;
+        --no-kde-colors)      DO_KDE_COLORS=0 ;;
+        --mac-keys)           DO_MAC_KEYS=1 ;;
+        --dry-run)            DRY_RUN=1 ;;
+        --unlink)             UNLINK=1 ;;
+        -h|--help)            usage ;;
         *) err "unknown option: $1"; exit 2 ;;
     esac
     shift
 done
+
+# --- Coding-agent status hooks -----------------------------------------------
+#
+# These drive the Waybar modules that show running Claude Code / Codex sessions
+# and, more usefully, whether one is blocked waiting for you. They live outside
+# this repo (~/.claude/settings.json, ~/.codex/hooks.json), so both directions
+# are handled explicitly and the original is always backed up first.
+
+hooks_strip() {
+    # Drop any hook entries pointing at our script, leaving the rest of the
+    # user's config untouched.
+    jq --arg marker "$HOOK_MARKER" '
+        def ours: ((.hooks // []) | map(.command // "") | any(contains($marker)));
+        if .hooks then
+            .hooks |= (with_entries(.value |= map(select(ours | not)))
+                       | with_entries(select(.value | length > 0)))
+            | if (.hooks | length) == 0 then del(.hooks) else . end
+        else . end
+    '
+}
+
+# hooks_merge <target-file> <repo-manifest> <label>
+hooks_merge() {
+    local target="$1" manifest="$2" label="$3"
+    local generated merged
+
+    generated=$(sed "s|__HOME__|$HOME|g" "$manifest" | jq 'del(._comment)')
+
+    if [[ -f "$target" ]]; then
+        if ! jq -e . "$target" >/dev/null 2>&1; then
+            err "$target is not valid JSON — refusing to touch it"
+            return
+        fi
+    else
+        run mkdir -p "$(dirname "$target")"
+        ((DRY_RUN)) || echo '{}' > "$target"
+        [[ -f "$target" ]] || return
+    fi
+
+    # Idempotent: strip our previous entries, then add the current ones.
+    merged=$(hooks_strip < "$target" | jq -s '
+        .[0] as $cur | .[1] as $add
+        | ($cur + ($add | del(.hooks)))
+        | .hooks = (reduce ($add.hooks | to_entries[]) as $e
+                      (($cur.hooks // {}); .[$e.key] = ((.[$e.key] // []) + $e.value)))
+    ' - <(printf '%s' "$generated"))
+
+    if [[ -z "$merged" ]] || ! jq -e . <<< "$merged" >/dev/null 2>&1; then
+        err "hook merge produced invalid JSON — leaving $target alone"
+        return
+    fi
+
+    if ((DRY_RUN)); then
+        skip "would add $(jq '.hooks | length' <<< "$generated") $label hook events to $target"
+        return
+    fi
+
+    [[ -s "$target" ]] && cp "$target" "$target.bak-$STAMP"
+    printf '%s\n' "$merged" > "$target"
+    ok "$label status hooks installed (backup: $(basename "$target").bak-$STAMP)"
+}
+
+agent_hooks_install() {
+    if command -v claude &>/dev/null; then
+        hooks_merge "$CLAUDE_SETTINGS" "$REPO/config/claude/hooks.json" "Claude Code"
+    else
+        skip "claude not installed — skipping its hooks"
+    fi
+
+    if [[ -d "$HOME/.codex" ]]; then
+        hooks_merge "$CODEX_HOOKS" "$REPO/config/codex/hooks.json" "Codex"
+        warn "Codex will not run these until you trust them: open Codex and run /hooks"
+    else
+        skip "no ~/.codex — skipping Codex hooks"
+    fi
+}
+
+agent_hooks_remove() {
+    local target
+    for target in "$CLAUDE_SETTINGS" "$CODEX_HOOKS"; do
+        [[ -f "$target" ]] || continue
+        local stripped
+        stripped=$(hooks_strip < "$target")
+        if ((DRY_RUN)); then
+            skip "would remove our hooks from $target"
+            continue
+        fi
+        cp "$target" "$target.bak-$STAMP"
+        printf '%s\n' "$stripped" > "$target"
+        ok "hooks removed from $target (backup kept)"
+    done
+}
+
+if ((REMOVE_AGENT_HOOKS)); then
+    info "Removing coding-agent status hooks"
+    agent_hooks_remove
+    exit 0
+fi
+
+# --- KDE application colours -------------------------------------------------
+#
+# Dolphin, Ark and Okular read ~/.config/kdeglobals, not GTK or qt6ct settings.
+# Without this they stay Breeze-coloured and stand out badly next to everything
+# else. Note this also recolours the Plasma fallback session — same kdeglobals.
+
+kde_colors_apply() {
+    if ! command -v plasma-apply-colorscheme &>/dev/null; then
+        skip "plasma-apply-colorscheme not found — KDE apps keep their current colours"
+        return
+    fi
+    if ((DRY_RUN)); then
+        skip "would apply the CatppuccinMocha colour scheme to KDE apps"
+        return
+    fi
+    [[ -f "$HOME/.config/kdeglobals" ]] && cp "$HOME/.config/kdeglobals" "$HOME/.config/kdeglobals.bak-$STAMP"
+    if plasma-apply-colorscheme CatppuccinMocha &>/dev/null; then
+        ok "KDE apps recoloured (kdeglobals backed up)"
+    else
+        warn "could not apply the colour scheme; pick 'Catppuccin Mocha' in System Settings"
+    fi
+}
 
 # --- unlink ------------------------------------------------------------------
 
@@ -96,7 +240,16 @@ if ((UNLINK)); then
             skip "$target is not one of ours"
         fi
     done
-    info "Done. Backups from previous installs are still in $CONFIG as *.bak-*"
+    for f in "${DATA_FILE_LINKS[@]}"; do
+        target="$DATA_HOME/$f"
+        if [[ -L "$target" && "$(readlink -f "$target")" == "$REPO/config/$f" ]]; then
+            run rm "$target"; ok "$target"
+        else
+            skip "$target is not one of ours"
+        fi
+    done
+    info "Done. Backups from previous installs are still in place as *.bak-*"
+    info "Agent hooks are separate: ./install.sh --remove-agent-hooks"
     exit 0
 fi
 
@@ -190,6 +343,9 @@ done
 for f in "${FILE_LINKS[@]}"; do
     link "$REPO/config/$f" "$CONFIG/$f"
 done
+for f in "${DATA_FILE_LINKS[@]}"; do
+    link "$REPO/config/$f" "$DATA_HOME/$f"
+done
 
 # --- post-install ------------------------------------------------------------
 
@@ -198,9 +354,9 @@ info "Post-install"
 # Scripts need to be executable; git tracks the bit but a fresh checkout on a
 # noexec-mounted filesystem or a zip download will not have it.
 if ((DRY_RUN)); then
-    skip "would chmod +x $REPO/config/hypr/scripts/*.sh"
+    skip "would chmod +x $REPO/config/hypr/scripts/**.sh"
 else
-    chmod +x "$REPO"/config/hypr/scripts/*.sh
+    chmod +x "$REPO"/config/hypr/scripts/*.sh "$REPO"/config/hypr/scripts/hooks/*.sh
     ok "scripts are executable"
 fi
 
@@ -232,6 +388,48 @@ if systemctl --user list-unit-files arch-update.timer &>/dev/null; then
     ok "update checks enabled (arch-update.timer, daily)"
 else
     warn "arch-update.timer not found — is cachy-update installed?"
+fi
+
+# Agent session widgets
+if ((DO_AGENT_HOOKS)); then
+    agent_hooks_install
+else
+    skip "agent status hooks skipped (--no-agent-hooks)"
+fi
+
+# KDE app colours — the one real look-and-feel gap otherwise
+if ((DO_KDE_COLORS)); then
+    kde_colors_apply
+else
+    skip "KDE colours left alone (--no-kde-colors)"
+fi
+
+# The settings window and its desktop entry
+if command -v update-desktop-database &>/dev/null; then
+    run update-desktop-database "$DATA_HOME/applications"
+fi
+
+# Mac keyboard profile — opt-in, because it is a system daemon reading every
+# keystroke before anything else does.
+if ((DO_MAC_KEYS)); then
+    info "Installing the keyd Mac keyboard profile"
+    if ((DRY_RUN)); then
+        skip "would install keyd and write /etc/keyd/default.conf"
+    else
+        pacman -Q keyd &>/dev/null || sudo pacman -S --needed --noconfirm keyd
+        if [[ -f /etc/keyd/default.conf ]] && ! grep -q hypr-mac-profile /etc/keyd/default.conf; then
+            sudo cp /etc/keyd/default.conf "/etc/keyd/default.conf.bak-$STAMP"
+            warn "existing /etc/keyd/default.conf backed up"
+        fi
+        sudo mkdir -p /etc/keyd
+        sudo cp "$REPO/config/keyd/default.conf" /etc/keyd/default.conf
+        sudo systemctl enable --now keyd
+        sudo keyd reload 2>/dev/null || true
+        ok "keyd Mac profile active — ⌘C/⌘V and friends now work in apps"
+        ok "input.lua detects this and drops its own Alt/Super swap on next reload"
+    fi
+else
+    skip "keyd Mac profile not installed (--mac-keys to add ⌘C/⌘V inside apps)"
 fi
 
 # --- checks ------------------------------------------------------------------
@@ -270,10 +468,11 @@ $c_bold Done.$c_reset
   Log out, pick $c_bold Hyprland$c_reset at the SDDM session menu, and log back in.
   Plasma is untouched and still in that menu if you need to get back.
 
-  First things to try:
-    SUPER + Return    terminal
-    SUPER + D         app launcher
-    SUPER + /         every keybind, searchable
-    SUPER + Escape    power menu
+  Keys are Mac-shaped — the ⌘ cap sends SUPER. First things to try:
+    ⌘ + Space       launch bar
+    ⌘ + Return      terminal
+    ⌘ + ?           every keybind, searchable
+    ⌘ + Escape      power menu
+    ⌘ + ⇧ + 4       screenshot a region
 
 EOF

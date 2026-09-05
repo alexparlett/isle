@@ -25,6 +25,8 @@ hyprsunset
 # --- Shell ---------------------------------------------------------------
 waybar
 rofi
+rofi-calc              # maths in the launch bar: type "18*7.5", Enter copies
+rofi-emoji             # SUPER+. emoji picker
 swaync
 swayosd
 wlogout
@@ -47,6 +49,11 @@ pavucontrol
 playerctl
 brightnessctl
 udiskie
+
+# --- Settings window (GTK4) ----------------------------------------------
+python-gobject
+gtk4
+desktop-file-utils
 
 # --- Theming -------------------------------------------------------------
 papirus-icon-theme

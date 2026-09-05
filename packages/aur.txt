@@ -1,5 +1,14 @@
 # AUR packages. Only what genuinely has no repo equivalent.
-# Installed with paru by install.sh; skip with --no-aur.
+# Installed with paru by install.sh; skip the lot with --no-aur.
 
-catppuccin-gtk-theme-mocha    # GTK3/GTK4 application theme
-catppuccin-cursors-mocha      # cursor theme referenced by env.lua
+catppuccin-gtk-theme-mocha      # GTK3/GTK4 application theme
+catppuccin-cursors-mocha        # cursor theme referenced by env.lua
+papirus-folders-catppuccin-git  # recolours Papirus folder icons to Mocha
+
+# Optional, uncomment if you want them:
+#
+# kvantum-theme-catppuccin-git  # richer Qt styling than the Fusion palette in
+#                               # qt6ct.conf — set style=kvantum-dark after
+# catppuccin-sddm-theme-mocha   # matching login screen. Needs a root edit to
+#                               # /etc/sddm.conf.d/ to select it, so it is not
+#                               # automated here.

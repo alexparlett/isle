@@ -1,0 +1,141 @@
+/* Launch bar — Spotlight-style: a single centred bar, results underneath.
+ *
+ * Used by ALT+Space. Deliberately different from catppuccin-mocha.rasi, which
+ * is the list-style theme the window switcher and clipboard picker use.
+ */
+
+* {
+    base:     #1e1e2eff;
+    mantle:   #181825ff;
+    surface0: #313244ff;
+    surface1: #45475aff;
+    text:     #cdd6f4ff;
+    subtext0: #a6adc8ff;
+    overlay0: #6c7086ff;
+    mauve:    #cba6f7ff;
+    blue:     #89b4faff;
+    green:    #a6e3a1ff;
+    red:      #f38ba8ff;
+
+    background-color: transparent;
+    text-color:       @text;
+    margin:  0;
+    padding: 0;
+    spacing: 0;
+}
+
+window {
+    width:            680px;
+    /* Sat slightly high on the screen — a bar pinned to dead centre on a
+     * 1440px-tall panel ends up below where your eye already is. */
+    location:         north;
+    anchor:           north;
+    y-offset:         18%;
+    background-color: transparent;
+    transparency:     "real";
+    border:           0;
+    padding:          0;
+}
+
+mainbox {
+    background-color: transparent;
+    spacing:          10px;
+    children:         [ inputbar, listview ];
+}
+
+/* The bar itself ---------------------------------------------------------- */
+
+inputbar {
+    background-color: @base;
+    border:           2px;
+    border-color:     @mauve;
+    border-radius:    16px;
+    padding:          16px 22px;
+    spacing:          14px;
+    children:         [ prompt, entry ];
+}
+
+prompt {
+    text-color:     @mauve;
+    font:           "JetBrainsMono Nerd Font 17";
+    vertical-align: 0.5;
+}
+
+entry {
+    font:              "JetBrainsMono Nerd Font 15";
+    vertical-align:    0.5;
+    placeholder:       "Search apps, or do maths…";
+    placeholder-color: @overlay0;
+    cursor:            text;
+}
+
+/* Results ----------------------------------------------------------------- */
+
+listview {
+    background-color: @base;
+    border:           1px;
+    border-color:     @surface0;
+    border-radius:    16px;
+    padding:          8px;
+    spacing:          2px;
+    lines:            8;
+    columns:          1;
+    fixed-height:     false;   /* collapse when there is nothing to show */
+    dynamic:          true;
+    scrollbar:        false;
+    cycle:            true;
+}
+
+element {
+    padding:       11px 14px;
+    spacing:       14px;
+    border-radius: 11px;
+    cursor:        pointer;
+}
+
+element normal.normal,
+element alternate.normal { text-color: @text; }
+
+element selected.normal {
+    background-color: @surface0;
+    text-color:       @mauve;
+}
+
+element normal.active,
+element alternate.active  { text-color: @green; }
+element selected.active   { background-color: @surface0; text-color: @green; }
+element normal.urgent,
+element alternate.urgent  { text-color: @red; }
+element selected.urgent   { background-color: @surface0; text-color: @red; }
+
+element-icon {
+    size:             1.5em;
+    vertical-align:   0.5;
+    background-color: transparent;
+}
+
+element-text {
+    vertical-align:   0.5;
+    background-color: transparent;
+    text-color:       inherit;
+}
+
+/* Mode indicator when more than one mode is combined. */
+mode-switcher {
+    background-color: @base;
+    border-radius:    12px;
+    padding:          4px;
+    spacing:          4px;
+}
+
+button {
+    padding:       6px 14px;
+    border-radius: 9px;
+    text-color:    @overlay0;
+    cursor:        pointer;
+}
+
+button selected {
+    background-color: @surface0;
+    text-color:       @mauve;
+}

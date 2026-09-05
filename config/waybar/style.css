@@ -50,6 +50,10 @@ window#waybar.hidden {
 #window,
 #clock,
 #mpris,
+#custom-claude,
+#custom-codex,
+#custom-claude-app,
+#custom-chatgpt,
 #custom-updates,
 #cpu,
 #memory,
@@ -144,6 +148,73 @@ window#waybar.empty #window {
 
 #mpris.paused {
   color: @overlay0;
+}
+
+/* Coding-agent sessions --------------------------------------------------- */
+
+#custom-claude { color: @peach; }
+#custom-codex  { color: @green; }
+
+#custom-claude.idle,
+#custom-codex.idle {
+  color: @overlay0;
+}
+
+#custom-claude.working,
+#custom-codex.working {
+  color: @mauve;
+}
+
+/* Needs you: loud, and moving, because a static red pill in the corner of a
+ * 3440px screen is easy to miss. */
+#custom-claude.attention,
+#custom-codex.attention {
+  color: @base;
+  background: @red;
+  border-color: @red;
+  font-weight: 700;
+  animation: attention-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes attention-pulse {
+  0%   { background: @red; }
+  50%  { background: @peach; }
+  100% { background: @red; }
+}
+
+/* Collapse entirely when there are no sessions at all. */
+#custom-claude.none,
+#custom-codex.none,
+#custom-claude-app.none,
+#custom-chatgpt.none {
+  opacity: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  min-width: 0;
+}
+
+/* Desktop apps ------------------------------------------------------------ */
+
+#custom-claude-app,
+#custom-chatgpt {
+  font-size: 15px;
+  padding: 0 10px;
+}
+
+#custom-claude-app.running {
+  color: @peach;
+}
+
+#custom-chatgpt.running {
+  color: @green;
+}
+
+#custom-claude-app.attention,
+#custom-chatgpt.attention {
+  color: @base;
+  background: @yellow;
+  border-color: @yellow;
 }
 
 #custom-updates {

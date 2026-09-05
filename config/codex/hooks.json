@@ -1,0 +1,48 @@
+{
+  "description": "Hyprland Waybar status bridge — reports Codex session state to the bar.",
+
+  "_comment": [
+    "install.sh writes this to ~/.codex/hooks.json, replacing __HOME__ with",
+    "your home directory and backing up anything already there.",
+    "",
+    "IMPORTANT: Codex will not run a hook until you have trusted it. Run /hooks",
+    "in Codex, review this definition, and enable it. Trust is recorded against",
+    "the hook's hash, so editing this file means re-approving it.",
+    "",
+    "Codex has no TaskCreated/TaskCompleted equivalent, so the task counter in",
+    "the widget stays at zero for Codex; subagents and Interrupt are covered.",
+    "",
+    "Codex passes no `args` array, so the verb is part of the command string.",
+    "Remove with: ./install.sh --remove-agent-hooks"
+  ],
+
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex start", "timeout": 5 } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex working", "timeout": 5 } ] }
+    ],
+    "PreToolUse": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex working", "timeout": 5, "async": true } ] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex attention", "timeout": 5 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex idle", "timeout": 5 } ] }
+    ],
+    "Interrupt": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex idle", "timeout": 5 } ] }
+    ],
+    "SubagentStart": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex agent+", "timeout": 5 } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex agent-", "timeout": 5 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "__HOME__/.config/hypr/scripts/hooks/agent-state.sh codex end", "timeout": 5 } ] }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Hyprland Settings
+GenericName=Desktop Settings
+Comment=Live-tune gaps, blur, animations and behaviour
+Exec=python3 %h/.config/hypr/settings/hypr-settings.py
+Icon=preferences-desktop
+Terminal=false
+Categories=Settings;DesktopSettings;Qt;
+Keywords=hyprland;wayland;compositor;gaps;blur;appearance;
+StartupNotify=true
+StartupWMClass=dev.parlett.hyprsettings

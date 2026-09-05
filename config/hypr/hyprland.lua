@@ -12,8 +12,8 @@ require("env")
 require("monitors")
 require("input")
 require("look")
-require("binds")
-require("snap")   -- after binds: it adds a release action to ⌘-drag
+require("snap")   -- defines the zone helpers the keymap profiles bind to
+require("binds")  -- selects mac or windows, see keymap.lua
 require("rules")
 require("gaming")
 require("dnd")

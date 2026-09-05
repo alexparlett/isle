@@ -142,6 +142,9 @@ hl.bind("SUPER + mouse:272", snap_on_release, { mouse = true, drag = true })
 --  height rather than assuming it.
 --------------------------------------------------------------------------------
 
+--- Returns a bind action that floats the window and drops it in `zone`.
+--- The keys themselves belong to whichever keymap profile is active, since
+--- Mac and Windows disagree about which modifier owns window management.
 local function snap_to(zone)
     return function()
         hl.dispatch(hl.dsp.window.float({ action = "enable" }))
@@ -149,11 +152,4 @@ local function snap_to(zone)
     end
 end
 
-hl.bind("ALT + SUPER + 1", snap_to("left-third"),  { description = "Snap to left third" })
-hl.bind("ALT + SUPER + 2", snap_to("centre"),      { description = "Snap to centre third" })
-hl.bind("ALT + SUPER + 3", snap_to("right-third"), { description = "Snap to right third" })
-hl.bind("ALT + SUPER + 4", snap_to("left"),        { description = "Snap to left half" })
-hl.bind("ALT + SUPER + 5", snap_to("right"),       { description = "Snap to right half" })
-hl.bind("ALT + SUPER + 6", snap_to("maximise"),    { description = "Snap to full width" })
-
-return { zone_for = zone_for, geometry = geometry, place = place }
+return { zone_for = zone_for, geometry = geometry, place = place, snap_to = snap_to }

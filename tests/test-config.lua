@@ -21,7 +21,13 @@ end
 
 -- --- load every module, in the order hyprland.lua does ---------------------
 
-local MODULES = { "env", "monitors", "input", "look", "binds", "snap", "rules", "gaming", "dnd", "autostart" }
+local MODULES = { "env", "monitors", "input", "look", "snap", "binds", "rules", "gaming", "dnd", "autostart" }
+
+-- Which keymap profile this run exercises. The harness is invoked once per
+-- profile so both get the full set of assertions — a duplicate bind in the
+-- Windows profile is just as broken as one in the Mac profile, and only
+-- loading the default would never find it.
+local PROFILE = os.getenv("HYPR_KEYMAP") or "mac"
 
 for _, name in ipairs(MODULES) do
     local ok, err = pcall(require, name)
@@ -29,6 +35,9 @@ for _, name in ipairs(MODULES) do
 end
 
 local c = mock.calls
+
+check("the requested keymap profile loaded", require("keymap").name == PROFILE,
+      ("asked for %s, got %s"):format(PROFILE, require("keymap").name))
 
 -- --- binds -----------------------------------------------------------------
 
@@ -205,10 +214,10 @@ end
 
 print()
 if #failures == 0 then
-    print(("  all %d checks passed"):format(checks))
+    print(("  [%s] all %d checks passed"):format(PROFILE, checks))
     os.exit(0)
 end
 
-print(("  %d of %d checks FAILED:"):format(#failures, checks))
+print(("  [%s] %d of %d checks FAILED:"):format(PROFILE, #failures, checks))
 for _, f in ipairs(failures) do print("    ✗ " .. f) end
 os.exit(1)

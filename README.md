@@ -103,7 +103,8 @@ install.sh
 lua tests/test-config.lua
 ```
 
-Loads every module against a mock `hl` built from the documented API. Anything
+Loads every module against a mock `hl` built from the documented API, once per
+keymap profile. Anything
 not on that list raises, so a dispatcher that does not exist or a rule field
 that is misspelled fails here rather than at login. It then asserts on what the
 config produced: no two binds on the same keys, most binds carry a description
@@ -124,6 +125,38 @@ this config is Lua from the start: `hl.config{}`, `hl.bind()`, `hl.window_rule{}
 have **not** moved — those four keep the old `.conf` syntax.
 
 ## Keybindings
+
+Two profiles ship. Switch with `scripts/keymap.sh windows` (or `mac`, or
+`toggle`), from the Settings window, or with `⌥⌘K` / `Win+Alt+K`. The choice
+lives in `~/.config/hypr/keymap` and takes effect on reload — binds are
+registered while the config loads, so `local.lua` would be too late.
+
+| | macOS profile (default) | Windows profile |
+|---|---|---|
+| Launcher | `⌘Space` | `Win` tap, `Win+S` |
+| Run | `⌥⌘Space` | `Win+R` |
+| Settings | `⌘,` | `Win+I` |
+| Close window | `⌘Q` / `⌘W` | `Alt+F4` |
+| Switch window | `⌘Tab` | `Alt+Tab` |
+| Fullscreen | `⌃⌘F` | `F11` |
+| Lock | `⌃⌘Q` | `Win+L` |
+| Region screenshot | `⌘⇧4` | `Win+Shift+S` |
+| Emoji | `⌃⌘Space` | `Win+.` |
+| Clipboard history | `⌘⇧V` | `Win+V` |
+| Snap half | `⌥⌘4` / `⌥⌘5` | **`Win+←` / `Win+→`** |
+| Maximise | `⌥⌘6` | `Win+↑` |
+| Task manager | — | `Ctrl+Shift+Esc` |
+| Power menu | `⌘Esc` | `Win+X` |
+
+The Windows profile is not a token gesture — Aero Snap on `Win+arrows`,
+`Win+V`, `Win+.`, `Win+Shift+S` and `Ctrl+Shift+Esc` all behave the way they do
+on Windows. Both profiles share the media keys, the agent panels and the
+workspace bindings, which live in `binds-shared.lua`.
+
+The physical Alt/Super swap in `input.lua` is independent of the profile: it is
+about the keycaps on the board, not which shortcuts you prefer.
+
+### The macOS profile in detail
 
 The keyboard has Mac keycaps, so the bottom row reads `Ctrl / ⌥ / ⌘`. On a PC
 board the ⌘ cap sits on the physical Alt key, so `input.lua` applies

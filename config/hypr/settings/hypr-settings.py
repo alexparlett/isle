@@ -242,6 +242,9 @@ class SettingsWindow(Gtk.ApplicationWindow):
             page.append(self._group_title(group))
             page.append(self._card(specs))
 
+        page.append(self._group_title("Keyboard"))
+        page.append(self._keymap_card())
+
         page.append(self._group_title("Night light"))
         page.append(self._night_light_card())
 
@@ -330,6 +333,56 @@ class SettingsWindow(Gtk.ApplicationWindow):
 
         self.controls[id(widget)] = (spec, widget)
         return widget
+
+    def _keymap_card(self):
+        """Switching profile rewrites ~/.config/hypr/keymap and reloads, because
+        binds are registered at config load — there is no live-apply for this."""
+        box = Gtk.ListBox()
+        box.set_selection_mode(Gtk.SelectionMode.NONE)
+        box.add_css_class("card")
+
+        row = Gtk.ListBoxRow()
+        row.set_activatable(False)
+        line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+
+        labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1, hexpand=True)
+        title = Gtk.Label(label="Shortcut profile", xalign=0)
+        title.add_css_class("row-title")
+        labels.append(title)
+        sub = Gtk.Label(
+            label="macOS: ⌘Space, ⌃⌘F, ⌘⇧4   ·   Windows: Win+arrows snap, Alt+Tab, Alt+F4",
+            xalign=0)
+        sub.add_css_class("row-subtitle")
+        sub.set_wrap(True)
+        labels.append(sub)
+        line.append(labels)
+
+        keymap_file = Path.home() / ".config" / "hypr" / "keymap"
+        try:
+            current = keymap_file.read_text().strip() or "mac"
+        except OSError:
+            current = "mac"
+
+        options = ["mac", "windows"]
+        dropdown = Gtk.DropDown.new_from_strings(["macOS", "Windows"])
+        dropdown.set_valign(Gtk.Align.CENTER)
+        dropdown.set_selected(options.index(current) if current in options else 0)
+
+        def switched(widget, _param):
+            choice = options[widget.get_selected()]
+            script = Path.home() / ".config" / "hypr" / "scripts" / "keymap.sh"
+            try:
+                subprocess.run([str(script), choice], capture_output=True, timeout=10)
+                self._flash(f"Switched to the {choice} profile — Hyprland reloaded")
+            except (OSError, subprocess.SubprocessError) as exc:
+                self._flash(f"Could not switch: {exc}")
+
+        dropdown.connect("notify::selected", switched)
+        line.append(dropdown)
+
+        row.set_child(line)
+        box.append(row)
+        return box
 
     def _night_light_card(self):
         box = Gtk.ListBox()

@@ -50,6 +50,7 @@ pavucontrol
 playerctl
 brightnessctl
 udiskie
+gnome-disk-utility     # partitions and SMART, linked from System Settings
 
 # --- Settings window (GTK4) ----------------------------------------------
 python-gobject
@@ -59,6 +60,7 @@ desktop-file-utils
 # --- Theming -------------------------------------------------------------
 papirus-icon-theme
 nwg-look
+nwg-displays          # monitor arrangement GUI, writes Lua for 0.55+
 qt6ct
 qt5ct
 

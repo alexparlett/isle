@@ -30,7 +30,7 @@ s.bind(win .. " + period", hl.dsp.exec_cmd("rofi -show emoji -modes emoji"), d("
 
 s.bind(win .. " + Return", hl.dsp.exec_cmd(s.term),  d("Terminal"))
 s.bind(win .. " + E",      hl.dsp.exec_cmd(s.files), d("File manager"))
-s.bind(win .. " + I",      hl.dsp.exec_cmd("python3 ~/.config/hypr/settings/hypr-settings.py"), d("Settings"))
+s.bind(win .. " + I",      hl.dsp.exec_cmd("python3 ~/.config/hypr/settings/system-settings.py"), d("Settings"))
 s.bind(win .. " + V",      hl.dsp.exec_cmd(s.scripts .. "/clipboard.sh"), d("Clipboard history"))
 s.bind(win .. " + slash",  hl.dsp.exec_cmd(s.scripts .. "/cheatsheet.sh"), d("Keybind cheatsheet"))
 s.bind(win .. " + U",      hl.dsp.exec_cmd(s.term .. " -e cachy-update"),  d("System update"))

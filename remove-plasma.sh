@@ -95,6 +95,13 @@ APP_PKGS=(
     kio-admin
     ffmpegthumbs
     kdegraphics-thumbnailers
+
+    # Qt's audio abstraction, pulled in by a KDE app long ago. These two list
+    # each other as their only dependent — a circular pair, one of them marked
+    # explicitly installed — so pacman will never collect them on its own no
+    # matter how much else goes.
+    phonon-qt6-vlc
+    phonon-qt6
 )
 
 # Removing any of these would break something this desktop actually relies on,
@@ -226,15 +233,32 @@ fi
 wallet="$HOME/.local/share/kwalletd/kdewallet.kwl"
 if ((DO_DROP_KWALLET)); then
     if [[ -f "$wallet" ]]; then
+        # Don't just warn about the secrets — check they were actually moved.
+        # migrate-secrets.py copies rather than moves, so this is a comparison
+        # of what KWallet holds against what gnome-keyring can answer for.
+        if listing=$(python3 "$REPO/migrate-secrets.py" 2>/dev/null); then
+            entries=$(grep -cE '^      \S+ / ' <<< "$listing")
+        else
+            entries=unknown
+        fi
+
         warn "──────────────────────────────────────────────────────────────"
-        warn "  $wallet exists and holds secrets."
-        warn "  Removing kwallet does not delete it, but nothing will read it"
-        warn "  again. Anything stored there — Proton VPN sessions, git"
-        warn "  credentials, wifi keys saved per-user — must be re-entered"
-        warn "  against gnome-keyring."
+        warn "  $wallet holds secrets (${entries} readable entries)."
+        warn "  Removing kwallet does not delete the file, but nothing will"
+        warn "  read it again — Proton VPN sessions, git credentials and"
+        warn "  anything else in there stops resolving."
         warn ""
-        warn "  Export anything you need first:  kwallet-query -l kdewallet"
+        warn "  Migrate them into gnome-keyring FIRST:"
+        warn "      ./migrate-secrets.py           # see what would move"
+        warn "      ./migrate-secrets.py --run     # move and verify"
         warn "──────────────────────────────────────────────────────────────"
+
+        printf '%sHave you migrated? Type MIGRATED to continue: %s' "$c_bold" "$c_reset"
+        read -r migrated
+        if [[ "$migrated" != "MIGRATED" ]]; then
+            err "stopping. Run ./migrate-secrets.py --run first."
+            exit 1
+        fi
     fi
 else
     skip "kwallet kept (--drop-kwallet to remove it; nothing actually depends on it)"

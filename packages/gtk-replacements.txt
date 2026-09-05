@@ -12,10 +12,14 @@
 #   kdialog    -> zenity (already installed)
 #   haruna     -> mpv (already installed); celluloid below is the GUI frontend
 #
+# Removed with no replacement:
+#   kdeconnect  never paired with anything here. If you want phone integration
+#               later it is one pacman -S away, or `valent` from the AUR for a
+#               GTK4 implementation of the same protocol.
+#
 # Deliberately NOT replaced:
 #   kwallet / kwalletmanager  python-proton-keyring-linux and kio both need the
 #                             wallet, and kwalletmanager is its only GUI
-#   kdeconnect                no equivalent in the repos (valent is AUR-only)
 
 # --- File manager (replaces dolphin) --------------------------------------
 thunar

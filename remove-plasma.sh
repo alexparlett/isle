@@ -65,11 +65,17 @@ plasma_targets() {
     done
 }
 
-# Applications, removed only with --apps. kwalletmanager and kdeconnect are
-# deliberately absent: the wallet is still in use by kio and the Proton
-# packages, and kdeconnect has no equivalent in the repos.
+# Applications, removed only with --apps.
+#
+# kdeconnect is in here because it was never paired with anything on this box —
+# ~/.config/kdeconnect holds a generated key and no devices. If you ever want
+# phone integration back it is one pacman -S away.
+#
+# kwalletmanager is deliberately absent: the wallet is still live, used by kio
+# and by python-proton-keyring-linux, and this is its only GUI.
 APP_PKGS=(
     dolphin ark okular gwenview kate konsole kcalc filelight kdialog haruna
+    kdeconnect
 )
 
 # Removing any of these would break something this desktop actually relies on.

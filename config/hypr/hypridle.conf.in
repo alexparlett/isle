@@ -1,4 +1,16 @@
 ################################################################################
+#  hypridle — TEMPLATE
+#
+#  install.sh copies this to hypridle.conf, which is git-ignored, and never
+#  overwrites an existing one. System Settings edits the copy.
+#
+#  The reason is a principle worth stealing from HyprMod: a settings GUI should
+#  never write the config you track. ~/.config/hypr is a symlink into this repo,
+#  so editing hypridle.conf in place dirtied git on every slider drag.
+#
+#  hypridle has no include mechanism, so a separate override file is not an
+#  option — generating the whole file is.
+#
 #  hypridle
 #
 #  Desktop machine, so no suspend by default — the screen blanks and locks and

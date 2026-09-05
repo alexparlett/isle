@@ -445,6 +445,18 @@ else
     fi
 fi
 
+# Files that System Settings edits are generated from a template rather than
+# symlinked, so a GUI change never dirties the tracked config. Never overwritten
+# once it exists — your timeouts are yours.
+if [[ -f "$REPO/config/hypr/hypridle.conf" ]]; then
+    ok "hypridle.conf already generated"
+elif ((DRY_RUN)); then
+    skip "would generate hypridle.conf from hypridle.conf.in"
+else
+    cp "$REPO/config/hypr/hypridle.conf.in" "$REPO/config/hypr/hypridle.conf"
+    ok "hypridle.conf generated from its template"
+fi
+
 # Yazi's Catppuccin flavour. Referencing the upstream one rather than shipping a
 # hand-written palette: yazi's theme schema moves between releases, and a stale
 # copy breaks quietly. If this fetch fails, yazi falls back to its built-in

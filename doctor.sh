@@ -133,6 +133,27 @@ binds=$(hyprctl binds -j 2>/dev/null | jq 'length')
 described=$(hyprctl binds -j 2>/dev/null | jq '[.[] | select((.description // "") != "")] | length')
 ok "$binds keybinds registered, $described described (⌘? cheatsheet reads these)"
 
+# Keybinds are the one place this config and HyprMod overlap. Ours come from the
+# profile modules; HyprMod writes its own into hyprland-gui.lua, and Hyprland
+# will happily register both and fire both on the same key. The static tests can
+# only see our side, so check the live set for collisions.
+collisions=$(hyprctl binds -j 2>/dev/null | jq -r '
+    map(select((.mouse // false) == false and (.drag // false) == false))
+    | group_by([.modmask, (.key // (.keycode | tostring))])
+    | map(select(length > 1))
+    | .[]
+    | "      \(.[0].modmask):\(.[0].key // .[0].keycode)  →  " +
+      ([.[] | (.description // "no description")] | join("  /  "))
+')
+if [[ -z "$collisions" ]]; then
+    ok "no two keybinds share a key"
+else
+    warn "keys bound more than once — both actions fire:"
+    printf '%s\n' "$collisions"
+    note "binds-shared.lua yields any key HyprMod claims, so this should not"
+    note "happen — it means the hyprland-gui.lua parse missed something."
+fi
+
 # --- widgets -----------------------------------------------------------------
 
 section "Waybar modules"

@@ -1,0 +1,1859 @@
+{
+  "sha": "ffd47d804d8996cf3852dbb7ca1c949c424a57fb",
+  "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/ffd47d804d8996cf3852dbb7ca1c949c424a57fb",
+  "tree": [
+    {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cdd851b733f0149c144b0023cf52e93bc7340c4f",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/cdd851b733f0149c144b0023cf52e93bc7340c4f"
+    },
+    {
+      "path": ".github/FUNDING.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "de2c48e67120ba9043874756f20615163085236b",
+      "size": 18,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/de2c48e67120ba9043874756f20615163085236b"
+    },
+    {
+      "path": ".github/workflows",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "56c2cc927ffbe0f5d42e27c6826546fc2e5ca77c",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/56c2cc927ffbe0f5d42e27c6826546fc2e5ca77c"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "76de8d33ad595c8126adb4e65142720d3c15990b",
+      "size": 1049,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/76de8d33ad595c8126adb4e65142720d3c15990b"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca427227595fc7198d2fd184b35cdb84bc2832ca",
+      "size": 201,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ca427227595fc7198d2fd184b35cdb84bc2832ca"
+    },
+    {
+      "path": "AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d2d440d19356cd5e5c21389b7127ce4f80df294",
+      "size": 840,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1d2d440d19356cd5e5c21389b7127ce4f80df294"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0acccdfbc07511f5eecb35b591b76c9487e4bdfe",
+      "size": 16114,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/0acccdfbc07511f5eecb35b591b76c9487e4bdfe"
+    },
+    {
+      "path": "CLAUDE.md",
+      "mode": "120000",
+      "type": "blob",
+      "sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "size": 9,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/47dc3e3d863cfb5727b87d785d09abf9743c0a72"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "047d35a559ac5343056d61ab4054fab3a197a09d",
+      "size": 6650,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/047d35a559ac5343056d61ab4054fab3a197a09d"
+    },
+    {
+      "path": "GEMINI.md",
+      "mode": "120000",
+      "type": "blob",
+      "sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "size": 9,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/47dc3e3d863cfb5727b87d785d09abf9743c0a72"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "46f4cb90bec1eb686b2a464ca19f684089eb86c2",
+      "size": 35181,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/46f4cb90bec1eb686b2a464ca19f684089eb86c2"
+    },
+    {
+      "path": "NIX.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d64534d90f6e81c716dad9ce33921aa73cb9b993",
+      "size": 4699,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d64534d90f6e81c716dad9ce33921aa73cb9b993"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7698ff2b2855d14d292f5216c4d5c8860d0b5263",
+      "size": 8415,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7698ff2b2855d14d292f5216c4d5c8860d0b5263"
+    },
+    {
+      "path": "bldit.lua",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c63c18df111d40c164e496a4e153d872d3c1b9f2",
+      "size": 1263,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/c63c18df111d40c164e496a4e153d872d3c1b9f2"
+    },
+    {
+      "path": "data",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9d28751f41bbcc426d5426908a5eb7dc82f35645",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/9d28751f41bbcc426d5426908a5eb7dc82f35645"
+    },
+    {
+      "path": "data/applications",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1dbb0636b175398b8a2a2091d383186a580019b1",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/1dbb0636b175398b8a2a2091d383186a580019b1"
+    },
+    {
+      "path": "data/applications/io.github.bluemancz.hyprmod.desktop",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "67d6e65cd84163fd2f1a8ce7449aa042fccda96f",
+      "size": 369,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/67d6e65cd84163fd2f1a8ce7449aa042fccda96f"
+    },
+    {
+      "path": "data/icons",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b1a811751ea5044ca3518112dbeb5bcfdb741c13",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/b1a811751ea5044ca3518112dbeb5bcfdb741c13"
+    },
+    {
+      "path": "data/icons/hicolor",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "013750e1c8628fcc862bea4efae99e780709ff24",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/013750e1c8628fcc862bea4efae99e780709ff24"
+    },
+    {
+      "path": "data/icons/hicolor/scalable",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "381aada5acbb325a9536d76a05716ab183f29ff1",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/381aada5acbb325a9536d76a05716ab183f29ff1"
+    },
+    {
+      "path": "data/icons/hicolor/scalable/apps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c8f19d514a06c3c135164c2c43110aa2694aada5",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/c8f19d514a06c3c135164c2c43110aa2694aada5"
+    },
+    {
+      "path": "data/icons/hicolor/scalable/apps/io.github.bluemancz.hyprmod.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aae1de112c987465482cd76749274a24387ec901",
+      "size": 1681,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/aae1de112c987465482cd76749274a24387ec901"
+    },
+    {
+      "path": "data/metainfo",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "41c3d8934c0e4bd9b92c3116fbfb5f32ec00c4ca",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/41c3d8934c0e4bd9b92c3116fbfb5f32ec00c4ca"
+    },
+    {
+      "path": "data/metainfo/io.github.bluemancz.hyprmod.metainfo.xml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "49527e052338b2944dc7227e3d05fc2b732446f5",
+      "size": 6369,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/49527e052338b2944dc7227e3d05fc2b732446f5"
+    },
+    {
+      "path": "data/screenshots",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cd6da8310d30ec11175c7d42aa39dc11cc1f6f1c",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/cd6da8310d30ec11175c7d42aa39dc11cc1f6f1c"
+    },
+    {
+      "path": "data/screenshots/curves.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5c58ba76fbafb82fe232167b295f0e377bbc4ed0",
+      "size": 94672,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/5c58ba76fbafb82fe232167b295f0e377bbc4ed0"
+    },
+    {
+      "path": "data/screenshots/monitors.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82e380d21ed93ff937e81d6b0725cb42e6222cd8",
+      "size": 124452,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/82e380d21ed93ff937e81d6b0725cb42e6222cd8"
+    },
+    {
+      "path": "flake.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "13ef078c78ea375ce2322792266a82d283a244c7",
+      "size": 567,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/13ef078c78ea375ce2322792266a82d283a244c7"
+    },
+    {
+      "path": "flake.nix",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "89b2ab9eebc4ae5f3ebe9da49e08eee992cc3c23",
+      "size": 916,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/89b2ab9eebc4ae5f3ebe9da49e08eee992cc3c23"
+    },
+    {
+      "path": "hatch_build.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3fbda704e43a6f34acdc125452909de8cda3a1f9",
+      "size": 1289,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/3fbda704e43a6f34acdc125452909de8cda3a1f9"
+    },
+    {
+      "path": "hyprmod",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5a79cb06c5783d0f01599998d324b1d4b77e5d33",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/5a79cb06c5783d0f01599998d324b1d4b77e5d33"
+    },
+    {
+      "path": "hyprmod/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "276fa531a002ea49f7189946ee62925617ea27c9",
+      "size": 106,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/276fa531a002ea49f7189946ee62925617ea27c9"
+    },
+    {
+      "path": "hyprmod/binds",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "88aa9b4153c60de770a4d44c3c3e406392715f06",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/88aa9b4153c60de770a4d44c3c3e406392715f06"
+    },
+    {
+      "path": "hyprmod/binds/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c39ac85a52fbc724892b61b328e8bd0304482323",
+      "size": 636,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/c39ac85a52fbc724892b61b328e8bd0304482323"
+    },
+    {
+      "path": "hyprmod/binds/dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bc376264823ce506f30769634a0dd441607e3afa",
+      "size": 42819,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/bc376264823ce506f30769634a0dd441607e3afa"
+    },
+    {
+      "path": "hyprmod/binds/dispatchers.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3a6705fd59b1816a3d90a467a10b70d53965ba4",
+      "size": 11330,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d3a6705fd59b1816a3d90a467a10b70d53965ba4"
+    },
+    {
+      "path": "hyprmod/binds/gdk_modifiers.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a127335bb26eb62a520057b23d971a1db0227df3",
+      "size": 3649,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/a127335bb26eb62a520057b23d971a1db0227df3"
+    },
+    {
+      "path": "hyprmod/binds/live.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4670db6fba145b85b225ea80fc009ddad2673db0",
+      "size": 4305,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4670db6fba145b85b225ea80fc009ddad2673db0"
+    },
+    {
+      "path": "hyprmod/binds/override_state.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "151088c762ca7aa20d98f57c82d85b1c210aeba6",
+      "size": 15486,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/151088c762ca7aa20d98f57c82d85b1c210aeba6"
+    },
+    {
+      "path": "hyprmod/cli.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4c1dab4f51ba6809f2dd7a420cbb20c0e8340ca3",
+      "size": 3538,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4c1dab4f51ba6809f2dd7a420cbb20c0e8340ca3"
+    },
+    {
+      "path": "hyprmod/constants.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "30bbc63581fd53b0e2aa835daa14983eedc33895",
+      "size": 815,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/30bbc63581fd53b0e2aa835daa14983eedc33895"
+    },
+    {
+      "path": "hyprmod/core",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "72952e8884bd642f0c70bdea700c9fb01f258720",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/72952e8884bd642f0c70bdea700c9fb01f258720"
+    },
+    {
+      "path": "hyprmod/core/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee03fbbc117d7cd4a2ab8eb1d2186d1e9737bd59",
+      "size": 69,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ee03fbbc117d7cd4a2ab8eb1d2186d1e9737bd59"
+    },
+    {
+      "path": "hyprmod/core/autostart.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6f0b8db099cf38bac27e81710e2775d5ee332c50",
+      "size": 5471,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/6f0b8db099cf38bac27e81710e2775d5ee332c50"
+    },
+    {
+      "path": "hyprmod/core/bug_report.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0bd0b49639939e2fc30a0f3b38da76481fe4c92e",
+      "size": 4757,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/0bd0b49639939e2fc30a0f3b38da76481fe4c92e"
+    },
+    {
+      "path": "hyprmod/core/change_tracking.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "585be9905aa45cad1c8ca8fa4ed3b41f3b78dd6d",
+      "size": 4466,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/585be9905aa45cad1c8ca8fa4ed3b41f3b78dd6d"
+    },
+    {
+      "path": "hyprmod/core/config.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f82acb6c20ba30f87a278f691da5a19c7abb422",
+      "size": 20863,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7f82acb6c20ba30f87a278f691da5a19c7abb422"
+    },
+    {
+      "path": "hyprmod/core/cursor_themes.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "135100ac18135de916a4340dd0678f89fe2e37ac",
+      "size": 3136,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/135100ac18135de916a4340dd0678f89fe2e37ac"
+    },
+    {
+      "path": "hyprmod/core/deprecations.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2289f83388b4fe0e765e564c2bfb4439caa9ee1c",
+      "size": 10884,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/2289f83388b4fe0e765e564c2bfb4439caa9ee1c"
+    },
+    {
+      "path": "hyprmod/core/desktop_apps.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "674cc9c8de74fb2cce3ede0597780b0dfe72621c",
+      "size": 5448,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/674cc9c8de74fb2cce3ede0597780b0dfe72621c"
+    },
+    {
+      "path": "hyprmod/core/env_vars.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f5c7e6891d825a057e10e1d44c48a5021bbd50ef",
+      "size": 8535,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f5c7e6891d825a057e10e1d44c48a5021bbd50ef"
+    },
+    {
+      "path": "hyprmod/core/external.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "086061302bad577bdb6476c26bb1aaacbf14bbfb",
+      "size": 4111,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/086061302bad577bdb6476c26bb1aaacbf14bbfb"
+    },
+    {
+      "path": "hyprmod/core/layer_rules.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b3787a4b0d35fe07f1471b22ca649925816aacac",
+      "size": 29237,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/b3787a4b0d35fe07f1471b22ca649925816aacac"
+    },
+    {
+      "path": "hyprmod/core/ownership.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "29e5a872710e89aec042543b83b899747c7a012a",
+      "size": 10410,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/29e5a872710e89aec042543b83b899747c7a012a"
+    },
+    {
+      "path": "hyprmod/core/pending.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aacd6aba3974e848fed33b2471dad0707391a5d9",
+      "size": 901,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/aacd6aba3974e848fed33b2471dad0707391a5d9"
+    },
+    {
+      "path": "hyprmod/core/plugins.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "485c810f1e8339a1131d08cde6dc9b323211c1ef",
+      "size": 3271,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/485c810f1e8339a1131d08cde6dc9b323211c1ef"
+    },
+    {
+      "path": "hyprmod/core/profiles.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0652c107311e04ff605c5e82bb39ff36c444d4a4",
+      "size": 10130,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/0652c107311e04ff605c5e82bb39ff36c444d4a4"
+    },
+    {
+      "path": "hyprmod/core/schema.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e0b597a3571a0a079c5bc1fc1f4a011709e892c4",
+      "size": 5491,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e0b597a3571a0a079c5bc1fc1f4a011709e892c4"
+    },
+    {
+      "path": "hyprmod/core/settings.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9f6a4109d34fb983290d05b9ad37ccbf4d8871b2",
+      "size": 2292,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/9f6a4109d34fb983290d05b9ad37ccbf4d8871b2"
+    },
+    {
+      "path": "hyprmod/core/setup.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23fba8fdb97ab422b290d01083ae320789abced3",
+      "size": 11056,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/23fba8fdb97ab422b290d01083ae320789abced3"
+    },
+    {
+      "path": "hyprmod/core/state.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a43b5da8c3953a9fe6373fa6aac2e5202fe3a700",
+      "size": 10205,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/a43b5da8c3953a9fe6373fa6aac2e5202fe3a700"
+    },
+    {
+      "path": "hyprmod/core/undo.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "77f2b9a09517d0ec955d048c708827ec5c0fb7d0",
+      "size": 9045,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/77f2b9a09517d0ec955d048c708827ec5c0fb7d0"
+    },
+    {
+      "path": "hyprmod/core/window_rules",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5d88ebd1e0ca805814668292cfe5ffbc1d4ab02e",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/5d88ebd1e0ca805814668292cfe5ffbc1d4ab02e"
+    },
+    {
+      "path": "hyprmod/core/window_rules/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "481cd8269b1d9d978dd057b6ee2177ad5f7d2086",
+      "size": 3379,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/481cd8269b1d9d978dd057b6ee2177ad5f7d2086"
+    },
+    {
+      "path": "hyprmod/core/window_rules/_external.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "40a3ed5c4d0291fa6cdd5248ee81934f0640408c",
+      "size": 2612,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/40a3ed5c4d0291fa6cdd5248ee81934f0640408c"
+    },
+    {
+      "path": "hyprmod/core/window_rules/_model.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "75753d6429d131a1f8a9b10225d59703253a5fa7",
+      "size": 25161,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/75753d6429d131a1f8a9b10225d59703253a5fa7"
+    },
+    {
+      "path": "hyprmod/core/window_rules/_parse.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "68f38afdfa2faf4834adfae4afe19abb0905cc79",
+      "size": 3862,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/68f38afdfa2faf4834adfae4afe19abb0905cc79"
+    },
+    {
+      "path": "hyprmod/core/window_rules/_runtime.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "433d2a63747b9b7567696e752e935837a4f89e44",
+      "size": 13153,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/433d2a63747b9b7567696e752e935837a4f89e44"
+    },
+    {
+      "path": "hyprmod/core/workspaces.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e85eebdf75301a155a6fa6ca4a6c1afecf2b58a6",
+      "size": 15835,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e85eebdf75301a155a6fa6ca4a6c1afecf2b58a6"
+    },
+    {
+      "path": "hyprmod/core/xcursor.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "66b1e3df89b3618d3164f099e04652acabcd47fd",
+      "size": 5928,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/66b1e3df89b3618d3164f099e04652acabcd47fd"
+    },
+    {
+      "path": "hyprmod/data",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "01b7bab31ddb25a0284c4e3b7f2570b1c644113e",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/01b7bab31ddb25a0284c4e3b7f2570b1c644113e"
+    },
+    {
+      "path": "hyprmod/data/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d0739a2658f436fe6ef5d4e191c6aa5a6332b7a",
+      "size": 770,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1d0739a2658f436fe6ef5d4e191c6aa5a6332b7a"
+    },
+    {
+      "path": "hyprmod/data/bezier_data.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca234e8f1da09b7f3052cd8bbee5b03024c35aa1",
+      "size": 5655,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ca234e8f1da09b7f3052cd8bbee5b03024c35aa1"
+    },
+    {
+      "path": "hyprmod/data/bezier_presets.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0ba8974702b2597bf5f424084b41765af09784de",
+      "size": 1876,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/0ba8974702b2597bf5f424084b41765af09784de"
+    },
+    {
+      "path": "hyprmod/data/icons",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f2aa80e601d395f37095704e240f39e45df53a04",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/f2aa80e601d395f37095704e240f39e45df53a04"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fabd826b79cb4fb513d52b7f7ed36ed915abf03b",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/fabd826b79cb4fb513d52b7f7ed36ed915abf03b"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "efd3c5491f1d2f0bc84d190fcb3967c23c6e5423",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/efd3c5491f1d2f0bc84d190fcb3967c23c6e5423"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a8385046990e0c2572a57adc5e3dc3c79ed2f0cc",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/a8385046990e0c2572a57adc5e3dc3c79ed2f0cc"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/appearance-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bb59e7168c280b7a76b9a8a6eebf4e631af08a3d",
+      "size": 2127,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/bb59e7168c280b7a76b9a8a6eebf4e631af08a3d"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/application-x-executable-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "662006dfea8a46b73cae56df6106f72e0b581c81",
+      "size": 2500,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/662006dfea8a46b73cae56df6106f72e0b581c81"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/applications-system-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16533469bf49c816400771c0ed432c8372279b64",
+      "size": 1824,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/16533469bf49c816400771c0ed432c8372279b64"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/bounce-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d75b00572fc8a8640faaa668a1362e8be32b9018",
+      "size": 1704,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d75b00572fc8a8640faaa668a1362e8be32b9018"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/changes-allow-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "be2de11d92a2f4b32cbbd522555f6f1a622a1844",
+      "size": 874,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/be2de11d92a2f4b32cbbd522555f6f1a622a1844"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/changes-prevent-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dfda0d761c51aef2a2ef7e7443fab2d5c4fe1d12",
+      "size": 867,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/dfda0d761c51aef2a2ef7e7443fab2d5c4fe1d12"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/check-plain-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f04a8b1cd22d43e57c96bf1ed98e413185bc6e30",
+      "size": 734,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f04a8b1cd22d43e57c96bf1ed98e413185bc6e30"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/computer-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "041be5ef8e487e5e14b47a14c08031d1a5e59d24",
+      "size": 928,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/041be5ef8e487e5e14b47a14c08031d1a5e59d24"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/dialog-information-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3451031bea6078674b662eda2f022c97dfaf89db",
+      "size": 330,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/3451031bea6078674b662eda2f022c97dfaf89db"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/dialog-warning-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8daa9d9b64bb2a5503052c8560d4dbdf787f533c",
+      "size": 1914,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/8daa9d9b64bb2a5503052c8560d4dbdf787f533c"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/display-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ba3ba6062dfa93c77456153eea3dfc5c03dcd728",
+      "size": 888,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ba3ba6062dfa93c77456153eea3dfc5c03dcd728"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/document-edit-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1366ca5165905debf94b7d705e8c127e68bf4c9c",
+      "size": 486,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1366ca5165905debf94b7d705e8c127e68bf4c9c"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/draw-arc-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3fd99a1a06caecda3d217157b9e22617acf66591",
+      "size": 1394,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/3fd99a1a06caecda3d217157b9e22617acf66591"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/edit-clear-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3e7eb49d11e605fab4b79a45b409bf9500f7306f",
+      "size": 797,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/3e7eb49d11e605fab4b79a45b409bf9500f7306f"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/edit-find-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "212f8f2719401931385d752ec6d6436558344b04",
+      "size": 606,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/212f8f2719401931385d752ec6d6436558344b04"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/edit-undo-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9e7faf3e71afadd59f2968439db56dd5b022940c",
+      "size": 606,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/9e7faf3e71afadd59f2968439db56dd5b022940c"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/gesture-swipe-left-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a8d58056acf08ae1e5fac522bfffd59e074a77bc",
+      "size": 703,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/a8d58056acf08ae1e5fac522bfffd59e074a77bc"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/go-down-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cf1d9eea9f359cf2ae51c95324b105bd0042a09a",
+      "size": 575,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/cf1d9eea9f359cf2ae51c95324b105bd0042a09a"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/go-next-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3e9b3922697732961540b5018b309a657362ca49",
+      "size": 575,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/3e9b3922697732961540b5018b309a657362ca49"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/go-previous-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "194682e7db92631fd1dd2d1453afd7ef0271afa8",
+      "size": 580,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/194682e7db92631fd1dd2d1453afd7ef0271afa8"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/go-up-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9fd6ec159cb9ef4fba569ecc154011445f2fae65",
+      "size": 574,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/9fd6ec159cb9ef4fba569ecc154011445f2fae65"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/grid-filled-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee81ae9f8f25920f7e3d26c8aba3aac117c79221",
+      "size": 738,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ee81ae9f8f25920f7e3d26c8aba3aac117c79221"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/group-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5c7910ea68c2ca15a2fadf687f11f21c21b371ea",
+      "size": 2526,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/5c7910ea68c2ca15a2fadf687f11f21c21b371ea"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/hyprmod-cursor-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "69f0c8926b8955cbdc3295864d4211edb8ba4126",
+      "size": 791,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/69f0c8926b8955cbdc3295864d4211edb8ba4126"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/input-keyboard-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9aaaad8f76f54e97c747f020e87ca6b0d9d8fbaa",
+      "size": 364,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/9aaaad8f76f54e97c747f020e87ca6b0d9d8fbaa"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/keyboard-shortcuts-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8ca5c04efa07888f5286b660abbc6eb6ca7cd5fa",
+      "size": 1731,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/8ca5c04efa07888f5286b660abbc6eb6ca7cd5fa"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/list-add-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2128c26d82f813615ff6305a5c5fd1c60807b71a",
+      "size": 681,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/2128c26d82f813615ff6305a5c5fd1c60807b71a"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/list-remove-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4fab89f5a2cded55a7225c096337f5d81b0c82ce",
+      "size": 676,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4fab89f5a2cded55a7225c096337f5d81b0c82ce"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/menu-large-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "38fb836a951b828d4366fce0cff00dd00903da3c",
+      "size": 276,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/38fb836a951b828d4366fce0cff00dd00903da3c"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/menu-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e9e158b362f835626d444186d0e75d9fcdd0420",
+      "size": 276,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/0e9e158b362f835626d444186d0e75d9fcdd0420"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/move-to-window-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "93abebbfe9af0d7a5b14fafb6746b7adde7b0741",
+      "size": 753,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/93abebbfe9af0d7a5b14fafb6746b7adde7b0741"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/overlapping-windows-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "253684e74fb33263426f5adb78322e002bf6edc2",
+      "size": 700,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/253684e74fb33263426f5adb78322e002bf6edc2"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/pencil-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f042ee97ab4d0a91322d52509a8b17ce035e9793",
+      "size": 781,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f042ee97ab4d0a91322d52509a8b17ce035e9793"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/security-high-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b4f2dddf74a25be1c6e9ae3c836919c6231f99ec",
+      "size": 727,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/b4f2dddf74a25be1c6e9ae3c836919c6231f99ec"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/shell-overview-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bd8b63033bbd09564b3d6251a48e9738501cef99",
+      "size": 1143,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/bd8b63033bbd09564b3d6251a48e9738501cef99"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/sliders-horizontal-arrow-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1687314afe662eab2c5872f518c0765398eac55c",
+      "size": 723,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1687314afe662eab2c5872f518c0765398eac55c"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/sprout-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad54343ae7a1d0caf434ca4974e30e28221300ff",
+      "size": 1167,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ad54343ae7a1d0caf434ca4974e30e28221300ff"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/system-run-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "53d4686048aba9b66d7ec5f09746f4032d868c85",
+      "size": 4209,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/53d4686048aba9b66d7ec5f09746f4032d868c85"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/system-search-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "97219e6483112c4a712babdb5f0c2cf086a83bd0",
+      "size": 4416,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/97219e6483112c4a712babdb5f0c2cf086a83bd0"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/terminal-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9b2563c978fd0834e8aa5dcef332f0ef0b38b7c6",
+      "size": 1135,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/9b2563c978fd0834e8aa5dcef332f0ef0b38b7c6"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/user-bookmarks-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e4f85c32c9892a0ca3ed6b203f354ca362e818d3",
+      "size": 423,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e4f85c32c9892a0ca3ed6b203f354ca362e818d3"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/user-trash-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "832b03f6edd72b1851e6308b8f19b92266eb9490",
+      "size": 1765,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/832b03f6edd72b1851e6308b8f19b92266eb9490"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/view-more-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3cce40ad158ce49ff9d7b8fda4c65cdeee46ebc0",
+      "size": 1109,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/3cce40ad158ce49ff9d7b8fda4c65cdeee46ebc0"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/view-refresh-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "58ebfb57bde07d1c04135a70e3aa89d25ce111af",
+      "size": 1024,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/58ebfb57bde07d1c04135a70e3aa89d25ce111af"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/actions/window-rules-symbolic.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9f03ca7e4f76b3d8b94eeaa217fc3d1c79a4623",
+      "size": 392,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d9f03ca7e4f76b3d8b94eeaa217fc3d1c79a4623"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/apps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c8f19d514a06c3c135164c2c43110aa2694aada5",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/c8f19d514a06c3c135164c2c43110aa2694aada5"
+    },
+    {
+      "path": "hyprmod/data/icons/hicolor/scalable/apps/io.github.bluemancz.hyprmod.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aae1de112c987465482cd76749274a24387ec901",
+      "size": 1681,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/aae1de112c987465482cd76749274a24387ec901"
+    },
+    {
+      "path": "hyprmod/data/io.github.bluemancz.hyprmod.gschema.xml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b6ee6123f660c0e7a9150b3668ea3ed1589d6bde",
+      "size": 1446,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/b6ee6123f660c0e7a9150b3668ea3ed1589d6bde"
+    },
+    {
+      "path": "hyprmod/data/schema",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "79ad650026afa3c8f148ee0be44d4ccc63fe6248",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/79ad650026afa3c8f148ee0be44d4ccc63fe6248"
+    },
+    {
+      "path": "hyprmod/data/schema/options.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4873b963349412ac3817d6f624cf3d64eb777f32",
+      "size": 33179,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4873b963349412ac3817d6f624cf3d64eb777f32"
+    },
+    {
+      "path": "hyprmod/data/schema/plugins",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6f65123e43c765a75a7431cb03961c31ff70ea88",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/6f65123e43c765a75a7431cb03961c31ff70ea88"
+    },
+    {
+      "path": "hyprmod/data/schema/plugins/hypr-dynamic-cursors.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dccefabe1dab03bda64966d068365d12023bc4cc",
+      "size": 7242,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/dccefabe1dab03bda64966d068365d12023bc4cc"
+    },
+    {
+      "path": "hyprmod/gi_setup.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a5feab3a408b51197936b565ba7f50804df1375b",
+      "size": 315,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/a5feab3a408b51197936b565ba7f50804df1375b"
+    },
+    {
+      "path": "hyprmod/install.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9092fe3958821f1091940a75e64560e3b64cdea7",
+      "size": 5255,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/9092fe3958821f1091940a75e64560e3b64cdea7"
+    },
+    {
+      "path": "hyprmod/main.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "09276e4d477ac3e96dd4d594825164dabfdbc6a5",
+      "size": 3740,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/09276e4d477ac3e96dd4d594825164dabfdbc6a5"
+    },
+    {
+      "path": "hyprmod/pages",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "590caa712fcaa45e9312863d075f5a56d0281b5a",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/590caa712fcaa45e9312863d075f5a56d0281b5a"
+    },
+    {
+      "path": "hyprmod/pages/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "hyprmod/pages/animations.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "994e7d0b694f876a41786b916c84d0139333f613",
+      "size": 28549,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/994e7d0b694f876a41786b916c84d0139333f613"
+    },
+    {
+      "path": "hyprmod/pages/autostart.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1a937473ba9336dad538ebcaddd1c08f10bfb0bf",
+      "size": 19155,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1a937473ba9336dad538ebcaddd1c08f10bfb0bf"
+    },
+    {
+      "path": "hyprmod/pages/binds.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d4dcb88e0b98c1e3e746df0948df7c80868429dd",
+      "size": 21543,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d4dcb88e0b98c1e3e746df0948df7c80868429dd"
+    },
+    {
+      "path": "hyprmod/pages/cursor.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "99dd7c94c6145686d762b969722bfb76fda0a5be",
+      "size": 16559,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/99dd7c94c6145686d762b969722bfb76fda0a5be"
+    },
+    {
+      "path": "hyprmod/pages/env_vars.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9420b267149a0bef4bc3b3523136b9030e102a62",
+      "size": 14604,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/9420b267149a0bef4bc3b3523136b9030e102a62"
+    },
+    {
+      "path": "hyprmod/pages/layer_rules.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "02a291748c1842a410c76d622a08464a3f7dc197",
+      "size": 14129,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/02a291748c1842a410c76d622a08464a3f7dc197"
+    },
+    {
+      "path": "hyprmod/pages/layouts.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f3bd74d4450d27f53d6c4049be8282b6e223b323",
+      "size": 5554,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f3bd74d4450d27f53d6c4049be8282b6e223b323"
+    },
+    {
+      "path": "hyprmod/pages/monitors",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bc1917e71fdb89c4e042996823d3fd8e1e005193",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/bc1917e71fdb89c4e042996823d3fd8e1e005193"
+    },
+    {
+      "path": "hyprmod/pages/monitors/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c4e9145c4da8b420b0ed23291e4f3a53e8a26eaa",
+      "size": 125,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/c4e9145c4da8b420b0ed23291e4f3a53e8a26eaa"
+    },
+    {
+      "path": "hyprmod/pages/monitors/card.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e900b6acd267208ac8661bc10b1deb8bfe684592",
+      "size": 43505,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e900b6acd267208ac8661bc10b1deb8bfe684592"
+    },
+    {
+      "path": "hyprmod/pages/monitors/confirm_controller.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d78b95e100bbad012b444910b963b98c91865dbb",
+      "size": 4125,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d78b95e100bbad012b444910b963b98c91865dbb"
+    },
+    {
+      "path": "hyprmod/pages/monitors/page.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4be5ef64d186cb06338b5968c03335e6d41c4825",
+      "size": 35319,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4be5ef64d186cb06338b5968c03335e6d41c4825"
+    },
+    {
+      "path": "hyprmod/pages/pending.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d54c94651c7fd3ba670f2d65daa080661da7f085",
+      "size": 14154,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d54c94651c7fd3ba670f2d65daa080661da7f085"
+    },
+    {
+      "path": "hyprmod/pages/plugins.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6af8ccac8982448379076c5f6506f5bd79bde19d",
+      "size": 14918,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/6af8ccac8982448379076c5f6506f5bd79bde19d"
+    },
+    {
+      "path": "hyprmod/pages/profiles.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "df2b31f2a8542fccbb12106e17d1c90b8c61a060",
+      "size": 19654,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/df2b31f2a8542fccbb12106e17d1c90b8c61a060"
+    },
+    {
+      "path": "hyprmod/pages/section.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bd724ec6de773696b4db19d267d4ed9640d7da9d",
+      "size": 32107,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/bd724ec6de773696b4db19d267d4ed9640d7da9d"
+    },
+    {
+      "path": "hyprmod/pages/settings.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b6aba0d697837e723c7ced46db51c9718bace507",
+      "size": 5558,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/b6aba0d697837e723c7ced46db51c9718bace507"
+    },
+    {
+      "path": "hyprmod/pages/window_rules.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c54327f3a4beb0053ae284496841d699b1b8cccd",
+      "size": 28224,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/c54327f3a4beb0053ae284496841d699b1b8cccd"
+    },
+    {
+      "path": "hyprmod/pages/workspaces.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "05eef2e4714b55e11ca62c8ab9960c3ca97cec3d",
+      "size": 15217,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/05eef2e4714b55e11ca62c8ab9960c3ca97cec3d"
+    },
+    {
+      "path": "hyprmod/style.css",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e36a459bfb82dd66c63bc691122273a200c66b4",
+      "size": 6106,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7e36a459bfb82dd66c63bc691122273a200c66b4"
+    },
+    {
+      "path": "hyprmod/ui",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b55a8f41a58731b3a33f5afc8ffe193ff0a2975c",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/b55a8f41a58731b3a33f5afc8ffe193ff0a2975c"
+    },
+    {
+      "path": "hyprmod/ui/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "42d8749238eab315a51d4f4c73cfde339087816e",
+      "size": 9032,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/42d8749238eab315a51d4f4c73cfde339087816e"
+    },
+    {
+      "path": "hyprmod/ui/about.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d33d5f46ce27bf5e77df49cd815c8b5d820305c",
+      "size": 2955,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/8d33d5f46ce27bf5e77df49cd815c8b5d820305c"
+    },
+    {
+      "path": "hyprmod/ui/app_picker.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d77934845f750f9e7af1f2bd919d896712cc6365",
+      "size": 6181,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d77934845f750f9e7af1f2bd919d896712cc6365"
+    },
+    {
+      "path": "hyprmod/ui/autostart_edit_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f1de8fa75316e1b4a591e108a08d7c8489db96b7",
+      "size": 5957,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f1de8fa75316e1b4a591e108a08d7c8489db96b7"
+    },
+    {
+      "path": "hyprmod/ui/banner.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c91e9134d245b01f24e67b7ee212cdce0ef27951",
+      "size": 5317,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/c91e9134d245b01f24e67b7ee212cdce0ef27951"
+    },
+    {
+      "path": "hyprmod/ui/bezier_canvas.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e0fa5c3e188a28ad6a24bea3ca56b54ebe7213b6",
+      "size": 12799,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e0fa5c3e188a28ad6a24bea3ca56b54ebe7213b6"
+    },
+    {
+      "path": "hyprmod/ui/bezier_editor.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5859c73025c34a11e6a36b9701ceb182ca45bd28",
+      "size": 25269,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/5859c73025c34a11e6a36b9701ceb182ca45bd28"
+    },
+    {
+      "path": "hyprmod/ui/deprecation_banner.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b863897117e3f4cbb440375e5d06d2d52077d8c4",
+      "size": 2592,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/b863897117e3f4cbb440375e5d06d2d52077d8c4"
+    },
+    {
+      "path": "hyprmod/ui/deprecation_controller.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "48172d69a664f753bb4badf5a57ac6529082424d",
+      "size": 6753,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/48172d69a664f753bb4badf5a57ac6529082424d"
+    },
+    {
+      "path": "hyprmod/ui/deprecation_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c30a91bcf4be704efaee5b7da1d1803ff64a7357",
+      "size": 7942,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/c30a91bcf4be704efaee5b7da1d1803ff64a7357"
+    },
+    {
+      "path": "hyprmod/ui/dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "92b3604dc9629def1b9cdc1af606d31e262e4002",
+      "size": 2755,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/92b3604dc9629def1b9cdc1af606d31e262e4002"
+    },
+    {
+      "path": "hyprmod/ui/diff.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1464aa8f0054d6013582a981d0bb9888257d2e38",
+      "size": 7591,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1464aa8f0054d6013582a981d0bb9888257d2e38"
+    },
+    {
+      "path": "hyprmod/ui/dna.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea402450e14085ff5c1c1443d5cc374e995de632",
+      "size": 3550,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ea402450e14085ff5c1c1443d5cc374e995de632"
+    },
+    {
+      "path": "hyprmod/ui/empty_state.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "320aef85921475c55ee1ec39b3f83ed506e6bff7",
+      "size": 3449,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/320aef85921475c55ee1ec39b3f83ed506e6bff7"
+    },
+    {
+      "path": "hyprmod/ui/env_var_edit_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f278f3b6cf52e46983e24bcb4f1cc2bcfd19c5bc",
+      "size": 9720,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f278f3b6cf52e46983e24bcb4f1cc2bcfd19c5bc"
+    },
+    {
+      "path": "hyprmod/ui/icons.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bab59ecd16d472f7058533c4e2e5c3db57180c31",
+      "size": 1386,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/bab59ecd16d472f7058533c4e2e5c3db57180c31"
+    },
+    {
+      "path": "hyprmod/ui/keyboard_layouts_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ae2c4ea1790cf5ba3368307e09e6457c92eef138",
+      "size": 13330,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ae2c4ea1790cf5ba3368307e09e6457c92eef138"
+    },
+    {
+      "path": "hyprmod/ui/layer_rule_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f833886887c84c8eaddd5df6b37602e00490adb3",
+      "size": 19485,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f833886887c84c8eaddd5df6b37602e00490adb3"
+    },
+    {
+      "path": "hyprmod/ui/lua_migration_banner.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ac5fbd086202ef938d96afd5b12018f6c07b4176",
+      "size": 2909,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ac5fbd086202ef938d96afd5b12018f6c07b4176"
+    },
+    {
+      "path": "hyprmod/ui/lua_migration_controller.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cf76883068ac69640415720953d7db96afcc0d9e",
+      "size": 7626,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/cf76883068ac69640415720953d7db96afcc0d9e"
+    },
+    {
+      "path": "hyprmod/ui/lua_migration_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1c33e45ba54debc6ad92e84bf01bcae75edfb3d6",
+      "size": 9540,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1c33e45ba54debc6ad92e84bf01bcae75edfb3d6"
+    },
+    {
+      "path": "hyprmod/ui/managed_row.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bdbf6d542d0dbf81c4963afe0d1278e398922df0",
+      "size": 5775,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/bdbf6d542d0dbf81c4963afe0d1278e398922df0"
+    },
+    {
+      "path": "hyprmod/ui/monitor_preview.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5acc9639e38fb3a2b625184bdedd7230fb65d62d",
+      "size": 13207,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/5acc9639e38fb3a2b625184bdedd7230fb65d62d"
+    },
+    {
+      "path": "hyprmod/ui/onboarding_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e8b1f417ce1d5b0e15664f0d27adfdfe802df3e9",
+      "size": 5090,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e8b1f417ce1d5b0e15664f0d27adfdfe802df3e9"
+    },
+    {
+      "path": "hyprmod/ui/options",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1a9a78d92d803e124d67b2dbc337cfd36e000a2a",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/1a9a78d92d803e124d67b2dbc337cfd36e000a2a"
+    },
+    {
+      "path": "hyprmod/ui/options/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eb4bc79c8fdea62e2ee5227131a110fa639c3f04",
+      "size": 793,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/eb4bc79c8fdea62e2ee5227131a110fa639c3f04"
+    },
+    {
+      "path": "hyprmod/ui/options/base.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "733888244f9e2ebf909087e40b360a0fb493da49",
+      "size": 4706,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/733888244f9e2ebf909087e40b360a0fb493da49"
+    },
+    {
+      "path": "hyprmod/ui/options/color.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e406711c1d16158aa40426b7078f913473369c76",
+      "size": 7956,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e406711c1d16158aa40426b7078f913473369c76"
+    },
+    {
+      "path": "hyprmod/ui/options/combo.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "80b6214497a734d8065b0791e6e66d07952edfda",
+      "size": 5981,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/80b6214497a734d8065b0791e6e66d07952edfda"
+    },
+    {
+      "path": "hyprmod/ui/options/factory.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4da157714505ad9de26d442cf4a864ea734bb414",
+      "size": 1646,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4da157714505ad9de26d442cf4a864ea734bb414"
+    },
+    {
+      "path": "hyprmod/ui/options/keyboard.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f389e43f833195460534c97a5c08ce820843501f",
+      "size": 6848,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f389e43f833195460534c97a5c08ce820843501f"
+    },
+    {
+      "path": "hyprmod/ui/options/multi.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5d97fd4139076196f4030bd1c3ae1df09b59beca",
+      "size": 9491,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/5d97fd4139076196f4030bd1c3ae1df09b59beca"
+    },
+    {
+      "path": "hyprmod/ui/options/numeric.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2f4b1068de53118a89abcd5dd59b21dccc1a4a5b",
+      "size": 5394,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/2f4b1068de53118a89abcd5dd59b21dccc1a4a5b"
+    },
+    {
+      "path": "hyprmod/ui/options/text.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1532c7445d9ce1caf16e5c9c7434d49ff30418ce",
+      "size": 847,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1532c7445d9ce1caf16e5c9c7434d49ff30418ce"
+    },
+    {
+      "path": "hyprmod/ui/pending_chip.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e32331fe4cde6df9286a31cf9d483c7a4dce8252",
+      "size": 2519,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e32331fe4cde6df9286a31cf9d483c7a4dce8252"
+    },
+    {
+      "path": "hyprmod/ui/plugin_setting_edit_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "77bb0ce4cd0dc50108385de812135cb8c27239bb",
+      "size": 5131,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/77bb0ce4cd0dc50108385de812135cb8c27239bb"
+    },
+    {
+      "path": "hyprmod/ui/reorder.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7243e3915055a465dae96bcf51102dda7904bb6",
+      "size": 9775,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/a7243e3915055a465dae96bcf51102dda7904bb6"
+    },
+    {
+      "path": "hyprmod/ui/row_actions.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4b34793cd2d8836a7806f29e276a7584795cc7b5",
+      "size": 4163,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4b34793cd2d8836a7806f29e276a7584795cc7b5"
+    },
+    {
+      "path": "hyprmod/ui/search.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b403833bbc3fc0c22aa6b4307f398cb6cedcaa3b",
+      "size": 4287,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/b403833bbc3fc0c22aa6b4307f398cb6cedcaa3b"
+    },
+    {
+      "path": "hyprmod/ui/shortcuts.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "646ff7c1ab0163a6b70b9ab1fac8c02d8d209e6d",
+      "size": 3595,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/646ff7c1ab0163a6b70b9ab1fac8c02d8d209e6d"
+    },
+    {
+      "path": "hyprmod/ui/sidebar.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4ae40f40808b64aae2fa727078d3b83c1d4dba04",
+      "size": 12935,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4ae40f40808b64aae2fa727078d3b83c1d4dba04"
+    },
+    {
+      "path": "hyprmod/ui/signals.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07cee01ea355b590ffd8008cce14e88741c0eeb6",
+      "size": 1939,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/07cee01ea355b590ffd8008cce14e88741c0eeb6"
+    },
+    {
+      "path": "hyprmod/ui/sources.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bc0072051633ffa26d54d8b2924d0970ffefd3e1",
+      "size": 2898,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/bc0072051633ffa26d54d8b2924d0970ffefd3e1"
+    },
+    {
+      "path": "hyprmod/ui/timer.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "921a82f9ead6eb27d3bcc1b4b2615f61e144b234",
+      "size": 1496,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/921a82f9ead6eb27d3bcc1b4b2615f61e144b234"
+    },
+    {
+      "path": "hyprmod/ui/window_picker.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "802912c0a63b37b2a3d103ef58d51513b2385e47",
+      "size": 9904,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/802912c0a63b37b2a3d103ef58d51513b2385e47"
+    },
+    {
+      "path": "hyprmod/ui/window_rule_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "28571dde8ded577782e4898a058687fe834e94da",
+      "size": 36572,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/28571dde8ded577782e4898a058687fe834e94da"
+    },
+    {
+      "path": "hyprmod/ui/workspace_rule_dialog.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7b30712f7b6fe618a68790eafadbd20edbb13b7f",
+      "size": 27015,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7b30712f7b6fe618a68790eafadbd20edbb13b7f"
+    },
+    {
+      "path": "hyprmod/window.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "26769a08077e8d7fdfe85c3ffa3fbeab0936979c",
+      "size": 64028,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/26769a08077e8d7fdfe85c3ffa3fbeab0936979c"
+    },
+    {
+      "path": "install.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "e1b27df6ef8da73a0bd369b93dc0598c9af334a1",
+      "size": 4240,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e1b27df6ef8da73a0bd369b93dc0598c9af334a1"
+    },
+    {
+      "path": "nix",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c5cbd77150ef0e7675de09c5def36df0ed359382",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/c5cbd77150ef0e7675de09c5def36df0ed359382"
+    },
+    {
+      "path": "nix/hyprmod.nix",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "39c8f62b928a5fbef41acf7264d7b107ff5bd6a3",
+      "size": 6185,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/39c8f62b928a5fbef41acf7264d7b107ff5bd6a3"
+    },
+    {
+      "path": "pyproject.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d5784c6e61a14bf57fd06d1fee113ef59b3e64a8",
+      "size": 1177,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/d5784c6e61a14bf57fd06d1fee113ef59b3e64a8"
+    },
+    {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a90c6fd114185de5a8ef300441b1ff5e07dfb826",
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/trees/a90c6fd114185de5a8ef300441b1ff5e07dfb826"
+    },
+    {
+      "path": "tests/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "tests/conftest.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1f8c30de00c9eaf5457e6232f9eef942492c13f3",
+      "size": 1217,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1f8c30de00c9eaf5457e6232f9eef942492c13f3"
+    },
+    {
+      "path": "tests/test_autostart.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a6da04aaa444a65b7c9f01807f9791e9415f8c32",
+      "size": 32814,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/a6da04aaa444a65b7c9f01807f9791e9415f8c32"
+    },
+    {
+      "path": "tests/test_bezier_presets.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "84e58eda2d17452dc15e0dafa325202689c66674",
+      "size": 1253,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/84e58eda2d17452dc15e0dafa325202689c66674"
+    },
+    {
+      "path": "tests/test_binds.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "836cd6b7a2e135c0cc25dc4e94ef917490d83090",
+      "size": 35162,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/836cd6b7a2e135c0cc25dc4e94ef917490d83090"
+    },
+    {
+      "path": "tests/test_bug_report.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b4b9082c0c4624b1a44c37cea02100cb80cc4136",
+      "size": 8126,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/b4b9082c0c4624b1a44c37cea02100cb80cc4136"
+    },
+    {
+      "path": "tests/test_config_migrate.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1dfbc09b92dc04370b18fc516c5c3e4aa73547b9",
+      "size": 5742,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/1dfbc09b92dc04370b18fc516c5c3e4aa73547b9"
+    },
+    {
+      "path": "tests/test_cursor.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6e5afc928a766e8279694c040202308a85639ec8",
+      "size": 9308,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/6e5afc928a766e8279694c040202308a85639ec8"
+    },
+    {
+      "path": "tests/test_deprecations.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f3c5651c3a334f1ce3ca48cadf68d08692ae5bde",
+      "size": 11079,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f3c5651c3a334f1ce3ca48cadf68d08692ae5bde"
+    },
+    {
+      "path": "tests/test_desktop_apps.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "62a2fef8e154372d4995f68c9ea81e396ef00428",
+      "size": 7048,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/62a2fef8e154372d4995f68c9ea81e396ef00428"
+    },
+    {
+      "path": "tests/test_env_vars.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c3c94feaa27102b4bd1f580aecb2b70068d07889",
+      "size": 29304,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/c3c94feaa27102b4bd1f580aecb2b70068d07889"
+    },
+    {
+      "path": "tests/test_imports.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d564c7fbb67dd842897cdc3f1fd5004ef487658",
+      "size": 709,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/8d564c7fbb67dd842897cdc3f1fd5004ef487658"
+    },
+    {
+      "path": "tests/test_install.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7461c148de852f87f3d80bea9a5f82af82acbbc2",
+      "size": 2893,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7461c148de852f87f3d80bea9a5f82af82acbbc2"
+    },
+    {
+      "path": "tests/test_keyboard_layouts.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fb6f3000ee6981469a446f69c59bc79a932e0430",
+      "size": 3779,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/fb6f3000ee6981469a446f69c59bc79a932e0430"
+    },
+    {
+      "path": "tests/test_layer_rules.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f0d43d0f8172f5dae7da2ffaa1a1ade065c19ab",
+      "size": 32527,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7f0d43d0f8172f5dae7da2ffaa1a1ade065c19ab"
+    },
+    {
+      "path": "tests/test_lua_mode.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "df52011941625446fce40403ffe98a9e49fcb1ef",
+      "size": 25896,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/df52011941625446fce40403ffe98a9e49fcb1ef"
+    },
+    {
+      "path": "tests/test_monitor_card_helpers.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "70d4247326e3e1ef5d20f94a6aebde00117c885d",
+      "size": 8859,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/70d4247326e3e1ef5d20f94a6aebde00117c885d"
+    },
+    {
+      "path": "tests/test_monitors_page.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f47e89d3acdb862c296777509d91ce9c8da703bf",
+      "size": 7681,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f47e89d3acdb862c296777509d91ce9c8da703bf"
+    },
+    {
+      "path": "tests/test_nix_pins.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f2676265235e7853cf6bb35610b1b7309a833ff1",
+      "size": 4499,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/f2676265235e7853cf6bb35610b1b7309a833ff1"
+    },
+    {
+      "path": "tests/test_plugins.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0a4b0ee014f622b125836317652c93a3714299ec",
+      "size": 3861,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/0a4b0ee014f622b125836317652c93a3714299ec"
+    },
+    {
+      "path": "tests/test_profiles_cli.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4df12c9c6880a712da45cf65f5fd7ad215c2ed69",
+      "size": 6458,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/4df12c9c6880a712da45cf65f5fd7ad215c2ed69"
+    },
+    {
+      "path": "tests/test_schema.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7335fb2540c5c805f8f52d8fea372347408995ab",
+      "size": 13915,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7335fb2540c5c805f8f52d8fea372347408995ab"
+    },
+    {
+      "path": "tests/test_state.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fe9af3d37bcbb44a1eea7b4833cd423b03380464",
+      "size": 17169,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/fe9af3d37bcbb44a1eea7b4833cd423b03380464"
+    },
+    {
+      "path": "tests/test_window_rules.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7dfe827b59df92c7b9f9786387f9180a4ba65c03",
+      "size": 63055,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/7dfe827b59df92c7b9f9786387f9180a4ba65c03"
+    },
+    {
+      "path": "tests/test_workspaces.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ba6d16bb8411f28389bc4d5e4255d59bb153ba69",
+      "size": 12810,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ba6d16bb8411f28389bc4d5e4255d59bb153ba69"
+    },
+    {
+      "path": "uv.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea001130a91dbe41cc4a6dba4e6229c228ca8217",
+      "size": 21971,
+      "url": "https://api.github.com/repos/BlueManCZ/hyprmod/git/blobs/ea001130a91dbe41cc4a6dba4e6229c228ca8217"
+    }
+  ],
+  "truncated": false
+}

@@ -19,6 +19,12 @@ require("gaming")
 require("dnd")
 require("autostart")
 
+-- HyprMod's managed file, if it is installed. It writes hyprland-gui.lua and
+-- never touches the modules above; declaring the require here rather than
+-- letting it append one means we control the ordering, and it lands before
+-- local.lua so a hand-written override still wins.
+pcall(require, "hyprland-gui")
+
 -- Machine-local overrides, not tracked by git. Create ~/.config/hypr/local.lua
 -- to tweak anything above without dirtying the repo.
 pcall(require, "local")

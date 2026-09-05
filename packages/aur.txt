@@ -4,6 +4,10 @@
 catppuccin-gtk-theme-mocha      # GTK3/GTK4 application theme
 catppuccin-cursors-mocha        # cursor theme referenced by env.lua
 papirus-folders-catppuccin-git  # recolours Papirus folder icons to Mocha
+hyprmod                         # GTK4 settings app for *every* Hyprland option:
+                                # search, undo, profiles, and editors for rules,
+                                # binds, monitors and bezier curves. Writes only
+                                # hyprland-gui.lua, so it cannot disturb ours.
 
 # Optional, uncomment if you want them:
 #

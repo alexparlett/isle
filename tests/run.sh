@@ -17,6 +17,10 @@ for profile in mac windows; do
 done
 
 echo
+echo "==> Keybind interop with HyprMod"
+./tests/test-interop.sh || failed=1
+
+echo
 echo "==> Package lists"
 ./tests/test-packages.sh || failed=1
 

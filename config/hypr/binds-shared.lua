@@ -49,14 +49,74 @@ end
 
 M.overrides = load_overrides()
 
---- Register a bind, honouring any rebind the user has set for its description.
---- Binds without a description cannot be rebound, which is deliberate: those
---- are the mouse and media bindings that have no business being remapped from
---- a settings window.
+--------------------------------------------------------------------------------
+--  Yielding to HyprMod
+--
+--  HyprMod is a GTK settings app for Hyprland with its own keybind editor. In
+--  Lua mode it writes hyprland-gui.lua, which hyprland.lua requires after this
+--  file — so a bind it sets on a key we already use does not replace ours,
+--  Hyprland registers both and fires both. That is the one place the two
+--  configs genuinely collide.
+--
+--  Rather than declaring its keybind page off-limits, read what it claims and
+--  step aside. Any key HyprMod binds is a key we do not, so its editor simply
+--  works and the more recent, hand-made choice wins.
+--
+--  If its output format ever changes, the pattern stops matching, nothing is
+--  claimed, and behaviour falls back to what it is today. Failure is a no-op.
+--------------------------------------------------------------------------------
+
+--- Comparable form of a key combo: modifiers sorted, case-folded, key last.
+--- "ALT + SUPER + T" and "super + alt + T" both become "ALT+SUPER|t".
+local function normalise(keys)
+    local mods, key = {}, nil
+    for raw in tostring(keys):gmatch("[^+]+") do
+        local part = raw:match("^%s*(.-)%s*$")
+        if part ~= "" then
+            local upper = part:upper()
+            if upper == "CONTROL" then upper = "CTRL" end
+            if upper == "SUPER" or upper == "ALT" or upper == "CTRL" or upper == "SHIFT" then
+                table.insert(mods, upper)
+            else
+                key = part
+            end
+        end
+    end
+    table.sort(mods)
+    return table.concat(mods, "+") .. "|" .. string.lower(key or "")
+end
+
+local function load_claimed()
+    local claimed = {}
+    local path = (os.getenv("HOME") or "") .. "/.config/hypr/hyprland-gui.lua"
+    local file = io.open(path, "r")
+    if not file then return claimed end
+
+    local body = file:read("*a") or ""
+    file:close()
+
+    -- HyprMod renders `-- Keybinds` above matching `hl.bind(...)` lines.
+    for _, pattern in ipairs({ 'hl%.bind%s*%(%s*"([^"]+)"', "hl%.bind%s*%(%s*'([^']+)'" }) do
+        for keys in body:gmatch(pattern) do
+            claimed[normalise(keys)] = keys
+        end
+    end
+    return claimed
+end
+
+M.claimed = load_claimed()
+M.normalise = normalise
+
+--- Register a bind, unless the user has rebound it or HyprMod has claimed the
+--- key. Binds without a description cannot be rebound from the settings window,
+--- which is deliberate: those are the mouse and media bindings.
 function M.bind(keys, action, flags)
     local desc = type(flags) == "table" and flags.description or nil
     if desc and M.overrides[desc] then
         keys = M.overrides[desc]
+    end
+    if M.claimed[normalise(keys)] then
+        return nil -- HyprMod binds this key; let its version be the only one
     end
     return hl.bind(keys, action, flags)
 end

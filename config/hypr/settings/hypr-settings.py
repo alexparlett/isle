@@ -17,6 +17,7 @@ not a slider.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -127,6 +128,33 @@ SETTINGS = [
         dict(key="animations:enabled", lua=("animations", "enabled"), kind="switch",
              title="Animations", subtitle=None),
     ]),
+    ("Mouse", [
+        dict(key="input:sensitivity", lua=("input", "sensitivity"), kind="scale-float",
+             title="Pointer speed", subtitle="0 is the libinput default; negative is slower",
+             min=-1.0, max=1.0, step=0.05),
+        dict(key="input:accel_profile", lua=("input", "accel_profile"), kind="text-choice",
+             title="Acceleration", subtitle="Flat is raw input — what you want for games",
+             options=["flat", "adaptive"]),
+        dict(key="input:natural_scroll", lua=("input", "natural_scroll"), kind="switch",
+             title="Natural scrolling", subtitle="Content follows your fingers, macOS-style"),
+        dict(key="input:scroll_factor", lua=("input", "scroll_factor"), kind="scale-float",
+             title="Scroll speed", subtitle=None, min=0.1, max=3.0, step=0.1),
+        dict(key="input:left_handed", lua=("input", "left_handed"), kind="switch",
+             title="Swap mouse buttons", subtitle="Left-handed layout"),
+    ]),
+    ("Keyboard", [
+        dict(key="input:repeat_delay", lua=("input", "repeat_delay"), kind="scale-int",
+             title="Repeat delay", subtitle="Milliseconds before a held key repeats",
+             min=150, max=1000, step=25),
+        dict(key="input:repeat_rate", lua=("input", "repeat_rate"), kind="scale-int",
+             title="Repeat rate", subtitle="Repeats per second once it starts",
+             min=10, max=80, step=1),
+        dict(key="input:numlock_by_default", lua=("input", "numlock_by_default"), kind="switch",
+             title="Num Lock on at login", subtitle=None),
+        dict(key="input:kb_layout", lua=("input", "kb_layout"), kind="text-choice",
+             title="Layout", subtitle="Restart apps to pick up a change",
+             options=["gb", "us", "de", "fr", "es", "it", "no", "se", "dk"]),
+    ]),
     ("Behaviour", [
         dict(key="input:follow_mouse", lua=("input", "follow_mouse"), kind="choice",
              title="Focus follows mouse", subtitle=None,
@@ -143,14 +171,28 @@ SETTINGS = [
     ]),
 ]
 
-# Tools that own settings this window has no business duplicating.
+# Hyprland has no System Settings and structurally cannot have KDE's: that is a
+# shell over KConfig modules, where every component registers against a shared
+# framework. Waybar, rofi, swaync and the rest are unrelated programs with
+# unrelated config formats and no common schema, so there is nothing for one
+# window to introspect.
+#
+# This is the pragmatic substitute — the Hyprland options worth tuning by feel
+# live above, and everything else is one click away in the tool that actually
+# owns it. Buttons for tools that are not installed are simply not shown.
 EXTERNAL_TOOLS = [
+    ("Displays", "nwg-displays"),
     ("GTK theme", "nwg-look"),
     ("Qt theme", "qt6ct"),
     ("Audio", "pavucontrol"),
     ("Bluetooth", "blueman-manager"),
     ("Network", "nm-connection-editor"),
     ("Notifications", "swaync-client -t -sw"),
+    ("Printers", "system-config-printer"),
+    ("Disks", "gnome-disk-utility"),
+    ("Sensors & fans", "coolercontrol"),
+    ("Updates", "alacritty -e cachy-update"),
+    ("System info", "alacritty -e fastfetch"),
 ]
 
 
@@ -183,6 +225,8 @@ def lua_literal(value):
         return "true" if value else "false"
     if isinstance(value, float):
         return f"{value:g}"
+    if isinstance(value, str):
+        return '"%s"' % value.replace('"', '\\"')
     return str(value)
 
 
@@ -242,8 +286,11 @@ class SettingsWindow(Gtk.ApplicationWindow):
             page.append(self._group_title(group))
             page.append(self._card(specs))
 
-        page.append(self._group_title("Keyboard"))
+        page.append(self._group_title("Shortcut profile"))
         page.append(self._keymap_card())
+
+        page.append(self._group_title("Power and idle"))
+        page.append(self._idle_card())
 
         page.append(self._group_title("Night light"))
         page.append(self._night_light_card())
@@ -314,6 +361,18 @@ class SettingsWindow(Gtk.ApplicationWindow):
                 widget.set_selected(int(current))
             widget.connect("notify::selected", lambda w, _p: self._changed(spec, w.get_selected()))
 
+        elif kind == "text-choice":
+            # Same widget, but the option's *text* is the value rather than its
+            # index — accel_profile wants "flat", not 0.
+            widget = Gtk.DropDown.new_from_strings(spec["options"])
+            widget.set_valign(Gtk.Align.CENTER)
+            if isinstance(current, str) and current in spec["options"]:
+                widget.set_selected(spec["options"].index(current))
+            widget.connect(
+                "notify::selected",
+                lambda w, _p: self._changed(spec, spec["options"][w.get_selected()]),
+            )
+
         else:
             is_float = kind == "scale-float"
             widget = Gtk.Scale.new_with_range(
@@ -333,6 +392,98 @@ class SettingsWindow(Gtk.ApplicationWindow):
 
         self.controls[id(widget)] = (spec, widget)
         return widget
+
+    def _idle_card(self):
+        """hypridle reads a file rather than taking runtime config, so these
+        rewrite the timeouts in place and restart it. The agent-busy deferral
+        and the rest of the file are left exactly as they are."""
+        box = Gtk.ListBox()
+        box.set_selection_mode(Gtk.SelectionMode.NONE)
+        box.add_css_class("card")
+
+        conf = Path.home() / ".config" / "hypr" / "hypridle.conf"
+        try:
+            body = conf.read_text()
+        except OSError:
+            body = ""
+
+        # The two listeners in order: blank, then lock.
+        timeouts = [int(t) for t in re.findall(r"^\s*timeout\s*=\s*(\d+)", body, re.M)]
+
+        rows = [
+            ("Blank the screen after", 0, 60, 3600, 60),
+            ("Lock the screen after", 1, 60, 7200, 60),
+        ]
+
+        for title, index, low, high, step in rows:
+            row = Gtk.ListBoxRow()
+            row.set_activatable(False)
+            line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+
+            labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1, hexpand=True)
+            label = Gtk.Label(label=title, xalign=0)
+            label.add_css_class("row-title")
+            labels.append(label)
+            sub = Gtk.Label(label="Minutes. Deferred while a coding agent is working.", xalign=0)
+            sub.add_css_class("row-subtitle")
+            labels.append(sub)
+            line.append(labels)
+
+            scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, low / 60, high / 60, step / 60)
+            scale.set_size_request(240, -1)
+            scale.set_draw_value(True)
+            scale.set_value_pos(Gtk.PositionType.RIGHT)
+            scale.set_digits(0)
+            scale.set_valign(Gtk.Align.CENTER)
+            if index < len(timeouts):
+                scale.set_value(timeouts[index] / 60)
+            scale.connect("value-changed", self._idle_changed, index)
+            line.append(scale)
+
+            row.set_child(line)
+            box.append(row)
+
+        return box
+
+    def _idle_changed(self, scale, index):
+        if self._pending is not None:
+            GLib.source_remove(self._pending)
+        self._pending = GLib.timeout_add(600, self._write_idle, index, int(scale.get_value()) * 60)
+
+    def _write_idle(self, index, seconds):
+        self._pending = None
+        conf = Path.home() / ".config" / "hypr" / "hypridle.conf"
+        try:
+            body = conf.read_text()
+        except OSError as exc:
+            self._flash(f"Could not read hypridle.conf: {exc}")
+            return GLib.SOURCE_REMOVE
+
+        # Replace only the nth `timeout =` line, leaving comments, condition_cmd
+        # and everything else untouched.
+        seen = 0
+
+        def swap(match):
+            nonlocal seen
+            current = seen
+            seen += 1
+            return f"{match.group(1)}{seconds}" if current == index else match.group(0)
+
+        updated = re.sub(r"(^\s*timeout\s*=\s*)\d+", swap, body, flags=re.M)
+        if updated == body:
+            return GLib.SOURCE_REMOVE
+
+        try:
+            conf.write_text(updated)
+        except OSError as exc:
+            self._flash(f"Could not write hypridle.conf: {exc}")
+            return GLib.SOURCE_REMOVE
+
+        subprocess.run(["pkill", "-x", "hypridle"], capture_output=True)
+        subprocess.Popen(["hypridle"], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self._flash(f"Idle timeout set to {seconds // 60} min — hypridle restarted")
+        return GLib.SOURCE_REMOVE
 
     def _keymap_card(self):
         """Switching profile rewrites ~/.config/hypr/keymap and reloads, because
@@ -484,7 +635,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
             if isinstance(widget, Gtk.Switch):
                 value = widget.get_active()
             elif isinstance(widget, Gtk.DropDown):
-                value = widget.get_selected()
+                value = (spec["options"][widget.get_selected()]
+                         if spec["kind"] == "text-choice" else widget.get_selected())
             else:
                 value = widget.get_value()
                 if spec["kind"] == "scale-int":
@@ -541,7 +693,11 @@ class SettingsWindow(Gtk.ApplicationWindow):
             if isinstance(widget, Gtk.Switch):
                 widget.set_active(bool(current))
             elif isinstance(widget, Gtk.DropDown):
-                widget.set_selected(int(current))
+                if spec["kind"] == "text-choice":
+                    if isinstance(current, str) and current in spec["options"]:
+                        widget.set_selected(spec["options"].index(current))
+                else:
+                    widget.set_selected(int(current))
             else:
                 widget.set_value(float(current))
         self._flash("Reloaded from config files")

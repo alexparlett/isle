@@ -69,8 +69,14 @@ config/
     monitors.lua       the ultrawide, and workspace pinning
     input.lua          keyboard (Mac swap), mouse, gestures
     look.lua           gaps, borders, blur, shadows, animations
-    binds.lua          every keybind, each with a description
+    keymap.lua         which bind profile is active
+    binds.lua          picks a profile
+    binds-mac.lua      macOS shortcuts
+    binds-windows.lua  Windows shortcuts, Aero Snap included
+    binds-shared.lua   what both profiles agree on
+    snap.lua           drag-to-edge zones and their geometry
     rules.lua          window / layer / workspace rules, AI panels
+    dnd.lua            auto do-not-disturb on screen share and fullscreen
     gaming.lua         tearing, direct scanout, gamescope notes
     autostart.lua      what starts with the session
     hyprlock.conf      still hyprlang — these four have not moved to Lua
@@ -87,8 +93,8 @@ config/
   applications/       .desktop entry for the settings window
   arch-update/        update notifier config
   xdg-desktop-portal/
-tests/               hl-mock.lua + test-config.lua — load the whole config
-                     against a mock of Hyprland's documented API
+tests/               run.sh runs the lot: config against a mock of Hyprland's
+                     documented API (both profiles), package lists, syntax
 packages/            repo.txt      what the desktop needs
                      extras.txt    agentic tooling and backups, also installed
                      aur.txt       the two theme packages
@@ -100,20 +106,25 @@ install.sh
 ### Testing it without logging in
 
 ```bash
-lua tests/test-config.lua
+./tests/run.sh
 ```
 
-Loads every module against a mock `hl` built from the documented API, once per
-keymap profile. Anything
-not on that list raises, so a dispatcher that does not exist or a rule field
-that is misspelled fails here rather than at login. It then asserts on what the
-config produced: no two binds on the same keys, most binds carry a description
-(the `⌘?` cheatsheet reads them), every `hl.on` event is real, window rules only
-match on documented props, `GBM_BACKEND` is *not* set, VRR is fullscreen-only,
-and the GPU is pinned by a stable by-path name.
+Loads every config module against a mock `hl` built from Hyprland's documented
+API — once per keymap profile, since a duplicate bind in the profile you are not
+using is exactly as broken as one in the profile you are. Anything not on that
+API raises, so a dispatcher that does not exist or a misspelled rule field fails
+here rather than at login.
 
-It earns its keep — it caught `⌘⇧3/4/5/6` being bound to both the macOS
-screenshot shortcuts and send-window-to-workspace, which would have fired both
+It then asserts on what the config produced: no two binds on the same keys, most
+binds carrying a description (the `⌘?` cheatsheet reads them), every `hl.on`
+event real, window rules matching only on documented props, snap zones landing
+on screen and below the bar, `GBM_BACKEND` *not* set, VRR fullscreen-only, and
+the GPU pinned by a stable by-path name. Package lists are parsed with the real
+parser from `install.sh` and every name checked against the repos, and every
+shell and Python file is syntax-checked.
+
+It earns its keep. It has already caught `⌘⇧3/4/5/6` bound to both the macOS
+screenshot shortcuts and send-window-to-workspace — which would have fired both
 actions on every press.
 
 ### Why Lua and not `hyprland.conf`

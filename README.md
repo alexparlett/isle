@@ -293,9 +293,32 @@ What changes:
 - **HDR** — KWin's implementation is more mature than Hyprland's today.
 - **Plasma widgets, Activities, desktop icons** have no equivalent.
 
+## The migration, start to finish
+
+Plasma is a fallback, not a fixture — but it stays until you say otherwise.
+Nothing in `install.sh` touches it.
+
+1. **`./install.sh`** — packages, symlinks, hooks, KDE colours. Plasma is not
+   touched; it only *reads* `plasma-apply-colorscheme` while that exists.
+2. **Log out and pick `Hyprland`** at SDDM. The package ships two entries —
+   `Hyprland` and `Hyprland (uwsm)` — and this config wants the plain one.
+   Plasma stays in that menu the whole time.
+3. **`./doctor.sh`** — checks what only a running session can prove. It ends by
+   telling you whether the fallback is still earning its place.
+4. **Live with it.** Days, not minutes. Anything that goes wrong is one logout
+   from a working desktop.
+5. **`./migrate-secrets.py --run`** — copies KWallet into gnome-keyring and
+   verifies every entry. Nothing is deleted.
+6. **`./remove-plasma.sh --run --apps --drop-kwallet`** — only when steps 3–5
+   are clean. It refuses to run from inside Plasma, so the order enforces
+   itself.
+
+Steps 5 and 6 are optional forever. Leaving Plasma installed costs disk space
+and nothing else.
+
 ## Retiring Plasma
 
-Plasma is a fallback, not a fixture. When Hyprland has earned your trust:
+When Hyprland has earned your trust:
 
 ```bash
 ./remove-plasma.sh          # show the plan, change nothing

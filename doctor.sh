@@ -222,6 +222,34 @@ pgrep -f xdg-desktop-portal-hyprland >/dev/null 2>&1 \
 
 # --- summary -----------------------------------------------------------------
 
-printf '\n%s%d passed, %d warnings, %d failed%s\n\n' \
+printf '\n%s%d passed, %d warnings, %d failed%s\n' \
     "$c_bold" "$pass" "$warn" "$fail" "$c_reset"
+
+# --- are you ready to drop the fallback? -------------------------------------
+#
+# The whole point of keeping Plasma is to have somewhere to land while Hyprland
+# is unproven. This is the signal for when that stops being true.
+
+section "Plasma fallback"
+
+if ! pacman -Q plasma-desktop &>/dev/null; then
+    ok "already removed — Hyprland is the only session"
+elif ((fail > 0)); then
+    warn "still installed, and rightly so — fix the $fail failure(s) above first"
+    note "it is one logout away at the SDDM session menu"
+else
+    days_installed=""
+    if [[ -d "$HOME/.config/hypr" ]]; then
+        age=$(( ( $(date +%s) - $(stat -c %Y "$HOME/.config/hypr" 2>/dev/null || date +%s) ) / 86400 ))
+        days_installed=" (installed ~${age}d ago)"
+    fi
+    ok "everything passing${days_installed}"
+    note "when you have lived with it long enough to trust it:"
+    note "    ./remove-plasma.sh                        # dry run, shows the plan"
+    note "    ./migrate-secrets.py --run                # move KWallet into gnome-keyring"
+    note "    ./remove-plasma.sh --run --apps --drop-kwallet"
+    note "there is no fallback session afterwards — Ctrl+Alt+F2 gets you a TTY"
+fi
+
+printf '\n'
 ((fail == 0))

@@ -166,6 +166,21 @@ Rules of the contract:
   user's are Yours), `description`, `sizes`, `default`, and `multiple`
   when more than one instance makes sense (Clock). The library in the
   dashboard's edit mode lists them by category with a search.
+- A manifest also identifies its widget the way a package does:
+  `version` (semver), `author` (`{name, url}`), `license`, `homepage`,
+  and `screenshots` (paths in the widget's directory; a `screenshots/`
+  directory is taken when the list is absent). The scanner in
+  `shell/scripts/widgets.py` adds what sits beside the manifest:
+  `about` from `README.md`, `changelog` from `CHANGELOG.md`, and
+  `origin` from the directory's git remote when it is a clone. The
+  store (`WidgetStore`, opened by Browse in the library) shows all of it
+  on a card and a sheet, with `WidgetPreview` drawing the first
+  screenshot or, without one, the widget itself live at its default span.
+- Permissions a sandboxed widget declares can be narrowed by the user:
+  `widgetGrants.<id>` in prefs lists what is allowed, and `Widgets.grantsFor`
+  returns declared ∩ granted (absent means everything declared). The card
+  and the preview hand that set to `WidgetHost`, so a revoked `media.write`
+  makes the host's transport calls no-ops without the widget changing.
 - `settings` declares what the card's gear offers in edit mode: `toggle`,
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as

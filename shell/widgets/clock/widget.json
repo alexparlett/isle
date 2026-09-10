@@ -1,4 +1,4 @@
-{ "id": "clock", "name": "Clock", "category": "Shell", "description": "Time, date and the week", "multiple": true, "glyph": "clock", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [],
+{ "id": "clock", "name": "Clock", "category": "Shell", "description": "Time, date and the week", "multiple": true, "version": "1.0.0", "author": { "name": "Isle" }, "glyph": "clock", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [],
   "settings": [
     { "key": "format", "label": "Clock", "type": "choice", "default": "24h", "options": [["24h", "24-hour"], ["12h", "12-hour"]] },
     { "key": "seconds", "label": "Seconds", "type": "toggle", "default": false },

@@ -329,6 +329,21 @@ that carries `trust: true`. A widget refused for reaching past the
 sandbox (a forbidden import or escape) says so on its card, naming what
 tripped it.
 
+Browse at the head of the library opens the store: a full overlay with
+Installed, Yours and Browse tabs, a search, and the category chips. Each
+widget is a card with its picture (the shipped screenshot, or the widget
+drawn live in a card at its default size), name, version, author and
+description, permission pills (`media ✎` for a write scope), a Trusted
+or Needs trust badge, and "on ✓" when placed. Clicking a card opens its
+sheet on the right: the picture large, author as a link, version,
+license, category, the README's text, homepage, size chips, the
+permissions as toggles the user can switch off one by one (Reset
+restores what the widget asked for), a warning for a trusted widget, a
+folded What changed with the changelog, and Folder, Edit, Delete and
+Place. The store is built for widgets that come from other people: what
+it is, who made it, which version, and what it is allowed to touch are
+answered before Place.
+
 Text widgets, the user's own, draw through one renderer: a title, then
 the output as wrapped text, a large number with its unit, a gauge bar
 against a maximum, a sparkline of the readings so far, or a list of

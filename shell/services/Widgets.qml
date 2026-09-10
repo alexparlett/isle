@@ -59,6 +59,28 @@ Singleton {
         return Qt.resolvedUrl("../userwidgets/" + id + "/Widget.qml");
     }
     function permissionsOf(id) { const m = manifests[id]; return (m && m.permissions) || []; }
+    // What each permission lets a widget do, in the words the store shows.
+    readonly property var permissionCatalogue: ({
+        "audio": "See the volume, mute and the output device", "audio.write": "Change the volume and mute",
+        "network": "See whether you are online, on Wi-Fi or wired", "media": "See what is playing", "media.write": "Play, pause and skip",
+        "system": "See CPU, GPU, memory and network load", "notifications": "See the count and do-not-disturb", "notifications.write": "Turn do-not-disturb on and off",
+        "power": "See the battery and power profile", "bluetooth": "See whether Bluetooth is on and what is connected", "vpn": "See whether a VPN is up",
+    })
+    function permissionLabel(p) { return permissionCatalogue[p] || p; }
+    // The permissions a widget actually gets: those it declares, minus any the user has withdrawn.
+    function grantsFor(id) {
+        const declared = permissionsOf(id), g = (Prefs.p.widgetGrants || {})[id];
+        return g === undefined ? declared : declared.filter(p => g.indexOf(p) >= 0);
+    }
+    function setGrant(id, perm, on) {
+        const all = Object.assign({}, Prefs.p.widgetGrants || {});
+        const cur = all[id] !== undefined ? all[id].slice() : permissionsOf(id).slice();
+        all[id] = on ? cur.concat(cur.indexOf(perm) < 0 ? [perm] : []) : cur.filter(p => p !== perm);
+        Prefs.p.widgetGrants = all;
+    }
+    function resetGrants(id) { const all = Object.assign({}, Prefs.p.widgetGrants || {}); delete all[id]; Prefs.p.widgetGrants = all; }
+    // "1.2.0" as a comparable number; missing parts count as zero.
+    function versionNumber(v) { const p = String(v || "0").split(".").map(x => parseInt(x, 10) || 0); return p[0] * 1000000 + (p[1] || 0) * 1000 + (p[2] || 0); }
 
     // --- pages and the layout --------------------------------------------------------------
     // An entry is { key, id, x, y, w, h } in grid cells: `key` names the instance (a second clock is

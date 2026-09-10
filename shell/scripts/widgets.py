@@ -10,7 +10,7 @@ written to defeat it.
 
     widgets.py <builtin-dir> <user-dir>
 """
-import json, os, re, sys
+import json, os, re, subprocess, sys
 
 builtin_dir, user_dir = sys.argv[1], sys.argv[2]
 
@@ -69,10 +69,43 @@ for base, is_user in ((builtin_dir, False), (user_dir, True)):
             m = json.load(open(mpath, encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        m["dir"] = os.path.join(base, name)
+        d = os.path.join(base, name)
+        m["dir"] = d
         m["user"] = is_user
-        qml = os.path.join(base, name, "Widget.qml")
+        qml = os.path.join(d, "Widget.qml")
         if is_user and not m.get("source") and os.path.isfile(qml):
             m["restrictedIssues"] = inspect(qml)
+        # The listing: a README stands in for `about`, a CHANGELOG is shown per version, and screenshots are
+        # the images in screenshots/ or those the manifest names, as absolute paths.
+        if not m.get("about"):
+            for rd in ("README.md", "README"):
+                rp = os.path.join(d, rd)
+                if os.path.isfile(rp):
+                    m["about"] = open(rp, encoding="utf-8", errors="replace").read().strip()
+                    break
+        cl = os.path.join(d, "CHANGELOG.md")
+        if os.path.isfile(cl):
+            m["changelog"] = open(cl, encoding="utf-8", errors="replace").read().strip()
+        shots = []
+        for rel in m.get("screenshots", []) or []:
+            ap = os.path.join(d, rel)
+            if os.path.isfile(ap):
+                shots.append(ap)
+        sd = os.path.join(d, "screenshots")
+        if not shots and os.path.isdir(sd):
+            shots = [os.path.join(sd, f) for f in sorted(os.listdir(sd)) if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))]
+        m["screenshots"] = shots
+        # Where it came from: a git checkout carries its origin, which is what updates come from.
+        git = os.path.join(d, ".git")
+        if os.path.isdir(git) or os.path.isfile(git):
+            try:
+                r = subprocess.run(["git", "-C", d, "remote", "get-url", "origin"], capture_output=True, text=True, timeout=3)
+                if r.returncode == 0 and r.stdout.strip():
+                    m["origin"] = r.stdout.strip()
+                t = subprocess.run(["git", "-C", d, "describe", "--tags", "--exact-match"], capture_output=True, text=True, timeout=3)
+                if t.returncode == 0:
+                    m["installedTag"] = t.stdout.strip()
+            except Exception:
+                pass
         out.append(m)
 print(json.dumps(out))

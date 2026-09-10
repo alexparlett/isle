@@ -1,1 +1,1 @@
-{ "id": "agents", "name": "Agents", "category": "Shell", "description": "Terminals running coding agents, with what they are doing", "glyph": "terminal", "sizes": ["3x2", "3x4"], "default": "3x2", "requires": [] }
+{ "id": "agents", "name": "Agents", "category": "Shell", "description": "Terminals running coding agents, with what they are doing", "version": "1.0.0", "author": { "name": "Isle" }, "glyph": "terminal", "sizes": ["3x2", "3x4"], "default": "3x2", "requires": [] }

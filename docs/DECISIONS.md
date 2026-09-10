@@ -202,3 +202,17 @@ update too late to help. With the open driver, hardware cursors work, and
 the pointer lives on its own plane that screencopy leaves out unless asked
 for with `-c`. The test VM cannot show this: its virtual GPU has no cursor
 plane, so it draws the pointer in software regardless.
+
+**D28 · The widget library is a store, and grants are the user's.** A
+list of names with a tick was enough while every widget was the shell's
+own. Widgets written by others need what a package manager shows before
+install: a picture, the author, a version, a licence, what changed, and
+what it touches. The manifest carries the identity fields; the picture is
+a shipped screenshot or, failing that, the widget itself drawn live, so
+nothing is ever blank. Permissions are declared by the author but granted
+by the user: a per-widget list in prefs narrows the declared set, the host
+wrapper is built from the intersection, and a revoked scope turns that
+service's calls into no-ops rather than refusing the widget, so a music
+widget can still show the track after its transport has been taken away.
+Sources, installing from a registry and updates build on this manifest.
+

@@ -1,1 +1,1 @@
-{ "id": "system", "name": "System", "category": "System", "description": "CPU, GPU, memory and network over the last minute", "glyph": "cpu", "sizes": ["3x2", "6x2"], "default": "3x2", "requires": [] }
+{ "id": "system", "name": "System", "category": "System", "description": "CPU, GPU, memory and network over the last minute", "version": "1.0.0", "author": { "name": "Isle" }, "glyph": "cpu", "sizes": ["3x2", "6x2"], "default": "3x2", "requires": [] }

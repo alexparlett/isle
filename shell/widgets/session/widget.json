@@ -1,1 +1,1 @@
-{ "id": "session", "name": "Session", "category": "Shell", "description": "Lock, sleep, restart, shut down; the power profile", "glyph": "power", "sizes": ["3x1"], "default": "3x1", "requires": [] }
+{ "id": "session", "name": "Session", "category": "Shell", "description": "Lock, sleep, restart, shut down; the power profile", "version": "1.0.0", "author": { "name": "Isle" }, "glyph": "power", "sizes": ["3x1"], "default": "3x1", "requires": [] }

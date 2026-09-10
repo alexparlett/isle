@@ -56,6 +56,8 @@ PanelWindow {
     // Unsaved edits: the layout differs from the snapshot taken when editing began.
     readonly property bool dirty: editing && grid.before !== null && JSON.stringify(Widgets.pages) !== JSON.stringify(grid.before)
     property bool confirming: false
+    // The store: the library as a gallery with the whole listing per widget.
+    property bool storeOpen: false
     function focusGrid() { grid.forceActiveFocus(); }
     // The dialog's answers: Keep leaves the changes in place and closes; Discard restores the pre-edit layout
     // and closes; Cancel reopens the dashboard, still editing.
@@ -126,7 +128,7 @@ PanelWindow {
         }
         Keys.onPressed: event => {
             const shift = event.modifiers & Qt.ShiftModifier;
-            if (event.key === Qt.Key_Escape) { if (root.confirming) root.cancelClose(); else if (root.pending) root.pending = null; else Surfaces.dashboard = false; }
+            if (event.key === Qt.Key_Escape) { if (root.storeOpen) root.storeOpen = false; else if (root.confirming) root.cancelClose(); else if (root.pending) root.pending = null; else Surfaces.dashboard = false; }
             else if (event.key === Qt.Key_E) root.editing = !root.editing;
             else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) Widgets.setPage(event.key - Qt.Key_1);
             else if (root.editing && event.key === Qt.Key_Tab) { const l = Widgets.layout; const i = l.findIndex(e => e.key === root.focusKey); root.focusKey = l.length ? l[(i + 1) % l.length].key : ""; }
@@ -321,7 +323,7 @@ PanelWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     Label { text: "Widgets"; size: Theme.sizeHeading; weight: Font.DemiBold; Layout.fillWidth: true }
-                    Label { text: Widgets.library.length; size: Theme.sizeCaption; color: Theme.text3; tabular: true }
+                    Button { text: "Browse"; glyph: "layout-grid"; variant: "text"; onClicked: root.storeOpen = true }
                 }
                 Field { Layout.fillWidth: true; implicitHeight: 32; glyph: "search"; placeholder: "Search widgets"; size: Theme.sizeSmall; onTextChanged: library.query = text; onVisibleChanged: if (visible) text = "" }
                 ListView {
@@ -434,6 +436,16 @@ PanelWindow {
                 Glyph { name: Widgets.manifests[root.dragId] ? Widgets.manifests[root.dragId].glyph : "plus"; size: 16 }
                 Label { text: Widgets.manifests[root.dragId] ? Widgets.manifests[root.dragId].name : ""; weight: Font.DemiBold; size: Theme.sizeSmall }
             }
+        }
+
+        // The store, over everything else in edit mode.
+        WidgetStore {
+            id: widgetStore
+            open: root.storeOpen
+            onOpenChanged: root.storeOpen = open
+            z: 35
+            onPlace: id => { root.place(id, root.pending ? root.pending.x : -1, root.pending ? root.pending.y : -1); root.pending = null; }
+            onEdit: m => { widgetForm.startEdit(m); library.composing = true; root.storeOpen = false; }
         }
 
         // Leaving edit mode with unsaved changes asks first.

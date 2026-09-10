@@ -81,6 +81,10 @@ Singleton {
             property var windowPlaces: ({})
             property var input: ({})
             property var widgetSettings: ({})
+            // Widget id -> the permissions the user allows it, of those it declares; absent means all declared.
+            property var widgetGrants: ({})
+            // Registry git URLs beyond the default one derived from the shell's origin.
+            property var widgetSources: []
             property var keymapOverrides: ({})
             property var clipPins: []
             property string terminal: ""

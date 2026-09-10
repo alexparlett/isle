@@ -14,7 +14,7 @@ Glass {
     readonly property var manifest: Widgets.manifests[entry.id] || null
     readonly property string size: entry.w + "x" + entry.h
     // The permission-gated wrapper a sandboxed widget is handed in place of the services.
-    WidgetHost { id: host; permissions: root.manifest ? (root.manifest.permissions || []) : [] }
+    WidgetHost { id: host; permissions: Widgets.grantsFor(root.entry.id) }
 
     readonly property bool focused: editing && dashboard && dashboard.focusKey === entry.key
     property bool resizing: false

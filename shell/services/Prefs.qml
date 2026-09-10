@@ -72,7 +72,7 @@ Singleton {
             // A pad on the desktop: Guide held opens Big Picture.
             property bool padHome: true
             // Window classes the pad is bridged to as keys while a mode is on.
-            property var padBridgeApps: ["heroic", "net.lutris.Lutris", "lutris"]
+            property var padBridgeApps: ["heroic", "net.lutris.Lutris", "lutris", "spotify"]
             property var launchCounts: ({})
             property var mutedApps: []
             property var knownApps: []

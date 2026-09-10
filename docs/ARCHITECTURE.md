@@ -415,7 +415,7 @@ holds the whole of it:
   `lutris lutris:rungameid/…`); `scripts/games.py` reads their libraries
   and art (Heroic's store cache, Lutris' coverart and banners).
 - **The pad bridge.** While a mode is on and the window in front is one of
-  `prefs.padBridgeApps` (Heroic, Lutris by default), pad events become
+  `prefs.padBridgeApps` (Heroic, Lutris and Spotify by default), pad events become
   keys through wtype: directions to arrows, A and Start to Return, B to
   Escape, X space, Y Tab, bumpers Page Up and Down, triggers Home and End.
   Games are never bridged: they read the pad themselves.

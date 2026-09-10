@@ -20,10 +20,8 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: { root.available = text.indexOf("wtype") >= 0; root.hasDictionary = text.indexOf("dict") >= 0; } }
     }
 
-    // Over a game the pad is read all along, so Select held can bring the keyboard up.
-    readonly property bool padWatch: Modes.game
-    onPadWatchChanged: Gamepad.listeners += padWatch ? 1 : -1
-    Connections { target: Gamepad; function onPressed(b) { if (b === "select-hold") root.toggle(); } }
+    // Games reads the pad through every mode, so Select held can bring the keyboard up over anything.
+    Connections { target: Gamepad; function onPressed(b) { if (b === "select-hold" && Modes.game) root.toggle(); } }
 
     function show() { open = true; }
     function hide() { open = false; }

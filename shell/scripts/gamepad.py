@@ -16,6 +16,8 @@ EVENT = struct.calcsize("llHHi")
 BTN_GAMEPAD = 0x130
 REPEAT_DELAY, REPEAT_RATE = 0.35, 0.16
 HOLD = 0.6
+# Guide is a tap or a hold, never both: its tap is sent on release.
+DEFER = {"guide"}
 
 def is_gamepad(node):
     try:
@@ -98,8 +100,12 @@ while True:
             _, _, etype, code, value = struct.unpack_from("llHHi", data, off)
             if etype == EV_KEY and code in BTN:
                 if value == 1:
-                    emit(BTN[code]); down[(fd, code)] = time.monotonic()
+                    if BTN[code] not in DEFER:
+                        emit(BTN[code])
+                    down[(fd, code)] = time.monotonic()
                 elif value == 0:
+                    if (fd, code) in down and BTN[code] in DEFER:
+                        emit(BTN[code])
                     down.pop((fd, code), None)
             elif etype == EV_ABS and code in TRIGGERS:
                 lo, hi = pads[fd]["ranges"][code]

@@ -117,14 +117,7 @@ PanelWindow {
         if (isAction(key.v)) Osk.key(key.v); else Osk.type(key.v);
     }
 
-    // The pad's buttons as the pad labels them.
     readonly property bool legendShown: Gamepad.kind !== "" || Modes.game
-    readonly property var padGlyphs: ({
-        sony: { a: ["✕", "#7FA6FF"], b: ["○", "#FF6B6B"], x: ["□", "#E8A0C8"], y: ["△", "#6FCF97"], lb: ["L1"], rb: ["R1"], lt: ["L2"], rt: ["R2"], start: ["Options"], select: ["Share"] },
-        nintendo: { a: ["B"], b: ["A"], x: ["Y"], y: ["X"], lb: ["L"], rb: ["R"], lt: ["ZL"], rt: ["ZR"], start: ["+"], select: ["−"] },
-        xbox: { a: ["A", "#6FCF97"], b: ["B", "#FF6B6B"], x: ["X", "#7FA6FF"], y: ["Y", "#F2C94C"], lb: ["LB"], rb: ["RB"], lt: ["LT"], rt: ["RT"], start: ["Menu"], select: ["View"] }
-    })
-    readonly property var glyphs: padGlyphs[Gamepad.kind] || padGlyphs.xbox
     readonly property var legend: [
         { keys: ["a"], label: "Select" }, { keys: ["b"], label: "Delete" }, { keys: ["x"], label: "Space" }, { keys: ["y"], label: "Shift" },
         { keys: ["lt", "rt"], label: "Halves" }, { keys: ["lb", "rb"], label: "Caret" }, { keys: ["start"], label: "Enter" }, { keys: ["select"], label: "Hold: hide" }
@@ -189,36 +182,14 @@ PanelWindow {
                     }
                 }
             }
-            // The legend, when a pad is about; it wraps rather than widen the slab.
+            // The legend, when a pad is about.
             Item {
                 visible: root.legendShown
                 Layout.fillWidth: true
                 Layout.topMargin: 2
                 implicitWidth: 0
                 implicitHeight: legendFlow.implicitHeight
-                Flow {
-                    id: legendFlow
-                    width: parent.width
-                    spacing: Theme.s3
-                    Repeater {
-                        model: root.legend
-                        Row {
-                            required property var modelData
-                            spacing: 4
-                            Repeater {
-                                model: parent.modelData.keys
-                                Rectangle {
-                                    required property string modelData
-                                    readonly property var g: root.glyphs[modelData] || [modelData]
-                                    width: Math.max(18, chip.implicitWidth + 8); height: 18; radius: 9
-                                    color: Theme.pressed; border.width: 1; border.color: g[1] ? Qt.alpha(g[1], 0.6) : Theme.hairlineStrong
-                                    Label { id: chip; anchors.centerIn: parent; text: parent.g[0]; size: Theme.sizeCaption; weight: Font.DemiBold; color: parent.g[1] || Theme.text2 }
-                                }
-                            }
-                            Label { text: parent.modelData.label; size: Theme.sizeCaption; color: Theme.text3; anchors.verticalCenter: parent.verticalCenter }
-                        }
-                    }
-                }
+                PadLegend { id: legendFlow; width: parent.width; items: root.legend; kind: Gamepad.kind }
             }
         }
     }

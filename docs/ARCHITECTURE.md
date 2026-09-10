@@ -93,7 +93,7 @@ extra process.
 | drives | `udisksctl dump` through `shell/scripts/drives.py`: drives, block devices and the SMART summary udisks keeps (ATA and NVMe); `SmartUpdate` over gdbus to refresh |
 | default apps | `xdg-mime query default` / `xdg-mime default` and `xdg-settings` for the browser, through `shell/scripts/defaults.py`; candidates from the `MimeType` lines of every desktop entry |
 | startup | Settings › Apps shows the three ways a session starts things. Apps: XDG autostart through `scripts/autostart.py` (a user file with `Hidden=true` switches a system entry off; entries naming another desktop are folded as never running here). Services: the enabled systemd user units through `scripts/services.py` (`enable --now` / `disable --now`), with the shell's own locked. The compositor: the `hl.exec_cmd` lines of `hyprland.lua`'s start hook, read from the file |
-| gamepad | `shell/scripts/gamepad.py` reads every evdev node with `BTN_GAMEPAD` (uaccess through the joystick udev rule) and prints presses, and `<button>-hold` after 0.6 s; it runs while anything holds `Gamepad.listeners`: Big Picture, the on-screen keyboard, and game mode |
+| gamepad | `shell/scripts/gamepad.py` reads every evdev node with `BTN_GAMEPAD` (uaccess through the joystick udev rule) and prints presses: the face buttons, bumpers, triggers (buttons or axes past half), Select, Start, Guide (on release, or `guide-hold`), the d-pad and left stick as directions that repeat while held, the right stick as `r`-prefixed ones, `<button>-hold` after 0.6 s, and `pad:<vendor>` when a pad appears; it runs while anything holds `Gamepad.listeners`: the home, the quick menu, the keyboard, and `Games` through every mode and on the desktop when a pad may open Big Picture |
 | on-screen keyboard | `surfaces/keyboard/OnScreenKeyboard.qml`, an overlay layer along the bottom that never takes keyboard focus; `Osk` (the service) queues each key as a `wtype` run (text as is, named keys with `-k`), so it lands in the focused window through the virtual keyboard protocol. Opened by `qs ipc call osk toggle` (SUPER+SHIFT+K in the keymap) or Select held on the pad in game mode. Built the way the consoles build theirs: two cursors, the left stick and d-pad over the left half of the keys and the right stick over the right, LT and RT pressing each, A the one last moved; B deletes, X space, Y shift, LB and RB move the caret, Start enters; a legend of those buttons in the pad's own labels (Sony shapes, Xbox letters, Nintendo's swapped) while a pad is about; a suggestion strip above the keys, the word typed so far completed from `/usr/share/dict/words` (`words`) shortest first, names only for a capitalised start, picking one typing the rest and a space. On the desktop it takes an exclusive zone so tiled windows make room; over a game it sits on top. Pages: letters, symbols, more; shift is one-shot, twice for lock |
 | shell updates | `IsleUpdate` fetches the checkout's origin hourly and lists the commits behind; Update pulls fast-forward in a terminal and runs `install.sh`, and Quickshell reloads from the changed files. An SSH remote the host does not know gets a row pointing at the key in Keychain; an https remote gets a gh sign-in. Settings › Updates puts it above the package list; the island's download glyph and the panel footer count cover both |
 | title bars | the hyprbars plugin from this repo's `plugins/hyprbars` (upstream at the commit pinned for this Hyprland, plus one change: no bar when the client asked for its own decorations, through xdg-decoration, KDE's server-decoration or X11 Motif hints), built by hyprpm from `hyprpm.toml` at the root in bootstrap and loaded from hyprland.lua's start hook (then `hyprctl reload` so the theme fragment sees it). `theme/templates/hypr-theme.lua` sets its colours, font and padding from the tokens and adds three buttons right to left: close, fullscreen, minimise to the hidden stack (`switcher hide`). Off with the `titleBars` preference (Settings › Appearance); `titleBarsExcept` lists the window classes that draw their own controls, rendered as one anchored regex in a Lua long string into a `hyprbars:no_bar` rule |
@@ -325,7 +325,7 @@ mode applies a profile; leaving restores the previous one.
 | **normal** | full | shown | animations, blur, gaps | balanced profile |
 | **focus** | clock + timer | DND; urgent and allowlisted apps still shown | as normal | — |
 | **game** | hidden; 4px top-edge hot zone peeks it | queued; count shown on exit | animations off, blur off, gaps 0, VRR on, tearing allowed for the game window | gamemode, performance profile, night light off, idle inhibited |
-| **bigpicture** | hidden | queued | as game | as game; the Big Picture surface is the home screen |
+| **bigpicture** | hidden | queued | as game | as game; Isle's home screen is in front unless a game or Steam's UI is |
 
 Game mode enters when gamemoded reports a client or a fullscreen window
 belongs to a game launcher, and leaves when that ends. Focus and Big
@@ -393,18 +393,58 @@ Keyboard shows the table and assigns each keyboard a profile; "auto"
 picks Mac for Keychron and Apple names. Rebinding in Settings is still
 to come; edit the JSON for now.
 
-## Controller
+## Big Picture
 
-The Steam Controller is a keyboard and mouse when Steam is not running
-(lizard mode: pad and dpad are arrows, A is Enter, B is Escape, triggers
-click) and Steam Input takes over when it is. So every surface a
-controller should drive is fully keyboard-navigable with a visible focus
-ring: Big Picture, the launcher, the switcher, the power menu, the auth
-dialog. Big Picture also reads the pad directly (see gamepad in the
-services table), so a controller without lizard mode still drives it:
-d-pad and left stick move, A launches, B returns to the desktop.
-Controller battery comes from UPower and shows in the control panel and
-the Devices widget. `dev/fake-gamepad.py` is a uinput pad for the VM.
+Isle is the console's system layer, not its store. `Games` (the service)
+holds the whole of it:
+
+- **Who is in front owns the pad.** A game (gamemoded, or a fullscreen
+  launcher-class window) or Steam's own Big Picture window (class `steam`,
+  title "Steam Big Picture Mode") is `inFront`; Isle's home
+  (`surfaces/bigpicture/BigPictureHome.qml`) shows only when nothing is.
+  Steam Input drives Steam and its games untouched.
+- **The mode follows Steam.** Steam's Big Picture window appearing puts the
+  mode on and marks it `steamDriven`; the window going away takes the mode
+  off again unless Isle was in Big Picture first. The Steam tile opens
+  `steam://open/bigpicture` (or Steam under gamescope), Desktop closes it
+  with `steam://close/bigpicture` and leaves the mode.
+- **Heroic and Lutris.** Heroic's console mode (`heroic --console`) and
+  Lutris are windows without pad support; the home steps back behind them
+  (`homeAway`) and the bridge below drives them. Games from either are
+  launched headless (`heroic --no-gui heroic://launch/…`,
+  `lutris lutris:rungameid/…`); `scripts/games.py` reads their libraries
+  and art (Heroic's store cache, Lutris' coverart and banners).
+- **The pad bridge.** While a mode is on and the window in front is one of
+  `prefs.padBridgeApps` (Heroic, Lutris by default), pad events become
+  keys through wtype: directions to arrows, A and Start to Return, B to
+  Escape, X space, Y Tab, bumpers Page Up and Down, triggers Home and End.
+  Games are never bridged: they read the pad themselves.
+- **Guide.** The helper reports Guide on release, so a tap and a hold are
+  distinct. A tap opens the quick menu (`BigPictureQuick.qml`: sound,
+  output, brightness, Wi-Fi, Bluetooth and pairing, power profile, DND,
+  keyboard, home, sleep, shut down, desktop); a hold brings Isle's home
+  from anywhere, including the desktop when `prefs.padHome` is on, which
+  keeps the helper reading the whole time. Select held is the keyboard.
+- **Isle inside Steam's UI.** `scripts/steamshortcuts.py` writes two
+  non-Steam shortcuts, Isle settings and Desktop, running
+  `scripts/isle-quick.sh`; Steam hands them the pad as it does any game,
+  and the script stays alive while the quick menu is up so it keeps it.
+  Steam rewrites `shortcuts.vdf` on exit, so the tool refuses while Steam
+  runs; the Modes page offers Add and Remove.
+- **IPC.** `bigpicture home | desktop | quick open|close|toggle | quickOpen`.
+- **Search** on the home is the on-screen keyboard typing into the home's
+  own window, which holds keyboard focus; the Library row filters as you
+  type.
+
+The Steam Controller has no kernel gamepad driver for its Puck (28de:1304
+binds hid-generic; hid-steam knows only the older ids), so outside Steam
+it is a keyboard and mouse. With Steam running and its desktop layout set
+to a gamepad template, Steam Input presents it as an Xbox 360 pad, which
+is what the helper reads. Every surface a controller should drive is also
+keyboard-navigable with a visible focus ring. Controller battery comes
+from UPower and shows in the control panel, the Devices widget and the
+home's top bar. `dev/fake-gamepad.py` is a uinput pad for the VM, with
+triggers, the right stick and `hold <button>`.
 
 ## Theming installed apps
 

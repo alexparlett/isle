@@ -207,8 +207,17 @@ Escape closes whatever is up.
 - **Auth** — a centred dialog: app icon, what is being asked, password field.
 - **Power menu** — five pills in a row: lock, sleep, restart, shut down, log
   out. Keyboard first letter selects.
-- **Big Picture** — 10-foot: 96px tiles in rows (Steam, Heroic, Lutris,
-  recent games), 24px type, 3px focus ring, controller-driven.
+- **Big Picture home** — 10-foot, in the consoles' manner: the time and
+  what is connected along the top, the focused tile's name at display
+  size beneath, then rows that scroll sideways: Continue (played
+  recently), Library across every store, Stores, System. Game tiles are
+  176×264 cover art with a 20px radius, app tiles 176×104 with a glyph;
+  the focused one scales to 1.06 with a 3px accent ring, and its art sits
+  faint behind the whole screen. A pad legend along the bottom in the
+  pad's own labels. The quick menu is a 480px glass slab at the right
+  edge: headed groups of 56px rows (glyph, label, detail, and a slider,
+  toggle or chevron), the current one on the pressed tone with an accent
+  hairline; shut down asks for a second press.
 
 ## On-screen keyboard
 

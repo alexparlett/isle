@@ -42,5 +42,18 @@ SettingsPage {
             description: "A nested compositor for Steam's gamepad UI: HDR, upscaling, a fixed frame rate."
             Toggle { checked: Prefs.p.gamescope; onToggled: v => Prefs.p.gamescope = v }
         }
+        SettingsRow {
+            label: "Controller opens Big Picture"
+            description: "Hold the Guide button on the desktop. The pad is read the whole time for it."
+            Toggle { checked: Prefs.p.padHome; onToggled: v => Prefs.p.padHome = v }
+        }
+        SettingsRow {
+            label: "Isle inside Steam Big Picture"
+            description: Games.shortcutsError ? Games.shortcutsError
+                       : Games.shortcutsInstalled ? "Two tiles in Steam's library, Isle settings and Desktop, open the quick menu and the way out."
+                       : Games.steamRunning ? "Adds Isle settings and Desktop to Steam's library. Close Steam first." : "Adds Isle settings and Desktop to Steam's library."
+            visible: Games.tools.steam
+            Button { text: Games.shortcutsInstalled ? "Remove" : "Add"; enabled: !Games.steamRunning; onClicked: Games.setShortcuts(!Games.shortcutsInstalled) }
+        }
     }
 }

@@ -319,3 +319,18 @@ so fast taps land in order. The console keyboards (Steam Deck, the
 PlayStation, the Xbox) set the pad conventions: two cursors on two
 sticks with the triggers pressing, a legend of the buttons, a strip of
 completions; those are borrowed rather than invented.
+
+**D38 · Isle is the console's system layer, not its store.** The first
+Big Picture was a tile grid that launched Steam's gamepad UI, a launcher
+for a launcher, and it read the pad raw while Steam Input wanted the same
+pad. Steam, Heroic and Lutris each keep their own libraries, updates and
+cloud saves; reimplementing that in the shell would never catch up.
+So the rule is that whoever is fullscreen owns the pad: Steam's UI and
+its games get Steam Input untouched, the shell's home shows only when
+nothing else is in front, and the mode follows Steam's own Big Picture in
+both directions. What the shell adds is what none of them has on a Linux
+desktop: the system quick menu, the pad turned into keys for launchers
+without support (Heroic's console mode, Lutris), the on-screen keyboard,
+notifications held and summarised, and two tiles inside Steam's UI that
+reach the shell's menu and the way out. The console conventions (rows,
+a Guide tap for the menu and a hold for home, a legend) are borrowed.

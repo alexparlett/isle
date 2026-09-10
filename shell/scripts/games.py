@@ -48,15 +48,23 @@ for cache in glob.glob(HOME + "/.config/heroic/store_cache/*_library.json") + gl
     for g in data.get("library", []):
         if not g.get("is_installed"):
             continue
+        # --no-gui: the game alone, no Heroic window in front of it.
         games.append({"source": "heroic", "id": g.get("app_name", ""), "name": g.get("title", ""), "art": g.get("art_cover") or g.get("art_square") or "",
-                      "last": 0, "cmd": f"heroic heroic://launch/{g.get('runner', 'legendary')}/{g.get('app_name', '')}"})
+                      "last": 0, "cmd": f"heroic --no-gui heroic://launch/{g.get('runner', 'legendary')}/{g.get('app_name', '')}"})
 
-# Lutris: whatever it lists.
+# Lutris: whatever it lists, with the cover or banner it cached for the slug.
 if shutil.which("lutris"):
     try:
         out = subprocess.run(["lutris", "-l", "--json"], capture_output=True, text=True, timeout=5).stdout
         for g in json.loads(out or "[]"):
-            games.append({"source": "lutris", "id": str(g.get("id")), "name": g.get("name", ""), "art": "", "last": 0,
+            slug = g.get("slug", "")
+            art = ""
+            for cand in [f"{HOME}/.local/share/lutris/coverart/{slug}.jpg", f"{HOME}/.cache/lutris/coverart/{slug}.jpg",
+                         f"{HOME}/.local/share/lutris/banners/{slug}.jpg", f"{HOME}/.cache/lutris/banners/{slug}.jpg"]:
+                if slug and os.path.exists(cand):
+                    art = cand
+                    break
+            games.append({"source": "lutris", "id": str(g.get("id")), "name": g.get("name", ""), "art": art, "last": int(g.get("lastplayed") or 0),
                           "cmd": f"lutris lutris:rungameid/{g.get('id')}"})
     except Exception:
         pass

@@ -35,7 +35,8 @@ ShellRoot {
     FreezeFrame {}
     AuthDialog {}
     PowerMenu {}
-    BigPicture {}
+    BigPictureHome {}
+    BigPictureQuick {}
     OnScreenKeyboard {}
     Dimmer {}
     SnapGhost {}

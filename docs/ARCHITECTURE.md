@@ -181,6 +181,24 @@ Rules of the contract:
   returns declared ∩ granted (absent means everything declared). The card
   and the preview hand that set to `WidgetHost`, so a revoked `media.write`
   makes the host's transport calls no-ops without the widget changing.
+- Sources are git repositories with an `index.json` at the root: a name
+  and a `widgets` list where each entry either has a `path` inside the
+  registry (its widget.json, README, CHANGELOG and screenshots are read
+  from there) or a `repo` with a `ref` (its own repository, cloned at
+  that tag, with the listing carried in the index). The default source
+  is the shell's own origin with the repository swapped for
+  `isle-widgets`; `widgetSources` in prefs adds more.
+  `shell/scripts/widgetstore.py` clones each source shallow under
+  `~/.cache/isle/widget-sources/`, pulls it on a fresh index or after an
+  hour, and installs by copying or cloning into a staging directory under
+  the user's widgets folder before swapping it in, leaving an
+  `.isle-install.json` record (source, version, ref). The scanner folds
+  that record in as `installed`; `Widgets.updateFor` compares the
+  catalogue's version with it, and `Widgets.updates` lists what is behind.
+- A widget from a source runs with full reach only when the author asked
+  (`trust: true`) and the user granted it: `widgetTrust` in prefs lists
+  the ids. Without the grant it is installed but blocked, and the card
+  says so. The user's own widgets need only the manifest's `trust`.
 - `settings` declares what the card's gear offers in edit mode: `toggle`,
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as

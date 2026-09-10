@@ -323,7 +323,7 @@ PanelWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     Label { text: "Widgets"; size: Theme.sizeHeading; weight: Font.DemiBold; Layout.fillWidth: true }
-                    Button { text: "Browse"; glyph: "layout-grid"; variant: "text"; onClicked: root.storeOpen = true }
+                    Button { text: Widgets.updates.length ? "Browse  ·  " + Widgets.updates.length + (Widgets.updates.length === 1 ? " update" : " updates") : "Browse"; glyph: "layout-grid"; variant: "text"; onClicked: root.storeOpen = true }
                 }
                 Field { Layout.fillWidth: true; implicitHeight: 32; glyph: "search"; placeholder: "Search widgets"; size: Theme.sizeSmall; onTextChanged: library.query = text; onVisibleChanged: if (visible) text = "" }
                 ListView {

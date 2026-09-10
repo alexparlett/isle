@@ -12,6 +12,8 @@ Item {
     property bool large: false
     readonly property string shot: manifest && manifest.screenshots && manifest.screenshots.length ? "file://" + manifest.screenshots[0] : ""
     readonly property bool blocked: Widgets.blocked(manifest)
+    // A listing that is not installed has no code here to draw live.
+    readonly property bool absent: !!(manifest && manifest.catalogue && !Widgets.manifests[manifest.id])
     // The default span, in a 3-column-wide card's proportions: the same 12-column grid at a 1280 width.
     readonly property var span: manifest ? Widgets.spanOf(manifest.default || (manifest.sizes && manifest.sizes[0]) || "3x1") : { w: 3, h: 1 }
     readonly property real frameW: span.w * 100 + (span.w - 1) * 12
@@ -31,7 +33,7 @@ Item {
             asynchronous: true
         }
         Item {
-            visible: preview.shot === "" && !preview.blocked && !!preview.manifest
+            visible: preview.shot === "" && !preview.blocked && !preview.absent && !!preview.manifest
             anchors.centerIn: parent
             width: preview.frameW; height: preview.frameH
             scale: Math.min((preview.width - 16) / preview.frameW, (preview.height - 16) / preview.frameH)
@@ -61,8 +63,9 @@ Item {
             // The preview only looks; clicks go to the card beneath.
             MouseArea { anchors.fill: parent; onClicked: mouse => mouse.accepted = false; onPressed: mouse => mouse.accepted = false }
         }
+        Glyph { visible: preview.shot === "" && preview.absent; anchors.centerIn: parent; name: preview.manifest ? (preview.manifest.glyph || "layout-grid") : "layout-grid"; size: preview.large ? 40 : 28; color: Theme.text3 }
         Label {
-            visible: preview.blocked
+            visible: preview.blocked && !preview.absent
             anchors.centerIn: parent
             width: parent.width - Theme.s4 * 2
             text: "Needs trust to run"

@@ -85,6 +85,8 @@ Singleton {
             property var widgetGrants: ({})
             // Registry git URLs beyond the default one derived from the shell's origin.
             property var widgetSources: []
+            // Ids of installed widgets the user has granted the shell's full reach.
+            property var widgetTrust: []
             property var keymapOverrides: ({})
             property var clipPins: []
             property string terminal: ""

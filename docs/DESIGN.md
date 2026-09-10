@@ -344,6 +344,24 @@ Place. The store is built for widgets that come from other people: what
 it is, who made it, which version, and what it is allowed to touch are
 answered before Place.
 
+Browse lists what the sources offer, with the same cards: a listing not
+yet installed shows its screenshot or its glyph, and "installed" or a
+version pill when the installed one is behind. Sources at the row's end
+swaps the sheet for the list of registries, each with its name, count and
+any error in plain words, a remove for those the user added, and a field
+to add one. The circular arrow refreshes. The Installed tab carries a
+count of updates waiting, and the library's Browse button says "1
+update" so nothing has to be opened to know.
+
+Install, and Update, ask first. The dialog names the version, author and
+source, lists what the widget may do as toggles already on (an update
+starts from what is granted now), and, for one that asks for full
+access, a bordered warning with a checkbox that stays unticked until the
+user ticks it. Without the tick the widget is installed but does not run,
+and its sheet offers the grant as a toggle beside the shield. The sheet
+of an installed one says which source it came from, offers Remove in
+place of Delete, and Update when a newer version is listed.
+
 Text widgets, the user's own, draw through one renderer: a title, then
 the output as wrapped text, a large number with its unit, a gauge bar
 against a maximum, a sparkline of the readings so far, or a list of

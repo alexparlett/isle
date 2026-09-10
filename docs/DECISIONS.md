@@ -216,3 +216,18 @@ service's calls into no-ops rather than refusing the widget, so a music
 widget can still show the track after its transport has been taken away.
 Sources, installing from a registry and updates build on this manifest.
 
+**D29 · Sources are git repositories, and trust is granted twice.** A
+registry could be a web service with an API; a git repository with an
+index file needs no server, is forked and mirrored for free, carries its
+own history, and is what widget authors already have. Screenshots and
+READMEs come along in the clone, so the store shows them without a
+second fetch. Installing copies (or clones a tagged repository) into a
+staging directory and swaps it in, so a failed download never leaves a
+half widget. Full reach is asked for by the author in the manifest and
+granted by the user at install, or later in the sheet; a widget from a
+source with the ask but not the grant is installed and blocked, so the
+user can read it first. The user's own widgets skip the second step: they
+wrote them. The consent dialog shows grants as toggles already on rather
+than an all-or-nothing accept, because a music widget that may read the
+player but not drive it is a reasonable thing to want.
+

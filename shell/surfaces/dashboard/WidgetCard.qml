@@ -218,7 +218,7 @@ Glass {
             Label {
                 anchors.centerIn: parent
                 visible: Widgets.blocked(root.manifest) || loader.status === Loader.Error
-                text: Widgets.blocked(root.manifest) ? "Reaches past the sandbox (" + Widgets.issuesOf(root.entry.id).join(", ") + "). Add \"trust\": true to its widget.json to run it."
+                text: Widgets.blocked(root.manifest) ? (root.manifest.installed && root.manifest.trust === true ? "Asks for full access, which is not granted. Grant it in the library." : "Reaches past the sandbox (" + Widgets.issuesOf(root.entry.id).join(", ") + "). Add \"trust\": true to its widget.json to run it.")
                     : "This widget could not load"
                 color: Theme.danger; size: Theme.sizeSmall; wrapMode: Text.WordWrap
                 width: parent.width - Theme.s3 * 2; horizontalAlignment: Text.AlignHCenter

@@ -12,8 +12,6 @@ written to defeat it.
 """
 import json, os, re, subprocess, sys
 
-builtin_dir, user_dir = sys.argv[1], sys.argv[2]
-
 # Only these imports for a restricted widget: drawing, layout, shapes, effects, animation, the QML core.
 ALLOWED_IMPORTS = {
     "QtQuick", "QtQuick.Layouts", "QtQuick.Shapes", "QtQuick.Effects",
@@ -57,55 +55,79 @@ def inspect(qml_path):
     return out
 
 
-out = []
-for base, is_user in ((builtin_dir, False), (user_dir, True)):
-    if not os.path.isdir(base):
-        continue
-    for name in sorted(os.listdir(base)):
-        mpath = os.path.join(base, name, "widget.json")
-        if not os.path.isfile(mpath):
+def about_text(path):
+    """A README as the listing's text: its first heading dropped, since the name is already shown."""
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read().strip()
+    except OSError:
+        return ""
+    lines = text.split("\n")
+    if lines and lines[0].startswith("#"):
+        lines = lines[1:]
+    return "\n".join(lines).strip()
+
+
+def scan(builtin_dir, user_dir):
+    out = []
+    for base, is_user in ((builtin_dir, False), (user_dir, True)):
+        if not os.path.isdir(base):
             continue
-        try:
-            m = json.load(open(mpath, encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        d = os.path.join(base, name)
-        m["dir"] = d
-        m["user"] = is_user
-        qml = os.path.join(d, "Widget.qml")
-        if is_user and not m.get("source") and os.path.isfile(qml):
-            m["restrictedIssues"] = inspect(qml)
-        # The listing: a README stands in for `about`, a CHANGELOG is shown per version, and screenshots are
-        # the images in screenshots/ or those the manifest names, as absolute paths.
-        if not m.get("about"):
-            for rd in ("README.md", "README"):
-                rp = os.path.join(d, rd)
-                if os.path.isfile(rp):
-                    m["about"] = open(rp, encoding="utf-8", errors="replace").read().strip()
-                    break
-        cl = os.path.join(d, "CHANGELOG.md")
-        if os.path.isfile(cl):
-            m["changelog"] = open(cl, encoding="utf-8", errors="replace").read().strip()
-        shots = []
-        for rel in m.get("screenshots", []) or []:
-            ap = os.path.join(d, rel)
-            if os.path.isfile(ap):
-                shots.append(ap)
-        sd = os.path.join(d, "screenshots")
-        if not shots and os.path.isdir(sd):
-            shots = [os.path.join(sd, f) for f in sorted(os.listdir(sd)) if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))]
-        m["screenshots"] = shots
-        # Where it came from: a git checkout carries its origin, which is what updates come from.
-        git = os.path.join(d, ".git")
-        if os.path.isdir(git) or os.path.isfile(git):
+        for name in sorted(os.listdir(base)):
+            mpath = os.path.join(base, name, "widget.json")
+            if not os.path.isfile(mpath):
+                continue
             try:
-                r = subprocess.run(["git", "-C", d, "remote", "get-url", "origin"], capture_output=True, text=True, timeout=3)
-                if r.returncode == 0 and r.stdout.strip():
-                    m["origin"] = r.stdout.strip()
-                t = subprocess.run(["git", "-C", d, "describe", "--tags", "--exact-match"], capture_output=True, text=True, timeout=3)
-                if t.returncode == 0:
-                    m["installedTag"] = t.stdout.strip()
-            except Exception:
-                pass
-        out.append(m)
-print(json.dumps(out))
+                m = json.load(open(mpath, encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            d = os.path.join(base, name)
+            m["dir"] = d
+            m["user"] = is_user
+            # A widget installed from a source carries the record the store wrote: where from, which version.
+            rec = os.path.join(d, ".isle-install.json")
+            if is_user and os.path.isfile(rec):
+                try:
+                    m["installed"] = json.load(open(rec, encoding="utf-8"))
+                except (OSError, ValueError):
+                    pass
+            qml = os.path.join(d, "Widget.qml")
+            if is_user and not m.get("source") and os.path.isfile(qml):
+                m["restrictedIssues"] = inspect(qml)
+            # The listing: a README stands in for `about`, a CHANGELOG is shown per version, and screenshots are
+            # the images in screenshots/ or those the manifest names, as absolute paths.
+            if not m.get("about"):
+                for rd in ("README.md", "README"):
+                    rp = os.path.join(d, rd)
+                    if os.path.isfile(rp):
+                        m["about"] = about_text(rp)
+                        break
+            cl = os.path.join(d, "CHANGELOG.md")
+            if os.path.isfile(cl):
+                m["changelog"] = open(cl, encoding="utf-8", errors="replace").read().strip()
+            shots = []
+            for rel in m.get("screenshots", []) or []:
+                ap = os.path.join(d, rel)
+                if os.path.isfile(ap):
+                    shots.append(ap)
+            sd = os.path.join(d, "screenshots")
+            if not shots and os.path.isdir(sd):
+                shots = [os.path.join(sd, f) for f in sorted(os.listdir(sd)) if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))]
+            m["screenshots"] = shots
+            # Where it came from: a git checkout carries its origin, which is what updates come from.
+            git = os.path.join(d, ".git")
+            if os.path.isdir(git) or os.path.isfile(git):
+                try:
+                    r = subprocess.run(["git", "-C", d, "remote", "get-url", "origin"], capture_output=True, text=True, timeout=3)
+                    if r.returncode == 0 and r.stdout.strip():
+                        m["origin"] = r.stdout.strip()
+                    t = subprocess.run(["git", "-C", d, "describe", "--tags", "--exact-match"], capture_output=True, text=True, timeout=3)
+                    if t.returncode == 0:
+                        m["installedTag"] = t.stdout.strip()
+                except Exception:
+                    pass
+            out.append(m)
+    return out
+
+
+if __name__ == "__main__":
+    print(json.dumps(scan(sys.argv[1], sys.argv[2])))

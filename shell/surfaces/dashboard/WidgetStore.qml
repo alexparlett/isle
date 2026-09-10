@@ -5,7 +5,8 @@ import qs.ui
 import qs.services
 
 // The widget library as a store: cards with a live preview or screenshot, the author and version, and what
-// each widget touches; a sheet with the whole listing, its changelog, and the permissions as toggles.
+// each widget touches; a sheet with the whole listing, its changelog, and the permissions as toggles. Browse
+// lists the registries, and installing from one asks first: what it may reach, and whether to trust it.
 Item {
     id: store
     property bool open: false
@@ -14,19 +15,45 @@ Item {
     property string query: ""
     property string category: ""
     property string selected: ""
+    property bool sourcesOpen: false
+    // The listing an install is being agreed to, with the grants and trust the dialog holds until Install.
+    property var consent: null
+    property var consentGrants: []
+    property bool consentTrust: false
     signal place(string id)
     signal edit(var manifest)
-    readonly property var current: selected ? Widgets.manifests[selected] || null : null
+    readonly property var current: !selected ? null : tab === "browse" ? Widgets.catalogueEntry(selected) : Widgets.manifests[selected] || null
+    // The installed manifest behind whatever is shown, when there is one.
+    readonly property var installedOf: current ? Widgets.manifests[current.id] || null : null
 
     readonly property var rows: {
         const q = query.trim().toLowerCase();
-        return Widgets.library.filter(m => tab === "yours" ? m.user : tab === "installed" ? true : false)
-            .filter(m => !category || m.category === category)
+        const src = tab === "browse" ? Widgets.catalogue : Widgets.library.filter(m => tab === "yours" ? m.user : true);
+        return src.filter(m => !category || m.category === category)
             .filter(m => !q || m.name.toLowerCase().indexOf(q) >= 0 || (m.description || "").toLowerCase().indexOf(q) >= 0 || (m.author && String(m.author.name || m.author).toLowerCase().indexOf(q) >= 0));
     }
     function authorOf(m) { return m && m.author ? (m.author.name || String(m.author)) : ""; }
     function authorUrl(m) { return m && m.author && m.author.url ? m.author.url : ""; }
     function needsTrust(m) { return !!(m && m.restrictedIssues && m.restrictedIssues.length); }
+    // An update starts from what the installed one already has; a first install from everything it asks.
+    function askInstall(entry) {
+        const inst = Widgets.manifests[entry.id] || null;
+        consentGrants = inst ? (entry.permissions || []).filter(p => Widgets.grantsFor(inst.id).indexOf(p) >= 0) : (entry.permissions || []).slice();
+        consentTrust = inst ? Widgets.trusted(inst) : false;
+        Widgets.installError = "";
+        consent = entry;
+    }
+    function confirmInstall() {
+        if (!consent) return;
+        Widgets.install(consent, consentGrants, consent.trust === true && consentTrust);
+    }
+    onTabChanged: { if (tab === "browse" && !Widgets.catalogueLoaded) Widgets.refreshCatalogue(false); sourcesOpen = false; }
+    onOpenChanged: if (!open) { consent = null; sourcesOpen = false; }
+    // The dialog closes itself once its install has landed.
+    Connections {
+        target: Widgets
+        function onInstallingChanged() { if (Widgets.installing === "" && store.consent && Widgets.installError === "") store.consent = null; }
+    }
 
     visible: open
     anchors.fill: parent
@@ -57,12 +84,24 @@ Item {
                     Repeater {
                         model: [["installed", "Installed"], ["yours", "Yours"], ["browse", "Browse"]]
                         Rectangle {
+                            id: tabChip
                             required property var modelData
                             readonly property bool sel: store.tab === modelData[0]
-                            implicitHeight: 30; implicitWidth: tabLabel.implicitWidth + Theme.s3 * 2
+                            readonly property int badge: modelData[0] === "installed" ? Widgets.updates.length : 0
+                            implicitHeight: 30; implicitWidth: tabRow.implicitWidth + Theme.s3 * 2
                             radius: 15; color: sel ? Theme.raised : "transparent"; border.width: 1; border.color: sel ? Theme.hairlineStrong : "transparent"
-                            Label { id: tabLabel; anchors.centerIn: parent; text: modelData[1]; size: Theme.sizeSmall; weight: Font.DemiBold; color: parent.sel ? Theme.text : Theme.text2 }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { store.tab = modelData[0]; store.selected = ""; } }
+                            RowLayout {
+                                id: tabRow
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Label { text: tabChip.modelData[1]; size: Theme.sizeSmall; weight: Font.DemiBold; color: tabChip.sel ? Theme.text : Theme.text2 }
+                                Rectangle {
+                                    visible: tabChip.badge > 0
+                                    implicitWidth: Math.max(16, bl.implicitWidth + 8); implicitHeight: 16; radius: 8; color: Theme.accent
+                                    Label { id: bl; anchors.centerIn: parent; text: tabChip.badge; size: 10; weight: Font.DemiBold; color: Theme.onAccent; tabular: true }
+                                }
+                            }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { store.tab = tabChip.modelData[0]; store.selected = ""; } }
                         }
                     }
                     Rectangle {
@@ -87,7 +126,19 @@ Item {
                         }
                     }
                     Item { Layout.fillWidth: true }
-                    Label { text: store.rows.length + (store.rows.length === 1 ? " widget" : " widgets"); size: Theme.sizeCaption; color: Theme.text3 }
+                    Spinner { visible: store.tab === "browse" && Widgets.catalogueLoading; size: 14 }
+                    Label { visible: !(store.tab === "browse" && Widgets.catalogueLoading); text: store.rows.length + (store.rows.length === 1 ? " widget" : " widgets"); size: Theme.sizeCaption; color: Theme.text3 }
+                    Label {
+                        visible: store.tab === "browse"
+                        text: "Sources"; size: Theme.sizeCaption; color: store.sourcesOpen ? Theme.text : Theme.accent
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { store.sourcesOpen = !store.sourcesOpen; store.selected = ""; } }
+                    }
+                    Rectangle {
+                        visible: store.tab === "browse"
+                        implicitWidth: 26; implicitHeight: 26; radius: 13; color: refreshArea.containsMouse ? Theme.pressed : "transparent"
+                        Glyph { anchors.centerIn: parent; name: "refresh-cw"; size: 12; color: Theme.text2 }
+                        MouseArea { id: refreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; enabled: !Widgets.catalogueLoading; onClicked: Widgets.refreshCatalogue(true) }
+                    }
                 }
 
                 GridView {
@@ -102,6 +153,9 @@ Item {
                     delegate: Item {
                         id: cell
                         required property var modelData
+                        readonly property var installed: Widgets.manifests[modelData.id] || null
+                        readonly property var update: Widgets.updateFor(modelData.id)
+                        readonly property bool held: store.tab === "browse" && installed !== null && update === null
                         width: grid.cellWidth; height: grid.cellHeight
                         Rectangle {
                             anchors { fill: parent; margins: Theme.s1 + 2 }
@@ -137,23 +191,83 @@ Item {
                                         visible: cell.modelData.trust === true || store.needsTrust(cell.modelData)
                                         implicitHeight: 18; implicitWidth: tl.implicitWidth + 12
                                         radius: 9; color: Qt.alpha(cell.modelData.trust === true ? Theme.warn : Theme.danger, 0.16)
-                                        Label { id: tl; anchors.centerIn: parent; text: cell.modelData.trust === true ? "trusted" : "needs trust"; size: 10; weight: Font.DemiBold; color: cell.modelData.trust === true ? Theme.warn : Theme.danger }
+                                        Label { id: tl; anchors.centerIn: parent; text: cell.modelData.trust === true ? "full access" : "needs trust"; size: 10; weight: Font.DemiBold; color: cell.modelData.trust === true ? Theme.warn : Theme.danger }
                                     }
                                     Item { Layout.fillWidth: true }
-                                    Label { visible: Widgets.placed(cell.modelData.id) > 0; text: "on"; size: Theme.sizeCaption; color: Theme.accent }
-                                    Glyph { visible: Widgets.placed(cell.modelData.id) > 0; name: "check"; size: 11; color: Theme.accent }
+                                    // The state at the right: an update waiting, installed, or on the dashboard.
+                                    Rectangle {
+                                        visible: cell.update !== null
+                                        implicitHeight: 18; implicitWidth: ul.implicitWidth + 12
+                                        radius: 9; color: Theme.accent
+                                        Label { id: ul; anchors.centerIn: parent; text: "v" + (cell.update ? cell.update.version : ""); size: 10; weight: Font.DemiBold; color: Theme.onAccent; tabular: true }
+                                    }
+                                    Label { visible: cell.held; text: "installed"; size: Theme.sizeCaption; color: Theme.text3 }
+                                    Label { visible: store.tab !== "browse" && Widgets.placed(cell.modelData.id) > 0; text: "on"; size: Theme.sizeCaption; color: Theme.accent }
+                                    Glyph { visible: cell.held || (store.tab !== "browse" && Widgets.placed(cell.modelData.id) > 0); name: "check"; size: 11; color: cell.held ? Theme.text3 : Theme.accent }
                                 }
                             }
-                            MouseArea { id: cardArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: store.selected = cell.modelData.id; onDoubleClicked: store.place(cell.modelData.id) }
+                            MouseArea { id: cardArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { store.selected = cell.modelData.id; store.sourcesOpen = false; } onDoubleClicked: if (store.tab !== "browse") store.place(cell.modelData.id) }
                         }
                     }
                 }
-                Label { visible: store.rows.length === 0; text: store.tab === "browse" ? "No registries yet. Add one in the sheet's Sources." : "Nothing matches"; color: Theme.text3; Layout.alignment: Qt.AlignHCenter }
+                Label {
+                    visible: store.rows.length === 0 && !(store.tab === "browse" && Widgets.catalogueLoading)
+                    text: store.tab !== "browse" ? "Nothing matches"
+                        : Widgets.sourceStates.length && Widgets.sourceStates.every(s => s.error) ? "No source could be reached: " + Widgets.sourceStates[0].error
+                        : Widgets.catalogue.length ? "Nothing matches" : "Nothing listed yet"
+                    color: Theme.text3; Layout.alignment: Qt.AlignHCenter; wrapMode: Text.WordWrap; Layout.maximumWidth: 480; horizontalAlignment: Text.AlignHCenter
+                }
+            }
+
+            // --- the sources ---------------------------------------------------------------------
+            Rectangle {
+                visible: store.sourcesOpen && store.tab === "browse"
+                Layout.preferredWidth: 380
+                Layout.fillHeight: true
+                radius: Theme.radiusCard
+                color: Theme.raised
+                border.width: 1; border.color: Theme.hairline
+                ColumnLayout {
+                    anchors { fill: parent; margins: Theme.s3 }
+                    spacing: Theme.s3
+                    Label { text: "Sources"; size: Theme.sizeHeading; weight: Font.DemiBold }
+                    Label { text: "A source is a git repository with an index.json listing widgets. The first is Isle's own."; size: Theme.sizeCaption; color: Theme.text3; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    Repeater {
+                        model: Widgets.sources
+                        RowLayout {
+                            id: srcRow
+                            required property string modelData
+                            readonly property var state: Widgets.sourceStates.find(s => s.url === modelData) || null
+                            Layout.fillWidth: true
+                            spacing: Theme.s2
+                            Glyph { name: srcRow.state && srcRow.state.error ? "x" : "globe"; size: 12; color: srcRow.state && srcRow.state.error ? Theme.danger : Theme.text3 }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+                                Label { text: srcRow.state && srcRow.state.name !== srcRow.modelData ? srcRow.state.name : srcRow.modelData; size: Theme.sizeSmall; weight: Font.Medium; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                                Label { text: srcRow.state ? (srcRow.state.error || srcRow.state.widgets.length + " widgets  ·  " + srcRow.modelData) : srcRow.modelData; size: Theme.sizeCaption; color: srcRow.state && srcRow.state.error ? Theme.danger : Theme.text3; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                            }
+                            Rectangle {
+                                visible: srcRow.modelData !== Widgets.defaultSource
+                                implicitWidth: 24; implicitHeight: 24; radius: 12; color: rmArea.containsMouse ? Theme.pressed : "transparent"
+                                Glyph { anchors.centerIn: parent; name: "trash"; size: 12; color: Theme.text3 }
+                                MouseArea { id: rmArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.removeSource(srcRow.modelData) }
+                            }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.s2
+                        Field { id: srcField; Layout.fillWidth: true; implicitHeight: 32; placeholder: "https://github.com/…/widgets.git"; size: Theme.sizeSmall; onAccepted: { Widgets.addSource(text); text = ""; } }
+                        Button { text: "Add"; glyph: "plus"; enabled: srcField.text.trim() !== ""; onClicked: { Widgets.addSource(srcField.text); srcField.text = ""; } }
+                    }
+                    Item { Layout.fillHeight: true }
+                }
             }
 
             // --- the sheet ---------------------------------------------------------------------
             Rectangle {
-                visible: store.current !== null
+                visible: store.current !== null && !store.sourcesOpen
                 Layout.preferredWidth: 380
                 Layout.fillHeight: true
                 radius: Theme.radiusCard
@@ -170,6 +284,10 @@ Item {
                         width: sheet.width
                         spacing: Theme.s3
                         readonly property var m: store.current
+                        readonly property var inst: store.installedOf
+                        readonly property var update: sheetCol.m ? Widgets.updateFor(sheetCol.m.id) : null
+                        readonly property bool busy: !!sheetCol.m && Widgets.installing === sheetCol.m.id
+                        readonly property bool fromSource: !!(sheetCol.inst && sheetCol.inst.installed)
                         WidgetPreview { Layout.fillWidth: true; Layout.preferredHeight: 180; manifest: sheetCol.m; large: true }
                         ColumnLayout {
                             spacing: 2
@@ -182,15 +300,23 @@ Item {
                                 Label { visible: !!(sheetCol.m && sheetCol.m.license); text: "·  " + (sheetCol.m ? sheetCol.m.license : ""); size: Theme.sizeSmall; color: Theme.text3 }
                                 Label { visible: !!(sheetCol.m && sheetCol.m.category); text: "·  " + (sheetCol.m ? sheetCol.m.category : ""); size: Theme.sizeSmall; color: Theme.text3 }
                             }
+                            // Installed from a source: which one, and whether a newer version is listed.
+                            Label {
+                                visible: sheetCol.fromSource || !!(sheetCol.m && sheetCol.m.catalogue)
+                                text: sheetCol.update ? "v" + (sheetCol.inst ? sheetCol.inst.version : "") + " installed  ·  v" + sheetCol.update.version + " available"
+                                    : sheetCol.fromSource ? "Installed from " + (Widgets.sourceStates.find(s => s.url === sheetCol.inst.installed.source) || { name: sheetCol.inst.installed.source }).name
+                                    : "From " + (sheetCol.m ? sheetCol.m.sourceName : "")
+                                size: Theme.sizeCaption; color: sheetCol.update ? Theme.accent : Theme.text3; elide: Text.ElideMiddle; Layout.fillWidth: true
+                            }
                         }
                         Label { visible: !!(sheetCol.m && (sheetCol.m.about || sheetCol.m.description)); text: sheetCol.m ? (sheetCol.m.about || sheetCol.m.description) : ""; size: Theme.sizeSmall; color: Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                         // Where it is from.
                         RowLayout {
-                            visible: !!(sheetCol.m && (sheetCol.m.source || sheetCol.m.origin || sheetCol.m.homepage))
+                            visible: !!(sheetCol.m && (sheetCol.m.homepage || sheetCol.m.repo || sheetCol.m.origin))
                             spacing: Theme.s2
                             Glyph { name: "globe"; size: 12; color: Theme.text3 }
-                            Label { text: sheetCol.m ? (sheetCol.m.homepage || sheetCol.m.source || sheetCol.m.origin) : ""; size: Theme.sizeCaption; color: Theme.accent; elide: Text.ElideMiddle; Layout.fillWidth: true
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Compositor.exec("xdg-open " + JSON.stringify(sheetCol.m.homepage || sheetCol.m.source || sheetCol.m.origin)) } }
+                            Label { text: sheetCol.m ? (sheetCol.m.homepage || sheetCol.m.repo || sheetCol.m.origin) : ""; size: Theme.sizeCaption; color: Theme.accent; elide: Text.ElideMiddle; Layout.fillWidth: true
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Compositor.exec("xdg-open " + JSON.stringify(sheetCol.m.homepage || sheetCol.m.repo || sheetCol.m.origin)) } }
                         }
                         // Sizes.
                         RowLayout {
@@ -206,16 +332,16 @@ Item {
                                 }
                             }
                         }
-                        // Permissions, as toggles: the widget gets only what stays on.
+                        // Permissions: toggles for an installed widget (it gets only what stays on); a list for one not yet installed.
                         ColumnLayout {
                             visible: !!(sheetCol.m && sheetCol.m.permissions && sheetCol.m.permissions.length)
                             Layout.fillWidth: true
                             spacing: 2
                             RowLayout {
                                 Layout.fillWidth: true
-                                Label { text: "Permissions"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text3; Layout.fillWidth: true }
-                                Label { text: "Reset"; size: Theme.sizeCaption; color: Theme.accent; visible: sheetCol.m && (Prefs.p.widgetGrants || {})[sheetCol.m.id] !== undefined
-                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.resetGrants(sheetCol.m.id) } }
+                                Label { text: sheetCol.inst ? "Permissions" : "Asks for"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text3; Layout.fillWidth: true }
+                                Label { text: "Reset"; size: Theme.sizeCaption; color: Theme.accent; visible: !!sheetCol.inst && (Prefs.p.widgetGrants || {})[sheetCol.inst.id] !== undefined
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.resetGrants(sheetCol.inst.id) } }
                             }
                             Repeater {
                                 model: sheetCol.m ? (sheetCol.m.permissions || []) : []
@@ -229,13 +355,27 @@ Item {
                                         Label { text: modelData.replace(".write", " (control)"); size: Theme.sizeSmall; weight: Font.Medium }
                                         Label { text: Widgets.permissionLabel(modelData); size: Theme.sizeCaption; color: Theme.text3; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                                     }
-                                    Toggle { checked: Widgets.grantsFor(sheetCol.m.id).indexOf(modelData) >= 0; onToggled: v => Widgets.setGrant(sheetCol.m.id, modelData, v) }
+                                    Toggle { visible: sheetCol.inst !== null; checked: sheetCol.inst ? Widgets.grantsFor(sheetCol.inst.id).indexOf(modelData) >= 0 : false; onToggled: v => Widgets.setGrant(sheetCol.inst.id, modelData, v) }
                                 }
                             }
                         }
+                        // Full reach: asked by the author, granted by the user for one from a source.
+                        RowLayout {
+                            visible: !!(sheetCol.m && sheetCol.m.trust === true)
+                            Layout.fillWidth: true
+                            spacing: Theme.s2
+                            Glyph { name: "shield"; size: 14; color: Theme.warn; Layout.alignment: Qt.AlignTop; Layout.topMargin: 2 }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+                                Label { text: sheetCol.fromSource ? (Widgets.trusted(sheetCol.inst) ? "Full access granted" : "Full access withheld") : "Asks for full access"; size: Theme.sizeSmall; weight: Font.Medium; color: Theme.warn }
+                                Label { text: "It runs with the shell's whole reach: every service, files, processes and the network. Only for code you have read or whose author you know." + (sheetCol.fromSource && !Widgets.trusted(sheetCol.inst) ? " It will not run until granted." : ""); size: Theme.sizeCaption; color: Theme.text3; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                            }
+                            Toggle { visible: sheetCol.fromSource; checked: sheetCol.inst ? Widgets.trusted(sheetCol.inst) : false; onToggled: v => Widgets.setTrust(sheetCol.inst.id, v) }
+                        }
                         Label {
-                            visible: store.needsTrust(sheetCol.m)
-                            text: "Reaches past the sandbox (" + (sheetCol.m ? sheetCol.m.restrictedIssues.join(", ") : "") + "). It runs only with \"trust\": true in its widget.json, and then with the shell's full reach."
+                            visible: store.needsTrust(sheetCol.m) && !(sheetCol.m && sheetCol.m.trust === true)
+                            text: "Reaches past the sandbox (" + (sheetCol.m ? (sheetCol.m.restrictedIssues || []).join(", ") : "") + ") without asking for full access, so it will not run."
                             size: Theme.sizeCaption; color: Theme.danger; wrapMode: Text.WordWrap; Layout.fillWidth: true
                         }
                         // The changelog, folded.
@@ -252,21 +392,113 @@ Item {
                                 Glyph { anchors { right: parent.right; verticalCenter: parent.verticalCenter } name: logHead.parent.openLog ? "chevron-up" : "chevron-down"; size: 12; color: Theme.text3 }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: logHead.parent.openLog = !logHead.parent.openLog }
                             }
-                            Label { visible: parent.openLog; text: sheetCol.m ? sheetCol.m.changelog : ""; size: Theme.sizeCaption; color: Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true; mono: true }
+                            Label { visible: parent.openLog; text: (sheetCol.m && sheetCol.m.changelog) || ""; size: Theme.sizeCaption; color: Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true; mono: true }
                         }
+                        Label { visible: Widgets.installError !== "" && store.consent === null && Widgets.installing === ""; text: Widgets.installError; size: Theme.sizeCaption; color: Theme.danger; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                         Item { Layout.preferredHeight: Theme.s2 }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.s1
-                            Button { visible: !!(sheetCol.m && sheetCol.m.user); text: "Folder"; variant: "text"; onClicked: Compositor.exec("xdg-open " + JSON.stringify(sheetCol.m.dir)) }
-                            Button { visible: !!(sheetCol.m && sheetCol.m.user && sheetCol.m.source); text: "Edit"; variant: "text"; onClicked: store.edit(sheetCol.m) }
-                            Button { visible: !!(sheetCol.m && sheetCol.m.user); text: "Delete"; variant: "text"; onClicked: { Widgets.deleteUser(sheetCol.m.id); store.selected = ""; } }
+                            Button { visible: !!(sheetCol.inst && sheetCol.inst.user); text: "Folder"; variant: "text"; onClicked: Compositor.exec("xdg-open " + JSON.stringify(sheetCol.inst.dir)) }
+                            Button { visible: !!(sheetCol.inst && sheetCol.inst.user && sheetCol.inst.source) && !sheetCol.fromSource; text: "Edit"; variant: "text"; onClicked: store.edit(sheetCol.inst) }
+                            Button { visible: !!(sheetCol.inst && sheetCol.inst.user) && !sheetCol.fromSource; text: "Delete"; variant: "text"; onClicked: { Widgets.deleteUser(sheetCol.inst.id); store.selected = ""; } }
+                            Button { visible: sheetCol.fromSource; text: "Remove"; variant: "text"; enabled: !sheetCol.busy; onClicked: { Widgets.uninstall(sheetCol.inst.id); if (store.tab !== "browse") store.selected = ""; } }
                             Item { Layout.fillWidth: true }
-                            Button { text: Widgets.placed(sheetCol.m ? sheetCol.m.id : "") > 0 && !(sheetCol.m && sheetCol.m.multiple) ? "On the dashboard" : "Place"; glyph: "plus"; variant: "accent"; enabled: sheetCol.m && Widgets.canAdd(sheetCol.m.id) && !Widgets.blocked(sheetCol.m); onClicked: store.place(sheetCol.m.id) }
+                            Spinner { visible: sheetCol.busy; size: 14 }
+                            Button { visible: sheetCol.update !== null; text: "Update"; glyph: "download"; variant: "accent"; enabled: !sheetCol.busy; onClicked: store.askInstall(sheetCol.update) }
+                            Button { visible: !!(sheetCol.m && sheetCol.m.catalogue) && sheetCol.inst === null; text: "Install"; glyph: "download"; variant: "accent"; enabled: !sheetCol.busy; onClicked: store.askInstall(sheetCol.m) }
+                            Button { visible: sheetCol.inst !== null && sheetCol.update === null; text: Widgets.placed(sheetCol.inst ? sheetCol.inst.id : "") > 0 && !(sheetCol.inst && sheetCol.inst.multiple) ? "On the dashboard" : "Place"; glyph: "plus"; variant: "accent"; enabled: !!sheetCol.inst && Widgets.canAdd(sheetCol.inst.id) && !Widgets.blocked(sheetCol.inst) && !sheetCol.busy; onClicked: store.place(sheetCol.inst.id) }
                         }
                     }
                 }
                 Scrollbar { target: sheet; anchors { top: parent.top; bottom: parent.bottom; right: parent.right; margins: 4 } }
+            }
+        }
+
+        // --- consent: what the widget may reach, agreed before it lands -------------------------
+        Item {
+            visible: store.consent !== null
+            anchors.fill: parent
+            Rectangle { anchors.fill: parent; color: Qt.alpha(Theme.ink, 0.5); radius: Theme.radiusPanel }
+            MouseArea { anchors.fill: parent; onClicked: if (Widgets.installing === "") store.consent = null }
+            Glass {
+                anchors.centerIn: parent
+                width: 440
+                height: consentCol.implicitHeight + Theme.s4 * 2
+                radius: Theme.radiusPanel
+                MouseArea { anchors.fill: parent }
+                ColumnLayout {
+                    id: consentCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.s4 }
+                    spacing: Theme.s3
+                    readonly property var e: store.consent
+                    readonly property bool updating: !!(consentCol.e && Widgets.manifests[consentCol.e.id])
+                    readonly property bool busy: !!consentCol.e && Widgets.installing === consentCol.e.id
+                    Label { text: (consentCol.updating ? "Update " : "Install ") + (consentCol.e ? consentCol.e.name : "") + "?"; size: Theme.sizeHeading; weight: Font.DemiBold }
+                    Label { text: "v" + (consentCol.e ? consentCol.e.version : "") + " by " + (store.authorOf(consentCol.e) || "an unknown author") + ", from " + (consentCol.e ? consentCol.e.sourceName : "") + ". It goes into your widgets folder and runs inside the dashboard."; size: Theme.sizeSmall; color: Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    ColumnLayout {
+                        visible: !!(consentCol.e && consentCol.e.permissions && consentCol.e.permissions.length)
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label { text: "It may"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text3 }
+                        Repeater {
+                            model: consentCol.e ? (consentCol.e.permissions || []) : []
+                            RowLayout {
+                                required property string modelData
+                                Layout.fillWidth: true
+                                spacing: Theme.s2
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Label { text: Widgets.permissionLabel(modelData); size: Theme.sizeSmall; weight: Font.Medium }
+                                    Label { text: modelData.replace(".write", " (control)"); size: Theme.sizeCaption; color: Theme.text3 }
+                                }
+                                Toggle { checked: store.consentGrants.indexOf(modelData) >= 0; onToggled: v => store.consentGrants = v ? store.consentGrants.concat([modelData]) : store.consentGrants.filter(p => p !== modelData) }
+                            }
+                        }
+                    }
+                    Label { visible: !!(consentCol.e && !(consentCol.e.permissions && consentCol.e.permissions.length) && consentCol.e.trust !== true); text: "It asks for nothing beyond drawing."; size: Theme.sizeSmall; color: Theme.text3 }
+                    Rectangle {
+                        visible: !!(consentCol.e && consentCol.e.trust === true)
+                        Layout.fillWidth: true
+                        implicitHeight: trustRow.implicitHeight + Theme.s3 * 2
+                        radius: Theme.radiusControl
+                        color: Qt.alpha(Theme.warn, 0.1); border.width: 1; border.color: Qt.alpha(Theme.warn, 0.4)
+                        RowLayout {
+                            id: trustRow
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.s3 }
+                            spacing: Theme.s3
+                            Glyph { name: "shield"; size: 16; color: Theme.warn; Layout.alignment: Qt.AlignTop }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Label { text: "Asks for full access"; size: Theme.sizeSmall; weight: Font.DemiBold; color: Theme.warn }
+                                Label { text: "It would run with the shell's whole reach: every service, your files, processes and the network. Grant this only for code you have read or whose author you know. Without it the widget is installed but does not run."; size: Theme.sizeCaption; color: Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                RowLayout {
+                                    spacing: Theme.s2
+                                    Layout.topMargin: 4
+                                    Rectangle {
+                                        implicitWidth: 18; implicitHeight: 18; radius: 4
+                                        color: store.consentTrust ? Theme.warn : "transparent"; border.width: 1; border.color: store.consentTrust ? "transparent" : Theme.hairlineStrong
+                                        Glyph { anchors.centerIn: parent; visible: store.consentTrust; name: "check"; size: 12; color: Theme.ink }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: store.consentTrust = !store.consentTrust }
+                                    }
+                                    Label { text: "Grant full access"; size: Theme.sizeSmall; weight: Font.Medium
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: store.consentTrust = !store.consentTrust } }
+                                }
+                            }
+                        }
+                    }
+                    Label { visible: Widgets.installError !== ""; text: Widgets.installError; size: Theme.sizeCaption; color: Theme.danger; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.s2
+                        Item { Layout.fillWidth: true }
+                        Spinner { visible: consentCol.busy; size: 14 }
+                        Button { text: "Cancel"; variant: "text"; enabled: !consentCol.busy; onClicked: store.consent = null }
+                        Button { text: consentCol.updating ? "Update" : "Install"; glyph: "download"; variant: "accent"; enabled: !consentCol.busy; onClicked: store.confirmInstall() }
+                    }
+                }
             }
         }
     }

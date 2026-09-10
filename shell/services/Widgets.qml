@@ -47,7 +47,12 @@ Singleton {
     // hard boundary, so the sandbox is enforced by source: a widget that imports `qs.*` reaches the whole
     // shell, and one that has not declared `trust: true` is refused rather than run. `trust: true` on the
     // user's own widget runs it with that full reach.
-    function trusted(m) { return !!(m && m.user && m.trust === true); }
+    // A widget installed from a source needs the user's grant of full reach as well as the author's ask.
+    function trusted(m) { return !!(m && m.user && m.trust === true && (!m.installed || (Prefs.p.widgetTrust || []).indexOf(m.id) >= 0)); }
+    function setTrust(id, on) {
+        const l = (Prefs.p.widgetTrust || []).filter(x => x !== id);
+        Prefs.p.widgetTrust = on ? l.concat([id]) : l;
+    }
     // A user QML widget the scan flagged as reaching past the sandbox, and not trusted; the card says why.
     function blocked(m) { return !!(m && m.user && !m.source && m.restrictedIssues && m.restrictedIssues.length && !trusted(m)); }
     function issuesOf(id) { const m = manifests[id]; return (m && m.restrictedIssues) || []; }
@@ -81,6 +86,89 @@ Singleton {
     function resetGrants(id) { const all = Object.assign({}, Prefs.p.widgetGrants || {}); delete all[id]; Prefs.p.widgetGrants = all; }
     // "1.2.0" as a comparable number; missing parts count as zero.
     function versionNumber(v) { const p = String(v || "0").split(".").map(x => parseInt(x, 10) || 0); return p[0] * 1000000 + (p[1] || 0) * 1000 + (p[2] || 0); }
+
+    // --- sources: the registries widgets come from ------------------------------------------
+    readonly property string storeScript: Quickshell.shellDir + "/scripts/widgetstore.py"
+    readonly property string cacheDir: (Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache") + "/isle/widget-sources"
+    // The shell's own origin, with the repository swapped for its widgets: alexparlett/isle -> alexparlett/isle-widgets.
+    readonly property string defaultSource: {
+        const u = IsleUpdate.publicUrl || "https://github.com/alexparlett/isle.git";
+        return u.replace(/\/[^\/]+?(?:\.git)?\/?$/, "/isle-widgets");
+    }
+    readonly property var sources: [defaultSource].concat((Prefs.p.widgetSources || []).filter(u => u && u !== defaultSource))
+    function addSource(url) {
+        const u = String(url || "").trim();
+        if (!u || sources.indexOf(u) >= 0) return;
+        Prefs.p.widgetSources = (Prefs.p.widgetSources || []).concat([u]);
+        refreshCatalogue(true);
+    }
+    function removeSource(url) { Prefs.p.widgetSources = (Prefs.p.widgetSources || []).filter(u => u !== url); refreshCatalogue(false); }
+    // [{ url, name, error, widgets }] per source, and the widgets flattened for the gallery.
+    property var sourceStates: []
+    readonly property var catalogue: sourceStates.reduce((acc, s) => acc.concat(s.widgets || []), [])
+    property bool catalogueLoading: false
+    property bool catalogueLoaded: false
+    Process {
+        id: indexer
+        onStarted: root.catalogueLoading = true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.catalogueLoading = false;
+                root.catalogueLoaded = true;
+                try { root.sourceStates = JSON.parse(text); } catch (e) { console.warn("widget index failed"); }
+            }
+        }
+    }
+    function refreshCatalogue(fresh) {
+        if (indexer.running) return;
+        indexer.command = ["python3", storeScript, "index", cacheDir].concat(fresh ? ["--fresh"] : []).concat(sources);
+        indexer.running = true;
+    }
+    function catalogueEntry(id) { return catalogue.find(e => e.id === id) || null; }
+    // A newer version listed than the one installed from a source.
+    function updateFor(id) {
+        const m = manifests[id], e = catalogueEntry(id);
+        return m && m.installed && e && versionNumber(e.version) > versionNumber(m.version) ? e : null;
+    }
+    readonly property var updates: ids.filter(id => updateFor(id) !== null)
+
+    // Installing runs the script; the grants and trust the user agreed to are stored before it lands, so the
+    // widget's first run already has exactly that.
+    property string installing: ""
+    property string installError: ""
+    Process {
+        id: installer
+        property int code: 0
+        onExited: c => code = c
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = null; try { r = JSON.parse(text.trim().split("\n").pop()); } catch (e) {}
+                root.installError = installer.code === 0 && r && r.ok ? "" : (r && r.error) || "install failed";
+                root.installing = "";
+                root.rescan();
+            }
+        }
+    }
+    function install(entry, grants, trust) {
+        if (!entry || installer.running) return;
+        const all = Object.assign({}, Prefs.p.widgetGrants || {});
+        if (grants !== undefined) all[entry.id] = grants; else delete all[entry.id];
+        Prefs.p.widgetGrants = all;
+        setTrust(entry.id, !!trust);
+        installError = "";
+        installing = entry.id;
+        installer.command = ["python3", storeScript, "install", cacheDir, userDir, entry.sourceUrl, entry.id];
+        installer.running = true;
+    }
+    function uninstall(id) {
+        const m = manifests[id];
+        if (!m || !m.installed || installer.running) return;
+        setLayout(layout.filter(e => e.id !== id));
+        resetGrants(id); setTrust(id, false);
+        installing = id;
+        installer.command = ["python3", storeScript, "remove", userDir, id];
+        installer.running = true;
+    }
 
     // --- pages and the layout --------------------------------------------------------------
     // An entry is { key, id, x, y, w, h } in grid cells: `key` names the instance (a second clock is

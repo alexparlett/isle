@@ -294,6 +294,14 @@ click or the number keys; editing adds one with the plus, renames by
 double-click and removes with the ×. Each page's layout, and which page
 is shown, are preferences.
 
+A user's own QML widget declares in its `widget.json` the services it
+uses, as `permissions` like `["audio", "media.write"]`: a name grants
+read, a `.write` scope grants that service's actions. It receives a
+`host` wrapper exposing only those, read-only, plus `host.theme`; the
+library row names what a widget uses, or "Trusted · full access" for one
+that carries `trust: true`. A widget refused for reaching the shell
+without trust says so on its card.
+
 Text widgets, the user's own, draw through one renderer: a title, then
 the output as wrapped text, a large number with its unit, a gauge bar
 against a maximum, a sparkline of the readings so far, or a list of

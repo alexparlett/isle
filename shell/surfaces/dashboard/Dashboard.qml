@@ -328,7 +328,7 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 spacing: 1
                                 Label { text: row.modelData.name; weight: Font.DemiBold; size: Theme.sizeSmall; elide: Text.ElideRight; Layout.fillWidth: true }
-                                Label { text: row.modelData.description || (row.modelData.sizes || []).map(s => s.replace("x", "×")).join(" · "); size: Theme.sizeCaption; color: Theme.text3; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Label { text: row.modelData.trust ? "Trusted · full access" : (row.modelData.permissions && row.modelData.permissions.length ? "Uses " + row.modelData.permissions.join(", ") : row.modelData.description || (row.modelData.sizes || []).map(s => s.replace("x", "×")).join(" · ")); size: Theme.sizeCaption; color: row.modelData.trust ? Theme.warn : Theme.text3; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                             // The user's own: edit and delete, shown on hover.
                             Repeater {

@@ -24,17 +24,18 @@ Singleton {
 
     Process {
         id: scan
-        command: ["sh", "-c", "mkdir -p \"$2\"; for d in \"$1\" \"$2\"; do [ -d \"$d\" ] || continue; for m in \"$d\"/*/widget.json; do [ -f \"$m\" ] || continue; printf '%s\\t' \"$(dirname \"$m\")\"; tr -d '\\n' < \"$m\"; echo; done; done", "_", root.builtinDir, root.userDir]
+        command: ["sh", "-c", "mkdir -p \"$2\"; for d in \"$1\" \"$2\"; do [ -d \"$d\" ] || continue; for m in \"$d\"/*/widget.json; do [ -f \"$m\" ] || continue; wd=\"$(dirname \"$m\")\"; q=0; grep -qsE '^[[:space:]]*import[[:space:]]+qs[.]' \"$wd/Widget.qml\" && q=1; printf '%s\\t%s\\t' \"$wd\" \"$q\"; tr -d '\\n' < \"$m\"; echo; done; done", "_", root.builtinDir, root.userDir]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
                 const out = {}, ids = [];
                 for (const line of text.split("\n")) {
-                    const tab = line.indexOf("\t");
-                    if (tab < 0) continue;
+                    const parts = line.split("\t");
+                    if (parts.length < 3) continue;
                     try {
-                        const m = JSON.parse(line.slice(tab + 1));
-                        m.dir = line.slice(0, tab);
+                        const m = JSON.parse(parts.slice(2).join("\t"));
+                        m.dir = parts[0];
+                        m.reachesQs = parts[1] === "1";
                         m.user = m.dir.indexOf(root.userDir) === 0;
                         m.category = m.category || (m.user ? "Yours" : "Shell");
                         if (categoryOrder.indexOf(m.category) < 0) m.category = "Yours";
@@ -49,15 +50,21 @@ Singleton {
         }
     }
     function rescan() { scan.running = true; }
+    // A user's QML widget is sandboxed: it gets a permission-gated `host` and nothing else. QML has no
+    // hard boundary, so the sandbox is enforced by source: a widget that imports `qs.*` reaches the whole
+    // shell, and one that has not declared `trust: true` is refused rather than run. `trust: true` on the
+    // user's own widget runs it with that full reach.
+    function trusted(m) { return !!(m && m.user && m.trust === true); }
+    // A user QML widget refused for reaching the shell without trust; the card says so.
+    function blocked(m) { return !!(m && m.user && !m.source && m.reachesQs && !trusted(m)); }
     function componentUrl(id) {
         const m = manifests[id];
-        if (!m) return "";
+        if (!m || blocked(m)) return "";
         if (m.source) return Qt.resolvedUrl("../widgets/text/Widget.qml");
         if (!m.user) return Qt.resolvedUrl("../widgets/" + id + "/Widget.qml");
-        // A user's QML widget loads through the userwidgets symlink so it stays in the qs: scheme and can
-        // import qs.services; the symlink is installed pointing at the user widget directory.
         return Qt.resolvedUrl("../userwidgets/" + id + "/Widget.qml");
     }
+    function permissionsOf(id) { const m = manifests[id]; return (m && m.permissions) || []; }
 
     // --- pages and the layout --------------------------------------------------------------
     // An entry is { key, id, x, y, w, h } in grid cells: `key` names the instance (a second clock is

@@ -85,11 +85,9 @@ links that directory in under the served tree as `shell/userwidgets`
 (git-ignored, kept across syncs), and the card loads the widget as
 `Qt.resolvedUrl("../userwidgets/<id>/Widget.qml")`, so it is inside the
 scheme and imports the services exactly as a built-in does, with a
-language server pointed at the config for completion. This hands a
-user's widget the shell's full reach, which is right for widgets the
-user writes and wrong for ones from other people: a curated `services`
-facade with a manifest `permissions` list is the next step before
-widgets are shared, not authored.
+language server pointed at the config for completion. By default a user QML widget is
+sandboxed (D25); `trust: true` opts one of the user's own back into this
+full-reach path.
 
 **D15 · Never restart the shell while the session is locked.** The
 shell is the locker; if its process dies under an active lock, Hyprland

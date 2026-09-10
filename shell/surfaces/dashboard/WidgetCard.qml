@@ -13,6 +13,8 @@ Glass {
     property bool dragging: false
     readonly property var manifest: Widgets.manifests[entry.id] || null
     readonly property string size: entry.w + "x" + entry.h
+    // The permission-gated wrapper a sandboxed widget is handed in place of the services.
+    WidgetHost { id: host; permissions: root.manifest ? (root.manifest.permissions || []) : [] }
 
     readonly property bool focused: editing && dashboard && dashboard.focusKey === entry.key
     property bool resizing: false
@@ -176,15 +178,19 @@ Glass {
             Layout.fillHeight: true
             source: Widgets.componentUrl(root.entry.id)
             onLoaded: {
-                item.manifest = Qt.binding(() => root.manifest);
-                item.size = Qt.binding(() => root.size);
-                item.settings = Qt.binding(() => Widgets.settingsFor(root.entry.key));
+                if (item.hasOwnProperty("manifest")) item.manifest = Qt.binding(() => root.manifest);
+                if (item.hasOwnProperty("size")) item.size = Qt.binding(() => root.size);
+                if (item.hasOwnProperty("settings")) item.settings = Qt.binding(() => Widgets.settingsFor(root.entry.key));
+                // A sandboxed widget receives the wrapper; the shell's own and trusted ones ignore it.
+                if (item.hasOwnProperty("host")) item.host = host;
             }
-            // A user widget with a QML error draws nothing; the card says so rather than sitting blank.
+            // A widget refused for reaching the shell without trust, or one with a QML error, says so
+            // rather than sitting blank.
             Label {
                 anchors.centerIn: parent
-                visible: loader.status === Loader.Error
-                text: "This widget could not load"
+                visible: Widgets.blocked(root.manifest) || loader.status === Loader.Error
+                text: Widgets.blocked(root.manifest) ? "This widget reaches the shell. Add \"trust\": true to its widget.json to run it."
+                    : "This widget could not load"
                 color: Theme.danger; size: Theme.sizeSmall; wrapMode: Text.WordWrap
                 width: parent.width - Theme.s3 * 2; horizontalAlignment: Text.AlignHCenter
             }

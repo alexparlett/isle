@@ -84,13 +84,26 @@ PanelWindow {
                 }
             }
 
-            Repeater {
+            // At most eight rows tall; more scroll, with the selection kept in view.
+            ListView {
+                id: list
+                Layout.fillWidth: true
+                Layout.preferredHeight: count ? Math.min(count, 8) * (52 + spacing) - spacing : 0
+                spacing: Theme.s1 + 2
+                clip: true
                 model: Launcher.results
-                Rectangle {
+                boundsBehavior: Flickable.StopAtBounds
+                currentIndex: root.selected
+                highlightFollowsCurrentItem: true
+                highlightMoveDuration: 0
+                preferredHighlightBegin: 0; preferredHighlightEnd: height
+                highlightRangeMode: ListView.ApplyRange
+                Scrollbar { target: list; anchors { top: parent.top; bottom: parent.bottom; right: parent.right } }
+                delegate: Rectangle {
                     required property var modelData
                     required property int index
-                    Layout.fillWidth: true
-                    implicitHeight: 52
+                    width: list.width
+                    height: 52
                     radius: Theme.radiusControl + 2
                     color: index === root.selected ? Theme.raised : "transparent"
                     border.width: 1
@@ -118,11 +131,12 @@ PanelWindow {
                         Label { visible: !!modelData.chord; text: modelData.chord || ""; mono: true; size: Theme.sizeCaption; color: Theme.text3 }
                         Label { visible: index === root.selected && modelData.kind !== "hint"; text: (modelData.alt ? "⇧↵ " + modelData.altLabel + "   " : "") + (modelData.extra ? "⌃↵ " + modelData.extraLabel + "   " : "") + "↵"; mono: true; size: Theme.sizeCaption; color: Theme.text3 }
                     }
+                    // Hover picks a row only when the pointer moved: a list scrolling under a still pointer must not.
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onEntered: root.selected = index
+                        onPositionChanged: root.selected = index
                         onClicked: { root.selected = index; root.run(false); }
                     }
                 }

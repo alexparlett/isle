@@ -273,8 +273,9 @@ Updates (pending packages), Weather.
 Edit mode (E, or the pencil in the corner) is a grid editor. Dragging a
 card lifts it to float under the cursor while its neighbours flow live to
 make room, re-planned each move from the pre-drag arrangement so leaving
-un-pushes; a same-size neighbour swaps, a different-size one is pushed
-down. The push follows the card's centre and the neighbours glide, so it
+un-pushes; the cards it lands on cascade the way it came, each shoving
+the next along the row (or column), so a card dragged across pushes the
+others into the space it vacates rather than swapping one to the origin. The push follows the card's centre and the neighbours glide, so it
 reads as a soft rearrange rather than a snap; the card settles into its
 cell on release. The right edge, bottom edge and corner
 resize the card, held between the manifest's smallest and largest spans.

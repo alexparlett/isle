@@ -132,33 +132,34 @@ Singleton {
     // The layout with `key` at (x, y), making room: a lone neighbour of the same size swaps places,
     // otherwise neighbours are pushed down while there is room. Null when nothing works.
     function plan(key, x, y, w, h) { return planFrom(layout, key, x, y, w, h); }
+    // The layout with `key` moved to (x, y): the cards it lands on cascade out of the way in the direction it
+    // came from, each shoving the next, so a card dragged across the row pushes the others along rather than
+    // swapping one to the far origin. Null when a pushed card would leave the grid.
     function planFrom(base, key, x, y, w, h) {
         const l = base.map(e => Object.assign({}, e));
-        const e = l.find(e => e.key === key);
+        const e = l.find(o => o.key === key);
         if (!e) return null;
-        const moved = Object.assign({}, e, { x: x, y: y, w: w || e.w, h: h || e.h });
-        moved.x = Math.max(0, Math.min(moved.x, columns - moved.w));
-        moved.y = Math.max(0, Math.min(moved.y, rows - moved.h));
-        const rest = l.filter(o => o.key !== key);
-        if (fits(moved, rest)) return rest.concat([moved]);
-        const hit = rest.filter(o => overlaps(moved, o));
-        if (hit.length === 1 && hit[0].w === e.w && hit[0].h === e.h && (moved.w === e.w && moved.h === e.h)) {
-            const swapped = Object.assign({}, hit[0], { x: e.x, y: e.y });
-            const others = rest.filter(o => o.key !== hit[0].key);
-            if (fits(swapped, others.concat([moved]))) return others.concat([moved, swapped]);
-        }
-        // Push each neighbour down until it fits among what is already settled.
-        let settled = rest.filter(o => !overlaps(moved, o)).concat([moved]);
-        for (const o of hit) {
-            let placed = null;
-            for (let dy = 1; dy <= rows; dy++) {
-                const c = Object.assign({}, o, { y: o.y + dy });
-                if (fits(c, settled)) { placed = c; break; }
+        const origX = e.x, origY = e.y;
+        e.w = w || e.w; e.h = h || e.h;
+        e.x = Math.max(0, Math.min(x, columns - e.w));
+        e.y = Math.max(0, Math.min(y, rows - e.h));
+        // Push along whichever axis the card travelled furthest, in the direction back toward where it started,
+        // so displaced cards move into the space it is leaving.
+        const horizontal = Math.abs(e.x - origX) >= Math.abs(e.y - origY);
+        const dir = horizontal ? (origX >= e.x ? 1 : -1) : (origY >= e.y ? 1 : -1);
+        // Resolve every card that `mover` overlaps by shoving it just past `mover` in `dir`, then resolving the
+        // cards it in turn hits. Positions move strictly one way, so this terminates.
+        function push(mover, guard) {
+            for (const o of l) {
+                if (o.key === mover.key || guard.indexOf(o.key) >= 0 || !overlaps(o, mover)) continue;
+                if (horizontal) o.x = dir > 0 ? mover.x + mover.w : mover.x - o.w;
+                else o.y = dir > 0 ? mover.y + mover.h : mover.y - o.h;
+                if (o.x < 0 || o.y < 0 || o.x + o.w > columns || o.y + o.h > rows) return false;
+                if (!push(o, guard.concat([mover.key]))) return false;
             }
-            if (!placed) return null;
-            settled = settled.concat([placed]);
+            return true;
         }
-        return settled;
+        return push(e, [e.key]) ? l : null;
     }
     function canPlace(key, x, y, w, h) { return plan(key, x, y, w, h) !== null; }
     function place(key, x, y, w, h) { const l = plan(key, x, y, w, h); if (l) setLayout(l); return l !== null; }

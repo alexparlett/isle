@@ -24,25 +24,18 @@ Singleton {
 
     Process {
         id: scan
-        command: ["sh", "-c", "mkdir -p \"$2\"; for d in \"$1\" \"$2\"; do [ -d \"$d\" ] || continue; for m in \"$d\"/*/widget.json; do [ -f \"$m\" ] || continue; wd=\"$(dirname \"$m\")\"; q=0; grep -qsE '^[[:space:]]*import[[:space:]]+qs[.]' \"$wd/Widget.qml\" && q=1; printf '%s\\t%s\\t' \"$wd\" \"$q\"; tr -d '\\n' < \"$m\"; echo; done; done", "_", root.builtinDir, root.userDir]
+        command: ["python3", Quickshell.shellDir + "/scripts/widgets.py", root.builtinDir, root.userDir]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
+                let list; try { list = JSON.parse(text); } catch (e) { console.warn("widget scan failed"); return; }
                 const out = {}, ids = [];
-                for (const line of text.split("\n")) {
-                    const parts = line.split("\t");
-                    if (parts.length < 3) continue;
-                    try {
-                        const m = JSON.parse(parts.slice(2).join("\t"));
-                        m.dir = parts[0];
-                        m.reachesQs = parts[1] === "1";
-                        m.user = m.dir.indexOf(root.userDir) === 0;
-                        m.category = m.category || (m.user ? "Yours" : "Shell");
-                        if (categoryOrder.indexOf(m.category) < 0) m.category = "Yours";
-                        m.sizes = m.sizes && m.sizes.length ? m.sizes : [m.default || "3x1"];
-                        out[m.id] = m;
-                        ids.push(m.id);
-                    } catch (e) { console.warn("widget manifest unreadable:", line.slice(0, tab)); }
+                for (const m of list) {
+                    m.category = m.category || (m.user ? "Yours" : "Shell");
+                    if (categoryOrder.indexOf(m.category) < 0) m.category = "Yours";
+                    m.sizes = m.sizes && m.sizes.length ? m.sizes : [m.default || "3x1"];
+                    out[m.id] = m;
+                    ids.push(m.id);
                 }
                 root.manifests = out;
                 root.ids = ids;
@@ -55,8 +48,9 @@ Singleton {
     // shell, and one that has not declared `trust: true` is refused rather than run. `trust: true` on the
     // user's own widget runs it with that full reach.
     function trusted(m) { return !!(m && m.user && m.trust === true); }
-    // A user QML widget refused for reaching the shell without trust; the card says so.
-    function blocked(m) { return !!(m && m.user && !m.source && m.reachesQs && !trusted(m)); }
+    // A user QML widget the scan flagged as reaching past the sandbox, and not trusted; the card says why.
+    function blocked(m) { return !!(m && m.user && !m.source && m.restrictedIssues && m.restrictedIssues.length && !trusted(m)); }
+    function issuesOf(id) { const m = manifests[id]; return (m && m.restrictedIssues) || []; }
     function componentUrl(id) {
         const m = manifests[id];
         if (!m || blocked(m)) return "";

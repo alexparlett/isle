@@ -279,7 +279,7 @@ Built in, in the default layout:
 | Desktops | each desktop with its app icons; click to go |
 | Notifications | grouped by app, inline actions, clear all |
 | Controls | the toggle grid and the two sliders |
-| System | a graph for each measure picked in its gear: CPU, GPU, memory, network, temperatures by kind, fans; more than one instance, each its own pick |
+| System | a graph for each measure picked in its gear: CPU, GPU, memory, network, temperatures by kind, fans, drawn as bars, a line or an area; more than one instance, each its own pick |
 | Agents | running coding-agent terminals and their state |
 | Session | tray icons; lock, sleep, restart, power; power profile |
 | Devices | bluetooth and controller batteries, headset |

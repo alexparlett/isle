@@ -84,7 +84,7 @@ WidgetBase {
                         Label { text: modelData.label; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.fillWidth: true }
                         Label { text: modelData.value; mono: true; tabular: true; size: Theme.sizeCaption }
                     }
-                    Sparkline { Layout.fillWidth: true; Layout.fillHeight: true; values: modelData.history; color: modelData.tint }
+                    Sparkline { Layout.fillWidth: true; Layout.fillHeight: true; values: modelData.history; color: modelData.tint; style: root.settings.style || "bars" }
                 }
             }
         }

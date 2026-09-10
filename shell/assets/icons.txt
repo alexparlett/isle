@@ -5,6 +5,7 @@ arrow-down
 arrow-left
 arrow-right
 arrow-up
+battery-medium
 bell
 bell-off
 bluetooth

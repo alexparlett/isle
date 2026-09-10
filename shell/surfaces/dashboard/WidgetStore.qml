@@ -392,7 +392,7 @@ Item {
                         }
                         // The author's tools, for one of the user's own: check it, picture it, tag it.
                         ColumnLayout {
-                            visible: !!(sheetCol.inst && sheetCol.inst.user) && !sheetCol.fromSource && !sheetCol.inst.source
+                            visible: !!(sheetCol.inst && sheetCol.inst.user) && !sheetCol.fromSource
                             Layout.fillWidth: true
                             spacing: Theme.s2
                             readonly property var check: Widgets.validation && sheetCol.inst && Widgets.validation.id === sheetCol.inst.id ? Widgets.validation : null

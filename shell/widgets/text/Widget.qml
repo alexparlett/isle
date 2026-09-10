@@ -28,9 +28,13 @@ WidgetBase {
         stderr: StdioCollector { id: err }
         onExited: code => root.error = code === 0 ? "" : (err.text.trim().split("\n").pop() || "exit " + code)
     }
-    function refresh() { if (!reader.running) reader.running = true; }
-    Timer { interval: Math.max(1, Number(source.interval) || 30) * 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
-    onManifestChanged: refresh()
+    // A change while a read is under way is picked up when it finishes; the refresh is deferred past the
+    // bindings that follow a manifest change, so the reader starts with the new command and not the old.
+    function refresh() { if (reader.running) { stale = true; return; } reader.running = true; }
+    property bool stale: false
+    Timer { interval: Math.max(1, Number(source.interval) || 30) * 1000; running: !!root.manifest; repeat: true; onTriggered: root.refresh() }
+    onSourceChanged: Qt.callLater(root.refresh)
+    Connections { target: reader; function onExited() { if (root.stale) { root.stale = false; Qt.callLater(root.refresh); } } }
 
     // text
     Label {

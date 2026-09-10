@@ -11,6 +11,41 @@ index 232a02a..f255373 100644
  
    /* USB interface state */
    gboolean usb_interface_claimed;
+diff --git a/drivers/goodix53x5/goodix53x5-session.c b/drivers/goodix53x5/goodix53x5-session.c
+index c231c81..0cca024 100644
+--- a/drivers/goodix53x5/goodix53x5-session.c
++++ b/drivers/goodix53x5/goodix53x5-session.c
+@@ -202,12 +202,26 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+         self->otp_data = g_memdup2 (pl, pl_len);
+         self->otp_len = pl_len;
+ 
++        {
++          g_autoptr(GString) hex = g_string_new (NULL);
++          for (gsize i = 0; i < pl_len; i++)
++            g_string_append_printf (hex, "%02x%s", pl[i], i + 1 < pl_len ? " " : "");
++          fp_dbg ("OTP (%zu bytes): %s", pl_len, hex->str);
++        }
++
+         if (!goodix_device_verify_otp (pl, pl_len))
+           {
+-            fpi_ssm_mark_failed (ssm,
+-                                 fpi_device_error_new_msg (FP_DEVICE_ERROR_PROTO,
+-                                                           "OTP hash verification failed"));
+-            return;
++            /* 27c6:5042 lays its OTP out differently; go on with the calibration
++             * as read rather than refusing the device, and say so. */
++            if (g_usb_device_get_pid (fpi_device_get_usb_device (dev)) == 0x5042)
++              fp_warn ("OTP hash did not verify on 27c6:5042; continuing with unverified calibration");
++            else
++              {
++                fpi_ssm_mark_failed (ssm,
++                                     fpi_device_error_new_msg (FP_DEVICE_ERROR_PROTO,
++                                                               "OTP hash verification failed"));
++                return;
++              }
+           }
+ 
+         goodix_device_parse_otp (pl, pl_len, &self->calib);
 diff --git a/drivers/goodix53x5/goodix53x5-transport.c b/drivers/goodix53x5/goodix53x5-transport.c
 index d653164..1dad98e 100644
 --- a/drivers/goodix53x5/goodix53x5-transport.c

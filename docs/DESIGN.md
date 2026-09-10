@@ -265,7 +265,8 @@ its front window, so a stray app can be put down without switching to it.
 
 The dashboard is a grid of widgets. A widget is a glass card with an
 11px title, an optional right-hand meta, and content; it occupies whole
-grid cells (3×1, 3×2, 3×4, 6×1, 6×2) and never scrolls the page.
+grid cells (2×1 for the small ones, 3×1, 3×2, 3×4, 6×1, 6×2) and never
+scrolls the page.
 
 Built in, in the default layout:
 

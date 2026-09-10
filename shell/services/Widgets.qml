@@ -187,9 +187,9 @@ Singleton {
         { id: "controls", x: 0, y: 1, w: 3, h: 2 },
         { id: "system", x: 3, y: 1, w: 3, h: 2 },
         { id: "agents", x: 6, y: 1, w: 3, h: 2 },
-        { id: "session", x: 0, y: 3, w: 3, h: 1 },
-        { id: "devices", x: 3, y: 3, w: 3, h: 1 },
-        { id: "storage", x: 6, y: 3, w: 3, h: 1 },
+        { id: "session", x: 0, y: 3, w: 2, h: 1 },
+        { id: "devices", x: 2, y: 3, w: 2, h: 1 },
+        { id: "storage", x: 4, y: 3, w: 3, h: 1 },
     ]
     // Pages: the single layout from before pages becomes the first.
     readonly property var pages: Prefs.p.dashboardPages && Prefs.p.dashboardPages.length ? Prefs.p.dashboardPages : [{ name: "Home", layout: Prefs.p.dashboard || [] }]

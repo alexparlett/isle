@@ -1,0 +1,5 @@
+{ "id": "notifications", "name": "Notifications", "glyph": "bell", "sizes": ["3x2", "3x4", "6x4"], "default": "3x4", "requires": [],
+  "settings": [
+    { "key": "body", "label": "Show body", "type": "toggle", "default": true },
+    { "key": "pictures", "label": "Pictures", "type": "toggle", "default": true }
+  ] }

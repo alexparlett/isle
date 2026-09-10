@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  body { margin:0; font-family: Inter, system-ui, sans-serif; color:#F2F2F3; background:#0A0B0D; font-size:13px; font-weight:500; -webkit-font-smoothing:antialiased; }
+  a { color:#7FA6FF; } a:hover { color:#F2F2F3; }
+  .wall { position:relative; overflow:hidden; background:
+    radial-gradient(90% 70% at 78% 115%, #1a2237 0%, rgba(26,34,55,0) 60%),
+    radial-gradient(70% 55% at 8% -10%, #1a1626 0%, rgba(26,22,38,0) 60%),
+    radial-gradient(40% 30% at 55% 40%, #10121a 0%, rgba(16,18,26,0) 70%), #0A0B0D; }
+  .glass { background:rgba(18,19,22,.78); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border:1px solid rgba(255,255,255,.08); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .t2 { color:rgba(242,242,243,.62); } .t3 { color:rgba(242,242,243,.38); }
+  .row { display:flex; align-items:center; }
+  .col { display:flex; flex-direction:column; }
+</style>
+</helmet>
+<div style="width:560px;height:300px;padding:20px 24px;box-sizing:border-box;position:relative;overflow:hidden;background:#0A0B0D;color:#F2F2F3;font-family:Inter, system-ui, sans-serif">
+  <div style="font-size:15px;font-weight:600">Alternate · Ink</div>
+  <div style="font-size:12px;color:rgba(242,242,243,.62);margin-bottom:22px">Opaque, no blur, 8px corners, white accent. Sharper and cheaper to draw; survives game mode unchanged.</div>
+  <div class="col" style="gap:18px;align-items:center">
+    <div class="row" style="height:28px;padding:0 12px;gap:10px;border-radius:8px;background:#141517;border:1px solid rgba(255,255,255,.12);box-shadow:none">
+      <div class="row" style="gap:5px"><div style="width:6px;height:6px;border-radius:999px;background:#F2F2F3"></div><div style="width:6px;height:6px;border-radius:999px;background:rgba(242,242,243,.38)"></div><div style="width:6px;height:6px;border-radius:999px;background:rgba(242,242,243,.38)"></div></div>
+      <div class="tnum" style="font-size:13px;font-weight:500">14:32</div>
+      <span style="color:rgba(242,242,243,.62)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg></span>
+    </div>
+    <div class="row" style="height:50px;padding:0 16px 0 10px;gap:12px;border-radius:8px;width:380px;box-sizing:border-box;background:#141517;border:1px solid rgba(255,255,255,.12);box-shadow:none">
+      <div style="width:30px;height:30px;border-radius:8px;background:#5865F2;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+      <div class="col" style="flex:1;gap:1px"><div class="row" style="justify-content:space-between"><span style="font-size:13px;font-weight:600">Discord</span><span style="font-size:11px;color:rgba(242,242,243,.38)">now</span></div><div style="font-size:12px;color:rgba(242,242,243,.62)">sam: ready when you are, lobby's up</div></div>
+    </div>
+    <div class="row" style="height:28px;padding:0 12px;gap:10px;border-radius:8px;background:#141517;border:1px solid rgba(255,255,255,.12);box-shadow:none">
+      <span style="color:rgba(242,242,243,.62)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></span>
+      <div style="width:120px;height:4px;border-radius:2px;background:rgba(255,255,255,.12)"><div style="width:64%;height:100%;border-radius:2px;background:#F2F2F3"></div></div>
+      <span class="mono tnum" style="font-size:11px;color:rgba(242,242,243,.62)">64</span>
+    </div>
+  </div>
+</div></x-dc>
+</body>
+</html>

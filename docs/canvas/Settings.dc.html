@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  body { margin:0; font-family: Inter, system-ui, sans-serif; color:#F2F2F3; background:#0A0B0D; font-size:13px; font-weight:500; -webkit-font-smoothing:antialiased; }
+  a { color:#7FA6FF; } a:hover { color:#F2F2F3; }
+  .wall { position:relative; overflow:hidden; background:
+    radial-gradient(90% 70% at 78% 115%, #1a2237 0%, rgba(26,34,55,0) 60%),
+    radial-gradient(70% 55% at 8% -10%, #1a1626 0%, rgba(26,22,38,0) 60%),
+    radial-gradient(40% 30% at 55% 40%, #10121a 0%, rgba(16,18,26,0) 70%), #0A0B0D; }
+  .glass { background:rgba(18,19,22,.78); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border:1px solid rgba(255,255,255,.08); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .t2 { color:rgba(242,242,243,.62); } .t3 { color:rgba(242,242,243,.38); }
+  .row { display:flex; align-items:center; }
+  .col { display:flex; flex-direction:column; }
+</style>
+</helmet>
+<div style="width:960px;height:600px;background:#131417;border:1px solid rgba(255,255,255,.14);border-radius:14px;display:flex;overflow:hidden;box-sizing:border-box">
+  <div class="col" style="width:200px;padding:14px 10px;gap:2px;border-right:1px solid rgba(255,255,255,.08);box-sizing:border-box">
+    <div style="font-size:15px;font-weight:600;padding:6px 10px 14px">Settings</div>
+    <div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1a1.6 1.6 0 0 1 1.7-1.7h2c3 0 5.5-2.5 5.5-5.6C22 6 17.5 2 12 2z"/></svg>Appearance</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:#1B1C21;border:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:600;color:#F2F2F3"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>Keyboard</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Displays</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>Audio</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="M2 8.8a15 15 0 0 1 20 0"/></svg>Network</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>Bluetooth</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Notifications</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>Power</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>Modes</div><div class="row" style="gap:10px;height:34px;padding:0 10px;border-radius:10px;background:transparent;border:1px solid transparent;font-size:13px;font-weight:500;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>About</div>
+  </div>
+  <div class="col" style="flex:1;padding:24px 28px;gap:20px;overflow:hidden">
+    <div class="col" style="gap:4px"><div style="font-size:20px;font-weight:600">Keyboard</div><div class="t2" style="font-size:12px">Each keyboard gets a profile. Hyprland sees one set of bindings; the profile decides what reaches it.</div></div>
+    <div class="col" style="gap:8px">
+      
+<div class="row" style="gap:12px;height:56px;padding:0 14px;border-radius:14px;background:#1B1C21;border:1px solid rgba(255,255,255,.08)">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(242,242,243,.62)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
+  <div class="col" style="flex:1;gap:1px"><div style="font-size:13px;font-weight:600">Corsair K95 RGB Platinum</div><div class="t3 mono" style="font-size:11px">1b1c:1b2d</div></div>
+  <div class="row" style="height:28px;border-radius:8px;background:#26272D;padding:2px;gap:2px">
+    <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;font-size:12px;font-weight:600;background:#1B1C21;color:#F2F2F3;box-shadow:0 1px 2px rgba(0,0,0,.4)">Windows</div><div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;font-size:12px;font-weight:600;background:transparent;color:rgba(242,242,243,.38);box-shadow:none">Mac</div>
+  </div>
+  <span class="t3" style="font-size:11px;width:34px">auto</span>
+</div>
+      
+<div class="row" style="gap:12px;height:56px;padding:0 14px;border-radius:14px;background:#1B1C21;border:1px solid rgba(255,255,255,.08)">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(242,242,243,.62)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
+  <div class="col" style="flex:1;gap:1px"><div style="font-size:13px;font-weight:600">Keychron Q6 Max</div><div class="t3 mono" style="font-size:11px">3434:0b30 · not connected</div></div>
+  <div class="row" style="height:28px;border-radius:8px;background:#26272D;padding:2px;gap:2px">
+    <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;font-size:12px;font-weight:600;background:transparent;color:rgba(242,242,243,.38);box-shadow:none">Windows</div><div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;font-size:12px;font-weight:600;background:#1B1C21;color:#F2F2F3;box-shadow:0 1px 2px rgba(0,0,0,.4)">Mac</div>
+  </div>
+  <span class="t3" style="font-size:11px;width:34px">auto</span>
+</div>
+    </div>
+    <div class="col" style="border-radius:14px;border:1px solid rgba(255,255,255,.08);overflow:hidden">
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:32px;align-items:center;padding:0 12px;background:#1B1C21;font-size:11px;font-weight:600;color:rgba(242,242,243,.62)"><span>Action</span><span>Windows</span><span>Mac</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:36px;align-items:center;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:13px">Launcher</span><span class="mono t2" style="font-size:12px">Win Space</span><span class="mono t2" style="font-size:12px">Cmd Space</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:36px;align-items:center;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:13px">App switcher</span><span class="mono t2" style="font-size:12px">Alt Tab</span><span class="mono t2" style="font-size:12px">Cmd Tab</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:36px;align-items:center;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:13px">Workspace 1–9</span><span class="mono t2" style="font-size:12px">Win 1–9</span><span class="mono t2" style="font-size:12px">Ctrl 1–9</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:36px;align-items:center;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:13px">Clipboard</span><span class="mono t2" style="font-size:12px">Win V</span><span class="mono t2" style="font-size:12px">Cmd Shift V</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:36px;align-items:center;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:13px">Capture region</span><span class="mono t2" style="font-size:12px">Win Shift S</span><span class="mono t2" style="font-size:12px">Cmd Shift 4</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:36px;align-items:center;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:13px">Control centre</span><span class="mono t2" style="font-size:12px">Win A</span><span class="mono t2" style="font-size:12px">Cmd Shift C</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;height:36px;align-items:center;padding:0 12px;"><span style="font-size:13px">Lock</span><span class="mono t2" style="font-size:12px">Win L</span><span class="mono t2" style="font-size:12px">Cmd Ctrl Q</span></div>
+    </div>
+  </div>
+</div></x-dc>
+</body>
+</html>

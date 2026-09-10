@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Adds Isle to the CachyOS installer on the live system, just before Calamares starts.
+
+Runs as root from calamares-online.sh after it has copied settings_online.conf into place. It
+gives the desktop chooser an Isle item, prepends the Isle package group to the netinstall
+groups (the upstream list is fetched fresh, with the packaged copy as fallback), and adds two
+contextualprocess steps that run only when Isle was chosen: one copies the repo tarball into
+the target, the other unpacks it and runs tools/iso/target-setup.sh inside the chroot.
+"""
+import os, sys, urllib.request, yaml
+
+# ISLE_PREFIX points the paths at a copy of the live system's tree, for testing off the ISO.
+PREFIX = os.environ.get("ISLE_PREFIX", "")
+CAL = PREFIX + "/etc/calamares"
+MOD = CAL + "/modules"
+ISLE = PREFIX + "/usr/share/isle"
+UPSTREAM = "https://raw.githubusercontent.com/CachyOS/cachyos-calamares/cachyos/src/modules/netinstall/netinstall.yaml"
+
+
+def load(p):
+    return yaml.safe_load(open(p)) or {}
+
+
+def dump(o, p):
+    yaml.safe_dump(o, open(p, "w"), sort_keys=False, allow_unicode=True)
+
+
+def groups():
+    try:
+        with urllib.request.urlopen(UPSTREAM, timeout=20) as r:
+            return yaml.safe_load(r.read())
+    except Exception as e:
+        print(f"isle: upstream netinstall.yaml unavailable ({e}); using the packaged copy")
+        return load(MOD + "/netinstall.yaml")
+
+
+def main():
+    isle = load(ISLE + "/isle-group.yaml")
+    dump(isle + [g for g in groups() if g.get("name") != "Isle"], MOD + "/netinstall.yaml")
+    ni = load(MOD + "/netinstall.conf")
+    ni["groupsUrl"] = ["file://" + MOD + "/netinstall.yaml"]
+    dump(ni, MOD + "/netinstall.conf")
+
+    pc = load(MOD + "/packagechooser_desktop.conf")
+    pc["items"] = [i for i in pc.get("items", []) if i.get("id") != "Isle"]
+    pc["items"].insert(1, {
+        "id": "Isle",
+        "name": "Isle (Hyprland)",
+        "description": "Hyprland with the Isle shell: one island at the top of the screen that is the clock, "
+                       "the notifications and the control panel; a dashboard, a launcher, Settings, a Monitor and "
+                       "a Keychain, built for gaming and for coding agents.",
+        "screenshot": ISLE + "/isle.webp",
+    })
+    dump(pc, MOD + "/packagechooser_desktop.conf")
+
+    dump({"dontChroot": True, "timeout": 60, "packagechooser_desktop": {"Isle": [
+        {"command": "mkdir -p ${ROOT}/usr/share/isle"},
+        {"command": "cp " + ISLE + "/isle.tar.zst ${ROOT}/usr/share/isle/isle.tar.zst"},
+    ]}}, MOD + "/contextualprocess_isle_copy.conf")
+    dump({"dontChroot": False, "timeout": 1800, "packagechooser_desktop": {"Isle": [
+        {"command": "runuser ${USER} -c \"mkdir -p ~/.local/share && tar --use-compress-program=unzstd -xf /usr/share/isle/isle.tar.zst -C ~/.local/share\"", "verbose": True},
+        {"command": "/home/${USER}/.local/share/isle/tools/iso/target-setup.sh ${USER}", "verbose": True},
+        {"command": "-rm -rf /usr/share/isle"},
+    ]}}, MOD + "/contextualprocess_isle.conf")
+
+    st = load(CAL + "/settings.conf")
+    st["instances"] = [i for i in st.get("instances", []) if not str(i.get("id", "")).startswith("isle")]
+    st["instances"] += [
+        {"id": "isle_copy", "module": "contextualprocess", "config": "contextualprocess_isle_copy.conf"},
+        {"id": "isle", "module": "contextualprocess", "config": "contextualprocess_isle.conf"},
+    ]
+    for phase in st["sequence"]:
+        ex = phase.get("exec")
+        if not ex:
+            continue
+        ex[:] = [s for s in ex if not str(s).startswith("contextualprocess@isle")]
+        # After the plain shellprocess (skel, shell) and before the snapshot, so the snapshot holds the finished system.
+        at = ex.index("shellprocess@btrfs_snapshot") if "shellprocess@btrfs_snapshot" in ex else ex.index("umount")
+        ex[at:at] = ["contextualprocess@isle_copy", "contextualprocess@isle"]
+    dump(st, CAL + "/settings.conf")
+    print("isle: installer set up (desktop item, package group, target steps)")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        # The installer must still run without Isle rather than not at all.
+        print(f"isle: setup failed, installing without Isle: {e}", file=sys.stderr)

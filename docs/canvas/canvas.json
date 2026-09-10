@@ -1,0 +1,128 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 560,
+      "title": "Desktop at rest"
+    },
+    {
+      "file": "IslandStates.dc.html",
+      "x": 1360,
+      "y": 0,
+      "w": 960,
+      "h": 820,
+      "title": "Island states, 1:1"
+    },
+    {
+      "file": "ControlPanel.dc.html",
+      "x": 0,
+      "y": 700,
+      "w": 1280,
+      "h": 560,
+      "title": "Control panel · hover unfolds the island"
+    },
+    {
+      "file": "Dashboard.dc.html",
+      "x": 1360,
+      "y": 940,
+      "w": 1280,
+      "h": 560,
+      "title": "Dashboard · the control centre keybind, full screen"
+    },
+    {
+      "file": "Launcher.dc.html",
+      "x": 0,
+      "y": 1400,
+      "w": 1280,
+      "h": 560,
+      "title": "Launcher"
+    },
+    {
+      "file": "Switcher.dc.html",
+      "x": 1360,
+      "y": 1620,
+      "w": 1280,
+      "h": 560,
+      "title": "App switcher"
+    },
+    {
+      "file": "Capture.dc.html",
+      "x": 0,
+      "y": 2100,
+      "w": 1280,
+      "h": 560,
+      "title": "Capture"
+    },
+    {
+      "file": "Lock.dc.html",
+      "x": 1360,
+      "y": 2300,
+      "w": 1280,
+      "h": 560,
+      "title": "Lock"
+    },
+    {
+      "file": "PowerAndAuth.dc.html",
+      "x": 0,
+      "y": 2800,
+      "w": 1280,
+      "h": 1120,
+      "title": "Power menu · Auth dialog"
+    },
+    {
+      "file": "BigPicture.dc.html",
+      "x": 1360,
+      "y": 3000,
+      "w": 1280,
+      "h": 560,
+      "title": "Big Picture"
+    },
+    {
+      "file": "Settings.dc.html",
+      "x": 1440,
+      "y": 3700,
+      "w": 960,
+      "h": 600,
+      "title": "Settings window · Keyboard"
+    },
+    {
+      "file": "Components.dc.html",
+      "x": 0,
+      "y": 4060,
+      "w": 720,
+      "h": 640,
+      "title": "Component kit"
+    },
+    {
+      "file": "DirectionWarm.dc.html",
+      "x": 800,
+      "y": 4060,
+      "w": 560,
+      "h": 300,
+      "title": "Alternate · Warm"
+    },
+    {
+      "file": "DirectionInk.dc.html",
+      "x": 800,
+      "y": 4480,
+      "w": 560,
+      "h": 300,
+      "title": "Alternate · Ink"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -150,
+      "w": 520,
+      "text": "Isle — a desktop shell for Hyprland.\nDark glass, one accent, nothing on screen at rest but the island. Every surface here is the same material and grows out of the pill.\nTokens: docs/DESIGN.md. Alternates at the bottom vary only the island's material."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

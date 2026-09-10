@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  body { margin:0; font-family: Inter, system-ui, sans-serif; color:#F2F2F3; background:#0A0B0D; font-size:13px; font-weight:500; -webkit-font-smoothing:antialiased; }
+  a { color:#7FA6FF; } a:hover { color:#F2F2F3; }
+  .wall { position:relative; overflow:hidden; background:
+    radial-gradient(90% 70% at 78% 115%, #1a2237 0%, rgba(26,34,55,0) 60%),
+    radial-gradient(70% 55% at 8% -10%, #1a1626 0%, rgba(26,22,38,0) 60%),
+    radial-gradient(40% 30% at 55% 40%, #10121a 0%, rgba(16,18,26,0) 70%), #0A0B0D; }
+  .glass { background:rgba(18,19,22,.78); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border:1px solid rgba(255,255,255,.08); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .t2 { color:rgba(242,242,243,.62); } .t3 { color:rgba(242,242,243,.38); }
+  .row { display:flex; align-items:center; }
+  .col { display:flex; flex-direction:column; }
+</style>
+</helmet>
+<div class="wall" style="width:1280px;height:560px;font-size:13px">
+  
+  <div style="position:absolute;inset:0;padding:52px 8px 8px;display:flex;gap:8px;box-sizing:border-box;">
+    <div style="flex:1.4;border-radius:10px;background:#111216;border:1px solid rgba(255,255,255,.14);overflow:hidden;position:relative">
+      <div class="mono" style="padding:14px 16px;font-size:12px;line-height:19px;color:rgba(242,242,243,.62)">
+        <div><span style="color:#7FA6FF">~/dev/isle</span> <span class="t3">›</span> qs -c isle</div>
+        <div class="t3">[isle] island mounted on DP-1</div>
+        <div class="t3">[isle] pipewire: 2 sinks, default WH-1000XM5</div>
+        <div class="t3">[isle] networking: ethernet, connected</div>
+        <div><span style="color:#7FA6FF">~/dev/isle</span> <span class="t3">›</span> <span style="display:inline-block;width:7px;height:14px;background:#F2F2F3;vertical-align:-2px"></span></div>
+      </div>
+    </div>
+    <div style="flex:1;border-radius:10px;background:#131418;border:1px solid rgba(255,255,255,.08);overflow:hidden">
+      <div class="row" style="height:36px;padding:0 12px;gap:8px;border-bottom:1px solid rgba(255,255,255,.08)">
+        <div style="width:20px;height:20px;border-radius:6px;background:#E5642E;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div style="flex:1;height:22px;border-radius:6px;background:#1B1C21;border:1px solid rgba(255,255,255,.08)"></div>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="width:60%;height:14px;border-radius:4px;background:#1B1C21"></div>
+        <div style="width:90%;height:8px;border-radius:4px;background:#1B1C21;opacity:.7"></div>
+        <div style="width:85%;height:8px;border-radius:4px;background:#1B1C21;opacity:.7"></div>
+        <div style="width:70%;height:8px;border-radius:4px;background:#1B1C21;opacity:.7"></div>
+      </div>
+    </div>
+  </div>
+  
+  
+  
+<div style="position:absolute;top:210px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:12px">
+  <div class="glass row" style="gap:10px;padding:10px;border-radius:24px">
+    <div style="padding:8px;border-radius:16px;background:transparent;border:1px solid transparent"><div style="width:48px;height:48px;border-radius:13px;background:#2B2D33;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div></div><div style="padding:8px;border-radius:16px;background:transparent;border:1px solid transparent"><div style="width:48px;height:48px;border-radius:13px;background:#2F7BD6;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div></div><div style="padding:8px;border-radius:16px;background:#1B1C21;border:1px solid rgba(255,255,255,.14)"><div style="width:48px;height:48px;border-radius:13px;background:#E5642E;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div></div><div style="padding:8px;border-radius:16px;background:transparent;border:1px solid transparent"><div style="width:48px;height:48px;border-radius:13px;background:#5865F2;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div></div><div style="padding:8px;border-radius:16px;background:transparent;border:1px solid transparent"><div style="width:48px;height:48px;border-radius:13px;background:#1B2838;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="15" cy="9" r="3"/><circle cx="8.5" cy="15.5" r="2.5"/><path d="m11 14 2-2"/></svg></div></div>
+    <div style="padding:8px;border-radius:16px;opacity:.4"><div style="width:48px;height:48px;border-radius:13px;background:#8B5CF6;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div></div>
+  </div>
+  <div class="col" style="align-items:center;gap:2px">
+    <div style="font-size:13px;font-weight:600">Firefox</div>
+    <div class="t2" style="font-size:12px">Hyprland wiki · 2 windows</div>
+  </div>
+</div>
+</div></x-dc>
+</body>
+</html>

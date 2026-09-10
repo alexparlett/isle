@@ -1,0 +1,14 @@
+[Unit]
+Description=Keyboard profiles (xremap)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+# The shell renders this file from shell/keymap.json and the keyboards it sees.
+ExecStart=/usr/bin/xremap --watch=device %h/.config/isle/xremap.yml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

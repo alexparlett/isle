@@ -1,0 +1,86 @@
+# Rendered from shell/theme/tokens.json by theme/render.py. Edit the tokens, not this.
+[mgr]
+cwd = { fg = "{{accent}}" }
+hovered = { fg = "{{text}}", bg = "{{pressed}}" }
+preview_hovered = { underline = true }
+find_keyword = { fg = "{{warn}}", bold = true }
+find_position = { fg = "{{accent}}", bg = "reset", bold = true }
+marker_copied = { fg = "{{ok}}", bg = "{{ok}}" }
+marker_cut = { fg = "{{danger}}", bg = "{{danger}}" }
+marker_marked = { fg = "{{accent}}", bg = "{{accent}}" }
+marker_selected = { fg = "{{warn}}", bg = "{{warn}}" }
+tab_active = { fg = "{{on_accent}}", bg = "{{accent}}" }
+tab_inactive = { fg = "{{text2}}", bg = "{{raised}}" }
+count_copied = { fg = "{{on_accent}}", bg = "{{ok}}" }
+count_cut = { fg = "{{on_accent}}", bg = "{{danger}}" }
+count_selected = { fg = "{{on_accent}}", bg = "{{warn}}" }
+border_symbol = "│"
+border_style = { fg = "{{hairline_strong}}" }
+
+[mode]
+normal_main = { fg = "{{on_accent}}", bg = "{{accent}}", bold = true }
+normal_alt = { fg = "{{accent}}", bg = "{{raised}}" }
+select_main = { fg = "{{on_accent}}", bg = "{{ok}}", bold = true }
+select_alt = { fg = "{{ok}}", bg = "{{raised}}" }
+unset_main = { fg = "{{on_accent}}", bg = "{{danger}}", bold = true }
+unset_alt = { fg = "{{danger}}", bg = "{{raised}}" }
+
+[status]
+overall = { fg = "{{text2}}", bg = "reset" }
+sep_left = { open = "", close = "" }
+sep_right = { open = "", close = "" }
+progress_label = { fg = "{{text}}", bold = true }
+progress_normal = { fg = "{{accent}}", bg = "{{raised}}" }
+progress_error = { fg = "{{danger}}", bg = "{{raised}}" }
+perm_type = { fg = "{{accent}}" }
+perm_read = { fg = "{{warn}}" }
+perm_write = { fg = "{{danger}}" }
+perm_exec = { fg = "{{ok}}" }
+perm_sep = { fg = "{{text3}}" }
+
+[which]
+mask = { bg = "{{ink}}" }
+cand = { fg = "{{accent}}" }
+rest = { fg = "{{text2}}" }
+desc = { fg = "{{text}}" }
+separator_style = { fg = "{{text3}}" }
+
+[input]
+border = { fg = "{{accent}}" }
+title = {}
+value = {}
+selected = { reversed = true }
+
+[cmp]
+border = { fg = "{{accent}}" }
+
+[tasks]
+border = { fg = "{{accent}}" }
+title = {}
+hovered = { fg = "{{text}}", bg = "{{pressed}}" }
+
+[pick]
+border = { fg = "{{accent}}" }
+active = { fg = "{{accent}}", bold = true }
+inactive = {}
+
+[confirm]
+border = { fg = "{{accent}}" }
+title = { fg = "{{accent}}" }
+btn_yes = { reversed = true }
+btn_no = {}
+
+[notify]
+title_info = { fg = "{{ok}}" }
+title_warn = { fg = "{{warn}}" }
+title_error = { fg = "{{danger}}" }
+
+[filetype]
+rules = [
+  { mime = "image/*", fg = "{{term6}}" },
+  { mime = "{audio,video}/*", fg = "{{term5}}" },
+  { mime = "application/{zip,rar,7z*,tar,gzip,bzip*,xz,zstd}", fg = "{{term3}}" },
+  { name = "*", is = "orphan", fg = "{{danger}}" },
+  { name = "*", is = "exec", fg = "{{ok}}" },
+  { name = "*/", fg = "{{accent}}" },
+]

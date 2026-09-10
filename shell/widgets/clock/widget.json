@@ -1,0 +1,6 @@
+{ "id": "clock", "name": "Clock", "glyph": "clock", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [],
+  "settings": [
+    { "key": "format", "label": "Clock", "type": "choice", "default": "24h", "options": [["24h", "24-hour"], ["12h", "12-hour"]] },
+    { "key": "seconds", "label": "Seconds", "type": "toggle", "default": false },
+    { "key": "week", "label": "Week strip", "type": "toggle", "default": true }
+  ] }

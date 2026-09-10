@@ -1,0 +1,79 @@
+pragma Singleton
+import QtQuick
+import Quickshell
+import Quickshell.Io
+
+// Preferences: ~/.config/isle/prefs.json, written on every change and reloaded when edited by hand.
+Singleton {
+    id: root
+
+    readonly property string dir: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/isle"
+    readonly property alias p: adapter
+
+    Process { command: ["mkdir", "-p", root.dir]; running: true }
+
+    IpcHandler {
+        target: "prefs"
+        function set(key: string, value: string): void {
+            if (adapter[key] === undefined) return;
+            const cur = adapter[key];
+            adapter[key] = typeof cur === "boolean" ? value === "true" : typeof cur === "number" ? Number(value) : value;
+        }
+        // Appends to a list preference, once.
+        function add(key: string, value: string): void {
+            const cur = adapter[key];
+            if (!Array.isArray(cur) || cur.indexOf(value) >= 0) return;
+            adapter[key] = cur.concat([value]);
+        }
+    }
+
+    FileView {
+        id: file
+        path: root.dir + "/prefs.json"
+        watchChanges: true
+        onFileChanged: reload()
+        onAdapterUpdated: writeAdapter()
+        onLoadFailed: error => { if (error === FileViewError.FileNotFound) writeAdapter(); }
+
+        adapter: JsonAdapter {
+            id: adapter
+            property bool dnd: false
+            property bool reducedMotion: false
+            property string wallpaper: ""
+            property var wallpaperFolders: []
+            property bool autoMount: true
+            property bool nightLight: false
+            property int nightLightTemperature: 4000
+            property var dashboard: []
+            property int idleDim: 300
+            property int idleLock: 600
+            property int idleScreenOff: 900
+            property var keyboardProfiles: ({})
+            property string accent: ""
+            property bool gameAuto: true
+            property bool gameTearing: false
+            property bool gamescope: false
+            property var launchCounts: ({})
+            property var mutedApps: []
+            property var knownApps: []
+            property int captureDelay: 0
+            property bool captureCursor: false
+            property bool captureAudio: false
+            property string theme: "dark"
+            // Monitor name the shell's surfaces sit on; empty follows focus.
+            property string primaryMonitor: ""
+            property bool shellFollowsFocus: false
+            property var monitors: ({})
+            property bool monitorGrouped: true
+            // Where each app's window last sat, by class: [x, y, w, h].
+            property var windowPlaces: ({})
+            property var input: ({})
+            property var widgetSettings: ({})
+            property var keymapOverrides: ({})
+            property var clipPins: []
+            property string terminal: ""
+            property bool clock12: false
+            property bool titleBars: true
+        }
+    }
+}

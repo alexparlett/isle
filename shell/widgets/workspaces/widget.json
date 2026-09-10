@@ -1,0 +1,1 @@
+{ "id": "workspaces", "name": "Workspaces", "glyph": "layout-grid", "sizes": ["3x1", "6x1"], "default": "3x1", "requires": [] }

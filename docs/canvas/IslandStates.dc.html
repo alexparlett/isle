@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  body { margin:0; font-family: Inter, system-ui, sans-serif; color:#F2F2F3; background:#0A0B0D; font-size:13px; font-weight:500; -webkit-font-smoothing:antialiased; }
+  a { color:#7FA6FF; } a:hover { color:#F2F2F3; }
+  .wall { position:relative; overflow:hidden; background:
+    radial-gradient(90% 70% at 78% 115%, #1a2237 0%, rgba(26,34,55,0) 60%),
+    radial-gradient(70% 55% at 8% -10%, #1a1626 0%, rgba(26,22,38,0) 60%),
+    radial-gradient(40% 30% at 55% 40%, #10121a 0%, rgba(16,18,26,0) 70%), #0A0B0D; }
+  .glass { background:rgba(18,19,22,.78); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border:1px solid rgba(255,255,255,.08); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .t2 { color:rgba(242,242,243,.62); } .t3 { color:rgba(242,242,243,.38); }
+  .row { display:flex; align-items:center; }
+  .col { display:flex; flex-direction:column; }
+</style>
+</helmet>
+<div class="wall" style="width:960px;height:820px;padding:20px 28px;box-sizing:border-box">
+  <div style="font-size:15px;font-weight:600;margin-bottom:4px">The island</div>
+  <div class="t2" style="font-size:12px;margin-bottom:8px">Top centre of the focused monitor. Every other surface grows out of it.</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Rest</div><div class="t3" style="font-size:11px;font-weight:500">30px · dots, clock, glyphs only when they say something</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:30px;padding:0 12px;gap:10px;border-radius:999px;box-sizing:border-box;"><div class="row" style="gap:5px"><div style="width:6px;height:6px;border-radius:999px;background:#7FA6FF;flex-shrink:0"></div><div style="width:6px;height:6px;border-radius:999px;background:rgba(242,242,243,.38);flex-shrink:0"></div><div style="width:6px;height:6px;border-radius:999px;background:rgba(242,242,243,.38);flex-shrink:0"></div></div>
+   <div class="tnum" style="font-size:13px;font-weight:500">14:32</div>
+   <div class="row" style="gap:8px;color:rgba(242,242,243,.62)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg></div></div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Hover</div><div class="t3" style="font-size:11px;font-weight:500">the pill unfolds into the control panel; this is its top band (see Control panel)</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:44px;padding:0 16px 0 12px;gap:24px;border-radius:22px;box-sizing:border-box">
+  <div class="row" style="gap:12px"><div class="row" style="gap:5px;opacity:1"><div style="width:20px;height:20px;border-radius:6px;background:#2B2D33;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div><div style="width:20px;height:20px;border-radius:6px;background:#2F7BD6;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div></div><div class="row" style="gap:5px;opacity:0.42"><div style="width:20px;height:20px;border-radius:6px;background:#E5642E;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div></div><div class="row" style="gap:5px;opacity:0.42"><div style="width:20px;height:20px;border-radius:6px;background:#5865F2;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div style="width:20px;height:20px;border-radius:6px;background:#1B2838;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="15" cy="9" r="3"/><circle cx="8.5" cy="15.5" r="2.5"/><path d="m11 14 2-2"/></svg></div></div></div>
+  <div class="row" style="gap:8px"><span class="tnum" style="font-size:15px;font-weight:600">14:32</span><span class="t3">·</span><span class="t2" style="font-size:13px">Tue 9 Sep</span></div>
+  <div class="row" style="gap:14px;color:rgba(242,242,243,.62)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg><span class="row" style="gap:4px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="tnum" style="font-size:12px;font-weight:600;color:#F2F2F3">3</span></span></div>
+</div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Notification</div><div class="t3" style="font-size:11px;font-weight:500">5s, click opens, swipe dismisses</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:52px;padding:0 16px 0 10px;gap:12px;border-radius:26px;box-sizing:border-box;width:380px">
+  <div style="width:30px;height:30px;border-radius:8px;background:#5865F2;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+  <div class="col" style="flex:1;gap:1px;min-width:0">
+    <div class="row" style="justify-content:space-between"><span style="font-size:13px;font-weight:600">Discord</span><span class="t3" style="font-size:11px">now</span></div>
+    <div class="t2" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">sam: ready when you are, lobby's up</div>
+  </div>
+</div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Volume</div><div class="t3" style="font-size:11px;font-weight:500">the OSD; brightness the same</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:30px;padding:0 12px;gap:10px;border-radius:999px;box-sizing:border-box;"><span style="color:rgba(242,242,243,.62)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></span><div class="row" style="gap:8px;width:120px">
+    <div style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.14);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:64%;border-radius:2px;background:#7FA6FF"></div></div>
+    </div><span class="mono tnum t2" style="font-size:11px">64</span></div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Media</div><div class="t3" style="font-size:11px;font-weight:500">art, title, transport</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:30px;padding:0 12px;gap:10px;border-radius:999px;box-sizing:border-box;"><div style="width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,#7A4FBF,#E2A15A);flex-shrink:0"></div>
+   <div class="row" style="gap:6px;font-size:13px"><span>Nightcall</span><span class="t3">·</span><span class="t2">Kavinsky</span></div>
+   <span style="color:rgba(242,242,243,.62)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></span></div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Recording</div><div class="t3" style="font-size:11px;font-weight:500">live dot, timer, stop</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:30px;padding:0 12px;gap:10px;border-radius:999px;box-sizing:border-box;"><div style="width:8px;height:8px;border-radius:999px;background:#FF453A;flex-shrink:0"></div><span class="mono tnum" style="font-size:12px">00:42</span><span class="t3">·</span><span class="t2" style="font-size:12px">Recording</span><span style="color:#F2F2F3"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></span></div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Drive inserted</div><div class="t3" style="font-size:11px;font-weight:500">mount or eject in place</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:30px;padding:0 12px;gap:10px;border-radius:999px;box-sizing:border-box;"><span style="color:rgba(242,242,243,.62)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg></span><span>SanDisk 64 GB</span>
+   <div class="row" style="gap:6px;margin-left:4px">
+     <div style="height:20px;padding:0 9px;border-radius:10px;background:#7FA6FF;color:#0A0B0D;font-size:11px;font-weight:600;display:flex;align-items:center">Mount</div>
+     <div style="height:20px;padding:0 9px;border-radius:10px;background:#1B1C21;border:1px solid rgba(255,255,255,.08);font-size:11px;font-weight:600;display:flex;align-items:center">Eject</div>
+   </div></div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Focus mode</div><div class="t3" style="font-size:11px;font-weight:500">clock and timer, nothing else</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:30px;padding:0 12px;gap:10px;border-radius:999px;box-sizing:border-box;"><span style="color:#7FA6FF"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="tnum" style="font-size:13px">14:32</span><span class="t3">·</span><span class="t2 tnum" style="font-size:12px">Focus 24:10</span></div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Auth pending</div><div class="t3" style="font-size:11px;font-weight:500">click opens the dialog</div></div>
+  <div style="display:flex;justify-content:center"><div class="glass row" style="height:30px;padding:0 12px;gap:10px;border-radius:999px;box-sizing:border-box;"><span style="color:#F2C94C"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span><span>Authentication required</span><span class="t2" style="font-size:12px">LACT</span></div></div>
+</div>
+  
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="col" style="gap:2px"><div style="font-size:13px;font-weight:600">Game mode</div><div class="t3" style="font-size:11px;font-weight:500">island unmapped; 4px hot zone at the top edge peeks it</div></div>
+  <div style="display:flex;justify-content:center"><div style="width:380px;height:30px;position:relative"><div style="position:absolute;left:0;right:0;top:0;height:4px;border-radius:2px;background:rgba(255,255,255,.14)"></div><div class="t3" style="position:absolute;left:0;right:0;top:12px;text-align:center;font-size:11px">nothing on screen</div></div></div>
+</div>
+</div></x-dc>
+</body>
+</html>

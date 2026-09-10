@@ -1,0 +1,21 @@
+# Written at run time by the shell and theme/render.py.
+hypr/generated/*.lua
+theme/__pycache__/
+
+# Backups install.sh makes when it finds a real file where a symlink should go.
+*.bak-*
+
+# Editor and tooling state.
+.idea/
+.vscode/
+.claude/
+
+# The test VM: the host key handed over the 9p share, the install log, the screenshots.
+.vm-key.pub
+.vm-install.log
+shots/
+
+# Built by hyprpm from plugins/.
+plugins/*/*.so
+plugins/isle-windows/*.so
+__pycache__/

@@ -1,0 +1,87 @@
+# Everything the shell calls, one name per line. tools/install.sh --packages feeds this to pacman.
+# Comments and blank lines are skipped. AUR names are listed at the end for paru or yay.
+
+# Compositor and shell
+hyprland
+quickshell
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+kitty
+polkit
+xdg-utils
+xdg-user-dirs
+dex
+zenity
+glib2
+python
+python-gobject
+python-pillow
+
+# Sound, network, devices, power
+pipewire
+pipewire-pulse
+wireplumber
+networkmanager
+bluez
+bluez-utils
+upower
+power-profiles-daemon
+udisks2
+brightnessctl
+ddcutil
+gnome-disk-utility
+hyprsunset
+accountsservice
+
+# Keyring and SSH
+gnome-keyring
+libsecret
+gcr-4
+openssh
+openssl
+
+# Launcher, clipboard, capture
+fd
+libqalculate
+cliphist
+wl-clipboard
+grim
+slurp
+wf-recorder
+satty
+hyprpicker
+
+# Files
+yazi
+thunar
+thunar-volman
+mousepad
+gvfs
+tumbler
+
+# Monitor and games
+btop
+nethogs
+lact
+gamemode
+lib32-gamemode   # multilib, for 32-bit games
+gamescope
+
+# Printing and updates
+cups
+pacman-contrib
+
+# Look: fonts, icons, cursor, app themes
+inter-font
+ttf-jetbrains-mono
+papirus-icon-theme
+adw-gtk-theme
+qt6ct
+qt6-wayland
+qt5-wayland   # every Qt app is told to run on Wayland; Qt 5 ones need this plugin
+
+# AUR (paru -S): xremap-hypr-bin bibata-cursor-theme coolercontrol
+# Optional: gnome-disk-utility (Disks button on the Storage page), nvidia-utils (nvidia-smi on NVIDIA),
+#           steam heroic-games-launcher-bin lutris (Big Picture)
+proton-vpn-cli
+rsync

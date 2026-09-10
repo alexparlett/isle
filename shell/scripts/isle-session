@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Runs the shell inside the compositor's session, restarting it if it dies.
+#
+# Started by hyprland.lua's start hook, so the process sits in the logind session scope:
+# polkit then treats it as the active session, which udisks, NetworkManager and logind require.
+# A systemd user unit would not be (D17).
+
+SHELL_PATH="${ISLE_SHELL_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/isle}"
+LOG="${XDG_RUNTIME_DIR:-/tmp}/isle.log"
+export QT_QPA_PLATFORM=wayland
+
+# One shell per session.
+if [[ -f "$XDG_RUNTIME_DIR/isle.pid" ]] && kill -0 "$(cat "$XDG_RUNTIME_DIR/isle.pid")" 2>/dev/null; then
+    exit 0
+fi
+: > "$LOG"
+echo $$ > "$XDG_RUNTIME_DIR/isle.pid"
+trap 'rm -f "$XDG_RUNTIME_DIR/isle.pid"; kill "$child" 2>/dev/null; exit 0' TERM INT
+
+failures=0
+while true; do
+    start=$SECONDS
+    qs -p "$SHELL_PATH" >> "$LOG" 2>&1 &
+    child=$!
+    wait "$child"
+    code=$?
+    # Six quick deaths in a row means a broken config: stop looping and leave the log.
+    if (( SECONDS - start < 5 )); then failures=$((failures + 1)); else failures=0; fi
+    echo "[isle-session] shell exited ($code) after $((SECONDS - start))s" >> "$LOG"
+    (( failures >= 6 )) && { echo "[isle-session] giving up: see $LOG" >> "$LOG"; break; }
+    sleep 1
+done
+rm -f "$XDG_RUNTIME_DIR/isle.pid"

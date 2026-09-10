@@ -1,0 +1,557 @@
+{
+    "_": "One source for every shortcut. `hypr` is the chord Hyprland binds (SUPER = Win or Cmd). `win` and `mac` are what the user presses; where `mac` differs, xremap turns it into `hypr` on the Mac keyboard. `mac` chords that reach Hyprland as SUPER+key are excluded from the Cmd-to-Ctrl remap.",
+    "actions": [
+        {
+            "id": "launcher",
+            "label": "Launcher",
+            "hypr": "SUPER + space",
+            "win": "Win Space",
+            "mac": "Cmd Space",
+            "ipc": [
+                "surfaces",
+                "launcher",
+                "toggle -"
+            ]
+        },
+        {
+            "id": "switcher",
+            "label": "App switcher (hold)",
+            "hypr": "SUPER + Tab",
+            "win": "Win Tab",
+            "mac": "Cmd Tab",
+            "ipc": [
+                "switcher",
+                "next"
+            ]
+        },
+        {
+            "id": "switcherBack",
+            "label": "App switcher, back",
+            "hypr": "SUPER + SHIFT + Tab",
+            "win": "Win Shift Tab",
+            "mac": "Cmd Shift Tab",
+            "ipc": [
+                "switcher",
+                "prev"
+            ]
+        },
+        {
+            "id": "altSwitcher",
+            "label": "App switcher (Windows)",
+            "hypr": "ALT + Tab",
+            "win": "Alt Tab",
+            "mac": "",
+            "ipc": [
+                "switcher",
+                "next"
+            ],
+            "profile": "win"
+        },
+        {
+            "id": "altSwitcherBack",
+            "label": "App switcher, back (Windows)",
+            "hypr": "ALT + SHIFT + Tab",
+            "win": "Alt Shift Tab",
+            "mac": "",
+            "ipc": [
+                "switcher",
+                "prev"
+            ],
+            "profile": "win"
+        },
+        {
+            "id": "cycleApp",
+            "label": "Cycle windows of this app",
+            "hypr": "ALT + grave",
+            "win": "Alt `",
+            "mac": "Cmd `",
+            "ipc": [
+                "switcher",
+                "cycleApp"
+            ],
+            "macHypr": "SUPER + grave"
+        },
+        {
+            "id": "overview",
+            "label": "Mission Control",
+            "hypr": "SUPER + CTRL + up",
+            "win": "Win Ctrl Up",
+            "mac": "Ctrl Up",
+            "ipc": [
+                "surfaces",
+                "overview",
+                "toggle"
+            ]
+        },
+        {
+            "id": "wsPrev",
+            "label": "Previous desktop",
+            "hypr": "SUPER + CTRL + left",
+            "win": "Win Ctrl Left",
+            "mac": "Ctrl Left",
+            "lua": "hl.dsp.focus({ workspace = \"e-1\" })"
+        },
+        {
+            "id": "wsNext",
+            "label": "Next desktop",
+            "hypr": "SUPER + CTRL + right",
+            "win": "Win Ctrl Right",
+            "mac": "Ctrl Right",
+            "lua": "hl.dsp.focus({ workspace = \"e+1\" })"
+        },
+        {
+            "id": "ws",
+            "label": "Desktop 1 to 9",
+            "hypr": "SUPER + {n}",
+            "win": "Win 1\u20139",
+            "mac": "Ctrl 1\u20139",
+            "lua": "hl.dsp.focus({ workspace = {n} })",
+            "range": 9
+        },
+        {
+            "id": "wsMove",
+            "label": "Move window to desktop",
+            "hypr": "SUPER + SHIFT + {n}",
+            "win": "Win Shift 1\u20139",
+            "mac": "Ctrl Shift 1\u20139",
+            "lua": "hl.dsp.window.move({ workspace = {n} })",
+            "range": 9
+        },
+        {
+            "id": "snapLeft",
+            "label": "Snap window left",
+            "hypr": "SUPER + left",
+            "win": "Win Left",
+            "mac": "Cmd Opt Left",
+            "macHypr": "SUPER + ALT + left",
+            "cmd": "hyprctl isle snap left"
+        },
+        {
+            "id": "snapRight",
+            "label": "Snap window right",
+            "hypr": "SUPER + right",
+            "win": "Win Right",
+            "mac": "Cmd Opt Right",
+            "macHypr": "SUPER + ALT + right",
+            "cmd": "hyprctl isle snap right"
+        },
+        {
+            "id": "snapUp",
+            "label": "Maximise window",
+            "hypr": "SUPER + up",
+            "win": "Win Up",
+            "mac": "Cmd Opt Up",
+            "macHypr": "SUPER + ALT + up",
+            "cmd": "hyprctl isle snap up"
+        },
+        {
+            "id": "snapDown",
+            "label": "Restore window",
+            "hypr": "SUPER + down",
+            "win": "Win Down",
+            "mac": "Cmd Opt Down",
+            "macHypr": "SUPER + ALT + down",
+            "cmd": "hyprctl isle restore"
+        },
+        {
+            "id": "close",
+            "label": "Close window",
+            "hypr": "SUPER + Q",
+            "win": "Win Q",
+            "mac": "Cmd Q",
+            "ipc": [
+                "windows",
+                "close"
+            ]
+        },
+        {
+            "id": "closeFront",
+            "label": "Close window (switcher)",
+            "hypr": "SUPER + W",
+            "win": "Win W",
+            "mac": "Cmd W",
+            "ipc": [
+                "switcher",
+                "closeFront"
+            ],
+            "opts": "{ non_consuming = true }",
+            "hidden": true
+        },
+        {
+            "id": "closeAlt",
+            "label": "Close window (Windows)",
+            "hypr": "ALT + F4",
+            "win": "Alt F4",
+            "mac": "",
+            "profile": "win",
+            "ipc": [
+                "windows",
+                "close"
+            ]
+        },
+        {
+            "id": "minimise",
+            "label": "Minimise",
+            "hypr": "SUPER + M",
+            "win": "Win M",
+            "mac": "Cmd M",
+            "ipc": [
+                "switcher",
+                "hide"
+            ]
+        },
+        {
+            "id": "fullscreen",
+            "label": "Fullscreen",
+            "hypr": "SUPER + SHIFT + F",
+            "win": "Win Shift F",
+            "mac": "Cmd Shift F",
+            "lua": "hl.dsp.window.fullscreen({ mode = 0 })"
+        },
+        {
+            "id": "pin",
+            "label": "Pin window on every desktop",
+            "hypr": "SUPER + ALT + P",
+            "win": "Win Alt P",
+            "mac": "Cmd Option P",
+            "lua": "function() local w = hl.get_active_window(); if w and not w.floating then hl.dispatch(hl.dsp.window.float()) end; hl.dispatch(hl.dsp.window.pin()) end"
+        },
+        {
+            "id": "terminal",
+            "label": "Terminal",
+            "hypr": "SUPER + Return",
+            "win": "Win Return",
+            "mac": "Cmd Return",
+            "lua": "hl.dsp.exec_cmd(terminal)"
+        },
+        {
+            "id": "dropdown",
+            "label": "Dropdown terminal",
+            "hypr": "SUPER + grave",
+            "win": "Win `",
+            "mac": "Cmd Option `",
+            "ipc": [
+                "terminal",
+                "dropdown"
+            ],
+            "macHypr": "SUPER + ALT + grave"
+        },
+        {
+            "id": "files",
+            "label": "Files",
+            "hypr": "SUPER + E",
+            "win": "Win E",
+            "mac": "Cmd Shift E",
+            "lua": "hl.dsp.exec_cmd(fileManager)",
+            "macHypr": "SUPER + SHIFT + E"
+        },
+        {
+            "id": "filesGui",
+            "label": "Files (Thunar)",
+            "hypr": "SUPER + ALT + E",
+            "win": "Win Alt E",
+            "mac": "Cmd Option E",
+            "lua": "hl.dsp.exec_cmd(\"thunar\")"
+        },
+        {
+            "id": "clipboard",
+            "label": "Clipboard",
+            "hypr": "SUPER + V",
+            "win": "Win V",
+            "mac": "Cmd Shift V",
+            "ipc": [
+                "surfaces",
+                "launcher",
+                "open :"
+            ],
+            "macHypr": "SUPER + SHIFT + V"
+        },
+        {
+            "id": "printScreen",
+            "label": "Screenshot a region",
+            "hypr": "Print",
+            "win": "PrtSc",
+            "mac": "PrtSc",
+            "ipc": [
+                "capture",
+                "shoot",
+                "region"
+            ]
+        },
+        {
+            "id": "printScreenBar",
+            "label": "Capture bar",
+            "hypr": "SHIFT + Print",
+            "win": "Shift PrtSc",
+            "mac": "Shift PrtSc",
+            "ipc": [
+                "surfaces",
+                "capture",
+                "toggle region"
+            ]
+        },
+        {
+            "id": "captureBar",
+            "label": "Capture",
+            "hypr": "SUPER + SHIFT + S",
+            "win": "Win Shift S",
+            "mac": "Cmd Shift 5",
+            "ipc": [
+                "surfaces",
+                "capture",
+                "toggle region"
+            ],
+            "macHypr": "SUPER + SHIFT + 5"
+        },
+        {
+            "id": "captureRegion",
+            "label": "Screenshot region (Mac)",
+            "hypr": "SUPER + SHIFT + 4",
+            "win": "",
+            "mac": "Cmd Shift 4",
+            "ipc": [
+                "capture",
+                "shoot",
+                "region"
+            ],
+            "profile": "mac"
+        },
+        {
+            "id": "captureScreen",
+            "label": "Screenshot screen",
+            "hypr": "CTRL + Print",
+            "win": "Ctrl PrtSc",
+            "mac": "Cmd Shift 3",
+            "ipc": [
+                "capture",
+                "shoot",
+                "screen"
+            ],
+            "macHypr": "SUPER + SHIFT + 3"
+        },
+        {
+            "id": "record",
+            "label": "Record",
+            "hypr": "SUPER + SHIFT + R",
+            "win": "Win Shift R",
+            "mac": "Cmd Shift R",
+            "ipc": [
+                "capture",
+                "record",
+                "-"
+            ]
+        },
+        {
+            "id": "pick",
+            "label": "Colour picker",
+            "hypr": "SUPER + SHIFT + P",
+            "win": "Win Shift P",
+            "mac": "Cmd Shift P",
+            "ipc": [
+                "capture",
+                "pick"
+            ]
+        },
+        {
+            "id": "dashboard",
+            "label": "Dashboard",
+            "hypr": "SUPER + A",
+            "win": "Win A",
+            "mac": "Cmd Shift C",
+            "ipc": [
+                "surfaces",
+                "dashboard",
+                "toggle"
+            ],
+            "macHypr": "SUPER + SHIFT + C"
+        },
+        {
+            "id": "dashboardN",
+            "label": "Dashboard (Windows)",
+            "hypr": "SUPER + N",
+            "win": "Win N",
+            "mac": "",
+            "ipc": [
+                "surfaces",
+                "dashboard",
+                "toggle"
+            ],
+            "profile": "win"
+        },
+        {
+            "id": "settings",
+            "label": "Settings",
+            "hypr": "SUPER + comma",
+            "win": "Win ,",
+            "mac": "Cmd ,",
+            "ipc": [
+                "surfaces",
+                "settings",
+                "toggle"
+            ]
+        },
+        {
+            "id": "settingsI",
+            "label": "Settings (Windows)",
+            "hypr": "SUPER + I",
+            "win": "Win I",
+            "mac": "",
+            "ipc": [
+                "surfaces",
+                "settings",
+                "toggle"
+            ],
+            "profile": "win"
+        },
+        {
+            "id": "monitor",
+            "label": "Monitor",
+            "hypr": "CTRL + SHIFT + Escape",
+            "win": "Ctrl Shift Esc",
+            "mac": "Cmd Shift M",
+            "ipc": [
+                "surfaces",
+                "monitor",
+                "toggle"
+            ],
+            "macHypr": "SUPER + SHIFT + M"
+        },
+        {
+            "id": "power",
+            "label": "Power menu",
+            "hypr": "SUPER + X",
+            "win": "Win X",
+            "mac": "Cmd Esc",
+            "ipc": [
+                "surfaces",
+                "power",
+                "toggle"
+            ],
+            "macHypr": "SUPER + Escape"
+        },
+        {
+            "id": "powerEsc",
+            "label": "Power menu (Windows)",
+            "hypr": "SUPER + Escape",
+            "win": "Win Esc",
+            "mac": "",
+            "ipc": [
+                "surfaces",
+                "power",
+                "toggle"
+            ],
+            "profile": "win"
+        },
+        {
+            "id": "lock",
+            "label": "Lock",
+            "hypr": "SUPER + L",
+            "win": "Win L",
+            "mac": "Cmd Ctrl Q",
+            "ipc": [
+                "lock",
+                "lock"
+            ],
+            "macHypr": "SUPER + CTRL + Q"
+        },
+        {
+            "id": "dnd",
+            "label": "Do not disturb",
+            "hypr": "SUPER + SHIFT + D",
+            "win": "Win Shift D",
+            "mac": "Cmd Shift D",
+            "ipc": [
+                "island",
+                "dnd",
+                "toggle"
+            ]
+        },
+        {
+            "id": "gameMode",
+            "label": "Game mode",
+            "hypr": "SUPER + SHIFT + G",
+            "win": "Win Shift G",
+            "mac": "Cmd Shift G",
+            "ipc": [
+                "modes",
+                "toggle",
+                "game"
+            ]
+        },
+        {
+            "id": "bigPicture",
+            "label": "Big Picture",
+            "hypr": "SUPER + SHIFT + B",
+            "win": "Win Shift B",
+            "mac": "Cmd Shift B",
+            "ipc": [
+                "modes",
+                "toggle",
+                "bigpicture"
+            ]
+        },
+        {
+            "id": "logout",
+            "label": "Log out of the compositor",
+            "hypr": "SUPER + SHIFT + E",
+            "win": "Win Shift E",
+            "mac": "",
+            "lua": "hl.dsp.exit()",
+            "profile": "win"
+        }
+    ],
+    "media": [
+        {
+            "key": "XF86AudioRaiseVolume",
+            "cmd": "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+",
+            "repeat": true
+        },
+        {
+            "key": "XF86AudioLowerVolume",
+            "cmd": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
+            "repeat": true
+        },
+        {
+            "key": "XF86AudioMute",
+            "cmd": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+        },
+        {
+            "key": "XF86AudioMicMute",
+            "cmd": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+        },
+        {
+            "key": "XF86MonBrightnessUp",
+            "cmd": "brightnessctl -q -c backlight set 5%+",
+            "repeat": true
+        },
+        {
+            "key": "XF86MonBrightnessDown",
+            "cmd": "brightnessctl -q -c backlight set 5%-",
+            "repeat": true
+        },
+        {
+            "key": "XF86AudioPlay",
+            "cmd": "playerctl play-pause"
+        },
+        {
+            "key": "XF86AudioPause",
+            "cmd": "playerctl play-pause"
+        },
+        {
+            "key": "XF86AudioNext",
+            "cmd": "playerctl next"
+        },
+        {
+            "key": "XF86AudioPrev",
+            "cmd": "playerctl previous"
+        }
+    ],
+    "macTerminalIds": [
+        "kitty",
+        "foot",
+        "footclient",
+        "Alacritty",
+        "com.mitchellh.ghostty",
+        "org.wezfurlong.wezterm"
+    ]
+}

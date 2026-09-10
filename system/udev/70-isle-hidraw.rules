@@ -1,0 +1,3 @@
+# The logged-in user may talk to keyboards over raw HID, which is how the browser-based
+# configurators work (Keychron Launcher, VIA, Vial): the same rule the VIA package ships.
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", TAG+="uaccess"

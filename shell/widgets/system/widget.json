@@ -1,0 +1,1 @@
+{ "id": "system", "name": "System", "glyph": "cpu", "sizes": ["3x2", "6x2"], "default": "3x2", "requires": [] }

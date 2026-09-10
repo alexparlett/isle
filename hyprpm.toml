@@ -1,0 +1,19 @@
+[repository]
+name = "isle"
+authors = ["Alex Parlett"]
+
+[hyprbars]
+description = "hyprbars, with no bar over a window whose client asked for its own decorations"
+authors = ["Vaxry", "Alex Parlett"]
+output = "plugins/hyprbars/hyprbars.so"
+build = [
+    "make -C plugins/hyprbars all",
+]
+
+[isle-windows]
+description = "Drag-to-edge tiling, and move and resize requests from X11 clients, for the Isle shell"
+authors = ["Alex Parlett"]
+output = "plugins/isle-windows/isle-windows.so"
+build = [
+    "make -C plugins/isle-windows all",
+]

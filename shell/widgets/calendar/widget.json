@@ -1,0 +1,1 @@
+{"id": "calendar", "name": "Calendar", "category": "Shell", "description": "The month, with today marked; arrows browse", "version": "1.0.0", "author": {"name": "Isle"}, "glyph": "calendar-clock", "sizes": ["3x4", "4x4", "3x6", "4x6"], "default": "3x4", "requires": []}

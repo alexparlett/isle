@@ -273,7 +273,8 @@ Built in, in the default layout:
 
 | widget | shows |
 |---|---|
-| Clock | time and date; the week as a strip, or the whole month with browsing when four rows tall |
+| Clock | time, date and the week as a strip |
+| Calendar | the month with today marked; arrows browse, Today comes back |
 | Media | art, track, transport |
 | Desktops | each desktop with its app icons; click to go |
 | Notifications | grouped by app, inline actions, clear all |

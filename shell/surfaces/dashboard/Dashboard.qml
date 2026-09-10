@@ -206,11 +206,14 @@ PanelWindow {
         Repeater {
             model: Widgets.layout
             WidgetCard {
+                id: widgetCard
                 required property var modelData
                 required property int index
                 entry: modelData
-                x: root.margin + modelData.x * (root.cellW + root.gutter)
-                y: root.gridTop + modelData.y * (root.cellH + root.gutter)
+                // The grid position, plus the live drag offset while dragging; the binding stays intact so a
+                // release snaps back to the cell.
+                x: root.margin + modelData.x * (root.cellW + root.gutter) + (dragging ? dragDX : 0)
+                y: root.gridTop + modelData.y * (root.cellH + root.gutter) + (dragging ? dragDY : 0)
                 width: modelData.w * root.cellW + (modelData.w - 1) * root.gutter
                 height: modelData.h * root.cellH + (modelData.h - 1) * root.gutter
                 editing: root.editing

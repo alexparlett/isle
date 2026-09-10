@@ -18,6 +18,9 @@ Glass {
 
     readonly property bool focused: editing && dashboard && dashboard.focusKey === entry.key
     property bool resizing: false
+    // The live drag offset from the card's grid position, in pixels; zero when not dragging.
+    property real dragDX: 0
+    property real dragDY: 0
     radius: Theme.radiusPanel - 2
     visible: manifest !== null
     border.color: focused ? Theme.accent : editing ? Theme.hairlineStrong : Theme.hairline
@@ -28,29 +31,40 @@ Glass {
     // Edit mode: the whole card drags; on release it snaps to the nearest cell that fits, or springs back.
     // A click on the card's own body stays on the card; only the backdrop closes the dashboard.
     MouseArea { anchors.fill: parent; enabled: !root.editing; onClicked: {} }
+    // The card keeps its grid-position binding; a drag adds an offset the delegate applies, so on release
+    // the binding snaps it to its cell. Mouse coordinates are read in the grid's frame, not the card's own
+    // (which moves under the cursor), so the offset does not feed back into itself.
     MouseArea {
         id: dragArea
         anchors.fill: parent
         enabled: root.editing
         z: 3
         cursorShape: root.editing ? (root.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ArrowCursor
-        property real startX: 0
-        property real startY: 0
-        property real originX: 0
-        property real originY: 0
-        onPressed: mouse => { startX = mouse.x; startY = mouse.y; originX = root.x; originY = root.y; root.dragging = true; root.dashboard.focusKey = root.entry.key; }
+        property real pressX: 0
+        property real pressY: 0
+        onPressed: mouse => {
+            const p = mapToItem(root.parent, mouse.x, mouse.y);
+            pressX = p.x; pressY = p.y;
+            root.dragDX = 0; root.dragDY = 0;
+            root.dragging = true;
+            root.dashboard.focusKey = root.entry.key;
+        }
         onPositionChanged: mouse => {
             if (!root.dragging) return;
-            root.x = originX + (mouse.x - startX); root.y = originY + (mouse.y - startY);
+            const p = mapToItem(root.parent, mouse.x, mouse.y);
+            root.dragDX = p.x - pressX;
+            root.dragDY = p.y - pressY;
             const cell = root.dashboard.cellAt(root.x, root.y);
             root.dashboard.previewMove(root.entry.key, cell.x, cell.y);
         }
         onReleased: {
-            root.dragging = false;
+            if (!root.dragging) return;
             const cell = root.dashboard.cellAt(root.x, root.y);
-            if (!root.dashboard.dropMove(root.entry.key, cell.x, cell.y)) { root.x = originX; root.y = originY; }
+            root.dashboard.dropMove(root.entry.key, cell.x, cell.y);
+            root.dragging = false;
+            root.dragDX = 0; root.dragDY = 0;
         }
-        onCanceled: { root.dragging = false; root.dashboard.preview = null; root.x = originX; root.y = originY; }
+        onCanceled: { root.dragging = false; root.dragDX = 0; root.dragDY = 0; root.dashboard.preview = null; }
     }
     // Settings, top left, when the manifest declares any.
     property bool configuring: false

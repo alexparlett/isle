@@ -22,3 +22,6 @@ __pycache__/
 
 # The VM harness and other local-only tooling.
 dev/
+
+# The symlink install.sh makes from the served tree to the user widget directory (D14).
+shell/userwidgets

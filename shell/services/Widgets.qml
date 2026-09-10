@@ -54,7 +54,9 @@ Singleton {
         if (!m) return "";
         if (m.source) return Qt.resolvedUrl("../widgets/text/Widget.qml");
         if (!m.user) return Qt.resolvedUrl("../widgets/" + id + "/Widget.qml");
-        return "file://" + m.dir + "/Widget.qml";
+        // A user's QML widget loads through the userwidgets symlink so it stays in the qs: scheme and can
+        // import qs.services; the symlink is installed pointing at the user widget directory.
+        return Qt.resolvedUrl("../userwidgets/" + id + "/Widget.qml");
     }
 
     // --- pages and the layout --------------------------------------------------------------

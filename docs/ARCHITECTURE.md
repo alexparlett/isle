@@ -155,8 +155,9 @@ Rules of the contract:
   with a `source` (a `command` run with sh, or a `file`, every
   `interval` seconds) and a `view` of text, number, gauge, sparkline or
   list is drawn by the built-in renderer in `shell/widgets/text/`, so it
-  needs no code; one with its own `Widget.qml` loads by file path and
-  cannot import the services yet (D14). The library in the dashboard's edit mode
+  needs no code; one with its own `Widget.qml` loads through
+  the `shell/userwidgets` symlink so it imports the services like a
+  built-in (D14). The library in the dashboard's edit mode
   writes and deletes the manifest kind: New text widget at its foot, edit
   and delete on hover over one of Yours.
 - A manifest carries `category` (Shell, System, Hardware, Media; the

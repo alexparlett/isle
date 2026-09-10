@@ -78,9 +78,18 @@ on the real machine when the shell first runs there.
 config as `qs:@/qs/...`; a component loaded by `file://` URL cannot
 import `qs.services` or `qs.ui`, and nested modules (`qs.widgets`) and
 relative directory imports do not resolve under that scheme. So
-`WidgetBase` lives in `qs.ui`, built-ins load via `Qt.resolvedUrl`
-from inside the config, and third-party widgets by path cannot yet see
-the services. Open: hand them a `services` object from the card.
+`WidgetBase` lives in `qs.ui` and built-ins load via `Qt.resolvedUrl`
+from inside the config. A user's own QML widget in
+`~/.config/isle/widgets/<id>/` is reached the same way: `install.sh`
+links that directory in under the served tree as `shell/userwidgets`
+(git-ignored, kept across syncs), and the card loads the widget as
+`Qt.resolvedUrl("../userwidgets/<id>/Widget.qml")`, so it is inside the
+scheme and imports the services exactly as a built-in does, with a
+language server pointed at the config for completion. This hands a
+user's widget the shell's full reach, which is right for widgets the
+user writes and wrong for ones from other people: a curated `services`
+facade with a manifest `permissions` list is the next step before
+widgets are shared, not authored.
 
 **D15 · Never restart the shell while the session is locked.** The
 shell is the locker; if its process dies under an active lock, Hyprland

@@ -43,7 +43,7 @@ fi
 # generated fragments and the built plugins are the installed copy's own and are kept.
 if [[ "$REPO" != "$(mkdir -p "$ISLE_HOME" && cd "$ISLE_HOME" && pwd -P)" ]]; then
     [[ "$ISLE_HOME" != "$HOME" && "$ISLE_HOME" != "/" ]] || { echo "  ! ISLE_HOME must be a directory of its own" >&2; exit 1; }
-    rsync -a --delete --exclude '/hypr/generated' --exclude '/dev' --exclude '__pycache__' --exclude '/plugins/*/*.so' --exclude '/plugins/*/*.o' "$REPO/" "$ISLE_HOME/"
+    rsync -a --delete --exclude '/hypr/generated' --exclude '/dev' --exclude '/shell/userwidgets' --exclude '__pycache__' --exclude '/plugins/*/*.so' --exclude '/plugins/*/*.o' "$REPO/" "$ISLE_HOME/"
     # A first copy has no fragments yet, and the compositor reloads before the shell renders them: the
     # checkout's serve until then.
     mkdir -p "$ISLE_HOME/hypr/generated"
@@ -60,6 +60,12 @@ link() { # link <target> <link>
     if [[ -e "$2" && ! -L "$2" ]]; then echo "  ! $2 exists and is not a link; leaving it" >&2; return; fi
     ln -sfn "$1" "$2"; ok "$2 -> $1"
 }
+# A user's own QML widget imports the services only from inside the served tree, so the user widget
+# directory is linked in under it (D14).
+ISLE_WIDGETS="${XDG_CONFIG_HOME:-$HOME/.config}/isle/widgets"
+mkdir -p "$ISLE_WIDGETS"
+ln -sfn "$ISLE_WIDGETS" "$REPO/shell/userwidgets"
+ok "user widgets reach the services (shell/userwidgets -> $ISLE_WIDGETS)"
 link "$REPO/shell" "$CFG/quickshell/isle"
 link "$REPO/hypr/hyprland.lua" "$CFG/hypr/hyprland.lua"
 link "$REPO/hypr/generated" "$CFG/hypr/generated"

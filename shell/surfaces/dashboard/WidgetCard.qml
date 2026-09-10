@@ -180,6 +180,14 @@ Glass {
                 item.size = Qt.binding(() => root.size);
                 item.settings = Qt.binding(() => Widgets.settingsFor(root.entry.key));
             }
+            // A user widget with a QML error draws nothing; the card says so rather than sitting blank.
+            Label {
+                anchors.centerIn: parent
+                visible: loader.status === Loader.Error
+                text: "This widget could not load"
+                color: Theme.danger; size: Theme.sizeSmall; wrapMode: Text.WordWrap
+                width: parent.width - Theme.s3 * 2; horizontalAlignment: Text.AlignHCenter
+            }
         }
     }
 }

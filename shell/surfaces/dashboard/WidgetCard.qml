@@ -35,7 +35,7 @@ Glass {
 
     // Edit mode: the whole card drags; on release it snaps to the nearest cell that fits, or springs back.
     // A click on the card's own body stays on the card; only the backdrop closes the dashboard.
-    MouseArea { anchors.fill: parent; enabled: !root.editing; onClicked: {} }
+    MouseArea { anchors.fill: parent; enabled: !root.editing; onClicked: Surfaces.dashboardPressed() }
     // The card keeps its grid-position binding; a drag adds an offset the delegate applies, so on release
     // the binding snaps it to its cell. Mouse coordinates are read in the grid's frame, not the card's own
     // (which moves under the cursor), so the offset does not feed back into itself.

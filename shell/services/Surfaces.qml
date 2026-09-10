@@ -8,6 +8,8 @@ Singleton {
     id: root
 
     property bool dashboard: false
+    // A press on the dashboard that no widget took: menus a widget has open close on it.
+    signal dashboardPressed()
     property bool launcher: false
     property string launcherPrefix: ""
     property bool overview: false

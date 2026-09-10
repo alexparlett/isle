@@ -226,6 +226,10 @@ Rules of the contract:
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as
   `settings.<key>`, with the manifest default filled in.
+- A widget with a menu of its own (the Session widget's tray menus) closes
+  it on `Surfaces.dashboardPressed`, which the dashboard's backdrop and
+  every card's inert body emit for a click no widget took, and when the
+  dashboard closes.
 - Pages are `dashboardPages: [{name, layout}]` in prefs with
   `dashboardPage` the shown one; the older single `dashboard` becomes the
   first page's layout. A layout is `[{key, id, x, y, w, h}]` on a

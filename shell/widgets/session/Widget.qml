@@ -14,6 +14,8 @@ WidgetBase {
     // A tray item's menu, opened by right click, listed in place.
     property var menuItem: null
     QsMenuOpener { id: opener; menu: root.menuItem ? root.menuItem.menu : null }
+    // A click anywhere else on the dashboard, or the dashboard going, closes the menu.
+    Connections { target: Surfaces; function onDashboardPressed() { root.menuItem = null; } function onDashboardChanged() { if (!Surfaces.dashboard) root.menuItem = null; } }
     Glass {
         visible: root.menuItem !== null && opener.children.values.length > 0
         z: 20

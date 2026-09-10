@@ -124,7 +124,7 @@ PanelWindow {
             x: root.margin; y: root.margin
             width: root.width - root.margin * 2 - root.libraryW
             height: root.height - root.margin * 2 - root.toolbarH
-            onClicked: {}
+            onClicked: Surfaces.dashboardPressed()
         }
         Keys.onPressed: event => {
             const shift = event.modifiers & Qt.ShiftModifier;

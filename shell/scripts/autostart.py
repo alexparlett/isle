@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """XDG autostart entries, and switching them on and off for this desktop.
 
-    autostart.py list                 [{id, name, icon, exec, enabled, source}]
+    autostart.py list                 [{id, name, icon, exec, comment, enabled, applies, onlyFor, source}]
     autostart.py enable <id>
     autostart.py disable <id>
     autostart.py add <desktop-id>     copy an application's entry into ~/.config/autostart
@@ -23,13 +23,16 @@ def read(path):
     except Exception:
         return None, None
 
-def enabled(e):
-    if e.get("Hidden", "false").lower() == "true" or e.get("X-GNOME-Autostart-enabled", "true").lower() == "false":
-        return False
+def applies(e):
     only = [x for x in e.get("OnlyShowIn", "").split(";") if x]
     if only and DESKTOP not in only:
         return False
     return DESKTOP not in [x for x in e.get("NotShowIn", "").split(";") if x]
+
+def enabled(e):
+    if e.get("Hidden", "false").lower() == "true" or e.get("X-GNOME-Autostart-enabled", "true").lower() == "false":
+        return False
+    return applies(e)
 
 def entries():
     seen, out = set(), []
@@ -52,8 +55,10 @@ def entries():
                         if base is not None:
                             break
                 shown = base if base is not None else e
+                only = [x for x in shown.get("OnlyShowIn", "").split(";") if x]
                 out.append({"id": f, "name": shown.get("Name", f[:-8]), "icon": shown.get("Icon", ""), "exec": shown.get("Exec", ""),
-                            "enabled": enabled(e), "source": "system" if base is not None else source})
+                            "comment": shown.get("Comment", ""), "enabled": enabled(e), "applies": applies(shown),
+                            "onlyFor": ", ".join(only), "source": "system" if base is not None else source})
     return out
 
 def write_user(f, lines):

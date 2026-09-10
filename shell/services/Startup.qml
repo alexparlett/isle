@@ -23,7 +23,30 @@ Singleton {
         command: ["python3", root.script, "list"]
         stdout: StdioCollector { onStreamFinished: { try { root.entries = JSON.parse(text); } catch (e) {} } }
     }
-    function refresh() { lister.running = true; }
+    function refresh() { lister.running = true; unitLister.running = true; }
+
+    // The enabled user units: what systemd starts at login. The shell's own are marked so they are not
+    // switched off by accident.
+    readonly property string servicesScript: Quickshell.shellDir + "/scripts/services.py"
+    property var units: []
+    readonly property var essentialUnits: ["pipewire.socket", "pipewire-pulse.socket", "wireplumber.service", "gnome-keyring-daemon.socket", "gcr-ssh-agent.socket", "p11-kit-server.socket", "xremap.service", "xdg-user-dirs.service"]
+    function essential(u) { return essentialUnits.indexOf(u.id) >= 0; }
+    Process {
+        id: unitLister
+        command: ["python3", root.servicesScript, "list"]
+        running: true
+        stdout: StdioCollector { onStreamFinished: { try { root.units = JSON.parse(text); } catch (e) {} } }
+    }
+    Process { id: unitActor; onExited: unitLister.running = true }
+    function setUnit(u, on) { unitActor.command = ["python3", servicesScript, on ? "enable" : "disable", u.id]; unitActor.running = true; }
+
+    // What the compositor's start hook launches, read from hyprland.lua so the list cannot go stale.
+    property var hook: []
+    Process {
+        command: ["sh", "-c", "grep -oE 'hl\\.exec_cmd\\(\"[^\"]*' \"$1\" | sed 's/^hl\\.exec_cmd(\"//'", "_", Quickshell.shellDir + "/../hypr/hyprland.lua"]
+        running: true
+        stdout: StdioCollector { onStreamFinished: root.hook = text.trim().split("\n").filter(Boolean) }
+    }
 
     Process { id: actor; onExited: root.refresh() }
     function setEnabled(e, on) { actor.command = ["python3", script, on ? "enable" : "disable", e.id]; actor.running = true; }

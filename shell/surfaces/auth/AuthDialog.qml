@@ -39,9 +39,12 @@ PanelWindow {
                 spacing: Theme.s3
                 Item {
                     implicitWidth: 40; implicitHeight: 40
+                    id: authIcon
                     readonly property string icon: Auth.flow && Auth.flow.iconName ? Quickshell.iconPath(Auth.flow.iconName, "") : ""
-                    AppIcon { anchors.fill: parent; size: 40; source: parent.icon; visible: parent.icon !== "" }
-                    Rectangle { anchors.fill: parent; radius: Theme.radiusControl; color: Theme.raised; visible: parent.icon === ""
+                    // An action's icon the theme lacks resolves to a placeholder that fails to load: the key stands in.
+                    readonly property bool shown: icon !== "" && appIcon.status === Image.Ready
+                    AppIcon { id: appIcon; anchors.fill: parent; size: 40; source: authIcon.icon; visible: authIcon.shown }
+                    Rectangle { anchors.fill: parent; radius: Theme.radiusControl; color: Theme.raised; visible: !authIcon.shown
                         Glyph { anchors.centerIn: parent; name: "key-round"; size: 14 } }
                 }
                 ColumnLayout {

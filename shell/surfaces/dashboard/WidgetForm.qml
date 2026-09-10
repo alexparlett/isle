@@ -22,7 +22,6 @@ ColumnLayout {
     readonly property var glyphs: [["terminal", "Terminal"], ["activity", "Activity"], ["cpu", "Processor"], ["hard-drive", "Drive"], ["clock", "Clock"], ["timer", "Timer"], ["globe", "Globe"], ["wifi", "Wi-Fi"], ["shield", "Shield"], ["package", "Package"], ["target", "Target"], ["mail", "Mail"], ["music", "Music"], ["sun", "Sun"], ["rocket", "Rocket"], ["list", "List"]]
     readonly property bool valid: fName.trim() !== "" && (fCommand.trim() !== "" || fFile.trim() !== "")
 
-    function startNew() { editingId = ""; fName = ""; fCommand = ""; fFile = ""; fInterval = 30; fView = "text"; fUnit = ""; fMax = "100"; fGlyph = "terminal"; fSize = "3x1"; }
     function startEdit(m) {
         editingId = m.id; fName = m.name; fCommand = m.source.command || ""; fFile = m.source.file || ""; fInterval = Number(m.source.interval) || 30;
         fView = m.view || "text"; fUnit = m.unit || ""; fMax = String(m.max || 100); fGlyph = m.glyph || "terminal"; fSize = m.default || "3x1";

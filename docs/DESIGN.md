@@ -305,9 +305,9 @@ control sits over a card. The library lists every widget by category
 with a search field: glyph, name, description, and "on" with a tick when
 placed (×2 for a second instance). Clicking a row places it at the first
 free spot; dragging one drops it on the cell under the pointer; clicking
-an empty cell first marks it, and the next pick lands there. New text
-widget at the foot opens the form; the user's own carry edit and delete
-on hover. When nothing fits, the toolbar says which size it needs.
+an empty cell first marks it, and the next pick lands there. New widget
+at the foot opens the store's name dialog; the user's own carry edit and
+delete on hover. When nothing fits, the toolbar says which size it needs.
 
 A header strip runs across the top: the page tabs centred, the Edit
 toggle at the right, always reserved so no control sits over a widget.
@@ -366,9 +366,10 @@ One of the user's own carries an Author row on its sheet: Check lists
 what the validator found, errors in red and notes in amber, or "Ready to
 share"; Picture takes the card's picture for the listing and greys out
 once one exists; Tag commits and tags the folder and says what to do
-next. New widget on the Yours tab asks only for a name, shows the folder
-it will make, and selects the result once it is listed. The library's
-foot offers both kinds side by side: New text widget, New QML widget.
+next. New widget, on the Yours tab and at the library's foot, asks only
+for a name, shows the folder it will make, and selects the result once it
+is listed. Text widgets are no longer started from the library; one that
+exists still opens its form from Edit on the sheet.
 
 Text widgets, the user's own, draw through one renderer: a title, then
 the output as wrapped text, a large number with its unit, a gauge bar

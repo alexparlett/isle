@@ -160,8 +160,8 @@ Rules of the contract:
   and is handed a permission-gated `host` wrapper instead of the services
   (D25). `trust: true` runs it with the shell's full reach through the
   `shell/userwidgets` symlink (D14). The library in the dashboard's edit mode
-  writes and deletes the manifest kind: New text widget at its foot, edit
-  and delete on hover over one of Yours.
+  edits and deletes the manifest kind (edit and delete on hover over one
+  of Yours); new widgets start from the store's scaffold.
 - A manifest carries `category` (Shell, System, Hardware, Media; the
   user's are Yours), `description`, `sizes`, `default`, and `multiple`
   when more than one instance makes sense (Clock). The library in the

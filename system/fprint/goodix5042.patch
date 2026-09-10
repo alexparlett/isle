@@ -32,17 +32,18 @@ index 9f9ea55..927e63c 100644
  /* Production write of @data under @data_type (e.g. 0xB002 = PSK white box).
   * Expects data (a one-byte status reply). */
 diff --git a/drivers/goodix53x5/goodix53x5-private.h b/drivers/goodix53x5/goodix53x5-private.h
-index 232a02a..16139c3 100644
+index 232a02a..f54554a 100644
 --- a/drivers/goodix53x5/goodix53x5-private.h
 +++ b/drivers/goodix53x5/goodix53x5-private.h
-@@ -127,12 +127,18 @@ struct _FpiDeviceGoodix53x5
+@@ -127,12 +127,19 @@ struct _FpiDeviceGoodix53x5
  
    /* Firmware version string */
    gchar *fw_version;
 +  /* Firmware without the security layer (GF5288_HT_APP): no key, no GTLS, images arrive as sent. */
 +  gboolean plain;
-+  /* The open-time channel readings the polling detector compares against; the open's own copy is freed. */
-+  guint8 plain_base[GOODIX_FDT_BASE_LEN];
++  /* The no-finger frame the polling detector compares each new frame against, and the frame-to-frame noise. */
++  guint16 *plain_frame;
++  gdouble  plain_noise;
  
    /* TRUE while verifying a PSK write during open. */
    gboolean psk_write_verify_pending;
@@ -55,10 +56,18 @@ index 232a02a..16139c3 100644
    /* USB interface state */
    gboolean usb_interface_claimed;
 diff --git a/drivers/goodix53x5/goodix53x5-scan.c b/drivers/goodix53x5/goodix53x5-scan.c
-index d242b93..d2188fb 100644
+index d242b93..9b6156f 100644
 --- a/drivers/goodix53x5/goodix53x5-scan.c
 +++ b/drivers/goodix53x5/goodix53x5-scan.c
-@@ -136,9 +136,16 @@ goodix_ref_capture_ssm_handler (FpiSsm   *ssm,
+@@ -82,6 +82,7 @@ typedef enum {
+ /* Forward declarations for the SSM handlers below */
+ static void goodix_ref_capture_ssm_handler (FpiSsm *ssm, FpDevice *dev);
+ static void goodix_finger_wait_ssm_handler (FpiSsm *ssm, FpDevice *dev);
++static guint8 *goodix_plain_frame_data (const guint8 *pl, gsize pl_len, gsize *out_len);
+ static void goodix_capture_ssm_handler (FpiSsm *ssm, FpDevice *dev);
+ static void goodix_finger_up_ssm_handler (FpiSsm *ssm, FpDevice *dev);
+ static void goodix_deactivate_ssm_handler (FpiSsm *ssm, FpDevice *dev);
+@@ -136,9 +137,15 @@ goodix_ref_capture_ssm_handler (FpiSsm   *ssm,
              return;
            }
  
@@ -67,8 +76,7 @@ index d242b93..d2188fb 100644
 -                                                            &dec_len);
 +        if (self->plain)
 +          {
-+            decrypted = g_memdup2 (pl, pl_len);
-+            dec_len = pl_len;
++            decrypted = goodix_plain_frame_data (pl, pl_len, &dec_len);
 +            fp_dbg ("Plain reference image payload: %zu bytes", pl_len);
 +          }
 +        else
@@ -78,41 +86,65 @@ index d242b93..d2188fb 100644
          if (decrypted == NULL)
            {
              fpi_ssm_mark_failed (ssm,
-@@ -168,6 +175,53 @@ goodix_ref_capture_ssm_handler (FpiSsm   *ssm,
+@@ -168,6 +175,76 @@ goodix_ref_capture_ssm_handler (FpiSsm   *ssm,
   * Finger-wait SSM (waiting for finger down)
   * ======================================================================== */
  
 +
 +/* ========================================================================
-+ * Touch by polling, for firmware that raises no FDT events
++ * Touch by polling frames, for firmware that raises no FDT events
 + * ======================================================================== */
 +
-+/* The twelve channel readings of a manual FDT reply, logged, and compared to the open-time baseline;
-+ * returns the channels that moved by more than `delta` as a bitmask. */
-+static guint16
-+goodix_plain_touch_flag (FpiDeviceGoodix53x5 *self,
-+                         const guint8        *readings,
-+                         guint16              delta)
++/* A plain firmware's image payload: five bytes of head, the raw12 frame, four bytes of checksum. */
++static guint8 *
++goodix_plain_frame_data (const guint8 *pl, gsize pl_len, gsize *out_len)
 +{
-+  guint16 flag = 0;
-+  g_autoptr(GString) line = g_string_new (NULL);
++  if (pl_len < 9)
++    return NULL;
++  *out_len = pl_len - 9;
++  return g_memdup2 (pl + 5, pl_len - 9);
++}
 +
-+  for (int i = 0; i < 12; i++)
++/* Mean absolute difference between two frames, in 12-bit units. */
++static gdouble
++goodix_plain_frame_diff (const guint16 *a, const guint16 *b)
++{
++  gdouble sum = 0;
++
++  for (gsize i = 0; i < GOODIX_SENSOR_PIXELS; i++)
++    sum += abs ((gint) a[i] - (gint) b[i]);
++  return sum / GOODIX_SENSOR_PIXELS;
++}
++
++/* The frame just received, decoded; NULL (and the SSM failed) when it is not one. */
++static guint16 *
++goodix_plain_poll_frame (FpiSsm *ssm, FpDevice *dev)
++{
++  guint8 cat, cmd;
++  const guint8 *pl;
++  gsize pl_len, len;
++  g_autofree guint8 *data = NULL;
++  guint16 *img;
++
++  if (!goodix_parse_reply (dev, &cat, &cmd, &pl, &pl_len, NULL) ||
++      (data = goodix_plain_frame_data (pl, pl_len, &len)) == NULL ||
++      (img = goodix_device_decode_image (data, len)) == NULL)
 +    {
-+      guint16 base = self->plain_base[i * 2] | ((guint16) self->plain_base[i * 2 + 1] << 8);
-+      guint16 now = readings[i * 2] | ((guint16) readings[i * 2 + 1] << 8);
-+      gint d = abs ((gint) (now >> 1) - (gint) (base >> 1));
-+
-+      g_string_append_printf (line, "%d%s ", d, (guint16) d > delta ? "*" : "");
-+      if ((guint16) d > delta)
-+        flag |= 1 << i;
++      fpi_ssm_mark_failed (ssm, fpi_device_error_new_msg (FP_DEVICE_ERROR_PROTO, "Failed to read a polled frame"));
++      return NULL;
 +    }
-+  fp_dbg ("FDT poll deltas (limit %u): %s", delta, line->str);
-+  return flag;
++  return img;
++}
++
++/* The difference a finger makes: well above the frame-to-frame noise measured at the start of the wait. */
++static gdouble
++goodix_plain_touch_threshold (FpiDeviceGoodix53x5 *self)
++{
++  return MAX (12.0, self->plain_noise * 4.0);
 +}
 +
 +/* A poll that saw nothing: come back shortly, unless the operation was cancelled meanwhile. */
-+static gboolean
++static void
 +goodix_plain_poll_again (FpiDeviceGoodix53x5 *self,
 +                         FpiSsm              *ssm,
 +                         int                  setup_state)
@@ -123,24 +155,23 @@ index d242b93..d2188fb 100644
 +        fpi_ssm_jump_to_state (ssm, self->blocking_shutdown_state);
 +      else
 +        fpi_ssm_mark_failed (ssm, g_error_new_literal (G_IO_ERROR, G_IO_ERROR_CANCELLED, "Cancelled"));
-+      return TRUE;
++      return;
 +    }
-+  fpi_ssm_jump_to_state_delayed (ssm, setup_state, 120);
-+  return TRUE;
++  fpi_ssm_jump_to_state_delayed (ssm, setup_state, 100);
 +}
 +
  static void
  goodix_finger_wait_ssm_handler (FpiSsm   *ssm,
                                  FpDevice *dev)
-@@ -197,11 +251,48 @@ goodix_finger_wait_ssm_handler (FpiSsm   *ssm,
+@@ -197,11 +274,56 @@ goodix_finger_wait_ssm_handler (FpiSsm   *ssm,
        break;
  
      case GOODIX_FINGER_WAIT_FDT_DOWN_SETUP:
 +      if (self->plain)
 +        {
-+          /* No events from this firmware: read the channels ourselves. */
++          /* No events from this firmware: take frames ourselves and watch for a change. */
 +          self->blocking_shutdown_state = GOODIX_FINGER_UP_SLEEP;
-+          goodix_cmd_fdt_manual (ssm, dev, TRUE, self->calib.fdt_base_manual);
++          goodix_cmd_request_image (ssm, dev, TRUE, TRUE, TRUE, self->calib.dac_h);
 +          break;
 +        }
        /* Set up finger-down detection (re-arms the sensor) */
@@ -150,28 +181,36 @@ index d242b93..d2188fb 100644
      case GOODIX_FINGER_WAIT_RECV_EVENT:
 +      if (self->plain)
 +        {
-+          g_autoptr(GError) error = NULL;
-+          const guint8 *pl;
-+          gsize pl_len;
-+          guint16 flag;
++          guint16 *img = goodix_plain_poll_frame (ssm, dev);
++          gdouble diff;
 +
-+          if (!goodix_cmd_parse_fdt_manual_reply (dev, &pl, &pl_len, &error))
++          if (img == NULL)
++            return;
++          if (self->plain_frame == NULL)
 +            {
-+              fpi_ssm_mark_failed (ssm, g_steal_pointer (&error));
++              self->plain_frame = img;
++              self->plain_noise = 0;
++              fp_dbg ("Frame poll: baseline taken");
++              goodix_plain_poll_again (self, ssm, GOODIX_FINGER_WAIT_FDT_DOWN_SETUP);
 +              return;
 +            }
-+          flag = goodix_plain_touch_flag (self, pl + 4, self->calib.delta_down);
-+          if (flag == 0)
++          diff = goodix_plain_frame_diff (img, self->plain_frame);
++          if (self->plain_noise == 0)
++            {
++              self->plain_noise = MAX (diff, 0.5);
++              fp_dbg ("Frame poll: noise %.2f, threshold %.2f", self->plain_noise, goodix_plain_touch_threshold (self));
++              g_free (img);
++              goodix_plain_poll_again (self, ssm, GOODIX_FINGER_WAIT_FDT_DOWN_SETUP);
++              return;
++            }
++          fp_dbg ("Frame poll: diff %.2f (threshold %.2f)", diff, goodix_plain_touch_threshold (self));
++          g_free (img);
++          if (diff <= goodix_plain_touch_threshold (self))
 +            {
 +              goodix_plain_poll_again (self, ssm, GOODIX_FINGER_WAIT_FDT_DOWN_SETUP);
 +              return;
 +            }
-+          self->fdt_touch_flag = flag;
-+          g_free (self->fdt_event_data);
-+          self->fdt_event_data = g_memdup2 (pl + 4, GOODIX_FDT_BASE_LEN);
-+          goodix_device_generate_fdt_up_base (self->fdt_event_data, self->fdt_touch_flag,
-+                                              &self->calib, self->calib.fdt_base_up);
-+          fp_dbg ("Finger detected by polling (channels 0x%03x)", flag);
++          fp_dbg ("Finger detected by frame polling");
 +          fpi_device_report_finger_status_changes (dev,
 +                                                   FP_FINGER_STATUS_PRESENT,
 +                                                   FP_FINGER_STATUS_NEEDED);
@@ -181,7 +220,7 @@ index d242b93..d2188fb 100644
        /* Wait for FDT DOWN event with cancellable. The shutdown jump target
         * matches the historical RX-callback behavior of jumping to the
         * finger-up SLEEP state index on post-result cancellation. */
-@@ -315,9 +406,16 @@ goodix_capture_ssm_handler (FpiSsm   *ssm,
+@@ -315,9 +437,15 @@ goodix_capture_ssm_handler (FpiSsm   *ssm,
              return;
            }
  
@@ -190,8 +229,7 @@ index d242b93..d2188fb 100644
 -                                                             &dec_len);
 +        if (self->plain)
 +          {
-+            decrypted = g_memdup2 (pl, pl_len);
-+            dec_len = pl_len;
++            decrypted = goodix_plain_frame_data (pl, pl_len, &dec_len);
 +            fp_dbg ("Plain capture image payload: %zu bytes", pl_len);
 +          }
 +        else
@@ -201,14 +239,14 @@ index d242b93..d2188fb 100644
          if (decrypted == NULL)
            {
              fpi_ssm_mark_failed (ssm,
-@@ -393,11 +491,42 @@ goodix_finger_up_ssm_handler (FpiSsm   *ssm,
+@@ -393,11 +521,42 @@ goodix_finger_up_ssm_handler (FpiSsm   *ssm,
    switch (fpi_ssm_get_cur_state (ssm))
      {
      case GOODIX_FINGER_UP_FDT_UP_SETUP:
 +      if (self->plain)
 +        {
 +          self->blocking_shutdown_state = GOODIX_FINGER_UP_SLEEP;
-+          goodix_cmd_fdt_manual (ssm, dev, TRUE, self->calib.fdt_base_manual);
++          goodix_cmd_request_image (ssm, dev, TRUE, TRUE, TRUE, self->calib.dac_h);
 +          break;
 +        }
        /* Set up finger-up detection before waiting */
@@ -218,23 +256,23 @@ index d242b93..d2188fb 100644
      case GOODIX_FINGER_UP_RECV_EVENT:
 +      if (self->plain)
 +        {
-+          g_autoptr(GError) error = NULL;
-+          const guint8 *pl;
-+          gsize pl_len;
++          guint16 *img = goodix_plain_poll_frame (ssm, dev);
++          gdouble diff;
 +
-+          if (!goodix_cmd_parse_fdt_manual_reply (dev, &pl, &pl_len, &error))
++          if (img == NULL)
++            return;
++          diff = self->plain_frame ? goodix_plain_frame_diff (img, self->plain_frame) : 0;
++          fp_dbg ("Frame poll (lift): diff %.2f (threshold %.2f)", diff, goodix_plain_touch_threshold (self) / 2);
++          if (self->plain_frame && diff > goodix_plain_touch_threshold (self) / 2)
 +            {
-+              fpi_ssm_mark_failed (ssm, g_steal_pointer (&error));
-+              return;
-+            }
-+          /* Still touching until every channel is back within the up threshold of the baseline. */
-+          if (goodix_plain_touch_flag (self, pl + 4, self->calib.delta_up) != 0)
-+            {
++              g_free (img);
 +              goodix_plain_poll_again (self, ssm, GOODIX_FINGER_UP_FDT_UP_SETUP);
 +              return;
 +            }
-+          fp_dbg ("Finger lifted (polling)");
-+          memcpy (self->plain_base, pl + 4, GOODIX_FDT_BASE_LEN);
++          /* Lifted: this frame is the new no-finger baseline. */
++          g_free (self->plain_frame);
++          self->plain_frame = img;
++          fp_dbg ("Finger lifted (frame polling)");
 +          fpi_device_report_finger_status_changes (dev,
 +                                                   FP_FINGER_STATUS_NONE,
 +                                                   FP_FINGER_STATUS_PRESENT | FP_FINGER_STATUS_NEEDED);
@@ -245,7 +283,7 @@ index d242b93..d2188fb 100644
         * jumps straight to the sleep/power-off tail of this SSM. */
        self->blocking_ssm = ssm;
 diff --git a/drivers/goodix53x5/goodix53x5-session.c b/drivers/goodix53x5/goodix53x5-session.c
-index c231c81..7dbe4c4 100644
+index c231c81..ebb6aab 100644
 --- a/drivers/goodix53x5/goodix53x5-session.c
 +++ b/drivers/goodix53x5/goodix53x5-session.c
 @@ -29,6 +29,23 @@
@@ -374,14 +412,6 @@ index c231c81..7dbe4c4 100644
          {
            const guint8 *mcu_data;
            gsize mcu_len;
-@@ -540,6 +581,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
-             memcpy (self->calib.fdt_base_up, fdt_base, GOODIX_FDT_BASE_LEN);
-             memcpy (self->calib.fdt_base_manual, fdt_base,
-                     GOODIX_FDT_BASE_LEN);
-+            memcpy (self->plain_base, self->fdt_data_tx_on, GOODIX_FDT_BASE_LEN);
-           }
- 
-         fpi_ssm_next_state (ssm);
 diff --git a/drivers/goodix53x5/goodix53x5-transport.c b/drivers/goodix53x5/goodix53x5-transport.c
 index d653164..af0e0f8 100644
 --- a/drivers/goodix53x5/goodix53x5-transport.c
@@ -442,10 +472,18 @@ index d653164..af0e0f8 100644
    cmd_ssm = fpi_ssm_new_full (dev, goodix_cmd_ssm_handler,
                                 expect_data ? GOODIX_CMD_NUM_STATES : GOODIX_CMD_RECV_DATA,
 diff --git a/drivers/goodix53x5/goodix53x5.c b/drivers/goodix53x5/goodix53x5.c
-index 004a411..1d86f9f 100644
+index 004a411..12a81e9 100644
 --- a/drivers/goodix53x5/goodix53x5.c
 +++ b/drivers/goodix53x5/goodix53x5.c
-@@ -125,6 +125,7 @@ static const FpIdEntry goodix53x5_id_table[] = {
+@@ -54,6 +54,7 @@ goodix_close (FpDevice *dev)
+   g_clear_pointer (&self->fw_version, g_free);
+   g_clear_pointer (&self->rx.buf, g_free);
+   g_clear_pointer (&self->reference_image, g_free);
++  g_clear_pointer (&self->plain_frame, g_free);
+   g_clear_pointer (&self->captured_image, g_free);
+   g_clear_pointer (&self->enroll_features, g_ptr_array_unref);
+ 
+@@ -125,6 +126,7 @@ static const FpIdEntry goodix53x5_id_table[] = {
    { .vid = 0x27c6, .pid = 0x5335, },
    { .vid = 0x27c6, .pid = 0x5385, },
    { .vid = 0x27c6, .pid = 0x5395, },

@@ -13,6 +13,11 @@ Singleton {
 
     // Peripherals with a battery: what the control panel footer and the Devices widget list.
     readonly property var peripherals: devices.filter(d => !d.isLaptopBattery && d.percentage > 0)
+    // UPower's percentage arrives as a fraction of one.
+    function percent(d) { return Math.round((d ? d.percentage : 0) * 100); }
+    function low(d) { return !!d && d.percentage < 0.2; }
+    // A Bluetooth device's low-energy side names itself "LE_<name>"; the name is what people know it by.
+    function labelFor(d) { return ((d && d.model) || "Device").replace(/^LE_/, ""); }
 
     readonly property string profile: PowerProfiles.profile === PowerProfile.Performance ? "performance"
         : PowerProfiles.profile === PowerProfile.PowerSaver ? "power-saver" : "balanced"

@@ -130,7 +130,7 @@ PanelWindow {
                         required property var modelData
                         spacing: Theme.s2
                         Glyph { name: Power.glyphFor(modelData); size: 16 }
-                        Label { text: Math.round(modelData.percentage) + "%"; size: Theme.sizeHeading; tabular: true; color: modelData.percentage < 20 ? Theme.warn : Theme.ok }
+                        Label { text: Power.percent(modelData) + "%"; size: Theme.sizeHeading; tabular: true; color: Power.low(modelData) ? Theme.warn : Theme.ok }
                     }
                 }
                 RowLayout { spacing: Theme.s2; visible: Bluetooth.anyConnected; Glyph { name: "headphones"; size: 16 } Label { text: Bluetooth.primaryName; size: Theme.sizeHeading; color: Theme.text2 } }

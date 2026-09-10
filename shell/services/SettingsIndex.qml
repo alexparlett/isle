@@ -10,8 +10,34 @@ Singleton {
 
     // [{ page, pageLabel, label, description }]
     property var entries: []
-    readonly property var pageLabels: ({ appearance: "Appearance", keyboard: "Keyboard", shortcuts: "Shortcuts", displays: "Displays", mouse: "Mouse", audio: "Audio", network: "Network",
-                                          bluetooth: "Bluetooth", storage: "Storage", apps: "Apps", users: "Users", datetime: "Date & time", region: "Language & region", printers: "Printers", updates: "Updates", notifications: "Notifications", power: "Power", modes: "Modes", about: "About" })
+    // The pages, grouped the way KDE, macOS and Windows do: connect, look and feel, hardware, people and system.
+    readonly property var pages: [
+        { id: "network", glyph: "wifi", label: "Network" },
+        { id: "bluetooth", glyph: "bluetooth", label: "Bluetooth" },
+        { group: "Look and feel" },
+        { id: "appearance", glyph: "palette", label: "Appearance" },
+        { id: "wallpaper", glyph: "image", label: "Wallpaper" },
+        { id: "notifications", glyph: "bell", label: "Notifications" },
+        { id: "modes", glyph: "gamepad-2", label: "Modes" },
+        { group: "Hardware" },
+        { id: "displays", glyph: "monitor", label: "Displays" },
+        { id: "audio", glyph: "volume-2", label: "Audio" },
+        { id: "keyboard", glyph: "keyboard", label: "Keyboard" },
+        { id: "shortcuts", glyph: "command", label: "Shortcuts" },
+        { id: "mouse", glyph: "mouse", label: "Mouse" },
+        { id: "printers", glyph: "printer", label: "Printers" },
+        { id: "storage", glyph: "hard-drive", label: "Storage" },
+        { id: "power", glyph: "power", label: "Power" },
+        { id: "devices", glyph: "plug-zap", label: "Devices" },
+        { group: "System" },
+        { id: "apps", glyph: "layout-grid", label: "Apps" },
+        { id: "users", glyph: "user", label: "Users" },
+        { id: "datetime", glyph: "calendar-clock", label: "Date & time" },
+        { id: "region", glyph: "languages", label: "Language & region" },
+        { id: "updates", glyph: "download", label: "Updates" },
+        { id: "about", glyph: "info", label: "About" },
+    ]
+    readonly property var pageLabels: { const m = {}; for (const p of pages) if (p.id) m[p.id] = p.label; return m; }
 
     Process {
         command: ["sh", "-c", "cd \"$1\" && for f in *Page.qml; do grep -oE '(label|description|heading): \"[^\"]*\"' \"$f\" | sed \"s/^/$f\\t/\"; done", "_", Quickshell.shellDir + "/windows/settings/pages"]

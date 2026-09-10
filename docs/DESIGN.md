@@ -420,6 +420,11 @@ Appearance has Dark, Light and Auto; Auto is light from sunrise to
 sunset, computed from the timezone's coordinates in tzdata, since
 nothing in the stack knows where the machine is more precisely.
 
+The control panel's footer gives each battery a line of its own (glyph,
+name, charge), then one line with updates at the left and the power
+profile at the right. A Bluetooth device's low-energy side names itself
+"LE_<name>"; the shell drops the prefix wherever it shows the name.
+
 Bluetooth is two lists: Your devices, connected ones first with their
 battery, then Nearby, which is what can be paired. A device's low-energy
 side, which bluez lists as "LE_<name>" and which carries no audio or

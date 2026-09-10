@@ -29,7 +29,7 @@ Singleton {
         case ":": clipboard(); break;
         case "@": results = windowResults(term); break;
         // The shell's own windows, modes and power actions first: "set" is Settings before any app.
-        default: results = shellResults(term).concat(appResults(term), windowResults(term, 3), webResult(term));
+        default: results = shellResults(term).concat(appResults(term), settingsResults(term), windowResults(term, 3), webResult(term));
         }
     }
 
@@ -120,8 +120,8 @@ Singleton {
                                             printScreen: "camera", captureBar: "camera", captureScreen: "camera", record: "video", pick: "pipette" })
     readonly property var shortcutActions: {
         const skip = { launcher: 1, switcher: 1, switcherBack: 1, altSwitcher: 1, altSwitcherBack: 1, cycleApp: 1, closeFront: 1 };
-        const covered = {};
-        for (const a of shellActions) if (a.key) covered[a.key] = 1;
+        const covered = {}, titled = {};
+        for (const a of shellActions) { if (a.key) covered[a.key] = 1; titled[a.title.toLowerCase()] = 1; }
         const seen = {}, out = [];
         for (const a of Keyboard.actions) {
             if (skip[a.id] || covered[a.id] || a.range) continue;
@@ -130,6 +130,7 @@ Singleton {
             if (seen[payload]) continue;
             seen[payload] = 1;
             const title = a.label.replace(/ \((Windows|Mac)\)$/, "");
+            if (titled[title.toLowerCase()]) continue;
             out.push({ title: title, glyph: shortcutGlyphs[a.id] || "keyboard", kind: "Shortcut", key: a.id, run: () => root.runAction(a) });
         }
         return out;
@@ -145,6 +146,12 @@ Singleton {
         return shellActions.concat(shortcutActions).filter(a => !a.when || a.when())
             .filter(a => score(a.title, q) >= 60 || score(a.kind, q) >= 80 || (a.words || "").split(" ").some(w => score(w, q) >= 80))
             .map(a => ({ kind: "power", title: a.title, subtitle: a.kind, glyph: a.glyph, chord: chord(a.key), run: a.run }));
+    }
+    // Settings pages by name, each opening straight to that page.
+    function settingsResults(q) {
+        if (!q || q.length < 2) return [];
+        return SettingsIndex.pages.filter(p => p.id && score(p.label, q) >= 60)
+            .map(p => ({ kind: "settings", title: p.label, subtitle: "Settings", glyph: p.glyph, run: () => Surfaces.showSettings(p.id) }));
     }
 
     // The web, always last, so a query that matches nothing still goes somewhere.

@@ -16,33 +16,7 @@ FloatingWindow {
     color: Theme.light ? "#FFFFFF" : "#131417"
     onVisibleChanged: if (!visible) Surfaces.settings = false
 
-    // Grouped the way KDE, macOS and Windows do: connect, look and feel, hardware, people and system, then about.
-    readonly property var sections: [
-        { id: "network", glyph: "wifi", label: "Network" },
-        { id: "bluetooth", glyph: "bluetooth", label: "Bluetooth" },
-        { group: "Look and feel" },
-        { id: "appearance", glyph: "palette", label: "Appearance" },
-        { id: "wallpaper", glyph: "image", label: "Wallpaper" },
-        { id: "notifications", glyph: "bell", label: "Notifications" },
-        { id: "modes", glyph: "gamepad-2", label: "Modes" },
-        { group: "Hardware" },
-        { id: "displays", glyph: "monitor", label: "Displays" },
-        { id: "audio", glyph: "volume-2", label: "Audio" },
-        { id: "keyboard", glyph: "keyboard", label: "Keyboard" },
-        { id: "shortcuts", glyph: "command", label: "Shortcuts" },
-        { id: "mouse", glyph: "mouse", label: "Mouse" },
-        { id: "printers", glyph: "printer", label: "Printers" },
-        { id: "storage", glyph: "hard-drive", label: "Storage" },
-        { id: "power", glyph: "power", label: "Power" },
-        { id: "devices", glyph: "plug-zap", label: "Devices" },
-        { group: "System" },
-        { id: "apps", glyph: "layout-grid", label: "Apps" },
-        { id: "users", glyph: "user", label: "Users" },
-        { id: "datetime", glyph: "calendar-clock", label: "Date & time" },
-        { id: "region", glyph: "languages", label: "Language & region" },
-        { id: "updates", glyph: "download", label: "Updates" },
-        { id: "about", glyph: "info", label: "About" },
-    ]
+    readonly property var sections: SettingsIndex.pages
 
     // After a search hit's page loads, scroll its row into view.
     property string query: ""

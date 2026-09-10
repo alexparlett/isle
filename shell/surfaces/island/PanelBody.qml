@@ -148,45 +148,51 @@ ColumnLayout {
         }
     }
 
-    RowLayout {
+    // The footer: each battery on a line of its own, then updates and the power profile.
+    ColumnLayout {
         visible: root.page === "main"
         Layout.fillWidth: true
         Layout.leftMargin: Theme.s1
         Layout.rightMargin: Theme.s1
+        spacing: Theme.s1 + 2
         Repeater {
             model: Power.peripherals
             RowLayout {
                 required property var modelData
+                Layout.fillWidth: true
                 spacing: Theme.s1 + 2
                 Glyph { name: Power.glyphFor(modelData); size: 14 }
-                Label { text: modelData.model; size: Theme.sizeCaption; color: Theme.text2 }
-                Label { text: Math.round(modelData.percentage) + "%"; size: Theme.sizeCaption; tabular: true; color: modelData.percentage < 20 ? Theme.warn : Theme.ok }
+                Label { text: Power.labelFor(modelData); size: Theme.sizeCaption; color: Theme.text2; elide: Text.ElideRight; Layout.fillWidth: true }
+                Label { text: Power.percent(modelData) + "%"; size: Theme.sizeCaption; tabular: true; color: Power.low(modelData) ? Theme.warn : Theme.ok }
             }
         }
-        Item {
-            visible: Updates.count > 0 || IsleUpdate.behind > 0
-            implicitWidth: updRow.implicitWidth; implicitHeight: updRow.implicitHeight
-            RowLayout {
-                id: updRow
-                spacing: Theme.s1 + 2
-                Glyph { name: "download"; size: 14; color: Theme.accent }
-                Label {
-                    text: Updates.count > 0 ? Updates.count + (Updates.count === 1 ? " update" : " updates") + (IsleUpdate.behind > 0 ? " + Isle" : "") : "Isle update"
-                    size: Theme.sizeCaption; color: Theme.text2
+        RowLayout {
+            Layout.fillWidth: true
+            Item {
+                visible: Updates.count > 0 || IsleUpdate.behind > 0
+                implicitWidth: updRow.implicitWidth; implicitHeight: updRow.implicitHeight
+                RowLayout {
+                    id: updRow
+                    spacing: Theme.s1 + 2
+                    Glyph { name: "download"; size: 14; color: Theme.accent }
+                    Label {
+                        text: Updates.count > 0 ? Updates.count + (Updates.count === 1 ? " update" : " updates") + (IsleUpdate.behind > 0 ? " + Isle" : "") : "Isle update"
+                        size: Theme.sizeCaption; color: Theme.text2
+                    }
                 }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.dismiss(); Surfaces.showSettings("updates"); } }
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.dismiss(); Surfaces.showSettings("updates"); } }
-        }
-        Item { Layout.fillWidth: true }
-        Item {
-            implicitWidth: profRow.implicitWidth; implicitHeight: profRow.implicitHeight
-            RowLayout {
-                id: profRow
-                spacing: Theme.s1 + 2
-                Glyph { name: "power"; size: 14 }
-                Label { text: Power.profileLabel; size: Theme.sizeCaption; color: Theme.text2 }
+            Item { Layout.fillWidth: true }
+            Item {
+                implicitWidth: profRow.implicitWidth; implicitHeight: profRow.implicitHeight
+                RowLayout {
+                    id: profRow
+                    spacing: Theme.s1 + 2
+                    Glyph { name: "power"; size: 14 }
+                    Label { text: Power.profileLabel; size: Theme.sizeCaption; color: Theme.text2 }
+                }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.dismiss(); Surfaces.power = true; } }
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.dismiss(); Surfaces.power = true; } }
         }
     }
 

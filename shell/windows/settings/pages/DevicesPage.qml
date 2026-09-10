@@ -27,7 +27,7 @@ SettingsPage {
         const peers = Bluetooth.paired.map(d => ({ name: d.name || d.address, props: [["Kind", "Device"], ["Address", d.address], ["Status", d.connected ? "Connected" : "Paired"]].concat(d.batteryAvailable ? [["Battery", Math.round(d.battery * 100) + "%"]] : []) }));
         if (bt) { bt.items = bt.items.concat(peers); bt.page = "bluetooth"; }
         else if (peers.length) out.push({ id: "bt-adapters", name: "Bluetooth", glyph: "bluetooth", page: "bluetooth", items: peers });
-        out.push({ id: "batteries", name: "Batteries", glyph: "plug-zap", page: "power", items: Power.devices.map(d => ({ name: d.model || "Battery", props: [["Charge", Math.round(d.percentage) + "%"]] })) });
+        out.push({ id: "batteries", name: "Batteries", glyph: "plug-zap", page: "power", items: Power.devices.map(d => ({ name: Power.labelFor(d), props: [["Charge", Power.percent(d) + "%"]] })) });
         return out.filter(c => c.items && c.items.length > 0).sort((a, b) => a.name.localeCompare(b.name));
     }
     readonly property int total: categories.reduce((t, c) => t + c.items.length, 0)

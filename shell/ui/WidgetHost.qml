@@ -133,7 +133,7 @@ QtObject {
     readonly property var power: reads("power") ? powerObj : null
     property QtObject powerObj: QtObject {
         readonly property bool onBattery: Power.onBattery
-        readonly property real percentage: Power.laptop ? Power.laptop.percentage : -1
+        readonly property real percentage: Power.laptop ? Power.percent(Power.laptop) : -1
         readonly property string profile: Power.profileLabel
     }
 

@@ -54,7 +54,7 @@ SettingsPage {
             SettingsRow {
                 required property var modelData
                 label: modelData.model || "Device"
-                description: Math.round(modelData.percentage) + "%"
+                description: Power.percent(modelData) + "%"
                 Glyph { name: Power.glyphFor(modelData); size: 14 }
             }
         }

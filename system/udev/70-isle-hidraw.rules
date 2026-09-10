@@ -1,3 +1,7 @@
 # The logged-in user may talk to keyboards over raw HID, which is how the browser-based
 # configurators work (Keychron Launcher, VIA, Vial): the same rule the VIA package ships.
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", TAG+="uaccess"
+# Flashing firmware: a Keychron in its bootloader is an STM32 in DFU mode, and Launcher writes it over WebUSB.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", TAG+="uaccess"
+# Keychron's own USB ids, for the configurators that claim the interface over WebUSB rather than HID.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="3434", TAG+="uaccess"

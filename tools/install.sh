@@ -78,7 +78,7 @@ python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, yazi
 # Raw HID for the browser keyboard configurators (Keychron Launcher, VIA): the rule is root's.
 if ! cmp -s "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules; then
     sudo install -Dm644 "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules
-    sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw
+    sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw --subsystem-match=usb
     ok "hidraw devices are the logged-in user's (keyboard configurators)"
 fi
 # Sites that are really apps get their own window and a launcher entry.

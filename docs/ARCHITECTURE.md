@@ -112,7 +112,7 @@ extra process.
 | vpn | `Vpn`: Proton VPN through `protonvpn` (status, connect by country, disconnect, kill switch and NetShield from `config`), and NetworkManager's VPN and WireGuard connections through `nmcli`. Sign-in runs the CLI under `setsid` and feeds the password, then the 2FA code when its stderr asks, over stdin (D20); `ip monitor link` and `nmcli monitor` trigger the refreshes. The panel tile, its VPN page, the launcher's Connect/Disconnect VPN and Settings › Network all drive the one service |
 | shortcuts in the launcher | `Launcher.chord(id)` puts the keyboard in use's chord beside a shell result that has a keymap id; every other keymap action is a "Shortcut" result run the same way the bind runs it (`qs ipc call`, `exec_cmd`, or the Lua dispatched), so the two never drift |
 | shell windows | Settings, Keychain and Monitor are `FloatingWindow`s of the shell process (app id `org.quickshell`); `Surfaces.show(name)` opens one, or focuses it through the compositor by title when it is already open |
-| keyboard configurators | `system/udev/70-isle-hidraw.rules` gives the logged-in user the hidraw nodes (what the VIA package ships), so Keychron Launcher, VIA and Vial reach the keyboard over WebHID; `tools/install.sh` installs it and a Keychron Launcher entry that opens the site as its own window through `shell/scripts/webapp.sh` in the first Chromium-family browser |
+| keyboard configurators | `system/udev/70-isle-hidraw.rules` gives the logged-in user the hidraw nodes (what the VIA package ships), so Keychron Launcher, VIA and Vial reach the keyboard over WebHID, and the STM32 DFU bootloader (0483:df11) and Keychron's own USB ids, so Launcher can flash firmware over WebUSB; `tools/install.sh` installs it and a Keychron Launcher entry that opens the site as its own window through `shell/scripts/webapp.sh` in the first Chromium-family browser |
 | night light | `hyprctl hyprsunset` |
 | brightness | ddcutil for desktop monitors, brightnessctl for laptops |
 | session: sleep, restart, shut down, log out | `systemctl`, `loginctl`, `hyprctl dispatch exit` |
@@ -235,6 +235,24 @@ Rules of the contract:
   different-size one down, or null; `place` commits it, `resize` changes a
   span within the manifest's `min`/`max` (the extremes of `sizes` when
   unset). The dashboard shows a live outline of the plan while dragging.
+
+## Fingerprints
+
+`tools/fingerprint.sh` installs fprintd and the driver a reader needs: the
+repo libfprint for readers it knows, the community goodix53x5 driver built
+from the AUR for the Goodix HTK32 (ids 5335, 5385, 5395, and 5042 added
+to its table by the script), then enrolls a finger with `fprintd-enroll`
+and, with `--sudo`, puts `pam_fprintd` first in `/etc/pam.d/sudo`.
+
+The lock screen does not go through PAM for fingerprints, because a PAM
+stack with `pam_fprintd` blocks the password prompt while the reader
+waits. Instead `Lock` runs `fprintd-list` on lock and, when a finger is
+enrolled, keeps `fprintd-verify` running beside the password field: a
+`verify-match` unlocks, a `verify-no-match` says "Not recognised" and
+listens again, and anything else (reader unplugged, fprintd refusing)
+drops the fingerprint path until the next lock. Unlocking ends the verify.
+fprintd checks the print against the user's own enrolment under polkit,
+which is what the password path proves too.
 
 ## Test hooks
 

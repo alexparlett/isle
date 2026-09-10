@@ -25,11 +25,22 @@ PanelWindow {
     readonly property int columns: 12
     readonly property int rows: 4
     readonly property real cellW: (width - margin * 2 - gutter * (columns - 1)) / columns
-    readonly property real cellH: (height - margin * 2 - gutter * (rows - 1)) / rows
+    // Editing keeps a strip at the bottom for the toolbar, so nothing sits over a card.
+    readonly property int toolbarH: editing ? 44 + gutter : 0
+    readonly property real cellH: (height - margin * 2 - toolbarH - gutter * (rows - 1)) / rows
 
-    // Edit mode: drag to move, the corner to resize, × to remove, + to add. E toggles it.
+    // Edit mode: drag to move, the corner to resize, × to remove, an empty cell or Add for the picker. E toggles it.
     property bool editing: false
     onVisibleChanged: if (!visible) editing = false
+    // The picker, and the cell it will fill: {x, y} or null for the first free spot.
+    property var picking: null
+    // Cells no widget covers, as {x, y}.
+    readonly property var emptyCells: {
+        const out = [];
+        for (let y = 0; y < rows; y++) for (let x = 0; x < columns; x++)
+            if (!Widgets.layout.some(e => x >= e.x && x < e.x + e.w && y >= e.y && y < e.y + e.h)) out.push({ x: x, y: y });
+        return out;
+    }
     function cellAt(px, py) { return { x: Math.round((px - margin) / (cellW + gutter)), y: Math.round((py - margin) / (cellH + gutter)) }; }
 
     Rectangle {
@@ -46,10 +57,26 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onPressed: event => {
-            if (event.key === Qt.Key_Escape) { if (root.editing) root.editing = false; else Surfaces.dashboard = false; }
+            if (event.key === Qt.Key_Escape) { if (root.picking) root.picking = null; else if (root.editing) root.editing = false; else Surfaces.dashboard = false; }
             else if (event.key === Qt.Key_E) root.editing = !root.editing;
             else return;
             event.accepted = true;
+        }
+
+        // Empty cells in edit mode: a dashed tile with a plus, the way a free slot invites a widget.
+        Repeater {
+            model: root.editing ? root.emptyCells : []
+            Rectangle {
+                required property var modelData
+                x: root.margin + modelData.x * (root.cellW + root.gutter)
+                y: root.margin + modelData.y * (root.cellH + root.gutter)
+                width: root.cellW; height: root.cellH
+                radius: Theme.radiusCard
+                color: cellArea.containsMouse ? Qt.alpha(Theme.text, 0.06) : Qt.alpha(Theme.text, 0.025)
+                border.width: 1; border.color: Qt.alpha(Theme.text, cellArea.containsMouse ? 0.3 : 0.12)
+                Glyph { anchors.centerIn: parent; name: "plus"; size: 18; color: Qt.alpha(Theme.text, cellArea.containsMouse ? 0.8 : 0.35) }
+                MouseArea { id: cellArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.picking = { x: parent.modelData.x, y: parent.modelData.y } }
+            }
         }
 
         Repeater {
@@ -73,59 +100,94 @@ PanelWindow {
             }
         }
 
-        // The edit toggle, and in edit mode the add row and reset.
+        // Edit, alone when viewing; in edit mode the strip holds Add, Reset layout, Discard and Done.
         Rectangle {
+            visible: !root.editing
             anchors { right: parent.right; bottom: parent.bottom; margins: root.margin }
             width: editRow.implicitWidth + Theme.s3; height: 32; radius: 16
-            color: root.editing ? Theme.accent : Qt.alpha(Theme.glass, 0.9)
-            border.width: 1; border.color: root.editing ? "transparent" : Theme.hairline
+            color: Qt.alpha(Theme.glass, 0.9)
+            border.width: 1; border.color: Theme.hairline
             z: 10
             RowLayout {
                 id: editRow
                 anchors.centerIn: parent
                 spacing: Theme.s2
-                Glyph { name: root.editing ? "check" : "pencil"; size: 14; color: root.editing ? Theme.onAccent : Theme.text2 }
-                Label { text: root.editing ? "Done" : "Edit"; size: Theme.sizeSmall; weight: Font.DemiBold; color: root.editing ? Theme.onAccent : Theme.text2 }
+                Glyph { name: "pencil"; size: 14; color: Theme.text2 }
+                Label { text: "Edit"; size: Theme.sizeSmall; weight: Font.DemiBold; color: Theme.text2 }
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.editing = !root.editing }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.editing = true }
         }
         // The layout as it was when editing began, for Discard.
         property var before: null
         Connections { target: root; function onEditingChanged() { if (root.editing) grid.before = (Prefs.p.dashboard || []).slice(); } }
-        Rectangle {
+        RowLayout {
             visible: root.editing
-            anchors { right: parent.right; bottom: parent.bottom; margins: root.margin; rightMargin: root.margin + 96 }
-            width: discardRow.implicitWidth + Theme.s3; height: 32; radius: 16
-            color: Qt.alpha(Theme.glass, 0.9); border.width: 1; border.color: Theme.hairline
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: root.margin; rightMargin: root.margin; bottomMargin: root.margin }
+            height: 44
+            spacing: Theme.s2
             z: 10
-            RowLayout { id: discardRow; anchors.centerIn: parent; spacing: Theme.s2
-                Glyph { name: "x"; size: 14; color: Theme.text2 }
-                Label { text: "Discard"; size: Theme.sizeSmall; weight: Font.DemiBold; color: Theme.text2 } }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { Prefs.p.dashboard = grid.before || []; root.editing = false; } }
+            Button { text: "Add widget"; glyph: "plus"; variant: "accent"; enabled: Widgets.unplaced.length > 0; onClicked: root.picking = { x: -1, y: -1 } }
+            Label { text: Widgets.unplaced.length ? Widgets.unplaced.length + " to add" : "Every widget is placed"; size: Theme.sizeSmall; color: Theme.text3 }
+            Item { Layout.fillWidth: true }
+            Label { text: "Drag to move · corner to resize · × removes"; size: Theme.sizeCaption; color: Theme.text3 }
+            Item { Layout.fillWidth: true }
+            Button { text: "Reset layout"; variant: "text"; onClicked: Widgets.resetLayout() }
+            Button { text: "Discard"; variant: "text"; onClicked: { Prefs.p.dashboard = grid.before || []; root.editing = false; } }
+            Button { text: "Done"; glyph: "check"; variant: "raised"; onClicked: root.editing = false }
         }
-        Glass {
-            visible: root.editing
-            anchors { left: parent.left; bottom: parent.bottom; margins: root.margin }
-            width: addRow.implicitWidth + Theme.s3 * 2; height: 36; radius: 18
-            z: 10
-            RowLayout {
-                id: addRow
+
+        // The picker: every widget not yet placed, with its glyph, name and size.
+        Item {
+            visible: root.picking !== null
+            anchors.fill: parent
+            z: 20
+            MouseArea { anchors.fill: parent; onClicked: root.picking = null }
+            Glass {
                 anchors.centerIn: parent
-                spacing: Theme.s2
-                Label { text: Widgets.unplaced.length ? "Add" : "Every widget is placed"; size: Theme.sizeSmall; color: Theme.text2 }
-                Repeater {
-                    model: Widgets.unplaced
-                    Rectangle {
-                        required property string modelData
-                        implicitHeight: 24; implicitWidth: addLabel.implicitWidth + Theme.s2 * 2 + 4
-                        radius: 12; color: Theme.raised; border.width: 1; border.color: Theme.hairline
-                        Label { id: addLabel; anchors.centerIn: parent; text: Widgets.manifests[modelData] ? Widgets.manifests[modelData].name : modelData; size: Theme.sizeCaption; weight: Font.DemiBold }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.add(modelData) }
+                width: 520
+                height: pickCol.implicitHeight + Theme.s4 * 2
+                radius: Theme.radiusPanel
+                MouseArea { anchors.fill: parent }
+                ColumnLayout {
+                    id: pickCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.s4 }
+                    spacing: Theme.s3
+                    Label { text: "Add a widget"; size: Theme.sizeHeading; weight: Font.DemiBold }
+                    Label { visible: Widgets.unplaced.length === 0; text: "Every widget is on the dashboard."; color: Theme.text2 }
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 3
+                        columnSpacing: Theme.s2; rowSpacing: Theme.s2
+                        Repeater {
+                            model: Widgets.unplaced
+                            Rectangle {
+                                required property string modelData
+                                readonly property var manifest: Widgets.manifests[modelData] || ({})
+                                Layout.fillWidth: true
+                                implicitHeight: 88
+                                radius: Theme.radiusCard
+                                color: pickArea.containsMouse ? Theme.pressed : Theme.raised
+                                border.width: 1; border.color: Theme.hairline
+                                ColumnLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 4
+                                    Glyph { Layout.alignment: Qt.AlignHCenter; name: manifest.glyph || "layout-grid"; size: 22; color: Theme.text }
+                                    Label { Layout.alignment: Qt.AlignHCenter; text: manifest.name || modelData; weight: Font.DemiBold; size: Theme.sizeSmall }
+                                    Label { Layout.alignment: Qt.AlignHCenter; text: (manifest.default || "3x1").replace("x", " × "); size: Theme.sizeCaption; color: Theme.text3 }
+                                }
+                                MouseArea {
+                                    id: pickArea
+                                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        const at = root.picking;
+                                        if (at && at.x >= 0) Widgets.addAt(parent.modelData, at.x, at.y); else Widgets.add(parent.modelData);
+                                        root.picking = null;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                Label { text: "·"; color: Theme.text3 }
-                Label { text: "Reset layout"; size: Theme.sizeCaption; color: Theme.accent
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.resetLayout() } }
             }
         }
     }

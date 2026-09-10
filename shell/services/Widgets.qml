@@ -102,6 +102,14 @@ Singleton {
             if (fits(e, layout)) { setLayout(layout.concat([e])); return; }
         }
     }
+    // Place at a cell when the widget fits there; otherwise the first free spot.
+    function addAt(id, x, y) {
+        const m = manifests[id];
+        if (!m || layout.some(e => e.id === id)) return;
+        const [w, h] = (m.default || "3x1").split("x").map(Number);
+        const e = { id: id, x: Math.min(x, columns - w), y: Math.min(y, rows - h), w: w, h: h };
+        if (fits(e, layout)) setLayout(layout.concat([e])); else add(id);
+    }
     function resetLayout() { Prefs.p.dashboard = []; }
 
     // --- settings -------------------------------------------------------------------

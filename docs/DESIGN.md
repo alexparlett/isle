@@ -270,10 +270,13 @@ GPU (LACT clocks, power limit, fans from CoolerControl), Games (recent,
 quick launch), Clipboard (recent entries), Timer (focus / pomodoro),
 Updates (pending packages), Weather.
 
-Edit mode (hold on a widget, or the pencil in the corner) lets a widget
-be moved, resized between its supported sizes, removed, or added from a
-picker that names why an unavailable one is unavailable ("needs
-CoolerControl"). The layout is a preference.
+Edit mode (E, or the pencil in the corner) lets a widget be moved,
+resized between its supported sizes and removed. Every empty cell shows
+as a faint dashed tile with a plus; clicking one opens the picker (every
+widget not yet placed, as a tile of glyph, name and size) and puts the
+choice there. The grid gives up a strip at the bottom for the toolbar,
+Add widget, Reset layout, Discard and Done, so no control sits over a
+card. The layout is a preference.
 
 A glyph is an Item of its box, so layouts size it by the box and never
 by the raster (a 2× raster once doubled every icon inside a layout).

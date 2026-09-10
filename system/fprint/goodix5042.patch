@@ -32,15 +32,17 @@ index 9f9ea55..927e63c 100644
  /* Production write of @data under @data_type (e.g. 0xB002 = PSK white box).
   * Expects data (a one-byte status reply). */
 diff --git a/drivers/goodix53x5/goodix53x5-private.h b/drivers/goodix53x5/goodix53x5-private.h
-index 232a02a..94ba9b8 100644
+index 232a02a..16139c3 100644
 --- a/drivers/goodix53x5/goodix53x5-private.h
 +++ b/drivers/goodix53x5/goodix53x5-private.h
-@@ -127,12 +127,16 @@ struct _FpiDeviceGoodix53x5
+@@ -127,12 +127,18 @@ struct _FpiDeviceGoodix53x5
  
    /* Firmware version string */
    gchar *fw_version;
 +  /* Firmware without the security layer (GF5288_HT_APP): no key, no GTLS, images arrive as sent. */
 +  gboolean plain;
++  /* The open-time channel readings the polling detector compares against; the open's own copy is freed. */
++  guint8 plain_base[GOODIX_FDT_BASE_LEN];
  
    /* TRUE while verifying a PSK write during open. */
    gboolean psk_write_verify_pending;
@@ -53,7 +55,7 @@ index 232a02a..94ba9b8 100644
    /* USB interface state */
    gboolean usb_interface_claimed;
 diff --git a/drivers/goodix53x5/goodix53x5-scan.c b/drivers/goodix53x5/goodix53x5-scan.c
-index d242b93..8ab8ed2 100644
+index d242b93..d2188fb 100644
 --- a/drivers/goodix53x5/goodix53x5-scan.c
 +++ b/drivers/goodix53x5/goodix53x5-scan.c
 @@ -136,9 +136,16 @@ goodix_ref_capture_ssm_handler (FpiSsm   *ssm,
@@ -97,7 +99,7 @@ index d242b93..8ab8ed2 100644
 +
 +  for (int i = 0; i < 12; i++)
 +    {
-+      guint16 base = self->fdt_data_tx_on[i * 2] | ((guint16) self->fdt_data_tx_on[i * 2 + 1] << 8);
++      guint16 base = self->plain_base[i * 2] | ((guint16) self->plain_base[i * 2 + 1] << 8);
 +      guint16 now = readings[i * 2] | ((guint16) readings[i * 2 + 1] << 8);
 +      gint d = abs ((gint) (now >> 1) - (gint) (base >> 1));
 +
@@ -199,7 +201,7 @@ index d242b93..8ab8ed2 100644
          if (decrypted == NULL)
            {
              fpi_ssm_mark_failed (ssm,
-@@ -393,11 +491,41 @@ goodix_finger_up_ssm_handler (FpiSsm   *ssm,
+@@ -393,11 +491,42 @@ goodix_finger_up_ssm_handler (FpiSsm   *ssm,
    switch (fpi_ssm_get_cur_state (ssm))
      {
      case GOODIX_FINGER_UP_FDT_UP_SETUP:
@@ -232,6 +234,7 @@ index d242b93..8ab8ed2 100644
 +              return;
 +            }
 +          fp_dbg ("Finger lifted (polling)");
++          memcpy (self->plain_base, pl + 4, GOODIX_FDT_BASE_LEN);
 +          fpi_device_report_finger_status_changes (dev,
 +                                                   FP_FINGER_STATUS_NONE,
 +                                                   FP_FINGER_STATUS_PRESENT | FP_FINGER_STATUS_NEEDED);
@@ -242,7 +245,7 @@ index d242b93..8ab8ed2 100644
         * jumps straight to the sleep/power-off tail of this SSM. */
        self->blocking_ssm = ssm;
 diff --git a/drivers/goodix53x5/goodix53x5-session.c b/drivers/goodix53x5/goodix53x5-session.c
-index c231c81..ebb6aab 100644
+index c231c81..7dbe4c4 100644
 --- a/drivers/goodix53x5/goodix53x5-session.c
 +++ b/drivers/goodix53x5/goodix53x5-session.c
 @@ -29,6 +29,23 @@
@@ -371,6 +374,14 @@ index c231c81..ebb6aab 100644
          {
            const guint8 *mcu_data;
            gsize mcu_len;
+@@ -540,6 +581,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+             memcpy (self->calib.fdt_base_up, fdt_base, GOODIX_FDT_BASE_LEN);
+             memcpy (self->calib.fdt_base_manual, fdt_base,
+                     GOODIX_FDT_BASE_LEN);
++            memcpy (self->plain_base, self->fdt_data_tx_on, GOODIX_FDT_BASE_LEN);
+           }
+ 
+         fpi_ssm_next_state (ssm);
 diff --git a/drivers/goodix53x5/goodix53x5-transport.c b/drivers/goodix53x5/goodix53x5-transport.c
 index d653164..af0e0f8 100644
 --- a/drivers/goodix53x5/goodix53x5-transport.c

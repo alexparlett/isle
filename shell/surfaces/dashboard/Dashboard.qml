@@ -11,7 +11,18 @@ PanelWindow {
     id: root
 
     screen: Compositor.shellScreen
-    visible: Surfaces.dashboard
+    // Stays up while the confirm dialog is open even after a keybind has cleared Surfaces.dashboard.
+    visible: Surfaces.dashboard || confirming
+    // Every close route (Escape, the keybind, a margin click) clears Surfaces.dashboard; this catches it and
+    // asks first when there are unsaved edits, keeping the window up via `visible` until the choice is made.
+    Connections {
+        target: Surfaces
+        function onDashboardChanged() {
+            if (Surfaces.dashboard) return;                                      // opening: nothing to guard
+            if (root.editing && root.dirty && !root.confirming) root.confirming = true;  // intercept: keep it up and ask
+            else root.editing = false;                                          // clean or non-edit close
+        }
+    }
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "isle-dashboard"
@@ -40,21 +51,17 @@ PanelWindow {
 
     // Edit mode: drag to move, the corner to resize, × to remove; the library adds, by click or by drag. E toggles it.
     property bool editing: false
-    onVisibleChanged: { if (visible) grid.forceActiveFocus(); else { editing = false; confirming = false; } }
+    onVisibleChanged: if (visible) grid.forceActiveFocus()
     onEditingChanged: { pending = null; focusKey = ""; preview = null; library.composing = false; grid.forceActiveFocus(); if (editing) Widgets.rescan(); }
     // Unsaved edits: the layout differs from the snapshot taken when editing began.
     readonly property bool dirty: editing && grid.before !== null && JSON.stringify(Widgets.pages) !== JSON.stringify(grid.before)
     property bool confirming: false
-    property bool closeAfter: false
-    // Leaving edit mode, and optionally closing after, asks first when there are unsaved edits.
-    function leaveEdit(alsoClose) {
-        if (dirty) { closeAfter = alsoClose; confirming = true; }
-        else { editing = false; if (alsoClose) Surfaces.dashboard = false; }
-    }
-    function attemptClose() { if (editing) leaveEdit(true); else Surfaces.dashboard = false; }
     function focusGrid() { grid.forceActiveFocus(); }
-    function keepEdits() { editing = false; confirming = false; if (closeAfter) Surfaces.dashboard = false; closeAfter = false; }
-    function discardEdits() { Prefs.p.dashboardPages = grid.before || []; Prefs.p.dashboardPage = grid.beforePage; editing = false; confirming = false; if (closeAfter) Surfaces.dashboard = false; closeAfter = false; }
+    // The dialog's answers: Keep leaves the changes in place and closes; Discard restores the pre-edit layout
+    // and closes; Cancel reopens the dashboard, still editing.
+    function keepEdits() { editing = false; confirming = false; Surfaces.dashboard = false; }
+    function discardEdits() { Prefs.p.dashboardPages = grid.before || []; Prefs.p.dashboardPage = grid.beforePage; editing = false; confirming = false; Surfaces.dashboard = false; }
+    function cancelClose() { confirming = false; Surfaces.dashboard = true; }
     // The card the keys act on, by instance key.
     property string focusKey: ""
     // Where a dragged or resized card would land: { x, y, w, h, ok }, or null.
@@ -102,7 +109,7 @@ PanelWindow {
         color: Qt.alpha(Theme.ink, 0.55)
         opacity: root.visible ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Theme.move } }
-        MouseArea { anchors.fill: parent; onClicked: root.attemptClose() }
+        MouseArea { anchors.fill: parent; onClicked: Surfaces.dashboard = false }
     }
 
     Item {
@@ -112,14 +119,14 @@ PanelWindow {
         // Clicks in the grid's own area (the gaps between and around the cards) do nothing; only a click in
         // the margin outside it reaches the backdrop and closes the dashboard.
         MouseArea {
-            x: root.margin; y: root.gridTop
+            x: root.margin; y: root.margin
             width: root.width - root.margin * 2 - root.libraryW
-            height: root.rows * root.cellH + (root.rows - 1) * root.gutter
+            height: root.height - root.margin * 2 - root.toolbarH
             onClicked: {}
         }
         Keys.onPressed: event => {
             const shift = event.modifiers & Qt.ShiftModifier;
-            if (event.key === Qt.Key_Escape) { if (root.confirming) root.confirming = false; else if (root.pending) root.pending = null; else if (root.focusKey) root.focusKey = ""; else if (root.editing) root.leaveEdit(false); else Surfaces.dashboard = false; }
+            if (event.key === Qt.Key_Escape) { if (root.confirming) root.cancelClose(); else if (root.pending) root.pending = null; else Surfaces.dashboard = false; }
             else if (event.key === Qt.Key_E) root.editing = !root.editing;
             else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) Widgets.setPage(event.key - Qt.Key_1);
             else if (root.editing && event.key === Qt.Key_Tab) { const l = Widgets.layout; const i = l.findIndex(e => e.key === root.focusKey); root.focusKey = l.length ? l[(i + 1) % l.length].key : ""; }
@@ -435,7 +442,7 @@ PanelWindow {
             anchors.fill: parent
             z: 40
             Rectangle { anchors.fill: parent; color: Qt.alpha(Theme.ink, 0.4) }
-            MouseArea { anchors.fill: parent; onClicked: root.confirming = false }
+            MouseArea { anchors.fill: parent; onClicked: root.cancelClose() }
             Glass {
                 anchors.centerIn: parent
                 width: 420
@@ -453,7 +460,7 @@ PanelWindow {
                         spacing: Theme.s2
                         Button { text: "Discard"; variant: "text"; onClicked: root.discardEdits() }
                         Item { Layout.fillWidth: true }
-                        Button { text: "Cancel"; variant: "text"; onClicked: root.confirming = false }
+                        Button { text: "Cancel"; variant: "text"; onClicked: root.cancelClose() }
                         Button { text: "Keep"; glyph: "check"; variant: "accent"; onClicked: root.keepEdits() }
                     }
                 }

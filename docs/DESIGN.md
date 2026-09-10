@@ -110,6 +110,20 @@ Every interactive component has hover (raised), pressed (pressed), focus
 (ring) and disabled (text-3) states. Controller and keyboard navigation use
 the ring; the mouse never shows one.
 
+## Notifications
+
+Three surfaces, one card. The toast in the island is the arrival: summary,
+body, up to three action pills and Reply. The centre is a page of the
+island's panel, reached from the bell with a count in the rest strip, the
+Notifications tile, or the "while you were away" summary: the do-not-disturb
+toggle, what is silencing toasts if anything, the waiting notifications with
+their actions and reply still live, then "Earlier", the records kept from
+before, which read the same but act on nothing. The dashboard widget is the
+same list at a glance. Left click activates, right click dismisses, a hover
+shows ×. Settings › Notifications holds the silence rules (quiet hours,
+fullscreen, the summary), sound, and per app whether it toasts and whether
+it always does.
+
 ## The island
 
 Top centre of the focused monitor, 12px from the edge. The only persistent

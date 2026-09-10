@@ -38,6 +38,15 @@ Singleton {
         adapter: JsonAdapter {
             id: adapter
             property bool dnd: false
+            // Quiet hours (from hour to hour, wrapping midnight), auto-silence under a fullscreen window, apps
+            // that toast through, a summary when silence lifts, and a sound per toast.
+            property bool dndQuiet: false
+            property int dndQuietFrom: 22
+            property int dndQuietTo: 7
+            property bool dndFullscreen: true
+            property var dndAllow: []
+            property bool dndSummary: true
+            property bool notifySound: false
             property bool reducedMotion: false
             property string wallpaper: ""
             property var wallpaperFolders: []

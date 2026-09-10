@@ -73,7 +73,7 @@ extra process.
 | audio: sinks, sources, streams, volume, mute, default device | native Pipewire |
 | network: wifi list, connect, ethernet, connectivity | native Networking (NetworkManager) |
 | bluetooth: adapters, devices, pair, connect, battery | native Bluetooth (BlueZ) |
-| notifications: server, actions, inline reply, images, DND | native Notifications |
+| notifications: server, actions, inline reply, images, DND | native Notifications. `Notifications` keeps every one until dismissed and logs each arrival as a record to `~/.config/isle/notifications.json` (300 kept), so the history survives a restart as "Earlier" entries without actions. One `NotificationCard` draws them everywhere: the island's centre (a panel page, from the bell, the tile or the summary), the dashboard widget, and the toast. A toast is silenced by do not disturb, quiet hours, a fullscreen window (the compositor's `fullscreen` event), or game mode; critical ones and apps in `dndAllow` toast anyway, low-urgency ones never do; what was silenced is counted and, when silence lifts, summarised with a way to the centre. A toast lasts as long as the app's `expireTimeout` asks, within 3 to 15 s; an optional sound plays through pw-play |
 | media: players, art, transport, seek | native Mpris |
 | battery and power source (controllers, headsets) | native UPower |
 | tray | native SystemTray; shown in the dashboard's Session widget |

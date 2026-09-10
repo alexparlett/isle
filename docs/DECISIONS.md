@@ -181,3 +181,13 @@ spans, and takes arrow keys on the focused card. Multiple pages, switched
 by tabs or the number keys, hold their own layouts. All of it is QML over
 the prefs layout: a compositor plugin has no view of a surface the shell
 draws, so there is nothing for one to do here.
+
+**D26 · Notification history is records, not notifications.** A live
+notification is an object the server holds for the app: actions, reply, an
+image. It cannot outlive the shell, so a restart used to empty the list. Each
+arrival is now also logged as a plain record (app, summary, body, icon, time,
+urgency) to a file, and the centre shows records that are not live under
+"Earlier": readable, but with no actions, because there is nothing left to
+act on. The centre lives in the island's panel rather than a surface of its
+own so it is one hover away without leaving the window in use; the dashboard
+widget shows the same list for when the dashboard is already up.

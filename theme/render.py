@@ -142,10 +142,12 @@ def browser_hints():
             add.append("--ozone-platform-hint=auto")
         if "qt-version" not in cur:
             add.append("--qt-version=6")
+        if "NativeNotifications" not in cur:
+            add.append("--enable-features=NativeNotifications")
         if not add:
             continue
         with open(path, "a") as f:
-            f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland when the session is Wayland, with Qt 6; added by Isle.\n" + "\n".join(add) + "\n")
+            f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland when the session is Wayland, with Qt 6, and notifications through the desktop's server; added by Isle.\n" + "\n".join(add) + "\n")
 
 dry = "--dry" in sys.argv
 if not dry:

@@ -32,6 +32,9 @@ PanelWindow {
     readonly property bool unfolded: (hovered && armed && !Surfaces.busy) || pinned
     property bool pinned: false
     function dismiss() { enterDelay.stop(); hovered = false; pinned = false; armed = false; }
+    // The panel, pinned open on one of its pages: the notification centre from the bell or a summary.
+    function showPage(name) { panelBody.page = name; pinned = true; }
+    Connections { target: Notifications; function onCentreRequested() { root.showPage("notifications"); } }
     Connections {
         target: Surfaces
         function onBusyChanged() { if (Surfaces.busy && hover.hovered) root.armed = false; }
@@ -75,6 +78,7 @@ PanelWindow {
         target: "island"
         function text(text: string): void { IslandEvents.show({ kind: "text", text: text, glyph: "check" }); }
         function pin(on: bool): void { root.pinned = on; }
+        function notifications(): void { root.showPage("notifications"); }
         function clear(): void { IslandEvents.queue = []; IslandEvents.dismiss(); }
         function dnd(action: string): void { Notifications.setDnd(action === "on" ? true : action === "off" ? false : !Notifications.dnd); }
         // Sample events for design review: osd, media, text.
@@ -96,7 +100,7 @@ PanelWindow {
              : root.mode === "event" ? eventLoader.contentWidth + padX * 2
              : rest.implicitWidth + padX * 2
         height: root.mode === "panel" ? Theme.headerHeight + panelBody.implicitHeight + Theme.s3 * 2
-              : root.mode === "event" ? Math.max(IslandEvents.current.height || Theme.islandHeight, eventLoader.contentHeight + Theme.s3)
+              : root.mode === "event" ? Math.max((IslandEvents.current && IslandEvents.current.height) || Theme.islandHeight, eventLoader.contentHeight + Theme.s3)
               : Theme.islandHeight
         radius: root.mode === "panel" ? Theme.radiusPanel + 2 : Math.min(height / 2, Theme.radiusPanel + 2)
 

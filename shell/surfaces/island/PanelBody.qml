@@ -44,9 +44,11 @@ ColumnLayout {
             onToggled: v => NightLight.setOn(v)
         }
         ToggleTile {
-            glyph: "bell-off"; label: "Do not disturb"; sub: Notifications.dnd ? "On" : "Off"
-            on: Notifications.dnd
+            glyph: Notifications.count > 0 ? "bell" : "bell-off"; label: "Notifications"
+            sub: Notifications.silenced ? Notifications.silencedBy : Notifications.count > 0 ? Notifications.count + " waiting" : "All clear"
+            on: Notifications.dnd; hasMore: true
             onToggled: v => Notifications.setDnd(v)
+            onMore: root.page = "notifications"
         }
         ToggleTile {
             glyph: "gamepad-2"; label: "Game mode"; sub: Modes.game ? "On" : "Off"
@@ -243,6 +245,47 @@ ColumnLayout {
             }
         }
         Label { visible: Network.networks.length === 0; text: Network.wifiEnabled ? "Looking for networks" : "Wi-Fi is off"; color: Theme.text3; Layout.margins: Theme.s3 }
+    }
+
+    // The notification centre: what is waiting, with its actions and reply live; earlier ones beneath.
+    PanelPage {
+        visible: root.page === "notifications"
+        Layout.fillWidth: true
+        title: "Notifications"
+        onBack: root.page = "main"
+        Toggle { checked: Notifications.dnd; onToggled: v => Notifications.setDnd(v) }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.s2
+            Layout.rightMargin: Theme.s2
+            Label { text: Notifications.silenced ? "Silenced: " + Notifications.silencedBy : Notifications.count > 0 ? Notifications.count + " waiting" : "All clear"; size: Theme.sizeCaption; color: Theme.text3; Layout.fillWidth: true }
+            Label { visible: Notifications.count > 0 || Notifications.past.length > 0; text: "Clear all"; size: Theme.sizeCaption; color: Theme.accent
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Notifications.clearAll() } }
+        }
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: Math.min(centreList.contentHeight, 360)
+            visible: Notifications.count > 0 || Notifications.past.length > 0
+            ListView {
+                id: centreList
+                anchors.fill: parent
+                clip: true
+                spacing: 0
+                boundsBehavior: Flickable.StopAtBounds
+                // Live first, then the past; a header row divides them.
+                model: Notifications.list.map(n => ({ n: n })).concat(Notifications.past.length ? [{ header: "Earlier" }] : [], Notifications.past.slice(0, 40).map(r => ({ past: r })))
+                delegate: Item {
+                    required property var modelData
+                    width: centreList.width
+                    height: modelData.header ? 26 : card.implicitHeight + 1
+                    Label { visible: !!modelData.header; anchors { left: parent.left; bottom: parent.bottom; leftMargin: Theme.s2; bottomMargin: 6 } text: modelData.header || ""; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text3 }
+                    NotificationCard { id: card; visible: !modelData.header; anchors { left: parent.left; right: parent.right; leftMargin: Theme.s2; rightMargin: Theme.s2 } n: modelData.n || null; past: modelData.past || null }
+                    Rectangle { visible: !modelData.header; anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: Theme.s2; rightMargin: Theme.s2 } height: 1; color: Theme.hairline }
+                }
+            }
+            Scrollbar { target: centreList; anchors { top: parent.top; bottom: parent.bottom; right: parent.right } }
+        }
+        Label { visible: Notifications.count === 0 && Notifications.past.length === 0; text: "Nothing yet"; color: Theme.text3; Layout.margins: Theme.s3 }
     }
 
     PanelPage {

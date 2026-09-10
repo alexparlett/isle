@@ -4,10 +4,11 @@ import qs.theme
 import qs.ui
 import qs.services
 
+// The same cards as the island's centre: what is waiting, actions and reply live, earlier ones beneath.
 WidgetBase {
     id: root
     title: "Notifications"
-    meta: Notifications.count > 0 ? Notifications.count + "" : ""
+    meta: Notifications.silenced ? Notifications.silencedBy : Notifications.count > 0 ? Notifications.count + "" : ""
 
     ColumnLayout {
         anchors.fill: parent
@@ -15,7 +16,7 @@ WidgetBase {
 
         RowLayout {
             Layout.fillWidth: true
-            visible: Notifications.count > 0
+            visible: Notifications.count > 0 || Notifications.past.length > 0
             Item { Layout.fillWidth: true }
             Label {
                 text: "Clear all"; size: Theme.sizeCaption; color: Theme.accent
@@ -24,60 +25,31 @@ WidgetBase {
         }
 
         ListView {
+            id: list
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            model: Notifications.list
             spacing: 0
+            boundsBehavior: Flickable.StopAtBounds
+            model: Notifications.list.map(n => ({ n: n })).concat(Notifications.past.length ? [{ header: "Earlier" }] : [], Notifications.past.slice(0, 40).map(r => ({ past: r })))
             delegate: Item {
                 required property var modelData
-                required property int index
                 width: ListView.view.width
-                height: row.implicitHeight + Theme.s2 * 2 + 1
-
-                RowLayout {
-                    id: row
-                    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: Theme.s2 }
-                    spacing: Theme.s2 + 2
-                    Item {
-                        Layout.preferredWidth: 26; Layout.preferredHeight: 26
-                        Layout.alignment: Qt.AlignTop
-                        readonly property string icon: Notifications.iconFor(modelData)
-                        AppIcon { anchors.fill: parent; size: 26; source: parent.icon; visible: parent.icon !== "" }
-                        Rectangle { anchors.fill: parent; radius: 8; color: Theme.raised; visible: parent.icon === ""
-                            Glyph { anchors.centerIn: parent; name: "bell"; size: 14 } }
-                    }
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 1
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label { text: modelData.summary || modelData.appName; weight: Font.DemiBold; Layout.fillWidth: true }
-                            Label { text: Notifications.age(modelData); size: Theme.sizeCaption; color: Theme.text3 }
-                        }
-                        Label { text: Notifications.plain(modelData.body); size: Theme.sizeSmall; color: Theme.text2; Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 2; visible: text !== "" && root.settings.body !== false }
-                    }
-                    // The image hint, when the app has an icon of its own.
-                    Rectangle {
-                        readonly property string picture: root.settings.pictures !== false ? Notifications.pictureFor(modelData) : ""
-                        visible: picture !== ""
-                        Layout.preferredWidth: 48; Layout.preferredHeight: 48
-                        Layout.alignment: Qt.AlignTop
-                        radius: 8; color: Theme.raised; clip: true
-                        Image { anchors.fill: parent; source: parent.picture; fillMode: Image.PreserveAspectCrop; asynchronous: true }
-                    }
+                height: modelData.header ? 26 : card.implicitHeight + 1
+                Label { visible: !!modelData.header; anchors { left: parent.left; bottom: parent.bottom; bottomMargin: 6 } text: modelData.header || ""; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text3 }
+                NotificationCard {
+                    id: card
+                    visible: !modelData.header
+                    anchors { left: parent.left; right: parent.right }
+                    n: modelData.n || null
+                    past: modelData.past || null
+                    showBody: root.settings.body !== false
+                    showPicture: root.settings.pictures !== false
                 }
-                Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: Theme.hairline; visible: index < Notifications.count - 1 }
-                MouseArea {
-                    anchors.fill: parent
-                    z: -1
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: mouse => mouse.button === Qt.LeftButton ? Notifications.activate(modelData) : Notifications.dismiss(modelData)
-                }
+                Rectangle { visible: !modelData.header; anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: Theme.hairline }
             }
         }
 
-        Label { Layout.alignment: Qt.AlignHCenter; Layout.fillHeight: true; verticalAlignment: Text.AlignVCenter; visible: Notifications.count === 0; text: "All clear"; color: Theme.text3 }
+        Label { Layout.alignment: Qt.AlignHCenter; Layout.fillHeight: true; verticalAlignment: Text.AlignVCenter; visible: Notifications.count === 0 && Notifications.past.length === 0; text: "All clear"; color: Theme.text3 }
     }
 }

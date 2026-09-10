@@ -1,21 +1,11 @@
 diff --git a/drivers/goodix53x5/goodix53x5-commands.c b/drivers/goodix53x5/goodix53x5-commands.c
-index 2284afc..0640611 100644
+index 2284afc..a90d41a 100644
 --- a/drivers/goodix53x5/goodix53x5-commands.c
 +++ b/drivers/goodix53x5/goodix53x5-commands.c
-@@ -146,6 +146,26 @@ goodix_cmd_production_read (FpiSsm *ssm, FpDevice *dev, guint32 read_type)
+@@ -146,6 +146,16 @@ goodix_cmd_production_read (FpiSsm *ssm, FpDevice *dev, guint32 read_type)
    goodix_run_cmd (ssm, dev, 0xE, 0x2, payload, 4, TRUE);
  }
  
-+/* The 51x0 family's key read: the record id followed by a zero word. Same command byte, same reply format. */
-+void
-+goodix_cmd_production_read_long (FpiSsm *ssm, FpDevice *dev, guint32 read_type)
-+{
-+  guint8 payload[8] = { 0 };
-+
-+  goodix_encode_u32_le (payload, read_type);
-+  goodix_run_cmd (ssm, dev, 0xE, 0x2, payload, 8, TRUE);
-+}
-+
 +/* The 51x0 family's key read: the record id followed by a zero word. Same command byte, same reply format. */
 +void
 +goodix_cmd_production_read_long (FpiSsm *ssm, FpDevice *dev, guint32 read_type)

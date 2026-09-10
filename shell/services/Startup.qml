@@ -18,20 +18,6 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: if (text.trim() === "run") Compositor.exec("dex -a -e Hyprland") }
     }
 
-    // Left by tools/iso/target-setup.sh; bootstrap.sh --finish removes it.
-    readonly property string finishMarker: Quickshell.shellDir + "/../.finish-setup"
-    Process {
-        command: ["sh", "-c", "[ -e \"$1\" ] && echo yes", "_", root.finishMarker]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: if (text.trim() === "yes") IslandEvents.show({
-                kind: "text", duration: 20000, glyph: "package",
-                text: "Finish setting up Isle", detail: "keyboard profiles, cursor, title bars",
-                actions: [{ label: "Finish", run: () => Compositor.exec("kitty -- bash -c 'cd \"" + Quickshell.shellDir + "/..\" && tools/bootstrap.sh --finish; read -rp \"Enter to close\"'") }]
-            })
-        }
-    }
-
     Process {
         id: lister
         command: ["python3", root.script, "list"]

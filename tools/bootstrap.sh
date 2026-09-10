@@ -12,7 +12,6 @@
 #     tools/bootstrap.sh --no-aur         skip paru and the AUR packages (xremap, cursor theme, CoolerControl)
 #     tools/bootstrap.sh --greeter        also install greetd with the shell's greeter (replaces SDDM)
 #     tools/bootstrap.sh --no-bars        skip building hyprbars (title bars with close, fullscreen, minimise)
-#     tools/bootstrap.sh --finish         after an install from the Isle ISO: only the AUR packages and hyprbars
 #
 # What it does, in order: packages from packages/shell.txt; paru and the AUR
 # packages; the repo linked into ~/.config (tools/install.sh); PAM for the
@@ -25,8 +24,8 @@
 set -euo pipefail
 REPO_URL="${ISLE_REPO_URL:-https://github.com/alexparlett/isle.git}"
 DEST="${ISLE_REPO:-$HOME/.local/share/isle}"
-aur=1; greeter=0; bars=1; finish=0
-for a in "$@"; do case "$a" in --no-aur) aur=0 ;; --greeter) greeter=1 ;; --no-bars) bars=0 ;; --finish) finish=1 ;; -h|--help) sed -n '3,25p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
+aur=1; greeter=0; bars=1
+for a in "$@"; do case "$a" in --no-aur) aur=0 ;; --greeter) greeter=1 ;; --no-bars) bars=0 ;; -h|--help) sed -n '3,25p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
 
 ok() { printf '  \e[32m✓\e[0m %s\n' "$*"; }
 step() { printf '\n\e[1m%s\e[0m\n' "$*"; }
@@ -48,7 +47,6 @@ else
 fi
 
 # --- packages ---------------------------------------------------------------------
-if ((!finish)); then
 step "Packages"
 mapfile -t pkgs < <(sed 's/#.*//' "$DEST/packages/shell.txt" | tr -d ' ' | grep -v '^$')
 if ! pacman -Sl multilib >/dev/null 2>&1; then
@@ -59,7 +57,6 @@ sudo pacman -Syu --needed --noconfirm "${pkgs[@]}"
 # Explicit, so one that arrived as another desktop's dependency survives that desktop's removal.
 sudo pacman -D --asexplicit "${pkgs[@]}" >/dev/null 2>&1 || true
 ok "${#pkgs[@]} packages"
-fi
 
 if ((aur)); then
     step "AUR"
@@ -85,13 +82,6 @@ if ((bars)); then
     else
         echo "  ! hyprbars did not build; windows get no title bars (Win+Q, Win+Shift+F, Win+M still work)"
     fi
-fi
-
-if ((finish)); then
-    rm -f "$DEST/.finish-setup"
-    step "Done"
-    echo "  Log out and in again for the title bars and keyboard profiles."
-    exit 0
 fi
 
 # --- the shell ----------------------------------------------------------------------

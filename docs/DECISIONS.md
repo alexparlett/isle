@@ -146,3 +146,11 @@ running desktop down with it. `tools/install.sh` now copies the checkout to
 trying things first. Copy rather than clone, so uncommitted work installs
 too when it is wanted, and the copy keeps its git history for Settings ›
 Updates.
+
+**D22 · No installer ISO; the VM harness is local.** The ISO build laid
+Isle over CachyOS's live image and needed a first-login "finish setup"
+step for what only a session can do; the one-line bootstrap does the same
+job from a normal CachyOS install. The QEMU harness, guest provisioning and
+screenshot tools are the maintainer's and now live under `dev/`, which git
+ignores, so the repository holds the shell and its install and nothing
+about how it is tested.

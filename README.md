@@ -84,12 +84,11 @@ On CachyOS, as your user:
 curl -fsSL https://raw.githubusercontent.com/alexparlett/isle/main/tools/bootstrap.sh | bash
 ```
 
-Then log out and pick Hyprland at the login screen. Or build the ISO with
-`tools/iso/build.sh`: CachyOS's own live ISO with Isle in the installer's
-desktop list. Either way, Settings › Updates keeps the shell current.
+Then log out and pick Hyprland at the login screen. Settings › Updates
+keeps the shell current.
 
 The desktop runs from `~/.local/share/isle`. To work on it, clone anywhere
-else, test in the VM (`tools/test-vm.sh`), and run `tools/install.sh` from
+else, test in the VM, and run `tools/install.sh` from
 that checkout to copy it into place; editing the checkout changes nothing
 until then.
 

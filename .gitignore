@@ -19,3 +19,6 @@ shots/
 plugins/*/*.so
 plugins/isle-windows/*.so
 __pycache__/
+
+# The VM harness and other local-only tooling.
+dev/

@@ -11,9 +11,10 @@ Targets CachyOS; built for gaming and for running coding agents.
 - The desktop runs from `~/.local/share/isle`, a copy that `tools/install.sh`
   makes from this checkout. Editing here changes nothing on the host until
   the user runs it; the VM mounts this checkout directly.
-- Verify in the VM, not by reasoning: `tools/test-vm.sh` boots the guest
-  with the repo at `/repo`, `tools/guest.sh` runs a command in the
-  session, `tools/test-vm.sh shot` takes a screenshot. Restart the shell
+- Verify in the VM, not by reasoning: `dev/test-vm.sh` boots the guest
+  with the repo at `/repo`, `dev/guest.sh` runs a command in the
+  session, `dev/test-vm.sh shot` takes a screenshot. `dev/` is the
+  maintainer's local tooling and is git-ignored; never stage it. Restart the shell
   with `pkill -x qs` in the guest; the compositor's start hook relaunches it.
 - Stage explicit paths. Never `git add -A`: other work may be in the tree.
 - `hypr/generated/` and `theme/__pycache__/` are written at run time and

@@ -50,7 +50,7 @@ hypr/         hyprland.lua and the fragments the shell writes (binds, monitors, 
 input/        xremap profiles: mac.yml, windows.yml
 theme/        matugen templates: gtk3, gtk4, qt6ct, kitty, yazi, btop, hypr
 packages/     pacman and AUR lists
-tools/        VM harness, install
+tools/        bootstrap, install, the greeter copy, icon vendoring
 docs/
 ```
 
@@ -58,8 +58,9 @@ The desktop runs from an installed copy at `~/.local/share/isle`.
 `tools/install.sh` run from a checkout elsewhere copies it there (rsync,
 keeping the copy's `hypr/generated` and built plugins) and links
 `~/.config` into the copy; run from the copy, as Settings › Updates and
-bootstrap do, it installs in place. The test VM mounts the checkout itself
-at `/repo`, so a change is tried there before it is installed (D21).
+bootstrap do, it installs in place. The test VM (local tooling under `dev/`)
+mounts the checkout itself at `/repo`, so a change is tried there before
+it is installed (D21).
 
 ## Services
 
@@ -94,7 +95,6 @@ extra process.
 | autostart | `shell/scripts/autostart.py` lists and toggles XDG autostart entries (a user file with `Hidden=true` masks a system one); `dex -a -e Hyprland` runs them once per session, guarded by a file in `$XDG_RUNTIME_DIR` |
 | gamepad | `shell/scripts/gamepad.py` reads every evdev node with `BTN_GAMEPAD` (uaccess through the joystick udev rule) and prints presses; it runs only while Big Picture is up |
 | shell updates | `IsleUpdate` fetches the checkout's origin hourly and lists the commits behind; Update pulls fast-forward in a terminal and runs `install.sh`, and Quickshell reloads from the changed files. An SSH remote the host does not know gets a row pointing at the key in Keychain; an https remote gets a gh sign-in. Settings › Updates puts it above the package list; the island's download glyph and the panel footer count cover both |
-| installer ISO | `tools/iso/build.sh` lays Isle over CachyOS's own live ISO profile (pinned commit) and runs their `buildiso.sh`. The live session is untouched; the repo rides along as `/usr/share/isle/isle.tar.zst`, a shallow clone whose origin is the build checkout's own, in https form, so the installed machine can pull. `isle-installer-setup` runs from the installer launcher and gives Calamares an "Isle" desktop item, a package group from `packages/shell.txt`, and two contextualprocess steps keyed on that choice: copy the tarball into the target, then unpack it under the user's `~/.local/share/isle` and run `tools/iso/target-setup.sh` in the chroot (the root half of bootstrap: links, PAM, services, groups, greetd). The AUR packages and hyprbars need a session, so the target carries a `.finish-setup` marker that `Startup` turns into a first-login prompt for `bootstrap.sh --finish` |
 | title bars | the hyprbars plugin from this repo's `plugins/hyprbars` (upstream at the commit pinned for this Hyprland, plus one change: no bar when the client asked for its own decorations, through xdg-decoration, KDE's server-decoration or X11 Motif hints), built by hyprpm from `hyprpm.toml` at the root in bootstrap and loaded from hyprland.lua's start hook (then `hyprctl reload` so the theme fragment sees it). `theme/templates/hypr-theme.lua` sets its colours, font and padding from the tokens and adds three buttons right to left: close, fullscreen, minimise to the hidden stack (`switcher hide`). Off with the `titleBars` preference (Settings › Appearance); `titleBarsExcept` lists the window classes that draw their own controls, rendered as one anchored regex in a Lua long string into a `hyprbars:no_bar` rule |
 | picture-in-picture | a window rule floats, pins and sizes a browser's PiP window without a border; the Pip service moves each new one to the bottom-right of its monitor, since the rule's own move is ignored on 0.56 |
 | window tiling | The `plugins/isle-windows` compositor plugin. A drag in progress is the layout's own drag controller holding a target in move mode; the plugin hooks `CLayoutManager::endDragTarget`, where every drag ends whether it began with Super+drag, the hyprbar or the client's own title bar, and tiles the window to a half, quarter or the work area from the pointer's edge, the window sitting inside the tile by its decoration extents so a title bar clears the island. While the pointer is over an edge it posts the target box to the shell (`windows ghost`) and `SnapGhost` draws it. Keys and the bar's double click go through the plugin's hyprctl command, `hyprctl isle snap <zone>`, `zoom`, `restore`: the Lua config cannot call a plugin's dispatcher, but it can run a command. The same plugin answers `_NET_WM_MOVERESIZE`, which an X11 client sends when its own title bar is dragged or its edge pulled and which this Hyprland's XWM ignores, by beginning the layout's drag the way the compositor does for xdg_toplevel.move
@@ -169,21 +169,23 @@ The island exposes an IPC target for review and scripted verification:
 ```
 qs -p ~/.config/quickshell/isle ipc call island demo osd|media|text
 qs -p ~/.config/quickshell/isle ipc call island text "Copied to clipboard"
-sudo tools/fake-gamepad.py <<< $'right\na'          # a virtual pad for Big Picture
-tools/vm-qmp.py drag 1210 600 1505 540             # drag in the guest
+sudo dev/fake-gamepad.py <<< $'right\na'            # a virtual pad for Big Picture
+dev/vm-qmp.py drag 1210 600 1505 540               # drag in the guest
 qs -p ~/.config/quickshell/isle ipc call island pin true|false
 qs -p ~/.config/quickshell/isle ipc call island clear
 ```
 
-`tools/guest.sh '<command>'` runs a command in the VM with the session's
-environment; `tools/vm-qmp.py move X Y` drives the pointer.
+The VM harness is local tooling under `dev/`, which git ignores: it is
+the maintainer's, not part of the shell. `dev/guest.sh '<command>'` runs a
+command in the VM with the session's environment; `dev/vm-qmp.py move X Y`
+drives the pointer.
 
-The VM itself: `tools/test-vm.sh` runs a CachyOS guest under QEMU with the
+The VM itself: `dev/test-vm.sh` runs a CachyOS guest under QEMU with the
 repo mounted at `/repo` and the config linked to it, so a host edit is
-live in the guest. `tools/install-guest.sh` puts CachyOS on the guest's
-disk without the graphical installer, `tools/provision-guest.sh` makes it
-the shell's target, `tools/guest-baseline.sh` makes it photographable,
-and `tools/test-vm.sh shot` takes a screenshot through QMP. `tools/live.sh`
+live in the guest. `dev/install-guest.sh` puts CachyOS on the guest's
+disk without the graphical installer, `dev/provision-guest.sh` makes it
+the shell's target, `dev/guest-baseline.sh` makes it photographable,
+and `dev/test-vm.sh shot` takes a screenshot through QMP. `dev/live.sh`
 syncs `shell/` into the guest on save for the headed loop. Restart the
 shell with `pkill -x qs` in the guest; the compositor's start hook
 relaunches it.
@@ -277,7 +279,7 @@ dialog. Big Picture also reads the pad directly (see gamepad in the
 services table), so a controller without lizard mode still drives it:
 d-pad and left stick move, A launches, B returns to the desktop.
 Controller battery comes from UPower and shows in the control panel and
-the Devices widget. `tools/fake-gamepad.py` is a uinput pad for the VM.
+the Devices widget. `dev/fake-gamepad.py` is a uinput pad for the VM.
 
 ## Theming installed apps
 

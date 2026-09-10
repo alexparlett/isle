@@ -279,15 +279,14 @@ Built in, in the default layout:
 | Desktops | each desktop with its app icons; click to go |
 | Notifications | grouped by app, inline actions, clear all |
 | Controls | the toggle grid and the two sliders |
-| System | CPU, GPU, memory, network sparklines; uptime, kernel |
+| System | a graph for each measure picked in its gear: CPU, GPU, memory, network, temperatures by kind, fans; more than one instance, each its own pick |
 | Agents | running coding-agent terminals and their state |
 | Session | tray icons; lock, sleep, restart, power; power profile |
 | Devices | bluetooth and controller batteries, headset |
 | Storage | disks with usage bars; mount and eject |
 | Weather | now and the days ahead for a named place, from Open-Meteo |
-| Sensors | temperatures by kind (CPU, GPU, board, drives) and the fans that turn; every sensor on request |
 
-Off by default: Weather and Sensors, and whatever the registry offers.
+Off by default: Weather, Calendar, and whatever the registry offers.
 
 Edit mode (E, or the pencil in the corner) is a grid editor. Dragging a
 card lifts it to float under the cursor while its neighbours flow live to

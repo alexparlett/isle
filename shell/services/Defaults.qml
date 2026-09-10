@@ -53,6 +53,14 @@ Singleton {
     }
 
     // The terminal is the shell's own: the keymap's `terminal` argument, rendered into the bind fragment.
-    readonly property var terminals: [["kitty", "kitty"], ["foot", "foot"], ["alacritty", "Alacritty"], ["ghostty", "Ghostty"], ["wezterm", "WezTerm"]]
+    // Only the terminals actually on the machine are offered; the one in use is always listed.
+    readonly property var knownTerminals: [["kitty", "kitty"], ["foot", "foot"], ["alacritty", "Alacritty"], ["ghostty", "Ghostty"], ["wezterm", "WezTerm"]]
+    property var installedTerminals: ["kitty"]
+    readonly property var terminals: knownTerminals.filter(t => installedTerminals.indexOf(t[0]) >= 0 || t[0] === (Prefs.p.terminal || "kitty"))
+    Process {
+        command: ["sh", "-c", "for t in kitty foot alacritty ghostty wezterm; do command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; done"]
+        running: true
+        stdout: StdioCollector { onStreamFinished: root.installedTerminals = text.trim().split("\n").filter(Boolean) }
+    }
     function setTerminal(cmd) { Prefs.p.terminal = cmd === "kitty" ? "" : cmd; Keyboard.render(true); }
 }

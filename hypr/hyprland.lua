@@ -66,7 +66,9 @@ hl.config({
         middle_click_paste = false,
     },
     -- Focus does not move the pointer, as on macOS and Windows.
-    cursor = { no_warps = true },
+    -- Hardware cursors: the compositor's "auto" turns them off on NVIDIA and draws the cursor into the
+    -- frame, where every screenshot then finds it. The open driver handles them.
+    cursor = { no_warps = true, no_hardware_cursors = false },
     input = {
         -- The generated input fragment sets the real layout from localectl; an unset one is an error.
         kb_layout = "gb",

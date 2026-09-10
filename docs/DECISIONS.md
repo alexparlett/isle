@@ -191,3 +191,14 @@ urgency) to a file, and the centre shows records that are not live under
 act on. The centre lives in the island's panel rather than a surface of its
 own so it is one hover away without leaving the window in use; the dashboard
 widget shows the same list for when the dashboard is already up.
+
+**D27 · Hardware cursors on, so a capture never contains the pointer.** The
+compositor's default for `cursor.no_hardware_cursors` is "auto", which turns
+hardware cursors off on NVIDIA and draws the pointer into each frame as
+software. Screencopy then takes the frame as drawn, so every screenshot and
+the frozen frame under the region picker carried the pointer, whatever grim
+was told, and a `cursor.invisible` toggle around the grab applies a cursor
+update too late to help. With the open driver, hardware cursors work, and
+the pointer lives on its own plane that screencopy leaves out unless asked
+for with `-c`. The test VM cannot show this: its virtual GPU has no cursor
+plane, so it draws the pointer in software regardless.

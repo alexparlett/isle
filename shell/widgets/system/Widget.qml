@@ -62,8 +62,8 @@ WidgetBase {
 
     GridLayout {
         anchors.fill: parent
-        // Panels per row: the width allows more, the count asks for fewer.
-        columns: Math.max(1, Math.min(root.cols >= 6 ? 4 : 2, root.panels.length))
+        // Two across, as the card has always been; more than four panels on a wide card go four across.
+        columns: Math.max(1, Math.min(root.panels.length > 4 && root.cols >= 6 ? 4 : 2, root.panels.length))
         columnSpacing: Theme.s2 - 2
         rowSpacing: Theme.s2 - 2
         Repeater {

@@ -75,13 +75,16 @@ Singleton {
             if (r === "verify-match") { root.fingerMessage = ""; root.failed = false; root.message = ""; root.attempts = 0; sessionLock.locked = false; return; }
             if (r === "verify-no-match") { root.fingerMessage = "Not recognised"; retry.start(); return; }
             if (r === "verify-retry-scan" || r === "verify-swipe-too-short" || r === "verify-finger-not-centered" || r === "verify-remove-and-retry") { root.fingerMessage = "Try again"; retry.start(); return; }
-            // The reader is gone or fprintd refused: give up quietly until the next lock.
+            // The reader would not open (a finger still on it, or fprintd busy): a few more tries, then give up until the next lock.
+            if (root.verifyFailures++ < 4) { retry.interval = 1500; retry.start(); return; }
             root.fingerprint = false;
         }
     }
-    Timer { id: retry; interval: 600; onTriggered: if (root.locked && root.fingerprint) verifier.running = true }
+    property int verifyFailures: 0
+    Timer { id: retry; interval: 600; onTriggered: { retry.interval = 600; if (root.locked && root.fingerprint) verifier.running = true; } }
     onLockedChanged: {
         fingerMessage = "";
+        verifyFailures = 0;
         if (locked) fingers.running = true;
         else if (verifier.running) verifier.signal(15);
     }

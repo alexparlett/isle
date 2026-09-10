@@ -1,12 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.theme
 import qs.ui
 import qs.services
 
-// A row of app icons across the centre while the modifier is held; the selected app's name and windows beneath.
+// A row of live window previews across the centre while the modifier is held: one card per app, showing
+// its front window, the app's icon and name beneath.
 PanelWindow {
     id: root
 
@@ -19,60 +21,112 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
 
-    readonly property var app: Switcher.apps[Switcher.index] || null
+    readonly property int boxW: 240
+    readonly property int boxH: 150
+    // Cards wrap when the row would not fit in three quarters of the screen.
+    readonly property int perRow: Math.max(1, Math.floor((width * 0.75 - Theme.s3 * 2) / (boxW + Theme.s3 * 2 + Theme.s2)))
 
-    ColumnLayout {
+    Glass {
         anchors.centerIn: parent
-        spacing: Theme.s3
+        implicitWidth: grid.implicitWidth + Theme.s3 * 2
+        implicitHeight: grid.implicitHeight + Theme.s3 * 2
+        radius: Theme.radiusPanel + 4
 
-        Glass {
-            Layout.alignment: Qt.AlignHCenter
-            implicitWidth: row.implicitWidth + Theme.s2 * 2
-            implicitHeight: row.implicitHeight + Theme.s2 * 2
-            radius: Theme.radiusPanel + 4
+        GridLayout {
+            id: grid
+            anchors.centerIn: parent
+            columns: Math.min(root.perRow, Math.max(1, Switcher.apps.length))
+            columnSpacing: Theme.s2
+            rowSpacing: Theme.s2
+            Repeater {
+                model: Switcher.apps
+                Rectangle {
+                    id: card
+                    required property var modelData
+                    required property int index
+                    readonly property bool sel: index === Switcher.index
+                    readonly property var front: modelData.windows.find(w => w.focused) || modelData.windows[0] || null
+                    implicitWidth: root.boxW + Theme.s3 * 2
+                    implicitHeight: root.boxH + Theme.s3 * 2 + 28
+                    radius: Theme.radiusCard + 2
+                    color: sel ? Theme.raised : "transparent"
+                    border.width: 1
+                    border.color: sel ? Theme.hairlineStrong : "transparent"
+                    opacity: modelData.hidden ? 0.5 : 1
+                    Behavior on color { ColorAnimation { duration: Theme.quick } }
 
-            RowLayout {
-                id: row
-                anchors.centerIn: parent
-                spacing: Theme.s2
-                Repeater {
-                    model: Switcher.apps
-                    Rectangle {
-                        required property var modelData
-                        required property int index
-                        readonly property bool sel: index === Switcher.index
-                        implicitWidth: 64; implicitHeight: 64
-                        radius: Theme.radiusCard + 2
-                        color: sel ? Theme.raised : "transparent"
-                        border.width: 1
-                        border.color: sel ? Theme.hairlineStrong : "transparent"
-                        opacity: modelData.hidden ? 0.4 : 1
-                        Behavior on color { ColorAnimation { duration: Theme.quick } }
-                        AppIcon { anchors.centerIn: parent; size: 48; source: modelData.icon }
-                        Rectangle {
-                            visible: modelData.windows.length > 1
-                            anchors { right: parent.right; bottom: parent.bottom; margins: 6 }
-                            width: 16; height: 16; radius: 8
-                            color: Theme.pressed
-                            Label { anchors.centerIn: parent; text: modelData.windows.length; size: 10; weight: Font.DemiBold; tabular: true }
+                    Item {
+                        id: box
+                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: Theme.s3 }
+                        width: root.boxW; height: root.boxH
+                        // The preview keeps the window's shape inside the box; without a frame yet, the icon stands in.
+                        Item {
+                            id: picture
+                            anchors.centerIn: parent
+                            width: view.hasContent ? view.implicitWidth : root.boxW
+                            height: view.hasContent ? view.implicitHeight : root.boxH
+                            layer.enabled: true
+                            layer.effect: MultiEffect { maskEnabled: true; maskSource: mask; maskThresholdMin: 0.5; maskSpreadAtMin: 1 }
+                            Rectangle { anchors.fill: parent; color: Theme.pressed; visible: !view.hasContent; AppIcon { anchors.centerIn: parent; size: 56; source: card.modelData.icon } }
+                            ScreencopyView {
+                                id: view
+                                anchors.centerIn: parent
+                                constraintSize: Qt.size(root.boxW, root.boxH)
+                                captureSource: card.front ? card.front.toplevel.wayland : null
+                                live: root.visible
+                                paintCursor: false
+                            }
                         }
-                        MouseArea { anchors.fill: parent; hoverEnabled: true; onEntered: Switcher.index = index; onClicked: Switcher.commit() }
+                        Item {
+                            id: mask
+                            anchors.fill: picture
+                            layer.enabled: true
+                            visible: false
+                            Rectangle { anchors.fill: parent; radius: 8 }
+                        }
+                        Rectangle {
+                            anchors.fill: picture
+                            radius: 8
+                            color: "transparent"
+                            border.width: card.sel ? 2 : 1
+                            border.color: card.sel ? Theme.accent : Theme.hairlineStrong
+                        }
+                        Rectangle {
+                            visible: card.modelData.windows.length > 1
+                            anchors { right: picture.right; top: picture.top; margins: 6 }
+                            width: 20; height: 20; radius: 10
+                            color: Theme.pressed
+                            border.width: 1; border.color: Theme.hairlineStrong
+                            Label { anchors.centerIn: parent; text: card.modelData.windows.length; size: 10; weight: Font.DemiBold; tabular: true }
+                        }
                     }
+                    RowLayout {
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: Theme.s3; rightMargin: Theme.s3; bottomMargin: Theme.s2 + 2 }
+                        spacing: Theme.s2
+                        AppIcon { size: 18; source: card.modelData.icon }
+                        // The shell's own windows go by their titles: Settings, not Quickshell.
+                        Label { text: card.modelData.appId === "org.quickshell" && card.front ? card.front.title : card.modelData.name; weight: Font.DemiBold; size: Theme.sizeSmall; elide: Text.ElideRight; Layout.fillWidth: true; color: card.sel ? Theme.text : Theme.text2 }
+                    }
+                    MouseArea { anchors.fill: parent; hoverEnabled: true; onEntered: Switcher.index = card.index; onClicked: Switcher.commit() }
                 }
             }
         }
+    }
 
-        ColumnLayout {
+    // The selected window's title, and what the held keys do, under the cards.
+    ColumnLayout {
+        anchors { horizontalCenter: parent.horizontalCenter; top: parent.verticalCenter; topMargin: (grid.implicitHeight + Theme.s3 * 2) / 2 + Theme.s3 }
+        spacing: 2
+        visible: Switcher.apps.length > 0
+        Label {
             Layout.alignment: Qt.AlignHCenter
-            spacing: 2
-            visible: root.app !== null
-            Label { Layout.alignment: Qt.AlignHCenter; text: root.app ? root.app.name : ""; weight: Font.DemiBold }
-            Label {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.maximumWidth: 520
-                text: root.app ? (root.app.windows.length === 1 ? (root.app.windows[0].title || "") : root.app.windows.length + " windows" + (root.app.hidden ? " · hidden" : "")) : ""
-                size: Theme.sizeSmall; color: Theme.text2
-            }
+            Layout.maximumWidth: 640
+            elide: Text.ElideRight
+            readonly property var app: Switcher.apps[Switcher.index] || null
+            readonly property var win: app ? (app.windows.find(w => w.focused) || app.windows[0]) : null
+            text: win ? (win.title || app.name) + (app.hidden ? "  ·  hidden" : "") : ""
+            size: Theme.sizeSmall; color: Theme.text2
         }
+        Label { Layout.alignment: Qt.AlignHCenter; text: "Tab next  ·  ` this app's windows  ·  W close window  ·  Q quit  ·  M hide"; size: Theme.sizeCaption; color: Theme.text3 }
     }
 }

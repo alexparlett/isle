@@ -168,9 +168,13 @@ Escape closes whatever is up.
 - **Launcher** — 640px glass card, centred at 30% height. One field, results
   as rows with 48px icons. Prefixes: `>` run, `=` calculate, `/` files,
   `:` clipboard, `@` windows. Power actions match on their names.
-- **Switcher** — a row of 48px app icons across the centre, held open
-  while the modifier is down. The selected app shows its window titles
-  beneath. Windows hidden with Super+M appear dimmed.
+- **Switcher** — a row of live previews across the centre, held open
+  while the modifier is down: one 240×150 card per app showing its front
+  window at the window's own shape (the icon until a frame arrives), the
+  app's icon and name beneath, a count on the corner when it has more
+  windows. The selected card is raised with an accent ring; its window
+  title and the held keys read under the row. The row wraps past three
+  quarters of the screen. Windows hidden with Super+M appear dimmed.
 - **Mission Control** — the desktop pulled apart: the current space's
   windows spread out as live thumbnails, the spaces in a bar across the
   top. See "Mission Control" below.

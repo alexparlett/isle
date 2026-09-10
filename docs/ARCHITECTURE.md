@@ -48,7 +48,7 @@ shell/        the Quickshell config (~/.config/quickshell/isle links to the inst
   assets/     Lucide glyphs, default wallpaper
 hypr/         hyprland.lua and the fragments the shell writes (binds, monitors, modes, theme)
 input/        xremap profiles: mac.yml, windows.yml
-theme/        matugen templates: gtk3, gtk4, qt6ct, kitty, yazi, btop, hypr
+theme/        templates: gtk3, gtk4, qt6ct, kitty, yazi, btop, zathura, hypr
 packages/     pacman and AUR lists
 tools/        bootstrap, install, the greeter copy, icon vendoring
 docs/

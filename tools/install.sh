@@ -74,7 +74,7 @@ link "$REPO/systemd/xremap.service" "$CFG/systemd/user/xremap.service"
 if command -v nethogs >/dev/null; then
     sudo setcap cap_net_admin,cap_net_raw+ep "$(command -v nethogs)" && ok "nethogs can read the network (per-process traffic in Monitor)"
 fi
-python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, yazi, btop, portals)"
+python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, yazi, btop, zathura, portals)"
 # Raw HID for the browser keyboard configurators (Keychron Launcher, VIA): the rule is root's.
 if ! cmp -s "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules; then
     sudo install -Dm644 "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules

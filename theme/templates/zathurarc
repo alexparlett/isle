@@ -1,0 +1,33 @@
+# Rendered from shell/theme/tokens.json by theme/render.py. Edit the tokens, not this.
+set font "{{font_ui}} 10"
+set default-bg "{{ink}}"
+set default-fg "{{text}}"
+set statusbar-bg "{{raised}}"
+set statusbar-fg "{{text2}}"
+set inputbar-bg "{{raised}}"
+set inputbar-fg "{{text}}"
+set notification-bg "{{raised}}"
+set notification-fg "{{text}}"
+set notification-warning-bg "{{raised}}"
+set notification-warning-fg "{{warn}}"
+set notification-error-bg "{{raised}}"
+set notification-error-fg "{{danger}}"
+set completion-bg "{{raised}}"
+set completion-fg "{{text2}}"
+set completion-highlight-bg "{{accent}}"
+set completion-highlight-fg "{{on_accent}}"
+set index-bg "{{ink}}"
+set index-fg "{{text}}"
+set index-active-bg "{{accent}}"
+set index-active-fg "{{on_accent}}"
+set highlight-color "{{accent}}"
+set highlight-active-color "{{accent_hover}}"
+set render-loading-bg "{{ink}}"
+set render-loading-fg "{{text3}}"
+# Pages keep their own colours; the surround follows the theme.
+set recolor false
+set adjust-open "best-fit"
+set selection-clipboard clipboard
+set statusbar-h-padding 8
+set statusbar-v-padding 6
+set window-title-basename true

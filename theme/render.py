@@ -108,6 +108,7 @@ TARGETS = [
     ("kitty.conf", CFG + "/kitty/isle.conf", "kitty"),
     ("yazi-theme.toml", CFG + "/yazi/theme.toml", None),
     ("btop.theme", CFG + "/btop/themes/isle.theme", "btop"),
+    ("zathurarc", CFG + "/zathura/isle", "zathura"),
     ("portals.conf", CFG + "/xdg-desktop-portal/portals.conf", None),
     ("hypr-theme.lua", REPO + "/hypr/generated/theme.lua", None),
 ]
@@ -160,6 +161,8 @@ for tmpl, target, post in TARGETS:
         open(target, "w").write(out)
     if post == "kitty":
         ensure_line(CFG + "/kitty/kitty.conf", "include isle.conf")
+    elif post == "zathura":
+        ensure_line(CFG + "/zathura/zathurarc", "include isle")
     elif post == "btop":
         conf = CFG + "/btop/btop.conf"
         cur = open(conf).read() if os.path.exists(conf) else ""

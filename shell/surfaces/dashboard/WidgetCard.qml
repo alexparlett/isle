@@ -38,7 +38,7 @@ Glass {
         onReleased: {
             root.dragging = false;
             const cell = root.dashboard.cellAt(root.x, root.y);
-            if (!Widgets.move(root.entry.id, cell.x, cell.y)) { root.x = originX; root.y = originY; }
+            if (!Widgets.move(root.entry.key, cell.x, cell.y)) { root.x = originX; root.y = originY; }
         }
         onCanceled: { root.dragging = false; root.x = originX; root.y = originY; }
     }
@@ -69,18 +69,18 @@ Glass {
                 model: root.settingSpecs
                 RowLayout {
                     required property var modelData
-                    readonly property var current: Widgets.settingsFor(root.entry.id)[modelData.key]
+                    readonly property var current: Widgets.settingsFor(root.entry.key)[modelData.key]
                     Layout.fillWidth: true
                     spacing: Theme.s2
                     Label { text: modelData.label; size: Theme.sizeSmall; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Toggle { visible: modelData.type === "toggle"; checked: !!parent.current; onToggled: v => Widgets.setSetting(root.entry.id, modelData.key, v) }
-                    Dropdown { visible: modelData.type === "choice"; listWidth: 160; options: modelData.options || []; value: parent.current; onPicked: v => Widgets.setSetting(root.entry.id, modelData.key, v) }
+                    Toggle { visible: modelData.type === "toggle"; checked: !!parent.current; onToggled: v => Widgets.setSetting(root.entry.key, modelData.key, v) }
+                    Dropdown { visible: modelData.type === "choice"; listWidth: 160; options: modelData.options || []; value: parent.current; onPicked: v => Widgets.setSetting(root.entry.key, modelData.key, v) }
                     RowLayout {
                         visible: modelData.type === "number"
                         spacing: Theme.s2
                         readonly property real lo: modelData.min !== undefined ? modelData.min : 0
                         readonly property real hi: modelData.max !== undefined ? modelData.max : 10
-                        Slider { implicitWidth: 90; value: (Number(parent.parent.current) - parent.lo) / (parent.hi - parent.lo); onMoved: f => Widgets.setSetting(root.entry.id, modelData.key, Math.round(parent.lo + f * (parent.hi - parent.lo))) }
+                        Slider { implicitWidth: 90; value: (Number(parent.parent.current) - parent.lo) / (parent.hi - parent.lo); onMoved: f => Widgets.setSetting(root.entry.key, modelData.key, Math.round(parent.lo + f * (parent.hi - parent.lo))) }
                         Label { text: String(parent.parent.current); mono: true; tabular: true; size: Theme.sizeCaption; color: Theme.text2; Layout.preferredWidth: 24; horizontalAlignment: Text.AlignRight }
                     }
                 }
@@ -89,7 +89,7 @@ Glass {
             RowLayout {
                 Layout.fillWidth: true
                 Label { text: "Defaults"; size: Theme.sizeCaption; color: Theme.accent
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.clearSettings(root.entry.id) } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.clearSettings(root.entry.key) } }
                 Item { Layout.fillWidth: true }
                 Button { text: "Done"; variant: "raised"; onClicked: root.configuring = false }
             }
@@ -102,7 +102,7 @@ Glass {
         width: 22; height: 22; radius: 11; color: Theme.raised; border.width: 1; border.color: Theme.hairlineStrong
         z: 4
         Glyph { anchors.centerIn: parent; name: "x"; size: 10; weight: 1.6 }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.remove(root.entry.id) }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.remove(root.entry.key) }
     }
     // Size, bottom right: cycles the manifest's sizes.
     Rectangle {
@@ -111,7 +111,7 @@ Glass {
         width: sizeLabel.implicitWidth + Theme.s2 * 2; height: 22; radius: 11; color: Theme.raised; border.width: 1; border.color: Theme.hairlineStrong
         z: 4
         Label { id: sizeLabel; anchors.centerIn: parent; text: root.size; mono: true; size: Theme.sizeCaption }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.cycleSize(root.entry.id) }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.cycleSize(root.entry.key) }
     }
 
     ColumnLayout {
@@ -135,7 +135,7 @@ Glass {
             onLoaded: {
                 item.manifest = Qt.binding(() => root.manifest);
                 item.size = Qt.binding(() => root.size);
-                item.settings = Qt.binding(() => Widgets.settingsFor(root.entry.id));
+                item.settings = Qt.binding(() => Widgets.settingsFor(root.entry.key));
             }
         }
     }

@@ -1,1 +1,1 @@
-{ "id": "controls", "name": "Controls", "glyph": "sliders-horizontal", "sizes": ["3x2"], "default": "3x2", "requires": [] }
+{ "id": "controls", "name": "Controls", "category": "Shell", "description": "Wi-Fi, Bluetooth, modes and the volume", "glyph": "sliders-horizontal", "sizes": ["3x2"], "default": "3x2", "requires": [] }

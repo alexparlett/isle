@@ -10,7 +10,7 @@ Singleton {
 
     // [{ page, pageLabel, label, description }]
     property var entries: []
-    readonly property var pageLabels: ({ appearance: "Appearance", keyboard: "Keyboard", shortcuts: "Shortcuts", displays: "Displays", mouse: "Mouse", audio: "Audio", network: "Network",
+    readonly property var pageLabels: ({ appearance: "Appearance", widgets: "Widgets", keyboard: "Keyboard", shortcuts: "Shortcuts", displays: "Displays", mouse: "Mouse", audio: "Audio", network: "Network",
                                           bluetooth: "Bluetooth", storage: "Storage", apps: "Apps", users: "Users", datetime: "Date & time", region: "Language & region", printers: "Printers", updates: "Updates", notifications: "Notifications", power: "Power", modes: "Modes", about: "About" })
 
     Process {

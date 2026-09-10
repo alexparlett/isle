@@ -23,6 +23,7 @@ FloatingWindow {
         { group: "Look and feel" },
         { id: "appearance", glyph: "palette", label: "Appearance" },
         { id: "wallpaper", glyph: "image", label: "Wallpaper" },
+        { id: "widgets", glyph: "layout-grid", label: "Widgets" },
         { id: "notifications", glyph: "bell", label: "Notifications" },
         { id: "modes", glyph: "gamepad-2", label: "Modes" },
         { group: "Hardware" },

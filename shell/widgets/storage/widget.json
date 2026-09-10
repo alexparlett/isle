@@ -1,1 +1,1 @@
-{ "id": "storage", "name": "Storage", "glyph": "hard-drive", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [] }
+{ "id": "storage", "name": "Storage", "category": "Hardware", "description": "How full each mounted filesystem is", "glyph": "hard-drive", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [] }

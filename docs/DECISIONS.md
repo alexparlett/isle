@@ -154,3 +154,11 @@ job from a normal CachyOS install. The QEMU harness, guest provisioning and
 screenshot tools are the maintainer's and now live under `dev/`, which git
 ignores, so the repository holds the shell and its install and nothing
 about how it is tested.
+
+**D23 · A widget library with manifest-only widgets before QML ones.** The
+picker only listed what was missing, and a second clock or a widget of
+the user's own had no way in. The library lists everything by category,
+instances get keys, and a user's widget is a manifest alone, a command
+or a file with a view, drawn by one renderer in the shell's own tree so
+it needs neither code nor the service access user QML still lacks (D14).
+Widgets in QML come after the text ones show which services they need.

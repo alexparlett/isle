@@ -151,16 +151,27 @@ Rules of the contract:
   destruction, so nothing is sampled while the dashboard is closed.
 - Built-in widgets live in `shell/widgets/<id>/` and load through the
   config's own URL scheme, which is what lets them import `qs.*`.
-  Third-party widgets in `~/.config/isle/widgets/<id>/` load by file
-  path and are picked up on reload; giving them access to the services
-  is still open (D14).
+  Widgets in `~/.config/isle/widgets/<id>/` are the user's: a manifest
+  with a `source` (a `command` run with sh, or a `file`, every
+  `interval` seconds) and a `view` of text, number, gauge, sparkline or
+  list is drawn by the built-in renderer in `shell/widgets/text/`, so it
+  needs no code; one with its own `Widget.qml` loads by file path and
+  cannot import the services yet (D14). Settings › Widgets writes and
+  deletes the manifest kind and lists everything.
+- A manifest carries `category` (Shell, System, Hardware, Media; the
+  user's are Yours), `description`, `sizes`, `default`, and `multiple`
+  when more than one instance makes sense (Clock). The library in the
+  dashboard's edit mode lists them by category with a search.
 - `settings` declares what the card's gear offers in edit mode: `toggle`,
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as
   `settings.<key>`, with the manifest default filled in.
-- The layout is `dashboard: [{id, x, y, w, h}]` in prefs, on a 12-column
-  4-row grid; empty means the default layout. Unknown ids are kept but
-  not drawn, so an uninstalled widget's slot survives.
+- The layout is `dashboard: [{key, id, x, y, w, h}]` in prefs, on a
+  12-column 4-row grid; empty means the default layout. `key` names the
+  instance (`clock`, then `clock#2`), `id` the widget; per-instance
+  settings are stored under the key. Entries from before instances have
+  no key and take their id. Unknown ids are kept but not drawn, so an
+  uninstalled widget's slot survives.
 
 ## Test hooks
 

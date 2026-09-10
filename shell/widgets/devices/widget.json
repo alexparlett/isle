@@ -1,1 +1,1 @@
-{ "id": "devices", "name": "Devices", "glyph": "bluetooth", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [] }
+{ "id": "devices", "name": "Devices", "category": "Hardware", "description": "Bluetooth peers, gamepads and drives that are connected", "glyph": "bluetooth", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [] }

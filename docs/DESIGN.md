@@ -271,12 +271,22 @@ quick launch), Clipboard (recent entries), Timer (focus / pomodoro),
 Updates (pending packages), Weather.
 
 Edit mode (E, or the pencil in the corner) lets a widget be moved,
-resized between its supported sizes and removed. Every empty cell shows
-as a faint dashed tile with a plus; clicking one opens the picker (every
-widget not yet placed, as a tile of glyph, name and size) and puts the
-choice there. The grid gives up a strip at the bottom for the toolbar,
-Add widget, Reset layout, Discard and Done, so no control sits over a
-card. The layout is a preference.
+resized between its supported sizes and removed. The grid gives up a
+340px column on the right for the library and a strip at the bottom for
+the toolbar (Reset layout, Discard, Done), so no control sits over a
+card. The library lists every widget by category with a search field:
+glyph, name, description, and "on" with a tick when it is placed (×2 for
+a second instance). Clicking a row places it at the first free spot;
+dragging one shows a ghost card and drops it on the cell under the
+pointer; clicking an empty cell first marks it, and the next pick lands
+there. When nothing fits, the toolbar says which size it needs. The
+layout is a preference.
+
+Text widgets, the user's own, draw through one renderer: a title, then
+the output as wrapped text, a large number with its unit, a gauge bar
+against a maximum, a sparkline of the readings so far, or a list of
+lines with "label: value" split into two columns. A failing command
+shows its last line of error in the danger colour.
 
 A glyph is an Item of its box, so layouts size it by the box and never
 by the raster (a 2× raster once doubled every icon inside a layout).

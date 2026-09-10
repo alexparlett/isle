@@ -201,10 +201,13 @@ PanelWindow {
                 required property var modelData
                 required property int index
                 entry: modelData
-                // Not dragging: the grid position, which follows the live-pushed layout and animates. Dragging:
-                // a free float from where the card was grabbed, so the pushes happening under it never move it.
-                x: dragging ? homeX + dragDX : root.margin + modelData.x * (root.cellW + root.gutter)
-                y: dragging ? homeY + dragDY : root.gridTop + modelData.y * (root.cellH + root.gutter)
+                // Its planned cell (the same as its stored cell except while another card's drag is pushing
+                // it), so a neighbour glides aside without the model changing under the drag.
+                readonly property var pcell: Widgets.cellFor(modelData.key) || modelData
+                // Not dragging: the planned grid position, which animates. Dragging: a free float from where the
+                // card was grabbed, so the pushes happening under it never move it.
+                x: dragging ? homeX + dragDX : root.margin + pcell.x * (root.cellW + root.gutter)
+                y: dragging ? homeY + dragDY : root.gridTop + pcell.y * (root.cellH + root.gutter)
                 width: modelData.w * root.cellW + (modelData.w - 1) * root.gutter
                 height: modelData.h * root.cellH + (modelData.h - 1) * root.gutter
                 editing: root.editing

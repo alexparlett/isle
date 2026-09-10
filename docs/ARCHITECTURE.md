@@ -156,8 +156,9 @@ Rules of the contract:
   `interval` seconds) and a `view` of text, number, gauge, sparkline or
   list is drawn by the built-in renderer in `shell/widgets/text/`, so it
   needs no code; one with its own `Widget.qml` loads by file path and
-  cannot import the services yet (D14). Settings › Widgets writes and
-  deletes the manifest kind and lists everything.
+  cannot import the services yet (D14). The library in the dashboard's edit mode
+  writes and deletes the manifest kind: New text widget at its foot, edit
+  and delete on hover over one of Yours.
 - A manifest carries `category` (Shell, System, Hardware, Media; the
   user's are Yours), `description`, `sizes`, `default`, and `multiple`
   when more than one instance makes sense (Clock). The library in the

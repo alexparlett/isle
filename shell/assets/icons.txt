@@ -84,7 +84,7 @@ swords
 target
 terminal
 timer
-trash-2
+trash
 user
 video
 volume-2

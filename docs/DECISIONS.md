@@ -162,3 +162,5 @@ instances get keys, and a user's widget is a manifest alone, a command
 or a file with a view, drawn by one renderer in the shell's own tree so
 it needs neither code nor the service access user QML still lacks (D14).
 Widgets in QML come after the text ones show which services they need.
+The library, and the form for a text widget, live in the dashboard's edit
+mode rather than Settings: the dashboard is where they are placed.

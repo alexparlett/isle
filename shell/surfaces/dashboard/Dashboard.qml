@@ -36,7 +36,7 @@ PanelWindow {
     // Edit mode: drag to move, the corner to resize, × to remove; the library adds, by click or by drag. E toggles it.
     property bool editing: false
     onVisibleChanged: if (!visible) editing = false
-    onEditingChanged: { pending = null; if (editing) Widgets.rescan(); }
+    onEditingChanged: { pending = null; library.composing = false; if (editing) Widgets.rescan(); }
     // A marked empty cell, {x, y}: the next widget picked from the library lands there.
     property var pending: null
     // Why the last placement failed, shown in the toolbar for a moment.
@@ -169,11 +169,20 @@ PanelWindow {
             Behavior on x { NumberAnimation { duration: Theme.move; easing.type: Easing.OutQuint } }
             MouseArea { anchors.fill: parent }
             property string query: ""
+            // The form for one of the user's own replaces the list while it is open.
+            property bool composing: false
             readonly property var rows: {
                 const q = query.trim().toLowerCase();
                 return Widgets.library.filter(m => !q || m.name.toLowerCase().indexOf(q) >= 0 || (m.description || "").toLowerCase().indexOf(q) >= 0 || m.category.toLowerCase().indexOf(q) >= 0);
             }
+            WidgetForm {
+                id: widgetForm
+                visible: library.composing
+                anchors { fill: parent; margins: Theme.s3 }
+                onDone: library.composing = false
+            }
             ColumnLayout {
+                visible: !library.composing
                 anchors { fill: parent; margins: Theme.s3 }
                 spacing: Theme.s2
                 RowLayout {
@@ -206,7 +215,7 @@ PanelWindow {
                             anchors { fill: parent; leftMargin: Theme.s2; rightMargin: Theme.s2 }
                             spacing: Theme.s2 + 2
                             Rectangle {
-                                width: 34; height: 34; radius: 10
+                                implicitWidth: 34; implicitHeight: 34; radius: 10
                                 color: Theme.pressed
                                 Glyph { anchors.centerIn: parent; name: row.modelData.glyph || "layout-grid"; size: 16; color: Theme.text }
                             }
@@ -216,6 +225,25 @@ PanelWindow {
                                 Label { text: row.modelData.name; weight: Font.DemiBold; size: Theme.sizeSmall; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Label { text: row.modelData.description || (row.modelData.sizes || []).map(s => s.replace("x", "×")).join(" · "); size: Theme.sizeCaption; color: Theme.text3; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
+                            // The user's own: edit and delete, shown on hover.
+                            Repeater {
+                                model: row.modelData.user && rowArea.containsMouse ? [["pencil", "edit"], ["trash", "delete"]] : []
+                                Rectangle {
+                                    required property var modelData
+                                    implicitWidth: 24; implicitHeight: 24; radius: 12
+                                    color: toolArea.containsMouse ? Theme.pressed : "transparent"
+                                    Glyph { anchors.centerIn: parent; name: modelData[0]; size: 12; color: Theme.text2 }
+                                    MouseArea {
+                                        id: toolArea
+                                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: mouse => {
+                                            mouse.accepted = true;
+                                            if (modelData[1] === "edit" && row.modelData.source) { widgetForm.startEdit(row.modelData); library.composing = true; }
+                                            else if (modelData[1] === "delete") Widgets.deleteUser(row.modelData.id);
+                                        }
+                                    }
+                                }
+                            }
                             Label { visible: row.count > 0; text: row.count > 1 ? "×" + row.count : "on"; size: Theme.sizeCaption; color: Theme.accent; tabular: true }
                             Glyph { visible: row.count > 0; name: "check"; size: 12; color: Theme.accent }
                             Glyph { visible: row.count === 0; name: "plus"; size: 14; color: Theme.text3 }
@@ -224,20 +252,21 @@ PanelWindow {
                             id: rowArea
                             anchors.fill: parent
                             hoverEnabled: true
-                            enabled: row.addable
-                            cursorShape: Qt.PointingHandCursor
+                            z: -1
+                            cursorShape: row.addable ? Qt.PointingHandCursor : Qt.ArrowCursor
                             property real px: 0
                             property real py: 0
                             property bool moved: false
                             onPressed: mouse => { px = mouse.x; py = mouse.y; moved = false; }
                             onPositionChanged: mouse => {
-                                if (!pressed) return;
+                                if (!pressed || !row.addable) return;
                                 if (!moved && Math.abs(mouse.x - px) + Math.abs(mouse.y - py) < 8) return;
                                 moved = true;
                                 const p = mapToItem(null, mouse.x, mouse.y);
                                 root.dragId = row.modelData.id; root.dragX = p.x; root.dragY = p.y;
                             }
                             onReleased: mouse => {
+                                if (!row.addable) return;
                                 if (moved) {
                                     const p = mapToItem(null, mouse.x, mouse.y);
                                     const cell = root.cellAt(p.x - root.cellW / 2, p.y - root.cellH / 2);
@@ -252,7 +281,7 @@ PanelWindow {
                     }
                 }
                 Label { visible: library.rows.length === 0; text: "Nothing matches"; size: Theme.sizeSmall; color: Theme.text3 }
-                Label { text: "Your own, from a command or a file: Settings › Widgets"; size: Theme.sizeCaption; color: Theme.text3; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Button { Layout.fillWidth: true; text: "New text widget"; glyph: "plus"; variant: "raised"; onClicked: { widgetForm.startNew(); library.composing = true; } }
             }
         }
 

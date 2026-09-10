@@ -35,7 +35,9 @@ Singleton {
     // input on it) when that is all bluez has seen of it.
     readonly property var nearby: { stamp; return devices.filter(d => !d.paired && !d.trusted && d.name !== "" && d.name.indexOf("LE_") !== 0); }
     readonly property bool anyConnected: connected.length > 0
-    readonly property string primaryName: anyConnected ? connected[0].name : ""
+    readonly property string primaryName: anyConnected ? nameOf(connected[0]) : ""
+    // The name people know a device by: bluez names a device's low-energy side "LE_<name>".
+    function nameOf(d) { return ((d && d.name) || (d && d.address) || "").replace(/^LE_/, ""); }
 
     function setEnabled(on) { if (available) adapter.enabled = on; }
     function setDiscovering(on) { if (available) adapter.discovering = on; }
@@ -72,7 +74,7 @@ Singleton {
     Timer { id: expire; interval: 60000; onTriggered: root.request = null }
     function ask(kind, code) {
         const d = pairingDevice;
-        request = { kind: kind, code: code, device: d ? (d.name || d.address) : "a device" };
+        request = { kind: kind, code: code, device: d ? nameOf(d) : "a device" };
         expire.restart();
         if (kind === "confirm") IslandEvents.show({ kind: "text", duration: 30000, glyph: "bluetooth", text: "Pair " + request.device, detail: "Code " + code,
             actions: [{ label: "Pair", run: () => root.answer(true) }, { label: "Cancel", run: () => root.answer(false) }] });

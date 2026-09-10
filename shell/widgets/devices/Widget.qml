@@ -12,7 +12,7 @@ WidgetBase {
         const out = Power.peripherals.map(d => ({ glyph: Power.glyphFor(d), name: Power.labelFor(d), sub: Power.percent(d) + "%", low: Power.low(d) }));
         for (const b of Bluetooth.connected) {
             if (out.find(r => r.name === b.name)) continue;
-            out.push({ glyph: Bluetooth.glyphFor(b), name: b.name, sub: b.batteryAvailable ? Math.round(b.battery * 100) + "%" : "Connected", low: b.batteryAvailable && b.battery < 0.2 });
+            out.push({ glyph: Bluetooth.glyphFor(b), name: Bluetooth.nameOf(b), sub: b.batteryAvailable ? Math.round(b.battery * 100) + "%" : "Connected", low: b.batteryAvailable && b.battery < 0.2 });
         }
         return out;
     }

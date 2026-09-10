@@ -422,14 +422,14 @@ nothing in the stack knows where the machine is more precisely.
 
 The control panel's footer gives each battery a line of its own (glyph,
 name, charge), then one line with updates at the left and the power
-profile at the right. A Bluetooth device's low-energy side names itself
-"LE_<name>"; the shell drops the prefix wherever it shows the name.
+profile at the right.
 
 Bluetooth is two lists: Your devices, connected ones first with their
 battery, then Nearby, which is what can be paired. A device's low-energy
 side, which bluez lists as "LE_<name>" and which carries no audio or
-input, never appears under Nearby, so the pairable entry is the one that
-works. The lists follow each device's state as it changes.
+input, never appears under Nearby (nor in the island's list), so the
+pairable entry is the one that works; wherever a device is named, the
+prefix is dropped. The lists follow each device's state as it changes.
 
 Users ends with a Fingerprint group: the reader by name (or a way to
 install fprintd, or what to plug in), the enrolled fingers as chips with a

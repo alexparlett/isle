@@ -38,7 +38,7 @@ SettingsPage {
     // One row per device; the same row serves the three lists below.
     component DeviceRow: SettingsRow {
         required property var modelData
-        label: modelData.name || modelData.address
+        label: Bluetooth.nameOf(modelData)
         description: modelData.connected ? "Connected" + (modelData.batteryAvailable ? " · " + Math.round(modelData.battery * 100) + "%" : "") : modelData.paired ? "Paired" : modelData.pairing ? "Pairing…" : "Nearby"
         glyph: Bluetooth.glyphFor(modelData)
         glyphColor: modelData.connected ? Theme.accent : Theme.text2

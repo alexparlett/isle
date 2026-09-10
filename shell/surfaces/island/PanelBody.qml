@@ -382,10 +382,10 @@ ColumnLayout {
             ListRow {
                 required property var modelData
                 Layout.fillWidth: true
-                visible: modelData.paired || modelData.trusted || modelData.name !== ""
+                visible: modelData.paired || modelData.trusted || (modelData.name !== "" && modelData.name.indexOf("LE_") !== 0)
                 glyph: Bluetooth.glyphFor(modelData)
                 glyphColor: modelData.connected ? Theme.accent : Theme.text2
-                title: modelData.name || modelData.address
+                title: Bluetooth.nameOf(modelData)
                 subtitle: modelData.connected ? "Connected" + (modelData.batteryAvailable ? " · " + Math.round(modelData.battery * 100) + "%" : "")
                         : modelData.pairing ? "Pairing" : modelData.paired ? "Paired" : "Nearby"
                 onClicked: modelData.paired ? Bluetooth.toggle(modelData) : modelData.pair()

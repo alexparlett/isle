@@ -32,10 +32,9 @@ Singleton {
         set("optionSet", cur);
     }
     function hasOption(name) { return (get("optionSet", []) || []).indexOf(name) >= 0; }
-    function set(key, value) {
-        Prefs.p.input = Object.assign({}, Prefs.p.input || {}, { [key]: value });
-        render();
-    }
+    function set(key, value) { Prefs.p.input = Object.assign({}, Prefs.p.input || {}, { [key]: value }); }
+    // Every change renders, including one made to prefs.json by hand.
+    Connections { target: Prefs.p; function onInputChanged() { root.render(); } }
 
     readonly property string out: Quickshell.shellDir + "/../hypr/generated/input.lua"
     Process { id: writer; onExited: reloader.running = true }

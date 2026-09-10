@@ -292,10 +292,16 @@ an empty cell first marks it, and the next pick lands there. New text
 widget at the foot opens the form; the user's own carry edit and delete
 on hover. When nothing fits, the toolbar says which size it needs.
 
-Pages are dashboards in their own right, tabs across the top switched by
-click or the number keys; editing adds one with the plus, renames by
-double-click and removes with the ×. Each page's layout, and which page
-is shown, are preferences.
+A header strip runs across the top: the page tabs centred, the Edit
+toggle at the right, always reserved so no control sits over a widget.
+Pages are dashboards in their own right, switched by clicking a tab or a
+number key; editing adds one with the plus, renames by double-click and
+removes with the ×. Each page's layout, and which page is shown, are
+preferences.
+
+Clicking the gaps between widgets does nothing; only the margin around
+the grid, Escape or the keybind closes the dashboard. Leaving edit mode
+or closing with an unsaved change asks first: Keep, Discard, or Cancel.
 
 A user's own QML widget declares in its `widget.json` the services it
 uses, as `permissions` like `["audio", "media.write"]`: a name grants

@@ -28,8 +28,9 @@ PanelWindow {
     // over a card; the grid animates to the room that is left.
     property int libraryW: editing ? 340 + gutter : 0
     property int toolbarH: editing ? 44 + gutter : 0
-    // The page tabs take a strip at the top once there is more than one page, or while editing.
-    property int pagesH: editing || Widgets.pages.length > 1 ? 36 + gutter : 0
+    // A header strip is always reserved at the top for the page tabs and the edit toggle, so no control
+    // ever overlaps a widget.
+    property int pagesH: 36 + gutter
     readonly property real gridTop: margin + pagesH
     readonly property real cellW: (width - margin * 2 - libraryW - gutter * (columns - 1)) / columns
     readonly property real cellH: (height - margin * 2 - pagesH - toolbarH - gutter * (rows - 1)) / rows
@@ -39,8 +40,21 @@ PanelWindow {
 
     // Edit mode: drag to move, the corner to resize, × to remove; the library adds, by click or by drag. E toggles it.
     property bool editing: false
-    onVisibleChanged: if (!visible) editing = false
-    onEditingChanged: { pending = null; focusKey = ""; preview = null; library.composing = false; if (editing) Widgets.rescan(); }
+    onVisibleChanged: { if (visible) grid.forceActiveFocus(); else { editing = false; confirming = false; } }
+    onEditingChanged: { pending = null; focusKey = ""; preview = null; library.composing = false; grid.forceActiveFocus(); if (editing) Widgets.rescan(); }
+    // Unsaved edits: the layout differs from the snapshot taken when editing began.
+    readonly property bool dirty: editing && grid.before !== null && JSON.stringify(Widgets.pages) !== JSON.stringify(grid.before)
+    property bool confirming: false
+    property bool closeAfter: false
+    // Leaving edit mode, and optionally closing after, asks first when there are unsaved edits.
+    function leaveEdit(alsoClose) {
+        if (dirty) { closeAfter = alsoClose; confirming = true; }
+        else { editing = false; if (alsoClose) Surfaces.dashboard = false; }
+    }
+    function attemptClose() { if (editing) leaveEdit(true); else Surfaces.dashboard = false; }
+    function focusGrid() { grid.forceActiveFocus(); }
+    function keepEdits() { editing = false; confirming = false; if (closeAfter) Surfaces.dashboard = false; closeAfter = false; }
+    function discardEdits() { Prefs.p.dashboardPages = grid.before || []; Prefs.p.dashboardPage = grid.beforePage; editing = false; confirming = false; if (closeAfter) Surfaces.dashboard = false; closeAfter = false; }
     // The card the keys act on, by instance key.
     property string focusKey: ""
     // Where a dragged or resized card would land: { x, y, w, h, ok }, or null.
@@ -88,16 +102,24 @@ PanelWindow {
         color: Qt.alpha(Theme.ink, 0.55)
         opacity: root.visible ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Theme.move } }
-        MouseArea { anchors.fill: parent; onClicked: Surfaces.dashboard = false }
+        MouseArea { anchors.fill: parent; onClicked: root.attemptClose() }
     }
 
     Item {
         id: grid
         anchors.fill: parent
         focus: true
+        // Clicks in the grid's own area (the gaps between and around the cards) do nothing; only a click in
+        // the margin outside it reaches the backdrop and closes the dashboard.
+        MouseArea {
+            x: root.margin; y: root.gridTop
+            width: root.width - root.margin * 2 - root.libraryW
+            height: root.rows * root.cellH + (root.rows - 1) * root.gutter
+            onClicked: {}
+        }
         Keys.onPressed: event => {
             const shift = event.modifiers & Qt.ShiftModifier;
-            if (event.key === Qt.Key_Escape) { if (root.pending) root.pending = null; else if (root.focusKey) root.focusKey = ""; else if (root.editing) root.editing = false; else Surfaces.dashboard = false; }
+            if (event.key === Qt.Key_Escape) { if (root.confirming) root.confirming = false; else if (root.pending) root.pending = null; else if (root.focusKey) root.focusKey = ""; else if (root.editing) root.leaveEdit(false); else Surfaces.dashboard = false; }
             else if (event.key === Qt.Key_E) root.editing = !root.editing;
             else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) Widgets.setPage(event.key - Qt.Key_1);
             else if (root.editing && event.key === Qt.Key_Tab) { const l = Widgets.layout; const i = l.findIndex(e => e.key === root.focusKey); root.focusKey = l.length ? l[(i + 1) % l.length].key : ""; }
@@ -147,7 +169,6 @@ PanelWindow {
 
         // The pages: tabs across the top; while editing, add, rename by double-click, and remove.
         Row {
-            visible: root.pagesH > 0
             anchors { horizontalCenter: parent.horizontalCenter; horizontalCenterOffset: -root.libraryW / 2 }
             y: root.margin
             height: 36
@@ -223,12 +244,12 @@ PanelWindow {
             }
         }
 
-        // Edit, alone when viewing; in edit mode the strip holds Add, Reset layout, Discard and Done.
+        // Edit, in the header's right end when viewing; in edit mode the bottom strip owns Done and Discard.
         Rectangle {
             visible: !root.editing
-            anchors { right: parent.right; bottom: parent.bottom; margins: root.margin }
+            anchors { right: parent.right; top: parent.top; rightMargin: root.margin + root.libraryW; topMargin: root.margin }
             width: editRow.implicitWidth + Theme.s3; height: 32; radius: 16
-            color: Qt.alpha(Theme.glass, 0.9)
+            color: editArea.containsMouse ? Theme.raised : Qt.alpha(Theme.glass, 0.9)
             border.width: 1; border.color: Theme.hairline
             z: 10
             RowLayout {
@@ -238,7 +259,7 @@ PanelWindow {
                 Glyph { name: "pencil"; size: 14; color: Theme.text2 }
                 Label { text: "Edit"; size: Theme.sizeSmall; weight: Font.DemiBold; color: Theme.text2 }
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.editing = true }
+            MouseArea { id: editArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.editing = true }
         }
         // The layout as it was when editing began, for Discard.
         property var before: null
@@ -404,6 +425,37 @@ PanelWindow {
                 spacing: Theme.s2
                 Glyph { name: Widgets.manifests[root.dragId] ? Widgets.manifests[root.dragId].glyph : "plus"; size: 16 }
                 Label { text: Widgets.manifests[root.dragId] ? Widgets.manifests[root.dragId].name : ""; weight: Font.DemiBold; size: Theme.sizeSmall }
+            }
+        }
+
+        // Leaving edit mode with unsaved changes asks first.
+        Item {
+            visible: root.confirming
+            anchors.fill: parent
+            z: 40
+            Rectangle { anchors.fill: parent; color: Qt.alpha(Theme.ink, 0.4) }
+            MouseArea { anchors.fill: parent; onClicked: root.confirming = false }
+            Glass {
+                anchors.centerIn: parent
+                width: 420
+                height: dialogCol.implicitHeight + Theme.s4 * 2
+                radius: Theme.radiusPanel
+                MouseArea { anchors.fill: parent }
+                ColumnLayout {
+                    id: dialogCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.s4 }
+                    spacing: Theme.s3
+                    Label { text: "Keep your changes?"; size: Theme.sizeHeading; weight: Font.DemiBold }
+                    Label { text: "The dashboard layout has changed. Keep it, or go back to how it was."; size: Theme.sizeSmall; color: Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.s2
+                        Button { text: "Discard"; variant: "text"; onClicked: root.discardEdits() }
+                        Item { Layout.fillWidth: true }
+                        Button { text: "Cancel"; variant: "text"; onClicked: root.confirming = false }
+                        Button { text: "Keep"; glyph: "check"; variant: "accent"; onClicked: root.keepEdits() }
+                    }
+                }
             }
         }
     }

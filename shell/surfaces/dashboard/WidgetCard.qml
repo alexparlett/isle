@@ -77,6 +77,7 @@ Glass {
             root.dragging = false;
             root.dragDX = 0; root.dragDY = 0;
             Widgets.commitDrag();
+            if (root.dashboard) root.dashboard.focusGrid();
         }
         onCanceled: { root.dragging = false; root.dragDX = 0; root.dragDY = 0; Widgets.cancelDrag(); }
     }

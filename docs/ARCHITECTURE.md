@@ -239,8 +239,9 @@ Rules of the contract:
   12-column 8-row grid (layouts saved for the earlier 4-row grid are doubled once, `dashboardGrid` in prefs records it); the first page empty means the default layout.
   `key` names the instance (`clock`, then `clock#2`), `id` the widget;
   per-instance settings are stored under the key. Entries from before
-  instances have no key and take their id. Unknown ids are kept but not
-  drawn, so an uninstalled widget's slot survives.
+  instances have no key and take their id. An entry whose widget is gone
+  (uninstalled, or removed from the shell) is left out of the layout the
+  page uses, so it holds no cells, and the next save forgets it.
 - The grid editor is the `Widgets` service: `plan(key, x, y)` returns the
   layout with the card moved, swapping a same-size neighbour or pushing a
   different-size one down, or null; `place` commits it, `resize` changes a

@@ -196,7 +196,10 @@ Singleton {
     readonly property int page: Math.max(0, Math.min(Prefs.p.dashboardPage || 0, pages.length - 1))
     function normalize(l) { return l.map(e => e.key ? e : Object.assign({ key: e.id }, e)); }
     // The first page empty means the default layout; another page empty is empty.
+    // A widget that is no longer installed leaves the layout rather than holding its cells; the next save
+    // forgets it. Until the scan has run, every entry stays, so a slow start does not shed the page.
     readonly property var layout: normalize(pages[page].layout && pages[page].layout.length ? pages[page].layout : (page === 0 ? defaultLayout : []))
+        .filter(e => ids.length === 0 || manifests[e.id] !== undefined)
     // A live drag keeps its planned arrangement here without touching `layout`, so the Repeater's delegates
     // are not recreated under the drag (which would drop the grab and snap the pushed cards). Cards read
     // their position through cellFor; the plan commits to the layout only on release.

@@ -43,7 +43,7 @@ fi
 # generated fragments and the built plugins are the installed copy's own and are kept.
 if [[ "$REPO" != "$(mkdir -p "$ISLE_HOME" && cd "$ISLE_HOME" && pwd -P)" ]]; then
     [[ "$ISLE_HOME" != "$HOME" && "$ISLE_HOME" != "/" ]] || { echo "  ! ISLE_HOME must be a directory of its own" >&2; exit 1; }
-    rsync -a --delete --exclude '/hypr/generated' --exclude '__pycache__' --exclude '/plugins/*/*.so' --exclude '/plugins/*/*.o' "$REPO/" "$ISLE_HOME/"
+    rsync -a --delete --exclude '/hypr/generated' --exclude '/dev' --exclude '__pycache__' --exclude '/plugins/*/*.so' --exclude '/plugins/*/*.o' "$REPO/" "$ISLE_HOME/"
     # A first copy has no fragments yet, and the compositor reloads before the shell renders them: the
     # checkout's serve until then.
     mkdir -p "$ISLE_HOME/hypr/generated"

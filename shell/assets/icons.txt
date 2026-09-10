@@ -71,6 +71,7 @@ printer
 refresh-cw
 rocket
 rotate-cw
+scan
 search
 settings-2
 shield

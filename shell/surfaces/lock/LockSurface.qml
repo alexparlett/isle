@@ -76,6 +76,9 @@ WlSessionLockSurface {
                     }
                 }
                 Label { text: Lock.checking ? "Checking" : Lock.failed ? Lock.message : Lock.capsLock ? "Caps Lock is on" : Quickshell.env("USER"); size: Theme.sizeCaption; color: Lock.failed ? Theme.danger : Lock.capsLock ? Theme.warn : Theme.text3 }
+                // The reader is listening: a finger unlocks as well as the password.
+                Glyph { visible: Lock.fingerprint; name: "scan"; size: 14; color: Lock.fingerMessage ? Theme.warn : Theme.text2 }
+                Label { visible: Lock.fingerprint && Lock.fingerMessage !== ""; text: Lock.fingerMessage; size: Theme.sizeCaption; color: Theme.warn }
             }
         }
     }

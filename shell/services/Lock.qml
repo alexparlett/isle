@@ -9,7 +9,8 @@ import Quickshell.Services.Pam
 Singleton {
     id: root
 
-    readonly property bool locked: sessionLock.locked
+    // The compositor's word: `locked` is the request and does not notify when it changes.
+    readonly property bool locked: sessionLock.secure
     property string password: ""
     property bool failed: false
     property bool checking: pam.active
@@ -48,6 +49,42 @@ Singleton {
     }
 
     function lock() { if (surfaceComponent) sessionLock.locked = true; }
+
+    // Fingerprints: while locked and a finger is enrolled, fprintd verifies in the background beside the
+    // password; a match unlocks, a miss says so and listens again.
+    property bool fingerprint: false
+    property string fingerMessage: ""
+    Process {
+        id: fingers
+        command: ["fprintd-list", Quickshell.env("USER")]
+        stdout: StdioCollector { onStreamFinished: { root.fingerprint = text.indexOf("- #") >= 0; if (root.fingerprint && root.locked) verifier.running = true; } }
+    }
+    Process {
+        id: verifier
+        command: ["fprintd-verify"]
+        property string result: ""
+        stdout: SplitParser {
+            onRead: line => {
+                const m = line.match(/Verify result: (\S+)/);
+                if (m) verifier.result = m[1];
+            }
+        }
+        onExited: {
+            const r = verifier.result; verifier.result = "";
+            if (!root.locked) return;
+            if (r === "verify-match") { root.fingerMessage = ""; root.failed = false; root.message = ""; root.attempts = 0; sessionLock.locked = false; return; }
+            if (r === "verify-no-match") { root.fingerMessage = "Not recognised"; retry.start(); return; }
+            if (r === "verify-retry-scan" || r === "verify-swipe-too-short" || r === "verify-finger-not-centered" || r === "verify-remove-and-retry") { root.fingerMessage = "Try again"; retry.start(); return; }
+            // The reader is gone or fprintd refused: give up quietly until the next lock.
+            root.fingerprint = false;
+        }
+    }
+    Timer { id: retry; interval: 600; onTriggered: if (root.locked && root.fingerprint) verifier.running = true }
+    onLockedChanged: {
+        fingerMessage = "";
+        if (locked) fingers.running = true;
+        else if (verifier.running) verifier.signal(15);
+    }
     function submit() {
         if (!sessionLock.locked || pam.active || password === "") return;
         failed = false;

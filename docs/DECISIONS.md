@@ -260,3 +260,14 @@ variant is where a Mac keyboard prints its symbols. Putting the variant
 in the list would move @ for every keyboard, so a Mac-profile device gets
 the variant on its own device line instead, and the list stays plain.
 
+**D33 · Fingerprints beside the password, not in front of it.** Putting
+`pam_fprintd` in the lock's PAM stack makes PAM wait on the reader before
+it will take a password, so a user with wet hands stares at a dead field.
+The lock runs fprintd's own verify in parallel and treats a match as the
+unlock, the way hyprlock does over D-Bus; the password path stays exactly
+as it was. The driver for the Goodix 27c6:5042 is the community HTK32
+driver with the id added: same sensor, same CDC-data interface and
+endpoints, three other ids in its table. Building it is a script, not the
+installer, because it pulls opencv and a compiler and most machines have
+no reader.
+

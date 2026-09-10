@@ -88,7 +88,9 @@ curl -fsSL https://raw.githubusercontent.com/alexparlett/isle/main/tools/bootstr
 ```
 
 Then log out and pick Hyprland at the login screen. Settings › Updates
-keeps the shell current.
+keeps the shell current. A fingerprint reader is `tools/fingerprint.sh`:
+it installs fprintd and a driver, enrolls a finger, and the lock screen
+takes it from the next lock.
 
 The desktop runs from `~/.local/share/isle`. To work on it, clone anywhere
 else, test in the VM, and run `tools/install.sh` from

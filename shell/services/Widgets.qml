@@ -57,7 +57,7 @@ Singleton {
         return "file://" + m.dir + "/Widget.qml";
     }
 
-    // --- the layout ----------------------------------------------------------------
+    // --- pages and the layout --------------------------------------------------------------
     // An entry is { key, id, x, y, w, h } in grid cells: `key` names the instance (a second clock is
     // "clock#2"), `id` its widget. Entries without a key, from before instances, take their id.
     readonly property var defaultLayout: [
@@ -72,13 +72,44 @@ Singleton {
         { id: "devices", x: 3, y: 3, w: 3, h: 1 },
         { id: "storage", x: 6, y: 3, w: 3, h: 1 },
     ]
-    readonly property var layout: (Prefs.p.dashboard && Prefs.p.dashboard.length ? Prefs.p.dashboard : defaultLayout).map(e => e.key ? e : Object.assign({ key: e.id }, e))
-    function setLayout(l) { Prefs.p.dashboard = l; }
+    // Pages: the single layout from before pages becomes the first.
+    readonly property var pages: Prefs.p.dashboardPages && Prefs.p.dashboardPages.length ? Prefs.p.dashboardPages : [{ name: "Home", layout: Prefs.p.dashboard || [] }]
+    readonly property int page: Math.max(0, Math.min(Prefs.p.dashboardPage || 0, pages.length - 1))
+    function normalize(l) { return l.map(e => e.key ? e : Object.assign({ key: e.id }, e)); }
+    // The first page empty means the default layout; another page empty is empty.
+    readonly property var layout: normalize(pages[page].layout && pages[page].layout.length ? pages[page].layout : (page === 0 ? defaultLayout : []))
+    function setLayout(l) {
+        const ps = pages.map(p => ({ name: p.name, layout: p.layout }));
+        ps[page] = { name: ps[page].name, layout: l };
+        Prefs.p.dashboardPages = ps;
+    }
+    function setPage(i) { Prefs.p.dashboardPage = Math.max(0, Math.min(i, pages.length - 1)); }
+    function addPage(name) {
+        const ps = pages.map(p => ({ name: p.name, layout: p.layout })).concat([{ name: name || "Page " + (pages.length + 1), layout: [] }]);
+        Prefs.p.dashboardPages = ps;
+        Prefs.p.dashboardPage = ps.length - 1;
+    }
+    function renamePage(i, name) { const ps = pages.map(p => ({ name: p.name, layout: p.layout })); if (ps[i]) { ps[i].name = name || ps[i].name; Prefs.p.dashboardPages = ps; } }
+    function removePage(i) {
+        if (pages.length < 2) return;
+        const ps = pages.filter((p, k) => k !== i).map(p => ({ name: p.name, layout: p.layout }));
+        Prefs.p.dashboardPages = ps;
+        Prefs.p.dashboardPage = Math.min(page, ps.length - 1);
+    }
     function idOf(key) { return String(key).split("#")[0]; }
     function placed(id) { return layout.filter(e => e.id === id).length; }
-    // Any widget once; those marked `multiple` as often as wanted.
+    // Any widget once per page; those marked `multiple` as often as wanted.
     function canAdd(id) { const m = manifests[id]; return !!m && (m.multiple || placed(id) === 0); }
-    function uniqueKey(id) { let n = 1, k = id; while (layout.some(e => e.key === k)) k = id + "#" + (++n); return k; }
+    function uniqueKey(id) {
+        const taken = {};
+        for (const p of pages) for (const e of normalize(p.layout || [])) taken[e.key] = 1;
+        for (const e of layout) taken[e.key] = 1;
+        let n = 1, k = id; while (taken[k]) k = id + "#" + (++n); return k;
+    }
+    // A widget's smallest and largest spans: `min` and `max` in the manifest, else the extremes of `sizes`.
+    function spanOf(s) { const p = String(s || "3x1").split("x").map(Number); return { w: p[0] || 1, h: p[1] || 1 }; }
+    function minOf(m) { if (m.min) return spanOf(m.min); const ss = (m.sizes || ["3x1"]).map(spanOf); return { w: Math.min(...ss.map(s => s.w)), h: Math.min(...ss.map(s => s.h)) }; }
+    function maxOf(m) { if (m.max) return spanOf(m.max); const ss = (m.sizes || ["3x1"]).map(spanOf); return { w: Math.max(...ss.map(s => s.w)), h: Math.max(...ss.map(s => s.h)) }; }
 
     // --- editing --------------------------------------------------------------------
 
@@ -89,13 +120,56 @@ Singleton {
         if (entry.x < 0 || entry.y < 0 || entry.x + entry.w > columns || entry.y + entry.h > rows) return false;
         return !others.some(o => o.key !== entry.key && overlaps(entry, o));
     }
-    function move(key, x, y) {
+    // The layout with `key` at (x, y), making room: a lone neighbour of the same size swaps places,
+    // otherwise neighbours are pushed down while there is room. Null when nothing works.
+    function plan(key, x, y, w, h) {
         const l = layout.map(e => Object.assign({}, e));
         const e = l.find(e => e.key === key);
-        if (!e) return false;
-        const moved = Object.assign({}, e, { x: x, y: y });
-        if (!fits(moved, l)) return false;
-        Object.assign(e, moved); setLayout(l); return true;
+        if (!e) return null;
+        const moved = Object.assign({}, e, { x: x, y: y, w: w || e.w, h: h || e.h });
+        moved.x = Math.max(0, Math.min(moved.x, columns - moved.w));
+        moved.y = Math.max(0, Math.min(moved.y, rows - moved.h));
+        const rest = l.filter(o => o.key !== key);
+        if (fits(moved, rest)) return rest.concat([moved]);
+        const hit = rest.filter(o => overlaps(moved, o));
+        if (hit.length === 1 && hit[0].w === e.w && hit[0].h === e.h && (moved.w === e.w && moved.h === e.h)) {
+            const swapped = Object.assign({}, hit[0], { x: e.x, y: e.y });
+            const others = rest.filter(o => o.key !== hit[0].key);
+            if (fits(swapped, others.concat([moved]))) return others.concat([moved, swapped]);
+        }
+        // Push each neighbour down until it fits among what is already settled.
+        let settled = rest.filter(o => !overlaps(moved, o)).concat([moved]);
+        for (const o of hit) {
+            let placed = null;
+            for (let dy = 1; dy <= rows; dy++) {
+                const c = Object.assign({}, o, { y: o.y + dy });
+                if (fits(c, settled)) { placed = c; break; }
+            }
+            if (!placed) return null;
+            settled = settled.concat([placed]);
+        }
+        return settled;
+    }
+    function canPlace(key, x, y, w, h) { return plan(key, x, y, w, h) !== null; }
+    function place(key, x, y, w, h) { const l = plan(key, x, y, w, h); if (l) setLayout(l); return l !== null; }
+    function move(key, x, y) { return place(key, x, y); }
+    // A new span, held to the manifest's range and the grid; neighbours are not moved for a resize.
+    function resize(key, w, h) {
+        const e = layout.find(e => e.key === key), m = e && manifests[e.id];
+        if (!e || !m) return false;
+        const lo = minOf(m), hi = maxOf(m);
+        const nw = Math.max(lo.w, Math.min(hi.w, w, columns - e.x)), nh = Math.max(lo.h, Math.min(hi.h, h, rows - e.y));
+        const next = Object.assign({}, e, { w: nw, h: nh });
+        if (!fits(next, layout)) return false;
+        setLayout(layout.map(o => o.key === key ? next : o));
+        return true;
+    }
+    function canResize(key, w, h) {
+        const e = layout.find(e => e.key === key), m = e && manifests[e.id];
+        if (!e || !m) return false;
+        const lo = minOf(m), hi = maxOf(m);
+        if (w < lo.w || h < lo.h || w > hi.w || h > hi.h) return false;
+        return fits(Object.assign({}, e, { w: w, h: h }), layout);
     }
     // The next size in the manifest's list that fits where the widget is.
     function cycleSize(key) {
@@ -128,7 +202,7 @@ Singleton {
         return false;
     }
     function add(id) { return addAt(id, -1, -1); }
-    function resetLayout() { Prefs.p.dashboard = []; }
+    function resetLayout() { setLayout([]); }
 
     // --- settings -------------------------------------------------------------------
     // A manifest may carry `settings`: [{ key, label, type: "toggle" | "choice" | "number", default, options, min, max }].

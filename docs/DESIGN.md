@@ -270,17 +270,29 @@ GPU (LACT clocks, power limit, fans from CoolerControl), Games (recent,
 quick launch), Clipboard (recent entries), Timer (focus / pomodoro),
 Updates (pending packages), Weather.
 
-Edit mode (E, or the pencil in the corner) lets a widget be moved,
-resized between its supported sizes and removed. The grid gives up a
-340px column on the right for the library and a strip at the bottom for
-the toolbar (Reset layout, Discard, Done), so no control sits over a
-card. The library lists every widget by category with a search field:
-glyph, name, description, and "on" with a tick when it is placed (×2 for
-a second instance). Clicking a row places it at the first free spot;
-dragging one shows a ghost card and drops it on the cell under the
-pointer; clicking an empty cell first marks it, and the next pick lands
-there. When nothing fits, the toolbar says which size it needs. The
-layout is a preference.
+Edit mode (E, or the pencil in the corner) is a grid editor. Dragging a
+card shows a live outline of where it will land, accent when it fits or
+can make room, danger when it cannot; on drop a same-size neighbour
+swaps places and a different-size one is pushed down when there is room,
+otherwise the drop is refused. The right edge, bottom edge and corner
+resize the card, held between the manifest's smallest and largest spans.
+The focused card (click, or Tab through them) takes an accent ring;
+arrows nudge it a cell, Shift+arrows resize it, Delete removes it.
+
+The grid gives up a 340px column on the right for the library and a
+strip at the bottom for the toolbar (Reset layout, Discard, Done), so no
+control sits over a card. The library lists every widget by category
+with a search field: glyph, name, description, and "on" with a tick when
+placed (×2 for a second instance). Clicking a row places it at the first
+free spot; dragging one drops it on the cell under the pointer; clicking
+an empty cell first marks it, and the next pick lands there. New text
+widget at the foot opens the form; the user's own carry edit and delete
+on hover. When nothing fits, the toolbar says which size it needs.
+
+Pages are dashboards in their own right, tabs across the top switched by
+click or the number keys; editing adds one with the plus, renames by
+double-click and removes with the ×. Each page's layout, and which page
+is shown, are preferences.
 
 Text widgets, the user's own, draw through one renderer: a title, then
 the output as wrapped text, a large number with its unit, a gauge bar

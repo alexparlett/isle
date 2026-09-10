@@ -164,3 +164,13 @@ it needs neither code nor the service access user QML still lacks (D14).
 Widgets in QML come after the text ones show which services they need.
 The library, and the form for a text widget, live in the dashboard's edit
 mode rather than Settings: the dashboard is where they are placed.
+
+**D24 · The dashboard is a grid editor, not a size-cycle.** Cards moved by
+springing back on a bad drop and resized by a badge that stepped through a
+fixed list. The editor now shows a live outline of where a drag lands,
+swaps a same-size neighbour or pushes a different-size one down to make
+room, resizes from the card's edges between the manifest's `min` and `max`
+spans, and takes arrow keys on the focused card. Multiple pages, switched
+by tabs or the number keys, hold their own layouts. All of it is QML over
+the prefs layout: a compositor plugin has no view of a surface the shell
+draws, so there is nothing for one to do here.

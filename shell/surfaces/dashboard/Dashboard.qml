@@ -28,15 +28,45 @@ PanelWindow {
     // over a card; the grid animates to the room that is left.
     property int libraryW: editing ? 340 + gutter : 0
     property int toolbarH: editing ? 44 + gutter : 0
+    // The page tabs take a strip at the top once there is more than one page, or while editing.
+    property int pagesH: editing || Widgets.pages.length > 1 ? 36 + gutter : 0
+    readonly property real gridTop: margin + pagesH
     readonly property real cellW: (width - margin * 2 - libraryW - gutter * (columns - 1)) / columns
-    readonly property real cellH: (height - margin * 2 - toolbarH - gutter * (rows - 1)) / rows
+    readonly property real cellH: (height - margin * 2 - pagesH - toolbarH - gutter * (rows - 1)) / rows
     Behavior on libraryW { NumberAnimation { duration: Theme.move; easing.type: Easing.OutQuint } }
     Behavior on toolbarH { NumberAnimation { duration: Theme.move; easing.type: Easing.OutQuint } }
+    Behavior on pagesH { NumberAnimation { duration: Theme.move; easing.type: Easing.OutQuint } }
 
     // Edit mode: drag to move, the corner to resize, × to remove; the library adds, by click or by drag. E toggles it.
     property bool editing: false
     onVisibleChanged: if (!visible) editing = false
-    onEditingChanged: { pending = null; library.composing = false; if (editing) Widgets.rescan(); }
+    onEditingChanged: { pending = null; focusKey = ""; preview = null; library.composing = false; if (editing) Widgets.rescan(); }
+    // The card the keys act on, by instance key.
+    property string focusKey: ""
+    // Where a dragged or resized card would land: { x, y, w, h, ok }, or null.
+    property var preview: null
+    function previewMove(key, cx, cy) {
+        const e = Widgets.layout.find(e => e.key === key); if (!e) return;
+        const x = Math.max(0, Math.min(cx, columns - e.w)), y = Math.max(0, Math.min(cy, rows - e.h));
+        preview = { x: x, y: y, w: e.w, h: e.h, ok: Widgets.canPlace(key, x, y) };
+    }
+    function dropMove(key, cx, cy) {
+        const e = Widgets.layout.find(e => e.key === key); preview = null; if (!e) return false;
+        const x = Math.max(0, Math.min(cx, columns - e.w)), y = Math.max(0, Math.min(cy, rows - e.h));
+        return Widgets.place(key, x, y);
+    }
+    function previewResize(key, w, h) {
+        const e = Widgets.layout.find(e => e.key === key); if (!e) return;
+        preview = { x: e.x, y: e.y, w: w, h: h, ok: Widgets.canResize(key, w, h) };
+    }
+    function dropResize(key, w, h) { preview = null; return Widgets.resize(key, w, h); }
+    // Arrow keys move the focused card a cell; with Shift they resize it.
+    function nudge(dx, dy, resize) {
+        const e = Widgets.layout.find(e => e.key === focusKey); if (!e) return;
+        if (resize) { if (!Widgets.resize(focusKey, e.w + dx, e.h + dy)) notice = "That size does not fit here"; }
+        else if (!Widgets.place(focusKey, e.x + dx, e.y + dy)) notice = "No room that way";
+        if (notice) noticeTimer.restart();
+    }
     // A marked empty cell, {x, y}: the next widget picked from the library lands there.
     property var pending: null
     // Why the last placement failed, shown in the toolbar for a moment.
@@ -59,7 +89,7 @@ PanelWindow {
             if (!Widgets.layout.some(e => x >= e.x && x < e.x + e.w && y >= e.y && y < e.y + e.h)) out.push({ x: x, y: y });
         return out;
     }
-    function cellAt(px, py) { return { x: Math.round((px - margin) / (cellW + gutter)), y: Math.round((py - margin) / (cellH + gutter)) }; }
+    function cellAt(px, py) { return { x: Math.round((px - margin) / (cellW + gutter)), y: Math.round((py - gridTop) / (cellH + gutter)) }; }
 
     Rectangle {
         id: backdrop
@@ -75,8 +105,16 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onPressed: event => {
-            if (event.key === Qt.Key_Escape) { if (root.pending) root.pending = null; else if (root.editing) root.editing = false; else Surfaces.dashboard = false; }
+            const shift = event.modifiers & Qt.ShiftModifier;
+            if (event.key === Qt.Key_Escape) { if (root.pending) root.pending = null; else if (root.focusKey) root.focusKey = ""; else if (root.editing) root.editing = false; else Surfaces.dashboard = false; }
             else if (event.key === Qt.Key_E) root.editing = !root.editing;
+            else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) Widgets.setPage(event.key - Qt.Key_1);
+            else if (root.editing && event.key === Qt.Key_Tab) { const l = Widgets.layout; const i = l.findIndex(e => e.key === root.focusKey); root.focusKey = l.length ? l[(i + 1) % l.length].key : ""; }
+            else if (root.editing && root.focusKey && event.key === Qt.Key_Left) root.nudge(-1, 0, shift);
+            else if (root.editing && root.focusKey && event.key === Qt.Key_Right) root.nudge(1, 0, shift);
+            else if (root.editing && root.focusKey && event.key === Qt.Key_Up) root.nudge(0, -1, shift);
+            else if (root.editing && root.focusKey && event.key === Qt.Key_Down) root.nudge(0, 1, shift);
+            else if (root.editing && root.focusKey && (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace)) { Widgets.remove(root.focusKey); root.focusKey = ""; }
             else return;
             event.accepted = true;
         }
@@ -89,13 +127,79 @@ PanelWindow {
                 readonly property bool marked: root.pending && root.pending.x === modelData.x && root.pending.y === modelData.y
                 readonly property bool under: root.dragId !== "" && root.dragX >= x && root.dragX < x + width && root.dragY >= y && root.dragY < y + height
                 x: root.margin + modelData.x * (root.cellW + root.gutter)
-                y: root.margin + modelData.y * (root.cellH + root.gutter)
+                y: root.gridTop + modelData.y * (root.cellH + root.gutter)
                 width: root.cellW; height: root.cellH
                 radius: Theme.radiusCard
                 color: marked || under ? Qt.alpha(Theme.accent, 0.12) : cellArea.containsMouse ? Qt.alpha(Theme.text, 0.06) : Qt.alpha(Theme.text, 0.025)
                 border.width: 1; border.color: marked || under ? Theme.accent : Qt.alpha(Theme.text, cellArea.containsMouse ? 0.3 : 0.12)
                 Glyph { anchors.centerIn: parent; name: "plus"; size: 18; color: marked || under ? Theme.accent : Qt.alpha(Theme.text, cellArea.containsMouse ? 0.8 : 0.35) }
                 MouseArea { id: cellArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.pending = parent.marked ? null : { x: parent.modelData.x, y: parent.modelData.y } }
+            }
+        }
+
+        // Where a drag or a resize would land: accent when it fits or can make room, danger when not.
+        Rectangle {
+            visible: root.preview !== null
+            x: root.preview ? root.margin + root.preview.x * (root.cellW + root.gutter) : 0
+            y: root.preview ? root.gridTop + root.preview.y * (root.cellH + root.gutter) : 0
+            width: root.preview ? root.preview.w * root.cellW + (root.preview.w - 1) * root.gutter : 0
+            height: root.preview ? root.preview.h * root.cellH + (root.preview.h - 1) * root.gutter : 0
+            radius: Theme.radiusPanel - 2
+            color: root.preview && root.preview.ok ? Qt.alpha(Theme.accent, 0.12) : Qt.alpha(Theme.danger, 0.10)
+            border.width: 2; border.color: root.preview && root.preview.ok ? Theme.accent : Theme.danger
+            z: 4
+            Behavior on x { NumberAnimation { duration: Theme.quick; easing.type: Easing.OutQuint } }
+            Behavior on y { NumberAnimation { duration: Theme.quick; easing.type: Easing.OutQuint } }
+            Behavior on width { NumberAnimation { duration: Theme.quick; easing.type: Easing.OutQuint } }
+            Behavior on height { NumberAnimation { duration: Theme.quick; easing.type: Easing.OutQuint } }
+        }
+
+        // The pages: tabs across the top; while editing, add, rename by double-click, and remove.
+        Row {
+            visible: root.pagesH > 0
+            anchors { horizontalCenter: parent.horizontalCenter; horizontalCenterOffset: -root.libraryW / 2 }
+            y: root.margin
+            height: 36
+            spacing: Theme.s1
+            z: 10
+            Repeater {
+                model: Widgets.pages
+                Rectangle {
+                    id: tab
+                    required property var modelData
+                    required property int index
+                    readonly property bool sel: index === Widgets.page
+                    property bool renaming: false
+                    width: Math.max(72, tabLabel.implicitWidth + Theme.s3 * 2 + (root.editing && Widgets.pages.length > 1 ? 22 : 0)); height: 32
+                    radius: 16
+                    color: sel ? Theme.raised : tabArea.containsMouse ? Qt.alpha(Theme.text, 0.05) : "transparent"
+                    border.width: 1; border.color: sel ? Theme.hairlineStrong : "transparent"
+                    Label { id: tabLabel; visible: !tab.renaming; anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Theme.s3 } text: tab.modelData.name; size: Theme.sizeSmall; weight: Font.DemiBold; color: tab.sel ? Theme.text : Theme.text2 }
+                    Field {
+                        visible: tab.renaming
+                        anchors { fill: parent; margins: 2 }
+                        size: Theme.sizeSmall
+                        onVisibleChanged: if (visible) { text = tab.modelData.name; input.forceActiveFocus(); input.selectAll(); }
+                        onAccepted: { Widgets.renamePage(tab.index, text.trim()); tab.renaming = false; grid.forceActiveFocus(); }
+                        input.onActiveFocusChanged: if (!input.activeFocus) tab.renaming = false
+                    }
+                    MouseArea { id: tabArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; enabled: !tab.renaming; onClicked: Widgets.setPage(tab.index); onDoubleClicked: if (root.editing) tab.renaming = true }
+                    Rectangle {
+                        visible: root.editing && Widgets.pages.length > 1 && !tab.renaming
+                        anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 6 }
+                        width: 18; height: 18; radius: 9; color: closeArea.containsMouse ? Theme.pressed : "transparent"
+                        Glyph { anchors.centerIn: parent; name: "x"; size: 9; color: Theme.text2 }
+                        MouseArea { id: closeArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.removePage(tab.index) }
+                    }
+                }
+            }
+            Rectangle {
+                visible: root.editing
+                width: 32; height: 32; radius: 16
+                color: addPageArea.containsMouse ? Qt.alpha(Theme.text, 0.08) : "transparent"
+                border.width: 1; border.color: Theme.hairline
+                Glyph { anchors.centerIn: parent; name: "plus"; size: 14; color: Theme.text2 }
+                MouseArea { id: addPageArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.addPage("") }
             }
         }
 
@@ -106,7 +210,7 @@ PanelWindow {
                 required property int index
                 entry: modelData
                 x: root.margin + modelData.x * (root.cellW + root.gutter)
-                y: root.margin + modelData.y * (root.cellH + root.gutter)
+                y: root.gridTop + modelData.y * (root.cellH + root.gutter)
                 width: modelData.w * root.cellW + (modelData.w - 1) * root.gutter
                 height: modelData.h * root.cellH + (modelData.h - 1) * root.gutter
                 editing: root.editing
@@ -139,7 +243,8 @@ PanelWindow {
         }
         // The layout as it was when editing began, for Discard.
         property var before: null
-        Connections { target: root; function onEditingChanged() { if (root.editing) grid.before = (Prefs.p.dashboard || []).slice(); } }
+        property int beforePage: 0
+        Connections { target: root; function onEditingChanged() { if (root.editing) { grid.before = JSON.parse(JSON.stringify(Widgets.pages)); grid.beforePage = Widgets.page; } } }
         RowLayout {
             visible: root.editing
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: root.margin; rightMargin: root.margin + root.libraryW; bottomMargin: root.margin }
@@ -148,10 +253,10 @@ PanelWindow {
             z: 10
             Label { text: root.notice || (root.pending ? "Pick a widget from the library for the marked cell" : "Click or drag a widget from the library; an empty cell marks where it goes"); size: Theme.sizeSmall; color: root.notice ? Theme.warn : Theme.text2 }
             Item { Layout.fillWidth: true }
-            Label { text: "Drag to move · corner to resize · × removes"; size: Theme.sizeCaption; color: Theme.text3 }
+            Label { text: "Drag to move · edges to resize · arrows nudge, Shift+arrows resize · Delete removes · 1–9 pages"; size: Theme.sizeCaption; color: Theme.text3 }
             Item { Layout.fillWidth: true }
             Button { text: "Reset layout"; variant: "text"; onClicked: Widgets.resetLayout() }
-            Button { text: "Discard"; variant: "text"; onClicked: { Prefs.p.dashboard = grid.before || []; root.editing = false; } }
+            Button { text: "Discard"; variant: "text"; onClicked: { Prefs.p.dashboardPages = grid.before || []; Prefs.p.dashboardPage = grid.beforePage; root.editing = false; } }
             Button { text: "Done"; glyph: "check"; variant: "raised"; onClicked: root.editing = false }
         }
 

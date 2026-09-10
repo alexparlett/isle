@@ -45,6 +45,9 @@ Singleton {
             property bool nightLight: false
             property int nightLightTemperature: 4000
             property var dashboard: []
+            // [{ name, layout }] and which is shown; empty means one page holding `dashboard`.
+            property var dashboardPages: []
+            property int dashboardPage: 0
             property int idleDim: 300
             property int idleLock: 600
             property int idleScreenOff: 900

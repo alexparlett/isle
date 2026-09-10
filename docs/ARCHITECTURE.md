@@ -167,12 +167,19 @@ Rules of the contract:
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as
   `settings.<key>`, with the manifest default filled in.
-- The layout is `dashboard: [{key, id, x, y, w, h}]` in prefs, on a
-  12-column 4-row grid; empty means the default layout. `key` names the
-  instance (`clock`, then `clock#2`), `id` the widget; per-instance
-  settings are stored under the key. Entries from before instances have
-  no key and take their id. Unknown ids are kept but not drawn, so an
-  uninstalled widget's slot survives.
+- Pages are `dashboardPages: [{name, layout}]` in prefs with
+  `dashboardPage` the shown one; the older single `dashboard` becomes the
+  first page's layout. A layout is `[{key, id, x, y, w, h}]` on a
+  12-column 4-row grid; the first page empty means the default layout.
+  `key` names the instance (`clock`, then `clock#2`), `id` the widget;
+  per-instance settings are stored under the key. Entries from before
+  instances have no key and take their id. Unknown ids are kept but not
+  drawn, so an uninstalled widget's slot survives.
+- The grid editor is the `Widgets` service: `plan(key, x, y)` returns the
+  layout with the card moved, swapping a same-size neighbour or pushing a
+  different-size one down, or null; `place` commits it, `resize` changes a
+  span within the manifest's `min`/`max` (the extremes of `sizes` when
+  unset). The dashboard shows a live outline of the plan while dragging.
 
 ## Test hooks
 

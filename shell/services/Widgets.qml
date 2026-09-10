@@ -410,6 +410,9 @@ Singleton {
         author.command = ["python3", authorScript, op].concat(args);
         author.running = true;
     }
+    // The folder a picture lands in, made first: git drops empty directories, so an installed widget lacks it.
+    Process { id: mkdir; property var done; onExited: { if (done) done(); done = null; } }
+    function prepareDir(path, done) { if (mkdir.running) return; mkdir.done = done; mkdir.command = ["mkdir", "-p", "--", path]; mkdir.running = true; }
     function scaffold(name) { const id = slug(name); run("new", id, [userDir, id, String(name).trim() || "Widget"]); }
     function validate(id) { const m = manifests[id]; if (m && m.user) run("validate", id, [m.dir]); }
     function share(id) { const m = manifests[id]; if (m && m.user) run("share", id, [m.dir]); }

@@ -406,7 +406,7 @@ Item {
                                 Label { text: "Author"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text3; Layout.fillWidth: true }
                                 Spinner { visible: Widgets.authoring; size: 12 }
                                 Button { text: "Check"; glyph: "shield-check"; variant: "text"; enabled: !Widgets.authoring; onClicked: Widgets.validate(sheetCol.inst.id) }
-                                Button { text: "Picture"; glyph: "camera"; variant: "text"; enabled: sheetPreview.capturable; onClicked: sheetPreview.capture(sheetCol.inst.dir + "/screenshots/card.png", ok => { if (ok) { Widgets.rescan(); Widgets.validate(sheetCol.inst.id); } }) }
+                                Button { text: "Picture"; glyph: "camera"; variant: "text"; enabled: sheetPreview.capturable; onClicked: { const inst = sheetCol.inst; Widgets.prepareDir(inst.dir + "/screenshots", () => sheetPreview.capture(inst.dir + "/screenshots/card.png", ok => { if (ok) { Widgets.rescan(); Widgets.validate(inst.id); } })); } }
                                 Button { text: "Tag"; glyph: "package"; variant: "text"; enabled: !Widgets.authoring; onClicked: Widgets.share(sheetCol.inst.id) }
                             }
                             Repeater {

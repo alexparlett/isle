@@ -14,8 +14,26 @@ Singleton {
     readonly property bool discovering: available && adapter.discovering
 
     readonly property var devices: Bt.Bluetooth.devices.values
-    readonly property var connected: devices.filter(d => d.connected)
-    readonly property var paired: devices.filter(d => d.paired || d.trusted)
+    // A list is only recomputed when the list of devices changes, not when one of them connects or pairs,
+    // so every device's state changes bump `stamp` and the lists depend on it.
+    property int stamp: 0
+    Instantiator {
+        model: Bt.Bluetooth.devices
+        delegate: Connections {
+            required property var modelData
+            target: modelData
+            function onConnectedChanged() { root.stamp++; }
+            function onPairedChanged() { root.stamp++; }
+            function onTrustedChanged() { root.stamp++; }
+            function onNameChanged() { root.stamp++; }
+        }
+    }
+    readonly property var connected: { stamp; return devices.filter(d => d.connected); }
+    readonly property var paired: { stamp; return devices.filter(d => d.paired || d.trusted); }
+    readonly property var idle: { stamp; return devices.filter(d => !d.connected && (d.paired || d.trusted)); }
+    // What can be paired: named, not yet paired, and not a device's low-energy side ("LE_…", no audio or
+    // input on it) when that is all bluez has seen of it.
+    readonly property var nearby: { stamp; return devices.filter(d => !d.paired && !d.trusted && d.name !== "" && d.name.indexOf("LE_") !== 0); }
     readonly property bool anyConnected: connected.length > 0
     readonly property string primaryName: anyConnected ? connected[0].name : ""
 

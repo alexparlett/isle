@@ -35,24 +35,35 @@ SettingsPage {
         }
     }
 
-    SettingsGroup {
-        heading: "Devices"
-        Repeater {
-            model: Bluetooth.devices
-            SettingsRow {
-                required property var modelData
-                visible: modelData.paired || modelData.trusted || modelData.name !== ""
-                label: modelData.name || modelData.address
-                description: modelData.connected ? "Connected" + (modelData.batteryAvailable ? " · " + Math.round(modelData.battery * 100) + "%" : "") : modelData.paired ? "Paired" : "Nearby"
-                glyph: Bluetooth.glyphFor(modelData)
-                glyphColor: modelData.connected ? Theme.accent : Theme.text2
-                RowLayout {
-                    spacing: Theme.s2
-                    Button { text: modelData.connected ? "Disconnect" : modelData.paired ? "Connect" : "Pair"; variant: modelData.connected ? "text" : "raised"; onClicked: modelData.paired ? Bluetooth.toggle(modelData) : modelData.pair() }
-                    Button { text: "Forget"; variant: "text"; visible: modelData.paired; onClicked: modelData.forget() }
-                }
-            }
+    // One row per device; the same row serves the three lists below.
+    component DeviceRow: SettingsRow {
+        required property var modelData
+        label: modelData.name || modelData.address
+        description: modelData.connected ? "Connected" + (modelData.batteryAvailable ? " · " + Math.round(modelData.battery * 100) + "%" : "") : modelData.paired ? "Paired" : modelData.pairing ? "Pairing…" : "Nearby"
+        glyph: Bluetooth.glyphFor(modelData)
+        glyphColor: modelData.connected ? Theme.accent : Theme.text2
+        RowLayout {
+            spacing: Theme.s2
+            Button { text: modelData.connected ? "Disconnect" : modelData.paired ? "Connect" : "Pair"; variant: modelData.connected ? "text" : "raised"; enabled: !modelData.pairing; onClicked: modelData.paired ? Bluetooth.toggle(modelData) : modelData.pair() }
+            Button { text: "Forget"; variant: "text"; visible: modelData.paired; onClicked: modelData.forget() }
         }
-        SettingsRow { visible: Bluetooth.devices.length === 0; label: Bluetooth.enabled ? "Nothing nearby yet" : "Bluetooth is off" }
+    }
+
+    SettingsGroup {
+        heading: "Connected"
+        visible: Bluetooth.connected.length > 0
+        Repeater { model: Bluetooth.connected; DeviceRow {} }
+    }
+
+    SettingsGroup {
+        heading: "Your devices"
+        Repeater { model: Bluetooth.idle; DeviceRow {} }
+        SettingsRow { visible: Bluetooth.idle.length === 0; label: Bluetooth.connected.length ? "Everything paired is connected" : "Nothing paired yet"; description: "Pair something from the list below." }
+    }
+
+    SettingsGroup {
+        heading: "Nearby"
+        Repeater { model: Bluetooth.nearby; DeviceRow {} }
+        SettingsRow { visible: Bluetooth.nearby.length === 0; label: Bluetooth.enabled ? (Bluetooth.discovering ? "Looking…" : "Nothing nearby") : "Bluetooth is off"; description: Bluetooth.enabled ? "Put the device in pairing mode; headphones usually need the power button held until they say so." : "" }
     }
 }

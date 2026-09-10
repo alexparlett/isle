@@ -420,6 +420,21 @@ Appearance has Dark, Light and Auto; Auto is light from sunrise to
 sunset, computed from the timezone's coordinates in tzdata, since
 nothing in the stack knows where the machine is more precisely.
 
+Bluetooth is two lists: Your devices, connected ones first with their
+battery, then Nearby, which is what can be paired. A device's low-energy
+side, which bluez lists as "LE_<name>" and which carries no audio or
+input, never appears under Nearby, so the pairable entry is the one that
+works. The lists follow each device's state as it changes.
+
+Users ends with a Fingerprint group: the reader by name (or a way to
+install fprintd, or what to plug in), the enrolled fingers as chips with a
+remove cross, Add a finger with a dropdown of the fingers not yet enrolled
+and Enroll, which becomes a progress row (a spinner, "Lift, then touch
+again", the count taken, Cancel) until the reader is satisfied, and two
+toggles that go through the auth dialog: Sign in with a finger and sudo
+with a finger. Closing the auth dialog is not an error and shows none.
+
+
 The Monitor's process table is a tree: a process carries its
 descendants' totals and opens on its chevron, sorted at every level, so
 a browser's thirty helpers are one row until asked. Session managers and

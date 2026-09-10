@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.Greetd
+import Quickshell.Io
 import qs.theme
 import qs.ui
 
@@ -17,21 +18,43 @@ ShellRoot {
     property string password: ""
     property bool failed: false
     property string message: ""
+    // With pam_fprintd in greetd's stack the session starts at once, so the reader listens while the
+    // password is typed; the password answers PAM's prompt when it comes, which is after the reader's turn.
+    property bool fingerprint: false
+    property bool waitingForPrompt: false
+    property bool promptPending: false
+    property string hint: ""
+    Process {
+        command: ["grep", "-q", "pam_fprintd", "/etc/pam.d/greetd"]
+        running: true
+        onExited: code => { root.fingerprint = code === 0; if (root.fingerprint) root.begin(); }
+    }
 
     Connections {
         target: Greetd
         function onAuthMessage(message, error, responseRequired, echoResponse) {
-            if (responseRequired) Greetd.respond(root.password);
+            if (responseRequired) {
+                if (root.password !== "") { root.promptPending = false; Greetd.respond(root.password); }
+                else root.promptPending = true;
+            }
             else if (error) root.message = message;
+            else root.hint = message;
         }
-        function onAuthFailure(message) { root.failed = true; root.message = "Wrong password"; root.password = ""; }
+        function onAuthFailure(message) {
+            root.failed = true; root.message = "Wrong password"; root.password = ""; root.promptPending = false; root.hint = "";
+            if (root.fingerprint) restart.start();
+        }
         function onReadyToLaunch() { Greetd.launch([root.command], ["XDG_SESSION_TYPE=wayland"]); }
     }
+    Timer { id: restart; interval: 800; onTriggered: root.begin() }
 
+    function begin() { if (Greetd.state === GreetdState.Inactive) Greetd.createSession(user); }
     function submit() {
-        if (password === "" || Greetd.state !== GreetdState.Inactive) return;
+        if (password === "") return;
         failed = false;
-        Greetd.createSession(user);
+        if (Greetd.state === GreetdState.Inactive) { Greetd.createSession(user); return; }
+        if (promptPending) { promptPending = false; Greetd.respond(password); }
+        // Otherwise the reader still has PAM's attention; the password answers the prompt that follows.
     }
 
     Variants {
@@ -78,6 +101,7 @@ ShellRoot {
                             spacing: 5
                             Repeater { model: root.password.length; Rectangle { width: 7; height: 7; radius: 4; color: Theme.text; anchors.verticalCenter: parent.verticalCenter } }
                         }
+                        Glyph { visible: root.fingerprint && !root.failed; name: "scan"; size: 13; color: Theme.text2 }
                         Label { text: root.failed ? root.message : root.user; size: Theme.sizeCaption; color: root.failed ? Theme.danger : Theme.text3 }
                     }
                 }

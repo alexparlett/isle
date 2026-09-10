@@ -24,7 +24,7 @@ Singleton {
     Process {
         id: actor
         onExited: code => root.refresh()
-        stderr: StdioCollector { onStreamFinished: root.error = text.trim() ? (text.trim().split("\n").pop().replace(/^.*: /, "").slice(0, 120)) : "" }
+        stderr: StdioCollector { onStreamFinished: { const l = text.trim() ? text.trim().split("\n").pop() : ""; root.error = l && l.indexOf("dismissed") < 0 ? l.replace(/^.*: /, "").slice(0, 120) : ""; } }
     }
     function run(args) { error = ""; actor.command = ["python3", script].concat(args); actor.running = true; }
     function setName(u, name) { run(["set-name", u.name, name]); }

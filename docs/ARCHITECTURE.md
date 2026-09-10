@@ -247,6 +247,16 @@ the AUR for the Goodix HTK32 (ids 5335, 5385, 5395), then enrolls a finger
 with `fprintd-enroll` and, with `--sudo`, puts `pam_fprintd` first in
 `/etc/pam.d/sudo`.
 
+Settings › Users carries a Fingerprint group over `shell/scripts/fingerprint.py`
+and the `Fingerprint` service: the reader and the enrolled fingers from
+`fprintd-list`, enrollment streamed from `fprintd-enroll` a stage at a
+time, deletion, and two PAM edits made as root through pkexec: `login`
+puts `pam_fprintd.so timeout=8 max-tries=1` before the password in
+`/etc/pam.d/greetd`, `sudo` puts it first in `/etc/pam.d/sudo`. With the
+login line present the greeter creates the greetd session as soon as it
+shows, so the reader listens while a password is typed; the password
+answers PAM's prompt when it arrives, after the reader's turn.
+
 The lock screen does not go through PAM for fingerprints, because a PAM
 stack with `pam_fprintd` blocks the password prompt while the reader
 waits. Instead `Lock` runs `fprintd-list` on lock and, when a finger is

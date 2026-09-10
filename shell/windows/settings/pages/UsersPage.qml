@@ -104,4 +104,77 @@ SettingsPage {
             Toggle { checked: Users.me && Users.autoLoginUser === Users.me.name; onToggled: v => Users.setAutoLogin(v) }
         }
     }
+
+    SettingsGroup {
+        id: fpGroup
+        heading: "Fingerprint"
+        Component.onCompleted: Fingerprint.refresh()
+        // The first finger not yet enrolled, unless one was picked.
+        readonly property var free: Fingerprint.fingerNames.filter(f => Fingerprint.fingers.indexOf(f) < 0)
+        property string picked: ""
+        readonly property string newFinger: free.indexOf(picked) >= 0 ? picked : (free[0] || "")
+        SettingsRow {
+            label: "Reader"
+            description: !Fingerprint.installed ? "fprintd is not installed; it is what talks to fingerprint readers." : Fingerprint.device ? Fingerprint.device : "No reader found. Plug one in that libfprint supports, or run tools/fingerprint.sh for a Goodix HTK32."
+            Button { visible: !Fingerprint.installed; text: "Install fprintd"; variant: "raised"; onClicked: Fingerprint.install() }
+            Button { visible: Fingerprint.installed; text: "Refresh"; variant: "text"; onClicked: Fingerprint.refresh() }
+        }
+        SettingsRow {
+            visible: Fingerprint.ready
+            label: "Fingers"
+            description: Fingerprint.fingers.length ? "Any of these unlocks the screen." : "None enrolled yet."
+            RowLayout {
+                spacing: Theme.s2
+                Repeater {
+                    model: Fingerprint.fingers
+                    Rectangle {
+                        required property string modelData
+                        implicitHeight: 26; implicitWidth: chip.implicitWidth + Theme.s3 * 2 + 18
+                        radius: 13; color: Theme.raised; border.width: 1; border.color: Theme.hairline
+                        RowLayout {
+                            id: chip
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Label { text: Fingerprint.label(parent.parent.modelData); size: Theme.sizeCaption; weight: Font.DemiBold }
+                            Glyph { name: "x"; size: 10; color: Theme.text3
+                                MouseArea { anchors { fill: parent; margins: -6 } cursorShape: Qt.PointingHandCursor; onClicked: Fingerprint.remove(chip.parent.modelData) } }
+                        }
+                    }
+                }
+            }
+        }
+        SettingsRow {
+            visible: Fingerprint.ready && !Fingerprint.enrolling
+            label: "Add a finger"
+            description: "The reader asks for the same finger several times."
+            RowLayout {
+                spacing: Theme.s2
+                Dropdown { listWidth: 200; options: fpGroup.free.map(f => [f, Fingerprint.label(f)]); value: fpGroup.newFinger; onPicked: v => fpGroup.picked = v }
+                Button { text: "Enroll"; glyph: "plus"; variant: "accent"; enabled: fpGroup.newFinger !== ""; onClicked: Fingerprint.enroll(fpGroup.newFinger) }
+            }
+        }
+        SettingsRow {
+            visible: Fingerprint.enrolling
+            label: "Enrolling " + Fingerprint.label(Fingerprint.enrollingFinger).toLowerCase()
+            description: Fingerprint.hint + (Fingerprint.stage ? "  ·  " + Fingerprint.stage + " taken" : "")
+            RowLayout {
+                spacing: Theme.s2
+                Spinner { size: 14 }
+                Button { text: "Cancel"; variant: "text"; onClicked: Fingerprint.cancelEnroll() }
+            }
+        }
+        SettingsRow {
+            visible: Fingerprint.installed
+            label: "Sign in with a finger"
+            description: "The login screen listens for a finger first; a typed password answers a few seconds later. Asks for an administrator."
+            Toggle { checked: Fingerprint.login; onToggled: v => Fingerprint.setLogin(v) }
+        }
+        SettingsRow {
+            visible: Fingerprint.installed
+            label: "sudo with a finger"
+            description: "A touch stands in for your password in the terminal. Asks for an administrator."
+            Toggle { checked: Fingerprint.sudo; onToggled: v => Fingerprint.setSudo(v) }
+        }
+        SettingsRow { visible: Fingerprint.error !== ""; label: "That did not work"; description: Fingerprint.error }
+    }
 }

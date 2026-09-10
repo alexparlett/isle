@@ -276,3 +276,16 @@ only the ids the community driver covers. Building it is a script, not the
 installer, because it pulls opencv and a compiler and most machines have
 no reader.
 
+**D34 · Fingerprint sign-in goes through PAM, and the greeter starts the
+session before the password.** The lock screen can run fprintd beside
+its password field because it owns both. The greeter cannot: greetd runs
+one PAM conversation per session, and `pam_fprintd` in that stack holds
+the conversation while the reader listens. So with sign-in enabled the
+greeter creates the session the moment it shows, displays what PAM says
+("Place your finger…"), and keeps a typed password until PAM asks for it,
+which is after the reader gives up (eight seconds, one try). That wait is
+the cost of the feature and is said on the toggle, which is why it is
+opt-in and separate from the lock screen, where a finger costs nothing.
+sudo is the plain `pam_fprintd` line at the top of its stack. Both edits
+run as root through pkexec, so the shell's own auth dialog asks.
+

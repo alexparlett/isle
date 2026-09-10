@@ -81,11 +81,8 @@ The lock screen and the greeter draw with the same material.
 On CachyOS, as your user:
 
 ```bash
-git clone <repository url> ~/.local/share/isle && ~/.local/share/isle/tools/bootstrap.sh
+curl -fsSL https://raw.githubusercontent.com/alexparlett/isle/main/tools/bootstrap.sh | bash
 ```
-
-Or run `tools/bootstrap.sh` straight from the repository's raw URL with
-`ISLE_REPO_URL` set, and it clones first.
 
 Then log out and pick Hyprland at the login screen. Or build the ISO with
 `tools/iso/build.sh`: CachyOS's own live ISO with Isle in the installer's

@@ -4,9 +4,9 @@
 #
 # Run it from a checkout, or with nothing at all:
 #
-#     ISLE_REPO_URL=<repository url> bash <(curl -fsSL <raw url of this script>)
+#     curl -fsSL https://raw.githubusercontent.com/alexparlett/isle/main/tools/bootstrap.sh | bash
 #
-# which clones the repo to ~/.local/share/isle first.
+# which clones the repo to ~/.local/share/isle first (ISLE_REPO_URL for a fork).
 #
 #     tools/bootstrap.sh                  from a checkout
 #     tools/bootstrap.sh --no-aur         skip paru and the AUR packages (xremap, cursor theme, CoolerControl)
@@ -23,7 +23,7 @@
 # Safe to run again: everything is --needed, enable, or a link.
 
 set -euo pipefail
-REPO_URL="${ISLE_REPO_URL:-}"
+REPO_URL="${ISLE_REPO_URL:-https://github.com/alexparlett/isle.git}"
 DEST="${ISLE_REPO:-$HOME/.local/share/isle}"
 aur=1; greeter=0; bars=1; finish=0
 for a in "$@"; do case "$a" in --no-aur) aur=0 ;; --greeter) greeter=1 ;; --no-bars) bars=0 ;; --finish) finish=1 ;; -h|--help) sed -n '3,25p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
@@ -44,8 +44,7 @@ if [[ -f "$(dirname "${BASH_SOURCE[0]}")/../packages/shell.txt" ]]; then
 else
     sudo pacman -S --needed --noconfirm git >/dev/null
     if [[ -d "$DEST/.git" ]]; then git -C "$DEST" pull --ff-only && ok "updated $DEST"
-    elif [[ -n "$REPO_URL" ]]; then git clone "$REPO_URL" "$DEST" && ok "cloned to $DEST"
-    else die "no checkout at $DEST: clone the repository there, or set ISLE_REPO_URL"; fi
+    else git clone "$REPO_URL" "$DEST" && ok "cloned to $DEST"; fi
 fi
 
 # --- packages ---------------------------------------------------------------------

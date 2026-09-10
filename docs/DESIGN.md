@@ -362,6 +362,14 @@ and its sheet offers the grant as a toggle beside the shield. The sheet
 of an installed one says which source it came from, offers Remove in
 place of Delete, and Update when a newer version is listed.
 
+One of the user's own carries an Author row on its sheet: Check lists
+what the validator found, errors in red and notes in amber, or "Ready to
+share"; Picture takes the card's picture for the listing and greys out
+once one exists; Tag commits and tags the folder and says what to do
+next. New widget on the Yours tab asks only for a name, shows the folder
+it will make, and selects the result once it is listed. The library's
+foot offers both kinds side by side: New text widget, New QML widget.
+
 Text widgets, the user's own, draw through one renderer: a title, then
 the output as wrapped text, a large number with its unit, a gauge bar
 against a maximum, a sparkline of the readings so far, or a list of

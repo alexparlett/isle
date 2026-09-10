@@ -16,6 +16,8 @@ Item {
     property string category: ""
     property string selected: ""
     property bool sourcesOpen: false
+    // The name field for a new QML widget.
+    property bool naming: false
     // The listing an install is being agreed to, with the grants and trust the dialog holds until Install.
     property var consent: null
     property var consentGrants: []
@@ -48,7 +50,12 @@ Item {
         Widgets.install(consent, consentGrants, consent.trust === true && consentTrust);
     }
     onTabChanged: { if (tab === "browse" && !Widgets.catalogueLoaded) Widgets.refreshCatalogue(false); sourcesOpen = false; }
-    onOpenChanged: if (!open) { consent = null; sourcesOpen = false; }
+    onOpenChanged: if (!open) { consent = null; sourcesOpen = false; naming = false; }
+    // A widget the scaffold just made is selected as soon as the scan lists it.
+    Connections {
+        target: Widgets
+        function onIdsChanged() { if (Widgets.scaffolded && Widgets.manifests[Widgets.scaffolded]) { store.tab = "yours"; store.selected = Widgets.scaffolded; Widgets.scaffolded = ""; } }
+    }
     // The dialog closes itself once its install has landed.
     Connections {
         target: Widgets
@@ -128,6 +135,11 @@ Item {
                     Item { Layout.fillWidth: true }
                     Spinner { visible: store.tab === "browse" && Widgets.catalogueLoading; size: 14 }
                     Label { visible: !(store.tab === "browse" && Widgets.catalogueLoading); text: store.rows.length + (store.rows.length === 1 ? " widget" : " widgets"); size: Theme.sizeCaption; color: Theme.text3 }
+                    Label {
+                        visible: store.tab === "yours"
+                        text: "New widget"; size: Theme.sizeCaption; color: Theme.accent
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: store.naming = true }
+                    }
                     Label {
                         visible: store.tab === "browse"
                         text: "Sources"; size: Theme.sizeCaption; color: store.sourcesOpen ? Theme.text : Theme.accent
@@ -288,7 +300,7 @@ Item {
                         readonly property var update: sheetCol.m ? Widgets.updateFor(sheetCol.m.id) : null
                         readonly property bool busy: !!sheetCol.m && Widgets.installing === sheetCol.m.id
                         readonly property bool fromSource: !!(sheetCol.inst && sheetCol.inst.installed)
-                        WidgetPreview { Layout.fillWidth: true; Layout.preferredHeight: 180; manifest: sheetCol.m; large: true }
+                        WidgetPreview { id: sheetPreview; Layout.fillWidth: true; Layout.preferredHeight: 180; manifest: sheetCol.m; large: true }
                         ColumnLayout {
                             spacing: 2
                             Label { text: sheetCol.m ? sheetCol.m.name : ""; size: Theme.sizeTitle; weight: Font.DemiBold }
@@ -315,7 +327,7 @@ Item {
                             visible: !!(sheetCol.m && (sheetCol.m.homepage || sheetCol.m.repo || sheetCol.m.origin))
                             spacing: Theme.s2
                             Glyph { name: "globe"; size: 12; color: Theme.text3 }
-                            Label { text: sheetCol.m ? (sheetCol.m.homepage || sheetCol.m.repo || sheetCol.m.origin) : ""; size: Theme.sizeCaption; color: Theme.accent; elide: Text.ElideMiddle; Layout.fillWidth: true
+                            Label { text: sheetCol.m ? (sheetCol.m.homepage || sheetCol.m.repo || sheetCol.m.origin || "") : ""; size: Theme.sizeCaption; color: Theme.accent; elide: Text.ElideMiddle; Layout.fillWidth: true
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Compositor.exec("xdg-open " + JSON.stringify(sheetCol.m.homepage || sheetCol.m.repo || sheetCol.m.origin)) } }
                         }
                         // Sizes.
@@ -378,6 +390,41 @@ Item {
                             text: "Reaches past the sandbox (" + (sheetCol.m ? (sheetCol.m.restrictedIssues || []).join(", ") : "") + ") without asking for full access, so it will not run."
                             size: Theme.sizeCaption; color: Theme.danger; wrapMode: Text.WordWrap; Layout.fillWidth: true
                         }
+                        // The author's tools, for one of the user's own: check it, picture it, tag it.
+                        ColumnLayout {
+                            visible: !!(sheetCol.inst && sheetCol.inst.user) && !sheetCol.fromSource && !sheetCol.inst.source
+                            Layout.fillWidth: true
+                            spacing: Theme.s2
+                            readonly property var check: Widgets.validation && sheetCol.inst && Widgets.validation.id === sheetCol.inst.id ? Widgets.validation : null
+                            readonly property var shared: Widgets.shareResult && sheetCol.inst && Widgets.shareResult.id === sheetCol.inst.id ? Widgets.shareResult : null
+                            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.hairline }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.s1
+                                Label { text: "Author"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text3; Layout.fillWidth: true }
+                                Spinner { visible: Widgets.authoring; size: 12 }
+                                Button { text: "Check"; glyph: "shield-check"; variant: "text"; enabled: !Widgets.authoring; onClicked: Widgets.validate(sheetCol.inst.id) }
+                                Button { text: "Picture"; glyph: "camera"; variant: "text"; enabled: sheetPreview.capturable; onClicked: sheetPreview.capture(sheetCol.inst.dir + "/screenshots/card.png", ok => { if (ok) { Widgets.rescan(); Widgets.validate(sheetCol.inst.id); } }) }
+                                Button { text: "Tag"; glyph: "package"; variant: "text"; enabled: !Widgets.authoring; onClicked: Widgets.share(sheetCol.inst.id) }
+                            }
+                            Repeater {
+                                model: parent.check ? parent.check.errors.map(e => ({ text: e, bad: true })).concat(parent.check.warnings.map(w => ({ text: w, bad: false }))) : []
+                                RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: Theme.s2
+                                    Glyph { name: modelData.bad ? "x" : "info"; size: 11; color: modelData.bad ? Theme.danger : Theme.warn; Layout.alignment: Qt.AlignTop; Layout.topMargin: 2 }
+                                    Label { text: modelData.text; size: Theme.sizeCaption; color: modelData.bad ? Theme.danger : Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                }
+                            }
+                            Label { visible: !!parent.check && parent.check.ok && parent.check.warnings.length === 0; text: "Ready to share."; size: Theme.sizeCaption; color: Theme.ok }
+                            Label { visible: !!parent.check && parent.check.ok && parent.check.warnings.length > 0; text: "Nothing stops it; the notes above would make a better listing."; size: Theme.sizeCaption; color: Theme.text3; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                            Label {
+                                visible: !!parent.shared
+                                text: parent.shared ? (parent.shared.ok ? parent.shared.note + (parent.shared.remote ? " Push it: git push origin " + parent.shared.tag : " Give it a remote and push the tag, then list it in a source. See docs/WIDGETS.md.") : parent.shared.error) : ""
+                                size: Theme.sizeCaption; color: parent.shared && parent.shared.ok ? Theme.text2 : Theme.danger; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                            }
+                        }
                         // The changelog, folded.
                         ColumnLayout {
                             visible: !!(sheetCol.m && sheetCol.m.changelog)
@@ -412,6 +459,36 @@ Item {
                     }
                 }
                 Scrollbar { target: sheet; anchors { top: parent.top; bottom: parent.bottom; right: parent.right; margins: 4 } }
+            }
+        }
+
+        // --- a new QML widget: a name, then a folder with the whole shape of one ----------------
+        Item {
+            visible: store.naming
+            anchors.fill: parent
+            Rectangle { anchors.fill: parent; color: Qt.alpha(Theme.ink, 0.5); radius: Theme.radiusPanel }
+            MouseArea { anchors.fill: parent; onClicked: store.naming = false }
+            Glass {
+                anchors.centerIn: parent
+                width: 420
+                height: nameCol.implicitHeight + Theme.s4 * 2
+                radius: Theme.radiusPanel
+                MouseArea { anchors.fill: parent }
+                ColumnLayout {
+                    id: nameCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.s4 }
+                    spacing: Theme.s3
+                    Label { text: "New widget"; size: Theme.sizeHeading; weight: Font.DemiBold }
+                    Label { text: "A folder in your widgets with a manifest, a Widget.qml that draws, a README and a CHANGELOG. Edit it in any editor; the card redraws when the dashboard is next opened."; size: Theme.sizeSmall; color: Theme.text2; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    Field { id: nameField; Layout.fillWidth: true; implicitHeight: 34; placeholder: "Name"; onAccepted: if (text.trim()) { Widgets.scaffold(text); store.naming = false; text = ""; } onVisibleChanged: if (visible) input.forceActiveFocus() }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.s2
+                        Label { text: nameField.text.trim() ? "~/.config/isle/widgets/" + Widgets.slug(nameField.text) : ""; size: Theme.sizeCaption; color: Theme.text3; mono: true; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                        Button { text: "Cancel"; variant: "text"; onClicked: store.naming = false }
+                        Button { text: "Create"; glyph: "plus"; variant: "accent"; enabled: nameField.text.trim() !== "" && !Widgets.authoring; onClicked: { Widgets.scaffold(nameField.text); store.naming = false; nameField.text = ""; } }
+                    }
+                }
             }
         }
 

@@ -199,6 +199,14 @@ Rules of the contract:
   (`trust: true`) and the user granted it: `widgetTrust` in prefs lists
   the ids. Without the grant it is installed but blocked, and the card
   says so. The user's own widgets need only the manifest's `trust`.
+- `shell/scripts/widgetauthor.py` is the author's side: `new` scaffolds
+  a folder with a full manifest, a sandbox-clean `Widget.qml`, README and
+  CHANGELOG; `validate` checks the manifest, the sandbox scan and the
+  listing files and answers `{ ok, errors, warnings }`; `share` makes the
+  folder a git repository, commits and tags `v<version>`. The store's
+  sheet runs them as Check and Tag, and Picture grabs the live preview
+  frame with `grabToImage` at twice its size into `screenshots/card.png`.
+  `docs/WIDGETS.md` is the contract for authors.
 - `settings` declares what the card's gear offers in edit mode: `toggle`,
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as

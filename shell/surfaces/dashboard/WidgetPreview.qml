@@ -33,6 +33,7 @@ Item {
             asynchronous: true
         }
         Item {
+            id: frame
             visible: preview.shot === "" && !preview.blocked && !preview.absent && !!preview.manifest
             anchors.centerIn: parent
             width: preview.frameW; height: preview.frameH
@@ -73,4 +74,10 @@ Item {
         }
     }
     WidgetHost { id: host; permissions: preview.manifest ? Widgets.grantsFor(preview.manifest.id) : [] }
+    // Only the live drawing can be captured: the card frame at twice its size, for a crisp listing.
+    readonly property bool capturable: shot === "" && !blocked && !absent && loader.status === Loader.Ready
+    function capture(path, done) {
+        if (!capturable) { done(false); return; }
+        frame.grabToImage(result => done(result.saveToFile(path)), Qt.size(Math.round(preview.frameW * 2), Math.round(preview.frameH * 2)));
+    }
 }

@@ -231,3 +231,15 @@ wrote them. The consent dialog shows grants as toggles already on rather
 than an all-or-nothing accept, because a music widget that may read the
 player but not drive it is a reasonable thing to want.
 
+**D30 · Author tools live in the store, not in an editor.** A widget is a
+folder, and every editor already edits folders; what none of them has is
+the shell's reading of one: whether the manifest is whole, whether the
+QML stays inside the sandbox, what the listing will look like. So the
+store's sheet for one of the user's own carries exactly that (Check,
+Picture, Tag) and leaves the writing to the editor the user has. Picture
+grabs the live preview rather than the screen, so it needs no compositor
+round trip, never contains the pointer, and gives the same image on every
+machine. Tag stops at a local tag: pushing to a remote and asking a
+registry to list it are the author's own moves, said in words on the
+sheet and in the guide.
+

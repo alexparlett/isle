@@ -416,7 +416,12 @@ PanelWindow {
                     }
                 }
                 Label { visible: library.rows.length === 0; text: "Nothing matches"; size: Theme.sizeSmall; color: Theme.text3 }
-                Button { Layout.fillWidth: true; text: "New text widget"; glyph: "plus"; variant: "raised"; onClicked: { widgetForm.startNew(); library.composing = true; } }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.s2
+                    Button { Layout.fillWidth: true; text: "New text widget"; glyph: "plus"; variant: "raised"; onClicked: { widgetForm.startNew(); library.composing = true; } }
+                    Button { Layout.fillWidth: true; text: "New QML widget"; glyph: "code"; variant: "raised"; onClicked: { widgetStore.tab = "yours"; widgetStore.naming = true; root.storeOpen = true; } }
+                }
             }
         }
 

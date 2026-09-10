@@ -18,6 +18,7 @@ chevron-up
 circle-dot
 clipboard
 clock
+code
 command
 cpu
 credit-card

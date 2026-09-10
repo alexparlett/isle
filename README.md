@@ -29,7 +29,10 @@ a footer with the power profile and the update count.
 
 A grid of widgets on the wallpaper: system, calendar, weather, media,
 notifications, clipboard, devices, disks, games, sessions. Every widget
-moves, resizes and has its own settings. Edit mode is one key.
+moves, resizes and has its own settings. Edit mode is one key. The
+library is a store: widgets carry an author, a version and a permission
+list, and can be installed from any git registry; writing one is a folder
+with a manifest and a QML file, see [docs/WIDGETS.md](docs/WIDGETS.md).
 
 ![The dashboard](docs/screenshots/dashboard.jpg)
 
@@ -98,6 +101,7 @@ until then.
 |---|---|
 | [docs/DESIGN.md](docs/DESIGN.md) | Look and feel: tokens, material, geometry, type, motion, the island, every surface |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Process layout, what drives each capability, the install and ISO paths, the test VM |
+| [docs/WIDGETS.md](docs/WIDGETS.md) | Writing a widget: the manifest, the sandbox and `host`, the tools, publishing to a source |
 | [docs/STACK.md](docs/STACK.md) | Why Hyprland and Quickshell; the idle budget |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Numbered decisions and why |
 | [docs/canvas/](docs/canvas/build.mjs) | The design canvas source |

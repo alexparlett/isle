@@ -372,4 +372,38 @@ Singleton {
         writer.running = true;
     }
     function openUserDir() { Compositor.exec("xdg-open " + JSON.stringify(userDir)); }
+
+    // --- author tooling: scaffold, validate, share ----------------------------------------
+    readonly property string authorScript: Quickshell.shellDir + "/scripts/widgetauthor.py"
+    // The last validate: { id, ok, errors, warnings }; the last share: { id, ok, tag, remote, note, error }.
+    property var validation: null
+    property var shareResult: null
+    // The id a scaffold just made, so the store can select it once the rescan lands.
+    property string scaffolded: ""
+    property bool authoring: false
+    Process {
+        id: author
+        property string op: ""
+        property string wid: ""
+        onStarted: root.authoring = true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.authoring = false;
+                let r = null; try { r = JSON.parse(text.trim().split("\n").pop()); } catch (e) { r = { ok: false, error: "the tool failed" }; }
+                r.id = author.wid;
+                if (author.op === "validate") root.validation = r;
+                else if (author.op === "share") root.shareResult = r;
+                else if (author.op === "new") { if (r.ok) { root.scaffolded = r.id; root.rescan(); } else root.shareResult = r; }
+            }
+        }
+    }
+    function run(op, wid, args) {
+        if (author.running) return;
+        author.op = op; author.wid = wid;
+        author.command = ["python3", authorScript, op].concat(args);
+        author.running = true;
+    }
+    function scaffold(name) { const id = slug(name); run("new", id, [userDir, id, String(name).trim() || "Widget"]); }
+    function validate(id) { const m = manifests[id]; if (m && m.user) run("validate", id, [m.dir]); }
+    function share(id) { const m = manifests[id]; if (m && m.user) run("share", id, [m.dir]); }
 }

@@ -132,7 +132,7 @@ A widget is a directory holding a manifest and a component:
 ```
 widgets/system/
   widget.json     { "id": "system", "name": "System", "glyph": "cpu",
-                    "sizes": ["3x2", "6x2"], "default": "3x2", "requires": [],
+                    "sizes": ["3x4", "6x4"], "default": "3x4", "requires": [],
                     "settings": [{ "key": "temps", "label": "Temperatures",
                                    "type": "toggle", "default": true }] }
   Widget.qml      WidgetBase { title: "System"; meta: "..."; /* content */ }
@@ -233,7 +233,7 @@ Rules of the contract:
 - Pages are `dashboardPages: [{name, layout}]` in prefs with
   `dashboardPage` the shown one; the older single `dashboard` becomes the
   first page's layout. A layout is `[{key, id, x, y, w, h}]` on a
-  12-column 4-row grid; the first page empty means the default layout.
+  12-column 8-row grid (layouts saved for the earlier 4-row grid are doubled once, `dashboardGrid` in prefs records it); the first page empty means the default layout.
   `key` names the instance (`clock`, then `clock#2`), `id` the widget;
   per-instance settings are stored under the key. Entries from before
   instances have no key and take their id. Unknown ids are kept but not

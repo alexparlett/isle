@@ -51,7 +51,7 @@ def new(user_dir, wid, name):
         "id": wid, "name": name, "glyph": "layout-grid", "category": "Yours",
         "description": "What it shows, in a line",
         "version": "0.1.0", "author": {"name": git_user(), "url": ""}, "license": "MIT", "homepage": "",
-        "sizes": ["3x1", "3x2"], "default": "3x1",
+        "sizes": ["3x2", "3x4"], "default": "3x2",
         "permissions": [],
         "settings": [],
     }
@@ -63,7 +63,7 @@ def new(user_dir, wid, name):
 Item {{
     id: root
     property var manifest
-    property string size: "3x1"
+    property string size: "3x2"
     property var settings: ({{}})
     property var host
     property string title: "{name}"
@@ -110,8 +110,8 @@ def validate(d):
         errors.append('"sizes" is empty')
     for s in sizes:
         mm = SIZE.match(str(s))
-        if not mm or not (1 <= int(mm.group(1)) <= 12 and 1 <= int(mm.group(2)) <= 4):
-            errors.append(f'size "{s}" is not columns x rows within 12 x 4')
+        if not mm or not (1 <= int(mm.group(1)) <= 12 and 1 <= int(mm.group(2)) <= 8):
+            errors.append(f'size "{s}" is not columns x rows within 12 x 8')
     if sizes and m.get("default") not in sizes:
         errors.append('"default" must be one of "sizes"')
     icons = icon_names()

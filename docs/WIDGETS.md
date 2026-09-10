@@ -33,8 +33,8 @@ the dashboard opens.
   "author": { "name": "Sam Rivers", "url": "https://example.org/sam" },
   "license": "MIT",
   "homepage": "https://example.org/sam/pomodoro",
-  "sizes": ["3x1", "3x2"],
-  "default": "3x1",
+  "sizes": ["3x2", "3x4"],
+  "default": "3x2",
   "multiple": false,
   "permissions": ["notifications.write"],
   "settings": [
@@ -52,7 +52,7 @@ the dashboard opens.
 | `version` | three numbers; the store compares them to offer updates |
 | `author` | `{ "name", "url" }`; the name is shown, the url is the link on it |
 | `license`, `homepage` | shown on the sheet |
-| `sizes` | the spans the card may take, columns × rows on a 12 × 4 grid |
+| `sizes` | the spans the card may take, columns × rows on a 12 × 8 grid; a row is an eighth of the dashboard, so a one-row card is a slim strip |
 | `default` | the span it is placed at; must be one of `sizes` |
 | `min`, `max` | optional bounds for resizing, otherwise the extremes of `sizes` |
 | `multiple` | more than one instance makes sense (a second clock) |
@@ -73,7 +73,7 @@ for one that exists; a new one is a manifest written by hand.
 ```json
 { "id": "uptime", "name": "Uptime", "glyph": "clock", "category": "System",
   "description": "How long since boot", "version": "1.0.0",
-  "sizes": ["3x1"], "default": "3x1",
+  "sizes": ["3x2"], "default": "3x2",
   "source": { "command": "uptime -p | sed 's/^up //'", "interval": 30 }, "view": "text" }
 ```
 
@@ -87,7 +87,7 @@ import QtQuick
 
 Item {
     property var manifest        // the widget.json, parsed
-    property string size         // "3x1": the span it is placed at
+    property string size         // "3x2": the span it is placed at
     property var settings        // the gear's values, defaults filled in
     property var host            // the shell, gated by permissions
     property string title: "Pomodoro"

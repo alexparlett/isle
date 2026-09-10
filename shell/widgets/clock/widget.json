@@ -1,6 +1,1 @@
-{ "id": "clock", "name": "Clock", "category": "Shell", "description": "Time, date and the week", "multiple": true, "version": "1.0.0", "author": { "name": "Isle" }, "glyph": "clock", "sizes": ["3x1", "3x2"], "default": "3x1", "requires": [],
-  "settings": [
-    { "key": "format", "label": "Clock", "type": "choice", "default": "24h", "options": [["24h", "24-hour"], ["12h", "12-hour"]] },
-    { "key": "seconds", "label": "Seconds", "type": "toggle", "default": false },
-    { "key": "week", "label": "Week strip", "type": "toggle", "default": true }
-  ] }
+{"id": "clock", "name": "Clock", "category": "Shell", "description": "Time, date, the week; the month when tall", "multiple": true, "version": "1.0.0", "author": {"name": "Isle"}, "glyph": "clock", "sizes": ["3x2", "3x4", "4x4"], "default": "3x2", "requires": [], "settings": [{"key": "format", "label": "Clock", "type": "choice", "default": "24h", "options": [["24h", "24-hour"], ["12h", "12-hour"]]}, {"key": "seconds", "label": "Seconds", "type": "toggle", "default": false}, {"key": "week", "label": "Week strip, or the month when tall", "type": "toggle", "default": true}]}

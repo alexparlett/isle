@@ -289,3 +289,13 @@ opt-in and separate from the lock screen, where a finger costs nothing.
 sudo is the plain `pam_fprintd` line at the top of its stack. Both edits
 run as root through pkexec, so the shell's own auth dialog asks.
 
+**D35 · Eight rows, not four.** With four rows the smallest card was a
+quarter of the screen tall, which is far more than a row of tray icons
+or two device batteries need. Doubling the rows halves the unit; every
+saved layout and manifest is doubled once so nothing moves, and the
+widgets that were mostly air get a one-row size as their default, and
+Agents and Notifications take a `min`/`max` range rather than a fixed
+list, since how much of the screen they deserve depends on the day. The
+first cut of the migration wrote before the prefs file had loaded and
+reset it to defaults; every write now waits for `Prefs.loaded`.
+

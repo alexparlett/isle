@@ -34,7 +34,7 @@ PanelWindow {
     readonly property int margin: Theme.s5
     readonly property int gutter: Theme.s3
     readonly property int columns: 12
-    readonly property int rows: 4
+    readonly property int rows: Widgets.rows
     // Editing gives the library a column on the right and the toolbar a strip at the bottom, so nothing sits
     // over a card; the grid animates to the room that is left.
     property int libraryW: editing ? 340 + gutter : 0

@@ -1,1 +1,1 @@
-{ "id": "media", "name": "Media", "category": "Media", "description": "What is playing, with transport", "version": "1.0.0", "author": { "name": "Isle" }, "glyph": "music", "sizes": ["3x1", "6x1"], "default": "3x1", "requires": [] }
+{"id": "media", "name": "Media", "category": "Media", "description": "What is playing, with transport", "version": "1.0.0", "author": {"name": "Isle"}, "glyph": "music", "sizes": ["2x1", "3x1", "2x2", "3x2", "6x1"], "default": "2x1", "requires": []}

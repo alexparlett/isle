@@ -17,7 +17,7 @@ Item {
     // The default span, in a 3-column-wide card's proportions: the same 12-column grid at a 1280 width.
     readonly property var span: manifest ? Widgets.spanOf(manifest.default || (manifest.sizes && manifest.sizes[0]) || "3x1") : { w: 3, h: 1 }
     readonly property real frameW: span.w * 100 + (span.w - 1) * 12
-    readonly property real frameH: span.h * 96 + (span.h - 1) * 12
+    readonly property real frameH: span.h * 48 + (span.h - 1) * 12
 
     Rectangle {
         anchors.fill: parent

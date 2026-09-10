@@ -27,13 +27,17 @@ Singleton {
         }
     }
 
+    // True once the file has been read (or found missing and written fresh); nothing that writes on the
+    // strength of a value should run before then, since until then the adapter holds defaults.
+    property bool loaded: false
     FileView {
         id: file
         path: root.dir + "/prefs.json"
         watchChanges: true
         onFileChanged: reload()
-        onAdapterUpdated: writeAdapter()
-        onLoadFailed: error => { if (error === FileViewError.FileNotFound) writeAdapter(); }
+        onAdapterUpdated: if (root.loaded) writeAdapter()
+        onLoaded: root.loaded = true
+        onLoadFailed: error => { if (error === FileViewError.FileNotFound) { root.loaded = true; writeAdapter(); } }
 
         adapter: JsonAdapter {
             id: adapter
@@ -81,6 +85,8 @@ Singleton {
             property var windowPlaces: ({})
             property var input: ({})
             property var widgetSettings: ({})
+            // The row count the saved layouts were made for; a change is migrated once.
+            property int dashboardGrid: 0
             // Instance key -> what the widget kept through host.store.
             property var widgetState: ({})
             // Widget id -> the permissions the user allows it, of those it declares; absent means all declared.

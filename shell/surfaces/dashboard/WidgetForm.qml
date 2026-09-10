@@ -17,20 +17,20 @@ ColumnLayout {
     property string fUnit: ""
     property string fMax: "100"
     property string fGlyph: "terminal"
-    property string fSize: "3x1"
+    property string fSize: "3x2"
     signal done
     readonly property var glyphs: [["terminal", "Terminal"], ["activity", "Activity"], ["cpu", "Processor"], ["hard-drive", "Drive"], ["clock", "Clock"], ["timer", "Timer"], ["globe", "Globe"], ["wifi", "Wi-Fi"], ["shield", "Shield"], ["package", "Package"], ["target", "Target"], ["mail", "Mail"], ["music", "Music"], ["sun", "Sun"], ["rocket", "Rocket"], ["list", "List"]]
     readonly property bool valid: fName.trim() !== "" && (fCommand.trim() !== "" || fFile.trim() !== "")
 
     function startEdit(m) {
         editingId = m.id; fName = m.name; fCommand = m.source.command || ""; fFile = m.source.file || ""; fInterval = Number(m.source.interval) || 30;
-        fView = m.view || "text"; fUnit = m.unit || ""; fMax = String(m.max || 100); fGlyph = m.glyph || "terminal"; fSize = m.default || "3x1";
+        fView = m.view || "text"; fUnit = m.unit || ""; fMax = String(m.max || 100); fGlyph = m.glyph || "terminal"; fSize = m.default || "3x2";
     }
     function save() {
         const id = editingId || Widgets.slug(fName);
         const m = { id: id, name: fName.trim() || id, glyph: fGlyph, category: "Yours",
                     source: fFile.trim() ? { file: fFile.trim(), interval: fInterval } : { command: fCommand, interval: fInterval },
-                    view: fView, sizes: ["3x1", "3x2", "6x1", "6x2"], default: fSize };
+                    view: fView, sizes: ["3x1", "3x2", "3x4", "6x2", "6x4"], default: fSize };
         if (fUnit.trim()) m.unit = fUnit.trim();
         if (fView === "gauge") m.max = Number(fMax) || 100;
         Widgets.saveUser(m);
@@ -93,7 +93,7 @@ ColumnLayout {
         ColumnLayout {
             spacing: 4
             Label { text: "Size"; size: Theme.sizeCaption; color: Theme.text2 }
-            Dropdown { listWidth: 140; options: [["3x1", "3 × 1"], ["3x2", "3 × 2"], ["6x1", "6 × 1"], ["6x2", "6 × 2"]]; value: form.fSize; onPicked: v => form.fSize = v }
+            Dropdown { listWidth: 140; options: [["3x1", "3 × 1"], ["3x2", "3 × 2"], ["3x4", "3 × 4"], ["6x2", "6 × 2"], ["6x4", "6 × 4"]]; value: form.fSize; onPicked: v => form.fSize = v }
         }
         Item { Layout.fillWidth: true }
     }

@@ -180,16 +180,16 @@ Singleton {
     // An entry is { key, id, x, y, w, h } in grid cells: `key` names the instance (a second clock is
     // "clock#2"), `id` its widget. Entries without a key, from before instances, take their id.
     readonly property var defaultLayout: [
-        { id: "clock", x: 0, y: 0, w: 3, h: 1 },
-        { id: "media", x: 3, y: 0, w: 3, h: 1 },
-        { id: "workspaces", x: 6, y: 0, w: 3, h: 1 },
-        { id: "notifications", x: 9, y: 0, w: 3, h: 4 },
-        { id: "controls", x: 0, y: 1, w: 3, h: 2 },
-        { id: "system", x: 3, y: 1, w: 3, h: 2 },
-        { id: "agents", x: 6, y: 1, w: 3, h: 2 },
-        { id: "session", x: 0, y: 3, w: 2, h: 1 },
-        { id: "devices", x: 2, y: 3, w: 2, h: 1 },
-        { id: "storage", x: 4, y: 3, w: 3, h: 1 },
+        { id: "clock", x: 0, y: 0, w: 3, h: 2 },
+        { id: "media", x: 3, y: 0, w: 2, h: 1 },
+        { id: "workspaces", x: 6, y: 0, w: 3, h: 2 },
+        { id: "notifications", x: 9, y: 0, w: 3, h: 8 },
+        { id: "controls", x: 0, y: 2, w: 3, h: 2 },
+        { id: "system", x: 3, y: 2, w: 3, h: 4 },
+        { id: "agents", x: 6, y: 2, w: 3, h: 4 },
+        { id: "session", x: 0, y: 4, w: 2, h: 1 },
+        { id: "devices", x: 0, y: 5, w: 2, h: 1 },
+        { id: "storage", x: 0, y: 6, w: 3, h: 2 },
     ]
     // Pages: the single layout from before pages becomes the first.
     readonly property var pages: Prefs.p.dashboardPages && Prefs.p.dashboardPages.length ? Prefs.p.dashboardPages : [{ name: "Home", layout: Prefs.p.dashboard || [] }]
@@ -239,7 +239,17 @@ Singleton {
     // --- editing --------------------------------------------------------------------
 
     readonly property int columns: 12
-    readonly property int rows: 4
+    readonly property int rows: 8
+    // Layouts saved on the four-row grid are carried over once: every cell twice as tall, so nothing moves.
+    // Only once the prefs file has been read: before that the adapter holds defaults, and a write would keep them.
+    function migrateGrid() {
+        if (!Prefs.loaded || Prefs.p.dashboardGrid === rows) return;
+        const ps = pages.map(p => ({ name: p.name, layout: (p.layout || []).map(e => Object.assign({}, e, { y: e.y * 2, h: e.h * 2 })) }));
+        if (ps.some(p => p.layout.length)) Prefs.p.dashboardPages = ps;
+        Prefs.p.dashboardGrid = rows;
+    }
+    Connections { target: Prefs; function onLoadedChanged() { root.migrateGrid(); } }
+    Component.onCompleted: migrateGrid()
     function overlaps(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
     function fits(entry, others) {
         if (entry.x < 0 || entry.y < 0 || entry.x + entry.w > columns || entry.y + entry.h > rows) return false;

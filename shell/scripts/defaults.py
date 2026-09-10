@@ -37,7 +37,8 @@ def apps():
                 mimes = [m for m in e.get("MimeType", "").split(";") if m]
                 if not mimes:
                     continue
-                out[app_id] = {"name": e.get("Name", app_id), "icon": e.get("Icon", ""), "mimes": mimes}
+                cats = [c for c in e.get("Categories", "").split(";") if c]
+                out[app_id] = {"name": e.get("Name", app_id), "icon": e.get("Icon", ""), "mimes": mimes, "categories": cats}
     return out
 
 cmd = sys.argv[1] if len(sys.argv) > 1 else "list"

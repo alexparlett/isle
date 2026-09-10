@@ -16,15 +16,17 @@ Singleton {
 
     // What Settings shows: a label and the MIME types it covers. The first is the one queried; setting applies to all.
     readonly property var kinds: [
-        { id: "browser", label: "Web browser", glyph: "globe", mimes: ["x-scheme-handler/http", "x-scheme-handler/https", "text/html"] },
-        { id: "mail", label: "Mail", glyph: "mail", mimes: ["x-scheme-handler/mailto"] },
-        { id: "files", label: "File manager", glyph: "folder", mimes: ["inode/directory"] },
-        { id: "text", label: "Text", glyph: "file-text", mimes: ["text/plain"] },
-        { id: "images", label: "Images", glyph: "image", mimes: ["image/png", "image/jpeg"] },
-        { id: "video", label: "Video", glyph: "film", mimes: ["video/mp4", "video/x-matroska"] },
-        { id: "music", label: "Music", glyph: "music", mimes: ["audio/mpeg", "audio/flac"] },
-        { id: "pdf", label: "PDF", glyph: "file-text", mimes: ["application/pdf"] },
-        { id: "archives", label: "Archives", glyph: "archive", mimes: ["application/zip"] },
+        // `category` is the desktop-entry category that marks an app as being for the role, so a browser does
+        // not show up as an image viewer for declaring image/png, nor an editor as a browser for text/html.
+        { id: "browser", label: "Web browser", glyph: "globe", category: "WebBrowser", mimes: ["x-scheme-handler/http", "x-scheme-handler/https", "text/html"] },
+        { id: "mail", label: "Mail", glyph: "mail", category: "Email", mimes: ["x-scheme-handler/mailto"] },
+        { id: "files", label: "File manager", glyph: "folder", category: "FileManager", mimes: ["inode/directory"] },
+        { id: "text", label: "Text", glyph: "file-text", category: "TextEditor", mimes: ["text/plain"] },
+        { id: "images", label: "Images", glyph: "image", category: "Viewer", mimes: ["image/png", "image/jpeg"] },
+        { id: "video", label: "Video", glyph: "film", category: "Video", mimes: ["video/mp4", "video/x-matroska"] },
+        { id: "music", label: "Music", glyph: "music", category: "Audio", mimes: ["audio/mpeg", "audio/flac"] },
+        { id: "pdf", label: "PDF", glyph: "file-text", category: "Viewer", mimes: ["application/pdf"] },
+        { id: "archives", label: "Archives", glyph: "archive", category: "Archiving", mimes: ["application/zip"] },
     ]
 
     Process {
@@ -35,9 +37,13 @@ Singleton {
     function refresh() { lister.running = true; }
 
     function current(kind) { return kind.id === "browser" && browser ? browser : mimes[kind.mimes[0]] || ""; }
+    // Apps that handle the role's types and declare its category; when none declares it, any handler will do.
     function candidates(kind) {
-        const out = [];
-        for (const id in apps) if (kind.mimes.some(m => apps[id].mimes.indexOf(m) >= 0)) out.push([id, apps[id].name]);
+        const handles = id => kind.mimes.some(m => apps[id].mimes.indexOf(m) >= 0);
+        const declares = id => (apps[id].categories || []).indexOf(kind.category) >= 0;
+        let ids = Object.keys(apps).filter(id => handles(id) && declares(id));
+        if (ids.length === 0) ids = Object.keys(apps).filter(handles);
+        const out = ids.map(id => [id, apps[id].name]);
         out.sort((a, b) => a[1].localeCompare(b[1]));
         const cur = current(kind);
         if (cur && !out.some(o => o[0] === cur)) out.unshift([cur, cur.replace(/\.desktop$/, "")]);

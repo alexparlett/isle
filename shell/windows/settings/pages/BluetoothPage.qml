@@ -50,15 +50,9 @@ SettingsPage {
     }
 
     SettingsGroup {
-        heading: "Connected"
-        visible: Bluetooth.connected.length > 0
-        Repeater { model: Bluetooth.connected; DeviceRow {} }
-    }
-
-    SettingsGroup {
         heading: "Your devices"
-        Repeater { model: Bluetooth.idle; DeviceRow {} }
-        SettingsRow { visible: Bluetooth.idle.length === 0; label: Bluetooth.connected.length ? "Everything paired is connected" : "Nothing paired yet"; description: "Pair something from the list below." }
+        Repeater { model: Bluetooth.connected.concat(Bluetooth.idle); DeviceRow {} }
+        SettingsRow { visible: Bluetooth.connected.length + Bluetooth.idle.length === 0; label: "Nothing paired yet"; description: "Pair something from the list below." }
     }
 
     SettingsGroup {

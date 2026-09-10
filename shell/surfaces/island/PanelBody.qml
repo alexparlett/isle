@@ -284,7 +284,6 @@ ColumnLayout {
             }
             Scrollbar { target: centreList; anchors { top: parent.top; bottom: parent.bottom; right: parent.right } }
         }
-        Label { visible: Notifications.count === 0 && Notifications.past.length === 0; text: "Nothing yet"; color: Theme.text3; Layout.margins: Theme.s3 }
     }
 
     PanelPage {

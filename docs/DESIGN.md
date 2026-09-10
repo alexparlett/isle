@@ -271,10 +271,12 @@ quick launch), Clipboard (recent entries), Timer (focus / pomodoro),
 Updates (pending packages), Weather.
 
 Edit mode (E, or the pencil in the corner) is a grid editor. Dragging a
-card shows a live outline of where it will land, accent when it fits or
-can make room, danger when it cannot; on drop a same-size neighbour
-swaps places and a different-size one is pushed down when there is room,
-otherwise the drop is refused. The right edge, bottom edge and corner
+card lifts it to float under the cursor while its neighbours flow live to
+make room, re-planned each move from the pre-drag arrangement so leaving
+un-pushes; a same-size neighbour swaps, a different-size one is pushed
+down. The push follows the card's centre and the neighbours glide, so it
+reads as a soft rearrange rather than a snap; the card settles into its
+cell on release. The right edge, bottom edge and corner
 resize the card, held between the manifest's smallest and largest spans.
 The focused card (click, or Tab through them) takes an accent ring;
 arrows nudge it a cell, Shift+arrows resize it, Delete removes it.

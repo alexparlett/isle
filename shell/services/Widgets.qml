@@ -80,7 +80,11 @@ Singleton {
     readonly property int page: Math.max(0, Math.min(Prefs.p.dashboardPage || 0, pages.length - 1))
     function normalize(l) { return l.map(e => e.key ? e : Object.assign({ key: e.id }, e)); }
     // The first page empty means the default layout; another page empty is empty.
-    readonly property var layout: normalize(pages[page].layout && pages[page].layout.length ? pages[page].layout : (page === 0 ? defaultLayout : []))
+    // The committed layout, or the transient one a live drag builds until it commits.
+    property var dragLayout: null
+    property var dragBase: null
+    readonly property var savedLayout: normalize(pages[page].layout && pages[page].layout.length ? pages[page].layout : (page === 0 ? defaultLayout : []))
+    readonly property var layout: dragLayout !== null ? dragLayout : savedLayout
     function setLayout(l) {
         const ps = pages.map(p => ({ name: p.name, layout: p.layout }));
         ps[page] = { name: ps[page].name, layout: l };
@@ -125,8 +129,9 @@ Singleton {
     }
     // The layout with `key` at (x, y), making room: a lone neighbour of the same size swaps places,
     // otherwise neighbours are pushed down while there is room. Null when nothing works.
-    function plan(key, x, y, w, h) {
-        const l = layout.map(e => Object.assign({}, e));
+    function plan(key, x, y, w, h) { return planFrom(layout, key, x, y, w, h); }
+    function planFrom(base, key, x, y, w, h) {
+        const l = base.map(e => Object.assign({}, e));
         const e = l.find(e => e.key === key);
         if (!e) return null;
         const moved = Object.assign({}, e, { x: x, y: y, w: w || e.w, h: h || e.h });
@@ -156,6 +161,17 @@ Singleton {
     function canPlace(key, x, y, w, h) { return plan(key, x, y, w, h) !== null; }
     function place(key, x, y, w, h) { const l = plan(key, x, y, w, h); if (l) setLayout(l); return l !== null; }
     function move(key, x, y) { return place(key, x, y); }
+    // Live drag: neighbours flow while the card is dragged, always re-planned from the pre-drag layout.
+    function beginDrag(key) { dragBase = savedLayout.map(e => Object.assign({}, e)); dragLayout = dragBase; }
+    // Move the dragged card to (x, y) among the pre-drag arrangement; returns whether it placed there.
+    function dragStep(key, x, y) {
+        if (dragBase === null) return false;
+        const l = planFrom(dragBase, key, x, y);
+        if (l) { dragLayout = l; return true; }
+        return false;
+    }
+    function commitDrag() { if (dragLayout !== null && dragBase !== null) setLayout(dragLayout); dragLayout = null; dragBase = null; }
+    function cancelDrag() { dragLayout = null; dragBase = null; }
     // A new span, held to the manifest's range and the grid; neighbours are not moved for a resize.
     function resize(key, w, h) {
         const e = layout.find(e => e.key === key), m = e && manifests[e.id];

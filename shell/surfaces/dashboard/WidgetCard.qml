@@ -21,6 +21,11 @@ Glass {
     // The live drag offset from the card's grid position, in pixels; zero when not dragging.
     property real dragDX: 0
     property real dragDY: 0
+    // The card's pixel position when the drag began, so live layout changes under it do not move it.
+    property real homeX: 0
+    property real homeY: 0
+    property int lastCellX: -1
+    property int lastCellY: -1
     radius: Theme.radiusPanel - 2
     visible: manifest !== null
     border.color: focused ? Theme.accent : editing ? Theme.hairlineStrong : Theme.hairline
@@ -45,26 +50,35 @@ Glass {
         onPressed: mouse => {
             const p = mapToItem(root.parent, mouse.x, mouse.y);
             pressX = p.x; pressY = p.y;
+            root.homeX = root.x; root.homeY = root.y;
             root.dragDX = 0; root.dragDY = 0;
-            root.dragging = true;
+            root.lastCellX = root.entry.x; root.lastCellY = root.entry.y;
             root.dashboard.focusKey = root.entry.key;
+            Widgets.beginDrag(root.entry.key);
+            root.dragging = true;
         }
         onPositionChanged: mouse => {
             if (!root.dragging) return;
             const p = mapToItem(root.parent, mouse.x, mouse.y);
             root.dragDX = p.x - pressX;
             root.dragDY = p.y - pressY;
-            const cell = root.dashboard.cellAt(root.x, root.y);
-            root.dashboard.previewMove(root.entry.key, cell.x, cell.y);
+            // The cell the floating card's centre sits over, mapped back to a top-left, so a neighbour flows
+            // only once the card has clearly moved onto it, not at the first pixel of overlap.
+            const cw = root.dashboard.cellW + root.dashboard.gutter, ch = root.dashboard.cellH + root.dashboard.gutter;
+            const cx = root.homeX + root.dragDX + (root.entry.w * cw - root.dashboard.gutter) / 2;
+            const cy = root.homeY + root.dragDY + (root.entry.h * ch - root.dashboard.gutter) / 2;
+            const cell = { x: Math.round((cx - root.dashboard.margin) / cw - root.entry.w / 2),
+                           y: Math.round((cy - root.dashboard.gridTop) / ch - root.entry.h / 2) };
+            if (cell.x === root.lastCellX && cell.y === root.lastCellY) return;
+            if (Widgets.dragStep(root.entry.key, cell.x, cell.y)) { root.lastCellX = cell.x; root.lastCellY = cell.y; }
         }
         onReleased: {
             if (!root.dragging) return;
-            const cell = root.dashboard.cellAt(root.x, root.y);
-            root.dashboard.dropMove(root.entry.key, cell.x, cell.y);
             root.dragging = false;
             root.dragDX = 0; root.dragDY = 0;
+            Widgets.commitDrag();
         }
-        onCanceled: { root.dragging = false; root.dragDX = 0; root.dragDY = 0; root.dashboard.preview = null; }
+        onCanceled: { root.dragging = false; root.dragDX = 0; root.dragDY = 0; Widgets.cancelDrag(); }
     }
     // Settings, top left, when the manifest declares any.
     property bool configuring: false

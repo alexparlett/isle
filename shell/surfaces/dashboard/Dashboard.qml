@@ -44,17 +44,8 @@ PanelWindow {
     // The card the keys act on, by instance key.
     property string focusKey: ""
     // Where a dragged or resized card would land: { x, y, w, h, ok }, or null.
+    // The outline shown while resizing (the live push shows a drag on its own).
     property var preview: null
-    function previewMove(key, cx, cy) {
-        const e = Widgets.layout.find(e => e.key === key); if (!e) return;
-        const x = Math.max(0, Math.min(cx, columns - e.w)), y = Math.max(0, Math.min(cy, rows - e.h));
-        preview = { x: x, y: y, w: e.w, h: e.h, ok: Widgets.canPlace(key, x, y) };
-    }
-    function dropMove(key, cx, cy) {
-        const e = Widgets.layout.find(e => e.key === key); preview = null; if (!e) return false;
-        const x = Math.max(0, Math.min(cx, columns - e.w)), y = Math.max(0, Math.min(cy, rows - e.h));
-        return Widgets.place(key, x, y);
-    }
     function previewResize(key, w, h) {
         const e = Widgets.layout.find(e => e.key === key); if (!e) return;
         preview = { x: e.x, y: e.y, w: w, h: h, ok: Widgets.canResize(key, w, h) };
@@ -210,10 +201,10 @@ PanelWindow {
                 required property var modelData
                 required property int index
                 entry: modelData
-                // The grid position, plus the live drag offset while dragging; the binding stays intact so a
-                // release snaps back to the cell.
-                x: root.margin + modelData.x * (root.cellW + root.gutter) + (dragging ? dragDX : 0)
-                y: root.gridTop + modelData.y * (root.cellH + root.gutter) + (dragging ? dragDY : 0)
+                // Not dragging: the grid position, which follows the live-pushed layout and animates. Dragging:
+                // a free float from where the card was grabbed, so the pushes happening under it never move it.
+                x: dragging ? homeX + dragDX : root.margin + modelData.x * (root.cellW + root.gutter)
+                y: dragging ? homeY + dragDY : root.gridTop + modelData.y * (root.cellH + root.gutter)
                 width: modelData.w * root.cellW + (modelData.w - 1) * root.gutter
                 height: modelData.h * root.cellH + (modelData.h - 1) * root.gutter
                 editing: root.editing
@@ -222,8 +213,10 @@ PanelWindow {
                 opacity: root.visible ? 1 : 0
                 transform: Translate { y: root.visible ? 0 : 12 + modelData.y * 4 }
                 Behavior on opacity { NumberAnimation { duration: Theme.move; easing.type: Easing.OutQuint } }
-                Behavior on x { enabled: !dragging; NumberAnimation { duration: Theme.move; easing.type: Easing.OutQuint } }
-                Behavior on y { enabled: !dragging; NumberAnimation { duration: Theme.move; easing.type: Easing.OutQuint } }
+                // A pushed neighbour glides aside; the dragged card itself floats free and only its release
+                // animates, so a longer, gentler curve here reads as a soft push rather than a snap.
+                Behavior on x { enabled: !dragging; NumberAnimation { duration: Theme.morph; easing.type: Easing.OutCubic } }
+                Behavior on y { enabled: !dragging; NumberAnimation { duration: Theme.morph; easing.type: Easing.OutCubic } }
             }
         }
 

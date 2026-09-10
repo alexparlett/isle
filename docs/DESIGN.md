@@ -283,11 +283,10 @@ Built in, in the default layout:
 | Session | tray icons; lock, sleep, restart, power; power profile |
 | Devices | bluetooth and controller batteries, headset |
 | Storage | disks with usage bars; mount and eject |
+| Weather | now and the days ahead for a named place, from Open-Meteo |
+| Sensors | temperatures by kind (CPU, GPU, board, drives) and the fans that turn; every sensor on request |
 
-Available but off by default: Network (interface, address, throughput),
-GPU (LACT clocks, power limit, fans from CoolerControl), Games (recent,
-quick launch), Clipboard (recent entries), Timer (focus / pomodoro),
-Updates (pending packages), Weather.
+Off by default: Weather and Sensors, and whatever the registry offers.
 
 Edit mode (E, or the pencil in the corner) is a grid editor. Dragging a
 card lifts it to float under the cursor while its neighbours flow live to

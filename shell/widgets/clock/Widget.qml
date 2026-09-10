@@ -45,12 +45,15 @@ WidgetBase {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: Theme.s1
+            // The month sits at the right with its arrows, clear of the date above it.
             RowLayout {
                 Layout.fillWidth: true
-                Label { text: Qt.formatDate(new Date(root.shownYear, root.shownMonth, 1), "MMMM yyyy"); weight: Font.DemiBold; size: Theme.sizeSmall; Layout.fillWidth: true }
+                spacing: Theme.s2
+                Item { Layout.fillWidth: true }
                 Label { visible: root.shownYear !== clock.date.getFullYear() || root.shownMonth !== clock.date.getMonth(); text: "Today"; size: Theme.sizeCaption; color: Theme.accent
                     MouseArea { anchors { fill: parent; margins: -4 } cursorShape: Qt.PointingHandCursor; onClicked: { root.shownYear = clock.date.getFullYear(); root.shownMonth = clock.date.getMonth(); } } }
                 Glyph { name: "chevron-left"; size: 14; color: Theme.text2; MouseArea { anchors { fill: parent; margins: -6 } cursorShape: Qt.PointingHandCursor; onClicked: root.browse(-1) } }
+                Label { text: Qt.formatDate(new Date(root.shownYear, root.shownMonth, 1), "MMMM yyyy"); weight: Font.DemiBold; size: Theme.sizeSmall; horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: 120 }
                 Glyph { name: "chevron-right"; size: 14; color: Theme.text2; MouseArea { anchors { fill: parent; margins: -6 } cursorShape: Qt.PointingHandCursor; onClicked: root.browse(1) } }
             }
             GridLayout {

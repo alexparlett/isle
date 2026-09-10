@@ -19,6 +19,12 @@ chevron-up
 circle-dot
 clipboard
 clock
+cloud
+cloud-drizzle
+cloud-fog
+cloud-lightning
+cloud-rain
+cloud-snow
 cloud-sun
 code
 command
@@ -28,6 +34,7 @@ crop
 download
 eye
 eye-off
+fan
 file-text
 film
 folder
@@ -87,6 +94,7 @@ sun
 swords
 target
 terminal
+thermometer
 timer
 trash
 user
@@ -98,4 +106,5 @@ wifi
 wifi-high
 wifi-low
 wifi-off
+wind
 x

@@ -1,0 +1,63 @@
+diff --git a/drivers/goodix53x5/goodix53x5-private.h b/drivers/goodix53x5/goodix53x5-private.h
+index 232a02a..f255373 100644
+--- a/drivers/goodix53x5/goodix53x5-private.h
++++ b/drivers/goodix53x5/goodix53x5-private.h
+@@ -133,6 +133,8 @@ struct _FpiDeviceGoodix53x5
+ 
+   /* Current command (for sub-SSM) */
+   GoodixCmd *cmd;
++  /* Non-ACK messages skipped while waiting for the current command's ACK. */
++  guint stray_skips;
+ 
+   /* USB interface state */
+   gboolean usb_interface_claimed;
+diff --git a/drivers/goodix53x5/goodix53x5-transport.c b/drivers/goodix53x5/goodix53x5-transport.c
+index d653164..1dad98e 100644
+--- a/drivers/goodix53x5/goodix53x5-transport.c
++++ b/drivers/goodix53x5/goodix53x5-transport.c
+@@ -359,6 +359,25 @@ goodix_cmd_ssm_handler (FpiSsm   *ssm,
+     case GOODIX_CMD_VALIDATE_ACK:
+       {
+         g_autoptr(GError) error = NULL;
++        guint8 category = 0, command = 0;
++        const guint8 *payload = NULL;
++        gsize payload_len = 0;
++
++        /* Some firmware (27c6:5042) answers a command that expects only an ACK
++         * with a reply message as well, which then sits in front of the next
++         * command's ACK. Skip such a stray non-ACK message and read again. */
++        if (goodix_proto_rx_parse (&self->rx, &category, &command,
++                                   &payload, &payload_len) &&
++            category != GOODIX_PROTO_CATEGORY_ACK &&
++            self->stray_skips < 3)
++          {
++            self->stray_skips++;
++            fp_dbg ("Skipping stray message cat=0x%02x cmd=0x%02x len=%zu before ACK for 0x%02x",
++                    category, command, payload_len,
++                    GOODIX_PROTO_CMD_BYTE (cmd->category, cmd->command));
++            fpi_ssm_jump_to_state (ssm, GOODIX_CMD_RECV_ACK);
++            return;
++          }
+ 
+         if (!goodix_validate_ack_for_cmd (dev, cmd, &error))
+           {
+@@ -408,6 +427,7 @@ goodix_run_cmd (FpiSsm       *parent_ssm,
+   g_free (self->cmd ? self->cmd->payload : NULL);
+   g_free (self->cmd);
+   self->cmd = cmd;
++  self->stray_skips = 0;
+ 
+   cmd_ssm = fpi_ssm_new_full (dev, goodix_cmd_ssm_handler,
+                                expect_data ? GOODIX_CMD_NUM_STATES : GOODIX_CMD_RECV_DATA,
+diff --git a/drivers/goodix53x5/goodix53x5.c b/drivers/goodix53x5/goodix53x5.c
+index 004a411..1d86f9f 100644
+--- a/drivers/goodix53x5/goodix53x5.c
++++ b/drivers/goodix53x5/goodix53x5.c
+@@ -125,6 +125,7 @@ static const FpIdEntry goodix53x5_id_table[] = {
+   { .vid = 0x27c6, .pid = 0x5335, },
+   { .vid = 0x27c6, .pid = 0x5385, },
+   { .vid = 0x27c6, .pid = 0x5395, },
++  { .vid = 0x27c6, .pid = 0x5042, },
+   { .vid = 0, .pid = 0, .driver_data = 0 },
+ };
+ 

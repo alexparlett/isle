@@ -30,12 +30,15 @@ case "${reader#27c6:}" in
     5335|5385|5395)
         aur -S --needed libfprint-goodix53x5 ;;
     5042)
-        # The AUR package, with the id added to the driver's table before it builds.
+        # The AUR package, with system/fprint/goodix5042.patch applied to the driver before it builds: the id
+        # in the table, and the reply this firmware sends after a reset skipped before the next command's ACK.
         work="$(mktemp -d)"
         git clone -q https://aur.archlinux.org/libfprint-goodix53x5.git "$work/pkg"
+        cp "$here/../system/fprint/goodix5042.patch" "$work/pkg/"
         cd "$work/pkg"
-        sed -i 's|  patch -p1 < "$srcdir/goodix53x5-libfprint/meson-integration.patch"|&\n  sed -i '"'"'s/{ .vid = 0x27c6, .pid = 0x5395, },/\&\\n  { .vid = 0x27c6, .pid = 0x5042, },/'"'"' libfprint/drivers/goodix53x5/goodix53x5.c|' PKGBUILD
-        grep -q '0x5042' PKGBUILD || { err "could not patch the PKGBUILD"; exit 1; }
+        sed -i 's|^source=(|source=("goodix5042.patch"\n        |; s|^sha256sums=(|sha256sums=('"'"'SKIP'"'"'\n            |' PKGBUILD
+        sed -i 's|^prepare() {|prepare() {\n  (cd "$srcdir/goodix53x5-libfprint" \&\& patch -p1 -N < "$srcdir/goodix5042.patch")|' PKGBUILD
+        grep -q 'goodix5042.patch' PKGBUILD || { err "could not patch the PKGBUILD"; exit 1; }
         sudo pacman -S --needed --noconfirm base-devel git meson ninja gtk-doc gobject-introspection libgusb opencv
         makepkg -si
         cd "$here"

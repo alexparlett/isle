@@ -243,8 +243,10 @@ Rules of the contract:
 
 `tools/fingerprint.sh` installs fprintd and the driver a reader needs: the
 repo libfprint for readers it knows, the community goodix53x5 driver built
-from the AUR for the Goodix HTK32 (ids 5335, 5385, 5395, and 5042 added
-to its table by the script), then enrolls a finger with `fprintd-enroll`
+from the AUR for the Goodix HTK32 (ids 5335, 5385, 5395; for 5042 the
+script applies `system/fprint/goodix5042.patch`, which adds the id and
+skips the reply that firmware sends after a reset before the next
+command's ACK), then enrolls a finger with `fprintd-enroll`
 and, with `--sudo`, puts `pam_fprintd` first in `/etc/pam.d/sudo`.
 
 The lock screen does not go through PAM for fingerprints, because a PAM

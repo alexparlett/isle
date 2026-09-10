@@ -53,7 +53,7 @@ index 232a02a..94ba9b8 100644
    /* USB interface state */
    gboolean usb_interface_claimed;
 diff --git a/drivers/goodix53x5/goodix53x5-scan.c b/drivers/goodix53x5/goodix53x5-scan.c
-index d242b93..19e7cfa 100644
+index d242b93..8ab8ed2 100644
 --- a/drivers/goodix53x5/goodix53x5-scan.c
 +++ b/drivers/goodix53x5/goodix53x5-scan.c
 @@ -136,9 +136,16 @@ goodix_ref_capture_ssm_handler (FpiSsm   *ssm,
@@ -76,7 +76,110 @@ index d242b93..19e7cfa 100644
          if (decrypted == NULL)
            {
              fpi_ssm_mark_failed (ssm,
-@@ -315,9 +322,16 @@ goodix_capture_ssm_handler (FpiSsm   *ssm,
+@@ -168,6 +175,53 @@ goodix_ref_capture_ssm_handler (FpiSsm   *ssm,
+  * Finger-wait SSM (waiting for finger down)
+  * ======================================================================== */
+ 
++
++/* ========================================================================
++ * Touch by polling, for firmware that raises no FDT events
++ * ======================================================================== */
++
++/* The twelve channel readings of a manual FDT reply, logged, and compared to the open-time baseline;
++ * returns the channels that moved by more than `delta` as a bitmask. */
++static guint16
++goodix_plain_touch_flag (FpiDeviceGoodix53x5 *self,
++                         const guint8        *readings,
++                         guint16              delta)
++{
++  guint16 flag = 0;
++  g_autoptr(GString) line = g_string_new (NULL);
++
++  for (int i = 0; i < 12; i++)
++    {
++      guint16 base = self->fdt_data_tx_on[i * 2] | ((guint16) self->fdt_data_tx_on[i * 2 + 1] << 8);
++      guint16 now = readings[i * 2] | ((guint16) readings[i * 2 + 1] << 8);
++      gint d = abs ((gint) (now >> 1) - (gint) (base >> 1));
++
++      g_string_append_printf (line, "%d%s ", d, (guint16) d > delta ? "*" : "");
++      if ((guint16) d > delta)
++        flag |= 1 << i;
++    }
++  fp_dbg ("FDT poll deltas (limit %u): %s", delta, line->str);
++  return flag;
++}
++
++/* A poll that saw nothing: come back shortly, unless the operation was cancelled meanwhile. */
++static gboolean
++goodix_plain_poll_again (FpiDeviceGoodix53x5 *self,
++                         FpiSsm              *ssm,
++                         int                  setup_state)
++{
++  if (self->cancel && g_cancellable_is_cancelled (self->cancel))
++    {
++      if (self->action_result_reported)
++        fpi_ssm_jump_to_state (ssm, self->blocking_shutdown_state);
++      else
++        fpi_ssm_mark_failed (ssm, g_error_new_literal (G_IO_ERROR, G_IO_ERROR_CANCELLED, "Cancelled"));
++      return TRUE;
++    }
++  fpi_ssm_jump_to_state_delayed (ssm, setup_state, 120);
++  return TRUE;
++}
++
+ static void
+ goodix_finger_wait_ssm_handler (FpiSsm   *ssm,
+                                 FpDevice *dev)
+@@ -197,11 +251,48 @@ goodix_finger_wait_ssm_handler (FpiSsm   *ssm,
+       break;
+ 
+     case GOODIX_FINGER_WAIT_FDT_DOWN_SETUP:
++      if (self->plain)
++        {
++          /* No events from this firmware: read the channels ourselves. */
++          self->blocking_shutdown_state = GOODIX_FINGER_UP_SLEEP;
++          goodix_cmd_fdt_manual (ssm, dev, TRUE, self->calib.fdt_base_manual);
++          break;
++        }
+       /* Set up finger-down detection (re-arms the sensor) */
+       goodix_cmd_fdt_down_setup (ssm, dev, self->calib.fdt_base_down);
+       break;
+ 
+     case GOODIX_FINGER_WAIT_RECV_EVENT:
++      if (self->plain)
++        {
++          g_autoptr(GError) error = NULL;
++          const guint8 *pl;
++          gsize pl_len;
++          guint16 flag;
++
++          if (!goodix_cmd_parse_fdt_manual_reply (dev, &pl, &pl_len, &error))
++            {
++              fpi_ssm_mark_failed (ssm, g_steal_pointer (&error));
++              return;
++            }
++          flag = goodix_plain_touch_flag (self, pl + 4, self->calib.delta_down);
++          if (flag == 0)
++            {
++              goodix_plain_poll_again (self, ssm, GOODIX_FINGER_WAIT_FDT_DOWN_SETUP);
++              return;
++            }
++          self->fdt_touch_flag = flag;
++          g_free (self->fdt_event_data);
++          self->fdt_event_data = g_memdup2 (pl + 4, GOODIX_FDT_BASE_LEN);
++          goodix_device_generate_fdt_up_base (self->fdt_event_data, self->fdt_touch_flag,
++                                              &self->calib, self->calib.fdt_base_up);
++          fp_dbg ("Finger detected by polling (channels 0x%03x)", flag);
++          fpi_device_report_finger_status_changes (dev,
++                                                   FP_FINGER_STATUS_PRESENT,
++                                                   FP_FINGER_STATUS_NEEDED);
++          fpi_ssm_mark_completed (ssm);
++          return;
++        }
+       /* Wait for FDT DOWN event with cancellable. The shutdown jump target
+        * matches the historical RX-callback behavior of jumping to the
+        * finger-up SLEEP state index on post-result cancellation. */
+@@ -315,9 +406,16 @@ goodix_capture_ssm_handler (FpiSsm   *ssm,
              return;
            }
  
@@ -96,6 +199,48 @@ index d242b93..19e7cfa 100644
          if (decrypted == NULL)
            {
              fpi_ssm_mark_failed (ssm,
+@@ -393,11 +491,41 @@ goodix_finger_up_ssm_handler (FpiSsm   *ssm,
+   switch (fpi_ssm_get_cur_state (ssm))
+     {
+     case GOODIX_FINGER_UP_FDT_UP_SETUP:
++      if (self->plain)
++        {
++          self->blocking_shutdown_state = GOODIX_FINGER_UP_SLEEP;
++          goodix_cmd_fdt_manual (ssm, dev, TRUE, self->calib.fdt_base_manual);
++          break;
++        }
+       /* Set up finger-up detection before waiting */
+       goodix_cmd_fdt_up_setup (ssm, dev, self->calib.fdt_base_up);
+       break;
+ 
+     case GOODIX_FINGER_UP_RECV_EVENT:
++      if (self->plain)
++        {
++          g_autoptr(GError) error = NULL;
++          const guint8 *pl;
++          gsize pl_len;
++
++          if (!goodix_cmd_parse_fdt_manual_reply (dev, &pl, &pl_len, &error))
++            {
++              fpi_ssm_mark_failed (ssm, g_steal_pointer (&error));
++              return;
++            }
++          /* Still touching until every channel is back within the up threshold of the baseline. */
++          if (goodix_plain_touch_flag (self, pl + 4, self->calib.delta_up) != 0)
++            {
++              goodix_plain_poll_again (self, ssm, GOODIX_FINGER_UP_FDT_UP_SETUP);
++              return;
++            }
++          fp_dbg ("Finger lifted (polling)");
++          fpi_device_report_finger_status_changes (dev,
++                                                   FP_FINGER_STATUS_NONE,
++                                                   FP_FINGER_STATUS_PRESENT | FP_FINGER_STATUS_NEEDED);
++          fpi_ssm_jump_to_state (ssm, GOODIX_FINGER_UP_SLEEP);
++          return;
++        }
+       /* If libfprint cancels after the result was reported, the RX callback
+        * jumps straight to the sleep/power-off tail of this SSM. */
+       self->blocking_ssm = ssm;
 diff --git a/drivers/goodix53x5/goodix53x5-session.c b/drivers/goodix53x5/goodix53x5-session.c
 index c231c81..ebb6aab 100644
 --- a/drivers/goodix53x5/goodix53x5-session.c

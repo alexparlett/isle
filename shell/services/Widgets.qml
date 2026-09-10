@@ -180,13 +180,13 @@ Singleton {
     // An entry is { key, id, x, y, w, h } in grid cells: `key` names the instance (a second clock is
     // "clock#2"), `id` its widget. Entries without a key, from before instances, take their id.
     readonly property var defaultLayout: [
-        { id: "clock", x: 0, y: 0, w: 3, h: 2 },
-        { id: "media", x: 3, y: 0, w: 2, h: 1 },
-        { id: "workspaces", x: 6, y: 0, w: 3, h: 2 },
+        { id: "clock", x: 0, y: 0, w: 2, h: 1 },
+        { id: "media", x: 0, y: 1, w: 2, h: 1 },
+        { id: "workspaces", x: 3, y: 0, w: 3, h: 2 },
+        { id: "agents", x: 6, y: 0, w: 3, h: 4 },
         { id: "notifications", x: 9, y: 0, w: 3, h: 8 },
         { id: "controls", x: 0, y: 2, w: 3, h: 2 },
         { id: "system", x: 3, y: 2, w: 3, h: 4 },
-        { id: "agents", x: 6, y: 2, w: 3, h: 4 },
         { id: "session", x: 0, y: 4, w: 2, h: 1 },
         { id: "devices", x: 0, y: 5, w: 2, h: 1 },
         { id: "storage", x: 0, y: 6, w: 3, h: 2 },
@@ -334,18 +334,24 @@ Singleton {
     }
     function remove(key) { setLayout(layout.filter(e => e.key !== key)); clearSettings(key); clearState(key); }
     // Place at a cell when the widget fits there, else the first free spot; x < 0 asks for the first free spot.
+    // The default span first; when that has no room, the other spans from largest to smallest, down to the minimum.
     function addAt(id, x, y) {
         const m = manifests[id];
         if (!m || !canAdd(id)) return false;
-        const [w, h] = (m.default || m.sizes[0] || "3x1").split("x").map(Number);
-        const key = uniqueKey(id);
-        if (x >= 0) {
-            const e = { key: key, id: id, x: Math.min(x, columns - w), y: Math.min(y, rows - h), w: w, h: h };
-            if (fits(e, layout)) { setLayout(layout.concat([e])); return true; }
-        }
-        for (let cy = 0; cy <= rows - h; cy++) for (let cx = 0; cx <= columns - w; cx++) {
-            const e = { key: key, id: id, x: cx, y: cy, w: w, h: h };
-            if (fits(e, layout)) { setLayout(layout.concat([e])); return true; }
+        const key = uniqueKey(id), lo = minOf(m);
+        const spans = [spanOf(m.default || m.sizes[0] || "3x1")]
+            .concat((m.sizes || []).map(spanOf).sort((a, b) => b.w * b.h - a.w * a.h), [lo])
+            .filter((sp, i, all) => all.findIndex(o => o.w === sp.w && o.h === sp.h) === i);
+        for (const sp of spans) {
+            const w = sp.w, h = sp.h;
+            if (x >= 0) {
+                const e = { key: key, id: id, x: Math.min(x, columns - w), y: Math.min(y, rows - h), w: w, h: h };
+                if (fits(e, layout)) { setLayout(layout.concat([e])); return true; }
+            }
+            for (let cy = 0; cy <= rows - h; cy++) for (let cx = 0; cx <= columns - w; cx++) {
+                const e = { key: key, id: id, x: cx, y: cy, w: w, h: h };
+                if (fits(e, layout)) { setLayout(layout.concat([e])); return true; }
+            }
         }
         return false;
     }
@@ -359,6 +365,8 @@ Singleton {
     function settingsFor(key) {
         const m = manifests[idOf(key)], saved = stored[key] || {}, out = {};
         for (const s of (m && m.settings) || []) out[s.key] = saved[s.key] !== undefined ? saved[s.key] : s.default;
+        // The card's own setting, kept beside the widget's.
+        out.showTitle = saved.showTitle !== undefined ? saved.showTitle : true;
         return out;
     }
     function setSetting(key, k, value) {

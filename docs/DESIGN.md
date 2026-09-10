@@ -273,8 +273,8 @@ Built in, in the default layout:
 
 | widget | shows |
 |---|---|
-| Clock | time, date and the week as a strip |
-| Calendar | the month with today marked; arrows browse, Today comes back |
+| Clock | time and date with today's weather beside them; the week strip at two rows, the days ahead at four |
+| Calendar | the month with today marked, its name centred between the arrows; Today comes back |
 | Media | art, track, transport |
 | Desktops | each desktop with its app icons; click to go |
 | Notifications | grouped by app, inline actions, clear all |
@@ -306,7 +306,8 @@ strip at the bottom for the toolbar (Reset layout, Discard, Done), so no
 control sits over a card. The library lists every widget by category
 with a search field: glyph, name, description, and "on" with a tick when
 placed (×2 for a second instance). Clicking a row places it at the first
-free spot; dragging one drops it on the cell under the pointer; clicking
+free spot at its default size, or the largest of its sizes that has room,
+down to its smallest; dragging one drops it on the cell under the pointer; clicking
 an empty cell first marks it, and the next pick lands there. New widget
 at the foot opens the store's name dialog; the user's own carry edit and
 delete on hover. When nothing fits, the toolbar says which size it needs.

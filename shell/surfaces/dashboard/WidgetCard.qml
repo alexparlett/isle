@@ -31,7 +31,7 @@ Glass {
     border.color: focused ? Theme.accent : editing ? Theme.hairlineStrong : Theme.hairline
     border.width: focused ? 2 : 1
     opacity: dragging ? 0.85 : 1
-    z: dragging || resizing ? 5 : 0
+    z: configuring ? 6 : dragging || resizing ? 5 : 0
 
     // Edit mode: the whole card drags; on release it snaps to the nearest cell that fits, or springs back.
     // A click on the card's own body stays on the card; only the backdrop closes the dashboard.
@@ -84,7 +84,9 @@ Glass {
     // Settings, top left, when the manifest declares any.
     property bool configuring: false
     onEditingChanged: if (!editing) configuring = false
-    readonly property var settingSpecs: manifest && manifest.settings ? manifest.settings : []
+    // Every card offers its title as a setting, ahead of the widget's own.
+    readonly property var settingSpecs: [{ key: "showTitle", label: "Title", type: "toggle", default: true }].concat(manifest && manifest.settings ? manifest.settings : [])
+    readonly property bool showTitle: Widgets.settingsFor(entry.key).showTitle !== false
     Rectangle {
         visible: root.editing && root.settingSpecs.length > 0
         anchors { top: parent.top; left: parent.left; margins: 6 }
@@ -93,16 +95,21 @@ Glass {
         Glyph { anchors.centerIn: parent; name: "settings-2"; size: 10; color: root.configuring ? Theme.onAccent : Theme.text }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.configuring = !root.configuring }
     }
-    // The settings sheet covers the widget while it is open.
+    // The settings sheet opens over the card's top-left corner, as big as its rows need, so a small card
+    // is no smaller a form; it sits above the neighbours it may cover.
     Rectangle {
         visible: root.configuring
-        anchors.fill: parent
+        x: 0; y: 0
+        width: Math.max(root.width, 320)
+        height: Math.max(root.height, sheetCol.implicitHeight + Theme.s3 * 2 + 22)
         radius: root.radius
-        color: Theme.light ? "#FFFFFF" : Theme.glass
-        z: 3
+        color: Theme.light ? "#FFFFFF" : Theme.raised
+        border.width: 1; border.color: Theme.hairlineStrong
+        z: 30
         MouseArea { anchors.fill: parent }
         ColumnLayout {
-            anchors { fill: parent; margins: Theme.s3; topMargin: Theme.s3 + 22 }
+            id: sheetCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.s3; topMargin: Theme.s3 + 22 }
             spacing: Theme.s2
             Repeater {
                 model: root.settingSpecs
@@ -125,7 +132,6 @@ Glass {
                     }
                 }
             }
-            Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.fillWidth: true
                 Label { text: "Defaults"; size: Theme.sizeCaption; color: Theme.accent
@@ -179,15 +185,6 @@ Glass {
             }
         }
     }
-    // Size, bottom right: cycles the manifest's sizes.
-    Rectangle {
-        visible: root.editing && root.manifest && (root.manifest.sizes || []).length > 1
-        anchors { bottom: parent.bottom; right: parent.right; margins: 6; rightMargin: 22 }
-        width: sizeLabel.implicitWidth + Theme.s2 * 2; height: 22; radius: 11; color: Theme.raised; border.width: 1; border.color: Theme.hairlineStrong
-        z: 4
-        Label { id: sizeLabel; anchors.centerIn: parent; text: root.size; mono: true; size: Theme.sizeCaption }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.cycleSize(root.entry.key) }
-    }
 
     ColumnLayout {
         anchors { fill: parent; margins: Theme.s3 }
@@ -195,7 +192,7 @@ Glass {
 
         RowLayout {
             Layout.fillWidth: true
-            visible: (loader.item ? loader.item.title : "") !== ""
+            visible: root.showTitle && (loader.item ? loader.item.title : "") !== ""
             // Room for the settings gear while editing.
             Layout.leftMargin: root.editing && root.settingSpecs.length > 0 ? 22 : 0
             Label { text: loader.item ? loader.item.title : ""; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.fillWidth: true }

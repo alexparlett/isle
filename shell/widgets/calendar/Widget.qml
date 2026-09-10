@@ -7,8 +7,7 @@ import qs.ui
 // A month: its name with arrows, weekday initials, six weeks of days with today marked. A new day brings it back to now.
 WidgetBase {
     id: root
-    title: "Calendar"
-    meta: Qt.formatDate(clock.date, "dddd d MMMM")
+    title: ""
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
     property int shownYear: clock.date.getFullYear()
@@ -22,14 +21,18 @@ WidgetBase {
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.s1
-        RowLayout {
+        // The month centred between its arrows; Today shows only while looking at another month.
+        Item {
             Layout.fillWidth: true
-            spacing: Theme.s2
-            Label { text: Qt.formatDate(new Date(root.shownYear, root.shownMonth, 1), "MMMM yyyy"); weight: Font.DemiBold; size: Theme.sizeBody; Layout.fillWidth: true }
-            Label { visible: root.shownYear !== clock.date.getFullYear() || root.shownMonth !== clock.date.getMonth(); text: "Today"; size: Theme.sizeCaption; color: Theme.accent
+            implicitHeight: 24
+            Glyph { anchors { left: parent.left; verticalCenter: parent.verticalCenter } name: "chevron-left"; size: 15; color: Theme.text2
+                MouseArea { anchors { fill: parent; margins: -8 } cursorShape: Qt.PointingHandCursor; onClicked: root.browse(-1) } }
+            Label { anchors.centerIn: parent; text: Qt.formatDate(new Date(root.shownYear, root.shownMonth, 1), "MMMM yyyy"); weight: Font.DemiBold; size: Theme.sizeBody }
+            Label { anchors { right: todayArrow.left; rightMargin: Theme.s3; verticalCenter: parent.verticalCenter }
+                    visible: root.shownYear !== clock.date.getFullYear() || root.shownMonth !== clock.date.getMonth(); text: "Today"; size: Theme.sizeCaption; color: Theme.accent
                 MouseArea { anchors { fill: parent; margins: -4 } cursorShape: Qt.PointingHandCursor; onClicked: { root.shownYear = clock.date.getFullYear(); root.shownMonth = clock.date.getMonth(); } } }
-            Glyph { name: "chevron-left"; size: 14; color: Theme.text2; MouseArea { anchors { fill: parent; margins: -6 } cursorShape: Qt.PointingHandCursor; onClicked: root.browse(-1) } }
-            Glyph { name: "chevron-right"; size: 14; color: Theme.text2; MouseArea { anchors { fill: parent; margins: -6 } cursorShape: Qt.PointingHandCursor; onClicked: root.browse(1) } }
+            Glyph { id: todayArrow; anchors { right: parent.right; verticalCenter: parent.verticalCenter } name: "chevron-right"; size: 15; color: Theme.text2
+                MouseArea { anchors { fill: parent; margins: -8 } cursorShape: Qt.PointingHandCursor; onClicked: root.browse(1) } }
         }
         GridLayout {
             Layout.fillWidth: true

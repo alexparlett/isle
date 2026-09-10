@@ -222,6 +222,9 @@ Rules of the contract:
   sheet runs them as Check and Tag, and Picture grabs the live preview
   frame with `grabToImage` at twice its size into `screenshots/card.png`.
   `docs/WIDGETS.md` is the contract for authors.
+- Every card's gear starts with Title, a toggle that hides the card's title
+  row (`showTitle` in the instance's settings); a widget whose `title` is
+  empty has none to show.
 - `settings` declares what the card's gear offers in edit mode: `toggle`,
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as

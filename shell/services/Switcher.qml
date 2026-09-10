@@ -3,37 +3,40 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The app switcher's state: open while the modifier is held, an index into Windows.apps, commit on release.
+// The window switcher's state: open while the modifier is held, an index into a row of windows, commit on release.
 Singleton {
     id: root
 
     property bool open: false
     property int index: 0
-    // Frozen while open so the row does not reorder under the pointer.
-    property var apps: []
+    // One entry per window that is on a desktop (hidden ones come back through the dock or Mission Control),
+    // grouped by app in the apps' order; frozen while open so the row does not reorder.
+    // [{ appId, name, icon, win, windows }]
+    property var items: []
 
     function begin() {
         // Mission Control has the windows already; Super+Tab there is its Tab.
         if (Surfaces.overview) return;
-        apps = Windows.apps;
-        index = apps.length > 1 ? 1 : 0;
-        open = apps.length > 0;
+        const out = [];
+        for (const a of Windows.apps)
+            for (const w of a.windows) if (!w.hidden) out.push({ appId: a.appId, name: a.name, icon: a.icon, win: w, windows: a.windows.filter(x => !x.hidden) });
+        items = out;
+        index = items.length > 1 ? 1 : 0;
+        open = items.length > 0;
     }
-    function next() { if (!open) begin(); else if (apps.length) index = (index + 1) % apps.length; }
-    function prev() { if (!open) { begin(); index = apps.length ? apps.length - 1 : 0; } else if (apps.length) index = (index + apps.length - 1) % apps.length; }
+    function next() { if (!open) begin(); else if (items.length) index = (index + 1) % items.length; }
+    function prev() { if (!open) { begin(); index = items.length ? items.length - 1 : 0; } else if (items.length) index = (index + items.length - 1) % items.length; }
     function commit() {
         if (!open) return;
-        const app = apps[index];
+        const it = items[index];
         open = false;
-        if (!app) return;
-        const win = app.windows.find(w => w.focused) || app.windows[0];
-        if (win) { Surfaces.dashboard = false; Windows.focus(win); }
+        if (it) { Surfaces.dashboard = false; Windows.focus(it.win); }
     }
     function cancel() { open = false; }
     Process { id: hider }
-    // Held on an app: Q closes every window of it, W its front one. The switcher stays open on the rest.
-    function quit() { const app = apps[index]; if (!open || !app) return; for (const w of app.windows) Windows.closeWindow(w); }
-    function closeFront() { const app = apps[index]; if (!open || !app) return; Windows.closeWindow(app.windows.find(w => w.focused) || app.windows[0]); }
+    // Held on a window: Q closes every window of its app, W that window. The switcher stays open on the rest.
+    function quit() { const it = items[index]; if (!open || !it) return; for (const w of it.windows) Windows.closeWindow(w); }
+    function closeFront() { const it = items[index]; if (!open || !it) return; Windows.closeWindow(it.win); }
 
     IpcHandler {
         target: "switcher"
@@ -42,7 +45,7 @@ Singleton {
         function commit(): void { root.commit(); }
         function cancel(): void { root.cancel(); }
         function cycleApp(): void { Windows.cycleApp(); }
-        function hide(): void { if (root.open) { const app = root.apps[root.index]; const w = app && (app.windows.find(w => w.focused) || app.windows[0]); if (w) { hider.command = ["python3", Quickshell.shellDir + "/scripts/hidewindow.py", w.address]; hider.running = true; return; } } Windows.hideActive(); }
+        function hide(): void { if (root.open) { const it = root.items[root.index]; if (it) { hider.command = ["python3", Quickshell.shellDir + "/scripts/hidewindow.py", it.win.address]; hider.running = true; return; } } Windows.hideActive(); }
         function quit(): void { root.quit(); }
         function closeFront(): void { root.closeFront(); }
     }

@@ -7,7 +7,7 @@ import qs.theme
 import qs.ui
 import qs.services
 
-// A row of live window previews across the centre while the modifier is held: one card per app, showing
+// A row of live window previews across the centre while the modifier is held: one card per window, showing
 // its front window, the app's icon and name beneath.
 PanelWindow {
     id: root
@@ -35,24 +35,23 @@ PanelWindow {
         GridLayout {
             id: grid
             anchors.centerIn: parent
-            columns: Math.min(root.perRow, Math.max(1, Switcher.apps.length))
+            columns: Math.min(root.perRow, Math.max(1, Switcher.items.length))
             columnSpacing: Theme.s2
             rowSpacing: Theme.s2
             Repeater {
-                model: Switcher.apps
+                model: Switcher.items
                 Rectangle {
                     id: card
                     required property var modelData
                     required property int index
                     readonly property bool sel: index === Switcher.index
-                    readonly property var front: modelData.windows.find(w => w.focused) || modelData.windows[0] || null
+                    readonly property var front: modelData.win
                     implicitWidth: root.boxW + Theme.s3 * 2
                     implicitHeight: root.boxH + Theme.s3 * 2 + 28
                     radius: Theme.radiusCard + 2
                     color: sel ? Theme.raised : "transparent"
                     border.width: 1
                     border.color: sel ? Theme.hairlineStrong : "transparent"
-                    opacity: modelData.hidden ? 0.5 : 1
                     Behavior on color { ColorAnimation { duration: Theme.quick } }
 
                     Item {
@@ -91,14 +90,6 @@ PanelWindow {
                             border.width: card.sel ? 2 : 1
                             border.color: card.sel ? Theme.accent : Theme.hairlineStrong
                         }
-                        Rectangle {
-                            visible: card.modelData.windows.length > 1
-                            anchors { right: picture.right; top: picture.top; margins: 6 }
-                            width: 20; height: 20; radius: 10
-                            color: Theme.pressed
-                            border.width: 1; border.color: Theme.hairlineStrong
-                            Label { anchors.centerIn: parent; text: card.modelData.windows.length; size: 10; weight: Font.DemiBold; tabular: true }
-                        }
                     }
                     RowLayout {
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: Theme.s3; rightMargin: Theme.s3; bottomMargin: Theme.s2 + 2 }
@@ -117,14 +108,13 @@ PanelWindow {
     ColumnLayout {
         anchors { horizontalCenter: parent.horizontalCenter; top: parent.verticalCenter; topMargin: (grid.implicitHeight + Theme.s3 * 2) / 2 + Theme.s3 }
         spacing: 2
-        visible: Switcher.apps.length > 0
+        visible: Switcher.items.length > 0
         Label {
             Layout.alignment: Qt.AlignHCenter
             Layout.maximumWidth: 640
             elide: Text.ElideRight
-            readonly property var app: Switcher.apps[Switcher.index] || null
-            readonly property var win: app ? (app.windows.find(w => w.focused) || app.windows[0]) : null
-            text: win ? (win.title || app.name) + (app.hidden ? "  ·  hidden" : "") : ""
+            readonly property var it: Switcher.items[Switcher.index] || null
+            text: it ? (it.win.title || it.name) : ""
             size: Theme.sizeSmall; color: Theme.text2
         }
         Label { Layout.alignment: Qt.AlignHCenter; text: "Tab next  ·  ` this app's windows  ·  W close window  ·  Q quit  ·  M hide"; size: Theme.sizeCaption; color: Theme.text3 }

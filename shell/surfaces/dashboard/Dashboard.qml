@@ -442,7 +442,7 @@ PanelWindow {
         WidgetStore {
             id: widgetStore
             open: root.storeOpen
-            onOpenChanged: root.storeOpen = open
+            onDismissed: root.storeOpen = false
             z: 35
             onPlace: id => { root.place(id, root.pending ? root.pending.x : -1, root.pending ? root.pending.y : -1); root.pending = null; }
             onEdit: m => { widgetForm.startEdit(m); library.composing = true; root.storeOpen = false; }

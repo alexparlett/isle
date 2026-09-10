@@ -24,6 +24,8 @@ Item {
     property bool consentTrust: false
     signal place(string id)
     signal edit(var manifest)
+    // Closing is asked of the owner, which holds `open`; assigning it here would break that binding.
+    signal dismissed()
     readonly property var current: !selected ? null : tab === "browse" ? Widgets.catalogueEntry(selected) : Widgets.manifests[selected] || null
     // The installed manifest behind whatever is shown, when there is one.
     readonly property var installedOf: current ? Widgets.manifests[current.id] || null : null
@@ -65,7 +67,7 @@ Item {
     visible: open
     anchors.fill: parent
     Rectangle { anchors.fill: parent; color: Qt.alpha(Theme.ink, 0.5) }
-    MouseArea { anchors.fill: parent; onClicked: store.open = false }
+    MouseArea { anchors.fill: parent; onClicked: store.dismissed() }
 
     Glass {
         anchors.centerIn: parent
@@ -114,7 +116,7 @@ Item {
                     Rectangle {
                         implicitWidth: 28; implicitHeight: 28; radius: 14; color: closeArea.containsMouse ? Theme.pressed : "transparent"
                         Glyph { anchors.centerIn: parent; name: "x"; size: 12; color: Theme.text2 }
-                        MouseArea { id: closeArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: store.open = false }
+                        MouseArea { id: closeArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: store.dismissed() }
                     }
                 }
                 RowLayout {

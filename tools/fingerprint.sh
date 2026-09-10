@@ -37,7 +37,7 @@ case "${reader#27c6:}" in
         cp "$here/../system/fprint/goodix5042.patch" "$work/pkg/"
         cd "$work/pkg"
         sed -i 's|^source=(|source=("goodix5042.patch"\n        |; s|^sha256sums=(|sha256sums=('"'"'SKIP'"'"'\n            |' PKGBUILD
-        sed -i 's|^prepare() {|prepare() {\n  (cd "$srcdir/goodix53x5-libfprint" \&\& patch -p1 -N < "$srcdir/goodix5042.patch")|' PKGBUILD
+        sed -i 's|^prepare() {|prepare() {\n  (cd "$srcdir/goodix53x5-libfprint" \&\& git checkout -- . \&\& patch -p1 -N < "$srcdir/goodix5042.patch")|' PKGBUILD
         grep -q 'goodix5042.patch' PKGBUILD || { err "could not patch the PKGBUILD"; exit 1; }
         sudo pacman -S --needed --noconfirm base-devel git meson ninja gtk-doc gobject-introspection libgusb opencv
         makepkg -si

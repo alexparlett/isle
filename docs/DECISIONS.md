@@ -243,3 +243,20 @@ machine. Tag stops at a local tag: pushing to a remote and asking a
 registry to list it are the author's own moves, said in words on the
 sheet and in the guide.
 
+**D31 · The host fetches for a widget; the widget never touches the
+network.** Most widgets people want are windows onto a service: weather, a
+calendar, a build queue. The sandbox forbids `XMLHttpRequest`, and lifting
+that would hand every widget the whole network. Instead the manifest names
+hosts, one per `fetch:<host>` permission, the store shows them as pills
+the user can switch off, and the host performs the GET with curl on the
+widget's behalf, bounded in time and size. A widget's own state goes the
+same way: `store` keeps it in prefs per instance rather than letting the
+widget write files. Notifications are a scope of their own (`notify`)
+because posting one is a different act from reading the count.
+
+**D32 · A Mac keyboard's symbols follow its profile, not the layouts
+list.** The layouts list is the languages the user types; the Macintosh
+variant is where a Mac keyboard prints its symbols. Putting the variant
+in the list would move @ for every keyboard, so a Mac-profile device gets
+the variant on its own device line instead, and the list stays plain.
+

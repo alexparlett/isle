@@ -14,7 +14,7 @@ Glass {
     readonly property var manifest: Widgets.manifests[entry.id] || null
     readonly property string size: entry.w + "x" + entry.h
     // The permission-gated wrapper a sandboxed widget is handed in place of the services.
-    WidgetHost { id: host; permissions: Widgets.grantsFor(root.entry.id) }
+    WidgetHost { id: host; permissions: Widgets.grantsFor(root.entry.id); instance: root.entry.key; appName: root.manifest ? root.manifest.name : "Widget" }
 
     readonly property bool focused: editing && dashboard && dashboard.focusKey === entry.key
     property bool resizing: false
@@ -114,6 +114,7 @@ Glass {
                     Label { text: modelData.label; size: Theme.sizeSmall; Layout.fillWidth: true; elide: Text.ElideRight }
                     Toggle { visible: modelData.type === "toggle"; checked: !!parent.current; onToggled: v => Widgets.setSetting(root.entry.key, modelData.key, v) }
                     Dropdown { visible: modelData.type === "choice"; listWidth: 160; options: modelData.options || []; value: parent.current; onPicked: v => Widgets.setSetting(root.entry.key, modelData.key, v) }
+                    Field { visible: modelData.type === "text"; implicitWidth: 150; implicitHeight: 28; size: Theme.sizeSmall; placeholder: modelData.placeholder || ""; text: parent.current !== undefined ? String(parent.current) : ""; onAccepted: Widgets.setSetting(root.entry.key, modelData.key, text); onActiveFocusChanged: if (!activeFocus && text !== String(parent.current || "")) Widgets.setSetting(root.entry.key, modelData.key, text) }
                     RowLayout {
                         visible: modelData.type === "number"
                         spacing: Theme.s2

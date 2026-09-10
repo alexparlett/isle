@@ -19,6 +19,7 @@ chevron-up
 circle-dot
 clipboard
 clock
+cloud-sun
 code
 command
 cpu

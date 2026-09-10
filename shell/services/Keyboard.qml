@@ -97,11 +97,20 @@ Singleton {
         Input.render();
     }
     // hl.device lines for the compositor, one per interface, so each keyboard gets its model.
+    // Layouts with a Macintosh variant in xkeyboard-config: the symbols where a Mac keyboard prints them.
+    readonly property var macVariantLayouts: ["ara", "dk", "nl", "gb", "us", "fi", "fr", "de", "at", "is", "it", "jp", "no", "pt", "ru", "se"]
+    // A Mac-profile keyboard takes each layout's Macintosh variant unless the layout already names one.
+    function macVariantLua() {
+        const ls = Input.layouts;
+        if (!ls.some(l => !l.variant && macVariantLayouts.indexOf(l.layout) >= 0)) return "";
+        return ", kb_layout = " + JSON.stringify(ls.map(l => l.layout).join(","))
+             + ", kb_variant = " + JSON.stringify(ls.map(l => l.variant || (macVariantLayouts.indexOf(l.layout) >= 0 ? "mac" : "")).join(","));
+    }
     function deviceLua() {
         let out = "";
         for (const g of groups) {
             const model = modelFor(g);
-            for (const m of g.members) out += "hl.device({ name = " + JSON.stringify(m) + ", kb_model = " + JSON.stringify(model) + " })\n";
+            for (const m of g.members) out += "hl.device({ name = " + JSON.stringify(m) + ", kb_model = " + JSON.stringify(model) + (profileFor(m) === "mac" ? macVariantLua() : "") + " })\n";
         }
         return out;
     }

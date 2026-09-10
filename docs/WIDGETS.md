@@ -57,7 +57,7 @@ the dashboard opens.
 | `min`, `max` | optional bounds for resizing, otherwise the extremes of `sizes` |
 | `multiple` | more than one instance makes sense (a second clock) |
 | `permissions` | what the widget may reach through `host`, see below |
-| `settings` | what the card's gear offers: `toggle`, `choice` (`options: [[value, label]]`) or `number` (`min`, `max`) |
+| `settings` | what the card's gear offers: `toggle`, `choice` (`options: [[value, label]]`), `number` (`min`, `max`) or `text` (`placeholder`) |
 | `screenshots` | paths in the folder; when absent, `screenshots/` is used |
 | `trust` | `true` asks for the shell's full reach, see Full access |
 | `requires` | binaries or services that must be present (`"lact"`), otherwise the widget is hidden |
@@ -67,9 +67,8 @@ the dashboard opens.
 A manifest with a `source` and no `Widget.qml` is drawn by the shell's own
 renderer: a command (run with `sh`) or a file, read every `interval`
 seconds, shown as `view` text, number, gauge (against `max`), sparkline,
-or list. Unit and glyph are yours to set. The dashboard's library writes
-these for you with New text widget, and the store's Edit opens the form
-again.
+or list. Unit and glyph are yours to set. The store's Edit opens a form
+for one that exists; a new one is a manifest written by hand.
 
 ```json
 { "id": "uptime", "name": "Uptime", "glyph": "clock", "category": "System",
@@ -140,10 +139,16 @@ grants reading. `host.theme` is always there.
 | `power` | `power` | `onBattery`, `percentage` (−1 without a battery), `profile` |
 | `bluetooth` | `bluetooth` | `enabled`, `connected` (a count) |
 | `vpn` | `vpn` | `active`, `name` |
+| `fetch:<host>` | `fetch(url, done)` | a GET the shell performs to that host (or a subdomain); `done(text, ok)` is called once |
+| `notify` | `notify(summary, body)` | a desktop notification under the widget's name |
+| always | `store` | the widget's own state, kept per instance across restarts: `get(key, fallback)`, `set(key, value)`, `remove(key)` |
 
 People installing the widget see this list and can switch any entry off;
 a switched-off `.write` makes the call a no-op, so read state and draw
-from it rather than assuming an action took effect.
+from it rather than assuming an action took effect. A `fetch` to a host
+that is not granted answers `("", false)`; say so on the card rather than
+sitting blank. Name hosts exactly (`fetch:api.open-meteo.com`), one per
+service you call; the store shows each one as a pill.
 
 ### Full access
 

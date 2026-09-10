@@ -81,6 +81,8 @@ Singleton {
             property var windowPlaces: ({})
             property var input: ({})
             property var widgetSettings: ({})
+            // Instance key -> what the widget kept through host.store.
+            property var widgetState: ({})
             // Widget id -> the permissions the user allows it, of those it declares; absent means all declared.
             property var widgetGrants: ({})
             // Registry git URLs beyond the default one derived from the shell's origin.

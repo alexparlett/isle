@@ -176,6 +176,12 @@ Rules of the contract:
   store (`WidgetStore`, opened by Browse in the library) shows all of it
   on a card and a sheet, with `WidgetPreview` drawing the first
   screenshot or, without one, the widget itself live at its default span.
+- Beyond the services, `WidgetHost` offers `fetch(url, done)` for hosts
+  named by `fetch:<host>` permissions (curl in a Process the host owns,
+  20 s and 4 MB caps, subdomains count), `notify(summary, body)` under
+  `notify` (notify-send with the widget's name), and `store`, the
+  instance's own state under `widgetState.<key>` in prefs, cleared with
+  the instance. The card passes the instance key and name to the host.
 - Permissions a sandboxed widget declares can be narrowed by the user:
   `widgetGrants.<id>` in prefs lists what is allowed, and `Widgets.grantsFor`
   returns declared ∩ granted (absent means everything declared). The card
@@ -199,6 +205,11 @@ Rules of the contract:
   (`trust: true`) and the user granted it: `widgetTrust` in prefs lists
   the ids. Without the grant it is installed but blocked, and the card
   says so. The user's own widgets need only the manifest's `trust`.
+- A Mac-profile keyboard (Keychron, Apple, or set so on the page) gets
+  `kb_layout`/`kb_variant` on its `hl.device` line with each layout's
+  Macintosh variant where xkeyboard-config has one, so @ sits on ⇧2 as
+  the keycaps say, while the layouts list stays the languages every
+  keyboard types. A layout that already names a variant is left alone.
 - `shell/scripts/widgetauthor.py` is the author's side: `new` scaffolds
   a folder with a full manifest, a sandbox-clean `Widget.qml`, README and
   CHANGELOG; `validate` checks the manifest, the sandbox scan and the

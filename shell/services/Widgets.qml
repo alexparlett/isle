@@ -70,8 +70,11 @@ Singleton {
         "network": "See whether you are online, on Wi-Fi or wired", "media": "See what is playing", "media.write": "Play, pause and skip",
         "system": "See CPU, GPU, memory and network load", "notifications": "See the count and do-not-disturb", "notifications.write": "Turn do-not-disturb on and off",
         "power": "See the battery and power profile", "bluetooth": "See whether Bluetooth is on and what is connected", "vpn": "See whether a VPN is up",
+        "notify": "Post notifications under its own name",
     })
-    function permissionLabel(p) { return permissionCatalogue[p] || p; }
+    function permissionLabel(p) { return permissionCatalogue[p] || (p.indexOf("fetch:") === 0 ? "Fetch from " + p.slice(6) + " over the network" : p); }
+    // The short form on a pill: the host for a fetch, a pen for a write scope.
+    function permissionPill(p) { return p.indexOf("fetch:") === 0 ? p.slice(6) : p.replace(".write", " ✎"); }
     // The permissions a widget actually gets: those it declares, minus any the user has withdrawn.
     function grantsFor(id) {
         const declared = permissionsOf(id), g = (Prefs.p.widgetGrants || {})[id];
@@ -119,6 +122,8 @@ Singleton {
             }
         }
     }
+    // Opening the dashboard indexes the sources (a pull at most hourly), so the update count is current.
+    Connections { target: Surfaces; function onDashboardChanged() { if (Surfaces.dashboard) root.refreshCatalogue(false); } }
     function refreshCatalogue(fresh) {
         if (indexer.running) return;
         indexer.command = ["python3", storeScript, "index", cacheDir].concat(fresh ? ["--fresh"] : []).concat(sources);
@@ -163,6 +168,7 @@ Singleton {
     function uninstall(id) {
         const m = manifests[id];
         if (!m || !m.installed || installer.running) return;
+        for (const e of layout) if (e.id === id) { clearSettings(e.key); clearState(e.key); }
         setLayout(layout.filter(e => e.id !== id));
         resetGrants(id); setTrust(id, false);
         installing = id;
@@ -316,7 +322,7 @@ Singleton {
             if (fits(next, l)) { Object.assign(e, next); setLayout(l); return; }
         }
     }
-    function remove(key) { setLayout(layout.filter(e => e.key !== key)); }
+    function remove(key) { setLayout(layout.filter(e => e.key !== key)); clearSettings(key); clearState(key); }
     // Place at a cell when the widget fits there, else the first free spot; x < 0 asks for the first free spot.
     function addAt(id, x, y) {
         const m = manifests[id];
@@ -352,6 +358,7 @@ Singleton {
         Prefs.p.widgetSettings = all;
     }
     function clearSettings(key) { const all = Object.assign({}, stored); delete all[key]; Prefs.p.widgetSettings = all; }
+    function clearState(key) { const all = Object.assign({}, Prefs.p.widgetState || {}); delete all[key]; Prefs.p.widgetState = all; }
 
     // --- the user's own widgets ---------------------------------------------------------
     // A text widget is a manifest alone: { id, name, glyph, source: { command | file, interval }, view, unit, max }.

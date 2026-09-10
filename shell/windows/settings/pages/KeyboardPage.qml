@@ -7,7 +7,7 @@ import qs.services
 SettingsPage {
     id: page
     title: "Keyboard"
-    subtitle: "Each keyboard gets a profile; layouts, keys and repeat are set here. The shortcuts have their own page."
+    subtitle: "Each keyboard gets a profile: Mac swaps the modifiers and takes each layout's Macintosh symbols. The layouts below are the languages every keyboard types. The shortcuts have their own page."
 
     Component.onCompleted: Keyboard.refreshDevices()
 
@@ -23,7 +23,7 @@ SettingsPage {
                 readonly property var hw: Keyboard.hardwareFor(modelData)
                 readonly property bool guessed: !(Prefs.p.keyboardModels || {})[modelData.name]
                 label: hw && hw.vendor && modelData.label.toLowerCase().indexOf(hw.vendor.toLowerCase()) < 0 ? hw.vendor + " " + modelData.label : modelData.label
-                description: [hw ? hw.bus : "", hw ? hw.size : "", modelData.profile === "mac" ? "Cmd reaches apps as Ctrl; the shell's chords stay Cmd" : "keys passed through as is"].filter(Boolean).join(" · ")
+                description: [hw ? hw.bus : "", hw ? hw.size : "", modelData.profile === "mac" ? "Cmd reaches apps as Ctrl; the shell's chords stay Cmd; symbols sit where a Mac prints them (@ on ⇧2)" : "keys passed through as is"].filter(Boolean).join(" · ")
                 RowLayout {
                     spacing: Theme.s2
                     Dropdown {

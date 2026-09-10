@@ -73,7 +73,7 @@ Item {
             size: Theme.sizeCaption; color: Theme.danger; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
         }
     }
-    WidgetHost { id: host; permissions: preview.manifest ? Widgets.grantsFor(preview.manifest.id) : [] }
+    WidgetHost { id: host; permissions: preview.manifest ? Widgets.grantsFor(preview.manifest.id) : []; instance: preview.manifest ? preview.manifest.id : ""; appName: preview.manifest ? preview.manifest.name : "Widget" }
     // Only the live drawing can be captured: the card frame at twice its size, for a crisp listing.
     readonly property bool capturable: shot === "" && !blocked && !absent && loader.status === Loader.Ready
     function capture(path, done) {

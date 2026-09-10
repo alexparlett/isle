@@ -198,7 +198,7 @@ Item {
                                             required property string modelData
                                             implicitHeight: 18; implicitWidth: pl.implicitWidth + 12
                                             radius: 9; color: Qt.alpha(Theme.accent, 0.14)
-                                            Label { id: pl; anchors.centerIn: parent; text: modelData.replace(".write", " ✎"); size: 10; weight: Font.DemiBold; color: Theme.accent }
+                                            Label { id: pl; anchors.centerIn: parent; text: Widgets.permissionPill(modelData); size: 10; weight: Font.DemiBold; color: Theme.accent }
                                         }
                                     }
                                     Rectangle {
@@ -366,7 +366,7 @@ Item {
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         spacing: 0
-                                        Label { text: modelData.replace(".write", " (control)"); size: Theme.sizeSmall; weight: Font.Medium }
+                                        Label { text: (modelData.indexOf("fetch:") === 0 ? "fetch " + modelData.slice(6) : modelData.replace(".write", " (control)")); size: Theme.sizeSmall; weight: Font.Medium }
                                         Label { text: Widgets.permissionLabel(modelData); size: Theme.sizeCaption; color: Theme.text3; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                                     }
                                     Toggle { visible: sheetCol.inst !== null; checked: sheetCol.inst ? Widgets.grantsFor(sheetCol.inst.id).indexOf(modelData) >= 0 : false; onToggled: v => Widgets.setGrant(sheetCol.inst.id, modelData, v) }
@@ -530,7 +530,7 @@ Item {
                                     Layout.fillWidth: true
                                     spacing: 0
                                     Label { text: Widgets.permissionLabel(modelData); size: Theme.sizeSmall; weight: Font.Medium }
-                                    Label { text: modelData.replace(".write", " (control)"); size: Theme.sizeCaption; color: Theme.text3 }
+                                    Label { text: (modelData.indexOf("fetch:") === 0 ? "fetch " + modelData.slice(6) : modelData.replace(".write", " (control)")); size: Theme.sizeCaption; color: Theme.text3 }
                                 }
                                 Toggle { checked: store.consentGrants.indexOf(modelData) >= 0; onToggled: v => store.consentGrants = v ? store.consentGrants.concat([modelData]) : store.consentGrants.filter(p => p !== modelData) }
                             }

@@ -12,7 +12,8 @@ sys.path.insert(0, HERE)
 import widgets  # noqa: E402  the scanner: the same sandbox reading the shell applies
 
 CATEGORIES = ["Shell", "System", "Hardware", "Media", "Yours"]
-PERMISSIONS = ["audio", "audio.write", "network", "media", "media.write", "system", "notifications", "notifications.write", "power", "bluetooth", "vpn"]
+PERMISSIONS = ["audio", "audio.write", "network", "media", "media.write", "system", "notifications", "notifications.write", "power", "bluetooth", "vpn", "notify"]
+FETCH = re.compile(r"^fetch:[a-z0-9.-]+\.[a-z]{2,}$", re.I)
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 SIZE = re.compile(r"^(\d+)x(\d+)$")
 ID = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -117,13 +118,16 @@ def validate(d):
     if icons and m.get("glyph") and m["glyph"] not in icons:
         errors.append(f'glyph "{m["glyph"]}" is not in the shell\'s icon set')
     for p in m.get("permissions") or []:
-        if p not in PERMISSIONS:
-            errors.append(f'permission "{p}" is not one the host offers (' + ", ".join(PERMISSIONS) + ")")
+        if p not in PERMISSIONS and not FETCH.match(str(p)):
+            errors.append(f'permission "{p}" is not one the host offers (' + ", ".join(PERMISSIONS) + ', or fetch:<host>)')
     author = m.get("author")
     if not (isinstance(author, dict) and str(author.get("name", "")).strip()) and not (isinstance(author, str) and author.strip()):
         warnings.append('"author" has no name; the store will show "You"')
     if not m.get("license"):
         warnings.append('"license" is missing; others cannot tell what they may do with it')
+    for st in m.get("settings") or []:
+        if not isinstance(st, dict) or not st.get("key") or st.get("type") not in ("toggle", "choice", "number", "text"):
+            errors.append('each setting needs a "key" and a "type" of toggle, choice, number or text')
     if m.get("source"):
         if not isinstance(m["source"], dict) or not (m["source"].get("command") or m["source"].get("file")):
             errors.append('"source" needs a "command" or a "file"')

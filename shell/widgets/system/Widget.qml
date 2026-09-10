@@ -44,30 +44,74 @@ WidgetBase {
         }
     }
 
-    function tone(v) { return v >= 85 ? Theme.danger : v >= 70 ? Theme.warn : Theme.text2; }
-    // The panels to draw, in a fixed order, each with its label, figure, history and colour.
+    // Each measure's figure and history; series pick from these. Network and fans are scaled to a full bar
+    // at 10 MB/s and 3000 rpm; temperatures at 100°.
+    readonly property var measures: ({
+        cpu: { label: "CPU", value: Math.round(System.cpu * 100) + "%", history: System.cpuHistory },
+        gpu: { label: "GPU", value: System.gpu < 0 ? "—" : Math.round(System.gpu * 100) + "%", history: System.gpuHistory },
+        memory: { label: "Memory", value: System.bytes(System.memUsed), history: System.memHistory },
+        network: { label: "Network ↓", value: System.rate(System.netDown), history: System.netHistory.map(v => Math.min(1, v / 1e7)) },
+        netUp: { label: "Network ↑", value: System.rate(System.netUp), history: System.netUpHistory.map(v => Math.min(1, v / 1e7)) },
+        cpuTemp: { label: "CPU °", value: cpuTemp ? Math.round(cpuTemp.value) + "°" : "—", history: cpuTempHistory, hot: cpuTemp && cpuTemp.value >= 85 },
+        gpuTemp: { label: "GPU °", value: gpuTempValue ? Math.round(gpuTempValue) + "°" : "—", history: gpuTempHistory, hot: gpuTempValue >= 85 },
+        boardTemp: { label: "Board °", value: boardTemp ? Math.round(boardTemp.value) + "°" : "—", history: boardTempHistory, hot: boardTemp && boardTemp.value >= 85 },
+        driveTemp: { label: "Drive °", value: driveTemp ? Math.round(driveTemp.value) + "°" : "—", history: driveTempHistory, hot: driveTemp && driveTemp.value >= 85 },
+        fans: { label: "Fans", value: fastestFan ? fastestFan.rpm + " rpm" : "—", history: fanHistory }
+    })
+    // The series to draw, in the gear's order: a measure each, in its colour, red while it runs hot.
     readonly property var panels: {
-        const s = root.settings, out = [];
-        if (s.cpu !== false) out.push({ label: "CPU", value: Math.round(System.cpu * 100) + "%", history: System.cpuHistory, tint: Theme.text2 });
-        if (s.gpu !== false) out.push({ label: "GPU", value: System.gpu < 0 ? "—" : Math.round(System.gpu * 100) + "%", history: System.gpuHistory, tint: Theme.accent });
-        if (s.memory !== false) out.push({ label: "Memory", value: System.bytes(System.memUsed), history: System.memHistory, tint: Theme.text2 });
-        if (s.network !== false) out.push({ label: "Network", value: "↓ " + System.rate(System.netDown), history: System.netHistory.map(v => Math.min(1, v / 1e7)), tint: Theme.text2 });
-        if (s.cpuTemp) out.push({ label: "CPU °", value: cpuTemp ? Math.round(cpuTemp.value) + "°" : "—", history: cpuTempHistory, tint: tone(cpuTemp ? cpuTemp.value : 0) });
-        if (s.gpuTemp) out.push({ label: "GPU °", value: gpuTempValue ? Math.round(gpuTempValue) + "°" : "—", history: gpuTempHistory, tint: tone(gpuTempValue) });
-        if (s.boardTemp) out.push({ label: "Board °", value: boardTemp ? Math.round(boardTemp.value) + "°" : "—", history: boardTempHistory, tint: tone(boardTemp ? boardTemp.value : 0) });
-        if (s.driveTemp) out.push({ label: "Drive °", value: driveTemp ? Math.round(driveTemp.value) + "°" : "—", history: driveTempHistory, tint: tone(driveTemp ? driveTemp.value : 0) });
-        if (s.fans) out.push({ label: "Fans", value: fastestFan ? fastestFan.rpm + " rpm" : "—", history: fanHistory, tint: Theme.text2 });
+        const out = [];
+        // A list read back from prefs is a sequence, not an Array; index it.
+        const list = root.settings.series || [];
+        for (let i = 0; i < (list.length || 0); i++) {
+            const s = list[i];
+            const m = root.measures[s.measure];
+            if (m) out.push(Object.assign({ key: s.measure, tint: m.hot ? Theme.danger : (s.color || Theme.text2) }, m));
+        }
         return out;
+    }
+    readonly property string style: root.settings.style || "bars"
+    // One chart when asked, or when auto and there is under two cells per panel.
+    readonly property bool combined: panels.length > 1 && (root.settings.layout === "one" || (root.settings.layout !== "panels" && root.cols * root.rows < panels.length * 2))
+
+    // One chart for all, when the card is small.
+    Rectangle {
+        visible: root.combined
+        anchors.fill: parent
+        radius: Theme.radiusCard
+        color: Theme.raised
+        border.width: 1
+        border.color: Theme.hairline
+        ColumnLayout {
+            anchors { fill: parent; margins: Theme.s2 + 2 }
+            spacing: Theme.s1
+            Flow {
+                visible: root.settings.legend !== false
+                Layout.fillWidth: true
+                spacing: Theme.s2
+                Repeater {
+                    model: root.combined && root.settings.legend !== false ? root.panels : []
+                    Row {
+                        required property var modelData
+                        spacing: 4
+                        Rectangle { width: 8; height: 8; radius: 4; color: parent.modelData.tint; anchors.verticalCenter: parent.verticalCenter }
+                        Label { text: parent.modelData.label + " " + parent.modelData.value; size: Theme.sizeCaption; tabular: true; color: Theme.text2 }
+                    }
+                }
+            }
+            Sparkline { Layout.fillWidth: true; Layout.fillHeight: true; style: root.style === "bars" ? "line" : root.style; fill: (root.settings.fill !== undefined ? root.settings.fill : 22) / 100; series: root.combined ? root.panels.map(p => ({ values: p.history, color: p.tint })) : [] }
+        }
     }
 
     GridLayout {
+        visible: !root.combined
         anchors.fill: parent
         // Two across, as the card has always been; more than four panels on a wide card go four across.
         columns: Math.max(1, Math.min(root.panels.length > 4 && root.cols >= 6 ? 4 : 2, root.panels.length))
         columnSpacing: Theme.s2 - 2
         rowSpacing: Theme.s2 - 2
         Repeater {
-            model: root.panels
+            model: root.combined ? [] : root.panels
             Rectangle {
                 required property var modelData
                 Layout.fillWidth: true
@@ -84,10 +128,10 @@ WidgetBase {
                         Label { text: modelData.label; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.fillWidth: true }
                         Label { text: modelData.value; mono: true; tabular: true; size: Theme.sizeCaption }
                     }
-                    Sparkline { Layout.fillWidth: true; Layout.fillHeight: true; values: modelData.history; color: modelData.tint; style: root.settings.style || "bars" }
+                    Sparkline { Layout.fillWidth: true; Layout.fillHeight: true; values: modelData.history; color: modelData.tint; style: root.style; fill: (root.settings.fill !== undefined ? root.settings.fill : 22) / 100 }
                 }
             }
         }
-        Label { visible: root.panels.length === 0; Layout.columnSpan: parent.columns; Layout.alignment: Qt.AlignHCenter; text: "Pick something to plot in the settings"; color: Theme.text3; size: Theme.sizeSmall }
+        Label { visible: root.panels.length === 0; Layout.columnSpan: parent.columns; Layout.alignment: Qt.AlignHCenter; text: "Add a series in the settings"; color: Theme.text3; size: Theme.sizeSmall }
     }
 }

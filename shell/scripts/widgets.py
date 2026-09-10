@@ -93,6 +93,10 @@ def scan(builtin_dir, user_dir):
             qml = os.path.join(d, "Widget.qml")
             if is_user and not m.get("source") and os.path.isfile(qml):
                 m["restrictedIssues"] = inspect(qml)
+                # A settings pane of its own runs in the shell's sheet: the same sandbox applies.
+                ed = m.get("editor")
+                if isinstance(ed, str) and "/" not in ed and os.path.isfile(os.path.join(d, ed)):
+                    m["restrictedIssues"] += inspect(os.path.join(d, ed))
             # The listing: a README stands in for `about`, a CHANGELOG is shown per version, and screenshots are
             # the images in screenshots/ or those the manifest names, as absolute paths.
             if not m.get("about"):

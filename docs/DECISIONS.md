@@ -299,3 +299,11 @@ list, since how much of the screen they deserve depends on the day. The
 first cut of the migration wrote before the prefs file had loaded and
 reset it to defaults; every write now waits for `Prefs.loaded`.
 
+**D36 · A widget may bring its own settings pane.** The manifest's
+`settings` list covers a toggle, a choice, a number and a text; the
+System widget needs a list of series with a colour each, which no row
+of that kind can express. Rather than grow the generic form a type at a
+time, a manifest may name an `editor` file that the gear loads in place
+of the rows, with the values and a setter. The generic form stays small,
+and a widget that needs more writes exactly the form it needs; the
+editor is scanned like `Widget.qml`, so the sandbox holds.

@@ -85,10 +85,11 @@ Glass {
     property bool configuring: false
     onEditingChanged: if (!editing) configuring = false
     // Every card offers its title as a setting, ahead of the widget's own.
-    readonly property var settingSpecs: [{ key: "showTitle", label: "Title", type: "toggle", default: true }].concat(manifest && manifest.settings ? manifest.settings : [])
+    readonly property string editorUrl: Widgets.editorUrl(entry.id)
+    readonly property var settingSpecs: [{ key: "showTitle", label: "Title", type: "toggle", default: true }].concat(manifest && manifest.settings && editorUrl === "" ? manifest.settings : [])
     readonly property bool showTitle: Widgets.settingsFor(entry.key).showTitle !== false
     Rectangle {
-        visible: root.editing && root.settingSpecs.length > 0
+        visible: root.editing && (root.settingSpecs.length > 0 || root.editorUrl !== "")
         anchors { top: parent.top; left: parent.left; margins: 6 }
         width: 22; height: 22; radius: 11; color: root.configuring ? Theme.accent : Theme.raised; border.width: 1; border.color: root.configuring ? "transparent" : Theme.hairlineStrong
         z: 4
@@ -100,7 +101,7 @@ Glass {
     Rectangle {
         visible: root.configuring
         x: 0; y: 0
-        width: Math.max(root.width, 320)
+        width: Math.max(root.width, 320, sheetCol.implicitWidth + Theme.s3 * 2)
         height: Math.max(root.height, sheetCol.implicitHeight + Theme.s3 * 2 + 22)
         radius: root.radius
         color: Theme.light ? "#FFFFFF" : Theme.raised
@@ -130,6 +131,19 @@ Glass {
                         Slider { implicitWidth: 90; value: (Number(parent.parent.current) - parent.lo) / (parent.hi - parent.lo); onMoved: f => Widgets.setSetting(root.entry.key, modelData.key, Math.round(parent.lo + f * (parent.hi - parent.lo))) }
                         Label { text: String(parent.parent.current); mono: true; tabular: true; size: Theme.sizeCaption; color: Theme.text2; Layout.preferredWidth: 24; horizontalAlignment: Text.AlignRight }
                     }
+                }
+            }
+            // A widget's own pane, under the title row, with the values and a setter.
+            Loader {
+                id: editor
+                active: root.configuring && root.editorUrl !== ""
+                visible: active
+                Layout.fillWidth: true
+                source: root.editorUrl
+                onLoaded: {
+                    if (item.hasOwnProperty("manifest")) item.manifest = Qt.binding(() => root.manifest);
+                    if (item.hasOwnProperty("settings")) item.settings = Qt.binding(() => Widgets.settingsFor(root.entry.key));
+                    if (item.hasOwnProperty("set")) item.set = (k, v) => Widgets.setSetting(root.entry.key, k, v);
                 }
             }
             RowLayout {
@@ -194,7 +208,7 @@ Glass {
             Layout.fillWidth: true
             visible: root.showTitle && (loader.item ? loader.item.title : "") !== ""
             // Room for the settings gear while editing.
-            Layout.leftMargin: root.editing && root.settingSpecs.length > 0 ? 22 : 0
+            Layout.leftMargin: root.editing && (root.settingSpecs.length > 0 || root.editorUrl !== "") ? 22 : 0
             Label { text: loader.item ? loader.item.title : ""; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.fillWidth: true }
             Label { text: loader.item ? loader.item.meta : ""; size: Theme.sizeCaption; color: Theme.text3 }
         }

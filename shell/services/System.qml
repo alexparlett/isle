@@ -23,6 +23,7 @@ Singleton {
     property var cpuHistory: []
     property var memHistory: []
     property var netHistory: []
+    property var netUpHistory: []
     property var gpuHistory: []
 
     property var last: null
@@ -68,7 +69,8 @@ Singleton {
             netDown = Math.max(0, (rx - last.rx) / dt);
             netUp = Math.max(0, (tx - last.tx) / dt);
             cpuHistory = push(cpuHistory, cpu);
-            netHistory = push(netHistory, netDown + netUp);
+            netHistory = push(netHistory, netDown);
+            netUpHistory = push(netUpHistory, netUp);
         }
         last = { t: now, total: total, idle: idle, rx: rx, tx: tx };
 

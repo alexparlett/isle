@@ -58,6 +58,7 @@ the dashboard opens.
 | `multiple` | more than one instance makes sense (a second clock) |
 | `permissions` | what the widget may reach through `host`, see below |
 | `settings` | what the card's gear offers: `toggle`, `choice` (`options: [[value, label]]`), `number` (`min`, `max`) or `text` (`placeholder`) |
+| `editor` | a QML file in the folder drawn in the gear instead of the generic rows, see Your own settings pane |
 | `screenshots` | paths in the folder; when absent, `screenshots/` is used |
 | `trust` | `true` asks for the shell's full reach, see Full access |
 | `requires` | binaries or services that must be present (`"lact"`), otherwise the widget is hidden |
@@ -118,6 +119,18 @@ Everything else in QtQuick is yours: layouts, shapes, canvas, animation,
 timers, text input. This is a source inspection, not a wall; it keeps a
 widget honest about what it touches, which is what the permission list is
 for.
+
+### Your own settings pane
+
+When toggles and choices are not enough (a list of things, a colour
+each), name a QML file with `"editor": "Settings.qml"`. The card loads it
+into the gear's sheet under the Title row and gives it `settings` (the
+values, defaults filled in), `manifest`, and `set(key, value)`, which
+writes one value; the file sets its `implicitWidth` and `implicitHeight`
+and the sheet grows to fit. The `settings` list in the manifest then only
+carries the keys and their defaults. The editor runs under the same
+sandbox as `Widget.qml`. The shell's System widget is the example:
+`shell/widgets/system/Settings.qml`.
 
 ### `host`
 

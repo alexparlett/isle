@@ -228,7 +228,17 @@ Rules of the contract:
 - `settings` declares what the card's gear offers in edit mode: `toggle`,
   `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
   Values live in prefs under `widgetSettings.<id>` and reach the widget as
-  `settings.<key>`, with the manifest default filled in.
+  `settings.<key>`, with the manifest default filled in. A manifest may
+  name an `editor` QML file instead: the card loads it into the sheet
+  under the Title row with `settings`, `manifest` and a `set(key, value)`
+  function, and the generic rows are not drawn; `settings` then only
+  supplies defaults. A user widget's editor is scanned like its
+  `Widget.qml` (`Widgets.editorUrl`). The System widget's editor keeps
+  `series: [{ measure, color }]`; lists read back from prefs are sequences,
+  not arrays, so readers index them.
+- `Sparkline` draws bars as a Row and a line or area as `QtQuick.Shapes`
+  paths, one per series (`series: [{ values, color }]`), so a new sample
+  redraws in the scene graph rather than blanking a Canvas.
 - A widget with a menu of its own (the Session widget's tray menus) closes
   it on `Surfaces.dashboardPressed`, which the dashboard's backdrop and
   every card's inert body emit for a click no widget took, and when the

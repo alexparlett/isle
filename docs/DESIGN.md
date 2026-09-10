@@ -97,7 +97,7 @@ The kit in `shell/ui/`. Every surface is built from these and nothing else.
 | `Pill` | a rounded chip: glyph + label; the island's building block |
 | `Toggle` | 36×20 switch, accent when on |
 | `Slider` | 4px track, 16px knob, hairline track, accent fill |
-| `Segmented` | 2–4 options, raised background, pressed indicator slides |
+| `Segmented` | 2–4 options on a pressed track, the chosen one raised |
 | `Field` | text input: raised, hairline, accent hairline when focused |
 | `Row` | list row: 40px, leading glyph/icon, title, subtitle, trailing control |
 | `Card` | raised container with 12 padding, card radius |
@@ -279,7 +279,7 @@ Built in, in the default layout:
 | Desktops | each desktop with its app icons; click to go |
 | Notifications | grouped by app, inline actions, clear all |
 | Controls | the toggle grid and the two sliders |
-| System | a graph for each measure picked in its gear: CPU, GPU, memory, network, temperatures by kind, fans, drawn as bars, a line or an area; more than one instance, each its own pick |
+| System | a graph per series; the gear is a panel editor in the manner of Grafana: a list of series, each a measure (CPU, GPU, memory, network down or up, temperatures by kind, fans) with a colour from ten swatches, then style (bars, line, area with a fill slider), layout (auto, panels, one chart) and a legend toggle; auto shares one chart with a legend when the card has under two cells per series; a hot temperature draws red; more than one instance, each its own series |
 | Agents | running coding-agent terminals and their state |
 | Session | tray icons; lock, sleep, restart, power; power profile |
 | Devices | bluetooth and controller batteries, headset |

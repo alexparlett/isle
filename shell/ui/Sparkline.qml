@@ -1,25 +1,32 @@
 import QtQuick
+import QtQuick.Shapes
 import qs.theme
 
-// The last `bars` of a list of 0..1 values, newest on the right: as bars, a line, or a filled area.
+// The last `bars` of one or more 0..1 series, newest on the right: bars for one series, a line or a filled
+// area for any number, each in its colour. Drawn with Shapes, so a new sample never blanks the frame.
 Item {
     id: root
     property var values: []
     property color color: Theme.text2
+    // Several series at once: [{ values, color }]; when set, `values` and `color` are ignored.
+    property var series: []
     property int bars: 24
     // "bars", "line" or "area".
     property string style: "bars"
+    // The area's opacity, 0..1.
+    property real fill: 0.22
     implicitHeight: 28
 
+    readonly property var all: series.length ? series : [{ values: values, color: color }]
     readonly property var shown: values.slice(-bars)
 
     Row {
-        visible: root.style === "bars"
+        visible: root.style === "bars" && root.series.length === 0
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         spacing: 2
         layoutDirection: Qt.RightToLeft
         Repeater {
-            model: root.style === "bars" ? root.shown.slice().reverse() : []
+            model: root.style === "bars" && root.series.length === 0 ? root.shown.slice().reverse() : []
             Rectangle {
                 required property real modelData
                 width: Math.max(2, (root.width - (root.bars - 1) * 2) / root.bars)
@@ -32,31 +39,37 @@ Item {
         }
     }
 
-    // The line runs through one point per slot, so a short history sits at the right the way the bars do.
-    Canvas {
-        id: plot
-        visible: root.style !== "bars"
-        anchors.fill: parent
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
-        Connections { target: root; function onShownChanged() { plot.requestPaint(); } function onColorChanged() { plot.requestPaint(); } function onStyleChanged() { plot.requestPaint(); } }
-        onPaint: {
-            const ctx = getContext("2d"), v = root.shown, n = root.bars;
-            ctx.reset();
-            if (v.length < 2) return;
-            const step = width / Math.max(1, n - 1), x0 = width - (v.length - 1) * step;
-            const yOf = val => height - 1 - Math.min(1, Math.max(0, val)) * (height - 2);
-            ctx.beginPath();
-            ctx.moveTo(x0, yOf(v[0]));
-            for (let i = 1; i < v.length; i++) ctx.lineTo(x0 + i * step, yOf(v[i]));
-            if (root.style === "area") {
-                ctx.lineTo(width, height); ctx.lineTo(x0, height); ctx.closePath();
-                ctx.fillStyle = Qt.alpha(root.color, 0.22); ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(x0, yOf(v[0]));
-                for (let i = 1; i < v.length; i++) ctx.lineTo(x0 + i * step, yOf(v[i]));
+    // One shape per series; a short history sits at the right the way the bars do.
+    Repeater {
+        model: root.style === "bars" && root.series.length === 0 ? [] : root.all
+        Shape {
+            id: shape
+            required property var modelData
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            readonly property var pts: {
+                const v = (modelData.values || []).slice(-root.bars), n = root.bars, out = [];
+                if (v.length < 2) return out;
+                const step = root.width / Math.max(1, n - 1), x0 = root.width - (v.length - 1) * step;
+                for (let i = 0; i < v.length; i++) out.push(Qt.point(x0 + i * step, root.height - 1 - Math.min(1, Math.max(0, v[i])) * (root.height - 2)));
+                return out;
             }
-            ctx.strokeStyle = root.color; ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.stroke();
+            ShapePath {
+                strokeColor: "transparent"
+                fillColor: root.style === "area" ? Qt.alpha(shape.modelData.color, root.fill) : "transparent"
+                startX: shape.pts.length ? shape.pts[0].x : 0
+                startY: root.height
+                PathPolyline { path: shape.pts.length ? [Qt.point(shape.pts[0].x, root.height)].concat(shape.pts, [Qt.point(root.width, root.height)]) : [] }
+            }
+            ShapePath {
+                strokeColor: shape.modelData.color
+                strokeWidth: 1.5
+                fillColor: "transparent"
+                joinStyle: ShapePath.RoundJoin
+                startX: shape.pts.length ? shape.pts[0].x : 0
+                startY: shape.pts.length ? shape.pts[0].y : 0
+                PathPolyline { path: shape.pts }
+            }
         }
     }
 }

@@ -63,6 +63,12 @@ Singleton {
         if (!m.user) return Qt.resolvedUrl("../widgets/" + id + "/Widget.qml");
         return Qt.resolvedUrl("../userwidgets/" + id + "/Widget.qml");
     }
+    // A widget's own settings pane, when its manifest names one with `editor`.
+    function editorUrl(id) {
+        const m = manifests[id];
+        if (!m || !m.editor || blocked(m) || m.source) return "";
+        return Qt.resolvedUrl("../" + (m.user ? "userwidgets/" : "widgets/") + id + "/" + m.editor);
+    }
     function permissionsOf(id) { const m = manifests[id]; return (m && m.permissions) || []; }
     // What each permission lets a widget do, in the words the store shows.
     readonly property var permissionCatalogue: ({

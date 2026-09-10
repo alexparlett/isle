@@ -45,7 +45,8 @@ ColumnLayout {
         }
         ToggleTile {
             glyph: Notifications.count > 0 ? "bell" : "bell-off"; label: "Notifications"
-            sub: Notifications.silenced ? Notifications.silencedBy : Notifications.count > 0 ? Notifications.count + " waiting" : "All clear"
+            // The count is always there; the silence reason joins it when something is holding toasts back.
+            sub: (Notifications.count > 0 ? Notifications.count + " waiting" : "All clear") + (Notifications.silenced ? "  ·  silenced" : "")
             on: Notifications.dnd; hasMore: true
             onToggled: v => Notifications.setDnd(v)
             onMore: root.page = "notifications"
@@ -198,7 +199,6 @@ ColumnLayout {
         onBack: { root.page = "main"; root.pskFor = null; }
         onShown: Network.scan()
         onHidden: { Network.stopScan(); root.pskFor = null; }
-        Toggle { checked: Network.wifiEnabled; onToggled: v => Network.setWifiEnabled(v) }
         Repeater {
             model: Network.networks
             ColumnLayout {
@@ -253,7 +253,6 @@ ColumnLayout {
         Layout.fillWidth: true
         title: "Notifications"
         onBack: root.page = "main"
-        Toggle { checked: Notifications.dnd; onToggled: v => Notifications.setDnd(v) }
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.s2
@@ -354,7 +353,6 @@ ColumnLayout {
         onBack: root.page = "main"
         onShown: Bluetooth.setDiscovering(true)
         onHidden: Bluetooth.setDiscovering(false)
-        Toggle { checked: Bluetooth.enabled; onToggled: v => Bluetooth.setEnabled(v) }
         // A pairing code, while a device asks.
         Card {
             visible: Bluetooth.request !== null

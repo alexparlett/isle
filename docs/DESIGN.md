@@ -115,12 +115,15 @@ the ring; the mouse never shows one.
 Three surfaces, one card. The toast in the island is the arrival: summary,
 body, up to three action pills and Reply. The centre is a page of the
 island's panel, reached from the bell with a count in the rest strip, the
-Notifications tile, or the "while you were away" summary: the do-not-disturb
-toggle, what is silencing toasts if anything, the waiting notifications with
+Notifications tile (its click is do not disturb; its arrow is the centre; its
+line is the count and "silenced" when something holds toasts back), or the
+"while you were away" summary: what is silencing toasts if anything, the
+waiting notifications with
 their actions and reply still live, then "Earlier", the records kept from
 before, which read the same but act on nothing. The dashboard widget is the
 same list at a glance. Left click activates, right click dismisses, a hover
-shows ×. Settings › Notifications holds the silence rules (quiet hours,
+shows ×. The panel's sub-pages carry no toggle of their own; the tile
+on the main panel is the switch. Settings › Notifications holds the silence rules (quiet hours,
 fullscreen, the summary), sound, and per app whether it toasts and whether
 it always does.
 

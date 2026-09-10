@@ -247,8 +247,11 @@ from the AUR for the Goodix HTK32 (ids 5335, 5385, 5395; for 5042 the
 script applies `system/fprint/goodix5042.patch`: the id in the table, a
 stray reply after reset skipped, the calibration block accepted without
 its checksum, and, since that firmware is `GF5288_HT_APP` without the
-security layer, the key read and GTLS handshake skipped and image data
-taken as sent), then enrolls a finger with `fprintd-enroll`
+security layer, the key read and GTLS handshake skipped, frames read at
+offset five with a four-byte checksum trailing, and, as it raises no
+touch events, a finger found by polling frames against a no-finger
+baseline with thresholds set from the measured noise), then enrolls a
+finger with `fprintd-enroll`
 and, with `--sudo`, puts `pam_fprintd` first in `/etc/pam.d/sudo`.
 
 The lock screen does not go through PAM for fingerprints, because a PAM

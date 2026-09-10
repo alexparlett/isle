@@ -267,13 +267,12 @@ The lock runs fprintd's own verify in parallel and treats a match as the
 unlock, the way hyprlock does over D-Bus; the password path stays exactly
 as it was. The driver for the Goodix 27c6:5042 is the community HTK32
 driver with the id added: same sensor, same CDC-data interface and
-endpoints, three other ids in its table. It turned out to need more than
-the id: its firmware (`GF5288_HT_APP`) has no security layer where the
-others (`HTSEC`) do, answers a reset with a reply the driver never read,
-frames its images differently, and never raises a touch event, so the
-patch skips the handshake and finds a finger by comparing polled frames
-with a no-finger baseline. All of that lives in one patch file applied at
-build time rather than a fork, so the upstream driver's fixes keep coming. Building it is a script, not the
+endpoints, three other ids in its table. It turned out to be a different
+firmware (`GF5288_HT_APP`, no security layer, no touch events, its own
+frame layout) and after a patch that got it enrolling, matching stayed
+poor because the frame layout was never fully decoded. That work was
+dropped in favour of a reader libfprint already supports; the script keeps
+only the ids the community driver covers. Building it is a script, not the
 installer, because it pulls opencv and a compiler and most machines have
 no reader.
 

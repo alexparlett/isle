@@ -5,11 +5,9 @@
 #     tools/fingerprint.sh              install what the reader needs and enroll a finger
 #     tools/fingerprint.sh --sudo       also let a fingerprint stand in for the sudo password
 #
-# Readers libfprint knows are served by the repo package. A Goodix HTK32 sold
-# as 27c6:5042 is not in that list; it is the sensor the community goodix53x5
-# driver targets under three other ids, and the same protocol, so this script
-# builds that driver with the id added. Everything else comes from the repos.
-# The lock screen picks fingerprints up on its own once a finger is enrolled.
+# Readers libfprint knows are served by the repo package; the Goodix HTK32 ids
+# the community goodix53x5 driver covers come from the AUR. The lock screen
+# picks fingerprints up on its own once a finger is enrolled.
 
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,21 +27,6 @@ aur() { if command -v paru >/dev/null; then paru "$@"; elif command -v yay >/dev
 case "${reader#27c6:}" in
     5335|5385|5395)
         aur -S --needed libfprint-goodix53x5 ;;
-    5042)
-        # The AUR package, with system/fprint/goodix5042.patch applied to the driver before it builds: the id
-        # in the table, and the reply this firmware sends after a reset skipped before the next command's ACK.
-        work="$(mktemp -d)"
-        git clone -q https://aur.archlinux.org/libfprint-goodix53x5.git "$work/pkg"
-        cp "$here/../system/fprint/goodix5042.patch" "$work/pkg/"
-        cd "$work/pkg"
-        sed -i 's|^source=(|source=("goodix5042.patch"\n        |; s|^sha256sums=(|sha256sums=('"'"'SKIP'"'"'\n            |' PKGBUILD
-        sed -i 's|^prepare() {|prepare() {\n  (cd "$srcdir/goodix53x5-libfprint" \&\& git checkout -- . \&\& patch -p1 -N < "$srcdir/goodix5042.patch")|' PKGBUILD
-        grep -q 'goodix5042.patch' PKGBUILD || { err "could not patch the PKGBUILD"; exit 1; }
-        sudo pacman -S --needed --noconfirm base-devel git meson ninja gtk-doc gobject-introspection libgusb opencv
-        makepkg -si
-        cd "$here"
-        rm -rf "$work"
-        ok "libfprint with the goodix53x5 driver, id 5042 added" ;;
     *)
         info "id $reader is not one this script knows; trying the repo libfprint"
         sudo pacman -S --needed libfprint ;;

@@ -210,6 +210,9 @@ Rules of the contract:
   Macintosh variant where xkeyboard-config has one, so @ sits on ⇧2 as
   the keycaps say, while the layouts list stays the languages every
   keyboard types. A layout that already names a variant is left alone.
+  The same line goes on the `xremap` device, because a Mac-profile
+  keyboard's keys reach the compositor through xremap's virtual device,
+  not its own.
 - `shell/scripts/widgetauthor.py` is the author's side: `new` scaffolds
   a folder with a full manifest, a sandbox-clean `Widget.qml`, README and
   CHANGELOG; `validate` checks the manifest, the sandbox scan and the

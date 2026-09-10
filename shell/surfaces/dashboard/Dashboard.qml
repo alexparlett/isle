@@ -186,7 +186,8 @@ PanelWindow {
                     radius: 16
                     color: sel ? Theme.raised : tabArea.containsMouse ? Qt.alpha(Theme.text, 0.05) : "transparent"
                     border.width: 1; border.color: sel ? Theme.hairlineStrong : "transparent"
-                    Label { id: tabLabel; visible: !tab.renaming; anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: Theme.s3 } text: tab.modelData.name; size: Theme.sizeSmall; weight: Font.DemiBold; color: tab.sel ? Theme.text : Theme.text2 }
+                    // Centred in the tab; when the remove × shows it takes a little from the right so the text stays centred in what is left.
+                    Label { id: tabLabel; visible: !tab.renaming; anchors { horizontalCenter: parent.horizontalCenter; horizontalCenterOffset: root.editing && Widgets.pages.length > 1 ? -8 : 0; verticalCenter: parent.verticalCenter } text: tab.modelData.name; size: Theme.sizeSmall; weight: Font.DemiBold; color: tab.sel ? Theme.text : Theme.text2 }
                     Field {
                         visible: tab.renaming
                         anchors { fill: parent; margins: 2 }

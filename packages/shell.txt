@@ -50,6 +50,8 @@ slurp
 wf-recorder
 satty
 hyprpicker
+wtype   # the on-screen keyboard types through it
+words   # and completes words from the dictionary
 
 # Files
 yazi

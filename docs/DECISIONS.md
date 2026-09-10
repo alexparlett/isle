@@ -307,3 +307,15 @@ time, a manifest may name an `editor` file that the gear loads in place
 of the rows, with the values and a setter. The generic form stays small,
 and a widget that needs more writes exactly the form it needs; the
 editor is scanned like `Widget.qml`, so the sandbox holds.
+
+**D37 · The on-screen keyboard is a shell surface typing through
+wtype.** wvkbd works, but it is another window with its own look, no
+controller, and no room for the shell's conventions. A surface of the
+shell's own draws in the shell's material and takes the pad through the
+same helper Big Picture uses. Speaking the virtual keyboard protocol
+from QML is not possible and a Python client would be a second input
+stack; `wtype` already speaks it, so every key is one short run, queued
+so fast taps land in order. The console keyboards (Steam Deck, the
+PlayStation, the Xbox) set the pad conventions: two cursors on two
+sticks with the triggers pressing, a legend of the buttons, a strip of
+completions; those are borrowed rather than invented.

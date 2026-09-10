@@ -210,6 +210,23 @@ Escape closes whatever is up.
 - **Big Picture** — 10-foot: 96px tiles in rows (Steam, Heroic, Lutris,
   recent games), 24px type, 3px focus ring, controller-driven.
 
+## On-screen keyboard
+
+A glass slab on the bottom edge, ten key units wide (54 px on the
+desktop, 72 in a game mode, 6 px apart), keys raised with a hairline,
+action keys on the pressed tone, the pressed key accent. Five rows:
+utilities (esc, tab, arrows, a chevron to put it away), three of
+letters, and the bottom row with the page switch, comma, space, full
+stop and return. Shift tints itself a third accent, and a short accent
+bar under the arrow marks it locked. The symbol pages keep the same
+frame. Above the keys, when there is something to offer, a strip of up
+to five completions in plain text. Below, while a pad is about, the
+legend: small pressed chips with the pad's own labels, Xbox letters in
+their colours, PlayStation shapes in theirs, and the action beside each
+in the third text tone. The controller's two cursors are 2 px rings,
+accent on the left half and the ok green on the right, shown only once
+the pad has moved one.
+
 ## Mission Control
 
 The word is desktop, everywhere a person reads it: the bar, the keys,

@@ -33,7 +33,7 @@ PanelWindow {
     property int focus: 0
     readonly property int total: launchers.length + Games.library.length
 
-    onVisibleChanged: { Gamepad.active = visible; if (visible) { focus = 0; Games.refresh(); keys.forceActiveFocus(); } }
+    onVisibleChanged: { Gamepad.listeners += visible ? 1 : -1; if (visible) { focus = 0; Games.refresh(); keys.forceActiveFocus(); } }
     Connections {
         target: Gamepad
         function onPressed(b) {

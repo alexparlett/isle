@@ -14,6 +14,17 @@
             ]
         },
         {
+            "id": "keyboard",
+            "label": "On-screen keyboard",
+            "hypr": "SUPER + SHIFT + K",
+            "win": "Win Shift K",
+            "mac": "Cmd Shift K",
+            "ipc": [
+                "osk",
+                "toggle"
+            ]
+        },
+        {
             "id": "switcher",
             "label": "App switcher (hold)",
             "hypr": "SUPER + Tab",
@@ -103,8 +114,8 @@
             "id": "ws",
             "label": "Desktop 1 to 9",
             "hypr": "SUPER + {n}",
-            "win": "Win 1\u20139",
-            "mac": "Ctrl 1\u20139",
+            "win": "Win 1–9",
+            "mac": "Ctrl 1–9",
             "lua": "hl.dsp.focus({ workspace = {n} })",
             "range": 9
         },
@@ -112,8 +123,8 @@
             "id": "wsMove",
             "label": "Move window to desktop",
             "hypr": "SUPER + SHIFT + {n}",
-            "win": "Win Shift 1\u20139",
-            "mac": "Ctrl Shift 1\u20139",
+            "win": "Win Shift 1–9",
+            "mac": "Ctrl Shift 1–9",
             "lua": "hl.dsp.window.move({ workspace = {n} })",
             "range": 9
         },

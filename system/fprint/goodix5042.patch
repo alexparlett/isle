@@ -1,3 +1,46 @@
+diff --git a/drivers/goodix53x5/goodix53x5-commands.c b/drivers/goodix53x5/goodix53x5-commands.c
+index 2284afc..0640611 100644
+--- a/drivers/goodix53x5/goodix53x5-commands.c
++++ b/drivers/goodix53x5/goodix53x5-commands.c
+@@ -146,6 +146,26 @@ goodix_cmd_production_read (FpiSsm *ssm, FpDevice *dev, guint32 read_type)
+   goodix_run_cmd (ssm, dev, 0xE, 0x2, payload, 4, TRUE);
+ }
+ 
++/* The 51x0 family's key read: the record id followed by a zero word. Same command byte, same reply format. */
++void
++goodix_cmd_production_read_long (FpiSsm *ssm, FpDevice *dev, guint32 read_type)
++{
++  guint8 payload[8] = { 0 };
++
++  goodix_encode_u32_le (payload, read_type);
++  goodix_run_cmd (ssm, dev, 0xE, 0x2, payload, 8, TRUE);
++}
++
++/* The 51x0 family's key read: the record id followed by a zero word. Same command byte, same reply format. */
++void
++goodix_cmd_production_read_long (FpiSsm *ssm, FpDevice *dev, guint32 read_type)
++{
++  guint8 payload[8] = { 0 };
++
++  goodix_encode_u32_le (payload, read_type);
++  goodix_run_cmd (ssm, dev, 0xE, 0x2, payload, 8, TRUE);
++}
++
+ void
+ goodix_cmd_production_write (FpiSsm *ssm, FpDevice *dev,
+                              guint32 data_type,
+diff --git a/drivers/goodix53x5/goodix53x5-commands.h b/drivers/goodix53x5/goodix53x5-commands.h
+index 9f9ea55..927e63c 100644
+--- a/drivers/goodix53x5/goodix53x5-commands.h
++++ b/drivers/goodix53x5/goodix53x5-commands.h
+@@ -48,6 +48,7 @@ void goodix_cmd_read_otp (FpiSsm *ssm, FpDevice *dev);
+ /* Production read of @read_type (e.g. 0xB003 = PSK hash). Expects data. */
+ void goodix_cmd_production_read (FpiSsm *ssm, FpDevice *dev,
+                                  guint32 read_type);
++void goodix_cmd_production_read_long (FpiSsm *ssm, FpDevice *dev, guint32 read_type);
+ 
+ /* Production write of @data under @data_type (e.g. 0xB002 = PSK white box).
+  * Expects data (a one-byte status reply). */
 diff --git a/drivers/goodix53x5/goodix53x5-private.h b/drivers/goodix53x5/goodix53x5-private.h
 index 232a02a..f255373 100644
 --- a/drivers/goodix53x5/goodix53x5-private.h
@@ -12,10 +55,42 @@ index 232a02a..f255373 100644
    /* USB interface state */
    gboolean usb_interface_claimed;
 diff --git a/drivers/goodix53x5/goodix53x5-session.c b/drivers/goodix53x5/goodix53x5-session.c
-index c231c81..0cca024 100644
+index c231c81..4d90620 100644
 --- a/drivers/goodix53x5/goodix53x5-session.c
 +++ b/drivers/goodix53x5/goodix53x5-session.c
-@@ -202,12 +202,26 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+@@ -29,6 +29,23 @@
+ #include <string.h>
+ #include <openssl/rand.h>
+ 
++/* 27c6:5042 keeps its key under the 51x0 family's record ids and takes that family's longer read request. */
++static gboolean
++goodix_is_51x0_keyed (FpDevice *dev)
++{
++  return g_usb_device_get_pid (fpi_device_get_usb_device (dev)) == 0x5042;
++}
++#define GOODIX_PSK_READ_TYPE(dev)  (goodix_is_51x0_keyed (dev) ? 0xbb020003u : 0xB003u)
++#define GOODIX_PSK_WRITE_TYPE(dev) (goodix_is_51x0_keyed (dev) ? 0xbb010003u : 0xB002u)
++static void
++goodix_cmd_read_psk_hash (FpiSsm *ssm, FpDevice *dev)
++{
++  if (goodix_is_51x0_keyed (dev))
++    goodix_cmd_production_read_long (ssm, dev, GOODIX_PSK_READ_TYPE (dev));
++  else
++    goodix_cmd_production_read (ssm, dev, GOODIX_PSK_READ_TYPE (dev));
++}
++
+ #define GOODIX_OPEN_FDT_MAX_RETRIES 2
+ 
+ /* Open SSM — full device initialization */
+@@ -146,6 +163,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+         g_clear_pointer (&self->fw_version, g_free);
+         self->fw_version = g_strndup ((const gchar *) pl,
+                                       strnlen ((const gchar *) pl, pl_len));
++        fp_info ("Firmware version: %s", self->fw_version);
+ 
+         goodix_cmd_reset_sensor (ssm, dev);
+       }
+@@ -202,12 +220,26 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
          self->otp_data = g_memdup2 (pl, pl_len);
          self->otp_len = pl_len;
  
@@ -46,11 +121,77 @@ index c231c81..0cca024 100644
            }
  
          goodix_device_parse_otp (pl, pl_len, &self->calib);
+@@ -217,7 +249,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+ 
+     case GOODIX_OPEN_READ_PSK_HASH:
+       /* read_psk_hash via production_read(0xB003) */
+-      goodix_cmd_production_read (ssm, dev, 0xB003);
++      goodix_cmd_read_psk_hash (ssm, dev);
+       break;
+ 
+     case GOODIX_OPEN_WRITE_PSK:
+@@ -227,7 +259,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+         const guint8 *psk_data;
+         gsize psk_data_len;
+ 
+-        if (!goodix_cmd_parse_production_read_reply (dev, 0xB003,
++        if (!goodix_cmd_parse_production_read_reply (dev, GOODIX_PSK_READ_TYPE (dev),
+                                                      &psk_data, &psk_data_len))
+           {
+             fpi_ssm_mark_failed (ssm,
+@@ -257,7 +289,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+         /* Need to write PSK white box */
+         fp_info ("Writing PSK white box");
+         self->psk_write_verify_pending = TRUE;
+-        goodix_cmd_production_write (ssm, dev, 0xB002, goodix_psk_white_box,
++        goodix_cmd_production_write (ssm, dev, GOODIX_PSK_WRITE_TYPE (dev), goodix_psk_white_box,
+                                      GOODIX_PSK_WHITE_BOX_LEN);
+       }
+       break;
+@@ -286,7 +318,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+           }
+ 
+         /* Re-read the PSK hash to verify the write before GTLS */
+-        goodix_cmd_production_read (ssm, dev, 0xB003);
++        goodix_cmd_read_psk_hash (ssm, dev);
+       }
+       break;
+ 
+@@ -301,7 +333,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+             guint8 expected_hash[32];
+             gsize hash_len = 32;
+ 
+-            if (!goodix_cmd_parse_production_read_reply (dev, 0xB003,
++            if (!goodix_cmd_parse_production_read_reply (dev, GOODIX_PSK_READ_TYPE (dev),
+                                                          &psk_data,
+                                                          &psk_data_len))
+               {
 diff --git a/drivers/goodix53x5/goodix53x5-transport.c b/drivers/goodix53x5/goodix53x5-transport.c
-index d653164..1dad98e 100644
+index d653164..af0e0f8 100644
 --- a/drivers/goodix53x5/goodix53x5-transport.c
 +++ b/drivers/goodix53x5/goodix53x5-transport.c
-@@ -359,6 +359,25 @@ goodix_cmd_ssm_handler (FpiSsm   *ssm,
+@@ -310,6 +310,20 @@ goodix_rx_cb (FpiUsbTransfer *transfer,
+ 
+   if (goodix_proto_rx_complete (&self->rx))
+     {
++      {
++        guint8 category = 0, command = 0;
++        const guint8 *payload = NULL;
++        gsize payload_len = 0;
++
++        if (goodix_proto_rx_parse (&self->rx, &category, &command, &payload, &payload_len))
++          {
++            g_autoptr(GString) hex = g_string_new (NULL);
++            for (gsize i = 0; i < payload_len && i < 48; i++)
++              g_string_append_printf (hex, "%02x ", payload[i]);
++            fp_dbg ("rx cat=0x%x cmd=0x%x len=%zu: %s%s", category, command, payload_len, hex->str,
++                    payload_len > 48 ? "..." : "");
++          }
++      }
+       /* Message complete — advance SSM */
+       fpi_ssm_next_state (transfer->ssm);
+     }
+@@ -359,6 +373,25 @@ goodix_cmd_ssm_handler (FpiSsm   *ssm,
      case GOODIX_CMD_VALIDATE_ACK:
        {
          g_autoptr(GError) error = NULL;
@@ -76,7 +217,7 @@ index d653164..1dad98e 100644
  
          if (!goodix_validate_ack_for_cmd (dev, cmd, &error))
            {
-@@ -408,6 +427,7 @@ goodix_run_cmd (FpiSsm       *parent_ssm,
+@@ -408,6 +441,7 @@ goodix_run_cmd (FpiSsm       *parent_ssm,
    g_free (self->cmd ? self->cmd->payload : NULL);
    g_free (self->cmd);
    self->cmd = cmd;

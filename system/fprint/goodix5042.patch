@@ -289,7 +289,7 @@ index d242b93..96d46c8 100644
         * jumps straight to the sleep/power-off tail of this SSM. */
        self->blocking_ssm = ssm;
 diff --git a/drivers/goodix53x5/goodix53x5-session.c b/drivers/goodix53x5/goodix53x5-session.c
-index c231c81..ebb6aab 100644
+index c231c81..adec878 100644
 --- a/drivers/goodix53x5/goodix53x5-session.c
 +++ b/drivers/goodix53x5/goodix53x5-session.c
 @@ -29,6 +29,23 @@
@@ -327,7 +327,7 @@ index c231c81..ebb6aab 100644
  
          goodix_cmd_reset_sensor (ssm, dev);
        }
-@@ -202,22 +223,41 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+@@ -202,22 +223,45 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
          self->otp_data = g_memdup2 (pl, pl_len);
          self->otp_len = pl_len;
  
@@ -360,6 +360,10 @@ index c231c81..ebb6aab 100644
          goodix_device_parse_otp (pl, pl_len, &self->calib);
 +        if (self->plain)
 +          {
++            /* This calibration block gives the open's stability check no tolerance at all; the channels
++             * wobble by a count or two, and a finger resting on the reader at open must not fail it. */
++            if (self->calib.delta_fdt < 6)
++              self->calib.delta_fdt = 6;
 +            fpi_ssm_jump_to_state (ssm, GOODIX_OPEN_UPLOAD_CONFIG);
 +            return;
 +          }
@@ -374,7 +378,7 @@ index c231c81..ebb6aab 100644
        break;
  
      case GOODIX_OPEN_WRITE_PSK:
-@@ -227,7 +267,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+@@ -227,7 +271,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
          const guint8 *psk_data;
          gsize psk_data_len;
  
@@ -383,7 +387,7 @@ index c231c81..ebb6aab 100644
                                                       &psk_data, &psk_data_len))
            {
              fpi_ssm_mark_failed (ssm,
-@@ -257,7 +297,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+@@ -257,7 +301,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
          /* Need to write PSK white box */
          fp_info ("Writing PSK white box");
          self->psk_write_verify_pending = TRUE;
@@ -392,7 +396,7 @@ index c231c81..ebb6aab 100644
                                       GOODIX_PSK_WHITE_BOX_LEN);
        }
        break;
-@@ -286,7 +326,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+@@ -286,7 +330,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
            }
  
          /* Re-read the PSK hash to verify the write before GTLS */
@@ -401,7 +405,7 @@ index c231c81..ebb6aab 100644
        }
        break;
  
-@@ -301,7 +341,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+@@ -301,7 +345,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
              guint8 expected_hash[32];
              gsize hash_len = 32;
  
@@ -410,7 +414,7 @@ index c231c81..ebb6aab 100644
                                                           &psk_data,
                                                           &psk_data_len))
                {
-@@ -399,6 +439,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
+@@ -399,6 +443,7 @@ goodix_open_ssm_handler (FpiSsm   *ssm,
      case GOODIX_OPEN_UPLOAD_CONFIG:
        {
          /* First validate GTLS done response */

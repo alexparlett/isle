@@ -52,9 +52,26 @@ SettingsPage {
             SettingsRow {
                 id: vpnRow
                 required property var modelData
+                readonly property var impl: modelData.impl
+                readonly property bool on: Vpn.enabled(modelData)
                 label: modelData.name
-                description: modelData.impl.installed ? modelData.note : "Not installed"
-                Toggle { enabled: vpnRow.modelData.impl.installed; checked: Vpn.enabled(vpnRow.modelData); onToggled: v => Vpn.setEnabled(vpnRow.modelData.id, v) }
+                description: !impl.installed ? "Not installed" : !on ? modelData.note : impl.state + (impl.error ? "  ·  " + impl.error : "")
+                RowLayout {
+                    spacing: Theme.s2
+                    // The provider's own actions, except connecting: a toggle, a choice, a button (sign in, sign out).
+                    Repeater {
+                        model: vpnRow.on ? vpnRow.impl.actions.filter(a => a.id !== "connect" && a.id !== "disconnect") : []
+                        RowLayout {
+                            required property var modelData
+                            spacing: Theme.s1
+                            Label { visible: modelData.on !== undefined || !!modelData.options; text: modelData.label; size: Theme.sizeCaption; color: Theme.text2 }
+                            Toggle { visible: modelData.on !== undefined; checked: !!modelData.on; enabled: !vpnRow.impl.busy; onToggled: vpnRow.impl.act(modelData.id, "") }
+                            Dropdown { visible: !!modelData.options; listWidth: 220; options: modelData.options || []; value: modelData.value || ""; enabled: !vpnRow.impl.busy; onPicked: v => vpnRow.impl.act(modelData.id, v) }
+                            Button { visible: modelData.on === undefined && !modelData.options; text: modelData.label; variant: modelData.primary ? "accent" : "text"; implicitHeight: 32; enabled: !vpnRow.impl.busy; onClicked: vpnRow.impl.act(modelData.id, "") }
+                        }
+                    }
+                    Toggle { enabled: vpnRow.impl.installed; checked: vpnRow.on; onToggled: v => Vpn.setEnabled(vpnRow.modelData.id, v) }
+                }
             }
         }
         SettingsRow { visible: Vpn.providers.length === 0; label: "No VPN has a provider" }

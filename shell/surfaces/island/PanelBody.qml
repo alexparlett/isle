@@ -314,67 +314,53 @@ ColumnLayout {
         }
     }
 
-    // Every VPN in use: its state and its own actions, then where it can connect; the one that is up is marked.
+    // Quick access only: the places every VPN in use can connect to, as one list, the one that is up marked;
+    // a click connects, a click on the one that is up disconnects. Sign-in and settings live in Settings › Network.
+    readonly property var vpnRows: {
+        const out = [];
+        for (const p of Vpn.shown) {
+            const impl = p.impl;
+            if (impl.active) { out.push({ key: p.id + ":up", provider: p.id, title: impl.active.name, subtitle: p.name + (impl.active.detail ? "  ·  " + impl.active.detail : ""), up: true }); continue; }
+            if (!impl.ready) { const a = impl.actions.find(x => x.primary && !x.input && !x.options); out.push({ key: p.id + ":state", provider: p.id, title: p.name, subtitle: impl.state, action: a ? a.id : "" }); continue; }
+            const first = impl.actions.find(x => x.primary && x.id === "connect");
+            if (first) out.push({ key: p.id + ":default", provider: p.id, title: first.label, subtitle: p.name, choice: "" });
+            for (const c of impl.choices) out.push({ key: p.id + ":" + c.id, provider: p.id, title: c.title, subtitle: p.name + (c.subtitle ? "  ·  " + c.subtitle : ""), choice: c.id });
+        }
+        return out;
+    }
     PanelPage {
         visible: root.page === "vpn"
         Layout.fillWidth: true
         title: "VPN"
         onBack: root.page = "main"
         onShown: Vpn.refresh()
-        Repeater {
-            model: Vpn.shown
-            ColumnLayout {
-                id: vpnBlock
-                required property var modelData
-                readonly property var impl: modelData.impl
-                Layout.fillWidth: true
+        // A fixed window that scrolls: the countries run past a hundred.
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: Math.min(vpnList.contentHeight, 320)
+            ListView {
+                id: vpnList
+                anchors.fill: parent
+                clip: true
+                model: root.vpnRows
                 spacing: 2
-                ListRow {
-                    Layout.fillWidth: true
-                    glyph: "shield"; glyphColor: vpnBlock.impl.active ? Theme.accent : Theme.text2
-                    title: vpnBlock.impl.active ? vpnBlock.impl.active.name : vpnBlock.modelData.name
-                    subtitle: vpnBlock.impl.busy ? "Working" : vpnBlock.impl.active ? vpnBlock.modelData.name + (vpnBlock.impl.active.detail ? "  ·  " + vpnBlock.impl.active.detail : "") : vpnBlock.impl.state
-                    onClicked: { const a = vpnBlock.impl.actions.find(x => x.primary); if (a && !a.input && !a.options) vpnBlock.impl.act(a.id, ""); }
-                    Glyph { name: "check"; size: 14; color: Theme.accent; visible: vpnBlock.impl.active !== null }
-                }
-                // The provider's other actions: a toggle, a choice, a button.
-                Repeater {
-                    model: vpnBlock.impl.actions.filter(a => !a.primary)
-                    RowLayout {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        Layout.leftMargin: Theme.s3; Layout.rightMargin: Theme.s3
-                        spacing: Theme.s2
-                        Label { text: modelData.label; size: Theme.sizeSmall; color: Theme.text2; Layout.fillWidth: true }
-                        Toggle { visible: modelData.on !== undefined; checked: !!modelData.on; enabled: !vpnBlock.impl.busy; onToggled: vpnBlock.impl.act(modelData.id, "") }
-                        Dropdown { visible: !!modelData.options; listWidth: 220; options: modelData.options || []; value: modelData.value || ""; enabled: !vpnBlock.impl.busy; onPicked: v => vpnBlock.impl.act(modelData.id, v) }
-                        Button { visible: modelData.on === undefined && !modelData.options; text: modelData.label; variant: "text"; enabled: !vpnBlock.impl.busy; onClicked: vpnBlock.impl.act(modelData.id, "") }
+                boundsBehavior: Flickable.StopAtBounds
+                delegate: ListRow {
+                    required property var modelData
+                    width: vpnList.width
+                    glyph: modelData.up ? "shield" : modelData.choice !== undefined ? "globe" : "shield"
+                    glyphColor: modelData.up ? Theme.accent : Theme.text2
+                    title: modelData.title
+                    subtitle: Vpn.busy ? "Working" : modelData.subtitle
+                    onClicked: {
+                        if (modelData.up) Vpn.disconnect();
+                        else if (modelData.choice !== undefined) Vpn.connect(modelData.provider, modelData.choice);
+                        else if (modelData.action) { const p = Vpn.provider(modelData.provider); if (p) p.impl.act(modelData.action, ""); }
                     }
-                }
-                // The places: a fixed window that scrolls when there are many.
-                Item {
-                    visible: vpnBlock.impl.choices.length > 0 && !vpnBlock.impl.active
-                    Layout.fillWidth: true
-                    implicitHeight: Math.min(choiceList.contentHeight, 240)
-                    ListView {
-                        id: choiceList
-                        anchors.fill: parent
-                        clip: true
-                        model: vpnBlock.impl.choices
-                        spacing: 2
-                        boundsBehavior: Flickable.StopAtBounds
-                        delegate: ListRow {
-                            required property var modelData
-                            width: choiceList.width
-                            glyph: "globe"
-                            title: modelData.title
-                            subtitle: modelData.subtitle || ""
-                            onClicked: vpnBlock.impl.connect(modelData.id)
-                        }
-                    }
-                    Scrollbar { target: choiceList; anchors { top: parent.top; bottom: parent.bottom; right: parent.right } }
+                    Glyph { name: "check"; size: 14; color: Theme.accent; visible: !!modelData.up }
                 }
             }
+            Scrollbar { target: vpnList; anchors { top: parent.top; bottom: parent.bottom; right: parent.right } }
         }
         Label { visible: Vpn.shown.length === 0; text: "No VPN in use; Settings › Network lists them"; color: Theme.text3; size: Theme.sizeCaption; Layout.margins: Theme.s3 }
         Label { visible: Vpn.error !== ""; text: Vpn.error; color: Theme.danger; size: Theme.sizeCaption; wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.margins: Theme.s3 }

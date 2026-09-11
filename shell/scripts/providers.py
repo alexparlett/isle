@@ -23,7 +23,8 @@ def add(path, base, own):
     if not os.path.isfile(script):
         return
     seen.add(m["id"])
-    entry = {"id": m["id"], "name": m.get("name") or m["id"], "note": m.get("note") or "", "script": script, "user": not own}
+    entry = {"id": m["id"], "name": m.get("name") or m["id"], "note": m.get("note") or "", "script": script, "user": not own,
+             "keychain": m.get("keychain", True) is not False}
     for k, v in m.items():
         if k not in entry and k != "script":
             entry[k] = v

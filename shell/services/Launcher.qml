@@ -140,37 +140,10 @@ Singleton {
         if (!a) return "";
         return (Keyboard.macDevices.length ? a.mac : a.win) || a.win || a.mac || "";
     }
-    // Every other shortcut, runnable here: the bind's own route (IPC, command or Lua), so both agree.
-    // Held chords (the switcher) and per-number ranges stay out; a chord bound twice lists once.
-    readonly property var shortcutGlyphs: ({ wsPrev: "arrow-left", wsNext: "arrow-right", snapLeft: "arrow-left", snapRight: "arrow-right", snapUp: "arrow-up", snapDown: "arrow-down",
-                                            close: "x", minimise: "minus", fullscreen: "maximize", pin: "pin", terminal: "terminal", dropdown: "terminal", clipboard: "clipboard",
-                                            printScreen: "camera", captureBar: "camera", captureScreen: "camera", record: "video", pick: "pipette" })
-    readonly property var shortcutActions: {
-        const skip = { launcher: 1, switcher: 1, switcherBack: 1, altSwitcher: 1, altSwitcherBack: 1, cycleApp: 1, closeFront: 1 };
-        const covered = {}, titled = {};
-        for (const a of shellActions) { if (a.key) covered[a.key] = 1; titled[a.title.toLowerCase()] = 1; }
-        const seen = {}, out = [];
-        for (const a of Keyboard.actions) {
-            if (skip[a.id] || covered[a.id] || a.range) continue;
-            if (!(a.ipc || a.cmd || (a.lua && a.lua.indexOf("function") !== 0))) continue;
-            const payload = JSON.stringify(a.ipc || a.cmd || a.lua);
-            if (seen[payload]) continue;
-            seen[payload] = 1;
-            const title = a.label.replace(/ \((Windows|Mac)\)$/, "");
-            if (titled[title.toLowerCase()]) continue;
-            out.push({ title: title, glyph: shortcutGlyphs[a.id] || "keyboard", kind: "Shortcut", key: a.id, run: () => root.runAction(a) });
-        }
-        return out;
-    }
-    function runAction(a) {
-        if (a.ipc) Compositor.exec("qs -p " + Quickshell.shellDir + " ipc call " + a.ipc.join(" "));
-        else if (a.cmd) Compositor.exec(a.cmd);
-        else Compositor.dispatch(a.lua);
-    }
     // The title, the group ("power" lists every power action) or a synonym.
     function shellResults(q) {
         if (!q) return [];
-        return shellActions.concat(shortcutActions).filter(a => !a.when || a.when())
+        return shellActions.filter(a => !a.when || a.when())
             .filter(a => score(a.title, q) >= 60 || score(a.kind, q) >= 80 || (a.words || "").split(" ").some(w => score(w, q) >= 80))
             .map(a => ({ kind: "power", title: a.title, subtitle: a.kind, glyph: a.glyph, chord: chord(a.key), run: a.run }));
     }

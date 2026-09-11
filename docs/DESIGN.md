@@ -170,9 +170,8 @@ zone at the top edge peeks it after 400ms hover. Big Picture: gone.
 
 A shell result that has a chord shows it at the right of its row, in the
 keyboard in use's notation (Win or Cmd), mono, in the tertiary colour, before
-the Enter hint. Every keymap action is searchable as a "Shortcut" result;
-picking it runs the bind's own route. Held chords (the app switcher) and the
-numbered ranges are not listed.
+the Enter hint. Shortcuts are not results of their own: Settings ›
+Shortcuts lists them.
 
 ## Surfaces
 

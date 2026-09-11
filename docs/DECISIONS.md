@@ -101,10 +101,10 @@ a lock-time crash is the one to engineer out, not restart through.
 derives a Material palette from an image and templates against that
 palette's names; our tokens are fixed values with our own names. A
 sixty-line renderer (`theme/render.py`) substitutes tokens into
-templates for GTK 3 and 4 (with adw-gtk3 as the GTK 3 bridge), qt6ct's
-palette, kitty, yazi, btop, the portal config and the Hyprland theme
-fragment, then sets the gsettings keys libadwaita reads. The shell
-re-runs it when the accent changes.
+templates for GTK 3 and 4 (with adw-gtk3 as the GTK 3 bridge), kitty,
+yazi, btop, the portal config and the Hyprland theme fragment, then sets
+the gsettings keys libadwaita reads. The shell re-runs it when the
+accent changes. (Qt had a qt6ct palette here until D39.)
 
 **D17 · The shell runs in the session scope, not a user unit.** A
 systemd user service belongs to no logind session, and polkit's
@@ -334,3 +334,12 @@ without support (Heroic's console mode, Lutris), the on-screen keyboard,
 notifications held and summarised, and two tiles inside Steam's UI that
 reach the shell's menu and the way out. The console conventions (rows,
 a Guide tap for the menu and a hold for home, a legend) are borrowed.
+
+**D39 · Qt themes through the GTK bridge, not qt6ct.** `QT_QPA_PLATFORMTHEME`
+names one theme plugin, and qt6ct answers only for Qt 6, so Qt 5 apps
+were left with Fusion's light defaults. The GTK platform theme exists for
+both versions and derives its palette from the GTK theme Isle already
+renders: measured, it yields the same window, text and accent colours as
+the qt6ct palette did, and the right font, which the qt6ct template had
+been getting wrong. One source for every toolkit, so the qt6ct templates
+and package go.

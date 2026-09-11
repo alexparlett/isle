@@ -78,7 +78,6 @@ inter-font
 ttf-jetbrains-mono
 papirus-icon-theme
 adw-gtk-theme
-qt6ct
 qt6-wayland
 qt5-wayland   # every Qt app is told to run on Wayland; Qt 5 ones need this plugin
 

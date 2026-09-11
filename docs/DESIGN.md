@@ -496,7 +496,9 @@ devices start folded. The tree follows what is plugged in and out.
 The token file renders to:
 
 - GTK 3 and GTK 4 / libadwaita CSS (Nautilus, LACT, Firefox chrome)
-- Qt 6 palette through qt6ct, Fusion style
+- Qt 5 and 6 through the GTK platform theme (`QT_QPA_PLATFORMTHEME=gtk3`),
+  which derives window, text, accent, font and icons from the GTK theme
+  above, Fusion style; one name serves both Qt versions
 - kitty colours and font
 - yazi theme, btop theme
 - Hyprland border colours and rounding, matching `hairline` and `control`
@@ -511,8 +513,8 @@ block to every one found, whatever is installed:
 `--enable-features=UseOzonePlatform,NativeNotifications`,
 `--ozone-platform=wayland`, and `--qt-version=6`. The Qt line matters
 because Chromium loads a Qt shim for its theme, and the Qt 5 one has no
-Wayland here; Qt 6 does, and carries Isle's qt6ct palette, which is how
-a Chromium app follows the dark theme. The block is Isle's and is
+Wayland here; Qt 6 does, and through the GTK platform theme carries
+Isle's palette, which is how a Chromium app follows the dark theme. The block is Isle's and is
 replaced on each render; a line of the user's about ozone leaves the
 file alone. The pass also runs on its own whenever the set of installed
 desktop entries changes, so an app installed while the shell is up gets

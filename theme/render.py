@@ -103,8 +103,6 @@ TARGETS = [
     ("gtk.css", CFG + "/gtk-4.0/gtk.css", None),
     ("settings.ini", CFG + "/gtk-3.0/settings.ini", None),
     ("settings.ini", CFG + "/gtk-4.0/settings.ini", None),
-    ("qt6ct.conf", CFG + "/qt6ct/qt6ct.conf", None),
-    ("qt-colors.conf", CFG + "/qt6ct/colors/isle.conf", None),
     ("kitty.conf", CFG + "/kitty/isle.conf", "kitty"),
     ("yazi-theme.toml", CFG + "/yazi/theme.toml", None),
     ("btop.theme", CFG + "/btop/themes/isle.theme", "btop"),

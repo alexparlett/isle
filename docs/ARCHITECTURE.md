@@ -48,7 +48,7 @@ shell/        the Quickshell config (~/.config/quickshell/isle links to the inst
   assets/     Lucide glyphs, default wallpaper
 hypr/         hyprland.lua and the fragments the shell writes (binds, monitors, modes, theme)
 input/        xremap profiles: mac.yml, windows.yml
-theme/        templates: gtk3, gtk4, qt6ct, kitty, yazi, btop, zathura, hypr
+theme/        templates: gtk3, gtk4, kitty, yazi, btop, zathura, hypr
 packages/     pacman and AUR lists
 tools/        bootstrap, install, the greeter copy, icon vendoring
 docs/
@@ -452,7 +452,6 @@ triggers, the right stick and `hold <button>`.
 the templates in `theme/` and writes:
 
 - `~/.config/gtk-3.0/gtk.css`, `~/.config/gtk-4.0/gtk.css`
-- `~/.config/qt6ct/colors/isle.conf` and `qt6ct.conf` (Fusion, Inter)
 - `~/.config/kitty/theme.conf`
 - `~/.config/yazi/theme.toml`, `~/.config/btop/themes/isle.theme`
 - `hypr/generated/theme.lua` (border colours, rounding, blur)

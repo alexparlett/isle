@@ -19,7 +19,8 @@ hl.env("GDK_BACKEND", "wayland,x11,*")
 hl.env("CLUTTER_BACKEND", "wayland")
 hl.env("XDG_SESSION_TYPE", "wayland")
 hl.env("XDG_SESSION_DESKTOP", "Hyprland")
-hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
+-- The GTK bridge exists for Qt 5 and Qt 6 alike and yields Isle's GTK palette, font, icons and dialogs; one name serves both.
+hl.env("QT_QPA_PLATFORMTHEME", "gtk3")
 hl.env("XDG_CURRENT_DESKTOP", "Hyprland")
 -- Electron apps follow the session rather than defaulting to X11.
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")

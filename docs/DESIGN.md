@@ -307,7 +307,7 @@ Built in, in the default layout:
 | Controls | the toggle grid and the two sliders |
 | System | a graph per series; the gear is a panel editor in the manner of Grafana: a list of series, each a measure (CPU, GPU, memory, network down or up, temperatures by kind, fans) with a colour from ten swatches, then style (bars, line, area with a fill slider), layout (auto, panels, one chart) and a legend toggle; auto shares one chart with a legend when the card has under two cells per series; a hot temperature draws red; more than one instance, each its own series |
 | Agents | running coding-agent terminals and their state |
-| Session | tray icons; lock, sleep, restart, power; power profile |
+| Session | tray icons (Ctrl-click puts one away; the Apps page lists them with a switch each); lock, sleep, restart, power; power profile |
 | Devices | bluetooth and controller batteries, headset |
 | Storage | disks with usage bars; mount and eject |
 | Weather | now and the days ahead for a named place, from Open-Meteo |

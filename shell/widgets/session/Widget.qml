@@ -78,6 +78,8 @@ WidgetBase {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                     onClicked: mouse => {
+                        // Ctrl-click puts the icon away; the Apps page brings it back.
+                        if (mouse.modifiers & Qt.ControlModifier) { root.menuItem = null; Tray.setHidden(modelData.id, true); return; }
                         if (mouse.button === Qt.RightButton && modelData.hasMenu) {
                             const p = mapToItem(root, mouse.x, mouse.y);
                             menuCard.menuAnchor = Qt.point(p.x, p.y);

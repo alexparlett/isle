@@ -86,6 +86,23 @@ SettingsPage {
     }
 
     SettingsGroup {
+        heading: "Tray icons"
+        SettingsRow {
+            label: "Shown in the Session widget"
+            description: "Ctrl-click an icon there to put it away. Steam's, say, if Steam is kept to its Big Picture."
+        }
+        Repeater {
+            model: Tray.all.map(i => ({ id: i.id, title: i.title || i.id })).concat((Prefs.p.trayHidden || []).filter(id => !Tray.all.some(i => i.id === id)).map(id => ({ id: id, title: id, away: true })))
+            SettingsRow {
+                required property var modelData
+                label: modelData.title
+                description: modelData.away ? "Not running now" : ""
+                Toggle { checked: (Prefs.p.trayHidden || []).indexOf(modelData.id) < 0; onToggled: v => Tray.setHidden(modelData.id, !v) }
+            }
+        }
+    }
+
+    SettingsGroup {
         heading: "Services"
         Repeater {
             model: Startup.units

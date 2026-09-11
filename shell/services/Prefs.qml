@@ -110,6 +110,8 @@ Singleton {
             property string terminal: ""
             property bool clock12: false
             property bool titleBars: true
+            // Tray icons put away, by their status-notifier id.
+            property var trayHidden: []
         }
     }
 }

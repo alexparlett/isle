@@ -187,7 +187,10 @@ Escape closes whatever is up.
 
 - **Launcher** — 640px glass card, centred at 30% height. One field, results
   as rows with 48px icons. Prefixes: `>` run, `=` calculate, `/` files,
-  `:` clipboard, `@` windows. Power actions match on their names.
+  `:` clipboard, `@` windows, `*` the password manager's vault (Enter copies the
+  password, Shift+Enter the username, Ctrl+Enter the one-time code; a few
+  vault matches join the plain results too). Power actions match on their
+  names.
 - **Switcher** — a row of live previews across the centre, held open
   while the modifier is down: one 240×150 card per window, grouped by
   app, showing the window at its own shape (the icon until a frame
@@ -485,8 +488,10 @@ window does not repeat them.
 The Keychain lists the system keyring under category chips (logins,
 Wi-Fi, browser, apps) and the SSH keys under their own: the keys in
 `~/.ssh` with fingerprint and agent state, and a form that generates a
-login secret or a key. A password manager with its own vault (Proton
-Pass, Bitwarden) is its own app, not folded into the shell.
+login secret or a key. The password manager chosen in Settings ›
+Passwords (Proton Pass, so far) sits under a chip of its own once signed
+in (D42): titles and vault names, a password revealed for a moment or
+copied, the username or one-time code copied, nothing edited here.
 
 Settings › Devices is Device Manager's shape: a tree of categories on
 the left, each device under its own, a count on the category and a

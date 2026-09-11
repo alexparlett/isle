@@ -56,6 +56,8 @@ Singleton {
             property var keepRunning: []
             // Subscribed calendars: [{ id, name, url, color }].
             property var calendars: []
+            // Password managers found on this machine but switched off: Vault provider ids.
+            property var passwordProvidersOff: []
             property string wallpaper: ""
             property var wallpaperFolders: []
             property bool autoMount: true

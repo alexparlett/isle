@@ -92,6 +92,7 @@ skip-forward
 sliders-horizontal
 smartphone
 square
+sticky-note
 sun
 swords
 target

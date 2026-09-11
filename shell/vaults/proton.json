@@ -1,0 +1,7 @@
+{
+    "id": "proton",
+    "name": "Proton Pass",
+    "note": "Through pass-cli, Proton's command-line tool, which their Pass Plus and bundle plans include.",
+    "script": "protonpass.py",
+    "signIn": "pass-cli login"
+}

@@ -368,6 +368,25 @@ has nothing to push. Parsing and repeats come from python-icalendar and
 python-recurring-ical-events rather than a parser of our own, since
 recurrence rules are where hand-written parsers go wrong.
 
+**D42 · A password manager is a provider behind one Vault, secrets
+fetched one at a time.** Every manager whose tool is present is used,
+each with a switch; the launcher and the Keychain know only `Vault`. A
+provider is a manifest and a script on the filesystem, the shell's own
+under `shell/vaults` and the user's under `~/.config/isle/vaults`, so a
+favourite manager is an expert's afternoon and not a change to the shell,
+and nothing in Settings needs to know it exists. Proton Pass is the first:
+pass-cli is the one supported way into its vault from outside Proton's
+own apps, the desktop app having no automation surface and the browser
+extensions living in the browser. Isle keeps a list of titles and
+vaults, which the CLI hands over without any secret material, and asks
+for a single field of a single item at the moment it is copied or
+revealed, so no password sits in the shell's memory unasked. Sign-in and
+the second factor are the CLI's own flow, in a terminal window, since a
+browser page or an SSO step is not something to reimplement. Passkeys
+stay in the browser extensions until Linux has a credential portal; the
+credentialsd proposal is the one to watch, and Isle's part then is the
+prompt it shows.
+
 **D43 · A lock outlives the shell.** The dev sync restarted the shell
 while the session was locked; the locker died with it, Hyprland showed
 its dead-lock screen and refused every new locker, and the screens,

@@ -4,7 +4,8 @@ import Quickshell
 import Quickshell.Io
 
 // The launcher's sources. A query with no prefix searches apps, windows and shell actions, and offers the web;
-// ">" runs a command, "=" calculates, "/" finds files, ":" searches the clipboard, "@" windows only.
+// ">" runs a command, "=" calculates, "/" finds files, ":" searches the clipboard, "@" windows only, "*" the
+// password manager's vault only.
 // Every result has `run`; some have `alt`, the secondary action on Shift+Enter, and `extra`, the third on Ctrl+Enter.
 Singleton {
     id: root
@@ -20,7 +21,7 @@ Singleton {
     onQueryChanged: refresh()
 
     function refresh() {
-        mode = query.length && ">=/:@".indexOf(query[0]) >= 0 ? query[0] : "";
+        mode = query.length && ">=/:@*".indexOf(query[0]) >= 0 ? query[0] : "";
         term = (mode ? query.slice(1) : query).trim();
         switch (mode) {
         case ">": results = runResults(); break;
@@ -28,8 +29,9 @@ Singleton {
         case "/": findFiles(); break;
         case ":": clipboard(); break;
         case "@": results = windowResults(term); break;
+        case "*": results = vaultResults(term, 12); break;
         // The shell's own windows, modes and power actions first: "set" is Settings before any app.
-        default: results = shellResults(term).concat(appResults(term), settingsResults(term), windowResults(term, 3), webResult(term));
+        default: results = shellResults(term).concat(appResults(term), settingsResults(term), windowResults(term, 3), vaultResults(term, 3), webResult(term));
         }
     }
 
@@ -68,6 +70,26 @@ Singleton {
         }
         out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
         return out.slice(0, q ? 8 : 12);
+    }
+
+    // --- the vault -----------------------------------------------------------------
+    // The password manager's logins by title: Enter copies the password, Shift+Enter the username, Ctrl+Enter the code.
+    function vaultResults(q, limit) {
+        if (!Vault.any) return mode === "*" ? [{ kind: "hint", title: "No password manager's tool is installed", subtitle: "Settings › Passwords", glyph: "key-round", run: () => Surfaces.showSettings("passwords") }] : [];
+        if (!Vault.ready.length) return mode === "*" ? [{ kind: "hint", title: Vault.installed.map(p => p.name + (!Vault.enabled(p) ? " is switched off" : p.impl.locked ? " is locked" : " is not signed in")).join(", "), subtitle: "Settings › Passwords", glyph: "key-round", run: () => Surfaces.showSettings("passwords") }] : [];
+        if (!q) return mode === "*" ? [{ kind: "hint", title: "Search " + Vault.ready.map(p => p.name).join(" and "), subtitle: "* github   ·   Enter copies the password, Shift+Enter the username, Ctrl+Enter the code", glyph: "key-round", run: () => {} }] : [];
+        const out = [];
+        for (const it of Vault.items) {
+            const s = Math.max(score(it.title, q), score(it.vault, q) * 0.5);
+            if (s < 60) continue;
+            const login = it.type === "login";
+            out.push({ kind: "vault", title: it.title, subtitle: it.providerName + "  ·  " + it.vault + (login ? "  ·  Enter copies the password" : "  ·  " + it.type.replace("_", " ")), glyph: "key-round", score: s,
+                       run: () => Vault.copy(it, login ? "password" : "note"),
+                       alt: login ? () => Vault.copy(it, "username") : null, altLabel: "copy username",
+                       extra: login ? () => Vault.copy(it, "totp") : null, extraLabel: "copy code" });
+        }
+        out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+        return out.slice(0, limit);
     }
 
     // --- windows ------------------------------------------------------------------

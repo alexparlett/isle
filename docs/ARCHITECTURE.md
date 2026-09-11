@@ -67,6 +67,30 @@ files for launchers that are gone, and takes it away with `--yes`; the
 theme render strips its own lines from a flags file whose launcher it no
 longer finds.
 
+## Password manager providers
+
+A provider is a folder under `~/.config/isle/vaults/<name>/` holding
+`provider.json` and a script. The manifest:
+
+```json
+{ "id": "bitwarden", "name": "Bitwarden", "note": "Through rbw.", "script": "vault.py", "signIn": "rbw login" }
+```
+
+The script, run as `python3 <script> <command>` (any executable works if
+it is a Python file; the shell calls `python3` on it), answers:
+
+| command | answer |
+|---|---|
+| `status` | JSON `{installed, loggedIn, locked, email, username, hasLock, error}`; `installed` is whether the manager's tool is present |
+| `list` | JSON `{items: [{id, shareId, vault, title, type}], error}`; `type` is one of login, note, credit_card, identity, ssh_key, wifi, alias, custom; `error` is `"locked"` or `"signed out"` when that is the state, else a message. Never a secret |
+| `field <shareId> <id> <field>` | the value on stdout, no newline: `username`, `email`, `password`, `totp` (the current code), `urls`, `note` |
+| `unlock` | the lock code on stdin; exit non-zero when refused |
+| `logout` | sign out |
+
+`shell/scripts/protonpass.py` is the reference. Settings › Passwords lists
+every provider found, with a switch; `qs ipc call vault rescan` picks a
+new folder up without a restart.
+
 ## Services
 
 Every capability and what drives it. "native" is a Quickshell type; no
@@ -118,6 +142,7 @@ extra process.
 | Mission Control | `surfaces/overview/Overview.qml`, one layer surface on the shell screen. Windows come from `Windows.groups` (the compositor's toplevel list, refreshed on entry for positions and sizes); each is a live `ScreencopyView` of its toplevel, with a placeholder when the capture has no content. The spread is computed in QML from the real rectangles; thumbnails animate between the real and stage rectangles. Drops move windows with `window.move({ follow = false })`; closes go through the compositor by address (`Windows.closeWindow`), never the toplevel handle, which is a protocol error on a handle already going away. The three-finger swipe is `hl.gesture` in `hyprland.lua`, the island's workspace dots open it too |
 | vpn | `Vpn`: Proton VPN through `protonvpn` (status, connect by country, disconnect, kill switch and NetShield from `config`), and NetworkManager's VPN and WireGuard connections through `nmcli`. Sign-in runs the CLI under `setsid` and feeds the password, then the 2FA code when its stderr asks, over stdin (D20); `ip monitor link` and `nmcli monitor` trigger the refreshes. The panel tile, its VPN page, the launcher's Connect/Disconnect VPN and Settings › Network all drive the one service |
 | calendars | `Calendars`: subscribed ICS calendars (`prefs.calendars`, Settings › Calendars: a link, webcal or https, or a file; a name and a colour), read-only. `scripts/calendars.py` fetches each on a half-hour timer and on change, keeps the last copy under `~/.cache/isle/calendars` for when a fetch fails, and expands the events, repeats included, over sixty days back and four hundred ahead with python-icalendar and python-recurring-ical-events; times come out local. The Calendar widget marks days with a dot per calendar and lists the picked day; the rest pill shows a calendar glyph while an event is within the half hour, and the island says the title at the minute it starts. Proton Calendar's Share via link is such a subscription, and the only way in, since Proton has no CalDAV (D41) |
+| password managers | `Vault` fronts every provider whose tool is on this machine, each switchable off in Settings › Passwords; the launcher and the Keychain talk to `Vault` alone. A provider is a manifest and a script: the shell's own under `shell/vaults/<id>.json` (script relative to `shell/scripts`), the user's under `~/.config/isle/vaults/<name>/provider.json` (script relative to that folder), found by `scripts/vaults.py` and instantiated as `VaultProvider`s. The contract, "Password manager providers" below, is five answers: `status`, `list` (titles only, never a secret), `field` (one field of one item, fetched when copied or revealed), `unlock` (a lock code on stdin), `logout`; sign-in is the manager's own flow, the manifest's `signIn` command in a terminal window. The Proton Pass provider (`protonpass.py` over pass-cli, which Proton ships as a download and which needs Pass Plus or a bundle): `status` is `pass-cli info --output json`; `list` walks `vault list` and `item list --share-id --filter-state active` per vault; `field` is `item view --field` for username, email, password, totp (the code) or urls. The launcher's `*` prefix searches the vaults (Enter copies the password, Shift+Enter the username, Ctrl+Enter the code) and a few matches join the default results; the Keychain window lists each vault under a category of its own. IPC `vault rescan | refresh | items | copy <provider> <id> <field>` (D42) |
 | lock resilience | While the session is locked the Lock service keeps `$XDG_RUNTIME_DIR/isle/locked`; a shell that starts and finds it locks at once, and hyprland.lua's `misc.allow_session_lock_restore` lets that fresh locker take over a lock whose client died, so a shell that dies or restarts while locked leaves the session locked rather than on the compositor's dead-lock screen. The Idle service turns the screens on when the shell starts, since a fresh idle monitor never sees the wake edge that would. IPC `lock locked` reports the state, for anything that must not disturb a locked session (D43) |
 | shortcuts in the launcher | `Launcher.chord(id)` puts the keyboard in use's chord beside a shell result that has a keymap id; every other keymap action is a "Shortcut" result run the same way the bind runs it (`qs ipc call`, `exec_cmd`, or the Lua dispatched), so the two never drift; a shortcut whose title is a shell window's own (Settings) is not listed twice |
 | settings in the launcher | `SettingsIndex.pages` is the one list of pages (Settings draws its sidebar from it); the launcher offers a page by name, opening straight to it |

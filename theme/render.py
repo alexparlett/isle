@@ -124,51 +124,63 @@ def ensure_line(path, line):
         with open(path, "a") as f:
             f.write(("" if cur.endswith("\n") or not cur else "\n") + line + "\n")
 
-# Chromium-based browsers and Electron default to X11 unless told to follow the session; each reads a flags
-# file, and a hint is added to the ones for browsers that are installed, when nothing about ozone is set.
-BROWSER_FLAGS = [("vivaldi-stable", "vivaldi-stable.conf"), ("chromium", "chromium-flags.conf"), ("brave", "brave-flags.conf"),
-                 ("google-chrome-stable", "chrome-flags.conf"), ("microsoft-edge-stable", "microsoft-edge-stable-flags.conf")]
-# Electron and other Chromium-based apps read a flags file too, one per launcher. These get the wiki's
-# explicit platform switch rather than the hint, since an app that rewrites its own environment (ChatGPT)
-# has nothing for a hint to detect.
-ELECTRON_FLAGS = [("electron", "electron-flags.conf"), ("chatgpt", "chatgpt-flags.conf")]
-ELECTRON_LINES = "--enable-features=UseOzonePlatform\n--ozone-platform=wayland"
+# Chromium-based browsers, Electron apps and other Chromium builds default to X11 unless told otherwise, and
+# each reads a flags file of its own, named by its launcher. The launchers on PATH are read for the name,
+# so whatever is installed gets the same lines: Wayland (the wiki's switches), Qt 6 for the toolkit shim
+# that Chromium loads for its theme (the Qt 5 one has no Wayland here), and notifications through the
+# desktop's server. Isle's block is replaced on each render; a line of the user's about ozone is left alone.
+FLAGS_MARK = "# Wayland, Qt 6 for the toolkit shim, notifications through the desktop's server; added by Isle."
+FLAGS_LINES = ["--enable-features=UseOzonePlatform,NativeNotifications", "--ozone-platform=wayland", "--qt-version=6"]
+OLD_ISLE_LINES = {"# Wayland when the session is Wayland, with Qt 6, and notifications through the desktop's server; added by Isle.",
+                  "# Wayland when the session is Wayland; added by Isle.", "# Wayland; added by Isle.",
+                  "--ozone-platform-hint=auto", "--qt-version=6", "--enable-features=NativeNotifications",
+                  "--enable-features=UseOzonePlatform", "--ozone-platform=wayland"}
+
+def flags_files():
+    names, seen = set(), set()
+    for d in dict.fromkeys(os.environ.get("PATH", "/usr/bin").split(":") + ["/usr/bin", "/usr/local/bin"]):
+        if not os.path.isdir(d):
+            continue
+        for entry in os.listdir(d):
+            path = os.path.realpath(os.path.join(d, entry))
+            if path in seen or not os.path.isfile(path):
+                continue
+            seen.add(path)
+            try:
+                data = open(path, "rb").read(8_000_000)
+            except OSError:
+                continue
+            if b"-flags.conf" not in data and b"XDG_CONFIG_HOME" not in data:
+                continue
+            text = data.decode("latin-1")
+            names |= set(re.findall(r"(?<![A-Za-z0-9_.$-])([A-Za-z0-9][A-Za-z0-9_.-]*-flags\.conf)", text))
+            # A script naming its file through a variable it sets itself (Vivaldi's launcher).
+            if text.startswith("#!") and re.search(r"chrom|electron|ozone", text, re.I):
+                assigned = dict(re.findall(r'^\s*(?:export\s+)?([A-Z_]+)="?([A-Za-z0-9_.-]+)"?\s*$', text, re.M))
+                for tok in re.findall(r"(?:XDG_CONFIG_HOME|\.config)[^\s\"']*?/([A-Za-z0-9_.$-]+\.conf)", text):
+                    tok = re.sub(r"\$\{?([A-Z_]+)\}?", lambda m: assigned.get(m.group(1), m.group(0)), tok)
+                    if "$" not in tok:
+                        names.add(tok)
+    return sorted(names)
 
 def browser_hints():
-    # The Qt line: on Wayland Chromium points its Qt toolkit integration at the Wayland platform, and Qt 6 is the
-    # one the desktop themes and ships the plugin for.
-    for binary, conf in BROWSER_FLAGS:
-        if not shutil.which(binary):
-            continue
+    for conf in flags_files():
         path = os.path.join(CFG, conf)
         cur = open(path).read() if os.path.exists(path) else ""
-        add = []
-        if "ozone" not in cur:
-            add.append("--ozone-platform-hint=auto")
-        if "qt-version" not in cur:
-            add.append("--qt-version=6")
-        if "NativeNotifications" not in cur:
-            add.append("--enable-features=NativeNotifications")
-        if not add:
-            continue
-        with open(path, "a") as f:
-            f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland when the session is Wayland, with Qt 6, and notifications through the desktop's server; added by Isle.\n" + "\n".join(add) + "\n")
-    for binary, conf in ELECTRON_FLAGS:
-        if not shutil.which(binary) and not glob.glob("/usr/bin/" + binary + "*"):
-            continue
-        path = os.path.join(CFG, conf)
-        cur = open(path).read() if os.path.exists(path) else ""
-        # Isle's own earlier line is replaced; anything else about ozone is the user's and is left alone.
-        if "--ozone-platform-hint=auto" in cur:
-            cur = "\n".join(l for l in cur.split("\n") if l.strip() not in ("--ozone-platform-hint=auto", "# Wayland when the session is Wayland; added by Isle.")).strip("\n")
-            cur = cur + "\n" if cur else ""
-            open(path, "w").write(cur)
-        if "ozone" in cur:
-            continue
-        with open(path, "a") as f:
-            f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland; added by Isle.\n" + ELECTRON_LINES + "\n")
+        kept = [l for l in cur.split("\n") if l.strip() not in OLD_ISLE_LINES and l.strip() != FLAGS_MARK and not (l.startswith("#") and "by Isle" in l)]
+        body = "\n".join(kept).strip("\n")
+        if "ozone" not in body:
+            body = (body + "\n\n" if body else "") + FLAGS_MARK + "\n" + "\n".join(FLAGS_LINES)
+        out = body + "\n" if body else ""
+        if out != cur:
+            if out:
+                open(path, "w").write(out)
+            elif os.path.exists(path):
+                os.remove(path)
 
 dry = "--dry" in sys.argv
+if "--flags" in sys.argv:
+    print("\n".join(flags_files())); sys.exit(0)
 if not dry:
     browser_hints()
 for tmpl, target, post in TARGETS:

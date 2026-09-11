@@ -16,8 +16,9 @@ static bool wantsOwnDecorations(const PHLWINDOW& w);
 #include <hyprland/src/desktop/state/LayerState.hpp>
 #include <hyprland/src/desktop/state/ViewHitTester.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
-#include <hyprland/src/xwayland/XWayland.hpp>
-#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+#include <hyprland/src/xwayland/XSurface.hpp>
+#include <xcb/xcb.h>
+#include <cstdlib>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
 #include <hyprland/src/managers/SeatManager.hpp>
@@ -448,19 +449,6 @@ void CHyprBar::draw(PHLMONITOR pMonitor, const float& a) {
         g_pDecorationPositioner->repositionDeco(this);
     }
 
-    // isle: an X11 client's Motif hints can land after the rules ran; a change is picked up here, and applied
-    // once the render pass is over, since repositioning a decoration mid-render is not safe.
-    if (const auto W = m_pWindow.lock(); W && !m_recheckPending && wantsOwnDecorations(W) != m_ownDecos) {
-        m_recheckPending = true;
-        g_pEventLoopManager->doLater([self = m_self] {
-            if (const auto BAR = self.lock()) {
-                BAR->m_recheckPending = false;
-                if (validMapped(BAR->m_pWindow))
-                    BAR->updateRules();
-            }
-        });
-    }
-
     if (m_hidden || !validMapped(m_pWindow) || !ENABLED)
         return;
 
@@ -669,29 +657,61 @@ PHLWINDOW CHyprBar::getOwner() {
 
 // isle: a client that asked for client-side decorations draws its own title bar and controls. Chromium, Electron
 // and Qt ask through xdg-decoration, GTK through KDE's server-decoration protocol, X11 clients through Motif hints.
-// An X11 window of a type that is never decorated: menus, tooltips, notifications, splashes, docks, and
-// anything override-redirect.
-static bool x11Undecorated(const PHLWINDOW& w) {
-    if (w->isX11OverrideRedirect())
-        return true;
+// isle: X11 clients say they draw their own frame through _MOTIF_WM_HINTS, which Hyprland does not read; the
+// plugin reads it over a connection of its own to XWayland (DISPLAY is set in this process), once per
+// rules update. Hyprland's own flag covers the window types that are never decorated.
+static xcb_connection_t* xConnection() {
+    static xcb_connection_t* conn = nullptr;
+    if (conn && !xcb_connection_has_error(conn))
+        return conn;
+    if (conn)
+        xcb_disconnect(conn);
+    conn = nullptr;
+    if (!getenv("DISPLAY"))
+        return nullptr;
+    conn = xcb_connect(nullptr, nullptr);
+    if (xcb_connection_has_error(conn)) {
+        xcb_disconnect(conn);
+        conn = nullptr;
+    }
+    return conn;
+}
+
+static bool motifNoDecorations(const PHLWINDOW& w) {
     const auto XS = w->m_xwaylandSurface.lock();
-    if (!XS)
+    if (!XS || !XS->m_xID)
         return false;
-    static const char* TYPES[] = {"_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_DROPDOWN_MENU", "_NET_WM_WINDOW_TYPE_POPUP_MENU", "_NET_WM_WINDOW_TYPE_TOOLTIP",
-                                  "_NET_WM_WINDOW_TYPE_NOTIFICATION", "_NET_WM_WINDOW_TYPE_COMBO", "_NET_WM_WINDOW_TYPE_DND", "_NET_WM_WINDOW_TYPE_SPLASH",
-                                  "_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_DESKTOP"};
-    for (const auto& a : XS->m_atoms)
-        for (const auto* t : TYPES)
-            if (HYPRATOMS.contains(t) && a == HYPRATOMS[t])
-                return true;
-    return false;
+    auto* conn = xConnection();
+    if (!conn)
+        return false;
+    static xcb_connection_t* atomConn = nullptr;
+    static xcb_atom_t        atom     = XCB_ATOM_NONE;
+    if (atom == XCB_ATOM_NONE || atomConn != conn) {
+        auto* reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, 15, "_MOTIF_WM_HINTS"), nullptr);
+        if (!reply)
+            return false;
+        atom     = reply->atom;
+        atomConn = conn;
+        free(reply);
+    }
+    auto* reply = xcb_get_property_reply(conn, xcb_get_property(conn, 0, XS->m_xID, atom, atom, 0, 5), nullptr);
+    if (!reply)
+        return false;
+    bool none = false;
+    if (reply->type == atom && reply->format == 32 && xcb_get_property_value_length(reply) >= 12) {
+        // flags bit 1: the decorations field counts; decorations 0: the client draws everything.
+        const auto* v = sc<const uint32_t*>(xcb_get_property_value(reply));
+        none          = (v[0] & 2) && v[2] == 0;
+    }
+    free(reply);
+    return none;
 }
 
 static bool wantsOwnDecorations(const PHLWINDOW& w) {
     if (!w)
         return false;
     if (w->m_isX11)
-        return w->m_X11DoesntWantBorders || x11Undecorated(w);
+        return w->m_X11DoesntWantBorders || motifNoDecorations(w);
     if (const auto SURF = w->m_xdgSurface.lock()) {
         if (const auto TL = SURF->m_toplevel.lock(); TL && TL->m_resource) {
             const auto& DECOS = PROTO::xdgDecoration->m_decorations;
@@ -716,8 +736,7 @@ void CHyprBar::updateRules() {
 
     m_bForcedBarColor   = std::nullopt;
     m_bForcedTitleColor = std::nullopt;
-    m_ownDecos          = wantsOwnDecorations(PWINDOW);
-    m_hidden            = m_ownDecos;
+    m_hidden            = wantsOwnDecorations(PWINDOW);
 
     if (PWINDOW->m_ruleApplicator->m_otherProps.props.contains(g_pGlobalState->nobarRuleIdx))
         m_hidden = truthy(PWINDOW->m_ruleApplicator->m_otherProps.props.at(g_pGlobalState->nobarRuleIdx)->effect);

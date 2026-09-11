@@ -504,24 +504,22 @@ The token file renders to:
 Icons Papirus-Dark, cursor Bibata, font Inter, for both toolkits. Portals
 use the GTK file dialog so every app's open/save looks the same.
 
-Chromium-based browsers and Electron apps run native Wayland: the
-render adds `--ozone-platform-hint=auto` to the flags file of each
-installed browser that has nothing about ozone set, and the compositor
-exports the Electron hint. Their GPU process logs that Vulkan is not
-available on Wayland and carries on with GL; that line is noise, not a
-refusal. On Wayland Chromium points its Qt toolkit integration at the
-Wayland platform, so the flags file also asks for Qt 6, the one the
-desktop themes; qt5-wayland is in the package list for every other Qt 5
-app, since the compositor tells all of them to run on Wayland. Electron
-and other Chromium-based apps get the wiki's explicit switches,
-`--enable-features=UseOzonePlatform --ozone-platform=wayland`, in the
-flags files their launchers read (`electron-flags.conf`, and the ChatGPT
-app's own), since an app that rewrites its own environment has nothing
-for a hint to detect; on Wayland they declare their own decorations
-through xdg-decoration and take the colour scheme from the portal, so no
-bar is drawn over them and they follow the theme. The compositor exports the toolkit backends the Hyprland wiki
-lists: Qt and GTK on Wayland with X11 as the fallback, Qt leaving
-decorations to the compositor.
+Chromium-based browsers, Electron apps and other Chromium builds run
+native Wayland. Each reads a flags file its launcher names, so the
+render reads the launchers on PATH for those names and writes the same
+block to every one found, whatever is installed:
+`--enable-features=UseOzonePlatform,NativeNotifications`,
+`--ozone-platform=wayland`, and `--qt-version=6`. The Qt line matters
+because Chromium loads a Qt shim for its theme, and the Qt 5 one has no
+Wayland here; Qt 6 does, and carries Isle's qt6ct palette, which is how
+a Chromium app follows the dark theme. The block is Isle's and is
+replaced on each render; a line of the user's about ozone leaves the
+file alone. Their GPU process logs that Vulkan is not available on
+Wayland and carries on with GL; that line is noise, not a refusal.
+qt5-wayland is in the package list for every other Qt 5 app, since the
+compositor tells all of them to run on Wayland. The compositor exports
+the toolkit backends the Hyprland wiki lists: Qt and GTK on Wayland with
+X11 as the fallback, Qt leaving decorations to the compositor.
 
 ### Keyboards
 

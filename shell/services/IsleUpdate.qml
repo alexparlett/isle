@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Io
 
 // The shell's own updates: the checkout behind ~/.config against its origin. Checked hourly and on demand; pulling
-// runs in a terminal, then install.sh relinks and re-renders, and Quickshell reloads itself from the changed files.
+// pulls and runs install.sh, which relinks and re-renders, and Quickshell reloads itself from the changed files.
 Singleton {
     id: root
 
@@ -65,10 +65,35 @@ Singleton {
     }
     function check() { if (!fetcher.running) { info.running = true; fetcher.running = true; } }
 
-    Process { id: updater; onExited: { info.running = true; root.check(); } }
+    // The pull and the install, their lines kept; the shell reloads itself from the changed files after.
+    property bool running: false
+    property string phase: ""
+    property var log: []
+    property string failed: ""
+    Process {
+        id: updater
+        stdout: SplitParser { onRead: line => root.took(line) }
+        stderr: SplitParser { onRead: line => root.took(line) }
+        onStarted: { root.running = true; root.failed = ""; root.log = []; root.phase = "Pulling"; }
+        onExited: (code) => {
+            root.running = false;
+            root.phase = code === 0 ? "Done" : "Stopped";
+            if (code !== 0 && !root.failed) root.failed = "Stopped with code " + code;
+            info.running = true; root.check();
+            IslandEvents.show({ kind: "text", duration: 5000, glyph: code === 0 ? "check" : "x", text: code === 0 ? "Isle updated" : "Isle update stopped", detail: code === 0 ? "" : root.failed });
+        }
+    }
+    function took(line) {
+        const l = line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd();
+        if (!l) return;
+        log = log.concat([l]).slice(-200);
+        if (/^(Updating|Fast-forward)/.test(l)) phase = "Pulling";
+        else if (/✓/.test(l)) phase = l.replace(/^\s*✓\s*/, "");
+        else if (/^(fatal|error):/i.test(l)) failed = l.replace(/^(fatal|error):\s*/i, "");
+    }
     function update() {
-        updater.command = ["kitty", "--class", "isle-windows", "--title", "Isle update", "-e", "sh", "-c",
-            "cd -P \"" + repo + "\" && git pull --ff-only " + (viaHttps ? publicUrl : "origin") + " " + branch + " && tools/install.sh; echo; echo Done. The shell reloads on its own. Press Enter.; read x"];
+        if (updater.running) return;
+        updater.command = ["sh", "-c", "cd -P \"$1\" && git pull --ff-only \"$2\" \"$3\" && tools/install.sh", "_", repo, viaHttps ? publicUrl : "origin", branch];
         updater.running = true;
     }
 }

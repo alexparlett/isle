@@ -433,3 +433,11 @@ the running kernel's module tree still exists, and whether the NVIDIA
 module in memory is the installed version. Either one is a restart owed,
 said once in the island and kept in the pill, the panel footer and
 Settings › Updates until the restart.
+
+**D47 · Updates without a terminal.** The terminal window was there so
+pacman could ask and be watched. Behind `pkexec` the asking is the
+shell's own auth dialog, once, and pacman's own lines are enough to show
+each package's state as it goes; the AUR helper builds as the user and
+hands pacman to `pkexec` the same way. Every question takes its default,
+as the graphical updaters do. The end is said in the island with the
+restart action when one is owed, so the run needs no watching at all.

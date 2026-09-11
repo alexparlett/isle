@@ -1,0 +1,6 @@
+{
+    "id": "timeshift",
+    "name": "Timeshift",
+    "note": "System snapshots and restore in Timeshift's own window.",
+    "script": "timeshift.py"
+}

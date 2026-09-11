@@ -59,6 +59,7 @@ Singleton {
             // Password managers and VPNs found on this machine but switched off: provider ids.
             property var passwordProvidersOff: []
             property var vpnProvidersOff: []
+            property var snapshotProvidersOff: []
             property string wallpaper: ""
             property var wallpaperFolders: []
             property bool autoMount: true

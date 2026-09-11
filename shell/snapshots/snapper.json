@@ -1,0 +1,6 @@
+{
+    "id": "snapper",
+    "name": "Snapper",
+    "note": "Btrfs snapshots of the root, taken around every package change and on a timeline; roll back to any.",
+    "script": "snapper.py"
+}

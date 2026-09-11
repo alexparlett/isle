@@ -413,3 +413,13 @@ provider says its state and names its actions, a toggle or a choice
 where that is the shape, and the panel's VPN page renders them. Settings
 lists the providers found with a switch each. Proton VPN and
 NetworkManager are the shell's own two; another is a folder.
+
+**D45 · Snapshot tools are providers; Snapper reads as the user once
+allowed.** CachyOS installs Snapper with snap-pac, so every package
+change leaves a pair of snapshots and any of them is a rollback away;
+Timeshift is the installer's other choice. Both are providers with the
+vault and VPN contract, the list carrying each snapshot's own actions.
+Snapper refuses a user it does not know, and a polkit prompt on every
+refresh would be unbearable, so the provider's first action puts the
+user in the config's `ALLOW_USERS` once, after which snapperd serves
+reading, taking and deleting without root; only a rollback asks again.

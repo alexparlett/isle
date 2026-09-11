@@ -53,21 +53,27 @@ QtObject {
     function refresh() { if (statusProc.running) return; busy = true; error = ""; statusProc.running = true; }
     property Timer poll: Timer { interval: 10 * 60 * 1000; running: root.ready; repeat: true; onTriggered: root.refresh() }
 
-    // An action of the provider's: in a terminal window when it says so, else run with its input on stdin.
+    // What the last action said on stdout, for the page to show ("Rolled back to 42; the next boot uses it").
+    property string said: ""
+    // An action of the provider's, or one it named on an item of its list: in a terminal window when it says
+    // so, else run with its input on stdin (an item's id, a typed value, a choice).
+    // The input goes on stdin once the process is up and stdin is closed behind it: written earlier it is
+    // lost, and a script left waiting on stdin would hold the actor for good.
+    property string pendingInput: ""
     property Process actor: Process {
         stdinEnabled: true
+        stdout: StdioCollector { onStreamFinished: root.said = text.trim() }
         stderr: StdioCollector { onStreamFinished: if (text.trim()) root.error = text.trim().split("\n").pop() }
-        onStarted: root.busy = true
-        onExited: root.refresh()
+        onStarted: { root.busy = true; root.said = ""; actor.write(root.pendingInput + "\n"); root.pendingInput = ""; actor.stdinEnabled = false; }
+        onExited: { actor.stdinEnabled = true; root.refresh(); }
     }
     function act(id, input) {
-        const a = actions.find(x => x.id === id); if (!a) return;
+        const a = actions.find(x => x.id === id) || { id: id };
         if (a.terminal) { Compositor.exec((Prefs.p.terminal || "kitty") + " -e sh -c " + JSON.stringify("python3 " + JSON.stringify(script) + " action " + id + "; echo; echo Done, close this window.; sleep 3")); return; }
         if (actor.running) return;
         error = "";
+        pendingInput = input || "";
         actor.command = ["python3", script, "action", id];
         actor.running = true;
-        if (a.input || a.options || input) actor.write((input || "") + "\n");
-        actor.stdinEnabled = false;
     }
 }

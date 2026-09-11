@@ -44,6 +44,7 @@ gamepad-2
 globe
 hard-drive
 headphones
+history
 image
 info
 keyboard

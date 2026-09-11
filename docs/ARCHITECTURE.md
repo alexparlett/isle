@@ -431,23 +431,18 @@ holds the whole of it:
   and the script stays alive while the quick menu is up so it keeps it.
   Steam rewrites `shortcuts.vdf` on exit, so the tool refuses while Steam
   runs; the Modes page offers Add and Remove.
-- **Steam without its X11 menus.** The desktop client's menus are X11
-  override-redirect popups, and under Hyprland with the NVIDIA driver they
-  paint partial frames (placement, focus and animation are all correct;
-  upstream closed the reports as XWayland behaviour; KWin and gamescope
-  avoid it). `prefs.steamBigPicture` makes the launcher's Steam entry open
-  Steam's own Big Picture instead, a single window that takes mouse and
-  keyboard; `prefs.steamFollowsMode` decides whether that window puts Isle
-  in Big Picture mode (default) or is left as an ordinary window; either
-  way hyprland.lua's `steam-bigpicture` rule gives that window (Steam's, or
-  gamescope's when Steam runs inside it) the `steam` workspace of its own,
-  so it is never behind the desktop's windows. The Windows service names a
-  gamescope window after the app it hosts, from the title's first word. With `steamQuitsWithBigPicture` on, leaving Steam's Big Picture
-  quits Steam (`steam -shutdown` to a running Steam, two seconds after the
-  window goes), whether Steam fell back to the desktop client or hid in
-  the tray when the window was closed. Isle's own
-  home and quick menu show key hints in place of pad glyphs when no pad is
-  about.
+- **Steam's desktop client and its menus.** The client's menus are X11
+  override-redirect popups; under Hyprland with the NVIDIA driver they paint
+  partial frames while placement, focus and animation are all correct
+  (upstream closed the reports as XWayland behaviour; KWin and gamescope
+  avoid it). Steam's own Big Picture has no such menus and takes a mouse
+  and keyboard. `prefs.steamFollowsMode` decides whether that window puts
+  Isle in Big Picture mode (default) or is left as an ordinary window;
+  either way hyprland.lua's `steam-bigpicture` rule gives it (Steam's
+  window, or gamescope's when Steam runs inside it) the `steam` workspace
+  of its own. The Windows service names a gamescope window after the app it
+  hosts, from the title's first word. Isle's own home and quick menu show
+  key hints in place of pad glyphs when no pad is about.
 - **IPC.** `bigpicture home | desktop | quick open|close|toggle | quickOpen`.
 - **Search** on the home is the on-screen keyboard typing into the home's
   own window, which holds keyboard focus; the Library row filters as you

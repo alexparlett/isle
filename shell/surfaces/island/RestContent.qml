@@ -35,6 +35,14 @@ RowLayout {
 
     Row {
         spacing: Theme.s2
+        // An event within the half hour; a click opens the dashboard, where the Calendar widget has it.
+        Item {
+            visible: Calendars.soon !== null
+            implicitWidth: 14; implicitHeight: 14
+            anchors.verticalCenter: parent.verticalCenter
+            Glyph { anchors.centerIn: parent; name: "calendar"; size: 14; color: Theme.accent }
+            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: Surfaces.dashboard = true }
+        }
         Glyph { name: "bell-off"; size: 14; visible: Notifications.silenced && Notifications.count === 0; color: Theme.text3 }
         // Waiting notifications: the bell with a count; a click opens the centre.
         Item {

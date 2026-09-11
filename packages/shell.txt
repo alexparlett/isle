@@ -85,6 +85,8 @@ qt5-wayland   # every Qt app is told to run on Wayland; Qt 5 ones need this plug
 # Optional: gnome-disk-utility (Disks button on the Storage page), nvidia-utils (nvidia-smi on NVIDIA),
 #           steam heroic-games-launcher-bin lutris (Big Picture)
 proton-vpn-cli
+python-icalendar             # subscribed calendars: parsing, and
+python-recurring-ical-events # their repeats, expanded to dates
 rsync
 zathura
 zathura-pdf-mupdf

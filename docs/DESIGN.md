@@ -135,7 +135,8 @@ surface. Other monitors show nothing.
 **Rest.** 30px pill: desktop dots · clock · status glyphs. Glyphs only
 appear when they say something: wifi when on wifi (never on ethernet),
 bluetooth only when a device is connected, volume only when muted,
-recording dot, mode chip.
+recording dot, mode chip, a calendar glyph while an event is within the
+half hour.
 
 **Hover.** The pill unfolds downward into the **control panel**: the
 pill's own content becomes a 44px header band (desktops as app icons,
@@ -158,6 +159,7 @@ reach. The panel folds back when the pointer leaves.
 | auth pending | key glyph, click opens the dialog |
 | mode change | "Game" / "Big Picture" chip |
 | clipboard copy | check glyph, once |
+| event starts | calendar glyph, the title and place, eight seconds |
 
 **Click.** Desktop dots → Mission Control. Clock or bell → the dashboard.
 
@@ -301,7 +303,7 @@ Built in, in the default layout:
 | widget | shows |
 |---|---|
 | Clock | time and date with today's weather beside them; the week strip at two rows, the days ahead at four |
-| Calendar | the month with today marked, its name centred between the arrows; Today comes back |
+| Calendar | the month with today marked, its name centred between the arrows; Today comes back. A dot per subscribed calendar under a day that has something, in the calendar's colour; a click picks the day and its events list beneath the grid, colour bar, time, title, four then "+n more" |
 | Media | art, track, transport |
 | Desktops | each desktop with its app icons; click to go |
 | Notifications | grouped by app, inline actions, clear all |

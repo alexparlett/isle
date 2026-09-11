@@ -356,3 +356,14 @@ its only titled window; an untitled window is a menu or an overlay and a
 second titled one a dialog, and neither is noted nor placed. The X11 float
 rule likewise takes titled windows only, leaving a popup to the
 compositor's own X11 placement.
+
+**D41 · Calendars are subscriptions, not a Proton connector.** Proton
+Calendar has no CalDAV and Proton Bridge carries no calendars, so no
+client syncs it live; what it gives is Share via link, a read-only ICS
+address. That is the same thing Google's private iCal address, Outlook's
+published calendar and any hosted .ics are, so Isle takes subscriptions
+by link, any number, each with a name and a colour, and treats Proton as
+one of them. Read-only, and as fresh as the half-hour poll: a shared link
+has nothing to push. Parsing and repeats come from python-icalendar and
+python-recurring-ical-events rather than a parser of our own, since
+recurrence rules are where hand-written parsers go wrong.

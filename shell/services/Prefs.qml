@@ -54,6 +54,8 @@ Singleton {
             property bool reducedMotion: false
             // Apps whose windows are put away instead of closed: desktop entry ids.
             property var keepRunning: []
+            // Subscribed calendars: [{ id, name, url, color }].
+            property var calendars: []
             property string wallpaper: ""
             property var wallpaperFolders: []
             property bool autoMount: true

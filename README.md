@@ -33,14 +33,18 @@ window puts it away, the icon brings it back.
 A grid of widgets on the wallpaper: system, calendar, weather, media,
 notifications, clipboard, devices, disks, games, sessions. Every widget
 moves, resizes and has its own settings; the System widget's is a small
-Grafana, with series, colours, bars, lines or areas, and a legend. Edit
-mode is one key. The library is a store: widgets carry an author, a
-version and a permission list, and can be installed from any git
-registry; writing one is a folder with a manifest and a QML file, see
+Grafana, with series, colours, bars, lines or areas, and a legend. The
+Calendar shows the calendars you subscribe to by link, Proton, Google,
+Outlook or any .ics, a dot per calendar on its days and the picked day's
+events beneath; the island says when one starts. Edit mode is one key.
+The library is a store: widgets carry an author, a version and a
+permission list, and can be installed from any git registry; writing one
+is a folder with a manifest and a QML file, see
 [docs/WIDGETS.md](docs/WIDGETS.md).
 
 ![The dashboard](docs/screenshots/dashboard.jpg)
 ![The System widget, four ways](docs/screenshots/system-widget.jpg)
+![The Calendar with two subscriptions](docs/screenshots/calendar.jpg)
 
 ## The launcher
 

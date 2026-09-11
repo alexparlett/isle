@@ -10,10 +10,12 @@ bell
 bell-off
 bluetooth
 calculator
+calendar
 calendar-clock
 camera
 check
 chevron-down
+chevron-left
 chevron-right
 chevron-up
 circle-dot

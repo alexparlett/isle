@@ -33,6 +33,7 @@ Singleton {
         { id: "apps", glyph: "layout-grid", label: "Apps" },
         { id: "users", glyph: "user", label: "Users" },
         { id: "datetime", glyph: "calendar-clock", label: "Date & time" },
+        { id: "calendars", glyph: "calendar", label: "Calendars" },
         { id: "region", glyph: "languages", label: "Language & region" },
         { id: "updates", glyph: "download", label: "Updates" },
         { id: "about", glyph: "info", label: "About" },

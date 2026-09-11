@@ -136,7 +136,8 @@ surface. Other monitors show nothing.
 appear when they say something: wifi when on wifi (never on ethernet),
 bluetooth only when a device is connected, volume only when muted,
 recording dot, mode chip, a calendar glyph while an event is within the
-half hour.
+half hour, a download glyph while updates wait and a rotate glyph in the
+warn colour while a restart is owed to one already made.
 
 **Hover.** The pill unfolds downward into the **control panel**: the
 pill's own content becomes a 44px header band (desktops as app icons,

@@ -183,14 +183,14 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             Item {
-                visible: Updates.count > 0 || IsleUpdate.behind > 0
+                visible: Updates.count > 0 || IsleUpdate.behind > 0 || Updates.restartNeeded
                 implicitWidth: updRow.implicitWidth; implicitHeight: updRow.implicitHeight
                 RowLayout {
                     id: updRow
                     spacing: Theme.s1 + 2
-                    Glyph { name: "download"; size: 14; color: Theme.accent }
+                    Glyph { name: Updates.restartNeeded ? "rotate-cw" : "download"; size: 14; color: Updates.restartNeeded ? Theme.warn : Theme.accent }
                     Label {
-                        text: Updates.count > 0 ? Updates.count + (Updates.count === 1 ? " update" : " updates") + (IsleUpdate.behind > 0 ? " + Isle" : "") : "Isle update"
+                        text: Updates.restartNeeded ? "Restart needed" : Updates.count > 0 ? Updates.count + (Updates.count === 1 ? " update" : " updates") + (IsleUpdate.behind > 0 ? " + Isle" : "") : "Isle update"
                         size: Theme.sizeCaption; color: Theme.text2
                     }
                 }

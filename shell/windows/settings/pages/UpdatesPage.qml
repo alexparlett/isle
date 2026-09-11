@@ -29,6 +29,16 @@ SettingsPage {
     }
 
     SettingsGroup {
+        visible: Updates.restartNeeded
+        heading: "Restart needed"
+        SettingsRow {
+            label: "An update is waiting for a restart"
+            description: Updates.restartReasons.join("  ·  ")
+            Button { text: "Restart"; glyph: "rotate-cw"; variant: "accent"; onClicked: Session.restart() }
+        }
+    }
+
+    SettingsGroup {
         heading: "Packages"
         SettingsRow {
             label: Updates.checking ? "Checking" : Updates.count === 0 ? "Up to date" : Updates.count + (Updates.count === 1 ? " update" : " updates") + " available"

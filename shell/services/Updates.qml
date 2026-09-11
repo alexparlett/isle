@@ -42,7 +42,24 @@ Singleton {
             }
         }
     }
-    function check() { if (!checker.running) checker.running = true; }
+    function check() { if (!checker.running) checker.running = true; if (!restartCheck.running) restartCheck.running = true; }
+
+    // Older code than installed is still running, the kernel or the NVIDIA driver: a restart finishes the update.
+    property bool restartNeeded: false
+    property var restartReasons: []
+    Process {
+        id: restartCheck
+        command: ["python3", Quickshell.shellDir + "/scripts/restartneeded.py"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r; try { r = JSON.parse(text); } catch (e) { return; }
+                const was = root.restartNeeded;
+                root.restartReasons = r.reasons || [];
+                root.restartNeeded = !!r.restart;
+                if (root.restartNeeded && !was) IslandEvents.show({ kind: "text", duration: 8000, glyph: "rotate-cw", text: "Restart to finish the update", detail: root.restartReasons[0] || "" });
+            }
+        }
+    }
 
     // The terminal closes when the helper finishes; the list refreshes then.
     Process {

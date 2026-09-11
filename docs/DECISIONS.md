@@ -423,3 +423,13 @@ Snapper refuses a user it does not know, and a polkit prompt on every
 refresh would be unbearable, so the provider's first action puts the
 user in the config's `ALLOW_USERS` once, after which snapperd serves
 reading, taking and deleting without root; only a rollback asks again.
+
+**D46 · A restart owed to an update is said out loud.** A kernel and
+driver upgrade left the machine running the old NVIDIA module against
+the new user-space driver, so Vulkan saw only the iGPU and every game
+failed, with nothing on screen saying why. Arch does not prompt; the
+shell now checks two facts, general ones, after every update: whether
+the running kernel's module tree still exists, and whether the NVIDIA
+module in memory is the installed version. Either one is a restart owed,
+said once in the island and kept in the pill, the panel footer and
+Settings › Updates until the restart.

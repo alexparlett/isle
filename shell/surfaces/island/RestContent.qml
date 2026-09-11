@@ -63,6 +63,8 @@ RowLayout {
         Glyph { name: "mic"; size: 14; visible: Audio.micInUse && !Audio.sourceMuted; color: Theme.live }
         Glyph { name: "camera"; size: 14; visible: Audio.cameraInUse; color: Theme.live }
         Glyph { name: "shield"; size: 14; visible: Vpn.active !== null; color: Theme.ok }
-        Glyph { name: "download"; size: 14; visible: Updates.count > 0 || IsleUpdate.behind > 0; color: Theme.accent }
+        Glyph { name: "download"; size: 14; visible: (Updates.count > 0 || IsleUpdate.behind > 0) && !Updates.restartNeeded; color: Theme.accent }
+        // A restart is owed to an update already made: louder than updates waiting.
+        Glyph { name: "rotate-cw"; size: 14; visible: Updates.restartNeeded; color: Theme.warn }
     }
 }

@@ -105,7 +105,7 @@ Singleton {
             property bool clock12: false
             property bool titleBars: true
             // Window classes that draw their own title bar without saying so.
-            property var titleBarsExcept: ["steam"]
+            property var titleBarsExcept: ["steam", "Chatgpt"]
         }
     }
 }

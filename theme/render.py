@@ -88,7 +88,7 @@ V = {
 # One anchored regex of the classes that draw their own title bar, set only when the running plugin has the
 # option: a key it does not know is a config error.
 def bars_except_line():
-    classes = [str(c) for c in prefs.get("titleBarsExcept", ["steam"]) if c]
+    classes = [str(c) for c in prefs.get("titleBarsExcept", ["steam", "Chatgpt"]) if c]
     rx = ("^(" + "|".join(re.escape(c) for c in classes) + ")$") if classes else ""
     known = False
     if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):

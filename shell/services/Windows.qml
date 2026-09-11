@@ -143,8 +143,13 @@ Singleton {
         focus(app.windows[(i + 1) % app.windows.length]);
     }
 
-    // Windows reopen where they were last: the place of every floating window is noted every few seconds and
-    // when one closes, by class, and a new window of that class is put there once it has mapped.
+    // Windows reopen where they were last: the place of an app's main window is noted every few seconds, by
+    // class, and the app's next first window is put there once it has mapped. The main window is the app's
+    // only titled window: an untitled one is a menu or an overlay, and a second titled one a dialog, and
+    // neither is noted nor placed, since a place is the size and position of the main window.
+    function titled(cls) {
+        return Hyprland.toplevels.values.filter(t => t.wayland && t.wayland.appId === cls && (t.title || "") !== "").length;
+    }
     Process {
         id: placer
         command: ["hyprctl", "-j", "clients"]
@@ -152,9 +157,12 @@ Singleton {
             onStreamFinished: {
                 let list; try { list = JSON.parse(text); } catch (e) { return; }
                 const places = Object.assign({}, Prefs.p.windowPlaces || {});
+                const titledCount = {};
+                for (const c of list) if (c.title) titledCount[c["class"]] = (titledCount[c["class"]] || 0) + 1;
                 let changed = false;
                 for (const c of list) {
-                    if (!c.floating || c.fullscreen || !c.mapped || !c["class"] || c.size[0] < 100 || c.size[1] < 100) continue;
+                    if (!c.floating || c.fullscreen || !c.mapped || !c["class"] || !c.title || titledCount[c["class"]] !== 1) continue;
+                    if (c.size[0] < 100 || c.size[1] < 100) continue;
                     const v = [c.at[0], c.at[1], c.size[0], c.size[1]];
                     if (String(places[c["class"]]) !== String(v)) { places[c["class"]] = v; changed = true; }
                 }
@@ -168,9 +176,9 @@ Singleton {
         target: Hyprland
         function onRawEvent(event) {
             if (event.name !== "openwindow") return;
-            const [addr, ws, cls] = event.data.split(",");
+            const [addr, ws, cls, title] = event.data.split(",");
             const p = (Prefs.p.windowPlaces || {})[cls];
-            if (!p || Modes.game) return;
+            if (!p || Modes.game || !title || titled(cls) > 1) return;
             // After the float rule has sized it.
             restorer.command = ["sh", "-c", "sleep 0.15; hyprctl dispatch 'hl.dsp.window.resize({ x = " + p[2] + ", y = " + p[3] + ", exact = true, window = \"address:0x" + addr + "\" })'; hyprctl dispatch 'hl.dsp.window.move({ x = " + p[0] + ", y = " + p[1] + ", exact = true, window = \"address:0x" + addr + "\" })'"];
             restorer.running = true;

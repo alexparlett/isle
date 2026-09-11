@@ -343,3 +343,16 @@ renders: measured, it yields the same window, text and accent colours as
 the qt6ct palette did, and the right font, which the qt6ct template had
 been getting wrong. One source for every toolkit, so the qt6ct templates
 and package go.
+
+**D40 · A window's place is its app's main window only.** The Windows
+service put every new window of a class at the class's remembered place
+a moment after it mapped. Steam's menus are X11 popup windows of the
+client's class, so each menu was resized and moved to the main window's
+place, and the recorder then noted the menu's own geometry as Steam's:
+weeks of misrendering read as a compositor or driver fault while the
+compositor, its plugins, the driver and the rules were all cleared one by
+one. A place is the size and position of an app's main window, which is
+its only titled window; an untitled window is a menu or an overlay and a
+second titled one a dialog, and neither is noted nor placed. The X11 float
+rule likewise takes titled windows only, leaving a popup to the
+compositor's own X11 placement.

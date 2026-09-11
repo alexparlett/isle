@@ -67,10 +67,11 @@ Singleton {
             const m = Displays.monitors[0], o = m ? Displays.info(m) : {};
             const w = Math.round(((o.width || 1920) / (o.scale || 1)) * 0.6), h = Math.round(((o.height || 1080) / (o.scale || 1)) * 0.65);
             lua += 'hl.window_rule({ name = "isle-float", match = { class = ".*", xwayland = false }, float = true, size = "' + w + ' ' + h + '", center = true })\n';
-            // X11 windows float too, at the size they ask for: their menus and dialogs come through as windows.
-            // Real X11 windows only (the isle-windows plugin tags them): a float rule on a menu makes the
-            // compositor manage it as a window of its own.
-            lua += 'hl.window_rule({ name = "isle-float-x11", match = { xwayland = true, tag = "x11window" }, float = true })\n';
+            // X11 windows float too, at the size they ask for. Titled ones only: an untitled X11 window at map is
+            // a client's menu or overlay, which the compositor already places by its X11 type, and a float rule
+            // on it makes the compositor manage it as a window and resize it. The compositor's own matchers, not
+            // a plugin's tag: float is read at map, before a tag set from a plugin hook is there to match.
+            lua += 'hl.window_rule({ name = "isle-float-x11", match = { xwayland = true, title = "^.+$" }, float = true })\n';
         }
 
         writer.command = ["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "_", lua, out];

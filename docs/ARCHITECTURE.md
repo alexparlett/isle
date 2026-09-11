@@ -300,18 +300,9 @@ qs -p ~/.config/quickshell/isle ipc call island pin true|false
 qs -p ~/.config/quickshell/isle ipc call island clear
 ```
 
-Live development on the host: `tools/install.sh --dev` installs and starts
-the `isle-dev-sync` user unit, which runs `tools/dev-sync.sh --watch` from
-the checkout: every two seconds the checkout is copied into the installed
-copy, and a change under `theme/` re-renders the app themes, under `hypr/`
-reloads the compositor, under `shell/` restarts the shell (the session loop
-brings it back with the compositor's environment), under `plugins/` is left
-for `hyprpm update`. The unit belongs to the graphical session, so it
-starts and stops with it, and `dev-sync.sh` points hyprctl at the newest
-compositor instance rather than the one in its environment. The session
-loop itself (`shell/scripts/isle-session`) stops when its compositor's
-socket is gone, so a crashed compositor's session cannot keep bringing a
-shell up against a dead socket.
+The session loop (`shell/scripts/isle-session`) stops when its
+compositor's socket is gone, so a crashed compositor's session cannot keep
+bringing a shell up against a dead socket.
 
 The VM harness is local tooling under `dev/`, which git ignores: it is
 the maintainer's, not part of the shell. `dev/guest.sh '<command>'` runs a

@@ -18,8 +18,14 @@ Singleton {
         return entry ? entry.name : appId;
     }
 
+    // A gamescope window is the app it hosts: its title starts with that app's name.
+    function hostedId(appId, title) {
+        if (appId !== "gamescope") return appId;
+        const first = (title || "").split(/[\s:—-]/)[0];
+        return first && DesktopEntries.heuristicLookup(first) ? first.toLowerCase() : appId;
+    }
     function entry(t) {
-        const appId = t.wayland ? t.wayland.appId : "";
+        const appId = hostedId(t.wayland ? t.wayland.appId : "", t.title);
         // Dispatchers want the address as hyprctl prints it, with the 0x.
         return { appId: appId, icon: iconFor(appId), title: t.title, address: t.address.indexOf("0x") === 0 ? t.address : "0x" + t.address,
                  workspace: t.workspace ? t.workspace.id : -1, hidden: t.workspace ? t.workspace.name === "special:hidden" : false,

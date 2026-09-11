@@ -38,7 +38,8 @@ Singleton {
     readonly property bool steamBigPicture: {
         for (const t of Hyprland.toplevels.values) {
             const w = t.wayland; if (!w) continue;
-            if ((w.appId || "").toLowerCase() === "steam" && /big picture/i.test(t.title || "")) return true;
+            // Steam's own window, or gamescope's when Steam runs inside it.
+            if (/^(steam|gamescope)$/i.test(w.appId || "") && /big picture/i.test(t.title || "")) return true;
         }
         return false;
     }

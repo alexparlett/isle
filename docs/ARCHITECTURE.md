@@ -439,9 +439,10 @@ holds the whole of it:
   Steam's own Big Picture instead, a single window that takes mouse and
   keyboard; `prefs.steamFollowsMode` decides whether that window puts Isle
   in Big Picture mode (default) or is left as an ordinary window; either
-  way hyprland.lua's `steam-bigpicture` rule gives that window the
-  `steam` workspace of its own, so it is never behind the desktop's
-  windows. With `steamQuitsWithBigPicture` on, leaving Steam's Big Picture
+  way hyprland.lua's `steam-bigpicture` rule gives that window (Steam's, or
+  gamescope's when Steam runs inside it) the `steam` workspace of its own,
+  so it is never behind the desktop's windows. The Windows service names a
+  gamescope window after the app it hosts, from the title's first word. With `steamQuitsWithBigPicture` on, leaving Steam's Big Picture
   quits Steam (`steam -shutdown` to a running Steam, two seconds after the
   window goes), whether Steam fell back to the desktop client or hid in
   the tray when the window was closed. Isle's own

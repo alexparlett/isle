@@ -19,6 +19,11 @@ trap 'rm -f "$XDG_RUNTIME_DIR/isle.pid"; kill "$child" 2>/dev/null; exit 0' TERM
 
 failures=0
 while true; do
+    # The compositor this session belongs to is gone: a fresh one starts its own session, with its own
+    # environment; this one must not keep bringing a shell up against a dead socket.
+    if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" && ! -S "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock" ]]; then
+        echo "[isle-session] compositor gone; stopping" >> "$LOG"; break
+    fi
     start=$SECONDS
     qs -p "$SHELL_PATH" >> "$LOG" 2>&1 &
     child=$!

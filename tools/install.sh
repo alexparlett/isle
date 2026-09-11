@@ -5,6 +5,7 @@
 #     tools/install.sh            install this checkout and link it into place
 #     tools/install.sh --packages also install packages/shell.txt with pacman
 #     tools/install.sh --pam      also let PAM unlock the keyring at login (edits /etc/pam.d/login)
+#     tools/install.sh --dev      also run the isle-dev-sync user unit: every save in this checkout reaches the installed copy
 #
 # The desktop runs from ~/.local/share/isle (ISLE_HOME to change it). Run from a
 # checkout elsewhere, this copies the checkout there first, so editing the
@@ -17,8 +18,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 ISLE_HOME="${ISLE_HOME:-$HOME/.local/share/isle}"
-packages=0; pam=0
-for a in "$@"; do case "$a" in --packages) packages=1 ;; --pam) pam=1 ;; -h|--help) sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
+packages=0; pam=0; dev=0
+for a in "$@"; do case "$a" in --packages) packages=1 ;; --pam) pam=1 ;; --dev) dev=1 ;; -h|--help) sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
 
 ok() { printf '  \e[32m✓\e[0m %s\n' "$*"; }
 
@@ -39,6 +40,7 @@ if ((pam)); then
     fi
 fi
 
+SRC="$REPO"
 # A checkout elsewhere is a working copy; the desktop runs from the installed one. The compositor's
 # generated fragments and the built plugins are the installed copy's own and are kept.
 if [[ "$REPO" != "$(mkdir -p "$ISLE_HOME" && cd "$ISLE_HOME" && pwd -P)" ]]; then
@@ -70,6 +72,13 @@ link "$REPO/shell" "$CFG/quickshell/isle"
 link "$REPO/hypr/hyprland.lua" "$CFG/hypr/hyprland.lua"
 link "$REPO/hypr/generated" "$CFG/hypr/generated"
 link "$REPO/systemd/xremap.service" "$CFG/systemd/user/xremap.service"
+# Development: the checkout is watched and every save lands in the installed copy, with the theme, the
+# compositor or the shell reloaded as the change warrants; the unit carries the checkout's path.
+if ((dev)); then
+    mkdir -p "$CFG/systemd/user"
+    sed "s|@SRC@|$SRC|g" "$SRC/systemd/isle-dev-sync.service" > "$CFG/systemd/user/isle-dev-sync.service"
+    systemctl --user daemon-reload && systemctl --user enable --now isle-dev-sync.service && ok "isle-dev-sync watches $SRC (systemctl --user status isle-dev-sync)"
+fi
 # nethogs counts network traffic per process; it needs two capabilities rather than root.
 if command -v nethogs >/dev/null; then
     sudo setcap cap_net_admin,cap_net_raw+ep "$(command -v nethogs)" && ok "nethogs can read the network (per-process traffic in Monitor)"

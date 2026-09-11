@@ -13,6 +13,7 @@ QtObject {
     property string note: ""
     required property string script
     property bool user: false
+    property bool inKeychain: true
 
     property bool installed: false
     property bool ready: false

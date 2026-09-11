@@ -11,7 +11,8 @@ import qs.services
 Singleton {
     id: root
 
-    // [{ id, name, note, script, user }], as scripts/vaults.py finds them.
+    // [{ id, name, note, script, keychain, user }], as scripts/vaults.py finds them; `keychain: false` marks one the
+    // Keychain window shows in a way of its own (the system keyring), so it is left out of the vault chips there.
     property var manifests: []
     Process {
         id: finder
@@ -37,7 +38,7 @@ Singleton {
         model: root.manifests
         delegate: VaultProvider {
             required property var modelData
-            providerId: modelData.id; name: modelData.name; note: modelData.note; script: modelData.script; user: modelData.user
+            providerId: modelData.id; name: modelData.name; note: modelData.note; script: modelData.script; user: modelData.user; inKeychain: modelData.keychain
             Component.onCompleted: refresh()
         }
         onObjectAdded: root.rebuild()
@@ -46,7 +47,7 @@ Singleton {
     property var providers: []
     function rebuild() {
         const out = [];
-        for (let i = 0; i < made.count; i++) { const o = made.objectAt(i); if (o) out.push({ id: o.providerId, name: o.name, note: o.note, user: o.user, impl: o }); }
+        for (let i = 0; i < made.count; i++) { const o = made.objectAt(i); if (o) out.push({ id: o.providerId, name: o.name, note: o.note, user: o.user, inKeychain: o.inKeychain, impl: o }); }
         providers = out;
     }
 
@@ -62,6 +63,7 @@ Singleton {
     readonly property bool any: installed.length > 0
     readonly property bool busy: providers.some(p => p.impl.busy)
     function provider(id) { return providers.find(p => p.id === id) || null; }
+    function inKeychain(id) { const p = provider(id); return !p || p.inKeychain; }
 
     // [{ provider, providerName, id, shareId, vault, title, type }], by title across the ready providers; types are
     // login, note, credit_card, identity, ssh_key, wifi, alias, custom.

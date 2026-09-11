@@ -33,16 +33,16 @@ FloatingWindow {
         .map(k => Object.assign({ source: "ssh" }, k))
     // The password managers' items, each manager under a category of its own and all of them in All.
     readonly property var vaultShown: Vault.waiting
-        .filter(p => category === "all" || category === "vault:" + p.id)
+        .filter(p => p.inKeychain && (category === "all" || category === "vault:" + p.id))
         .map(p => ({ source: "vaultState", provider: p.id, name: p.name, state: p.impl.state, error: p.impl.error, actions: p.impl.actions, impl: p.impl }))
         .concat(Vault.items
-            .filter(i => category === "all" || category === "vault:" + i.provider)
+            .filter(i => Vault.inKeychain(i.provider) && (category === "all" || category === "vault:" + i.provider))
             .filter(i => !filter || (i.title + " " + i.vault).toLowerCase().indexOf(filter.toLowerCase()) >= 0)
             .map(i => Object.assign({ source: "vault" }, i)))
     readonly property var shown: sshShown.concat(keyringShown, vaultShown)
-    readonly property var categories: KeychainService.categories.concat(Vault.installed.filter(p => Vault.enabled(p)).map(p => ["vault:" + p.id, p.name]))
+    readonly property var categories: KeychainService.categories.concat(Vault.installed.filter(p => Vault.enabled(p) && p.inKeychain).map(p => ["vault:" + p.id, p.name]))
     function countIn(c) {
-        if (c === "all") return KeychainService.items.length + SshKeys.keys.length + Vault.items.length;
+        if (c === "all") return KeychainService.items.length + SshKeys.keys.length + Vault.items.filter(i => Vault.inKeychain(i.provider)).length;
         if (c.indexOf("vault:") === 0) return Vault.items.filter(i => i.provider === c.slice(6)).length;
         return KeychainService.items.filter(i => KeychainService.categoryOf(i) === c).length + (c === "ssh" ? SshKeys.keys.length : 0);
     }

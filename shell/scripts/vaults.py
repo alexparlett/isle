@@ -19,7 +19,7 @@ def add(path, base):
     if not os.path.isfile(script):
         return
     seen.add(m["id"])
-    out.append({"id": m["id"], "name": m.get("name") or m["id"], "note": m.get("note") or "", "script": script, "user": base != os.path.join(shell, "scripts")})
+    out.append({"id": m["id"], "name": m.get("name") or m["id"], "note": m.get("note") or "", "script": script, "keychain": m.get("keychain", True) is not False, "user": base != os.path.join(shell, "scripts")})
 
 
 for f in sorted(os.listdir(os.path.join(shell, "vaults"))) if os.path.isdir(os.path.join(shell, "vaults")) else []:

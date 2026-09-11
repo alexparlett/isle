@@ -1,0 +1,7 @@
+{
+    "id": "keyring",
+    "name": "System keyring",
+    "note": "The secret service every app on the desktop keeps its logins in; the Keychain window edits it.",
+    "script": "keyringvault.py",
+    "keychain": false
+}

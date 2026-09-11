@@ -322,17 +322,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         throw std::runtime_error("[isle-windows] version mismatch");
     }
 
-    // Every X11 window is tagged as it opens: an override-redirect one (a menu, a tooltip, a combo list) as
-    // x11popup, so the config's rule on that tag spares it the animations and decorations a window gets, and
-    // any other as x11window, so the float rule reaches real windows only; the rule engine has no matcher for
-    // override-redirect itself.
+    // An override-redirect X11 window (a menu, a tooltip, a combo list) is tagged x11popup as it opens, so the
+    // config's rule on that tag spares it the animations and decorations a window gets; the rule engine has no
+    // matcher for override-redirect itself. Only dynamic rules can key on the tag: static ones, float among
+    // them, are read at map, before this hook runs.
     static auto P_POPUP = Event::bus()->m_events.window.openEarly.listen([](PHLWINDOW w) {
-        if (!w || !w->m_isX11 || !w->m_ruleApplicator)
+        if (!w || !w->m_isX11 || !w->m_ruleApplicator || !w->isX11OverrideRedirect())
             return;
-        w->m_ruleApplicator->m_tagKeeper.applyTag(w->isX11OverrideRedirect() ? "x11popup" : "x11window", true);
-        // Float is a static rule, read at map: a tag set this early must be seen by that read too, not only
-        // by the dynamic ones.
-        w->m_ruleApplicator->recheckStaticRules();
+        w->m_ruleApplicator->m_tagKeeper.applyTag("x11popup", true);
         w->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_TAG);
     });
 

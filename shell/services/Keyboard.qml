@@ -120,7 +120,8 @@ Singleton {
     // --- overrides ------------------------------------------------------------------
     // prefs.keymapOverrides: action id -> chord. An overridden action binds that chord on both profiles.
     readonly property var overrides: Prefs.p.keymapOverrides
-    readonly property var actions: keymap.actions.map(a => {
+    // A `disabled` action stays in the keymap unbound and unlisted.
+    readonly property var actions: keymap.actions.filter(a => !a.disabled).map(a => {
         const o = overrides[a.id];
         if (!o) return a;
         const c = Object.assign({}, a, { hypr: o, win: human(o, "win"), mac: human(o, "mac") });

@@ -126,7 +126,8 @@
             "win": "Win Shift 1–9",
             "mac": "Ctrl Shift 1–9",
             "lua": "hl.dsp.window.move({ workspace = {n} })",
-            "range": 9
+            "range": 9,
+            "disabled": true
         },
         {
             "id": "snapLeft",

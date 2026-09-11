@@ -17,6 +17,7 @@ static bool wantsOwnDecorations(const PHLWINDOW& w);
 #include <hyprland/src/desktop/state/ViewHitTester.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/xwayland/XWayland.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
 #include <hyprland/src/managers/SeatManager.hpp>
@@ -447,9 +448,18 @@ void CHyprBar::draw(PHLMONITOR pMonitor, const float& a) {
         g_pDecorationPositioner->repositionDeco(this);
     }
 
-    // isle: an X11 client's Motif hints can land after the rules ran; a change is picked up here.
-    if (const auto W = m_pWindow.lock(); W && wantsOwnDecorations(W) != m_ownDecos)
-        updateRules();
+    // isle: an X11 client's Motif hints can land after the rules ran; a change is picked up here, and applied
+    // once the render pass is over, since repositioning a decoration mid-render is not safe.
+    if (const auto W = m_pWindow.lock(); W && !m_recheckPending && wantsOwnDecorations(W) != m_ownDecos) {
+        m_recheckPending = true;
+        g_pEventLoopManager->doLater([self = m_self] {
+            if (const auto BAR = self.lock()) {
+                BAR->m_recheckPending = false;
+                if (validMapped(BAR->m_pWindow))
+                    BAR->updateRules();
+            }
+        });
+    }
 
     if (m_hidden || !validMapped(m_pWindow) || !ENABLED)
         return;

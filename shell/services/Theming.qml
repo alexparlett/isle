@@ -33,5 +33,5 @@ Singleton {
     Timer { id: later; interval: 400; onTriggered: renderer.running = true }
     function apply() { later.restart(); }
 
-    Connections { target: Prefs.p; function onAccentChanged() { root.apply(); } function onThemeChanged() { root.apply(); } function onTitleBarsChanged() { root.apply(); } }
+    Connections { target: Prefs.p; function onAccentChanged() { root.apply(); } function onThemeChanged() { root.apply(); } function onTitleBarsChanged() { root.apply(); } function onTitleBarsExceptChanged() { root.apply(); } }
 }

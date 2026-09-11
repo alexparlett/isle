@@ -1,5 +1,6 @@
 #pragma once
 
+#include <regex>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/render/Texture.hpp>
 #include <hyprland/src/config/values/types/BoolValue.hpp>
@@ -38,7 +39,12 @@ struct SGlobalState {
         SP<Config::Values::CIntValue>        barButtonPadding;
         SP<Config::Values::CBoolValue>       barBlur, barTitleEnabled, barPartOfWindow, barPrecedenceOverBorder, enabled, iconOnHover;
         SP<Config::Values::CStringValue>     barTextFont, barTextAlign, barButtonsAlignment, onDoubleClick;
+        // isle: classes that draw their own controls without saying so, as one regex; compiled once per value.
+        SP<Config::Values::CStringValue>     noBarClasses;
     } config;
+    std::string noBarClassesSrc;
+    std::regex  noBarClassesRx;
+    bool        noBarClassesValid = false;
 };
 
 inline UP<SGlobalState> g_pGlobalState;

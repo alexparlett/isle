@@ -6,7 +6,7 @@
 
 Templates live in theme/templates; a `{{name}}` is a token. Targets are listed in TARGETS.
 """
-import shutil, json, os, re, sys, subprocess
+import glob, shutil, json, os, re, sys, subprocess
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 REPO = os.path.dirname(HERE)
@@ -85,6 +85,19 @@ V = {
     "pressed": c["pressed"],
     "bars_off": "true" if prefs.get("titleBars", True) is False else "false",
 }
+# One anchored regex of the classes that draw their own title bar, set only when the running plugin has the
+# option: a key it does not know is a config error.
+def bars_except_line():
+    classes = [str(c) for c in prefs.get("titleBarsExcept", ["steam"]) if c]
+    rx = ("^(" + "|".join(re.escape(c) for c in classes) + ")$") if classes else ""
+    known = False
+    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        r = subprocess.run(["hyprctl", "getoption", "plugin:hyprbars:no_bar_classes"], capture_output=True, text=True)
+        known = r.returncode == 0 and "no such option" not in r.stdout + r.stderr
+    if not known:
+        return "-- no_bar_classes: the loaded hyprbars predates the option; hyprpm update, then the classes that draw their own bar apply."
+    return "hl.config({ plugin = { hyprbars = { no_bar_classes = [[" + rx + "]] } } })  -- classes that draw their own title bar"
+V["bars_except_line"] = bars_except_line()
 # Terminal palette: near-neutral base, accent for blue, token semantics for the rest.
 V.update({
     "term0": "#E8E8EB" if LIGHT else "#1B1C21", "term8": "#C8C8CE" if LIGHT else "#3A3C44",
@@ -149,9 +162,29 @@ def browser_hints():
         with open(path, "a") as f:
             f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland when the session is Wayland, with Qt 6, and notifications through the desktop's server; added by Isle.\n" + "\n".join(add) + "\n")
 
+# Electron reads web content's colour scheme from the toolkit it happens to pick, which is not always the one
+# the theme set; the flag settles it. Each app's launcher reads its own flags file; the line is Isle's to add
+# and take away.
+DARK_FLAG_FILES = [("chatgpt", "chatgpt-flags.conf"), ("electron", "electron-flags.conf")]
+DARK_MARK = "# Web content follows the dark theme; added by Isle."
+
+def dark_hints():
+    for binary, conf in DARK_FLAG_FILES:
+        if not shutil.which(binary) and not glob.glob("/usr/bin/" + binary + "*"):
+            continue
+        path = os.path.join(CFG, conf)
+        cur = open(path).read() if os.path.exists(path) else ""
+        lines = [l for l in cur.split("\n") if l.strip() not in (DARK_MARK, "--force-dark-mode")]
+        if not LIGHT:
+            lines = [l for l in lines if l.strip()] + [DARK_MARK, "--force-dark-mode"]
+        out = "\n".join(lines).strip("\n") + ("\n" if any(l.strip() for l in lines) else "")
+        if out != cur:
+            open(path, "w").write(out)
+
 dry = "--dry" in sys.argv
 if not dry:
     browser_hints()
+    dark_hints()
 for tmpl, target, post in TARGETS:
     out = render(tmpl)
     if dry:

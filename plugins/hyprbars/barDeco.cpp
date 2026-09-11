@@ -1,5 +1,7 @@
 #include "barDeco.hpp"
 
+static bool wantsOwnDecorations(const PHLWINDOW& w);
+
 // isle: the client's requested decoration mode lives in the protocol's private map, keyed by a toplevel
 // resource that is private too.
 #define private public
@@ -444,6 +446,10 @@ void CHyprBar::draw(PHLMONITOR pMonitor, const float& a) {
         g_pDecorationPositioner->repositionDeco(this);
     }
 
+    // isle: an X11 client's Motif hints can land after the rules ran; a change is picked up here.
+    if (const auto W = m_pWindow.lock(); W && wantsOwnDecorations(W) != m_ownDecos)
+        updateRules();
+
     if (m_hidden || !validMapped(m_pWindow) || !ENABLED)
         return;
 
@@ -650,11 +656,28 @@ PHLWINDOW CHyprBar::getOwner() {
     return m_pWindow.lock();
 }
 
+// isle: a class listed in no_bar_classes draws its own controls without asking (Steam).
+static bool classDrawsOwn(const PHLWINDOW& w) {
+    const auto& SRC = g_pGlobalState->config.noBarClasses->value();
+    if (SRC.empty())
+        return false;
+    if (SRC != g_pGlobalState->noBarClassesSrc) {
+        g_pGlobalState->noBarClassesSrc = SRC;
+        try {
+            g_pGlobalState->noBarClassesRx    = std::regex(SRC);
+            g_pGlobalState->noBarClassesValid = true;
+        } catch (...) { g_pGlobalState->noBarClassesValid = false; }
+    }
+    return g_pGlobalState->noBarClassesValid && (std::regex_match(w->m_class, g_pGlobalState->noBarClassesRx) || std::regex_match(w->m_initialClass, g_pGlobalState->noBarClassesRx));
+}
+
 // isle: a client that asked for client-side decorations draws its own title bar and controls. Chromium, Electron
 // and Qt ask through xdg-decoration, GTK through KDE's server-decoration protocol, X11 clients through Motif hints.
 static bool wantsOwnDecorations(const PHLWINDOW& w) {
     if (!w)
         return false;
+    if (classDrawsOwn(w))
+        return true;
     if (w->m_isX11)
         return w->m_X11DoesntWantBorders;
     if (const auto SURF = w->m_xdgSurface.lock()) {
@@ -681,7 +704,8 @@ void CHyprBar::updateRules() {
 
     m_bForcedBarColor   = std::nullopt;
     m_bForcedTitleColor = std::nullopt;
-    m_hidden            = wantsOwnDecorations(PWINDOW);
+    m_ownDecos          = wantsOwnDecorations(PWINDOW);
+    m_hidden            = m_ownDecos;
 
     if (PWINDOW->m_ruleApplicator->m_otherProps.props.contains(g_pGlobalState->nobarRuleIdx))
         m_hidden = truthy(PWINDOW->m_ruleApplicator->m_otherProps.props.at(g_pGlobalState->nobarRuleIdx)->effect);

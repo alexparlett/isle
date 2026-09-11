@@ -58,5 +58,22 @@ SettingsPage {
 
     SettingsGroup {
         heading: "Windows"
+        SettingsRow {
+            label: "Title bars"
+            description: "A bar with the title and three controls over every window that does not draw its own."
+            Toggle { checked: Prefs.p.titleBars; onToggled: v => Prefs.p.titleBars = v }
+        }
+        SettingsRow {
+            label: "Draw their own"
+            description: "Window classes that carry their own title bar without saying so, one per comma. Steam does."
+            Field {
+                implicitWidth: 260; implicitHeight: 30; size: Theme.sizeSmall
+                placeholder: "steam, Chatgpt"
+                text: (Prefs.p.titleBarsExcept || []).join(", ")
+                function commit() { const l = text.split(",").map(s => s.trim()).filter(s => s); if (JSON.stringify(l) !== JSON.stringify(Prefs.p.titleBarsExcept || [])) Prefs.p.titleBarsExcept = l; }
+                onAccepted: commit()
+                onActiveFocusChanged: if (!activeFocus) commit()
             }
+        }
+    }
 }

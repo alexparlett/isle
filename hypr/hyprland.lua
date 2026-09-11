@@ -24,6 +24,11 @@ hl.env("QT_QPA_PLATFORMTHEME", "gtk3")
 hl.env("XDG_CURRENT_DESKTOP", "Hyprland")
 -- Electron apps follow the session rather than defaulting to X11.
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
+-- With the NVIDIA driver loaded, the two variables its wiki page asks for: VA-API and GLX through NVIDIA.
+if io.open("/proc/driver/nvidia/version") then
+    hl.env("LIBVA_DRIVER_NAME", "nvidia")
+    hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+end
 -- The session's SSH agent: gcr's wrapper around ssh-agent, socket-activated by systemd (tools/install.sh enables it).
 hl.env("SSH_AUTH_SOCK", (os.getenv("XDG_RUNTIME_DIR") or ("/run/user/" .. (os.getenv("UID") or "1000"))) .. "/gcr/ssh")
 

@@ -523,7 +523,8 @@ Wayland and carries on with GL; that line is noise, not a refusal.
 qt5-wayland is in the package list for every other Qt 5 app, since the
 compositor tells all of them to run on Wayland. The compositor exports
 the toolkit backends the Hyprland wiki lists: Qt and GTK on Wayland with
-X11 as the fallback, Qt leaving decorations to the compositor.
+X11 as the fallback, Qt leaving decorations to the compositor, and with
+the NVIDIA driver loaded the two variables its NVIDIA page asks for.
 
 ### Keyboards
 

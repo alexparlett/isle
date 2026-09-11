@@ -77,6 +77,9 @@ hl.config({
         vrr = 1,
         focus_on_activate = true,
         middle_click_paste = false,
+        -- A lock whose client died can be taken over by the next locker: the shell relocks at once when it
+        -- starts and finds the session was locked, so a shell death while locked never strands the screen.
+        allow_session_lock_restore = true,
     },
     -- Focus does not move the pointer, as on macOS and Windows.
     -- Hardware cursors: the compositor's "auto" turns them off on NVIDIA and draws the cursor into the

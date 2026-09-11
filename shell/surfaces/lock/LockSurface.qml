@@ -103,11 +103,15 @@ WlSessionLockSurface {
                     { glyph: "power", label: "Shut down", run: () => Session.shutdown() },
                     { glyph: "log-out", label: "Log out", run: () => Session.logout() },
                 ]
-                RowLayout {
+                Item {
                     required property var modelData
-                    spacing: Theme.s1 + 2
-                    Glyph { name: modelData.glyph; size: 14; color: Theme.text2 }
-                    Label { text: modelData.label; size: Theme.sizeSmall; color: Theme.text2 }
+                    implicitWidth: actionRow.implicitWidth; implicitHeight: actionRow.implicitHeight
+                    RowLayout {
+                        id: actionRow
+                        spacing: Theme.s1 + 2
+                        Glyph { name: modelData.glyph; size: 14; color: Theme.text2 }
+                        Label { text: modelData.label; size: Theme.sizeSmall; color: Theme.text2 }
+                    }
                     MouseArea { anchors { fill: parent; margins: -6 } cursorShape: Qt.PointingHandCursor; onClicked: modelData.run() }
                 }
             }

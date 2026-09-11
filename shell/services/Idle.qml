@@ -33,4 +33,7 @@ Singleton {
     Policy { id: screen; seconds: Prefs.p.idleScreenOff; onIdle: idle => Compositor.dispatch(idle ? "hl.dsp.dpms({ action = \"off\" })" : "hl.dsp.dpms({ action = \"on\" })") }
 
     onInhibitedChanged: { dim.apply(); lock.apply(); screen.apply(); if (inhibited) dimmed = false; }
+    // A shell that starts while the screens are off has no idle-to-active edge to turn them on again: it
+    // asks for them at once, and the next idle turns them off as before.
+    Component.onCompleted: Compositor.dispatch("hl.dsp.dpms({ action = \"on\" })")
 }

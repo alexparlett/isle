@@ -30,7 +30,23 @@ Singleton {
     WlSessionLock {
         id: sessionLock
         surface: root.surfaceComponent
+        // A marker for as long as the session is locked: a shell that starts and finds it locks again at once,
+        // taking over the compositor's dead lock (hyprland.lua allows the restore), so a shell that dies or
+        // restarts while locked leaves the session locked rather than stuck.
+        onSecureChanged: { marker.command = ["sh", "-c", secure ? "mkdir -p \"$1\" && : > \"$1/locked\"" : "rm -f \"$1/locked\"", "_", root.runDir]; marker.running = true; }
     }
+    readonly property string runDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/isle"
+    Process { id: marker }
+    Process {
+        id: markerCheck
+        command: ["sh", "-c", "test -e \"$1/locked\" && echo locked", "_", root.runDir]
+        running: true
+        stdout: StdioCollector { onStreamFinished: if (text.indexOf("locked") >= 0) root.relock = true }
+    }
+    // The surface component arrives from shell.qml after the singletons; a relock waits for it.
+    property bool relock: false
+    onRelockChanged: if (relock && surfaceComponent) { lock(); relock = false; }
+    onSurfaceComponentChanged: if (relock && surfaceComponent) { lock(); relock = false; }
 
     PamContext {
         id: pam
@@ -110,5 +126,6 @@ Singleton {
     IpcHandler {
         target: "lock"
         function lock(): void { root.lock(); }
+        function locked(): bool { return root.locked; }
     }
 }

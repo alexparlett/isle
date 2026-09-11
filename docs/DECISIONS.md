@@ -367,3 +367,15 @@ one of them. Read-only, and as fresh as the half-hour poll: a shared link
 has nothing to push. Parsing and repeats come from python-icalendar and
 python-recurring-ical-events rather than a parser of our own, since
 recurrence rules are where hand-written parsers go wrong.
+
+**D43 · A lock outlives the shell.** The dev sync restarted the shell
+while the session was locked; the locker died with it, Hyprland showed
+its dead-lock screen and refused every new locker, and the screens,
+turned off by idle, never came back either, since the fresh shell's idle
+monitor had seen no wake. Three things, each general: the Lock service
+keeps a marker in the runtime directory while locked and a starting shell
+that finds it locks at once; the compositor is allowed to hand a dead
+lock to that fresh locker (`allow_session_lock_restore`, safe because the
+shell relocks in the same breath); and the Idle service turns the screens
+on at start. The sync itself now waits while the session is locked or a
+screen is off, asking `lock locked` over IPC.

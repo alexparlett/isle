@@ -102,7 +102,13 @@ Singleton {
     Process {
         command: ["sh", "-c", "cat \"$1\" 2>/dev/null || echo '[]'", "_", root.historyFile]
         running: true
-        stdout: StdioCollector { onStreamFinished: { try { root.history = JSON.parse(text); } catch (e) { root.history = []; } } }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let h; try { h = JSON.parse(text); } catch (e) { h = []; }
+                // Records from before file icons were told apart point at files long gone: the app's icon instead.
+                root.history = h.map(r => /^image:\/\/icon\/(file:\/\/|\/)/.test(r.icon || "") ? Object.assign({}, r, { icon: root.entryIconFor({ appName: r.app }) }) : r);
+            }
+        }
     }
     Process { id: historyWriter }
     Timer {
@@ -123,14 +129,18 @@ Singleton {
     }
     function clearHistory() { history = []; historySave.restart(); }
 
-    function appIconFor(n) {
-        if (n.appIcon) return Quickshell.iconPath(n.appIcon, "");
+    // A file given as the app icon is a picture for this one notification, not the app's icon: a browser
+    // writes the site's logo to a folder it removes once the notification is delivered.
+    function isFile(icon) { return /^(file:\/\/|\/)/.test(icon || ""); }
+    function entryIconFor(n) {
         const entry = n.desktopEntry ? DesktopEntries.byId(n.desktopEntry) : DesktopEntries.heuristicLookup(n.appName);
         return entry && entry.icon ? Quickshell.iconPath(entry.icon, "") : "";
     }
+    function appIconFor(n) { return n.appIcon && !isFile(n.appIcon) ? Quickshell.iconPath(n.appIcon, "") : entryIconFor(n); }
     function iconFor(n) { return appIconFor(n) || n.image || ""; }
-    // The image hint is a picture when the app has an icon of its own; otherwise it stands in for the icon.
-    function pictureFor(n) { return n.image && appIconFor(n) ? n.image : ""; }
+    // The image hint, or the file given as the icon, is a picture when the app has an icon of its own;
+    // otherwise it stands in for the icon.
+    function pictureFor(n) { const pic = n.image || (isFile(n.appIcon) ? n.appIcon : ""); return pic && appIconFor(n) ? pic : ""; }
 
     function plain(markup) {
         return (markup || "").replace(/<[^>]*>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();

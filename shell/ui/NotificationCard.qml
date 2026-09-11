@@ -85,11 +85,12 @@ Item {
             }
         }
         Rectangle {
-            visible: card.picture !== "" && !card.replying
+            // A picture that fails to load, a file the app has removed, takes no room.
+            visible: card.picture !== "" && !card.replying && pictureImage.status !== Image.Error
             Layout.preferredWidth: 48; Layout.preferredHeight: 48
             Layout.alignment: Qt.AlignTop
             radius: 8; color: Theme.raised; clip: true
-            Image { anchors.fill: parent; source: card.picture; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+            Image { id: pictureImage; anchors.fill: parent; source: card.picture; fillMode: Image.PreserveAspectCrop; asynchronous: true }
         }
     }
     MouseArea {

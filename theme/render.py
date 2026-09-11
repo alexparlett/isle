@@ -128,9 +128,11 @@ def ensure_line(path, line):
 # file, and a hint is added to the ones for browsers that are installed, when nothing about ozone is set.
 BROWSER_FLAGS = [("vivaldi-stable", "vivaldi-stable.conf"), ("chromium", "chromium-flags.conf"), ("brave", "brave-flags.conf"),
                  ("google-chrome-stable", "chrome-flags.conf"), ("microsoft-edge-stable", "microsoft-edge-stable-flags.conf")]
-# Electron apps read a flags file too, one per launcher; an app that bundles its own Electron ignores the
-# compositor's ELECTRON_OZONE_PLATFORM_HINT, so the hint goes in the file. Only the platform line applies.
+# Electron and other Chromium-based apps read a flags file too, one per launcher. These get the wiki's
+# explicit platform switch rather than the hint, since an app that rewrites its own environment (ChatGPT)
+# has nothing for a hint to detect.
 ELECTRON_FLAGS = [("electron", "electron-flags.conf"), ("chatgpt", "chatgpt-flags.conf")]
+ELECTRON_LINES = "--enable-features=UseOzonePlatform\n--ozone-platform=wayland"
 
 def browser_hints():
     # The Qt line: on Wayland Chromium points its Qt toolkit integration at the Wayland platform, and Qt 6 is the
@@ -156,10 +158,15 @@ def browser_hints():
             continue
         path = os.path.join(CFG, conf)
         cur = open(path).read() if os.path.exists(path) else ""
+        # Isle's own earlier line is replaced; anything else about ozone is the user's and is left alone.
+        if "--ozone-platform-hint=auto" in cur:
+            cur = "\n".join(l for l in cur.split("\n") if l.strip() not in ("--ozone-platform-hint=auto", "# Wayland when the session is Wayland; added by Isle.")).strip("\n")
+            cur = cur + "\n" if cur else ""
+            open(path, "w").write(cur)
         if "ozone" in cur:
             continue
         with open(path, "a") as f:
-            f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland when the session is Wayland; added by Isle.\n--ozone-platform-hint=auto\n")
+            f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland; added by Isle.\n" + ELECTRON_LINES + "\n")
 
 dry = "--dry" in sys.argv
 if not dry:

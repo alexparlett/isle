@@ -59,8 +59,8 @@ ColumnLayout {
         ToggleTile {
             visible: Vpn.available
             glyph: "shield"; label: "VPN"
-            sub: Vpn.busy ? "Working" : Vpn.active ? Vpn.active.name : Vpn.protonSignedIn ? "Proton VPN" : Vpn.protonInstalled ? "Sign in to Proton VPN" : Vpn.connections.map(c => c.name).join(", ")
-            on: Vpn.active !== null; enabled: !Vpn.busy && Vpn.ready; hasMore: true
+            sub: Vpn.busy ? "Working" : Vpn.active ? Vpn.active.name : Vpn.ready.length ? Vpn.ready.map(p => p.name).join(", ") : Vpn.shown.map(p => p.name + ": " + p.impl.state).join("; ")
+            on: Vpn.active !== null; enabled: !Vpn.busy && Vpn.ready.length > 0; hasMore: true
             onToggled: v => Vpn.toggle()
             onMore: root.page = "vpn"
         }
@@ -314,62 +314,69 @@ ColumnLayout {
         }
     }
 
+    // Every VPN in use: its state and its own actions, then where it can connect; the one that is up is marked.
     PanelPage {
         visible: root.page === "vpn"
         Layout.fillWidth: true
         title: "VPN"
         onBack: root.page = "main"
-        onShown: { Vpn.refreshStatus(); Vpn.refresh(); }
-        ListRow {
-            visible: Vpn.protonInstalled && !Vpn.protonSignedIn
-            Layout.fillWidth: true
-            glyph: "shield"; title: "Proton VPN"; subtitle: "Sign in from Settings"
-            onClicked: { root.dismiss(); Surfaces.showSettings("network"); }
-        }
-        ListRow {
-            visible: Vpn.protonSignedIn
-            Layout.fillWidth: true
-            glyph: "shield"; glyphColor: Vpn.proton.connected ? Theme.accent : Theme.text2
-            title: Vpn.proton.connected ? Vpn.proton.server : "Fastest server"
-            subtitle: Vpn.busy ? "Working" : Vpn.proton.connected ? Vpn.proton.location + " · " + Vpn.proton.protocol : "Proton VPN"
-            onClicked: Vpn.proton.connected ? Vpn.disconnect() : Vpn.connect("")
-            Glyph { name: "check"; size: 14; color: Theme.accent; visible: Vpn.proton.connected }
-        }
-        // The countries run past a hundred: a fixed window that scrolls.
-        Item {
-            visible: Vpn.countries.length > 0
-            Layout.fillWidth: true
-            implicitHeight: Math.min(countryList.contentHeight, 240)
-            ListView {
-                id: countryList
-                anchors.fill: parent
-                clip: true
-                model: Vpn.countries
+        onShown: Vpn.refresh()
+        Repeater {
+            model: Vpn.shown
+            ColumnLayout {
+                id: vpnBlock
+                required property var modelData
+                readonly property var impl: modelData.impl
+                Layout.fillWidth: true
                 spacing: 2
-                boundsBehavior: Flickable.StopAtBounds
-                delegate: ListRow {
-                    required property var modelData
-                    width: countryList.width
-                    glyph: "globe"
-                    title: modelData.name
-                    subtitle: modelData.code
-                    onClicked: Vpn.connect(modelData.code)
+                ListRow {
+                    Layout.fillWidth: true
+                    glyph: "shield"; glyphColor: vpnBlock.impl.active ? Theme.accent : Theme.text2
+                    title: vpnBlock.impl.active ? vpnBlock.impl.active.name : vpnBlock.modelData.name
+                    subtitle: vpnBlock.impl.busy ? "Working" : vpnBlock.impl.active ? vpnBlock.modelData.name + (vpnBlock.impl.active.detail ? "  ·  " + vpnBlock.impl.active.detail : "") : vpnBlock.impl.state
+                    onClicked: { const a = vpnBlock.impl.actions.find(x => x.primary); if (a && !a.input && !a.options) vpnBlock.impl.act(a.id, ""); }
+                    Glyph { name: "check"; size: 14; color: Theme.accent; visible: vpnBlock.impl.active !== null }
+                }
+                // The provider's other actions: a toggle, a choice, a button.
+                Repeater {
+                    model: vpnBlock.impl.actions.filter(a => !a.primary)
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.s3; Layout.rightMargin: Theme.s3
+                        spacing: Theme.s2
+                        Label { text: modelData.label; size: Theme.sizeSmall; color: Theme.text2; Layout.fillWidth: true }
+                        Toggle { visible: modelData.on !== undefined; checked: !!modelData.on; enabled: !vpnBlock.impl.busy; onToggled: vpnBlock.impl.act(modelData.id, "") }
+                        Dropdown { visible: !!modelData.options; listWidth: 220; options: modelData.options || []; value: modelData.value || ""; enabled: !vpnBlock.impl.busy; onPicked: v => vpnBlock.impl.act(modelData.id, v) }
+                        Button { visible: modelData.on === undefined && !modelData.options; text: modelData.label; variant: "text"; enabled: !vpnBlock.impl.busy; onClicked: vpnBlock.impl.act(modelData.id, "") }
+                    }
+                }
+                // The places: a fixed window that scrolls when there are many.
+                Item {
+                    visible: vpnBlock.impl.choices.length > 0 && !vpnBlock.impl.active
+                    Layout.fillWidth: true
+                    implicitHeight: Math.min(choiceList.contentHeight, 240)
+                    ListView {
+                        id: choiceList
+                        anchors.fill: parent
+                        clip: true
+                        model: vpnBlock.impl.choices
+                        spacing: 2
+                        boundsBehavior: Flickable.StopAtBounds
+                        delegate: ListRow {
+                            required property var modelData
+                            width: choiceList.width
+                            glyph: "globe"
+                            title: modelData.title
+                            subtitle: modelData.subtitle || ""
+                            onClicked: vpnBlock.impl.connect(modelData.id)
+                        }
+                    }
+                    Scrollbar { target: choiceList; anchors { top: parent.top; bottom: parent.bottom; right: parent.right } }
                 }
             }
-            Scrollbar { target: countryList; anchors { top: parent.top; bottom: parent.bottom; right: parent.right } }
         }
-        Repeater {
-            model: Vpn.connections
-            ListRow {
-                required property var modelData
-                Layout.fillWidth: true
-                glyph: "shield"; glyphColor: modelData.active ? Theme.accent : Theme.text2
-                title: modelData.name
-                subtitle: modelData.active ? "Connected" : modelData.type === "wireguard" ? "WireGuard" : "NetworkManager"
-                onClicked: modelData.active ? Vpn.down(modelData) : Vpn.up(modelData)
-                Glyph { name: "check"; size: 14; color: Theme.accent; visible: modelData.active }
-            }
-        }
+        Label { visible: Vpn.shown.length === 0; text: "No VPN in use; Settings › Network lists them"; color: Theme.text3; size: Theme.sizeCaption; Layout.margins: Theme.s3 }
         Label { visible: Vpn.error !== ""; text: Vpn.error; color: Theme.danger; size: Theme.sizeCaption; wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.margins: Theme.s3 }
     }
 

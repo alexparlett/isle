@@ -403,3 +403,13 @@ lock to that fresh locker (`allow_session_lock_restore`, safe because the
 shell relocks in the same breath); and the Idle service turns the screens
 on at start. The sync itself now waits while the session is locked or a
 screen is off, asking `lock locked` over IPC.
+
+**D44 · VPNs are providers, the same shape as password managers.** The
+VPN service had Proton's CLI and NetworkManager written into it, with
+Proton's sign-in form, kill switch and NetShield as rows of Settings ›
+Network. Now a VPN is a provider on the filesystem with the same
+contract as a vault, plus what is up and where it can connect: the
+provider says its state and names its actions, a toggle or a choice
+where that is the shape, and the panel's VPN page renders them. Settings
+lists the providers found with a switch each. Proton VPN and
+NetworkManager are the shell's own two; another is a folder.

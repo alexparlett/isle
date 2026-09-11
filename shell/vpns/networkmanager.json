@@ -1,0 +1,6 @@
+{
+    "id": "networkmanager",
+    "name": "NetworkManager",
+    "note": "The VPN and WireGuard connections NetworkManager knows.",
+    "script": "nmvpn.py"
+}

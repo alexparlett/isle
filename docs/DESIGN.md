@@ -556,8 +556,11 @@ a group that is a position or a key takes one choice.
 
 ### VPN
 
-The panel's VPN tile is disabled until something can come up: a Proton
-account signed in, or a NetworkManager connection. Its page lists the fastest
-Proton server, then countries, then NetworkManager connections. Settings ›
-Network › VPN holds sign-in (username and password fields, then a code field
-when the account has two-factor), the country choice, kill switch and NetShield.
+The panel's VPN tile is disabled until a provider can come up. Its page has
+a block per VPN in use: a row with the provider's name and state (the
+connection's name and detail while it is up, a check beside it), the
+provider's own actions beneath as a toggle, a choice or a button, then the
+places it can connect in a scrolling window. A click on the row does the
+primary action, the fastest server or disconnect. Settings › Network › VPN
+is the list of providers found with a switch each; signing in is the
+provider's own flow from its block.

@@ -1,0 +1,6 @@
+{
+    "id": "proton",
+    "name": "Proton VPN",
+    "note": "Through protonvpn, Proton's command-line tool.",
+    "script": "protonvpn.py"
+}

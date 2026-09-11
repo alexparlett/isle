@@ -11,12 +11,12 @@ import qs.services
 Singleton {
     id: root
 
-    // [{ id, name, note, script, keychain, user }], as scripts/vaults.py finds them; `keychain: false` marks one the
+    // [{ id, name, note, script, keychain, user }], as scripts/providers.py finds them; `keychain: false` marks one the
     // Keychain window shows in a way of its own (the system keyring), so it is left out of the vault chips there.
     property var manifests: []
     Process {
         id: finder
-        command: ["python3", Quickshell.shellDir + "/scripts/vaults.py", Quickshell.shellDir]
+        command: ["python3", Quickshell.shellDir + "/scripts/providers.py", Quickshell.shellDir, "vaults"]
         running: true
         stdout: StdioCollector { onStreamFinished: { try { root.manifests = JSON.parse(text); } catch (e) { root.manifests = []; } } }
     }

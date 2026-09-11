@@ -124,7 +124,7 @@ Singleton {
         { title: "Do not disturb", glyph: "bell-off", kind: "Mode", key: "dnd", run: () => Notifications.setDnd(!Notifications.dnd) },
         { title: "Game mode", glyph: "gamepad-2", kind: "Mode", key: "gameMode", run: () => Modes.toggle("game") },
         { title: "Big Picture", glyph: "gamepad-2", kind: "Mode", key: "bigPicture", run: () => Modes.set("bigpicture") },
-        { title: "Connect VPN", glyph: "shield", kind: "Network", when: () => Vpn.ready && !Vpn.active, run: () => Vpn.toggle() },
+        { title: "Connect VPN", glyph: "shield", kind: "Network", when: () => Vpn.ready.length > 0 && !Vpn.active, run: () => Vpn.toggle() },
         { title: "Disconnect VPN", glyph: "shield-off", kind: "Network", when: () => Vpn.active !== null, run: () => Vpn.toggle() },
         { title: "Lock", glyph: "lock", kind: "Power", key: "lock", words: "lock screen", run: () => Session.lock() },
         { title: "Sleep", glyph: "moon", kind: "Power", words: "suspend", run: () => Session.sleep() },

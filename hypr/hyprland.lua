@@ -30,6 +30,10 @@ if io.open("/proc/driver/nvidia/version") then
     hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
 end
 -- The session's SSH agent: gcr's wrapper around ssh-agent, socket-activated by systemd (tools/install.sh enables it).
+-- The user's own tools (~/.local/bin, where installers that are not packages put a binary) are on the path
+-- of everything the compositor starts, the shell and its providers included.
+local localbin = (os.getenv("HOME") or "") .. "/.local/bin"
+if not (os.getenv("PATH") or ""):find(localbin, 1, true) then hl.env("PATH", localbin .. ":" .. (os.getenv("PATH") or "/usr/bin")) end
 hl.env("SSH_AUTH_SOCK", (os.getenv("XDG_RUNTIME_DIR") or ("/run/user/" .. (os.getenv("UID") or "1000"))) .. "/gcr/ssh")
 
 local shell = os.getenv("ISLE_SHELL_PATH") or (os.getenv("HOME") .. "/.config/quickshell/isle")

@@ -438,7 +438,10 @@ holds the whole of it:
   avoid it). `prefs.steamBigPicture` makes the launcher's Steam entry open
   Steam's own Big Picture instead, a single window that takes mouse and
   keyboard; `prefs.steamFollowsMode` decides whether that window puts Isle
-  in Big Picture mode (default) or is left as an ordinary window. Isle's own
+  in Big Picture mode (default) or is left as an ordinary window; either
+  way hyprland.lua's `steam-bigpicture` rule gives that window the
+  `steam` workspace of its own, so it is never behind the desktop's
+  windows. Isle's own
   home and quick menu show key hints in place of pad glyphs when no pad is
   about.
 - **IPC.** `bigpicture home | desktop | quick open|close|toggle | quickOpen`.

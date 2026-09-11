@@ -114,9 +114,11 @@ hl.animation({ leaf = "border", enabled = true, speed = 5, bezier = "easeOutQuin
 
 -- X11 windows carry their own shadows and menus as translucent surfaces; blur under them reads as a smear.
 hl.window_rule({ name = "x11-no-blur", match = { xwayland = true }, no_blur = true })
+-- Steam's Big Picture takes a workspace of its own, so it is never left behind the desktop's windows.
+hl.window_rule({ name = "steam-bigpicture", match = { class = "^steam$", title = "^Steam Big Picture Mode$" }, workspace = "name:steam" })
 -- Menus, tooltips and other override-redirect X11 windows, tagged by the isle-windows plugin: drawn as the
 -- client placed them, at once, with nothing of the compositor's around them.
-hl.window_rule({ name = "x11-popup", match = { tag = "x11popup" }, no_anim = true, no_shadow = true, rounding = 0 })
+hl.window_rule({ name = "x11-popup", match = { tag = "x11popup" }, no_anim = true, no_shadow = true, rounding = 0, no_focus = true })
 -- The shell's surfaces get blur; the wallpaper is under everything and gets none.
 hl.layer_rule({ name = "isle-blur", match = { namespace = "^isle-(island|panel|dashboard|launcher|switcher|capture|power|overview)$" }, blur = true, ignore_alpha = 0.2 })
 hl.layer_rule({ name = "isle-wallpaper", match = { namespace = "^isle-wallpaper$" }, no_anim = true })

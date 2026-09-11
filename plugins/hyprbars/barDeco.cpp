@@ -18,6 +18,8 @@ static bool wantsOwnDecorations(const PHLWINDOW& w);
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/xwayland/XSurface.hpp>
 #include <xcb/xcb.h>
+#include <unordered_map>
+#include <cstring>
 #include <cstdlib>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
@@ -677,41 +679,54 @@ static xcb_connection_t* xConnection() {
     return conn;
 }
 
-static bool motifNoDecorations(const PHLWINDOW& w) {
+static xcb_atom_t xAtom(xcb_connection_t* conn, const char* name) {
+    static std::unordered_map<std::string, std::pair<xcb_connection_t*, xcb_atom_t>> cache;
+    if (auto it = cache.find(name); it != cache.end() && it->second.first == conn)
+        return it->second.second;
+    auto* reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, strlen(name), name), nullptr);
+    if (!reply)
+        return XCB_ATOM_NONE;
+    const auto atom = reply->atom;
+    free(reply);
+    cache[name] = {conn, atom};
+    return atom;
+}
+
+// The two X11 ways of saying "I draw my own frame", the ones KWin honours: Motif hints with the decorations
+// field at zero, and _GTK_FRAME_EXTENTS, which a GTK client sets for its client-side frame and shadow.
+static bool x11DrawsOwnFrame(const PHLWINDOW& w) {
     const auto XS = w->m_xwaylandSurface.lock();
     if (!XS || !XS->m_xID)
         return false;
     auto* conn = xConnection();
     if (!conn)
         return false;
-    static xcb_connection_t* atomConn = nullptr;
-    static xcb_atom_t        atom     = XCB_ATOM_NONE;
-    if (atom == XCB_ATOM_NONE || atomConn != conn) {
-        auto* reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, 15, "_MOTIF_WM_HINTS"), nullptr);
-        if (!reply)
-            return false;
-        atom     = reply->atom;
-        atomConn = conn;
-        free(reply);
+    const auto MOTIF = xAtom(conn, "_MOTIF_WM_HINTS"), EXTENTS = xAtom(conn, "_GTK_FRAME_EXTENTS");
+    bool       own   = false;
+    if (MOTIF != XCB_ATOM_NONE) {
+        if (auto* reply = xcb_get_property_reply(conn, xcb_get_property(conn, 0, XS->m_xID, MOTIF, MOTIF, 0, 5), nullptr)) {
+            if (reply->type == MOTIF && reply->format == 32 && xcb_get_property_value_length(reply) >= 12) {
+                // flags bit 1: the decorations field counts; decorations 0: the client draws everything.
+                const auto* v = sc<const uint32_t*>(xcb_get_property_value(reply));
+                own           = (v[0] & 2) && v[2] == 0;
+            }
+            free(reply);
+        }
     }
-    auto* reply = xcb_get_property_reply(conn, xcb_get_property(conn, 0, XS->m_xID, atom, atom, 0, 5), nullptr);
-    if (!reply)
-        return false;
-    bool none = false;
-    if (reply->type == atom && reply->format == 32 && xcb_get_property_value_length(reply) >= 12) {
-        // flags bit 1: the decorations field counts; decorations 0: the client draws everything.
-        const auto* v = sc<const uint32_t*>(xcb_get_property_value(reply));
-        none          = (v[0] & 2) && v[2] == 0;
+    if (!own && EXTENTS != XCB_ATOM_NONE) {
+        if (auto* reply = xcb_get_property_reply(conn, xcb_get_property(conn, 0, XS->m_xID, EXTENTS, XCB_ATOM_CARDINAL, 0, 4), nullptr)) {
+            own = reply->type == XCB_ATOM_CARDINAL && xcb_get_property_value_length(reply) >= 16;
+            free(reply);
+        }
     }
-    free(reply);
-    return none;
+    return own;
 }
 
 static bool wantsOwnDecorations(const PHLWINDOW& w) {
     if (!w)
         return false;
     if (w->m_isX11)
-        return w->m_X11DoesntWantBorders || motifNoDecorations(w);
+        return w->m_X11DoesntWantBorders || x11DrawsOwnFrame(w);
     if (const auto SURF = w->m_xdgSurface.lock()) {
         if (const auto TL = SURF->m_toplevel.lock(); TL && TL->m_resource) {
             const auto& DECOS = PROTO::xdgDecoration->m_decorations;

@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Proton Pass through pass-cli: the account's state, every vault's items, one field of one item.
+"""Proton Pass through pass-cli, as a vault provider (the contract: docs/ARCHITECTURE.md, "Password manager
+providers"). The shell knows nothing of Proton: the provider says its state in words and names its actions.
 
-    protonpass.py status                       {installed, loggedIn, locked, email, username, hasLock, error}
+    protonpass.py status                       {installed, ready, state, actions: [{id, label, input, terminal, primary}], error}
     protonpass.py list                         {items: [{id, shareId, vault, title, type}], error}
     protonpass.py field <share-id> <item-id> <field>   the value on stdout: username, email, password, totp, urls
-    protonpass.py unlock                       the lock code on stdin
-    protonpass.py logout
+    protonpass.py action <id>                  login (in a terminal), unlock (the lock code on stdin), logout
 
-Secrets never come through `list`: titles only, and a field is fetched when asked for. This is the vault
-provider contract (docs/ARCHITECTURE.md, "Password manager providers"): a script of your own with the same
-four answers, under ~/.config/isle/vaults/<name>/, is a provider too.
+Secrets never come through `list`: titles only, and a field is fetched when asked for.
 """
 import json, re, shutil, subprocess, sys
 
@@ -37,22 +35,32 @@ def signed_out(err):
     return "authenticated client" in err or "not logged in" in err.lower() or "no session" in err.lower()
 
 
+LOGIN = {"id": "login", "label": "Sign in", "terminal": True, "primary": True}
+UNLOCK = {"id": "unlock", "label": "Unlock", "input": "Lock code", "primary": True}
+LOGOUT = {"id": "logout", "label": "Sign out"}
+
 cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
 
 if cmd == "status":
-    out = {"installed": bool(CLI), "loggedIn": False, "locked": False, "email": "", "username": "", "hasLock": False, "error": ""}
-    if CLI:
+    out = {"installed": bool(CLI), "ready": False, "state": "", "actions": [], "error": ""}
+    if not CLI:
+        out["state"] = "pass-cli is not on this machine"
+    else:
         code, so, se = run("info", "--output", "json")
         if code == 0:
             try:
                 info = json.loads(so)
-                out.update(loggedIn=True, email=info.get("email") or "", username=info.get("username") or "", hasLock=bool(info.get("session_has_lock")))
+                who = info.get("email") or info.get("username") or ""
+                lock = info.get("session_lock_after_seconds")
+                out.update(ready=True, state="Signed in" + (" as " + who if who else "") + ("  ·  locks after %d minutes idle" % (lock // 60) if lock else ""), actions=[LOGOUT])
             except ValueError:
                 out["error"] = "Unreadable answer from pass-cli"
         elif locked(se):
-            out.update(loggedIn=True, locked=True, hasLock=True)
-        elif not signed_out(se):
-            out["error"] = se[:160]
+            out.update(state="Locked", actions=[UNLOCK, LOGOUT])
+        elif signed_out(se):
+            out.update(state="Not signed in", actions=[LOGIN])
+        else:
+            out.update(state="pass-cli did not answer", error=se[:160], actions=[LOGIN])
     print(json.dumps(out))
 
 elif cmd == "list":
@@ -62,10 +70,9 @@ elif cmd == "list":
     else:
         code, so, se = run("vault", "list", "--output", "json")
         if code != 0:
-            out["error"] = "locked" if locked(se) else "signed out" if signed_out(se) else se[:160]
+            out["error"] = se[:160]
         else:
-            vaults = json.loads(so).get("vaults", [])
-            for v in vaults:
+            for v in json.loads(so).get("vaults", []):
                 code, so, se = run("item", "list", "--share-id", v["share_id"], "--filter-state", "active", "--output", "json")
                 if code != 0:
                     out["error"] = se[:160]
@@ -83,15 +90,22 @@ elif cmd == "field":
         sys.exit(1)
     sys.stdout.write(so.rstrip("\n"))
 
-elif cmd == "unlock":
-    code = sys.stdin.read().strip()
-    rc, so, se = run("session", "unlock", stdin=code + "\n")
-    if rc != 0:
-        sys.stderr.write(se + "\n")
-    sys.exit(rc)
-
-elif cmd == "logout":
-    rc, so, se = run("logout")
-    if rc != 0:
-        sys.stderr.write(se + "\n")
-    sys.exit(rc)
+elif cmd == "action":
+    what = sys.argv[2] if len(sys.argv) > 2 else ""
+    if what == "login":
+        # In a terminal: pass-cli prints a browser address, or prompts.
+        sys.exit(subprocess.call([CLI, "login"]))
+    elif what == "unlock":
+        code = sys.stdin.read().strip()
+        rc, so, se = run("session", "unlock", stdin=code + "\n")
+        if rc != 0:
+            sys.stderr.write((se or "The lock code was not accepted") + "\n")
+        sys.exit(rc)
+    elif what == "logout":
+        rc, so, se = run("logout")
+        if rc != 0:
+            sys.stderr.write(se + "\n")
+        sys.exit(rc)
+    else:
+        sys.stderr.write("No such action: " + what + "\n")
+        sys.exit(2)

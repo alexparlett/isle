@@ -32,10 +32,13 @@ FloatingWindow {
         .filter(k => !filter || (k.name + " " + k.comment).toLowerCase().indexOf(filter.toLowerCase()) >= 0)
         .map(k => Object.assign({ source: "ssh" }, k))
     // The password managers' items, each manager under a category of its own and all of them in All.
-    readonly property var vaultShown: Vault.items
-        .filter(i => category === "all" || category === "vault:" + i.provider)
-        .filter(i => !filter || (i.title + " " + i.vault).toLowerCase().indexOf(filter.toLowerCase()) >= 0)
-        .map(i => Object.assign({ source: "vault" }, i))
+    readonly property var vaultShown: Vault.waiting
+        .filter(p => category === "all" || category === "vault:" + p.id)
+        .map(p => ({ source: "vaultState", provider: p.id, name: p.name, state: p.impl.state, error: p.impl.error, actions: p.impl.actions, impl: p.impl }))
+        .concat(Vault.items
+            .filter(i => category === "all" || category === "vault:" + i.provider)
+            .filter(i => !filter || (i.title + " " + i.vault).toLowerCase().indexOf(filter.toLowerCase()) >= 0)
+            .map(i => Object.assign({ source: "vault" }, i)))
     readonly property var shown: sshShown.concat(keyringShown, vaultShown)
     readonly property var categories: KeychainService.categories.concat(Vault.installed.filter(p => Vault.enabled(p)).map(p => ["vault:" + p.id, p.name]))
     function countIn(c) {
@@ -219,9 +222,13 @@ FloatingWindow {
                 color: area.containsMouse ? Theme.raised : "transparent"
                 readonly property bool ssh: modelData.source === "ssh"
                 readonly property bool vault: modelData.source === "vault"
+                // A manager that is not ready: its state in its own words, and its own actions.
+                readonly property bool vaultState: modelData.source === "vaultState"
+                property string actionInput: ""
                 // A locked key asks for its passphrase in place before it is loaded.
                 property bool unlocking: false
-                readonly property bool revealed: vault ? Vault.revealedOf(modelData) !== "" : KeychainService.revealedPath === modelData.path
+                readonly property var impl: modelData.impl || null
+                readonly property bool revealed: vault ? Vault.revealedOf(modelData) !== "" : vaultState ? false : KeychainService.revealedPath === modelData.path
                 readonly property string secret: vault ? Vault.revealedOf(modelData) : KeychainService.revealed
                 RowLayout {
                     id: itemRow
@@ -229,13 +236,14 @@ FloatingWindow {
                     height: 56
                     spacing: Theme.s3
                     readonly property var d: parent
-                    Glyph { name: itemRow.d.ssh ? "terminal" : itemRow.d.vault ? ({ login: "user", note: "sticky-note", credit_card: "credit-card", ssh_key: "terminal", wifi: "wifi" })[modelData.type] || "key-round" : modelData.locked ? "lock" : ({ wifi: "wifi", browser: "globe", ssh: "terminal", logins: "user", apps: "layout-grid" })[KeychainService.categoryOf(modelData)] || "key-round"; size: 16; color: itemRow.d.ssh ? (modelData.loaded ? Theme.ok : Theme.text2) : modelData.locked ? Theme.text3 : Theme.text2 }
+                    Glyph { name: itemRow.d.vaultState ? "key-round" : itemRow.d.ssh ? "terminal" : itemRow.d.vault ? ({ login: "user", note: "sticky-note", credit_card: "credit-card", ssh_key: "terminal", wifi: "wifi" })[modelData.type] || "key-round" : modelData.locked ? "lock" : ({ wifi: "wifi", browser: "globe", ssh: "terminal", logins: "user", apps: "layout-grid" })[KeychainService.categoryOf(modelData)] || "key-round"; size: 16; color: itemRow.d.ssh ? (modelData.loaded ? Theme.ok : Theme.text2) : modelData.locked ? Theme.text3 : Theme.text2 }
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 1
-                        Label { text: (itemRow.d.ssh ? modelData.name + (modelData.comment ? "  ·  " + modelData.comment : "") : itemRow.d.vault ? modelData.title : modelData.label) || "(unnamed)"; weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Label { text: (itemRow.d.ssh ? modelData.name + (modelData.comment ? "  ·  " + modelData.comment : "") : itemRow.d.vault ? modelData.title : itemRow.d.vaultState ? modelData.name : modelData.label) || "(unnamed)"; weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                         Label {
                             text: itemRow.d.revealed ? itemRow.d.secret
+                                : itemRow.d.vaultState ? modelData.state + (modelData.error ? "  ·  " + modelData.error : "")
                                 : itemRow.d.vault ? modelData.providerName + "  ·  " + modelData.vault + "  ·  " + modelData.type.replace("_", " ")
                                 : itemRow.d.ssh ? modelData.type + " " + modelData.bits + "  ·  " + modelData.fingerprint.replace("SHA256:", "") + "  ·  " + (modelData.loaded ? "In the agent" : !modelData.hasPrivate ? "Public key only" : modelData.locked ? "Passphrase" : "Not loaded")
                                 : Object.keys(modelData.attributes || {}).map(k => k + "=" + modelData.attributes[k]).join("  ") + "  ·  " + modelData.collection
@@ -247,14 +255,26 @@ FloatingWindow {
                     Button { visible: itemRow.d.ssh && modelData.hasPrivate && !modelData.loaded; text: itemRow.d.unlocking ? "Cancel" : "Load"; variant: itemRow.d.unlocking ? "text" : "raised"
                         onClicked: { if (modelData.locked) itemRow.d.unlocking = !itemRow.d.unlocking; else SshKeys.load(modelData, ""); } }
                     Button { visible: itemRow.d.ssh && modelData.loaded; text: "Unload"; variant: "text"; onClicked: SshKeys.unload(modelData) }
+                    // The manager's own actions; one that wants an input gets a field beside it.
+                    Repeater {
+                        model: itemRow.d.vaultState ? modelData.actions : []
+                        RowLayout {
+                            required property var modelData
+                            spacing: Theme.s2
+                            Field { visible: !!modelData.input; implicitWidth: 120; implicitHeight: 32; placeholder: modelData.input || ""; input.echoMode: TextInput.Password
+                                    onTextChanged: itemRow.d.actionInput = text; onAccepted: { itemRow.d.impl.act(modelData.id, text); text = ""; } }
+                            Button { text: modelData.label; variant: modelData.primary ? "accent" : "text"; implicitHeight: 32; enabled: !modelData.input || itemRow.d.actionInput !== ""
+                                     onClicked: { itemRow.d.impl.act(modelData.id, itemRow.d.actionInput); itemRow.d.actionInput = ""; } }
+                        }
+                    }
                     // A vault login: the username and a one-time code straight to the clipboard, the password shown or copied.
                     Button { visible: itemRow.d.vault && modelData.type === "login"; text: "Username"; variant: "text"; onClicked: Vault.copy(modelData, "username") }
                     Button { visible: itemRow.d.vault && modelData.type === "login"; text: "Code"; variant: "text"; onClicked: Vault.copy(modelData, "totp") }
                     Button { visible: itemRow.d.vault && (modelData.type === "login" || modelData.type === "wifi"); text: itemRow.d.revealed ? "Hide" : "Reveal"; variant: "text"; onClicked: itemRow.d.revealed ? Vault.conceal() : Vault.reveal(modelData, "password") }
                     Button { visible: itemRow.d.vault && (modelData.type === "login" || modelData.type === "wifi"); text: "Copy"; variant: "text"; onClicked: Vault.copy(modelData, "password") }
-                    Button { visible: !itemRow.d.ssh && !itemRow.d.vault; text: itemRow.d.revealed ? "Hide" : "Reveal"; variant: "text"; onClicked: itemRow.d.revealed ? KeychainService.conceal() : KeychainService.reveal(modelData) }
-                    Button { visible: !itemRow.d.ssh && !itemRow.d.vault && itemRow.d.revealed; text: "Copy"; variant: "text"; onClicked: KeychainService.copy(KeychainService.revealed) }
-                    Button { visible: !itemRow.d.ssh && !itemRow.d.vault; text: "Delete"; variant: "text"; onClicked: KeychainService.remove(modelData) }
+                    Button { visible: !itemRow.d.ssh && !itemRow.d.vault && !itemRow.d.vaultState; text: itemRow.d.revealed ? "Hide" : "Reveal"; variant: "text"; onClicked: itemRow.d.revealed ? KeychainService.conceal() : KeychainService.reveal(modelData) }
+                    Button { visible: !itemRow.d.ssh && !itemRow.d.vault && !itemRow.d.vaultState && itemRow.d.revealed; text: "Copy"; variant: "text"; onClicked: KeychainService.copy(KeychainService.revealed) }
+                    Button { visible: !itemRow.d.ssh && !itemRow.d.vault && !itemRow.d.vaultState; text: "Delete"; variant: "text"; onClicked: KeychainService.remove(modelData) }
                 }
                 // The passphrase, under the row.
                 RowLayout {

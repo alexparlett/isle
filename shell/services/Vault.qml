@@ -11,7 +11,7 @@ import qs.services
 Singleton {
     id: root
 
-    // [{ id, name, note, script, signIn, user }], as scripts/vaults.py finds them.
+    // [{ id, name, note, script, user }], as scripts/vaults.py finds them.
     property var manifests: []
     Process {
         id: finder
@@ -27,6 +27,8 @@ Singleton {
         // Titles only, as JSON; and one field of one item to the clipboard, for a script of the user's.
         function items(): string { return JSON.stringify(root.items.map(i => ({ provider: i.provider, id: i.id, shareId: i.shareId, vault: i.vault, title: i.title, type: i.type }))); }
         function copy(provider: string, id: string, field: string): void { const it = root.items.find(i => i.provider === provider && i.id === id); if (it) root.copy(it, field); }
+        // One of a provider's own actions, with its input if it wants one.
+        function act(provider: string, id: string, input: string): void { const p = root.provider(provider); if (p) p.impl.act(id, input); }
     }
 
     // One VaultProvider per manifest; `providers` mirrors them as [{ id, name, note, user, impl }].
@@ -35,7 +37,7 @@ Singleton {
         model: root.manifests
         delegate: VaultProvider {
             required property var modelData
-            providerId: modelData.id; name: modelData.name; note: modelData.note; script: modelData.script; signInCommand: modelData.signIn; user: modelData.user
+            providerId: modelData.id; name: modelData.name; note: modelData.note; script: modelData.script; user: modelData.user
             Component.onCompleted: refresh()
         }
         onObjectAdded: root.rebuild()
@@ -54,6 +56,8 @@ Singleton {
     function enabled(p) { return p.impl.installed && off.indexOf(p.id) < 0; }
     function setEnabled(id, on) { Prefs.p.passwordProvidersOff = on ? off.filter(x => x !== id) : off.concat([id]); }
     readonly property var ready: providers.filter(p => enabled(p) && p.impl.ready)
+    // Enabled providers that are not ready: their state and actions are shown where their items would be.
+    readonly property var waiting: providers.filter(p => enabled(p) && !p.impl.ready)
     // Any provider's tool is on this machine at all: the Keychain's chips and the launcher's prefix are worth showing.
     readonly property bool any: installed.length > 0
     readonly property bool busy: providers.some(p => p.impl.busy)

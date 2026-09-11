@@ -76,7 +76,12 @@ Singleton {
     // The password manager's logins by title: Enter copies the password, Shift+Enter the username, Ctrl+Enter the code.
     function vaultResults(q, limit) {
         if (!Vault.any) return mode === "*" ? [{ kind: "hint", title: "No password manager's tool is installed", subtitle: "Settings › Passwords", glyph: "key-round", run: () => Surfaces.showSettings("passwords") }] : [];
-        if (!Vault.ready.length) return mode === "*" ? [{ kind: "hint", title: Vault.installed.map(p => p.name + (!Vault.enabled(p) ? " is switched off" : p.impl.locked ? " is locked" : " is not signed in")).join(", "), subtitle: "Settings › Passwords", glyph: "key-round", run: () => Surfaces.showSettings("passwords") }] : [];
+        if (!Vault.ready.length) {
+            if (mode !== "*") return [];
+            // The first waiting provider's own primary action, from the launcher: sign in, unlock, whatever it names.
+            const w = Vault.waiting[0], a = w ? (w.impl.actions.find(x => x.primary && !x.input) || null) : null;
+            return [{ kind: "hint", title: w ? w.name + "  ·  " + w.impl.state : Vault.installed.map(p => p.name + " is switched off").join(", "), subtitle: a ? a.label : "Keychain", glyph: "key-round", run: () => { if (a) w.impl.act(a.id); else Surfaces.show("keychain"); } }];
+        }
         if (!q) return mode === "*" ? [{ kind: "hint", title: "Search " + Vault.ready.map(p => p.name).join(" and "), subtitle: "* github   ·   Enter copies the password, Shift+Enter the username, Ctrl+Enter the code", glyph: "key-round", run: () => {} }] : [];
         const out = [];
         for (const it of Vault.items) {

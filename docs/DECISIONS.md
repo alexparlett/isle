@@ -374,7 +374,12 @@ each with a switch; the launcher and the Keychain know only `Vault`. A
 provider is a manifest and a script on the filesystem, the shell's own
 under `shell/vaults` and the user's under `~/.config/isle/vaults`, so a
 favourite manager is an expert's afternoon and not a change to the shell,
-and nothing in Settings needs to know it exists. Proton Pass is the first:
+and nothing in Settings needs to know it exists. The shell keeps no
+manager's notions: a provider says its state in a sentence and names its
+own actions, and the shell renders them where the items would be, so
+Settings is a list with switches, as macOS shows credential providers,
+and signing in or unlocking happens in the Keychain. Proton Pass is the
+first:
 pass-cli is the one supported way into its vault from outside Proton's
 own apps, the desktop app having no automation surface and the browser
 extensions living in the browser. Isle keeps a list of titles and

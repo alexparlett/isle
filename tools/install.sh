@@ -4,7 +4,7 @@
 #
 #     tools/install.sh            install this checkout and link it into place
 #     tools/install.sh --packages also install packages/shell.txt with pacman
-#     tools/install.sh --pam      also let PAM unlock the keyring at login (edits /etc/pam.d/login)
+#     tools/install.sh --pam      also let PAM unlock the keyring at login (edits /etc/pam.d/greetd and login)
 #
 # The desktop runs from ~/.local/share/isle (ISLE_HOME to change it). Run from a
 # checkout elsewhere, this copies the checkout there first, so editing the
@@ -29,14 +29,19 @@ if ((packages)); then
 fi
 
 if ((pam)); then
-    # gnome-keyring unlocks with the login password; the lock screen uses the same stack, so unlocking the session unlocks the keyring.
-    if ! grep -q pam_gnome_keyring /etc/pam.d/login; then
-        sudo sed -i '/^auth.*include.*system-local-login/a auth       optional     pam_gnome_keyring.so' /etc/pam.d/login
-        sudo sed -i '/^session.*include.*system-local-login/a session    optional     pam_gnome_keyring.so auto_start' /etc/pam.d/login
-        ok "pam_gnome_keyring in /etc/pam.d/login"
-    else
-        ok "pam_gnome_keyring already in /etc/pam.d/login"
-    fi
+    # gnome-keyring unlocks with the login password: greetd is the stack the greeter signs in through, login
+    # the one the lock screen uses, so unlocking either unlocks the keyring.
+    for svc in greetd login; do
+        f=/etc/pam.d/$svc
+        [[ -f "$f" ]] || continue
+        if ! grep -q pam_gnome_keyring "$f"; then
+            sudo sed -i '/^auth.*include.*system-local-login/a auth       optional     pam_gnome_keyring.so' "$f"
+            sudo sed -i '/^session.*include.*system-local-login/a session    optional     pam_gnome_keyring.so auto_start' "$f"
+            ok "pam_gnome_keyring in $f"
+        else
+            ok "pam_gnome_keyring already in $f"
+        fi
+    done
 fi
 
 # A checkout elsewhere is a working copy; the desktop runs from the installed one. The compositor's

@@ -56,10 +56,13 @@ PanelWindow {
     // --- the focus -------------------------------------------------------------------------
     property int row: 0
     property var cols: []
+    // The pointer moves the focus without scrolling the rows; the pad and the keys scroll them into range.
+    property bool pointer: false
     readonly property int col: Math.max(0, Math.min((rows[row] ? rows[row].items.length : 1) - 1, cols[row] || 0))
     readonly property var focused: rows[row] && rows[row].items[col] ? rows[row].items[col] : null
     function setCol(c) { const l = cols.slice(); l[row] = Math.max(0, Math.min(rows[row].items.length - 1, c)); cols = l; }
     function move(dx, dy) {
+        pointer = false;
         if (dy) row = Math.max(0, Math.min(rows.length - 1, row + dy));
         else setCol(col + dx);
     }
@@ -67,7 +70,7 @@ PanelWindow {
     onRowsChanged: if (row >= rows.length) row = Math.max(0, rows.length - 1)
     onVisibleChanged: {
         Gamepad.listeners += visible ? 1 : -1;
-        if (visible) { row = 0; cols = []; search = ""; keys.forceActiveFocus(); }
+        if (visible) { row = 0; cols = []; search = ""; pointer = false; keys.forceActiveFocus(); }
         else Osk.hide();
     }
     Connections {
@@ -122,6 +125,8 @@ PanelWindow {
     readonly property int tileW: 176
     readonly property int gapX: Theme.s4
     readonly property int margin: Theme.s6 + Theme.s4
+    // Room inside the rows' clip for the focused tile's scale and ring.
+    readonly property int bleed: 14
 
     ColumnLayout {
         anchors { fill: parent; margins: root.margin; bottomMargin: Theme.s5 }
@@ -154,24 +159,31 @@ PanelWindow {
             }
         }
 
-        // The focused tile's name, large, as the consoles put it above the rows.
+        // The focused tile's name, large, as the consoles put it above the rows; a fixed height, so a tile
+        // without a second line does not move the rows.
         ColumnLayout {
             spacing: 2
-            Layout.preferredHeight: 64
+            Layout.preferredHeight: 80
+            Layout.minimumHeight: 80
+            Layout.maximumHeight: 80
             Label { text: root.focused ? root.focused.label : ""; size: Theme.sizeDisplay + 8; weight: Font.DemiBold; elide: Text.ElideRight; Layout.maximumWidth: root.width * 0.6 }
-            Label { text: root.focused ? (root.focused.sub || "") : ""; size: Theme.sizeHeading; color: Theme.text2 }
+            Label { text: root.focused && root.focused.sub ? root.focused.sub : " "; size: Theme.sizeHeading; color: Theme.text2 }
         }
 
         ListView {
             id: rowsView
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.leftMargin: -root.bleed
+            Layout.rightMargin: -root.bleed
             clip: true
             model: root.rows
             spacing: Theme.s5
+            topMargin: root.bleed
+            bottomMargin: root.bleed
             currentIndex: root.row
-            highlightRangeMode: ListView.ApplyRange
-            preferredHighlightBegin: 0
+            highlightRangeMode: root.pointer ? ListView.NoHighlightRange : ListView.ApplyRange
+            preferredHighlightBegin: root.bleed
             preferredHighlightEnd: height * 0.55
             highlightMoveDuration: Theme.quick * 2
             highlightFollowsCurrentItem: true
@@ -183,7 +195,7 @@ PanelWindow {
                 readonly property int tileH: isGame ? Math.round(root.tileW * 1.5) : 104
                 width: rowsView.width
                 spacing: Theme.s3
-                Label { text: rowItem.modelData.title; size: Theme.sizeTitle; weight: Font.DemiBold; color: rowItem.index === root.row ? Theme.text : Theme.text2 }
+                Label { Layout.leftMargin: root.bleed; text: rowItem.modelData.title; size: Theme.sizeTitle; weight: Font.DemiBold; color: rowItem.index === root.row ? Theme.text : Theme.text2 }
                 ListView {
                     id: tiles
                     Layout.fillWidth: true
@@ -192,9 +204,11 @@ PanelWindow {
                     clip: false
                     model: rowItem.modelData.items
                     spacing: root.gapX
+                    leftMargin: root.bleed
+                    rightMargin: root.bleed
                     currentIndex: rowItem.index === root.row ? root.col : (root.cols[rowItem.index] || 0)
-                    highlightRangeMode: ListView.ApplyRange
-                    preferredHighlightBegin: 0
+                    highlightRangeMode: root.pointer ? ListView.NoHighlightRange : ListView.ApplyRange
+                    preferredHighlightBegin: root.bleed
                     preferredHighlightEnd: width - root.tileW * 2
                     highlightMoveDuration: Theme.quick * 2
                     delegate: Item {
@@ -220,10 +234,10 @@ PanelWindow {
                             Label { anchors.centerIn: parent; visible: !tile.modelData.glyph && !tile.modelData.art; text: (tile.modelData.label || "").split(" ").slice(0, 2).map(w => w.charAt(0)).join(""); size: 40; weight: Font.DemiBold; color: Theme.text2 }
                         }
                         Label { anchors { top: face.bottom; topMargin: Theme.s3; left: face.left; right: face.right } text: tile.modelData.label; size: Theme.sizeHeading; weight: Font.DemiBold; color: tile.sel ? Theme.text : Theme.text2; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
-                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: { root.row = rowItem.index; root.setCol(tile.index); } onClicked: root.activate() }
+                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: { root.pointer = true; root.row = rowItem.index; root.setCol(tile.index); } onClicked: root.activate() }
                     }
                 }
-                Label { visible: rowItem.modelData.items.length === 0; text: root.search ? "Nothing matches" : Games.tools.steam || Games.tools.heroic || Games.tools.lutris ? "Nothing installed yet" : "Install Steam, Heroic or Lutris to fill this"; size: Theme.sizeHeading; color: Theme.text3 }
+                Label { Layout.leftMargin: root.bleed; visible: rowItem.modelData.items.length === 0; text: root.search ? "Nothing matches" : Games.tools.steam || Games.tools.heroic || Games.tools.lutris ? "Nothing installed yet" : "Install Steam, Heroic or Lutris to fill this"; size: Theme.sizeHeading; color: Theme.text3 }
             }
         }
 

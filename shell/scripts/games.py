@@ -5,6 +5,21 @@ import glob, json, os, re, subprocess, shutil
 HOME = os.path.expanduser("~")
 games = []
 
+
+def pick_cover(paths):
+    try:
+        from PIL import Image
+        best, score = "", -1
+        for p in paths:
+            with Image.open(p) as im:
+                w, h = im.size
+            s = (2 if h > w else 0) * 10_000_000 + w * h
+            if s > score:
+                best, score = p, s
+        return best
+    except Exception:
+        return paths[0] if paths else ""
+
 # Steam: every installed app, with its library art when cached.
 for root in [HOME + "/.local/share/Steam", HOME + "/.steam/steam", HOME + "/.var/app/com.valvesoftware.Steam/.local/share/Steam"]:
     if not os.path.isdir(root):
@@ -32,9 +47,10 @@ for root in [HOME + "/.local/share/Steam", HOME + "/.steam/steam", HOME + "/.var
                 if os.path.exists(cand):
                     art = cand
                     break
+            # Newer caches name files by hash: the portrait one is the cover, else the largest.
             if not art:
-                found = glob.glob(root + f"/appcache/librarycache/{aid}/*.jpg")
-                art = found[0] if found else ""
+                found = glob.glob(root + f"/appcache/librarycache/{aid}/*.jpg") + glob.glob(root + f"/appcache/librarycache/{aid}/*.png")
+                art = pick_cover(found)
             games.append({"source": "steam", "id": aid, "name": name.group(1), "art": art, "last": int(last.group(1)) if last else 0,
                           "cmd": f"steam steam://rungameid/{aid}"})
     break

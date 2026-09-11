@@ -167,9 +167,9 @@ def browser_hints():
     for conf in flags_files():
         path = os.path.join(CFG, conf)
         cur = open(path).read() if os.path.exists(path) else ""
-        kept = [l for l in cur.split("\n") if l.strip() not in OLD_ISLE_LINES and l.strip() != FLAGS_MARK and not (l.startswith("#") and "by Isle" in l)]
+        kept = [l for l in cur.split("\n") if l.strip() not in OLD_ISLE_LINES and l.strip() not in FLAGS_LINES and l.strip() != FLAGS_MARK and not (l.startswith("#") and "by Isle" in l)]
         body = "\n".join(kept).strip("\n")
-        if "ozone" not in body:
+        if "ozone" not in body.lower():
             body = (body + "\n\n" if body else "") + FLAGS_MARK + "\n" + "\n".join(FLAGS_LINES)
         out = body + "\n" if body else ""
         if out != cur:

@@ -35,13 +35,16 @@ Singleton {
         return false;
     }
     // Steam's gamepad UI, by its window: it is the console while it is up.
-    readonly property bool steamBigPicture: {
+    readonly property bool steamBigPicture: steamToplevel() !== null
+    // Steam's Big Picture window, or gamescope's when Steam runs inside it. Steam minimises the window rather
+    // than closing it when Big Picture is left, and a minimised one sits on the hidden workspace: not up.
+    function hidden(t) { return t.workspace && t.workspace.name === "special:hidden"; }
+    function steamToplevel() {
         for (const t of Hyprland.toplevels.values) {
-            const w = t.wayland; if (!w) continue;
-            // Steam's own window, or gamescope's when Steam runs inside it.
-            if (/^(steam|gamescope)$/i.test(w.appId || "") && /big picture/i.test(t.title || "")) return true;
+            const w = t.wayland; if (!w || hidden(t)) continue;
+            if (/^(steam|gamescope)$/i.test(w.appId || "") && /big picture/i.test(t.title || "")) return t;
         }
-        return false;
+        return null;
     }
 
     // --- the library, for the home screen -------------------------------------------------
@@ -88,9 +91,58 @@ Singleton {
     // unless Isle was in Big Picture first.
     property bool steamDriven: false
     onSteamBigPictureChanged: {
+        if (steamBigPicture) parkSteam(); else unparkSteam();
         if (!Prefs.p.steamFollowsMode) return;
         if (steamBigPicture && Modes.current !== "bigpicture") { steamDriven = true; Modes.set("bigpicture"); }
         else if (!steamBigPicture && steamDriven) { steamDriven = false; if (Modes.current === "bigpicture") Modes.set("normal"); }
+    }
+    // Big Picture is a window of its own: the desktop client's closes as it opens and a new one opens as it
+    // closes, on whatever workspace is focused then. Big Picture goes fullscreen on a workspace of its own,
+    // and when it closes the focus returns to where the client was, so the new client window opens there;
+    // one that opens on the steam workspace all the same is moved.
+    property string parkedAddress: ""
+    property int parkedFrom: -1
+    function parkSteam() {
+        const t = steamToplevel(); if (!t || parkedAddress) return;
+        parkedAddress = t.address.indexOf("0x") === 0 ? t.address : "0x" + t.address;
+        // The title flips more than once while Big Picture opens, so the window may already sit on the
+        // steam workspace: the origin is kept from the first park then.
+        const ws = t.workspace && t.workspace.name !== "steam" ? t.workspace : null;
+        if (ws) parkedFrom = ws.id;
+        else if (parkedFrom <= 0) { const f = Hyprland.focusedWorkspace; parkedFrom = f && f.name !== "steam" ? f.id : 1; }
+        const win = ', window = "address:' + parkedAddress + '"';
+        Hyprland.dispatch('hl.dsp.window.move({ workspace = "name:steam"' + win + ' })');
+        Hyprland.dispatch('hl.dsp.focus({' + win.slice(2) + ' })');
+        Hyprland.dispatch('hl.dsp.window.fullscreen_state({ internal = 2, client = 2' + win + ' })');
+    }
+    function unparkSteam() {
+        if (!parkedAddress) return;
+        const addr = parkedAddress, from = parkedFrom > 0 ? parkedFrom : 1; parkedAddress = "";
+        const t = Hyprland.toplevels.values.find(t => (t.address.indexOf("0x") === 0 ? t.address : "0x" + t.address) === addr);
+        // A minimised window stays where it is: moving it would bring it back.
+        if (t && !hidden(t)) {
+            const win = ', window = "address:' + addr + '"';
+            Hyprland.dispatch('hl.dsp.window.fullscreen_state({ internal = 0, client = 0' + win + ' })');
+            Hyprland.dispatch('hl.dsp.window.move({ workspace = ' + from + win + ' })');
+        }
+        Hyprland.dispatch('hl.dsp.focus({ workspace = ' + from + ' })');
+        // The desktop client comes back on whatever workspace was focused, which is the steam one when Big
+        // Picture closes first: it goes where the client was.
+        for (const t of Hyprland.toplevels.values) {
+            const w = t.wayland; if (!w || !t.workspace || t.workspace.name !== "steam" || !(t.title || "")) continue;
+            if (!/^(steam|gamescope)$/i.test(w.appId || "")) continue;
+            const a = t.address.indexOf("0x") === 0 ? t.address : "0x" + t.address;
+            if (a !== addr) Hyprland.dispatch('hl.dsp.window.move({ workspace = ' + from + ', window = "address:' + a + '" })');
+        }
+    }
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (event.name !== "openwindow" || root.steamBigPicture) return;
+            const [addr, ws, cls, title] = event.data.split(",");
+            if (ws !== "steam" || !title || !/^(steam|gamescope)$/i.test(cls)) return;
+            Hyprland.dispatch('hl.dsp.window.move({ workspace = ' + (root.parkedFrom > 0 ? root.parkedFrom : 1) + ', window = "address:0x' + addr + '" })');
+        }
     }
     // Something else owns the screen and the pad: a game, or Steam's UI.
     readonly property bool inFront: detected || steamBigPicture

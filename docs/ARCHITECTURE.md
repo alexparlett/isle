@@ -440,9 +440,14 @@ holds the whole of it:
   compositor's to place, and nothing of the shell's touches them (D40).
   Steam's own Big Picture has no such menus and takes a mouse and keyboard. `prefs.steamFollowsMode` decides whether that window puts
   Isle in Big Picture mode (default) or is left as an ordinary window;
-  either way hyprland.lua's `steam-bigpicture` rule gives it (Steam's
-  window, or gamescope's when Steam runs inside it) the `steam` workspace
-  of its own. The Windows service names a gamescope window after the app it
+  either way Games parks that window (Steam's, or gamescope's when Steam
+  runs inside it) fullscreen on a `steam` workspace of its own while it is
+  up. Steam hides its desktop window as Big Picture opens and shows it again
+  as Big Picture closes, on whatever workspace is focused then, and
+  minimises the Big Picture window rather than closing it: a minimised one
+  does not count as up, and when it goes the focus returns to where the
+  client was and a client window left on the steam workspace is moved
+  there. The Windows service names a gamescope window after the app it
   hosts, from the title's first word. Isle's own home and quick menu show
   key hints in place of pad glyphs when no pad is about.
 - **IPC.** `bigpicture home | desktop | quick open|close|toggle | quickOpen`.

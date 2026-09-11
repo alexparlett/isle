@@ -441,7 +441,10 @@ holds the whole of it:
   in Big Picture mode (default) or is left as an ordinary window; either
   way hyprland.lua's `steam-bigpicture` rule gives that window the
   `steam` workspace of its own, so it is never behind the desktop's
-  windows. Isle's own
+  windows. With `steamBigPicture` on, leaving Steam's Big Picture quits
+  Steam (`steam -shutdown`, two seconds after the window goes, if the
+  desktop client's window is what remains), since that client is the thing
+  being avoided. Isle's own
   home and quick menu show key hints in place of pad glyphs when no pad is
   about.
 - **IPC.** `bigpicture home | desktop | quick open|close|toggle | quickOpen`.

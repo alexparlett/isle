@@ -87,10 +87,21 @@ Singleton {
     // unless Isle was in Big Picture first.
     property bool steamDriven: false
     onSteamBigPictureChanged: {
+        if (!steamBigPicture) steamQuit.restart();
         if (!Prefs.p.steamFollowsMode) return;
         if (steamBigPicture && Modes.current !== "bigpicture") { steamDriven = true; Modes.set("bigpicture"); }
         else if (!steamBigPicture && steamDriven) { steamDriven = false; if (Modes.current === "bigpicture") Modes.set("normal"); }
     }
+    // With Steam kept to its Big Picture, leaving it is quitting it: the desktop client it falls back to is
+    // not wanted. A moment's grace, since the window's title can change while Steam is loading.
+    readonly property bool steamDesktopWindow: {
+        for (const t of Hyprland.toplevels.values) {
+            const w = t.wayland; if (!w) continue;
+            if ((w.appId || "").toLowerCase() === "steam" && (t.title || "") === "Steam") return true;
+        }
+        return false;
+    }
+    Timer { id: steamQuit; interval: 2000; onTriggered: if (Prefs.p.steamBigPicture && !root.steamBigPicture && root.steamDesktopWindow) Compositor.exec("steam -shutdown") }
     // Something else owns the screen and the pad: a game, or Steam's UI.
     readonly property bool inFront: detected || steamBigPicture
     // The home stepped back behind a launcher it opened; Guide held brings it forward.

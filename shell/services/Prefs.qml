@@ -71,6 +71,8 @@ Singleton {
             property bool gamescope: false
             // Steam opens in its Big Picture from the launcher: one window, no X11 menus.
             property bool steamBigPicture: false
+            // Leaving Steam's Big Picture quits Steam rather than falling back to the desktop client.
+            property bool steamQuitsWithBigPicture: false
             // Steam's Big Picture appearing puts Isle in Big Picture mode.
             property bool steamFollowsMode: true
             // A pad on the desktop: Guide held opens Big Picture.

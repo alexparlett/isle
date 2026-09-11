@@ -69,6 +69,10 @@ Singleton {
             property bool gameAuto: true
             property bool gameTearing: false
             property bool gamescope: false
+            // Steam opens in its Big Picture from the launcher: one window, no X11 menus.
+            property bool steamBigPicture: false
+            // Steam's Big Picture appearing puts Isle in Big Picture mode.
+            property bool steamFollowsMode: true
             // A pad on the desktop: Guide held opens Big Picture.
             property bool padHome: true
             // Window classes the pad is bridged to as keys while a mode is on.

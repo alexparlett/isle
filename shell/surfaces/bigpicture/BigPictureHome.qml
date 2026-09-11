@@ -244,11 +244,13 @@ PanelWindow {
         // The legend.
         RowLayout {
             Layout.fillWidth: true
+            // The pad's buttons when a pad is about; the keys otherwise.
             PadLegend {
                 Layout.fillWidth: true
                 big: true
                 kind: Gamepad.kind
-                items: [{ keys: ["a"], label: "Open" }, { keys: ["y"], label: "Search" }, { keys: ["lb", "rb"], label: "Rows" }, { keys: ["start"], label: "Quick menu" }, { keys: ["guide"], label: "Hold: home" }, { keys: ["select"], label: "Hold: keyboard" }]
+                items: Gamepad.kind ? [{ keys: ["a"], label: "Open" }, { keys: ["y"], label: "Search" }, { keys: ["lb", "rb"], label: "Rows" }, { keys: ["start"], label: "Quick menu" }, { keys: ["guide"], label: "Hold: home" }, { keys: ["select"], label: "Hold: keyboard" }]
+                                    : [{ keys: ["Enter"], label: "Open" }, { keys: ["A–Z"], label: "Search" }, { keys: ["F1"], label: "Quick menu" }, { keys: ["Esc"], label: "Desktop" }]
             }
             Label { text: Prefs.p.gamescope && Games.tools.gamescope ? "Steam through gamescope" : ""; size: Theme.sizeCaption; color: Theme.text3 }
         }

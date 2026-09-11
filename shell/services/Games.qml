@@ -87,6 +87,7 @@ Singleton {
     // unless Isle was in Big Picture first.
     property bool steamDriven: false
     onSteamBigPictureChanged: {
+        if (!Prefs.p.steamFollowsMode) return;
         if (steamBigPicture && Modes.current !== "bigpicture") { steamDriven = true; Modes.set("bigpicture"); }
         else if (!steamBigPicture && steamDriven) { steamDriven = false; if (Modes.current === "bigpicture") Modes.set("normal"); }
     }

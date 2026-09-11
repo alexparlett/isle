@@ -63,7 +63,8 @@ Singleton {
             if (s <= 0) continue;
             s += Math.min(20, used(e.id) * 2);
             out.push({ kind: "app", title: e.name, subtitle: e.genericName || e.comment || "Application", icon: Quickshell.iconPath(e.icon, "application-x-executable"), score: s,
-                       run: () => { bump(e.id); e.execute(); },
+                       // Steam's entry can go straight to its Big Picture, the one Steam UI without X11 menus.
+                       run: () => { bump(e.id); if (Prefs.p.steamBigPicture && /^steam$/i.test(e.id)) Games.openSteam(); else e.execute(); },
                        alt: e.runInTerminal ? null : () => { bump(e.id); Compositor.exec("kitty -e " + JSON.stringify(e.command.join(" "))); }, altLabel: "in a terminal" });
         }
         out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));

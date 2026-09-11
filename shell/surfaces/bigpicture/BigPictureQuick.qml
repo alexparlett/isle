@@ -155,7 +155,7 @@ PanelWindow {
                     }
                 }
             }
-            PadLegend { Layout.fillWidth: true; big: true; kind: Gamepad.kind; items: [{ keys: ["a"], label: "Select" }, { keys: ["b"], label: "Close" }, { keys: ["left", "right"], label: "Adjust" }] }
+            PadLegend { Layout.fillWidth: true; big: true; kind: Gamepad.kind; items: Gamepad.kind ? [{ keys: ["a"], label: "Select" }, { keys: ["b"], label: "Close" }, { keys: ["left", "right"], label: "Adjust" }] : [{ keys: ["Enter"], label: "Select" }, { keys: ["Esc"], label: "Close" }, { keys: ["←", "→"], label: "Adjust" }] }
         }
     }
 }

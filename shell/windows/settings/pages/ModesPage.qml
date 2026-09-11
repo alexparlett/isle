@@ -43,6 +43,18 @@ SettingsPage {
             Toggle { checked: Prefs.p.gamescope; onToggled: v => Prefs.p.gamescope = v }
         }
         SettingsRow {
+            label: "Steam opens in Big Picture"
+            description: "From the launcher, Steam comes up in its own Big Picture: one window, mouse and keyboard welcome, none of the desktop client's X11 menus."
+            visible: Games.tools.steam
+            Toggle { checked: Prefs.p.steamBigPicture; onToggled: v => Prefs.p.steamBigPicture = v }
+        }
+        SettingsRow {
+            label: "Steam's Big Picture switches Isle's mode"
+            description: "Isle enters Big Picture mode when Steam's appears and leaves when it goes. Off, Steam's Big Picture is just another window."
+            visible: Games.tools.steam
+            Toggle { checked: Prefs.p.steamFollowsMode; onToggled: v => Prefs.p.steamFollowsMode = v }
+        }
+        SettingsRow {
             label: "Controller opens Big Picture"
             description: "Hold the Guide button on the desktop. The pad is read the whole time for it."
             Toggle { checked: Prefs.p.padHome; onToggled: v => Prefs.p.padHome = v }

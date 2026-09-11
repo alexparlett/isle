@@ -431,6 +431,16 @@ holds the whole of it:
   and the script stays alive while the quick menu is up so it keeps it.
   Steam rewrites `shortcuts.vdf` on exit, so the tool refuses while Steam
   runs; the Modes page offers Add and Remove.
+- **Steam without its X11 menus.** The desktop client's menus are X11
+  override-redirect popups, and under Hyprland with the NVIDIA driver they
+  paint partial frames (placement, focus and animation are all correct;
+  upstream closed the reports as XWayland behaviour; KWin and gamescope
+  avoid it). `prefs.steamBigPicture` makes the launcher's Steam entry open
+  Steam's own Big Picture instead, a single window that takes mouse and
+  keyboard; `prefs.steamFollowsMode` decides whether that window puts Isle
+  in Big Picture mode (default) or is left as an ordinary window. Isle's own
+  home and quick menu show key hints in place of pad glyphs when no pad is
+  about.
 - **IPC.** `bigpicture home | desktop | quick open|close|toggle | quickOpen`.
 - **Search** on the home is the on-screen keyboard typing into the home's
   own window, which holds keyboard focus; the Library row filters as you

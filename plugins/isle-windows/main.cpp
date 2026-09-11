@@ -330,6 +330,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         if (!w || !w->m_isX11 || !w->m_ruleApplicator)
             return;
         w->m_ruleApplicator->m_tagKeeper.applyTag(w->isX11OverrideRedirect() ? "x11popup" : "x11window", true);
+        // Float is a static rule, read at map: a tag set this early must be seen by that read too, not only
+        // by the dynamic ones.
+        w->m_ruleApplicator->recheckStaticRules();
         w->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_TAG);
     });
 

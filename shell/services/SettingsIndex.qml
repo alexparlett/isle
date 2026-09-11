@@ -37,7 +37,7 @@ Singleton {
         { id: "passwords", glyph: "key-round", label: "Passwords" },
         { id: "region", glyph: "languages", label: "Language & region" },
         { id: "updates", glyph: "download", label: "Updates" },
-        { id: "snapshots", glyph: "history", label: "Snapshots" },
+        { id: "snapshots", glyph: "database-backup", label: "Snapshots" },
         { id: "about", glyph: "info", label: "About" },
     ]
     readonly property var pageLabels: { const m = {}; for (const p of pages) if (p.id) m[p.id] = p.label; return m; }

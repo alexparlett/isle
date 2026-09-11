@@ -33,6 +33,7 @@ command
 cpu
 credit-card
 crop
+database-backup
 download
 eye
 eye-off
@@ -44,7 +45,6 @@ gamepad-2
 globe
 hard-drive
 headphones
-history
 image
 info
 keyboard

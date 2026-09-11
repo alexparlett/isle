@@ -85,19 +85,6 @@ V = {
     "pressed": c["pressed"],
     "bars_off": "true" if prefs.get("titleBars", True) is False else "false",
 }
-# One anchored regex of the classes that draw their own title bar, set only when the running plugin has the
-# option: a key it does not know is a config error.
-def bars_except_line():
-    classes = [str(c) for c in prefs.get("titleBarsExcept", ["steam", "Chatgpt"]) if c]
-    rx = ("^(" + "|".join(re.escape(c) for c in classes) + ")$") if classes else ""
-    known = False
-    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
-        r = subprocess.run(["hyprctl", "getoption", "plugin:hyprbars:no_bar_classes"], capture_output=True, text=True)
-        known = r.returncode == 0 and "no such option" not in r.stdout + r.stderr
-    if not known:
-        return "-- no_bar_classes: the loaded hyprbars predates the option; hyprpm update, then the classes that draw their own bar apply."
-    return "hl.config({ plugin = { hyprbars = { no_bar_classes = [[" + rx + "]] } } })  -- classes that draw their own title bar"
-V["bars_except_line"] = bars_except_line()
 # Terminal palette: near-neutral base, accent for blue, token semantics for the rest.
 V.update({
     "term0": "#E8E8EB" if LIGHT else "#1B1C21", "term8": "#C8C8CE" if LIGHT else "#3A3C44",
@@ -141,6 +128,9 @@ def ensure_line(path, line):
 # file, and a hint is added to the ones for browsers that are installed, when nothing about ozone is set.
 BROWSER_FLAGS = [("vivaldi-stable", "vivaldi-stable.conf"), ("chromium", "chromium-flags.conf"), ("brave", "brave-flags.conf"),
                  ("google-chrome-stable", "chrome-flags.conf"), ("microsoft-edge-stable", "microsoft-edge-stable-flags.conf")]
+# Electron apps read a flags file too, one per launcher; an app that bundles its own Electron ignores the
+# compositor's ELECTRON_OZONE_PLATFORM_HINT, so the hint goes in the file. Only the platform line applies.
+ELECTRON_FLAGS = [("electron", "electron-flags.conf"), ("chatgpt", "chatgpt-flags.conf")]
 
 def browser_hints():
     # The Qt line: on Wayland Chromium points its Qt toolkit integration at the Wayland platform, and Qt 6 is the
@@ -161,30 +151,19 @@ def browser_hints():
             continue
         with open(path, "a") as f:
             f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland when the session is Wayland, with Qt 6, and notifications through the desktop's server; added by Isle.\n" + "\n".join(add) + "\n")
-
-# Electron reads web content's colour scheme from the toolkit it happens to pick, which is not always the one
-# the theme set; the flag settles it. Each app's launcher reads its own flags file; the line is Isle's to add
-# and take away.
-DARK_FLAG_FILES = [("chatgpt", "chatgpt-flags.conf"), ("electron", "electron-flags.conf")]
-DARK_MARK = "# Web content follows the dark theme; added by Isle."
-
-def dark_hints():
-    for binary, conf in DARK_FLAG_FILES:
+    for binary, conf in ELECTRON_FLAGS:
         if not shutil.which(binary) and not glob.glob("/usr/bin/" + binary + "*"):
             continue
         path = os.path.join(CFG, conf)
         cur = open(path).read() if os.path.exists(path) else ""
-        lines = [l for l in cur.split("\n") if l.strip() not in (DARK_MARK, "--force-dark-mode")]
-        if not LIGHT:
-            lines = [l for l in lines if l.strip()] + [DARK_MARK, "--force-dark-mode"]
-        out = "\n".join(lines).strip("\n") + ("\n" if any(l.strip() for l in lines) else "")
-        if out != cur:
-            open(path, "w").write(out)
+        if "ozone" in cur:
+            continue
+        with open(path, "a") as f:
+            f.write(("" if cur.endswith("\n") or not cur else "\n") + "# Wayland when the session is Wayland; added by Isle.\n--ozone-platform-hint=auto\n")
 
 dry = "--dry" in sys.argv
 if not dry:
     browser_hints()
-    dark_hints()
 for tmpl, target, post in TARGETS:
     out = render(tmpl)
     if dry:

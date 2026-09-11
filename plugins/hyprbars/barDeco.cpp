@@ -16,6 +16,7 @@ static bool wantsOwnDecorations(const PHLWINDOW& w);
 #include <hyprland/src/desktop/state/LayerState.hpp>
 #include <hyprland/src/desktop/state/ViewHitTester.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/xwayland/XWayland.hpp>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
 #include <hyprland/src/managers/SeatManager.hpp>
@@ -656,30 +657,31 @@ PHLWINDOW CHyprBar::getOwner() {
     return m_pWindow.lock();
 }
 
-// isle: a class listed in no_bar_classes draws its own controls without asking (Steam).
-static bool classDrawsOwn(const PHLWINDOW& w) {
-    const auto& SRC = g_pGlobalState->config.noBarClasses->value();
-    if (SRC.empty())
-        return false;
-    if (SRC != g_pGlobalState->noBarClassesSrc) {
-        g_pGlobalState->noBarClassesSrc = SRC;
-        try {
-            g_pGlobalState->noBarClassesRx    = std::regex(SRC);
-            g_pGlobalState->noBarClassesValid = true;
-        } catch (...) { g_pGlobalState->noBarClassesValid = false; }
-    }
-    return g_pGlobalState->noBarClassesValid && (std::regex_match(w->m_class, g_pGlobalState->noBarClassesRx) || std::regex_match(w->m_initialClass, g_pGlobalState->noBarClassesRx));
-}
-
 // isle: a client that asked for client-side decorations draws its own title bar and controls. Chromium, Electron
 // and Qt ask through xdg-decoration, GTK through KDE's server-decoration protocol, X11 clients through Motif hints.
+// An X11 window of a type that is never decorated: menus, tooltips, notifications, splashes, docks, and
+// anything override-redirect.
+static bool x11Undecorated(const PHLWINDOW& w) {
+    if (w->isX11OverrideRedirect())
+        return true;
+    const auto XS = w->m_xwaylandSurface.lock();
+    if (!XS)
+        return false;
+    static const char* TYPES[] = {"_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_DROPDOWN_MENU", "_NET_WM_WINDOW_TYPE_POPUP_MENU", "_NET_WM_WINDOW_TYPE_TOOLTIP",
+                                  "_NET_WM_WINDOW_TYPE_NOTIFICATION", "_NET_WM_WINDOW_TYPE_COMBO", "_NET_WM_WINDOW_TYPE_DND", "_NET_WM_WINDOW_TYPE_SPLASH",
+                                  "_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_DESKTOP"};
+    for (const auto& a : XS->m_atoms)
+        for (const auto* t : TYPES)
+            if (HYPRATOMS.contains(t) && a == HYPRATOMS[t])
+                return true;
+    return false;
+}
+
 static bool wantsOwnDecorations(const PHLWINDOW& w) {
     if (!w)
         return false;
-    if (classDrawsOwn(w))
-        return true;
     if (w->m_isX11)
-        return w->m_X11DoesntWantBorders;
+        return w->m_X11DoesntWantBorders || x11Undecorated(w);
     if (const auto SURF = w->m_xdgSurface.lock()) {
         if (const auto TL = SURF->m_toplevel.lock(); TL && TL->m_resource) {
             const auto& DECOS = PROTO::xdgDecoration->m_decorations;

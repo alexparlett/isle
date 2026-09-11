@@ -37,7 +37,6 @@ if hl.plugin and hl.plugin.hyprbars and not {{bars_off}} then
         -- A double click on the bar fills the work area, and restores when already filled.
         on_double_click = "hyprctl isle zoom",
     } } })
-    {{bars_except_line}}
     hl.plugin.hyprbars.add_button({ bg_color = rgb("{{danger}}"), fg_color = rgb("{{window}}"), size = 12, icon = "×", action = "hyprctl dispatch 'hl.dsp.window.close()'" })
     hl.plugin.hyprbars.add_button({ bg_color = rgb("{{ok}}"), fg_color = rgb("{{window}}"), size = 12, icon = "+", action = "hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \"maximized\" })'" })
     hl.plugin.hyprbars.add_button({ bg_color = rgb("{{warn}}"), fg_color = rgb("{{window}}"), size = 12, icon = "–", action = "qs -p $HOME/.config/quickshell/isle ipc call switcher hide" })

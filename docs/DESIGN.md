@@ -513,10 +513,14 @@ refusal. On Wayland Chromium points its Qt toolkit integration at the
 Wayland platform, so the flags file also asks for Qt 6, the one the
 desktop themes; qt5-wayland is in the package list for every other Qt 5
 app, since the compositor tells all of them to run on Wayland. Electron
-reads web content's colour scheme from whichever toolkit it picked, not
-always the one the theme set, so in the dark theme the render adds
-`--force-dark-mode` to the flags file of Electron and of the ChatGPT
-app, and takes it away in the light one.
+apps get the same Wayland hint in the flags files their launchers read
+(`electron-flags.conf`, and the ChatGPT app's own), since one that
+bundles its own Electron ignores the compositor's hint; on Wayland they
+declare their own decorations through xdg-decoration and take the colour
+scheme from the portal, so no bar is drawn over them and they follow the
+theme. The compositor exports the toolkit backends the Hyprland wiki
+lists: Qt and GTK on Wayland with X11 as the fallback, Qt leaving
+decorations to the compositor.
 
 ### Keyboards
 

@@ -58,7 +58,7 @@ Singleton {
                 const was = root.restartNeeded;
                 root.restartReasons = r.reasons || [];
                 root.restartNeeded = !!r.restart;
-                if (root.restartNeeded && !was && !root.running) IslandEvents.show({ kind: "text", duration: 8000, glyph: "rotate-cw", text: "Restart to finish the update", detail: root.restartReasons[0] || "", actions: [{ label: "Restart", run: () => Session.restart() }] });
+                if (root.restartNeeded && !was && !root.running) IslandEvents.show({ kind: "text", duration: 8000, glyph: "rotate-cw", text: "Restart to finish the update", actions: [{ label: "Restart", run: () => Session.restart() }] });
             }
         }
     }
@@ -112,7 +112,7 @@ Singleton {
         id: done
         interval: 2500
         onTriggered: {
-            if (root.restartNeeded) IslandEvents.show({ kind: "text", duration: 15000, glyph: "rotate-cw", text: "Updated; restart to finish", detail: root.restartReasons[0] || "", actions: [{ label: "Restart", run: () => Session.restart() }] });
+            if (root.restartNeeded) IslandEvents.show({ kind: "text", duration: 15000, glyph: "rotate-cw", text: "Updated; restart to finish", actions: [{ label: "Restart", run: () => Session.restart() }] });
             else IslandEvents.show({ kind: "text", duration: 5000, glyph: "check", text: "Updated" });
         }
     }

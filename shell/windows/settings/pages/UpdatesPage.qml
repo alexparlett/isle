@@ -16,7 +16,6 @@ SettingsPage {
         heading: "Restart needed"
         SettingsRow {
             label: "An update is waiting for a restart"
-            description: Updates.restartReasons.join("  ·  ")
             Button { text: "Restart"; glyph: "rotate-cw"; variant: "accent"; onClicked: Session.restart() }
         }
     }

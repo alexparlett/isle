@@ -141,9 +141,10 @@ recording dot, mode chip.
 pill's own content becomes a 44px header band (desktops as app icons,
 clock and date, glyphs) and beneath it, 420px wide, the toggle grid (wifi,
 bluetooth, do not disturb, night light, focus, game), the output picker
-with volume and brightness, media, and a footer line for controller
-battery and power profile. Nothing needs a second click to reach. The
-panel folds back when the pointer leaves.
+with volume and brightness, media, the tray's icons (click activates,
+right click opens the menu as a page of the panel), and a footer line for
+controller battery and power profile. Nothing needs a second click to
+reach. The panel folds back when the pointer leaves.
 
 **Events** morph the island for a few seconds, then it returns:
 

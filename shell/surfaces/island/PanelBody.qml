@@ -148,6 +148,20 @@ ColumnLayout {
         }
     }
 
+    // The tray: an app's icon activates it, its menu is a page of its own.
+    property var trayItem: null
+    Card {
+        visible: root.page === "main" && Tray.items.length > 0
+        Layout.fillWidth: true
+        padding: Theme.s2 + 2
+        TrayIcons {
+            width: parent.width
+            cell: 24; iconSize: 16; spacing: 0
+            onActivated: root.dismiss()
+            onMenuRequested: item => { root.trayItem = item; root.page = "tray"; }
+        }
+    }
+
     // The footer: each battery on a line of its own, then updates and the power profile.
     ColumnLayout {
         visible: root.page === "main"
@@ -197,6 +211,14 @@ ColumnLayout {
     }
 
     // --- drill-downs ---------------------------------------------------------------
+
+    PanelPage {
+        visible: root.page === "tray"
+        title: root.trayItem ? (root.trayItem.title || root.trayItem.id) : ""
+        Layout.fillWidth: true
+        onBack: { root.page = "main"; root.trayItem = null; }
+        TrayMenu { Layout.fillWidth: true; item: root.trayItem; onDone: { root.dismiss(); root.page = "main"; root.trayItem = null; } }
+    }
 
     PanelPage {
         visible: root.page === "wifi"

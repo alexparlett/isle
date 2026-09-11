@@ -322,13 +322,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         throw std::runtime_error("[isle-windows] version mismatch");
     }
 
-    // An X11 override-redirect window (a menu, a tooltip, a combo list) is tagged x11popup as it opens, so the
-    // config's rule on that tag can spare it the animations and decorations a window gets; the rule engine has
-    // no matcher for override-redirect itself.
+    // Every X11 window is tagged as it opens: an override-redirect one (a menu, a tooltip, a combo list) as
+    // x11popup, so the config's rule on that tag spares it the animations and decorations a window gets, and
+    // any other as x11window, so the float rule reaches real windows only; the rule engine has no matcher for
+    // override-redirect itself.
     static auto P_POPUP = Event::bus()->m_events.window.openEarly.listen([](PHLWINDOW w) {
-        if (!w || !w->m_isX11 || !w->isX11OverrideRedirect() || !w->m_ruleApplicator)
+        if (!w || !w->m_isX11 || !w->m_ruleApplicator)
             return;
-        w->m_ruleApplicator->m_tagKeeper.applyTag("x11popup", true);
+        w->m_ruleApplicator->m_tagKeeper.applyTag(w->isX11OverrideRedirect() ? "x11popup" : "x11window", true);
         w->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_TAG);
     });
 

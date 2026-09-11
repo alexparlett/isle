@@ -18,16 +18,18 @@ Provider {
     property string wantLabel: ""
     property string revealed: ""
     property string revealedId: ""
+    // The value is used once the script has exited, so a failure (exit non-zero, the reason on stderr) copies
+    // nothing and says so, rather than an empty string with a cheerful toast.
     property Process fielder: Process {
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const v = text;
-                if (root.want === "copy") { root.copier.command = ["wl-copy", "--", v]; root.copier.running = true; IslandEvents.show({ kind: "text", glyph: "check", text: root.wantLabel + " copied", duration: 1800 }); }
-                else if (root.want === "reveal") { root.revealed = v; root.revealedId = root.wantItem ? root.wantItem.id : ""; }
-                root.want = "";
-            }
+        stdout: StdioCollector { id: fieldOut }
+        stderr: StdioCollector { id: fieldErr }
+        onExited: (code) => {
+            const v = fieldOut.text, why = fieldErr.text.trim().split("\n").pop();
+            if (code !== 0) { root.error = why || "Nothing there"; IslandEvents.show({ kind: "text", glyph: "x", text: root.wantLabel + ": " + (why || "nothing there"), duration: 2500 }); if (/lock|sign|auth/i.test(why)) root.refresh(); }
+            else if (root.want === "copy") { root.copier.command = ["wl-copy", "--", v]; root.copier.running = true; IslandEvents.show({ kind: "text", glyph: "check", text: root.wantLabel + " copied", duration: 1800 }); }
+            else if (root.want === "reveal") { root.revealed = v; root.revealedId = root.wantItem ? root.wantItem.id : ""; }
+            root.want = "";
         }
-        stderr: StdioCollector { onStreamFinished: { if (text.trim()) { root.error = text.trim().split("\n").pop(); root.refresh(); } } }
     }
     property Process copier: Process {}
     function fetch(item, field, purpose) {

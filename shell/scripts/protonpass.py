@@ -84,11 +84,15 @@ elif cmd == "list":
 
 elif cmd == "field":
     share, item, field = sys.argv[2:5]
-    code, so, se = run("item", "view", "--share-id", share, "--item-id", item, "--field", field)
-    if code != 0:
-        sys.stderr.write(se + "\n")
-        sys.exit(1)
-    sys.stdout.write(so.rstrip("\n"))
+    # pass-cli reports an empty field as missing; a login's identity is its username or, failing that, its email.
+    tries = {"username": ["username", "email"], "email": ["email", "username"]}.get(field, [field])
+    for f in tries:
+        code, so, se = run("item", "view", "--share-id", share, "--item-id", item, "--field", f)
+        if code == 0 and so.strip():
+            sys.stdout.write(so.rstrip("\n"))
+            sys.exit(0)
+    sys.stderr.write((se or "No " + field) + "\n")
+    sys.exit(1)
 
 elif cmd == "action":
     what = sys.argv[2] if len(sys.argv) > 2 else ""

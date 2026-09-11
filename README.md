@@ -2,10 +2,10 @@
 
 A desktop shell for Hyprland, built in Quickshell. Nothing on screen at
 rest but a pill at the top of the display. Everything else, the control
-panel, notifications, a dashboard, a launcher, the lock screen, Settings,
-a Monitor and a Keychain, comes out of that one process when asked and
-goes away when done. Built for two workloads, gaming and running coding
-agents, on CachyOS.
+panel, notifications, a dashboard, a launcher, an on-screen keyboard, the
+lock screen, Settings, a Monitor and a Keychain, comes out of that one
+process when asked and goes away when done. Built for two workloads,
+gaming and running coding agents, on CachyOS.
 
 ![The control panel unfolded from the island](docs/screenshots/island-panel.jpg)
 
@@ -21,26 +21,33 @@ authentication prompt, and returns to rest.
 ![A notification](docs/screenshots/island-notification.jpg)
 ![Now playing](docs/screenshots/island-media.jpg)
 
-Hovering unfolds the control panel: Wi-Fi, Bluetooth, do not disturb,
-night light, do not disturb and game mode, the output and its volume, media, and
-a footer with the power profile and the update count.
+Hovering unfolds the control panel: Wi-Fi, Bluetooth, notifications,
+night light and game mode, the output and its volume, media, the tray,
+and a footer with the power profile and the update count. A tray icon's
+menu opens as a page of the panel. Apps that quit when their window
+closes can be kept in the tray instead (Settings › Apps): closing the
+window puts it away, the icon brings it back.
 
 ## The dashboard
 
 A grid of widgets on the wallpaper: system, calendar, weather, media,
 notifications, clipboard, devices, disks, games, sessions. Every widget
-moves, resizes and has its own settings. Edit mode is one key. The
-library is a store: widgets carry an author, a version and a permission
-list, and can be installed from any git registry; writing one is a folder
-with a manifest and a QML file, see [docs/WIDGETS.md](docs/WIDGETS.md).
+moves, resizes and has its own settings; the System widget's is a small
+Grafana, with series, colours, bars, lines or areas, and a legend. Edit
+mode is one key. The library is a store: widgets carry an author, a
+version and a permission list, and can be installed from any git
+registry; writing one is a folder with a manifest and a QML file, see
+[docs/WIDGETS.md](docs/WIDGETS.md).
 
 ![The dashboard](docs/screenshots/dashboard.jpg)
+![The System widget, four ways](docs/screenshots/system-widget.jpg)
 
 ## The launcher
 
 Apps, windows, files, the clipboard, passwords and a calculator, from one
-field with a prefix for each. Mission Control spreads the desktop's windows out, with every
-desktop in a bar above them, to switch, move or close.
+field with a prefix for each. Mission Control spreads the desktop's
+windows out, with every desktop in a bar above them, to switch, move or
+close.
 
 ![The launcher](docs/screenshots/launcher.jpg)
 ![The overview](docs/screenshots/overview.jpg)
@@ -50,8 +57,9 @@ desktop in a bar above them, to switch, move or close.
 Settings is grouped the way Plasma, macOS and Windows group it and has a
 search that jumps to the row. Displays are dragged into place. Appearance
 is dark, light, or auto from sunrise to sunset; the installed apps follow,
-GTK and Qt alike, title bars included. Updates covers the shell itself
-and the packages.
+GTK and Qt alike, Chromium and Electron too, title bars included. Apps
+covers defaults, what starts at login, what lives in the tray, and the
+services. Updates covers the shell itself and the packages.
 
 ![Settings](docs/screenshots/settings-appearance.jpg)
 
@@ -62,6 +70,8 @@ network and sensors, with the processes grouped under each.
 
 The Keychain is the keyring and the SSH agent in one window: logins, Wi-Fi
 and app secrets, and the keys, with a generator and a passphrase prompt.
+The keyring unlocks with the login password, at the greeter and at the
+lock screen.
 
 ![The Keychain](docs/screenshots/keychain.jpg)
 
@@ -69,10 +79,15 @@ and app secrets, and the keys, with a generator and a passphrase prompt.
 
 Do not disturb holds the notifications. Game mode drops every effect,
 turns on VRR and tearing where allowed, and hides the shell until the game
-ends. Big Picture is a couch view driven by a controller.
+ends. Big Picture is the couch: a home of your games and launchers driven
+by the controller, a quick menu on the Guide button, and an on-screen
+keyboard with two cursors, one per thumb. Steam's own Big Picture takes
+over when it opens and hands back when it closes; Heroic and Lutris get
+the pad through a bridge.
 
-![Game mode](docs/screenshots/game-mode.jpg)
 ![Big Picture](docs/screenshots/big-picture.jpg)
+![The on-screen keyboard](docs/screenshots/keyboard.jpg)
+![Game mode](docs/screenshots/game-mode.jpg)
 
 The lock screen and the greeter draw with the same material.
 
@@ -90,7 +105,9 @@ curl -fsSL https://raw.githubusercontent.com/alexparlett/isle/main/tools/bootstr
 Then log out and pick Hyprland at the login screen. Settings › Updates
 keeps the shell current. A fingerprint reader is `tools/fingerprint.sh`:
 it installs fprintd and a driver, enrolls a finger, and the lock screen
-takes it from the next lock.
+takes it from the next lock. `tools/tidy.sh` shows what an earlier Isle
+installed or wrote that this one no longer uses, and takes it away with
+`--yes`.
 
 The desktop runs from `~/.local/share/isle`. To work on it, clone anywhere
 else, test in the VM, and run `tools/install.sh` from

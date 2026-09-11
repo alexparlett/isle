@@ -60,7 +60,12 @@ keeping the copy's `hypr/generated` and built plugins) and links
 `~/.config` into the copy; run from the copy, as Settings › Updates and
 bootstrap do, it installs in place. The test VM (local tooling under `dev/`)
 mounts the checkout itself at `/repo`, so a change is tried there before
-it is installed (D21).
+it is installed (D21). `tools/tidy.sh` lists what an earlier Isle installed
+or rendered that this one no longer uses, packages gone from
+`packages/shell.txt`, configuration for tools no longer themed, flags
+files for launchers that are gone, and takes it away with `--yes`; the
+theme render strips its own lines from a flags file whose launcher it no
+longer finds.
 
 ## Services
 

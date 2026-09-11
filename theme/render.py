@@ -152,8 +152,9 @@ def flags_files():
                 continue
             text = data.decode("latin-1")
             names |= set(re.findall(r"(?<![A-Za-z0-9_.$-])([A-Za-z0-9][A-Za-z0-9_.-]*-flags\.conf)", text))
-            # A script naming its file through a variable it sets itself (Vivaldi's launcher).
-            if text.startswith("#!") and re.search(r"chrom|electron|ozone", text, re.I):
+            # A shell launcher naming its file through a variable it sets itself (Vivaldi's); a program in
+            # another language that merely mentions such files (inxi, in Perl) is not a launcher.
+            if re.match(r"#!\S*/(?:env\s+)?(?:sh|bash|dash|zsh)\b", text) and re.search(r"chrom|electron|ozone", text, re.I):
                 assigned = dict(re.findall(r'^\s*(?:export\s+)?([A-Z_]+)="?([A-Za-z0-9_.-]+)"?\s*$', text, re.M))
                 for tok in re.findall(r"(?:XDG_CONFIG_HOME|\.config)[^\s\"']*?/([A-Za-z0-9_.$-]+\.conf)", text):
                     tok = re.sub(r"\$\{?([A-Z_]+)\}?", lambda m: assigned.get(m.group(1), m.group(0)), tok)
@@ -162,7 +163,25 @@ def flags_files():
     return sorted(names)
 
 def browser_hints():
-    for conf in flags_files():
+    files = flags_files()
+    # A file Isle wrote for a launcher that is gone, or was never one, loses Isle's lines; only Isle's, and it goes.
+    for name in os.listdir(CFG) if os.path.isdir(CFG) else []:
+        path = os.path.join(CFG, name)
+        if not name.endswith(".conf") or name in files or not os.path.isfile(path):
+            continue
+        try:
+            cur = open(path).read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if FLAGS_MARK not in cur and not any(l in cur for l in OLD_ISLE_LINES):
+            continue
+        kept = [l for l in cur.split("\n") if l.strip() not in OLD_ISLE_LINES and l.strip() not in FLAGS_LINES and not (l.startswith("#") and "by Isle" in l)]
+        body = "\n".join(kept).strip("\n")
+        if body:
+            open(path, "w").write(body + "\n")
+        else:
+            os.remove(path)
+    for conf in files:
         path = os.path.join(CFG, conf)
         cur = open(path).read() if os.path.exists(path) else ""
         kept = [l for l in cur.split("\n") if l.strip() not in OLD_ISLE_LINES and l.strip() not in FLAGS_LINES and l.strip() != FLAGS_MARK and not (l.startswith("#") and "by Isle" in l)]

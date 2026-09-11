@@ -52,6 +52,8 @@ Singleton {
             property bool dndSummary: true
             property bool notifySound: false
             property bool reducedMotion: false
+            // Apps whose windows are put away instead of closed: desktop entry ids.
+            property var keepRunning: []
             property string wallpaper: ""
             property var wallpaperFolders: []
             property bool autoMount: true

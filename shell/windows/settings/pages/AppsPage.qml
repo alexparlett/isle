@@ -103,6 +103,33 @@ SettingsPage {
     }
 
     SettingsGroup {
+        heading: "In the tray"
+        SettingsRow {
+            label: "Closing a window puts it away instead"
+            description: "The app sits in the tray while it runs: click its icon to show or put away its windows, and quit it from the menu. For apps that quit when their window closes."
+        }
+        Repeater {
+            model: Prefs.p.keepRunning || []
+            SettingsRow {
+                required property var modelData
+                readonly property var entry: DesktopEntries.byId(modelData)
+                label: entry ? entry.name : modelData
+                description: entry ? "" : "Not installed"
+                Button { text: "Remove"; variant: "text"; onClicked: Prefs.p.keepRunning = (Prefs.p.keepRunning || []).filter(id => id !== modelData) }
+            }
+        }
+        SettingsRow {
+            label: "Add an app"
+            Dropdown {
+                listWidth: 260; maxRows: 10
+                options: [["", "Choose"]].concat(DesktopEntries.applications.values.filter(e => !e.noDisplay && (Prefs.p.keepRunning || []).indexOf(e.id) < 0).map(e => [e.id, e.name]).sort((a, b) => a[1].localeCompare(b[1])))
+                value: ""
+                onPicked: v => { if (v) Prefs.p.keepRunning = (Prefs.p.keepRunning || []).concat([v]); }
+            }
+        }
+    }
+
+    SettingsGroup {
         heading: "Services"
         Repeater {
             model: Startup.units

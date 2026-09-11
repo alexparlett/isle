@@ -2,18 +2,25 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import qs.theme
+import qs.services
 
 // A tray item's menu as rows: separators, checks, submenu chevrons. Choosing an entry triggers it and ends.
+// An app kept running (an entry with windows) gets show or hide, and quit.
 ColumnLayout {
     id: root
     property var item: null
-    readonly property bool empty: opener.children.values.length === 0
+    readonly property bool kept: !!(item && item.windows)
+    readonly property bool empty: !kept && opener.children.values.length === 0
     signal done
     spacing: 1
 
-    QsMenuOpener { id: opener; menu: root.item ? root.item.menu : null }
+    QsMenuOpener { id: opener; menu: root.item && !root.kept ? root.item.menu : null }
     Repeater {
-        model: opener.children.values
+        model: root.kept ? [
+            { text: root.item.hidden ? "Show" : "Hide", enabled: true, triggered: () => Windows.toggleKept(root.item) },
+            { isSeparator: true },
+            { text: "Quit", enabled: true, triggered: () => Windows.quitApp(root.item) }
+        ] : opener.children.values
         Item {
             required property var modelData
             Layout.fillWidth: true

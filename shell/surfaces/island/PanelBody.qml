@@ -151,7 +151,7 @@ ColumnLayout {
     // The tray: an app's icon activates it, its menu is a page of its own.
     property var trayItem: null
     Card {
-        visible: root.page === "main" && Tray.items.length > 0
+        visible: root.page === "main" && (Tray.items.length > 0 || Windows.kept.length > 0)
         Layout.fillWidth: true
         padding: Theme.s2 + 2
         TrayIcons {
@@ -214,7 +214,7 @@ ColumnLayout {
 
     PanelPage {
         visible: root.page === "tray"
-        title: root.trayItem ? (root.trayItem.title || root.trayItem.id) : ""
+        title: root.trayItem ? (root.trayItem.name || root.trayItem.title || root.trayItem.id) : ""
         Layout.fillWidth: true
         onBack: { root.page = "main"; root.trayItem = null; }
         TrayMenu { Layout.fillWidth: true; item: root.trayItem; onDone: { root.dismiss(); root.page = "main"; root.trayItem = null; } }

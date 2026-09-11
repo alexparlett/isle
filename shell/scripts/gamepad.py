@@ -88,6 +88,9 @@ while True:
     if now - last_scan > 2:
         scan()
         last_scan = now
+    # The shell that started this may be gone; an idle pad never writes, so the pipe would not say.
+    if os.getppid() == 1:
+        sys.exit(0)
     timeout = 0.05 if held or down else 0.5
     readable, _, _ = select.select(list(pads), [], [], timeout)
     for fd in readable:

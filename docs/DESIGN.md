@@ -514,7 +514,9 @@ because Chromium loads a Qt shim for its theme, and the Qt 5 one has no
 Wayland here; Qt 6 does, and carries Isle's qt6ct palette, which is how
 a Chromium app follows the dark theme. The block is Isle's and is
 replaced on each render; a line of the user's about ozone leaves the
-file alone. Their GPU process logs that Vulkan is not available on
+file alone. The pass also runs on its own whenever the set of installed
+desktop entries changes, so an app installed while the shell is up gets
+its file before it is first opened. Their GPU process logs that Vulkan is not available on
 Wayland and carries on with GL; that line is noise, not a refusal.
 qt5-wayland is in the package list for every other Qt 5 app, since the
 compositor tells all of them to run on Wayland. The compositor exports

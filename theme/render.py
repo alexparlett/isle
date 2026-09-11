@@ -181,6 +181,8 @@ def browser_hints():
 dry = "--dry" in sys.argv
 if "--flags" in sys.argv:
     print("\n".join(flags_files())); sys.exit(0)
+if "--flags-only" in sys.argv:
+    browser_hints(); sys.exit(0)
 if not dry:
     browser_hints()
 for tmpl, target, post in TARGETS:

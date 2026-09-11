@@ -10,6 +10,12 @@ Singleton {
     readonly property string script: Quickshell.shellDir + "/../theme/render.py"
     Process { id: renderer; command: ["python3", root.script] }
 
+    // The flags files of Chromium-based launchers follow what is installed: the pass runs when the set of
+    // desktop entries changes, which covers an app installed while the shell is up, and once at start.
+    Process { id: flags; command: ["python3", root.script, "--flags-only"] }
+    Timer { id: flagsLater; interval: 3000; onTriggered: flags.running = true }
+    Connections { target: DesktopEntries.applications; function onValuesChanged() { flagsLater.restart(); } }
+
     // Auto is light between today's sunrise and sunset, minutes after midnight, from the timezone's tzdata coordinates.
     property int sunrise: 420
     property int sunset: 1140

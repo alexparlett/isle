@@ -3,7 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Renders the token file into the installed apps' theme files whenever the accent changes.
+// Renders the token file into the installed apps' theme files whenever the accent, the theme or a font changes.
 Singleton {
     id: root
 
@@ -39,5 +39,21 @@ Singleton {
     Timer { id: later; interval: 400; onTriggered: renderer.running = true }
     function apply() { later.restart(); }
 
-    Connections { target: Prefs.p; function onAccentChanged() { root.apply(); } function onThemeChanged() { root.apply(); } function onTitleBarsChanged() { root.apply(); } }
+    Connections { target: Prefs.p; function onAccentChanged() { root.apply(); } function onThemeChanged() { root.apply(); } function onTitleBarsChanged() { root.apply(); } function onFontUiChanged() { root.apply(); } function onFontMonoChanged() { root.apply(); } function onFontSizeChanged() { root.apply(); } }
+
+    // The families fontconfig knows, and the fixed-pitch ones among them, for Settings › Appearance.
+    property var families: []
+    property var monoFamilies: []
+    Process {
+        id: fonts
+        command: ["sh", "-c", "fc-list : family | cut -d, -f1 | sort -u; echo ==; fc-list :spacing=mono family | cut -d, -f1 | sort -u"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const parts = text.split("==\n");
+                root.families = parts[0].split("\n").filter(f => f && !/^\./.test(f));
+                root.monoFamilies = (parts[1] || "").split("\n").filter(f => f && !/^\./.test(f));
+            }
+        }
+    }
+    function listFonts() { if (!fonts.running) fonts.running = true; }
 }

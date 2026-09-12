@@ -185,7 +185,7 @@ tokens, night light.
 
 | gap | worth |
 |---|---|
-| No font settings: family and size for the UI, the mono face; the tokens carry them, the page does not | now |
+| No font settings: family and size for the UI, the mono face; the tokens carry them, the page does not | ✓ 8 |
 | No wallpaper slideshow, no per-space wallpaper, no dynamic (time-of-day) wallpaper (macOS dynamic desktops, Plasma's slideshow) | later |
 | No cursor theme choice (Bibata is the one) and no icon theme choice (Papirus is the one); both are a preference plus a re-render | later |
 | No sound theme: event sounds beyond the one notification chime | no |

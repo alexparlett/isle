@@ -486,3 +486,12 @@ actions a bridge allows on one (ring, send the clipboard, send a file,
 pair), through the same provider contract as snapshots, so a Continuity
 tool or another bridge is a folder with a manifest and a script, not a
 change to the shell. The two item pages share one shape, `ProviderGroups`.
+
+**D52 · Fonts are preferences over the tokens, one place each.** The
+token file names the families; Settings › Appearance lets a person
+override them and set a point size for the installed apps, and the
+renderer writes those into every target it already owns, so a font is
+one choice that GTK, the terminal, the title bars and the shell's own
+labels all follow. The shell's text size is not a second size here: it
+scales under Accessibility, since a person who wants the shell larger
+wants it for that reason, and the apps have their own points.

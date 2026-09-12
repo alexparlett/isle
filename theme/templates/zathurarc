@@ -1,5 +1,5 @@
 # Rendered from shell/theme/tokens.json by theme/render.py. Edit the tokens, not this.
-set font "{{font_ui}} 10"
+set font "{{font_ui}} {{font_size}}"
 set default-bg "{{ink}}"
 set default-fg "{{text}}"
 set statusbar-bg "{{raised}}"

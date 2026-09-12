@@ -80,6 +80,9 @@ Singleton {
             property int idleScreenOff: 900
             property var keyboardProfiles: ({})
             property string accent: ""
+            property string fontUi: ""
+            property string fontMono: ""
+            property int fontSize: 0
             property bool gameAuto: true
             property bool gameTearing: false
             property bool gamescope: false

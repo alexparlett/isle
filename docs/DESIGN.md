@@ -471,7 +471,11 @@ display, when chosen, is where every shell surface appears; the default
 follows focus, since the island is meant to be where you are looking.
 Appearance has Dark, Light and Auto; Auto is light from sunrise to
 sunset, computed from the timezone's coordinates in tzdata, since
-nothing in the stack knows where the machine is more precisely.
+nothing in the stack knows where the machine is more precisely. Fonts
+are three rows: the interface family, the monospace family (only the
+fixed-pitch families fontconfig knows), and a size in points for the
+installed apps; the shell's own text scales under Accessibility, so
+there is one place for each.
 
 The control panel's footer gives each battery a line of its own (glyph,
 name, charge), then one line with updates at the left and the power

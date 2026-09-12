@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders shell/theme/tokens.json (plus the accent preference) into the installed apps' theme files.
+"""Renders shell/theme/tokens.json (plus the accent and font preferences) into the installed apps' theme files.
 
     theme/render.py            write every target
     theme/render.py --dry      print what would be written
@@ -71,8 +71,11 @@ V = {
     "warn": c["warn"],
     "danger": c["danger"],
     "live": c["live"],
-    "font_ui": tokens["font"]["ui"],
-    "font_mono": tokens["font"]["mono"],
+    "font_ui": prefs.get("fontUi") or tokens["font"]["ui"],
+    "font_mono": prefs.get("fontMono") or tokens["font"]["mono"],
+    # Points, for the installed apps; the terminal and the title bars sit one above.
+    "font_size": str(prefs.get("fontSize") or 10),
+    "font_size_up": str((prefs.get("fontSize") or 10) + 1),
     "radius_control": tokens["radius"]["control"],
     "radius_card": tokens["radius"]["card"],
     "blur_size": tokens["blur"]["size"],
@@ -225,8 +228,8 @@ for tmpl, target, post in TARGETS:
 if not dry:
     # libadwaita and GTK4 read these from gsettings, not settings.ini.
     for key, val in [("color-scheme", "prefer-light" if LIGHT else "prefer-dark"), ("gtk-theme", V["gtk_theme"]), ("icon-theme", V["icon_theme"]),
-                     ("cursor-theme", "Bibata-Modern-Classic"), ("cursor-size", "24"), ("font-name", f"{V['font_ui']} 10"),
-                     ("monospace-font-name", f"{V['font_mono']} 10")]:
+                     ("cursor-theme", "Bibata-Modern-Classic"), ("cursor-size", "24"), ("font-name", f"{V['font_ui']} {V['font_size']}"),
+                     ("monospace-font-name", f"{V['font_mono']} {V['font_size']}")]:
         subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", key, val], capture_output=True)
     # A running kitty reloads its colours on SIGUSR1; Hyprland re-reads the generated theme, title bars included.
     subprocess.run(["pkill", "-USR1", "-x", "kitty"], capture_output=True)

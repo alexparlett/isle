@@ -524,17 +524,24 @@ triggers, the right stick and `hold <button>`.
 
 ## Theming installed apps
 
-`shell/theme/tokens.json` is the source. `theme/apply` runs matugen with
-the templates in `theme/` and writes:
+`shell/theme/tokens.json` is the source, with the preferences that
+override it: the accent, light or dark, the title bars, and the fonts
+(`fontUi`, `fontMono`, `fontSize` in points; the terminal and the title
+bars sit one point above). `theme/render.py` fills the templates in
+`theme/templates` and writes:
 
-- `~/.config/gtk-3.0/gtk.css`, `~/.config/gtk-4.0/gtk.css`
-- `~/.config/kitty/theme.conf`
+- `~/.config/gtk-3.0/gtk.css` and `settings.ini`, the same for `gtk-4.0`,
+  and gsettings for libadwaita (colour scheme, theme, cursor, fonts)
+- `~/.config/kitty/isle.conf`, `~/.config/zathura/isle`
 - `~/.config/yazi/theme.toml`, `~/.config/btop/themes/isle.theme`
-- `hypr/generated/theme.lua` (border colours, rounding, blur)
+- `~/.config/xdg-desktop-portal/portals.conf`
+- `hypr/generated/theme.lua` (border colours, rounding, blur, the bars)
 
-Changing the accent or light/dark in Settings re-runs it. GTK and Qt
-apps pick up the CSS live, kitty reloads on signal, Hyprland reloads its
-fragment.
+Changing any of those in Settings re-runs it (`Theming`). GTK and Qt apps
+pick up the CSS live, kitty reloads on signal, Hyprland reloads its
+fragment. The shell's own text takes the families from the same
+preferences through `Theme.fontUi` and `Theme.fontMono`; its sizes scale
+under Accessibility, not here.
 
 ## Build order
 

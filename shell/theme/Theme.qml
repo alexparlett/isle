@@ -67,8 +67,8 @@ Singleton {
     readonly property int headerHeight: c("island", "headerHeight", 44)
 
     // Type
-    readonly property string fontUi: c("font", "ui", "Inter")
-    readonly property string fontMono: c("font", "mono", "JetBrains Mono")
+    readonly property string fontUi: Prefs.p.fontUi || c("font", "ui", "Inter")
+    readonly property string fontMono: Prefs.p.fontMono || c("font", "mono", "JetBrains Mono")
     readonly property var fontSize: c("font", "size", {})
     // Larger text: every size scales together, from Settings › Accessibility.
     readonly property real textScale: Prefs.p.textScale > 0 ? Prefs.p.textScale : 1

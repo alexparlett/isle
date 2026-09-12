@@ -33,7 +33,7 @@ if hl.plugin and hl.plugin.hyprbars and not {{bars_off}} then
     local function rgb(h) return tonumber("ff" .. h:sub(2), 16) end
     hl.config({ plugin = { hyprbars = {
         bar_height = 28, bar_color = rgb("{{window}}"), ["col.text"] = rgb("{{text2}}"),
-        bar_text_font = "{{font_ui}}", bar_text_size = 11, bar_text_align = "left",
+        bar_text_font = "{{font_ui}}", bar_text_size = {{font_size_up}}, bar_text_align = "left",
         bar_buttons_alignment = "right", bar_part_of_window = true, bar_precedence_over_border = true,
         bar_padding = 12, bar_button_padding = 8, icon_on_hover = true, inactive_button_color = rgb("{{pressed}}"),
         -- A double click on the bar fills the work area, and restores when already filled.

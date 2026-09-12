@@ -48,6 +48,26 @@ SettingsPage {
     }
 
     SettingsGroup {
+        heading: "Fonts"
+        Component.onCompleted: Theming.listFonts()
+        SettingsRow {
+            label: "Interface"
+            description: "The shell and installed apps."
+            Dropdown { listWidth: 260; options: (Theming.families.length ? Theming.families : [Theme.fontUi]).map(f => [f, f]); value: Theme.fontUi; onPicked: v => Prefs.p.fontUi = v }
+        }
+        SettingsRow {
+            label: "Monospace"
+            description: "The terminal and code."
+            Dropdown { listWidth: 260; options: (Theming.monoFamilies.length ? Theming.monoFamilies : [Theme.fontMono]).map(f => [f, f]); value: Theme.fontMono; onPicked: v => Prefs.p.fontMono = v }
+        }
+        SettingsRow {
+            label: "Size"
+            description: "For installed apps, in points. The shell's own text scales under Accessibility."
+            Dropdown { listWidth: 120; options: [9, 10, 11, 12, 13, 14].map(n => [n, n + " pt"]); value: Prefs.p.fontSize || 10; onPicked: v => Prefs.p.fontSize = Number(v) }
+        }
+    }
+
+    SettingsGroup {
         heading: "Motion"
         SettingsRow {
             label: "Reduce motion"

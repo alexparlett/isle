@@ -5,7 +5,7 @@ import Quickshell.Io
 
 // The launcher's sources. A query with no prefix searches apps, windows and shell actions, and offers the web;
 // ">" runs a command, "=" calculates, "/" finds files, "?" searches inside them, ":" searches the clipboard,
-// "@" windows only, "*" the password manager's vault only.
+// "@" windows only, "*" the password manager's vault only, "." emoji and symbols.
 // Every result has `run`; some have `alt`, the secondary action on Shift+Enter, and `extra`, the third on Ctrl+Enter.
 Singleton {
     id: root
@@ -21,13 +21,14 @@ Singleton {
     onQueryChanged: refresh()
 
     function refresh() {
-        mode = query.length && ">=/:@*?".indexOf(query[0]) >= 0 ? query[0] : "";
+        mode = query.length && ">=/:@*?.".indexOf(query[0]) >= 0 ? query[0] : "";
         term = (mode ? query.slice(1) : query).trim();
         switch (mode) {
         case ">": results = runResults(); break;
         case "=": calc(); break;
         case "/": findFiles(); break;
         case "?": findInFiles(); break;
+        case ".": results = emojiResults(term); break;
         case ":": clipboard(); break;
         case "@": results = windowResults(term); break;
         case "*": results = vaultResults(term, 12); break;
@@ -210,6 +211,41 @@ Singleton {
         fd.running = false;
         fd.command = ["fd", "--max-results", "20", "-i", "-H", "-E", ".cache", "-E", ".git", "-E", "node_modules", "-p", term.split(" ").join(".*"), home];
         fd.running = true;
+    }
+
+    // --- emoji and symbols -----------------------------------------------------------
+    // The table comes from scripts/emoji.py once, on first use; Enter types the pick into the window that had
+    // the focus, once the launcher has gone, Shift+Enter copies it. Recent picks come first.
+    property var glyphs: []
+    Process {
+        id: glyphSource
+        command: ["python3", Quickshell.shellDir + "/scripts/emoji.py"]
+        stdout: StdioCollector { onStreamFinished: { try { root.glyphs = JSON.parse(text); } catch (e) { root.glyphs = []; } if (root.mode === ".") root.refresh(); } }
+    }
+    Timer { id: typeLater; interval: 180; property string text: ""; onTriggered: Osk.run(["--", text]) }
+    function typeGlyph(c) { typeLater.text = c; typeLater.restart(); }
+    function pickGlyph(c) {
+        const recent = [c].concat((Prefs.p.glyphRecent || []).filter(x => x !== c)).slice(0, 24);
+        Prefs.p.glyphRecent = recent;
+    }
+    function emojiResults(q) {
+        if (!glyphs.length) { if (!glyphSource.running) glyphSource.running = true; return [{ kind: "hint", title: "Loading emoji and symbols", glyph: "sticker", run: () => {} }]; }
+        const recent = Prefs.p.glyphRecent || [];
+        let hits;
+        if (!q) hits = recent.map(c => glyphs.find(g => g.c === c)).filter(g => g).concat(glyphs.filter(g => recent.indexOf(g.c) < 0)).slice(0, 40);
+        else {
+            const words = q.toLowerCase().split(/\s+/).filter(w => w);
+            hits = glyphs.map(g => {
+                let sc = 0;
+                for (const w of words) {
+                    if (g.name.indexOf(w) === 0) sc += 100; else if (g.name.indexOf(" " + w) >= 0) sc += 80; else if (g.name.indexOf(w) >= 0) sc += 50;
+                    else if (g.words.indexOf(w) >= 0) sc += 30; else { sc = 0; break; }
+                }
+                return { g: g, sc: sc + (recent.indexOf(g.c) >= 0 ? 10 : 0) };
+            }).filter(x => x.sc > 0).sort((a, b) => b.sc - a.sc).slice(0, 40).map(x => x.g);
+        }
+        return hits.map(g => ({ kind: "glyph", title: g.name.replace(/\b\w/g, ch => ch.toUpperCase()), subtitle: g.words ? g.words.replace(/\b\w/g, ch => ch.toUpperCase()) + "  ·  Enter types it, Shift+Enter copies" : "Enter types it, Shift+Enter copies", char: g.c,
+                               run: () => { pickGlyph(g.c); typeGlyph(g.c); }, alt: () => { pickGlyph(g.c); copy(g.c); }, altLabel: "copy" }));
     }
 
     // --- inside files ---------------------------------------------------------------

@@ -86,6 +86,7 @@ qt5-wayland   # every Qt app is told to run on Wayland; Qt 5 ones need this plug
 #           steam heroic-games-launcher-bin lutris (Big Picture)
 proton-vpn-cli
 ripgrep-all                  # the launcher's search inside files: PDFs, documents, archives
+unicode-emoji                # the launcher's emoji picker: every emoji with its name and group
 python-icalendar             # subscribed calendars: parsing, and
 python-recurring-ical-events # their repeats, expanded to dates
 rsync

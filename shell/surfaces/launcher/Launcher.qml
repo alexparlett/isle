@@ -115,8 +115,10 @@ PanelWindow {
                         Item {
                             implicitWidth: 36; implicitHeight: 36
                             AppIcon { anchors.fill: parent; size: 36; source: modelData.icon || ""; visible: !!modelData.icon }
+                            // An emoji or a symbol is its own icon.
+                            Label { anchors.centerIn: parent; visible: !!modelData.char; text: modelData.char || ""; size: 26 }
                             Rectangle {
-                                anchors.fill: parent; radius: 10; color: Theme.pressed; visible: !modelData.icon
+                                anchors.fill: parent; radius: 10; color: Theme.pressed; visible: !modelData.icon && !modelData.char
                                 clip: true
                                 Image { anchors.fill: parent; source: modelData.thumb || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true; visible: !!modelData.thumb; cache: false }
                                 Glyph { anchors.centerIn: parent; name: modelData.glyph || "search"; size: 14; visible: !modelData.thumb }

@@ -159,7 +159,7 @@ shell actions, settings pages, vault items, web fallback, ranking by use.
 | gap | worth |
 |---|---|
 | No file content search (Baloo, Spotlight index); `fd` is names only, and `rga` or `ripgrep-all` would be the whole engine | ✓ |
-| No emoji and symbol picker (Plasma has one, macOS the Character Viewer); a `:` prefix or a keymap action over the Unicode tables | now |
+| No emoji and symbol picker (Plasma has one, macOS the Character Viewer); a `:` prefix or a keymap action over the Unicode tables | ✓ |
 | No dictionary or definitions (macOS), no currency at live rates (qalc does units, not rates without a fetch) | later |
 | No Quick Look: a space bar preview of a file result, images and PDFs at least | later |
 | No Spotlight-style suggestions from the web or apps' own providers (KRunner plugins) | no |

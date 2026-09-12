@@ -237,6 +237,19 @@
             "lua": "hl.dsp.exec_cmd(terminal)"
         },
         {
+            "id": "emoji",
+            "label": "Emoji and symbols",
+            "hypr": "SUPER + period",
+            "win": "Win .",
+            "mac": "Cmd Ctrl Space",
+            "ipc": [
+                "surfaces",
+                "launcher",
+                "open",
+                "."
+            ]
+        },
+        {
             "id": "dropdown",
             "label": "Dropdown terminal",
             "hypr": "SUPER + grave",

@@ -94,6 +94,7 @@ skip-forward
 sliders-horizontal
 smartphone
 square
+sticker
 sticky-note
 sun
 swords

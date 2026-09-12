@@ -200,7 +200,11 @@ Escape closes whatever is up.
 - **Launcher** — 640px glass card, centred at 30% height. One field, results
   as rows with 48px icons. Prefixes: `>` run, `=` calculate, `/` files
   by name, `?` inside files (the matching line under the name, Enter opens
-  the file), `:` clipboard, `@` windows, `*` the password manager's vault (Enter copies the
+  the file), `.` emoji and symbols (the character as the row's icon, its
+  name as the title; Enter types it into the window that had the focus,
+  Shift+Enter copies it; recent picks first; Super+. opens the launcher
+  there, Cmd+Ctrl+Space on a Mac keyboard as macOS does), `:` clipboard,
+  `@` windows, `*` the password manager's vault (Enter copies the
   password, Shift+Enter the username, Ctrl+Enter the one-time code; a few
   vault matches join the plain results too). Power actions match on their
   names.

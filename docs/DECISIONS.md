@@ -514,3 +514,11 @@ button works, and its one setting, the dead zone, is the one the shell's
 own navigation reads. The same helper serves both, in a second mode that
 prints the whole state rather than presses, run only while the page is
 open.
+
+A pad is named by where it comes from, since Steam publishes a virtual
+pad while it runs with nothing behind it and presents a real controller
+through the same kind of node: the kernel says which pads came through
+uinput, and `/dev/uinput`'s holders say which program made one. That is
+the device's own account of itself, as the vendor id already is, not a
+rule about a named app.
+

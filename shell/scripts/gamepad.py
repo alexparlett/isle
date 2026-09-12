@@ -5,7 +5,7 @@ a held direction repeats. A button held for HOLD seconds gives one more line, "<
 A pad found gives "pad:sony", "pad:xbox", "pad:nintendo" or "pad:generic", from its vendor.
 `--deadzone F` is how far a stick must travel, 0..1, before it counts as a direction.
 `--live` instead prints, as JSON lines, every pad's whole state as it changes, for Settings › Controllers:
-{"pads": [{id, name, kind, bus, buttons: [..], axes: {x, y, rx, ry}, triggers: {lt, rt}, hat: {x, y}}]}."""
+{"pads": [{id, name, kind, bus, origin, by, buttons: [..], axes: {x, y, rx, ry}, triggers: {lt, rt}, hat: {x, y}}]}."""
 import fcntl, glob, json, os, select, struct, sys, time
 
 LIVE = "--live" in sys.argv
@@ -55,6 +55,26 @@ def emit(name):
     sys.stdout.flush()
 
 BUS = {"0003": "usb", "0005": "bluetooth", "0006": "virtual"}
+
+def uinput_holders():
+    """The programs with /dev/uinput open: one of them made every virtual pad."""
+    out = set()
+    for fd in glob.glob("/proc/[0-9]*/fd/*"):
+        try:
+            if os.readlink(fd) == "/dev/uinput":
+                out.add(open("/proc/%s/comm" % fd.split("/")[2]).read().strip())
+        except OSError:
+            continue
+    return sorted(out)
+
+def made_by(vendor):
+    """Which of them made a pad of this vendor: the only holder, or the one whose pad id it is (Valve's is Steam's)."""
+    holders = uinput_holders()
+    if len(holders) == 1:
+        return holders[0]
+    if vendor == "28de" and "steam" in holders:
+        return "steam"
+    return ""
 def sysattr(path, name):
     try:
         return open(f"/sys/class/input/{os.path.basename(path)}/device/{name}").read().strip()
@@ -77,7 +97,7 @@ def emit_state(force=False):
     out = []
     for fd, p in pads.items():
         st = p["state"]
-        out.append({"id": p["path"], "name": p["name"], "kind": p["kind"], "bus": p["bus"], "buttons": sorted(st["buttons"]),
+        out.append({"id": p["path"], "name": p["name"], "kind": p["kind"], "bus": p["bus"], "origin": p["origin"], "by": p["by"], "buttons": sorted(st["buttons"]),
                     "axes": {k: round(v, 3) for k, v in st["axes"].items()}, "triggers": {k: round(v, 3) for k, v in st["triggers"].items()}, "hat": st["hat"]})
     sys.stdout.write(json.dumps({"pads": out}) + "\n")
     sys.stdout.flush()
@@ -96,8 +116,11 @@ def scan():
             continue
         vendor = sysattr(path, "id/vendor").lower()
         kind = VENDORS.get(vendor, "generic")
+        # A pad under /sys/devices/virtual came through uinput: a program made it, no hardware behind it.
+        virtual = "/devices/virtual/" in os.path.realpath("/sys/class/input/" + os.path.basename(path))
         pads[fd] = {"path": path, "ranges": {a: abs_range(fd, a) for a in (0, 1, 2, 3, 4, 5)}, "trig": set(), "kind": kind,
                     "name": sysattr(path, "name") or "Controller", "bus": BUS.get(sysattr(path, "id/bustype").lower(), "other"),
+                    "origin": "virtual" if virtual else "real", "by": made_by(vendor) if virtual else "",
                     "state": {"buttons": set(), "axes": {"x": 0.0, "y": 0.0, "rx": 0.0, "ry": 0.0}, "triggers": {"lt": 0.0, "rt": 0.0}, "hat": {"x": 0, "y": 0}}}
         emit("pad:" + kind)
         if LIVE:

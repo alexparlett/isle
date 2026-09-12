@@ -17,6 +17,14 @@ SettingsPage {
         return b.toUpperCase();
     }
     function battery(pad) { const d = Power.peripherals.find(d => Power.labelFor(d) === pad.name); return d ? "  ·  " + Power.percent(d) + "%" : ""; }
+    // A pad that came through uinput is a program's, so it is named by the program that made it; the name it
+    // gives itself is the one that program chose, and goes in the line beneath.
+    function padLabel(p) { return p.origin !== "virtual" ? p.name : p.by === "steam" ? "Steam Input" : p.by ? "Virtual pad from " + p.by : "Virtual pad"; }
+    function padNote(p) {
+        if (p.origin === "virtual") return p.name;
+        return (({ sony: "PlayStation", xbox: "Xbox", nintendo: "Nintendo" })[p.kind] || "Generic") + "  ·  "
+             + (({ usb: "USB", bluetooth: "Bluetooth" })[p.bus] || "Other") + battery(p);
+    }
 
     SettingsGroup {
         heading: "Controllers"
@@ -24,8 +32,8 @@ SettingsPage {
             model: Gamepad.pads
             SettingsRow {
                 required property var modelData
-                label: modelData.name
-                description: ({ sony: "PlayStation", xbox: "Xbox", nintendo: "Nintendo", generic: "Generic" })[modelData.kind] + "  ·  " + ({ usb: "USB", bluetooth: "Bluetooth", virtual: "Virtual" })[modelData.bus] + page.battery(modelData)
+                label: page.padLabel(modelData)
+                description: page.padNote(modelData)
             }
         }
         SettingsRow { visible: Gamepad.pads.length === 0; label: "No controller connected" }
@@ -38,7 +46,7 @@ SettingsPage {
         SettingsGroup {
             id: test
             required property var modelData
-            heading: modelData.name
+            heading: page.padLabel(modelData)
             component Key: Rectangle {
                 property string name
                 property string text: name

@@ -533,7 +533,9 @@ the face buttons as keys that fill with the accent while they are down,
 the sticks as rings with a dot that moves and an inner ring for the dead
 zone, the triggers as bars that fill with travel. The face keys carry the
 pad's own labels, letters for Xbox, shapes for PlayStation, swapped
-letters for Nintendo. Below, the dead zone is one slider.
+letters for Nintendo. A pad a program made rather than hardware is named
+for that program, "Steam Input", with the name it gives itself in the
+line beneath. Below, the dead zone is one slider.
 
 Settings › Devices is Device Manager's shape: a tree of categories on
 the left, each device under its own, a count on the category and a

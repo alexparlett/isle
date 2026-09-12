@@ -92,11 +92,17 @@ Singleton {
     }
 
     readonly property var list: server.trackedNotifications.values.slice().reverse()
-    readonly property int count: server.trackedNotifications.values.length
+    // Toasts on screen now. A toast going is not the person dismissing it, so it is not what the count means.
+    readonly property int live: server.trackedNotifications.values.length
 
     // --- history, across restarts ------------------------------------------------------------------
     // Every arrival is logged as a plain record; the live objects go with the shell, the records stay.
     // [{ id, app, summary, body, icon, time, urgency }], newest first, at most 300.
+    // Everything waiting to be read, as a phone counts it: what is on screen plus what has been kept, until
+    // the person clears it.
+    readonly property int count: live + past.length
+    readonly property string holding: count > 0 ? count + (count === 1 ? " notification" : " notifications") : "All clear"
+
     readonly property string historyFile: Prefs.dir + "/notifications.json"
     property var history: []
     Process {
@@ -117,17 +123,24 @@ Singleton {
         onTriggered: { historyWriter.command = ["sh", "-c", "printf '%s' \"$2\" > \"$1\"", "_", root.historyFile, JSON.stringify(root.history)]; historyWriter.running = true; }
     }
     function remember(n) {
-        const rec = { id: n.id + ":" + Date.now(), app: n.appName, summary: n.summary, body: plain(n.body), icon: iconFor(n), time: Date.now(), urgency: n.urgency };
+        // The server's own id goes in the record, so a notification still live is not counted twice.
+        const rec = { id: n.id + ":" + Date.now(), nid: n.id, app: n.appName, summary: n.summary, body: plain(n.body), icon: iconFor(n), time: Date.now(), urgency: n.urgency };
         history = [rec].concat(history).slice(0, 300);
         historySave.restart();
     }
-    // History that is not among the live notifications: from before this shell started, or since dismissed.
+    // What is kept and not also live: from before this shell started, or whose toast has been and gone.
     readonly property var past: {
         const live = {};
-        for (const n of list) live[n.summary + " " + (times[n.id] || 0)] = true;
-        return history.filter(r => !live[r.summary + " " + r.time]);
+        for (const n of list) { live["#" + n.id] = true; live[n.summary + " " + (times[n.id] || 0)] = true; }
+        return history.filter(r => !live["#" + r.nid] && !live[r.summary + " " + r.time]);
     }
     function clearHistory() { history = []; historySave.restart(); }
+
+    IpcHandler {
+        target: "notifications"
+        function status(): string { return JSON.stringify({ live: root.live, kept: root.past.length, count: root.count, holding: root.holding, silenced: root.silenced }); }
+        function clear(): void { root.clearAll(); }
+    }
 
     // A file given as the app icon is a picture for this one notification, not the app's icon: a browser
     // writes the site's logo to a folder it removes once the notification is delivered.

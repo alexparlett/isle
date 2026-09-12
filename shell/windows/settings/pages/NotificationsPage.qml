@@ -51,8 +51,8 @@ SettingsPage {
         }
         SettingsRow {
             label: "Kept"
-            description: Notifications.count + " waiting, " + Notifications.past.length + " earlier"
-            Button { text: "Clear all"; variant: "text"; enabled: Notifications.count > 0 || Notifications.past.length > 0; onClicked: Notifications.clearAll() }
+            description: Notifications.holding
+            Button { text: "Clear all"; variant: "text"; enabled: Notifications.count > 0; onClicked: Notifications.clearAll() }
         }
     }
 

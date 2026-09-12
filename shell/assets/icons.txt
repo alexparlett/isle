@@ -83,6 +83,7 @@ refresh-cw
 rocket
 rotate-cw
 scan
+screen-share
 search
 settings-2
 shield

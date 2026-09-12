@@ -147,8 +147,9 @@ area on its own space, which is the other thing the green button means.
 **Rest.** 30px pill: desktop dots · clock · status glyphs. Glyphs only
 appear when they say something: wifi when on wifi (never on ethernet),
 bluetooth only when a device is connected, volume only when muted,
-recording dot, mode chip, a calendar glyph while an event is within the
-half hour, a download glyph while updates wait and a rotate glyph in the
+recording dot, a screen-share glyph while another app sees the screen
+through the portal, mode chip, a calendar glyph while an event is within
+the half hour, a download glyph while updates wait and a rotate glyph in the
 warn colour while a restart is owed to one already made.
 
 **Hover.** The pill unfolds downward into the **control panel**: the
@@ -168,6 +169,7 @@ reach. The panel folds back when the pointer leaves.
 | volume / brightness | glyph + thin bar (this is the OSD; there is no other) |
 | media starts | art + title slides in |
 | capture / recording | live dot + timer + stop |
+| screen shared | screen-share glyph, "Sharing the screen with <app>", a Stop, for as long as it lasts |
 | drive inserted | drive name + mount / eject |
 | auth pending | key glyph, click opens the dialog |
 | mode change | "Game" / "Big Picture" chip |

@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 
 // Default sink and source with their volume and mute state; every sink and source; the app streams; who is capturing.
@@ -19,6 +20,43 @@ Singleton {
     readonly property var videoCaptures: nodes.filter(n => n.type === PwNodeType.VideoSource && n.isStream)
     readonly property bool micInUse: captures.length > 0
     readonly property bool cameraInUse: videoCaptures.length > 0
+    // A portal screencast is a video stream the portal itself produces, xdph-streaming-N from
+    // xdg-desktop-portal-hyprland: another app is seeing the screen. Quickshell's node list leaves video
+    // streams out, so these come from pw-dump, read again whenever pw-mon reports a change.
+    property var screencasts: []
+    property var watchers: []
+    readonly property bool screenShared: screencasts.length > 0
+    Process { command: ["pw-mon", "-N"]; running: true; stdout: SplitParser { onRead: line => { if (/media\.class|removed|added/.test(line)) castDebounce.restart(); } } }
+    Timer { id: castDebounce; interval: 400; onTriggered: if (!castDump.running) castDump.running = true }
+    Timer { interval: 15000; running: true; repeat: true; onTriggered: if (!castDump.running) castDump.running = true }
+    Process {
+        id: castDump
+        command: ["sh", "-c", "pw-dump 2>/dev/null | python3 -c \"import json,sys\nout=[]\nfor n in json.load(sys.stdin):\n p=(n.get('info') or {}).get('props') or {}\n c=p.get('media.class','')\n if c in ('Stream/Output/Video','Stream/Input/Video'): out.append({'id':n['id'],'cls':c,'name':p.get('node.name') or '','app':p.get('application.name') or ''})\nprint(json.dumps(out))\""]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let list; try { list = JSON.parse(text); } catch (e) { return; }
+                root.screencasts = list.filter(n => n.cls === "Stream/Output/Video" && /xdph|xdg-desktop-portal|screencast|screen-cast/i.test(n.name + " " + n.app));
+                root.watchers = list.filter(n => n.cls === "Stream/Input/Video").map(n => n.app || n.name).filter((v, i, a) => v && a.indexOf(v) === i);
+            }
+        }
+    }
+    Component.onCompleted: castDump.running = true
+    // Ending a share is destroying the portal's stream: the app sees its capture end.
+    Process { id: stopper }
+    function stopScreencast() {
+        if (!screencasts.length) return;
+        stopper.command = ["sh", "-c", "for i in \"$@\"; do pw-cli destroy \"$i\"; done", "_"].concat(screencasts.map(n => String(n.id)));
+        stopper.running = true;
+    }
+    IpcHandler {
+        target: "privacy"
+        function status(): string { return JSON.stringify({ mic: root.micInUse, camera: root.cameraInUse, screen: root.screenShared, watchers: root.watchers, casts: root.screencasts.map(n => n.name) }); }
+        function stopSharing(): void { root.stopScreencast(); }
+    }
+    onScreenSharedChanged: {
+        if (screenShared) IslandEvents.show({ kind: "text", duration: 24 * 3600 * 1000, glyph: "screen-share", color: "", text: "Sharing the screen", detail: watchers.length ? "with " + watchers.join(", ") : "", actions: [{ label: "Stop", run: () => root.stopScreencast() }] });
+        else IslandEvents.dismissKind("text");
+    }
 
     PwObjectTracker { objects: [root.sink, root.source].concat(root.streams, root.sources).filter(o => o) }
 

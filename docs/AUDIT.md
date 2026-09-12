@@ -236,7 +236,7 @@ audio and cursor, picker, annotate, privacy glyphs.
 
 | gap | worth |
 |---|---|
-| No screen sharing indicator with a stop for a portal cast (macOS's purple dot menu, Plasma's KPipeWire indicator); the recording dot is Isle's own captures only | now |
+| No screen sharing indicator with a stop for a portal cast (macOS's purple dot menu, Plasma's KPipeWire indicator); the recording dot is Isle's own captures only | ✓ |
 | No casting to a TV or speaker (AirPlay, Plasma's none either) | no |
 | No system-wide equaliser (neither ships one) | no |
 

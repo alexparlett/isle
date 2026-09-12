@@ -4,8 +4,8 @@ import Quickshell
 import Quickshell.Io
 
 // The launcher's sources. A query with no prefix searches apps, windows and shell actions, and offers the web;
-// ">" runs a command, "=" calculates, "/" finds files, ":" searches the clipboard, "@" windows only, "*" the
-// password manager's vault only.
+// ">" runs a command, "=" calculates, "/" finds files, "?" searches inside them, ":" searches the clipboard,
+// "@" windows only, "*" the password manager's vault only.
 // Every result has `run`; some have `alt`, the secondary action on Shift+Enter, and `extra`, the third on Ctrl+Enter.
 Singleton {
     id: root
@@ -21,12 +21,13 @@ Singleton {
     onQueryChanged: refresh()
 
     function refresh() {
-        mode = query.length && ">=/:@*".indexOf(query[0]) >= 0 ? query[0] : "";
+        mode = query.length && ">=/:@*?".indexOf(query[0]) >= 0 ? query[0] : "";
         term = (mode ? query.slice(1) : query).trim();
         switch (mode) {
         case ">": results = runResults(); break;
         case "=": calc(); break;
         case "/": findFiles(); break;
+        case "?": findInFiles(); break;
         case ":": clipboard(); break;
         case "@": results = windowResults(term); break;
         case "*": results = vaultResults(term, 12); break;
@@ -209,6 +210,42 @@ Singleton {
         fd.running = false;
         fd.command = ["fd", "--max-results", "20", "-i", "-H", "-E", ".cache", "-E", ".git", "-E", "node_modules", "-p", term.split(" ").join(".*"), home];
         fd.running = true;
+    }
+
+    // --- inside files ---------------------------------------------------------------
+    // ripgrep-all when it is there (PDFs, office documents, archives, subtitles), ripgrep otherwise: the first
+    // matching line of each of the first twenty files, path:line:text. A debounce keeps a keystroke from a search.
+    property bool rgaHere: false
+    Process { command: ["sh", "-c", "command -v rga"]; running: true; onExited: code => root.rgaHere = code === 0 }
+    Process {
+        id: grep
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (root.mode !== "?") return;
+                const out = [];
+                for (const line of text.split("\n")) {
+                    const m = line.match(/^(.+?):(\d+):(.*)$/);
+                    if (!m) continue;
+                    const p = m[1], where = m[2], hit = m[3].trim().replace(/\s+/g, " ").slice(0, 120);
+                    out.push({ kind: "file", title: p.split("/").pop(), subtitle: hit + "  ·  " + p.replace(root.home, "~") + ":" + where, glyph: "file-search",
+                               run: () => Compositor.exec("xdg-open " + JSON.stringify(p)),
+                               alt: () => Compositor.exec("xdg-open " + JSON.stringify(p.slice(0, p.lastIndexOf("/")) || "/")), altLabel: "open folder" });
+                }
+                root.results = out.length ? out : [{ kind: "hint", title: "Nothing contains “" + root.term + "”", subtitle: root.rgaHere ? "Searched text, PDFs, documents and archives under ~" : "Searched text files under ~; ripgrep-all would add PDFs, documents and archives", glyph: "file-search", run: () => {} }];
+            }
+        }
+    }
+    Timer { id: grepDebounce; interval: 250; onTriggered: root.runGrep() }
+    function findInFiles() {
+        if (!term || term.length < 2) { results = [{ kind: "hint", title: "Search inside files", subtitle: "? invoice total   ·   text, PDFs, documents and archives under ~", glyph: "file-search", run: () => {} }]; grepDebounce.stop(); return; }
+        grepDebounce.restart();
+    }
+    function runGrep() {
+        if (mode !== "?") return;
+        grep.running = false;
+        const tool = rgaHere ? "rga" : "rg";
+        grep.command = ["sh", "-c", tool + " --no-heading --color never --line-number --max-count 1 --smart-case --max-filesize 20M --glob '!.cache' --glob '!.git' --glob '!node_modules' --glob '!.local/share/Steam' -- \"$1\" \"$2\" 2>/dev/null | head -n 20", "_", term, home];
+        grep.running = true;
     }
 
     // --- clipboard --------------------------------------------------------------------

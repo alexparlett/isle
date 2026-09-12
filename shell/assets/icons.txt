@@ -38,6 +38,7 @@ download
 eye
 eye-off
 fan
+file-search
 file-text
 film
 folder

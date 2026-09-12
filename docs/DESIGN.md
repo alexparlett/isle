@@ -198,8 +198,9 @@ shut over Mission Control and closes the dashboard when it picks a window.
 Escape closes whatever is up.
 
 - **Launcher** — 640px glass card, centred at 30% height. One field, results
-  as rows with 48px icons. Prefixes: `>` run, `=` calculate, `/` files,
-  `:` clipboard, `@` windows, `*` the password manager's vault (Enter copies the
+  as rows with 48px icons. Prefixes: `>` run, `=` calculate, `/` files
+  by name, `?` inside files (the matching line under the name, Enter opens
+  the file), `:` clipboard, `@` windows, `*` the password manager's vault (Enter copies the
   password, Shift+Enter the username, Ctrl+Enter the one-time code; a few
   vault matches join the plain results too). Power actions match on their
   names.

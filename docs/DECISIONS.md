@@ -546,3 +546,15 @@ button because the screen it repairs is the one you cannot see. The
 headless `FALLBACK` monitor the compositor falls to when every output
 goes is the same repair, and the shell does that one itself.
 
+**D57 · A window is never left, nor remembered, off the screens.** When a
+monitor goes and comes back the compositor keeps windows at coordinates
+that no longer land anywhere: after a KVM switch two windows sat at
+x = -4435 on a screen starting at zero, unreachable by pointer, and the
+places pass had written that position down as where they live, so every
+later launch would have reproduced it. So the pass now ignores a place
+that is off every screen, the restorer refuses to hand one back, and a
+floating window found outside them all is moved onto the nearest screen,
+clamped whole when it fits. Rescuing is its own pass rather than a branch
+of the places one, which only looks at apps with a single window, and
+takes one window per round since the mover takes one at a time.
+

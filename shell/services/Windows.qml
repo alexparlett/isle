@@ -173,6 +173,53 @@ Singleton {
     function titled(cls) {
         return Hyprland.toplevels.values.filter(t => t.wayland && t.wayland.appId === cls && (t.title || "") !== "").length;
     }
+    // The screens' boxes in layout coordinates, from what the compositor reports.
+    function screenBoxes() {
+        const out = [];
+        for (const m of Hyprland.monitors.values) {
+            const o = m.lastIpcObject || {};
+            if (!o.width || o.disabled) continue;
+            const s = o.scale || 1;
+            out.push({ x: o.x || 0, y: o.y || 0, w: Math.round(o.width / s), h: Math.round(o.height / s) });
+        }
+        return out;
+    }
+    // A window is on the screens when a usable part of it is; a sliver over an edge is where someone put it.
+    function onScreens(x, y, w, h) {
+        for (const b of screenBoxes())
+            if (Math.min(x + w, b.x + b.w) - Math.max(x, b.x) > 80 && Math.min(y + h, b.y + b.h) - Math.max(y, b.y) > 40) return true;
+        return false;
+    }
+    // A window the compositor left outside every screen cannot be reached with a pointer: it is moved onto the
+    // nearest screen, whole if it fits. A monitor coming back from a KVM or a cable leaves windows out there.
+    Process { id: mover }
+    function rescue(c) {
+        const boxes = screenBoxes();
+        if (!boxes.length || mover.running) return false;
+        const cx = c.at[0] + c.size[0] / 2, cy = c.at[1] + c.size[1] / 2;
+        let best = boxes[0], bestD = Infinity;
+        for (const b of boxes) {
+            const d = Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy);
+            if (d < bestD) { bestD = d; best = b; }
+        }
+        const x = c.size[0] >= best.w ? best.x : Math.max(best.x, Math.min(c.at[0], best.x + best.w - c.size[0]));
+        const y = c.size[1] >= best.h ? best.y : Math.max(best.y, Math.min(c.at[1], best.y + best.h - c.size[1]));
+        mover.command = ["hyprctl", "dispatch", "hl.dsp.window.move({ x = " + Math.round(x) + ", y = " + Math.round(y) + ", exact = true, window = \"address:" + c.address + "\" })"];
+        mover.running = true;
+        return true;
+    }
+
+    // One stray per pass, since the mover takes one window at a time and the pass comes round again.
+    function fetchStrays(list) {
+        for (const c of list) {
+            if (!c.floating || !c.mapped || c.fullscreen || !c.title) continue;
+            if (c.size[0] < 100 || c.size[1] < 100) continue;
+            if (c.workspace && /^special:/.test(c.workspace.name)) continue;
+            if (onScreens(c.at[0], c.at[1], c.size[0], c.size[1])) continue;
+            if (rescue(c)) return;
+        }
+    }
+
     Process {
         id: placer
         command: ["hyprctl", "-j", "clients"]
@@ -186,10 +233,13 @@ Singleton {
                 for (const c of list) {
                     if (!c.floating || c.fullscreen || !c.mapped || !c["class"] || !c.title || titledCount[c["class"]] !== 1) continue;
                     if (c.size[0] < 100 || c.size[1] < 100) continue;
+                    // A place off the screens is not one to keep, nor to hand back.
+                    if (!root.onScreens(c.at[0], c.at[1], c.size[0], c.size[1])) continue;
                     const v = [c.at[0], c.at[1], c.size[0], c.size[1]];
                     if (String(places[c["class"]]) !== String(v)) { places[c["class"]] = v; changed = true; }
                 }
                 if (changed) Prefs.p.windowPlaces = places;
+                root.fetchStrays(list);
                 root.reconcileFull(list);
                 Restore.note(list);
             }
@@ -204,6 +254,7 @@ Singleton {
             const [addr, ws, cls, title] = event.data.split(",");
             const p = (Prefs.p.windowPlaces || {})[cls];
             if (!p || Modes.game || !title || titled(cls) > 1) return;
+            if (!root.onScreens(p[0], p[1], p[2], p[3])) return;
             // After the float rule has sized it.
             restorer.command = ["sh", "-c", "sleep 0.15; hyprctl dispatch 'hl.dsp.window.resize({ x = " + p[2] + ", y = " + p[3] + ", exact = true, window = \"address:0x" + addr + "\" })'; hyprctl dispatch 'hl.dsp.window.move({ x = " + p[0] + ", y = " + p[1] + ", exact = true, window = \"address:0x" + addr + "\" })'"];
             restorer.running = true;

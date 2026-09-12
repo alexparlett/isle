@@ -593,3 +593,11 @@ order rather than the recency one: recency puts the window just focused
 at the front, so a second press came back to where it started and a third
 window was unreachable.
 
+The remap layer is verified by measurement, not by reading the file it
+generates: every "fixed" reported on 12 September came from the config
+looking right, and three separate faults in it were invisible that way, a
+device name the kernel does not use, a chord bound twice, and a key the
+compositor calls Print that xremap calls something else. `keycheck.py`
+presses chords on a virtual keyboard the profile matches and reads what
+comes out the other side. It found two of those faults in its first run.
+

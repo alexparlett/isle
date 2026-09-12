@@ -178,7 +178,7 @@ extra process.
 | night light | `hyprctl hyprsunset` |
 | brightness | ddcutil for desktop monitors, brightnessctl for laptops |
 | session: sleep, restart, shut down, log out | `systemctl`, `loginctl`, `hyprctl dispatch exit` |
-| keyboard profile | writes the xremap config, restarts xremap; the config is written again whenever the set of Mac keyboards changes, since the first render happens before the device query answers and before the preference file has loaded (D58) |
+| keyboard profile | `tools/keycheck.py` measures what the chords actually produce: a virtual keyboard through uinput under a name the profile matches, a chord pressed on it, and what the remap layer emits read back from its own device, so a case reads "want CTRL+a, got CTRL+a". Run it in the VM, where the keys it presses reach only the guest. It writes the xremap config, restarts xremap; the config is written again whenever the set of Mac keyboards changes, since the first render happens before the device query answers and before the preference file has loaded (D58) |
 | keyboard hardware | `scripts/keyboards.py` reads `/proc/bus/input/devices` (a keyboard is a device with the letter keys), udev for bus and vendor, and the key bitmap for a size guess, which a USB keyboard's descriptor usually defeats by claiming every key; `Keyboard.hardware` joins it to the compositor's device list by slug. The XKB model per keyboard is `prefs.keyboardModels`, guessed from the vendor (Apple) and the first layout (ISO or ANSI) until chosen; `Input.render` writes one `hl.device` line per interface with `kb_model`, and `numlock_by_default` |
 | compositor settings | writes `hypr/generated/*.lua`, `hyprctl reload` |
 | preferences | `~/.config/isle/prefs.json`, watched |

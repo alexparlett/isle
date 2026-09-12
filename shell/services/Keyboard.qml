@@ -38,7 +38,16 @@ Singleton {
             }
         }
     }
-    function refreshDevices() { devs.running = true; }
+    function refreshDevices() { if (!devs.running) devs.running = true; }
+
+    // A keyboard can arrive or leave at any moment, a dongle's among them, and which profile a device gets
+    // decides what is remapped: the list follows udev rather than being read once at start.
+    Process {
+        command: ["udevadm", "monitor", "--udev", "--subsystem-match=input"]
+        running: true
+        stdout: SplitParser { onRead: line => { if (/ (add|remove) /.test(line)) settle.restart(); } }
+    }
+    property Timer settle: Timer { id: settle; interval: 900; onTriggered: root.refreshDevices() }
 
     // The preference file can arrive after the device list, so this holds for an empty one and the binding
     // runs again when it lands.
@@ -55,6 +64,23 @@ Singleton {
         render();
     }
     readonly property var macDevices: devices.filter(d => d.profile === "mac").map(d => d.name)
+    // xremap matches the kernel's name for a device, not the compositor's slug for it, and the two lists
+    // arrive separately: what is rendered is what has resolved, and it is rendered again as more does.
+    function kernelNameFor(slug) {
+        const h = hardware.find(x => x.slug === slug || x.slug === slug + "-keyboard" || x.slug.replace(/-keyboard$/, "") === slug.replace(/-keyboard$/, ""));
+        return h && h.name ? h.name : "";
+    }
+    readonly property var macKernelNames: {
+        const out = [];
+        for (const slug of macDevices) {
+            const n = kernelNameFor(slug);
+            if (!n) continue;
+            if (out.indexOf(n) < 0) out.push(n);
+            const base = n.replace(/ Keyboard$/, "");
+            if (base !== n && out.indexOf(base) < 0) out.push(base);
+        }
+        return out;
+    }
 
     // The compositor lists every interface a keyboard exposes, a mouse's media keys among them; one row per
     // physical device, named from the slug, and a profile set on the row lands on each of its interfaces.
@@ -88,7 +114,7 @@ Singleton {
     // xremap restarting moves the compositor's device list, which would otherwise come round again.
     property string renderedFor: ""
     onDeviceNamesChanged: hw.running = true
-    function maybeRender() { if ((macDevices || []).join(",") !== renderedFor) reRender.restart(); }
+    function maybeRender() { if ((macKernelNames || []).join(",") !== renderedFor) reRender.restart(); }
     // A profile set by hand, or a preference file that loads after the query, changes which keyboards are Mac:
     // the query runs again so the decision is always made where the names and the profiles are both in hand.
     Connections { target: Prefs.p; function onKeyboardProfilesChanged() { root.refreshDevices(); } }
@@ -98,12 +124,13 @@ Singleton {
         interval: 1200
         onTriggered: {
             if (!root.actions.length) { reRender.restart(); return; }
-            root.renderedFor = root.macDevices.join(",");
+            root.renderedFor = root.macKernelNames.join(",");
             root.render(true);
         }
     }
-    // The device lines depend on this list, so the config follows it.
-    onHardwareChanged: if (groups.length) Input.render()
+    // The device lines depend on this list, so the config follows it, and the remap layer follows the kernel
+    // names it resolves.
+    onHardwareChanged: { if (groups.length) Input.render(); maybeRender(); }
     // The compositor's slug is the kernel name lowercased with every other character a dash; a group is that
     // slug without its trailing "-keyboard".
     function hardwareFor(g) { return hardware.find(h => h.slug === g.name || h.slug.replace(/-keyboard$/, "") === g.name) || null; }
@@ -247,7 +274,8 @@ Singleton {
     // The Mac profile: Cmd+key reaches apps as Ctrl+key, except the chords the shell owns, which stay Super.
     function xremapChord(hypr) {
         // "SUPER + SHIFT + 4" -> "Super-Shift-4"
-        return hypr.split("+").map(s => s.trim()).map(p => ({ SUPER: "Super", SHIFT: "Shift", CTRL: "C", ALT: "Alt" })[p] || p.toLowerCase()).join("-");
+        const keys = { Print: "SysRq", Return: "Enter", grave: "grave" };
+        return hypr.split("+").map(s => s.trim()).map(p => ({ SUPER: "Super", SHIFT: "Shift", CTRL: "C", ALT: "Alt" })[p] || keys[p] || p.toLowerCase()).join("-");
     }
     function renderXremap() {
         const owned = {};
@@ -260,6 +288,16 @@ Singleton {
         }
         const keys = "abcdefghijklmnopqrstuvwxyz0123456789".split("").concat(["minus", "equal", "leftbrace", "rightbrace", "semicolon", "apostrophe", "comma", "dot", "slash", "backslash"]);
         const remap = {};
+        // A rule for a chord with fewer modifiers otherwise catches one with more: Option+Left took
+        // Cmd+Option+Left. A shell chord is written through as itself first, and order decides. Only chords
+        // whose keys xremap knows by the same name are written, since one it cannot parse voids the file.
+        const safe = /^(Super|Shift|C|Alt)(-(Super|Shift|C|Alt))*-([a-z0-9]|left|right|up|down|grave|space|tab|Enter|backspace|delete|home|end|SysRq|minus|equal|comma|dot|slash|semicolon|apostrophe|backslash)$/;
+        for (const a of actions) {
+            const own = a.macHypr || a.hypr;
+            if (!own || a.range) continue;
+            const c = xremapChord(own);
+            if (safe.test(c)) remap[c] = c;
+        }
         for (const k of keys) {
             for (const mods of ["Super-", "Super-Shift-"]) {
                 const from = mods + k;
@@ -282,19 +320,14 @@ Singleton {
                                "Super-Shift-Up": "C-Shift-Home", "Super-Shift-Down": "C-Shift-End",
                                "Alt-Shift-Left": "C-Shift-Left", "Alt-Shift-Right": "C-Shift-Right",
                                "Alt-Delete": "C-Delete", "Super-Backspace": ["Shift-Home", "Backspace"], "Super-Enter": "C-Enter" });
-        const term = { "Super-c": "C-Shift-c", "Super-v": "C-Shift-v", "Super-t": "C-Shift-t", "Super-w": "C-Shift-w", "Super-n": "C-Shift-n", "Super-f": "C-Shift-f" };
+        // A terminal's own chords sit on Ctrl+Shift, since Ctrl+letter is the shell's job: Cmd+A selects the
+        // buffer rather than moving to the line's start, Cmd+C copies rather than interrupting.
+        const term = { "Super-c": "C-Shift-c", "Super-v": "C-Shift-v", "Super-t": "C-Shift-t", "Super-w": "C-Shift-w",
+                       "Super-n": "C-Shift-n", "Super-f": "C-Shift-f", "Super-a": "C-Shift-a", "Super-k": "C-Shift-k" };
 
-        // xremap matches the kernel's name for a device, not the compositor's slug for it, and a name it
-        // cannot match disables the whole profile silently. Every interface of the keyboard is listed, since
-        // the keys may come from any of them.
-        const names = [];
-        for (const slug of macDevices) {
-            const h = hardware.find(x => x.slug === slug || x.slug === slug + "-keyboard" || x.slug.replace(/-keyboard$/, "") === slug.replace(/-keyboard$/, ""));
-            if (!h || !h.name) continue;
-            if (names.indexOf(h.name) < 0) names.push(h.name);
-            const base = h.name.replace(/ Keyboard$/, "");
-            if (base !== h.name && names.indexOf(base) < 0) names.push(base);
-        }
+        // A name xremap cannot match disables the whole profile silently, so with nothing resolved the file
+        // says as much instead.
+        const names = macKernelNames;
         if (!names.length)
             return "# Rendered from shell/keymap.json by the Keyboard service. Edit the source, not this.\n"
                  + "# No keyboard is on the Mac profile, so nothing is remapped.\nkeymap: []\n";

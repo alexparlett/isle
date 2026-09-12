@@ -456,3 +456,10 @@ compositor cannot tell from any other; the shell can, by size, and
 treats it the same, without forcing the compositor's fullscreen on it,
 which would leave the client's own resizes ignored when it goes back to
 windowed.
+
+**D49 · An island on every screen.** Plasma puts a panel on each
+screen and macOS a menu bar; a second monitor with nothing on it had
+no clock, no dots and no way to the panel. Each screen gets its own
+island, a pill and a panel over shared state; events and the pages
+opened from elsewhere go to the shell's screen alone, since one
+notification twice is noise. The hot zone in game mode is per screen too.

@@ -3,10 +3,9 @@ import Quickshell
 import Quickshell.Wayland
 import qs.services
 
-// A 4px strip at the top edge, only in game mode: hovering it peeks the island.
+// A 4px strip at the top edge of its screen, only in game mode: hovering it peeks that screen's island.
 PanelWindow {
     id: root
-    screen: Compositor.shellScreen
     visible: Modes.game
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "isle-hotzone"

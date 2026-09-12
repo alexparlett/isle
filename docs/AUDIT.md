@@ -149,7 +149,7 @@ places, a dropdown terminal, hyprbars with the client's own frame honoured.
 | Named or reordered spaces: Plasma names them, macOS keeps their order; Isle numbers them | later |
 | No window rules page (Plasma's "special window settings": always on this space, size, no title bar, per app) | later |
 | No Stage Manager or window grouping, no tabbed windows (Plasma's tabs went, macOS keeps its own) | no |
-| The island lives on one monitor and the rest show nothing at all; both desktops put a bar or a dock on every screen | now, unverified in the VM |
+| The island lives on one monitor and the rest show nothing at all; both desktops put a bar or a dock on every screen | ✓, one screen here and in the VM, so two is unverified |
 
 ### Launcher and search
 

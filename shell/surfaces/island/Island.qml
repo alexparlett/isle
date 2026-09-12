@@ -7,11 +7,13 @@ import qs.theme
 import qs.ui
 import qs.services
 
-// The island. Rest is a pill; hover unfolds it into the control panel; events morph it for a moment.
+// The island, one per screen. Rest is a pill; hover unfolds it into the control panel; events morph the
+// one on the shell's screen for a moment.
 PanelWindow {
     id: root
 
-    screen: Compositor.shellScreen
+    // The shell's screen carries the events and the pages opened from elsewhere; the others are pills and panels.
+    readonly property bool primary: !!screen && !!Compositor.shellScreen && screen.name === Compositor.shellScreen.name
 
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "isle-island"
@@ -34,7 +36,7 @@ PanelWindow {
     function dismiss() { enterDelay.stop(); hovered = false; pinned = false; armed = false; }
     // The panel, pinned open on one of its pages: the notification centre from the bell or a summary.
     function showPage(name) { panelBody.page = name; pinned = true; }
-    Connections { target: Notifications; function onCentreRequested() { root.showPage("notifications"); } }
+    Connections { target: Notifications; function onCentreRequested() { if (root.primary) root.showPage("notifications"); } }
     Connections {
         target: Surfaces
         function onBusyChanged() { if (Surfaces.busy && hover.hovered) root.armed = false; }
@@ -47,7 +49,7 @@ PanelWindow {
     // An open panel is not taken away by an event: an OSD raised from its own sliders is dropped, anything
     // else waits, held, until the pointer leaves.
     property bool eventHeld: false
-    readonly property string mode: pinned ? "panel" : (IslandEvents.current && !eventHeld) ? "event" : unfolded ? "panel" : "rest"
+    readonly property string mode: pinned ? "panel" : (IslandEvents.current && !eventHeld && primary) ? "event" : unfolded ? "panel" : "rest"
     onUnfoldedChanged: if (!unfolded && eventHeld) { eventHeld = false; IslandEvents.resume(); }
     Connections {
         target: IslandEvents
@@ -73,22 +75,6 @@ PanelWindow {
     mask: Region { item: body }
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
-
-    IpcHandler {
-        target: "island"
-        function text(text: string): void { IslandEvents.show({ kind: "text", text: text, glyph: "check" }); }
-        function pin(on: bool): void { root.pinned = on; }
-        function notifications(): void { root.showPage("notifications"); }
-        function clear(): void { IslandEvents.queue = []; IslandEvents.dismiss(); }
-        function dnd(action: string): void { Notifications.setDnd(action === "on" ? true : action === "off" ? false : !Notifications.dnd); }
-        // Sample events for design review: osd, media, text.
-        function demo(kind: string): void {
-            const d = 6000;
-            if (kind === "osd") IslandEvents.show({ kind: "osd", duration: d, glyph: "volume-2", value: 0.64, label: "64" });
-            else if (kind === "media") IslandEvents.show({ kind: "media", duration: d, title: "Nightcall", artist: "Kavinsky", artUrl: "" });
-            else IslandEvents.show({ kind: "text", duration: d, text: "Copied to clipboard", glyph: "check" });
-        }
-    }
 
     Glass {
         id: body
@@ -125,6 +111,7 @@ PanelWindow {
         RestContent {
             id: rest
             clock: clock
+            screenName: root.screen ? root.screen.name : ""
             anchors.centerIn: parent
             visible: opacity > 0
             opacity: root.mode === "rest" ? 1 : 0

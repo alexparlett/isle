@@ -27,6 +27,13 @@ Singleton {
         return out.sort((a, b) => a - b);
     }
     readonly property int focusedId: focusedWorkspace ? focusedWorkspace.id : -1
+    // The same for one monitor by name: an island on each screen shows that screen's desktops.
+    function workspaceIdsOn(name) {
+        const out = [];
+        for (const w of Hyprland.workspaces.values) if (w.id > 0 && w.monitor && w.monitor.name === name) out.push(w.id);
+        return out.sort((a, b) => a - b);
+    }
+    function activeIdOn(name) { const m = monitors.find(m => m.name === name); return m && m.activeWorkspace ? m.activeWorkspace.id : -1; }
 
     // Dispatchers are Lua expressions since Hyprland 0.55.
     function focusWorkspace(id) { Hyprland.dispatch("hl.dsp.focus({ workspace = " + id + " })"); }

@@ -1,6 +1,7 @@
 //@ pragma IconTheme Papirus-Dark
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.services
 import qs.surfaces.wallpaper
 import qs.surfaces.island
@@ -25,8 +26,35 @@ ShellRoot {
     Component.onCompleted: { Notifications.count; Media.present; Audio.ready; Surfaces.dashboard; Widgets.ids; Clipboard; Switcher.open; Capture.mode; Auth.active; Idle.dimmed; Keyboard.devices; Theming.script; Games.detected; Disks.volumes; KeychainService.available; Startup.entries; Gamepad.active; Osk.open; SshKeys.agent; SettingsIndex.entries; Users.users; DateTime.timezone; Updates.count; SystemLocale.lang; Pip.placed; Terminal.exists; Vpn.available; Displays.monitors; Input.p; Calendars.events; Snapshots.providers; Lock.surfaceComponent = lockSurface; }
 
     Wallpaper {}
-    Island { id: island }
-    HotZone { onPeek: { island.peek = true; island.peekTimer.restart(); } }
+    // An island and its hot zone on every screen.
+    Variants {
+        id: islands
+        model: Quickshell.screens
+        Scope {
+            id: perScreen
+            required property var modelData
+            readonly property alias island: isl
+            Island { id: isl; screen: perScreen.modelData }
+            HotZone { screen: perScreen.modelData; onPeek: { isl.peek = true; isl.peekTimer.restart(); } }
+        }
+    }
+    // The island's IPC speaks to the one on the shell's screen; events are shared by all.
+    readonly property var primaryIsland: { const s = islands.instances.find(i => i.island.primary); return s ? s.island : (islands.instances[0] ? islands.instances[0].island : null); }
+    IpcHandler {
+        target: "island"
+        function text(text: string): void { IslandEvents.show({ kind: "text", text: text, glyph: "check" }); }
+        function pin(on: bool): void { if (primaryIsland) primaryIsland.pinned = on; }
+        function notifications(): void { if (primaryIsland) primaryIsland.showPage("notifications"); }
+        function clear(): void { IslandEvents.queue = []; IslandEvents.dismiss(); }
+        function dnd(action: string): void { Notifications.setDnd(action === "on" ? true : action === "off" ? false : !Notifications.dnd); }
+        // Sample events for design review: osd, media, text.
+        function demo(kind: string): void {
+            const d = 6000;
+            if (kind === "osd") IslandEvents.show({ kind: "osd", duration: d, glyph: "volume-2", value: 0.64, label: "64" });
+            else if (kind === "media") IslandEvents.show({ kind: "media", duration: d, title: "Nightcall", artist: "Kavinsky", artUrl: "" });
+            else IslandEvents.show({ kind: "text", duration: d, text: "Copied to clipboard", glyph: "check" });
+        }
+    }
     Dashboard {}
     Launcher {}
     Switcher {}

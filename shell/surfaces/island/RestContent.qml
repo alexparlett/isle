@@ -6,7 +6,10 @@ import qs.services
 
 // Rest: workspace dots, the clock, and glyphs that only appear when they say something.
 RowLayout {
+    id: rest
     required property var clock
+    // The screen this pill is on: its desktops, not the focused monitor's.
+    property string screenName: ""
     spacing: Theme.s3 - 2
 
     // The workspace dots; a click opens Mission Control.
@@ -16,11 +19,11 @@ RowLayout {
             id: dots
             spacing: 5
             Repeater {
-                model: Compositor.workspaceIds
+                model: { Compositor.workspaces.values; Compositor.monitors; return rest.screenName ? Compositor.workspaceIdsOn(rest.screenName) : Compositor.workspaceIds; }
                 Rectangle {
                     required property int modelData
                     width: 6; height: 6; radius: 3
-                    color: modelData === Compositor.focusedId ? Theme.accent : Theme.text3
+                    color: modelData === (rest.screenName ? Compositor.activeIdOn(rest.screenName) : Compositor.focusedId) ? Theme.accent : Theme.text3
                     Behavior on color { ColorAnimation { duration: Theme.quick } }
                 }
             }

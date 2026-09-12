@@ -129,8 +129,11 @@ it always does.
 
 ## The island
 
-Top centre of the focused monitor, 12px from the edge. The only persistent
-surface. Other monitors show nothing.
+Top centre of every monitor, 12px from the edge. The only persistent
+surface. Each island is the pill and the panel for its own screen, with
+that screen's desktop dots; events, and the pages opened from elsewhere
+(the notification centre from the bell, a pin over IPC), go to the one on
+the shell's screen, the primary or the focused one by preference.
 
 **Fullscreen.** A window that goes fullscreen, a game or a video, takes
 a space of its own and comes back to its space when it leaves fullscreen,

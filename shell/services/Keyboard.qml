@@ -217,10 +217,13 @@ Singleton {
         out += "local ipc, terminal, fileManager = ...\n";
         if (Prefs.p.terminal) out += "terminal = " + JSON.stringify(Prefs.p.terminal) + "\n";
         out += "\n";
+        const bound = {};
         for (const a of actions) {
             const chords = [a.hypr];
             if (a.macHypr) chords.push(a.macHypr);
             for (const chord of chords) {
+                if (bound[chord]) { console.warn("keymap: " + chord + " is wanted by both " + bound[chord] + " and " + a.id + "; the first keeps it"); continue; }
+                bound[chord] = a.id;
                 if (a.range) {
                     out += "for n = 1, " + a.range + " do hl.bind(" + JSON.stringify(chord).replace("{n}", "\" .. n .. \"") + ", " + luaFor(a, "n") + ") end\n";
                 } else {
@@ -269,6 +272,9 @@ Singleton {
         Object.assign(remap, { "C-Left": "Super-Left", "C-Right": "Super-Right", "C-Up": "Super-Up",
                                "Alt-Left": "C-Left", "Alt-Right": "C-Right", "Alt-Backspace": "C-Backspace",
                                "Super-Left": "Home", "Super-Right": "End", "Super-Up": "C-Home", "Super-Down": "C-End" });
+        // A Mac chord that would collide as a second compositor bind is sent as the action's own chord.
+        for (const a of actions)
+            if (a.macRemap && a.hypr) remap[xremapChord(a.macRemap)] = xremapChord(a.hypr);
         // Selecting text, which every one of these would otherwise reach the compositor as a window chord.
         // Cmd+Backspace has no single key behind it, so it is the two that make it: select to the line's start
         // and delete. Cmd+Enter goes to the app, since the shell's own is on Cmd+Option+Enter.
@@ -278,12 +284,21 @@ Singleton {
                                "Alt-Delete": "C-Delete", "Super-Backspace": ["Shift-Home", "Backspace"], "Super-Enter": "C-Enter" });
         const term = { "Super-c": "C-Shift-c", "Super-v": "C-Shift-v", "Super-t": "C-Shift-t", "Super-w": "C-Shift-w", "Super-n": "C-Shift-n", "Super-f": "C-Shift-f" };
 
-        // No Mac keyboard, nothing to remap: a stand-in device name here would aim the whole profile at a
-        // keyboard nobody has, which reads as the remaps being broken rather than absent.
-        if (!macDevices.length)
+        // xremap matches the kernel's name for a device, not the compositor's slug for it, and a name it
+        // cannot match disables the whole profile silently. Every interface of the keyboard is listed, since
+        // the keys may come from any of them.
+        const names = [];
+        for (const slug of macDevices) {
+            const h = hardware.find(x => x.slug === slug || x.slug === slug + "-keyboard" || x.slug.replace(/-keyboard$/, "") === slug.replace(/-keyboard$/, ""));
+            if (!h || !h.name) continue;
+            if (names.indexOf(h.name) < 0) names.push(h.name);
+            const base = h.name.replace(/ Keyboard$/, "");
+            if (base !== h.name && names.indexOf(base) < 0) names.push(base);
+        }
+        if (!names.length)
             return "# Rendered from shell/keymap.json by the Keyboard service. Edit the source, not this.\n"
                  + "# No keyboard is on the Mac profile, so nothing is remapped.\nkeymap: []\n";
-        const devices = macDevices;
+        const devices = names;
         const dev = "    device:\n      only:\n" + devices.map(d => "        - " + JSON.stringify(d)).join("\n") + "\n";
         let out = "# Rendered from shell/keymap.json by the Keyboard service. Edit the source, not this.\n";
         out += "# The Mac profile, for the keyboards listed under device. Cmd reaches apps as Ctrl; the shell's chords stay Super.\n";

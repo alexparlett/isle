@@ -80,7 +80,7 @@
                 "switcher",
                 "cycleApp"
             ],
-            "macHypr": "SUPER + grave"
+            "macRemap": "SUPER + grave"
         },
         {
             "id": "overview",
@@ -375,20 +375,21 @@
                 "capture",
                 "toggle region"
             ],
-            "macHypr": "SUPER + SHIFT + 5"
+            "macRemap": "SUPER + SHIFT + 5"
         },
         {
             "id": "captureRegion",
             "label": "Screenshot region (Mac)",
-            "hypr": "SUPER + SHIFT + 4",
-            "win": "",
+            "hypr": "SUPER + CTRL + 4",
+            "win": "Win Ctrl 4",
             "mac": "Cmd Shift 4",
             "ipc": [
                 "capture",
                 "shoot",
                 "region"
             ],
-            "profile": "mac"
+            "profile": "mac",
+            "macRemap": "SUPER + SHIFT + 4"
         },
         {
             "id": "captureScreen",
@@ -401,7 +402,7 @@
                 "shoot",
                 "screen"
             ],
-            "macHypr": "SUPER + SHIFT + 3"
+            "macRemap": "SUPER + SHIFT + 3"
         },
         {
             "id": "record",
@@ -496,20 +497,19 @@
             "label": "Power menu",
             "hypr": "SUPER + X",
             "win": "Win X",
-            "mac": "Cmd Esc",
+            "mac": "",
             "ipc": [
                 "surfaces",
                 "power",
                 "toggle"
-            ],
-            "macHypr": "SUPER + Escape"
+            ]
         },
         {
             "id": "powerEsc",
             "label": "Power menu (Windows)",
             "hypr": "SUPER + Escape",
             "win": "Win Esc",
-            "mac": "",
+            "mac": "Cmd Esc",
             "ipc": [
                 "surfaces",
                 "power",
@@ -568,9 +568,9 @@
         {
             "id": "logout",
             "label": "Log out of the compositor",
-            "hypr": "SUPER + SHIFT + E",
-            "win": "Win Shift E",
-            "mac": "",
+            "hypr": "SUPER + SHIFT + Q",
+            "win": "Win Shift Q",
+            "mac": "Cmd Shift Q",
             "lua": "hl.dsp.exit()",
             "profile": "win"
         }

@@ -562,3 +562,24 @@ clamped whole when it fits. Rescuing is its own pass rather than a branch
 of the places one, which only looks at apps with a single window, and
 takes one window per round since the mover takes one at a time.
 
+**D58 · On a Mac keyboard the focused app comes first, and the remap
+layer has to actually be running.** Cmd is an application modifier, not a
+system one, so every Cmd chord the shell owns is taken from the app in
+front. Text navigation and selection are the clearest case: Cmd+Left is
+the start of a line, not a window snap, so those chords are translated
+before the compositor sees them, and the shell's own window actions live
+on Cmd+Option. The same reasoning moves close-front, settings and the
+terminal off Cmd+W, Cmd+comma and Cmd+Return, which belong to the tab,
+the app's preferences and its send key.
+
+None of that worked until now, for a reason worth recording: the config
+was rendered once at startup, before the device query answered and before
+the preference file had loaded, so no keyboard counted as Mac and the
+file was written for a fallback device name that matches nothing. A wrong
+device name disables a remap layer silently, which reads as the remaps
+being wrong rather than absent, so there is no fallback name any more:
+with no Mac keyboard the file holds an empty keymap. The profile is
+worked out from the device names rather than stored beside them, the
+query runs again when the profiles change, and the config is rendered
+again whenever the set of Mac keyboards does.
+

@@ -181,13 +181,14 @@
             "label": "Close window (switcher)",
             "hypr": "SUPER + W",
             "win": "Win W",
-            "mac": "Cmd W",
+            "mac": "Cmd Option W",
             "ipc": [
                 "switcher",
                 "closeFront"
             ],
             "opts": "{ non_consuming = true }",
-            "hidden": true
+            "hidden": true,
+            "macHypr": "SUPER + ALT + W"
         },
         {
             "id": "closeAlt",
@@ -233,8 +234,9 @@
             "label": "Terminal",
             "hypr": "SUPER + Return",
             "win": "Win Return",
-            "mac": "Cmd Return",
-            "lua": "hl.dsp.exec_cmd(terminal)"
+            "mac": "Cmd Option Return",
+            "lua": "hl.dsp.exec_cmd(terminal)",
+            "macHypr": "SUPER + ALT + Return"
         },
         {
             "id": "zoomIn",
@@ -455,12 +457,13 @@
             "label": "Settings",
             "hypr": "SUPER + comma",
             "win": "Win ,",
-            "mac": "Cmd ,",
+            "mac": "Cmd Option ,",
             "ipc": [
                 "surfaces",
                 "settings",
                 "toggle"
-            ]
+            ],
+            "macHypr": "SUPER + ALT + comma"
         },
         {
             "id": "settingsI",

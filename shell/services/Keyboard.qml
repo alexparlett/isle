@@ -17,8 +17,11 @@ Singleton {
         onLoaded: { root.keymap = JSON.parse(text()); root.render(); }
     }
 
-    // Keyboards the compositor sees: [{ name, profile }]. A profile is "win" or "mac"; "auto" guesses from the name.
-    property var devices: []
+    // Keyboards the compositor sees: [{ name, profile }]. A profile is "win" or "mac"; "auto" guesses from the
+    // name. The profile is worked out from the names rather than stored with them, so a preference file that
+    // loads after the device query still decides.
+    property var deviceNames: []
+    readonly property var devices: deviceNames.map(n => ({ name: n, profile: profileFor(n) }))
     Process {
         id: devs
         command: ["hyprctl", "-j", "devices"]
@@ -27,17 +30,20 @@ Singleton {
             onStreamFinished: {
                 try {
                     const seen = {};
-                    root.devices = JSON.parse(text).keyboards
+                    root.deviceNames = JSON.parse(text).keyboards
                         .filter(k => k.name && !/virtual|hypr|xremap|power-button|sleep-button|lid-switch|video-bus|hdmi|hda-|pc-speaker/i.test(k.name) && !seen[k.name] && (seen[k.name] = true))
-                        .map(k => ({ name: k.name, profile: root.profileFor(k.name) }));
+                        .map(k => k.name);
+                    root.maybeRender();
                 } catch (e) {}
             }
         }
     }
     function refreshDevices() { devs.running = true; }
 
+    // The preference file can arrive after the device list, so this holds for an empty one and the binding
+    // runs again when it lands.
     function profileFor(name) {
-        const set = Prefs.p.keyboardProfiles[name];
+        const set = ((Prefs.p && Prefs.p.keyboardProfiles) || {})[name];
         if (set === "win" || set === "mac") return set;
         return /keychron|apple|magic keyboard/i.test(name) ? "mac" : "win";
     }
@@ -77,7 +83,25 @@ Singleton {
         running: true
         stdout: StdioCollector { onStreamFinished: { try { root.hardware = JSON.parse(text).filter(h => !/xremap|virtual|hypr/i.test(h.name)); } catch (e) {} } }
     }
-    onDevicesChanged: hw.running = true
+    // The first render happens before the device query answers, so the Mac profile would be written for no
+    // keyboard and stay that way. It is written again when the set of Mac keyboards changes, and only then:
+    // xremap restarting moves the compositor's device list, which would otherwise come round again.
+    property string renderedFor: ""
+    onDeviceNamesChanged: hw.running = true
+    function maybeRender() { if ((macDevices || []).join(",") !== renderedFor) reRender.restart(); }
+    // A profile set by hand, or a preference file that loads after the query, changes which keyboards are Mac:
+    // the query runs again so the decision is always made where the names and the profiles are both in hand.
+    Connections { target: Prefs.p; function onKeyboardProfilesChanged() { root.refreshDevices(); } }
+    // The keymap file may not have arrived yet; until it has there is nothing to render from, so wait again.
+    property Timer reRender: Timer {
+        id: reRender
+        interval: 1200
+        onTriggered: {
+            if (!root.actions.length) { reRender.restart(); return; }
+            root.renderedFor = root.macDevices.join(",");
+            root.render(true);
+        }
+    }
     // The device lines depend on this list, so the config follows it.
     onHardwareChanged: if (groups.length) Input.render()
     // The compositor's slug is the kernel name lowercased with every other character a dash; a group is that
@@ -244,10 +268,22 @@ Singleton {
         for (let n = 1; n <= 9; n++) { remap["C-" + n] = "Super-" + n; remap["C-Shift-" + n] = "Super-Shift-" + n; }
         Object.assign(remap, { "C-Left": "Super-Left", "C-Right": "Super-Right", "C-Up": "Super-Up",
                                "Alt-Left": "C-Left", "Alt-Right": "C-Right", "Alt-Backspace": "C-Backspace",
-                               "Super-Left": "Home", "Super-Right": "End", "Super-Up": "C-Home", "Super-Down": "C-End", "Super-Backspace": "C-Shift-Backspace" });
+                               "Super-Left": "Home", "Super-Right": "End", "Super-Up": "C-Home", "Super-Down": "C-End" });
+        // Selecting text, which every one of these would otherwise reach the compositor as a window chord.
+        // Cmd+Backspace has no single key behind it, so it is the two that make it: select to the line's start
+        // and delete. Cmd+Enter goes to the app, since the shell's own is on Cmd+Option+Enter.
+        Object.assign(remap, { "Super-Shift-Left": "Shift-Home", "Super-Shift-Right": "Shift-End",
+                               "Super-Shift-Up": "C-Shift-Home", "Super-Shift-Down": "C-Shift-End",
+                               "Alt-Shift-Left": "C-Shift-Left", "Alt-Shift-Right": "C-Shift-Right",
+                               "Alt-Delete": "C-Delete", "Super-Backspace": ["Shift-Home", "Backspace"], "Super-Enter": "C-Enter" });
         const term = { "Super-c": "C-Shift-c", "Super-v": "C-Shift-v", "Super-t": "C-Shift-t", "Super-w": "C-Shift-w", "Super-n": "C-Shift-n", "Super-f": "C-Shift-f" };
 
-        const devices = macDevices.length ? macDevices : ["Keychron Q6 Max"];
+        // No Mac keyboard, nothing to remap: a stand-in device name here would aim the whole profile at a
+        // keyboard nobody has, which reads as the remaps being broken rather than absent.
+        if (!macDevices.length)
+            return "# Rendered from shell/keymap.json by the Keyboard service. Edit the source, not this.\n"
+                 + "# No keyboard is on the Mac profile, so nothing is remapped.\nkeymap: []\n";
+        const devices = macDevices;
         const dev = "    device:\n      only:\n" + devices.map(d => "        - " + JSON.stringify(d)).join("\n") + "\n";
         let out = "# Rendered from shell/keymap.json by the Keyboard service. Edit the source, not this.\n";
         out += "# The Mac profile, for the keyboards listed under device. Cmd reaches apps as Ctrl; the shell's chords stay Super.\n";
@@ -255,7 +291,7 @@ Singleton {
         out += "  - name: mac terminals\n" + dev + "    application:\n      only:\n" + keymap.macTerminalIds.map(i => "        - " + JSON.stringify(i)).join("\n") + "\n    remap:\n";
         for (const k in term) out += "      " + k + ": " + term[k] + "\n";
         out += "  - name: mac\n" + dev + "    remap:\n";
-        for (const k in remap) out += "      " + k + ": " + remap[k] + "\n";
+        for (const k in remap) out += "      " + k + ": " + (Array.isArray(remap[k]) ? "[" + remap[k].join(", ") + "]" : remap[k]) + "\n";
         return out;
     }
 
@@ -274,5 +310,6 @@ Singleton {
     IpcHandler {
         target: "keyboard"
         function render(): void { root.render(); }
+        function status(): string { return JSON.stringify({ devices: root.devices, mac: root.macDevices, renderedFor: root.renderedFor }); }
     }
 }

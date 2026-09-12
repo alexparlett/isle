@@ -177,7 +177,7 @@ extra process.
 | night light | `hyprctl hyprsunset` |
 | brightness | ddcutil for desktop monitors, brightnessctl for laptops |
 | session: sleep, restart, shut down, log out | `systemctl`, `loginctl`, `hyprctl dispatch exit` |
-| keyboard profile | writes `input/<profile>.yml`, restarts xremap |
+| keyboard profile | writes the xremap config, restarts xremap; the config is written again whenever the set of Mac keyboards changes, since the first render happens before the device query answers and before the preference file has loaded (D58) |
 | keyboard hardware | `scripts/keyboards.py` reads `/proc/bus/input/devices` (a keyboard is a device with the letter keys), udev for bus and vendor, and the key bitmap for a size guess, which a USB keyboard's descriptor usually defeats by claiming every key; `Keyboard.hardware` joins it to the compositor's device list by slug. The XKB model per keyboard is `prefs.keyboardModels`, guessed from the vendor (Apple) and the first layout (ISO or ANSI) until chosen; `Input.render` writes one `hl.device` line per interface with `kb_model`, and `numlock_by_default` |
 | compositor settings | writes `hypr/generated/*.lua`, `hyprctl reload` |
 | preferences | `~/.config/isle/prefs.json`, watched |
@@ -404,14 +404,27 @@ decides which physical chords reach Hyprland as `SUPER` and which reach
 the app as `CTRL`.**
 
 - The Windows keyboard (Corsair K95) passes through. Win is Super.
-- The Mac keyboard (Keychron Q6 Max, matched by USB id) gets the `mac`
-  profile: Cmd+key → Ctrl+key for apps, except the chords the shell owns,
-  which stay Super. Option+arrows → Ctrl+arrows; Cmd+arrows → Home/End.
-  In kitty, Cmd+C/V/T/W/N → Ctrl+Shift+C/V/T/W/N, so Cmd+C copies rather
-  than interrupts.
-- Cmd+1..9 and Cmd+Left/Right must reach apps, so the mac profile moves
-  those shell actions to Ctrl+1..9 and Ctrl+Left/Right, which is what
-  macOS uses for Spaces. Ctrl+Up is overview, as Mission Control.
+- A Mac keyboard (a name carrying Keychron, Apple or Magic Keyboard, or a
+  profile set by hand in Settings) gets the `mac` profile: Cmd+key →
+  Ctrl+key for apps, except the chords the shell owns, which stay Super.
+  Option+arrows → Ctrl+arrows; Cmd+arrows → Home/End. In kitty, Cmd+C/V/T/
+  W/N → Ctrl+Shift+C/V/T/W/N, so Cmd+C copies rather than interrupts.
+  With no Mac keyboard the file holds an empty keymap rather than a
+  stand-in device name, which would aim the whole profile at a keyboard
+  nobody has and read as the remaps being broken (D58).
+- Selecting text is the same translation as moving through it, and every
+  one of those chords would otherwise reach the compositor as a window
+  chord: Cmd+Shift+Left/Right → Shift+Home/End, Cmd+Shift+Up/Down →
+  Ctrl+Shift+Home/End, Option+Shift+arrows → Ctrl+Shift+arrows,
+  Option+Delete → Ctrl+Delete, and Cmd+Backspace, which has no single key
+  behind it, → Shift+Home then Backspace.
+- Cmd is an ordinary application modifier, so a chord the shell owns is
+  one the focused app cannot have. Cmd+1..9 and Cmd+Left/Right must reach
+  apps, so those shell actions move to Ctrl+1..9 and Ctrl+Left/Right,
+  which is what macOS uses for Spaces; Ctrl+Up is overview, as Mission
+  Control. Close-front, settings and a new terminal sit on Cmd+Option+W,
+  comma and Return, leaving Cmd+W to close a tab, Cmd+comma to open the
+  app's own preferences and Cmd+Return to send (D58).
 
 ### Keymap
 

@@ -7,10 +7,23 @@ import qs.services
 SettingsPage {
     id: page
     title: "Shortcuts"
-    subtitle: "What the keys do. The column is the profile in use; Change records a new chord."
+    subtitle: "What the keys do."
 
-    // Any keyboard on the Mac profile makes this the Mac column.
-    readonly property bool mac: Keyboard.macDevices.length > 0
+    // The column starts on the profile a keyboard here is using, and can be moved to see the other.
+    property string column: ""
+    readonly property bool mac: column ? column === "mac" : Keyboard.macDevices.length > 0
+    // What a Mac keyboard does to a chord before an application sees it, from the profile's preset.
+    function pretty(chord) {
+        return chord.split("-").map(p => ({ Super: "Cmd", C: "Ctrl", Alt: "Opt", Shift: "Shift" })[p]
+            || (p.length === 1 ? p.toUpperCase() : p.charAt(0).toUpperCase() + p.slice(1))).join(" ");
+    }
+    // A rule's target is a chord or a list of them; a list from the preset file is not always an Array here.
+    function prettyTo(v) {
+        const list = typeof v === "string" ? [v] : v;
+        const out = [];
+        for (let i = 0; i < list.length; i++) out.push(pretty(list[i]));
+        return out.join(", then ");
+    }
 
     // Recording a shortcut: the row listens, the compositor's binds step aside until it is done.
     property string recording: ""
@@ -31,7 +44,22 @@ SettingsPage {
             RowLayout {
                 anchors { fill: parent; leftMargin: Theme.s3; rightMargin: Theme.s3 }
                 Label { text: "Action"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.preferredWidth: parent.width * 0.44 }
-                Label { text: page.mac ? "Mac" : "Windows"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.fillWidth: true }
+                RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.s2
+                Repeater {
+                    model: [["win", "Windows"], ["mac", "Mac"]]
+                    Label {
+                        required property var modelData
+                        text: modelData[1]
+                        size: Theme.sizeCaption
+                        weight: (modelData[0] === "mac") === page.mac ? Font.DemiBold : Font.Medium
+                        color: (modelData[0] === "mac") === page.mac ? Theme.accent : Theme.text3
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.column = modelData[0] }
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
                 Label { text: "Change"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.preferredWidth: 96; horizontalAlignment: Text.AlignRight }
             }
         }
@@ -98,5 +126,27 @@ SettingsPage {
                 }
             }
         }
+    }
+
+    // The same keyboard's text handling, which is a binding like any other: the chord you press and what the
+    // application is given. Only the Mac profile translates these.
+    SettingsGroup {
+        visible: page.mac
+        heading: "Text and editing"
+        Repeater {
+            model: {
+                const out = [];
+                const p = Keyboard.macPreset;
+                for (const k in p.text) out.push([k, p.text[k]]);
+                for (const k in p.control) out.push([k, p.control[k]]);
+                return out;
+            }
+            SettingsRow {
+                required property var modelData
+                label: page.pretty(modelData[0])
+                description: page.prettyTo(modelData[1])
+            }
+        }
+        SettingsRow { label: "In a terminal, Ctrl stays with the line editor" }
     }
 }

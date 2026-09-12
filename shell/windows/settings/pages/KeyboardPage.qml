@@ -7,12 +7,52 @@ import qs.services
 SettingsPage {
     id: page
     title: "Keyboard"
-    subtitle: "Each keyboard gets a profile: Mac swaps the modifiers and takes each layout's Macintosh symbols. The layouts below are the languages every keyboard types. The shortcuts have their own page."
+    subtitle: "Each keyboard, what its modifiers mean, and the layouts it types."
 
     Component.onCompleted: Keyboard.refreshDevices()
 
     // Each keyboard as Plasma's Hardware tab has it: what it is, its XKB model (guessed from the vendor and the
     // first layout, or chosen), and the profile its chords follow.
+    // macOS asks for the key beside the left Shift to tell an ISO keyboard from an ANSI one; the key beside
+    // the space bar tells which order the modifiers are in, which nothing reports either.
+    property var detectGroup: null
+    property string detectStep: ""
+    property string detectSaid: ""
+    function startDetect(g) { page.detectGroup = g; page.detectStep = "iso"; page.detectSaid = ""; Keyboard.setRecording(true); }
+    function endDetect() { page.detectStep = ""; page.detectGroup = null; Keyboard.setRecording(false); }
+    property int detectLast: 0
+    function sawCode(code) {
+        // Qt reports the kernel's code with eight added.
+        const c = code > 8 ? code - 8 : code;
+        page.detectLast = c;
+        if (page.detectStep === "iso") {
+            // The step moves on whatever happens below, or a keyboard that cannot be set would trap the flow.
+            const iso = c === 86;
+            page.detectSaid = iso ? "105 keys, the ISO shape" : "104 keys, the ANSI shape";
+            page.detectStep = "mods";
+            const g = page.detectGroup;
+            try {
+                const apple = /^applealu/.test(Keyboard.modelFor(g) || "");
+                Keyboard.setGroupModel(g, apple ? (iso ? "applealu_iso" : "applealu_ansi") : (iso ? "pc105" : "pc104"));
+            } catch (e) {
+                page.detectSaid += "  ·  the model could not be set: " + e;
+            }
+        } else if (page.detectStep === "mods") {
+            if (c !== 125 && c !== 56) { page.detectSaid = "That was neither Alt nor Cmd. Try the key immediately left of the space bar."; return; }
+            const macOrder = c === 125;
+            const g = page.detectGroup;
+            page.detectSaid += "  ·  " + (macOrder ? "Cmd beside the space bar, so Mac order" : "Alt beside the space bar, so Windows order");
+            page.detectStep = "done";
+            try {
+                if (macOrder) Keyboard.setGroupProfile(g, "mac");
+                // The option already lives under Advanced; detection sets that one rather than a second.
+                Input.setOption("altwin:swap_alt_win", !macOrder && g.profile === "mac");
+            } catch (e) {
+                page.detectSaid += "  ·  the profile could not be set: " + e;
+            }
+        }
+    }
+
     SettingsGroup {
         heading: "Keyboards"
         Repeater {
@@ -23,7 +63,7 @@ SettingsPage {
                 readonly property var hw: Keyboard.hardwareFor(modelData)
                 readonly property bool guessed: !(Prefs.p.keyboardModels || {})[modelData.name]
                 label: hw && hw.vendor && modelData.label.toLowerCase().indexOf(hw.vendor.toLowerCase()) < 0 ? hw.vendor + " " + modelData.label : modelData.label
-                description: [hw ? hw.bus : "", hw ? hw.size : "", modelData.profile === "mac" ? "Cmd reaches apps as Ctrl; the shell's chords stay Cmd; symbols sit where a Mac prints them (@ on ⇧2)" : "keys passed through as is"].filter(Boolean).join(" · ")
+                description: [hw ? hw.bus : "", hw ? hw.size.replace(/ guessed$/, "") : ""].filter(Boolean).join("  ·  ")
                 RowLayout {
                     spacing: Theme.s2
                     Dropdown {
@@ -32,7 +72,6 @@ SettingsPage {
                         value: Keyboard.modelFor(devRow.modelData)
                         onPicked: v => Keyboard.setGroupModel(devRow.modelData, v)
                     }
-                    Label { text: devRow.guessed ? "guessed" : ""; size: Theme.sizeCaption; color: Theme.text3; Layout.preferredWidth: 52 }
                     Rectangle {
                         height: 28; radius: Theme.radiusChip; color: Theme.pressed
                         width: segRow.implicitWidth + 4
@@ -54,19 +93,44 @@ SettingsPage {
                             }
                         }
                     }
-                    Label { text: Prefs.p.keyboardProfiles[modelData.members[0]] ? "" : "auto"; size: Theme.sizeCaption; color: Theme.text3; Layout.preferredWidth: 30 }
+                    Button { text: "Detect"; variant: "text"; implicitHeight: 28; onClicked: page.startDetect(devRow.modelData) }
                 }
             }
         }
-        SettingsRow { visible: Keyboard.groups.length === 0; label: "No keyboards seen"; description: "The compositor reports none yet." }
+        SettingsRow {
+            visible: page.detectStep !== ""
+            label: page.detectStep === "iso" ? "Press the key immediately right of the left Shift"
+                 : page.detectStep === "mods" ? "Press the key immediately left of the space bar"
+                 : "Set"
+            description: page.detectSaid
+            RowLayout {
+                spacing: Theme.s2
+                Rectangle {
+                    visible: page.detectStep !== "done"
+                    implicitWidth: 200; implicitHeight: 28
+                    radius: Theme.radiusControl
+                    color: Theme.raised
+                    border.width: 1
+                    border.color: Theme.accent
+                    focus: visible
+                    onVisibleChanged: if (visible) forceActiveFocus()
+                    Keys.onPressed: event => {
+                        event.accepted = true;
+                        if (event.key === Qt.Key_Escape) { page.endDetect(); return; }
+                        page.sawCode(event.nativeScanCode);
+                    }
+                    Label { anchors.centerIn: parent; text: "Listening"; size: Theme.sizeCaption; color: Theme.text2 }
+                }
+                Button { text: page.detectStep === "done" ? "Close" : "Cancel"; variant: "text"; implicitHeight: 28; onClicked: page.endDetect() }
+            }
+        }
+        SettingsRow { visible: Keyboard.groups.length === 0; label: "No keyboards seen" }
         SettingsRow {
             label: "NumLock at start"
-            description: "The keypad types numbers when the session begins."
             Toggle { checked: Input.get("numlock", false); onToggled: v => Input.set("numlock", v) }
         }
         SettingsRow {
             label: "Test area"
-            description: "Type here to try the layout, model and options."
             Field { implicitWidth: 300; implicitHeight: 32; placeholder: "Type here" }
         }
     }
@@ -231,17 +295,21 @@ SettingsPage {
 
     SettingsGroup {
         heading: "Keys"
-        SettingsRow { label: "Caps Lock is Control"; Toggle { checked: Input.hasOption("ctrl:nocaps"); onToggled: v => Input.setOption("ctrl:nocaps", v) } }
-        SettingsRow { label: "Caps Lock is Escape"; Toggle { checked: Input.hasOption("caps:escape"); onToggled: v => Input.setOption("caps:escape", v) } }
-        SettingsRow { label: "Swap Alt and Win"; Toggle { checked: Input.hasOption("altwin:swap_alt_win"); onToggled: v => Input.setOption("altwin:swap_alt_win", v) } }
+        SettingsRow {
+            label: "Caps Lock"
+            Dropdown {
+                listWidth: 200
+                options: [["", "Caps Lock"], ["ctrl:nocaps", "Control"], ["caps:escape", "Escape"]]
+                value: Input.hasOption("ctrl:nocaps") ? "ctrl:nocaps" : Input.hasOption("caps:escape") ? "caps:escape" : ""
+                onPicked: v => { Input.setOption("ctrl:nocaps", v === "ctrl:nocaps"); Input.setOption("caps:escape", v === "caps:escape"); }
+            }
+        }
         SettingsRow {
             label: "Compose key"
-            description: "Types accented and special characters in sequence."
             Dropdown { listWidth: 220; maxRows: 12; options: [["", "None"]].concat(Xkb.optionsOf("Compose key").map(o => [o.name, o.description])); value: (Input.get("optionSet", []) || []).find(o => o.indexOf("compose:") === 0) || ""; onPicked: v => { for (const o of Xkb.optionsOf("Compose key")) Input.setOption(o.name, false); if (v) Input.setOption(v, true); } }
         }
         SettingsRow {
             label: "Other options"
-            description: "XKB option names, separated by commas."
             Field { implicitWidth: 260; implicitHeight: 32; placeholder: "terminate:ctrl_alt_bksp"; text: Input.get("options", ""); onAccepted: Input.set("options", text) }
         }
     }
@@ -292,7 +360,6 @@ SettingsPage {
         }
         SettingsRow {
             label: "Key repeat"
-            description: "Delay before a held key repeats, then repeats per second."
             RowLayout {
                 spacing: Theme.s2
                 NumberField { value: Input.get("repeatDelay", 400); from: 100; to: 2000; unit: "ms"; onCommitted: v => Input.set("repeatDelay", v) }

@@ -79,6 +79,8 @@ Singleton {
             property int idleLock: 600
             property int idleScreenOff: 900
             property var keyboardProfiles: ({})
+            // The XKB model chosen for a keyboard, over the guess from its key bitmap.
+            property var keyboardModels: ({})
             // Overrides over a keyboard profile's preset: { text|control|terminal: { chord: chord } }.
             property var keyTranslations: ({})
             property string accent: ""

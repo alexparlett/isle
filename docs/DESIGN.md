@@ -542,6 +542,15 @@ letters for Nintendo. A pad a program made rather than hardware is named
 for that program, "Steam Input", with the name it gives itself in the
 line beneath. Below, the dead zone is one slider.
 
+Settings › Keyboard gives each keyboard one row: its model, Windows or
+Mac, and Detect, which asks for two keys and fills the rest in, the
+swapped-modifiers option among them where it already sits under
+Advanced. Caps Lock is one
+choice of three rather than two switches that could disagree. Settings ›
+Shortcuts heads its chord column with both profiles, either of which can
+be read, and under the actions a Mac keyboard's text handling is listed
+the same way: the chord pressed, and what the application is given.
+
 Settings › Devices is Device Manager's shape: a tree of categories on
 the left, each device under its own, a count on the category and a
 chevron to fold it, and on the right the selected device's properties as

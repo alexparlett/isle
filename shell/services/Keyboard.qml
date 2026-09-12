@@ -161,7 +161,8 @@ Singleton {
         let out = "";
         for (const g of groups) {
             const model = modelFor(g);
-            for (const m of g.members) out += "hl.device({ name = " + JSON.stringify(m) + ", kb_model = " + JSON.stringify(model) + (profileFor(m) === "mac" ? macVariantLua() : "") + " })\n";
+            for (const m of g.members) out += "hl.device({ name = " + JSON.stringify(m) + ", kb_model = " + JSON.stringify(model)
+                 + (profileFor(m) === "mac" ? macVariantLua() : "") + " })\n";
         }
         // Keys from a Mac-profile keyboard arrive through xremap's virtual device, so that is where the variant must sit.
         if (macDevices.length && macVariantLua()) out += "hl.device({ name = \"xremap\"" + macVariantLua() + " })\n";

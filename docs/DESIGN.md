@@ -521,6 +521,16 @@ chevron to fold it, and on the right the selected device's properties as
 label and value pairs with a button to the page that sets it up. System
 devices start folded. The tree follows what is plugged in and out.
 
+## Accessibility
+
+Settings › Accessibility, under Look and feel. The magnifier is the
+screen scaled around the pointer, in steps from Super+Ctrl and = or -,
+off with Super+Ctrl+0. Text size scales every size the shell sets at
+once: Normal, Larger, Large, Largest. High contrast brings the secondary
+and tertiary text up towards full, thickens the hairlines and makes the
+glass all but opaque, while the palette stays; reduced motion is here as
+well as in Appearance, and the on-screen keyboard has its switch.
+
 ## Installed apps
 
 The token file renders to:

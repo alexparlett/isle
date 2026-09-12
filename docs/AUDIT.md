@@ -131,8 +131,8 @@ Has: reduced motion, an on-screen keyboard, caps-lock warning on the lock.
 
 | gap | worth |
 |---|---|
-| No screen magnifier (Plasma's zoom effect, macOS Zoom); Hyprland has `misc:cursor_zoom_factor`, which is the whole mechanism | now |
-| No large-text or high-contrast toggle; the tokens could scale type and swap the palette in one place | now |
+| No screen magnifier (Plasma's zoom effect, macOS Zoom); Hyprland has `misc:cursor_zoom_factor`, which is the whole mechanism | ✓ |
+| No large-text or high-contrast toggle; the tokens could scale type and swap the palette in one place | ✓ |
 | No sticky, slow or bounce keys, no mouse keys (xkb has them all; one page) | later |
 | No screen reader hookup (Orca, AT-SPI) | later |
 | No colour filters for colour blindness (a shader on the wallpaper layer is not the screen; needs a compositor effect) | no |

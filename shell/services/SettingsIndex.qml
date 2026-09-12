@@ -16,6 +16,7 @@ Singleton {
         { id: "bluetooth", glyph: "bluetooth", label: "Bluetooth" },
         { group: "Look and feel" },
         { id: "appearance", glyph: "palette", label: "Appearance" },
+        { id: "accessibility", glyph: "accessibility", label: "Accessibility" },
         { id: "wallpaper", glyph: "image", label: "Wallpaper" },
         { id: "notifications", glyph: "bell", label: "Notifications" },
         { id: "modes", glyph: "gamepad-2", label: "Modes" },

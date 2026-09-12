@@ -1,3 +1,4 @@
+accessibility
 activity
 app-window
 archive
@@ -115,3 +116,5 @@ wifi-low
 wifi-off
 wind
 x
+zoom-in
+zoom-out

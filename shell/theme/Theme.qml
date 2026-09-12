@@ -27,7 +27,7 @@ Singleton {
 
     // Colour
     readonly property color ink: c("color", "ink", "#0A0B0D")
-    readonly property real glassAlpha: c("color", "glassAlpha", 0.78)
+    readonly property real glassAlpha: !!Prefs.p.highContrast ? 0.97 : c("color", "glassAlpha", 0.78)
     readonly property real glassAlphaNoBlur: c("color", "glassAlphaNoBlur", 0.94)
     readonly property color glassBase: c("color", "glass", "#121316")
     readonly property color glass: Qt.alpha(glassBase, glassAlpha)
@@ -35,10 +35,12 @@ Singleton {
     readonly property color raised: c("color", "raised", "#1B1C21")
     readonly property color pressed: c("color", "pressed", "#26272D")
     readonly property color text: c("color", "text", "#F2F2F3")
-    readonly property color text2: Qt.alpha(text, c("color", "text2Alpha", 0.62))
-    readonly property color text3: Qt.alpha(text, c("color", "text3Alpha", 0.38))
-    readonly property color hairline: Qt.alpha(text, c("color", "hairlineAlpha", 0.08))
-    readonly property color hairlineStrong: Qt.alpha(text, c("color", "hairlineStrongAlpha", 0.14))
+    // High contrast: the quieter text and lines come up, the glass loses its see-through.
+    readonly property bool highContrast: !!Prefs.p.highContrast
+    readonly property color text2: Qt.alpha(text, highContrast ? 0.88 : c("color", "text2Alpha", 0.62))
+    readonly property color text3: Qt.alpha(text, highContrast ? 0.7 : c("color", "text3Alpha", 0.38))
+    readonly property color hairline: Qt.alpha(text, highContrast ? 0.22 : c("color", "hairlineAlpha", 0.08))
+    readonly property color hairlineStrong: Qt.alpha(text, highContrast ? 0.36 : c("color", "hairlineStrongAlpha", 0.14))
     readonly property color accent: Prefs.p.accent ? Prefs.p.accent : c("color", "accent", "#7FA6FF")
     readonly property color onAccent: c("color", "onAccent", "#0A0B0D")
     readonly property color ok: c("color", "ok", "#6FCF97")
@@ -68,12 +70,14 @@ Singleton {
     readonly property string fontUi: c("font", "ui", "Inter")
     readonly property string fontMono: c("font", "mono", "JetBrains Mono")
     readonly property var fontSize: c("font", "size", {})
-    readonly property int sizeCaption: fontSize.caption ?? 11
-    readonly property int sizeSmall: fontSize.small ?? 12
-    readonly property int sizeBody: fontSize.body ?? 13
-    readonly property int sizeHeading: fontSize.heading ?? 15
-    readonly property int sizeTitle: fontSize.title ?? 20
-    readonly property int sizeDisplay: fontSize.display ?? 28
+    // Larger text: every size scales together, from Settings › Accessibility.
+    readonly property real textScale: Prefs.p.textScale > 0 ? Prefs.p.textScale : 1
+    readonly property int sizeCaption: Math.round((fontSize.caption ?? 11) * textScale)
+    readonly property int sizeSmall: Math.round((fontSize.small ?? 12) * textScale)
+    readonly property int sizeBody: Math.round((fontSize.body ?? 13) * textScale)
+    readonly property int sizeHeading: Math.round((fontSize.heading ?? 15) * textScale)
+    readonly property int sizeTitle: Math.round((fontSize.title ?? 20) * textScale)
+    readonly property int sizeDisplay: Math.round((fontSize.display ?? 28) * textScale)
 
     // Motion. Game mode and the reduced-motion preference set `motion` to 0.
     property real motion: 1

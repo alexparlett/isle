@@ -52,6 +52,9 @@ Singleton {
             property bool dndSummary: true
             property bool notifySound: false
             property bool reducedMotion: false
+            // Accessibility: every type size times this, and stronger text, lines and glass.
+            property real textScale: 1
+            property bool highContrast: false
             // Apps whose windows are put away instead of closed: desktop entry ids.
             property var keepRunning: []
             // Subscribed calendars: [{ id, name, url, color }].

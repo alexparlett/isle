@@ -463,3 +463,11 @@ no clock, no dots and no way to the panel. Each screen gets its own
 island, a pill and a panel over shared state; events and the pages
 opened from elsewhere go to the shell's screen alone, since one
 notification twice is noise. The hot zone in game mode is per screen too.
+
+**D50 · Accessibility from what is already there.** The magnifier is
+the compositor's cursor zoom, so it is one config value stepped from
+the keymap, not a screen-reading surface of the shell's own. Larger
+text is a factor on the theme's type sizes, since every label in the
+shell takes its size from the tokens and nothing sets a size by hand;
+high contrast is the same tokens with the quiet ones brought up, so the
+palette and the accent hold and nothing has a second look to maintain.

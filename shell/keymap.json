@@ -237,6 +237,42 @@
             "lua": "hl.dsp.exec_cmd(terminal)"
         },
         {
+            "id": "zoomIn",
+            "label": "Magnify",
+            "hypr": "SUPER + CTRL + equal",
+            "win": "Win Ctrl =",
+            "mac": "Cmd Option =",
+            "ipc": [
+                "access",
+                "zoom",
+                "in"
+            ]
+        },
+        {
+            "id": "zoomOut",
+            "label": "Magnify less",
+            "hypr": "SUPER + CTRL + minus",
+            "win": "Win Ctrl -",
+            "mac": "Cmd Option -",
+            "ipc": [
+                "access",
+                "zoom",
+                "out"
+            ]
+        },
+        {
+            "id": "zoomReset",
+            "label": "Magnifier off",
+            "hypr": "SUPER + CTRL + 0",
+            "win": "Win Ctrl 0",
+            "mac": "Cmd Option 0",
+            "ipc": [
+                "access",
+                "zoom",
+                "reset"
+            ]
+        },
+        {
             "id": "emoji",
             "label": "Emoji and symbols",
             "hypr": "SUPER + period",

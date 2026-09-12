@@ -52,6 +52,21 @@ Singleton {
     }
     function setStreamVolume(n, v) { if (n.audio) n.audio.volume = Math.max(0, Math.min(1, v)); }
     function setStreamMuted(n, m) { if (n.audio) n.audio.muted = m; }
+    // One row per app: a game opens several streams under one name and one process, and they are one
+    // volume to a person. `node` is the first stream, read for the value; a change goes to every stream.
+    readonly property var apps: {
+        const out = [], byKey = {};
+        for (const n of streams) {
+            const key = n.properties["application.process.id"] || streamName(n);
+            if (byKey[key]) { byKey[key].nodes.push(n); continue; }
+            byKey[key] = { key: key, node: n, nodes: [n], name: streamName(n), icon: streamIcon(n) };
+            out.push(byKey[key]);
+        }
+        for (const a of out) a.detail = a.nodes.length > 1 ? a.nodes.length + " streams" : streamDetail(a.node);
+        return out;
+    }
+    function setAppVolume(a, v) { for (const n of a.nodes) setStreamVolume(n, v); }
+    function setAppMuted(a, m) { for (const n of a.nodes) setStreamMuted(n, m); }
 
     // Changes after the first moments are the user's, and show as the OSD.
     property bool settled: false

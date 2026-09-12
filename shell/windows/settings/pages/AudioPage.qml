@@ -62,18 +62,18 @@ SettingsPage {
     SettingsGroup {
         heading: "Apps"
         Repeater {
-            model: Audio.streams
+            model: Audio.apps
             SettingsRow {
                 required property var modelData
-                label: Audio.streamName(modelData)
-                description: Audio.streamDetail(modelData)
+                label: modelData.name
+                description: modelData.detail
                 RowLayout {
                     spacing: Theme.s2
-                    Slider { implicitWidth: 200; value: modelData.audio && !modelData.audio.muted ? modelData.audio.volume : 0; onMoved: v => { Audio.setStreamMuted(modelData, false); Audio.setStreamVolume(modelData, v); } }
-                    Toggle { checked: modelData.audio ? !modelData.audio.muted : true; onToggled: v => Audio.setStreamMuted(modelData, !v) }
+                    Slider { implicitWidth: 200; value: modelData.node.audio && !modelData.node.audio.muted ? modelData.node.audio.volume : 0; onMoved: v => { Audio.setAppMuted(modelData, false); Audio.setAppVolume(modelData, v); } }
+                    Toggle { checked: modelData.node.audio ? !modelData.node.audio.muted : true; onToggled: v => Audio.setAppMuted(modelData, !v) }
                 }
             }
         }
-        SettingsRow { visible: Audio.streams.length === 0; label: "Nothing playing"; description: "Apps appear here while they play sound." }
+        SettingsRow { visible: Audio.apps.length === 0; label: "Nothing playing"; description: "Apps appear here while they play sound." }
     }
 }

@@ -427,10 +427,10 @@ ColumnLayout {
                 Glyph { name: "check"; size: 14; color: Theme.accent; visible: modelData === Audio.sink }
             }
         }
-        // Apps: each stream's own volume.
-        Label { visible: Audio.streams.length > 0; text: "Apps"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.margins: Theme.s3; Layout.bottomMargin: 0 }
+        // Apps: each app's own volume, its streams as one.
+        Label { visible: Audio.apps.length > 0; text: "Apps"; size: Theme.sizeCaption; weight: Font.DemiBold; color: Theme.text2; Layout.margins: Theme.s3; Layout.bottomMargin: 0 }
         Repeater {
-            model: Audio.streams
+            model: Audio.apps
             RowLayout {
                 id: streamRow
                 required property var modelData
@@ -438,8 +438,8 @@ ColumnLayout {
                 Layout.leftMargin: Theme.s3
                 Layout.rightMargin: Theme.s3
                 spacing: Theme.s2
-                readonly property string icon: Audio.streamIcon(modelData)
-                readonly property bool muted: modelData.audio ? modelData.audio.muted : false
+                readonly property string icon: modelData.icon
+                readonly property bool muted: modelData.node.audio ? modelData.node.audio.muted : false
                 Item {
                     implicitWidth: 20; implicitHeight: 20
                     AppIcon { anchors.fill: parent; size: 20; source: streamRow.icon; visible: streamRow.icon !== "" }
@@ -448,12 +448,12 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.preferredWidth: 110
                     spacing: 0
-                    Label { text: Audio.streamName(streamRow.modelData); size: Theme.sizeSmall; Layout.fillWidth: true }
-                    Label { text: Audio.streamDetail(streamRow.modelData); size: Theme.sizeCaption; color: Theme.text3; Layout.fillWidth: true; visible: text !== "" }
+                    Label { text: streamRow.modelData.name; size: Theme.sizeSmall; Layout.fillWidth: true }
+                    Label { text: streamRow.modelData.detail; size: Theme.sizeCaption; color: Theme.text3; Layout.fillWidth: true; visible: text !== "" }
                 }
-                Slider { Layout.fillWidth: true; value: streamRow.muted ? 0 : (streamRow.modelData.audio ? streamRow.modelData.audio.volume : 0); onMoved: v => { Audio.setStreamMuted(streamRow.modelData, false); Audio.setStreamVolume(streamRow.modelData, v); } }
+                Slider { Layout.fillWidth: true; value: streamRow.muted ? 0 : (streamRow.modelData.node.audio ? streamRow.modelData.node.audio.volume : 0); onMoved: v => { Audio.setAppMuted(streamRow.modelData, false); Audio.setAppVolume(streamRow.modelData, v); } }
                 Glyph { name: streamRow.muted ? "volume-x" : "volume-2"; size: 14; color: streamRow.muted ? Theme.warn : Theme.text3
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Audio.setStreamMuted(streamRow.modelData, !streamRow.muted) } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Audio.setAppMuted(streamRow.modelData, !streamRow.muted) } }
             }
         }
     }

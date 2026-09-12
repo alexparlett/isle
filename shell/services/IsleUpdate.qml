@@ -84,7 +84,7 @@ Singleton {
         }
     }
     function took(line) {
-        const l = line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd();
+        const l = line.replace(/\x1b\[[0-9;]*m/g, "").replace(/\s+$/, "");
         if (!l) return;
         log = log.concat([l]).slice(-200);
         if (/^(Updating|Fast-forward)/.test(l)) phase = "Pulling";

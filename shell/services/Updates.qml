@@ -78,12 +78,14 @@ Singleton {
         steps = out;
     }
     function took(line) {
-        const l = line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd();
+        // No trimEnd in Qt's JavaScript.
+        const l = line.replace(/\x1b\[[0-9;]*m/g, "").replace(/\s+$/, "");
         if (!l) return;
         log = log.concat([l]).slice(-200);
         let m;
         if ((m = l.match(/^:: (Synchronizing|Starting|Retrieving|Checking|Processing|Running|Resolving|Looking)(.*)/))) phase = l.replace(/^:: /, "").replace(/\.\.\.$/, "");
-        else if ((m = l.match(/^\s*(\S+?)-[^-\s]+-[^-\s]+\s+downloading/))) { stepState(m[1], "downloading"); phase = "Downloading " + m[1]; }
+        // A download names the file, name-version-release-arch; the name is all but the last three fields.
+        else if ((m = l.match(/^\s*(\S+)-[^-\s]+-[^-\s]+-[^-\s]+\s+downloading/))) { stepState(m[1], "downloading"); phase = "Downloading " + m[1]; }
         else if ((m = l.match(/^\((\d+)\/(\d+)\) (upgrading|installing|reinstalling|downgrading) (\S+)/))) { markInstalled(); stepState(m[4], "installing"); phase = "Installing " + m[4] + "  ·  " + m[1] + " of " + m[2]; }
         else if ((m = l.match(/^\((\d+)\/(\d+)\) removing (\S+)/))) { markInstalled(); stepState(m[3], "removed"); phase = "Removing " + m[3]; }
         else if ((m = l.match(/^\((\d+)\/(\d+)\) (.+?)\.\.\.$/))) { markInstalled(); phase = m[3] + "  ·  " + m[1] + " of " + m[2]; }
@@ -96,7 +98,7 @@ Singleton {
         id: runner
         stdout: SplitParser { onRead: line => root.took(line) }
         stderr: SplitParser { onRead: line => root.took(line) }
-        onStarted: { root.running = true; root.failed = ""; root.log = []; root.phase = "Asking for permission"; }
+        onStarted: root.running = true
         onExited: (code) => {
             root.markInstalled();
             root.running = false;
@@ -118,11 +120,18 @@ Singleton {
     }
     // pacman behind pkexec, so the shell's auth dialog asks; the AUR helper builds as the user and hands pacman
     // to pkexec the same way. No prompts: every question takes its default.
-    function run(args, aur) {
-        if (runner.running) return;
-        steps = pending.map(p => ({ name: p.name, state: "waiting" }));
-        runner.command = aur && helper ? [helper].concat(args, ["--noconfirm", "--skipreview", "--noprogressbar", "--sudo", "pkexec"]) : ["pkexec", "pacman"].concat(args, ["--noconfirm", "--noprogressbar"]);
+    // The state is cleared before the start, not on the started signal: a quick process has said its first
+    // lines by the time that signal lands, and they were being wiped.
+    function begin(command) {
+        if (runner.running) return false;
+        failed = ""; log = []; phase = "Asking for permission";
+        runner.command = command;
         runner.running = true;
+        return true;
+    }
+    function run(args, aur) {
+        steps = pending.map(p => ({ name: p.name, state: "waiting" }));
+        begin(aur && helper ? [helper].concat(args, ["--noconfirm", "--skipreview", "--noprogressbar", "--sudo", "pkexec"]) : ["pkexec", "pacman"].concat(args, ["--noconfirm", "--noprogressbar"]));
     }
     function update() { run(["-Syu"], pending.some(p => p.aur)); }
     function updateOne(u) { steps = []; run(["-S", u.name], u.aur); }
@@ -132,9 +141,15 @@ Singleton {
         function update(): void { root.update(); }
         function clean(): void { root.cleanCache(); }
         function orphans(): void { root.removeOrphans(); }
+        function rehearse(): void { root.rehearse(); }
         function status(): string { return JSON.stringify({ pending: root.count, running: root.running, phase: root.phase, failed: root.failed, restart: root.restartNeeded, steps: root.steps, log: root.log.slice(-5) }); }
     }
     // Housekeeping through the same run: old package versions, and packages nothing depends on any more.
-    function cleanCache() { if (runner.running) return; steps = []; runner.command = ["pkexec", "paccache", "-rk2"]; runner.running = true; }
-    function removeOrphans() { if (runner.running) return; steps = []; runner.command = ["sh", "-c", "o=$(pacman -Qtdq); [ -n \"$o\" ] || { echo 'No orphans.'; exit 0; }; exec pkexec pacman -Rns --noconfirm $o"]; runner.running = true; }
+    function cleanCache() { steps = []; begin(["pkexec", "paccache", "-rk2"]); }
+    function removeOrphans() { steps = []; begin(["sh", "-c", "o=$(pacman -Qtdq); [ -n \"$o\" ] || { echo 'No orphans.'; exit 0; }; exec pkexec pacman -Rns --noconfirm $o"]); }
+    // A rehearsal with pacman's own lines, for the page: what a run looks like without touching a package.
+    function rehearse() {
+        steps = [{ name: "alpha", state: "waiting" }, { name: "beta", state: "waiting" }];
+        begin(["sh", "-c", "echo ':: Synchronizing package databases...'; sleep 0.3; echo ':: Retrieving packages...'; echo ' alpha-1.0-1-x86_64 downloading...'; sleep 0.3; echo ' beta-2.0-1-x86_64 downloading...'; sleep 0.3; echo '(1/2) upgrading alpha'; sleep 0.4; echo '(2/2) upgrading beta'; sleep 0.4; echo ':: Running post-transaction hooks...'; echo '(1/1) Arming ConditionNeedsUpdate...'"]);
+    }
 }

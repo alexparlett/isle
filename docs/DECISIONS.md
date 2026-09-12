@@ -495,3 +495,22 @@ one choice that GTK, the terminal, the title bars and the shell's own
 labels all follow. The shell's text size is not a second size here: it
 scales under Accessibility, since a person who wants the shell larger
 wants it for that reason, and the apps have their own points.
+
+**D53 · The session comes back by app and workspace, not by window.**
+What is noted is which apps were open and where, one launch per app and
+workspace, since a launch is the one thing every desktop entry can do:
+the apps that keep their own windows (a browser, an editor) bring them
+back themselves, and the ones that do not would only be opened twice.
+The compositor instance is the unit of "a new session", so a shell
+restart replays nothing and a crash loses nothing but the last few
+seconds. Autostart is left to autostart: an app it starts is not started
+again from the list.
+
+**D54 · The controller page shows, and sets only what the shell uses.**
+A pad's mapping and its dead zones inside a game belong to the game and
+to Steam Input, so the page does not pretend to set them; it draws what
+the kernel reports, so a person can see which pad is which and whether a
+button works, and its one setting, the dead zone, is the one the shell's
+own navigation reads. The same helper serves both, in a second mode that
+prints the whole state rather than presses, run only while the page is
+open.

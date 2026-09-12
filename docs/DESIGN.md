@@ -524,6 +524,14 @@ buttons, the primary one filled, a dangerous one asking twice, an action
 that needs a value with its field before the button. A phone's row says
 whether it is in reach and its battery.
 
+Settings › Controllers, under Hardware, is the pad itself drawn in the
+kit's own pieces: a card per pad with the shoulders on top, the d-pad and
+the face buttons as keys that fill with the accent while they are down,
+the sticks as rings with a dot that moves and an inner ring for the dead
+zone, the triggers as bars that fill with travel. The face keys carry the
+pad's own labels, letters for Xbox, shapes for PlayStation, swapped
+letters for Nintendo. Below, the dead zone is one slider.
+
 Settings › Devices is Device Manager's shape: a tree of categories on
 the left, each device under its own, a count on the category and a
 chevron to fold it, and on the right the selected device's properties as

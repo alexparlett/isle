@@ -90,6 +90,7 @@ Singleton {
             property bool steamFollowsMode: true
             // A pad on the desktop: Guide held opens Big Picture.
             property bool padHome: true
+            property real padDeadZone: 0.5
             // Window classes the pad is bridged to as keys while a mode is on.
             property var padBridgeApps: ["heroic", "net.lutris.Lutris", "lutris", "spotify"]
             property var launchCounts: ({})
@@ -106,6 +107,7 @@ Singleton {
             property bool monitorGrouped: true
             // Where each app's window last sat, by class: [x, y, w, h].
             property var windowPlaces: ({})
+            property bool restoreSession: true
             property var input: ({})
             property var widgetSettings: ({})
             // The row count the saved layouts were made for; a change is migrated once.

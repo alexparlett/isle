@@ -26,6 +26,7 @@ Singleton {
         { id: "keyboard", glyph: "keyboard", label: "Keyboard" },
         { id: "shortcuts", glyph: "command", label: "Shortcuts" },
         { id: "mouse", glyph: "mouse", label: "Mouse" },
+        { id: "controllers", glyph: "gamepad-2", label: "Controllers" },
         { id: "printers", glyph: "printer", label: "Printers" },
         { id: "storage", glyph: "hard-drive", label: "Storage" },
         { id: "power", glyph: "power", label: "Power" },

@@ -223,7 +223,7 @@ hibernate, apps at login, services, kept-running apps.
 
 | gap | worth |
 |---|---|
-| No session restore: the windows open at logout do not come back (Plasma restores, macOS reopens); the window places are half of it | now |
+| No session restore: the windows open at logout do not come back (Plasma restores, macOS reopens); the window places are half of it | ✓ 9 |
 | No online accounts (Plasma's KAccounts, macOS's Internet Accounts); the calendar and vault providers are the honest version of this and should stay the pattern | no |
 | No screen time or usage stats | no |
 | No first-run welcome (Plasma's welcome centre, macOS setup) | later |
@@ -247,7 +247,7 @@ keyboard, controller battery, tearing and VRR, the pad bridge.
 
 | gap | worth |
 |---|---|
-| No controller page: buttons test, dead zones, which pad is which (Plasma 6.x has one) | now |
+| No controller page: buttons test, dead zones, which pad is which (Plasma 6.x has one) | ✓ 10 |
 | No performance overlay switch (MangoHud on or off, a keymap action) | later |
 | No per-game settings (Proton version, launch options) beyond Steam's own | no |
 

@@ -469,6 +469,8 @@ arrangement map: drag a display and its edges snap to the others; the
 layout is written as absolute positions so nothing else moves. A primary
 display, when chosen, is where every shell surface appears; the default
 follows focus, since the island is meant to be where you are looking.
+Detect holds one button, for a screen that came back dark, and says the
+shortcut that does the same when there is nothing to look at.
 Appearance has Dark, Light and Auto; Auto is light from sunrise to
 sunset, computed from the timezone's coordinates in tzdata, since
 nothing in the stack knows where the machine is more precisely. Fonts

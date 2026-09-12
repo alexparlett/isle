@@ -532,3 +532,17 @@ Hyprland down: `Screenshare::CScreenshareSession::init` in the crash of
 the surface's own visibility removes the whole class of it, and stops the
 shell paying for pictures nobody is looking at.
 
+**D56 · A display that comes back dark is recovered by releasing it, not
+by reloading the renderer.** A KVM that holds EDID leaves the connector
+up with a CRTC, so the compositor logs `Skipping connector DP-4, has crtc
+and is connected`, never re-probes it, and never re-trains the link:
+unplugging the cable changes nothing either. Measured in the VM:
+`force_renderer_reload` leaves a lost output exactly where it was, while
+releasing the output and reloading the config brings it back at its own
+mode with every window still on its workspace. So that pair is the
+recovery, it runs as one shell command since a sequence that stops half
+way would leave no screen at all, and it is on a keybind as well as a
+button because the screen it repairs is the one you cannot see. The
+headless `FALLBACK` monitor the compositor falls to when every output
+goes is the same repair, and the shell does that one itself.
+

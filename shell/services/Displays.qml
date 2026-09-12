@@ -66,4 +66,33 @@ Singleton {
         writer.command = ["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "_", lua, out];
         writer.running = true;
     }
+
+    // A monitor that comes back from a KVM switch or a cable is not always driven again: the compositor still
+    // holds the connector up with a CRTC, so it never re-probes it and the link is never re-trained. Releasing
+    // every output and reloading the config re-acquires them; the renderer reload alone does not (D56). It goes
+    // as one shell command so nothing can leave the session without a screen half way through.
+    property Process relinker: Process { id: relinker }
+    function redetect() {
+        if (relinker.running) return;
+        let cmd = "";
+        for (const m of monitors)
+            if (m.name !== "FALLBACK")
+                cmd += "hyprctl eval 'hl.monitor({ output = \"" + m.name + "\", disabled = true })' >/dev/null 2>&1; ";
+        relinker.command = ["sh", "-c", cmd + "sleep 1; hyprctl reload >/dev/null 2>&1"];
+        relinker.running = true;
+    }
+
+    // Every output gone leaves the compositor on its headless stand-in, with nothing on any screen; a reload
+    // re-acquires the real ones. One attempt per time it happens, since a second changes nothing.
+    readonly property bool stranded: monitors.length > 0 && monitors.every(m => m.name === "FALLBACK")
+    onStrandedChanged: if (stranded) heal.restart()
+    property Timer heal: Timer { id: heal; interval: 2000; onTriggered: if (root.stranded && !reloader.running) reloader.running = true }
+
+    IpcHandler {
+        target: "displays"
+        function redetect(): void { root.redetect(); }
+        function status(): string {
+            return JSON.stringify({ stranded: root.stranded, monitors: root.monitors.map(m => ({ name: m.name, mode: root.currentMode(m), dpms: root.info(m).dpmsStatus })) });
+        }
+    }
 }

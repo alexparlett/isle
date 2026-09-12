@@ -114,8 +114,8 @@
             "id": "ws",
             "label": "Desktop 1 to 9",
             "hypr": "SUPER + {n}",
-            "win": "Win 1–9",
-            "mac": "Ctrl 1–9",
+            "win": "Win 1\u20139",
+            "mac": "Ctrl 1\u20139",
             "lua": "hl.dsp.focus({ workspace = {n} })",
             "range": 9
         },
@@ -123,8 +123,8 @@
             "id": "wsMove",
             "label": "Move window to desktop",
             "hypr": "SUPER + SHIFT + {n}",
-            "win": "Win Shift 1–9",
-            "mac": "Ctrl Shift 1–9",
+            "win": "Win Shift 1\u20139",
+            "mac": "Ctrl Shift 1\u20139",
             "lua": "hl.dsp.window.move({ workspace = {n} })",
             "range": 9,
             "disabled": true
@@ -270,6 +270,17 @@
                 "access",
                 "zoom",
                 "reset"
+            ]
+        },
+        {
+            "id": "redetectDisplays",
+            "label": "Re-detect displays",
+            "hypr": "SUPER + CTRL + D",
+            "win": "Win Ctrl D",
+            "mac": "Cmd Option D",
+            "ipc": [
+                "displays",
+                "redetect"
             ]
         },
         {

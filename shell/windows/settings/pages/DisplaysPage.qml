@@ -107,6 +107,17 @@ SettingsPage {
     }
 
     SettingsGroup {
+        heading: "Detect"
+        SettingsRow {
+            readonly property var act: Keyboard.actions.find(a => a.id === "redetectDisplays") || null
+            readonly property bool mac: Keyboard.macDevices.length > 0
+            label: "Re-detect displays"
+            description: "For a screen that came back dark, after a KVM switch or a cable." + (act ? "  " + (mac ? act.mac : act.win) + " does it without needing to see." : "")
+            Button { text: "Re-detect"; glyph: "monitor"; onClicked: Displays.redetect() }
+        }
+    }
+
+    SettingsGroup {
         heading: "Night light"
         SettingsRow {
             label: "Night light"

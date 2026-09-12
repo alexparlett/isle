@@ -79,6 +79,8 @@ Singleton {
             property int idleLock: 600
             property int idleScreenOff: 900
             property var keyboardProfiles: ({})
+            // Overrides over a keyboard profile's preset: { text|control|terminal: { chord: chord } }.
+            property var keyTranslations: ({})
             property string accent: ""
             property string fontUi: ""
             property string fontMono: ""

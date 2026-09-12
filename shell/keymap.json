@@ -92,7 +92,8 @@
                 "surfaces",
                 "overview",
                 "toggle"
-            ]
+            ],
+            "macRemap": "CTRL + up"
         },
         {
             "id": "wsPrev",
@@ -100,7 +101,8 @@
             "hypr": "SUPER + CTRL + left",
             "win": "Win Ctrl Left",
             "mac": "Ctrl Left",
-            "lua": "hl.dsp.focus({ workspace = \"e-1\" })"
+            "lua": "hl.dsp.focus({ workspace = \"e-1\" })",
+            "macRemap": "CTRL + left"
         },
         {
             "id": "wsNext",
@@ -108,7 +110,8 @@
             "hypr": "SUPER + CTRL + right",
             "win": "Win Ctrl Right",
             "mac": "Ctrl Right",
-            "lua": "hl.dsp.focus({ workspace = \"e+1\" })"
+            "lua": "hl.dsp.focus({ workspace = \"e+1\" })",
+            "macRemap": "CTRL + right"
         },
         {
             "id": "ws",
@@ -117,7 +120,8 @@
             "win": "Win 1\u20139",
             "mac": "Ctrl 1\u20139",
             "lua": "hl.dsp.focus({ workspace = {n} })",
-            "range": 9
+            "range": 9,
+            "macRemap": "CTRL + {n}"
         },
         {
             "id": "wsMove",
@@ -127,7 +131,8 @@
             "mac": "Ctrl Shift 1\u20139",
             "lua": "hl.dsp.window.move({ workspace = {n} })",
             "range": 9,
-            "disabled": true
+            "disabled": true,
+            "macRemap": "CTRL + SHIFT + {n}"
         },
         {
             "id": "snapLeft",
@@ -628,5 +633,72 @@
         "Alacritty",
         "com.mitchellh.ghostty",
         "org.wezfurlong.wezterm"
-    ]
+    ],
+    "profiles": {
+        "mac": {
+            "_": "The Mac preset, as xremap chords: what each modifier means on macOS. prefs.keyTranslations overrides an entry; an entry set to \"\" drops one.",
+            "text": {
+                "Super-Left": "Home",
+                "Super-Right": "End",
+                "Super-Up": "C-Home",
+                "Super-Down": "C-End",
+                "Super-Shift-Left": "Shift-Home",
+                "Super-Shift-Right": "Shift-End",
+                "Super-Shift-Up": "C-Shift-Home",
+                "Super-Shift-Down": "C-Shift-End",
+                "Alt-Left": "C-Left",
+                "Alt-Right": "C-Right",
+                "Alt-Shift-Left": "C-Shift-Left",
+                "Alt-Shift-Right": "C-Shift-Right",
+                "Alt-Backspace": "C-Backspace",
+                "Alt-Delete": "C-Delete",
+                "Super-Backspace": [
+                    "Shift-Home",
+                    "Backspace"
+                ],
+                "Super-Enter": "C-Enter"
+            },
+            "control": {
+                "C-a": "Home",
+                "C-e": "End",
+                "C-b": "Left",
+                "C-f": "Right",
+                "C-p": "Up",
+                "C-n": "Down",
+                "C-d": "Delete",
+                "C-h": "Backspace",
+                "C-k": [
+                    "Shift-End",
+                    "Delete"
+                ],
+                "C-u": [
+                    "Shift-Home",
+                    "Backspace"
+                ]
+            },
+            "terminal": {
+                "Super-c": "C-Shift-c",
+                "Super-v": "C-Shift-v",
+                "Super-t": "C-Shift-t",
+                "Super-w": "C-Shift-w",
+                "Super-n": "C-Shift-n",
+                "Super-f": "C-Shift-f",
+                "Super-a": "C-Shift-a",
+                "Super-k": "C-Shift-k",
+                "C-a": "C-a",
+                "C-e": "C-e",
+                "C-b": "C-b",
+                "C-f": "C-f",
+                "C-p": "C-p",
+                "C-n": "C-n",
+                "C-d": "C-d",
+                "C-h": "C-h",
+                "C-k": "C-k",
+                "C-u": "C-u"
+            }
+        },
+        "windows": {
+            "_": "A Windows keyboard passes through: Ctrl is Ctrl, Win is Super, which is what Linux applications expect."
+        }
+    }
 }

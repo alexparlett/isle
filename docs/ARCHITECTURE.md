@@ -405,6 +405,14 @@ decides which physical chords reach Hyprland as `SUPER` and which reach
 the app as `CTRL`.**
 
 - The Windows keyboard (Corsair K95) passes through. Win is Super.
+- What each modifier means is a preset in `shell/keymap.json` under
+  `profiles`, not a rule in the renderer: `text` for Cmd and Option in a
+  text field, `control` for the line editor's chords macOS puts on Ctrl,
+  `terminal` for what a terminal keeps. `prefs.keyTranslations` overrides
+  an entry and an empty one drops it. A Mac chord the shell answers is
+  named on the action as `macRemap` and translated to that action's own
+  chord, so a chord cannot come to point at a different action than the
+  keymap says (D60).
 - A Mac keyboard (a name carrying Keychron, Apple or Magic Keyboard, or a
   profile set by hand in Settings) gets the `mac` profile: Cmd+key →
   Ctrl+key for apps, except the chords the shell owns, which stay Super.

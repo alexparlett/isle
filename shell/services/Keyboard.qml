@@ -277,6 +277,19 @@ Singleton {
         const keys = { Print: "SysRq", Return: "Enter", grave: "grave" };
         return hypr.split("+").map(s => s.trim()).map(p => ({ SUPER: "Super", SHIFT: "Shift", CTRL: "C", ALT: "Alt" })[p] || keys[p] || p.toLowerCase()).join("-");
     }
+    // The Mac preset: shell/keymap.json says what each modifier means, `prefs.keyTranslations` overrides an
+    // entry and an empty one drops it. Nothing about meaning is written in this file.
+    readonly property var macPreset: {
+        const p = (keymap.profiles && keymap.profiles.mac) || {};
+        const over = Prefs.p.keyTranslations || {};
+        const out = { text: {}, control: {}, terminal: {} };
+        for (const part in out) {
+            Object.assign(out[part], p[part] || {}, over[part] || {});
+            for (const k in out[part]) if (out[part][k] === "") delete out[part][k];
+        }
+        return out;
+    }
+
     function renderXremap() {
         const owned = {};
         for (const a of actions) {
@@ -305,25 +318,18 @@ Singleton {
                 remap[from] = from.replace("Super-", "C-");
             }
         }
-        // Workspaces and spaces, as macOS has them.
-        for (let n = 1; n <= 9; n++) { remap["C-" + n] = "Super-" + n; remap["C-Shift-" + n] = "Super-Shift-" + n; }
-        Object.assign(remap, { "C-Left": "Super-Left", "C-Right": "Super-Right", "C-Up": "Super-Up",
-                               "Alt-Left": "C-Left", "Alt-Right": "C-Right", "Alt-Backspace": "C-Backspace",
-                               "Super-Left": "Home", "Super-Right": "End", "Super-Up": "C-Home", "Super-Down": "C-End" });
-        // A Mac chord that would collide as a second compositor bind is sent as the action's own chord.
-        for (const a of actions)
-            if (a.macRemap && a.hypr) remap[xremapChord(a.macRemap)] = xremapChord(a.hypr);
-        // Selecting text, which every one of these would otherwise reach the compositor as a window chord.
-        // Cmd+Backspace has no single key behind it, so it is the two that make it: select to the line's start
-        // and delete. Cmd+Enter goes to the app, since the shell's own is on Cmd+Option+Enter.
-        Object.assign(remap, { "Super-Shift-Left": "Shift-Home", "Super-Shift-Right": "Shift-End",
-                               "Super-Shift-Up": "C-Shift-Home", "Super-Shift-Down": "C-Shift-End",
-                               "Alt-Shift-Left": "C-Shift-Left", "Alt-Shift-Right": "C-Shift-Right",
-                               "Alt-Delete": "C-Delete", "Super-Backspace": ["Shift-Home", "Backspace"], "Super-Enter": "C-Enter" });
-        // A terminal's own chords sit on Ctrl+Shift, since Ctrl+letter is the shell's job: Cmd+A selects the
-        // buffer rather than moving to the line's start, Cmd+C copies rather than interrupting.
-        const term = { "Super-c": "C-Shift-c", "Super-v": "C-Shift-v", "Super-t": "C-Shift-t", "Super-w": "C-Shift-w",
-                       "Super-n": "C-Shift-n", "Super-f": "C-Shift-f", "Super-a": "C-Shift-a", "Super-k": "C-Shift-k" };
+        // A Mac chord the shell answers is sent as that action's own chord, rather than bound a second time:
+        // which action it reaches is then the keymap's business, and cannot drift to whatever else holds
+        // Super and an arrow.
+        for (const a of actions) {
+            if (!a.macRemap || !a.hypr) continue;
+            if (a.range) for (let n = 1; n <= a.range; n++) remap[xremapChord(a.macRemap.replace("{n}", n))] = xremapChord(a.hypr.replace("{n}", n));
+            else remap[xremapChord(a.macRemap)] = xremapChord(a.hypr);
+        }
+        // What Cmd, Ctrl and Option mean in a text field on macOS, from the preset.
+        Object.assign(remap, macPreset.text, macPreset.control);
+        // A terminal keeps Ctrl for the line editor and takes the terminal's own chords on Ctrl+Shift.
+        const term = macPreset.terminal;
 
         // A name xremap cannot match disables the whole profile silently, so with nothing resolved the file
         // says as much instead.

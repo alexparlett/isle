@@ -601,3 +601,21 @@ compositor calls Print that xremap calls something else. `keycheck.py`
 presses chords on a virtual keyboard the profile matches and reads what
 comes out the other side. It found two of those faults in its first run.
 
+**D60 · A keyboard profile is a preset, and every chord is derived from
+the action it belongs to.** The Mac profile used to be a rule in the
+renderer: set the shell's own chords aside, then rewrite whatever was
+left to Ctrl, with a handful of lines written out by hand for spaces and
+Mission Control. Those hand-written lines rotted without anyone seeing.
+Ctrl+Up sent Super+Up, which is snap-up, not the overview; Ctrl+Left and
+Ctrl+Right snapped instead of changing desktop. Nothing said what a
+modifier means on macOS, so the result was neither platform: Cmd+A and
+Ctrl+A both selected all, where macOS has Ctrl+A as the start of a line.
+
+So the preset is data in the keymap, in macOS's terms, and the shell's
+own chords are derived: an action names the Mac chord it answers and the
+renderer translates it to that action's own chord. A chord can no longer
+point somewhere the keymap does not say, and the user can override any
+entry through `prefs.keyTranslations`. Ctrl now carries the line editor's
+chords, with a terminal passing them through so readline still works,
+and Cmd+A selects the buffer there instead.
+

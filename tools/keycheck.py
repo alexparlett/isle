@@ -13,7 +13,7 @@ Run it in the VM: the keys it presses reach whatever window has focus.
 """
 import argparse, fcntl, glob, json, os, select, struct, subprocess, sys, time
 
-KEYS = {"a": 30, "c": 46, "e": 18, "k": 37, "u": 22, "v": 47, "w": 17, "t": 20, "s": 31, "z": 44,
+KEYS = {"b": 48, "d": 32, "f": 33, "h": 35, "n": 49, "p": 25, "a": 30, "c": 46, "e": 18, "k": 37, "u": 22, "v": 47, "w": 17, "t": 20, "s": 31, "z": 44,
         "1": 2, "3": 4, "4": 5, "5": 6, "space": 57, "tab": 15, "enter": 28, "backspace": 14, "delete": 111,
         "left": 105, "right": 106, "up": 103, "down": 108, "home": 102, "end": 107, "grave": 41, "iso": 86,
         "ctrl": 29, "shift": 42, "alt": 56, "meta": 125, "print": 99}
@@ -31,6 +31,7 @@ CASES = [
     ("shell", "meta+tab", "SUPER+tab"),
     ("text", "meta+left", "home"),
     ("text", "meta+right", "end"),
+    ("text", "meta+backspace", "SHIFT+home,backspace"),
     ("text", "meta+shift+left", "SHIFT+home"),
     ("text", "meta+shift+right", "SHIFT+end"),
     ("text", "meta+up", "CTRL+home"),
@@ -42,6 +43,23 @@ CASES = [
     ("window", "meta+grave", "ALT+grave"),
     ("capture", "meta+shift+3", "CTRL+print"),
     ("capture", "meta+shift+5", "SHIFT+SUPER+s"),
+    # macOS's control key: the line editor's chords in a text field.
+    ("control", "ctrl+a", "home"),
+    ("control", "ctrl+e", "end"),
+    ("control", "ctrl+b", "left"),
+    ("control", "ctrl+f", "right"),
+    ("control", "ctrl+p", "up"),
+    ("control", "ctrl+n", "down"),
+    ("control", "ctrl+d", "delete"),
+    ("control", "ctrl+h", "backspace"),
+    ("control", "ctrl+k", "SHIFT+end,delete"),
+    ("control", "ctrl+u", "SHIFT+home,backspace"),
+    # The shell's own, which macOS puts on Ctrl.
+    ("shell", "ctrl+up", "CTRL+SUPER+up"),
+    ("shell", "ctrl+left", "CTRL+SUPER+left"),
+    ("shell", "ctrl+right", "CTRL+SUPER+right"),
+    ("shell", "ctrl+1", "SUPER+1"),
+    ("shell", "ctrl+shift+1", "SHIFT+SUPER+1"),
 ]
 
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE, UI_DEV_DESTROY, UI_DEV_SETUP = 0x40045564, 0x40045565, 0x5501, 0x5502, 0x405c5503
@@ -82,14 +100,15 @@ def chord(spec):
 
 
 def effective(events):
-    """The modifiers held when the last non-modifier key goes down, as an application would see it."""
-    held, out = set(), None
+    """Every key an application receives with the modifiers held at the time, in order: a rule may send more
+    than one, as deleting to the start of a line does."""
+    held, out = set(), []
     for code, down in events:
         if code in MODS:
             held.add(code) if down else held.discard(code)
-        elif down and out is None:
-            out = "+".join(sorted(MODS[m] for m in held) + [NAMES.get(code, str(code))])
-    return out or "nothing"
+        elif down:
+            out.append("+".join(sorted(MODS[m] for m in held) + [NAMES.get(code, str(code))]))
+    return ",".join(out) or "nothing"
 
 
 def run(args):
@@ -133,6 +152,49 @@ def run(args):
     return 1 if bad else 0
 
 
+def serve(args):
+    """Hold one keyboard and press what arrives on stdin, a chord to a line: the remap layer grabs a device
+    once, so pressing through the same one avoids racing it on every chord."""
+    kb = make_keyboard(args.name)
+    print("serving %r" % args.name, flush=True)
+    for line in sys.stdin:
+        spec = line.strip()
+        if not spec or spec == "quit":
+            break
+        try:
+            mods, key = chord(spec)
+        except KeyError:
+            print("unknown chord %r" % spec, flush=True)
+            continue
+        for m in mods:
+            send(kb, m, 1)
+        send(kb, key, 1)
+        send(kb, key, 0)
+        for m in reversed(mods):
+            send(kb, m, 0)
+        print("pressed " + spec, flush=True)
+    fcntl.ioctl(kb, UI_DEV_DESTROY)
+    os.close(kb)
+    return 0
+
+
+def press(args):
+    """Press one chord and leave, so a caller can then look at what the compositor or the shell did with it."""
+    kb = make_keyboard(args.name)
+    time.sleep(args.settle)
+    mods, key = chord(args.press)
+    for m in mods:
+        send(kb, m, 1)
+    send(kb, key, 1)
+    send(kb, key, 0)
+    for m in reversed(mods):
+        send(kb, m, 0)
+    time.sleep(0.4)
+    fcntl.ioctl(kb, UI_DEV_DESTROY)
+    os.close(kb)
+    return 0
+
+
 def hold(args):
     """Keep the keyboard in existence, so the shell renders a profile for it and the remap layer takes it."""
     kb = make_keyboard(args.name)
@@ -144,9 +206,11 @@ def hold(args):
 
 
 p = argparse.ArgumentParser()
+p.add_argument("--serve", action="store_true", help="hold a keyboard and press chords arriving on stdin")
+p.add_argument("--press", default="", help="press one chord on a keyboard of this name, then exit")
 p.add_argument("--hold", type=float, default=0, help="create the keyboard and keep it for this long, then exit")
 p.add_argument("--name", default="Keychron Keycheck Keyboard")
 p.add_argument("--only", default="")
 p.add_argument("--settle", type=float, default=4.0)
 a = p.parse_args()
-sys.exit(hold(a) if a.hold else run(a))
+sys.exit(serve(a) if a.serve else hold(a) if a.hold else press(a) if a.press else run(a))

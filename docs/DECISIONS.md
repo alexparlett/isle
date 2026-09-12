@@ -504,7 +504,11 @@ back themselves, and the ones that do not would only be opened twice.
 The compositor instance is the unit of "a new session", so a shell
 restart replays nothing and a crash loses nothing but the last few
 seconds. Autostart is left to autostart: an app it starts is not started
-again from the list.
+again from the list. What is remembered is the workspace and whether the
+window was put away, since minimise and the tray are the same parking
+spot and an app that was out of the way should not come back over the
+desktop; the place on screen is the window-places pass's business, not
+this list's.
 
 **D54 · The controller page shows, and sets only what the shell uses.**
 A pad's mapping and its dead zones inside a game belong to the game and

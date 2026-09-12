@@ -232,6 +232,8 @@ Singleton {
                 let changed = false;
                 for (const c of list) {
                     if (!c.floating || c.fullscreen || !c.mapped || !c["class"] || !c.title || titledCount[c["class"]] !== 1) continue;
+                    // A window parked on a special workspace is minimised or in the tray, not placed.
+                    if (c.workspace && /^special:/.test(c.workspace.name)) continue;
                     if (c.size[0] < 100 || c.size[1] < 100) continue;
                     // A place off the screens is not one to keep, nor to hand back.
                     if (!root.onScreens(c.at[0], c.at[1], c.size[0], c.size[1])) continue;

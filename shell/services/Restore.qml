@@ -15,7 +15,9 @@ Singleton {
     readonly property string file: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/isle/session.json"
     readonly property bool enabled: Prefs.p.restoreSession !== false
 
-    // [{ app, cls, workspace }], workspace 0 for a window on a special workspace: it opens wherever it opens.
+    // [{ app, cls, workspace, hidden }], workspace 0 for a window on a special workspace: it opens wherever it
+    // opens. `hidden` is a window that was minimised or put away in the tray, which both park it on the hidden
+    // workspace; it comes back there rather than over the desktop.
     property var noted: []
     property string written: ""
     property bool restoring: false
@@ -27,11 +29,12 @@ Singleton {
             if (!c.mapped || !c["class"] || !c.title || !c.workspace) continue;
             const e = DesktopEntries.heuristicLookup(c["class"]);
             if (!e) continue;
+            const hidden = c.workspace.name === "special:hidden";
             const ws = c.workspace.id > 0 ? c.workspace.id : 0;
-            const key = c["class"] + "@" + ws;
+            const key = c["class"] + "@" + ws + (hidden ? "h" : "");
             if (seen[key]) continue;
             seen[key] = true;
-            out.push({ app: e.id, cls: c["class"], workspace: ws });
+            out.push({ app: e.id, cls: c["class"], workspace: ws, hidden: hidden });
         }
         noted = out;
         const text = JSON.stringify(out);
@@ -41,6 +44,8 @@ Singleton {
         writer.running = true;
     }
     Process { id: writer }
+    // One at a time: a second window to put away waits for the first, which is a moment.
+    Process { id: parker }
 
     // The last session's list, once per compositor instance: the marker is keyed by the instance signature.
     Process {
@@ -62,7 +67,7 @@ Singleton {
     property var queued: []
     // Autostart has had its moment by then, so what it starts is not started twice.
     Timer { id: launchLater; interval: 2500; onTriggered: root.launch() }
-    // class → the workspaces its next windows go to, consumed as they map.
+    // class → what its next windows are for: { ws, hidden }, consumed as they map.
     property var pending: ({})
     function launch() {
         const auto = {};
@@ -75,7 +80,7 @@ Singleton {
             const entry = DesktopEntries.byId(w.app) || DesktopEntries.heuristicLookup(w.cls);
             if (!entry) continue;
             if (!p[w.cls]) p[w.cls] = [];
-            p[w.cls].push(w.workspace);
+            p[w.cls].push({ ws: w.workspace, hidden: !!w.hidden });
             if (auto[String(w.app).replace(/\.desktop$/, "")] || open[w.cls]) continue;
             entry.execute();
             n++;
@@ -93,8 +98,10 @@ Singleton {
             const [addr, ws, cls, title] = event.data.split(",");
             const list = root.pending[cls];
             if (!list || !list.length) return;
-            const to = list.shift();
-            if (to > 0 && String(to) !== String(ws)) Hyprland.dispatch("hl.dsp.window.move({ workspace = " + to + ", window = \"address:0x" + addr + "\" })");
+            const want = list.shift();
+            if (want.ws > 0 && String(want.ws) !== String(ws)) Hyprland.dispatch("hl.dsp.window.move({ workspace = " + want.ws + ", window = \"address:0x" + addr + "\" })");
+            // A minute is left for the window to finish mapping before it is put away, or it comes back visible.
+            if (want.hidden) { parker.command = ["sh", "-c", "sleep 1.5; exec python3 \"$1\" \"$2\"", "_", Quickshell.shellDir + "/scripts/hidewindow.py", "0x" + addr]; parker.running = true; }
         }
     }
 

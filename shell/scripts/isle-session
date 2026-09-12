@@ -6,14 +6,21 @@
 # A systemd user unit would not be (D17).
 
 SHELL_PATH="${ISLE_SHELL_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/isle}"
-LOG="${XDG_RUNTIME_DIR:-/tmp}/isle.log"
+# The log outlives the session and the reboot, so a death in the night can be read in the morning; the
+# previous session's is kept beside it. A link at the old runtime path stays for anything reading it there.
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/isle"
+LOG="$LOG_DIR/session.log"
 export QT_QPA_PLATFORM=wayland
 
 # One shell per session.
 if [[ -f "$XDG_RUNTIME_DIR/isle.pid" ]] && kill -0 "$(cat "$XDG_RUNTIME_DIR/isle.pid")" 2>/dev/null; then
     exit 0
 fi
+mkdir -p "$LOG_DIR"
+[[ -s "$LOG" ]] && mv -f "$LOG" "$LOG.1"
 : > "$LOG"
+ln -sfn "$LOG" "${XDG_RUNTIME_DIR:-/tmp}/isle.log"
+echo "[isle-session] $(date '+%F %T') started" >> "$LOG"
 echo $$ > "$XDG_RUNTIME_DIR/isle.pid"
 trap 'rm -f "$XDG_RUNTIME_DIR/isle.pid"; kill "$child" 2>/dev/null; exit 0' TERM INT
 
@@ -29,10 +36,10 @@ while true; do
     child=$!
     wait "$child"
     code=$?
-    # Six quick deaths in a row means a broken config: stop looping and leave the log.
+    # Six quick deaths in a row means something is broken: the loop backs off to a try every half minute
+    # rather than stopping, since a locked session must get its locker back whatever the cause.
     if (( SECONDS - start < 5 )); then failures=$((failures + 1)); else failures=0; fi
-    echo "[isle-session] shell exited ($code) after $((SECONDS - start))s" >> "$LOG"
-    (( failures >= 6 )) && { echo "[isle-session] giving up: see $LOG" >> "$LOG"; break; }
-    sleep 1
+    echo "[isle-session] $(date '+%F %T') shell exited ($code) after $((SECONDS - start))s" >> "$LOG"
+    if (( failures >= 6 )); then echo "[isle-session] six quick deaths: trying every 30s" >> "$LOG"; sleep 30; else sleep 1; fi
 done
 rm -f "$XDG_RUNTIME_DIR/isle.pid"

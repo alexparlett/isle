@@ -402,7 +402,11 @@ that finds it locks at once; the compositor is allowed to hand a dead
 lock to that fresh locker (`allow_session_lock_restore`, safe because the
 shell relocks in the same breath); and the Idle service turns the screens
 on at start. The sync itself now waits while the session is locked or a
-screen is off, asking `lock locked` over IPC.
+screen is off, asking `lock locked` over IPC. A night later the shell
+died while locked and the loop, having given up after six quick deaths,
+left the compositor's dead-lock screen till morning, and the log that
+would have said why was in the runtime directory the reboot emptied: the
+loop now backs off instead of stopping, and logs to the state directory.
 
 **D44 · VPNs are providers, the same shape as password managers.** The
 VPN service had Proton's CLI and NetworkManager written into it, with

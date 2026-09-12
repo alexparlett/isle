@@ -191,6 +191,7 @@ Singleton {
                 }
                 if (changed) Prefs.p.windowPlaces = places;
                 root.reconcileFull(list);
+                Restore.note(list);
             }
         }
     }

@@ -23,7 +23,7 @@ import qs.windows.monitor
 
 ShellRoot {
     // Singletons are created on first reference; these must exist from the start.
-    Component.onCompleted: { Notifications.count; Media.present; Audio.ready; Surfaces.dashboard; Widgets.ids; Clipboard; Switcher.open; Capture.mode; Auth.active; Idle.dimmed; Keyboard.devices; Theming.script; Games.detected; Disks.volumes; KeychainService.available; Startup.entries; Gamepad.active; Osk.open; SshKeys.agent; SettingsIndex.entries; Users.users; DateTime.timezone; Updates.count; SystemLocale.lang; Pip.placed; Terminal.exists; Vpn.available; Displays.monitors; Input.p; Calendars.events; Snapshots.providers; Phones.providers; Access.zoom; Lock.surfaceComponent = lockSurface; }
+    Component.onCompleted: { Notifications.count; Media.present; Audio.ready; Surfaces.dashboard; Widgets.ids; Clipboard; Switcher.open; Capture.mode; Auth.active; Idle.dimmed; Keyboard.devices; Theming.script; Games.detected; Disks.volumes; KeychainService.available; Startup.entries; Gamepad.active; Osk.open; SshKeys.agent; SettingsIndex.entries; Users.users; DateTime.timezone; Updates.count; SystemLocale.lang; Pip.placed; Terminal.exists; Vpn.available; Displays.monitors; Input.p; Calendars.events; Snapshots.providers; Phones.providers; Access.zoom; Restore.enabled; Lock.surfaceComponent = lockSurface; }
 
     Wallpaper {}
     // An island and its hot zone on every screen.

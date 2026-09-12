@@ -256,6 +256,7 @@ keyboard, controller battery, tearing and VRR, the pad bridge.
 The island on every monitor, fullscreen apps on their own space, file
 content search, an emoji picker, a screen-sharing indicator, a magnifier
 and large-text toggle, phone integration as a provider, fonts in
-Appearance, session restore, and a controller page. Everything marked
+Appearance, session restore, and a controller page: all ten built, each
+ticked with its number above. Everything marked
 **no** is a line Isle draws on purpose: it is a shell for one person at a
 desk with games and agents, not a platform.

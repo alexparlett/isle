@@ -524,6 +524,9 @@ buttons, the primary one filled, a dangerous one asking twice, an action
 that needs a value with its field before the button. A phone's row says
 whether it is in reach and its battery.
 
+Settings › Apps opens with Session, one switch: reopen windows at login.
+Then Apps at login, Services and the compositor's own hook.
+
 Settings › Controllers, under Hardware, is the pad itself drawn in the
 kit's own pieces: a card per pad with the shoulders on top, the d-pad and
 the face buttons as keys that fill with the accent while they are down,

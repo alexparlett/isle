@@ -42,6 +42,15 @@ SettingsPage {
     // (services) and the compositor's own start hook (the shell). Entries for other desktops are folded away.
     property bool showOthers: false
     SettingsGroup {
+        heading: "Session"
+        SettingsRow {
+            label: "Reopen windows at login"
+            description: "The apps open at logout come back, on their workspaces."
+            Toggle { checked: Prefs.p.restoreSession !== false; onToggled: v => Prefs.p.restoreSession = v }
+        }
+    }
+
+    SettingsGroup {
         heading: "Apps at login"
         Repeater {
             model: Startup.entries.filter(e => e.applies)

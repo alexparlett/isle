@@ -450,4 +450,9 @@ macOS gives a fullscreen app a space; so does Isle now, from the
 compositor's client list on every fullscreen event rather than from a
 rule, since a rule cannot move a window when its state changes. The
 window returns to its space when fullscreen ends; a window alone on its
-space is left where it is, Steam's Big Picture among them.
+space is left where it is, Steam's Big Picture among them. A game's
+borderless fullscreen is a plain window the size of the screen, which the
+compositor cannot tell from any other; the shell can, by size, and
+treats it the same, without forcing the compositor's fullscreen on it,
+which would leave the client's own resizes ignored when it goes back to
+windowed.

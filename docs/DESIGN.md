@@ -135,7 +135,8 @@ surface. Other monitors show nothing.
 **Fullscreen.** A window that goes fullscreen, a game or a video, takes
 a space of its own and comes back to its space when it leaves fullscreen,
 as on macOS: switching to it is switching to its space, and nothing of
-the desktop is ever under it.
+the desktop is ever under it. A game's borderless fullscreen, a window
+the size of the screen, is treated the same, so the two modes feel alike.
 
 **Rest.** 30px pill: desktop dots · clock · status glyphs. Glyphs only
 appear when they say something: wifi when on wifi (never on ethernet),

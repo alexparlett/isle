@@ -210,6 +210,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     static auto P  = Event::bus()->m_events.window.open.listen([&](PHLWINDOW w) { onNewWindow(w); });
     static auto P3 = Event::bus()->m_events.window.updateRules.listen([&](PHLWINDOW w) { onUpdateWindowRules(w); });
+    // A client that switches to a borderless mode at run time changes its frame hints with its title or its
+    // floating or fullscreen state: the bar is decided again on each, never per frame.
+    static auto P6 = Event::bus()->m_events.window.title.listen([&](PHLWINDOW w) { onUpdateWindowRules(w); });
+    static auto P7 = Event::bus()->m_events.window.fullscreen.listen([&](PHLWINDOW w) { onUpdateWindowRules(w); });
+    static auto P8 = Event::bus()->m_events.window.floating.listen([&](PHLWINDOW w) { onUpdateWindowRules(w); });
 
     g_pGlobalState->config.barColor            = makeShared<Config::Values::CColorValue>("plugin:hyprbars:bar_color", "Change the bar color", 0x88333333);
     g_pGlobalState->config.textColor           = makeShared<Config::Values::CColorValue>("plugin:hyprbars:col.text", "Change the text color", 0xffffffff);

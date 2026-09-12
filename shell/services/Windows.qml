@@ -179,6 +179,7 @@ Singleton {
                     if (String(places[c["class"]]) !== String(v)) { places[c["class"]] = v; changed = true; }
                 }
                 if (changed) Prefs.p.windowPlaces = places;
+                root.reconcileFull(list);
             }
         }
     }
@@ -198,40 +199,47 @@ Singleton {
     }
 
     // A window going fullscreen takes a workspace of its own, as a macOS app does, and comes back to where it
-    // was when it leaves fullscreen; a window already alone on its workspace stays put. Reconciled from the
-    // compositor's client list on every fullscreen event and once at start, so a missed event costs nothing.
+    // was when it leaves fullscreen; a window already alone on its workspace stays put. A borderless window
+    // the size of its monitor, a game's "borderless fullscreen", counts as fullscreen for this. Reconciled
+    // from the compositor's client list on every fullscreen event, once at start, and with the placer's poll,
+    // which is what catches a window growing to the screen with no event of its own.
     property var fullFrom: ({})
-    property bool fullFollow: true
     Connections {
         target: Hyprland
-        function onRawEvent(event) { if (event.name === "fullscreen") { root.fullFollow = true; fullDebounce.restart(); } }
+        function onRawEvent(event) { if (event.name === "fullscreen") fullDebounce.restart(); }
     }
     Timer { id: fullDebounce; interval: 150; onTriggered: if (!fullProc.running) fullProc.running = true }
-    Component.onCompleted: { fullFollow = false; fullDebounce.restart(); }
+    Component.onCompleted: fullDebounce.restart()
     Process {
         id: fullProc
         command: ["hyprctl", "-j", "clients"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let list; try { list = JSON.parse(text); } catch (e) { return; }
-                const from = Object.assign({}, root.fullFrom), follow = root.fullFollow ? "true" : "false";
-                const byWs = {};
-                for (const c of list) if (c.mapped && c.workspace && c.workspace.id > 0) byWs[c.workspace.id] = (byWs[c.workspace.id] || 0) + 1;
-                for (const c of list) {
-                    if (!c.mapped || !c.workspace) continue;
-                    const addr = c.address, ws = c.workspace.id;
-                    if (c.fullscreen && ws > 0 && from[addr] === undefined && byWs[ws] > 1) {
-                        from[addr] = ws;
-                        Hyprland.dispatch("hl.dsp.window.move({ workspace = \"empty\", follow = " + follow + ", window = \"address:" + addr + "\" })");
-                    } else if (!c.fullscreen && from[addr] !== undefined) {
-                        const back = from[addr]; delete from[addr];
-                        if (Hyprland.workspaces.values.some(w => w.id === back)) Hyprland.dispatch("hl.dsp.window.move({ workspace = " + back + ", follow = " + follow + ", window = \"address:" + addr + "\" })");
-                    }
-                }
-                for (const addr of Object.keys(from)) if (!list.some(c => c.address === addr)) delete from[addr];
-                root.fullFrom = from;
+        stdout: StdioCollector { onStreamFinished: { let list; try { list = JSON.parse(text); } catch (e) { return; } root.reconcileFull(list); } }
+    }
+    function coversMonitor(c) {
+        const m = Hyprland.monitors.values.find(m => m.id === c.monitor);
+        if (!m) return false;
+        const w = Math.round(m.width / m.scale), h = Math.round(m.height / m.scale);
+        return c.floating && c.size[0] >= w && c.size[1] >= h && !/^(quickshell|org\.quickshell|isle-dropdown)$/.test(c["class"] || "");
+    }
+    function reconcileFull(list) {
+        const from = Object.assign({}, root.fullFrom);
+        const byWs = {};
+        for (const c of list) if (c.mapped && c.workspace && c.workspace.id > 0) byWs[c.workspace.id] = (byWs[c.workspace.id] || 0) + 1;
+        for (const c of list) {
+            if (!c.mapped || !c.workspace) continue;
+            const addr = c.address, ws = c.workspace.id, whole = c.fullscreen > 0 || coversMonitor(c);
+            // The view follows only the window in use; one growing in the background stays out of the way.
+            const follow = c.focusHistoryID === 0 ? "true" : "false";
+            if (whole && ws > 0 && from[addr] === undefined && byWs[ws] > 1) {
+                from[addr] = ws;
+                Hyprland.dispatch("hl.dsp.window.move({ workspace = \"empty\", follow = " + follow + ", window = \"address:" + addr + "\" })");
+            } else if (!whole && from[addr] !== undefined) {
+                const back = from[addr]; delete from[addr];
+                if (Hyprland.workspaces.values.some(w => w.id === back)) Hyprland.dispatch("hl.dsp.window.move({ workspace = " + back + ", follow = " + follow + ", window = \"address:" + addr + "\" })");
             }
         }
+        for (const addr of Object.keys(from)) if (!list.some(c => c.address === addr)) delete from[addr];
+        root.fullFrom = from;
     }
 
     // One of the shell's own windows (Settings, Keychain, Monitor), by title.

@@ -63,6 +63,5 @@ SettingsPage {
             description: "A bar with the title and three controls over every window that does not draw its own."
             Toggle { checked: Prefs.p.titleBars; onToggled: v => Prefs.p.titleBars = v }
         }
-        }
     }
 }

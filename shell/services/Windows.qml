@@ -9,11 +9,22 @@ Singleton {
     id: root
 
     // The icon theme usually has the app id itself; the desktop entry is the better source when it exists.
+    // A Steam game's window is steam_app_<id>: its name and cover come from the library.
+    function steamGame(appId) {
+        const m = /^steam_app_(\d+)$/.exec(appId || "");
+        if (!m) return null;
+        if (!Games.library.length) Games.refresh();
+        return Games.library.find(g => g.source === "steam" && g.id === m[1]) || null;
+    }
     function iconFor(appId) {
+        const game = steamGame(appId);
+        if (game && game.art) return game.art.indexOf("/") === 0 ? "file://" + game.art : game.art;
         const entry = DesktopEntries.heuristicLookup(appId);
         return Quickshell.iconPath(entry && entry.icon ? entry.icon : appId, "application-x-executable");
     }
     function nameFor(appId) {
+        const game = steamGame(appId);
+        if (game) return game.name;
         const entry = DesktopEntries.heuristicLookup(appId);
         return entry ? entry.name : appId;
     }
@@ -206,7 +217,7 @@ Singleton {
     property var fullFrom: ({})
     Connections {
         target: Hyprland
-        function onRawEvent(event) { if (event.name === "fullscreen") fullDebounce.restart(); }
+        function onRawEvent(event) { if (event.name === "fullscreen" || event.name === "closewindow") fullDebounce.restart(); }
     }
     Timer { id: fullDebounce; interval: 150; onTriggered: if (!fullProc.running) fullProc.running = true }
     Component.onCompleted: fullDebounce.restart()
@@ -238,7 +249,13 @@ Singleton {
                 if (Hyprland.workspaces.values.some(w => w.id === back)) Hyprland.dispatch("hl.dsp.window.move({ workspace = " + back + ", follow = " + follow + ", window = \"address:" + addr + "\" })");
             }
         }
-        for (const addr of Object.keys(from)) if (!list.some(c => c.address === addr)) delete from[addr];
+        // A parked window that has gone leaves its workspace empty: the view goes back to where the window came from.
+        const focused = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1;
+        for (const addr of Object.keys(from)) {
+            if (list.some(c => c.address === addr)) continue;
+            const back = from[addr]; delete from[addr];
+            if (focused > 0 && !byWs[focused] && back !== focused && Hyprland.workspaces.values.some(w => w.id === back)) Hyprland.dispatch("hl.dsp.focus({ workspace = " + back + " })");
+        }
         root.fullFrom = from;
     }
 

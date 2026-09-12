@@ -522,3 +522,13 @@ uinput, and `/dev/uinput`'s holders say which program made one. That is
 the device's own account of itself, as the vendor id already is, not a
 rule about a named app.
 
+**D55 · A window is captured only while its preview is on screen.** The
+switcher and Mission Control bound their captures to the window list, so
+the shell held a capture of every window whether or not anything was
+showing them. A capture is a session in the compositor against a window
+and its output, and asking for one as an output disappears takes
+Hyprland down: `Screenshare::CScreenshareSession::init` in the crash of
+2026-09-12, when a KVM switch removed the screen. Binding the capture to
+the surface's own visibility removes the whole class of it, and stops the
+shell paying for pictures nobody is looking at.
+

@@ -211,7 +211,7 @@ PanelWindow {
                             color: Theme.raised
                             border.width: 1; border.color: Theme.hairlineStrong
                             clip: true
-                            ScreencopyView { anchors.fill: parent; anchors.margins: 1; captureSource: modelData.toplevel.wayland; live: root.visible; paintCursor: false }
+                            ScreencopyView { anchors.fill: parent; anchors.margins: 1; captureSource: root.visible ? modelData.toplevel.wayland : null; live: root.visible; paintCursor: false }
                         }
                     }
                     MouseArea { id: tileArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Compositor.focusWorkspace(space.modelData.id); root.leave(); } }
@@ -268,7 +268,7 @@ PanelWindow {
                 layer.enabled: true
                 layer.effect: MultiEffect { maskEnabled: true; maskSource: mask; maskThresholdMin: 0.5; maskSpreadAtMin: 1 }
                 Rectangle { anchors.fill: parent; color: Theme.raised; visible: !view.hasContent; AppIcon { anchors.centerIn: parent; size: Math.min(64, parent.height / 2); source: thumb.modelData.icon } }
-                ScreencopyView { id: view; anchors.fill: parent; captureSource: thumb.modelData.toplevel.wayland; live: root.visible; paintCursor: false }
+                ScreencopyView { id: view; anchors.fill: parent; captureSource: root.visible ? thumb.modelData.toplevel.wayland : null; live: root.visible; paintCursor: false }
             }
             Item {
                 id: mask

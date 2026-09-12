@@ -120,7 +120,7 @@ extra process.
 | lock | native WlSessionLock + Pam |
 | idle: dim, lock, screen off | native IdleNotify |
 | polkit agent | native Polkit |
-| thumbnails for switcher and overview | native Screencopy |
+| thumbnails for switcher and overview | native Screencopy, asked for only while the surface is on screen: a capture of a window whose output has just gone crashes the compositor, and an output goes when a KVM switch or a cable does (D55) |
 | global shortcuts from the shell | native Hyprland GlobalShortcut |
 | greeter | native Greetd. It runs as the `greeter` user before any login, so it cannot live in a home: `tools/install-greeter.sh` keeps a root-owned copy of `greeter/` and `shell/` under `/usr/local/share/isle-greeter` and points greetd at it; `install.sh` refreshes it after a pull |
 | clipboard history | `wl-paste --watch cliphist store`; `cliphist list` / `decode` |

@@ -71,7 +71,7 @@ PanelWindow {
                                 id: view
                                 anchors.centerIn: parent
                                 constraintSize: Qt.size(root.boxW, root.boxH)
-                                captureSource: card.front ? card.front.toplevel.wayland : null
+                                captureSource: root.visible && card.front ? card.front.toplevel.wayland : null
                                 live: root.visible
                                 paintCursor: false
                             }

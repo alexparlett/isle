@@ -63,6 +63,7 @@ Singleton {
             property var passwordProvidersOff: []
             property var vpnProvidersOff: []
             property var snapshotProvidersOff: []
+            property var phoneProvidersOff: []
             // Emoji and symbols picked lately, newest first.
             property var glyphRecent: []
             property string wallpaper: ""

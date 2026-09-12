@@ -30,6 +30,7 @@ Singleton {
         { id: "storage", glyph: "hard-drive", label: "Storage" },
         { id: "power", glyph: "power", label: "Power" },
         { id: "devices", glyph: "plug-zap", label: "Devices" },
+        { id: "phone", glyph: "smartphone", label: "Phone" },
         { group: "System" },
         { id: "apps", glyph: "layout-grid", label: "Apps" },
         { id: "users", glyph: "user", label: "Users" },

@@ -1,0 +1,6 @@
+{
+    "id": "kdeconnect",
+    "name": "KDE Connect",
+    "note": "A phone with the KDE Connect app: its notifications and battery here, the clipboard and files both ways, and a ring to find it.",
+    "script": "kdeconnect.py"
+}

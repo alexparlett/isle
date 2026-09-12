@@ -513,7 +513,12 @@ actions (sign in, unlock, whatever it names) while it is not ready, then
 titles and vault names, a password revealed for a moment or copied, the
 username or one-time code copied, nothing edited here. Settings ›
 Passwords is a list of the managers found with a switch each, as macOS
-lists credential providers.
+lists credential providers. Settings › Snapshots and Settings › Phone are
+the same list, and beneath it a group per ready provider with its items,
+a snapshot or a phone, and on each the actions the tool allows: text
+buttons, the primary one filled, a dangerous one asking twice, an action
+that needs a value with its field before the button. A phone's row says
+whether it is in reach and its battery.
 
 Settings › Devices is Device Manager's shape: a tree of categories on
 the left, each device under its own, a count on the category and a

@@ -171,7 +171,7 @@ SMART, printers, devices tree, keyboard configurators, Bluetooth pairing.
 
 | gap | worth |
 |---|---|
-| No phone integration: KDE Connect and macOS Continuity (notifications from the phone, clipboard, file drop, remote input). `kdeconnectd` exists and would be a provider | now |
+| No phone integration: KDE Connect and macOS Continuity (notifications from the phone, clipboard, file drop, remote input). `kdeconnectd` exists and would be a provider | ✓ 7 |
 | No Bluetooth file transfer (OBEX) and no AirDrop-like drop to a nearby machine | later |
 | No file sharing or remote login switches (Plasma's SMB share, macOS Sharing); one page over `smb.conf` and `sshd` | later |
 | No firewall page (Plasma's firewalld/ufw module, macOS's app firewall) | later |

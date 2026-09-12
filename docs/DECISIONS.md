@@ -475,3 +475,14 @@ text is a factor on the theme's type sizes, since every label in the
 shell takes its size from the tokens and nothing sets a size by hand;
 high contrast is the same tokens with the quiet ones brought up, so the
 palette and the accent hold and nothing has a second look to maintain.
+
+**D51 · A phone is a provider, and the bridge does the bridging.** KDE
+Connect already carries a phone's notifications to the desktop's
+notification daemon and the clipboard both ways once the two are paired,
+so the shell adds nothing of its own there: Isle's notifications show
+what the phone sends as they show anything else. What the shell adds is
+the page: the bridges found, each phone's reach and battery, and the
+actions a bridge allows on one (ring, send the clipboard, send a file,
+pair), through the same provider contract as snapshots, so a Continuity
+tool or another bridge is a folder with a manifest and a script, not a
+change to the shell. The two item pages share one shape, `ProviderGroups`.

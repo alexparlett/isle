@@ -69,11 +69,12 @@ longer finds.
 
 ## Providers
 
-A password manager, a VPN or a snapshot tool is a provider: a folder
-under `~/.config/isle/vaults/<name>/`, `~/.config/isle/vpns/<name>/` or
-`~/.config/isle/snapshots/<name>/` holding `provider.json` and a script
-(the shell's own live under `shell/vaults`, `shell/vpns` and
-`shell/snapshots`). The manifest:
+A password manager, a VPN, a snapshot tool or a phone bridge is a
+provider: a folder under `~/.config/isle/vaults/<name>/`,
+`~/.config/isle/vpns/<name>/`, `~/.config/isle/snapshots/<name>/` or
+`~/.config/isle/phones/<name>/` holding `provider.json` and a script (the
+shell's own live under `shell/vaults`, `shell/vpns`, `shell/snapshots` and
+`shell/phones`). The manifest:
 
 ```json
 { "id": "bitwarden", "name": "Bitwarden", "note": "Through rbw.", "script": "vault.py" }
@@ -84,20 +85,22 @@ The script, run as `python3 <script> <command>`, answers:
 | command | answer |
 |---|---|
 | `status` | JSON `{installed, ready, state, actions, error}`: `installed` whether the tool is present, `ready` whether `list` can answer, `state` a sentence in the provider's own words ("Not signed in", "Locked", "Connected to …"), `actions` its own `[{id, label, input, terminal, primary, on, options, value}]` for that state: `input` the placeholder of a value sent on stdin, `terminal` when it must run in a terminal window (a browser sign-in, prompts), `primary` the one a plain click means, `on` draws it as a toggle, `options` with `value` as a choice whose pick goes on stdin. A VPN's status also carries `active: {name, detail}` or null |
-| `list` | a vault: JSON `{items: [{id, shareId, vault, title, type}], error}`, `type` one of login, note, credit_card, identity, ssh_key, wifi, alias, custom, never a secret. A VPN: `{choices: [{id, title, subtitle}], error}`, the places it can connect. A snapshot tool: `{items: [{id, title, subtitle, actions: [{id, label, danger}]}], error}`, newest first, each with the actions the tool allows on it |
+| `list` | a vault: JSON `{items: [{id, shareId, vault, title, type}], error}`, `type` one of login, note, credit_card, identity, ssh_key, wifi, alias, custom, never a secret. A VPN: `{choices: [{id, title, subtitle}], error}`, the places it can connect. A snapshot tool or a phone bridge: `{items: [{id, title, subtitle, actions: [{id, label, danger, input, primary}]}], error}`, each item with the actions the tool allows on it (snapshots newest first; phones with the battery in the subtitle), an action with `input` taking the item's id and the typed value on stdin as two lines |
 | `field <shareId> <id> <field>` | a vault only: the value on stdout, no newline: `username`, `email`, `password`, `totp` (the current code), `urls`, `note` |
 | `action <id>` | one of the actions `status` named, or one an item named, its input on stdin: a typed value, a choice, or the item's id; a VPN's `connect` takes a choice id, empty for the default. Exit non-zero with the reason on stderr; anything said on stdout is shown beside the state |
 
 The shell knows no manager's or VPN's notions: it shows the state
 sentence and the actions where the provider's items or places would be,
 the Keychain and the launcher's `*` hint for a vault, the panel's VPN
-page for a VPN, Settings › Snapshots for a snapshot tool.
-`shell/scripts/protonpass.py`, `protonvpn.py`, `nmvpn.py` and
-`snapper.py` are the references. Settings › Passwords, Settings › Network
-and Settings › Snapshots list every provider found with a switch and its
-own options, as macOS lists credential providers; `qs ipc call vault
-rescan`, `vpn rescan` and `snapshots rescan` pick a new folder up without
-a restart.
+page for a VPN, Settings › Snapshots for a snapshot tool, Settings ›
+Phone for a phone bridge. `shell/scripts/protonpass.py`, `protonvpn.py`,
+`nmvpn.py`, `snapper.py` and `kdeconnect.py` are the references. Settings
+› Passwords, Settings › Network, Settings › Snapshots and Settings › Phone
+list every provider found with a switch and its own options, as macOS
+lists credential providers (`ProviderGroups` in `shell/ui` is that page
+shape: the providers, then each ready one's items); `qs ipc call vault
+rescan`, `vpn rescan`, `snapshots rescan` and `phone rescan` pick a new
+folder up without a restart.
 
 ## Services
 
@@ -156,6 +159,7 @@ extra process.
 | Mission Control | `surfaces/overview/Overview.qml`, one layer surface on the shell screen. Windows come from `Windows.groups` (the compositor's toplevel list, refreshed on entry for positions and sizes); each is a live `ScreencopyView` of its toplevel, with a placeholder when the capture has no content. The spread is computed in QML from the real rectangles; thumbnails animate between the real and stage rectangles. Drops move windows with `window.move({ follow = false })`; closes go through the compositor by address (`Windows.closeWindow`), never the toplevel handle, which is a protocol error on a handle already going away. The three-finger swipe is `hl.gesture` in `hyprland.lua`, the island's workspace dots open it too |
 | vpn | `Vpn` fronts every VPN provider whose tool is on this machine, each switchable off in Settings › Network, which lists them with a switch and nothing else; the panel tile, its VPN page, the launcher's Connect/Disconnect and the island's shield glyph talk to `Vpn` alone. A provider is a manifest and a script, the shell's own under `shell/vpns`, the user's under `~/.config/isle/vpns/<name>/provider.json`, found by `scripts/providers.py` and instantiated as `VpnProvider`s ("Providers" below): `status` carries the state sentence, the connection that is up (`active: {name, detail}`) and the actions; `list` the places it can connect (`choices`); `action connect` takes a choice on stdin. The Proton VPN provider (`protonvpn.py` over the `protonvpn` CLI: `info`, `status`, `config list`, `countries list`) offers Sign in (in a terminal), the fastest server or a country, Disconnect, Kill switch as a toggle, NetShield as a choice, Sign out; the NetworkManager provider (`nmvpn.py` over `nmcli`) offers its vpn, wireguard and tun connections. `ip monitor link` and `nmcli monitor` trigger refreshes. IPC `vpn toggle | connect <provider> <choice> | disconnect | act | status | rescan | refresh` (D44) |
 | snapshots | `Snapshots` fronts every snapshot and rollback provider whose tool is on this machine (`shell/snapshots`, `~/.config/isle/snapshots/<name>/provider.json`), each switchable off in Settings › Snapshots, which lists them with a switch and the provider's own actions, then each ready tool's snapshots beneath with the actions the tool allows on one (a dangerous one asks twice). The Snapper provider (`snapper.py`, `snapper --jsonout`): reading needs the user in the config's `ALLOW_USERS`, which its Allow action sets once through `pkexec` (the shell's polkit agent asks), after which listing, taking and deleting go through snapperd as the user; a rollback is root's, through `pkexec`, and says the next boot uses it. The Timeshift provider opens Timeshift's own window, since everything it does needs root. IPC `snapshots status | items <provider> | act | rescan | refresh` (D45) |
+| phone | `Phones` fronts every phone bridge whose tool is on this machine (`shell/phones`, `~/.config/isle/phones/<name>/provider.json`), each switchable off in Settings › Phone, which lists them with a switch and the provider's own actions, then each ready bridge's phones beneath with what the bridge allows on one. The KDE Connect provider (`kdeconnect.py`, `kdeconnect-cli` and the daemon's D-Bus properties): a phone's reach and battery, ring, the clipboard sent, a file sent, pair and unpair; the daemon itself carries the phone's notifications to the desktop and the clipboard both ways once paired. IPC `phone status | act <provider> <id> <input> | rescan | refresh` (D51) |
 | calendars | `Calendars`: subscribed ICS calendars (`prefs.calendars`, Settings › Calendars: a link, webcal or https, or a file; a name and a colour), read-only. `scripts/calendars.py` fetches each on a half-hour timer and on change, keeps the last copy under `~/.cache/isle/calendars` for when a fetch fails, and expands the events, repeats included, over sixty days back and four hundred ahead with python-icalendar and python-recurring-ical-events; times come out local. The Calendar widget marks days with a dot per calendar and lists the picked day; the rest pill shows a calendar glyph while an event is within the half hour, and the island says the title at the minute it starts. Proton Calendar's Share via link is such a subscription, and the only way in, since Proton has no CalDAV (D41) |
 | password managers | `Vault` fronts every provider whose tool is on this machine, each switchable off in Settings › Passwords, which lists them with a switch and nothing else; the launcher and the Keychain talk to `Vault` alone. A provider is a manifest and a script, the shell's own under `shell/vaults/<id>.json` (script relative to `shell/scripts`), the user's under `~/.config/isle/vaults/<name>/provider.json` (script relative to that folder), found by `scripts/vaults.py` and instantiated as `VaultProvider`s. The contract, "Password manager providers" below, is four answers: `status` (a state sentence and the provider's own actions), `list` (titles only, never a secret), `field` (one field of one item, fetched when copied or revealed), `action` (one of the actions named, its input on stdin, in a terminal window when it says so). A provider that is not ready shows its state and its actions in the Keychain where its items would be, and as the launcher's `*` hint. The Proton Pass provider (`protonpass.py` over pass-cli, which Proton ships as a download and which needs Pass Plus or a bundle): `status` is `pass-cli info --output json` with Sign in, Unlock (a lock code) and Sign out as its actions; `list` walks `vault list` and `item list --share-id --filter-state active` per vault; `field` is `item view --field` for username, email, password, totp (the code) or urls. The launcher's `*` prefix searches the vaults (Enter copies the password, Shift+Enter the username, Ctrl+Enter the code) and a few matches join the default results; the Keychain window lists each vault under a category of its own. IPC `vault rescan | refresh | items | copy <provider> <id> <field>` (D42) |
 | lock resilience | While the session is locked the Lock service keeps `$XDG_RUNTIME_DIR/isle/locked`; a shell that starts and finds it locks at once, and hyprland.lua's `misc.allow_session_lock_restore` lets that fresh locker take over a lock whose client died, so a shell that dies or restarts while locked leaves the session locked rather than on the compositor's dead-lock screen. The Idle service turns the screens on when the shell starts, since a fresh idle monitor never sees the wake edge that would. IPC `lock locked` reports the state, for anything that must not disturb a locked session (D43). The session loop (`scripts/isle-session`) never stops: six quick deaths slow it to a try every half minute, and its log lives under `~/.local/state/isle/session.log` with the previous session's beside it, so a death in the night can be read after a reboot |

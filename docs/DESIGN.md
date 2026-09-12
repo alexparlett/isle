@@ -137,6 +137,9 @@ a space of its own and comes back to its space when it leaves fullscreen,
 as on macOS: switching to it is switching to its space, and nothing of
 the desktop is ever under it. A game's borderless fullscreen, a window
 the size of the screen, is treated the same, so the two modes feel alike.
+The title bar's green button and Cmd+Shift+F go fullscreen; a double
+click on the bar, or Cmd+Option+Up, zooms the window to fill the work
+area on its own space, which is the other thing the green button means.
 
 **Rest.** 30px pill: desktop dots · clock · status glyphs. Glyphs only
 appear when they say something: wifi when on wifi (never on ethernet),

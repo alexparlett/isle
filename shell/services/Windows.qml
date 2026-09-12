@@ -197,6 +197,43 @@ Singleton {
         }
     }
 
+    // A window going fullscreen takes a workspace of its own, as a macOS app does, and comes back to where it
+    // was when it leaves fullscreen; a window already alone on its workspace stays put. Reconciled from the
+    // compositor's client list on every fullscreen event and once at start, so a missed event costs nothing.
+    property var fullFrom: ({})
+    property bool fullFollow: true
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) { if (event.name === "fullscreen") { root.fullFollow = true; fullDebounce.restart(); } }
+    }
+    Timer { id: fullDebounce; interval: 150; onTriggered: if (!fullProc.running) fullProc.running = true }
+    Component.onCompleted: { fullFollow = false; fullDebounce.restart(); }
+    Process {
+        id: fullProc
+        command: ["hyprctl", "-j", "clients"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let list; try { list = JSON.parse(text); } catch (e) { return; }
+                const from = Object.assign({}, root.fullFrom), follow = root.fullFollow ? "true" : "false";
+                const byWs = {};
+                for (const c of list) if (c.mapped && c.workspace && c.workspace.id > 0) byWs[c.workspace.id] = (byWs[c.workspace.id] || 0) + 1;
+                for (const c of list) {
+                    if (!c.mapped || !c.workspace) continue;
+                    const addr = c.address, ws = c.workspace.id;
+                    if (c.fullscreen && ws > 0 && from[addr] === undefined && byWs[ws] > 1) {
+                        from[addr] = ws;
+                        Hyprland.dispatch("hl.dsp.window.move({ workspace = \"empty\", follow = " + follow + ", window = \"address:" + addr + "\" })");
+                    } else if (!c.fullscreen && from[addr] !== undefined) {
+                        const back = from[addr]; delete from[addr];
+                        if (Hyprland.workspaces.values.some(w => w.id === back)) Hyprland.dispatch("hl.dsp.window.move({ workspace = " + back + ", follow = " + follow + ", window = \"address:" + addr + "\" })");
+                    }
+                }
+                for (const addr of Object.keys(from)) if (!list.some(c => c.address === addr)) delete from[addr];
+                root.fullFrom = from;
+            }
+        }
+    }
+
     // One of the shell's own windows (Settings, Keychain, Monitor), by title.
     function focusShellWindow(title) {
         const t = Hyprland.toplevels.values.find(t => t.wayland && t.wayland.appId === "org.quickshell" && t.title === title);

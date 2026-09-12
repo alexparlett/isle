@@ -132,6 +132,11 @@ it always does.
 Top centre of the focused monitor, 12px from the edge. The only persistent
 surface. Other monitors show nothing.
 
+**Fullscreen.** A window that goes fullscreen, a game or a video, takes
+a space of its own and comes back to its space when it leaves fullscreen,
+as on macOS: switching to it is switching to its space, and nothing of
+the desktop is ever under it.
+
 **Rest.** 30px pill: desktop dots · clock · status glyphs. Glyphs only
 appear when they say something: wifi when on wifi (never on ethernet),
 bluetooth only when a device is connected, volume only when muted,

@@ -441,3 +441,13 @@ each package's state as it goes; the AUR helper builds as the user and
 hands pacman to `pkexec` the same way. Every question takes its default,
 as the graphical updaters do. The end is said in the island with the
 restart action when one is owed, so the run needs no watching at all.
+
+**D48 · A fullscreen window has a space of its own.** With a game
+fullscreen on the desktop's space, the compositor keeps it above
+everything, so alt-tab to a browser focuses a window the game still
+covers, and alt-tab back finds a window that was never really left.
+macOS gives a fullscreen app a space; so does Isle now, from the
+compositor's client list on every fullscreen event rather than from a
+rule, since a rule cannot move a window when its state changes. The
+window returns to its space when fullscreen ends; a window alone on its
+space is left where it is, Steam's Big Picture among them.

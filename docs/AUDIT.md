@@ -145,7 +145,7 @@ places, a dropdown terminal, hyprbars with the client's own frame honoured.
 
 | gap | worth |
 |---|---|
-| Fullscreen apps do not take a space of their own the way macOS does; a game or a video sits on the desktop's space with everything else (queued: the Games service already does this for Steam's Big Picture) | now |
+| Fullscreen apps do not take a space of their own the way macOS does; a game or a video sits on the desktop's space with everything else | ✓ |
 | Named or reordered spaces: Plasma names them, macOS keeps their order; Isle numbers them | later |
 | No window rules page (Plasma's "special window settings": always on this space, size, no title bar, per app) | later |
 | No Stage Manager or window grouping, no tabbed windows (Plasma's tabs went, macOS keeps its own) | no |

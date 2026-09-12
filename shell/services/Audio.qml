@@ -40,9 +40,15 @@ Singleton {
     // What to call a stream: the app's name, then the media title.
     function streamName(n) { return n.properties["application.name"] || n.nickname || n.description || n.name; }
     function streamDetail(n) { return n.properties["media.name"] || ""; }
+    // A game's stream carries the game's name: its cover from the library, before the icon theme is asked.
     function streamIcon(n) {
-        const id = n.properties["application.icon-name"] || n.properties["application.name"] || "";
-        return id ? Quickshell.iconPath(id, "") : "";
+        const name = n.properties["application.name"] || "";
+        const game = name ? Games.library.find(g => g.name.toLowerCase() === name.toLowerCase()) : null;
+        if (game && game.art) return game.art.indexOf("/") === 0 ? "file://" + game.art : game.art;
+        const iconName = n.properties["application.icon-name"] || "";
+        if (iconName) return Quickshell.iconPath(iconName, "");
+        const entry = name ? DesktopEntries.heuristicLookup(name) : null;
+        return entry && entry.icon ? Quickshell.iconPath(entry.icon, "") : name ? Quickshell.iconPath(name, "") : "";
     }
     function setStreamVolume(n, v) { if (n.audio) n.audio.volume = Math.max(0, Math.min(1, v)); }
     function setStreamMuted(n, m) { if (n.audio) n.audio.muted = m; }

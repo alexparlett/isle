@@ -121,6 +121,7 @@ extra process.
 | idle: dim, lock, screen off | native IdleNotify |
 | polkit agent | native Polkit |
 | thumbnails for switcher and overview | native Screencopy, asked for only while the surface is on screen: a capture of a window whose output has just gone crashes the compositor, and an output goes when a KVM switch or a cable does (D55) |
+| app switching | `Switcher` holds one entry per app with a window on a desktop, frozen while the row is up, and `win` is the window a release focuses: the app's most recent, moved along the app's own list by the backtick. With the switcher down that key is `Windows.cycleApp`, which walks the focused app's windows in a stable order rather than the recency one, since recency would trade two windows for ever and never reach a third (D59) |
 | global shortcuts from the shell | native Hyprland GlobalShortcut |
 | greeter | native Greetd. It runs as the `greeter` user before any login, so it cannot live in a home: `tools/install-greeter.sh` keeps a root-owned copy of `greeter/` and `shell/` under `/usr/local/share/isle-greeter` and points greetd at it; `install.sh` refreshes it after a pull |
 | clipboard history | `wl-paste --watch cliphist store`; `cliphist list` / `decode` |

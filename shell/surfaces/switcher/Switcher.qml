@@ -95,6 +95,14 @@ PanelWindow {
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: Theme.s3; rightMargin: Theme.s3; bottomMargin: Theme.s2 + 2 }
                         spacing: Theme.s2
                         AppIcon { size: 18; source: card.modelData.icon }
+                        // An app with more than one window says how many; the backtick picks which one.
+                        Rectangle {
+                            visible: card.modelData.windows.length > 1
+                            implicitWidth: Math.max(16, n.implicitWidth + Theme.s2); implicitHeight: 16
+                            radius: 8
+                            color: card.sel ? Theme.accent : Theme.pressed
+                            Label { id: n; anchors.centerIn: parent; text: card.modelData.windows.length; size: Theme.sizeCaption; weight: Font.DemiBold; color: card.sel ? Theme.onAccent : Theme.text2 }
+                        }
                         // The shell's own windows go by their titles: Settings, not Quickshell.
                         Label { text: card.modelData.appId === "org.quickshell" && card.front ? card.front.title : card.modelData.name; weight: Font.DemiBold; size: Theme.sizeSmall; elide: Text.ElideRight; Layout.fillWidth: true; color: card.sel ? Theme.text : Theme.text2 }
                     }
@@ -117,6 +125,6 @@ PanelWindow {
             text: it ? (it.win.title || it.name) : ""
             size: Theme.sizeSmall; color: Theme.text2
         }
-        Label { Layout.alignment: Qt.AlignHCenter; text: "Tab next  ·  ` this app's windows  ·  W close window  ·  Q quit  ·  M hide"; size: Theme.sizeCaption; color: Theme.text3 }
+        Label { Layout.alignment: Qt.AlignHCenter; text: "Tab next  ·  ` its windows  ·  W close window  ·  Q quit  ·  M hide"; size: Theme.sizeCaption; color: Theme.text3 }
     }
 }

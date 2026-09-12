@@ -583,3 +583,13 @@ worked out from the device names rather than stored beside them, the
 query runs again when the profiles change, and the config is rendered
 again whenever the set of Mac keyboards does.
 
+**D59 · The switcher lists apps, not windows.** A row with one card per
+window says the same name three times and makes reaching the next app a
+matter of counting, so it lists apps, as Cmd+Tab does, with a count on
+any app holding more than one window. Which window a release lands on is
+the app's most recent, and the backtick moves through the rest, the same
+key that cycles them when the switcher is down. That cycle walks a stable
+order rather than the recency one: recency puts the window just focused
+at the front, so a second press came back to where it started and a third
+window was unreachable.
+

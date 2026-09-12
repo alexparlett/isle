@@ -211,9 +211,12 @@ Escape closes whatever is up.
   vault matches join the plain results too). Power actions match on their
   names.
 - **Switcher** — a row of live previews across the centre, held open
-  while the modifier is down: one 240×150 card per window, grouped by
-  app, showing the window at its own shape (the icon until a frame
-  arrives) with the app's icon and name beneath. The selected card is
+  while the modifier is down: one 240×150 card per app, showing that
+  app's front window at its own shape (the icon until a frame arrives)
+  with the app's icon and name beneath, and a count beside the icon when
+  it has more than one window. The backtick moves through those windows,
+  so the release lands on the one shown; with the switcher down the same
+  key cycles the focused app's windows, as Cmd+backtick does on macOS. The selected card is
   raised with an accent ring; its title and the held keys read under the
   row. The row wraps past three quarters of the screen. Windows hidden
   with Super+M are not in it; they come back through Mission Control.
@@ -310,7 +313,7 @@ choosing a window sends it back to its rectangle first and the surface
 goes as it lands.
 
 **In the switcher.** Held on an app, Q closes every window of it and W
-its front window, so a stray app can be put down without switching to it.
+the one shown, so a stray app can be put down without switching to it.
 
 ## Widgets
 

@@ -158,12 +158,14 @@ Singleton {
         Hyprland.dispatch("hl.dsp.window.bring_to_top({ window = \"address:" + e.address + "\" })");
     }
 
-    // Focus the next window of the active app.
+    // Focus the next window of the active app, in a stable order rather than the recency one: recency puts
+    // the window just focused at the front, so two windows would trade places for ever and a third never come.
     function cycleApp() {
         const app = apps.find(a => a.focused);
         if (!app || app.windows.length < 2) return;
-        const i = app.windows.findIndex(w => w.focused);
-        focus(app.windows[(i + 1) % app.windows.length]);
+        const ws = app.windows.slice().sort((x, y) => x.address < y.address ? -1 : x.address > y.address ? 1 : 0);
+        const i = ws.findIndex(w => w.focused);
+        focus(ws[(i + 1) % ws.length]);
     }
 
     // Windows reopen where they were last: the place of an app's main window is noted every few seconds, by

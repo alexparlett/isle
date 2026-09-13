@@ -28,7 +28,7 @@ class FileJob : public QObject {
     Q_PROPERTY(QString conflictName READ conflictName NOTIFY conflictChanged)
 
 public:
-    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, Restore, Extract, Compress, RenameMany };
+    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, Restore, Extract, Compress, RenameMany, Duplicate };
     Q_ENUM(Kind)
 
     enum State { Running, Asking, Done, Failed, Cancelled };
@@ -131,6 +131,8 @@ public:
     Q_INVOKABLE FileJob *trash(const QStringList &paths);
     Q_INVOKABLE FileJob *remove(const QStringList &paths);
     Q_INVOKABLE FileJob *rename(const QString &path, const QString &name);
+    // A copy beside the original, named the way a second of something is named.
+    Q_INVOKABLE FileJob *duplicate(const QStringList &paths);
     Q_INVOKABLE FileJob *newFolder(const QString &parent, const QString &name);
     // Unpacked beside the archive, in a folder of its own named after it.
     Q_INVOKABLE FileJob *extract(const QString &archive);

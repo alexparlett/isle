@@ -78,6 +78,18 @@ FocusScope {
 
     function isPicked(path) { return selection.indexOf(path) >= 0; }
 
+    // The row whose name is being edited where it sits, as Finder renames. Empty while none is.
+    property string renaming: ""
+    // A new name settled on; the window does the renaming, since it owns the jobs.
+    signal renamed(string path, string name)
+
+    function beginRename(path) { renaming = path || (acting.length === 1 ? acting[0] : ""); }
+    function endRename(path, name) {
+        renaming = "";
+        const was = Engine.displayName(path);
+        if (name && name !== was) root.renamed(path, name);
+    }
+
     // What a drag carries: the uri list every desktop reads, so a drop lands in other applications too.
     function uriList(paths) { return paths.map(p => "file://" + encodeURI(p)).join("\r\n"); }
     // Something dropped here: moved when it came from this machine's own folder, copied otherwise.
@@ -265,9 +277,30 @@ FocusScope {
                                 source: Quickshell.iconPath(root.iconFor(row.path, row.iconName), "text-x-generic")
                             }
                             Label {
+                                visible: root.renaming !== row.path
                                 Layout.fillWidth: true
                                 text: row.name
                                 color: row.isSymlink ? Theme.text2 : Theme.text
+                            }
+                            // Renaming happens on the row, not in a card over it.
+                            Loader {
+                                active: root.renaming === row.path
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 24
+                                sourceComponent: Field {
+                                    size: Theme.sizeBody
+                                    text: row.name
+                                    Component.onCompleted: {
+                                        input.forceActiveFocus();
+                                        // The ending is left out of the selection, as every file
+                                        // manager does: it is rarely the part being changed.
+                                        const dot = row.name.lastIndexOf(".");
+                                        input.select(0, dot > 0 ? dot : row.name.length);
+                                    }
+                                    onAccepted: root.endRename(row.path, text.trim())
+                                    input.Keys.onEscapePressed: root.renaming = ""
+                                    input.onActiveFocusChanged: if (!input.activeFocus) root.endRename(row.path, text.trim())
+                                }
                             }
                         }
                         Label {
@@ -309,7 +342,10 @@ FocusScope {
                             row.Drag.startDrag();
                         }
                         onClicked: mouse => {
-                            root.pick(row.index, mouse.modifiers);
+                            // A right click on something already picked keeps the whole picking, so
+                            // the menu acts on all of it rather than on the one row under the pointer.
+                            if (mouse.button !== Qt.RightButton || !root.isPicked(row.path))
+                                root.pick(row.index, mouse.modifiers);
                             list.forceActiveFocus();
                             if (mouse.button === Qt.RightButton) {
                                 const at = mapToItem(root, mouse.x, mouse.y);
@@ -400,6 +436,7 @@ FocusScope {
                             }
 
                             Label {
+                                visible: root.renaming !== cell.path
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignHCenter
                                 size: Theme.sizeCaption
@@ -407,6 +444,23 @@ FocusScope {
                                 wrapMode: Text.Wrap
                                 elide: Text.ElideRight
                                 text: cell.name
+                            }
+                            Loader {
+                                active: root.renaming === cell.path
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 22
+                                sourceComponent: Field {
+                                    size: Theme.sizeCaption
+                                    text: cell.name
+                                    Component.onCompleted: {
+                                        input.forceActiveFocus();
+                                        const dot = cell.name.lastIndexOf(".");
+                                        input.select(0, dot > 0 ? dot : cell.name.length);
+                                    }
+                                    onAccepted: root.endRename(cell.path, text.trim())
+                                    input.Keys.onEscapePressed: root.renaming = ""
+                                    input.onActiveFocusChanged: if (!input.activeFocus) root.endRename(cell.path, text.trim())
+                                }
                             }
                         }
 
@@ -416,7 +470,8 @@ FocusScope {
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: mouse => {
-                                root.pick(cell.index, mouse.modifiers);
+                                if (mouse.button !== Qt.RightButton || !root.isPicked(cell.path))
+                                    root.pick(cell.index, mouse.modifiers);
                                 grid.forceActiveFocus();
                                 if (mouse.button === Qt.RightButton) {
                                     const at = mapToItem(root, mouse.x, mouse.y);

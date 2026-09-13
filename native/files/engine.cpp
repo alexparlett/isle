@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QLocale>
+#include <QStorageInfo>
 #include <QStandardPaths>
 #include <QVariantList>
 #include <QMimeDatabase>
@@ -89,6 +90,13 @@ QVariantList Engine::crumbs(const QString &path) const {
         out.append(QVariantMap { { QStringLiteral("name"), name }, { QStringLiteral("path"), built } });
     }
     return out;
+}
+
+QString Engine::freeSpace(const QString &path) const {
+    const QStorageInfo where(path);
+    if (!where.isValid() || !where.isReady())
+        return {};
+    return formatSize(where.bytesAvailable()) + QStringLiteral(" free");
 }
 
 QString Engine::formatSize(qint64 bytes) const {

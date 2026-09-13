@@ -40,6 +40,9 @@ public:
     // The breadcrumb trail as [{ name, path }], from the root or from home when the path is under it.
     Q_INVOKABLE QVariantList crumbs(const QString &path) const;
 
+    // What is free on the volume a path is on, already said in words. Empty when it cannot be asked.
+    Q_INVOKABLE QString freeSpace(const QString &path) const;
+
     Q_INVOKABLE QString formatSize(qint64 bytes) const;
     Q_INVOKABLE QString formatModified(const QDateTime &when) const;
 

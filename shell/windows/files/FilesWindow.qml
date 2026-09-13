@@ -122,6 +122,11 @@ FloatingWindow {
     function askRename() {
         if (acting.length > 1) { askRenameMany(); return; }
         if (!actingOne) return;
+        view.beginRename(actingOne);
+    }
+
+    function askRenameSheet() {
+        if (!actingOne) return;
         sheet.mode = "name"; sheet.title = "Rename"; sheet.message = ""; sheet.acceptLabel = "Rename";
         sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
         sheet.job = null; sheet.what = "rename";
@@ -144,6 +149,15 @@ FloatingWindow {
         sheet.job = null; sheet.what = "compress";
         sheet.ask((acting.length === 1 ? Engine.displayName(acting[0]) : Engine.displayName(dir.path)) + ".tar.gz");
     }
+    function askGoTo() {
+        sheet.mode = "name"; sheet.title = "Go to folder"; sheet.message = "";
+        sheet.acceptLabel = "Go"; sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "goto";
+        sheet.ask(dir.path);
+    }
+
+    function duplicate() { if (acting.length) FileJobs.duplicate(acting); }
+
     function askNewFolder() {
         sheet.mode = "name"; sheet.title = "New folder"; sheet.message = ""; sheet.acceptLabel = "Create";
         sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
@@ -196,6 +210,7 @@ FloatingWindow {
             { label: "New folder", glyph: "folder-plus", action: askNewFolder },
             on ? null : undefined,
             on ? { label: many ? "Rename " + acting.length + " items" : "Rename", glyph: "pencil", action: askRename } : undefined,
+            on ? { label: "Duplicate", glyph: "copy", action: duplicate } : undefined,
             on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
             on && !many && FileJobs.isArchive(acting[0]) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(acting[0]) } : undefined,
             null,
@@ -230,6 +245,8 @@ FloatingWindow {
             { label: "Up", glyph: "arrow-up", enabled: dir.path !== "/", action: up },
             null,
             { label: "Home", glyph: "house", action: () => go(Engine.home) },
+            null,
+            { label: "Go to folder…", glyph: "search", action: askGoTo },
         ];
     }
 
@@ -296,6 +313,8 @@ FloatingWindow {
     Shortcut { sequences: [StandardKey.AddTab]; onActivated: root.newTab() }
     Shortcut { sequences: [StandardKey.Close]; onActivated: root.closeTab(root.current) }
     Shortcut { sequence: "Ctrl+N"; onActivated: FileWindows.add(dir.path) }
+    Shortcut { sequence: "Ctrl+D"; onActivated: root.duplicate() }
+    Shortcut { sequences: ["Ctrl+L", "Ctrl+Shift+G"]; onActivated: root.askGoTo() }
     Shortcut { sequences: [StandardKey.NextChild]; onActivated: root.showTab((root.current + 1) % root.tabs.length) }
     Shortcut { sequences: [StandardKey.PreviousChild]; onActivated: root.showTab((root.current + root.tabs.length - 1) % root.tabs.length) }
     // The keyboard's own way to the context menu, which every desktop offers and which is also the
@@ -582,6 +601,7 @@ FloatingWindow {
             Layout.fillHeight: true
             directory: dir
             onActivated: path => root.go(path)
+            onRenamed: (path, name) => FileJobs.rename(path, name)
             // Dropped from somewhere: moved when it is already on this machine and in another
             // folder, since that is what dragging within a desktop means.
             onDropped: (paths, into) => {
@@ -613,6 +633,11 @@ FloatingWindow {
                     size: Theme.sizeCaption
                     color: Theme.text3
                     text: "Hidden files shown"
+                }
+                Label {
+                    size: Theme.sizeCaption
+                    color: Theme.text3
+                    text: Engine.freeSpace(dir.path)
                 }
                 // What is being copied or moved, while it is.
                 Repeater {
@@ -671,6 +696,7 @@ FloatingWindow {
             }
             onAccepted: (value, forAll) => {
                 if (what === "rename") FileJobs.rename(root.actingOne, value);
+                else if (what === "goto") root.go(value.replace(/^~/, Engine.home));
                 else if (what === "renameMany") FileJobs.renameMany(root.acting, value);
                 else if (what === "compress") FileJobs.compress(root.acting, value);
                 else if (what === "newFolder") FileJobs.newFolder(dir.path, value);

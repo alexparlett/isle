@@ -15,6 +15,8 @@ hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
 hl.env("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
+-- Qt plugins of the shell's own: the badge Dolphin draws on a cloud drive's files (D65).
+hl.env("QT_PLUGIN_PATH", (os.getenv("HOME") or "") .. "/.local/lib/qt6/plugins:/usr/lib/qt6/plugins")
 hl.env("GDK_BACKEND", "wayland,x11,*")
 hl.env("CLUTTER_BACKEND", "wayland")
 hl.env("XDG_SESSION_TYPE", "wayland")

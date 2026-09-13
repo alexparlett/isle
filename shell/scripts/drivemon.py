@@ -6,7 +6,7 @@ RemoteVolumeMonitor`, named by a file in /usr/share/gvfs/remote-volume-monitors,
 among the devices of every GTK file manager. Without one a cloud drive is listed as whatever its mount point
 is called, with the icon of a memory stick.
 
-The interface is gvfs's own and unpublished; the copy beside this file was taken from the monitor gvfs ships.
+The interface is gvfs's own and unpublished; the copy under system/gvfs was taken from the monitor gvfs ships.
 """
 import json, os, socket, sys
 

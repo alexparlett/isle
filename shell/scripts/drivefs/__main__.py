@@ -126,6 +126,7 @@ async def answer(stream, ix, cache, at, drive):
         op, path = ask.get("op", ""), ask.get("path", "")
         row = ix.by_path(path) if path else None
         if op == "state":
+            drive.asked += 1
             # A folder says whether it is kept, not whether it is here: counting what is under it is work
             # the badge on every visible row cannot afford.
             if row is None:
@@ -154,7 +155,8 @@ async def answer(stream, ix, cache, at, drive):
             held, count = cache.usage()
             label, icon = drive.service
             said = {"files": files, "described": described, "cached_bytes": held, "cached_files": count,
-                    "pinned": len(ix.pinned_files()), "at": at, "label": label, "icon": icon}
+                    "pinned": len(ix.pinned_files()), "at": at, "label": label, "icon": icon,
+                    "asked": drive.asked}
         else:
             said = {"error": "no such question"}
         await stream.send_all((json.dumps(said) + "\n").encode())
@@ -208,6 +210,8 @@ def main():
     cache = ca.Cache(a.remote)
     drive = Drive(ix, under, a.remote, rm.stream)
     drive.service = service_of(a.remote)
+    # How many badges have been asked for, which is how one can tell a file manager's plugin is asking.
+    drive.asked = 0
     opts = set(pyfuse3.default_options)
     opts.add("fsname=isle-" + a.remote)
     pyfuse3.init(drive, at, opts)

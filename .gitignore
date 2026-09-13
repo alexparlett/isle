@@ -25,3 +25,6 @@ dev/
 
 # The symlink install.sh makes from the served tree to the user widget directory (D14).
 shell/userwidgets
+
+# Generated beside the source it is compiled from.
+plugins/*/main.moc

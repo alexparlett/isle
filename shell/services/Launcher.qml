@@ -67,7 +67,8 @@ Singleton {
             if (s <= 0) continue;
             s += Math.min(20, used(e.id) * 2);
             out.push({ kind: "app", title: e.name, subtitle: e.genericName || e.comment || "Application", icon: Quickshell.iconPath(e.icon, "application-x-executable"), score: s,
-                       run: () => { bump(e.id); e.execute(); },
+                       // Already running: its window comes forward, a hidden one back, rather than a second copy.
+                       run: () => { bump(e.id); const app = Windows.appFor(e.id); if (app && app.windows.length) Windows.raise(app.windows[0]); else e.execute(); },
                        alt: e.runInTerminal ? null : () => { bump(e.id); Compositor.exec("kitty -e " + JSON.stringify(e.command.join(" "))); }, altLabel: "in a terminal" });
         }
         out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));

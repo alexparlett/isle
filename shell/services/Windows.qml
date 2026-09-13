@@ -158,6 +158,18 @@ Singleton {
         Hyprland.dispatch("hl.dsp.window.bring_to_top({ window = \"address:" + e.address + "\" })");
     }
 
+    // The windows belonging to a desktop entry, so anything that launches can raise what is already open
+    // rather than start a second copy. A window's class is not always the entry's id, so both are tried.
+    function appFor(entryId) {
+        if (!entryId) return null;
+        const want = String(entryId).replace(/\.desktop$/, "").toLowerCase();
+        return apps.find(a => {
+            if (String(a.appId).toLowerCase() === want) return true;
+            const e = DesktopEntries.heuristicLookup(a.appId);
+            return !!e && String(e.id).replace(/\.desktop$/, "").toLowerCase() === want;
+        }) || null;
+    }
+
     // Focus the next window of the active app, in a stable order rather than the recency one: recency puts
     // the window just focused at the front, so two windows would trade places for ever and a third never come.
     function cycleApp() {
@@ -318,8 +330,14 @@ Singleton {
     // One of the shell's own windows (Settings, Keychain, Monitor), by title.
     function focusShellWindow(title) {
         const t = Hyprland.toplevels.values.find(t => t.wayland && t.wayland.appId === "org.quickshell" && t.title === title);
-        if (t) focus(entry(t));
+        if (t) raise(entry(t));
     }
+
+    // Focus once the surface that asked for it has gone. A layer surface closing hands the keyboard back to
+    // the window it took it from, which lands after the dispatch and undoes it.
+    property var raiseTarget: null
+    property Timer raiseSoon: Timer { id: raiseSoon; interval: 140; onTriggered: if (root.raiseTarget) { root.focus(root.raiseTarget); root.raiseTarget = null; } }
+    function raise(e) { if (!e) return; raiseTarget = e; raiseSoon.restart(); }
 
     // The app whose id or name contains the given name, case-insensitively: a notification's sender.
     function focusApp(name) {

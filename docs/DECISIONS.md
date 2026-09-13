@@ -647,3 +647,14 @@ directory and restored at the next start, honoured only while the note is
 fresh, so a window closed by hand stays closed. It cures the same
 complaint after a crash or a sync, which is where it is felt most.
 
+**D63 · Launching what is already open raises it.** Picking an app in the
+launcher started another copy, and picking Settings while Settings was
+open did nothing at all, which is not what either means: a person picking
+a name wants that thing in front of them. So the launcher raises a window
+that exists, un-hiding one that was put away, and only launches when
+nothing is there. Raising waits a moment first, because the launcher's own
+surface hands the keyboard back to the window it took it from as it
+closes, which lands after the dispatch and undoes it. A second copy is
+still a thing people want sometimes, and that is the app's own new-window
+chord rather than the launcher's job.
+

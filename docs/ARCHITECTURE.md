@@ -452,7 +452,7 @@ the app as `CTRL`.**
 
 | action | Windows | Mac |
 |---|---|---|
-| launcher | Win+Space | Cmd+Space |
+| launcher | Win+Space | Cmd+Space. An app already running is raised rather than started again, its hidden window brought back, matching the desktop entry against each window's class through `Windows.appFor`; the raise waits a moment, since a layer surface closing hands the keyboard back to the window it took it from and would undo it (D63) |
 | app switcher (hold) | Alt+Tab, Win+Tab | Cmd+Tab |
 | cycle windows of this app | Alt+` | Cmd+` |
 | workspace n / prev / next | Win+n, Win+Left/Right | Ctrl+n, Ctrl+Left/Right |

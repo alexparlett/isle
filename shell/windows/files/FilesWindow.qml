@@ -260,6 +260,19 @@ FloatingWindow {
             { label: "Columns", glyph: "columns-3", action: () => view.mode = "columns" },
             { label: "Grid", glyph: "layout-grid", action: () => view.mode = "grid" },
             null,
+            { label: "Sort by name", glyph: dir.sort === Directory.ByName ? "check" : "", action: () => dir.sort = Directory.ByName },
+            { label: "Sort by size", glyph: dir.sort === Directory.BySize ? "check" : "", action: () => dir.sort = Directory.BySize },
+            { label: "Sort by date", glyph: dir.sort === Directory.ByModified ? "check" : "", action: () => dir.sort = Directory.ByModified },
+            { label: "Sort by kind", glyph: dir.sort === Directory.ByKind ? "check" : "", action: () => dir.sort = Directory.ByKind },
+            null,
+            { label: "No groups", glyph: dir.grouping === Directory.NoGroups ? "check" : "", action: () => dir.grouping = Directory.NoGroups },
+            { label: "Group by kind", glyph: dir.grouping === Directory.ByKindGroups ? "check" : "", action: () => dir.grouping = Directory.ByKindGroups },
+            { label: "Group by date", glyph: dir.grouping === Directory.ByDateGroups ? "check" : "", action: () => dir.grouping = Directory.ByDateGroups },
+            { label: "Group by size", glyph: dir.grouping === Directory.BySizeGroups ? "check" : "", action: () => dir.grouping = Directory.BySizeGroups },
+            null,
+            { label: "Bigger icons", glyph: "zoom-in", enabled: view.iconSize < 160, action: () => view.iconSize = Math.min(160, view.iconSize + 32) },
+            { label: "Smaller icons", glyph: "zoom-out", enabled: view.iconSize > 32, action: () => view.iconSize = Math.max(32, view.iconSize - 32) },
+            null,
             { label: dir.showHidden ? "Hide hidden files" : "Show hidden files", glyph: "eye", action: () => dir.showHidden = !dir.showHidden },
             { label: "Refresh", glyph: "refresh-cw", action: () => dir.refresh() },
         ];
@@ -341,6 +354,8 @@ FloatingWindow {
     Shortcut { sequences: ["Ctrl+L", "Ctrl+Shift+G"]; onActivated: root.askGoTo() }
     Shortcut { sequence: "Space"; onActivated: if (root.actingOne) peek.toggle(root.actingOne) }
     Shortcut { sequence: "Ctrl+I"; onActivated: if (root.actingOne) peek.look(root.actingOne) }
+    Shortcut { sequences: ["Ctrl++", "Ctrl+="]; onActivated: view.iconSize = Math.min(160, view.iconSize + 32) }
+    Shortcut { sequence: "Ctrl+-"; onActivated: view.iconSize = Math.max(32, view.iconSize - 32) }
     Shortcut { sequences: [StandardKey.NextChild]; onActivated: root.showTab((root.current + 1) % root.tabs.length) }
     Shortcut { sequences: [StandardKey.PreviousChild]; onActivated: root.showTab((root.current + root.tabs.length - 1) % root.tabs.length) }
     // The keyboard's own way to the context menu, which every desktop offers and which is also the
@@ -628,6 +643,7 @@ FloatingWindow {
             directory: dir
             onActivated: path => root.go(path)
             onRenamed: (path, name) => FileJobs.rename(path, name)
+            onOpenedInTab: path => root.newTab(path)
             // Dropped from somewhere: moved when it is already on this machine and in another
             // folder, since that is what dragging within a desktop means.
             onDropped: (paths, into) => {

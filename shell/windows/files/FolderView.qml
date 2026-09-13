@@ -14,6 +14,9 @@ FocusScope {
     required property Directory directory
     // "list", "columns" or "grid".
     property string mode: "list"
+    // How big a grid cell is. Finder has a slider; this is the same idea with four stops.
+    property int iconSize: 64
+    readonly property int cellSize: iconSize + 52
     // Whether a file is opened where it lands. A chooser takes it as the choice instead.
     property bool openFiles: true
     // A folder to walk into.
@@ -22,6 +25,8 @@ FocusScope {
     signal chosen(string path)
     // A right click, with where it landed in this item's coordinates and the row under it, if any.
     signal menuAsked(real x, real y, string path)
+    // A folder asked for in a tab of its own, by the middle button.
+    signal openedInTab(string path)
 
     // The row the cursor is on, and the row a run is measured from.
     property int index: 0
@@ -280,17 +285,28 @@ FocusScope {
                     required property var modified
                     required property bool isDir
                     required property bool isSymlink
+                    required property string groupName
+
+                    // The first row of a run carries the heading its run sits under.
+                    readonly property bool opensGroup: row.groupName !== ""
+                        && (row.index === 0 || root.directory.groupAt(row.index - 1) !== row.groupName)
 
                     width: list.width
-                    height: 30
+                    height: (row.opensGroup ? 26 : 0) + 30
 
                     Drag.active: rowArea.dragging
                     Drag.dragType: Drag.Automatic
                     Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
                     Drag.mimeData: ({ "text/uri-list": root.uriList(root.isPicked(row.path) ? root.selection : [row.path]) })
-                    color: root.isPicked(row.path) ? Theme.pressed
-                         : ListView.isCurrentItem ? Theme.raised
-                         : rowArea.containsMouse ? Theme.raised : "transparent"
+                    color: "transparent"
+
+                    Rectangle {
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                        height: 30
+                        color: root.isPicked(row.path) ? Theme.pressed
+                             : row.ListView.isCurrentItem ? Theme.raised
+                             : rowArea.containsMouse ? Theme.raised : "transparent"
+                    }
 
                     DropArea {
                         anchors.fill: parent
@@ -312,8 +328,23 @@ FocusScope {
                         }
                     }
 
+                    Label {
+                        visible: row.opensGroup
+                        anchors { left: parent.left; top: parent.top; leftMargin: Theme.s4; topMargin: 5 }
+                        size: Theme.sizeCaption
+                        color: Theme.text3
+                        text: row.groupName
+                    }
+
                     RowLayout {
-                        anchors { fill: parent; leftMargin: Theme.s4; rightMargin: Theme.s4 }
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            bottom: parent.bottom
+                            leftMargin: Theme.s4
+                            rightMargin: Theme.s4
+                        }
+                        height: 30
                         spacing: Theme.s3
 
                         RowLayout {
@@ -371,9 +402,10 @@ FocusScope {
 
                     MouseArea {
                         id: rowArea
-                        anchors.fill: parent
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                        height: 30
                         hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                         // No drag.target: giving a MouseArea one makes it hold every press back to
                         // see whether a drag follows, and a click then needs repeating. The drag is
                         // started by hand when the pointer has moved far enough to mean it.
@@ -390,6 +422,10 @@ FocusScope {
                             row.Drag.startDrag();
                         }
                         onClicked: mouse => {
+                            if (mouse.button === Qt.MiddleButton) {
+                                if (row.isDir) root.openedInTab(row.path);
+                                return;
+                            }
                             // A right click on something already picked keeps the whole picking, so
                             // the menu acts on all of it rather than on the one row under the pointer.
                             if (mouse.button !== Qt.RightButton || !root.isPicked(row.path))
@@ -414,8 +450,8 @@ FocusScope {
                 clip: true
                 focus: root.mode === "grid"
                 currentIndex: root.index
-                cellWidth: 116
-                cellHeight: 116
+                cellWidth: root.cellSize
+                cellHeight: root.cellSize
                 reuseItems: true
                 boundsBehavior: Flickable.StopAtBounds
 
@@ -450,12 +486,12 @@ FocusScope {
 
                             Item {
                                 Layout.alignment: Qt.AlignHCenter
-                                Layout.preferredWidth: 64
-                                Layout.preferredHeight: 64
+                                Layout.preferredWidth: root.iconSize
+                                Layout.preferredHeight: root.iconSize
 
                                 IconImage {
                                     anchors.centerIn: parent
-                                    implicitSize: 48
+                                    implicitSize: Math.round(root.iconSize * 0.75)
                                     // Kept until a thumbnail arrives, and left in place when none can be made.
                                     visible: !thumb.visible
                                     source: Quickshell.iconPath(root.iconFor(cell.path, cell.iconName), "text-x-generic")
@@ -476,10 +512,10 @@ FocusScope {
                                     // so Qt must not answer from a pixmap it kept under that name.
                                     cache: false
                                     fillMode: Image.PreserveAspectFit
-                                    sourceSize.width: 128
-                                    sourceSize.height: 128
-                                    width: Math.min(implicitWidth, 64)
-                                    height: Math.min(implicitHeight, 64)
+                                    sourceSize.width: 256
+                                    sourceSize.height: 256
+                                    width: Math.min(implicitWidth, root.iconSize)
+                                    height: Math.min(implicitHeight, root.iconSize)
                                     source: thumb.file ? "file://" + thumb.file : ""
                                 }
                             }

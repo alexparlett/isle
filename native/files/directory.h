@@ -39,12 +39,17 @@ class Directory : public QAbstractListModel {
     Q_PROPERTY(QStringList patterns READ patterns WRITE setPatterns NOTIFY patternsChanged)
     // Whether only folders are listed, for a chooser asking for one.
     Q_PROPERTY(bool foldersOnly READ foldersOnly WRITE setFoldersOnly NOTIFY foldersOnlyChanged)
+    // Rows carry the heading they belong under when set, so a view can show them in groups.
+    Q_PROPERTY(Grouping grouping READ grouping WRITE setGrouping NOTIFY groupingChanged)
     Q_PROPERTY(Status status READ status NOTIFY statusChanged)
     Q_PROPERTY(QString error READ error NOTIFY statusChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
     Q_PROPERTY(int total READ total NOTIFY countChanged)
 
 public:
+    enum Grouping { NoGroups, ByKindGroups, ByDateGroups, BySizeGroups };
+    Q_ENUM(Grouping)
+
     enum Roles {
         NameRole = Qt::UserRole + 1,
         PathRole,
@@ -54,6 +59,7 @@ public:
         IsDirRole,
         IsSymlinkRole,
         IsHiddenRole,
+        GroupRole,
     };
 
     enum Sort { ByName, BySize, ByModified, ByKind };
@@ -85,6 +91,8 @@ public:
     void setPatterns(const QStringList &patterns);
     bool foldersOnly() const { return m_foldersOnly; }
     void setFoldersOnly(bool on);
+    Grouping grouping() const { return m_grouping; }
+    void setGrouping(Grouping grouping);
     Status status() const { return m_status; }
     QString error() const { return m_error; }
     int count() const { return int(m_rows.size()); }
@@ -100,6 +108,8 @@ public:
     Q_INVOKABLE bool isDirAt(int row) const;
     // The first row at or after `from` whose name starts with this, for typing a name to jump to it.
     Q_INVOKABLE int startingWith(const QString &prefix, int from) const;
+    // The heading a row sits under, so a view can tell where one run of them ends and the next starts.
+    Q_INVOKABLE QString groupAt(int row) const;
 
 signals:
     void pathChanged();
@@ -110,6 +120,7 @@ signals:
     void filterChanged();
     void patternsChanged();
     void foldersOnlyChanged();
+    void groupingChanged();
     void statusChanged();
     void countChanged();
 
@@ -118,6 +129,7 @@ private:
     void scanFinished();
     void rebuild();
     void setStatus(Status status, const QString &error = {});
+    QString groupOf(const DirEntry &entry) const;
 
     QString m_path;
     QStringList m_paths;
@@ -130,6 +142,7 @@ private:
     QStringList m_patterns;
     QList<QRegularExpression> m_globs;
     bool m_foldersOnly = false;
+    Grouping m_grouping = NoGroups;
     Status m_status = Idle;
     QString m_error;
 

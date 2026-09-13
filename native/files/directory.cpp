@@ -2,6 +2,7 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QLocale>
 #include <QMimeDatabase>
 #include <QtConcurrent/QtConcurrentRun>
 
@@ -160,6 +161,7 @@ QVariant Directory::data(const QModelIndex &index, int role) const {
     case IsDirRole: return e.isDir;
     case IsSymlinkRole: return e.isSymlink;
     case IsHiddenRole: return e.isHidden;
+    case GroupRole: return groupOf(e);
     default: return {};
     }
 }
@@ -174,6 +176,7 @@ QHash<int, QByteArray> Directory::roleNames() const {
         { IsDirRole, "isDir" },
         { IsSymlinkRole, "isSymlink" },
         { IsHiddenRole, "isHidden" },
+        { GroupRole, "groupName" },
     };
 }
 
@@ -253,6 +256,17 @@ void Directory::setPatterns(const QStringList &patterns) {
     rebuild();
 }
 
+void Directory::setGrouping(Grouping grouping) {
+    if (m_grouping == grouping)
+        return;
+    m_grouping = grouping;
+    emit groupingChanged();
+    // The rows do not change, only the heading each sits under, and rebuild() keeps the model as it
+    // is when the rows match. The view is told the one role that did change.
+    if (!m_rows.isEmpty())
+        emit dataChanged(index(0, 0), index(m_rows.size() - 1, 0), { GroupRole });
+}
+
 void Directory::setFoldersOnly(bool on) {
     if (m_foldersOnly == on)
         return;
@@ -273,6 +287,12 @@ QString Directory::pathAt(int row) const {
 
 bool Directory::isDirAt(int row) const {
     return row >= 0 && row < m_rows.size() && m_rows.at(row).isDir;
+}
+
+QString Directory::groupAt(int row) const {
+    if (row < 0 || row >= m_rows.size())
+        return {};
+    return groupOf(m_rows.at(row));
 }
 
 int Directory::startingWith(const QString &prefix, int from) const {
@@ -420,6 +440,33 @@ void Directory::rebuild() {
     m_rows = std::move(rows);
     endResetModel();
     emit countChanged();
+}
+
+// The heading a row belongs under, in the words Finder uses.
+QString Directory::groupOf(const DirEntry &e) const {
+    switch (m_grouping) {
+    case NoGroups:
+        return {};
+    case ByKindGroups:
+        return e.isDir ? QStringLiteral("Folders") : QMimeDatabase()
+            .mimeTypeForFile(e.name, QMimeDatabase::MatchExtension).comment();
+    case ByDateGroups: {
+        const qint64 days = e.modified.daysTo(QDateTime::currentDateTime());
+        if (days <= 0) return QStringLiteral("Today");
+        if (days == 1) return QStringLiteral("Yesterday");
+        if (days < 7) return QStringLiteral("Previous 7 days");
+        if (days < 30) return QStringLiteral("Previous 30 days");
+        return QLocale().toString(e.modified, QStringLiteral("MMMM yyyy"));
+    }
+    case BySizeGroups:
+        if (e.isDir) return QStringLiteral("Folders");
+        if (e.size == 0) return QStringLiteral("Empty");
+        if (e.size < 100 * 1024) return QStringLiteral("Tiny");
+        if (e.size < 10 * 1024 * 1024) return QStringLiteral("Small");
+        if (e.size < 1024LL * 1024 * 1024) return QStringLiteral("Large");
+        return QStringLiteral("Huge");
+    }
+    return {};
 }
 
 void Directory::setStatus(Status status, const QString &error) {

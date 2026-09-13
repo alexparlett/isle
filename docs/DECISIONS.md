@@ -675,3 +675,88 @@ reloads often, and a drive that vanishes when it does is worse than no
 drive. The launcher's file search excludes the mount root, because walking
 a network filesystem hangs the search and pulls the files down.
 
+An account is always mounted, at every login, so the page carries no
+switch for it and no mount and unmount buttons: nobody signs in to a
+cloud drive in order to have it absent, and the two states a person
+actually wants are the folder being there and the account being gone.
+Nothing tells an application that this folder is not a local disk - GLib's
+list of remote filesystems names sshfs and gvfs, not `fuse.rclone` - so a
+file manager reads the first bytes of every file it lists to sniff its
+type and draw a thumbnail. On the defaults each of those is a download of
+up to 128 MB, and opening one folder of archives stalled the mount for
+over a minute: every reader in the session blocked behind it, the file
+manager included, and the compositor's own not-responding dialog with it.
+So reads are cached on disk, the first chunk of one is a megabyte, a
+cached file is recognised by its size and time rather than by a hash the
+service will not give without the file, and a request that stalls fails in
+thirty seconds rather than rclone's five minutes, and a listing is held
+for an hour, because a folder of several thousand files takes over a
+minute to list and everything that walks the drive pays that again when
+the cache lets go. A mount that stops answering says so on the page and
+offers to restart, because a wedged one cannot be escaped from the
+desktop it has frozen: a process waiting on a FUSE read is in
+uninterruptible sleep, where a kill is queued rather than delivered, and
+only tearing the mount down releases it.
+
+The file manager counts the items in every folder it lists, which it
+does for local files and not for remote ones - and it is told this drive
+is local, since GLib knows one fuse filesystem as remote and that is
+sshfs. So opening the drive made it list all of them, including one of
+6,897 photographs that takes 81 seconds, and it sat unkillable until
+that returned. rclone will not present another subtype, so the mount
+cannot say what it is; the file manager is told not to count items
+instead.
+
+**D65 · A cloud drive is a filesystem the shell owns, not a mount handed
+to the file manager.** Every freeze this cost a day of was a directory
+listing, never a file read: a file manager counts the items in every
+folder it shows, and on a mount of several thousand photographs that is
+eighty-one seconds during which the process sits in uninterruptible
+sleep, where a kill is queued and never delivered. Thunar and Dolphin
+both do it, so it is not a file manager to be swapped or a preference to
+be turned off - the listing has to stop costing anything.
+
+So the drive is two mounts. rclone's own, private, where the transport
+lives and no file manager ever looks; and over it a filesystem of ours
+that answers every listing and every stat from a local index and passes
+reads and writes through. A listing becomes a query against SQLite, so a
+manager that walks a folder four times pays four microseconds, and the
+behaviour that broke everything is simply free rather than suppressed.
+Owning the filesystem also buys the guarantee nothing else could: a
+passed-through operation has a deadline, and a stalled backend returns an
+error rather than leaving the caller unkillable.
+
+What the index makes possible is the rest of it: a file is listed with
+its true name, size and date while its content is still in the cloud,
+fetched when something opens it, kept when a person pins it and evicted
+by age against a budget, which is how a drive of terabytes sits on a disk
+that holds a fraction of it. The state of each file reaches the file
+manager as it is: `metadata::emblems` for the GTK ones, which read it
+without a plugin, and an overlay plugin for Dolphin. The drive is in the
+sidebar rather than among the bookmarks - Solid already knows
+`fuse.rclone` is a network share, and gvfs takes a volume monitor of our
+own, which GLib needs because its list of remote filesystems is sshfs and
+nothing else.
+
+What it will not do, and what no design on this stack can: the service
+tells us nothing when a file changes elsewhere, so a remote change is
+found by asking rather than by being told; there is no server-side copy,
+so duplicating a file inside the drive is a download and an upload; the
+metadata is read-only, so tags stay local; and no file manager will draw
+a per-file progress pie, which is the island's job instead.
+
+**D66 · A window that says nothing about itself is named by its title, not
+by a stranger.** Quickshell's `heuristicLookup` falls back to a substring
+scan, and every entry contains the empty string, so a window with no
+`app_id` matched whatever the scan reached first: a Rust binary under
+development, titled `jackdaw` and setting no id at all, came up in the
+switcher as Avahi Zeroconf Browser with Avahi's icon. Nothing is looked
+up for a blank id now. The window is named by its title, which is the
+only thing it does say, and carries the generic executable icon; grouped
+under its own address rather than under `""`, so two unrelated
+id-less windows do not merge into one app with a count of two. The same
+blank string was quietly matching elsewhere - `focusApp` treated `""` as
+a substring of every query, and `keeps` and `appFor` resolved it to that
+same stranger's entry - and those are guarded too. Setting an `app_id` is
+still the app's job, and without one there is no icon, no window rule and
+no remembered place; the shell just stops inventing an identity for it.

@@ -8,19 +8,25 @@ so the manifest says which of its backends this provider is.
 `fields` says what this service needs to add an account, taken from rclone's own description of the backend:
 a browser for the ones that authenticate that way, a few values for the ones that do not.
 
-An account is mounted by a systemd user unit, `isle-drive@<remote>.service`, so a mount outlives the shell
-and can start at login. Adding one needs a browser and a prompt, so it runs in a terminal window.
+An account is a filesystem of the shell's own, `drivefs`, run by a systemd user unit,
+`isle-drive@<remote>.service`, so it outlives the shell and comes back at every login: an account is there to
+be a folder, so there is nothing to switch on. Listings come from a local index and contents from the service
+as they are asked for, which is what keeps a file manager from freezing on a folder of several thousand
+files (D65).
 """
 import json, os, re, shutil, subprocess, sys
 
 RCLONE = shutil.which("rclone")
-ROOT = os.path.expanduser("~/Drives")
 UNIT = "isle-drive@%s.service"
-# rclone's own name for a backend, and what a person calls it.
 # What a field is called, where its own name reads badly.
 PRETTY = {"2fa": "2FA", "apple_id": "Apple ID", "mailbox_password": "Mailbox password", "otp_secret_key": "OTP secret"}
 KNOWN = {"protondrive": "Proton Drive", "drive": "Google Drive", "dropbox": "Dropbox",
          "onedrive": "OneDrive", "iclouddrive": "iCloud Drive", "box": "Box", "s3": "S3", "webdav": "WebDAV"}
+ROOT = os.path.expanduser("~/Drives")
+DRIVEFS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drivefs")
+sys.path.insert(0, DRIVEFS)
+import naming  # noqa: E402  - beside this file, under drivefs
+CTL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drivectl.py")
 
 args = sys.argv[1:]
 backend = ""
@@ -30,7 +36,9 @@ cmd = args[0] if args else "status"
 
 
 def run(*a, **kw):
-    return subprocess.run(list(a), capture_output=True, text=True, timeout=kw.get("timeout", 20))
+    # Nothing here asks a question, so stdin is closed: a command that did would hang the shell's actor.
+    return subprocess.run(list(a), capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                          timeout=kw.get("timeout", 20))
 
 
 def remotes():
@@ -46,17 +54,39 @@ def remotes():
     for name, cfg in sorted(conf.items()):
         if backend and cfg.get("type") != backend:
             continue
-        out.append({"name": name, "type": cfg.get("type", ""), "mounted": mounted(name), "at": os.path.join(ROOT, name)})
+        out.append({"name": name, "type": cfg.get("type", ""), "mounted": mounted(name),
+                    "at": at_of(name)})
     return out
 
 
-def mounted(name):
-    at = os.path.join(ROOT, name)
+def responsive(at):
+    """Whether the mount answers at all. A stalled one blocks every reader in the session, so it is asked
+    in a process that can be given up on rather than in this one."""
     try:
-        with open("/proc/self/mountinfo") as f:
-            return any(" " + at + " " in line for line in f)
+        return subprocess.run(["ls", "-1", at], capture_output=True, stdin=subprocess.DEVNULL,
+                              timeout=5).returncode == 0
+    except subprocess.TimeoutExpired:
+        return False
     except OSError:
         return False
+
+
+def mounted(name):
+    return any(" " + at_of(name) + " " in line for line in open("/proc/self/mountinfo"))
+
+
+def at_of(name):
+    """Where the account's folder is: named for the service, since that is what the sidebar shows."""
+    return naming.at(name)
+
+
+def held(name):
+    """What of the account is on this disk, as its filesystem counts it."""
+    p = run("python3", CTL, "status", os.path.basename(at_of(name)), timeout=30)
+    try:
+        return json.loads(p.stdout or "{}")
+    except ValueError:
+        return {}
 
 
 def unit_state(name):
@@ -65,31 +95,43 @@ def unit_state(name):
 
 
 def write_unit():
-    """The unit that mounts one account, written once, named by the remote."""
+    """The unit that runs one account's filesystem. True when the file changed."""
     d = os.path.expanduser("~/.config/systemd/user")
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, "isle-drive@.service")
-    text = """# Written by Isle's drives provider. One mount per account, named by its rclone remote.
+    text = """# Written by Isle's drives provider. One filesystem per account, named by its rclone remote.
 [Unit]
-Description=Isle drive mount for %i
+Description=Isle drive for %%i
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=notify
-ExecStartPre=/usr/bin/mkdir -p %h/Drives/%i
-ExecStart=/usr/bin/rclone mount %i: %h/Drives/%i --vfs-cache-mode writes --dir-cache-time 30s --poll-interval 1m --umask 077
-ExecStop=/bin/fusermount3 -uz %h/Drives/%i
+Type=simple
+ExecStart=/usr/bin/python3 %s %%i
 Restart=on-failure
 RestartSec=10
 
 [Install]
 WantedBy=default.target
-"""
-    if not os.path.exists(path) or open(path).read() != text:
-        open(path, "w").write(text)
-        run("systemctl", "--user", "daemon-reload")
-    return path
+""" % DRIVEFS
+    if os.path.exists(path) and open(path).read() == text:
+        return False
+    open(path, "w").write(text)
+    run("systemctl", "--user", "daemon-reload")
+    return True
+
+
+def start(name):
+    """Serve it and mount it now, and at every login: an account is there to be a folder."""
+    changed = write_unit()
+    what = "restart" if changed and unit_state(name) == "active" else "start"
+    p = run("systemctl", "--user", "enable", UNIT % name, timeout=60)
+    if p.returncode == 0:
+        p = run("systemctl", "--user", what, UNIT % name, timeout=120)
+    if p.returncode != 0:
+        sys.stderr.write((p.stderr.strip().split("\n")[-1] or "The drive would not start") + "\n")
+        return p.returncode
+    return 0
 
 
 def fields():
@@ -122,6 +164,13 @@ def fields():
     return {"fields": wanted, "browser": browser and not [f for f in wanted if f["required"]], "error": ""}
 
 
+def size(n):
+    for unit in ("bytes", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return "%d %s" % (n, unit) if unit == "bytes" else "%.1f %s" % (n, unit)
+        n /= 1024.0
+
+
 def service_name():
     return KNOWN.get(backend, backend or "Cloud drive")
 
@@ -141,7 +190,8 @@ elif cmd == "status":
         out["ready"] = True
         out["state"] = ("%d account%s" % (len(accounts), "" if len(accounts) == 1 else "s")) if accounts \
             else "No account yet"
-        out["actions"] = [{"id": "add", "label": "Add account", "terminal": True, "primary": not accounts},
+        # `add` takes the values Settings collected on stdin; `browser` hands the consent flow a terminal.
+        out["actions"] = [{"id": "browser", "label": "Sign in", "terminal": True},
                           {"id": "refresh", "label": "Look again"}]
     print(json.dumps(out))
 
@@ -149,18 +199,29 @@ elif cmd == "list":
     out = {"items": [], "error": ""}
     for r in remotes():
         state = unit_state(r["name"])
-        where = r["at"].replace(os.path.expanduser("~"), "~")
-        sub = ("Mounted at " + where) if r["mounted"] else ("Starting" if state == "activating" else "Not mounted")
-        acts = ([{"id": "open", "label": "Open"}, {"id": "unmount", "label": "Unmount"}]
-                if r["mounted"] else [{"id": "mount", "label": "Mount", "primary": True}])
-        acts.append({"id": "atlogin", "label": "At login", "on": run("systemctl", "--user", "is-enabled", UNIT % r["name"]).stdout.strip() == "enabled"})
+        # An account is always mounted, so the only thing to say about one is that it is, or why it is not.
+        if r["mounted"] and responsive(r["at"]):
+            it = held(r["name"])
+            where = r["at"].replace(os.path.expanduser("~"), "~")
+            sub = where
+            if it.get("files"):
+                sub += "  ·  %s of %s kept here" % (size(it.get("cached_bytes", 0)), size(it.get("described", 0)))
+            acts = [{"id": "open", "label": "Open"}]
+        elif r["mounted"]:
+            sub = "Not responding"
+            acts = [{"id": "restart", "label": "Restart", "primary": True}]
+        else:
+            sub = {"activating": "Connecting", "failed": "Would not start",
+                   "inactive": "Not mounted"}.get(state, "Connecting")
+            acts = [{"id": "mount", "label": "Try again", "primary": True}]
         acts.append({"id": "forget", "label": "Remove", "danger": True})
         out["items"].append({"id": r["name"], "title": r["name"], "subtitle": sub, "actions": acts})
     print(json.dumps(out))
 
 elif cmd == "action":
     what = args[1] if len(args) > 1 else ""
-    data = sys.stdin.read().strip()
+    # An action run in a terminal has a person's keyboard on stdin: its input arrives as an argument instead.
+    data = args[2] if len(args) > 2 else ("" if sys.stdin.isatty() else sys.stdin.read().strip())
     name = data.split("\n")[0].strip()
     if what == "add":
         # The values the sheet collected, as JSON: { name, values }. A service that authenticates in a browser
@@ -177,35 +238,35 @@ elif cmd == "action":
         for k, v in (asked.get("values") or {}).items():
             if str(v).strip():
                 pairs += [str(k), str(v)]
-        p = run(RCLONE, "config", "create", name, backend or "webdav", *pairs, "--obscure", timeout=180)
+        p = run(RCLONE, "config", "create", name, backend or "webdav", *pairs, "--obscure", timeout=60)
         if p.returncode != 0:
             sys.stderr.write((p.stderr.strip().split("\n")[-1] or "rclone would not add it") + "\n")
-        sys.exit(p.returncode)
+            sys.exit(p.returncode)
+        sys.exit(start(name))
     if what == "browser":
         # The consent page: rclone runs its own flow, which needs a terminal to say what it is doing.
-        name = data.split("\n")[0].strip() or backend
-        os.execvp(RCLONE, [RCLONE, "config", "create", name, backend or "webdav"])
+        if not re.match(r"^[A-Za-z0-9_-]+$", name):
+            sys.stderr.write("A name of letters, digits, dashes or underscores\n")
+            sys.exit(2)
+        p = subprocess.run([RCLONE, "config", "create", name, backend or "webdav"])
+        if p.returncode != 0:
+            sys.exit(p.returncode)
+        sys.exit(start(name))
     if what == "refresh":
         sys.exit(0)
     if not name:
         sys.stderr.write("No account named\n")
         sys.exit(2)
     if what == "mount":
+        sys.exit(start(name))
+    if what == "restart":
         write_unit()
-        p = run("systemctl", "--user", "start", UNIT % name, timeout=60)
+        p = run("systemctl", "--user", "restart", UNIT % name, timeout=120)
         if p.returncode != 0:
-            sys.stderr.write((p.stderr.strip().split("\n")[-1] or "The mount would not start") + "\n")
+            sys.stderr.write((p.stderr.strip().split("\n")[-1] or "The mount would not restart") + "\n")
         sys.exit(p.returncode)
-    if what == "unmount":
-        p = run("systemctl", "--user", "stop", UNIT % name, timeout=60)
-        sys.exit(p.returncode)
-    if what == "atlogin":
-        on = run("systemctl", "--user", "is-enabled", UNIT % name).stdout.strip() == "enabled"
-        write_unit()
-        run("systemctl", "--user", "disable" if on else "enable", UNIT % name)
-        sys.exit(0)
     if what == "open":
-        subprocess.Popen(["xdg-open", os.path.join(ROOT, name)], start_new_session=True,
+        subprocess.Popen(["xdg-open", at_of(name)], start_new_session=True,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         sys.exit(0)
     if what == "forget":

@@ -66,7 +66,16 @@ PanelWindow {
     }
 
     Rectangle { anchors.fill: parent; color: Qt.alpha(Theme.ink, 0.4) }
-    MouseArea { anchors.fill: parent; onClicked: if (root.request) root.request.reject() }
+
+    // The click that opened the dialog can still be in flight when the surface appears, and a
+    // backdrop that answers it closes the dialog the moment it is up. The backdrop only listens
+    // once the surface has settled.
+    Timer { id: settled; interval: 400; running: root.visible }
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.visible && !settled.running
+        onClicked: if (root.request) root.request.reject()
+    }
 
     Glass {
         id: card

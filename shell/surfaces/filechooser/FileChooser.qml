@@ -146,7 +146,7 @@ PanelWindow {
                 }
             }
 
-            FileView {
+            FolderView {
                 id: list
                 Layout.fillWidth: true
                 Layout.fillHeight: true

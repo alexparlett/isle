@@ -12,7 +12,7 @@ import qs.services
 FocusScope {
     id: root
     required property Directory directory
-    // "list" or "grid".
+    // "list", "columns" or "grid".
     property string mode: "list"
     // Whether a file is opened where it lands. A chooser takes it as the choice instead.
     property bool openFiles: true
@@ -23,8 +23,13 @@ FocusScope {
 
     property int index: 0
 
-    readonly property bool hasSelection: index >= 0 && index < directory.count && !directory.isDirAt(index)
-    readonly property string currentPath: hasSelection ? directory.pathAt(index) : ""
+    // Columns pick by path; the other two pick by row. Either way it is one selection to the caller.
+    readonly property bool hasSelection: mode === "columns"
+        ? (columns.selected !== "" && !columns.selectedIsDir)
+        : (index >= 0 && index < directory.count && !directory.isDirAt(index))
+    readonly property string currentPath: mode === "columns"
+        ? (columns.selectedIsDir ? "" : columns.selected)
+        : (hasSelection ? directory.pathAt(index) : "")
     readonly property int nameWidth: Math.max(220, width - 320)
 
     function open(row) {
@@ -284,12 +289,23 @@ FocusScope {
                 }
             }
 
-            Scrollbar { target: root.mode === "grid" ? grid : list }
+            Scrollbar { target: root.mode === "grid" ? grid : list; visible: root.mode !== "columns" }
+
+            FileColumns {
+                id: columns
+                anchors.fill: parent
+                visible: root.mode === "columns"
+                enabled: visible
+                rootPath: root.directory.path
+                showHidden: root.directory.showHidden
+                onActivated: path => root.activated(path)
+                onChosen: path => root.openFiles ? Compositor.exec("xdg-open " + JSON.stringify(path)) : root.chosen(path)
+            }
 
             // Nothing to show, and why.
             Label {
                 anchors.centerIn: parent
-                visible: root.directory.status === Directory.Ready && root.directory.count === 0
+                visible: root.mode !== "columns" && root.directory.status === Directory.Ready && root.directory.count === 0
                 color: Theme.text3
                 text: root.directory.total === 0 ? "This folder is empty" : "Nothing here matches"
             }

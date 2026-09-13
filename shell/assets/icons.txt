@@ -36,6 +36,7 @@ credit-card
 crop
 database-backup
 download
+eject
 eye
 eye-off
 fan
@@ -47,6 +48,7 @@ gamepad-2
 globe
 hard-drive
 headphones
+house
 image
 info
 joystick
@@ -97,6 +99,7 @@ skip-forward
 sliders-horizontal
 smartphone
 square
+star
 sticker
 sticky-note
 sun

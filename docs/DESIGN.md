@@ -527,10 +527,14 @@ Network tabs each show every process in that tab's columns with a strip
 of the system's totals beneath; Sensors holds temperatures, fans and the
 GPU. The dashboard's System widget already has the live graphs, so the
 window does not repeat them.
-Files is a 56px toolbar over the folder: back, forward and up at the
-left, then the trail as buttons, which scrolls to keep its tail in view
-and whose last crumb is where you are and does nothing; a search field
-and the sort at the right. Beneath it the folder as rows of name, size
+Files is a 190px sidebar of places on the left and the folder on the
+right. The places are grouped Places, Bookmarks and Devices (D69), each
+row a Lucide glyph and a name, the one being shown marked; a device
+carries an eject on the row rather than in a menu. Over the folder is a
+56px toolbar: back, forward and up at the left, then the trail as buttons,
+which scrolls to keep its tail in view and whose last crumb is where you
+are and does nothing; then a star that bookmarks where you are, the view
+switch, and a search field. Beneath it the folder as rows of name, size
 and modified, 30px each, with a header that sorts on a click and turns
 its direction over on a second. Folders lead every sort in both
 directions, and a name sorts the way a person reads a number, so file2
@@ -539,7 +543,15 @@ which is taken from its name: a file with no extension gets the generic
 one rather than a read of its contents. A footer says how many items are
 there, or how many a search matched.
 
-List and Grid switch beside the search field, or on Ctrl+1 and Ctrl+2.
+List, Columns and Grid switch beside the search field, or on Ctrl+1,
+Ctrl+2 and Ctrl+3.
+
+Columns are Finder's: the folder in the leftmost, what is picked in it in
+the next, and so on rightwards, each column a 220px list with a chevron on
+every folder. The folder whose contents the next column shows stays
+marked, so the way down can be read from left to right, and picking
+something further left drops the columns to its right. A double click
+opens a folder outright, which starts the columns again from there.
 The grid is 116px cells: a picture or a film shows itself, anything else
 shows its icon, and the name sits under it over at most two lines. A
 thumbnail is the shared one every desktop tool writes (D68), so a folder

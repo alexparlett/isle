@@ -720,3 +720,14 @@ That only works if a listing notices a file being written, and Qt's
 directory watcher does not: it reports entries coming and going, which is
 half of what a row says. The model watches with inotify itself, for writes
 and attribute changes as well as entries.
+
+**D69 · A bookmark is GTK's bookmark.** Places down the left are three
+groups: the folders this machine says are the person's, taken from
+QStandardPaths so a machine with its own `user-dirs.dirs` is followed;
+what they have bookmarked; and what is plugged in, from the Disks service
+that already knows. The bookmarks are read and written at
+`~/.config/gtk-3.0/bookmarks`, the file GTK uses, rather than a list of
+Isle's own. Somebody who bookmarks a folder here finds it bookmarked in
+every GTK file dialog they have not yet replaced, and the ones they made
+before Isle are already there. It costs nothing: the format is a uri and
+an optional name to the line.

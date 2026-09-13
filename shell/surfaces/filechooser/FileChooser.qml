@@ -146,7 +146,7 @@ PanelWindow {
                 }
             }
 
-            DetailList {
+            FileView {
                 id: list
                 Layout.fillWidth: true
                 Layout.fillHeight: true

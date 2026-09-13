@@ -3,9 +3,9 @@
 #include <QAbstractListModel>
 #include <QCollator>
 #include <QDateTime>
-#include <QFileSystemWatcher>
 #include <QFutureWatcher>
 #include <QQmlEngine>
+#include <QSocketNotifier>
 #include <QRegularExpression>
 #include <QString>
 #include <QTimer>
@@ -130,7 +130,14 @@ private:
     QFutureWatcher<QVector<DirEntry>> m_watcher;
     quint64 m_watchedGeneration = 0;
 
-    QFileSystemWatcher m_fsWatcher;
+    // Qt's own watcher reports a directory's entries coming and going but not a file in it being
+    // written, which is half of what a listing shows. inotify on the directory reports both.
+    void watch(const QString &path);
+    void unwatch();
+    int m_inotify = -1;
+    int m_watch = -1;
+    QSocketNotifier *m_notifier = nullptr;
+
     QTimer m_settle;
     QCollator m_collator;
 };

@@ -64,6 +64,8 @@ FloatingWindow {
     Shortcut { sequence: "Ctrl+H"; onActivated: dir.showHidden = !dir.showHidden }
     Shortcut { sequences: [StandardKey.Refresh]; onActivated: dir.refresh() }
     Shortcut { sequence: "Ctrl+F"; onActivated: search.input.forceActiveFocus() }
+    Shortcut { sequences: ["Ctrl+1"]; onActivated: view.mode = "list" }
+    Shortcut { sequences: ["Ctrl+2"]; onActivated: view.mode = "grid" }
 
     ColumnLayout {
         anchors.fill: parent
@@ -116,19 +118,25 @@ FloatingWindow {
                     }
                 }
 
+                Segmented {
+                    options: [["list", "List"], ["grid", "Grid"]]
+                    value: view.mode
+                    onPicked: v => view.mode = v
+                }
+
                 Field {
                     id: search
                     Layout.preferredWidth: 200
                     glyph: "search"
                     placeholder: "Search this folder"
                     onTextChanged: dir.filter = text
-                    input.Keys.onEscapePressed: { text = ""; list.forceActiveFocus(); }
+                    input.Keys.onEscapePressed: { text = ""; view.forceActiveFocus(); }
                 }
             }
         }
 
-        DetailList {
-            id: list
+        FileView {
+            id: view
             Layout.fillWidth: true
             Layout.fillHeight: true
             directory: dir

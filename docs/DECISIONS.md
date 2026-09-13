@@ -697,3 +697,26 @@ dashboard.
 `SaveFiles` asks for a folder and names what goes in it, so it is the
 directory chooser with the names joined on at the end rather than a third
 kind of dialog.
+
+**D68 · A thumbnail is a file in the shared cache, not something the shell
+hands out.** The obvious shape is a QML image provider, which turned out
+not to be reachable: the url resolves against an engine the module cannot
+get at, and every request came back "invalid image provider". The shape
+that works is also the better one. A thumbnail is written to
+`~/.cache/thumbnails` under the name the freedesktop spec gives it — the
+md5 of the file's uri — with the uri and the source's mtime in the png, so
+what another application already made is used as it stands and what this
+makes outlives the shell. A view then loads an ordinary file url.
+
+Validity is asked of every row on screen, so it is read from the png's
+text chunks directly rather than through QImageReader, whose `text()` is
+empty until the image itself has been decoded; that mistake made every
+thumbnail look stale and rebuilt the lot on every visit to a folder. The
+mtime it is compared against comes from the row being drawn rather than
+from a fresh stat, which costs nothing and makes a file written since a
+different question that the view asks on its own.
+
+That only works if a listing notices a file being written, and Qt's
+directory watcher does not: it reports entries coming and going, which is
+half of what a row says. The model watches with inotify itself, for writes
+and attribute changes as well as entries.

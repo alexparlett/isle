@@ -7,6 +7,8 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <sys/inotify.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 namespace {
@@ -85,13 +87,42 @@ Directory::Directory(QObject *parent) : QAbstractListModel(parent) {
     m_settle.setSingleShot(true);
     m_settle.setInterval(150);
     connect(&m_settle, &QTimer::timeout, this, &Directory::startScan);
-    connect(&m_fsWatcher, &QFileSystemWatcher::directoryChanged, this, [this] { m_settle.start(); });
     connect(&m_watcher, &QFutureWatcher<QVector<DirEntry>>::finished, this, &Directory::scanFinished);
+
+    m_inotify = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+    if (m_inotify >= 0) {
+        m_notifier = new QSocketNotifier(m_inotify, QSocketNotifier::Read, this);
+        connect(m_notifier, &QSocketNotifier::activated, this, [this] {
+            char buffer[4096];
+            while (read(m_inotify, buffer, sizeof(buffer)) > 0) { }
+            m_settle.start();
+        });
+    }
 }
 
 Directory::~Directory() {
     m_watcher.disconnect();
     m_watcher.waitForFinished();
+    unwatch();
+    if (m_inotify >= 0)
+        close(m_inotify);
+}
+
+void Directory::watch(const QString &path) {
+    unwatch();
+    if (m_inotify < 0)
+        return;
+    // Everything that changes what a row says: an entry appearing or going, and a file being
+    // written, renamed or having its permissions changed.
+    m_watch = inotify_add_watch(m_inotify, QFile::encodeName(path).constData(),
+                                IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_MOVE_SELF |
+                                IN_DELETE_SELF | IN_CLOSE_WRITE | IN_ATTRIB);
+}
+
+void Directory::unwatch() {
+    if (m_inotify >= 0 && m_watch >= 0)
+        inotify_rm_watch(m_inotify, m_watch);
+    m_watch = -1;
 }
 
 int Directory::rowCount(const QModelIndex &parent) const {
@@ -212,8 +243,7 @@ int Directory::rowOf(const QString &name) const {
 void Directory::startScan() {
     m_settle.stop();
 
-    if (!m_fsWatcher.directories().isEmpty())
-        m_fsWatcher.removePaths(m_fsWatcher.directories());
+    unwatch();
 
     if (m_path.isEmpty()) {
         m_all.clear();
@@ -251,7 +281,7 @@ void Directory::scanFinished() {
     setStatus(Ready);
 
     if (!m_path.isEmpty())
-        m_fsWatcher.addPath(m_path);
+        watch(m_path);
 }
 
 void Directory::rebuild() {

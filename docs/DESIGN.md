@@ -537,8 +537,19 @@ directions, and a name sorts the way a person reads a number, so file2
 comes before file10. The icon is the icon theme's for the file's type,
 which is taken from its name: a file with no extension gets the generic
 one rather than a read of its contents. A footer says how many items are
-there, or how many a search matched. The folder is watched, so a file
-written into it appears without asking.
+there, or how many a search matched.
+
+List and Grid switch beside the search field, or on Ctrl+1 and Ctrl+2.
+The grid is 116px cells: a picture or a film shows itself, anything else
+shows its icon, and the name sits under it over at most two lines. A
+thumbnail is the shared one every desktop tool writes (D68), so a folder
+of photos opened once is instant afterwards and photos another program
+has already thumbnailed are instant the first time.
+
+The folder is watched, so a file written into it appears without asking,
+and one written over is redrawn: the size, the time and the thumbnail all
+follow. A file whose name says nothing about its type — no ending at all —
+is read far enough to know what it is, but only for the rows on screen.
 
 The Keychain lists the system keyring under category chips (logins,
 Wi-Fi, browser, apps) and the SSH keys under their own: the keys in

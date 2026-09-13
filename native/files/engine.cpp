@@ -23,6 +23,22 @@ QString Engine::iconNameFor(const QString &path) const {
     return name.isEmpty() ? QStringLiteral("text-x-generic") : name;
 }
 
+bool Engine::isGenericIcon(const QString &iconName) const {
+    return iconName == QLatin1String("application-octet-stream") || iconName == QLatin1String("text-x-generic");
+}
+
+QString Engine::sniffIconName(const QString &path) const {
+    const auto cached = m_sniffed.constFind(path);
+    if (cached != m_sniffed.cend())
+        return *cached;
+
+    QMimeDatabase db;
+    const QString name = db.mimeTypeForFile(path, QMimeDatabase::MatchDefault).iconName();
+    const QString icon = name.isEmpty() ? QStringLiteral("text-x-generic") : name;
+    m_sniffed.insert(path, icon);
+    return icon;
+}
+
 QString Engine::parentOf(const QString &path) const {
     if (path.isEmpty() || path == QLatin1String("/"))
         return QStringLiteral("/");

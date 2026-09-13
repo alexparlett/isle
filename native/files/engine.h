@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDateTime>
+#include <QHash>
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
@@ -24,6 +25,11 @@ public:
     // The name alone decides it, so a listing costs no reads; a file with no extension is
     // application-octet-stream whatever is inside it.
     Q_INVOKABLE QString iconNameFor(const QString &path) const;
+    // The same question answered by reading the file rather than trusting its name, for the handful
+    // of rows on screen whose name said nothing. Answers are kept, since a view asks repeatedly.
+    Q_INVOKABLE QString sniffIconName(const QString &path) const;
+    // What iconNameFor gives a file whose name says nothing, so a view knows when to ask again.
+    Q_INVOKABLE bool isGenericIcon(const QString &iconName) const;
 
     // Path arithmetic, so no view has to do string surgery. parentOf the root is the root.
     Q_INVOKABLE QString parentOf(const QString &path) const;
@@ -36,4 +42,7 @@ public:
 
     Q_INVOKABLE QString formatSize(qint64 bytes) const;
     Q_INVOKABLE QString formatModified(const QDateTime &when) const;
+
+private:
+    mutable QHash<QString, QString> m_sniffed;
 };

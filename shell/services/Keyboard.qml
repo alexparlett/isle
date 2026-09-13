@@ -275,8 +275,22 @@ Singleton {
     // The Mac profile: Cmd+key reaches apps as Ctrl+key, except the chords the shell owns, which stay Super.
     function xremapChord(hypr) {
         // "SUPER + SHIFT + 4" -> "Super-Shift-4"
-        const keys = { Print: "SysRq", Return: "Enter", grave: "grave" };
-        return hypr.split("+").map(s => s.trim()).map(p => ({ SUPER: "Super", SHIFT: "Shift", CTRL: "C", ALT: "Alt" })[p] || keys[p] || p.toLowerCase()).join("-");
+        return chordOf(hypr, false);
+    }
+    // The two sides of a rule speak different layouts. What a person presses is read through their keyboard's
+    // own, where a Macintosh variant puts grave on the key beside the left Shift; what is emitted is read by
+    // the compositor, which matches its binds through the layout without that variant, where grave is the key
+    // left of the 1. A rule that names the same key on both sides waits on one and fires the other.
+    function pressedChord(hypr) { return chordOf(hypr, true); }
+    function chordOf(hypr, pressed) {
+        const keys = { Print: "SysRq", Return: "Enter" };
+        const moved = pressed && macVariantLua() ? { grave: "102nd" } : {};
+        return hypr.split("+").map(s => s.trim()).map(p => {
+            const mod = ({ SUPER: "Super", SHIFT: "Shift", CTRL: "C", ALT: "Alt" })[p];
+            if (mod) return mod;
+            const k = keys[p] || p.toLowerCase();
+            return moved[k] || k;
+        }).join("-");
     }
     // The Mac preset: shell/keymap.json says what each modifier means, `prefs.keyTranslations` overrides an
     // entry and an empty one drops it. Nothing about meaning is written in this file.
@@ -305,12 +319,12 @@ Singleton {
         // A rule for a chord with fewer modifiers otherwise catches one with more: Option+Left took
         // Cmd+Option+Left. A shell chord is written through as itself first, and order decides. Only chords
         // whose keys xremap knows by the same name are written, since one it cannot parse voids the file.
-        const safe = /^(Super|Shift|C|Alt)(-(Super|Shift|C|Alt))*-([a-z0-9]|left|right|up|down|grave|space|tab|Enter|backspace|delete|home|end|SysRq|minus|equal|comma|dot|slash|semicolon|apostrophe|backslash)$/;
+        const safe = /^(Super|Shift|C|Alt)(-(Super|Shift|C|Alt))*-([a-z0-9]|left|right|up|down|grave|102nd|space|tab|Enter|backspace|delete|home|end|SysRq|minus|equal|comma|dot|slash|semicolon|apostrophe|backslash)$/;
         for (const a of actions) {
             const own = a.macHypr || a.hypr;
             if (!own || a.range) continue;
-            const c = xremapChord(own);
-            if (safe.test(c)) remap[c] = c;
+            const c = xremapChord(own), pressed = pressedChord(own);
+            if (safe.test(c) && safe.test(pressed)) remap[pressed] = c;
         }
         for (const k of keys) {
             for (const mods of ["Super-", "Super-Shift-"]) {
@@ -324,8 +338,8 @@ Singleton {
         // Super and an arrow.
         for (const a of actions) {
             if (!a.macRemap || !a.hypr) continue;
-            if (a.range) for (let n = 1; n <= a.range; n++) remap[xremapChord(a.macRemap.replace("{n}", n))] = xremapChord(a.hypr.replace("{n}", n));
-            else remap[xremapChord(a.macRemap)] = xremapChord(a.hypr);
+            if (a.range) for (let n = 1; n <= a.range; n++) remap[pressedChord(a.macRemap.replace("{n}", n))] = xremapChord(a.hypr.replace("{n}", n));
+            else remap[pressedChord(a.macRemap)] = xremapChord(a.hypr);
         }
         // What Cmd, Ctrl and Option mean in a text field on macOS, from the preset.
         Object.assign(remap, macPreset.text, macPreset.control);

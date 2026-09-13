@@ -619,3 +619,10 @@ entry through `prefs.keyTranslations`. Ctrl now carries the line editor's
 chords, with a terminal passing them through so readline still works,
 and Cmd+A selects the buffer there instead.
 
+A keyboard's layout reaches typing but not binds: the compositor takes a
+per-device variant for what a key types and its own configured layout for
+what a chord means. So the Mac profile's rules are asymmetric, matching
+the key under the keyboard's variant and emitting the key under the
+compositor's. Cmd and the backtick was the case that showed it, since that
+is the one key the Macintosh variant moves.
+

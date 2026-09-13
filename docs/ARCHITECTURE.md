@@ -422,6 +422,13 @@ the app as `CTRL`.**
   With no Mac keyboard the file holds an empty keymap rather than a
   stand-in device name, which would aim the whole profile at a keyboard
   nobody has and read as the remaps being broken (D58).
+- A rule's two sides speak different layouts. What a person presses is read
+  through their own keyboard's, where the Macintosh variant puts grave on
+  the key beside the left Shift; what the rule emits is read by the
+  compositor, which matches binds through the layout without that variant,
+  where grave is the key left of the 1. `xkbcli compile-keymap --layout gb
+  --variant mac` shows the difference. A rule naming the same key on both
+  sides waits on a key nobody presses and fires one nobody meant (D58).
 - Selecting text is the same translation as moving through it, and every
   one of those chords would otherwise reach the compositor as a window
   chord: Cmd+Shift+Left/Right → Shift+Home/End, Cmd+Shift+Up/Down →

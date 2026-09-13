@@ -56,6 +56,7 @@ words   # and completes words from the dictionary
 # Files
 yazi
 thunar
+thunar-archive-plugin
 thunar-volman
 mousepad
 gvfs

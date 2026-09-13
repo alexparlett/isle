@@ -109,9 +109,25 @@ FileChooserRequest::FileChooserRequest(const QDBusMessage &call, const QString &
 
     for (const PortalFilter &filter : std::as_const(m_rules)) {
         QStringList patterns;
-        for (const FilterRule &rule : filter.rules)
+        QStringList endings;
+        for (const FilterRule &rule : filter.rules) {
             patterns.append(rule.value);
+            // "*.tar.gz" is ".tar.gz". A rule that is not a glob on an ending has none to show.
+            if (rule.type == 0 && rule.value.startsWith(QLatin1String("*."))) {
+                const QString ending = rule.value.mid(1).toLower();
+                if (!ending.contains(QLatin1Char('*')) && !endings.contains(ending))
+                    endings.append(ending);
+            }
+        }
+        // The ending is what a person is choosing between; the application's prose is the fallback
+        // for a filter that has no ending to name, "All files" among them.
+        QString label = filter.name;
+        if (!endings.isEmpty()) {
+            label = endings.size() > 3 ? endings.mid(0, 3).join(QStringLiteral(", ")) + QStringLiteral(" …")
+                                       : endings.join(QStringLiteral(", "));
+        }
         m_filters.append(QVariantMap { { QStringLiteral("name"), filter.name },
+                                       { QStringLiteral("label"), label },
                                        { QStringLiteral("patterns"), patterns } });
     }
 }

@@ -16,9 +16,19 @@ PanelWindow {
     visible: FileChooserPortal.current !== null
 
     readonly property var request: FileChooserPortal.current
-    readonly property int filterIndex: filters.value
+    // Which of the request's filters is chosen; the dropdowns below are two placements of one choice.
+    property int filterIndex: 0
+
     readonly property bool canAccept: request
         && (request.directory || (request.save ? nameField.text.trim() !== "" : list.hasSelection))
+
+    // One choice, two placements: beside the name when saving, at the foot of the card when opening.
+    component FileTypes: Dropdown {
+        listWidth: 200
+        value: root.filterIndex
+        options: root.request ? root.request.filters.map((f, i) => [i, f.label]) : []
+        onPicked: v => root.filterIndex = v
+    }
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "isle-filechooser"
@@ -32,7 +42,7 @@ PanelWindow {
         if (!request) return;
         dir.path = request.folder;
         dir.foldersOnly = request.directory;
-        filters.value = request.filters.length ? 0 : -1;
+        filterIndex = request.filters.length ? 0 : -1;
         nameField.text = request.currentName;
         if (request.save) nameField.input.forceActiveFocus();
         else list.forceActiveFocus();
@@ -158,22 +168,15 @@ PanelWindow {
                     placeholder: "File name"
                     onAccepted: root.accept()
                 }
+                // The type belongs beside the name it decides the ending of, not down by Cancel.
+                FileTypes { visible: root.request && root.request.filters.length > 0 }
             }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.s2
-                Dropdown {
-                    id: filters
-                    visible: root.request && root.request.filters.length > 0
-                    listWidth: 240
-                    value: 0
-                    options: {
-                        if (!root.request) return [];
-                        return root.request.filters.map((f, i) => [i, f.name]);
-                    }
-                    onPicked: v => filters.value = v
-                }
+                // Opening has no name field for the type to sit beside, so it keeps the foot of the card.
+                FileTypes { visible: root.request && !root.request.save && root.request.filters.length > 0 }
                 Item { Layout.fillWidth: true }
                 Button { text: "Cancel"; onClicked: if (root.request) root.request.reject() }
                 Button {

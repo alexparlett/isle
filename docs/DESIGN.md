@@ -233,8 +233,12 @@ Escape closes whatever is up.
 - **File chooser** — what an application gets when it asks for a file
   (D67): a glass card up to 880×620 with the application's own title, the
   trail and a search field over the same folder list Files uses, and
-  Cancel and Open at the foot. Saving adds a name field above them and the
-  file type beside them, and the list narrows to what that type matches.
+  Cancel and Open at the foot. Saving adds a name field above them with the
+  file type beside it, since the type is what the ending of that name will
+  be; the list narrows to what the type matches. A type is named by its
+  ending, ".pdf" rather than the application's "PDF documents", up to three
+  of them for a type that takes several, and by the application's own words
+  only where there is no ending to show.
   Asked for a folder, it offers the one it is showing. It is the one
   full-screen surface that does not close the others.
 - **Lock** — wallpaper blurred and dimmed; the island grows into a 28px

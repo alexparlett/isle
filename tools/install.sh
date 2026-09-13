@@ -61,11 +61,13 @@ fi
 # path the session exports (D66). Without it the file manager and the file chooser are absent; the rest
 # of the shell runs.
 if command -v cmake >/dev/null; then
-    # A tree configured against an older source list keeps that list's moc output, and links a library
-    # missing the vtables of whatever was added since. Mtimes cannot tell: rsync gives the copy the
-    # mtime of the checkout, which is older than a cache this machine wrote. So the file is hashed.
+    # Mtimes cannot decide what to rebuild here: rsync gives the copy the checkout's mtime, which is
+    # older than the objects this machine already built, so ninja sees a changed source as up to date
+    # and a changed source list keeps the moc output of the old one. The sources are hashed instead,
+    # and any difference builds the lot; there are four files and it takes seconds.
     engine_stamp="$REPO/native/files/build/.isle-sources"
-    engine_hash="$(sha256sum "$REPO/native/files/CMakeLists.txt" | cut -d' ' -f1)"
+    engine_hash="$(find "$REPO/native/files" -path "$REPO/native/files/build" -prune -o -type f -print0 |
+                   sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
     if [[ -f "$REPO/native/files/build/CMakeCache.txt" && "$(cat "$engine_stamp" 2>/dev/null)" != "$engine_hash" ]]; then
         rm -rf "$REPO/native/files/build"
     fi

@@ -445,9 +445,10 @@ placeholder says enough. The stroke is 1.5 on Lucide's 24 grid
 
 ## Windows
 
-Three real windows, same material without blur (they sit over other
-windows, not the wallpaper): **Settings**, **Monitor**, **Keychain**. A
-sidebar of sections on the left, content on the right, 15px section titles.
+Four real windows, same material without blur (they sit over other
+windows, not the wallpaper): **Settings**, **Monitor**, **Keychain** and
+**Files**. A sidebar of sections on the left, content on the right, 15px
+section titles.
 Settings keeps a trail of the pages it has shown: back and forward
 buttons beside its title, the mouse's back and forward buttons, and Alt
 with the arrows walk it, the way a browser or Windows Settings does.
@@ -515,6 +516,19 @@ Network tabs each show every process in that tab's columns with a strip
 of the system's totals beneath; Sensors holds temperatures, fans and the
 GPU. The dashboard's System widget already has the live graphs, so the
 window does not repeat them.
+Files is a 56px toolbar over the folder: back, forward and up at the
+left, then the trail as buttons, which scrolls to keep its tail in view
+and whose last crumb is where you are and does nothing; a search field
+and the sort at the right. Beneath it the folder as rows of name, size
+and modified, 30px each, with a header that sorts on a click and turns
+its direction over on a second. Folders lead every sort in both
+directions, and a name sorts the way a person reads a number, so file2
+comes before file10. The icon is the icon theme's for the file's type,
+which is taken from its name: a file with no extension gets the generic
+one rather than a read of its contents. A footer says how many items are
+there, or how many a search matched. The folder is watched, so a file
+written into it appears without asking.
+
 The Keychain lists the system keyring under category chips (logins,
 Wi-Fi, browser, apps) and the SSH keys under their own: the keys in
 `~/.ssh` with fingerprint and agent state, and a form that generates a

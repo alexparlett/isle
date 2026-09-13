@@ -20,6 +20,7 @@ import qs.surfaces.idle
 import qs.windows.settings
 import qs.windows.keychain
 import qs.windows.monitor
+import qs.windows.files
 
 ShellRoot {
     // Singletons are created on first reference; these must exist from the start.
@@ -71,5 +72,9 @@ ShellRoot {
     Settings {}
     Keychain {}
     Monitor {}
+    // Files needs the compiled browsing engine, which is built at install time and can be absent or
+    // stale. Held in a loader rather than declared, so a module that will not load costs Files and
+    // not the desktop.
+    LazyLoader { loading: true; component: Component { Files {} } }
     Component { id: lockSurface; LockSurface {} }
 }

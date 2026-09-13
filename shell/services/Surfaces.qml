@@ -18,6 +18,9 @@ Singleton {
     property bool settings: false
     property bool monitor: false
     property bool keychain: false
+    property bool files: false
+    // The folder Files opens at; an empty one means home.
+    property string filesPath: ""
     property string settingsPage: "network"
     // Where Settings has been, for its back and forward buttons; a page set from anywhere lands on the trail.
     property var settingsHistory: ["network"]
@@ -36,12 +39,13 @@ Singleton {
     }
     function settingsBack() { if (!settingsCanBack) return; settingsNavigating = true; settingsIndex--; settingsPage = settingsHistory[settingsIndex]; settingsNavigating = false; }
     // Opening a window surface that is already open brings its window to the front instead.
-    readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor" })
+    readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor", files: "Files" })
     function show(name) {
         if (root[name]) Windows.focusShellWindow(windowTitles[name]);
         else root[name] = true;
     }
     function showSettings(page) { settingsPage = page; show("settings"); }
+    function showFiles(path) { if (path) filesPath = path; show("files"); }
 
     // A window surface that is open when the shell reloads comes back where it was. Quickshell rebuilds every
     // window from the changed files, so an update run from Settings would otherwise take the page away while
@@ -52,7 +56,7 @@ Singleton {
     Process { id: noteWriter }
     function note() {
         if (!restored) return;
-        const open = ["settings", "keychain", "monitor"].filter(n => root[n]);
+        const open = ["settings", "keychain", "monitor", "files"].filter(n => root[n]);
         const text = open.length ? JSON.stringify({ open: open, page: settingsPage, at: Date.now() }) : "";
         noteWriter.command = ["sh", "-c", text ? "mkdir -p \"$(dirname \"$1\")\" && printf %s \"$2\" > \"$1\"" : "rm -f \"$1\"", "_", reopenFile, text];
         noteWriter.running = true;
@@ -60,6 +64,7 @@ Singleton {
     onSettingsChanged: note()
     onKeychainChanged: note()
     onMonitorChanged: note()
+    onFilesChanged: note()
     Process {
         id: noteReader
         command: ["cat", root.reopenFile]
@@ -133,6 +138,13 @@ Singleton {
             if (action === "open") root.show("monitor");
             else if (action === "close") root.monitor = false;
             else root.monitor = !root.monitor;
+        }
+        // "open", "close", "toggle", or a folder to open at.
+        function files(action: string): void {
+            if (action === "close") root.files = false;
+            else if (action === "open" || !action || action === "-") root.show("files");
+            else if (action === "toggle") root.files = !root.files;
+            else root.showFiles(action);
         }
         function power(action: string): void {
             if (action === "open") root.power = true;

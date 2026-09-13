@@ -61,6 +61,12 @@ fi
 # path the session exports (D66). Without it the file manager and the file chooser are absent; the rest
 # of the shell runs.
 if command -v cmake >/dev/null; then
+    # A tree configured against an older source list keeps that list's moc output, which links to a
+    # library missing the vtables of whatever was added since. A changed CMakeLists starts again.
+    if [[ -f "$REPO/native/files/build/CMakeCache.txt" &&
+          "$REPO/native/files/CMakeLists.txt" -nt "$REPO/native/files/build/CMakeCache.txt" ]]; then
+        rm -rf "$REPO/native/files/build"
+    fi
     if cmake -S "$REPO/native/files" -B "$REPO/native/files/build" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DISLE_QML_DIR="$REPO/qml" >/dev/null &&
        cmake --build "$REPO/native/files/build" >/dev/null &&

@@ -14,7 +14,7 @@ Hyprland
       ├── surfaces/               layer-shell: island + control panel, dashboard,
       │                           launcher, switcher, overview, capture, lock, auth, power
       ├── widgets/                dashboard widgets: one directory each, see Widgets
-      ├── windows/                Settings, Monitor, Keychain, Big Picture
+      ├── windows/                Settings, Monitor, Keychain, Files, Big Picture
       ├── theme/                  tokens.json → Theme singleton
       └── Isle.Files              native/files, built at install time and imported from
                                   $ISLE_HOME/qml, which isle-session puts on QML_IMPORT_PATH (D66)
@@ -46,7 +46,7 @@ shell/        the Quickshell config (~/.config/quickshell/isle links to the inst
               Monitor, Keychain, Keyboard, Games
   surfaces/   one directory per surface
   widgets/    one directory per widget: widget.json + Widget.qml
-  windows/    Settings, Monitor, Keychain, BigPicture
+  windows/    Settings, Monitor, Keychain, Files, BigPicture
   assets/     Lucide glyphs, default wallpaper
 native/       compiled QML modules the shell imports
   files/      Isle.Files: the browsing engine (D66)

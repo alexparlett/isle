@@ -529,6 +529,49 @@ FileJob *FileJobs::newFolder(const QString &parent, const QString &name) {
     return begin(new FileJob(FileJob::NewFolder, { name }, parent, this));
 }
 
+QString FileJobs::trashPath() const { return trashRoot() + QStringLiteral("/files"); }
+
+// The note beside a trashed thing says where it came from; that is where it goes back to.
+FileJob *FileJobs::restoreFromTrash(const QStringList &paths) {
+    QStringList from, to;
+    for (const QString &path : paths) {
+        const QString note = trashRoot() + QStringLiteral("/info/") + QFileInfo(path).fileName()
+            + QStringLiteral(".trashinfo");
+        QFile file(note);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        QString home;
+        while (!file.atEnd()) {
+            const QByteArray line = file.readLine();
+            if (line.startsWith("Path=")) {
+                home = QUrl::fromPercentEncoding(line.mid(5).trimmed());
+                break;
+            }
+        }
+        if (home.isEmpty())
+            continue;
+        from.append(path);
+        to.append(home);
+    }
+    if (from.isEmpty())
+        return nullptr;
+
+    auto *job = new FileJob(FileJob::Restore, from, QString(), this);
+    job->m_targets = to;
+    return begin(job);
+}
+
+FileJob *FileJobs::emptyTrash() {
+    QStringList everything;
+    const QDir files(trashPath());
+    for (const QString &name : files.entryList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot))
+        everything.append(files.filePath(name));
+    const QDir notes(trashRoot() + QStringLiteral("/info"));
+    for (const QString &name : notes.entryList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot))
+        everything.append(notes.filePath(name));
+    return everything.isEmpty() ? nullptr : begin(new FileJob(FileJob::Delete, everything, QString(), this));
+}
+
 FileJob *FileJobs::duplicate(const QStringList &paths) {
     return begin(new FileJob(FileJob::Duplicate, paths, QString(), this));
 }

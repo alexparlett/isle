@@ -28,6 +28,9 @@ class Directory : public QAbstractListModel {
     QML_ELEMENT
 
     Q_PROPERTY(QString path READ path WRITE setPath NOTIFY pathChanged)
+    // Named paths to list instead of a folder's contents, for things that are a gathering rather
+    // than a place: what was opened lately, what a search found. Nothing is watched while it is set.
+    Q_PROPERTY(QStringList paths READ paths WRITE setPaths NOTIFY pathsChanged)
     Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
     Q_PROPERTY(Sort sort READ sort WRITE setSort NOTIFY sortChanged)
     Q_PROPERTY(Qt::SortOrder sortOrder READ sortOrder WRITE setSortOrder NOTIFY sortOrderChanged)
@@ -68,6 +71,8 @@ public:
 
     QString path() const { return m_path; }
     void setPath(const QString &path);
+    QStringList paths() const { return m_paths; }
+    void setPaths(const QStringList &paths);
     bool showHidden() const { return m_showHidden; }
     void setShowHidden(bool on);
     Sort sort() const { return m_sort; }
@@ -96,6 +101,7 @@ public:
 
 signals:
     void pathChanged();
+    void pathsChanged();
     void showHiddenChanged();
     void sortChanged();
     void sortOrderChanged();
@@ -112,6 +118,7 @@ private:
     void setStatus(Status status, const QString &error = {});
 
     QString m_path;
+    QStringList m_paths;
     // The folder the rows on screen came from, to tell a first look from a second.
     QString m_scannedPath;
     bool m_showHidden = false;

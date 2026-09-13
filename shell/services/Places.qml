@@ -13,6 +13,15 @@ Singleton {
     id: root
 
     readonly property string home: Quickshell.env("HOME")
+    // Where the trash keeps what it holds. Worked out here rather than asked of the engine, since a
+    // service may not depend on it (D72).
+    readonly property string dataHome: Quickshell.env("XDG_DATA_HOME") || home + "/.local/share"
+    readonly property string trashFiles: dataHome + "/Trash/files"
+    // The gathering of what was opened lately, which is a list of paths rather than a folder.
+    readonly property string recentsPath: "recents:"
+
+    property var recents: []
+
     readonly property string bookmarksFile: (Quickshell.env("XDG_CONFIG_HOME") || home + "/.config") + "/gtk-3.0/bookmarks"
 
     property var userDirs: []
@@ -21,11 +30,15 @@ Singleton {
     // [{ group, name, path, glyph, eject, bookmark }]. A bookmark is a place like any other: it sits
     // with the rest under Places, and is only marked so it can be taken out again.
     readonly property var places: {
-        const out = [{ group: "Places", name: "Home", path: home, glyph: "house", eject: false, bookmark: false }];
+        const out = [
+            { group: "Places", name: "Recents", path: recentsPath, glyph: "clock", eject: false, bookmark: false },
+            { group: "Places", name: "Home", path: home, glyph: "house", eject: false, bookmark: false },
+        ];
         for (const d of userDirs)
             out.push({ group: "Places", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });
         for (const b of bookmarks)
             out.push({ group: "Places", name: b.name, path: b.path, glyph: "folder", eject: false, bookmark: true });
+        out.push({ group: "Places", name: "Trash", path: trashFiles, glyph: "trash", eject: false, bookmark: false });
         for (const v of Disks.volumes) {
             if (!v.mounted) continue;
             out.push({ group: "Devices", name: v.label || v.name, path: v.mountpoint, glyph: "hard-drive", eject: true, bookmark: false, volume: v });
@@ -55,6 +68,19 @@ Singleton {
     }
 
     Process { id: writer; onExited: reader.reload() }
+
+    function refreshRecents() { recentsReader.running = true; }
+
+    Process {
+        id: recentsReader
+        running: true
+        command: ["python3", Quickshell.shellDir + "/scripts/recents.py"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.recents = JSON.parse(text); } catch (e) { root.recents = []; }
+            }
+        }
+    }
 
     // What this machine calls the person's folders, from the file xdg-user-dirs writes; only the ones
     // that are there and are not simply home again.

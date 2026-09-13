@@ -84,6 +84,19 @@ FocusScope {
     signal renamed(string path, string name)
 
     function beginRename(path) { renaming = path || (acting.length === 1 ? acting[0] : ""); }
+
+    // A folder that has only just appeared: picked, brought into view, and its name open for typing.
+    function beginRenameWhenSeen(path) {
+        const row = directory.rowOf(Engine.displayName(path));
+        if (row < 0) { pending = path; return; }
+        pending = "";
+        pick(row, Qt.NoModifier);
+        if (mode === "grid") grid.positionViewAtIndex(row, GridView.Contain);
+        else list.positionViewAtIndex(row, ListView.Contain);
+        renaming = path;
+    }
+    // A path waiting for the folder to be read again before it can be named.
+    property string pending: ""
     function endRename(path, name) {
         renaming = "";
         const was = Engine.displayName(path);
@@ -124,6 +137,7 @@ FocusScope {
     // The folder changed under the selection: start at the top rather than on whatever is there now.
     Connections {
         target: root.directory
+        function onCountChanged() { if (root.pending) root.beginRenameWhenSeen(root.pending); }
         function onPathChanged() {
             root.index = 0;
             root.anchor = 0;
@@ -197,8 +211,11 @@ FocusScope {
 
             MouseArea {
                 anchors.fill: parent
-                acceptedButtons: Qt.RightButton
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onClicked: mouse => {
+                    // Empty space belongs to the folder, not to any row: a click there lets go.
+                    root.selection = [];
+                    if (mouse.button !== Qt.RightButton) return;
                     const at = mapToItem(root, mouse.x, mouse.y);
                     root.menuAsked(at.x, at.y, "");
                 }

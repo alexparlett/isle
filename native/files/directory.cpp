@@ -13,6 +13,23 @@
 
 namespace {
 
+// The same row a scan would make, for a path named on its own rather than found in a folder.
+DirEntry entryFor(const QString &path, QMimeDatabase &mime) {
+    DirEntry e;
+    const QFileInfo info(path);
+    e.name = info.fileName();
+    e.isHidden = e.name.startsWith(QLatin1Char('.'));
+    e.isSymlink = info.isSymLink();
+    e.isDir = info.isDir();
+    e.size = info.size();
+    e.modified = info.lastModified();
+    e.iconName = e.isDir ? QStringLiteral("folder")
+                         : mime.mimeTypeForFile(e.name, QMimeDatabase::MatchExtension).iconName();
+    if (e.iconName.isEmpty())
+        e.iconName = QStringLiteral("text-x-generic");
+    return e;
+}
+
 // readdir with one fstatat each, rather than QDirIterator: d_type answers the only question asked
 // of most rows, and a stat that fails leaves an entry that is still worth listing.
 QVector<DirEntry> scan(const QString &path) {
@@ -136,7 +153,7 @@ QVariant Directory::data(const QModelIndex &index, int role) const {
     const DirEntry &e = m_rows.at(index.row());
     switch (role) {
     case NameRole: return e.name;
-    case PathRole: return m_path + QLatin1Char('/') + e.name;
+    case PathRole: return m_paths.isEmpty() ? m_path + QLatin1Char('/') + e.name : m_paths.at(index.row());
     case IconNameRole: return e.iconName;
     case SizeRole: return e.size;
     case ModifiedRole: return e.modified;
@@ -164,8 +181,31 @@ void Directory::setPath(const QString &path) {
     if (m_path == path)
         return;
     m_path = path;
+    if (!m_paths.isEmpty()) {
+        m_paths.clear();
+        emit pathsChanged();
+    }
     emit pathChanged();
     startScan();
+}
+
+void Directory::setPaths(const QStringList &paths) {
+    if (m_paths == paths)
+        return;
+    m_paths = paths;
+    emit pathsChanged();
+
+    unwatch();
+    m_settle.stop();
+    // A gathering is built here and now: the rows are named, so there is nothing to go and find.
+    m_all.clear();
+    QMimeDatabase mime;
+    for (const QString &one : m_paths)
+        if (QFileInfo::exists(one))
+            m_all.append(entryFor(one, mime));
+    m_scannedPath.clear();
+    rebuild();
+    setStatus(Ready);
 }
 
 void Directory::setShowHidden(bool on) {
@@ -226,6 +266,8 @@ void Directory::refresh() { startScan(); }
 QString Directory::pathAt(int row) const {
     if (row < 0 || row >= m_rows.size())
         return {};
+    if (!m_paths.isEmpty())
+        return data(index(row, 0), PathRole).toString();
     return m_path + QLatin1Char('/') + m_rows.at(row).name;
 }
 
@@ -316,6 +358,20 @@ void Directory::rebuild() {
         sortable.push_back({ &e,
                              m_collator.sortKey(e.name),
                              m_collator.sortKey(m_sort == ByKind ? e.iconName : QString()) });
+    }
+
+    // A gathering keeps the order it was given: what was opened lately is in the order it was
+    // opened, and sorting that by name would throw away what makes it useful.
+    if (!m_paths.isEmpty()) {
+        QVector<DirEntry> kept;
+        kept.reserve(int(sortable.size()));
+        for (const Sortable &one : sortable)
+            kept.append(*one.entry);
+        beginResetModel();
+        m_rows = std::move(kept);
+        endResetModel();
+        emit countChanged();
+        return;
     }
 
     // Folders lead whatever the sort and whichever direction it runs, as every file manager does.

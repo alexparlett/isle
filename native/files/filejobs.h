@@ -118,6 +118,8 @@ class FileJobs : public QObject {
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY canUndoChanged)
     // What undoing would put back, for a menu item that says so.
     Q_PROPERTY(QString undoLabel READ undoLabel NOTIFY canUndoChanged)
+    // Where the trash keeps what it holds, so a view can list it like any other folder.
+    Q_PROPERTY(QString trashPath READ trashPath CONSTANT)
 
 public:
     explicit FileJobs(QObject *parent = nullptr);
@@ -142,6 +144,11 @@ public:
     Q_INVOKABLE FileJob *renameMany(const QStringList &paths, const QString &pattern);
     // Whether a name is one bsdtar is likely to be able to unpack.
     Q_INVOKABLE bool isArchive(const QString &path) const;
+
+    QString trashPath() const;
+    // Everything in the trash put back where it came from, and the trash emptied.
+    Q_INVOKABLE FileJob *restoreFromTrash(const QStringList &paths);
+    Q_INVOKABLE FileJob *emptyTrash();
     Q_INVOKABLE FileJob *undo();
 
 signals:

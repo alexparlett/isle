@@ -40,7 +40,23 @@ FloatingWindow {
         tabs = all;
     }
 
+    readonly property bool showingRecents: tab.path === Places.recentsPath
+
+    // A place that is not a folder says its own name rather than the path it happens to live at.
+    readonly property var crumbs: showingRecents ? [{ name: "Recents", path: Places.recentsPath }]
+        : showingTrash ? [{ name: "Trash", path: Places.trashFiles }]
+        : Engine.crumbs(dir.path)
+    readonly property bool showingTrash: dir.path === Places.trashFiles
+
     function go(to) {
+        if (to === Places.recentsPath) {
+            Places.refreshRecents();
+            dir.paths = Places.recents.map(r => r.path);
+            const h = tab.history.slice(0, tab.at + 1);
+            h.push(to);
+            setTab(current, { path: to, history: h.slice(-50), at: Math.min(h.length, 50) - 1 });
+            return;
+        }
         if (!to || to === dir.path) return;
         dir.path = to;
         if (navigating) return;
@@ -84,7 +100,16 @@ FloatingWindow {
         current = i;
     }
     // Showing a tab is what moves the folder, so the two cannot drift apart.
-    onCurrentChanged: dir.path = tab.path
+    onCurrentChanged: tab.path === Places.recentsPath ? go(Places.recentsPath) : dir.path = tab.path
+
+    function putBack() { if (acting.length) FileJobs.restoreFromTrash(acting); }
+    function askEmptyTrash() {
+        sheet.mode = "confirm"; sheet.title = "Empty the trash?";
+        sheet.message = "Everything in it goes for good.";
+        sheet.acceptLabel = "Empty"; sheet.danger = true; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "emptyTrash";
+        sheet.ask("");
+    }
 
     // Another window asking this one to take a tab.
     Connections {
@@ -159,10 +184,8 @@ FloatingWindow {
     function duplicate() { if (acting.length) FileJobs.duplicate(acting); }
 
     function askNewFolder() {
-        sheet.mode = "name"; sheet.title = "New folder"; sheet.message = ""; sheet.acceptLabel = "Create";
-        sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
-        sheet.job = null; sheet.what = "newFolder";
-        sheet.ask("untitled folder");
+        const job = FileJobs.newFolder(dir.path, "untitled folder");
+        if (job) view.beginRenameWhenSeen(Engine.join(dir.path, "untitled folder"));
     }
     function askDelete() {
         if (!acting.length) return;
@@ -559,7 +582,7 @@ FloatingWindow {
                         height: parent.height
                         spacing: 0
                         Repeater {
-                            model: Engine.crumbs(dir.path)
+                            model: root.crumbs
                             delegate: RowLayout {
                                 id: crumb
                                 required property var modelData
@@ -701,6 +724,7 @@ FloatingWindow {
                 else if (what === "compress") FileJobs.compress(root.acting, value);
                 else if (what === "newFolder") FileJobs.newFolder(dir.path, value);
                 else if (what === "delete") FileJobs.remove(root.acting);
+                else if (what === "emptyTrash") FileJobs.emptyTrash();
                 else if (what === "conflict" && job) job.answer(FileJob.Replace, forAll);
                 close();
             }

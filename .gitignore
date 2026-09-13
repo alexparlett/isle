@@ -28,3 +28,6 @@ dev/
 
 # The symlink install.sh makes from the served tree to the user widget directory (D14).
 shell/userwidgets
+
+# The screenshot dev/test-vm.sh writes when it is asked for one.
+vm.png

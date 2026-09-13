@@ -638,3 +638,12 @@ layout on the matching side and the compositor's on the emitting side. A
 symbol the layout has no unshifted key for resolves to nothing and the
 rule is dropped, since a rule aimed at the wrong key is worse than one
 that is missing.
+
+**D62 · A window the shell was showing comes back after a reload.** An
+update rewrites the files the shell runs from, so Quickshell rebuilds
+every window: the Settings page someone started the update from vanished
+under them. The open surface and its page are noted in the runtime
+directory and restored at the next start, honoured only while the note is
+fresh, so a window closed by hand stays closed. It cures the same
+complaint after a crash or a sync, which is where it is felt most.
+

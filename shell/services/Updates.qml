@@ -39,6 +39,7 @@ Singleton {
                 const had = root.count;
                 root.pending = out;
                 root.checking = false;
+                root.settle(out);
                 root.checkedAt = Qt.formatTime(new Date(), "HH:mm");
                 if (out.length && !had) IslandEvents.show({ kind: "text", duration: 5000, glyph: "download", text: out.length + " updates available", detail: "Settings › Updates" });
             }
@@ -91,6 +92,16 @@ Singleton {
         else if ((m = l.match(/^\((\d+)\/(\d+)\) (.+?)\.\.\.$/))) { markInstalled(); phase = m[3] + "  ·  " + m[1] + " of " + m[2]; }
         else if ((m = l.match(/^error: (.*)/i))) failed = m[1];
         else if (/^==> (Making|Building|Cloning|Downloading)/.test(l)) phase = l.replace(/^==> /, "");
+    }
+    // What pacman said is a guess at what happened; what is still pending is the answer. Once a run is over
+    // and the list has been read again, a package that is no longer pending was updated, whatever line the
+    // output did or did not carry for it, and one still pending never was.
+    function settle(pending) {
+        if (running || !steps.length) return;
+        const waiting = {};
+        for (const p of pending) waiting[p.name] = true;
+        steps = steps.map(s => s.state === "removed" ? s
+            : Object.assign({}, s, { state: waiting[s.name] ? "waiting" : "done" }));
     }
     // A package being installed is done once the next line moves on.
     function markInstalled() { if (steps.some(s => s.state === "installing")) steps = steps.map(s => s.state === "installing" ? Object.assign({}, s, { state: "done" }) : s); }

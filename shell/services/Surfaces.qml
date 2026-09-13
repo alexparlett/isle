@@ -26,6 +26,7 @@ Singleton {
     readonly property bool settingsCanBack: settingsIndex > 0
     readonly property bool settingsCanForward: settingsIndex < settingsHistory.length - 1
     onSettingsPageChanged: {
+        note();
         if (settingsNavigating) return;
         const h = settingsHistory.slice(0, settingsIndex + 1);
         if (h[h.length - 1] === settingsPage) return;
@@ -41,6 +42,41 @@ Singleton {
         else root[name] = true;
     }
     function showSettings(page) { settingsPage = page; show("settings"); }
+
+    // A window surface that is open when the shell reloads comes back where it was. Quickshell rebuilds every
+    // window from the changed files, so an update run from Settings would otherwise take the page away while
+    // it was being read. The note lives in the runtime directory and is only honoured while it is fresh, so a
+    // window closed by hand stays closed and one left open a day ago does not reappear.
+    readonly property string reopenFile: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/isle/reopen.json"
+    property bool restored: false
+    Process { id: noteWriter }
+    function note() {
+        if (!restored) return;
+        const open = ["settings", "keychain", "monitor"].filter(n => root[n]);
+        const text = open.length ? JSON.stringify({ open: open, page: settingsPage, at: Date.now() }) : "";
+        noteWriter.command = ["sh", "-c", text ? "mkdir -p \"$(dirname \"$1\")\" && printf %s \"$2\" > \"$1\"" : "rm -f \"$1\"", "_", reopenFile, text];
+        noteWriter.running = true;
+    }
+    onSettingsChanged: note()
+    onKeychainChanged: note()
+    onMonitorChanged: note()
+    Process {
+        id: noteReader
+        command: ["cat", root.reopenFile]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let n; try { n = JSON.parse(text); } catch (e) { root.restored = true; return; }
+                // Two minutes: long enough for an update to run, short enough not to surprise.
+                if (n && n.at && Date.now() - n.at < 120000) {
+                    if (n.page) root.settingsPage = n.page;
+                    for (const name of n.open || []) root[name] = true;
+                }
+                root.restored = true;
+            }
+        }
+        onExited: root.restored = true
+    }
     function settingsForward() { if (!settingsCanForward) return; settingsNavigating = true; settingsIndex++; settingsPage = settingsHistory[settingsIndex]; settingsNavigating = false; }
     // Something full-screen is up; the island keeps to its pill.
     readonly property bool busy: dashboard || launcher || overview || capture || power

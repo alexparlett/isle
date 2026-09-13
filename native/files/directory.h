@@ -44,6 +44,11 @@ class Directory : public QAbstractListModel {
     Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
     // Globs a file must match to be listed, as a file chooser's filter asks. Folders always list.
     Q_PROPERTY(QStringList patterns READ patterns WRITE setPatterns NOTIFY patternsChanged)
+    // Narrowing a search the way Finder's do: to one family of file, and to what has changed since.
+    // The kind is the first half of an icon theme name — "image", "audio", "video", "text",
+    // "application" — or "folder" for folders. Empty shows everything.
+    Q_PROPERTY(QString kind READ kind WRITE setKind NOTIFY kindChanged)
+    Q_PROPERTY(QDateTime since READ since WRITE setSince NOTIFY sinceChanged)
     // Whether only folders are listed, for a chooser asking for one.
     Q_PROPERTY(bool foldersOnly READ foldersOnly WRITE setFoldersOnly NOTIFY foldersOnlyChanged)
     // Rows carry the heading they belong under when set, so a view can show them in groups.
@@ -98,6 +103,10 @@ public:
     void setFilter(const QString &filter);
     QStringList patterns() const { return m_patterns; }
     void setPatterns(const QStringList &patterns);
+    QString kind() const { return m_kind; }
+    void setKind(const QString &kind);
+    QDateTime since() const { return m_since; }
+    void setSince(const QDateTime &since);
     bool foldersOnly() const { return m_foldersOnly; }
     void setFoldersOnly(bool on);
     Grouping grouping() const { return m_grouping; }
@@ -133,6 +142,8 @@ signals:
     void sortOrderChanged();
     void filterChanged();
     void patternsChanged();
+    void kindChanged();
+    void sinceChanged();
     void foldersOnlyChanged();
     void groupingChanged();
     void statusChanged();
@@ -160,6 +171,8 @@ private:
     Qt::SortOrder m_sortOrder = Qt::AscendingOrder;
     QString m_filter;
     QStringList m_patterns;
+    QString m_kind;
+    QDateTime m_since;
     QList<QRegularExpression> m_globs;
     bool m_foldersOnly = false;
     Grouping m_grouping = NoGroups;

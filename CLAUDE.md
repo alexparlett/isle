@@ -22,7 +22,9 @@ Targets CachyOS; built for gaming and for running coding agents.
   serves an old compiled module, and every screenshot, every log line and every
   "not a function" from it is a lie. `isle-session` restarts `qs` on its own, so
   killing only `qs` is enough; killing the runner as well leaves nothing running.
-  A headless check of the engine beats a screenshot: `QT_QPA_PLATFORM=offscreen
+  `dev/vm-qmp.py click` puts the pointer somewhere and presses in one go, which
+  a menu or dropdown that opened under the old pointer never sees: `move` there
+  first, then `click`. A headless check of the engine beats a screenshot: `QT_QPA_PLATFORM=offscreen
   /usr/lib/qt6/bin/qml -I ~/.local/share/isle/qml file.qml` in the guest, with the
   result carried out through `Qt.exit`. Plain `qml` there is Qt 5 and loads nothing.
 - Stage explicit paths. Never `git add -A`: other work may be in the tree.

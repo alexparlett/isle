@@ -28,9 +28,6 @@ FloatingWindow {
     property var tabs: [{ path: modelData.path, history: [modelData.path], at: 0 }]
     property int current: 0
     readonly property var tab: tabs[current] || tabs[0]
-    readonly property string path: dir.path
-
-    property bool navigating: false
     readonly property bool canBack: tab.at > 0
     readonly property bool canForward: tab.at < tab.history.length - 1
 
@@ -115,8 +112,10 @@ FloatingWindow {
         if (i < 0 || i >= tabs.length) return;
         current = i;
     }
-    // Showing a tab is what moves the folder, so the two cannot drift apart.
-    onCurrentChanged: root.show(tab.path)
+    // Showing a tab is what moves the folder, so the two cannot drift apart. The tab is read out of
+    // the list rather than through `tab`, whose binding has not been worked out again by the time a
+    // handler on the property it depends on runs: it would still name the tab being left.
+    onCurrentChanged: if (tabs[current]) root.show(tabs[current].path)
 
     // A bookmark dropped on another takes its place in the order, the rest closing up behind it.
     function reorderPlace(moved, before) {
@@ -125,6 +124,34 @@ FloatingWindow {
         const at = order.indexOf(before);
         order.splice(at < 0 ? order.length : at, 0, moved);
         Places.reorderBookmarks(order);
+    }
+
+    // A search worth keeping: what was looked for, where, and how it was narrowed.
+    function askSaveSearch() {
+        sheet.mode = "name"; sheet.title = "Save this search"; sheet.message = "";
+        sheet.acceptLabel = "Save"; sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "saveSearch";
+        sheet.ask(search.text.trim() || Engine.displayName(tab.path));
+    }
+    function saveSearch(name) {
+        if (!name) return;
+        Prefs.p.filesSearches = Prefs.p.filesSearches.concat([{
+            name: name, path: tab.path, term: search.text.trim(),
+            kind: searchKind, when: searchWhen, under: searchingUnder,
+        }]);
+    }
+    function forgetSearch(name) {
+        Prefs.p.filesSearches = Prefs.p.filesSearches.filter(s => s.name !== name);
+    }
+    // Running a kept search puts the window back the way it was when the search was kept.
+    function runSearch(saved) {
+        show(saved.path);
+        setTab(current, { path: saved.path, history: [saved.path], at: 0 });
+        search.text = saved.term;
+        searchKind = saved.kind || "";
+        searchWhen = saved.when || "any";
+        if (saved.under) searchUnder();
+        else dir.filter = saved.term;
     }
 
     function putBack() { if (acting.length) FileJobs.restoreFromTrash(acting); }
@@ -183,14 +210,6 @@ FloatingWindow {
     function askRename() {
         if (!actingOne) return;
         view.beginRename(actingOne);
-    }
-
-    function askRenameSheet() {
-        if (!actingOne) return;
-        sheet.mode = "name"; sheet.title = "Rename"; sheet.message = ""; sheet.acceptLabel = "Rename";
-        sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
-        sheet.job = null; sheet.what = "rename";
-        sheet.ask(Engine.displayName(actingOne));
     }
 
     function askRenameMany() {
@@ -275,6 +294,23 @@ FloatingWindow {
     // The search field narrows the folder as it is typed; Enter looks underneath it as well, which
     // is what a search is for once the folder in front of you does not have the thing.
     property bool searchingUnder: false
+    // Whether anything is being searched for at all, which is when the narrowing bar is worth having.
+    readonly property bool searching: searchingUnder || search.text.trim() !== ""
+
+    // What "changed since" means, as a moment or nothing at all.
+    function sinceFor(when) {
+        const now = new Date();
+        if (when === "today") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (when === "week") return new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+        if (when === "month") return new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+        if (when === "year") return new Date(now.getFullYear(), 0, 1);
+        return undefined;
+    }
+    property string searchKind: ""
+    property string searchWhen: "any"
+    onSearchKindChanged: dir.kind = searchKind
+    onSearchWhenChanged: dir.since = sinceFor(searchWhen)
+
     function searchUnder() {
         const term = search.text.trim();
         if (!term) return;
@@ -301,6 +337,8 @@ FloatingWindow {
         finder.running = false;
         dir.filter = "";
         search.text = "";
+        searchKind = "";
+        searchWhen = "any";
     }
     // Stopping a search puts back the folder the search was run under.
     function stopSearching() { show(tab.path); }
@@ -704,6 +742,42 @@ FloatingWindow {
                     id: sideCol
                     width: parent.width
                     spacing: 1
+                    // Searches worth keeping sit under their own heading, above the desktop's places.
+                    Label {
+                        visible: Prefs.p.filesSearches.length > 0
+                        Layout.leftMargin: Theme.s3
+                        Layout.topMargin: Theme.s3
+                        Layout.bottomMargin: Theme.s1
+                        text: "Searches"
+                        size: Theme.sizeCaption
+                        color: Theme.text3
+                    }
+                    Repeater {
+                        model: Prefs.p.filesSearches
+                        delegate: ListRow {
+                            id: saved
+                            required property var modelData
+                            Layout.fillWidth: true
+                            glyph: "search"
+                            title: saved.modelData.name
+                            onClicked: root.runSearch(saved.modelData)
+                            HoverHandler { id: savedHover }
+                            Glyph {
+                                visible: savedHover.hovered
+                                name: "x"
+                                size: 14
+                                color: forgetArea.containsMouse ? Theme.text : Theme.text3
+                                MouseArea {
+                                    id: forgetArea
+                                    anchors { fill: parent; margins: -6 }
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.forgetSearch(saved.modelData.name)
+                                }
+                            }
+                        }
+                    }
+
                     Repeater {
                         model: Places.places
                         delegate: Item {
@@ -850,7 +924,10 @@ FloatingWindow {
 
                 Field {
                     id: search
+                    Layout.fillWidth: true
                     Layout.preferredWidth: 200
+                    Layout.maximumWidth: 200
+                    Layout.minimumWidth: 90
                     glyph: "search"
                     placeholder: root.searchingUnder ? "Searching underneath" : "Search this folder"
                     // Typing again narrows the folder in front of you, which ends any search that
@@ -862,6 +939,51 @@ FloatingWindow {
                     onAccepted: root.searchUnder()
                     input.Keys.onEscapePressed: { root.stopSearching(); view.forceActiveFocus(); }
                 }
+            }
+        }
+
+        // What is being looked for, narrowed the way Finder's search bar narrows it, and kept for
+        // next time if it is worth keeping.
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 40
+            visible: root.searching
+            color: "transparent"
+            clip: true
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.hairline }
+            RowLayout {
+                anchors { fill: parent; leftMargin: Theme.s3; rightMargin: Theme.s3 }
+                spacing: Theme.s2
+                // The one thing here that can give up room is what it says about where it is looking.
+                Label {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    elide: Text.ElideRight
+                    size: Theme.sizeCaption
+                    color: Theme.text3
+                    text: root.searchingUnder ? "Underneath " + Engine.displayName(root.tab.path) : "In this folder"
+                }
+                Button {
+                    variant: "text"
+                    text: root.searchingUnder ? "This folder only" : "Search underneath"
+                    onClicked: root.searchingUnder ? root.leaveSearchUnder() : root.searchUnder()
+                }
+                Dropdown {
+                    listWidth: 150
+                    value: root.searchKind
+                    options: [["", "Any kind"], ["folder", "Folders"], ["image", "Images"],
+                              ["audio", "Audio"], ["video", "Video"], ["text", "Text"],
+                              ["application", "Other"]]
+                    onPicked: v => root.searchKind = v
+                }
+                Dropdown {
+                    listWidth: 150
+                    value: root.searchWhen
+                    options: [["any", "Any time"], ["today", "Today"], ["week", "Past week"],
+                              ["month", "Past month"], ["year", "This year"]]
+                    onPicked: v => root.searchWhen = v
+                }
+                Button { variant: "text"; glyph: "bookmark"; text: "Save"; onClicked: root.askSaveSearch() }
             }
         }
 
@@ -989,11 +1111,10 @@ FloatingWindow {
                 close();
             }
             onAccepted: (value, forAll) => {
-                if (what === "rename") FileJobs.rename(root.actingOne, value);
-                else if (what === "goto") root.go(value.replace(/^~/, Engine.home));
+                if (what === "goto") root.go(value.replace(/^~/, Engine.home));
                 else if (what === "renameMany") FileJobs.renameMany(root.acting, value);
                 else if (what === "compress") FileJobs.compress(root.acting, value);
-                else if (what === "newFolder") FileJobs.newFolder(dir.path, value);
+                else if (what === "saveSearch") root.saveSearch(value);
                 else if (what === "delete") FileJobs.remove(root.acting);
                 else if (what === "emptyTrash") FileJobs.emptyTrash();
                 else if (what === "conflict" && job) job.answer(FileJob.Replace, forAll);

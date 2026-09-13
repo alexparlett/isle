@@ -48,6 +48,8 @@ Singleton {
             property int filesIconSize: 64
             property bool filesHidden: false
             property bool filesPreview: false
+            // Searches worth keeping: [{ name, path, term, kind, when }], shown in the sidebar.
+            property var filesSearches: []
 
             property bool dnd: false
             // Quiet hours (from hour to hour, wrapping midnight), auto-silence under a fullscreen window, apps

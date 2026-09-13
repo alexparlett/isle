@@ -628,7 +628,7 @@ void FileJob::run() {
             if (m_kind == Restore) {
                 const QString files = QFileInfo(from).absolutePath();
                 if (files.endsWith(QStringLiteral("/files")))
-                    QFile::remove(files.chopped(6) + QStringLiteral("info/")
+                    QFile::remove(files.chopped(5) + QStringLiteral("info/")
                                   + QFileInfo(from).fileName() + QStringLiteral(".trashinfo"));
             }
         }
@@ -707,7 +707,7 @@ FileJobs::FileJobs(QObject *parent) : QObject(parent) {}
 QString FileJobs::undoLabel() const {
     switch (m_undo.kind) {
     case FileJob::Move: return QStringLiteral("Undo move");
-    case FileJob::Trash: return QStringLiteral("Put back");
+    case FileJob::Trash: return QStringLiteral("Undo move to trash");
     case FileJob::Copy: return QStringLiteral("Undo copy");
     case FileJob::Rename: return QStringLiteral("Undo rename");
     case FileJob::NewFolder: return QStringLiteral("Undo new folder");
@@ -782,7 +782,7 @@ FileJob *FileJobs::restoreFromTrash(const QStringList &paths) {
         const QString files = QFileInfo(path).absolutePath();
         if (!files.endsWith(QStringLiteral("/files")))
             continue;
-        const QString root = files.chopped(6);
+        const QString root = files.chopped(5);
         QFile file(root + QStringLiteral("info/") + QFileInfo(path).fileName() + QStringLiteral(".trashinfo"));
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
             continue;

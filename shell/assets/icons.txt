@@ -10,6 +10,7 @@ battery-medium
 bell
 bell-off
 bluetooth
+bookmark
 calculator
 calendar
 calendar-clock

@@ -733,15 +733,24 @@ before Isle are already there. It costs nothing: the format is a uri and
 an optional name to the line.
 
 **D70 · Deleting puts a thing in the freedesktop trash, and the last thing
-done can be undone.** Delete moves to `~/.local/share/Trash`, writing the
-spec's note of where the thing came from before moving it, so nothing is
-ever in the trash without a way back and every other desktop tool sees the
-same trash. Shift with Delete is the permanent one and asks first, since
+done can be undone.** Delete moves to the trash, writing the spec's note of
+where the thing came from before moving it, so nothing is ever in the trash
+without a way back and every other desktop tool sees the same trash. Which
+trash depends on where the thing is: the home one for anything on the home
+volume, and otherwise that volume's own — `$mount/.Trash/$uid` where the
+administrator has made one, `$mount/.Trash-$uid` where not. A rename cannot
+cross a filesystem, so the alternative is copying a file the length of the
+disk to delete it. A volume's note says where the thing came from relative
+to that volume, so it still goes back after the volume is mounted somewhere
+else. The Trash shows all of them at once, and emptying empties all of
+them. Shift with Delete is the permanent one and asks first, since
 it is the only action here that cannot be taken back.
 
 One step of undo, not a stack. Moving goes back where it came from,
 trashing comes out of the trash and takes its note with it, copying and
-making a folder are undone by taking away what they made. A stack would
+making a folder are undone by taking away what they made. A job that was
+told to replace something is not offered for undo at all: what it replaced
+is gone, and undoing would only delete whatever took its place. A stack would
 have to survive a folder being changed underneath it by something else,
 and one step is what a mistaken drag or a mistaken Delete actually needs.
 
@@ -749,6 +758,14 @@ A job that finds something already at the destination stops and asks, and
 the answer can be given for the rest of the job at once. It asks on the
 worker thread and waits, which is why the surface must always answer:
 cancelling counts as an answer.
+
+Nothing is ever removed to make room for what is replacing it. A copy is
+written beside its destination and moved over it in one rename; a move is a
+rename, which replaces a file in one step and never leaves it missing; a
+folder that is being replaced is moved aside and only dropped once the new
+one is in place. The order matters because every other order has a moment
+where the old thing is gone and the new one has not arrived, and a failure
+in that moment loses the file outright.
 
 **D71 · A job that fails part way can still be undone.** Renaming many
 things, or copying them, does them one at a time, and the one that fails
@@ -801,3 +818,13 @@ Folders open through a desktop entry of Isle's own, set as the handler for
 `inode/directory`, whose Exec reaches the shell over its IPC. An
 application asking the desktop to open a folder therefore gets the window
 that is already running rather than a second one.
+
+**D74 · A search can be narrowed and kept.** A search is a term, a scope —
+this folder or everything under it — and two narrowings: a family of file
+and how lately it changed. The family comes from the first half of the icon
+theme's name for the row, which the listing already worked out, so
+narrowing costs no reads. Kept searches are the four of those under a name,
+in the preferences beside the rest of what Files remembers, and they stand
+in the sidebar above the places. Opening one puts the window back the way
+it was rather than standing for a folder that does not exist, which is what
+a smart folder on a filesystem with no index can honestly be.

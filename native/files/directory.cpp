@@ -266,6 +266,22 @@ void Directory::setPatterns(const QStringList &patterns) {
     rebuild();
 }
 
+void Directory::setKind(const QString &kind) {
+    if (m_kind == kind)
+        return;
+    m_kind = kind;
+    emit kindChanged();
+    rebuild();
+}
+
+void Directory::setSince(const QDateTime &since) {
+    if (m_since == since)
+        return;
+    m_since = since;
+    emit sinceChanged();
+    rebuild();
+}
+
 void Directory::setGrouping(Grouping grouping) {
     if (m_grouping == grouping)
         return;
@@ -525,6 +541,18 @@ QString Directory::groupOf(const DirEntry &e) const {
 
 bool Directory::keeps(const DirEntry &e) const {
     if (e.isHidden && !m_showHidden)
+        return false;
+    // The icon theme's name for a file starts with the first half of its mime type, so the family a
+    // row belongs to is already known and costs no lookup.
+    if (!m_kind.isEmpty()) {
+        if (m_kind == QLatin1String("folder")) {
+            if (!e.isDir)
+                return false;
+        } else if (e.isDir || !e.iconName.startsWith(m_kind + QLatin1Char('-'))) {
+            return false;
+        }
+    }
+    if (m_since.isValid() && e.modified < m_since)
         return false;
     if (!m_filter.isEmpty() && !e.name.contains(m_filter, Qt::CaseInsensitive))
         return false;

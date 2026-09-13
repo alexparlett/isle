@@ -176,48 +176,42 @@ in the browser.
 
 ### Wired
 
-Places: Recents, the person's own folders, bookmarks, mounted devices with
-eject, the Trash. Tabs and as many windows as are wanted. Menu bar (File,
-Edit, View, Go), context menu on a row and on the folder, Menu/Shift+F10.
-List, columns and grid; thumbnails from the shared cache; group headings by
-kind, date or size; sort by name, size, date or kind on the headers or the
-menu; icon size on Ctrl+plus and Ctrl+minus.
+Places: Recents, the person's own folders, bookmarks that can be dragged
+into the order they are wanted, mounted devices with eject, the Trash of
+every volume at once, saved searches. Tabs and as many windows as are
+wanted. Menu bar (File, Edit, View, Go), context menu on a row and on the
+folder, Menu/Shift+F10. List, columns and grid; a preview beside the
+folder; folders that open in place on a triangle; thumbnails from the
+shared cache; group headings by kind, date or size; sort by name, size,
+date or kind on the headers or the menu; column widths dragged on the
+header; icon size on Ctrl+plus and Ctrl+minus.
 
 Keys: Alt with the arrows and Backspace to walk; Ctrl+H hidden; F5 refresh;
-Ctrl+F search, Enter to search underneath; Ctrl+1/2/3 view; F2 rename;
-Ctrl+Shift+N folder, Ctrl+Shift+F file; Ctrl+C/X/V; Delete to trash,
-Shift+Delete for good; Ctrl+Z; Ctrl+A; Ctrl+T tab, Ctrl+W close,
-Ctrl+N window, Ctrl+Tab between tabs; Ctrl+D duplicate; Ctrl+L go to
+Ctrl+F search, Enter to search underneath; Ctrl+1/2/3 view; Ctrl+Shift+P
+preview; F2 rename; Ctrl+Shift+N folder, Ctrl+Shift+F file; Ctrl+C/X/V;
+Delete to trash, Shift+Delete for good; Ctrl+Z; Ctrl+A; Ctrl+T tab, Ctrl+W
+close, Ctrl+N window, Ctrl+Tab between tabs; Ctrl+D duplicate; Ctrl+L go to
 folder; Space Quick Look; Ctrl+I info; Home/End/PageUp/PageDown;
-type-ahead.
+type-ahead; the arrows to walk in and out of a nested folder and, in
+columns, between and within the columns.
 
-Mouse: click to pick, Ctrl to add, Shift for a run, click on nothing to let
-go, double click to open, middle click for a tab, right click keeping a
-selection it is already part of.
+Mouse: click to pick, Ctrl to add, Shift for a run, a band drawn across
+rows, click on nothing to let go, double click to open, middle click for a
+tab, right click keeping a selection it is already part of; dragging rows
+and grid cells onto a folder, onto another window, out to other
+applications, and onto the sidebar to bookmark.
 
-Acts: copy, cut, paste, duplicate, rename on the row, new file and folder
-on the row, move to trash, put back, empty trash, delete, pack, unpack,
-open with, open in terminal, one step of undo.
+Acts: copy, cut, paste, duplicate, rename on the row, rename many at once,
+new file and folder on the row, move to trash, put back, empty trash,
+delete, pack, unpack, open with, make an app the standing one for the type,
+open in terminal, one step of undo. Searching narrows by kind and by how
+lately something changed, and a search can be saved.
 
 ### What a hand still reaches for and does not find
 
 | gap | |
 |---|---|
-| Dragging a file onto a folder | written, never seen to work |
-| Dragging a folder onto the sidebar to bookmark it | written, never seen to work |
-| Rubber-band selection by dragging across rows | |
-| Left and right arrows to walk in and out in columns | |
-| Column widths cannot be dragged | |
-| The sidebar cannot be reordered, and a place cannot be removed except a bookmark | |
-| No preview pane beside the folder | |
-| Folders in the list do not open in place on a triangle | |
-| No tags, and no colour on a row | |
-| No Connect to server | |
-| A folder on another volume trashes to the home volume's trash | |
-| Get Info does not count a folder's size | |
-| No count of what is selected in bytes | |
-| Sorting and grouping are not remembered per folder | |
-| The view mode is not remembered between sessions | |
-| No "open with" default-setting, only a one-off choice | |
-| Search cannot be narrowed by kind or date | |
-| No saved searches | |
+| No tags, and no colour on a row | out of the slice's scope |
+| No Connect to server | out of the slice's scope: no SMB or NFS yet |
+| Sorting and grouping are not remembered per folder | remembered for all folders at once |
+| A saved search is a term and its narrowings, not a live query | there is no index to query |

@@ -538,7 +538,8 @@ rather than a second window.
 A window is a 190px sidebar of places on the left and the folder on the
 right. The places are grouped Places, Bookmarks and Devices (D69), each
 row a Lucide glyph and a name, the one being shown marked; a device
-carries an eject on the row rather than in a menu. Over the folder is a
+carries an eject on the row rather than in a menu, and a bookmark can be
+dragged up and down to sit where it is wanted. Over the folder is a
 56px toolbar: back, forward and up at the left, then the trail as buttons,
 which scrolls to keep its tail in view and whose last crumb is where you
 are and does nothing; then a star that bookmarks where you are, the view
@@ -552,7 +553,21 @@ one rather than a read of its contents. A footer says how many items are
 there, or how many a search matched.
 
 List, Columns and Grid switch beside the search field, or on Ctrl+1,
-Ctrl+2 and Ctrl+3.
+Ctrl+2 and Ctrl+3. A 240px preview stands to the right of the folder on
+Ctrl+Shift+P: what one picked thing is, its picture where it has one and
+its icon where it has not, then the same facts Get Info shows. It is off
+until it is asked for and stays however it was left.
+
+A folder in the list has a triangle before it that opens it in place, its
+contents indented under it and its own folders openable in turn, as Finder
+nests. The right arrow opens the row the keys are on and the left arrow
+shuts it.
+
+Searching shows a bar under the toolbar: where it is looking, a way to
+widen it to everything underneath or narrow it back, a kind — folders,
+images, audio, video, text, other — a span of time, and Save. A saved
+search is a name in the sidebar above the places, and opening one puts the
+window back the way it was when it was saved.
 
 Columns are Finder's: the folder in the leftmost, what is picked in it in
 the next, and so on rightwards, each column a 220px list with a chevron on

@@ -231,6 +231,10 @@ FocusScope {
             root.index = at >= 0 ? at : Math.max(0, Math.min(root.index, root.directory.count - 1));
             const from = root.directory.rowOfPath(root.anchorPath);
             root.anchor = from >= 0 ? from : root.index;
+            // A reset makes the view write its own currentIndex, and the binding on it is only
+            // worked out again when root.index changes, which after a reset it usually has not.
+            list.currentIndex = root.index;
+            grid.currentIndex = root.index;
         }
         function onPathChanged() { root.forget(); }
         // A gathering — Recents, or what a search found — is as much a change of listing as a

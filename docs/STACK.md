@@ -76,6 +76,11 @@ D-Bus glue to write and no helper daemons to start. Memory is the price:
 Qt is heavy. On a 32–64 GB gaming desktop that is not a real cost; idle
 CPU is what matters and it is zero when nothing moves.
 
+Where QML is the wrong tool it is not replaced, it is joined: the file
+browsing engine is a compiled QML module the same process imports, because
+a directory model of fifty thousand rows is not a thing to write in
+JavaScript (D66).
+
 **Runner-up: Rust with iced.** A quarter of the memory and no runtime
 surprises, but every service binding is hand-written, animations are hand
 rolled, and there is no hot reload. For a bar it would be the choice; for

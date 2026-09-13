@@ -15,6 +15,9 @@ theme/__pycache__/
 .vm-install.log
 shots/
 
+# Built by cmake from native/.
+native/*/build/
+
 # Built by hyprpm from plugins/.
 plugins/*/*.so
 plugins/isle-windows/*.so

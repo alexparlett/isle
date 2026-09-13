@@ -48,13 +48,29 @@ fi
 # generated fragments and the built plugins are the installed copy's own and are kept.
 if [[ "$REPO" != "$(mkdir -p "$ISLE_HOME" && cd "$ISLE_HOME" && pwd -P)" ]]; then
     [[ "$ISLE_HOME" != "$HOME" && "$ISLE_HOME" != "/" ]] || { echo "  ! ISLE_HOME must be a directory of its own" >&2; exit 1; }
-    rsync -a --delete --exclude '/hypr/generated' --exclude '/dev' --exclude '/shell/userwidgets' --exclude '__pycache__' --exclude '/plugins/*/*.so' --exclude '/plugins/*/*.o' "$REPO/" "$ISLE_HOME/"
+    rsync -a --delete --exclude '/hypr/generated' --exclude '/dev' --exclude '/shell/userwidgets' --exclude '__pycache__' --exclude '/plugins/*/*.so' --exclude '/plugins/*/*.o' --exclude '/native/*/build' --exclude '/qml' "$REPO/" "$ISLE_HOME/"
     # A first copy has no fragments yet, and the compositor reloads before the shell renders them: the
     # checkout's serve until then.
     mkdir -p "$ISLE_HOME/hypr/generated"
     [[ -n "$(ls -A "$ISLE_HOME/hypr/generated")" ]] || cp "$REPO"/hypr/generated/*.lua "$ISLE_HOME/hypr/generated/" 2>/dev/null || true
     ok "installed to $ISLE_HOME from $REPO"
     REPO="$ISLE_HOME"
+fi
+
+# The browsing engine is a QML module compiled against the Qt on this machine, installed to the import
+# path the session exports (D66). Without it the file manager and the file chooser are absent; the rest
+# of the shell runs.
+if command -v cmake >/dev/null; then
+    if cmake -S "$REPO/native/files" -B "$REPO/native/files/build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DISLE_QML_DIR="$REPO/qml" >/dev/null &&
+       cmake --build "$REPO/native/files/build" >/dev/null &&
+       cmake --install "$REPO/native/files/build" >/dev/null; then
+        ok "browsing engine built (Isle.Files)"
+    else
+        echo "  ! the browsing engine did not build; Files and the file chooser are off" >&2
+    fi
+else
+    echo "  ! cmake not installed: the browsing engine is off until it is" >&2
 fi
 
 link() { # link <target> <link>

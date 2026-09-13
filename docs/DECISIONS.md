@@ -658,3 +658,22 @@ closes, which lands after the dispatch and undoes it. A second copy is
 still a thing people want sometimes, and that is the app's own new-window
 chord rather than the launcher's job.
 
+**D66 · The browsing engine is compiled, and it runs in the shell rather
+than the compositor.** Listing a directory is the one thing the shell does
+where the language matters: a folder of fifty thousand files is a model
+with fifty thousand rows, each wanting a `statx`, a mime type and a
+thumbnail, and the answer has to arrive in batches while the view is
+already scrolling. Every other service in the shell reaches its subject
+through a command and a JSON parse, which is right for a mount or a VPN
+that changes a few times an hour and wrong here: the drives work was
+withdrawn because a listing that has to be counted before it can be drawn
+is a listing that never arrives. So `native/files/` is a Qt QML module,
+imported as `Isle.Files` from an import path the session exports, holding
+the directory model, the thumbnailer, the file operations and the portal.
+
+It is not a Hyprland plugin, though the repository already builds two of
+those. A plugin runs in the compositor's address space, is rebuilt against
+every Hyprland release, and takes the session with it when it faults; this
+code faults into a shell that restarts in a second and follows the shell to
+another compositor. The two trees stay apart for that reason: `plugins/` is
+the compositor's, `native/` is the shell's.

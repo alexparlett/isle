@@ -4,6 +4,10 @@
 # Compositor and shell
 hyprland
 quickshell
+qt6-declarative   # the browsing engine is a QML module built against it
+cmake             # which cmake, ninja and gcc build at install time
+ninja
+gcc
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 kitty

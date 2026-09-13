@@ -11,6 +11,9 @@ SHELL_PATH="${ISLE_SHELL_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/isle
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/isle"
 LOG="$LOG_DIR/session.log"
 export QT_QPA_PLATFORM=wayland
+# The browsing engine is a QML module installed beside the shell tree, which the config path links to.
+ISLE_ROOT="$(dirname "$(readlink -f "$SHELL_PATH")")"
+export QML_IMPORT_PATH="$ISLE_ROOT/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 
 # One shell per session.
 if [[ -f "$XDG_RUNTIME_DIR/isle.pid" ]] && kill -0 "$(cat "$XDG_RUNTIME_DIR/isle.pid")" 2>/dev/null; then

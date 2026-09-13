@@ -60,6 +60,11 @@ FloatingWindow {
             dir.paths = Places.recents.map(r => r.path);
             return;
         }
+        // The trash is not one folder: a file on another volume goes to that volume's own.
+        if (to === Places.trashFiles) {
+            dir.paths = FileJobs.trashContents();
+            return;
+        }
         dir.paths = [];
         // A gathering leaves the path where it was, so pointing it back at the same folder has to
         // say so rather than be taken for no change at all.
@@ -89,8 +94,11 @@ FloatingWindow {
     function up() { if (!showingRecents) go(Engine.parentOf(tab.path)); }
 
     function newTab(path) {
-        const at = path || dir.path;
-        tabs = tabs.concat([{ path: at, history: [at], at: 0 }]);
+        const to = path || dir.path;
+        // A folder already open in this window is shown rather than opened a second time.
+        const already = tabs.findIndex(t => t.path === to);
+        if (already >= 0) { showTab(already); return; }
+        tabs = tabs.concat([{ path: to, history: [to], at: 0 }]);
         current = tabs.length - 1;
     }
     function closeTab(i) {
@@ -109,6 +117,15 @@ FloatingWindow {
     }
     // Showing a tab is what moves the folder, so the two cannot drift apart.
     onCurrentChanged: root.show(tab.path)
+
+    // A bookmark dropped on another takes its place in the order, the rest closing up behind it.
+    function reorderPlace(moved, before) {
+        if (!moved || moved === before) return;
+        const order = Places.bookmarks.map(b => b.path).filter(p => p !== moved);
+        const at = order.indexOf(before);
+        order.splice(at < 0 ? order.length : at, 0, moved);
+        Places.reorderBookmarks(order);
+    }
 
     function putBack() { if (acting.length) FileJobs.restoreFromTrash(acting); }
     function askEmptyTrash() {
@@ -131,10 +148,8 @@ FloatingWindow {
     Connections {
         target: FileWindows
         function onRaised() {
-            const asked = FileWindows.lastAsked;
-            if (!asked || asked.id !== root.modelData.id) return;
-            if (Date.now() - asked.at > 2000) return;
-            root.newTab(asked.path);
+            const asked = FileWindows.takeAsked(root.modelData.id);
+            if (asked) root.newTab(asked.path);
         }
     }
 
@@ -343,6 +358,8 @@ FloatingWindow {
         function onJobFinished(job) {
             if (job.state === FileJob.Failed)
                 IslandEvents.show({ kind: "text", glyph: "triangle-alert", text: job.error });
+            // A gathering is named rather than watched, so what the trash holds is asked for again.
+            if (root.showingTrash) dir.paths = FileJobs.trashContents();
         }
     }
 
@@ -418,6 +435,8 @@ FloatingWindow {
             { label: "Bigger icons", glyph: "zoom-in", enabled: view.iconSize < 160, action: () => view.iconSize = Math.min(160, view.iconSize + 32) },
             { label: "Smaller icons", glyph: "zoom-out", enabled: view.iconSize > 32, action: () => view.iconSize = Math.max(32, view.iconSize - 32) },
             null,
+            { label: Prefs.p.filesPreview ? "Hide preview" : "Show preview", glyph: "panel-right",
+              action: () => Prefs.p.filesPreview = !Prefs.p.filesPreview },
             { label: dir.showHidden ? "Hide hidden files" : "Show hidden files", glyph: "eye", action: () => dir.showHidden = !dir.showHidden },
             { label: "Refresh", glyph: "refresh-cw", action: () => dir.refresh() },
         ];
@@ -518,6 +537,7 @@ FloatingWindow {
     Shortcut { sequences: ["Ctrl+L", "Ctrl+Shift+G"]; onActivated: root.askGoTo() }
 
     Shortcut { sequence: "Ctrl+I"; onActivated: if (root.actingOne) peek.look(root.actingOne) }
+    Shortcut { sequence: "Ctrl+Shift+P"; onActivated: Prefs.p.filesPreview = !Prefs.p.filesPreview }
     Shortcut { sequences: ["Ctrl++", "Ctrl+="]; onActivated: view.iconSize = Math.min(160, view.iconSize + 32) }
     Shortcut { sequence: "Ctrl+-"; onActivated: view.iconSize = Math.max(32, view.iconSize - 32) }
     // A key that is also a character belongs to whatever is being typed into before it belongs to
@@ -706,6 +726,27 @@ FloatingWindow {
                                 color: Theme.text3
                             }
                             HoverHandler { id: rowHover }
+
+                            // A bookmark can be dragged up and down the list to reorder it; the
+                            // groups above it are the desktop's own and do not move.
+                            readonly property bool movable: place.modelData.bookmark === true
+
+                            DropArea {
+                                anchors.fill: parent
+                                keys: ["isle/place"]
+                                enabled: place.movable
+                                onDropped: drop => {
+                                    root.reorderPlace(drop.getDataAsString("isle/place"), place.modelData.path);
+                                    drop.acceptProposedAction();
+                                }
+                                Rectangle {
+                                    anchors { left: parent.left; right: parent.right; top: parent.top }
+                                    height: 2
+                                    visible: parent.containsDrag
+                                    color: Theme.accent
+                                }
+                            }
+
                             ListRow {
                                 id: row
                                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -713,6 +754,18 @@ FloatingWindow {
                                 title: place.modelData.name
                                 selected: dir.path === place.modelData.path
                                 onClicked: root.go(place.modelData.path)
+
+                                Drag.active: dragger.active
+                                Drag.dragType: Drag.Automatic
+                                Drag.supportedActions: Qt.MoveAction
+                                Drag.keys: ["isle/place"]
+                                Drag.mimeData: ({ "isle/place": place.modelData.path })
+                                DragHandler {
+                                    id: dragger
+                                    enabled: place.movable
+                                    target: null
+                                    onActiveChanged: if (active) row.Drag.startDrag()
+                                }
                                 // Ejecting a device and taking a bookmark out are the row's own
                                 // actions and belong on it, not in a menu.
                                 Glyph {
@@ -901,6 +954,15 @@ FloatingWindow {
             }
         }
     }
+
+        // The preview stands beside the folder, as Finder's does, rather than over it.
+        FilePreview {
+            Layout.fillHeight: true
+            Layout.preferredWidth: 240
+            visible: Prefs.p.filesPreview
+            picked: root.acting
+            onOpened: path => root.openFile(path)
+        }
     }
     }
 

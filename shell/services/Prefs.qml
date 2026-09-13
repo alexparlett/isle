@@ -47,6 +47,7 @@ Singleton {
             property int filesGrouping: 0
             property int filesIconSize: 64
             property bool filesHidden: false
+            property bool filesPreview: false
 
             property bool dnd: false
             // Quiet hours (from hour to hour, wrapping midnight), auto-silence under a fullscreen window, apps

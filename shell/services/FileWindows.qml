@@ -19,13 +19,22 @@ Singleton {
     function open(path) {
         if (!windows.length) { add(path); return; }
         // A window is already there: it takes another tab rather than a second window appearing.
-        if (path) lastAsked = { id: windows[windows.length - 1].id, path: path, at: Date.now() };
+        // Asking for no folder in particular is asking for the window itself, not for a tab.
+        if (!path) return;
+        lastAsked = { id: windows[windows.length - 1].id, path: path };
         raised();
     }
 
     // A window is asked to take a tab by watching this rather than by being called, since the
-    // service cannot reach into a window it did not make.
+    // service cannot reach into a window it did not make. It is taken rather than read, so the same
+    // ask cannot be answered twice.
     property var lastAsked: null
+    function takeAsked(id) {
+        const asked = lastAsked;
+        if (!asked || asked.id !== id) return null;
+        lastAsked = null;
+        return asked;
+    }
     signal raised()
 
     function add(path) {

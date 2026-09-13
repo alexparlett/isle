@@ -71,6 +71,18 @@ Singleton {
         writer.running = true;
     }
 
+    // The bookmarks in a new order, written back as the lines they already were.
+    function reorderBookmarks(paths) {
+        const byPath = {};
+        for (const b of bookmarks) byPath[b.path] = b.line;
+        const lines = paths.map(p => byPath[p]).filter(l => l !== undefined);
+        if (lines.length !== bookmarks.length) return;
+        writer.command = ["sh", "-c",
+            "f=$1; shift; printf '%s\n' \"$@\" > \"$f.tmp\" && mv \"$f.tmp\" \"$f\"",
+            "_", bookmarksFile].concat(lines);
+        writer.running = true;
+    }
+
     Process { id: writer; onExited: reader.reload() }
 
     function refreshRecents() { recentsReader.running = true; }
@@ -118,7 +130,9 @@ Singleton {
                 const uri = space < 0 ? line : line.slice(0, space);
                 if (!uri.startsWith("file://")) continue;
                 const path = decodeURI(uri.slice(7));
-                out.push({ path: path, name: space < 0 ? root.nameOf(path) : line.slice(space + 1) });
+                // The line is kept as it was written, so reordering rewrites the file without
+                // rewriting anyone else's names.
+                out.push({ path: path, name: space < 0 ? root.nameOf(path) : line.slice(space + 1), line: line });
             }
             root.bookmarks = out;
         }

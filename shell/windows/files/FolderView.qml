@@ -423,6 +423,10 @@ FocusScope {
                         }
                         height: row.rowHeight
                         spacing: Theme.s3
+                        // Above the row's own click area, which covers the whole row and is declared
+                        // after this. Nothing in here takes a click except the triangle, so the rest
+                        // of the row still reaches it.
+                        z: 1
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -443,9 +447,7 @@ FocusScope {
                                     color: Theme.text3
                                 }
                                 MouseArea {
-                                    // Over the row's own click area, which covers the whole row.
-                                    z: 2
-                                    anchors { fill: parent; margins: -4 }
+                                    anchors.fill: parent
                                     enabled: row.isDir
                                     onClicked: row.opened ? root.directory.collapse(row.index)
                                                           : root.directory.expand(row.index)
@@ -590,6 +592,32 @@ FocusScope {
                     width: grid.cellWidth
                     height: grid.cellHeight
 
+                    Drag.active: cellArea.dragging
+                    Drag.dragType: Drag.Automatic
+                    Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
+                    Drag.mimeData: ({ "text/uri-list": root.uriList(root.isPicked(cell.path) ? root.selection : [cell.path]) })
+
+                    // A folder in the grid takes a drop the same way a folder in the list does.
+                    DropArea {
+                        anchors.fill: parent
+                        enabled: cell.isDir
+                        keys: ["text/uri-list"]
+                        onDropped: drop => {
+                            root.dropped(String(drop.getDataAsString("text/uri-list")).split(/\r?\n/)
+                                .filter(u => u.startsWith("file://"))
+                                .map(u => decodeURI(u.slice(7))), cell.path);
+                            drop.acceptProposedAction();
+                        }
+                        Rectangle {
+                            anchors { fill: parent; margins: 3 }
+                            visible: parent.containsDrag
+                            color: "transparent"
+                            border.width: 2
+                            border.color: Theme.accent
+                            radius: Theme.radiusControl
+                        }
+                    }
+
                     Rectangle {
                         anchors { fill: parent; margins: 3 }
                         radius: Theme.radiusControl
@@ -671,6 +699,20 @@ FocusScope {
                             anchors.fill: parent
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            // Started by hand once the pointer has moved far enough, for the reason
+                            // the list rows give: a drag target holds every press back.
+                            property point pressedAt
+                            property bool dragging: false
+                            onPressed: mouse => { cellArea.pressedAt = Qt.point(mouse.x, mouse.y); cellArea.dragging = false; }
+                            onReleased: cellArea.dragging = false
+                            onPositionChanged: mouse => {
+                                if (cellArea.dragging || !(mouse.buttons & Qt.LeftButton)) return;
+                                const far = Math.abs(mouse.x - cellArea.pressedAt.x) + Math.abs(mouse.y - cellArea.pressedAt.y);
+                                if (far < Qt.styleHints.startDragDistance) return;
+                                cellArea.dragging = true;
+                                if (!root.isPicked(cell.path)) root.pick(cell.index, Qt.NoModifier);
+                                cell.Drag.startDrag();
+                            }
                             onClicked: mouse => {
                                 if (mouse.button !== Qt.RightButton || !root.isPicked(cell.path))
                                     root.pick(cell.index, mouse.modifiers);

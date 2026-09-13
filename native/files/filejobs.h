@@ -162,6 +162,8 @@ public:
     Q_INVOKABLE bool isArchive(const QString &path) const;
 
     QString trashPath() const;
+    // Everything in every trash there is, since a file on another volume goes to that volume's own.
+    Q_INVOKABLE QStringList trashContents() const;
     // Everything in the trash put back where it came from, and the trash emptied.
     Q_INVOKABLE FileJob *restoreFromTrash(const QStringList &paths);
     Q_INVOKABLE FileJob *emptyTrash();

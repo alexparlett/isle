@@ -9,15 +9,58 @@
 #include <QProcess>
 #include <QUrl>
 
+#include <QStorageInfo>
+
 #include <errno.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace {
 
-// The freedesktop trash for the home volume. A file on another volume would want that volume's own,
-// which is a thing to add when there is a volume to try it on.
-QString trashRoot() {
+// The freedesktop trash for the home volume.
+QString homeTrash() {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/Trash");
+}
+
+// The trash a path belongs in. A rename cannot cross a filesystem, so a file on another volume goes
+// to that volume's own trash rather than being copied the length of the disk to the home one. The
+// spec allows the administrator's "$mount/.Trash/$uid", which must be sticky and not a link, and
+// otherwise the user's own "$mount/.Trash-$uid".
+QString trashFor(const QString &path) {
+    const QStorageInfo home(QDir::homePath());
+    const QStorageInfo where(QFileInfo(path).absolutePath());
+    if (!where.isValid() || where.rootPath() == home.rootPath())
+        return homeTrash();
+
+    const QString mount = where.rootPath();
+    const QString uid = QString::number(::getuid());
+    const QFileInfo shared(mount + QStringLiteral("/.Trash"));
+    if (shared.isDir() && !shared.isSymLink() && (shared.permissions() & QFileDevice::ExeOther)
+        && (QFile::permissions(shared.absoluteFilePath()) & QFileDevice::WriteOther)) {
+        struct stat st;
+        if (::stat(QFile::encodeName(shared.absoluteFilePath()).constData(), &st) == 0 && (st.st_mode & S_ISVTX))
+            return shared.absoluteFilePath() + QLatin1Char('/') + uid;
+    }
+    return mount + QStringLiteral("/.Trash-") + uid;
+}
+
+// Every trash there is: the home one, and one per volume that has been given one.
+QStringList allTrashes() {
+    QStringList out { homeTrash() };
+    const QString uid = QString::number(::getuid());
+    const QStorageInfo home(QDir::homePath());
+    for (const QStorageInfo &volume : QStorageInfo::mountedVolumes()) {
+        if (!volume.isValid() || !volume.isReady() || volume.isReadOnly())
+            continue;
+        if (volume.rootPath() == home.rootPath())
+            continue;
+        for (const QString &root : { volume.rootPath() + QStringLiteral("/.Trash/") + uid,
+                                     volume.rootPath() + QStringLiteral("/.Trash-") + uid })
+            if (QFileInfo(root + QStringLiteral("/files")).isDir())
+                out.append(root);
+    }
+    return out;
 }
 
 // Where a name's ending starts: the first dot after the first character, so "photos.tar.gz" keeps
@@ -342,7 +385,7 @@ bool FileJob::moveOne(const QString &source, const QString &destination) {
 }
 
 bool FileJob::trashOne(const QString &path) {
-    const QString root = trashRoot();
+    const QString root = trashFor(path);
     if (!QDir().mkpath(root + QStringLiteral("/files")) || !QDir().mkpath(root + QStringLiteral("/info")))
         return false;
 
@@ -355,8 +398,16 @@ bool FileJob::trashOne(const QString &path) {
     QFile info(root + QStringLiteral("/info/") + target + QStringLiteral(".trashinfo"));
     if (!info.open(QIODevice::WriteOnly | QIODevice::Text))
         return false;
+    // A volume's own trash records where a thing came from relative to that volume, so the note
+    // still says where to put it back after the volume is mounted somewhere else.
+    const QString mount = QStorageInfo(QFileInfo(path).absolutePath()).rootPath();
+    const QString absolute = QFileInfo(path).absoluteFilePath();
+    const bool onVolume = root != homeTrash() && mount != QLatin1String("/")
+        && absolute.startsWith(mount + QLatin1Char('/'));
+    const QString written = onVolume ? absolute.mid(mount.size() + 1) : absolute;
+
     info.write("[Trash Info]\n");
-    info.write("Path=" + QUrl::toPercentEncoding(QFileInfo(path).absoluteFilePath(), "/") + "\n");
+    info.write("Path=" + QUrl::toPercentEncoding(written, "/") + "\n");
     info.write("DeletionDate=" + QDateTime::currentDateTime().toString(Qt::ISODate).toUtf8() + "\n");
     info.close();
 
@@ -575,10 +626,10 @@ void FileJob::run() {
             // The trash keeps a note beside what it holds; taking the thing out takes the note too.
             // Only the trash has notes, so only a restore out of it removes one.
             if (m_kind == Restore) {
-                const QString note = trashRoot() + QStringLiteral("/info/")
-                    + QFileInfo(from).fileName() + QStringLiteral(".trashinfo");
-                if (from.startsWith(trashRoot() + QStringLiteral("/files/")))
-                    QFile::remove(note);
+                const QString files = QFileInfo(from).absolutePath();
+                if (files.endsWith(QStringLiteral("/files")))
+                    QFile::remove(files.chopped(6) + QStringLiteral("info/")
+                                  + QFileInfo(from).fileName() + QStringLiteral(".trashinfo"));
             }
         }
         setState(m_cancelled ? Cancelled : Done);
@@ -722,29 +773,34 @@ FileJob *FileJobs::newFolder(const QString &parent, const QString &name) {
     return begin(new FileJob(FileJob::NewFolder, { name }, parent, this));
 }
 
-QString FileJobs::trashPath() const { return trashRoot() + QStringLiteral("/files"); }
+QString FileJobs::trashPath() const { return homeTrash() + QStringLiteral("/files"); }
 
 // The note beside a trashed thing says where it came from; that is where it goes back to.
 FileJob *FileJobs::restoreFromTrash(const QStringList &paths) {
     QStringList from, to;
     for (const QString &path : paths) {
-        const QString note = trashRoot() + QStringLiteral("/info/") + QFileInfo(path).fileName()
-            + QStringLiteral(".trashinfo");
-        QFile file(note);
+        const QString files = QFileInfo(path).absolutePath();
+        if (!files.endsWith(QStringLiteral("/files")))
+            continue;
+        const QString root = files.chopped(6);
+        QFile file(root + QStringLiteral("info/") + QFileInfo(path).fileName() + QStringLiteral(".trashinfo"));
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
             continue;
-        QString home;
+        QString came;
         while (!file.atEnd()) {
             const QByteArray line = file.readLine();
             if (line.startsWith("Path=")) {
-                home = QUrl::fromPercentEncoding(line.mid(5).trimmed());
+                came = QUrl::fromPercentEncoding(line.mid(5).trimmed());
                 break;
             }
         }
-        if (home.isEmpty())
+        if (came.isEmpty())
             continue;
+        // A volume's own trash writes where a thing came from relative to that volume.
+        if (!came.startsWith(QLatin1Char('/')))
+            came = QStorageInfo(files).rootPath() + QLatin1Char('/') + came;
         from.append(path);
-        to.append(home);
+        to.append(came);
     }
     if (from.isEmpty())
         return nullptr;
@@ -754,14 +810,26 @@ FileJob *FileJobs::restoreFromTrash(const QStringList &paths) {
     return begin(job);
 }
 
+QStringList FileJobs::trashContents() const {
+    QStringList out;
+    for (const QString &root : allTrashes()) {
+        const QDir files(root + QStringLiteral("/files"));
+        for (const QString &name : files.entryList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot))
+            out.append(files.filePath(name));
+    }
+    return out;
+}
+
 FileJob *FileJobs::emptyTrash() {
     QStringList everything;
-    const QDir files(trashPath());
-    for (const QString &name : files.entryList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot))
-        everything.append(files.filePath(name));
-    const QDir notes(trashRoot() + QStringLiteral("/info"));
-    for (const QString &name : notes.entryList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot))
-        everything.append(notes.filePath(name));
+    for (const QString &root : allTrashes()) {
+        const QDir files(root + QStringLiteral("/files"));
+        for (const QString &name : files.entryList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot))
+            everything.append(files.filePath(name));
+        const QDir notes(root + QStringLiteral("/info"));
+        for (const QString &name : notes.entryList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot))
+            everything.append(notes.filePath(name));
+    }
     return everything.isEmpty() ? nullptr : begin(new FileJob(FileJob::Delete, everything, QString(), this));
 }
 

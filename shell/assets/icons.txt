@@ -59,8 +59,8 @@ house
 image
 info
 joystick
-key-round
 keyboard
+key-round
 languages
 layout-grid
 list
@@ -82,6 +82,7 @@ music
 package
 package-open
 palette
+panel-right
 pause
 pencil
 pin

@@ -72,9 +72,10 @@ ShellRoot {
     Settings {}
     Keychain {}
     Monitor {}
-    // Files needs the compiled browsing engine, which is built at install time and can be absent or
-    // stale. Held in a loader rather than declared, so a module that will not load costs Files and
-    // not the desktop.
-    LazyLoader { loading: true; component: Component { Files {} } }
+    // Files needs the compiled browsing engine, built at install time and able to be absent or stale.
+    // The component is made at run time so a module that will not load is Files failing to open, not
+    // the shell failing to start; the import above only registers the directory, which is what lets
+    // Files.qml name its own sibling.
+    LazyLoader { loading: true; component: Qt.createComponent(Qt.resolvedUrl("windows/files/Files.qml")) }
     Component { id: lockSurface; LockSurface {} }
 }

@@ -767,3 +767,18 @@ Packing and unpacking are bsdtar's, since it reads and writes every format
 this desktop is likely to meet and is already on the machine. Unpacking
 goes into a folder beside the archive named after it, never loose into the
 folder being looked at.
+
+**D72 · A service may not depend on the compiled engine.** A directory of
+QML is one module to the engine, and one file in it that will not compile
+takes the whole directory with it. `shell/services/` is imported by
+everything, so a service that imports `Isle.Files` and cannot find it does
+not cost that service: it costs every service, and the shell will not
+start at all. That is what happened when Places was written against the
+engine and reached a machine where the module had not been built yet.
+
+Places asks a script instead, which is how every other service in the
+shell learns anything, and the compiled module stays where only Files and
+the chooser reach it, both of them behind a loader that makes a component
+at run time (D66). The rule is worth stating plainly because the failure is
+total and the cause is a single import in a file nothing appeared to be
+using.

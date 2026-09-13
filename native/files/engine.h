@@ -40,10 +40,6 @@ public:
     // The breadcrumb trail as [{ name, path }], from the root or from home when the path is under it.
     Q_INVOKABLE QVariantList crumbs(const QString &path) const;
 
-    // The folders this machine says are the person's, as [{ name, path, icon }]. Only the ones that
-    // exist and are not simply home again, which is how a machine with no user-dirs.dirs answers.
-    Q_INVOKABLE QVariantList userDirs() const;
-
     Q_INVOKABLE QString formatSize(qint64 bytes) const;
     Q_INVOKABLE QString formatModified(const QDateTime &when) const;
 

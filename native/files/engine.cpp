@@ -91,35 +91,6 @@ QVariantList Engine::crumbs(const QString &path) const {
     return out;
 }
 
-QVariantList Engine::userDirs() const {
-    // Lucide names, not the icon theme's: a sidebar is the shell's own chrome, and the icon theme is
-    // for the icons of things the machine holds.
-    const struct { QStandardPaths::StandardLocation where; const char *icon; } wanted[] = {
-        { QStandardPaths::DesktopLocation, "monitor" },
-        { QStandardPaths::DocumentsLocation, "file-text" },
-        { QStandardPaths::DownloadLocation, "download" },
-        { QStandardPaths::PicturesLocation, "image" },
-        { QStandardPaths::MusicLocation, "music" },
-        { QStandardPaths::MoviesLocation, "film" },
-    };
-
-    const QString home = QDir::homePath();
-    QVariantList out;
-    out.append(QVariantMap { { QStringLiteral("name"), QStringLiteral("Home") },
-                             { QStringLiteral("path"), home },
-                             { QStringLiteral("icon"), QStringLiteral("house") } });
-
-    for (const auto &one : wanted) {
-        const QString path = QStandardPaths::writableLocation(one.where);
-        if (path.isEmpty() || path == home || !QFileInfo(path).isDir())
-            continue;
-        out.append(QVariantMap { { QStringLiteral("name"), QFileInfo(path).fileName() },
-                                 { QStringLiteral("path"), path },
-                                 { QStringLiteral("icon"), QString::fromLatin1(one.icon) } });
-    }
-    return out;
-}
-
 QString Engine::formatSize(qint64 bytes) const {
     if (bytes < 0)
         return {};

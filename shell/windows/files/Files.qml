@@ -209,7 +209,7 @@ FloatingWindow {
                             ListRow {
                                 id: row
                                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                glyph: place.modelData.icon
+                                glyph: place.modelData.glyph
                                 title: place.modelData.name
                                 selected: dir.path === place.modelData.path
                                 onClicked: root.go(place.modelData.path)

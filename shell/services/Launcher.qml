@@ -67,8 +67,7 @@ Singleton {
             if (s <= 0) continue;
             s += Math.min(20, used(e.id) * 2);
             out.push({ kind: "app", title: e.name, subtitle: e.genericName || e.comment || "Application", icon: Quickshell.iconPath(e.icon, "application-x-executable"), score: s,
-                       // Already running: its window comes forward, a hidden one back, rather than a second copy.
-                       run: () => { bump(e.id); const app = Windows.appFor(e.id); if (app && app.windows.length) Windows.raise(app.windows[0]); else e.execute(); },
+                       run: () => { bump(e.id); Windows.open(e); },
                        alt: e.runInTerminal ? null : () => { bump(e.id); Compositor.exec("kitty -e " + JSON.stringify(e.command.join(" "))); }, altLabel: "in a terminal" });
         }
         out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
@@ -107,7 +106,7 @@ Singleton {
         for (const g of Windows.groups) for (const a of g.apps) {
             const s = Math.max(score(a.title || "", q), score(a.appId || "", q));
             if (s <= 0 || (!q && limit)) continue;
-            out.push({ kind: "window", title: a.title || a.appId, subtitle: "Window · " + a.appId + " · workspace " + g.id, icon: a.icon, score: s * 0.9, run: () => Windows.focus(a),
+            out.push({ kind: "window", title: a.title || Windows.nameFor(a.appId, a.title), subtitle: "Window" + (a.appId ? " · " + a.appId : "") + " · workspace " + g.id, icon: a.icon, score: s * 0.9, run: () => Windows.focus(a),
                        alt: () => Windows.closeWindow(a), altLabel: "close" });
         }
         out.sort((a, b) => b.score - a.score);

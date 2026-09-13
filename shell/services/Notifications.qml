@@ -146,7 +146,7 @@ Singleton {
     // writes the site's logo to a folder it removes once the notification is delivered.
     function isFile(icon) { return /^(file:\/\/|\/)/.test(icon || ""); }
     function entryIconFor(n) {
-        const entry = n.desktopEntry ? DesktopEntries.byId(n.desktopEntry) : DesktopEntries.heuristicLookup(n.appName);
+        const entry = n.desktopEntry ? DesktopEntries.byId(n.desktopEntry) : n.appName ? DesktopEntries.heuristicLookup(n.appName) : null;
         return entry && entry.icon ? Quickshell.iconPath(entry.icon, "") : "";
     }
     function appIconFor(n) { return n.appIcon && !isFile(n.appIcon) ? Quickshell.iconPath(n.appIcon, "") : entryIconFor(n); }

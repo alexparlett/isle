@@ -16,24 +16,29 @@ Singleton {
         if (!Games.library.length) Games.refresh();
         return Games.library.find(g => g.source === "steam" && g.id === m[1]) || null;
     }
+    // heuristicLookup matches an empty string against every entry, so a window that sets no app id would take
+    // a stranger's name and icon: nothing is looked up for one.
+    function lookup(appId) { return appId ? DesktopEntries.heuristicLookup(appId) : null; }
     function iconFor(appId) {
         const game = steamGame(appId);
         if (game && game.art) return game.art.indexOf("/") === 0 ? "file://" + game.art : game.art;
-        const entry = DesktopEntries.heuristicLookup(appId);
-        return Quickshell.iconPath(entry && entry.icon ? entry.icon : appId, "application-x-executable");
+        const entry = lookup(appId);
+        const name = entry && entry.icon ? entry.icon : appId;
+        return Quickshell.iconPath(name || "application-x-executable", "application-x-executable");
     }
-    function nameFor(appId) {
+    // A window with no app id is named by its title, which is all it says about itself.
+    function nameFor(appId, title) {
         const game = steamGame(appId);
         if (game) return game.name;
-        const entry = DesktopEntries.heuristicLookup(appId);
-        return entry ? entry.name : appId;
+        const entry = lookup(appId);
+        return entry ? entry.name : (appId || title || "Window");
     }
 
     // A gamescope window is the app it hosts: its title starts with that app's name.
     function hostedId(appId, title) {
         if (appId !== "gamescope") return appId;
         const first = (title || "").split(/[\s:—-]/)[0];
-        return first && DesktopEntries.heuristicLookup(first) ? first.toLowerCase() : appId;
+        return first && lookup(first) ? first.toLowerCase() : appId;
     }
     function entry(t) {
         const appId = hostedId(t.wayland ? t.wayland.appId : "", t.title);
@@ -101,10 +106,13 @@ Singleton {
         for (const t of Hyprland.toplevels.values) {
             if (!t.workspace) continue;
             const e = entry(t);
-            if (!byApp[e.appId]) { byApp[e.appId] = { appId: e.appId, name: nameFor(e.appId), icon: e.icon, windows: [], hidden: true, focused: false }; order.push(e.appId); }
-            byApp[e.appId].windows.push(e);
-            if (!e.hidden) byApp[e.appId].hidden = false;
-            if (e.focused) byApp[e.appId].focused = true;
+            // With no app id there is nothing to group on: the window stands as its own app, so two unrelated
+            // ones do not merge.
+            const key = e.appId || e.address;
+            if (!byApp[key]) { byApp[key] = { appId: e.appId, name: nameFor(e.appId, e.title), icon: e.icon, windows: [], hidden: true, focused: false }; order.push(key); }
+            byApp[key].windows.push(e);
+            if (!e.hidden) byApp[key].hidden = false;
+            if (e.focused) byApp[key].focused = true;
         }
         const out = order.map(id => byApp[id]);
         for (const a of out) { a.windows.sort((x, y) => rank(x) - rank(y)); a.rank = rank(a.windows[0]); }
@@ -165,7 +173,7 @@ Singleton {
         const want = String(entryId).replace(/\.desktop$/, "").toLowerCase();
         return apps.find(a => {
             if (String(a.appId).toLowerCase() === want) return true;
-            const e = DesktopEntries.heuristicLookup(a.appId);
+            const e = lookup(a.appId);
             return !!e && String(e.id).replace(/\.desktop$/, "").toLowerCase() === want;
         }) || null;
     }
@@ -339,12 +347,36 @@ Singleton {
     property Timer raiseSoon: Timer { id: raiseSoon; interval: 140; onTriggered: if (root.raiseTarget) { root.focus(root.raiseTarget); root.raiseTarget = null; } }
     function raise(e) { if (!e) return; raiseTarget = e; raiseSoon.restart(); }
 
+    // The entries that say they have one main window, which Quickshell's DesktopEntry does not carry.
+    property var singleWindow: []
+    Process {
+        id: entryScan
+        command: ["python3", Quickshell.shellDir + "/scripts/entries.py", "single"]
+        running: true
+        stdout: StdioCollector { onStreamFinished: { try { root.singleWindow = JSON.parse(text).single || []; } catch (e) { root.singleWindow = []; } } }
+    }
+    function singleWindowed(entryId) {
+        const want = String(entryId || "").replace(/\.desktop$/, "").toLowerCase();
+        return singleWindow.some(id => id.toLowerCase() === want);
+    }
+
+    // What the launcher does with an entry. An app with one main window comes forward; one where a second
+    // window is a thing people ask for - a file manager, an editor - is started again, and an app that is
+    // single-instance without saying so raises its own window when it is.
+    function open(e) {
+        if (!e) return;
+        const app = singleWindowed(e.id) ? appFor(e.id) : null;
+        if (app && app.windows.length) raise(app.windows[0]);
+        else e.execute();
+    }
+
     // The app whose id or name contains the given name, case-insensitively: a notification's sender.
     function focusApp(name) {
         const q = (name || "").toLowerCase();
         if (!q) return;
         const app = apps.find(a => a.appId.toLowerCase() === q || a.name.toLowerCase() === q)
-                 || apps.find(a => a.appId.toLowerCase().indexOf(q) >= 0 || a.name.toLowerCase().indexOf(q) >= 0 || q.indexOf(a.appId.toLowerCase()) >= 0);
+                 || apps.find(a => a.name.toLowerCase().indexOf(q) >= 0
+                              || (a.appId && (a.appId.toLowerCase().indexOf(q) >= 0 || q.indexOf(a.appId.toLowerCase()) >= 0)));
         if (!app) return;
         focus(app.windows.find(w => w.focused) || app.windows[0]);
     }
@@ -362,7 +394,8 @@ Singleton {
     // An app the user keeps running has its window put away on close instead, as a Dock would; by the app's
     // desktop entry, so every window of it counts.
     function keeps(appId) {
-        const entry = DesktopEntries.heuristicLookup(appId || "");
+        if (!appId) return false;
+        const entry = lookup(appId);
         return (Prefs.p.keepRunning || []).indexOf(entry ? entry.id : appId) >= 0;
     }
     // Super+Q: the switcher's app when it is held open, the active window otherwise.

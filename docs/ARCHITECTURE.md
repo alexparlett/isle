@@ -422,13 +422,15 @@ the app as `CTRL`.**
   With no Mac keyboard the file holds an empty keymap rather than a
   stand-in device name, which would aim the whole profile at a keyboard
   nobody has and read as the remaps being broken (D58).
-- A rule's two sides speak different layouts. What a person presses is read
-  through their own keyboard's, where the Macintosh variant puts grave on
-  the key beside the left Shift; what the rule emits is read by the
-  compositor, which matches binds through the layout without that variant,
-  where grave is the key left of the 1. `xkbcli compile-keymap --layout gb
-  --variant mac` shows the difference. A rule naming the same key on both
-  sides waits on a key nobody presses and fires one nobody meant (D58).
+- A rule's two sides speak different layouts, and neither is guessed.
+  `scripts/keysyms.py <layouts> <variants>` compiles a keymap with `xkbcli`
+  and answers which key carries each symbol, by the kernel's name for it:
+  the map for the keyboard's own layout says what a person presses, the map
+  for the compositor's says what to emit, since binds are matched through
+  that one. So a chord written as a symbol lands correctly whatever the
+  layout does with it: AZERTY's A is the key called Q, a Macintosh variant
+  puts grave beside the left Shift, and a symbol the layout has no unshifted
+  key for drops the rule rather than aiming it at the wrong key (D61).
 - Selecting text is the same translation as moving through it, and every
   one of those chords would otherwise reach the compositor as a window
   chord: Cmd+Shift+Left/Right → Shift+Home/End, Cmd+Shift+Up/Down →

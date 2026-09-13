@@ -626,3 +626,15 @@ the key under the keyboard's variant and emitting the key under the
 compositor's. Cmd and the backtick was the case that showed it, since that
 is the one key the Macintosh variant moves.
 
+**D61 · Where a symbol sits is asked of the layout, never assumed.** The
+first fix for that was a table with one entry, grave and the key beside
+the left Shift, which is only this keyboard's version of a general
+problem: AZERTY's A is the key QWERTY calls Q, Dvorak moves everything,
+and every Macintosh variant moves grave. A remap layer matches kernel
+keys, so a chord written as a symbol has to be resolved against a layout
+before it means anything. `scripts/keysyms.py` compiles the keymap with
+`xkbcli` and reports which key carries each symbol, for the keyboard's
+layout on the matching side and the compositor's on the emitting side. A
+symbol the layout has no unshifted key for resolves to nothing and the
+rule is dropped, since a rule aimed at the wrong key is worse than one
+that is missing.

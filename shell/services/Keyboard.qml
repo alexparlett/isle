@@ -273,6 +273,35 @@ Singleton {
     }
 
     // The Mac profile: Cmd+key reaches apps as Ctrl+key, except the chords the shell owns, which stay Super.
+    // Where each symbol sits, by the kernel's name for the key: one map for the layout a Mac-profile keyboard
+    // types on, one for the layout the compositor matches its binds through. `scripts/keysyms.py` compiles
+    // both from XKB, so a chord written as a symbol lands on the right key whatever the layout does with it.
+    property var pressedSyms: ({})
+    property var bindSyms: ({})
+    readonly property string layoutList: Input.layouts.map(l => l.layout).join(",")
+    readonly property string variantList: Input.layouts.map(l => l.variant || "").join(",")
+    readonly property string macVariantList: Input.layouts.map(l => l.variant || (macVariantLayouts.indexOf(l.layout) >= 0 ? "mac" : "")).join(",")
+    Process {
+        id: bindSymProc
+        command: ["python3", Quickshell.shellDir + "/scripts/keysyms.py", root.layoutList || "us", root.variantList]
+        stdout: StdioCollector { onStreamFinished: { try { root.bindSyms = JSON.parse(text); } catch (e) { root.bindSyms = {}; } root.maybeRender(); } }
+    }
+    Process {
+        id: pressedSymProc
+        command: ["python3", Quickshell.shellDir + "/scripts/keysyms.py", root.layoutList || "us", root.macVariantList]
+        stdout: StdioCollector { onStreamFinished: { try { root.pressedSyms = JSON.parse(text); } catch (e) { root.pressedSyms = {}; } root.maybeRender(); } }
+    }
+    function readSymbols() { if (!bindSymProc.running) bindSymProc.running = true; if (!pressedSymProc.running) pressedSymProc.running = true; }
+    onLayoutListChanged: readSymbols()
+    onMacVariantListChanged: readSymbols()
+    Component.onCompleted: readSymbols()
+
+    // A chord's keys as this keymap spells them: XKB's symbol names, which the maps are keyed by.
+    readonly property var symbolNames: ({ left: "Left", right: "Right", up: "Up", down: "Down", space: "space",
+        Return: "Return", Print: "Print", Escape: "Escape", Tab: "Tab", backspace: "BackSpace", delete: "Delete",
+        comma: "comma", period: "period", equal: "equal", minus: "minus", grave: "grave", slash: "slash",
+        semicolon: "semicolon", apostrophe: "apostrophe", backslash: "backslash", bracketleft: "bracketleft", bracketright: "bracketright" })
+
     function xremapChord(hypr) {
         // "SUPER + SHIFT + 4" -> "Super-Shift-4"
         return chordOf(hypr, false);
@@ -282,15 +311,21 @@ Singleton {
     // the compositor, which matches its binds through the layout without that variant, where grave is the key
     // left of the 1. A rule that names the same key on both sides waits on one and fires the other.
     function pressedChord(hypr) { return chordOf(hypr, true); }
+    // A chord's keys by the kernel's name for them, through the given layout. An empty answer means the
+    // layout has no unshifted key for that symbol, and the rule is dropped rather than aimed at the wrong one.
     function chordOf(hypr, pressed) {
-        const keys = { Print: "SysRq", Return: "Enter" };
-        const moved = pressed && macVariantLua() ? { grave: "102nd" } : {};
-        return hypr.split("+").map(s => s.trim()).map(p => {
+        const map = pressed ? pressedSyms : bindSyms;
+        const out = [];
+        for (const raw of hypr.split("+")) {
+            const p = raw.trim();
             const mod = ({ SUPER: "Super", SHIFT: "Shift", CTRL: "C", ALT: "Alt" })[p];
-            if (mod) return mod;
-            const k = keys[p] || p.toLowerCase();
-            return moved[k] || k;
-        }).join("-");
+            if (mod) { out.push(mod); continue; }
+            const sym = symbolNames[p] || (p.length === 1 ? p.toLowerCase() : p);
+            const key = map[sym];
+            if (!key) return "";
+            out.push(key);
+        }
+        return out.join("-");
     }
     // The Mac preset: shell/keymap.json says what each modifier means, `prefs.keyTranslations` overrides an
     // entry and an empty one drops it. Nothing about meaning is written in this file.
@@ -309,9 +344,11 @@ Singleton {
         const owned = {};
         for (const a of actions) {
             if (a.profile === "win") continue;
+            // A chord the layout has no key for resolves to nothing, and owns nothing.
+            const mark = c => { if (c) owned[c] = true; };
             for (const chord of [a.macHypr || a.hypr]) {
-                if (a.range) for (let n = 1; n <= a.range; n++) owned[xremapChord(chord.replace("{n}", n))] = true;
-                else owned[xremapChord(chord)] = true;
+                if (a.range) for (let n = 1; n <= a.range; n++) mark(xremapChord(chord.replace("{n}", n)));
+                else mark(xremapChord(chord));
             }
         }
         const keys = "abcdefghijklmnopqrstuvwxyz0123456789".split("").concat(["minus", "equal", "leftbrace", "rightbrace", "semicolon", "apostrophe", "comma", "dot", "slash", "backslash"]);
@@ -319,7 +356,7 @@ Singleton {
         // A rule for a chord with fewer modifiers otherwise catches one with more: Option+Left took
         // Cmd+Option+Left. A shell chord is written through as itself first, and order decides. Only chords
         // whose keys xremap knows by the same name are written, since one it cannot parse voids the file.
-        const safe = /^(Super|Shift|C|Alt)(-(Super|Shift|C|Alt))*-([a-z0-9]|left|right|up|down|grave|102nd|space|tab|Enter|backspace|delete|home|end|SysRq|minus|equal|comma|dot|slash|semicolon|apostrophe|backslash)$/;
+        const safe = /^(Super|Shift|C|Alt)(-(Super|Shift|C|Alt))*-([a-z0-9]|left|right|up|down|grave|102nd|space|tab|enter|esc|backspace|delete|home|end|sysrq|minus|equal|comma|dot|slash|semicolon|apostrophe|backslash)$/;
         for (const a of actions) {
             const own = a.macHypr || a.hypr;
             if (!own || a.range) continue;
@@ -338,8 +375,9 @@ Singleton {
         // Super and an arrow.
         for (const a of actions) {
             if (!a.macRemap || !a.hypr) continue;
-            if (a.range) for (let n = 1; n <= a.range; n++) remap[pressedChord(a.macRemap.replace("{n}", n))] = xremapChord(a.hypr.replace("{n}", n));
-            else remap[pressedChord(a.macRemap)] = xremapChord(a.hypr);
+            const rule = (from, to) => { if (from && to) remap[from] = to; };
+            if (a.range) for (let n = 1; n <= a.range; n++) rule(pressedChord(a.macRemap.replace("{n}", n)), xremapChord(a.hypr.replace("{n}", n)));
+            else rule(pressedChord(a.macRemap), xremapChord(a.hypr));
         }
         // What Cmd, Ctrl and Option mean in a text field on macOS, from the preset.
         Object.assign(remap, macPreset.text, macPreset.control);

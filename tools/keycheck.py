@@ -15,7 +15,7 @@ import argparse, fcntl, glob, json, os, select, struct, subprocess, sys, time
 
 KEYS = {"b": 48, "d": 32, "f": 33, "h": 35, "n": 49, "p": 25, "a": 30, "c": 46, "e": 18, "k": 37, "u": 22, "v": 47, "w": 17, "t": 20, "s": 31, "z": 44,
         "1": 2, "3": 4, "4": 5, "5": 6, "space": 57, "tab": 15, "enter": 28, "backspace": 14, "delete": 111,
-        "left": 105, "right": 106, "up": 103, "down": 108, "home": 102, "end": 107, "grave": 41, "iso": 86,
+        "left": 105, "right": 106, "up": 103, "down": 108, "home": 102, "end": 107, "grave": 41, "102nd": 86,
         "ctrl": 29, "shift": 42, "alt": 56, "meta": 125, "print": 99}
 NAMES = {v: k for k, v in KEYS.items()}
 MODS = {KEYS["ctrl"]: "CTRL", KEYS["shift"]: "SHIFT", KEYS["alt"]: "ALT", KEYS["meta"]: "SUPER"}
@@ -40,7 +40,10 @@ CASES = [
     ("text", "alt+shift+left", "CTRL+SHIFT+left"),
     ("text", "alt+delete", "CTRL+delete"),
     ("window", "meta+alt+left", "ALT+SUPER+left"),
-    ("window", "meta+grave", "ALT+grave"),
+    # The backtick is the key beside the left Shift under a Macintosh variant, and the compositor reads its
+    # binds through the layout without one, so the two sides name different keys.
+    ("window", "meta+102nd", "ALT+grave"),
+    ("window", "meta+grave", "SUPER+grave"),
     ("capture", "meta+shift+3", "CTRL+print"),
     ("capture", "meta+shift+5", "SHIFT+SUPER+s"),
     # macOS's control key: the line editor's chords in a text field.

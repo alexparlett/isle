@@ -72,7 +72,12 @@ QtObject {
     }
     function act(id, input) {
         const a = actions.find(x => x.id === id) || { id: id };
-        if (a.terminal) { Compositor.exec((Prefs.p.terminal || "kitty") + " -e sh -c " + JSON.stringify("python3 " + JSON.stringify(script) + " " + (args || []).join(" ") + " action " + id + "; echo; echo Done, close this window.; sleep 3")); return; }
+        if (a.terminal) {
+            // A terminal window has a person's keyboard on stdin, not ours, so the input goes as an argument.
+            const arg = /^[A-Za-z0-9_.@-]+$/.test(input || "") ? " " + input : "";
+            Compositor.exec((Prefs.p.terminal || "kitty") + " -e sh -c " + JSON.stringify("python3 " + JSON.stringify(script) + " " + (args || []).join(" ") + " action " + id + arg + "; echo; echo Done, close this window.; sleep 3"));
+            return;
+        }
         if (actor.running) return;
         error = "";
         pendingInput = input || "";

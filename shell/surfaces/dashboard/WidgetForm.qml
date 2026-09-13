@@ -41,9 +41,9 @@ ColumnLayout {
     Label { text: form.editingId ? "Edit " + form.fName : "New text widget"; size: Theme.sizeHeading; weight: Font.DemiBold }
     Label { text: "A command's output, or a file's contents, on a card."; size: Theme.sizeCaption; color: Theme.text3; wrapMode: Text.WordWrap; Layout.fillWidth: true }
     Label { text: "Name"; size: Theme.sizeCaption; color: Theme.text2; Layout.topMargin: Theme.s1 }
-    Field { id: nameField; Layout.fillWidth: true; implicitHeight: 32; placeholder: "Uptime"; text: form.fName; onTextChanged: form.fName = text; next: cmdField }
+    Field { id: nameField; Layout.fillWidth: true; implicitHeight: 32; placeholder: "Uptime"; text: form.fName; onTextChanged: form.fName = text }
     Label { text: "Command, run with sh"; size: Theme.sizeCaption; color: Theme.text2 }
-    Field { id: cmdField; Layout.fillWidth: true; implicitHeight: 32; placeholder: "uptime -p"; text: form.fCommand; onTextChanged: form.fCommand = text; input.font.family: Theme.fontMono; next: fileField }
+    Field { id: cmdField; Layout.fillWidth: true; implicitHeight: 32; placeholder: "uptime -p"; text: form.fCommand; onTextChanged: form.fCommand = text; input.font.family: Theme.fontMono }
     Label { text: "Or a file to read"; size: Theme.sizeCaption; color: Theme.text2 }
     Field { id: fileField; Layout.fillWidth: true; implicitHeight: 32; placeholder: "/sys/class/thermal/thermal_zone0/temp"; text: form.fFile; onTextChanged: form.fFile = text; input.font.family: Theme.fontMono }
     RowLayout {

@@ -19,6 +19,18 @@ SettingsPage {
 
     SettingsGroup {
         heading: "Accounts"
+        action: Button {
+            text: "Add account"
+            variant: "text"
+            implicitHeight: 26
+            enabled: Drives.catalogue.length > 0
+            onClicked: {
+                page.service = Drives.catalogue.length ? Drives.catalogue[0].id : "";
+                page.accountName = "";
+                page.values = ({});
+                sheet.open();
+            }
+        }
         Repeater {
             model: Drives.accounts
             SettingsRow {
@@ -32,21 +44,15 @@ SettingsPage {
                     spacing: Theme.s2
                     Repeater {
                         model: acct.modelData.actions || []
-                        RowLayout {
+                        Button {
                             required property var modelData
-                            spacing: Theme.s1
-                            Label { visible: modelData.on !== undefined; text: modelData.label; size: Theme.sizeCaption; color: Theme.text2 }
-                            Toggle { visible: modelData.on !== undefined; checked: !!modelData.on; onToggled: Drives.act(acct.modelData.provider, modelData.id, acct.modelData.id) }
-                            Button {
-                                visible: modelData.on === undefined
-                                text: acct.armed === modelData.id ? modelData.label + "?" : modelData.label
-                                variant: acct.armed === modelData.id ? "danger" : modelData.primary ? "accent" : "text"
-                                implicitHeight: 32
-                                onClicked: {
-                                    if (modelData.danger && acct.armed !== modelData.id) { acct.armed = modelData.id; return; }
-                                    acct.armed = "";
-                                    Drives.act(acct.modelData.provider, modelData.id, acct.modelData.id);
-                                }
+                            text: acct.armed === modelData.id ? modelData.label + "?" : modelData.label
+                            variant: acct.armed === modelData.id ? "danger" : modelData.primary ? "accent" : "text"
+                            implicitHeight: 32
+                            onClicked: {
+                                if (modelData.danger && acct.armed !== modelData.id) { acct.armed = modelData.id; return; }
+                                acct.armed = "";
+                                Drives.act(acct.modelData.provider, modelData.id, acct.modelData.id);
                             }
                         }
                     }
@@ -54,26 +60,10 @@ SettingsPage {
             }
         }
         SettingsRow { visible: Drives.accounts.length === 0; label: "No account yet" }
-        SettingsRow {
-            label: ""
-            Button {
-                text: "Add account"
-                glyph: "cloud"
-                variant: "accent"
-                enabled: Drives.catalogue.length > 0
-                onClicked: {
-                    page.service = Drives.catalogue.length ? Drives.catalogue[0].id : "";
-                    page.accountName = "";
-                    page.values = ({});
-                    sheet.open();
-                }
-            }
-        }
     }
 
     Sheet {
         id: sheet
-        over: page.Window.contentItem || page
         title: "Add an account"
         confirmLabel: page.chosen && page.chosen.browser ? "Sign in" : "Add"
         confirmEnabled: page.service !== "" && /^[A-Za-z0-9_-]+$/.test(page.accountName)

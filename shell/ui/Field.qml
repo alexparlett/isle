@@ -13,8 +13,6 @@ Rectangle {
     property string glyph: ""
     property int size: Theme.sizeBody
     signal accepted
-    // Tab moves to this Field; Shift+Tab comes back.
-    property var next: null
 
     implicitHeight: 40
     radius: Theme.radiusControl
@@ -22,6 +20,12 @@ Rectangle {
     border.width: 1
     border.color: input.activeFocus ? Theme.accent : Theme.hairline
     Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.IBeamCursor
+        onClicked: input.forceActiveFocus()
+    }
 
     RowLayout {
         anchors { fill: parent; leftMargin: Theme.s3; rightMargin: Theme.s3 }
@@ -45,7 +49,8 @@ Rectangle {
             clip: true
             renderType: Text.NativeRendering
             onAccepted: root.accepted()
-            KeyNavigation.tab: root.next ? root.next.input : null
+            // Tab moves to the next field and Shift+Tab back, in the order they are written.
+            activeFocusOnTab: true
             Label { anchors.verticalCenter: parent.verticalCenter; visible: input.text === ""; text: root.placeholder; color: Theme.text3; weight: Font.Normal; size: root.size }
         }
     }

@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
+#include <QProcess>
 #include <QUrl>
 
 #include <errno.h>
@@ -31,6 +32,26 @@ QString freeName(const QString &folder, const QString &name) {
             return candidate;
     }
     return name;
+}
+
+// What bsdtar is asked to unpack. Anything else is a file like any other.
+bool looksLikeArchive(const QString &name) {
+    static const QStringList endings = {
+        QStringLiteral(".tar"), QStringLiteral(".tar.gz"), QStringLiteral(".tgz"),
+        QStringLiteral(".tar.bz2"), QStringLiteral(".tbz2"), QStringLiteral(".tar.xz"),
+        QStringLiteral(".txz"), QStringLiteral(".tar.zst"), QStringLiteral(".zip"),
+        QStringLiteral(".7z"), QStringLiteral(".rar"), QStringLiteral(".iso"),
+    };
+    for (const QString &ending : endings)
+        if (name.endsWith(ending, Qt::CaseInsensitive))
+            return true;
+    return false;
+}
+
+// The name without whatever archive ending it has, so "photos.tar.gz" unpacks into "photos".
+QString withoutArchiveEnding(const QString &name) {
+    const int dot = name.indexOf(QLatin1Char('.'), 1);
+    return dot < 0 ? name : name.left(dot);
 }
 
 qint64 sizeOf(const QString &path) {
@@ -258,6 +279,92 @@ void FileJob::run() {
         return;
     }
 
+    if (m_kind == Extract) {
+        const QString archive = m_sources.value(0);
+        const QFileInfo info(archive);
+        QString into = QDir(info.absolutePath()).filePath(withoutArchiveEnding(info.fileName()));
+        if (QFileInfo::exists(into))
+            into = QDir(info.absolutePath()).filePath(freeName(info.absolutePath(), withoutArchiveEnding(info.fileName())));
+        if (!QDir().mkpath(into)) {
+            setState(Failed, QStringLiteral("Could not make a folder to unpack into"));
+            return;
+        }
+        report(info.fileName(), 1);
+
+        QProcess tar;
+        tar.setWorkingDirectory(into);
+        tar.start(QStringLiteral("bsdtar"), { QStringLiteral("-xf"), info.absoluteFilePath() });
+        if (!tar.waitForFinished(-1) || tar.exitCode() != 0) {
+            QDir(into).removeRecursively();
+            setState(Failed, QStringLiteral("Could not unpack ") + info.fileName());
+            return;
+        }
+        m_undoFrom.append(into);
+        m_undoTo.append(QString());
+        setState(Done);
+        return;
+    }
+
+    if (m_kind == Compress) {
+        if (m_sources.isEmpty()) {
+            setState(Failed, QStringLiteral("Nothing to pack"));
+            return;
+        }
+        const QString folder = QFileInfo(m_sources.first()).absolutePath();
+        const QString target = QDir(folder).filePath(m_destination);
+        report(m_destination, 1);
+
+        // Named relative to the folder they are in, so the archive holds names and not whole paths.
+        QStringList args { QStringLiteral("-caf"), target };
+        for (const QString &source : std::as_const(m_sources))
+            args.append(QFileInfo(source).fileName());
+
+        QProcess tar;
+        tar.setWorkingDirectory(folder);
+        tar.start(QStringLiteral("bsdtar"), args);
+        if (!tar.waitForFinished(-1) || tar.exitCode() != 0) {
+            QFile::remove(target);
+            setState(Failed, QStringLiteral("Could not pack them"));
+            return;
+        }
+        m_undoFrom.append(target);
+        m_undoTo.append(QString());
+        setState(Done);
+        return;
+    }
+
+    if (m_kind == RenameMany) {
+        int n = 0;
+        for (const QString &source : std::as_const(m_sources)) {
+            if (m_cancelled) {
+                setState(Cancelled);
+                return;
+            }
+            const QFileInfo info(source);
+            const QString suffix = info.suffix().isEmpty() ? QString() : QLatin1Char('.') + info.suffix();
+            ++n;
+            QString name = m_destination;
+            // Without a place for the number every name would be the same one, and the second would
+            // collide with the first; the number goes on the end instead.
+            if (name.contains(QLatin1Char('#')))
+                name.replace(QLatin1Char('#'), QString::number(n));
+            else
+                name += QLatin1Char(' ') + QString::number(n);
+            const QString target = QDir(info.absolutePath()).filePath(name + suffix);
+            report(info.fileName(), n);
+            if (target == source)
+                continue;
+            if (QFileInfo::exists(target) || !QFile::rename(source, target)) {
+                setState(Failed, QStringLiteral("Could not rename ") + info.fileName());
+                return;
+            }
+            m_undoFrom.append(target);
+            m_undoTo.append(source);
+        }
+        setState(Done);
+        return;
+    }
+
     if (m_kind == Restore) {
         int back = 0;
         for (int i = 0; i < m_sources.size() && i < m_targets.size(); ++i) {
@@ -335,8 +442,11 @@ void FileJob::run() {
 }
 
 bool FileJob::undoable() const {
-    return m_state == Done && !m_undoFrom.isEmpty()
-        && (m_kind == Move || m_kind == Trash || m_kind == Copy || m_kind == Rename || m_kind == NewFolder);
+    // A job that failed or was stopped part way has still done part of it, and that part is exactly
+    // what wants undoing.
+    return (m_state == Done || m_state == Failed || m_state == Cancelled) && !m_undoFrom.isEmpty()
+        && (m_kind == Move || m_kind == Trash || m_kind == Copy || m_kind == Rename
+            || m_kind == NewFolder || m_kind == Extract || m_kind == Compress || m_kind == RenameMany);
 }
 
 FileJobs::FileJobs(QObject *parent) : QObject(parent) {}
@@ -348,6 +458,9 @@ QString FileJobs::undoLabel() const {
     case FileJob::Copy: return QStringLiteral("Undo copy");
     case FileJob::Rename: return QStringLiteral("Undo rename");
     case FileJob::NewFolder: return QStringLiteral("Undo new folder");
+    case FileJob::Extract: return QStringLiteral("Undo unpack");
+    case FileJob::Compress: return QStringLiteral("Undo pack");
+    case FileJob::RenameMany: return QStringLiteral("Undo rename");
     default: return QStringLiteral("Undo");
     }
 }
@@ -396,6 +509,22 @@ FileJob *FileJobs::newFolder(const QString &parent, const QString &name) {
     return begin(new FileJob(FileJob::NewFolder, { name }, parent, this));
 }
 
+FileJob *FileJobs::extract(const QString &archive) {
+    return begin(new FileJob(FileJob::Extract, { archive }, QString(), this));
+}
+
+FileJob *FileJobs::compress(const QStringList &paths, const QString &name) {
+    return begin(new FileJob(FileJob::Compress, paths, name, this));
+}
+
+FileJob *FileJobs::renameMany(const QStringList &paths, const QString &pattern) {
+    return begin(new FileJob(FileJob::RenameMany, paths, pattern, this));
+}
+
+bool FileJobs::isArchive(const QString &path) const {
+    return looksLikeArchive(QFileInfo(path).fileName());
+}
+
 FileJob *FileJobs::undo() {
     if (m_undo.kind == -1)
         return nullptr;
@@ -405,7 +534,8 @@ FileJob *FileJobs::undo() {
 
     // Copying and making a folder are put back by taking away what they made; everything else by
     // moving each thing to where it came from.
-    if (undo.kind == FileJob::Copy || undo.kind == FileJob::NewFolder)
+    if (undo.kind == FileJob::Copy || undo.kind == FileJob::NewFolder
+        || undo.kind == FileJob::Extract || undo.kind == FileJob::Compress)
         return begin(new FileJob(FileJob::Delete, undo.from, QString(), this));
 
     // Everything else goes back where it came from, each thing to its own place.

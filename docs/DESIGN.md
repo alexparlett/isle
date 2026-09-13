@@ -558,8 +558,17 @@ thumbnail is the shared one every desktop tool writes (D68), so a folder
 of photos opened once is instant afterwards and photos another program
 has already thumbnailed are instant the first time.
 
+A click picks one thing, Ctrl with a click adds or removes one, Shift
+takes the run between, and Ctrl+A takes the folder. Every action then
+applies to what is picked, or to the row the keys are on when nothing is.
+
 A right click offers what can be done with what is under it: open,
-rename, copy, cut, paste, a new folder, move to trash, and delete. The
+rename, copy, cut, paste, a new folder, move to trash, delete, and for
+several at once one name for all of them (D71). An archive offers to
+unpack, into a folder beside it named after it; anything picked offers to
+pack. Files can be dragged onto a folder in the list or onto the folder
+being shown, which moves them, and out to other applications, which is
+their business. The
 keys are the ones every desktop uses: F2 renames, Delete moves to the
 trash, Shift with Delete removes for good and asks first, Ctrl with C, X
 and V copy, cut and paste, Ctrl+Shift+N makes a folder, and Ctrl+Z undoes

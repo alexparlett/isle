@@ -28,7 +28,7 @@ class FileJob : public QObject {
     Q_PROPERTY(QString conflictName READ conflictName NOTIFY conflictChanged)
 
 public:
-    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, Restore };
+    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, Restore, Extract, Compress, RenameMany };
     Q_ENUM(Kind)
 
     enum State { Running, Asking, Done, Failed, Cancelled };
@@ -132,6 +132,14 @@ public:
     Q_INVOKABLE FileJob *remove(const QStringList &paths);
     Q_INVOKABLE FileJob *rename(const QString &path, const QString &name);
     Q_INVOKABLE FileJob *newFolder(const QString &parent, const QString &name);
+    // Unpacked beside the archive, in a folder of its own named after it.
+    Q_INVOKABLE FileJob *extract(const QString &archive);
+    // Packed into one file in the folder they came from. The name decides the format bsdtar writes.
+    Q_INVOKABLE FileJob *compress(const QStringList &paths, const QString &name);
+    // One name for many, "#" standing for the number, the ending of each kept as it was.
+    Q_INVOKABLE FileJob *renameMany(const QStringList &paths, const QString &pattern);
+    // Whether a name is one bsdtar is likely to be able to unpack.
+    Q_INVOKABLE bool isArchive(const QString &path) const;
     Q_INVOKABLE FileJob *undo();
 
 signals:

@@ -749,3 +749,21 @@ A job that finds something already at the destination stops and asks, and
 the answer can be given for the rest of the job at once. It asks on the
 worker thread and waits, which is why the surface must always answer:
 cancelling counts as an answer.
+
+**D71 · A job that fails part way can still be undone.** Renaming many
+things, or copying them, does them one at a time, and the one that fails
+leaves the ones before it done. Undo used to be offered only for a job
+that finished, which left exactly the case that wants undoing without it.
+A job now records what it managed whatever its ending, and Ctrl+Z puts
+that much back.
+
+Renaming many takes one name with `#` where the number goes. A name with
+no `#` gets the number on the end rather than being used as it stands,
+since the same name for every file means the second collides with the
+first and the rename stops half way — which is how the case above was
+found.
+
+Packing and unpacking are bsdtar's, since it reads and writes every format
+this desktop is likely to meet and is already on the machine. Unpacking
+goes into a folder beside the archive named after it, never loose into the
+folder being looked at.

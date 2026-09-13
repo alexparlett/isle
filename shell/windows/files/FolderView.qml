@@ -23,19 +23,54 @@ FocusScope {
     // A right click, with where it landed in this item's coordinates and the row under it, if any.
     signal menuAsked(real x, real y, string path)
 
+    // The row the keys are on, and the one a shift click measures from.
     property int index: 0
+    // Everything picked, by path. One click makes it the one row; ctrl adds, shift takes a run.
+    property var selection: []
 
     // Columns pick by path; the other two pick by row. Either way it is one selection to the caller.
     readonly property bool hasSelection: mode === "columns"
         ? (columns.selected !== "" && !columns.selectedIsDir)
-        : (index >= 0 && index < directory.count && !directory.isDirAt(index))
+        : (selection.length === 1 && !Engine.isDir(selection[0]))
     readonly property string currentPath: mode === "columns"
         ? (columns.selectedIsDir ? "" : columns.selected)
-        : (hasSelection ? directory.pathAt(index) : "")
-    // The row under the cursor's last click, folder or file, which is what an action acts on.
-    readonly property string focusedPath: mode === "columns"
-        ? columns.selected
-        : (index >= 0 && index < directory.count ? directory.pathAt(index) : "")
+        : (hasSelection ? selection[0] : "")
+    // What an action acts on: everything picked, or the row the keys are on when nothing is.
+    readonly property var acting: mode === "columns"
+        ? (columns.selected ? [columns.selected] : [])
+        : (selection.length ? selection
+           : (index >= 0 && index < directory.count ? [directory.pathAt(index)] : []))
+
+    function pick(row, modifiers) {
+        if (row < 0 || row >= directory.count) return;
+        const path = directory.pathAt(row);
+        if (modifiers & Qt.ControlModifier) {
+            const at = selection.indexOf(path);
+            selection = at < 0 ? selection.concat([path]) : selection.filter(p => p !== path);
+        } else if (modifiers & Qt.ShiftModifier) {
+            const from = Math.min(index, row), to = Math.max(index, row);
+            const run = [];
+            for (let i = from; i <= to; i++) run.push(directory.pathAt(i));
+            selection = run;
+            return;                              // the anchor stays where the run started
+        } else {
+            selection = [path];
+        }
+        index = row;
+    }
+
+    function selectAll() {
+        const all = [];
+        for (let i = 0; i < directory.count; i++) all.push(directory.pathAt(i));
+        selection = all;
+    }
+
+    function isPicked(path) { return selection.indexOf(path) >= 0; }
+
+    // What a drag carries: the uri list every desktop reads, so a drop lands in other applications too.
+    function uriList(paths) { return paths.map(p => "file://" + encodeURI(p)).join("\r\n"); }
+    // Something dropped here: moved when it came from this machine's own folder, copied otherwise.
+    signal dropped(var paths, string into)
     readonly property int nameWidth: Math.max(220, width - 320)
 
     function open(row) {
@@ -66,7 +101,12 @@ FocusScope {
     // The folder changed under the selection: start at the top rather than on whatever is there now.
     Connections {
         target: root.directory
-        function onPathChanged() { root.index = 0; list.positionViewAtBeginning(); grid.positionViewAtBeginning(); }
+        function onPathChanged() {
+            root.index = 0;
+            root.selection = [];
+            list.positionViewAtBeginning();
+            grid.positionViewAtBeginning();
+        }
     }
 
     ColumnLayout {
@@ -120,6 +160,17 @@ FocusScope {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
+            DropArea {
+                anchors.fill: parent
+                keys: ["text/uri-list"]
+                onDropped: drop => {
+                    root.dropped(String(drop.getDataAsString("text/uri-list")).split(/\r?\n/)
+                        .filter(u => u.startsWith("file://"))
+                        .map(u => decodeURI(u.slice(7))), root.directory.path);
+                    drop.acceptProposedAction();
+                }
+            }
+
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.RightButton
@@ -138,7 +189,7 @@ FocusScope {
                 clip: true
                 focus: root.mode === "list"
                 currentIndex: root.index
-                onCurrentIndexChanged: if (visible) root.index = currentIndex
+                onCurrentIndexChanged: if (visible && currentIndex !== root.index) root.pick(currentIndex, Qt.NoModifier)
                 // A folder of fifty thousand rows only ever builds the ones on screen.
                 reuseItems: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -159,7 +210,34 @@ FocusScope {
 
                     width: list.width
                     height: 30
-                    color: ListView.isCurrentItem ? Theme.pressed : rowArea.containsMouse ? Theme.raised : "transparent"
+
+                    Drag.active: rowArea.drag.active
+                    Drag.dragType: Drag.Automatic
+                    Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
+                    Drag.mimeData: ({ "text/uri-list": root.uriList(root.isPicked(row.path) ? root.selection : [row.path]) })
+                    color: root.isPicked(row.path) ? Theme.pressed
+                         : ListView.isCurrentItem ? Theme.raised
+                         : rowArea.containsMouse ? Theme.raised : "transparent"
+
+                    DropArea {
+                        anchors.fill: parent
+                        enabled: row.isDir
+                        keys: ["text/uri-list"]
+                        onDropped: drop => {
+                            root.dropped(String(drop.getDataAsString("text/uri-list")).split(/\r?\n/)
+                                .filter(u => u.startsWith("file://"))
+                                .map(u => decodeURI(u.slice(7))), row.path);
+                            drop.acceptProposedAction();
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: parent.containsDrag
+                            color: "transparent"
+                            border.width: 2
+                            border.color: Theme.accent
+                            radius: Theme.radiusControl
+                        }
+                    }
 
                     RowLayout {
                         anchors { fill: parent; leftMargin: Theme.s4; rightMargin: Theme.s4 }
@@ -202,8 +280,16 @@ FocusScope {
                         anchors.fill: parent
                         hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        drag.target: row
+                        // An automatic drag is handed to the platform, and is started rather than
+                        // simply declared. The row itself must not travel, so it is put back after.
+                        drag.onActiveChanged: {
+                            if (!rowArea.drag.active) return;
+                            if (!root.isPicked(row.path)) root.pick(row.index, Qt.NoModifier);
+                            row.Drag.startDrag();
+                        }
                         onClicked: mouse => {
-                            root.index = row.index;
+                            root.pick(row.index, mouse.modifiers);
                             list.forceActiveFocus();
                             if (mouse.button === Qt.RightButton) {
                                 const at = mapToItem(root, mouse.x, mouse.y);
@@ -224,7 +310,7 @@ FocusScope {
                 clip: true
                 focus: root.mode === "grid"
                 currentIndex: root.index
-                onCurrentIndexChanged: if (visible) root.index = currentIndex
+                onCurrentIndexChanged: if (visible && currentIndex !== root.index) root.pick(currentIndex, Qt.NoModifier)
                 cellWidth: 116
                 cellHeight: 116
                 reuseItems: true
@@ -248,7 +334,9 @@ FocusScope {
                     Rectangle {
                         anchors { fill: parent; margins: 3 }
                         radius: Theme.radiusControl
-                        color: cell.GridView.isCurrentItem ? Theme.pressed : cellArea.containsMouse ? Theme.raised : "transparent"
+                        color: root.isPicked(cell.path) ? Theme.pressed
+                             : cell.GridView.isCurrentItem ? Theme.raised
+                             : cellArea.containsMouse ? Theme.raised : "transparent"
 
                         ColumnLayout {
                             anchors { fill: parent; margins: Theme.s2 }
@@ -307,7 +395,7 @@ FocusScope {
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: mouse => {
-                                root.index = cell.index;
+                                root.pick(cell.index, mouse.modifiers);
                                 grid.forceActiveFocus();
                                 if (mouse.button === Qt.RightButton) {
                                     const at = mapToItem(root, mouse.x, mouse.y);

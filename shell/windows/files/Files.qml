@@ -46,14 +46,18 @@ FloatingWindow {
     property var clipboard: []
     property bool clipboardCut: false
 
-    readonly property string acting: view.focusedPath
+    // Everything an action applies to: what is picked, or the row the keys are on.
+    readonly property var acting: view.acting
+    readonly property string actingOne: acting.length === 1 ? acting[0] : ""
+
+    function said(n) { return n === 1 ? Engine.displayName(acting[0]) : n + " items"; }
 
     function copyToClipboard(cut) {
-        if (!acting) return;
-        clipboard = [acting];
+        if (!acting.length) return;
+        clipboard = acting.slice();
         clipboardCut = cut;
         IslandEvents.show({ kind: "text", glyph: cut ? "scissors" : "copy",
-                            text: Engine.displayName(acting) + (cut ? " cut" : " copied") });
+                            text: said(acting.length) + (cut ? " cut" : " copied") });
     }
     function paste() {
         if (!clipboard.length) return;
@@ -61,11 +65,29 @@ FloatingWindow {
         if (clipboardCut) { clipboard = []; clipboardCut = false; }
     }
     function askRename() {
-        if (!acting) return;
+        if (acting.length > 1) { askRenameMany(); return; }
+        if (!actingOne) return;
         sheet.mode = "name"; sheet.title = "Rename"; sheet.message = ""; sheet.acceptLabel = "Rename";
         sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
         sheet.job = null; sheet.what = "rename";
-        sheet.ask(Engine.displayName(acting));
+        sheet.ask(Engine.displayName(actingOne));
+    }
+
+    function askRenameMany() {
+        sheet.mode = "name"; sheet.title = "Rename " + acting.length + " items";
+        sheet.message = "One name for all of them. # is where the number goes; each keeps its ending.";
+        sheet.acceptLabel = "Rename"; sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "renameMany";
+        sheet.ask("item #");
+    }
+
+    function askCompress() {
+        if (!acting.length) return;
+        sheet.mode = "name"; sheet.title = "Compress " + said(acting.length);
+        sheet.message = "The ending decides the format.";
+        sheet.acceptLabel = "Compress"; sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "compress";
+        sheet.ask((acting.length === 1 ? Engine.displayName(acting[0]) : Engine.displayName(dir.path)) + ".tar.gz");
     }
     function askNewFolder() {
         sheet.mode = "name"; sheet.title = "New folder"; sheet.message = ""; sheet.acceptLabel = "Create";
@@ -74,16 +96,15 @@ FloatingWindow {
         sheet.ask("untitled folder");
     }
     function askDelete() {
-        if (!acting) return;
-        sheet.mode = "confirm"; sheet.title = "Delete " + Engine.displayName(acting) + "?";
+        if (!acting.length) return;
+        sheet.mode = "confirm"; sheet.title = "Delete " + said(acting.length) + "?";
         sheet.message = "This does not go to the trash and cannot be undone.";
         sheet.acceptLabel = "Delete"; sheet.danger = true; sheet.offerAll = false; sheet.alternateLabel = "";
         sheet.job = null; sheet.what = "delete";
         sheet.ask("");
     }
     function toTrash() {
-        if (!acting) return;
-        FileJobs.trash([acting]);
+        if (acting.length) FileJobs.trash(acting);
     }
 
     // A job that meets something already there stops and asks through the same sheet.
@@ -143,6 +164,7 @@ FloatingWindow {
     Shortcut { sequence: "Shift+Delete"; onActivated: root.askDelete() }
     Shortcut { sequences: [StandardKey.Undo]; onActivated: FileJobs.undo() }
     Shortcut { sequence: "Ctrl+Shift+N"; onActivated: root.askNewFolder() }
+    Shortcut { sequences: [StandardKey.SelectAll]; onActivated: view.selectAll() }
 
     RowLayout {
         anchors.fill: parent
@@ -294,11 +316,20 @@ FloatingWindow {
             Layout.fillHeight: true
             directory: dir
             onActivated: path => root.go(path)
+            // Dropped from somewhere: moved when it is already on this machine and in another
+            // folder, since that is what dragging within a desktop means.
+            onDropped: (paths, into) => {
+                const from = paths.filter(p => Engine.parentOf(p) !== into);
+                if (from.length) FileJobs.move(from, into);
+            }
             onMenuAsked: (x, y, path) => {
                 const on = path !== "";
+                const many = root.acting.length > 1;
                 menu.items = [
-                    on ? { label: "Open", glyph: "external-link", action: () => Compositor.exec("xdg-open " + JSON.stringify(path)) } : null,
-                    on ? { label: "Rename", glyph: "pencil", action: root.askRename } : null,
+                    on && !many ? { label: "Open", glyph: "external-link", action: () => Compositor.exec("xdg-open " + JSON.stringify(path)) } : undefined,
+                    on ? { label: many ? "Rename " + root.acting.length + " items" : "Rename", glyph: "pencil", action: root.askRename } : undefined,
+                    on && !many && FileJobs.isArchive(path) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(path) } : undefined,
+                    on ? { label: "Compress", glyph: "archive", action: root.askCompress } : undefined,
                     on ? null : undefined,
                     on ? { label: "Copy", glyph: "copy", action: () => root.copyToClipboard(false) } : null,
                     on ? { label: "Cut", glyph: "scissors", action: () => root.copyToClipboard(true) } : null,
@@ -392,9 +423,11 @@ FloatingWindow {
                 close();
             }
             onAccepted: (value, forAll) => {
-                if (what === "rename") FileJobs.rename(root.acting, value);
+                if (what === "rename") FileJobs.rename(root.actingOne, value);
+                else if (what === "renameMany") FileJobs.renameMany(root.acting, value);
+                else if (what === "compress") FileJobs.compress(root.acting, value);
                 else if (what === "newFolder") FileJobs.newFolder(dir.path, value);
-                else if (what === "delete") FileJobs.remove([root.acting]);
+                else if (what === "delete") FileJobs.remove(root.acting);
                 else if (what === "conflict" && job) job.answer(FileJob.Replace, forAll);
                 close();
             }

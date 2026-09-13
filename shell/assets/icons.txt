@@ -76,6 +76,7 @@ mouse
 mouse-pointer
 music
 package
+package-open
 palette
 pause
 pencil

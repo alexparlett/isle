@@ -106,7 +106,7 @@ Singleton {
         for (const g of Windows.groups) for (const a of g.apps) {
             const s = Math.max(score(a.title || "", q), score(a.appId || "", q));
             if (s <= 0 || (!q && limit)) continue;
-            out.push({ kind: "window", title: a.title || Windows.nameFor(a.appId, a.title), subtitle: "Window" + (a.appId ? " · " + a.appId : "") + " · workspace " + g.id, icon: a.icon, score: s * 0.9, run: () => Windows.focus(a),
+            out.push({ kind: "window", title: a.title || a.appId, subtitle: "Window · " + a.appId + " · workspace " + g.id, icon: a.icon, score: s * 0.9, run: () => Windows.focus(a),
                        alt: () => Windows.closeWindow(a), altLabel: "close" });
         }
         out.sort((a, b) => b.score - a.score);
@@ -276,13 +276,11 @@ Singleton {
         if (!term || term.length < 2) { results = [{ kind: "hint", title: "Search inside files", subtitle: "? invoice total   ·   text, PDFs, documents and archives under ~", glyph: "file-search", run: () => {} }]; grepDebounce.stop(); return; }
         grepDebounce.restart();
     }
-    // A cloud drive is a mount over the network: walking it hangs the search and pulls the files down, so it
-    // is left out unless the search is pointed inside one.
     function runGrep() {
         if (mode !== "?") return;
         grep.running = false;
         const tool = rgaHere ? "rga" : "rg";
-        grep.command = ["sh", "-c", tool + " --no-heading --color never --line-number --max-count 1 --smart-case --max-filesize 20M --glob '!.cache' --glob '!.git' --glob '!node_modules' --glob '!.local/share/Steam' --glob '!Drives' -- \"$1\" \"$2\" 2>/dev/null | head -n 20", "_", term, home];
+        grep.command = ["sh", "-c", tool + " --no-heading --color never --line-number --max-count 1 --smart-case --max-filesize 20M --glob '!.cache' --glob '!.git' --glob '!node_modules' --glob '!.local/share/Steam' -- \"$1\" \"$2\" 2>/dev/null | head -n 20", "_", term, home];
         grep.running = true;
     }
 

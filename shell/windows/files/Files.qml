@@ -130,6 +130,29 @@ FloatingWindow {
         sheet.ask("");
     }
 
+    // The menu the right button and the Menu key both open, at a point in the overlay's own frame.
+    function showMenu(x, y, path) {
+        const on = path !== "";
+        const many = acting.length > 1;
+        menu.items = [
+            on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
+            on ? { label: many ? "Rename " + acting.length + " items" : "Rename", glyph: "pencil", action: askRename } : undefined,
+            on && !many && FileJobs.isArchive(path) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(path) } : undefined,
+            on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
+            on ? null : undefined,
+            on ? { label: "Copy", glyph: "copy", action: () => copyToClipboard(false) } : undefined,
+            on ? { label: "Cut", glyph: "scissors", action: () => copyToClipboard(true) } : undefined,
+            { label: "Paste", glyph: "clipboard", enabled: clipboard.length > 0, action: paste },
+            null,
+            { label: "New folder", glyph: "folder-plus", action: askNewFolder },
+            on ? null : undefined,
+            on ? { label: "Move to trash", glyph: "trash", action: toTrash } : undefined,
+            on ? { label: "Delete", glyph: "x", danger: true, action: askDelete } : undefined,
+        ].filter(i => i !== undefined);
+        const at = view.mapToItem(overlay, x, y);
+        menu.popup(at.x, at.y);
+    }
+
     // Opening the window again at another folder walks there rather than starting a second window.
     Connections {
         target: Surfaces
@@ -165,6 +188,12 @@ FloatingWindow {
     Shortcut { sequences: [StandardKey.Undo]; onActivated: FileJobs.undo() }
     Shortcut { sequence: "Ctrl+Shift+N"; onActivated: root.askNewFolder() }
     Shortcut { sequences: [StandardKey.SelectAll]; onActivated: view.selectAll() }
+    // The keyboard's own way to the context menu, which every desktop offers and which is also the
+    // only way to reach it without a pointer.
+    Shortcut {
+        sequences: ["Menu", "Shift+F10"]
+        onActivated: root.showMenu(view.width / 2, view.height / 3, view.acting.length ? view.acting[0] : "")
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -310,13 +339,6 @@ FloatingWindow {
                     }
                 }
 
-                // Bookmarking writes where GTK keeps bookmarks, so the two desktops agree about them.
-                Button {
-                    variant: "text"
-                    glyph: "star"
-                    onClicked: Places.isBookmarked(dir.path) ? Places.removeBookmark(dir.path) : Places.addBookmark(dir.path)
-                }
-
                 Segmented {
                     options: [["list", "List"], ["columns", "Columns"], ["grid", "Grid"]]
                     value: view.mode
@@ -346,27 +368,7 @@ FloatingWindow {
                 const from = paths.filter(p => Engine.parentOf(p) !== into);
                 if (from.length) FileJobs.move(from, into);
             }
-            onMenuAsked: (x, y, path) => {
-                const on = path !== "";
-                const many = root.acting.length > 1;
-                menu.items = [
-                    on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
-                    on ? { label: many ? "Rename " + root.acting.length + " items" : "Rename", glyph: "pencil", action: root.askRename } : undefined,
-                    on && !many && FileJobs.isArchive(path) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(path) } : undefined,
-                    on ? { label: "Compress", glyph: "archive", action: root.askCompress } : undefined,
-                    on ? null : undefined,
-                    on ? { label: "Copy", glyph: "copy", action: () => root.copyToClipboard(false) } : null,
-                    on ? { label: "Cut", glyph: "scissors", action: () => root.copyToClipboard(true) } : null,
-                    { label: "Paste", glyph: "clipboard", enabled: root.clipboard.length > 0, action: root.paste },
-                    null,
-                    { label: "New folder", glyph: "folder-plus", action: root.askNewFolder },
-                    on ? null : undefined,
-                    on ? { label: "Move to trash", glyph: "trash", action: root.toTrash } : null,
-                    on ? { label: "Delete", glyph: "x", danger: true, action: root.askDelete } : null,
-                ].filter(i => i !== undefined);
-                const at = view.mapToItem(overlay, x, y);
-                menu.popup(at.x, at.y);
-            }
+            onMenuAsked: (x, y, path) => root.showMenu(x, y, path)
         }
 
         // Status

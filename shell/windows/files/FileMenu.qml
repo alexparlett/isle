@@ -8,19 +8,23 @@ import qs.ui
 Item {
     id: root
     property var items: []
-    readonly property bool open: card.visible
+    // Whether the menu is up. It cannot be taken from the card's own visibility: a child is only
+    // visible when its parent is, so a parent whose visibility is read from its child never becomes
+    // visible and neither does the child.
+    property bool shown: false
+    readonly property bool open: shown
 
     anchors.fill: parent
-    visible: card.visible
+    visible: shown
 
     function popup(x, y) {
         // Kept inside the window, so a click near an edge does not put the menu off it.
         card.x = Math.max(Theme.s2, Math.min(x, root.width - card.width - Theme.s2));
         card.y = Math.max(Theme.s2, Math.min(y, root.height - card.height - Theme.s2));
-        card.visible = true;
+        root.shown = true;
         card.forceActiveFocus();
     }
-    function close() { card.visible = false; }
+    function close() { root.shown = false; }
 
     MouseArea {
         anchors.fill: parent
@@ -32,7 +36,6 @@ Item {
     // blurs behind it. In a window it is the window's own colour and the menu cannot be seen.
     Rectangle {
         id: card
-        visible: false
         width: 210
         height: column.implicitHeight + Theme.s2 * 2
         color: Theme.raised

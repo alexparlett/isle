@@ -7,7 +7,7 @@ import qs.services
 
 SettingsPage {
     title: "Displays"
-    subtitle: "Drag displays into place. Resolution, refresh rate, scale and rotation per display; changes apply at once."
+    subtitle: "Arrangement, resolution and colour, per display."
 
     SettingsGroup {
         heading: "Arrangement"
@@ -25,7 +25,7 @@ SettingsPage {
         SettingsRow {
             visible: Displays.monitors.length > 1
             label: "Shell follows the pointer"
-            description: "The island, launcher, notifications and dialogs go to whichever display the pointer is on."
+            description: "Where the island, launcher and dialogs appear."
             Toggle { checked: Prefs.p.shellFollowsFocus; onToggled: v => Prefs.p.shellFollowsFocus = v }
         }
     }

@@ -7,7 +7,7 @@ import qs.services
 SettingsPage {
     id: page
     title: "Calendars"
-    subtitle: "Calendars you subscribe to by link: the Calendar widget shows their events and the island says when one starts."
+    subtitle: "Calendars you subscribe to by link."
 
     function ago(t) {
         if (!t) return "never";
@@ -32,7 +32,7 @@ SettingsPage {
                 }
             }
         }
-        SettingsRow { visible: Calendars.subscriptions.length === 0; label: "No calendars yet"; description: "Proton Calendar: Share via link on the calendar, then paste the link here. Google, Outlook and any .ics address work the same way." }
+        SettingsRow { visible: Calendars.subscriptions.length === 0; label: "No calendars yet"; description: "The calendar's own share link, from its settings." }
         SettingsRow {
             label: "Add a calendar"
             description: "A link to an .ics file, webcal or https, or a file on this machine."
@@ -50,7 +50,7 @@ SettingsPage {
         SettingsRow {
             visible: Calendars.subscriptions.length > 0
             label: "Refresh"
-            description: "Every half hour by itself; a shared link has nothing to push, so this is as fresh as it gets."
+            description: "Every half hour by itself."
             Button { text: Calendars.busy ? "Fetching…" : "Fetch now"; variant: "text"; enabled: !Calendars.busy; onClicked: Calendars.refresh(false) }
         }
     }

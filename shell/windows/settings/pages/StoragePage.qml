@@ -6,7 +6,7 @@ import qs.services
 
 SettingsPage {
     title: "Storage"
-    subtitle: "Filesystems and the drives behind them. Health is what udisks reads from SMART."
+    subtitle: "Filesystems, removable drives and what is attached."
 
     Component.onCompleted: { Storage.listeners++; Drives.listeners++; Disks.refresh(); }
     Component.onDestruction: { Storage.listeners--; Drives.listeners--; }
@@ -36,7 +36,7 @@ SettingsPage {
         heading: "Removable"
         SettingsRow {
             label: "Mount automatically"
-            description: "A drive plugged in is mounted and announced; off, the announcement offers a Mount button."
+            description: "A drive plugged in is mounted and announced."
             Toggle { checked: Prefs.p.autoMount; onToggled: v => Prefs.p.autoMount = v }
         }
         Repeater {

@@ -7,7 +7,7 @@ import qs.services
 SettingsPage {
     id: page
     title: "Updates"
-    subtitle: "The shell from its repository, and packages from the repositories through pacman" + (Updates.helper ? ", and the AUR through " + Updates.helper : "") + ". Permission is asked for once, in a dialog."
+    subtitle: "The shell from its repository, and packages from pacman." + (Updates.helper ? ", and the AUR through " + Updates.helper : "") + ". Permission is asked for once, in a dialog."
 
     Component.onCompleted: { Updates.check(); IsleUpdate.check(); }
 
@@ -87,7 +87,7 @@ SettingsPage {
 
     SettingsGroup {
         heading: "Tools"
-        SettingsRow { label: "Package cache"; description: "Old package versions pile up in /var/cache/pacman/pkg; the last two of each are kept."; Button { text: "Clean"; variant: "text"; enabled: !Updates.running; onClicked: Updates.cleanCache() } }
+        SettingsRow { label: "Package cache"; description: "The last two versions of each are kept."; Button { text: "Clean"; variant: "text"; enabled: !Updates.running; onClicked: Updates.cleanCache() } }
         SettingsRow { label: "Orphans"; description: "Packages nothing depends on any more are removed."; Button { text: "Remove"; variant: "text"; enabled: !Updates.running; onClicked: Updates.removeOrphans() } }
         SettingsRow { label: "Log"; description: "/var/log/pacman.log"; Button { text: "Open"; variant: "text"; onClicked: Compositor.exec("xdg-open /var/log/pacman.log") } }
     }

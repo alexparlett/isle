@@ -7,7 +7,7 @@ import qs.services
 SettingsPage {
     id: page
     title: "Language and region"
-    subtitle: "The system locale through localectl. Apps pick the change up when they next start; the session, at the next login."
+    subtitle: "Language and formats, through the system locale."
 
     Component.onCompleted: SystemLocale.refresh()
     readonly property var options: SystemLocale.available.map(l => [l, SystemLocale.label(l)])
@@ -22,7 +22,7 @@ SettingsPage {
         }
         SettingsRow {
             label: "More languages"
-            description: "Only generated locales are offered. Uncomment lines in /etc/locale.gen and run locale-gen to add one."
+            description: "Generated locales only."
             Button { text: "Edit locale.gen"; variant: "text"; onClicked: Compositor.exec("kitty --class isle-windows -e sh -c 'sudo ${EDITOR:-nano} /etc/locale.gen && sudo locale-gen; echo; echo Done. Press Enter.; read x'") }
         }
     }

@@ -7,7 +7,7 @@ import qs.services
 SettingsPage {
     id: page
     title: "Users"
-    subtitle: "Accounts on this machine. Changing anything but your own name and picture asks for an administrator."
+    subtitle: "Accounts on this machine."
 
     Component.onCompleted: Users.refresh()
     property bool renaming: false
@@ -166,13 +166,13 @@ SettingsPage {
         SettingsRow {
             visible: Fingerprint.installed
             label: "Sign in with a finger"
-            description: "The login screen listens for a finger first; a typed password answers a few seconds later. Asks for an administrator."
+            description: "The login screen takes a finger or a password."
             Toggle { checked: Fingerprint.login; onToggled: v => Fingerprint.setLogin(v) }
         }
         SettingsRow {
             visible: Fingerprint.installed
             label: "sudo with a finger"
-            description: "A touch stands in for your password in the terminal. Asks for an administrator."
+            description: "A touch stands in for your password."
             Toggle { checked: Fingerprint.sudo; onToggled: v => Fingerprint.setSudo(v) }
         }
         SettingsRow { visible: Fingerprint.error !== ""; label: "That did not work"; description: Fingerprint.error }

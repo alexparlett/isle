@@ -98,7 +98,7 @@ SettingsPage {
         heading: "Tray icons"
         SettingsRow {
             label: "Shown in the Session widget"
-            description: "Ctrl-click an icon there to put it away. Steam's, say, if Steam is kept to its Big Picture."
+            description: "Ctrl-click an icon there to put it away."
         }
         Repeater {
             model: Tray.all.map(i => ({ id: i.id, title: i.title || i.id })).concat((Prefs.p.trayHidden || []).filter(id => !Tray.all.some(i => i.id === id)).map(id => ({ id: id, title: id, away: true })))
@@ -115,7 +115,7 @@ SettingsPage {
         heading: "In the tray"
         SettingsRow {
             label: "Closing a window puts it away instead"
-            description: "The app sits in the tray while it runs: click its icon to show or put away its windows, and quit it from the menu. For apps that quit when their window closes."
+            description: "Closing hides it instead of quitting."
         }
         Repeater {
             model: Prefs.p.keepRunning || []

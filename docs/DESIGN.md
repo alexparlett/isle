@@ -551,6 +551,12 @@ Shortcuts heads its chord column with both profiles, either of which can
 be read, and under the actions a Mac keyboard's text handling is listed
 the same way: the chord pressed, and what the application is given.
 
+A page's subtitle is one short sentence, since the page's name in the
+sidebar has already said the subject, and a row carries a description only
+where the label leaves something to say. Neither is a place for
+instructions: how to share a calendar or generate a locale belongs in the
+documentation, not under a switch.
+
 Settings › Devices is Device Manager's shape: a tree of categories on
 the left, each device under its own, a count on the category and a
 chevron to fold it, and on the right the selected device's properties as

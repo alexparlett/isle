@@ -49,6 +49,7 @@ hard-drive
 headphones
 image
 info
+joystick
 keyboard
 key-round
 languages

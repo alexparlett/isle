@@ -9,7 +9,7 @@ import qs.services
 SettingsPage {
     id: root
     title: "Devices"
-    subtitle: "Everything attached, by kind. Select a device for its details; the tree follows what is plugged in."
+    subtitle: "Everything attached, by kind."
 
     // The shell's own knowledge joins the script's categories.
     readonly property var categories: {

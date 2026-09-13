@@ -6,6 +6,7 @@ import qs.services
 
 SettingsPage {
     title: "Audio"
+    subtitle: "Output, input, and the level of each app."
 
     SettingsGroup {
         heading: "Output"

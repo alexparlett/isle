@@ -144,7 +144,7 @@ Item { width: 36; height: 36 }
         heading: "Sticks"
         SettingsRow {
             label: "Dead zone"
-            description: "How far a stick moves before Isle takes it as a direction. The inner ring above."
+            description: "How far a stick moves before it counts as a direction."
             RowLayout {
                 spacing: Theme.s3
                 Label { text: Math.round(Gamepad.deadZone * 100) + "%"; size: Theme.sizeSmall; color: Theme.text2 }

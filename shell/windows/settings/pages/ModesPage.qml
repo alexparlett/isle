@@ -6,7 +6,7 @@ import qs.services
 
 SettingsPage {
     title: "Modes"
-    subtitle: "Normal, game, Big Picture. Entering one applies a profile; leaving restores the last."
+    subtitle: "Game mode, Big Picture, and what turns them on."
 
     SettingsGroup {
         heading: "Now"
@@ -25,7 +25,7 @@ SettingsPage {
         heading: "Game mode"
         SettingsRow {
             label: "Enter automatically"
-            description: "When gamemoded reports a game, or a fullscreen window belongs to Steam, Heroic or Lutris."
+            description: "When a game is running, or Steam is fullscreen."
             Toggle { checked: Prefs.p.gameAuto; onToggled: v => Prefs.p.gameAuto = v }
         }
         SettingsRow {
@@ -39,18 +39,18 @@ SettingsPage {
         heading: "Big Picture"
         SettingsRow {
             label: "Steam through gamescope"
-            description: "A nested compositor for Steam's gamepad UI: HDR, upscaling, a fixed frame rate."
+            description: "Steam's gamepad UI in a nested compositor."
             Toggle { checked: Prefs.p.gamescope; onToggled: v => Prefs.p.gamescope = v }
         }
         SettingsRow {
             label: "Steam's Big Picture switches Isle's mode"
-            description: "Isle enters Big Picture mode when Steam's appears and leaves when it goes. Off, Steam's Big Picture is just another window."
+            description: "Off, Steam's Big Picture is just another window."
             visible: Games.tools.steam
             Toggle { checked: Prefs.p.steamFollowsMode; onToggled: v => Prefs.p.steamFollowsMode = v }
         }
         SettingsRow {
             label: "Controller opens Big Picture"
-            description: "Hold the Guide button on the desktop. The pad is read the whole time for it."
+            description: "Hold the Guide button on the desktop."
             Toggle { checked: Prefs.p.padHome; onToggled: v => Prefs.p.padHome = v }
         }
         SettingsRow {

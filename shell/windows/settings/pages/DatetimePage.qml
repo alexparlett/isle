@@ -8,7 +8,7 @@ import qs.services
 SettingsPage {
     id: page
     title: "Date and time"
-    subtitle: "The system clock through timedatectl. Changing it asks for an administrator."
+    subtitle: "The clock, the zone, and how time is shown."
 
     Component.onCompleted: DateTime.refresh()
     SystemClock { id: clock; precision: SystemClock.Seconds }
@@ -58,7 +58,7 @@ SettingsPage {
         }
         SettingsRow {
             label: "24-hour clock"
-            description: "For the island, the lock screen and Big Picture. The Clock widget has its own setting."
+            description: "For the island, the lock screen and Big Picture."
             Toggle { checked: !Prefs.p.clock12; onToggled: v => Prefs.p.clock12 = !v }
         }
         SettingsRow {

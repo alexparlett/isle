@@ -10,7 +10,7 @@ import qs.services
 SettingsPage {
     id: page
     title: "Wallpaper"
-    subtitle: "Pick one, or choose any image. Folders under Pictures and the system's wallpapers are shown."
+    subtitle: "Pick one, or choose any image."
 
     property var images: []
     Process {

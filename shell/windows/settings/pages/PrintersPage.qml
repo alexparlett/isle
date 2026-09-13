@@ -39,7 +39,7 @@ SettingsPage {
                 }
             }
         }
-        SettingsRow { visible: Printers.printers.length === 0; label: "No printers"; description: "Add one on the CUPS admin page; network printers usually appear on their own." }
+        SettingsRow { visible: Printers.printers.length === 0; label: "No printers"; description: "Network printers usually appear on their own." }
         SettingsRow {
             label: "Add or configure a printer"
             description: "The CUPS admin page, at localhost:631."

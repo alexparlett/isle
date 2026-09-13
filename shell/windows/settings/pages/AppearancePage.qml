@@ -62,7 +62,7 @@ SettingsPage {
         }
         SettingsRow {
             label: "Size"
-            description: "For installed apps, in points. The shell's own text scales under Accessibility."
+            description: "For installed apps, in points."
             Dropdown { listWidth: 120; options: [9, 10, 11, 12, 13, 14].map(n => [n, n + " pt"]); value: Prefs.p.fontSize || 10; onPicked: v => Prefs.p.fontSize = Number(v) }
         }
     }
@@ -80,7 +80,7 @@ SettingsPage {
         heading: "Windows"
         SettingsRow {
             label: "Title bars"
-            description: "A bar with the title and three controls over every window that does not draw its own."
+            description: "A bar over every window that does not draw its own."
             Toggle { checked: Prefs.p.titleBars; onToggled: v => Prefs.p.titleBars = v }
         }
     }

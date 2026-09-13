@@ -6,6 +6,7 @@ import qs.services
 
 SettingsPage {
     title: "Power"
+    subtitle: "Power profile, what idling does, and the batteries."
 
     // Idle timeouts in seconds; the current value is offered even when it is not one of the usual steps.
     component Minutes: Dropdown {

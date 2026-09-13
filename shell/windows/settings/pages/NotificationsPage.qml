@@ -6,13 +6,13 @@ import qs.services
 
 SettingsPage {
     title: "Notifications"
-    subtitle: "New ones toast in the island and wait in its centre and the dashboard until dismissed; the history survives a restart."
+    subtitle: "Toasts, what stays quiet, and which apps may interrupt."
 
     SettingsGroup {
         heading: "Silence"
         SettingsRow {
             label: "Do not disturb"
-            description: "Nothing toasts. Critical notifications and the apps allowed below still do."
+            description: "Nothing toasts, bar critical ones and the apps below."
             Toggle { checked: Notifications.dnd; onToggled: v => Notifications.setDnd(v) }
         }
         SettingsRow {
@@ -28,12 +28,12 @@ SettingsPage {
         }
         SettingsRow {
             label: "Fullscreen"
-            description: "Silent while a fullscreen window has focus: a film, a game outside game mode."
+            description: "Silent while a fullscreen window has focus."
             Toggle { checked: Prefs.p.dndFullscreen; onToggled: v => Prefs.p.dndFullscreen = v }
         }
         SettingsRow {
             label: "Summary afterwards"
-            description: "When silence lifts, a toast says how many arrived, with a way to the centre."
+            description: "When silence lifts, a toast says how many arrived."
             Toggle { checked: Prefs.p.dndSummary; onToggled: v => Prefs.p.dndSummary = v }
         }
     }
@@ -42,12 +42,12 @@ SettingsPage {
         heading: "Toasts"
         SettingsRow {
             label: "Sound"
-            description: "A short sound with each toast."
+            description: ""
             Toggle { checked: Prefs.p.notifySound; onToggled: v => Prefs.p.notifySound = v }
         }
         SettingsRow {
             label: "Low urgency"
-            description: "Notifications an app marks low never toast; they wait in the centre. Critical ones always toast."
+            description: "Low ones wait in the centre; critical ones always toast."
         }
         SettingsRow {
             label: "Kept"

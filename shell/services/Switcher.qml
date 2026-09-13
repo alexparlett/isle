@@ -45,7 +45,6 @@ Singleton {
         out[index] = Object.assign({}, it, { win: it.windows[(it.windows.indexOf(it.win) + 1) % it.windows.length] });
         items = out;
     }
-    Process { id: hider }
     // Held on a window: Q closes every window of its app, W that window. The switcher stays open on the rest.
     function quit() { const it = items[index]; if (!open || !it) return; for (const w of it.windows) Windows.closeWindow(w); }
     function closeFront() { const it = items[index]; if (!open || !it) return; Windows.closeWindow(it.win); }
@@ -57,7 +56,7 @@ Singleton {
         function commit(): void { root.commit(); }
         function cancel(): void { root.cancel(); }
         function cycleApp(): void { if (root.open) root.cycleItem(); else Windows.cycleApp(); }
-        function hide(): void { if (root.open) { const it = root.items[root.index]; if (it) { hider.command = ["python3", Quickshell.shellDir + "/scripts/hidewindow.py", it.win.address]; hider.running = true; return; } } Windows.hideActive(); }
+        function hide(): void { if (root.open) { const it = root.items[root.index]; if (it) { Windows.hide(it.win.address); return; } } Windows.hideActive(); }
         function quit(): void { root.quit(); }
         function closeFront(): void { root.closeFront(); }
     }

@@ -44,8 +44,10 @@ Singleton {
         writer.running = true;
     }
     Process { id: writer }
-    // One at a time: a second window to put away waits for the first, which is a moment.
-    Process { id: parker }
+    // Put away a moment after mapping, or the window comes back over the desktop; a burst of them is parked
+    // together on the last one's timer.
+    property var parkQueue: []
+    Timer { id: parker; interval: 1500; onTriggered: { if (root.parkQueue.length) Windows.hide(...root.parkQueue); root.parkQueue = []; } }
 
     // The last session's list, once per compositor instance: the marker is keyed by the instance signature.
     Process {
@@ -101,7 +103,7 @@ Singleton {
             const want = list.shift();
             if (want.ws > 0 && String(want.ws) !== String(ws)) Hyprland.dispatch("hl.dsp.window.move({ workspace = " + want.ws + ", window = \"address:0x" + addr + "\" })");
             // A minute is left for the window to finish mapping before it is put away, or it comes back visible.
-            if (want.hidden) { parker.command = ["sh", "-c", "sleep 1.5; exec python3 \"$1\" \"$2\"", "_", Quickshell.shellDir + "/scripts/hidewindow.py", "0x" + addr]; parker.running = true; }
+            if (want.hidden) { root.parkQueue = root.parkQueue.concat(["0x" + addr]); parker.restart(); }
         }
     }
 

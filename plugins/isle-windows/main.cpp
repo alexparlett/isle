@@ -7,6 +7,7 @@
 // decorations (a title bar above it) fit inside the tile.
 //
 // The same tiling by key or from the title bar's double click: hyprctl isle snap <zone> | zoom | restore.
+// Minimise is hyprctl isle hide [address], which the shell calls for every way a window is put away.
 //
 // A client's own minimise button asks the compositor, whose state handler ignores the request (and, for an X11
 // client, re-runs its sticky maximise toggle instead). The request is honoured here by parking the window on
@@ -28,6 +29,10 @@
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/config/supplementary/executor/Executor.hpp>
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprland/src/desktop/Workspace.hpp>
+#include <hyprland/src/desktop/history/WindowHistoryTracker.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+#include <hyprland/src/managers/EventManager.hpp>
 #include <hyprland/src/helpers/signal/Signal.hpp>
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprutils/math/Box.hpp>
@@ -153,16 +158,11 @@ static bool filled(const PHLWINDOW& win, PHLMONITOR mon) {
     return std::abs(CUR.w - WANT.w) < 2 && std::abs(CUR.h - WANT.h) < 2;
 }
 
-static std::string shellPath() {
-    const char* SHELL = getenv("ISLE_SHELL_PATH");
-    const char* HOME  = getenv("HOME");
-    return SHELL ? SHELL : std::string(HOME ? HOME : "") + "/.config/quickshell/isle";
-}
-
-// The shell draws the preview; the rect is "x y w h", empty to clear. Called on a zone change only.
+// The shell draws the preview; the rect is "x y w h", empty to clear. Called on a zone change only, on the
+// event socket the shell already reads: a drag must not wait on a process.
 static void ghost(const std::string& rect) {
-    if (Config::Supplementary::executor())
-        Config::Supplementary::executor()->spawn("qs -p \"" + shellPath() + "\" ipc call windows ghost \"" + rect + "\"");
+    if (g_pEventManager)
+        g_pEventManager->postEvent(SHyprIPCEvent{.event = "isle-ghost", .data = rect});
 }
 
 static void setGhost(const std::string& zone, PHLMONITOR mon) {
@@ -265,13 +265,90 @@ static void onX11MoveResize(CXWM* wm, xcb_client_message_event_t* e) {
         g_layoutManager->beginDragTarget(WIN->layoutTarget(), MBIND_RESIZE, CORNER, true);
 }
 
-// hyprctl isle snap <left|right|up|down|top-left|top-right|bottom-left|bottom-right> | zoom | restore
+static PHLWINDOW windowByAddress(std::string addr) {
+    if (addr.starts_with("0x"))
+        addr = addr.substr(2);
+    uintptr_t want = 0;
+    try {
+        want = std::stoull(addr, nullptr, 16);
+    } catch (...) { return nullptr; }
+    for (const auto& w : Desktop::windowState()->windows())
+        if ((uintptr_t)w.get() == want)
+            return w;
+    return nullptr;
+}
+
+// Minimise: park the window on the shell's hidden workspace and leave the desktop usable. Moving the focused
+// window there brings that workspace up over the desktop with the window still focused, so it is closed again
+// and focus goes to the top window left on the one below.
+static void hide(PHLWINDOW win) {
+    if (!win || !win->m_isMapped)
+        return;
+    // The dispatcher rather than moveWindowToWorkspace: it creates special:hidden the first time and carries
+    // the visual state with it. Invoked in process, so no socket and no hyprctl.
+    HyprlandAPI::invokeHyprctlCommand(
+        "dispatch", std::format(R"(hl.dsp.window.move({{ workspace = "special:hidden", follow = false, window = "address:0x{:x}" }}))", (uintptr_t)win.get()));
+
+    // A dispatch is queued, not run here, so the workspace it leaves behind can only be read on the next turn
+    // of the loop.
+    if (!g_pEventLoopManager)
+        return;
+    g_pEventLoopManager->doLater([ref = win->m_self]() {
+        const auto HID = ref.lock();
+        const auto MON = HID ? HID->m_monitor.lock() : Desktop::focusState()->monitor();
+        if (!MON)
+            return;
+        if (MON->m_activeSpecialWorkspace && MON->m_activeSpecialWorkspace->m_name == "special:hidden")
+            HyprlandAPI::invokeHyprctlCommand("dispatch", R"(hl.dsp.workspace.toggle_special("hidden"))");
+        const auto WS = MON->m_activeWorkspace;
+        if (!WS)
+            return;
+        // The dispatchers, not focusState()->fullWindowFocus: the direct call does not take while the parked
+        // window still holds the focus.
+        const auto focus = [](PHLWINDOW w) {
+            const auto SEL = std::format(R"({{ window = "address:0x{:x}" }})", (uintptr_t)w.get());
+            HyprlandAPI::invokeHyprctlCommand("dispatch", "hl.dsp.focus(" + SEL + ")");
+            HyprlandAPI::invokeHyprctlCommand("dispatch", "hl.dsp.window.bring_to_top(" + SEL + ")");
+        };
+        const auto usable = [&](const PHLWINDOW& w) { return w && w != HID && w->m_isMapped && !w->isHidden() && w->m_workspace == WS; };
+        // History runs old to new, so the last entry still on this workspace had the focus before the window
+        // just parked.
+        const auto HIST = Desktop::History::windowTracker()->historyForWorkspace(WS);
+        for (auto it = HIST.rbegin(); it != HIST.rend(); ++it) {
+            if (const auto NEXT = it->lock(); usable(NEXT)) {
+                focus(NEXT);
+                return;
+            }
+        }
+        for (const auto& NEXT : Desktop::windowState()->windows()) {
+            if (usable(NEXT)) {
+                focus(NEXT);
+                return;
+            }
+        }
+    });
+}
+
+// hyprctl isle snap <left|right|up|down|top-left|top-right|bottom-left|bottom-right> | zoom | restore | hide [address]
 static std::string ctl(eHyprCtlOutputFormat, std::string req) {
+    std::string args = req.size() > 4 ? req.substr(5) : "";
+    // Minimise takes any window, tiled or floating, named or focused.
+    if (args == "hide" || args.starts_with("hide ")) {
+        std::istringstream in(args.size() > 5 ? args.substr(5) : "");
+        std::string        addr;
+        bool               any = false;
+        while (in >> addr) {
+            hide(windowByAddress(addr));
+            any = true;
+        }
+        if (!any)
+            hide(Desktop::focusState()->window());
+        return "ok";
+    }
     const auto WIN = Desktop::focusState()->window();
     const auto MON = WIN ? WIN->m_monitor.lock() : nullptr;
     if (!WIN || !MON || !WIN->m_isFloating || !WIN->m_target)
         return "no floating window";
-    std::string args = req.size() > 4 ? req.substr(5) : "";
     if (args == "zoom")
         args = filled(WIN, MON) ? "restore" : "up";
     if (args == "restore" || args == "down") {
@@ -298,8 +375,12 @@ static void hkOnUpdateState(void* thisptr) {
     if (minimize && minimize->value_or(false) && WIN->m_isMapped) {
         // Consumed: xdg has no unset, and a later state change must not park the window again.
         *minimize = false;
-        if (Config::Supplementary::executor())
-            Config::Supplementary::executor()->spawn(std::format("python3 \"{}/scripts/hidewindow.py\" 0x{:x}", shellPath(), (uintptr_t)w));
+        // Next turn of the loop, not here: the move changes window state, and this is the state handler.
+        if (g_pEventLoopManager)
+            g_pEventLoopManager->doLater([ref = WIN->m_self]() {
+                if (const auto W = ref.lock())
+                    hide(W);
+            });
         return;
     }
     (*(updateStateFn)g_stateHook->m_original)(thisptr);

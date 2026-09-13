@@ -141,23 +141,26 @@ Singleton {
         Hyprland.dispatch("hl.dsp.window.bring_to_top({ window = \"address:" + e.address + "\" })");
     }
 
-    // Minimise: park the window on the hidden special workspace. Moving the focused window there shows that
     // The apps kept running, while they run: each sits in the tray, shown or put away as a whole.
     readonly property var kept: apps.filter(a => keeps(a.appId))
     function toggleKept(a) { if (a.hidden) { for (const w of a.windows) restore(w); } else hideApp(a); }
     function hideApp(a) {
         const addrs = a.windows.filter(w => !w.hidden).map(w => w.address);
         if (!addrs.length) return;
-        hider.command = ["sh", "-c", 'for a in "$@"; do python3 "$0" "$a"; done', Quickshell.shellDir + "/scripts/hidewindow.py"].concat(addrs);
-        hider.running = true;
+        hide(...addrs);
     }
     // Closed for real, whatever the app's setting.
     function quit(e) { if (e && e.address) Hyprland.dispatch("hl.dsp.window.close({ window = \"address:" + e.address + "\" })"); }
     function quitApp(a) { for (const w of a.windows) quit(w); }
-    // workspace over the desktop, so it is closed again straight after.
-    Process { id: hider; command: ["python3", Quickshell.shellDir + "/scripts/hidewindow.py"] }
-    function hideActive() { hider.command = ["python3", Quickshell.shellDir + "/scripts/hidewindow.py"]; hider.running = true; }
-    // A window's own minimise button is honoured by the isle-windows plugin, which runs hidewindow.py.
+    // Minimise: the isle-windows plugin parks the window on the hidden special workspace and leaves the focus
+    // on the top window of the one below. No address means the active window.
+    // Hyprland.dispatch reaches only the compositor's own Lua dispatchers, so the plugin's command goes
+    // through hyprctl, as the client list above does.
+    Process { id: hider }
+    // One call for many: a second would overwrite the first before it ran.
+    function hide(...addrs) { hider.command = ["hyprctl", "isle", "hide"].concat(addrs.filter(a => a)); hider.running = true; }
+    function hideActive() { hide(""); }
+    // A window's own minimise button reaches the same plugin, through its state handler.
     // Back from the hidden workspace: onto the current one, focused and on top.
     function restore(e) {
         const ws = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1;
@@ -388,7 +391,7 @@ Singleton {
     // is a protocol error that takes the shell down.
     function closeWindow(e) {
         if (!e || !e.address) return;
-        if (keeps(e.appId)) { hider.command = ["python3", Quickshell.shellDir + "/scripts/hidewindow.py", e.address]; hider.running = true; return; }
+        if (keeps(e.appId)) { hide(e.address); return; }
         Hyprland.dispatch("hl.dsp.window.close({ window = \"address:" + e.address + "\" })");
     }
     // An app the user keeps running has its window put away on close instead, as a Dock would; by the app's
@@ -404,13 +407,18 @@ Singleton {
         const t = Hyprland.activeToplevel;
         if (t && t.wayland && keeps(t.wayland.appId)) hideActive(); else Hyprland.dispatch("hl.dsp.window.close()");
     }
+    // The plugin posts the drag target as it moves between edges, "x y w h" or empty to clear. On the event
+    // socket rather than an IPC call: a drag must not wait on a process.
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (event.name !== "isle-ghost") return;
+            const p = String(event.data).trim().split(/\s+/).map(Number);
+            root.ghost = p.length === 4 && !p.some(isNaN) ? { x: p[0], y: p[1], w: p[2], h: p[3] } : null;
+        }
+    }
     IpcHandler {
         target: "windows"
         function close(): void { root.closeActive(); }
-        // The plugin posts the drag target here as it moves between edges; empty clears it.
-        function ghost(rect: string): void {
-            const p = rect.trim().split(/\s+/).map(Number);
-            root.ghost = p.length === 4 && !p.some(isNaN) ? { x: p[0], y: p[1], w: p[2], h: p[3] } : null;
-        }
     }
 }

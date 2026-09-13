@@ -166,49 +166,58 @@ shell actions, settings pages, vault items, web fallback, ranking by use.
 
 ## Files
 
-Against Finder. The first list is what a hand does in the first minute,
-because that is where this was found wanting: a list of features missed
-every one of these.
+Against Finder and against what a hand reaches for. The "has" list is read
+off the code — every shortcut, every menu item, every gesture that is
+actually wired — rather than remembered, because every earlier version of
+this audit was written from memory of Finder's feature list and missed the
+faults that using it found in a minute: no deselecting, a right click
+collapsing a selection, a new folder asking in a card, an AppImage opening
+in the browser.
 
-Has: list, columns and grid; thumbnails from the shared cache; places with
-bookmarks, devices, Recents and the Trash; tabs and as many windows as are
-wanted; a menu bar and a context menu; a breadcrumb with back and forward
-per tab; sortable columns; multiple selection; renaming and new folders on
-the row; copy, cut, paste, duplicate, trash, put back, delete; pack and
-unpack; rename many; one step of undo; go to folder; what is free; the file
-chooser every application gets.
+### Wired
 
-### What the hand does
+Places: Recents, the person's own folders, bookmarks, mounted devices with
+eject, the Trash. Tabs and as many windows as are wanted. Menu bar (File,
+Edit, View, Go), context menu on a row and on the folder, Menu/Shift+F10.
+List, columns and grid; thumbnails from the shared cache; group headings by
+kind, date or size; sort by name, size, date or kind on the headers or the
+menu; icon size on Ctrl+plus and Ctrl+minus.
+
+Keys: Alt with the arrows and Backspace to walk; Ctrl+H hidden; F5 refresh;
+Ctrl+F search, Enter to search underneath; Ctrl+1/2/3 view; F2 rename;
+Ctrl+Shift+N folder, Ctrl+Shift+F file; Ctrl+C/X/V; Delete to trash,
+Shift+Delete for good; Ctrl+Z; Ctrl+A; Ctrl+T tab, Ctrl+W close,
+Ctrl+N window, Ctrl+Tab between tabs; Ctrl+D duplicate; Ctrl+L go to
+folder; Space Quick Look; Ctrl+I info; Home/End/PageUp/PageDown;
+type-ahead.
+
+Mouse: click to pick, Ctrl to add, Shift for a run, click on nothing to let
+go, double click to open, middle click for a tab, right click keeping a
+selection it is already part of.
+
+Acts: copy, cut, paste, duplicate, rename on the row, new file and folder
+on the row, move to trash, put back, empty trash, delete, pack, unpack,
+open with, open in terminal, one step of undo.
+
+### What a hand still reaches for and does not find
 
 | gap | |
 |---|---|
-| Space does nothing; there is no Quick Look | the fastest way to see a file without opening it |
-| Enter opens rather than renames | Finder's way round, and the audit should say which Isle wants |
-| No Get Info on a selection | size, kind, where, when, permissions |
-| Dragging a file onto a folder has never been seen to work | |
-| Dragging a folder to the sidebar has never been seen to work | |
-| No arrow-key navigation into and out of folders in columns | left and right are how columns are walked |
-| Double click on a folder's empty space does not go up | Finder does not either, but Windows hands expect it |
-| No middle click to open in a new tab | |
-| No Ctrl+click or long press on back for the trail | |
+| Dragging a file onto a folder | written, never seen to work |
+| Dragging a folder onto the sidebar to bookmark it | written, never seen to work |
+| Rubber-band selection by dragging across rows | |
+| Left and right arrows to walk in and out in columns | |
 | Column widths cannot be dragged | |
-| The sidebar cannot be reordered by dragging | |
-| Selection is lost when the folder is rescanned | a file appearing elsewhere in the folder drops what was picked |
-| No rubber-band selection by dragging over rows | |
-| No Home/End/PageUp/PageDown in the list | |
-| Type-ahead does not jump to a name | |
-
-### What it does not have
-
-| gap | |
-|---|---|
-| No preview pane | Shift+Cmd+P |
-| Folders in the list do not open in place on a triangle | Finder's list nests |
-| The grid has one icon size | Finder has a slider |
-| No sorting or grouping menu beyond the column headers | by kind, date, size |
-| No tags | the one Finder idea with no equivalent elsewhere |
-| Search does not look under the folder, only in it | |
-| No saved searches, no Recents beyond the list | |
-| A folder on another volume trashes to the home volume's trash | |
+| The sidebar cannot be reordered, and a place cannot be removed except a bookmark | |
+| No preview pane beside the folder | |
+| Folders in the list do not open in place on a triangle | |
+| No tags, and no colour on a row | |
 | No Connect to server | |
-| No Get Info on a folder's size | Finder counts on demand |
+| A folder on another volume trashes to the home volume's trash | |
+| Get Info does not count a folder's size | |
+| No count of what is selected in bytes | |
+| Sorting and grouping are not remembered per folder | |
+| The view mode is not remembered between sessions | |
+| No "open with" default-setting, only a one-off choice | |
+| Search cannot be narrowed by kind or date | |
+| No saved searches | |

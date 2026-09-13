@@ -7,12 +7,15 @@
 #include <QQmlEngine>
 #include <QSocketNotifier>
 #include <QRegularExpression>
+#include <QSet>
 #include <QString>
 #include <QTimer>
 #include <QVector>
 
 struct DirEntry {
     QString name;
+    // How far in the row sits when a list nests; zero for a row of the folder itself.
+    int depth = 0;
     // Where the row is, for a row that was named rather than found in a folder. Empty otherwise,
     // since a folder's rows hang off the folder.
     QString path;
@@ -63,6 +66,8 @@ public:
         IsSymlinkRole,
         IsHiddenRole,
         GroupRole,
+        DepthRole,
+        ExpandedRole,
     };
 
     enum Sort { ByName, BySize, ByModified, ByKind };
@@ -113,6 +118,12 @@ public:
     Q_INVOKABLE int startingWith(const QString &prefix, int from) const;
     // The heading a row sits under, so a view can tell where one run of them ends and the next starts.
     Q_INVOKABLE QString groupAt(int row) const;
+    // Open a folder in place, as a list that nests does, or shut it again.
+    Q_INVOKABLE void expand(int row);
+    Q_INVOKABLE void collapse(int row);
+    Q_INVOKABLE bool isExpanded(int row) const;
+    // How far in the row sits when a list nests.
+    Q_INVOKABLE int depthAt(int row) const;
 
 signals:
     void pathChanged();
@@ -133,6 +144,7 @@ private:
     void rebuild();
     void setStatus(Status status, const QString &error = {});
     QString groupOf(const DirEntry &entry) const;
+    void appendExpanded(QVector<DirEntry> &rows, const QString &folder, int depth) const;
 
     QString m_path;
     QStringList m_paths;
@@ -151,6 +163,8 @@ private:
 
     QVector<DirEntry> m_all;
     QVector<DirEntry> m_rows;
+    // Folders opened in place, by path, so they stay open across a rescan.
+    QSet<QString> m_expanded;
 
     // A scan that finishes after the path has moved on belongs to a directory nobody is looking at.
     quint64 m_generation = 0;

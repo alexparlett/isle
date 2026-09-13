@@ -163,6 +163,8 @@ QVariant Directory::data(const QModelIndex &index, int role) const {
     case IsSymlinkRole: return e.isSymlink;
     case IsHiddenRole: return e.isHidden;
     case GroupRole: return groupOf(e);
+    case DepthRole: return e.depth;
+    case ExpandedRole: return m_expanded.contains(e.path.isEmpty() ? m_path + QLatin1Char('/') + e.name : e.path);
     default: return {};
     }
 }
@@ -178,6 +180,8 @@ QHash<int, QByteArray> Directory::roleNames() const {
         { IsSymlinkRole, "isSymlink" },
         { IsHiddenRole, "isHidden" },
         { GroupRole, "groupName" },
+        { DepthRole, "nestDepth" },
+        { ExpandedRole, "opened" },
     };
 }
 
@@ -290,6 +294,33 @@ QString Directory::pathAt(int row) const {
 
 bool Directory::isDirAt(int row) const {
     return row >= 0 && row < m_rows.size() && m_rows.at(row).isDir;
+}
+
+void Directory::expand(int row) {
+    const QString path = pathAt(row);
+    if (path.isEmpty() || !isDirAt(row) || m_expanded.contains(path))
+        return;
+    m_expanded.insert(path);
+    rebuild();
+}
+
+void Directory::collapse(int row) {
+    const QString path = pathAt(row);
+    if (path.isEmpty() || !m_expanded.remove(path))
+        return;
+    // Anything opened inside it is shut too, so opening it again does not unfold the lot.
+    for (auto it = m_expanded.begin(); it != m_expanded.end();)
+        it = it->startsWith(path + QLatin1Char('/')) ? m_expanded.erase(it) : ++it;
+    rebuild();
+}
+
+int Directory::depthAt(int row) const {
+    return row >= 0 && row < m_rows.size() ? m_rows.at(row).depth : 0;
+}
+
+bool Directory::isExpanded(int row) const {
+    const QString path = pathAt(row);
+    return !path.isEmpty() && m_expanded.contains(path);
 }
 
 QString Directory::groupAt(int row) const {
@@ -474,6 +505,27 @@ QString Directory::groupOf(const DirEntry &e) const {
         return QStringLiteral("Huge");
     }
     return {};
+}
+
+// What is inside a folder opened in place, and inside anything opened within it.
+void Directory::appendExpanded(QVector<DirEntry> &rows, const QString &folder, int depth) const {
+    if (depth > 16)
+        return;
+    QMimeDatabase mime;
+    QVector<DirEntry> inside = scan(folder);
+    std::sort(inside.begin(), inside.end(), [](const DirEntry &a, const DirEntry &b) {
+        if (a.isDir != b.isDir) return a.isDir;
+        return a.name.compare(b.name, Qt::CaseInsensitive) < 0;
+    });
+    for (DirEntry &e : inside) {
+        if (e.isHidden && !m_showHidden)
+            continue;
+        e.depth = depth;
+        e.path = folder + QLatin1Char('/') + e.name;
+        rows.append(e);
+        if (e.isDir && m_expanded.contains(e.path))
+            appendExpanded(rows, e.path, depth + 1);
+    }
 }
 
 void Directory::setStatus(Status status, const QString &error) {

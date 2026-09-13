@@ -154,7 +154,10 @@ FocusScope {
     function uriList(paths) { return paths.map(p => "file://" + encodeURI(p)).join("\r\n"); }
     // Something dropped here: moved when it came from this machine's own folder, copied otherwise.
     signal dropped(var paths, string into)
-    readonly property int nameWidth: Math.max(220, width - 320)
+    // What each column is given; the name takes whatever is left.
+    property int sizeWidth: 90
+    property int modifiedWidth: 130
+    readonly property int nameWidth: Math.max(160, width - sizeWidth - modifiedWidth - 100)
 
     function open(row) {
         if (row < 0 || row >= directory.count) return;
@@ -217,8 +220,8 @@ FocusScope {
                 spacing: Theme.s3
                 Repeater {
                     model: [{ label: "Name", column: Directory.ByName, width: root.nameWidth, align: Text.AlignLeft },
-                            { label: "Size", column: Directory.BySize, width: 90, align: Text.AlignRight },
-                            { label: "Modified", column: Directory.ByModified, width: 130, align: Text.AlignRight }]
+                            { label: "Size", column: Directory.BySize, width: root.sizeWidth, align: Text.AlignRight },
+                            { label: "Modified", column: Directory.ByModified, width: root.modifiedWidth, align: Text.AlignRight }]
                     delegate: Item {
                         id: head
                         required property var modelData
@@ -243,6 +246,25 @@ FocusScope {
                             Item { Layout.fillWidth: true }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.sortBy(head.modelData.column) }
+
+                        // The line at the head's left edge is dragged to give the column either side
+                        // a different width.
+                        MouseArea {
+                            visible: head.modelData.column !== Directory.ByName
+                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                            width: 7
+                            cursorShape: Qt.SizeHorCursor
+                            property real from: 0
+                            onPressed: mouse => from = mouse.x
+                            onPositionChanged: mouse => {
+                                if (!(mouse.buttons & Qt.LeftButton)) return;
+                                const by = Math.round(mouse.x - from);
+                                if (head.modelData.column === Directory.BySize)
+                                    root.sizeWidth = Math.max(60, Math.min(300, root.sizeWidth - by));
+                                else
+                                    root.modifiedWidth = Math.max(80, Math.min(320, root.modifiedWidth - by));
+                            }
+                        }
                     }
                 }
             }
@@ -281,6 +303,8 @@ FocusScope {
                 Keys.onEnterPressed: root.open(root.index)
                 Keys.onUpPressed: event => root.step(-1, event.modifiers)
                 Keys.onDownPressed: event => root.step(1, event.modifiers)
+                Keys.onRightPressed: root.directory.expand(root.index)
+                Keys.onLeftPressed: root.directory.collapse(root.index)
                 Keys.onPressed: event => root.walk(event, Math.max(1, Math.floor(height / 30) - 1))
 
                 delegate: Rectangle {
@@ -360,6 +384,29 @@ FocusScope {
                             Layout.fillWidth: true
                             Layout.preferredWidth: root.nameWidth
                             spacing: Theme.s2 + 2
+                            // A row inside a folder opened in place sits a step further in.
+                            Item { Layout.preferredWidth: root.directory.depthAt(row.index) * 16; Layout.preferredHeight: 1 }
+                            // A fixed box for the triangle, so the layout keeps room for it whether
+                            // or not the row has one.
+                            Item {
+                                Layout.preferredWidth: 14
+                                Layout.preferredHeight: 14
+                                Glyph {
+                                    anchors.centerIn: parent
+                                    visible: row.isDir
+                                    name: root.directory.isExpanded(row.index) ? "chevron-down" : "chevron-right"
+                                    size: 12
+                                    color: Theme.text3
+                                }
+                                MouseArea {
+                                    // Over the row's own click area, which covers the whole row.
+                                    z: 2
+                                    anchors { fill: parent; margins: -4 }
+                                    enabled: row.isDir
+                                    onClicked: root.directory.isExpanded(row.index) ? root.directory.collapse(row.index)
+                                                                                    : root.directory.expand(row.index)
+                                }
+                            }
                             IconImage {
                                 implicitSize: 18
                                 source: Quickshell.iconPath(root.iconFor(row.path, row.iconName), "text-x-generic")
@@ -406,7 +453,7 @@ FocusScope {
                             }
                         }
                         Label {
-                            Layout.preferredWidth: 90
+                            Layout.preferredWidth: root.sizeWidth
                             horizontalAlignment: Text.AlignRight
                             size: Theme.sizeSmall
                             color: Theme.text3
@@ -414,7 +461,7 @@ FocusScope {
                             text: row.isDir ? "—" : Engine.formatSize(row.size)
                         }
                         Label {
-                            Layout.preferredWidth: 130
+                            Layout.preferredWidth: root.modifiedWidth
                             horizontalAlignment: Text.AlignRight
                             size: Theme.sizeSmall
                             color: Theme.text3
@@ -483,6 +530,8 @@ FocusScope {
                 Keys.onEnterPressed: root.open(root.index)
                 Keys.onUpPressed: event => root.step(-1, event.modifiers)
                 Keys.onDownPressed: event => root.step(1, event.modifiers)
+                Keys.onRightPressed: root.directory.expand(root.index)
+                Keys.onLeftPressed: root.directory.collapse(root.index)
                 Keys.onPressed: event => root.walk(event, Math.max(1, Math.floor(height / 30) - 1))
 
                 delegate: Item {

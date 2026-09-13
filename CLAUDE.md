@@ -15,7 +15,8 @@ Targets CachyOS; built for gaming and for running coding agents.
   with the repo at `/repo`, `dev/guest.sh` runs a command in the
   session, `dev/test-vm.sh shot` takes a screenshot. `dev/` is the
   maintainer's local tooling and is git-ignored; never stage it. Restart the shell
-  with `pkill -x qs` in the guest; the compositor's start hook relaunches it.
+  with `pkill -x quickshell` in the guest, not `pkill -x qs`: `qs` is a wrapper and
+  killing it leaves the shell running, so every later check reads a stale process.
 - Stage explicit paths. Never `git add -A`: other work may be in the tree.
 - `hypr/generated/` and `theme/__pycache__/` are written at run time and
   are not committed.

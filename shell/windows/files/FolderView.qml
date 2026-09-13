@@ -70,6 +70,29 @@ FocusScope {
         else list.positionViewAtIndex(to, ListView.Contain);
     }
 
+    // Home, End and the page keys, and typing the start of a name to jump to it.
+    property string typed: ""
+    Timer { id: typing; interval: 900; onTriggered: root.typed = "" }
+
+    function walk(event, page) {
+        if (event.key === Qt.Key_Home) { pick(0, event.modifiers); show(0); event.accepted = true; }
+        else if (event.key === Qt.Key_End) { pick(directory.count - 1, event.modifiers); show(directory.count - 1); event.accepted = true; }
+        else if (event.key === Qt.Key_PageUp) { step(-page, event.modifiers); event.accepted = true; }
+        else if (event.key === Qt.Key_PageDown) { step(page, event.modifiers); event.accepted = true; }
+        else if (event.text && event.text.length === 1 && event.text >= " " && !(event.modifiers & Qt.ControlModifier)) {
+            root.typed += event.text.toLowerCase();
+            typing.restart();
+            const at = directory.startingWith(root.typed, 0);
+            if (at >= 0) { pick(at, Qt.NoModifier); show(at); }
+            event.accepted = true;
+        }
+    }
+
+    function show(row) {
+        if (mode === "grid") grid.positionViewAtIndex(row, GridView.Contain);
+        else list.positionViewAtIndex(row, ListView.Contain);
+    }
+
     function selectAll() {
         const all = [];
         for (let i = 0; i < directory.count; i++) all.push(directory.pathAt(i));
@@ -137,7 +160,14 @@ FocusScope {
     // The folder changed under the selection: start at the top rather than on whatever is there now.
     Connections {
         target: root.directory
-        function onCountChanged() { if (root.pending) root.beginRenameWhenSeen(root.pending); }
+        function onCountChanged() {
+            if (root.pending) root.beginRenameWhenSeen(root.pending);
+            // A rescan rebuilds the rows; what was picked is kept by name, so a file appearing
+            // elsewhere in the folder does not throw the picking away.
+            const kept = root.selection.filter(p => root.directory.rowOf(Engine.displayName(p)) >= 0);
+            if (kept.length !== root.selection.length) root.selection = kept;
+            root.index = Math.max(0, Math.min(root.index, root.directory.count - 1));
+        }
         function onPathChanged() {
             root.index = 0;
             root.anchor = 0;
@@ -238,6 +268,7 @@ FocusScope {
                 Keys.onEnterPressed: root.open(root.index)
                 Keys.onUpPressed: event => root.step(-1, event.modifiers)
                 Keys.onDownPressed: event => root.step(1, event.modifiers)
+                Keys.onPressed: event => root.walk(event, Math.max(1, Math.floor(height / 30) - 1))
 
                 delegate: Rectangle {
                     id: row
@@ -392,6 +423,7 @@ FocusScope {
                 Keys.onEnterPressed: root.open(root.index)
                 Keys.onUpPressed: event => root.step(-1, event.modifiers)
                 Keys.onDownPressed: event => root.step(1, event.modifiers)
+                Keys.onPressed: event => root.walk(event, Math.max(1, Math.floor(height / 30) - 1))
 
                 delegate: Item {
                     id: cell

@@ -233,6 +233,7 @@ FloatingWindow {
             { label: "New folder", glyph: "folder-plus", action: askNewFolder },
             on ? null : undefined,
             on ? { label: many ? "Rename " + acting.length + " items" : "Rename", glyph: "pencil", action: askRename } : undefined,
+            on && !many ? { label: "Get info", glyph: "info", action: () => peek.look(actingOne) } : undefined,
             on ? { label: "Duplicate", glyph: "copy", action: duplicate } : undefined,
             on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
             on && !many && FileJobs.isArchive(acting[0]) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(acting[0]) } : undefined,
@@ -338,6 +339,8 @@ FloatingWindow {
     Shortcut { sequence: "Ctrl+N"; onActivated: FileWindows.add(dir.path) }
     Shortcut { sequence: "Ctrl+D"; onActivated: root.duplicate() }
     Shortcut { sequences: ["Ctrl+L", "Ctrl+Shift+G"]; onActivated: root.askGoTo() }
+    Shortcut { sequence: "Space"; onActivated: if (root.actingOne) peek.toggle(root.actingOne) }
+    Shortcut { sequence: "Ctrl+I"; onActivated: if (root.actingOne) peek.look(root.actingOne) }
     Shortcut { sequences: [StandardKey.NextChild]; onActivated: root.showTab((root.current + 1) % root.tabs.length) }
     Shortcut { sequences: [StandardKey.PreviousChild]; onActivated: root.showTab((root.current + root.tabs.length - 1) % root.tabs.length) }
     // The keyboard's own way to the context menu, which every desktop offers and which is also the
@@ -702,6 +705,8 @@ FloatingWindow {
         anchors.fill: parent
 
         FileMenu { id: menu; onShownChanged: if (!shown) root.openBarMenu = "" }
+
+        QuickLook { id: peek }
 
         FileSheet {
             id: sheet

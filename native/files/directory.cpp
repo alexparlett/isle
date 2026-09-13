@@ -275,6 +275,15 @@ bool Directory::isDirAt(int row) const {
     return row >= 0 && row < m_rows.size() && m_rows.at(row).isDir;
 }
 
+int Directory::startingWith(const QString &prefix, int from) const {
+    if (prefix.isEmpty())
+        return -1;
+    for (int i = qMax(0, from); i < m_rows.size(); ++i)
+        if (m_rows.at(i).name.startsWith(prefix, Qt::CaseInsensitive))
+            return i;
+    return -1;
+}
+
 int Directory::rowOf(const QString &name) const {
     for (int i = 0; i < m_rows.size(); ++i)
         if (m_rows.at(i).name == name)

@@ -164,36 +164,51 @@ shell actions, settings pages, vault items, web fallback, ranking by use.
 | No Quick Look: a space bar preview of a file result, images and PDFs at least | later |
 | No Spotlight-style suggestions from the web or apps' own providers (KRunner plugins) | no |
 
-### Files
+## Files
 
-Against Finder, which is what a Mac hand expects of a file manager. "Has"
-is verified in the VM or on the machine; the rest is ordered by how much
-it is missed.
+Against Finder. The first list is what a hand does in the first minute,
+because that is where this was found wanting: a list of features missed
+every one of these.
 
-Has: list, columns and grid, thumbnails from the shared cache, a places
-sidebar with bookmarks and devices, a breadcrumb trail with back and
-forward, sortable columns, search within the folder, hidden files,
-multiple selection, copy, cut, paste, rename, rename many, new folder,
-trash and restore, delete, pack and unpack, one step of undo, a menu bar,
-a context menu, and the file chooser every other application gets.
+Has: list, columns and grid; thumbnails from the shared cache; places with
+bookmarks, devices, Recents and the Trash; tabs and as many windows as are
+wanted; a menu bar and a context menu; a breadcrumb with back and forward
+per tab; sortable columns; multiple selection; renaming and new folders on
+the row; copy, cut, paste, duplicate, trash, put back, delete; pack and
+unpack; rename many; one step of undo; go to folder; what is free; the file
+chooser every application gets.
 
-| gap | why it is missed |
+### What the hand does
+
+| gap | |
 |---|---|
-| Renaming opens a card instead of editing the name where it sits | Finder renames in place; a dialog for a name is a Windows habit |
-| No Quick Look: Space does nothing | The fastest way to look at a file without opening it |
-| No Get Info | Size, kind, where it is, when it changed, permissions |
-| No tabs | One window per folder is how Finder stopped working in 2011 |
-| No path bar at the foot, and the status does not say what space is free | Both are what the bottom of a Finder window is for |
-| No Go to folder by typing a path | Every file manager has it; Finder is Shift+Cmd+G |
-| The trash is not a place: things go in and only come back through undo | Emptying it, and looking in it, are ordinary things to want |
-| No Recents | Finder's first sidebar entry |
-| No Duplicate | One key for the commonest copy there is |
-| Folders in the list do not open in place on a triangle | Finder's list view nests |
-| No preview pane | Shift+Cmd+P |
-| The grid has one icon size | Finder has a slider |
-| No sorting or grouping menu beyond the column headers | Finder groups by kind, date, size, tag |
-| No tags | The one Finder idea with no equivalent anywhere else |
-| Search does not look under the folder, only in it | |
-| Dragging is written but has never been seen to work | |
-| A folder on another volume trashes to the home volume's trash | |
+| Space does nothing; there is no Quick Look | the fastest way to see a file without opening it |
+| Enter opens rather than renames | Finder's way round, and the audit should say which Isle wants |
+| No Get Info on a selection | size, kind, where, when, permissions |
+| Dragging a file onto a folder has never been seen to work | |
+| Dragging a folder to the sidebar has never been seen to work | |
+| No arrow-key navigation into and out of folders in columns | left and right are how columns are walked |
+| Double click on a folder's empty space does not go up | Finder does not either, but Windows hands expect it |
+| No middle click to open in a new tab | |
+| No Ctrl+click or long press on back for the trail | |
+| Column widths cannot be dragged | |
 | The sidebar cannot be reordered by dragging | |
+| Selection is lost when the folder is rescanned | a file appearing elsewhere in the folder drops what was picked |
+| No rubber-band selection by dragging over rows | |
+| No Home/End/PageUp/PageDown in the list | |
+| Type-ahead does not jump to a name | |
+
+### What it does not have
+
+| gap | |
+|---|---|
+| No preview pane | Shift+Cmd+P |
+| Folders in the list do not open in place on a triangle | Finder's list nests |
+| The grid has one icon size | Finder has a slider |
+| No sorting or grouping menu beyond the column headers | by kind, date, size |
+| No tags | the one Finder idea with no equivalent elsewhere |
+| Search does not look under the folder, only in it | |
+| No saved searches, no Recents beyond the list | |
+| A folder on another volume trashes to the home volume's trash | |
+| No Connect to server | |
+| No Get Info on a folder's size | Finder counts on demand |

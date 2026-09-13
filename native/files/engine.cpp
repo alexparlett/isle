@@ -92,6 +92,50 @@ QVariantList Engine::crumbs(const QString &path) const {
     return out;
 }
 
+QString Engine::kindOf(const QString &path) const {
+    const QFileInfo info(path);
+    if (info.isDir())
+        return QStringLiteral("Folder");
+    QMimeDatabase db;
+    return db.mimeTypeForFile(info, QMimeDatabase::MatchDefault).comment();
+}
+
+QVariantList Engine::infoFor(const QString &path) const {
+    const QFileInfo info(path);
+    QVariantList out;
+    if (!info.exists())
+        return out;
+
+    const auto row = [&out](const QString &label, const QString &value) {
+        if (!value.isEmpty())
+            out.append(QVariantMap { { QStringLiteral("label"), label }, { QStringLiteral("value"), value } });
+    };
+
+    row(QStringLiteral("Kind"), kindOf(path));
+    // A folder's size would mean walking all of it, which Get Info does only when asked.
+    row(QStringLiteral("Size"), info.isDir() ? QString() : formatSize(info.size()));
+    row(QStringLiteral("Where"), info.absolutePath());
+    row(QStringLiteral("Created"), info.birthTime().isValid()
+        ? QLocale().toString(info.birthTime(), QLocale::ShortFormat) : QString());
+    row(QStringLiteral("Modified"), QLocale().toString(info.lastModified(), QLocale::ShortFormat));
+    row(QStringLiteral("Owner"), info.owner());
+    row(QStringLiteral("Group"), info.group());
+
+    // The permissions as a shell would write them, since that is what they are.
+    const QFile::Permissions p = info.permissions();
+    QString mode;
+    const QFile::Permission bits[] = { QFile::ReadOwner, QFile::WriteOwner, QFile::ExeOwner,
+                                       QFile::ReadGroup, QFile::WriteGroup, QFile::ExeGroup,
+                                       QFile::ReadOther, QFile::WriteOther, QFile::ExeOther };
+    const char letters[] = "rwxrwxrwx";
+    for (int i = 0; i < 9; ++i)
+        mode += (p & bits[i]) ? QChar::fromLatin1(letters[i]) : QLatin1Char('-');
+    row(QStringLiteral("Permissions"), mode);
+    if (info.isSymLink())
+        row(QStringLiteral("Points at"), info.symLinkTarget());
+    return out;
+}
+
 QString Engine::freeSpace(const QString &path) const {
     const QStorageInfo where(path);
     if (!where.isValid() || !where.isReady())

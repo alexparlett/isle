@@ -98,6 +98,8 @@ public:
     Q_INVOKABLE int rowOf(const QString &name) const;
     // Whether the row is a folder, for a delegate deciding what a double click means.
     Q_INVOKABLE bool isDirAt(int row) const;
+    // The first row at or after `from` whose name starts with this, for typing a name to jump to it.
+    Q_INVOKABLE int startingWith(const QString &prefix, int from) const;
 
 signals:
     void pathChanged();

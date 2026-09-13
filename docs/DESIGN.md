@@ -91,7 +91,7 @@ The kit in `shell/ui/`. Every surface is built from these and nothing else.
 
 | component | notes |
 |---|---|
-| `Glass` | the material: colour, hairline, radius, optional shadow |
+| `Glass` | the material: colour, hairline, radius, optional shadow. For a layer surface, where the compositor blurs behind it; inside a window it is the window's own colour and cannot be seen, so a menu or a card there is the raised tone |
 | `Glyph` | a Lucide icon at 16 or 20 in a text token colour |
 | `Label` | Inter at a named size; `mono` and `tabular` switches |
 | `Pill` | a rounded chip: glyph + label; the island's building block |
@@ -557,6 +557,16 @@ shows its icon, and the name sits under it over at most two lines. A
 thumbnail is the shared one every desktop tool writes (D68), so a folder
 of photos opened once is instant afterwards and photos another program
 has already thumbnailed are instant the first time.
+
+A right click offers what can be done with what is under it: open,
+rename, copy, cut, paste, a new folder, move to trash, and delete. The
+keys are the ones every desktop uses: F2 renames, Delete moves to the
+trash, Shift with Delete removes for good and asks first, Ctrl with C, X
+and V copy, cut and paste, Ctrl+Shift+N makes a folder, and Ctrl+Z undoes
+the last of those (D70). Renaming, naming a new folder, confirming a
+delete and answering about a name already taken are all the same card over
+the folder. A copy or a move says what it is working on in the footer with
+a bar and a way to stop it.
 
 The folder is watched, so a file written into it appears without asking,
 and one written over is redrawn: the size, the time and the thumbnail all

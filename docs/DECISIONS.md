@@ -731,3 +731,21 @@ Isle's own. Somebody who bookmarks a folder here finds it bookmarked in
 every GTK file dialog they have not yet replaced, and the ones they made
 before Isle are already there. It costs nothing: the format is a uri and
 an optional name to the line.
+
+**D70 · Deleting puts a thing in the freedesktop trash, and the last thing
+done can be undone.** Delete moves to `~/.local/share/Trash`, writing the
+spec's note of where the thing came from before moving it, so nothing is
+ever in the trash without a way back and every other desktop tool sees the
+same trash. Shift with Delete is the permanent one and asks first, since
+it is the only action here that cannot be taken back.
+
+One step of undo, not a stack. Moving goes back where it came from,
+trashing comes out of the trash and takes its note with it, copying and
+making a folder are undone by taking away what they made. A stack would
+have to survive a folder being changed underneath it by something else,
+and one step is what a mistaken drag or a mistaken Delete actually needs.
+
+A job that finds something already at the destination stops and asks, and
+the answer can be given for the rest of the job at once. It asks on the
+worker thread and waits, which is why the surface must always answer:
+cancelling counts as an answer.

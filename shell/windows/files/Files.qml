@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Isle.Files
+import Quickshell.Widgets
 import qs.theme
 import qs.ui
 import qs.services
@@ -41,6 +42,73 @@ FloatingWindow {
     function forward() { if (!canForward) return; navigating = true; at++; dir.path = history[at]; navigating = false; }
     function up() { go(Engine.parentOf(dir.path)); }
 
+    // What Copy or Cut put aside, and which of the two it was.
+    property var clipboard: []
+    property bool clipboardCut: false
+
+    readonly property string acting: view.focusedPath
+
+    function copyToClipboard(cut) {
+        if (!acting) return;
+        clipboard = [acting];
+        clipboardCut = cut;
+        IslandEvents.show({ kind: "text", glyph: cut ? "scissors" : "copy",
+                            text: Engine.displayName(acting) + (cut ? " cut" : " copied") });
+    }
+    function paste() {
+        if (!clipboard.length) return;
+        clipboardCut ? FileJobs.move(clipboard, dir.path) : FileJobs.copy(clipboard, dir.path);
+        if (clipboardCut) { clipboard = []; clipboardCut = false; }
+    }
+    function askRename() {
+        if (!acting) return;
+        sheet.mode = "name"; sheet.title = "Rename"; sheet.message = ""; sheet.acceptLabel = "Rename";
+        sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "rename";
+        sheet.ask(Engine.displayName(acting));
+    }
+    function askNewFolder() {
+        sheet.mode = "name"; sheet.title = "New folder"; sheet.message = ""; sheet.acceptLabel = "Create";
+        sheet.danger = false; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "newFolder";
+        sheet.ask("untitled folder");
+    }
+    function askDelete() {
+        if (!acting) return;
+        sheet.mode = "confirm"; sheet.title = "Delete " + Engine.displayName(acting) + "?";
+        sheet.message = "This does not go to the trash and cannot be undone.";
+        sheet.acceptLabel = "Delete"; sheet.danger = true; sheet.offerAll = false; sheet.alternateLabel = "";
+        sheet.job = null; sheet.what = "delete";
+        sheet.ask("");
+    }
+    function toTrash() {
+        if (!acting) return;
+        FileJobs.trash([acting]);
+    }
+
+    // A job that meets something already there stops and asks through the same sheet.
+    Connections {
+        target: FileJobs
+        function onRunningChanged() {
+            for (const job of FileJobs.running)
+                if (job.state === FileJob.Asking && sheet.job !== job) root.askConflict(job);
+        }
+        function onJobFinished(job) {
+            if (job.state === FileJob.Failed)
+                IslandEvents.show({ kind: "text", glyph: "triangle-alert", text: job.error });
+        }
+    }
+
+    function askConflict(job) {
+        sheet.mode = "confirm";
+        sheet.title = job.conflictName + " is already there";
+        sheet.message = "Replace it, keep both, or leave it as it is.";
+        sheet.acceptLabel = "Replace"; sheet.danger = true; sheet.offerAll = job.total > 1;
+        sheet.alternateLabel = "Keep both";
+        sheet.job = job; sheet.what = "conflict";
+        sheet.ask("");
+    }
+
     // Opening the window again at another folder walks there rather than starting a second window.
     Connections {
         target: Surfaces
@@ -67,6 +135,14 @@ FloatingWindow {
     Shortcut { sequences: ["Ctrl+1"]; onActivated: view.mode = "list" }
     Shortcut { sequences: ["Ctrl+2"]; onActivated: view.mode = "columns" }
     Shortcut { sequences: ["Ctrl+3"]; onActivated: view.mode = "grid" }
+    Shortcut { sequence: "F2"; onActivated: root.askRename() }
+    Shortcut { sequences: [StandardKey.Copy]; onActivated: root.copyToClipboard(false) }
+    Shortcut { sequences: [StandardKey.Cut]; onActivated: root.copyToClipboard(true) }
+    Shortcut { sequences: [StandardKey.Paste]; onActivated: root.paste() }
+    Shortcut { sequences: [StandardKey.Delete]; onActivated: root.toTrash() }
+    Shortcut { sequence: "Shift+Delete"; onActivated: root.askDelete() }
+    Shortcut { sequences: [StandardKey.Undo]; onActivated: FileJobs.undo() }
+    Shortcut { sequence: "Ctrl+Shift+N"; onActivated: root.askNewFolder() }
 
     RowLayout {
         anchors.fill: parent
@@ -218,6 +294,24 @@ FloatingWindow {
             Layout.fillHeight: true
             directory: dir
             onActivated: path => root.go(path)
+            onMenuAsked: (x, y, path) => {
+                const on = path !== "";
+                menu.items = [
+                    on ? { label: "Open", glyph: "external-link", action: () => Compositor.exec("xdg-open " + JSON.stringify(path)) } : null,
+                    on ? { label: "Rename", glyph: "pencil", action: root.askRename } : null,
+                    on ? null : undefined,
+                    on ? { label: "Copy", glyph: "copy", action: () => root.copyToClipboard(false) } : null,
+                    on ? { label: "Cut", glyph: "scissors", action: () => root.copyToClipboard(true) } : null,
+                    { label: "Paste", glyph: "clipboard", enabled: root.clipboard.length > 0, action: root.paste },
+                    null,
+                    { label: "New folder", glyph: "folder-plus", action: root.askNewFolder },
+                    on ? null : undefined,
+                    on ? { label: "Move to trash", glyph: "trash", action: root.toTrash } : null,
+                    on ? { label: "Delete", glyph: "x", danger: true, action: root.askDelete } : null,
+                ].filter(i => i !== undefined);
+                const at = view.mapToItem(overlay, x, y);
+                menu.popup(at.x, at.y);
+            }
         }
 
         // Status
@@ -243,8 +337,67 @@ FloatingWindow {
                     color: Theme.text3
                     text: "Hidden files shown"
                 }
+                // What is being copied or moved, while it is.
+                Repeater {
+                    model: FileJobs.running
+                    delegate: RowLayout {
+                        id: job
+                        required property var modelData
+                        spacing: Theme.s2
+                        visible: job.modelData.state === FileJob.Running
+                        Label {
+                            size: Theme.sizeCaption
+                            color: Theme.text2
+                            text: (job.modelData.kind === FileJob.Copy ? "Copying " : "Moving ") + job.modelData.current
+                                + (job.modelData.total > 1 ? " (" + job.modelData.count + " of " + job.modelData.total + ")" : "")
+                        }
+                        Rectangle {
+                            Layout.preferredWidth: 90
+                            Layout.preferredHeight: 4
+                            radius: 2
+                            color: Theme.hairline
+                            Rectangle {
+                                width: parent.width * Math.max(0, Math.min(1, job.modelData.progress))
+                                height: parent.height
+                                radius: 2
+                                color: Theme.accent
+                            }
+                        }
+                        Button { variant: "text"; glyph: "x"; onClicked: job.modelData.cancel() }
+                    }
+                }
             }
         }
     }
+    }
+
+    Item {
+        id: overlay
+        anchors.fill: parent
+
+        FileMenu { id: menu }
+
+        FileSheet {
+            id: sheet
+            // What the answer is for, and the job waiting on it when it is a conflict.
+            property string what: ""
+            property var job: null
+
+            onRejected: {
+                if (what === "conflict" && job) job.cancel();
+                close();
+            }
+            onAlternate: forAll => {
+                if (job) job.answer(FileJob.Keep, forAll);
+                close();
+            }
+            onAccepted: (value, forAll) => {
+                if (what === "rename") FileJobs.rename(root.acting, value);
+                else if (what === "newFolder") FileJobs.newFolder(dir.path, value);
+                else if (what === "delete") FileJobs.remove([root.acting]);
+                else if (what === "conflict" && job) job.answer(FileJob.Replace, forAll);
+                close();
+            }
+        }
     }
 }

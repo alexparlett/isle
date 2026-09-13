@@ -27,6 +27,8 @@ qt_add_qml_module(isle-files
         filechooser.cpp
         thumbnails.h
         thumbnails.cpp
+        filejobs.h
+        filejobs.cpp
 )
 
 target_compile_definitions(isle-files PRIVATE ISLE_FILES_VERSION="${PROJECT_VERSION}")

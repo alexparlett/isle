@@ -31,12 +31,14 @@ cloud-snow
 cloud-sun
 code
 command
+copy
 cpu
 credit-card
 crop
 database-backup
 download
 eject
+external-link
 eye
 eye-off
 fan
@@ -44,6 +46,7 @@ file-search
 file-text
 film
 folder
+folder-plus
 gamepad-2
 globe
 hard-drive
@@ -52,8 +55,8 @@ house
 image
 info
 joystick
-keyboard
 key-round
+keyboard
 languages
 layout-grid
 list
@@ -87,6 +90,7 @@ refresh-cw
 rocket
 rotate-cw
 scan
+scissors
 screen-share
 search
 settings-2
@@ -109,6 +113,7 @@ terminal
 thermometer
 timer
 trash
+triangle-alert
 user
 video
 volume-2

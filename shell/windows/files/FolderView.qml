@@ -20,6 +20,8 @@ FocusScope {
     signal activated(string path)
     // A file settled on, when openFiles is false.
     signal chosen(string path)
+    // A right click, with where it landed in this item's coordinates and the row under it, if any.
+    signal menuAsked(real x, real y, string path)
 
     property int index: 0
 
@@ -30,6 +32,10 @@ FocusScope {
     readonly property string currentPath: mode === "columns"
         ? (columns.selectedIsDir ? "" : columns.selected)
         : (hasSelection ? directory.pathAt(index) : "")
+    // The row under the cursor's last click, folder or file, which is what an action acts on.
+    readonly property string focusedPath: mode === "columns"
+        ? columns.selected
+        : (index >= 0 && index < directory.count ? directory.pathAt(index) : "")
     readonly property int nameWidth: Math.max(220, width - 320)
 
     function open(row) {
@@ -114,6 +120,15 @@ FocusScope {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                onClicked: mouse => {
+                    const at = mapToItem(root, mouse.x, mouse.y);
+                    root.menuAsked(at.x, at.y, "");
+                }
+            }
+
             ListView {
                 id: list
                 anchors.fill: parent
@@ -186,7 +201,15 @@ FocusScope {
                         id: rowArea
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: { root.index = row.index; list.forceActiveFocus(); }
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: mouse => {
+                            root.index = row.index;
+                            list.forceActiveFocus();
+                            if (mouse.button === Qt.RightButton) {
+                                const at = mapToItem(root, mouse.x, mouse.y);
+                                root.menuAsked(at.x, at.y, row.path);
+                            }
+                        }
                         onDoubleClicked: root.open(row.index)
                     }
                 }
@@ -282,7 +305,15 @@ FocusScope {
                             id: cellArea
                             anchors.fill: parent
                             hoverEnabled: true
-                            onClicked: { root.index = cell.index; grid.forceActiveFocus(); }
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: mouse => {
+                                root.index = cell.index;
+                                grid.forceActiveFocus();
+                                if (mouse.button === Qt.RightButton) {
+                                    const at = mapToItem(root, mouse.x, mouse.y);
+                                    root.menuAsked(at.x, at.y, cell.path);
+                                }
+                            }
                             onDoubleClicked: root.open(cell.index)
                         }
                     }

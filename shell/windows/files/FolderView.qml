@@ -5,7 +5,6 @@ import Quickshell.Widgets
 import Isle.Files
 import qs.theme
 import qs.ui
-import qs.services
 
 // The folder, as a list of rows or a grid of thumbnails. Both are one selection and one set of
 // keys, so the window and the chooser speak to this and not to either view.
@@ -35,6 +34,10 @@ FocusScope {
     property int anchor: 0
     // Everything picked, by path. One click makes it the one row; ctrl adds, shift takes a run.
     property var selection: []
+    // Where the keys are, and where a run measures from, held as paths: a row number means a
+    // different file after a sort, an expand or anything appearing in the folder.
+    property string cursor: ""
+    property string anchorPath: ""
 
     // Columns pick by path; the other two pick by row. Either way it is one selection to the caller.
     readonly property bool hasSelection: mode === "columns"
@@ -46,8 +49,7 @@ FocusScope {
     // What an action acts on: everything picked, or the row the keys are on when nothing is.
     readonly property var acting: mode === "columns"
         ? (columns.selected ? [columns.selected] : [])
-        : (selection.length ? selection
-           : (index >= 0 && index < directory.count ? [directory.pathAt(index)] : []))
+        : (selection.length ? selection : (cursor && directory.rowOfPath(cursor) >= 0 ? [cursor] : []))
 
     function pick(row, modifiers) {
         if (row < 0 || row >= directory.count) return;
@@ -61,12 +63,15 @@ FocusScope {
             for (let i = from; i <= to; i++) run.push(directory.pathAt(i));
             selection = run;
             index = row;
+            cursor = path;
             return;                              // the anchor stays where the run started
         } else {
             selection = [path];
         }
         index = row;
+        cursor = path;
         anchor = row;
+        anchorPath = path;
     }
 
     // Moving with the keys picks as it goes; with Shift it grows the run instead.
@@ -115,6 +120,14 @@ FocusScope {
             }
         }
         selection = found;
+        // The run a later Shift measures from starts where the band ended, not wherever the last
+        // click happened to be.
+        if (found.length) {
+            cursor = found[found.length - 1];
+            anchorPath = found[0];
+            index = directory.rowOfPath(cursor);
+            anchor = directory.rowOfPath(anchorPath);
+        }
     }
 
     function selectAll() {
@@ -125,6 +138,19 @@ FocusScope {
 
     function isPicked(path) { return selection.indexOf(path) >= 0; }
 
+    // A different listing: nothing is picked, nothing is being renamed, and nothing is waiting to be.
+    function forget() {
+        index = 0;
+        anchor = 0;
+        cursor = "";
+        anchorPath = "";
+        selection = [];
+        renaming = "";
+        pending = "";
+        list.positionViewAtBeginning();
+        grid.positionViewAtBeginning();
+    }
+
     // The row whose name is being edited where it sits, as Finder renames. Empty while none is.
     property string renaming: ""
     // A new name settled on; the window does the renaming, since it owns the jobs.
@@ -134,7 +160,7 @@ FocusScope {
 
     // A folder that has only just appeared: picked, brought into view, and its name open for typing.
     function beginRenameWhenSeen(path) {
-        const row = directory.rowOf(Engine.displayName(path));
+        const row = directory.rowOfPath(path);
         if (row < 0) { pending = path; return; }
         pending = "";
         pick(row, Qt.NoModifier);
@@ -144,11 +170,15 @@ FocusScope {
     }
     // A path waiting for the folder to be read again before it can be named.
     property string pending: ""
+    // Settling a name and giving it up both end the edit, and tearing the field down drops focus,
+    // which arrives here a second time; only the first one counts.
     function endRename(path, name) {
+        if (renaming !== path) return;
         renaming = "";
         const was = Engine.displayName(path);
         if (name && name !== was) root.renamed(path, name);
     }
+    function cancelRename() { renaming = ""; }
 
     // What a drag carries: the uri list every desktop reads, so a drop lands in other applications too.
     function uriList(paths) { return paths.map(p => "file://" + encodeURI(p)).join("\r\n"); }
@@ -159,10 +189,12 @@ FocusScope {
     property int modifiedWidth: 130
     readonly property int nameWidth: Math.max(160, width - sizeWidth - modifiedWidth - 100)
 
-    function open(row) {
-        if (row < 0 || row >= directory.count) return;
-        const path = directory.pathAt(row);
-        if (directory.isDirAt(row)) root.activated(path);
+    function open(row) { openPath(directory.pathAt(row)); }
+    // Opening a path rather than a row: a menu was opened over a particular file, and the rows may
+    // have moved between then and the item being chosen.
+    function openPath(path) {
+        if (!path) return;
+        if (Engine.isDir(path)) root.activated(path);
         else if (root.openFiles) root.asked(path);
         else root.chosen(path);
     }
@@ -191,17 +223,19 @@ FocusScope {
             if (root.pending) root.beginRenameWhenSeen(root.pending);
             // A rescan rebuilds the rows; what was picked is kept by name, so a file appearing
             // elsewhere in the folder does not throw the picking away.
-            const kept = root.selection.filter(p => root.directory.rowOf(Engine.displayName(p)) >= 0);
+            const kept = root.selection.filter(p => root.directory.rowOfPath(p) >= 0);
             if (kept.length !== root.selection.length) root.selection = kept;
-            root.index = Math.max(0, Math.min(root.index, root.directory.count - 1));
+            // The rows have been rebuilt, so the row numbers are followed back to the files they
+            // were standing on rather than left pointing at whatever is there now.
+            const at = root.directory.rowOfPath(root.cursor);
+            root.index = at >= 0 ? at : Math.max(0, Math.min(root.index, root.directory.count - 1));
+            const from = root.directory.rowOfPath(root.anchorPath);
+            root.anchor = from >= 0 ? from : root.index;
         }
-        function onPathChanged() {
-            root.index = 0;
-            root.anchor = 0;
-            root.selection = [];
-            list.positionViewAtBeginning();
-            grid.positionViewAtBeginning();
-        }
+        function onPathChanged() { root.forget(); }
+        // A gathering — Recents, or what a search found — is as much a change of listing as a
+        // folder is, and says so with its own signal.
+        function onPathsChanged() { root.forget(); }
     }
 
     ColumnLayout {
@@ -216,6 +250,7 @@ FocusScope {
             color: "transparent"
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.hairline }
             RowLayout {
+                id: header
                 anchors { fill: parent; leftMargin: Theme.s4; rightMargin: Theme.s4 + 8 }
                 spacing: Theme.s3
                 Repeater {
@@ -254,15 +289,22 @@ FocusScope {
                             anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
                             width: 7
                             cursorShape: Qt.SizeHorCursor
+                            // The drag is measured against the header rather than against this
+                            // handle: the handle sits on a cell whose width the drag is changing, so
+                            // its own origin moves as the pointer does and every step counts twice.
                             property real from: 0
-                            onPressed: mouse => from = mouse.x
+                            property real was: 0
+                            onPressed: mouse => {
+                                from = mapToItem(header, mouse.x, 0).x;
+                                was = head.modelData.column === Directory.BySize ? root.sizeWidth : root.modifiedWidth;
+                            }
                             onPositionChanged: mouse => {
                                 if (!(mouse.buttons & Qt.LeftButton)) return;
-                                const by = Math.round(mouse.x - from);
+                                const by = Math.round(mapToItem(header, mouse.x, 0).x - from);
                                 if (head.modelData.column === Directory.BySize)
-                                    root.sizeWidth = Math.max(60, Math.min(300, root.sizeWidth - by));
+                                    root.sizeWidth = Math.max(60, Math.min(300, was - by));
                                 else
-                                    root.modifiedWidth = Math.max(80, Math.min(320, root.modifiedWidth - by));
+                                    root.modifiedWidth = Math.max(80, Math.min(320, was - by));
                             }
                         }
                     }
@@ -318,6 +360,8 @@ FocusScope {
                     required property bool isDir
                     required property bool isSymlink
                     required property string groupName
+                    required property int nestDepth
+                    required property bool opened
 
                     // The first row of a run carries the heading its run sits under.
                     readonly property bool opensGroup: row.groupName !== ""
@@ -385,7 +429,7 @@ FocusScope {
                             Layout.preferredWidth: root.nameWidth
                             spacing: Theme.s2 + 2
                             // A row inside a folder opened in place sits a step further in.
-                            Item { Layout.preferredWidth: root.directory.depthAt(row.index) * 16; Layout.preferredHeight: 1 }
+                            Item { Layout.preferredWidth: row.nestDepth * 16; Layout.preferredHeight: 1 }
                             // A fixed box for the triangle, so the layout keeps room for it whether
                             // or not the row has one.
                             Item {
@@ -394,7 +438,7 @@ FocusScope {
                                 Glyph {
                                     anchors.centerIn: parent
                                     visible: row.isDir
-                                    name: root.directory.isExpanded(row.index) ? "chevron-down" : "chevron-right"
+                                    name: row.opened ? "chevron-down" : "chevron-right"
                                     size: 12
                                     color: Theme.text3
                                 }
@@ -403,8 +447,8 @@ FocusScope {
                                     z: 2
                                     anchors { fill: parent; margins: -4 }
                                     enabled: row.isDir
-                                    onClicked: root.directory.isExpanded(row.index) ? root.directory.collapse(row.index)
-                                                                                    : root.directory.expand(row.index)
+                                    onClicked: row.opened ? root.directory.collapse(row.index)
+                                                          : root.directory.expand(row.index)
                                 }
                             }
                             IconImage {
@@ -447,7 +491,7 @@ FocusScope {
                                         input.select(0, dot > 0 ? dot : row.name.length);
                                     }
                                     onAccepted: root.endRename(row.path, text.trim())
-                                    input.Keys.onEscapePressed: root.renaming = ""
+                                    input.Keys.onEscapePressed: root.cancelRename()
                                     input.onActiveFocusChanged: if (!input.activeFocus) root.endRename(row.path, text.trim())
                                 }
                             }
@@ -616,7 +660,7 @@ FocusScope {
                                         input.select(0, dot > 0 ? dot : cell.name.length);
                                     }
                                     onAccepted: root.endRename(cell.path, text.trim())
-                                    input.Keys.onEscapePressed: root.renaming = ""
+                                    input.Keys.onEscapePressed: root.cancelRename()
                                     input.onActiveFocusChanged: if (!input.activeFocus) root.endRename(cell.path, text.trim())
                                 }
                             }
@@ -702,10 +746,12 @@ FocusScope {
                 anchors.fill: parent
                 visible: root.mode === "columns"
                 enabled: visible
+                focus: visible
                 rootPath: root.directory.path
                 showHidden: root.directory.showHidden
                 onActivated: path => root.activated(path)
-                onChosen: path => root.openFiles ? Compositor.exec("xdg-open " + JSON.stringify(path)) : root.chosen(path)
+                // The same question the other views ask: what opens this, and who says so.
+                onChosen: path => root.openFiles ? root.asked(path) : root.chosen(path)
             }
 
             // Nothing to show, and why.

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMutex>
+#include <QProcess>
 #include <QObject>
 #include <QQmlEngine>
 #include <QStringList>
@@ -26,9 +27,16 @@ class FileJob : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     // The name that already exists at the destination, while the job is asking about it.
     Q_PROPERTY(QString conflictName READ conflictName NOTIFY conflictChanged)
+    // What the job put on the disk, which for a new file or folder is the name it settled on.
+    Q_PROPERTY(QStringList made READ made NOTIFY stateChanged)
+    // Where it was asked to put things, so a window can tell its own jobs from another window's.
+    Q_PROPERTY(QString destination READ destination CONSTANT)
 
 public:
-    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, NewFile, Restore, Extract, Compress, RenameMany, Duplicate };
+    // Restore is the trash's own: it takes each thing's note away with it. PutBack is the same
+    // move without the note, which is what undoing a move or a rename is.
+    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, NewFile, Restore, Extract, Compress,
+                RenameMany, Duplicate, PutBack };
     Q_ENUM(Kind)
 
     enum State { Running, Asking, Done, Failed, Cancelled };
@@ -48,6 +56,8 @@ public:
     int total() const { return m_sources.size(); }
     QString error() const { return m_error; }
     QString conflictName() const { return m_conflictName; }
+    QStringList made() const { return m_undoFrom; }
+    QString destination() const { return m_destination; }
 
     // Replace what is there, skip this one, or keep both by giving the new one another name.
     Q_INVOKABLE void answer(Answer answer, bool forAll = false);
@@ -91,8 +101,10 @@ private:
     QString m_current;
     QString m_conflictName;
     int m_count = 0;
-    qint64 m_bytesDone = 0;
+    std::atomic<qint64> m_bytesDone { 0 };
     qint64 m_bytesTotal = 0;
+    // Whether the job went over something that was already there, which nothing can put back.
+    bool m_replaced = false;
 
     std::atomic_bool m_cancelled { false };
     QMutex m_mutex;
@@ -106,6 +118,8 @@ private:
     QStringList m_undoTo;
 
     QThread *m_thread = nullptr;
+    // The unpacker, while one is running, so cancelling can stop it.
+    QProcess *m_tar = nullptr;
 };
 
 // Starts jobs and remembers the last one, so it can be put back.
@@ -157,6 +171,8 @@ signals:
     void runningChanged();
     void canUndoChanged();
     void jobFinished(FileJob *job);
+    // A job has stopped on something already at the destination and is waiting to be told what to do.
+    void jobAsking(FileJob *job);
 
 private:
     FileJob *begin(FileJob *job);

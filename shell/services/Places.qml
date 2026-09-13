@@ -61,9 +61,13 @@ Singleton {
         writer.running = true;
     }
 
+    // A line is the uri, and after it whatever name whoever wrote it gave, so a bookmark is matched
+    // on its first field alone and never on the whole line.
     function removeBookmark(path) {
         if (!path) return;
-        writer.command = ["sh", "-c", "grep -vxF \"$2\" \"$1\" > \"$1.tmp\" && mv \"$1.tmp\" \"$1\"", "_", bookmarksFile, "file://" + encodeURI(path)];
+        writer.command = ["sh", "-c",
+            "[ -f \"$1\" ] || exit 0; awk -v u=\"$2\" '$1 != u' \"$1\" > \"$1.tmp\" && mv \"$1.tmp\" \"$1\"",
+            "_", bookmarksFile, "file://" + encodeURI(path)];
         writer.running = true;
     }
 

@@ -56,5 +56,11 @@ public:
     Q_INVOKABLE QString formatModified(const QDateTime &when) const;
 
 private:
-    mutable QHash<QString, QString> m_sniffed;
+    // What reading a file said its icon was, against the state of the file when it was read.
+    struct Sniffed {
+        QString icon;
+        qint64 mtime = 0;
+        qint64 size = 0;
+    };
+    mutable QHash<QString, Sniffed> m_sniffed;
 };

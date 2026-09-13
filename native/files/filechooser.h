@@ -51,6 +51,7 @@ class FileChooserRequest : public QObject {
 public:
     FileChooserRequest(const QDBusMessage &call, const QString &appId, const QString &title,
                        bool save, const QVariantMap &options, QObject *parent = nullptr);
+    ~FileChooserRequest() override;
 
     // SaveFiles asks for a folder and is answered with one uri per name the application named.
     QStringList saveNames() const { return m_saveNames; }

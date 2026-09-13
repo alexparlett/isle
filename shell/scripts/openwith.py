@@ -89,7 +89,13 @@ def candidates(kind):
 
 
 def launch(entry_id, path):
-    os.execvp("gtk-launch", ["gtk-launch", entry_id, path])
+    # Exit 3 is "nothing here can open it", which is what the caller offers a choice about; a missing
+    # launcher and a default pointing at an entry that is gone both come to the same thing.
+    try:
+        done = subprocess.run(["gtk-launch", entry_id, path])
+    except OSError:
+        sys.exit(3)
+    sys.exit(0 if done.returncode == 0 else 3)
 
 
 what = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -106,7 +112,10 @@ elif what == "with" and len(sys.argv) > 3:
     launch(sys.argv[2], sys.argv[3])
 elif what == "always" and len(sys.argv) > 3:
     # The choice becomes the standing one for the type, which is what xdg-mime keeps.
-    subprocess.run(["xdg-mime", "default", sys.argv[2], kind_of(sys.argv[3])])
+    try:
+        subprocess.run(["xdg-mime", "default", sys.argv[2], kind_of(sys.argv[3])])
+    except OSError:
+        pass
     launch(sys.argv[2], sys.argv[3])
 else:
     sys.exit(2)

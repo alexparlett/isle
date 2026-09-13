@@ -7,6 +7,7 @@
 #include <QQmlEngine>
 #include <QSocketNotifier>
 #include <QRegularExpression>
+#include <QHash>
 #include <QSet>
 #include <QString>
 #include <QTimer>
@@ -116,14 +117,13 @@ public:
     Q_INVOKABLE bool isDirAt(int row) const;
     // The first row at or after `from` whose name starts with this, for typing a name to jump to it.
     Q_INVOKABLE int startingWith(const QString &prefix, int from) const;
+    // Which row a path is at, or -1. Names repeat once folders are opened in place; paths do not.
+    Q_INVOKABLE int rowOfPath(const QString &path) const;
     // The heading a row sits under, so a view can tell where one run of them ends and the next starts.
     Q_INVOKABLE QString groupAt(int row) const;
     // Open a folder in place, as a list that nests does, or shut it again.
     Q_INVOKABLE void expand(int row);
     Q_INVOKABLE void collapse(int row);
-    Q_INVOKABLE bool isExpanded(int row) const;
-    // How far in the row sits when a list nests.
-    Q_INVOKABLE int depthAt(int row) const;
 
 signals:
     void pathChanged();
@@ -145,6 +145,11 @@ private:
     void setStatus(Status status, const QString &error = {});
     QString groupOf(const DirEntry &entry) const;
     void appendExpanded(QVector<DirEntry> &rows, const QString &folder, int depth) const;
+    // Where a row is. A nested row carries its own path; a top-level row is named inside the folder
+    // the listing came from, which during a navigation is not yet the folder being navigated to.
+    QString pathOf(const DirEntry &entry) const;
+    // Whether a row survives the hidden, filter, pattern and folders-only settings.
+    bool keeps(const DirEntry &entry) const;
 
     QString m_path;
     QStringList m_paths;
@@ -165,6 +170,12 @@ private:
     QVector<DirEntry> m_rows;
     // Folders opened in place, by path, so they stay open across a rescan.
     QSet<QString> m_expanded;
+    // What is inside each opened folder, so a rebuild does not go back to the disk for it.
+    mutable QHash<QString, QVector<DirEntry>> m_inside;
+    // The folder the rows were built from and which folders were open at the time, so a rebuild
+    // that would look the same but mean something else is never skipped.
+    QString m_rowsBase;
+    QSet<QString> m_rowsExpanded;
 
     // A scan that finishes after the path has moved on belongs to a directory nobody is looking at.
     quint64 m_generation = 0;

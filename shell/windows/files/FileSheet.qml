@@ -16,6 +16,8 @@ Item {
     // Shown under the buttons of a question that will be asked about several things.
     property bool offerAll: false
     property alias text: field.text
+    // Whether the keyboard is in this sheet's field, so the window's bare-key shortcuts stand aside.
+    readonly property bool typing: root.visible && root.mode === "name"
 
     // The accept label pressed, with whether "for all the rest" was ticked.
     signal accepted(string value, bool forAll)

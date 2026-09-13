@@ -82,7 +82,12 @@ Item {
                     asynchronous: true
                     cache: false
                     fillMode: Image.PreserveAspectFit
-                    source: root.shown && Thumbnails.canThumbnail(root.path) ? "file://" + root.path : ""
+                    // Decoded no larger than it is drawn, so a very large photograph does not come
+                    // into memory at its full size to be shown in a box this size.
+                    sourceSize.width: Math.ceil(width)
+                    sourceSize.height: Math.ceil(height)
+                    source: root.shown && Thumbnails.canThumbnail(root.path)
+                        ? "file://" + encodeURI(root.path) : ""
                 }
 
                 Flickable {

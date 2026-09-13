@@ -48,41 +48,45 @@ FloatingWindow {
         : searchingUnder ? [{ name: "Found under " + Engine.displayName(tab.path), path: tab.path }]
         : showingTrash ? [{ name: "Trash", path: Places.trashFiles }]
         : Engine.crumbs(dir.path)
-    readonly property bool showingTrash: dir.path === Places.trashFiles
+    readonly property bool showingTrash: tab.path === Places.trashFiles
 
-    function go(to) {
+    // The one place the folder is pointed anywhere. Recents is a gathering rather than a folder, so
+    // it is named rather than opened; everything else is a path. Every way of moving goes through
+    // here, so the tab and what is on screen cannot drift apart.
+    function show(to) {
+        clearSearch();
         if (to === Places.recentsPath) {
             Places.refreshRecents();
             dir.paths = Places.recents.map(r => r.path);
-            const h = tab.history.slice(0, tab.at + 1);
-            h.push(to);
-            setTab(current, { path: to, history: h.slice(-50), at: Math.min(h.length, 50) - 1 });
             return;
         }
-        if (!to || to === dir.path) return;
-        dir.path = to;
-        if (navigating) return;
+        dir.paths = [];
+        // A gathering leaves the path where it was, so pointing it back at the same folder has to
+        // say so rather than be taken for no change at all.
+        if (dir.path === to) dir.refresh();
+        else dir.path = to;
+    }
+
+    function go(to) {
+        if (!to || (to === tab.path && to !== Places.recentsPath)) return;
+        show(to);
         const h = tab.history.slice(0, tab.at + 1);
         h.push(to);
         setTab(current, { path: to, history: h.slice(-50), at: Math.min(h.length, 50) - 1 });
     }
     function back() {
         if (!canBack) return;
-        navigating = true;
         const to = tab.history[tab.at - 1];
         setTab(current, { path: to, history: tab.history, at: tab.at - 1 });
-        dir.path = to;
-        navigating = false;
+        show(to);
     }
     function forward() {
         if (!canForward) return;
-        navigating = true;
         const to = tab.history[tab.at + 1];
         setTab(current, { path: to, history: tab.history, at: tab.at + 1 });
-        dir.path = to;
-        navigating = false;
+        show(to);
     }
-    function up() { go(Engine.parentOf(dir.path)); }
+    function up() { if (!showingRecents) go(Engine.parentOf(tab.path)); }
 
     function newTab(path) {
         const at = path || dir.path;
@@ -95,14 +99,16 @@ FloatingWindow {
         all.splice(i, 1);
         const was = current;
         tabs = all;
-        current = Math.max(0, Math.min(all.length - 1, was > i ? was - 1 : was));
+        const next = Math.max(0, Math.min(all.length - 1, was > i ? was - 1 : was));
+        if (next === current) show(tabs[next].path);
+        else current = next;
     }
     function showTab(i) {
         if (i < 0 || i >= tabs.length) return;
         current = i;
     }
     // Showing a tab is what moves the folder, so the two cannot drift apart.
-    onCurrentChanged: tab.path === Places.recentsPath ? go(Places.recentsPath) : dir.path = tab.path
+    onCurrentChanged: root.show(tab.path)
 
     function putBack() { if (acting.length) FileJobs.restoreFromTrash(acting); }
     function askEmptyTrash() {
@@ -114,6 +120,14 @@ FloatingWindow {
     }
 
     // Another window asking this one to take a tab.
+    // The list of recents is read by a script and arrives after it is asked for; showing Recents
+    // has to follow the answer rather than whatever was there before the question.
+    Connections {
+        target: Places
+        enabled: root.showingRecents && !root.searchingUnder
+        function onRecentsChanged() { dir.paths = Places.recents.map(r => r.path); }
+    }
+
     Connections {
         target: FileWindows
         function onRaised() {
@@ -129,10 +143,13 @@ FloatingWindow {
     property bool clipboardCut: false
 
     // Everything an action applies to: what is picked, or the row the keys are on.
-    readonly property var acting: view.acting
+    readonly property var acting: view ? view.acting : []
     readonly property string actingOne: acting.length === 1 ? acting[0] : ""
     // How much is picked, which is what a person wants before copying it somewhere.
-    readonly property string pickedSize: view && view.selection.length ? Engine.sizeOf(view.selection) : ""
+    // Only files are added up. A folder's size means walking all of it, which is not something to
+    // do in a binding that runs on every change of what is picked.
+    readonly property string pickedSize: view && view.selection.length
+        && !view.selection.some(p => Engine.isDir(p)) ? Engine.sizeOf(view.selection) : ""
 
     function said(n) { return n === 1 ? Engine.displayName(acting[0]) : n + " items"; }
 
@@ -212,34 +229,33 @@ FloatingWindow {
                 let found;
                 try { found = JSON.parse(text); } catch (e) { return; }
                 const run = (how, id) => Compositor.exec("python3 "
-                    + JSON.stringify(Quickshell.shellDir + "/scripts/openwith.py")
-                    + " " + how + " " + JSON.stringify(id) + " " + JSON.stringify(root.opening));
+                    + Compositor.quote(Quickshell.shellDir + "/scripts/openwith.py")
+                    + " " + how + " " + Compositor.quote(id) + " " + Compositor.quote(root.opening));
                 const apps = (found.apps || []).map(a => ({
                     label: a.name,
                     glyph: a.id === found.default ? "check" : "",
                     action: () => run("with", a.id),
                 }));
-                // The last entry makes the choice stand for every file of the type, not just this one.
+                // Making a choice stand for every file of the type is a choice about the app that
+                // was picked, so it hangs off each one rather than off the list.
+                const always = (found.apps || []).map(a => ({
+                    label: "Always open " + (found.kind || "these") + " with " + a.name,
+                    glyph: a.id === found.default ? "check" : "",
+                    action: () => run("always", a.id),
+                }));
                 menu.items = apps.length
-                    ? apps.concat([null, {
-                        label: "Always open " + (found.kind || "these") + " this way",
-                        glyph: "check-check",
-                        enabled: apps.length > 0,
-                        action: () => run("always", apps[0].id),
-                    }])
+                    ? apps.concat([null]).concat(always)
                     : [{ label: "Nothing here opens " + (found.kind || "this"), enabled: false, action: () => {} }];
                 menu.popup(overlay.width / 2 - 105, overlay.height / 3);
             }
         }
     }
 
-    // An empty file, named where it lands, as a new folder is.
-    function newFile() {
-        const job = FileJobs.newFile(dir.path, "untitled");
-        if (job) view.beginRenameWhenSeen(Engine.join(dir.path, "untitled"));
-    }
+    // An empty file, named where it lands, as a new folder is. What it is actually called is the
+    // job's to say: a folder that already has an "untitled" gets the next free name instead.
+    function newFile() { root.nameWhenMade(FileJobs.newFile(dir.path, "untitled")); }
 
-    function openTerminalHere() { Compositor.exec("kitty -d " + JSON.stringify(dir.path)); }
+    function openTerminalHere() { Compositor.exec("kitty -d " + Compositor.quote(dir.path)); }
 
     // The search field narrows the folder as it is typed; Enter looks underneath it as well, which
     // is what a search is for once the folder in front of you does not have the thing.
@@ -255,12 +271,24 @@ FloatingWindow {
                           "-p", term.split(" ").join(".*"), dir.path];
         finder.running = true;
     }
-    function stopSearching() {
-        if (!searchingUnder) return;
+    // Stop looking underneath and put the folder itself back, keeping whatever is in the field so
+    // it goes on narrowing what is there.
+    function leaveSearchUnder() {
         searchingUnder = false;
+        finder.running = false;
         dir.paths = [];
         dir.path = tab.path;
+        dir.refresh();
     }
+    // Forget the search entirely; the caller decides where the folder goes next.
+    function clearSearch() {
+        searchingUnder = false;
+        finder.running = false;
+        dir.filter = "";
+        search.text = "";
+    }
+    // Stopping a search puts back the folder the search was run under.
+    function stopSearching() { show(tab.path); }
 
     Process {
         id: finder
@@ -269,9 +297,27 @@ FloatingWindow {
         }
     }
 
-    function askNewFolder() {
-        const job = FileJobs.newFolder(dir.path, "untitled folder");
-        if (job) view.beginRenameWhenSeen(Engine.join(dir.path, "untitled folder"));
+    function askNewFolder() { root.nameWhenMade(FileJobs.newFolder(dir.path, "untitled folder")); }
+
+    // What a new file or folder is called is the job's to say: a folder that already has an
+    // "untitled" in it gets the next free name, and guessing would open the editor on the wrong row.
+    function nameWhenMade(job) {
+        if (!job) return;
+        if (job.state !== FileJob.Running && job.state !== FileJob.Asking) {
+            if (job.made.length) view.beginRenameWhenSeen(job.made[0]);
+            return;
+        }
+        naming.target = job;
+    }
+    Connections {
+        id: naming
+        target: null
+        function onStateChanged() {
+            const job = naming.target;
+            if (job.state === FileJob.Running || job.state === FileJob.Asking) return;
+            naming.target = null;
+            if (job.made.length) view.beginRenameWhenSeen(job.made[0]);
+        }
     }
     function askDelete() {
         if (!acting.length) return;
@@ -285,12 +331,14 @@ FloatingWindow {
         if (acting.length) FileJobs.trash(acting);
     }
 
-    // A job that meets something already there stops and asks through the same sheet.
+    // A job that meets something already there stops and asks through the same sheet. Only the
+    // window that started the job asks, so two windows do not both put the question up.
     Connections {
         target: FileJobs
-        function onRunningChanged() {
-            for (const job of FileJobs.running)
-                if (job.state === FileJob.Asking && sheet.job !== job) root.askConflict(job);
+        function onJobAsking(job) {
+            if (sheet.job === job) return;
+            if (job.destination && job.destination !== dir.path) return;
+            root.askConflict(job);
         }
         function onJobFinished(job) {
             if (job.state === FileJob.Failed)
@@ -308,6 +356,10 @@ FloatingWindow {
         sheet.ask("");
     }
 
+    // Whether the keyboard is in a text field. Qt matches a Shortcut before the focused item ever
+    // sees the key, so the three places that take typing say when they have it.
+    readonly property bool typing: search.input.activeFocus || view.renaming !== "" || sheet.typing
+
     // Which name on the bar has its menu open, so the bar can mark it and the next one can take over.
     property string openBarMenu: ""
 
@@ -315,7 +367,7 @@ FloatingWindow {
         const on = acting.length > 0;
         const many = acting.length > 1;
         if (name === "File") return [
-            on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
+            on && !many ? { label: "Open", glyph: "external-link", action: () => view.openPath(actingOne) } : undefined,
             on && !many ? { label: "Open with…", glyph: "app-window", action: () => askOpenWith(actingOne) } : undefined,
             null,
             { label: "New folder", glyph: "folder-plus", action: askNewFolder },
@@ -323,6 +375,7 @@ FloatingWindow {
             { label: "Open in terminal", glyph: "terminal", action: openTerminalHere },
             on ? null : undefined,
             on && !many ? { label: "Rename", glyph: "pencil", action: askRename } : undefined,
+            many ? { label: "Rename " + acting.length + " items…", glyph: "pencil", action: askRenameMany } : undefined,
             on && !many ? { label: "Get info", glyph: "info", action: () => peek.look(actingOne) } : undefined,
             on ? { label: "Duplicate", glyph: "copy", action: duplicate } : undefined,
             on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
@@ -342,8 +395,10 @@ FloatingWindow {
             null,
             { label: FileJobs.canUndo ? FileJobs.undoLabel : "Undo", glyph: "corner-up-left", enabled: FileJobs.canUndo, action: () => FileJobs.undo() },
             null,
-            on ? { label: "Move to trash", glyph: "trash", action: toTrash } : undefined,
+            showingTrash && on ? { label: "Put back", glyph: "corner-up-left", action: putBack } : undefined,
+            on ? { label: "Move to trash", glyph: "trash", enabled: !showingTrash, action: toTrash } : undefined,
             on ? { label: "Delete", glyph: "x", danger: true, action: askDelete } : undefined,
+            showingTrash ? { label: "Empty the trash", glyph: "trash", danger: true, enabled: dir.count > 0, action: askEmptyTrash } : undefined,
         ].filter(i => i !== undefined);
         if (name === "View") return [
             { label: "List", glyph: "list", action: () => view.mode = "list" },
@@ -386,23 +441,36 @@ FloatingWindow {
 
     // The menu the right button and the Menu key both open, at a point in the overlay's own frame.
     function showMenu(x, y, path) {
-        const on = path !== "";
+        const on = acting.length > 0;
         const many = acting.length > 1;
-        menu.items = [
-            on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
+        menu.items = (showingTrash ? [
+            on ? { label: "Put back", glyph: "corner-up-left", action: putBack } : undefined,
+            on ? { label: "Delete", glyph: "x", danger: true, action: askDelete } : undefined,
+            on ? null : undefined,
+            { label: "Empty the trash", glyph: "trash", danger: true, enabled: dir.count > 0, action: askEmptyTrash },
+        ] : [
+            on && !many ? { label: "Open", glyph: "external-link", action: () => view.openPath(path || actingOne) } : undefined,
+            on && !many ? { label: "Open with…", glyph: "app-window", action: () => askOpenWith(path || actingOne) } : undefined,
             on && !many ? { label: "Rename", glyph: "pencil", action: askRename } : undefined,
+            many ? { label: "Rename " + acting.length + " items…", glyph: "pencil", action: askRenameMany } : undefined,
+            on ? { label: "Duplicate", glyph: "copy", action: duplicate } : undefined,
+            on ? { label: "Get info", glyph: "info", enabled: !many, action: () => peek.look(actingOne) } : undefined,
             on && !many && FileJobs.isArchive(path) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(path) } : undefined,
             on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
             on ? null : undefined,
             on ? { label: "Copy", glyph: "copy", action: () => copyToClipboard(false) } : undefined,
             on ? { label: "Cut", glyph: "scissors", action: () => copyToClipboard(true) } : undefined,
             { label: "Paste", glyph: "clipboard", enabled: clipboard.length > 0, action: paste },
+            { label: "Select all", glyph: "check", action: () => view.selectAll() },
+            { label: FileJobs.canUndo ? FileJobs.undoLabel : "Undo", glyph: "corner-up-left", enabled: FileJobs.canUndo, action: () => FileJobs.undo() },
             null,
             { label: "New folder", glyph: "folder-plus", action: askNewFolder },
+            { label: "New file", glyph: "file-plus", action: newFile },
+            { label: "Open in terminal", glyph: "terminal", action: openTerminalHere },
             on ? null : undefined,
             on ? { label: "Move to trash", glyph: "trash", action: toTrash } : undefined,
             on ? { label: "Delete", glyph: "x", danger: true, action: askDelete } : undefined,
-        ].filter(i => i !== undefined);
+        ]).filter(i => i !== undefined);
         openBarMenu = "";
         const at = view.mapToItem(overlay, x, y);
         menu.popup(at.x, at.y);
@@ -427,7 +495,7 @@ FloatingWindow {
     }
     Shortcut { sequences: ["Alt+Left", StandardKey.Back]; onActivated: root.back() }
     Shortcut { sequences: ["Alt+Right", StandardKey.Forward]; onActivated: root.forward() }
-    Shortcut { sequences: ["Alt+Up", "Backspace"]; onActivated: root.up() }
+    Shortcut { sequence: "Alt+Up"; onActivated: root.up() }
     Shortcut { sequence: "Ctrl+H"; onActivated: dir.showHidden = !dir.showHidden }
     Shortcut { sequences: [StandardKey.Refresh]; onActivated: dir.refresh() }
     Shortcut { sequence: "Ctrl+F"; onActivated: search.input.forceActiveFocus() }
@@ -439,8 +507,7 @@ FloatingWindow {
     Shortcut { sequences: [StandardKey.Copy]; onActivated: root.copyToClipboard(false) }
     Shortcut { sequences: [StandardKey.Cut]; onActivated: root.copyToClipboard(true) }
     Shortcut { sequences: [StandardKey.Paste]; onActivated: root.paste() }
-    Shortcut { sequences: [StandardKey.Delete]; onActivated: root.toTrash() }
-    Shortcut { sequence: "Shift+Delete"; onActivated: root.askDelete() }
+
     Shortcut { sequences: [StandardKey.Undo]; onActivated: FileJobs.undo() }
     Shortcut { sequence: "Ctrl+Shift+N"; onActivated: root.askNewFolder() }
     Shortcut { sequences: [StandardKey.SelectAll]; onActivated: view.selectAll() }
@@ -449,10 +516,16 @@ FloatingWindow {
     Shortcut { sequence: "Ctrl+N"; onActivated: FileWindows.add(dir.path) }
     Shortcut { sequence: "Ctrl+D"; onActivated: root.duplicate() }
     Shortcut { sequences: ["Ctrl+L", "Ctrl+Shift+G"]; onActivated: root.askGoTo() }
-    Shortcut { sequence: "Space"; onActivated: if (root.actingOne) peek.toggle(root.actingOne) }
+
     Shortcut { sequence: "Ctrl+I"; onActivated: if (root.actingOne) peek.look(root.actingOne) }
     Shortcut { sequences: ["Ctrl++", "Ctrl+="]; onActivated: view.iconSize = Math.min(160, view.iconSize + 32) }
     Shortcut { sequence: "Ctrl+-"; onActivated: view.iconSize = Math.max(32, view.iconSize - 32) }
+    // A key that is also a character belongs to whatever is being typed into before it belongs to
+    // the window. Qt matches a Shortcut before the focused item ever sees the key, so these say so.
+    Shortcut { sequence: "Backspace"; enabled: !root.typing; onActivated: root.up() }
+    Shortcut { sequences: [StandardKey.Delete]; enabled: !root.typing; onActivated: root.toTrash() }
+    Shortcut { sequence: "Shift+Delete"; enabled: !root.typing; onActivated: root.askDelete() }
+    Shortcut { sequence: "Space"; enabled: !root.typing; onActivated: if (root.actingOne) peek.toggle(root.actingOne) }
     Shortcut { sequences: [StandardKey.NextChild]; onActivated: root.showTab((root.current + 1) % root.tabs.length) }
     Shortcut { sequences: [StandardKey.PreviousChild]; onActivated: root.showTab((root.current + root.tabs.length - 1) % root.tabs.length) }
     // The keyboard's own way to the context menu, which every desktop offers and which is also the
@@ -727,15 +800,22 @@ FloatingWindow {
                     Layout.preferredWidth: 200
                     glyph: "search"
                     placeholder: root.searchingUnder ? "Searching underneath" : "Search this folder"
-                    onTextChanged: { if (root.searchingUnder) root.stopSearching(); dir.filter = text; }
+                    // Typing again narrows the folder in front of you, which ends any search that
+                    // was running underneath it.
+                    onTextChanged: {
+                        if (root.searchingUnder) root.leaveSearchUnder();
+                        dir.filter = text;
+                    }
                     onAccepted: root.searchUnder()
-                    input.Keys.onEscapePressed: { text = ""; root.stopSearching(); view.forceActiveFocus(); }
+                    input.Keys.onEscapePressed: { root.stopSearching(); view.forceActiveFocus(); }
                 }
             }
         }
 
         FolderView {
             id: view
+            focus: true
+            Component.onCompleted: view.forceActiveFocus()
             Layout.fillWidth: true
             Layout.fillHeight: true
             directory: dir
@@ -793,11 +873,14 @@ FloatingWindow {
                         id: job
                         required property var modelData
                         spacing: Theme.s2
-                        visible: job.modelData.state === FileJob.Running
+                        // A job waiting to be told what to do is still a job the person may want to
+                        // stop, so the row and its cancel stay while it asks.
+                        visible: job.modelData.state === FileJob.Running || job.modelData.state === FileJob.Asking
                         Label {
                             size: Theme.sizeCaption
                             color: Theme.text2
-                            text: (job.modelData.kind === FileJob.Copy ? "Copying " : "Moving ") + job.modelData.current
+                            text: job.modelData.state === FileJob.Asking ? "Waiting on an answer"
+                                : (job.modelData.kind === FileJob.Copy ? "Copying " : "Moving ") + job.modelData.current
                                 + (job.modelData.total > 1 ? " (" + job.modelData.count + " of " + job.modelData.total + ")" : "")
                         }
                         Rectangle {

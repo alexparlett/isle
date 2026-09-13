@@ -1,5 +1,7 @@
 #include "thumbnails.h"
 
+#include <stdio.h>
+
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
@@ -18,20 +20,18 @@
 
 namespace {
 
-// The spec's two everyday sizes. Anything larger is drawn from the larger one.
+// The spec's everyday size, and the only one asked for here.
 constexpr int NormalSize = 128;
-constexpr int LargeSize = 256;
 
 QString cacheRoot() {
     return QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QStringLiteral("/thumbnails");
 }
 
 // The spec names a thumbnail by the md5 of the file's uri, not of its contents.
-QString cacheFile(const QString &path, int size) {
+QString cacheFile(const QString &path) {
     const QByteArray uri = QUrl::fromLocalFile(path).toEncoded();
     const QString hash = QString::fromLatin1(QCryptographicHash::hash(uri, QCryptographicHash::Md5).toHex());
-    const QString dir = size > NormalSize ? QStringLiteral("large") : QStringLiteral("normal");
-    return cacheRoot() + QLatin1Char('/') + dir + QLatin1Char('/') + hash + QStringLiteral(".png");
+    return cacheRoot() + QStringLiteral("/normal/") + hash + QStringLiteral(".png");
 }
 
 bool isVideo(const QString &path) {
@@ -51,8 +51,11 @@ QImage decode(const QString &path, int box) {
                        QStringLiteral("-vf"), QStringLiteral("scale=%1:-1").arg(box),
                        QStringLiteral("-f"), QStringLiteral("image2pipe"),
                        QStringLiteral("-vcodec"), QStringLiteral("png"), QStringLiteral("-") });
-        if (!ffmpeg.waitForFinished(10000))
+        if (!ffmpeg.waitForFinished(10000)) {
             ffmpeg.kill();
+            ffmpeg.waitForFinished(2000);
+            return {};
+        }
         return QImage::fromData(ffmpeg.readAllStandardOutput(), "PNG");
     }
 
@@ -80,6 +83,10 @@ QHash<QString, QString> pngText(const QString &file) {
         const QByteArray type = header.mid(4, 4);
         // Text lives before the image data; past that there is nothing left to find.
         if (type == "IDAT" || type == "IEND")
+            break;
+        // The length comes out of the file and a damaged one can claim anything, so it is only ever
+        // trusted as far as there is file left to read.
+        if (length > quint32(f.size() - f.pos()))
             break;
         const QByteArray data = f.read(length);
         f.skip(4);
@@ -109,12 +116,12 @@ void toCache(const QImage &image, const QString &file, const QString &path, cons
     stamped.setText(QStringLiteral("Thumb::URI"), QString::fromLatin1(QUrl::fromLocalFile(path).toEncoded()));
     stamped.setText(QStringLiteral("Thumb::MTime"), QString::number(info.lastModified().toSecsSinceEpoch()));
     stamped.setText(QStringLiteral("Thumb::Size"), QString::number(info.size()));
-    // Written beside and moved into place, so a reader never sees half a file.
+    // Written beside and moved over in one step, so a reader sees either the old file or the new
+    // one and never half of either.
     const QString temp = file + QStringLiteral(".part");
-    if (stamped.save(temp, "PNG")) {
-        QFile::remove(file);
-        QFile::rename(temp, file);
-    }
+    if (stamped.save(temp, "PNG")
+        && ::rename(QFile::encodeName(temp).constData(), QFile::encodeName(file).constData()) != 0)
+        QFile::remove(temp);
 }
 
 // Runs off the GUI thread: decode, shrink, write. True when the file is there afterwards.
@@ -150,11 +157,16 @@ bool Thumbnails::canThumbnail(const QString &path) const {
 }
 
 QString Thumbnails::thumbnail(const QString &path, qint64 mtime) {
-    const QString file = cacheFile(path, NormalSize);
+    const QString file = cacheFile(path);
     if (valid(file, path, mtime))
         return file;
     if (m_failed.value(path, -1) == mtime)
         return {};
+
+    // A file rewritten while its thumbnail is in flight needs the newer one; the job in flight is
+    // answering a question about a version that no longer exists.
+    if (m_running.contains(path) && m_wanted.value(path, -1) != mtime)
+        m_stale.insert(path);
 
     if (!m_running.contains(path)) {
         m_running.insert(path);
@@ -172,9 +184,13 @@ QString Thumbnails::thumbnail(const QString &path, qint64 mtime) {
 
 void Thumbnails::finished(const QString &path, const QString &file) {
     m_running.remove(path);
+    const qint64 asked = m_wanted.value(path, -1);
+    m_wanted.remove(path);
+    // The file moved on while this was being made, so the answer is about nothing and is not kept.
+    if (m_stale.remove(path))
+        return;
     if (file.isEmpty())
-        m_failed.insert(path, m_wanted.value(path, -1));
+        m_failed.insert(path, asked);
     else
         emit ready(path, file);
-    m_wanted.remove(path);
 }

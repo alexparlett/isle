@@ -12,17 +12,33 @@ Item {
     // visible when its parent is, so a parent whose visibility is read from its child never becomes
     // visible and neither does the child.
     property bool shown: false
-    readonly property bool open: shown
 
     anchors.fill: parent
     visible: shown
 
+    // Where the menu was asked for. Its own height is not known until the items it was given have
+    // been laid out, so it is placed from these rather than from whatever size it had last time.
+    property real askedX: 0
+    property real askedY: 0
+
     function popup(x, y) {
-        // Kept inside the window, so a click near an edge does not put the menu off it.
-        card.x = Math.max(Theme.s2, Math.min(x, root.width - card.width - Theme.s2));
-        card.y = Math.max(Theme.s2, Math.min(y, root.height - card.height - Theme.s2));
+        askedX = x;
+        askedY = y;
         root.shown = true;
         card.forceActiveFocus();
+    }
+    // Kept inside the window, so a menu asked for near an edge does not hang off it.
+    Binding {
+        target: card
+        property: "x"
+        value: Math.max(Theme.s2, Math.min(root.askedX, root.width - card.width - Theme.s2))
+        when: root.shown
+    }
+    Binding {
+        target: card
+        property: "y"
+        value: Math.max(Theme.s2, Math.min(root.askedY, root.height - card.height - Theme.s2))
+        when: root.shown
     }
     function close() { root.shown = false; }
 

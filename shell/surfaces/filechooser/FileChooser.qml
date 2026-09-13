@@ -21,6 +21,8 @@ PanelWindow {
 
     readonly property bool canAccept: request
         && (request.directory || (request.save ? nameField.text.trim() !== "" : list.hasSelection))
+    // Only the files picked, since a folder in the list is somewhere to go rather than an answer.
+    readonly property var picked: list.selection.filter(p => !Engine.isDir(p))
 
     // One choice, two placements: beside the name when saving, at the foot of the card when opening.
     component FileTypes: Dropdown {
@@ -40,6 +42,7 @@ PanelWindow {
     // A new request starts where it asked to, and on the filter it asked for.
     onRequestChanged: {
         if (!request) return;
+        settled.restart();
         dir.path = request.folder;
         dir.foldersOnly = request.directory;
         filterIndex = request.filters.length ? 0 : -1;
@@ -52,6 +55,9 @@ PanelWindow {
         if (!canAccept) return;
         if (request.directory) request.accept([dir.path], filterIndex);
         else if (request.save) request.accept([Engine.join(dir.path, nameField.text.trim())], filterIndex);
+        // An application that asked for several gets everything picked; one that asked for one gets
+        // the one the list settled on.
+        else if (request.multiple && picked.length) request.accept(picked, filterIndex);
         else request.accept([list.currentPath], filterIndex);
     }
 
@@ -69,8 +75,9 @@ PanelWindow {
 
     // The click that opened the dialog can still be in flight when the surface appears, and a
     // backdrop that answers it closes the dialog the moment it is up. The backdrop only listens
-    // once the surface has settled.
-    Timer { id: settled; interval: 400; running: root.visible }
+    // once the surface has settled. A fired Timer writes its own running property, so this is
+    // restarted per request rather than bound to anything.
+    Timer { id: settled; interval: 400 }
     MouseArea {
         anchors.fill: parent
         enabled: root.visible && !settled.running
@@ -163,7 +170,11 @@ PanelWindow {
                 onActivated: path => dir.path = path
                 // A double click on a file is the choice, not an application launch.
                 openFiles: false
-                onChosen: root.accept()
+                // Settling on a file that is already there, in a save dialog, is choosing its name.
+                onChosen: path => {
+                    if (root.request && root.request.save) nameField.text = Engine.displayName(path);
+                    root.accept();
+                }
             }
 
             RowLayout {

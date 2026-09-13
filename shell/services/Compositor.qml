@@ -38,5 +38,9 @@ Singleton {
     // Dispatchers are Lua expressions since Hyprland 0.55.
     function focusWorkspace(id) { Hyprland.dispatch("hl.dsp.focus({ workspace = " + id + " })"); }
     function exec(cmd) { Hyprland.dispatch("hl.dsp.exec_cmd(" + JSON.stringify(cmd) + ")"); }
+    // exec hands the string to a shell, so anything coming from a file name has to be one word to
+    // it. Single quotes stop every expansion there is; the only thing they cannot hold is a single
+    // quote, which is closed, escaped and reopened.
+    function quote(word) { return "'" + String(word).split("'").join("'\\''") + "'"; }
     function dispatch(lua) { Hyprland.dispatch(lua); }
 }

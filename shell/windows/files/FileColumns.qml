@@ -16,6 +16,7 @@ Item {
 
     // The path each column shows, the first being rootPath. A pick truncates and extends it.
     property var chain: [rootPath]
+    onChainChanged: if (chain.length <= 1) { selected = ""; selectedIsDir = false; }
     // What is picked in the rightmost column that has a pick, file or folder.
     property string selected: ""
     property bool selectedIsDir: false
@@ -25,7 +26,12 @@ Item {
     // A file settled on.
     signal chosen(string path)
 
-    onRootPathChanged: { chain = [rootPath]; selected = ""; selectedIsDir = false; }
+
+    // Which column the keys are in, and the listing and view of each one by column number, so the
+    // keys can move within a column and between columns without any of them knowing about the rest.
+    property int activeColumn: 0
+    readonly property var folders: ({})
+    readonly property var views: ({})
 
     function pick(column, path, isDir) {
         const next = chain.slice(0, column + 1);
@@ -33,21 +39,53 @@ Item {
         chain = next;
         selected = path;
         selectedIsDir = isDir;
+        activeColumn = column;
         if (isDir) Qt.callLater(() => flick.contentX = Math.max(0, flick.contentWidth - flick.width));
     }
 
-    focus: true
-    // Left and right walk between columns, up and down within one, as a column browser is walked.
-    Keys.onLeftPressed: {
-        if (root.chain.length <= 1) return;
-        const back = root.chain[root.chain.length - (root.selectedIsDir ? 2 : 1)];
-        if (back) root.pick(root.chain.length - 2, back, true);
+    // What is picked in a column: the folder that opened the column to its right, or, in the last
+    // column, whatever was picked there.
+    function currentIn(column) {
+        return column + 1 < chain.length ? chain[column + 1] : selected;
     }
+    function pickRow(column, row) {
+        const folder = folders[column];
+        if (!folder || row < 0 || row >= folder.count) return;
+        pick(column, folder.pathAt(row), folder.isDirAt(row));
+        const view = views[column];
+        if (view) view.positionViewAtIndex(row, ListView.Contain);
+    }
+    function stepBy(by) {
+        const folder = folders[activeColumn];
+        if (!folder) return;
+        const at = folder.rowOfPath(currentIn(activeColumn));
+        pickRow(activeColumn, at < 0 ? 0 : at + by);
+    }
+
+    // Only the view being shown takes the keys; the other two are still there behind it.
+    focus: visible
+    // Left and right walk between columns, up and down within one, as a column browser is walked.
+    Keys.onUpPressed: root.stepBy(-1)
+    Keys.onDownPressed: root.stepBy(1)
+    // Back to the column on the left, standing on the folder that opened this one.
+    Keys.onLeftPressed: {
+        if (root.activeColumn <= 0) return;
+        const back = root.activeColumn - 1;
+        const folder = root.folders[back];
+        if (folder) root.pickRow(back, folder.rowOfPath(root.chain[root.activeColumn]));
+    }
+    // Into the column a picked folder opened, standing on its first row. The column is made when the
+    // folder is picked, so on the press that picked it there is nothing there yet to step into.
     Keys.onRightPressed: {
         if (!root.selectedIsDir) return;
-        root.stepInto();
+        const into = root.activeColumn + 1;
+        if (root.folders[into]) root.pickRow(into, 0);
+        else Qt.callLater(() => { if (root.folders[into]) root.pickRow(into, 0); });
     }
-    signal stepInto()
+    Keys.onReturnPressed: {
+        if (!root.selected) return;
+        root.selectedIsDir ? root.activated(root.selected) : root.chosen(root.selected);
+    }
 
     Flickable {
         id: flick
@@ -80,6 +118,8 @@ Item {
                         path: column.modelData
                         showHidden: root.showHidden
                     }
+                    Component.onCompleted: { root.folders[column.index] = folder; root.views[column.index] = entries; }
+                    Component.onDestruction: { delete root.folders[column.index]; delete root.views[column.index]; }
 
                     ListView {
                         id: entries
@@ -88,7 +128,7 @@ Item {
                         clip: true
                         reuseItems: true
                         boundsBehavior: Flickable.StopAtBounds
-                        currentIndex: -1
+                        currentIndex: folder.rowOfPath(root.currentIn(column.index))
 
                         delegate: Rectangle {
                             id: entry

@@ -155,7 +155,7 @@ QVariant Directory::data(const QModelIndex &index, int role) const {
     const DirEntry &e = m_rows.at(index.row());
     switch (role) {
     case NameRole: return e.name;
-    case PathRole: return e.path.isEmpty() ? m_path + QLatin1Char('/') + e.name : e.path;
+    case PathRole: return pathOf(e);
     case IconNameRole: return e.iconName;
     case SizeRole: return e.size;
     case ModifiedRole: return e.modified;
@@ -164,7 +164,7 @@ QVariant Directory::data(const QModelIndex &index, int role) const {
     case IsHiddenRole: return e.isHidden;
     case GroupRole: return groupOf(e);
     case DepthRole: return e.depth;
-    case ExpandedRole: return m_expanded.contains(e.path.isEmpty() ? m_path + QLatin1Char('/') + e.name : e.path);
+    case ExpandedRole: return m_expanded.contains(pathOf(e));
     default: return {};
     }
 }
@@ -189,6 +189,8 @@ void Directory::setPath(const QString &path) {
     if (m_path == path)
         return;
     m_path = path;
+    m_expanded.clear();
+    m_inside.clear();
     if (!m_paths.isEmpty()) {
         m_paths.clear();
         emit pathsChanged();
@@ -285,11 +287,17 @@ void Directory::setFoldersOnly(bool on) {
 
 void Directory::refresh() { startScan(); }
 
+QString Directory::pathOf(const DirEntry &entry) const {
+    if (!entry.path.isEmpty())
+        return entry.path;
+    const QString base = m_scannedPath.isEmpty() ? m_path : m_scannedPath;
+    return base.endsWith(QLatin1Char('/')) ? base + entry.name : base + QLatin1Char('/') + entry.name;
+}
+
 QString Directory::pathAt(int row) const {
     if (row < 0 || row >= m_rows.size())
         return {};
-    const DirEntry &e = m_rows.at(row);
-    return e.path.isEmpty() ? m_path + QLatin1Char('/') + e.name : e.path;
+    return pathOf(m_rows.at(row));
 }
 
 bool Directory::isDirAt(int row) const {
@@ -301,6 +309,8 @@ void Directory::expand(int row) {
     if (path.isEmpty() || !isDirAt(row) || m_expanded.contains(path))
         return;
     m_expanded.insert(path);
+    // Opened now, so what is inside it is read now rather than from whenever it was last looked at.
+    m_inside.remove(path);
     rebuild();
 }
 
@@ -311,16 +321,9 @@ void Directory::collapse(int row) {
     // Anything opened inside it is shut too, so opening it again does not unfold the lot.
     for (auto it = m_expanded.begin(); it != m_expanded.end();)
         it = it->startsWith(path + QLatin1Char('/')) ? m_expanded.erase(it) : ++it;
+    for (auto it = m_inside.begin(); it != m_inside.end();)
+        it = (it.key() == path || it.key().startsWith(path + QLatin1Char('/'))) ? m_inside.erase(it) : ++it;
     rebuild();
-}
-
-int Directory::depthAt(int row) const {
-    return row >= 0 && row < m_rows.size() ? m_rows.at(row).depth : 0;
-}
-
-bool Directory::isExpanded(int row) const {
-    const QString path = pathAt(row);
-    return !path.isEmpty() && m_expanded.contains(path);
 }
 
 QString Directory::groupAt(int row) const {
@@ -341,6 +344,13 @@ int Directory::startingWith(const QString &prefix, int from) const {
 int Directory::rowOf(const QString &name) const {
     for (int i = 0; i < m_rows.size(); ++i)
         if (m_rows.at(i).name == name)
+            return i;
+    return -1;
+}
+
+int Directory::rowOfPath(const QString &path) const {
+    for (int i = 0; i < m_rows.size(); ++i)
+        if (pathOf(m_rows.at(i)) == path)
             return i;
     return -1;
 }
@@ -390,6 +400,7 @@ void Directory::scanFinished() {
 
     m_all = m_watcher.result();
     m_scannedPath = m_path;
+    m_inside.clear();
     rebuild();
     setStatus(Ready);
 
@@ -409,19 +420,8 @@ void Directory::rebuild() {
     std::vector<Sortable> sortable;
     sortable.reserve(size_t(m_all.size()));
     for (const DirEntry &e : std::as_const(m_all)) {
-        if (e.isHidden && !m_showHidden)
+        if (!keeps(e))
             continue;
-        if (!m_filter.isEmpty() && !e.name.contains(m_filter, Qt::CaseInsensitive))
-            continue;
-        if (!e.isDir && m_foldersOnly)
-            continue;
-        if (!e.isDir && !m_globs.isEmpty()) {
-            bool hit = false;
-            for (const QRegularExpression &glob : std::as_const(m_globs))
-                if (glob.match(e.name).hasMatch()) { hit = true; break; }
-            if (!hit)
-                continue;
-        }
         sortable.push_back({ &e,
                              m_collator.sortKey(e.name),
                              m_collator.sortKey(m_sort == ByKind ? e.iconName : QString()) });
@@ -436,6 +436,8 @@ void Directory::rebuild() {
             kept.append(*one.entry);
         beginResetModel();
         m_rows = std::move(kept);
+        m_rowsBase.clear();
+        m_rowsExpanded.clear();
         endResetModel();
         emit countChanged();
         return;
@@ -461,14 +463,26 @@ void Directory::rebuild() {
 
     QVector<DirEntry> rows;
     rows.reserve(int(sortable.size()));
-    for (const Sortable &s : sortable)
+    for (const Sortable &s : sortable) {
         rows.append(*s.entry);
+        // A folder opened in place brings what is inside it along, under the row that opened it.
+        const QString path = pathOf(*s.entry);
+        if (s.entry->isDir && m_expanded.contains(path)) {
+            rows.last().path = path;
+            appendExpanded(rows, path, 1);
+        }
+    }
 
-    if (rows.size() == m_rows.size()) {
+    // Rebuilding a listing that has not changed would throw away where the view is and what is
+    // picked. Rows that read the same but came from a different folder are a different listing.
+    const QString base = m_scannedPath.isEmpty() ? m_path : m_scannedPath;
+    if (base == m_rowsBase && m_expanded == m_rowsExpanded && rows.size() == m_rows.size()) {
         bool same = true;
         for (int i = 0; i < rows.size() && same; ++i) {
             const DirEntry &a = rows.at(i), &b = m_rows.at(i);
-            same = a.name == b.name && a.size == b.size && a.modified == b.modified && a.isDir == b.isDir;
+            same = a.name == b.name && a.size == b.size && a.modified == b.modified
+                && a.isDir == b.isDir && a.depth == b.depth && a.path == b.path
+                && a.iconName == b.iconName && a.isSymlink == b.isSymlink && a.isHidden == b.isHidden;
         }
         if (same)
             return;
@@ -476,6 +490,8 @@ void Directory::rebuild() {
 
     beginResetModel();
     m_rows = std::move(rows);
+    m_rowsBase = base;
+    m_rowsExpanded = m_expanded;
     endResetModel();
     emit countChanged();
 }
@@ -507,21 +523,44 @@ QString Directory::groupOf(const DirEntry &e) const {
     return {};
 }
 
+bool Directory::keeps(const DirEntry &e) const {
+    if (e.isHidden && !m_showHidden)
+        return false;
+    if (!m_filter.isEmpty() && !e.name.contains(m_filter, Qt::CaseInsensitive))
+        return false;
+    if (!e.isDir && m_foldersOnly)
+        return false;
+    if (!e.isDir && !m_globs.isEmpty()) {
+        for (const QRegularExpression &glob : m_globs)
+            if (glob.match(e.name).hasMatch())
+                return true;
+        return false;
+    }
+    return true;
+}
+
 // What is inside a folder opened in place, and inside anything opened within it.
 void Directory::appendExpanded(QVector<DirEntry> &rows, const QString &folder, int depth) const {
     if (depth > 16)
         return;
-    QMimeDatabase mime;
-    QVector<DirEntry> inside = scan(folder);
-    std::sort(inside.begin(), inside.end(), [](const DirEntry &a, const DirEntry &b) {
-        if (a.isDir != b.isDir) return a.isDir;
-        return a.name.compare(b.name, Qt::CaseInsensitive) < 0;
-    });
-    for (DirEntry &e : inside) {
-        if (e.isHidden && !m_showHidden)
+    // Read once and kept, so that filtering, sorting and hiding rebuild from memory rather than
+    // going back to the disk on the thread that is drawing.
+    auto cached = m_inside.constFind(folder);
+    if (cached == m_inside.cend()) {
+        QVector<DirEntry> inside = scan(folder);
+        std::sort(inside.begin(), inside.end(), [](const DirEntry &a, const DirEntry &b) {
+            if (a.isDir != b.isDir) return a.isDir;
+            return a.name.compare(b.name, Qt::CaseInsensitive) < 0;
+        });
+        for (DirEntry &e : inside)
+            e.path = folder + QLatin1Char('/') + e.name;
+        cached = m_inside.insert(folder, inside);
+    }
+
+    for (DirEntry e : *cached) {
+        if (!keeps(e))
             continue;
         e.depth = depth;
-        e.path = folder + QLatin1Char('/') + e.name;
         rows.append(e);
         if (e.isDir && m_expanded.contains(e.path))
             appendExpanded(rows, e.path, depth + 1);

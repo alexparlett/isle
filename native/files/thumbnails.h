@@ -34,6 +34,8 @@ private:
     QThreadPool m_pool;
     // What is already being made, so a view scrolling back over a row does not ask twice.
     QSet<QString> m_running;
+    // Paths whose in-flight thumbnail is already out of date and whose answer is dropped.
+    QSet<QString> m_stale;
     // What could not be made, against the mtime it failed at: a truncated picture is not worth
     // decoding again every time its folder is shown, and libpng says so loudly each time.
     QHash<QString, qint64> m_failed;

@@ -14,9 +14,17 @@ Targets CachyOS; built for gaming and for running coding agents.
 - Verify in the VM, not by reasoning: `dev/test-vm.sh` boots the guest
   with the repo at `/repo`, `dev/guest.sh` runs a command in the
   session, `dev/test-vm.sh shot` takes a screenshot. `dev/` is the
-  maintainer's local tooling and is git-ignored; never stage it. Restart the shell
-  with `pkill -x quickshell` in the guest, not `pkill -x qs`: `qs` is a wrapper and
-  killing it leaves the shell running, so every later check reads a stale process.
+  maintainer's local tooling and is git-ignored; never stage it. Restart the shell with
+  `pkill -x qs`, which matches the process name: a `-f` pattern is matched against
+  every command line including the one running the kill, so `pkill -f quickshell/isle`
+  kills the shell that is doing the killing. Check it actually restarted
+  (`ps -eo etime,args | grep '[q]s -p'`) before reading anything: a stale process
+  serves an old compiled module, and every screenshot, every log line and every
+  "not a function" from it is a lie. `isle-session` restarts `qs` on its own, so
+  killing only `qs` is enough; killing the runner as well leaves nothing running.
+  A headless check of the engine beats a screenshot: `QT_QPA_PLATFORM=offscreen
+  /usr/lib/qt6/bin/qml -I ~/.local/share/isle/qml file.qml` in the guest, with the
+  result carried out through `Qt.exit`. Plain `qml` there is Qt 5 and loads nothing.
 - Stage explicit paths. Never `git add -A`: other work may be in the tree.
 - `hypr/generated/` and `theme/__pycache__/` are written at run time and
   are not committed.

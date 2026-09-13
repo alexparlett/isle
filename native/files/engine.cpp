@@ -32,14 +32,18 @@ bool Engine::isGenericIcon(const QString &iconName) const {
 }
 
 QString Engine::sniffIconName(const QString &path) const {
+    const QFileInfo info(path);
+    const qint64 mtime = info.lastModified().toSecsSinceEpoch();
+    const qint64 size = info.size();
+
     const auto cached = m_sniffed.constFind(path);
-    if (cached != m_sniffed.cend())
-        return *cached;
+    if (cached != m_sniffed.cend() && cached->mtime == mtime && cached->size == size)
+        return cached->icon;
 
     QMimeDatabase db;
     const QString name = db.mimeTypeForFile(path, QMimeDatabase::MatchDefault).iconName();
     const QString icon = name.isEmpty() ? QStringLiteral("text-x-generic") : name;
-    m_sniffed.insert(path, icon);
+    m_sniffed.insert(path, { icon, mtime, size });
     return icon;
 }
 
@@ -79,6 +83,9 @@ QVariantList Engine::crumbs(const QString &path) const {
 
     QStringList names;
     QString walk = path;
+    // A path written with a trailing separator names the same folder and has no step on the end.
+    while (walk.size() > 1 && walk.endsWith(QLatin1Char('/')))
+        walk.chop(1);
     while (walk.size() > base.size()) {
         names.prepend(QFileInfo(walk).fileName());
         walk = parentOf(walk);

@@ -76,13 +76,20 @@ FileChooserRequest::FileChooserRequest(const QDBusMessage &call, const QString &
         m_folder = QDir::homePath();
 
     // SaveFiles names what it wants written; the person only chooses where.
+    // It arrives as an array of byte arrays, which is a QDBusArgument to be read out rather than a
+    // list to be walked.
     const QVariant names = unwrap(options, QStringLiteral("files"));
-    if (names.isValid()) {
-        for (const QVariant &one : names.toList()) {
-            const QString name = pathFromBytes(one);
+    if (names.canConvert<QDBusArgument>()) {
+        QDBusArgument read = names.value<QDBusArgument>();
+        read.beginArray();
+        while (!read.atEnd()) {
+            QByteArray one;
+            read >> one;
+            const QString name = QFile::decodeName(one.endsWith('\0') ? one.chopped(1) : one);
             if (!name.isEmpty())
                 m_saveNames.append(name);
         }
+        read.endArray();
         if (!m_saveNames.isEmpty())
             m_directory = true;
     }
@@ -174,6 +181,13 @@ void FileChooserRequest::accept(const QStringList &paths, int filterIndex) {
     reply(0, results);
 }
 
+FileChooserRequest::~FileChooserRequest() {
+    // The call is held open for as long as this lives. Going away without an answer would leave the
+    // application waiting on the bus with nothing ever coming back.
+    if (!m_answered)
+        reply(2, {});
+}
+
 void FileChooserRequest::reject() {
     if (m_answered)
         return;
@@ -199,6 +213,7 @@ FileChooserPortal::FileChooserPortal(QObject *parent) : QObject(parent) {
     // The object path every portal backend answers on; the name is what portals.conf points at.
     const bool object = bus.registerObject(QStringLiteral("/org/freedesktop/portal/desktop"), this);
     m_serving = object && bus.registerService(QStringLiteral("org.freedesktop.impl.portal.desktop.isle"));
+    emit servingChanged();
 }
 
 uint FileChooserPortal::take(const QString &appId, const QString &title, bool save, const QVariantMap &options) {

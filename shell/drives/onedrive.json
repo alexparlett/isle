@@ -1,0 +1,10 @@
+{
+    "id": "onedrive",
+    "name": "OneDrive",
+    "backend": "onedrive",
+    "args": [
+        "--backend",
+        "onedrive"
+    ],
+    "script": "drives.py"
+}

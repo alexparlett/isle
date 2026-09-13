@@ -277,11 +277,13 @@ Singleton {
         if (!term || term.length < 2) { results = [{ kind: "hint", title: "Search inside files", subtitle: "? invoice total   ·   text, PDFs, documents and archives under ~", glyph: "file-search", run: () => {} }]; grepDebounce.stop(); return; }
         grepDebounce.restart();
     }
+    // A cloud drive is a mount over the network: walking it hangs the search and pulls the files down, so it
+    // is left out unless the search is pointed inside one.
     function runGrep() {
         if (mode !== "?") return;
         grep.running = false;
         const tool = rgaHere ? "rga" : "rg";
-        grep.command = ["sh", "-c", tool + " --no-heading --color never --line-number --max-count 1 --smart-case --max-filesize 20M --glob '!.cache' --glob '!.git' --glob '!node_modules' --glob '!.local/share/Steam' -- \"$1\" \"$2\" 2>/dev/null | head -n 20", "_", term, home];
+        grep.command = ["sh", "-c", tool + " --no-heading --color never --line-number --max-count 1 --smart-case --max-filesize 20M --glob '!.cache' --glob '!.git' --glob '!node_modules' --glob '!.local/share/Steam' --glob '!Drives' -- \"$1\" \"$2\" 2>/dev/null | head -n 20", "_", term, home];
         grep.running = true;
     }
 

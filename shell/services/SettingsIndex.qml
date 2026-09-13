@@ -34,6 +34,7 @@ Singleton {
         { id: "controllers", glyph: "joystick", label: "Controllers" },
         { id: "printers", glyph: "printer", label: "Printers" },
         { id: "storage", glyph: "hard-drive", label: "Storage" },
+        { id: "drives", glyph: "cloud", label: "Drives" },
         { id: "power", glyph: "power", label: "Power" },
         { id: "devices", glyph: "plug-zap", label: "Devices" },
         { group: "System" },

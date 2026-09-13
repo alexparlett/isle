@@ -7,6 +7,8 @@ Rectangle {
     id: root
     property alias text: input.text
     property alias input: input
+    // A secret is shown as dots, as the lock screen's field does.
+    property bool secret: false
     property string placeholder: ""
     property string glyph: ""
     property int size: Theme.sizeBody
@@ -27,6 +29,7 @@ Rectangle {
         Glyph { visible: root.glyph !== ""; name: root.glyph; size: root.size; color: input.activeFocus ? Theme.text2 : Theme.text3 }
         TextInput {
             id: input
+            echoMode: root.secret ? TextInput.Password : TextInput.Normal
             Layout.fillWidth: true
             color: Theme.text
             font.family: Theme.fontUi

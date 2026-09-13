@@ -13,6 +13,9 @@ QtObject {
     property string note: ""
     required property string script
     property bool user: false
+    // What the manifest asks to be passed to its script, before the command: one implementation can then
+    // serve several providers, as every cloud drive is the same script told which service it is.
+    property var args: []
     // The key of `list`'s answer: items for a vault, choices for a VPN.
     property string listKey: "items"
 
@@ -29,7 +32,7 @@ QtObject {
     property bool busy: false
 
     property Process statusProc: Process {
-        command: ["python3", root.script, "status"]
+        command: ["python3", root.script].concat(root.args || [], ["status"])
         stdout: StdioCollector {
             onStreamFinished: {
                 let r; try { r = JSON.parse(text); } catch (e) { root.busy = false; root.error = "The provider's status was not JSON"; return; }
@@ -40,7 +43,7 @@ QtObject {
         }
     }
     property Process listProc: Process {
-        command: ["python3", root.script, "list"]
+        command: ["python3", root.script].concat(root.args || [], ["list"])
         stdout: StdioCollector {
             onStreamFinished: {
                 root.busy = false;
@@ -69,11 +72,11 @@ QtObject {
     }
     function act(id, input) {
         const a = actions.find(x => x.id === id) || { id: id };
-        if (a.terminal) { Compositor.exec((Prefs.p.terminal || "kitty") + " -e sh -c " + JSON.stringify("python3 " + JSON.stringify(script) + " action " + id + "; echo; echo Done, close this window.; sleep 3")); return; }
+        if (a.terminal) { Compositor.exec((Prefs.p.terminal || "kitty") + " -e sh -c " + JSON.stringify("python3 " + JSON.stringify(script) + " " + (args || []).join(" ") + " action " + id + "; echo; echo Done, close this window.; sleep 3")); return; }
         if (actor.running) return;
         error = "";
         pendingInput = input || "";
-        actor.command = ["python3", script, "action", id];
+        actor.command = ["python3", script].concat(args || [], ["action", id]);
         actor.running = true;
     }
 }

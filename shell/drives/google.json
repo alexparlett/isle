@@ -1,0 +1,10 @@
+{
+    "id": "google",
+    "name": "Google Drive",
+    "backend": "drive",
+    "args": [
+        "--backend",
+        "drive"
+    ],
+    "script": "drives.py"
+}

@@ -658,3 +658,20 @@ closes, which lands after the dispatch and undoes it. A second copy is
 still a thing people want sometimes, and that is the app's own new-window
 chord rather than the launcher's job.
 
+**D64 · Cloud drives are accounts on a page, not services with rows.** The
+first cut listed a row per service, each offering to add an account, which
+is the shape the provider framework falls into and the wrong one here: a
+person has two or three accounts and wants to see them, not five services
+they do not use. So the page lists accounts, and one button opens a sheet
+that asks which service and what it needs. What it needs is rclone's own
+answer, from `rclone config providers`, so Proton asks for a username, a
+password and a 2FA code while Google and Dropbox ask for a name and send
+you to a browser. rclone is the engine for all of them, since it already
+speaks every service Isle would otherwise carry a client for, and a
+service nobody anticipated is a manifest naming its backend.
+
+Mounts are systemd user units rather than children of the shell: the shell
+reloads often, and a drive that vanishes when it does is worse than no
+drive. The launcher's file search excludes the mount root, because walking
+a network filesystem hangs the search and pulls the files down.
+

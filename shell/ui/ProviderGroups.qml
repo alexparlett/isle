@@ -48,8 +48,10 @@ ColumnLayout {
         SettingsRow { visible: root.service.providers.length === 0; label: root.none }
     }
 
+    // A provider with nothing to show gets a group only when it is the only one: with several, five headings
+    // saying "none yet" are noise rather than information.
     Repeater {
-        model: root.service.shown.filter(p => p.impl.ready)
+        model: root.service.shown.filter(p => p.impl.ready && (p.impl.items.length > 0 || root.service.shown.length === 1))
         SettingsGroup {
             id: group
             required property var modelData

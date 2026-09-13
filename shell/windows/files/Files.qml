@@ -130,6 +130,58 @@ FloatingWindow {
         sheet.ask("");
     }
 
+    // Which name on the bar has its menu open, so the bar can mark it and the next one can take over.
+    property string openBarMenu: ""
+
+    function barItems(name) {
+        const on = acting.length > 0;
+        const many = acting.length > 1;
+        if (name === "File") return [
+            on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
+            { label: "New folder", glyph: "folder-plus", action: askNewFolder },
+            on ? null : undefined,
+            on ? { label: many ? "Rename " + acting.length + " items" : "Rename", glyph: "pencil", action: askRename } : undefined,
+            on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
+            on && !many && FileJobs.isArchive(acting[0]) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(acting[0]) } : undefined,
+            null,
+            { label: "Close", glyph: "x", action: () => Surfaces.files = false },
+        ].filter(i => i !== undefined);
+        if (name === "Edit") return [
+            on ? { label: "Copy", glyph: "copy", action: () => copyToClipboard(false) } : undefined,
+            on ? { label: "Cut", glyph: "scissors", action: () => copyToClipboard(true) } : undefined,
+            { label: "Paste", glyph: "clipboard", enabled: clipboard.length > 0, action: paste },
+            null,
+            { label: "Select all", glyph: "check", action: () => view.selectAll() },
+            null,
+            { label: FileJobs.canUndo ? FileJobs.undoLabel : "Undo", glyph: "corner-up-left", enabled: FileJobs.canUndo, action: () => FileJobs.undo() },
+            null,
+            on ? { label: "Move to trash", glyph: "trash", action: toTrash } : undefined,
+            on ? { label: "Delete", glyph: "x", danger: true, action: askDelete } : undefined,
+        ].filter(i => i !== undefined);
+        if (name === "View") return [
+            { label: "List", glyph: "list", action: () => view.mode = "list" },
+            { label: "Columns", glyph: "columns-3", action: () => view.mode = "columns" },
+            { label: "Grid", glyph: "layout-grid", action: () => view.mode = "grid" },
+            null,
+            { label: dir.showHidden ? "Hide hidden files" : "Show hidden files", glyph: "eye", action: () => dir.showHidden = !dir.showHidden },
+            { label: "Refresh", glyph: "refresh-cw", action: () => dir.refresh() },
+        ];
+        return [
+            { label: "Back", glyph: "chevron-left", enabled: canBack, action: back },
+            { label: "Forward", glyph: "chevron-right", enabled: canForward, action: forward },
+            { label: "Up", glyph: "arrow-up", enabled: dir.path !== "/", action: up },
+            null,
+            { label: "Home", glyph: "house", action: () => go(Engine.home) },
+        ];
+    }
+
+    function openBarMenuAt(name, item) {
+        openBarMenu = name;
+        menu.items = barItems(name);
+        const at = item.mapToItem(overlay, 0, item.height);
+        menu.popup(at.x, at.y);
+    }
+
     // The menu the right button and the Menu key both open, at a point in the overlay's own frame.
     function showMenu(x, y, path) {
         const on = path !== "";
@@ -149,6 +201,7 @@ FloatingWindow {
             on ? { label: "Move to trash", glyph: "trash", action: toTrash } : undefined,
             on ? { label: "Delete", glyph: "x", danger: true, action: askDelete } : undefined,
         ].filter(i => i !== undefined);
+        openBarMenu = "";
         const at = view.mapToItem(overlay, x, y);
         menu.popup(at.x, at.y);
     }
@@ -195,9 +248,56 @@ FloatingWindow {
         onActivated: root.showMenu(view.width / 2, view.height / 3, view.acting.length ? view.acting[0] : "")
     }
 
-    RowLayout {
+    ColumnLayout {
         anchors.fill: parent
         spacing: 0
+
+        // The menu bar every file manager has, so the things the right button offers can also be
+        // found by reading rather than by guessing where to click.
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 28
+            color: "transparent"
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.hairline }
+
+            RowLayout {
+                anchors { fill: parent; leftMargin: Theme.s2; rightMargin: Theme.s2 }
+                spacing: 0
+                Repeater {
+                    model: ["File", "Edit", "View", "Go"]
+                    delegate: Rectangle {
+                        id: barItem
+                        required property string modelData
+                        implicitWidth: barLabel.implicitWidth + Theme.s3 * 2
+                        Layout.fillHeight: true
+                        radius: Theme.radiusChip
+                        color: root.openBarMenu === barItem.modelData ? Theme.pressed
+                             : barArea.containsMouse ? Theme.raised : "transparent"
+                        Label {
+                            id: barLabel
+                            anchors.centerIn: parent
+                            text: barItem.modelData
+                            size: Theme.sizeSmall
+                            color: Theme.text2
+                        }
+                        MouseArea {
+                            id: barArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: root.openBarMenuAt(barItem.modelData, barItem)
+                            // With one open, moving along the bar opens the next, as a menu bar does.
+                            onEntered: if (root.openBarMenu !== "") root.openBarMenuAt(barItem.modelData, barItem)
+                        }
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
 
         // Sidebar
         Rectangle {
@@ -339,9 +439,10 @@ FloatingWindow {
                     }
                 }
 
-                Segmented {
-                    options: [["list", "List"], ["columns", "Columns"], ["grid", "Grid"]]
+                Dropdown {
+                    listWidth: 150
                     value: view.mode
+                    options: [["list", "List"], ["columns", "Columns"], ["grid", "Grid"]]
                     onPicked: v => view.mode = v
                 }
 
@@ -427,12 +528,13 @@ FloatingWindow {
         }
     }
     }
+    }
 
     Item {
         id: overlay
         anchors.fill: parent
 
-        FileMenu { id: menu }
+        FileMenu { id: menu; onShownChanged: if (!shown) root.openBarMenu = "" }
 
         FileSheet {
             id: sheet

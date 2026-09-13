@@ -30,8 +30,10 @@ cloud-rain
 cloud-snow
 cloud-sun
 code
+columns-3
 command
 copy
+corner-up-left
 cpu
 credit-card
 crop

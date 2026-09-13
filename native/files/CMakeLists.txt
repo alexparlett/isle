@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(isle-files VERSION 0.1.0 LANGUAGES CXX)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Concurrent Qml)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Concurrent DBus Qml)
 qt_standard_project_setup(REQUIRES 6.8)
 
 # Where the shell's QML_IMPORT_PATH points; install.sh passes the installed copy's.
@@ -23,10 +23,12 @@ qt_add_qml_module(isle-files
         engine.cpp
         directory.h
         directory.cpp
+        filechooser.h
+        filechooser.cpp
 )
 
 target_compile_definitions(isle-files PRIVATE ISLE_FILES_VERSION="${PROJECT_VERSION}")
-target_link_libraries(isle-files PRIVATE Qt6::Core Qt6::Concurrent Qt6::Qml)
+target_link_libraries(isle-files PRIVATE Qt6::Core Qt6::Concurrent Qt6::DBus Qt6::Qml)
 
 # The plugin, its qmldir and its type information; the .qrc beside them is the build's own.
 install(DIRECTORY "${ISLE_FILES_QML_OUT}/" DESTINATION "${ISLE_QML_DIR}/Isle/Files"

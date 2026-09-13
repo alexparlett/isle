@@ -109,7 +109,7 @@ COSMIC: the applets are bound to cosmic-comp and cosmic-panel.
 | big picture | the shell, launching Steam -gamepadui, Heroic, Lutris | gamescope-session | one 10-foot surface over all three; gamescope-session is Steam-only |
 | app theming | `theme/render.py` over templates, from the token file | matugen, pywal | one source renders GTK3, GTK4, Qt (qt6ct + Fusion), kitty, yazi, btop, portals, Hyprland; matugen's image-derived palette does not map onto fixed tokens (D16) |
 | icons, cursor, fonts | Papirus-Dark, Bibata, Inter + JetBrains Mono | Adwaita, Tela | same icon theme in GTK, Qt and the shell |
-| portals | xdg-desktop-portal-hyprland + -gtk | -kde | screencast through Hyprland; GTK file dialog themed by our CSS |
+| portals | xdg-desktop-portal-hyprland, the shell for FileChooser (D67), -gtk for the rest | -kde | screencast through Hyprland; the file dialog is the shell's own surface rather than GTK's themed to look near enough |
 
 ## Idle budget
 

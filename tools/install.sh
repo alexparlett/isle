@@ -61,16 +61,19 @@ fi
 # path the session exports (D66). Without it the file manager and the file chooser are absent; the rest
 # of the shell runs.
 if command -v cmake >/dev/null; then
-    # A tree configured against an older source list keeps that list's moc output, which links to a
-    # library missing the vtables of whatever was added since. A changed CMakeLists starts again.
-    if [[ -f "$REPO/native/files/build/CMakeCache.txt" &&
-          "$REPO/native/files/CMakeLists.txt" -nt "$REPO/native/files/build/CMakeCache.txt" ]]; then
+    # A tree configured against an older source list keeps that list's moc output, and links a library
+    # missing the vtables of whatever was added since. Mtimes cannot tell: rsync gives the copy the
+    # mtime of the checkout, which is older than a cache this machine wrote. So the file is hashed.
+    engine_stamp="$REPO/native/files/build/.isle-sources"
+    engine_hash="$(sha256sum "$REPO/native/files/CMakeLists.txt" | cut -d' ' -f1)"
+    if [[ -f "$REPO/native/files/build/CMakeCache.txt" && "$(cat "$engine_stamp" 2>/dev/null)" != "$engine_hash" ]]; then
         rm -rf "$REPO/native/files/build"
     fi
     if cmake -S "$REPO/native/files" -B "$REPO/native/files/build" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DISLE_QML_DIR="$REPO/qml" >/dev/null &&
        cmake --build "$REPO/native/files/build" >/dev/null &&
        cmake --install "$REPO/native/files/build" >/dev/null; then
+        printf %s "$engine_hash" > "$engine_stamp"
         ok "browsing engine built (Isle.Files)"
     else
         echo "  ! the browsing engine did not build; Files and the file chooser are off" >&2
@@ -102,6 +105,12 @@ if command -v nethogs >/dev/null; then
     sudo setcap cap_net_admin,cap_net_raw+ep "$(command -v nethogs)" && ok "nethogs can read the network (per-process traffic in Monitor)"
 fi
 python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, yazi, btop, zathura, portals)"
+# The shell answers org.freedesktop.impl.portal.FileChooser; xdg-desktop-portal reads who can from here (D67).
+if ! cmp -s "$REPO/system/portal/isle.portal" /usr/share/xdg-desktop-portal/portals/isle.portal; then
+    sudo install -Dm644 "$REPO/system/portal/isle.portal" /usr/share/xdg-desktop-portal/portals/isle.portal
+    systemctl --user restart xdg-desktop-portal.service 2>/dev/null || true
+    ok "the file chooser is the shell's (isle.portal)"
+fi
 # Raw HID for the browser keyboard configurators (Keychron Launcher, VIA): the rule is root's.
 if ! cmp -s "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules; then
     sudo install -Dm644 "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules

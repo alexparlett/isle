@@ -169,6 +169,27 @@ void Directory::setFilter(const QString &filter) {
     rebuild();
 }
 
+void Directory::setPatterns(const QStringList &patterns) {
+    if (m_patterns == patterns)
+        return;
+    m_patterns = patterns;
+    // Compiled once here rather than per row per rebuild.
+    m_globs.clear();
+    for (const QString &glob : patterns)
+        m_globs.append(QRegularExpression::fromWildcard(glob, Qt::CaseInsensitive,
+                                                        QRegularExpression::UnanchoredWildcardConversion));
+    emit patternsChanged();
+    rebuild();
+}
+
+void Directory::setFoldersOnly(bool on) {
+    if (m_foldersOnly == on)
+        return;
+    m_foldersOnly = on;
+    emit foldersOnlyChanged();
+    rebuild();
+}
+
 void Directory::refresh() { startScan(); }
 
 QString Directory::pathAt(int row) const {
@@ -249,6 +270,15 @@ void Directory::rebuild() {
             continue;
         if (!m_filter.isEmpty() && !e.name.contains(m_filter, Qt::CaseInsensitive))
             continue;
+        if (!e.isDir && m_foldersOnly)
+            continue;
+        if (!e.isDir && !m_globs.isEmpty()) {
+            bool hit = false;
+            for (const QRegularExpression &glob : std::as_const(m_globs))
+                if (glob.match(e.name).hasMatch()) { hit = true; break; }
+            if (!hit)
+                continue;
+        }
         sortable.push_back({ &e,
                              m_collator.sortKey(e.name),
                              m_collator.sortKey(m_sort == ByKind ? e.iconName : QString()) });

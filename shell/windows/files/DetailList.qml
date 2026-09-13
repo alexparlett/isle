@@ -11,23 +11,35 @@ import qs.services
 FocusScope {
     id: root
     required property Directory directory
-    // A folder to walk into. A file is handed to whatever opens it.
+    // Whether a file is opened where it lands. A chooser takes it as the choice instead.
+    property bool openFiles: true
+    // A folder to walk into.
     signal activated(string path)
+    // A file settled on, when openFiles is false.
+    signal chosen(string path)
 
     readonly property int nameWidth: Math.max(220, width - 320)
+    readonly property bool hasSelection: list.currentIndex >= 0 && list.currentIndex < directory.count
+        && !directory.isDirAt(list.currentIndex)
+    readonly property string currentPath: hasSelection ? directory.pathAt(list.currentIndex) : ""
 
     function open(row) {
         if (row < 0 || row >= directory.count) return;
         const path = directory.pathAt(row);
         if (directory.isDirAt(row)) root.activated(path);
-        else Compositor.exec("xdg-open " + JSON.stringify(path));
+        else if (root.openFiles) Compositor.exec("xdg-open " + JSON.stringify(path));
+        else root.chosen(path);
     }
 
+    // The column already sorting turns over; another starts up, rather than inheriting a direction
+    // set for something else.
     function sortBy(column) {
         if (directory.sort === column)
             directory.sortOrder = directory.sortOrder === Qt.AscendingOrder ? Qt.DescendingOrder : Qt.AscendingOrder;
-        else
+        else {
             directory.sort = column;
+            directory.sortOrder = Qt.AscendingOrder;
+        }
     }
 
     // The folder changed under the selection: start at the top rather than on whatever is there now.

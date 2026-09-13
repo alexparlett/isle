@@ -6,6 +6,7 @@
 #include <QFileSystemWatcher>
 #include <QFutureWatcher>
 #include <QQmlEngine>
+#include <QRegularExpression>
 #include <QString>
 #include <QTimer>
 #include <QVector>
@@ -31,6 +32,10 @@ class Directory : public QAbstractListModel {
     Q_PROPERTY(Sort sort READ sort WRITE setSort NOTIFY sortChanged)
     Q_PROPERTY(Qt::SortOrder sortOrder READ sortOrder WRITE setSortOrder NOTIFY sortOrderChanged)
     Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
+    // Globs a file must match to be listed, as a file chooser's filter asks. Folders always list.
+    Q_PROPERTY(QStringList patterns READ patterns WRITE setPatterns NOTIFY patternsChanged)
+    // Whether only folders are listed, for a chooser asking for one.
+    Q_PROPERTY(bool foldersOnly READ foldersOnly WRITE setFoldersOnly NOTIFY foldersOnlyChanged)
     Q_PROPERTY(Status status READ status NOTIFY statusChanged)
     Q_PROPERTY(QString error READ error NOTIFY statusChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
@@ -71,6 +76,10 @@ public:
     void setSortOrder(Qt::SortOrder order);
     QString filter() const { return m_filter; }
     void setFilter(const QString &filter);
+    QStringList patterns() const { return m_patterns; }
+    void setPatterns(const QStringList &patterns);
+    bool foldersOnly() const { return m_foldersOnly; }
+    void setFoldersOnly(bool on);
     Status status() const { return m_status; }
     QString error() const { return m_error; }
     int count() const { return int(m_rows.size()); }
@@ -91,6 +100,8 @@ signals:
     void sortChanged();
     void sortOrderChanged();
     void filterChanged();
+    void patternsChanged();
+    void foldersOnlyChanged();
     void statusChanged();
     void countChanged();
 
@@ -105,6 +116,9 @@ private:
     Sort m_sort = ByName;
     Qt::SortOrder m_sortOrder = Qt::AscendingOrder;
     QString m_filter;
+    QStringList m_patterns;
+    QList<QRegularExpression> m_globs;
+    bool m_foldersOnly = false;
     Status m_status = Idle;
     QString m_error;
 

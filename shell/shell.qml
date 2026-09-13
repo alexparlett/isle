@@ -77,5 +77,7 @@ ShellRoot {
     // the shell failing to start; the import above only registers the directory, which is what lets
     // Files.qml name its own sibling.
     LazyLoader { loading: true; component: Qt.createComponent(Qt.resolvedUrl("windows/files/Files.qml")) }
+    // The portal chooser needs the same engine, and is held the same way for the same reason.
+    LazyLoader { loading: true; component: Qt.createComponent(Qt.resolvedUrl("surfaces/filechooser/FileChooser.qml")) }
     Component { id: lockSurface; LockSurface {} }
 }

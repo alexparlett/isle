@@ -230,6 +230,13 @@ Escape closes whatever is up.
 - **Capture** — a thin toolbar at the bottom centre: region / window /
   screen, screenshot / record, annotate, colour picker. Region drag draws a
   hairline with dimensions.
+- **File chooser** — what an application gets when it asks for a file
+  (D67): a glass card up to 880×620 with the application's own title, the
+  trail and a search field over the same folder list Files uses, and
+  Cancel and Open at the foot. Saving adds a name field above them and the
+  file type beside them, and the list narrows to what that type matches.
+  Asked for a folder, it offers the one it is showing. It is the one
+  full-screen surface that does not close the others.
 - **Lock** — wallpaper blurred and dimmed; the island grows into a 28px
   clock; typing reveals a password field under it. Wrong password shakes it.
 - **Auth** — a centred dialog: app icon, what is being asked, password field.

@@ -12,7 +12,8 @@ Hyprland
       │                           shell/scripts/isle-session, which restarts it (D17)
       ├── services/               singletons: state + side effects
       ├── surfaces/               layer-shell: island + control panel, dashboard,
-      │                           launcher, switcher, overview, capture, lock, auth, power
+      │                           launcher, switcher, overview, capture, lock, auth, power,
+      │                           file chooser (the portal's, D67)
       ├── widgets/                dashboard widgets: one directory each, see Widgets
       ├── windows/                Settings, Monitor, Keychain, Files, Big Picture
       ├── theme/                  tokens.json → Theme singleton

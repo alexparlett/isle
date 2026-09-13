@@ -129,7 +129,7 @@ hl.window_rule({ name = "x11-popup", match = { tag = "x11popup" }, no_anim = tru
 -- since a menu takes the keyboard through its own window.
 hl.window_rule({ name = "x11-untitled", match = { xwayland = true, title = "^$" }, no_anim = true, no_shadow = true, rounding = 0, min_size = "1 1" })
 -- The shell's surfaces get blur; the wallpaper is under everything and gets none.
-hl.layer_rule({ name = "isle-blur", match = { namespace = "^isle-(island|panel|dashboard|launcher|switcher|capture|power|overview)$" }, blur = true, ignore_alpha = 0.2 })
+hl.layer_rule({ name = "isle-blur", match = { namespace = "^isle-(island|panel|dashboard|launcher|switcher|capture|power|overview|filechooser)$" }, blur = true, ignore_alpha = 0.2 })
 hl.layer_rule({ name = "isle-wallpaper", match = { namespace = "^isle-wallpaper$" }, no_anim = true })
 
 -- Tearing, when game mode allows it, applies to fullscreen windows only.

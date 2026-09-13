@@ -677,3 +677,23 @@ every Hyprland release, and takes the session with it when it faults; this
 code faults into a shell that restarts in a second and follows the shell to
 another compositor. The two trees stay apart for that reason: `plugins/` is
 the compositor's, `native/` is the shell's.
+
+**D67 · The file chooser is served by the shell, not by a backend of its
+own.** Every application the desktop will never replace — a browser, Steam,
+a chat client — meets Isle at the file dialog, and until now that dialog
+was GTK's. A portal backend is conventionally a daemon that D-Bus
+activation starts on demand, but the shell is already running for the
+length of the session and already draws every other surface, so it takes
+the name `org.freedesktop.impl.portal.desktop.isle` at startup and answers
+`org.freedesktop.impl.portal.FileChooser` itself. That removes a process, a
+round trip, and a second thing that can be dead when an application asks.
+
+The call is held rather than answered: the reply is delayed on the bus for
+as long as the surface is up, and exactly one of accept or reject
+finishes it. A chooser is not one of the surfaces that close each other,
+because an application's file dialog has no business closing the
+dashboard.
+
+`SaveFiles` asks for a folder and names what goes in it, so it is the
+directory chooser with the names joined on at the end rather than a third
+kind of dialog.

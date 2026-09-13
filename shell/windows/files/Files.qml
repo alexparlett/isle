@@ -124,14 +124,6 @@ FloatingWindow {
                     onTextChanged: dir.filter = text
                     input.Keys.onEscapePressed: { text = ""; list.forceActiveFocus(); }
                 }
-
-                Dropdown {
-                    value: dir.sort
-                    listWidth: 150
-                    options: [[Directory.ByName, "Name"], [Directory.BySize, "Size"],
-                              [Directory.ByModified, "Modified"], [Directory.ByKind, "Kind"]]
-                    onPicked: v => dir.sort = v
-                }
             }
         }
 

@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QLocale>
 #include <QStorageInfo>
@@ -134,6 +135,22 @@ QVariantList Engine::infoFor(const QString &path) const {
     if (info.isSymLink())
         row(QStringLiteral("Points at"), info.symLinkTarget());
     return out;
+}
+
+QString Engine::sizeOfFolder(const QString &path) const { return sizeOf({ path }); }
+
+QString Engine::sizeOf(const QStringList &paths) const {
+    if (paths.isEmpty())
+        return {};
+    qint64 total = 0;
+    for (const QString &path : paths) {
+        const QFileInfo info(path);
+        if (!info.isDir()) { total += info.size(); continue; }
+        QDirIterator it(path, QDir::Files | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext()) { it.next(); total += it.fileInfo().size(); }
+    }
+    return formatSize(total);
 }
 
 QString Engine::freeSpace(const QString &path) const {

@@ -15,6 +15,7 @@ calendar
 calendar-clock
 camera
 check
+check-check
 chevron-down
 chevron-left
 chevron-right

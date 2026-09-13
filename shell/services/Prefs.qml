@@ -41,6 +41,13 @@ Singleton {
 
         adapter: JsonAdapter {
             id: adapter
+            // How Files was last left: the view it was showing, and how it was ordering a folder.
+            property string filesView: "list"
+            property int filesSort: 0
+            property int filesGrouping: 0
+            property int filesIconSize: 64
+            property bool filesHidden: false
+
             property bool dnd: false
             // Quiet hours (from hour to hour, wrapping midnight), auto-silence under a fullscreen window, apps
             // that toast through, a summary when silence lifts, and a sound per toast.

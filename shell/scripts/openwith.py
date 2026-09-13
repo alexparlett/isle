@@ -104,5 +104,9 @@ elif what == "open" and len(sys.argv) > 2:
     launch(handler, sys.argv[2])
 elif what == "with" and len(sys.argv) > 3:
     launch(sys.argv[2], sys.argv[3])
+elif what == "always" and len(sys.argv) > 3:
+    # The choice becomes the standing one for the type, which is what xdg-mime keeps.
+    subprocess.run(["xdg-mime", "default", sys.argv[2], kind_of(sys.argv[3])])
+    launch(sys.argv[2], sys.argv[3])
 else:
     sys.exit(2)

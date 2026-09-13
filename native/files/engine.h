@@ -42,9 +42,13 @@ public:
 
     // What is free on the volume a path is on, already said in words. Empty when it cannot be asked.
     Q_INVOKABLE QString freeSpace(const QString &path) const;
+    // How much these paths come to, folders counted through. Empty for nothing.
+    Q_INVOKABLE QString sizeOf(const QStringList &paths) const;
 
     // What Get Info shows: [{ label, value }] for one path, read without walking into folders.
     Q_INVOKABLE QVariantList infoFor(const QString &path) const;
+    // How much is inside a folder, counted through. Slow by nature, so it is asked for, not offered.
+    Q_INVOKABLE QString sizeOfFolder(const QString &path) const;
     // The mime type's own description, as "PNG image" rather than "image/png".
     Q_INVOKABLE QString kindOf(const QString &path) const;
 

@@ -100,6 +100,23 @@ FocusScope {
         else list.positionViewAtIndex(row, ListView.Contain);
     }
 
+    // Everything the band has covered, asked of the view row by row across the band.
+    function pickWithin(x, y, w, h) {
+        const v = mode === "grid" ? grid : list;
+        const step = mode === "grid" ? Math.max(8, cellSize / 3) : 12;
+        const found = [];
+        for (let py = y; py <= y + h; py += step) {
+            for (let px = x; px <= x + w; px += step) {
+                const at = v.indexAt(px + v.contentX, py + v.contentY);
+                if (at >= 0) {
+                    const path = directory.pathAt(at);
+                    if (found.indexOf(path) < 0) found.push(path);
+                }
+            }
+        }
+        selection = found;
+    }
+
     function selectAll() {
         const all = [];
         for (let i = 0; i < directory.count; i++) all.push(directory.pathAt(i));
@@ -579,22 +596,55 @@ FocusScope {
             Scrollbar { target: root.mode === "grid" ? grid : list; visible: root.mode !== "columns" }
 
             MouseArea {
+                id: bandArea
                 anchors.fill: parent
                 visible: root.mode !== "columns"
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 propagateComposedEvents: true
+
+                property point from: Qt.point(0, 0)
+                property bool banding: false
+                // The release comes before the click, so what the band did has to outlive it.
+                property bool banded: false
+
+                function view() { return root.mode === "grid" ? grid : list; }
+
                 onPressed: mouse => {
-                    const view = root.mode === "grid" ? grid : list;
-                    const at = mapToItem(view, mouse.x, mouse.y);
-                    const row = view.indexAt(at.x + view.contentX, at.y + view.contentY);
+                    const v = view();
+                    const at = mapToItem(v, mouse.x, mouse.y);
+                    const row = v.indexAt(at.x + v.contentX, at.y + v.contentY);
                     // A row takes its own click; this only has the part with no row in it.
                     mouse.accepted = row < 0;
+                    bandArea.from = Qt.point(mouse.x, mouse.y);
+                    bandArea.banding = false;
                 }
+                onPositionChanged: mouse => {
+                    if (!(mouse.buttons & Qt.LeftButton)) return;
+                    if (!bandArea.banding
+                        && Math.abs(mouse.x - bandArea.from.x) + Math.abs(mouse.y - bandArea.from.y)
+                           < Qt.styleHints.startDragDistance) return;
+                    bandArea.banding = true;
+                    band.x = Math.min(bandArea.from.x, mouse.x);
+                    band.y = Math.min(bandArea.from.y, mouse.y);
+                    band.width = Math.abs(mouse.x - bandArea.from.x);
+                    band.height = Math.abs(mouse.y - bandArea.from.y);
+                    root.pickWithin(band.x, band.y, band.width, band.height);
+                }
+                onReleased: { bandArea.banded = bandArea.banding; bandArea.banding = false; }
                 onClicked: mouse => {
+                    if (bandArea.banded) { bandArea.banded = false; return; }
                     root.selection = [];
                     if (mouse.button !== Qt.RightButton) return;
                     const where = mapToItem(root, mouse.x, mouse.y);
                     root.menuAsked(where.x, where.y, "");
+                }
+
+                Rectangle {
+                    id: band
+                    visible: bandArea.banding
+                    color: Qt.alpha(Theme.accent, 0.15)
+                    border.width: 1
+                    border.color: Theme.accent
                 }
             }
 

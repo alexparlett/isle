@@ -131,6 +131,8 @@ FloatingWindow {
     // Everything an action applies to: what is picked, or the row the keys are on.
     readonly property var acting: view.acting
     readonly property string actingOne: acting.length === 1 ? acting[0] : ""
+    // How much is picked, which is what a person wants before copying it somewhere.
+    readonly property string pickedSize: view && view.selection.length ? Engine.sizeOf(view.selection) : ""
 
     function said(n) { return n === 1 ? Engine.displayName(acting[0]) : n + " items"; }
 
@@ -209,13 +211,22 @@ FloatingWindow {
             onStreamFinished: {
                 let found;
                 try { found = JSON.parse(text); } catch (e) { return; }
+                const run = (how, id) => Compositor.exec("python3 "
+                    + JSON.stringify(Quickshell.shellDir + "/scripts/openwith.py")
+                    + " " + how + " " + JSON.stringify(id) + " " + JSON.stringify(root.opening));
                 const apps = (found.apps || []).map(a => ({
                     label: a.name,
                     glyph: a.id === found.default ? "check" : "",
-                    action: () => Compositor.exec("python3 " + JSON.stringify(Quickshell.shellDir + "/scripts/openwith.py")
-                        + " with " + JSON.stringify(a.id) + " " + JSON.stringify(root.opening)),
+                    action: () => run("with", a.id),
                 }));
-                menu.items = apps.length ? apps
+                // The last entry makes the choice stand for every file of the type, not just this one.
+                menu.items = apps.length
+                    ? apps.concat([null, {
+                        label: "Always open " + (found.kind || "these") + " this way",
+                        glyph: "check-check",
+                        enabled: apps.length > 0,
+                        action: () => run("always", apps[0].id),
+                    }])
                     : [{ label: "Nothing here opens " + (found.kind || "this"), enabled: false, action: () => {} }];
                 menu.popup(overlay.width / 2 - 105, overlay.height / 3);
             }
@@ -400,7 +411,13 @@ FloatingWindow {
     Directory {
         id: dir
         path: root.modelData.path
-        showHidden: false
+        // How it was last left, and kept that way for the next window and the next session.
+        showHidden: Prefs.p.filesHidden
+        sort: Prefs.p.filesSort
+        grouping: Prefs.p.filesGrouping
+        onShowHiddenChanged: if (Prefs.loaded) Prefs.p.filesHidden = showHidden
+        onSortChanged: if (Prefs.loaded) Prefs.p.filesSort = sort
+        onGroupingChanged: if (Prefs.loaded) Prefs.p.filesGrouping = grouping
     }
 
     MouseArea {
@@ -722,6 +739,10 @@ FloatingWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             directory: dir
+            mode: Prefs.p.filesView
+            iconSize: Prefs.p.filesIconSize
+            onModeChanged: if (Prefs.loaded) Prefs.p.filesView = mode
+            onIconSizeChanged: if (Prefs.loaded) Prefs.p.filesIconSize = iconSize
             onActivated: path => root.go(path)
             onRenamed: (path, name) => FileJobs.rename(path, name)
             onAsked: path => root.openFile(path)
@@ -750,6 +771,7 @@ FloatingWindow {
                     text: dir.status === Directory.Error ? dir.error
                         : dir.status === Directory.Loading ? "Reading…"
                         : view.selection.length ? view.selection.length + " of " + dir.count + " selected"
+                            + (root.pickedSize ? ", " + root.pickedSize : "")
                         : dir.filter ? dir.count + (dir.count === 1 ? " match" : " matches")
                         : dir.count + (dir.count === 1 ? " item" : " items")
                 }
@@ -805,7 +827,7 @@ FloatingWindow {
 
         FileMenu { id: menu; onShownChanged: if (!shown) root.openBarMenu = "" }
 
-        QuickLook { id: peek }
+        QuickLook { id: peek; onOpened: path => { root.openFile(path); peek.close(); } }
 
         FileSheet {
             id: sheet

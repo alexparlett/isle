@@ -36,6 +36,19 @@ Item {
         if (isDir) Qt.callLater(() => flick.contentX = Math.max(0, flick.contentWidth - flick.width));
     }
 
+    focus: true
+    // Left and right walk between columns, up and down within one, as a column browser is walked.
+    Keys.onLeftPressed: {
+        if (root.chain.length <= 1) return;
+        const back = root.chain[root.chain.length - (root.selectedIsDir ? 2 : 1)];
+        if (back) root.pick(root.chain.length - 2, back, true);
+    }
+    Keys.onRightPressed: {
+        if (!root.selectedIsDir) return;
+        root.stepInto();
+    }
+    signal stepInto()
+
     Flickable {
         id: flick
         anchors.fill: parent

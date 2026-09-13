@@ -147,7 +147,6 @@ FloatingWindow {
         if (clipboardCut) { clipboard = []; clipboardCut = false; }
     }
     function askRename() {
-        if (acting.length > 1) { askRenameMany(); return; }
         if (!actingOne) return;
         view.beginRename(actingOne);
     }
@@ -184,6 +183,52 @@ FloatingWindow {
     }
 
     function duplicate() { if (acting.length) FileJobs.duplicate(acting); }
+
+    // Opening a file: whatever the desktop says handles it, and when nothing does, the question of
+    // what should, rather than xdg-open's guess.
+    property string opening: ""
+    function openFile(path) {
+        opening = path;
+        opener.command = ["python3", Quickshell.shellDir + "/scripts/openwith.py", "open", path];
+        opener.running = true;
+    }
+    Process {
+        id: opener
+        onExited: code => { if (code === 3) root.askOpenWith(root.opening); }
+    }
+
+    // Everything that says it handles the file, for the person to choose from.
+    function askOpenWith(path) {
+        opening = path;
+        lister.command = ["python3", Quickshell.shellDir + "/scripts/openwith.py", "list", path];
+        lister.running = true;
+    }
+    Process {
+        id: lister
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let found;
+                try { found = JSON.parse(text); } catch (e) { return; }
+                const apps = (found.apps || []).map(a => ({
+                    label: a.name,
+                    glyph: a.id === found.default ? "check" : "",
+                    action: () => Compositor.exec("python3 " + JSON.stringify(Quickshell.shellDir + "/scripts/openwith.py")
+                        + " with " + JSON.stringify(a.id) + " " + JSON.stringify(root.opening)),
+                }));
+                menu.items = apps.length ? apps
+                    : [{ label: "Nothing here opens " + (found.kind || "this"), enabled: false, action: () => {} }];
+                menu.popup(overlay.width / 2 - 105, overlay.height / 3);
+            }
+        }
+    }
+
+    // An empty file, named where it lands, as a new folder is.
+    function newFile() {
+        const job = FileJobs.newFile(dir.path, "untitled");
+        if (job) view.beginRenameWhenSeen(Engine.join(dir.path, "untitled"));
+    }
+
+    function openTerminalHere() { Compositor.exec("kitty -d " + JSON.stringify(dir.path)); }
 
     // The search field narrows the folder as it is typed; Enter looks underneath it as well, which
     // is what a search is for once the folder in front of you does not have the thing.
@@ -260,9 +305,13 @@ FloatingWindow {
         const many = acting.length > 1;
         if (name === "File") return [
             on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
+            on && !many ? { label: "Open with…", glyph: "app-window", action: () => askOpenWith(actingOne) } : undefined,
+            null,
             { label: "New folder", glyph: "folder-plus", action: askNewFolder },
+            { label: "New file", glyph: "file-plus", action: newFile },
+            { label: "Open in terminal", glyph: "terminal", action: openTerminalHere },
             on ? null : undefined,
-            on ? { label: many ? "Rename " + acting.length + " items" : "Rename", glyph: "pencil", action: askRename } : undefined,
+            on && !many ? { label: "Rename", glyph: "pencil", action: askRename } : undefined,
             on && !many ? { label: "Get info", glyph: "info", action: () => peek.look(actingOne) } : undefined,
             on ? { label: "Duplicate", glyph: "copy", action: duplicate } : undefined,
             on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
@@ -330,7 +379,7 @@ FloatingWindow {
         const many = acting.length > 1;
         menu.items = [
             on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
-            on ? { label: many ? "Rename " + acting.length + " items" : "Rename", glyph: "pencil", action: askRename } : undefined,
+            on && !many ? { label: "Rename", glyph: "pencil", action: askRename } : undefined,
             on && !many && FileJobs.isArchive(path) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(path) } : undefined,
             on ? { label: "Compress", glyph: "archive", action: askCompress } : undefined,
             on ? null : undefined,
@@ -369,6 +418,7 @@ FloatingWindow {
     Shortcut { sequences: ["Ctrl+2"]; onActivated: view.mode = "columns" }
     Shortcut { sequences: ["Ctrl+3"]; onActivated: view.mode = "grid" }
     Shortcut { sequence: "F2"; onActivated: root.askRename() }
+    Shortcut { sequence: "Ctrl+Shift+F"; onActivated: root.newFile() }
     Shortcut { sequences: [StandardKey.Copy]; onActivated: root.copyToClipboard(false) }
     Shortcut { sequences: [StandardKey.Cut]; onActivated: root.copyToClipboard(true) }
     Shortcut { sequences: [StandardKey.Paste]; onActivated: root.paste() }
@@ -674,6 +724,7 @@ FloatingWindow {
             directory: dir
             onActivated: path => root.go(path)
             onRenamed: (path, name) => FileJobs.rename(path, name)
+            onAsked: path => root.openFile(path)
             onOpenedInTab: path => root.newTab(path)
             // Dropped from somewhere: moved when it is already on this machine and in another
             // folder, since that is what dragging within a desktop means.
@@ -698,6 +749,7 @@ FloatingWindow {
                     color: Theme.text3
                     text: dir.status === Directory.Error ? dir.error
                         : dir.status === Directory.Loading ? "Reading…"
+                        : view.selection.length ? view.selection.length + " of " + dir.count + " selected"
                         : dir.filter ? dir.count + (dir.count === 1 ? " match" : " matches")
                         : dir.count + (dir.count === 1 ? " item" : " items")
                 }

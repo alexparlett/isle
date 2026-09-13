@@ -27,6 +27,8 @@ FocusScope {
     signal menuAsked(real x, real y, string path)
     // A folder asked for in a tab of its own, by the middle button.
     signal openedInTab(string path)
+    // A file to open with whatever the desktop says handles it.
+    signal asked(string path)
 
     // The row the cursor is on, and the row a run is measured from.
     property int index: 0
@@ -141,7 +143,7 @@ FocusScope {
         if (row < 0 || row >= directory.count) return;
         const path = directory.pathAt(row);
         if (directory.isDirAt(row)) root.activated(path);
-        else if (root.openFiles) Compositor.exec("python3 " + JSON.stringify(Quickshell.shellDir + "/scripts/open.py") + " " + JSON.stringify(path));
+        else if (root.openFiles) root.asked(path);
         else root.chosen(path);
     }
 
@@ -244,18 +246,6 @@ FocusScope {
                 }
             }
 
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onClicked: mouse => {
-                    // Empty space belongs to the folder, not to any row: a click there lets go.
-                    root.selection = [];
-                    if (mouse.button !== Qt.RightButton) return;
-                    const at = mapToItem(root, mouse.x, mouse.y);
-                    root.menuAsked(at.x, at.y, "");
-                }
-            }
-
             ListView {
                 id: list
                 anchors.fill: parent
@@ -268,6 +258,7 @@ FocusScope {
                 // A folder of fifty thousand rows only ever builds the ones on screen.
                 reuseItems: true
                 boundsBehavior: Flickable.StopAtBounds
+
 
                 Keys.onReturnPressed: root.open(root.index)
                 Keys.onEnterPressed: root.open(root.index)
@@ -470,6 +461,7 @@ FocusScope {
                 reuseItems: true
                 boundsBehavior: Flickable.StopAtBounds
 
+
                 Keys.onReturnPressed: root.open(root.index)
                 Keys.onEnterPressed: root.open(root.index)
                 Keys.onUpPressed: event => root.step(-1, event.modifiers)
@@ -585,6 +577,26 @@ FocusScope {
             }
 
             Scrollbar { target: root.mode === "grid" ? grid : list; visible: root.mode !== "columns" }
+
+            MouseArea {
+                anchors.fill: parent
+                visible: root.mode !== "columns"
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                propagateComposedEvents: true
+                onPressed: mouse => {
+                    const view = root.mode === "grid" ? grid : list;
+                    const at = mapToItem(view, mouse.x, mouse.y);
+                    const row = view.indexAt(at.x + view.contentX, at.y + view.contentY);
+                    // A row takes its own click; this only has the part with no row in it.
+                    mouse.accepted = row < 0;
+                }
+                onClicked: mouse => {
+                    root.selection = [];
+                    if (mouse.button !== Qt.RightButton) return;
+                    const where = mapToItem(root, mouse.x, mouse.y);
+                    root.menuAsked(where.x, where.y, "");
+                }
+            }
 
             FileColumns {
                 id: columns

@@ -267,6 +267,20 @@ void FileJob::run() {
         return;
     }
 
+    if (m_kind == NewFile) {
+        const QString target = QDir(m_destination).filePath(m_sources.value(0));
+        QFile made(target);
+        if (QFileInfo::exists(target) || !made.open(QIODevice::WriteOnly)) {
+            setState(Failed, QStringLiteral("Could not make the file"));
+            return;
+        }
+        made.close();
+        m_undoFrom.append(target);
+        m_undoTo.append(QString());
+        setState(Done);
+        return;
+    }
+
     if (m_kind == NewFolder) {
         const QString target = QDir(m_destination).filePath(m_sources.value(0));
         if (!QDir().mkdir(target)) {
@@ -464,7 +478,7 @@ bool FileJob::undoable() const {
     // what wants undoing.
     return (m_state == Done || m_state == Failed || m_state == Cancelled) && !m_undoFrom.isEmpty()
         && (m_kind == Move || m_kind == Trash || m_kind == Copy || m_kind == Rename
-            || m_kind == NewFolder || m_kind == Extract || m_kind == Compress || m_kind == RenameMany
+            || m_kind == NewFolder || m_kind == NewFile || m_kind == Extract || m_kind == Compress || m_kind == RenameMany
             || m_kind == Duplicate);
 }
 
@@ -477,6 +491,7 @@ QString FileJobs::undoLabel() const {
     case FileJob::Copy: return QStringLiteral("Undo copy");
     case FileJob::Rename: return QStringLiteral("Undo rename");
     case FileJob::NewFolder: return QStringLiteral("Undo new folder");
+    case FileJob::NewFile: return QStringLiteral("Undo new file");
     case FileJob::Extract: return QStringLiteral("Undo unpack");
     case FileJob::Compress: return QStringLiteral("Undo pack");
     case FileJob::RenameMany: return QStringLiteral("Undo rename");
@@ -572,6 +587,10 @@ FileJob *FileJobs::emptyTrash() {
     return everything.isEmpty() ? nullptr : begin(new FileJob(FileJob::Delete, everything, QString(), this));
 }
 
+FileJob *FileJobs::newFile(const QString &parent, const QString &name) {
+    return begin(new FileJob(FileJob::NewFile, { name }, parent, this));
+}
+
 FileJob *FileJobs::duplicate(const QStringList &paths) {
     return begin(new FileJob(FileJob::Duplicate, paths, QString(), this));
 }
@@ -601,7 +620,7 @@ FileJob *FileJobs::undo() {
 
     // Copying and making a folder are put back by taking away what they made; everything else by
     // moving each thing to where it came from.
-    if (undo.kind == FileJob::Copy || undo.kind == FileJob::NewFolder
+    if (undo.kind == FileJob::Copy || undo.kind == FileJob::NewFolder || undo.kind == FileJob::NewFile
         || undo.kind == FileJob::Extract || undo.kind == FileJob::Compress
         || undo.kind == FileJob::Duplicate)
         return begin(new FileJob(FileJob::Delete, undo.from, QString(), this));

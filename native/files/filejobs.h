@@ -28,7 +28,7 @@ class FileJob : public QObject {
     Q_PROPERTY(QString conflictName READ conflictName NOTIFY conflictChanged)
 
 public:
-    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, Restore, Extract, Compress, RenameMany, Duplicate };
+    enum Kind { Copy, Move, Trash, Delete, Rename, NewFolder, NewFile, Restore, Extract, Compress, RenameMany, Duplicate };
     Q_ENUM(Kind)
 
     enum State { Running, Asking, Done, Failed, Cancelled };
@@ -136,6 +136,8 @@ public:
     // A copy beside the original, named the way a second of something is named.
     Q_INVOKABLE FileJob *duplicate(const QStringList &paths);
     Q_INVOKABLE FileJob *newFolder(const QString &parent, const QString &name);
+    // An empty file, for the same reason a new folder exists.
+    Q_INVOKABLE FileJob *newFile(const QString &parent, const QString &name);
     // Unpacked beside the archive, in a folder of its own named after it.
     Q_INVOKABLE FileJob *extract(const QString &archive);
     // Packed into one file in the folder they came from. The name decides the format bsdtar writes.

@@ -8,11 +8,8 @@ so the manifest says which of its backends this provider is.
 `fields` says what this service needs to add an account, taken from rclone's own description of the backend:
 a browser for the ones that authenticate that way, a few values for the ones that do not.
 
-An account is a filesystem of the shell's own, `drivefs`, run by a systemd user unit,
-`isle-drive@<remote>.service`, so it outlives the shell and comes back at every login: an account is there to
-be a folder, so there is nothing to switch on. Listings come from a local index and contents from the service
-as they are asked for, which is what keeps a file manager from freezing on a folder of several thousand
-files (D65).
+An account is mounted by a systemd user unit, `isle-drive@<remote>.service`, so a mount outlives the shell
+and comes back at every login: an account is there to be a folder, so there is nothing to switch on.
 """
 import json, os, re, shutil, subprocess, sys
 
@@ -23,10 +20,6 @@ PRETTY = {"2fa": "2FA", "apple_id": "Apple ID", "mailbox_password": "Mailbox pas
 KNOWN = {"protondrive": "Proton Drive", "drive": "Google Drive", "dropbox": "Dropbox",
          "onedrive": "OneDrive", "iclouddrive": "iCloud Drive", "box": "Box", "s3": "S3", "webdav": "WebDAV"}
 ROOT = os.path.expanduser("~/Drives")
-DRIVEFS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drivefs")
-sys.path.insert(0, DRIVEFS)
-import naming  # noqa: E402  - beside this file, under drivefs
-CTL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drivectl.py")
 
 args = sys.argv[1:]
 backend = ""
@@ -55,7 +48,7 @@ def remotes():
         if backend and cfg.get("type") != backend:
             continue
         out.append({"name": name, "type": cfg.get("type", ""), "mounted": mounted(name),
-                    "at": at_of(name)})
+                    "at": os.path.join(ROOT, name)})
     return out
 
 
@@ -72,21 +65,8 @@ def responsive(at):
 
 
 def mounted(name):
-    return any(" " + at_of(name) + " " in line for line in open("/proc/self/mountinfo"))
-
-
-def at_of(name):
-    """Where the account's folder is: named for the service, since that is what the sidebar shows."""
-    return naming.at(name)
-
-
-def held(name):
-    """What of the account is on this disk, as its filesystem counts it."""
-    p = run("python3", CTL, "status", os.path.basename(at_of(name)), timeout=30)
-    try:
-        return json.loads(p.stdout or "{}")
-    except ValueError:
-        return {}
+    at = os.path.join(ROOT, name)
+    return any(" " + at + " " in line for line in open("/proc/self/mountinfo"))
 
 
 def unit_state(name):
@@ -95,25 +75,36 @@ def unit_state(name):
 
 
 def write_unit():
-    """The unit that runs one account's filesystem. True when the file changed."""
+    """The unit that mounts one account, written once, named by the remote. True when the file changed.
+
+    Nothing tells a file manager that this folder is not a local disk, so it reads the first bytes of every
+    file it lists to sniff its type: reads are cached on disk, the first chunk of one is a megabyte rather
+    than rclone's default 128, and a cached file is recognised by its size and time rather than by a hash the
+    service will not give without the file. Listings are held for an hour, since a folder of several thousand
+    files takes over a minute to list.
+    """
     d = os.path.expanduser("~/.config/systemd/user")
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, "isle-drive@.service")
-    text = """# Written by Isle's drives provider. One filesystem per account, named by its rclone remote.
+    text = """# Written by Isle's drives provider. One mount per account, named by its rclone remote.
 [Unit]
-Description=Isle drive for %%i
+Description=Isle drive mount for %i
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
-ExecStart=/usr/bin/python3 %s %%i
+Type=notify
+ExecStartPre=/usr/bin/mkdir -p %h/Drives/%i
+ExecStart=/usr/bin/rclone mount %i: %h/Drives/%i --vfs-cache-mode full --vfs-cache-max-size 4G \
+    --vfs-cache-max-age 168h --vfs-read-chunk-size 1M --vfs-read-chunk-size-limit 128M \
+    --vfs-fast-fingerprint --dir-cache-time 1h --poll-interval 1m --timeout 30s --contimeout 15s --umask 077
+ExecStop=/bin/fusermount3 -uz %h/Drives/%i
 Restart=on-failure
 RestartSec=10
 
 [Install]
 WantedBy=default.target
-""" % DRIVEFS
+"""
     if os.path.exists(path) and open(path).read() == text:
         return False
     open(path, "w").write(text)
@@ -164,13 +155,6 @@ def fields():
     return {"fields": wanted, "browser": browser and not [f for f in wanted if f["required"]], "error": ""}
 
 
-def size(n):
-    for unit in ("bytes", "KB", "MB", "GB", "TB"):
-        if n < 1024 or unit == "TB":
-            return "%d %s" % (n, unit) if unit == "bytes" else "%.1f %s" % (n, unit)
-        n /= 1024.0
-
-
 def service_name():
     return KNOWN.get(backend, backend or "Cloud drive")
 
@@ -201,11 +185,7 @@ elif cmd == "list":
         state = unit_state(r["name"])
         # An account is always mounted, so the only thing to say about one is that it is, or why it is not.
         if r["mounted"] and responsive(r["at"]):
-            it = held(r["name"])
-            where = r["at"].replace(os.path.expanduser("~"), "~")
-            sub = where
-            if it.get("files"):
-                sub += "  ·  %s of %s kept here" % (size(it.get("cached_bytes", 0)), size(it.get("described", 0)))
+            sub = "Mounted at " + r["at"].replace(os.path.expanduser("~"), "~")
             acts = [{"id": "open", "label": "Open"}]
         elif r["mounted"]:
             sub = "Not responding"
@@ -260,13 +240,15 @@ elif cmd == "action":
     if what == "mount":
         sys.exit(start(name))
     if what == "restart":
+        # A stalled mount does not come down on its own: the lazy unmount frees everything waiting on it.
         write_unit()
-        p = run("systemctl", "--user", "restart", UNIT % name, timeout=120)
+        run("fusermount3", "-uz", os.path.join(ROOT, name))
+        p = run("systemctl", "--user", "restart", UNIT % name, timeout=90)
         if p.returncode != 0:
             sys.stderr.write((p.stderr.strip().split("\n")[-1] or "The mount would not restart") + "\n")
         sys.exit(p.returncode)
     if what == "open":
-        subprocess.Popen(["xdg-open", at_of(name)], start_new_session=True,
+        subprocess.Popen(["xdg-open", os.path.join(ROOT, name)], start_new_session=True,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         sys.exit(0)
     if what == "forget":

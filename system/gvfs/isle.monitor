@@ -1,4 +1,0 @@
-[RemoteVolumeMonitor]
-Name=GProxyVolumeMonitorIsle
-DBusName=org.gtk.vfs.IsleVolumeMonitor
-IsNative=false

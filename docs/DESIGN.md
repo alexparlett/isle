@@ -463,11 +463,13 @@ dragged off again it gets its old size back. Super+Ctrl+arrows do the
 same by key, and a double click on the title bar fills or restores.
 Focus never moves the pointer.
 
-Settings orders its sidebar as KDE, macOS and Windows do: Network and
-Bluetooth first, then Look and feel (Appearance, Notifications, Modes),
-Hardware (Displays, Audio, Keyboard, Mouse, Printers, Storage, Power),
-System (Apps, Users, Date and time, Language and region, Updates) and
-About. With more than one display, the Displays page opens with an
+Settings orders its sidebar the way KDE and macOS agree: Network, what
+connects (Network, Bluetooth, Phone); Look and feel, what it looks like
+(Appearance, Wallpaper, Accessibility, Notifications); Desktop, how it
+behaves (Modes, Apps, Shortcuts), which is KDE's Workspace; Hardware, what
+it is made of, with the device inventory last; and System, what the
+machine is (Users, Date and time, Language and region, Passwords,
+Calendars, Updates, Snapshots, About). With more than one display, the Displays page opens with an
 arrangement map: drag a display and its edges snap to the others; the
 layout is written as absolute positions so nothing else moves. A primary
 display, when chosen, is where every shell surface appears; the default

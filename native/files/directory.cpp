@@ -17,6 +17,7 @@ namespace {
 // The same row a scan would make, for a path named on its own rather than found in a folder.
 DirEntry entryFor(const QString &path, QMimeDatabase &mime) {
     DirEntry e;
+    e.path = path;
     const QFileInfo info(path);
     e.name = info.fileName();
     e.isHidden = e.name.startsWith(QLatin1Char('.'));
@@ -154,7 +155,7 @@ QVariant Directory::data(const QModelIndex &index, int role) const {
     const DirEntry &e = m_rows.at(index.row());
     switch (role) {
     case NameRole: return e.name;
-    case PathRole: return m_paths.isEmpty() ? m_path + QLatin1Char('/') + e.name : m_paths.at(index.row());
+    case PathRole: return e.path.isEmpty() ? m_path + QLatin1Char('/') + e.name : e.path;
     case IconNameRole: return e.iconName;
     case SizeRole: return e.size;
     case ModifiedRole: return e.modified;
@@ -200,6 +201,9 @@ void Directory::setPaths(const QStringList &paths) {
 
     unwatch();
     m_settle.stop();
+    // A scan of the folder may still be in flight; its rows would land on top of these. Moving the
+    // generation on is what tells it nobody is waiting for it any more.
+    ++m_generation;
     // A gathering is built here and now: the rows are named, so there is nothing to go and find.
     m_all.clear();
     QMimeDatabase mime;
@@ -280,9 +284,8 @@ void Directory::refresh() { startScan(); }
 QString Directory::pathAt(int row) const {
     if (row < 0 || row >= m_rows.size())
         return {};
-    if (!m_paths.isEmpty())
-        return data(index(row, 0), PathRole).toString();
-    return m_path + QLatin1Char('/') + m_rows.at(row).name;
+    const DirEntry &e = m_rows.at(row);
+    return e.path.isEmpty() ? m_path + QLatin1Char('/') + e.name : e.path;
 }
 
 bool Directory::isDirAt(int row) const {
@@ -313,6 +316,10 @@ int Directory::rowOf(const QString &name) const {
 
 void Directory::startScan() {
     m_settle.stop();
+    // A gathering is not a folder: there is nothing to go and read, and reading would throw its
+    // rows away.
+    if (!m_paths.isEmpty())
+        return;
 
     unwatch();
 

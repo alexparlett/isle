@@ -292,7 +292,8 @@ FocusScope {
                         && (row.index === 0 || root.directory.groupAt(row.index - 1) !== row.groupName)
 
                     width: list.width
-                    height: (row.opensGroup ? 26 : 0) + 30
+                    readonly property int rowHeight: root.directory.paths.length > 0 ? 40 : 30
+                    height: (row.opensGroup ? 26 : 0) + row.rowHeight
 
                     Drag.active: rowArea.dragging
                     Drag.dragType: Drag.Automatic
@@ -302,7 +303,7 @@ FocusScope {
 
                     Rectangle {
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                        height: 30
+                        height: row.rowHeight
                         color: root.isPicked(row.path) ? Theme.pressed
                              : row.ListView.isCurrentItem ? Theme.raised
                              : rowArea.containsMouse ? Theme.raised : "transparent"
@@ -344,7 +345,7 @@ FocusScope {
                             leftMargin: Theme.s4
                             rightMargin: Theme.s4
                         }
-                        height: 30
+                        height: row.rowHeight
                         spacing: Theme.s3
 
                         RowLayout {
@@ -355,11 +356,25 @@ FocusScope {
                                 implicitSize: 18
                                 source: Quickshell.iconPath(root.iconFor(row.path, row.iconName), "text-x-generic")
                             }
-                            Label {
+                            ColumnLayout {
                                 visible: root.renaming !== row.path
                                 Layout.fillWidth: true
-                                text: row.name
-                                color: row.isSymlink ? Theme.text2 : Theme.text
+                                spacing: 0
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: row.name
+                                    color: row.isSymlink ? Theme.text2 : Theme.text
+                                }
+                                // A row that was named rather than found says which folder it is in,
+                                // since a gathering has no one folder to stand for them all.
+                                Label {
+                                    visible: root.directory.paths.length > 0
+                                    Layout.fillWidth: true
+                                    size: Theme.sizeCaption
+                                    color: Theme.text3
+                                    elide: Text.ElideMiddle
+                                    text: Engine.parentOf(row.path)
+                                }
                             }
                             // Renaming happens on the row, not in a card over it.
                             Loader {
@@ -403,7 +418,7 @@ FocusScope {
                     MouseArea {
                         id: rowArea
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                        height: 30
+                        height: row.rowHeight
                         hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                         // No drag.target: giving a MouseArea one makes it hold every press back to

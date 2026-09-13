@@ -13,6 +13,9 @@
 
 struct DirEntry {
     QString name;
+    // Where the row is, for a row that was named rather than found in a folder. Empty otherwise,
+    // since a folder's rows hang off the folder.
+    QString path;
     QString iconName;
     qint64 size = 0;
     QDateTime modified;

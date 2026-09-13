@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Isle.Files
 import Quickshell.Widgets
 import qs.theme
@@ -44,6 +45,7 @@ FloatingWindow {
 
     // A place that is not a folder says its own name rather than the path it happens to live at.
     readonly property var crumbs: showingRecents ? [{ name: "Recents", path: Places.recentsPath }]
+        : searchingUnder ? [{ name: "Found under " + Engine.displayName(tab.path), path: tab.path }]
         : showingTrash ? [{ name: "Trash", path: Places.trashFiles }]
         : Engine.crumbs(dir.path)
     readonly property bool showingTrash: dir.path === Places.trashFiles
@@ -182,6 +184,34 @@ FloatingWindow {
     }
 
     function duplicate() { if (acting.length) FileJobs.duplicate(acting); }
+
+    // The search field narrows the folder as it is typed; Enter looks underneath it as well, which
+    // is what a search is for once the folder in front of you does not have the thing.
+    property bool searchingUnder: false
+    function searchUnder() {
+        const term = search.text.trim();
+        if (!term) return;
+        searchingUnder = true;
+        dir.filter = "";
+        finder.running = false;
+        finder.command = ["fd", "--max-results", "500", "-i", "-H",
+                          "-E", ".git", "-E", "node_modules", "-E", ".cache",
+                          "-p", term.split(" ").join(".*"), dir.path];
+        finder.running = true;
+    }
+    function stopSearching() {
+        if (!searchingUnder) return;
+        searchingUnder = false;
+        dir.paths = [];
+        dir.path = tab.path;
+    }
+
+    Process {
+        id: finder
+        stdout: StdioCollector {
+            onStreamFinished: dir.paths = text.split("\n").filter(l => l.length)
+        }
+    }
 
     function askNewFolder() {
         const job = FileJobs.newFolder(dir.path, "untitled folder");
@@ -629,9 +659,10 @@ FloatingWindow {
                     id: search
                     Layout.preferredWidth: 200
                     glyph: "search"
-                    placeholder: "Search this folder"
-                    onTextChanged: dir.filter = text
-                    input.Keys.onEscapePressed: { text = ""; view.forceActiveFocus(); }
+                    placeholder: root.searchingUnder ? "Searching underneath" : "Search this folder"
+                    onTextChanged: { if (root.searchingUnder) root.stopSearching(); dir.filter = text; }
+                    onAccepted: root.searchUnder()
+                    input.Keys.onEscapePressed: { text = ""; root.stopSearching(); view.forceActiveFocus(); }
                 }
             }
         }

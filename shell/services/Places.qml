@@ -18,16 +18,17 @@ Singleton {
     property var userDirs: []
     property var bookmarks: []
 
-    // [{ group, name, path, glyph, eject }]
+    // [{ group, name, path, glyph, eject, bookmark }]. A bookmark is a place like any other: it sits
+    // with the rest under Places, and is only marked so it can be taken out again.
     readonly property var places: {
-        const out = [{ group: "Places", name: "Home", path: home, glyph: "house", eject: false }];
+        const out = [{ group: "Places", name: "Home", path: home, glyph: "house", eject: false, bookmark: false }];
         for (const d of userDirs)
-            out.push({ group: "Places", name: d.name, path: d.path, glyph: d.glyph, eject: false });
+            out.push({ group: "Places", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });
         for (const b of bookmarks)
-            out.push({ group: "Bookmarks", name: b.name, path: b.path, glyph: "folder", eject: false });
+            out.push({ group: "Places", name: b.name, path: b.path, glyph: "folder", eject: false, bookmark: true });
         for (const v of Disks.volumes) {
             if (!v.mounted) continue;
-            out.push({ group: "Devices", name: v.label || v.name, path: v.mountpoint, glyph: "hard-drive", eject: true, volume: v });
+            out.push({ group: "Devices", name: v.label || v.name, path: v.mountpoint, glyph: "hard-drive", eject: true, bookmark: false, volume: v });
         }
         return out;
     }

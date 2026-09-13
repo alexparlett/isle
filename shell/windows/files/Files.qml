@@ -177,6 +177,27 @@ FloatingWindow {
             color: "transparent"
             Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: Theme.hairline }
 
+            // A folder dragged here is bookmarked, which is the way most desktops let one be added.
+            DropArea {
+                anchors.fill: parent
+                keys: ["text/uri-list"]
+                onDropped: drop => {
+                    const paths = String(drop.getDataAsString("text/uri-list")).split(/\r?\n/)
+                        .filter(u => u.startsWith("file://")).map(u => decodeURI(u.slice(7)));
+                    for (const p of paths)
+                        if (Engine.isDir(p)) Places.addBookmark(p);
+                    drop.acceptProposedAction();
+                }
+                Rectangle {
+                    anchors { fill: parent; margins: Theme.s2 }
+                    visible: parent.containsDrag
+                    color: "transparent"
+                    border.width: 2
+                    border.color: Theme.accent
+                    radius: Theme.radiusControl
+                }
+            }
+
             Flickable {
                 anchors { fill: parent; margins: Theme.s2; topMargin: Theme.s3 }
                 contentHeight: sideCol.implicitHeight
@@ -206,6 +227,7 @@ FloatingWindow {
                                 size: Theme.sizeCaption
                                 color: Theme.text3
                             }
+                            HoverHandler { id: rowHover }
                             ListRow {
                                 id: row
                                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -213,18 +235,20 @@ FloatingWindow {
                                 title: place.modelData.name
                                 selected: dir.path === place.modelData.path
                                 onClicked: root.go(place.modelData.path)
-                                // Ejecting is the device's own action and belongs on the row, not in a menu.
+                                // Ejecting a device and taking a bookmark out are the row's own
+                                // actions and belong on it, not in a menu.
                                 Glyph {
-                                    visible: place.modelData.eject
-                                    name: "eject"
+                                    visible: place.modelData.eject || (place.modelData.bookmark && rowHover.hovered)
+                                    name: place.modelData.eject ? "eject" : "x"
                                     size: 14
-                                    color: ejectArea.containsMouse ? Theme.text : Theme.text3
+                                    color: actionArea.containsMouse ? Theme.text : Theme.text3
                                     MouseArea {
-                                        id: ejectArea
+                                        id: actionArea
                                         anchors { fill: parent; margins: -6 }
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: Disks.eject(place.modelData.volume)
+                                        onClicked: place.modelData.eject ? Disks.eject(place.modelData.volume)
+                                                                         : Places.removeBookmark(place.modelData.path)
                                     }
                                 }
                             }
@@ -326,7 +350,7 @@ FloatingWindow {
                 const on = path !== "";
                 const many = root.acting.length > 1;
                 menu.items = [
-                    on && !many ? { label: "Open", glyph: "external-link", action: () => Compositor.exec("xdg-open " + JSON.stringify(path)) } : undefined,
+                    on && !many ? { label: "Open", glyph: "external-link", action: () => view.open(view.index) } : undefined,
                     on ? { label: many ? "Rename " + root.acting.length + " items" : "Rename", glyph: "pencil", action: root.askRename } : undefined,
                     on && !many && FileJobs.isArchive(path) ? { label: "Extract here", glyph: "package-open", action: () => FileJobs.extract(path) } : undefined,
                     on ? { label: "Compress", glyph: "archive", action: root.askCompress } : undefined,

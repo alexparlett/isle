@@ -41,11 +41,12 @@ Singleton {
     // Opening a window surface that is already open brings its window to the front instead.
     readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor", files: "Files" })
     function show(name) {
+        if (name === "files") { root.showFiles(""); return; }
         if (root[name]) Windows.focusShellWindow(windowTitles[name]);
         else root[name] = true;
     }
     function showSettings(page) { settingsPage = page; show("settings"); }
-    function showFiles(path) { if (path) filesPath = path; show("files"); }
+    function showFiles(path) { FileWindows.open(path); files = true; }
 
     // A window surface that is open when the shell reloads comes back where it was. Quickshell rebuilds every
     // window from the changed files, so an update run from Settings would otherwise take the page away while
@@ -140,10 +141,11 @@ Singleton {
             else root.monitor = !root.monitor;
         }
         // "open", "close", "toggle", or a folder to open at.
+        // "open", "close", "toggle", or a folder to open at. A window already there takes a tab.
         function files(action: string): void {
-            if (action === "close") root.files = false;
-            else if (action === "open" || !action || action === "-") root.show("files");
-            else if (action === "toggle") root.files = !root.files;
+            if (action === "close") { FileWindows.closeAll(); root.files = false; }
+            else if (action === "open" || !action || action === "-") root.showFiles("");
+            else if (action === "toggle") { if (FileWindows.any) { FileWindows.closeAll(); root.files = false; } else root.showFiles(""); }
             else root.showFiles(action);
         }
         function power(action: string): void {

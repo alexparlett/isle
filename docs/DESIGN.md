@@ -527,7 +527,15 @@ Network tabs each show every process in that tab's columns with a strip
 of the system's totals beneath; Sensors holds temperatures, fans and the
 GPU. The dashboard's System widget already has the live graphs, so the
 window does not repeat them.
-Files is a 190px sidebar of places on the left and the folder on the
+Files is as many windows as are asked for, each with its own tabs: a bar
+of them under the menu bar once there is more than one, each tab a folder
+and the trail it has walked, closed by its cross or a middle click. Ctrl+T
+opens one, Ctrl+N a window, Ctrl+W closes the tab and the window with the
+last of it. A window is named for the folder it is showing. Asking the
+desktop to open a folder while a window is up gives that window a tab
+rather than a second window.
+
+A window is a 190px sidebar of places on the left and the folder on the
 right. The places are grouped Places, Bookmarks and Devices (D69), each
 row a Lucide glyph and a name, the one being shown marked; a device
 carries an eject on the row rather than in a menu. Over the folder is a

@@ -164,116 +164,36 @@ shell actions, settings pages, vault items, web fallback, ranking by use.
 | No Quick Look: a space bar preview of a file result, images and PDFs at least | later |
 | No Spotlight-style suggestions from the web or apps' own providers (KRunner plugins) | no |
 
-### Files and devices
+### Files
 
-Has: disks and drives in the island and a widget, mount and eject,
-SMART, printers, devices tree, keyboard configurators, Bluetooth pairing.
+Against Finder, which is what a Mac hand expects of a file manager. "Has"
+is verified in the VM or on the machine; the rest is ordered by how much
+it is missed.
 
-| gap | worth |
-|---|---|
-| No phone integration: KDE Connect and macOS Continuity (notifications from the phone, clipboard, file drop, remote input). `kdeconnectd` exists and would be a provider | ✓ 7 |
-| No Bluetooth file transfer (OBEX) and no AirDrop-like drop to a nearby machine | later |
-| No file sharing or remote login switches (Plasma's SMB share, macOS Sharing); one page over `smb.conf` and `sshd` | later |
-| No firewall page (Plasma's firewalld/ufw module, macOS's app firewall) | later |
-| No backup page beyond snapshots (Time Machine, Plasma's KBackup, Vorta); a restic or borg provider would fit the providers framework | later |
-
-### Look and feel
-
-Has: dark, light, auto by sunset, accent, wallpaper by folder, cursor
-size, title bars on or off, motion, every toolkit themed from one set of
-tokens, night light.
-
-| gap | worth |
-|---|---|
-| No font settings: family and size for the UI, the mono face; the tokens carry them, the page does not | ✓ 8 |
-| No wallpaper slideshow, no per-space wallpaper, no dynamic (time-of-day) wallpaper (macOS dynamic desktops, Plasma's slideshow) | later |
-| No cursor theme choice (Bibata is the one) and no icon theme choice (Papirus is the one); both are a preference plus a re-render | later |
-| No sound theme: event sounds beyond the one notification chime | no |
-| No desktop icons or files on the desktop | no |
-
-### Input
-
-Has: keyboard layouts, options, repeat, profiles, mouse and touchpad
-speed, acceleration, natural scroll, tap, disable while typing; the keymap
-with Mac and Windows chords.
-
-| gap | worth |
-|---|---|
-| No touchpad gesture settings (three and four finger swipes are fixed in the compositor config) | later |
-| No hot corners or screen edges (Plasma's edges, macOS's corners) | later |
-| No text replacement or expansion (macOS), no compose key page | later |
-| No per-device settings for a second mouse or keyboard | no |
-
-### Notifications and focus
-
-Has: server, toasts with actions and reply, do not disturb with quiet
-hours and a fullscreen rule, per-app muting, allow-through list, history,
-summary when silence lifts, centre in the panel.
-
-| gap | worth |
-|---|---|
-| No focus modes beyond DND: macOS's Work and Personal with their own allow lists and schedules; Plasma has DND only, so Isle already matches Plasma | later |
-| No notification grouping by app in the centre (macOS stacks) | later |
-| No lock-screen notifications (macOS shows them, Plasma can) | later |
-
-### Sessions and accounts
-
-Has: users page, greeter, lock, idle, power menu with countdowns,
-hibernate, apps at login, services, kept-running apps.
-
-| gap | worth |
-|---|---|
-| No session restore: the windows open at logout do not come back (Plasma restores, macOS reopens); the window places are half of it | ✓ 9 |
-| No online accounts (Plasma's KAccounts, macOS's Internet Accounts); the calendar and vault providers are the honest version of this and should stay the pattern | no |
-| No screen time or usage stats | no |
-| No first-run welcome (Plasma's welcome centre, macOS setup) | later |
-
-### Media and capture
-
-Has: media in the island and a widget, output picker, per-app mixer,
-microphone level, capture of region, window and screen, recording with
-audio and cursor, picker, annotate, privacy glyphs.
-
-| gap | worth |
-|---|---|
-| No screen sharing indicator with a stop for a portal cast (macOS's purple dot menu, Plasma's KPipeWire indicator); the recording dot is Isle's own captures only | ✓ |
-| No casting to a TV or speaker (AirPlay, Plasma's none either) | no |
-| No system-wide equaliser (neither ships one) | no |
-
-### Gaming
-
-Has: game mode, Big Picture with the pad, Steam interop, an on-screen
-keyboard, controller battery, tearing and VRR, the pad bridge.
-
-| gap | worth |
-|---|---|
-| No controller page: buttons test, dead zones, which pad is which (Plasma 6.x has one) | ✓ 10 |
-| No performance overlay switch (MangoHud on or off, a keymap action) | later |
-| No per-game settings (Proton version, launch options) beyond Steam's own | no |
-
-### What to build first
-
-The island on every monitor, fullscreen apps on their own space, file
-content search, an emoji picker, a screen-sharing indicator, a magnifier
-and large-text toggle, phone integration as a provider, fonts in
-Appearance, session restore, and a controller page: all ten built, each
-ticked with its number above. Everything marked
-**no** is a line Isle draws on purpose: it is a shell for one person at a
-desk with games and agents, not a platform.
-
-## Files
-
-Has: list, columns and grid, thumbnails from the shared cache, places
-sidebar with bookmarks and devices, breadcrumb trail with back and
+Has: list, columns and grid, thumbnails from the shared cache, a places
+sidebar with bookmarks and devices, a breadcrumb trail with back and
 forward, sortable columns, search within the folder, hidden files,
 multiple selection, copy, cut, paste, rename, rename many, new folder,
-trash and restore, delete, pack and unpack, one step of undo, and the
-file chooser every other application gets.
+trash and restore, delete, pack and unpack, one step of undo, a menu bar,
+a context menu, and the file chooser every other application gets.
 
-| gap | wave |
+| gap | why it is missed |
 |---|---|
-| No trash to browse: things go in and come back only through undo | |
+| Renaming opens a card instead of editing the name where it sits | Finder renames in place; a dialog for a name is a Windows habit |
+| No Quick Look: Space does nothing | The fastest way to look at a file without opening it |
+| No Get Info | Size, kind, where it is, when it changed, permissions |
+| No tabs | One window per folder is how Finder stopped working in 2011 |
+| No path bar at the foot, and the status does not say what space is free | Both are what the bottom of a Finder window is for |
+| No Go to folder by typing a path | Every file manager has it; Finder is Shift+Cmd+G |
+| The trash is not a place: things go in and only come back through undo | Emptying it, and looking in it, are ordinary things to want |
+| No Recents | Finder's first sidebar entry |
+| No Duplicate | One key for the commonest copy there is |
+| Folders in the list do not open in place on a triangle | Finder's list view nests |
+| No preview pane | Shift+Cmd+P |
+| The grid has one icon size | Finder has a slider |
+| No sorting or grouping menu beyond the column headers | Finder groups by kind, date, size, tag |
+| No tags | The one Finder idea with no equivalent anywhere else |
 | Search does not look under the folder, only in it | |
-| No Quick Look, no tags | |
 | Dragging is written but has never been seen to work | |
 | A folder on another volume trashes to the home volume's trash | |
+| The sidebar cannot be reordered by dragging | |

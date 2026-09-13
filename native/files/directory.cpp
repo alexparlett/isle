@@ -116,7 +116,7 @@ void Directory::watch(const QString &path) {
     // written, renamed or having its permissions changed.
     m_watch = inotify_add_watch(m_inotify, QFile::encodeName(path).constData(),
                                 IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_MOVE_SELF |
-                                IN_DELETE_SELF | IN_CLOSE_WRITE | IN_ATTRIB);
+                                IN_DELETE_SELF | IN_CLOSE_WRITE);
 }
 
 void Directory::unwatch() {
@@ -266,7 +266,10 @@ void Directory::startScan() {
         return;
     }
 
-    setStatus(Loading);
+    // Only a folder not yet shown is "loading". A rescan of the one on screen keeps its rows and its
+    // status, so nothing flashes and nothing is rebuilt under the pointer.
+    if (m_scannedPath != m_path)
+        setStatus(Loading);
     m_watchedGeneration = ++m_generation;
     const QString path = m_path;
     m_watcher.setFuture(QtConcurrent::run([path] { return scan(path); }));
@@ -277,6 +280,7 @@ void Directory::scanFinished() {
         return;
 
     m_all = m_watcher.result();
+    m_scannedPath = m_path;
     rebuild();
     setStatus(Ready);
 
@@ -336,6 +340,16 @@ void Directory::rebuild() {
     rows.reserve(int(sortable.size()));
     for (const Sortable &s : sortable)
         rows.append(*s.entry);
+
+    if (rows.size() == m_rows.size()) {
+        bool same = true;
+        for (int i = 0; i < rows.size() && same; ++i) {
+            const DirEntry &a = rows.at(i), &b = m_rows.at(i);
+            same = a.name == b.name && a.size == b.size && a.modified == b.modified && a.isDir == b.isDir;
+        }
+        if (same)
+            return;
+    }
 
     beginResetModel();
     m_rows = std::move(rows);

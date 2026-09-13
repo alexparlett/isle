@@ -23,8 +23,9 @@ FocusScope {
     // A right click, with where it landed in this item's coordinates and the row under it, if any.
     signal menuAsked(real x, real y, string path)
 
-    // The row the keys are on, and the one a shift click measures from.
+    // The row the cursor is on, and the row a run is measured from.
     property int index: 0
+    property int anchor: 0
     // Everything picked, by path. One click makes it the one row; ctrl adds, shift takes a run.
     property var selection: []
 
@@ -48,15 +49,25 @@ FocusScope {
             const at = selection.indexOf(path);
             selection = at < 0 ? selection.concat([path]) : selection.filter(p => p !== path);
         } else if (modifiers & Qt.ShiftModifier) {
-            const from = Math.min(index, row), to = Math.max(index, row);
+            const from = Math.min(anchor, row), to = Math.max(anchor, row);
             const run = [];
             for (let i = from; i <= to; i++) run.push(directory.pathAt(i));
             selection = run;
+            index = row;
             return;                              // the anchor stays where the run started
         } else {
             selection = [path];
         }
         index = row;
+        anchor = row;
+    }
+
+    // Moving with the keys picks as it goes; with Shift it grows the run instead.
+    function step(by, modifiers) {
+        const to = Math.max(0, Math.min(directory.count - 1, index + by));
+        pick(to, modifiers & Qt.ShiftModifier ? Qt.ShiftModifier : Qt.NoModifier);
+        if (mode === "grid") grid.positionViewAtIndex(to, GridView.Contain);
+        else list.positionViewAtIndex(to, ListView.Contain);
     }
 
     function selectAll() {
@@ -77,7 +88,7 @@ FocusScope {
         if (row < 0 || row >= directory.count) return;
         const path = directory.pathAt(row);
         if (directory.isDirAt(row)) root.activated(path);
-        else if (root.openFiles) Compositor.exec("xdg-open " + JSON.stringify(path));
+        else if (root.openFiles) Compositor.exec("python3 " + JSON.stringify(Quickshell.shellDir + "/scripts/open.py") + " " + JSON.stringify(path));
         else root.chosen(path);
     }
 
@@ -103,6 +114,7 @@ FocusScope {
         target: root.directory
         function onPathChanged() {
             root.index = 0;
+            root.anchor = 0;
             root.selection = [];
             list.positionViewAtBeginning();
             grid.positionViewAtBeginning();
@@ -189,13 +201,14 @@ FocusScope {
                 clip: true
                 focus: root.mode === "list"
                 currentIndex: root.index
-                onCurrentIndexChanged: if (visible && currentIndex !== root.index) root.pick(currentIndex, Qt.NoModifier)
                 // A folder of fifty thousand rows only ever builds the ones on screen.
                 reuseItems: true
                 boundsBehavior: Flickable.StopAtBounds
 
                 Keys.onReturnPressed: root.open(root.index)
                 Keys.onEnterPressed: root.open(root.index)
+                Keys.onUpPressed: event => root.step(-1, event.modifiers)
+                Keys.onDownPressed: event => root.step(1, event.modifiers)
 
                 delegate: Rectangle {
                     id: row
@@ -211,7 +224,7 @@ FocusScope {
                     width: list.width
                     height: 30
 
-                    Drag.active: rowArea.drag.active
+                    Drag.active: rowArea.dragging
                     Drag.dragType: Drag.Automatic
                     Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
                     Drag.mimeData: ({ "text/uri-list": root.uriList(root.isPicked(row.path) ? root.selection : [row.path]) })
@@ -280,11 +293,18 @@ FocusScope {
                         anchors.fill: parent
                         hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        drag.target: row
-                        // An automatic drag is handed to the platform, and is started rather than
-                        // simply declared. The row itself must not travel, so it is put back after.
-                        drag.onActiveChanged: {
-                            if (!rowArea.drag.active) return;
+                        // No drag.target: giving a MouseArea one makes it hold every press back to
+                        // see whether a drag follows, and a click then needs repeating. The drag is
+                        // started by hand when the pointer has moved far enough to mean it.
+                        property point pressedAt
+                        property bool dragging: false
+                        onPressed: mouse => { rowArea.pressedAt = Qt.point(mouse.x, mouse.y); rowArea.dragging = false; }
+                        onReleased: rowArea.dragging = false
+                        onPositionChanged: mouse => {
+                            if (rowArea.dragging || !(mouse.buttons & Qt.LeftButton)) return;
+                            const far = Math.abs(mouse.x - rowArea.pressedAt.x) + Math.abs(mouse.y - rowArea.pressedAt.y);
+                            if (far < Qt.styleHints.startDragDistance) return;
+                            rowArea.dragging = true;
                             if (!root.isPicked(row.path)) root.pick(row.index, Qt.NoModifier);
                             row.Drag.startDrag();
                         }
@@ -310,7 +330,6 @@ FocusScope {
                 clip: true
                 focus: root.mode === "grid"
                 currentIndex: root.index
-                onCurrentIndexChanged: if (visible && currentIndex !== root.index) root.pick(currentIndex, Qt.NoModifier)
                 cellWidth: 116
                 cellHeight: 116
                 reuseItems: true
@@ -318,6 +337,8 @@ FocusScope {
 
                 Keys.onReturnPressed: root.open(root.index)
                 Keys.onEnterPressed: root.open(root.index)
+                Keys.onUpPressed: event => root.step(-1, event.modifiers)
+                Keys.onDownPressed: event => root.step(1, event.modifiers)
 
                 delegate: Item {
                     id: cell

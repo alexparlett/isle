@@ -112,6 +112,8 @@ private:
     void setStatus(Status status, const QString &error = {});
 
     QString m_path;
+    // The folder the rows on screen came from, to tell a first look from a second.
+    QString m_scannedPath;
     bool m_showHidden = false;
     Sort m_sort = ByName;
     Qt::SortOrder m_sortOrder = Qt::AscendingOrder;

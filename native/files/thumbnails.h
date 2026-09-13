@@ -34,4 +34,9 @@ private:
     QThreadPool m_pool;
     // What is already being made, so a view scrolling back over a row does not ask twice.
     QSet<QString> m_running;
+    // What could not be made, against the mtime it failed at: a truncated picture is not worth
+    // decoding again every time its folder is shown, and libpng says so loudly each time.
+    QHash<QString, qint64> m_failed;
+    // The mtime each running job was asked about, so a failure is remembered against the right one.
+    QHash<QString, qint64> m_wanted;
 };

@@ -153,6 +153,8 @@ QString Thumbnails::thumbnail(const QString &path, qint64 mtime) {
     const QString file = cacheFile(path, NormalSize);
     if (valid(file, path, mtime))
         return file;
+    if (m_failed.value(path, -1) == mtime)
+        return {};
 
     if (!m_running.contains(path)) {
         m_running.insert(path);
@@ -162,6 +164,7 @@ QString Thumbnails::thumbnail(const QString &path, qint64 mtime) {
             finished(path, watcher->result());
             watcher->deleteLater();
         });
+        m_wanted.insert(path, mtime);
         watcher->setFuture(QtConcurrent::run(pool, [path, file] { return make(path, file) ? file : QString(); }));
     }
     return {};
@@ -169,6 +172,9 @@ QString Thumbnails::thumbnail(const QString &path, qint64 mtime) {
 
 void Thumbnails::finished(const QString &path, const QString &file) {
     m_running.remove(path);
-    if (!file.isEmpty())
+    if (file.isEmpty())
+        m_failed.insert(path, m_wanted.value(path, -1));
+    else
         emit ready(path, file);
+    m_wanted.remove(path);
 }

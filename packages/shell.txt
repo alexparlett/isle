@@ -9,7 +9,7 @@ cmake             # which cmake, ninja and gcc build at install time
 ninja
 gcc
 xdg-desktop-portal-hyprland
-xdg-desktop-portal-gtk
+xdg-desktop-portal-gtk   # not for the file dialog any more (D67); it still answers the Settings portal
 kitty
 polkit
 xdg-utils
@@ -58,13 +58,9 @@ wtype   # the on-screen keyboard types through it
 words   # and completes words from the dictionary
 
 # Files
-yazi
-thunar
-thunar-archive-plugin
-thunar-volman
+yazi        # the terminal one; the window is the shell's own (D73)
 mousepad
-gvfs
-tumbler
+libarchive  # bsdtar, which packs and unpacks for Files
 
 # Monitor and games
 btop

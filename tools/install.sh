@@ -138,26 +138,22 @@ if grep -qs isle-greeter /etc/greetd/hyprland.lua; then
 fi
 systemctl --user daemon-reload
 ok "the shell starts from hyprland.lua's start hook (shell/scripts/isle-session)"
-xdg-user-dirs-update >/dev/null 2>&1
-if command -v thunar >/dev/null && [ "$(xdg-mime query default inode/directory 2>/dev/null)" = "" ]; then
-    xdg-mime default thunar.desktop inode/directory && ok "Thunar opens folders"
-fi
-# Thunar's "open terminal here" runs exo's TerminalEmulator helper, which is kitty.
-mkdir -p "$CFG/xfce4" "$HOME/.local/share/xfce4/helpers"
-cat > "$HOME/.local/share/xfce4/helpers/kitty.desktop" <<'H'
+# A machine without xdg-user-dirs is not a reason to stop: set -e would end the install here.
+xdg-user-dirs-update >/dev/null 2>&1 || true
+# Files is the shell's own window, reached through a desktop entry so anything opening a folder finds it (D73).
+cat > "$HOME/.local/share/applications/isle-files.desktop" <<D
 [Desktop Entry]
-NoDisplay=true
-Version=1.0
-Encoding=UTF-8
-Type=X-XFCE-Helper
-X-XFCE-Category=TerminalEmulator
-X-XFCE-Commands=kitty
-X-XFCE-CommandsWithParameter=kitty -e %s
-Name=kitty
-Icon=kitty
-H
-grep -q "^TerminalEmulator=" "$CFG/xfce4/helpers.rc" 2>/dev/null || echo "TerminalEmulator=kitty" >> "$CFG/xfce4/helpers.rc"
-ok "kitty is Thunar's terminal"
+Type=Application
+Name=Files
+Comment=Browse the files on this machine
+Exec=$REPO/shell/scripts/isle-files %f
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
+D
+update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+if xdg-mime default isle-files.desktop inode/directory 2>/dev/null; then ok "Files opens folders"; else echo "  ! xdg-mime could not make Files the handler for folders" >&2; fi
 # Mousepad for text unless something other than Zed was chosen already.
 if command -v mousepad >/dev/null; then
     case "$(xdg-mime query default text/plain 2>/dev/null)" in ""|dev.zed.Zed.desktop) xdg-mime default org.xfce.mousepad.desktop text/plain && ok "Mousepad opens text" ;; esac

@@ -95,7 +95,7 @@ COSMIC: the applets are bound to cosmic-comp and cosmic-panel.
 | role | choice | weighed against | why |
 |---|---|---|---|
 | terminal | kitty (~90 MB) | foot (~15 MB), ghostty (~110 MB), wezterm | GPU rendering, images, remote control from the shell (dropdown, tabs), themes from tokens. foot is the lean alternative if the shell ever needs to shave memory |
-| file manager | yazi in kitty; Thunar for drag-drop, trash, mounts | Nautilus (~150 MB + indexer), Dolphin (KDE frameworks) | yazi is the daily tool; Thunar is the lightest GUI that does what a TUI cannot and themes with the GTK3 CSS we ship anyway |
+| file manager | the shell (D73); yazi in kitty for the terminal | Thunar, Nautilus (~150 MB + indexer), Dolphin (KDE frameworks) | a file manager and a file dialog are one browsing engine, and owning it is what lets a drive be a place rather than a mount pretending to be one (D65, D66). Thunar, gvfs and tumbler are gone with it |
 | launcher, switcher, notifications, OSD, lock, idle, polkit agent, power menu | the shell | fuzzel, rofi, mako, dunst, swayosd, hyprlock, hypridle, hyprpolkitagent | each is a surface in the shell's material; the separate tools each bring their own look |
 | greeter | greetd + a shell-drawn greeter | SDDM, ly | same material from the login screen; Quickshell speaks greetd natively |
 | keyboard profiles | xremap | keyd, kanata | the only one that remaps per device and per app (Hyprland backend), which the Mac/Windows dual-keyboard setup needs |

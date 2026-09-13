@@ -18,8 +18,8 @@ ok()   { printf '  \e[32m✓\e[0m %s\n' "$*"; }
 would() { printf '  \e[33m·\e[0m %s\n' "$*"; }
 found=0
 
-# Packages Isle once listed and no longer does (D39: qt6ct).
-former=(qt6ct)
+# Packages Isle once listed and no longer does (D39: qt6ct; D73: the Thunar stack).
+former=(qt6ct thunar thunar-archive-plugin thunar-volman gvfs tumbler)
 gone=()
 for p in "${former[@]}"; do
     pacman -Q "$p" >/dev/null 2>&1 && ! grep -qx "$p" "$REPO/packages/shell.txt" && gone+=("$p")

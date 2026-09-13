@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Opens a folder in Files. The desktop entry and the inode/directory handler both come through here,
+# so a folder opened from any application reaches the shell's own window rather than starting one.
+exec qs -c isle ipc call surfaces files "${1:-open}"

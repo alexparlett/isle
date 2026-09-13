@@ -782,3 +782,22 @@ the chooser reach it, both of them behind a loader that makes a component
 at run time (D66). The rule is worth stating plainly because the failure is
 total and the cause is a single import in a file nothing appeared to be
 using.
+
+**D73 · Thunar is gone, and what it needed with it.** The window Isle draws
+does what Thunar did: mounts through the Disks service, trash through the
+spec, thumbnails through the shared cache, packing through bsdtar. So
+`thunar`, `thunar-archive-plugin`, `thunar-volman`, `gvfs` and `tumbler`
+leave `packages/shell.txt` and join `tidy.sh`'s list of what an earlier
+Isle installed and this one does not. `yazi` stays: a file manager in the
+terminal is a different tool for a different moment, and SUPER+ALT+E is
+where it lives now that SUPER+E is the window.
+
+`xdg-desktop-portal-gtk` stays installed. It lost the file dialog at D67,
+but it still answers `org.freedesktop.impl.portal.Settings`, which is how
+every GTK application learns whether the desktop is dark. Removing the
+package to finish a list would take that with it.
+
+Folders open through a desktop entry of Isle's own, set as the handler for
+`inode/directory`, whose Exec reaches the shell over its IPC. An
+application asking the desktop to open a folder therefore gets the window
+that is already running rather than a second one.

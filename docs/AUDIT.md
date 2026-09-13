@@ -260,3 +260,20 @@ Appearance, session restore, and a controller page: all ten built, each
 ticked with its number above. Everything marked
 **no** is a line Isle draws on purpose: it is a shell for one person at a
 desk with games and agents, not a platform.
+
+## Files
+
+Has: list, columns and grid, thumbnails from the shared cache, places
+sidebar with bookmarks and devices, breadcrumb trail with back and
+forward, sortable columns, search within the folder, hidden files,
+multiple selection, copy, cut, paste, rename, rename many, new folder,
+trash and restore, delete, pack and unpack, one step of undo, and the
+file chooser every other application gets.
+
+| gap | wave |
+|---|---|
+| No trash to browse: things go in and come back only through undo | |
+| Search does not look under the folder, only in it | |
+| No Quick Look, no tags | |
+| Dragging is written but has never been seen to work | |
+| A folder on another volume trashes to the home volume's trash | |

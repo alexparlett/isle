@@ -321,16 +321,16 @@
             "hypr": "SUPER + E",
             "win": "Win E",
             "mac": "Cmd Shift E",
-            "lua": "hl.dsp.exec_cmd(fileManager)",
+            "ipc": ["surfaces", "files", "open"],
             "macHypr": "SUPER + SHIFT + E"
         },
         {
-            "id": "filesGui",
-            "label": "Files (Thunar)",
+            "id": "filesTerminal",
+            "label": "Files in the terminal",
             "hypr": "SUPER + ALT + E",
             "win": "Win Alt E",
             "mac": "Cmd Option E",
-            "lua": "hl.dsp.exec_cmd(\"thunar\")"
+            "lua": "hl.dsp.exec_cmd(fileManager)"
         },
         {
             "id": "clipboard",

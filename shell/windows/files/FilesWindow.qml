@@ -92,11 +92,15 @@ FloatingWindow {
 
     function newTab(path) {
         const to = path || dir.path;
-        // A folder already open in this window is shown rather than opened a second time.
-        const already = tabs.findIndex(t => t.path === to);
-        if (already >= 0) { showTab(already); return; }
         tabs = tabs.concat([{ path: to, history: [to], at: 0 }]);
         current = tabs.length - 1;
+    }
+    // Another application asking the desktop to open a folder wants to see that folder, not a second
+    // tab on it. Asking for a new tab here is asking for a new tab, even on the folder already open.
+    function showFolderInTab(path) {
+        const already = tabs.findIndex(t => t.path === path);
+        if (already >= 0) showTab(already);
+        else newTab(path);
     }
     function closeTab(i) {
         if (tabs.length <= 1) { FileWindows.close(root.modelData.id); return; }
@@ -176,7 +180,7 @@ FloatingWindow {
         target: FileWindows
         function onRaised() {
             const asked = FileWindows.takeAsked(root.modelData.id);
-            if (asked) root.newTab(asked.path);
+            if (asked) root.showFolderInTab(asked.path);
         }
     }
 
@@ -667,6 +671,9 @@ FloatingWindow {
                         RowLayout {
                             anchors { fill: parent; leftMargin: Theme.s3; rightMargin: Theme.s2 }
                             spacing: Theme.s2
+                            // Above the tab's own click area, which covers the whole tab and is
+                            // declared after this; only the cross in here takes a click.
+                            z: 1
                             Label {
                                 Layout.fillWidth: true
                                 size: Theme.sizeSmall
@@ -674,13 +681,20 @@ FloatingWindow {
                                 color: root.current === tabItem.index ? Theme.text : Theme.text2
                                 text: Engine.displayName(tabItem.modelData.path)
                             }
-                            Glyph {
-                                name: "x"
-                                size: 12
-                                color: closeArea.containsMouse ? Theme.text : Theme.text3
+                            // A box big enough to hit around a glyph that is smaller than a target
+                            // wants to be. A click outside the box belongs to the tab.
+                            Item {
+                                Layout.preferredWidth: 18
+                                Layout.preferredHeight: 18
+                                Glyph {
+                                    anchors.centerIn: parent
+                                    name: "x"
+                                    size: 12
+                                    color: closeArea.containsMouse ? Theme.text : Theme.text3
+                                }
                                 MouseArea {
                                     id: closeArea
-                                    anchors { fill: parent; margins: -4 }
+                                    anchors.fill: parent
                                     hoverEnabled: true
                                     onClicked: root.closeTab(tabItem.index)
                                 }

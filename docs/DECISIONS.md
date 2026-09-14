@@ -1127,3 +1127,20 @@ window by IPC since D73, is now the only files shortcut.
 A terminal file manager is still one `kitty -e <anything>` away for anyone
 who wants one. What goes is Isle shipping, theming and binding a second
 one.
+
+**D86 · An install starts the shell again, whatever it changed.** D84 had
+`install.sh` restart `qs` only when the browsing engine on disk was no longer
+the one the running process had mapped, on the reasoning that changed QML
+reloads itself. It does not, reliably. Both halves of an update replace a file
+by renaming a new one over it — `rsync` writes a temporary and renames, and so
+does `git` — and the inotify watch that would have fired stays on an inode
+nothing will write to again. An update that changed only QML therefore left the
+shell running the QML it started with, and a fix that had landed on disk looked
+like no fix at all.
+
+So the test goes. An install that finds a session up — `isle.pid`, which
+`isle-session` writes and removes — kills `qs`, and that loop brings it back in
+about a second. It is still last in the run, so one restart covers everything
+the install changed, and D78 still makes it safe for an update to do. The
+engine case D84 named is a subset of this one; the QML guard it added stays,
+since a shell a version behind should lose a feature rather than a menu.

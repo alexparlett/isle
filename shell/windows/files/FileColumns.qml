@@ -5,6 +5,7 @@ import Quickshell.Widgets
 import Isle.Files
 import qs.theme
 import qs.ui
+import qs.services
 // Loaded by URL at the root (see shell.qml), which leaves no implicit scope for a sibling.
 import qs.windows.files
 
@@ -122,10 +123,30 @@ Item {
                     required property string modelData
                     required property int index
 
-                    width: 220
+                    width: Prefs.p.filesColumn
                     height: row.height
 
                     Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: Theme.hairline }
+
+                    // The line between two columns is the handle that sets how wide they all are.
+                    // Measured against the whole strip, since the column it sits on is being resized
+                    // by the very drag being measured.
+                    MouseArea {
+                        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                        width: 6
+                        z: 3
+                        cursorShape: Qt.SizeHorCursor
+                        property real from: 0
+                        property real was: 0
+                        onPressed: mouse => { from = mapToItem(root, mouse.x, 0).x; was = Prefs.p.filesColumn; }
+                        onPositionChanged: mouse => {
+                            if (!(mouse.buttons & Qt.LeftButton)) return;
+                            const by = mapToItem(root, mouse.x, 0).x - from;
+                            Prefs.p.filesColumn = Math.round(Math.max(140, Math.min(420, was + by)));
+                        }
+                        // Back to the width the columns start at.
+                        onDoubleClicked: Prefs.p.filesColumn = 220
+                    }
 
                     Directory {
                         id: folder
@@ -230,7 +251,7 @@ Item {
             FilePreview {
                 // The last column takes whatever the columns left, so a preview is a preview and not
                 // a strip with a window of nothing beside it.
-                width: Math.max(280, root.width - root.chain.length * 220)
+                width: Math.max(280, root.width - root.chain.length * Prefs.p.filesColumn)
                 height: row.height
                 visible: root.selected !== "" && !root.selectedIsDir
                 picked: visible ? [root.selected] : []

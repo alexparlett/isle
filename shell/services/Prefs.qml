@@ -49,6 +49,7 @@ Singleton {
             property bool filesHidden: false
             property bool filesPreview: false
             property int filesSidebar: 190
+            property int filesColumn: 220
             // Searches worth keeping: [{ name, path, term, kind, when }], shown in the sidebar.
             property var filesSearches: []
 

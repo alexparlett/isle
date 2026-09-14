@@ -12,12 +12,22 @@ import qs.windows.files
 // Each column is a directory of its own, so several are alive at once and none re-reads another.
 Item {
     id: root
-    // The folder the leftmost column shows.
+    // The folder the leftmost column shows, or, when it is a gathering — Recents, the trash, what a
+    // search found — the paths it holds. A folder picked in it opens in the next column either way.
     required property string rootPath
+    property var rootPaths: []
     property bool showHidden: false
 
     // The path each column shows, the first being rootPath. A pick truncates and extends it.
-    property var chain: [rootPath]
+    // A name for the first column that is not a path, so nothing mistakes it for one.
+    readonly property string gathering: "gathering:"
+    function firstColumn() { return rootPaths.length > 0 ? gathering : rootPath; }
+
+    // Picking writes the chain, which is why this cannot be a binding: it would be gone after the
+    // first pick and the columns would go on showing whatever was open when it was made.
+    property var chain: [firstColumn()]
+    onRootPathChanged: chain = [firstColumn()]
+    onRootPathsChanged: chain = [firstColumn()]
     onChainChanged: if (chain.length <= 1) { selected = ""; selectedIsDir = false; }
     // What is picked in the rightmost column that has a pick, file or folder.
     property string selected: ""
@@ -119,7 +129,8 @@ Item {
 
                     Directory {
                         id: folder
-                        path: column.modelData
+                        path: column.modelData === root.gathering ? "" : column.modelData
+                        paths: column.modelData === root.gathering ? root.rootPaths : []
                         showHidden: root.showHidden
                     }
                     Component.onCompleted: { root.folders[column.index] = folder; root.views[column.index] = entries; }

@@ -32,6 +32,11 @@ FocusScope {
     // The row the cursor is on, and the row a run is measured from.
     property int index: 0
     property int anchor: 0
+    // Recents, the trash and what a search found are rows that were named rather than found in a
+    // folder. Every view shows them, columns included: the gathering is the first column and a
+    // folder picked in it opens in the next, the same as anywhere else.
+    readonly property string shown: mode
+
     // Everything picked, by path. One click makes it the one row; ctrl adds, shift takes a run.
     property var selection: []
     // Where the keys are, and where a run measures from, held as paths: a row number means a
@@ -40,14 +45,14 @@ FocusScope {
     property string anchorPath: ""
 
     // Columns pick by path; the other two pick by row. Either way it is one selection to the caller.
-    readonly property bool hasSelection: mode === "columns"
+    readonly property bool hasSelection: shown === "columns"
         ? (columns.selected !== "" && !columns.selectedIsDir)
         : (selection.length === 1 && !Engine.isDir(selection[0]))
-    readonly property string currentPath: mode === "columns"
+    readonly property string currentPath: shown === "columns"
         ? (columns.selectedIsDir ? "" : columns.selected)
         : (hasSelection ? selection[0] : "")
     // What an action acts on: everything picked, or the row the keys are on when nothing is.
-    readonly property var acting: mode === "columns"
+    readonly property var acting: shown === "columns"
         ? (columns.selected ? [columns.selected] : [])
         : (selection.length ? selection : (cursor && directory.rowOfPath(cursor) >= 0 ? [cursor] : []))
 
@@ -78,7 +83,7 @@ FocusScope {
     function step(by, modifiers) {
         const to = index < 0 ? 0 : Math.max(0, Math.min(directory.count - 1, index + by));
         pick(to, modifiers & Qt.ShiftModifier ? Qt.ShiftModifier : Qt.NoModifier);
-        if (mode === "grid") grid.positionViewAtIndex(to, GridView.Contain);
+        if (shown === "grid") grid.positionViewAtIndex(to, GridView.Contain);
         else list.positionViewAtIndex(to, ListView.Contain);
     }
 
@@ -101,14 +106,14 @@ FocusScope {
     }
 
     function show(row) {
-        if (mode === "grid") grid.positionViewAtIndex(row, GridView.Contain);
+        if (shown === "grid") grid.positionViewAtIndex(row, GridView.Contain);
         else list.positionViewAtIndex(row, ListView.Contain);
     }
 
     // Everything the band has covered, asked of the view row by row across the band.
     function pickWithin(x, y, w, h) {
-        const v = mode === "grid" ? grid : list;
-        const step = mode === "grid" ? Math.max(8, cellSize / 3) : 12;
+        const v = shown === "grid" ? grid : list;
+        const step = shown === "grid" ? Math.max(8, cellSize / 3) : 12;
         const found = [];
         for (let py = y; py <= y + h; py += step) {
             for (let px = x; px <= x + w; px += step) {
@@ -170,7 +175,7 @@ FocusScope {
         if (row < 0) { pending = path; return; }
         pending = "";
         pick(row, Qt.NoModifier);
-        if (mode === "grid") grid.positionViewAtIndex(row, GridView.Contain);
+        if (shown === "grid") grid.positionViewAtIndex(row, GridView.Contain);
         else list.positionViewAtIndex(row, ListView.Contain);
         renaming = path;
     }
@@ -257,7 +262,7 @@ FocusScope {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 28
-            visible: root.mode === "list"
+            visible: root.shown === "list"
             color: "transparent"
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.hairline }
             RowLayout {
@@ -346,11 +351,11 @@ FocusScope {
             ListView {
                 id: list
                 anchors.fill: parent
-                visible: root.mode === "list"
+                visible: root.shown === "list"
                 enabled: visible
                 model: root.directory
                 clip: true
-                focus: root.mode === "list"
+                focus: root.shown === "list"
                 currentIndex: root.index
                 // A folder of fifty thousand rows only ever builds the ones on screen.
                 reuseItems: true
@@ -584,11 +589,11 @@ FocusScope {
             GridView {
                 id: grid
                 anchors.fill: parent
-                visible: root.mode === "grid"
+                visible: root.shown === "grid"
                 enabled: visible
                 model: root.directory
                 clip: true
-                focus: root.mode === "grid"
+                focus: root.shown === "grid"
                 currentIndex: root.index
                 cellWidth: root.cellSize
                 cellHeight: root.cellSize
@@ -752,12 +757,12 @@ FocusScope {
                 }
             }
 
-            Scrollbar { target: root.mode === "grid" ? grid : list; visible: root.mode !== "columns" }
+            Scrollbar { target: root.shown === "grid" ? grid : list; visible: root.shown !== "columns" }
 
             MouseArea {
                 id: bandArea
                 anchors.fill: parent
-                visible: root.mode !== "columns"
+                visible: root.shown !== "columns"
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 propagateComposedEvents: true
 
@@ -766,7 +771,7 @@ FocusScope {
                 // The release comes before the click, so what the band did has to outlive it.
                 property bool banded: false
 
-                function view() { return root.mode === "grid" ? grid : list; }
+                function view() { return root.shown === "grid" ? grid : list; }
 
                 onPressed: mouse => {
                     const v = view();
@@ -810,10 +815,11 @@ FocusScope {
             FileColumns {
                 id: columns
                 anchors.fill: parent
-                visible: root.mode === "columns"
+                visible: root.shown === "columns"
                 enabled: visible
                 focus: visible
                 rootPath: root.directory.path
+                rootPaths: root.directory.paths
                 showHidden: root.directory.showHidden
                 onActivated: path => root.activated(path)
                 // The same question the other views ask: what opens this, and who says so.
@@ -824,7 +830,7 @@ FocusScope {
             // Nothing to show, and why.
             Label {
                 anchors.centerIn: parent
-                visible: root.mode !== "columns" && root.directory.status === Directory.Ready && root.directory.count === 0
+                visible: root.shown !== "columns" && root.directory.status === Directory.Ready && root.directory.count === 0
                 color: Theme.text3
                 text: root.directory.total === 0 ? "This folder is empty" : "Nothing here matches"
             }

@@ -48,6 +48,7 @@ Singleton {
             property int filesIconSize: 64
             property bool filesHidden: false
             property bool filesPreview: false
+            property int filesSidebar: 190
             // Searches worth keeping: [{ name, path, term, kind, when }], shown in the sidebar.
             property var filesSearches: []
 

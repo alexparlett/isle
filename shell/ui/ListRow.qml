@@ -10,7 +10,13 @@ Rectangle {
     property string title
     property string subtitle: ""
     property bool selected: false
+    // Which buttons the row answers. A row that only opens something wants the left one alone.
+    property int buttons: Qt.LeftButton
     default property alias trailing: trailingSlot.data
+
+    // Where a right click landed, in the row's own frame, for whatever puts a menu there.
+    signal rightClicked(real x, real y)
+    signal middleClicked()
     signal clicked
 
     implicitHeight: 40
@@ -36,7 +42,12 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.clicked()
+        acceptedButtons: root.buttons
+        onClicked: mouse => {
+            if (mouse.button === Qt.RightButton) root.rightClicked(mouse.x, mouse.y);
+            else if (mouse.button === Qt.MiddleButton) root.middleClicked();
+            else root.clicked();
+        }
         z: -1
     }
 }

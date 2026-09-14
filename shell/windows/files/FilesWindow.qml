@@ -52,13 +52,17 @@ FloatingWindow {
     // here, so the tab and what is on screen cannot drift apart.
     function show(to) {
         clearSearch();
+        // A gathering is named rather than read, so the folder is let go of first. Setting the paths
+        // first and the path after would clear them again: a path is a folder or it is a gathering.
         if (to === Places.recentsPath) {
             Places.refreshRecents();
+            dir.path = "";
             dir.paths = Places.recents.map(r => r.path);
             return;
         }
         // The trash is not one folder: a file on another volume goes to that volume's own.
         if (to === Places.trashFiles) {
+            dir.path = "";
             dir.paths = FileJobs.trashContents();
             return;
         }
@@ -126,6 +130,30 @@ FloatingWindow {
         if (!from || tabs.length <= 1) return;
         FileWindows.add(from.path);
         closeTab(i);
+    }
+
+    // What a place in the sidebar can be told to do, which is not the same for all of them: a
+    // bookmark can be taken out, a volume can be ejected, the trash can be emptied.
+    function showPlaceMenu(x, y, place) {
+        const trash = place.path === Places.trashFiles;
+        const recents = place.path === Places.recentsPath;
+        menu.items = [
+            { label: "Open", glyph: "external-link", action: () => go(place.path) },
+            { label: "Open in new tab", glyph: "plus", action: () => showFolderInTab(place.path) },
+            { label: "Open in new window", glyph: "app-window", action: () => FileWindows.add(place.path) },
+            !recents && !trash ? null : undefined,
+            !recents && !trash ? { label: "Get info", glyph: "info", action: () => peek.look(place.path) } : undefined,
+            !recents && !trash ? { label: "Open in terminal", glyph: "terminal",
+              action: () => Compositor.exec("kitty -d " + Compositor.quote(place.path)) } : undefined,
+            place.bookmark || place.eject || trash ? null : undefined,
+            place.bookmark ? { label: "Remove from sidebar", glyph: "x",
+              action: () => Places.removeBookmark(place.path) } : undefined,
+            place.eject ? { label: "Eject", glyph: "eject", action: () => Disks.eject(place.volume) } : undefined,
+            trash ? { label: "Empty the trash", glyph: "trash", danger: true,
+              enabled: FileJobs.trashContents().length > 0, action: askEmptyTrash } : undefined,
+        ].filter(i => i !== undefined);
+        openBarMenu = "";
+        menu.popup(x, y);
     }
 
     function showTabMenu(x, y, i) {
@@ -215,7 +243,7 @@ FloatingWindow {
     Connections {
         target: Places
         enabled: root.showingRecents && !root.searchingUnder
-        function onRecentsChanged() { dir.paths = Places.recents.map(r => r.path); }
+        function onRecentsChanged() { dir.path = ""; dir.paths = Places.recents.map(r => r.path); }
     }
 
     Connections {
@@ -443,7 +471,7 @@ FloatingWindow {
             if (job.state === FileJob.Failed)
                 IslandEvents.show({ kind: "text", glyph: "triangle-alert", text: job.error });
             // A gathering is named rather than watched, so what the trash holds is asked for again.
-            if (root.showingTrash) dir.paths = FileJobs.trashContents();
+            if (root.showingTrash) { dir.path = ""; dir.paths = FileJobs.trashContents(); }
         }
     }
 
@@ -824,10 +852,28 @@ FloatingWindow {
 
         // Sidebar
         Rectangle {
+            id: sidebar
             Layout.fillHeight: true
-            Layout.preferredWidth: 190
+            Layout.preferredWidth: Prefs.p.filesSidebar
             color: "transparent"
             Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: Theme.hairline }
+
+            // The edge is draggable, and how wide it was left is how it opens next time. Measured
+            // against the window rather than against the handle, which the drag is moving.
+            MouseArea {
+                anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                width: 6
+                z: 3
+                cursorShape: Qt.SizeHorCursor
+                property real from: 0
+                property real was: 0
+                onPressed: mouse => { from = mapToItem(root.contentItem, mouse.x, 0).x; was = sidebar.width; }
+                onPositionChanged: mouse => {
+                    if (!(mouse.buttons & Qt.LeftButton)) return;
+                    const by = mapToItem(root.contentItem, mouse.x, 0).x - from;
+                    Prefs.p.filesSidebar = Math.round(Math.max(150, Math.min(400, was + by)));
+                }
+            }
 
             // A folder dragged here is bookmarked, which is the way most desktops let one be added.
             DropArea {
@@ -950,7 +996,13 @@ FloatingWindow {
                                 // the drive is open, where there is room to say it.
                                 subtitle: place.modelData.drive ? Engine.freeSpace(place.modelData.path) : ""
                                 selected: dir.path === place.modelData.path
+                                buttons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                                 onClicked: root.go(place.modelData.path)
+                                onMiddleClicked: root.showFolderInTab(place.modelData.path)
+                                onRightClicked: (x, y) => {
+                                    const at = row.mapToItem(overlay, x, y);
+                                    root.showPlaceMenu(at.x, at.y, place.modelData);
+                                }
 
                                 Drag.active: dragger.active
                                 Drag.dragType: Drag.Automatic

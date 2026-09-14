@@ -158,11 +158,33 @@ FocusScope {
         anchor = 0;
     }
 
+    // Which row is under the top edge and how far above it the view has scrolled, kept as the view
+    // moves. Rebuilding the rows resets the model, which drops the view to the top; this is what
+    // puts it back where it was.
+    property string topPath: ""
+    property real topOffset: 0
+    function rememberPlace() {
+        const v = shown === "grid" ? grid : list;
+        const at = v.indexAt(v.contentX + 1, v.contentY + 1);
+        const item = at >= 0 ? v.itemAtIndex(at) : null;
+        topPath = at >= 0 ? directory.pathAt(at) : "";
+        topOffset = item ? v.contentY - item.y : 0;
+    }
+    function restorePlace() {
+        if (!topPath) return;
+        const back = directory.rowOfPath(topPath);
+        if (back < 0) return;
+        const v = shown === "grid" ? grid : list;
+        v.positionViewAtIndex(back, shown === "grid" ? GridView.Beginning : ListView.Beginning);
+        v.contentY += topOffset;
+    }
+
     // A different listing: nothing is picked, nothing is being renamed, and nothing is waiting to be.
     function forget() {
         deselect();
         renaming = "";
         pending = "";
+        topPath = "";
         list.positionViewAtBeginning();
         grid.positionViewAtBeginning();
     }
@@ -269,6 +291,7 @@ FocusScope {
             // worked out again when root.index changes, which after a reset it usually has not.
             list.currentIndex = root.index;
             grid.currentIndex = root.index;
+            root.restorePlace();
         }
         function onPathChanged() { root.forget(); }
         // A gathering — Recents, or what a search found — is as much a change of listing as a
@@ -388,8 +411,8 @@ FocusScope {
                 Keys.onEnterPressed: root.open(root.index)
                 Keys.onUpPressed: event => root.step(-1, event.modifiers)
                 Keys.onDownPressed: event => root.step(1, event.modifiers)
-                Keys.onRightPressed: root.directory.expand(root.index)
-                Keys.onLeftPressed: root.directory.collapse(root.index)
+                Keys.onRightPressed: { root.rememberPlace(); root.directory.expand(root.index); }
+                Keys.onLeftPressed: { root.rememberPlace(); root.directory.collapse(root.index); }
                 Keys.onPressed: event => root.walk(event, Math.max(1, Math.floor(height / 30) - 1))
 
                 delegate: Rectangle {
@@ -487,8 +510,11 @@ FocusScope {
                                 MouseArea {
                                     anchors.fill: parent
                                     enabled: row.isDir
-                                    onClicked: row.opened ? root.directory.collapse(row.index)
-                                                          : root.directory.expand(row.index)
+                                    onClicked: {
+                                        root.rememberPlace();
+                                        row.opened ? root.directory.collapse(row.index)
+                                                   : root.directory.expand(row.index);
+                                    }
                                 }
                             }
                             IconImage {
@@ -626,8 +652,8 @@ FocusScope {
                 Keys.onEnterPressed: root.open(root.index)
                 Keys.onUpPressed: event => root.step(-1, event.modifiers)
                 Keys.onDownPressed: event => root.step(1, event.modifiers)
-                Keys.onRightPressed: root.directory.expand(root.index)
-                Keys.onLeftPressed: root.directory.collapse(root.index)
+                Keys.onRightPressed: { root.rememberPlace(); root.directory.expand(root.index); }
+                Keys.onLeftPressed: { root.rememberPlace(); root.directory.collapse(root.index); }
                 Keys.onPressed: event => root.walk(event, Math.max(1, Math.floor(height / 30) - 1))
 
                 delegate: Item {

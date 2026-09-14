@@ -17,10 +17,11 @@ Singleton {
     readonly property bool any: windows.length > 0
 
     function open(path) {
-        if (!windows.length) { add(path); return; }
-        // A window is already there: it takes another tab rather than a second window appearing.
-        // Asking for no folder in particular is asking for the window itself, not for a tab.
-        if (!path) return;
+        // Asking for Files with no folder in mind is asking for a window of its own: that is what
+        // picking a file manager's name means, and it is why the launcher starts one rather than
+        // raising the one that is there.
+        if (!path || !windows.length) { add(path); return; }
+        // A folder does have somewhere to go: the window already open takes it as another tab.
         lastAsked = { id: windows[windows.length - 1].id, path: path };
         raised();
     }

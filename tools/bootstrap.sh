@@ -75,7 +75,8 @@ fi
 # --- compositor plugins: hyprbars (title bars) and isle-windows (drag tiling), built by hyprpm ------
 if ((bars)); then
     step "Title bars"
-    sudo pacman -S --needed --noconfirm base-devel cmake cpio >/dev/null
+    # hyprpm is its own package since hyprland 0.56.2-3; without it the plugins are never built.
+    sudo pacman -S --needed --noconfirm base-devel cmake cpio hyprpm >/dev/null
     # This repo is the plugin source: hyprbars as upstream builds it, plus no bar over a window that draws its own controls.
     if hyprpm update && (yes | hyprpm add "$DEST") && hyprpm enable hyprbars && hyprpm enable isle-windows; then
         ok "hyprbars and isle-windows built and enabled; hyprland.lua loads them at start"

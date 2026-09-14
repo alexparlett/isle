@@ -91,7 +91,7 @@ FloatingWindow {
     function up() { if (!showingRecents) go(Engine.parentOf(tab.path)); }
 
     function newTab(path) {
-        const to = path || dir.path;
+        const to = path || Engine.home;
         tabs = tabs.concat([{ path: to, history: [to], at: 0 }]);
         current = tabs.length - 1;
     }
@@ -646,9 +646,11 @@ FloatingWindow {
         // The tabs, which appear once there is more than one folder open in this window.
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 32
+            Layout.preferredHeight: 34
             visible: root.tabs.length > 1
-            color: "transparent"
+            // The strip sits back so the chips on it come forward; a chip the same shade as the
+            // window behind it is not a chip at all.
+            color: Qt.alpha(Theme.ink, 0.45)
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.hairline }
 
             RowLayout {
@@ -660,13 +662,22 @@ FloatingWindow {
                         id: tabItem
                         required property var modelData
                         required property int index
+                        // Wide enough for the name and no wider, so two tabs are two chips rather
+                        // than two halves of the window, and narrowing only starts once they fill it.
                         Layout.fillWidth: true
+                        Layout.preferredWidth: label.implicitWidth + 18 + Theme.s3 + Theme.s2 * 2
                         Layout.maximumWidth: 200
+                        Layout.minimumWidth: 90
+                        // A chip standing clear of the line under the strip. Filling the height
+                        // would put its bottom edge on that line and paint over it.
                         Layout.fillHeight: true
-                        Layout.topMargin: 3
+                        Layout.topMargin: 4
+                        Layout.bottomMargin: 5
                         radius: Theme.radiusChip
-                        color: root.current === tabItem.index ? Theme.raised
-                             : tabArea.containsMouse ? Theme.pressed : "transparent"
+                        // Every tab is a chip so the strip reads as tabs; the open one is the one
+                        // that stands out of the row rather than the only one in it.
+                        color: root.current === tabItem.index ? Theme.pressed
+                             : tabArea.containsMouse ? Theme.pressed : Theme.raised
 
                         RowLayout {
                             anchors { fill: parent; leftMargin: Theme.s3; rightMargin: Theme.s2 }
@@ -675,6 +686,7 @@ FloatingWindow {
                             // declared after this; only the cross in here takes a click.
                             z: 1
                             Label {
+                                id: label
                                 Layout.fillWidth: true
                                 size: Theme.sizeSmall
                                 elide: Text.ElideRight
@@ -682,12 +694,16 @@ FloatingWindow {
                                 text: Engine.displayName(tabItem.modelData.path)
                             }
                             // A box big enough to hit around a glyph that is smaller than a target
-                            // wants to be. A click outside the box belongs to the tab.
+                            // wants to be. A click outside the box belongs to the tab. The room is
+                            // kept whether or not the cross is showing, so nothing shifts under the
+                            // pointer as it moves along the strip.
                             Item {
                                 Layout.preferredWidth: 18
                                 Layout.preferredHeight: 18
                                 Glyph {
                                     anchors.centerIn: parent
+                                    visible: tabArea.containsMouse || closeArea.containsMouse
+                                        || root.current === tabItem.index
                                     name: "x"
                                     size: 12
                                     color: closeArea.containsMouse ? Theme.text : Theme.text3

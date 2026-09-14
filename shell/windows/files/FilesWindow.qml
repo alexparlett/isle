@@ -264,8 +264,8 @@ FloatingWindow {
     // How much is picked, which is what a person wants before copying it somewhere.
     // Only files are added up. A folder's size means walking all of it, which is not something to
     // do in a binding that runs on every change of what is picked.
-    readonly property string pickedSize: view && view.selection.length
-        && !view.selection.some(p => Engine.isDir(p)) ? Engine.sizeOf(view.selection) : ""
+    readonly property string pickedSize: view && view.picked.length
+        && !view.picked.some(p => Engine.isDir(p)) ? Engine.sizeOf(view.picked) : ""
 
     function said(n) { return n === 1 ? Engine.displayName(acting[0]) : n + " items"; }
 
@@ -1200,7 +1200,7 @@ FloatingWindow {
                     color: Theme.text3
                     text: dir.status === Directory.Error ? dir.error
                         : dir.status === Directory.Loading ? "Reading…"
-                        : view.selection.length ? view.selection.length + " of " + dir.count + " selected"
+                        : view.picked.length ? view.picked.length + " of " + dir.count + " selected"
                             + (root.pickedSize ? ", " + root.pickedSize : "")
                         : dir.filter ? dir.count + (dir.count === 1 ? " match" : " matches")
                         : dir.count + (dir.count === 1 ? " item" : " items")

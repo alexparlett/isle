@@ -379,6 +379,14 @@ int Directory::rowOfPath(const QString &path) const {
     return -1;
 }
 
+QString Directory::longestName() const {
+    const DirEntry *longest = nullptr;
+    for (const DirEntry &e : m_rows)
+        if (!longest || e.name.size() > longest->name.size())
+            longest = &e;
+    return longest ? longest->name : QString();
+}
+
 void Directory::startScan() {
     m_settle.stop();
     // A gathering is not a folder: there is nothing to go and read, and reading would throw its

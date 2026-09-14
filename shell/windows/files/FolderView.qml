@@ -46,14 +46,18 @@ FocusScope {
 
     // Columns pick by path; the other two pick by row. Either way it is one selection to the caller.
     readonly property bool hasSelection: shown === "columns"
-        ? (columns.selected !== "" && !columns.selectedIsDir)
+        ? (columns.selection.length === 1 && !columns.selectedIsDir)
         : (selection.length === 1 && !Engine.isDir(selection[0]))
     readonly property string currentPath: shown === "columns"
         ? (columns.selectedIsDir ? "" : columns.selected)
         : (hasSelection ? selection[0] : "")
+    // Everything picked, whichever view is showing. `selection` is the list's and the grid's own;
+    // columns keep theirs, since a column browser picks within one column.
+    readonly property var picked: shown === "columns" ? columns.selection : selection
+
     // What an action acts on: everything picked, or the row the keys are on when nothing is.
     readonly property var acting: shown === "columns"
-        ? (columns.selected ? [columns.selected] : [])
+        ? columns.selection
         : (selection.length ? selection : (cursor && directory.rowOfPath(cursor) >= 0 ? [cursor] : []))
 
     function pick(row, modifiers) {
@@ -136,6 +140,7 @@ FocusScope {
     }
 
     function selectAll() {
+        if (shown === "columns") { columns.selectAll(); return; }
         const all = [];
         for (let i = 0; i < directory.count; i++) all.push(directory.pathAt(i));
         selection = all;
@@ -167,7 +172,11 @@ FocusScope {
     // A new name settled on; the window does the renaming, since it owns the jobs.
     signal renamed(string path, string name)
 
-    function beginRename(path) { renaming = path || (acting.length === 1 ? acting[0] : ""); }
+    function beginRename(path) {
+        const one = path || (acting.length === 1 ? acting[0] : "");
+        if (shown === "columns") { columns.beginRename(one); return; }
+        renaming = one;
+    }
 
     // A folder that has only just appeared: picked, brought into view, and its name open for typing.
     function beginRenameWhenSeen(path) {
@@ -186,8 +195,13 @@ FocusScope {
     function endRename(path, name) {
         if (renaming !== path) return;
         renaming = "";
-        const was = Engine.displayName(path);
-        if (name && name !== was) root.renamed(path, name);
+        if (!name || name === Engine.displayName(path)) return;
+        // The cursor and the pick follow the name, rather than being left on a path that is gone.
+        const to = Engine.join(Engine.parentOf(path), name);
+        selection = selection.map(p => p === path ? to : p);
+        if (cursor === path) cursor = to;
+        if (anchorPath === path) anchorPath = to;
+        root.renamed(path, name);
     }
     function cancelRename() { renaming = ""; }
 
@@ -821,10 +835,16 @@ FocusScope {
                 rootPath: root.directory.path
                 rootPaths: root.directory.paths
                 showHidden: root.directory.showHidden
+                sort: root.directory.sort
+                sortOrder: root.directory.sortOrder
+                filter: root.directory.filter
                 onActivated: path => root.activated(path)
                 // The same question the other views ask: what opens this, and who says so.
                 onChosen: path => root.openFiles ? root.asked(path) : root.chosen(path)
                 onMenuAsked: (x, y, path) => root.menuAsked(x, y, path)
+                onOpenedInTab: path => root.openedInTab(path)
+                onRenamed: (path, name) => root.renamed(path, name)
+                onDropped: (paths, into) => root.dropped(paths, into)
             }
 
             // Nothing to show, and why.

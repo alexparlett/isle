@@ -131,6 +131,8 @@ public:
     Q_INVOKABLE int startingWith(const QString &prefix, int from) const;
     // Which row a path is at, or -1. Names repeat once folders are opened in place; paths do not.
     Q_INVOKABLE int rowOfPath(const QString &path) const;
+    // The longest name in the listing, for sizing a column to what it holds.
+    Q_INVOKABLE QString longestName() const;
     // The heading a row sits under, so a view can tell where one run of them ends and the next starts.
     Q_INVOKABLE QString groupAt(int row) const;
     // Open a folder in place, as a list that nests does, or shut it again.

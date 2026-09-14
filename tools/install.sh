@@ -174,3 +174,19 @@ if command -v xremap >/dev/null; then
 else
     echo "  ! xremap not installed: keyboard profiles are off until it is (paru -S xremap-hypr-bin)"
 fi
+
+# A running shell keeps the browsing engine it mapped when it started: an install that replaces the
+# file is not picked up by the reload the changed QML causes, and the shell then runs new QML against
+# an engine that has not got what the QML calls. Starting again is the only thing that takes it, so
+# this does that when the two have parted, and isle-session brings the shell back (D84).
+engine_so="$ISLE_HOME/qml/Isle/Files/libisle-files.so"
+if [[ -e "$engine_so" ]] && [[ -f "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/isle.pid" ]]; then
+    on_disk="$(stat -c %i "$engine_so")"
+    for p in $(pgrep -x qs 2>/dev/null); do
+        mapped="$(awk '/libisle-files\.so/ { print $5; exit }' "/proc/$p/maps" 2>/dev/null || true)"
+        if [[ -n "$mapped" && "$mapped" != "$on_disk" ]]; then
+            kill "$p" 2>/dev/null && ok "shell restarted (it was running against the engine it started with)"
+            break
+        fi
+    done
+fi

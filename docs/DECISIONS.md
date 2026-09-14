@@ -1079,3 +1079,34 @@ The list is now enforced in both directions: a package taken off a machine
 by hand comes back with the next update. That is the point — the list is
 what the shell needs, not a suggestion — but it does mean removing one
 means taking it off the list.
+
+**D84 · A shell whose engine was replaced under it is started again.** An
+update pulls first, and the comment in `update.py` has always said what
+that means: the files under `shell/` change and Quickshell reloads. What it
+did not say is that the reload brings up the *new* QML against the *old*
+browsing engine, because `install.sh` — which rebuilds it — is the next
+line. Nor does installing the new `libisle-files.so` help: it lives under
+`qml/`, not the config path Quickshell watches, so nothing reloads; and a
+reload would not help either, since Qt registers a native module's types
+once, from the library it opened when the process started.
+
+So every update that changed the engine left a shell running QML that
+called methods its engine had not got, until something restarted `qs`.
+Nothing did. It went unnoticed because no change had yet added an engine
+method the QML calls on a common path — the first one that did took the
+Files context menu down with it, a `TypeError` in the middle of the
+expression that builds the items, so the whole menu never appeared.
+
+`install.sh` now compares the inode the running shell has mapped against
+the file on disk, the way `restartneeded.py` already tells a compositor
+plugin Hyprland mapped from the one hyprpm has since built (D46), and kills
+`qs` when they have parted. `isle-session`'s loop brings it back in about a
+second. It is last in the install, so one restart covers everything the run
+changed, and the update is not the shell's child (D78), so it is safe for
+it to do.
+
+The QML is guarded as well, which is the half that matters for whatever
+comes next: a call into the engine for something the engine may not have
+goes through a function that checks the method is there first. A shell that
+is a version behind then loses the feature and nothing else, rather than
+losing the menu the feature was one item of.

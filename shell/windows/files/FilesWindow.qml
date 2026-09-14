@@ -333,6 +333,11 @@ FloatingWindow {
 
     function duplicate() { if (acting.length) FileJobs.duplicate(acting); }
 
+    // The engine a running shell has is the one it mapped at startup, which an install replaces
+    // underneath it: a method added to it is missing until the next restart, and an unguarded call
+    // takes the whole menu down with it.
+    function isBundle(path) { return !!Engine.isAppImage && Engine.isAppImage(path); }
+
     // Installing an AppImage is moving it where installed apps live; the folder is watched, so the
     // launcher entry follows from the move rather than from this (D82).
     function addToApplications(path) {
@@ -344,7 +349,7 @@ FloatingWindow {
     property string opening: ""
     function openFile(path) {
         // An AppImage is a program, so opening it runs it, wherever it is sitting (D82).
-        if (Engine.isAppImage(path)) { AppImages.launch(path); return; }
+        if (isBundle(path)) { AppImages.launch(path); return; }
         opening = path;
         opener.command = ["python3", Quickshell.shellDir + "/scripts/openwith.py", "open", path];
         opener.running = true;
@@ -528,7 +533,7 @@ FloatingWindow {
         if (name === "File") return [
             on && !many ? { label: "Open", glyph: "external-link", action: () => view.openPath(actingOne) } : undefined,
             on && !many ? { label: "Open with…", glyph: "app-window", action: () => askOpenWith(actingOne) } : undefined,
-            on && !many && Engine.isAppImage(actingOne) && !AppImages.inFolder(actingOne)
+            on && !many && isBundle(actingOne) && !AppImages.inFolder(actingOne)
                 ? { label: "Add to Applications", glyph: "layout-grid", action: () => addToApplications(actingOne) } : undefined,
             null,
             { label: "New folder", glyph: "folder-plus", action: askNewFolder },
@@ -614,7 +619,7 @@ FloatingWindow {
         ] : [
             on && !many ? { label: "Open", glyph: "external-link", action: () => view.openPath(path || actingOne) } : undefined,
             on && !many ? { label: "Open with…", glyph: "app-window", action: () => askOpenWith(path || actingOne) } : undefined,
-            on && !many && Engine.isAppImage(path || actingOne) && !AppImages.inFolder(path || actingOne)
+            on && !many && isBundle(path || actingOne) && !AppImages.inFolder(path || actingOne)
                 ? { label: "Add to Applications", glyph: "layout-grid", action: () => addToApplications(path || actingOne) } : undefined,
             on && !many ? { label: "Rename", glyph: "pencil", action: askRename } : undefined,
             many ? { label: "Rename " + acting.length + " items…", glyph: "pencil", action: askRenameMany } : undefined,

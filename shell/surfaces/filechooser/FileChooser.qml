@@ -23,6 +23,12 @@ PanelWindow {
         && (request.directory || (request.save ? nameField.text.trim() !== "" : list.hasSelection))
     // Only the files picked, since a folder in the list is somewhere to go rather than an answer.
     readonly property var picked: list.selection.filter(p => !Engine.isDir(p))
+    // In a folder chooser it is the other way round: a folder settled on is the answer. One unless
+    // the application asked for several.
+    readonly property var pickedFolders: {
+        const folders = list.picked.filter(p => Engine.isDir(p));
+        return request && request.multiple ? folders : folders.slice(0, 1);
+    }
 
     // One choice, two placements: beside the name when saving, at the foot of the card when opening.
     component FileTypes: Dropdown {
@@ -43,6 +49,9 @@ PanelWindow {
     onRequestChanged: {
         if (!request) return;
         settled.restart();
+        // The surface outlives the request, so the view still holds what the last one picked. A
+        // path that has not changed would not clear it.
+        list.forget();
         dir.path = request.folder;
         dir.foldersOnly = request.directory;
         filterIndex = request.filters.length ? 0 : -1;
@@ -53,7 +62,9 @@ PanelWindow {
 
     function accept() {
         if (!canAccept) return;
-        if (request.directory) request.accept([dir.path], filterIndex);
+        // Nothing picked means the folder being looked at, which is how a person walks into the one
+        // they want and presses Open.
+        if (request.directory) request.accept(pickedFolders.length ? pickedFolders : [dir.path], filterIndex);
         else if (request.save) request.accept([Engine.join(dir.path, nameField.text.trim())], filterIndex);
         // An application that asked for several gets everything picked; one that asked for one gets
         // the one the list settled on.

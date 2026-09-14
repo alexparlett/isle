@@ -239,7 +239,8 @@ Escape closes whatever is up.
   ending, ".pdf" rather than the application's "PDF documents", up to three
   of them for a type that takes several, and by the application's own words
   only where there is no ending to show.
-  Asked for a folder, it offers the one it is showing. It is the one
+  Asked for a folder, it answers with the one picked in the list, or with
+  the one it is showing when nothing is picked. It is the one
   full-screen surface that does not close the others.
 - **Lock** — wallpaper blurred and dimmed; the island grows into a 28px
   clock; typing reveals a password field under it. Wrong password shakes it.

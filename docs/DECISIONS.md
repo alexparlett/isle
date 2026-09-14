@@ -864,3 +864,29 @@ monitor does nothing until something turns it on, so `redetect` — the
 release-and-reload that is the whole of D56 — was inert in exactly the
 case it was written for, a KVM switch after the screens had gone off. It
 wakes the screens first now.
+
+**D75 · The shell's own windows are told apart by their titles.** Settings,
+the Keychain, the Monitor and every Files window are drawn out of one
+process, so the compositor gives all of them the app id Quickshell
+registers. Anything grouping by that id — the switcher, the dock, Mission
+Control — made them one entry with one name, and naming every Files window
+for its folder made a file manager into an entry per window instead. The
+three named windows stand for themselves and everything else the shell
+draws is a Files window, which takes its name and its icon from the desktop
+entry Files already installs for the folder handler.
+
+A title is a weak thing to key on, and a Files window showing a folder
+called Settings would join the wrong entry. Nothing better is available:
+the app id is per process, not per window. The cost is cosmetic and the
+alternative was a switcher that could not tell the file manager from the
+control panel.
+
+**D76 · Where a favourite sits is the person's, not the script's.** The
+folders down the left come from `xdg-user-dirs` in the order that file
+lists them, and bookmarks from GTK's file in the order it was written.
+Neither order is one anybody chose. Any favourite can be dragged up or
+down, and the order is kept as a list of paths beside the rest of what
+Files remembers; a place that has never been dragged, or one that has only
+just appeared, keeps the place it would have had among the rest. The GTK
+file still holds the bookmarks themselves, so what is bookmarked stays
+shared with every other file manager (D69) while where it sits does not.

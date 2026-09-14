@@ -176,15 +176,23 @@ in the browser.
 
 ### Wired
 
-Places: Recents, the person's own folders, bookmarks that can be dragged
-into the order they are wanted, mounted devices with eject, the Trash of
-every volume at once, saved searches. Tabs and as many windows as are
-wanted. Menu bar (File, Edit, View, Go), context menu on a row and on the
-folder, Menu/Shift+F10. List, columns and grid; a preview beside the
-folder; folders that open in place on a triangle; thumbnails from the
-shared cache; group headings by kind, date or size; sort by name, size,
-date or kind on the headers or the menu; column widths dragged on the
-header; icon size on Ctrl+plus and Ctrl+minus.
+Places: Recents above the headings, Favourites — the person's own folders
+and their bookmarks, dragged into whatever order is wanted — Locations with
+every drive by name and the room left on it and the Trash of every volume
+at once, and saved searches. The sidebar is dragged to the width wanted and
+answers the right button per row. Tabs in a strip that scrolls rather than
+squeezing, with their own right-click menu, and as many windows as are
+wanted, all of them named Files and standing together in the switcher. Menu
+bar (File, Edit, View, Go), context menu on a row, on the folder, on a tab
+and on a place, Menu/Shift+F10.
+
+List, columns and grid, all three showing a gathering and all three walking
+down into it. A preview beside the folder, and as the last column in
+columns. Folders that open in place on a triangle. Thumbnails from the
+shared cache. Group headings by kind, date or size; sort by name, size,
+kind or date on the headers or the menu; column widths dragged on the
+header in the list and on the divider in columns, where a double click
+fits the longest name; icon size on Ctrl+plus and Ctrl+minus.
 
 Keys: Alt with the arrows and Backspace to walk; Ctrl+H hidden; F5 refresh;
 Ctrl+F search, Enter to search underneath; Ctrl+1/2/3 view; Ctrl+Shift+P
@@ -196,10 +204,12 @@ type-ahead; the arrows to walk in and out of a nested folder and, in
 columns, between and within the columns.
 
 Mouse: click to pick, Ctrl to add, Shift for a run, a band drawn across
-rows, click on nothing to let go, double click to open, middle click for a
-tab, right click keeping a selection it is already part of; dragging rows
-and grid cells onto a folder, onto another window, out to other
-applications, and onto the sidebar to bookmark.
+rows, click on nothing to let go of everything including the cursor, double
+click to open, middle click for a tab, right click keeping a selection it
+is already part of. Dragging carries what it carries under the pointer and
+lands on a folder in any view, on a place in the sidebar — into it, or
+between two of them as a bookmark — on the Trash, or out to another
+application.
 
 Acts: copy, cut, paste, duplicate, rename on the row, rename many at once,
 new file and folder on the row, move to trash, put back, empty trash,
@@ -215,3 +225,4 @@ lately something changed, and a search can be saved.
 | No Connect to server | out of the slice's scope: no SMB or NFS yet |
 | Sorting and grouping are not remembered per folder | remembered for all folders at once |
 | A saved search is a term and its narrowings, not a live query | there is no index to query |
+| A Files window showing a folder called Settings joins the Settings entry in the switcher | D75: nothing better than the title to key on |

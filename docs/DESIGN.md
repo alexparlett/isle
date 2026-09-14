@@ -528,23 +528,40 @@ of the system's totals beneath; Sensors holds temperatures, fans and the
 GPU. The dashboard's System widget already has the live graphs, so the
 window does not repeat them.
 Files is as many windows as are asked for, each with its own tabs: a bar
-of them under the menu bar once there is more than one, each tab a folder
-and the trail it has walked, closed by its cross or a middle click. Ctrl+T
-opens one, Ctrl+N a window, Ctrl+W closes the tab and the window with the
-last of it. A window is named for the folder it is showing. Asking the
-desktop to open a folder while a window is up gives that window a tab
-rather than a second window.
+of them under the menu bar once there is more than one, each tab a chip
+named for its folder, closed by its cross or a middle click. The cross is
+on the open tab and under the pointer, and its room is kept either way so
+nothing shifts as the pointer moves along. Tabs stop narrowing at a width
+their names can still be read at and the strip scrolls, keeping the open
+one in view; the wheel walks along it. A right click on one offers another
+tab, duplicate it, pull it into its own window, close it, close the others,
+close the ones to its right.
 
-A window is a 190px sidebar of places on the left and the folder on the
-right. The places are grouped Places, Bookmarks and Devices (D69), each
-row a Lucide glyph and a name, the one being shown marked; a device
-carries an eject on the row rather than in a menu, and a bookmark can be
-dragged up and down to sit where it is wanted. Over the folder is a
-56px toolbar: back, forward and up at the left, then the trail as buttons,
+Ctrl+T opens a tab at the folder a new window opens at rather than a copy
+of the one in front of you, Ctrl+N a window, Ctrl+W closes the tab and the
+window with the last of it. Every window is named Files, the way a file
+manager's windows all are: which folder it shows is the trail's business.
+They stand together under one name in the switcher and the dock (D75).
+Asking the desktop to open a folder while a window is up gives that window
+a tab; asking for Files itself opens a window.
+
+A window is a sidebar of places on the left, dragged by its edge between
+150 and 400 wide and remembered, and the folder on the right. Recents
+stands above the headings, since it is what was open lately rather than
+somewhere to be; then Favourites, the person's own folders and their
+bookmarks together, and Locations, the volumes and the Trash. Each row is
+a Lucide glyph and a name, the one being shown marked; a drive says how
+much room is left on it under its name and a removable one carries an
+eject on the row rather than in a menu. Any favourite is dragged up and
+down to sit where it is wanted, and that order is the person's rather than
+the order the folders happen to be found in (D76). A right click on a
+place offers to open it, in a tab or a window, look at it, open a terminal
+there, take a bookmark out, eject a volume, or empty the trash. Over the
+folder is a 56px toolbar: back, forward and up at the left, then the trail as buttons,
 which scrolls to keep its tail in view and whose last crumb is where you
 are and does nothing; then a star that bookmarks where you are, the view
-switch, and a search field. Beneath it the folder as rows of name, size
-and modified, 30px each, with a header that sorts on a click and turns
+switch, and a search field. Beneath it the folder as rows of name, size,
+kind and modified, 30px each, each column dragged by its heading's edge, with a header that sorts on a click and turns
 its direction over on a second. Folders lead every sort in both
 directions, and a name sorts the way a person reads a number, so file2
 comes before file10. The icon is the icon theme's for the file's type,
@@ -553,8 +570,9 @@ one rather than a read of its contents. A footer says how many items are
 there, or how many a search matched.
 
 List, Columns and Grid switch beside the search field, or on Ctrl+1,
-Ctrl+2 and Ctrl+3. A 240px preview stands to the right of the folder on
-Ctrl+Shift+P: what one picked thing is, its picture where it has one and
+Ctrl+2 and Ctrl+3. All three show a gathering — Recents, the trash, what a
+search found — and all three walk down into a folder found in one. A 240px
+preview stands to the right of the folder on Ctrl+Shift+P: what one picked thing is, its picture where it has one and
 its icon where it has not, then the same facts Get Info shows. It is off
 until it is asked for and stays however it was left.
 
@@ -570,11 +588,16 @@ search is a name in the sidebar above the places, and opening one puts the
 window back the way it was when it was saved.
 
 Columns are Finder's: the folder in the leftmost, what is picked in it in
-the next, and so on rightwards, each column a 220px list with a chevron on
-every folder. The folder whose contents the next column shows stays
-marked, so the way down can be read from left to right, and picking
-something further left drops the columns to its right. A double click
-opens a folder outright, which starts the columns again from there.
+the next, and so on rightwards, each column a list with a chevron on every
+folder. A column is dragged to the width it wants by the line on its right,
+and a double click on that line makes it wide enough for the longest name
+in it. The folder whose contents the next column shows stays marked, so the
+way down can be read from left to right, and picking something further left
+drops the columns to its right. A double click opens a folder outright,
+which starts the columns again from there. A column picks the way the list
+does, and everything picked is in one column, since a column browser walks
+one branch. The last column is the preview when what is picked is not a
+folder.
 The grid is 116px cells: a picture or a film shows itself, anything else
 shows its icon, and the name sits under it over at most two lines. A
 thumbnail is the shared one every desktop tool writes (D68), so a folder
@@ -589,9 +612,14 @@ A right click offers what can be done with what is under it: open,
 rename, copy, cut, paste, a new folder, move to trash, delete, and for
 several at once one name for all of them (D71). An archive offers to
 unpack, into a folder beside it named after it; anything picked offers to
-pack. Files can be dragged onto a folder in the list or onto the folder
-being shown, which moves them, and out to other applications, which is
-their business. The
+pack. Files can be dragged onto a folder in any of the three views, onto the
+folder being shown, onto a place in the sidebar, and out to other
+applications, which is their business. What is carried is under the
+pointer: the thing's icon and name, or a count when it is several. A folder
+under it fills faintly rather than being outlined. A drop on a place means
+one of two things and where in the row it lands says which: over the middle
+it goes into that folder, near an edge it becomes a bookmark sitting
+between those two rows, and on the Trash it is thrown away. The
 keys are the ones every desktop uses: F2 renames, Delete moves to the
 trash, Shift with Delete removes for good and asks first, Ctrl with C, X
 and V copy, cut and paste, Ctrl+Shift+N makes a folder, and Ctrl+Z undoes

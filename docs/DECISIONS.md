@@ -840,3 +840,27 @@ place and segfaults the compositor when one holds function hooks. So the
 skew joins the facts D46 already checks, as a third reason on the same
 path — the mapped inode against the one on disk — and is said in the same
 words as the kernel and the driver.
+
+**D76 · A screen is watched through Quickshell's list, and a screen that
+comes back is told what to do.** The lock screen survived a KVM switch and
+never came back: the session stayed up, nothing crashed, and the monitor
+returned to a compositor that left it asleep. Three things had to hold and
+none did. `Hyprland.monitors` keeps an entry for a monitor the compositor
+has already dropped and never says it changed, so `Displays.stranded` was
+false while the session sat on the headless `FALLBACK` and the heal D56
+promised never ran at all; the check now reads `Quickshell.screens`, which
+is accurate and does notify. That heal was one attempt two seconds after
+the stranding, which is the one moment the screen is certainly not back
+yet — a KVM hands it over in minutes — so it asks again every five seconds
+for as long as the session is stranded. And an output only leaves DPMS off
+on an idle-to-active edge, which a screen that was away never saw: the
+input that woke the seat happened while the KVM held the screen, and when
+it came back there was no edge left to give it. So the idle policy keeps
+what it last decided and says it again whenever the screen list moves.
+
+One measurement underneath all three: an output the compositor has put to
+sleep is not released. `hl.monitor{ disabled = true }` on a sleeping
+monitor does nothing until something turns it on, so `redetect` — the
+release-and-reload that is the whole of D56 — was inert in exactly the
+case it was written for, a KVM switch after the screens had gone off. It
+wakes the screens first now.

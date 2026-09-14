@@ -70,29 +70,32 @@ Singleton {
     // A monitor that comes back from a KVM switch or a cable is not always driven again: the compositor still
     // holds the connector up with a CRTC, so it never re-probes it and the link is never re-trained. Releasing
     // every output and reloading the config re-acquires them; the renderer reload alone does not (D56). It goes
-    // as one shell command so nothing can leave the session without a screen half way through.
+    // as one shell command so nothing can leave the session without a screen half way through, and it wakes the
+    // screens first: an output the compositor has put to sleep is not released while it sleeps (D76).
     property Process relinker: Process { id: relinker }
     function redetect() {
         if (relinker.running) return;
-        let cmd = "";
-        for (const m of monitors)
-            if (m.name !== "FALLBACK")
-                cmd += "hyprctl eval 'hl.monitor({ output = \"" + m.name + "\", disabled = true })' >/dev/null 2>&1; ";
+        let cmd = "hyprctl dispatch 'hl.dsp.dpms({ action = \"on\" })' >/dev/null 2>&1; ";
+        for (const s of Quickshell.screens)
+            if (s.name !== "FALLBACK")
+                cmd += "hyprctl eval 'hl.monitor({ output = \"" + s.name + "\", disabled = true })' >/dev/null 2>&1; ";
         relinker.command = ["sh", "-c", cmd + "sleep 1; hyprctl reload >/dev/null 2>&1"];
         relinker.running = true;
     }
 
     // Every output gone leaves the compositor on its headless stand-in, with nothing on any screen; a reload
-    // re-acquires the real ones. One attempt per time it happens, since a second changes nothing.
-    readonly property bool stranded: monitors.length > 0 && monitors.every(m => m.name === "FALLBACK")
-    onStrandedChanged: if (stranded) heal.restart()
-    property Timer heal: Timer { id: heal; interval: 2000; onTriggered: if (root.stranded && !reloader.running) reloader.running = true }
+    // re-acquires the real ones. Read from the screen list rather than the compositor's monitors: that one
+    // keeps an entry for a monitor already dropped, and never says it changed. The reload is asked for again
+    // for as long as the session is still stranded, since a screen a KVM holds is not there to be acquired
+    // until the KVM hands it back, which is minutes rather than seconds (D76).
+    readonly property bool stranded: Quickshell.screens.length > 0 && Quickshell.screens.every(s => s.name === "FALLBACK")
+    property Timer heal: Timer { id: heal; interval: 5000; repeat: true; running: root.stranded; onTriggered: if (!reloader.running) reloader.running = true }
 
     IpcHandler {
         target: "displays"
         function redetect(): void { root.redetect(); }
         function status(): string {
-            return JSON.stringify({ stranded: root.stranded, monitors: root.monitors.map(m => ({ name: m.name, mode: root.currentMode(m), dpms: root.info(m).dpmsStatus })) });
+            return JSON.stringify({ stranded: root.stranded, screens: Quickshell.screens.map(s => s.name), monitors: root.monitors.map(m => ({ name: m.name, mode: root.currentMode(m), dpms: root.info(m).dpmsStatus })) });
         }
     }
 }

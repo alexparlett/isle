@@ -25,10 +25,11 @@ DirEntry entryFor(const QString &path, QMimeDatabase &mime) {
     e.isDir = info.isDir();
     e.size = info.size();
     e.modified = info.lastModified();
-    e.iconName = e.isDir ? QStringLiteral("folder")
-                         : mime.mimeTypeForFile(e.name, QMimeDatabase::MatchExtension).iconName();
+    const QMimeType type = mime.mimeTypeForFile(e.name, QMimeDatabase::MatchExtension);
+    e.iconName = e.isDir ? QStringLiteral("folder") : type.iconName();
     if (e.iconName.isEmpty())
         e.iconName = QStringLiteral("text-x-generic");
+    e.kindName = e.isDir ? QStringLiteral("Folder") : type.comment();
     return e;
 }
 
@@ -47,6 +48,7 @@ QVector<DirEntry> scan(const QString &path) {
     // A directory holds far fewer suffixes than files, and a mime lookup costs microseconds each,
     // so the answer is kept per suffix. The empty suffix is a key like any other.
     QHash<QString, QString> iconForSuffix;
+    QHash<QString, QString> kindForSuffix;
     out.reserve(256);
 
     while (struct dirent *ent = readdir(dir)) {
@@ -79,15 +81,19 @@ QVector<DirEntry> scan(const QString &path) {
 
         if (e.isDir) {
             e.iconName = QStringLiteral("folder");
+            e.kindName = QStringLiteral("Folder");
         } else {
             const int dot = e.name.indexOf(QLatin1Char('.'), 1);
             const QString suffix = dot < 0 ? QString() : e.name.mid(dot + 1).toLower();
             auto cached = iconForSuffix.constFind(suffix);
             if (cached == iconForSuffix.cend()) {
-                const QString icon = mime.mimeTypeForFile(e.name, QMimeDatabase::MatchExtension).iconName();
+                const QMimeType type = mime.mimeTypeForFile(e.name, QMimeDatabase::MatchExtension);
+                const QString icon = type.iconName();
                 cached = iconForSuffix.insert(suffix, icon.isEmpty() ? QStringLiteral("text-x-generic") : icon);
+                kindForSuffix.insert(suffix, type.comment());
             }
             e.iconName = *cached;
+            e.kindName = kindForSuffix.value(suffix);
         }
         out.append(e);
     }
@@ -162,6 +168,7 @@ QVariant Directory::data(const QModelIndex &index, int role) const {
     case IsDirRole: return e.isDir;
     case IsSymlinkRole: return e.isSymlink;
     case IsHiddenRole: return e.isHidden;
+    case KindRole: return e.kindName;
     case GroupRole: return groupOf(e);
     case DepthRole: return e.depth;
     case ExpandedRole: return m_expanded.contains(pathOf(e));
@@ -179,6 +186,7 @@ QHash<int, QByteArray> Directory::roleNames() const {
         { IsDirRole, "isDir" },
         { IsSymlinkRole, "isSymlink" },
         { IsHiddenRole, "isHidden" },
+        { KindRole, "kindName" },
         { GroupRole, "groupName" },
         { DepthRole, "nestDepth" },
         { ExpandedRole, "opened" },
@@ -440,7 +448,7 @@ void Directory::rebuild() {
             continue;
         sortable.push_back({ &e,
                              m_collator.sortKey(e.name),
-                             m_collator.sortKey(m_sort == ByKind ? e.iconName : QString()) });
+                             m_collator.sortKey(m_sort == ByKind ? e.kindName : QString()) });
     }
 
     // A gathering keeps the order it was given: what was opened lately is in the order it was
@@ -498,7 +506,8 @@ void Directory::rebuild() {
             const DirEntry &a = rows.at(i), &b = m_rows.at(i);
             same = a.name == b.name && a.size == b.size && a.modified == b.modified
                 && a.isDir == b.isDir && a.depth == b.depth && a.path == b.path
-                && a.iconName == b.iconName && a.isSymlink == b.isSymlink && a.isHidden == b.isHidden;
+                && a.iconName == b.iconName && a.kindName == b.kindName
+                && a.isSymlink == b.isSymlink && a.isHidden == b.isHidden;
         }
         if (same)
             return;
@@ -518,8 +527,8 @@ QString Directory::groupOf(const DirEntry &e) const {
     case NoGroups:
         return {};
     case ByKindGroups:
-        return e.isDir ? QStringLiteral("Folders") : QMimeDatabase()
-            .mimeTypeForFile(e.name, QMimeDatabase::MatchExtension).comment();
+        return e.isDir ? QStringLiteral("Folders")
+                       : (e.kindName.isEmpty() ? QStringLiteral("Unknown") : e.kindName);
     case ByDateGroups: {
         const qint64 days = e.modified.daysTo(QDateTime::currentDateTime());
         if (days <= 0) return QStringLiteral("Today");

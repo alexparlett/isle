@@ -28,21 +28,22 @@ Singleton {
     property var bookmarks: []
 
     // [{ group, name, path, glyph, eject, bookmark }]. A bookmark is a place like any other: it sits
-    // with the rest under Places, and is only marked so it can be taken out again.
+    // among the favourites, and is only marked so it can be taken out again. Recents is what was
+    // open lately rather than somewhere to be, so it has no heading and stands above them all.
     readonly property var places: {
         const out = [
-            { group: "Places", name: "Recents", path: recentsPath, glyph: "clock", eject: false, bookmark: false },
-            { group: "Places", name: "Home", path: home, glyph: "house", eject: false, bookmark: false },
+            { group: "", name: "Recents", path: recentsPath, glyph: "clock", eject: false, bookmark: false },
+            { group: "Favourites", name: "Home", path: home, glyph: "house", eject: false, bookmark: false },
         ];
         for (const d of userDirs)
-            out.push({ group: "Places", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });
+            out.push({ group: "Favourites", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });
         for (const b of bookmarks)
-            out.push({ group: "Places", name: b.name, path: b.path, glyph: "folder", eject: false, bookmark: true });
-        out.push({ group: "Places", name: "Trash", path: trashFiles, glyph: "trash", eject: false, bookmark: false });
+            out.push({ group: "Favourites", name: b.name, path: b.path, glyph: "folder", eject: false, bookmark: true });
         for (const v of Disks.volumes) {
             if (!v.mounted) continue;
-            out.push({ group: "Devices", name: v.label || v.name, path: v.mountpoint, glyph: "hard-drive", eject: true, bookmark: false, volume: v });
+            out.push({ group: "Locations", name: v.label || v.name, path: v.mountpoint, glyph: "hard-drive", eject: true, bookmark: false, volume: v });
         }
+        out.push({ group: "Locations", name: "Trash", path: trashFiles, glyph: "trash", eject: false, bookmark: false });
         return out;
     }
 

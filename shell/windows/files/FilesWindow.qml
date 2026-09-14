@@ -102,6 +102,48 @@ FloatingWindow {
         if (already >= 0) showTab(already);
         else newTab(path);
     }
+    // What the tabs themselves can be told to do, which is what a right click on one offers.
+    function duplicateTab(i) {
+        const from = tabs[i];
+        if (!from) return;
+        tabs = tabs.slice(0, i + 1).concat([{ path: from.path, history: [from.path], at: 0 }])
+                   .concat(tabs.slice(i + 1));
+        current = i + 1;
+    }
+    function closeOtherTabs(i) {
+        if (!tabs[i]) return;
+        tabs = [tabs[i]];
+        current = 0;
+    }
+    function closeTabsRightOf(i) {
+        if (i >= tabs.length - 1) return;
+        tabs = tabs.slice(0, i + 1);
+        if (current > i) current = i;
+    }
+    // A tab pulled out into a window of its own, which is where a tab that has grown up goes.
+    function tabToNewWindow(i) {
+        const from = tabs[i];
+        if (!from || tabs.length <= 1) return;
+        FileWindows.add(from.path);
+        closeTab(i);
+    }
+
+    function showTabMenu(x, y, i) {
+        const many = tabs.length > 1;
+        menu.items = [
+            { label: "New tab", glyph: "plus", action: () => newTab() },
+            { label: "Duplicate tab", glyph: "copy", action: () => duplicateTab(i) },
+            { label: "Open in new window", glyph: "app-window", enabled: many, action: () => tabToNewWindow(i) },
+            null,
+            { label: "Close tab", glyph: "x", action: () => closeTab(i) },
+            { label: "Close other tabs", glyph: "x", enabled: many, action: () => closeOtherTabs(i) },
+            { label: "Close tabs to the right", glyph: "x", enabled: i < tabs.length - 1,
+              action: () => closeTabsRightOf(i) },
+        ];
+        openBarMenu = "";
+        menu.popup(x, y);
+    }
+
     function closeTab(i) {
         if (tabs.length <= 1) { FileWindows.close(root.modelData.id); return; }
         const all = tabs.slice();
@@ -656,78 +698,122 @@ FloatingWindow {
             RowLayout {
                 anchors { fill: parent; leftMargin: Theme.s2; rightMargin: Theme.s2 }
                 spacing: 2
-                Repeater {
-                    model: root.tabs
-                    delegate: Rectangle {
-                        id: tabItem
-                        required property var modelData
-                        required property int index
-                        // Wide enough for the name and no wider, so two tabs are two chips rather
-                        // than two halves of the window, and narrowing only starts once they fill it.
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: label.implicitWidth + 18 + Theme.s3 + Theme.s2 * 2
-                        Layout.maximumWidth: 200
-                        Layout.minimumWidth: 90
-                        // A chip standing clear of the line under the strip. Filling the height
-                        // would put its bottom edge on that line and paint over it.
-                        Layout.fillHeight: true
-                        Layout.topMargin: 4
-                        Layout.bottomMargin: 5
-                        radius: Theme.radiusChip
-                        // Every tab is a chip so the strip reads as tabs; the open one is the one
-                        // that stands out of the row rather than the only one in it.
-                        color: root.current === tabItem.index ? Theme.pressed
-                             : tabArea.containsMouse ? Theme.pressed : Theme.raised
 
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: Theme.s3; rightMargin: Theme.s2 }
-                            spacing: Theme.s2
-                            // Above the tab's own click area, which covers the whole tab and is
-                            // declared after this; only the cross in here takes a click.
-                            z: 1
-                            Label {
-                                id: label
-                                Layout.fillWidth: true
-                                size: Theme.sizeSmall
-                                elide: Text.ElideRight
-                                color: root.current === tabItem.index ? Theme.text : Theme.text2
-                                text: Engine.displayName(tabItem.modelData.path)
-                            }
-                            // A box big enough to hit around a glyph that is smaller than a target
-                            // wants to be. A click outside the box belongs to the tab. The room is
-                            // kept whether or not the cross is showing, so nothing shifts under the
-                            // pointer as it moves along the strip.
-                            Item {
-                                Layout.preferredWidth: 18
-                                Layout.preferredHeight: 18
-                                Glyph {
-                                    anchors.centerIn: parent
-                                    visible: tabArea.containsMouse || closeArea.containsMouse
-                                        || root.current === tabItem.index
-                                    name: "x"
-                                    size: 12
-                                    color: closeArea.containsMouse ? Theme.text : Theme.text3
+                // Tabs stop shrinking at a width their names can still be read at and the strip
+                // scrolls instead, as every browser does. The button that makes one stays put.
+                Flickable {
+                    id: strip
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: tabRow.width
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+
+                    // A wheel over the strip walks along it; there is nothing to scroll downwards.
+                    WheelHandler {
+                        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                        onWheel: event => {
+                            const by = (event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x) / 2;
+                            strip.contentX = Math.max(0, Math.min(strip.contentWidth - strip.width, strip.contentX - by));
+                        }
+                    }
+
+                    // The open tab is brought into view, whether it was picked here or by a key.
+                    function reveal(i) {
+                        if (i < 0 || i >= root.tabs.length) return;
+                        const at = i * (tabRow.tabWidth + 2);
+                        if (at < contentX) contentX = at;
+                        else if (at + tabRow.tabWidth > contentX + width)
+                            contentX = Math.max(0, at + tabRow.tabWidth - width);
+                    }
+                    Connections {
+                        target: root
+                        function onCurrentChanged() { Qt.callLater(() => strip.reveal(root.current)); }
+                    }
+
+                    Row {
+                        id: tabRow
+                        height: strip.height
+                        spacing: 2
+                        // Shared out while they fit, and no narrower than a name once they do not.
+                        readonly property real tabWidth: Math.max(130,
+                            Math.min(200, (strip.width - 2 * (root.tabs.length - 1)) / Math.max(1, root.tabs.length)))
+
+                        Repeater {
+                            model: root.tabs
+                            delegate: Rectangle {
+                                id: tabItem
+                                required property var modelData
+                                required property int index
+
+                                width: tabRow.tabWidth
+                                // A chip standing clear of the line under the strip. Filling the
+                                // height would put its bottom edge on that line and paint over it.
+                                y: 4
+                                height: strip.height - 9
+                                radius: Theme.radiusChip
+                                // Every tab is a chip so the strip reads as tabs; the open one is
+                                // the one that stands out of the row rather than the only one in it.
+                                color: root.current === tabItem.index || tabArea.containsMouse
+                                    ? Theme.pressed : Theme.raised
+
+                                RowLayout {
+                                    anchors { fill: parent; leftMargin: Theme.s3; rightMargin: Theme.s2 }
+                                    spacing: Theme.s2
+                                    // Above the tab's own click area, which covers the whole tab and
+                                    // is declared after this; only the cross in here takes a click.
+                                    z: 1
+                                    Label {
+                                        Layout.fillWidth: true
+                                        size: Theme.sizeSmall
+                                        elide: Text.ElideRight
+                                        color: root.current === tabItem.index ? Theme.text : Theme.text2
+                                        text: Engine.displayName(tabItem.modelData.path)
+                                    }
+                                    // A box big enough to hit around a glyph that is smaller than a
+                                    // target wants to be. A click outside the box belongs to the tab.
+                                    // The room is kept whether or not the cross is showing, so
+                                    // nothing shifts under the pointer as it moves along the strip.
+                                    Item {
+                                        Layout.preferredWidth: 18
+                                        Layout.preferredHeight: 18
+                                        Glyph {
+                                            anchors.centerIn: parent
+                                            visible: tabArea.containsMouse || closeArea.containsMouse
+                                                || root.current === tabItem.index
+                                            name: "x"
+                                            size: 12
+                                            color: closeArea.containsMouse ? Theme.text : Theme.text3
+                                        }
+                                        MouseArea {
+                                            id: closeArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            onClicked: root.closeTab(tabItem.index)
+                                        }
+                                    }
                                 }
                                 MouseArea {
-                                    id: closeArea
+                                    id: tabArea
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    onClicked: root.closeTab(tabItem.index)
+                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                    onClicked: mouse => {
+                                        if (mouse.button === Qt.MiddleButton) { root.closeTab(tabItem.index); return; }
+                                        root.showTab(tabItem.index);
+                                        if (mouse.button === Qt.RightButton) {
+                                            const at = mapToItem(overlay, mouse.x, mouse.y);
+                                            root.showTabMenu(at.x, at.y, tabItem.index);
+                                        }
+                                    }
                                 }
                             }
-                        }
-                        MouseArea {
-                            id: tabArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-                            onClicked: mouse => mouse.button === Qt.MiddleButton ? root.closeTab(tabItem.index)
-                                                                                 : root.showTab(tabItem.index)
                         }
                     }
                 }
+
                 Button { variant: "text"; glyph: "plus"; onClicked: root.newTab() }
-                Item { Layout.fillWidth: true }
             }
         }
 
@@ -817,8 +903,11 @@ FloatingWindow {
                             Layout.fillWidth: true
                             implicitHeight: heading.visible ? 30 + row.implicitHeight : row.implicitHeight
 
-                            readonly property bool first: index === 0
-                                || Places.places[index - 1].group !== place.modelData.group
+                            // A place with no group of its own carries no heading. The one before
+                            // it can be gone already when a volume is unmounted as this re-evaluates.
+                            readonly property bool first: place.modelData.group !== ""
+                                && (index === 0 || !Places.places[index - 1]
+                                    || Places.places[index - 1].group !== place.modelData.group)
 
                             Label {
                                 id: heading

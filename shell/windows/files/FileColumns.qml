@@ -5,6 +5,8 @@ import Quickshell.Widgets
 import Isle.Files
 import qs.theme
 import qs.ui
+// Loaded by URL at the root (see shell.qml), which leaves no implicit scope for a sibling.
+import qs.windows.files
 
 // Finder's columns: the folder on the left, what is picked in it to the right of that, and so on.
 // Each column is a directory of its own, so several are alive at once and none re-reads another.
@@ -25,6 +27,8 @@ Item {
     signal activated(string path)
     // A file settled on.
     signal chosen(string path)
+    // The right button, at a point in this item's own frame, over a path or over nothing.
+    signal menuAsked(real x, real y, string path)
 
 
     // Which column the keys are in, and the listing and view of each one by column number, so the
@@ -121,6 +125,21 @@ Item {
                     Component.onCompleted: { root.folders[column.index] = folder; root.views[column.index] = entries; }
                     Component.onDestruction: { delete root.folders[column.index]; delete root.views[column.index]; }
 
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: mouse => {
+                            // Letting go in a column drops it and everything to the right of it.
+                            root.chain = root.chain.slice(0, column.index + 1);
+                            root.selected = "";
+                            root.selectedIsDir = false;
+                            root.activeColumn = column.index;
+                            if (mouse.button !== Qt.RightButton) return;
+                            const at = mapToItem(root, mouse.x, mouse.y);
+                            root.menuAsked(at.x, at.y, "");
+                        }
+                    }
+
                     ListView {
                         id: entries
                         anchors { fill: parent; rightMargin: 1 }
@@ -171,7 +190,13 @@ Item {
                                 id: entryArea
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: root.pick(column.index, entry.path, entry.isDir)
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onClicked: mouse => {
+                                    root.pick(column.index, entry.path, entry.isDir);
+                                    if (mouse.button !== Qt.RightButton) return;
+                                    const at = mapToItem(root, mouse.x, mouse.y);
+                                    root.menuAsked(at.x, at.y, entry.path);
+                                }
                                 onDoubleClicked: entry.isDir ? root.activated(entry.path) : root.chosen(entry.path)
                             }
                         }
@@ -187,6 +212,16 @@ Item {
 
                     Scrollbar { target: entries }
                 }
+            }
+
+            // Finder's last column: what is picked, rather than another list. A folder opens a
+            // column of its own, so only a file leaves anything for this to show.
+            FilePreview {
+                width: 240
+                height: row.height
+                visible: root.selected !== "" && !root.selectedIsDir
+                picked: visible ? [root.selected] : []
+                onOpened: path => root.chosen(path)
             }
         }
     }

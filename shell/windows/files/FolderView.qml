@@ -76,7 +76,7 @@ FocusScope {
 
     // Moving with the keys picks as it goes; with Shift it grows the run instead.
     function step(by, modifiers) {
-        const to = Math.max(0, Math.min(directory.count - 1, index + by));
+        const to = index < 0 ? 0 : Math.max(0, Math.min(directory.count - 1, index + by));
         pick(to, modifiers & Qt.ShiftModifier ? Qt.ShiftModifier : Qt.NoModifier);
         if (mode === "grid") grid.positionViewAtIndex(to, GridView.Contain);
         else list.positionViewAtIndex(to, ListView.Contain);
@@ -138,13 +138,19 @@ FocusScope {
 
     function isPicked(path) { return selection.indexOf(path) >= 0; }
 
-    // A different listing: nothing is picked, nothing is being renamed, and nothing is waiting to be.
-    function forget() {
-        index = 0;
-        anchor = 0;
+    // Nothing picked and nothing under the keys. Clearing only the selection leaves the cursor row
+    // marked and still the thing every action would act on, which is not letting go of anything.
+    function deselect() {
+        selection = [];
         cursor = "";
         anchorPath = "";
-        selection = [];
+        index = -1;
+        anchor = 0;
+    }
+
+    // A different listing: nothing is picked, nothing is being renamed, and nothing is waiting to be.
+    function forget() {
+        deselect();
         renaming = "";
         pending = "";
         list.positionViewAtBeginning();
@@ -187,7 +193,8 @@ FocusScope {
     // What each column is given; the name takes whatever is left.
     property int sizeWidth: 90
     property int modifiedWidth: 130
-    readonly property int nameWidth: Math.max(160, width - sizeWidth - modifiedWidth - 100)
+    property int kindWidth: 130
+    readonly property int nameWidth: Math.max(160, width - sizeWidth - modifiedWidth - kindWidth - 100)
 
     function open(row) { openPath(directory.pathAt(row)); }
     // Opening a path rather than a row: a menu was opened over a particular file, and the rows may
@@ -260,6 +267,7 @@ FocusScope {
                 Repeater {
                     model: [{ label: "Name", column: Directory.ByName, width: root.nameWidth, align: Text.AlignLeft },
                             { label: "Size", column: Directory.BySize, width: root.sizeWidth, align: Text.AlignRight },
+                            { label: "Kind", column: Directory.ByKind, width: root.kindWidth, align: Text.AlignLeft },
                             { label: "Modified", column: Directory.ByModified, width: root.modifiedWidth, align: Text.AlignRight }]
                     delegate: Item {
                         id: head
@@ -300,13 +308,17 @@ FocusScope {
                             property real was: 0
                             onPressed: mouse => {
                                 from = mapToItem(header, mouse.x, 0).x;
-                                was = head.modelData.column === Directory.BySize ? root.sizeWidth : root.modifiedWidth;
+                                was = head.modelData.column === Directory.BySize ? root.sizeWidth
+                                    : head.modelData.column === Directory.ByKind ? root.kindWidth
+                                    : root.modifiedWidth;
                             }
                             onPositionChanged: mouse => {
                                 if (!(mouse.buttons & Qt.LeftButton)) return;
                                 const by = Math.round(mapToItem(header, mouse.x, 0).x - from);
                                 if (head.modelData.column === Directory.BySize)
                                     root.sizeWidth = Math.max(60, Math.min(300, was - by));
+                                else if (head.modelData.column === Directory.ByKind)
+                                    root.kindWidth = Math.max(80, Math.min(320, was - by));
                                 else
                                     root.modifiedWidth = Math.max(80, Math.min(320, was - by));
                             }
@@ -364,6 +376,7 @@ FocusScope {
                     required property bool isDir
                     required property bool isSymlink
                     required property string groupName
+                    required property string kindName
                     required property int nestDepth
                     required property bool opened
 
@@ -509,6 +522,13 @@ FocusScope {
                             color: Theme.text3
                             tabular: true
                             text: row.isDir ? "—" : Engine.formatSize(row.size)
+                        }
+                        Label {
+                            Layout.preferredWidth: root.kindWidth
+                            size: Theme.sizeSmall
+                            color: Theme.text3
+                            elide: Text.ElideRight
+                            text: row.kindName
                         }
                         Label {
                             Layout.preferredWidth: root.modifiedWidth
@@ -772,7 +792,7 @@ FocusScope {
                 onReleased: { bandArea.banded = bandArea.banding; bandArea.banding = false; }
                 onClicked: mouse => {
                     if (bandArea.banded) { bandArea.banded = false; return; }
-                    root.selection = [];
+                    root.deselect();
                     if (mouse.button !== Qt.RightButton) return;
                     const where = mapToItem(root, mouse.x, mouse.y);
                     root.menuAsked(where.x, where.y, "");
@@ -798,6 +818,7 @@ FocusScope {
                 onActivated: path => root.activated(path)
                 // The same question the other views ask: what opens this, and who says so.
                 onChosen: path => root.openFiles ? root.asked(path) : root.chosen(path)
+                onMenuAsked: (x, y, path) => root.menuAsked(x, y, path)
             }
 
             // Nothing to show, and why.

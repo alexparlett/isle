@@ -21,6 +21,8 @@ struct DirEntry {
     // since a folder's rows hang off the folder.
     QString path;
     QString iconName;
+    // What the type is called in words, as "PNG image" rather than "image/png".
+    QString kindName;
     qint64 size = 0;
     QDateTime modified;
     bool isDir = false;
@@ -71,6 +73,7 @@ public:
         IsDirRole,
         IsSymlinkRole,
         IsHiddenRole,
+        KindRole,
         GroupRole,
         DepthRole,
         ExpandedRole,

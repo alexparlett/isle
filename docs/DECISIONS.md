@@ -828,3 +828,15 @@ in the preferences beside the rest of what Files remembers, and they stand
 in the sidebar above the places. Opening one puts the window back the way
 it was rather than standing for a folder that does not exist, which is what
 a smart folder on a filesystem with no index can honestly be.
+
+**D75 · A rebuilt compositor plugin is a restart owed.** The plugin and the
+shell are two halves of one capability on different clocks: the shell syncs
+to the desktop on every save, a plugin only when hyprpm rebuilds it.
+Drag-to-edge tiling moved its drag preview from an IPC call to the event
+socket, and the desktop then ran a plugin calling a handler the shell no
+longer had — silently, because nothing compared the two, and the preview
+simply never drew. `hyprpm reload` is not the answer: it swaps a plugin in
+place and segfaults the compositor when one holds function hooks. So the
+skew joins the facts D46 already checks, as a third reason on the same
+path — the mapped inode against the one on disk — and is said in the same
+words as the kernel and the driver.

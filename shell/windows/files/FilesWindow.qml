@@ -15,15 +15,9 @@ FloatingWindow {
     id: root
     required property var modelData
 
-    // What the trail says it is showing: a folder's name, or Trash, Recents, or what was searched
-    // under. The window is named for what is in it, as every other window here is. A volume is
-    // named for the volume rather than for the separator it happens to be mounted at.
-    readonly property string here: {
-        const drive = Places.places.find(p => p.drive && p.path === dir.path);
-        if (drive) return drive.name;
-        return root.crumbs.length ? root.crumbs[root.crumbs.length - 1].name : "Files";
-    }
-    title: root.here
+    // Every window says Files, the way a file manager's windows all say its name. Which folder this
+    // one is showing is the trail's business, and the trail is right there under the title.
+    title: "Files"
     visible: true
     implicitWidth: 980
     implicitHeight: 680

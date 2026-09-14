@@ -19,7 +19,23 @@ Singleton {
     // heuristicLookup matches an empty string against every entry, so a window that sets no app id would take
     // a stranger's name and icon: nothing is looked up for one.
     function lookup(appId) { return appId ? DesktopEntries.heuristicLookup(appId) : null; }
+
+    // The shell draws several windows out of one process, so the compositor gives every one of them the
+    // same app id and anything grouping by it would make Settings, Monitor and every Files window one
+    // entry. Three of them are named for themselves; everything else the shell draws is a Files window,
+    // and they belong together under the one name the way a file manager's windows do.
+    readonly property var shellApps: ({
+        "org.quickshell.settings": { name: "Settings", icon: "preferences-system" },
+        "org.quickshell.keychain": { name: "Keychain", icon: "security-high" },
+        "org.quickshell.monitor": { name: "Monitor", icon: "utilities-system-monitor" },
+    })
+    function shellAppId(title) {
+        const named = "org.quickshell." + String(title).toLowerCase();
+        return shellApps[named] ? named : "isle-files";
+    }
     function iconFor(appId) {
+        const shell = shellApps[appId];
+        if (shell) return Quickshell.iconPath(shell.icon, "application-x-executable");
         const game = steamGame(appId);
         if (game && game.art) return game.art.indexOf("/") === 0 ? "file://" + game.art : game.art;
         const entry = lookup(appId);
@@ -28,6 +44,8 @@ Singleton {
     }
     // A window with no app id is named by its title, which is all it says about itself.
     function nameFor(appId, title) {
+        const shell = shellApps[appId];
+        if (shell) return shell.name;
         const game = steamGame(appId);
         if (game) return game.name;
         const entry = lookup(appId);
@@ -41,7 +59,8 @@ Singleton {
         return first && lookup(first) ? first.toLowerCase() : appId;
     }
     function entry(t) {
-        const appId = hostedId(t.wayland ? t.wayland.appId : "", t.title);
+        const raw = t.wayland ? t.wayland.appId : "";
+        const appId = raw === "org.quickshell" ? shellAppId(t.title) : hostedId(raw, t.title);
         // Dispatchers want the address as hyprctl prints it, with the 0x.
         return { appId: appId, icon: iconFor(appId), title: t.title, address: t.address.indexOf("0x") === 0 ? t.address : "0x" + t.address,
                  workspace: t.workspace ? t.workspace.id : -1, hidden: t.workspace ? t.workspace.name === "special:hidden" : false,

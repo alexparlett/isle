@@ -117,8 +117,15 @@ Singleton {
             else if (code !== 0) { if (!root.failed) root.failed = "Stopped with code " + code; root.phase = "Stopped"; }
             else root.phase = "Done";
             root.check();
-            if (code === 0) done.start();
+            if (code === 0) { done.start(); forget.restart(); }
         }
+    }
+    // A finished run is worth seeing for a moment, then the list goes back to what is pending. One that
+    // stopped stays where it is: the reason it gives is the only record there is of it.
+    Timer {
+        id: forget
+        interval: 30000
+        onTriggered: if (!root.running) { root.steps = []; root.phase = ""; }
     }
     // Said once the pending list and the restart check have caught up.
     Timer {
@@ -135,6 +142,7 @@ Singleton {
     // lines by the time that signal lands, and they were being wiped.
     function begin(command) {
         if (runner.running) return false;
+        forget.stop();
         failed = ""; log = []; phase = "Asking for permission";
         runner.command = command;
         runner.running = true;

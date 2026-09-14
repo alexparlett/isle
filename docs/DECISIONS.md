@@ -994,3 +994,15 @@ update service now owns an `IpcHandler` and the `FileView` watching the run.
 Left lazy, `isle update` answered "Target not found" and a run already going
 was invisible until something happened to touch the service. It joins the
 list in `shell.qml` that must exist from the start.
+
+**D81 · A finished run clears itself; a stopped one stays.** Both update
+rows sat on "Done" with their step list intact until something else
+happened to them, which reads as a run still going rather than one long
+over. Half a minute after a run that worked, the phase and the steps go and
+the row is back to what is pending. A run that stopped keeps its reason,
+which is the only record there is of it, until the next run replaces it.
+
+For Isle the half minute is counted from the `finishedAt` in the state
+file, not from when the service read it: the reload the pull causes would
+otherwise start the moment again, and an instance opened an hour later
+would show a fresh "Done" for a run nobody was watching.

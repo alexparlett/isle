@@ -76,6 +76,11 @@ Singleton {
     function idle() {
         running = false; phase = ""; steps = []; log = []; failed = ""; fromHead = ""; toHead = "";
     }
+    // A finished run is worth seeing for a moment and then gone. The age comes from the file rather than
+    // from when this instance read it, so the reload the pull causes does not start the moment again. One
+    // that stopped stays: the reason it gives is the only record there is of it.
+    readonly property int linger: 30000
+    Timer { id: forget; onTriggered: if (!root.running) root.idle() }
     function took(text) {
         let d;
         try { d = JSON.parse(text); } catch (e) { return; }
@@ -94,12 +99,18 @@ Singleton {
             IslandEvents.show({ kind: "text", duration: 5000, glyph: failed ? "x" : "check",
                 text: failed ? "Isle update stopped" : "Isle updated", detail: failed });
         }
+        if (!running && !failed) {
+            const age = d.finishedAt ? Date.now() - d.finishedAt * 1000 : linger;
+            if (age >= linger) idle();
+            else { forget.interval = linger - age; forget.restart(); }
+        }
     }
 
     // The run is not this process's child: the pull rewrites the files the shell is running from, the
     // shell reloads, and everything it owns is destroyed in the middle of the install.
     function update() {
         if (running) return;
+        forget.stop();
         running = true; phase = "Starting"; failed = ""; log = [];
         Quickshell.execDetached(["setsid", "--fork", "python3", tool, "run"]);
     }

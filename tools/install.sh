@@ -114,7 +114,7 @@ link "$REPO/hypr/hyprland.lua" "$CFG/hypr/hyprland.lua"
 link "$REPO/hypr/generated" "$CFG/hypr/generated"
 link "$REPO/systemd/xremap.service" "$CFG/systemd/user/xremap.service"
 step "Rendering the app themes"
-python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, yazi, btop, zathura, portals)"
+python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, btop, zathura, portals)"
 # Where an AppImage is installed by being put there; the shell watches it.
 mkdir -p "$HOME/Applications"
 # Sites that are really apps get their own window and a launcher entry.

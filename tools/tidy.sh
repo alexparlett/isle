@@ -18,8 +18,8 @@ ok()   { printf '  \e[32m✓\e[0m %s\n' "$*"; }
 would() { printf '  \e[33m·\e[0m %s\n' "$*"; }
 found=0
 
-# Packages Isle once listed and no longer does (D39: qt6ct; D73: the Thunar stack).
-former=(qt6ct thunar thunar-archive-plugin thunar-volman gvfs tumbler)
+# Packages Isle once listed and no longer does (D39: qt6ct; D73: the Thunar stack; D85: yazi).
+former=(qt6ct thunar thunar-archive-plugin thunar-volman gvfs tumbler yazi)
 gone=()
 for p in "${former[@]}"; do
     pacman -Q "$p" >/dev/null 2>&1 && ! grep -qx "$p" "$REPO/packages/shell.txt" && gone+=("$p")
@@ -35,6 +35,17 @@ if [[ -d "$CFG/qt6ct" ]]; then
     if [[ -z "$others" ]]; then
         found=1
         if ((yes)); then rm -rf "$CFG/qt6ct" && ok "removed $CFG/qt6ct"; else would "$CFG/qt6ct (Isle's qt6ct theme)"; fi
+    fi
+fi
+
+# The theme Isle rendered for yazi (D85): the file is Isle's, the directory may hold the user's own.
+if [[ -f "$CFG/yazi/theme.toml" ]]; then
+    found=1
+    if ((yes)); then
+        rm -f "$CFG/yazi/theme.toml" && rmdir "$CFG/yazi" 2>/dev/null
+        ok "removed $CFG/yazi/theme.toml"
+    else
+        would "$CFG/yazi/theme.toml (Isle's yazi theme)"
     fi
 fi
 

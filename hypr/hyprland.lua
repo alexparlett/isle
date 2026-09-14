@@ -146,11 +146,9 @@ hl.window_rule({
     no_focus = true,
 })
 
-local fileManager = "kitty -e yazi"
-
 -- Every shortcut: rendered from shell/keymap.json by the shell's Keyboard service.
 local ok, binds = pcall(loadfile, (os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")) .. "/hypr/generated/binds.lua")
-if ok and binds then binds(ipc, terminal, fileManager) end
+if ok and binds then binds(ipc, terminal) end
 
 -- While Settings records a shortcut every bind steps aside; Escape is the way back if the shell is gone.
 hl.define_submap("isle-record", "reset", function()

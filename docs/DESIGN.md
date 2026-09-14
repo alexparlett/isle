@@ -20,7 +20,7 @@ and an island that is the only thing on screen at rest.
 
 Every value below is a token in `shell/theme/tokens.json`. The shell's
 `Theme` singleton reads it; `theme/` templates render the same file into
-GTK, Qt, kitty, yazi and btop themes so nothing is typed twice.
+GTK, Qt, kitty and btop themes so nothing is typed twice.
 
 ### Colour (dark, the default)
 
@@ -714,7 +714,7 @@ The token file renders to:
   which derives window, text, accent, font and icons from the GTK theme
   above, Fusion style; one name serves both Qt versions
 - kitty colours and font
-- yazi theme, btop theme
+- btop theme
 - Hyprland border colours and rounding, matching `hairline` and `control`
 
 Icons Papirus-Dark, cursor Bibata, font Inter, for both toolkits. Portals

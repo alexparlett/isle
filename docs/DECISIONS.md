@@ -807,7 +807,7 @@ spec, thumbnails through the shared cache, packing through bsdtar. So
 leave `packages/shell.txt` and join `tidy.sh`'s list of what an earlier
 Isle installed and this one does not. `yazi` stays: a file manager in the
 terminal is a different tool for a different moment, and SUPER+ALT+E is
-where it lives now that SUPER+E is the window.
+where it lives now that SUPER+E is the window. (D85 takes yazi too.)
 
 `xdg-desktop-portal-gtk` stays installed. It lost the file dialog at D67,
 but it still answers `org.freedesktop.impl.portal.Settings`, which is how
@@ -1110,3 +1110,20 @@ comes next: a call into the engine for something the engine may not have
 goes through a function that checks the method is there first. A shell that
 is a version behind then loses the feature and nothing else, rather than
 losing the menu the feature was one item of.
+
+**D85 · yazi goes, and SUPER+ALT+E with it.** D73 kept a file manager in
+the terminal on the grounds that it was a different tool for a different
+moment. The window has since grown the things that moment was reached for,
+so the second file manager earns nothing: two ways to browse the same
+files, one of them themed by a template nothing else uses.
+
+`yazi` leaves `packages/shell.txt` for `tidy.sh`'s list, the
+`yazi-theme.toml` template leaves `theme/render.py`, and the `filesTerminal`
+action leaves `shell/keymap.json` and the launcher. `hyprland.lua` no
+longer passes a `fileManager` to the generated binds, so `Keyboard.qml`
+stops emitting the parameter. SUPER+E, which has gone to the shell's own
+window by IPC since D73, is now the only files shortcut.
+
+A terminal file manager is still one `kitty -e <anything>` away for anyone
+who wants one. What goes is Isle shipping, theming and binding a second
+one.

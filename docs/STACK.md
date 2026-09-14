@@ -95,7 +95,7 @@ COSMIC: the applets are bound to cosmic-comp and cosmic-panel.
 | role | choice | weighed against | why |
 |---|---|---|---|
 | terminal | kitty (~90 MB) | foot (~15 MB), ghostty (~110 MB), wezterm | GPU rendering, images, remote control from the shell (dropdown, tabs), themes from tokens. foot is the lean alternative if the shell ever needs to shave memory |
-| file manager | the shell (D73); yazi in kitty for the terminal | Thunar, Nautilus (~150 MB + indexer), Dolphin (KDE frameworks) | a file manager and a file dialog are one browsing engine, and owning it is what lets a drive be a place rather than a mount pretending to be one (D65, D66). Thunar, gvfs and tumbler are gone with it |
+| file manager | the shell (D73) | Thunar, Nautilus (~150 MB + indexer), Dolphin (KDE frameworks), yazi in kitty | a file manager and a file dialog are one browsing engine, and owning it is what lets a drive be a place rather than a mount pretending to be one (D65, D66). Thunar, gvfs and tumbler are gone with it, and yazi with them (D85) |
 | launcher, switcher, notifications, OSD, lock, idle, polkit agent, power menu | the shell | fuzzel, rofi, mako, dunst, swayosd, hyprlock, hypridle, hyprpolkitagent | each is a surface in the shell's material; the separate tools each bring their own look |
 | greeter | greetd + a shell-drawn greeter | SDDM, ly | same material from the login screen; Quickshell speaks greetd natively |
 | keyboard profiles | xremap | keyd, kanata | the only one that remaps per device and per app (Hyprland backend), which the Mac/Windows dual-keyboard setup needs |
@@ -107,7 +107,7 @@ COSMIC: the applets are bound to cosmic-comp and cosmic-panel.
 | night light | hyprsunset | wlsunset, gammastep | Hyprland's own, controllable over hyprctl |
 | game mode | gamemode, power-profiles-daemon, gamescope (optional) | — | governor and process priority; gamescope for HDR / upscaling / a Steam Deck-like session |
 | big picture | the shell, launching Steam -gamepadui, Heroic, Lutris | gamescope-session | one 10-foot surface over all three; gamescope-session is Steam-only |
-| app theming | `theme/render.py` over templates, from the token file | matugen, pywal | one source renders GTK3, GTK4, Qt (qt6ct + Fusion), kitty, yazi, btop, portals, Hyprland; matugen's image-derived palette does not map onto fixed tokens (D16) |
+| app theming | `theme/render.py` over templates, from the token file | matugen, pywal | one source renders GTK3, GTK4, Qt (qt6ct + Fusion), kitty, btop, portals, Hyprland; matugen's image-derived palette does not map onto fixed tokens (D16) |
 | icons, cursor, fonts | Papirus-Dark, Bibata, Inter + JetBrains Mono | Adwaita, Tela | same icon theme in GTK, Qt and the shell |
 | portals | xdg-desktop-portal-hyprland, the shell for FileChooser (D67), -gtk for the rest | -kde | screencast through Hyprland; the file dialog is the shell's own surface rather than GTK's themed to look near enough |
 

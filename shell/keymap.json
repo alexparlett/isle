@@ -325,14 +325,6 @@
             "macHypr": "SUPER + SHIFT + E"
         },
         {
-            "id": "filesTerminal",
-            "label": "Files in the terminal",
-            "hypr": "SUPER + ALT + E",
-            "win": "Win Alt E",
-            "mac": "Cmd Option E",
-            "lua": "hl.dsp.exec_cmd(fileManager)"
-        },
-        {
             "id": "clipboard",
             "label": "Clipboard",
             "hypr": "SUPER + V",

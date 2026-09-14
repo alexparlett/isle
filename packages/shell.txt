@@ -58,7 +58,6 @@ wtype   # the on-screen keyboard types through it
 words   # and completes words from the dictionary
 
 # Files
-yazi        # the terminal one; the window is the shell's own (D73)
 mousepad
 libarchive  # bsdtar, which packs and unpacks for Files
 squashfs-tools  # reads an AppImage's own name and icon out of it without running it (D82)

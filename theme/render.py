@@ -107,7 +107,6 @@ TARGETS = [
     ("settings.ini", CFG + "/gtk-3.0/settings.ini", None),
     ("settings.ini", CFG + "/gtk-4.0/settings.ini", None),
     ("kitty.conf", CFG + "/kitty/isle.conf", "kitty"),
-    ("yazi-theme.toml", CFG + "/yazi/theme.toml", None),
     ("btop.theme", CFG + "/btop/themes/isle.theme", "btop"),
     ("zathurarc", CFG + "/zathura/isle", "zathura"),
     ("portals.conf", CFG + "/xdg-desktop-portal/portals.conf", None),

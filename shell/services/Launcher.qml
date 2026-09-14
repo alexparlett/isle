@@ -122,7 +122,6 @@ Singleton {
         { title: "Dashboard", glyph: "layout-grid", kind: "Shell", key: "dashboard", run: () => { Surfaces.dashboard = true; } },
         { title: "Mission Control", glyph: "app-window", kind: "Shell", key: "overview", words: "desktops workspaces windows", run: () => { Surfaces.overview = true; } },
         { title: "Files", glyph: "folder", kind: "Shell", key: "files", run: () => Surfaces.show("files") },
-        { title: "Files in the terminal", glyph: "terminal", kind: "Shell", key: "filesTerminal", run: () => Compositor.exec("kitty -e yazi") },
         { title: "Do not disturb", glyph: "bell-off", kind: "Mode", key: "dnd", run: () => Notifications.setDnd(!Notifications.dnd) },
         { title: "Game mode", glyph: "gamepad-2", kind: "Mode", key: "gameMode", run: () => Modes.toggle("game") },
         { title: "Big Picture", glyph: "gamepad-2", kind: "Mode", key: "bigPicture", run: () => Modes.set("bigpicture") },

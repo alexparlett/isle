@@ -242,7 +242,7 @@ Singleton {
 
     function renderHypr() {
         let out = "-- Rendered from shell/keymap.json by the Keyboard service. Edit the source, not this.\n";
-        out += "local ipc, terminal, fileManager = ...\n";
+        out += "local ipc, terminal = ...\n";
         if (Prefs.p.terminal) out += "terminal = " + JSON.stringify(Prefs.p.terminal) + "\n";
         out += "\n";
         const bound = {};

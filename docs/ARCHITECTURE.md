@@ -53,7 +53,7 @@ native/       compiled QML modules the shell imports
   files/      Isle.Files: the browsing engine (D66)
 hypr/         hyprland.lua and the fragments the shell writes (binds, monitors, modes, theme)
 input/        xremap profiles: mac.yml, windows.yml
-theme/        templates: gtk3, gtk4, kitty, yazi, btop, zathura, hypr
+theme/        templates: gtk3, gtk4, kitty, btop, zathura, hypr
 packages/     pacman and AUR lists
 tools/        bootstrap, install, the root half of it, the update, the greeter copy, icon vendoring
 docs/
@@ -479,7 +479,6 @@ the app as `CTRL`.**
 | dropdown terminal | Win+` | Cmd+Option+` |
 | files | Win+E | Cmd+Shift+E |
 | clipboard | Win+V | Cmd+Shift+V |
-| files, GUI (Thunar) | Win+Alt+E | Cmd+Option+E |
 | move window left/right/up/down (swap in the tiling) | Win+Shift+Arrows | Cmd+Option+Shift+Arrows |
 | pin window on every workspace (floats it first) | Win+Alt+P | Cmd+Option+P |
 | capture region / screen / toolbar | Win+Shift+S | Cmd+Shift+4 / 3 / 5 |
@@ -583,7 +582,7 @@ bars sit one point above). `theme/render.py` fills the templates in
 - `~/.config/gtk-3.0/gtk.css` and `settings.ini`, the same for `gtk-4.0`,
   and gsettings for libadwaita (colour scheme, theme, cursor, fonts)
 - `~/.config/kitty/isle.conf`, `~/.config/zathura/isle`
-- `~/.config/yazi/theme.toml`, `~/.config/btop/themes/isle.theme`
+- `~/.config/btop/themes/isle.theme`
 - `~/.config/xdg-desktop-portal/portals.conf`
 - `hypr/generated/theme.lua` (border colours, rounding, blur, the bars)
 

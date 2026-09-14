@@ -50,6 +50,9 @@ Singleton {
             property bool filesPreview: false
             property int filesSidebar: 190
             property int filesColumn: 220
+            // The order the favourites were last dragged into, by path. A place not in it keeps the
+            // place it would have had.
+            property var filesFavourites: []
             // Searches worth keeping: [{ name, path, term, kind, when }], shown in the sidebar.
             property var filesSearches: []
 

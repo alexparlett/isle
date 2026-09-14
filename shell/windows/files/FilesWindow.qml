@@ -200,13 +200,26 @@ FloatingWindow {
         if (from.length) FileJobs.move(from, into);
     }
 
-    // A bookmark dropped on another takes its place in the order, the rest closing up behind it.
-    function reorderPlace(moved, before) {
+    // A place picked up carries its own name under the pointer, as a file does.
+    DragChip { id: placeChip }
+    function carryPlace(item, path) {
+        placeChip.carry(item, [path], () => {
+            item.carrying = true;
+            item.Drag.startDrag();
+        });
+    }
+
+    // A favourite dropped on another takes its place in the order, the rest closing up behind it.
+    // The order is the whole group's, not the bookmarks' alone: the folders above them move too.
+    function reorderPlace(moved, before, after) {
         if (!moved || moved === before) return;
-        const order = Places.bookmarks.map(b => b.path).filter(p => p !== moved);
+        const order = Places.places.filter(p => p.group === "Favourites").map(p => p.path);
+        const from = order.indexOf(moved);
+        if (from < 0) return;
+        order.splice(from, 1);
         const at = order.indexOf(before);
-        order.splice(at < 0 ? order.length : at, 0, moved);
-        Places.reorderBookmarks(order);
+        order.splice(at < 0 ? order.length : at + (after ? 1 : 0), 0, moved);
+        Prefs.p.filesFavourites = order;
     }
 
     // A search worth keeping: what was looked for, where, and how it was narrowed.
@@ -968,9 +981,8 @@ FloatingWindow {
                             }
                             HoverHandler { id: rowHover }
 
-                            // A bookmark can be dragged up and down the list to reorder it; the
-                            // groups above it are the desktop's own and do not move.
-                            readonly property bool movable: place.modelData.bookmark === true
+                            // A favourite can be dragged up and down to sit where it is wanted; the
+                            // volumes and the trash are the desktop's own and do not move.
                             readonly property bool favourite: place.modelData.group === "Favourites"
                             // Recents is not somewhere a thing can be put.
                             readonly property bool takesFiles: place.modelData.path !== Places.recentsPath
@@ -980,18 +992,19 @@ FloatingWindow {
                             // which one is hovering says which is meant.
                             DropArea {
                                 id: placeDrop
-                                anchors.fill: parent
+                                anchors.fill: row
                                 keys: ["isle/place"]
                                 enabled: place.favourite
                                 onDropped: drop => {
-                                    root.reorderPlace(drop.getDataAsString("isle/place"), place.modelData.path);
+                                    root.reorderPlace(drop.getDataAsString("isle/place"), place.modelData.path,
+                                                      drop.y > row.height / 2);
                                     drop.acceptProposedAction();
                                 }
                             }
 
                             DropArea {
                                 id: fileDrop
-                                anchors.fill: parent
+                                anchors.fill: row
                                 keys: ["text/uri-list"]
 
                                 // Where in the row it lands says what is meant, the way Finder reads
@@ -1021,9 +1034,9 @@ FloatingWindow {
                             // Landing between two rows is a line where it will land, not a box drawn
                             // around the row under the pointer.
                             Rectangle {
-                                anchors { left: parent.left; right: parent.right }
+                                anchors { left: row.left; right: row.right }
                                 readonly property real at: placeDrop.containsDrag ? placeDrop.drag.y : fileDrop.drag.y
-                                y: at > place.height / 2 ? place.height - 2 : 0
+                                y: row.y + (at > row.height / 2 ? row.height - 2 : 0)
                                 height: 2
                                 radius: 1
                                 z: 2
@@ -1049,17 +1062,13 @@ FloatingWindow {
                                     root.showPlaceMenu(at.x, at.y, place.modelData);
                                 }
 
-                                Drag.active: dragger.active
+                                Drag.active: row.carrying
                                 Drag.dragType: Drag.Automatic
                                 Drag.supportedActions: Qt.MoveAction
                                 Drag.keys: ["isle/place"]
                                 Drag.mimeData: ({ "isle/place": place.modelData.path })
-                                DragHandler {
-                                    id: dragger
-                                    enabled: place.movable
-                                    target: null
-                                    onActiveChanged: if (active) row.Drag.startDrag()
-                                }
+                                draggable: place.favourite
+                                onDragStarted: root.carryPlace(row, place.modelData.path)
                                 // Ejecting a device and taking a bookmark out are the row's own
                                 // actions and belong on it, not in a menu.
                                 Glyph {

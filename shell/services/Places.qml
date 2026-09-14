@@ -33,12 +33,15 @@ Singleton {
     readonly property var places: {
         const out = [
             { group: "", name: "Recents", path: recentsPath, glyph: "clock", eject: false, bookmark: false },
+        ];
+        const favourites = [
             { group: "Favourites", name: "Home", path: home, glyph: "house", eject: false, bookmark: false },
         ];
         for (const d of userDirs)
-            out.push({ group: "Favourites", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });
+            favourites.push({ group: "Favourites", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });
         for (const b of bookmarks)
-            out.push({ group: "Favourites", name: b.name, path: b.path, glyph: "folder", eject: false, bookmark: true });
+            favourites.push({ group: "Favourites", name: b.name, path: b.path, glyph: "folder", eject: false, bookmark: true });
+        for (const f of inOrder(favourites)) out.push(f);
         // The disk the system is on leads the locations, as the machine does in Finder.
         for (const f of Disks.fixed)
             out.push({ group: "Locations", name: f.label || f.name, path: f.mountpoint,
@@ -51,6 +54,17 @@ Singleton {
         }
         out.push({ group: "Locations", name: "Trash", path: trashFiles, glyph: "trash", eject: false, bookmark: false });
         return out;
+    }
+
+    // The favourites in the order they were last dragged into. One that has never been dragged, or
+    // one that has only just appeared, keeps the place it would have had among the rest.
+    function inOrder(list) {
+        const want = Prefs.p.filesFavourites || [];
+        if (!want.length) return list;
+        const known = list.filter(p => want.indexOf(p.path) >= 0);
+        const rest = list.filter(p => want.indexOf(p.path) < 0);
+        known.sort((a, b) => want.indexOf(a.path) - want.indexOf(b.path));
+        return known.concat(rest);
     }
 
     function nameOf(path) {

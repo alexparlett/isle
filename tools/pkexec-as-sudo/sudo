@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""A `sudo` for hyprpm alone: it hands the command to the root half of the install and prints what
+came back. Ahead of the real sudo on the path only while tools/isle-root.py is rebuilding (D79)."""
+import json, os, socket, sys
+
+if sys.argv[1:2] == ["-k"]:  # drops a cached password; there is nothing here to drop
+    sys.exit(0)
+sock = os.environ.get("ISLE_ROOT_SOCK")
+if not sock:
+    sys.exit("sudo: only the Isle plugin rebuild reaches this one")
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.settimeout(900)
+s.connect(sock)
+s.sendall(json.dumps({"argv": sys.argv[1:]}).encode() + b"\n")
+data = b""
+while not data.endswith(b"\n"):
+    chunk = s.recv(65536)
+    if not chunk:
+        break
+    data += chunk
+try:
+    r = json.loads(data.decode())
+except ValueError:
+    sys.exit("sudo: the root half said nothing that could be read")
+sys.stdout.write(r.get("out", ""))
+sys.exit(r.get("code", 1))

@@ -890,3 +890,107 @@ Files remembers; a place that has never been dragged, or one that has only
 just appeared, keeps the place it would have had among the rest. The GTK
 file still holds the bookmarks themselves, so what is bookmarked stays
 shared with every other file manager (D69) while where it sits does not.
+
+**D77 · The install asks for root once, through whatever can ask.** An
+update from Settings runs `install.sh` out of the shell, with no terminal
+behind it, and every `sudo` in it had nothing to read a password from: the
+`setcap` for nethogs ran on every install and failed there first, so the
+install stopped a third of the way in — before the themes were rendered,
+before the desktop entries were written — and the row said only "Stopped
+with code 1". Everything that needs root is `tools/isle-root.py` now (D79),
+each step with its own guard, run through `sudo` when stdin is a terminal
+and `pkexec` when it is not, so the shell's own polkit agent puts the
+dialog up. `--due` answers the same guards as the user, so an install with
+nothing for root to do asks for nothing; a dismissed dialog comes back as
+126 or 127 and is said as "Permission was not given", the words the package
+updates already use.
+
+The greeter is the one step that is due on every update, since it is a copy
+of `shell/`. That is the password an update asks for on a machine with the
+greeter installed, and it is asked once for all four.
+
+Checking is a fetch and has always been one: it counts what HEAD is behind
+`FETCH_HEAD` by and writes nothing. Only Update pulls.
+
+Compositor plugins are not part of this. `install.sh` has never built them
+— `tools/bootstrap.sh --bars` does, and the session's `hyprpm reload`
+loads what is already built — so a pull that changes `plugins/` leaves the
+built plugin behind until `hyprpm update` is run by hand. hyprpm shells out
+to `sudo` itself, which is the same problem one level down, so wiring it
+into the update is its own decision and has not been made.
+
+**D78 · The update is not the shell's child.** Quickshell watches the files
+it is running from and reloads when they change, and a reload destroys
+every object the configuration made, running `Process` included — measured
+in the test VM: a child started from a service was killed the moment an
+unrelated QML file changed, and `running`, `phase` and `log` came back
+empty. The first thing an update does is pull, and a pull rewrites the QML
+the shell is running from. So the update was killing itself in the middle
+of its own pull, every single time, and the page it was killed on forgot
+there had ever been a run.
+
+`tools/update.py run` is started with `execDetached` through `setsid
+--fork`, so it belongs to nobody the reload can reach, and it writes what
+it is doing to `$XDG_RUNTIME_DIR/isle/update.json` after every change,
+whole and atomically. The shell reads that with a watching `FileView`.
+Nothing is held in the service: the instance that comes up after the reload
+renders the same run at the same point, and the one that was there when it
+finishes is the only one that says so. The run also refuses to start on top
+of itself — the state file carries its pid.
+
+Python and not a shell script, for a reason that matters here: the
+interpreter reads and compiles the whole file before it runs any of it, and
+the pull overwrites that file mid-run. Bash reads a script as it goes and
+would execute the seam.
+
+The exit code is the arbiter of a failed step, not the output. Reading
+failure out of the lines made the run report `! xremap not installed` — a
+note `install.sh` is perfectly happy to finish on — as the reason the
+update stopped. A line that reads like a complaint is kept as the reason to
+give *if* the command then fails.
+
+**D79 · One authorisation for the whole of an install, hyprpm included.**
+A plugin whose sources moved is stale until hyprpm rebuilds it, and an
+update that leaves a stale plugin behind is not finished. hyprpm will not
+be automated: it refuses to run as root outright ("Don't run hyprpm as a
+superuser"), it runs `sudo -k` before it asks for anything so no credential
+can be warmed for it, it has no environment variable to say what to
+escalate with, and with `sudo` off the path it does not fall back to
+`run0` — it builds and then fails the privileged write. There is no askpass
+on the machine and Isle is not going to grow one; a password Isle has
+handled is a password Isle is responsible for.
+
+Measured: a rebuild escalates eight times, and `org.freedesktop.policykit.exec`
+is `auth_admin` with nothing kept. Sending those to pkexec one by one would
+have been eight dialogs, and an action of Isle's own with `auth_admin_keep`
+would have left a way to run things as root sitting on the machine
+afterwards.
+
+So the whole privileged half of an install is one process.
+`tools/isle-root.py` is reached through a single pkexec — nethogs'
+capabilities, the portal file, the hidraw rule, the greeter copy and the
+plugins, each skipped when it is already done — and for the rebuild it
+becomes hyprpm's own escalation: it opens a socket, forks back down to the
+user to run hyprpm with `tools/pkexec-as-sudo` ahead of the real sudo on
+its path, and serves the eight requests that come back. Each is matched
+against the shapes hyprpm uses — writing inside `/var/cache/hyprpm/<user>`,
+and `make installheaders` in hyprpm's own build directory under
+`/run/user/<n>/hyprpm` — with paths normalised first so `..` buys nothing,
+and everything else refused. The socket is created by root in the user's
+runtime directory, mode 0600, and is gone when the process is. Nothing
+persists: no policy file, no helper left installed, no authorisation
+outliving the run.
+
+`--due` answers the same questions as the user, so an install with nothing
+for root to do asks for nothing at all.
+
+hyprpm's exit code says nothing worth hearing in either direction: 0 with a
+dependency missing, non-zero after a build that worked. Whether it worked
+is read out of its own lines.
+
+**D80 · `IsleUpdate` is created at startup, not on first reference.**
+Singletons in this shell come into being when something reads them, and the
+update service now owns an `IpcHandler` and the `FileView` watching the run.
+Left lazy, `isle update` answered "Target not found" and a run already going
+was invisible until something happened to touch the service. It joins the
+list in `shell.qml` that must exist from the start.

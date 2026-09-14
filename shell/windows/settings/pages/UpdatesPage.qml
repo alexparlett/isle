@@ -23,16 +23,45 @@ SettingsPage {
     SettingsGroup {
         heading: "Isle"
         SettingsRow {
-            label: IsleUpdate.running ? IsleUpdate.phase : IsleUpdate.checking ? "Checking" : IsleUpdate.error ? "Could not check" : IsleUpdate.behind > 0 ? "An update is available" : "Up to date"
+            label: IsleUpdate.running ? IsleUpdate.phase : IsleUpdate.checking ? "Checking" : IsleUpdate.error ? "Could not check" : IsleUpdate.behind > 0 ? "An update is available" : IsleUpdate.pluginsStale ? "The compositor plugins need rebuilding" : "Up to date"
             description: IsleUpdate.running ? (IsleUpdate.log[IsleUpdate.log.length - 1] || "")
                 : IsleUpdate.failed ? IsleUpdate.failed
                 : IsleUpdate.head ? "At " + IsleUpdate.head + " from " + IsleUpdate.headDate + (IsleUpdate.checkedAt ? ". Checked at " + IsleUpdate.checkedAt + "." : ".") + (IsleUpdate.error ? " " + IsleUpdate.error : "") + (IsleUpdate.viaHttps ? " Fetched over https; origin " + IsleUpdate.remote + " refused this machine." : "")
-                : "This checkout has no git history, so it cannot pull. Clone the repository instead."
+                : "This copy has no git history, so it cannot pull. Clone the repository instead."
             RowLayout {
                 spacing: Theme.s2
                 Spinner { visible: IsleUpdate.running; Layout.rightMargin: Theme.s2 }
                 Button { text: "Check now"; variant: "text"; enabled: !IsleUpdate.checking && !IsleUpdate.running; onClicked: IsleUpdate.check() }
-                Button { text: "Update"; glyph: "refresh-cw"; variant: "accent"; enabled: IsleUpdate.behind > 0 && !IsleUpdate.running; onClicked: IsleUpdate.update() }
+                Button { text: "Update"; glyph: "refresh-cw"; variant: "accent"; enabled: (IsleUpdate.behind > 0 || IsleUpdate.pluginsStale) && !IsleUpdate.running; onClicked: IsleUpdate.update() }
+            }
+        }
+        // What the run is doing, one row per step, for as long as there is a run to show.
+        Repeater {
+            model: IsleUpdate.steps
+            SettingsRow {
+                id: st
+                required property var modelData
+                label: modelData.name
+                description: ""
+                RowLayout {
+                    spacing: Theme.s2
+                    Label {
+                        text: ({ waiting: "Waiting", running: "Running", done: "Done", stopped: "Stopped" })[st.modelData.state] || st.modelData.state
+                        size: Theme.sizeCaption
+                        color: st.modelData.state === "done" ? Theme.ok : st.modelData.state === "stopped" ? Theme.warn : st.modelData.state === "waiting" ? Theme.text3 : Theme.accent
+                    }
+                    Glyph { visible: st.modelData.state === "done"; name: "check"; size: 14; color: Theme.ok }
+                    Spinner { visible: st.modelData.state === "running" }
+                }
+            }
+        }
+        // Every commit this copy is behind by, so what an update brings can be read before it is taken.
+        Repeater {
+            model: IsleUpdate.running ? [] : IsleUpdate.incoming
+            SettingsRow {
+                required property string modelData
+                label: modelData
+                description: ""
             }
         }
     }
@@ -77,11 +106,14 @@ SettingsPage {
 
     // What was said, for when a run stops short or someone wants to see.
     SettingsGroup {
-        visible: Updates.log.length > 0 && (Updates.running || Updates.failed !== "")
+        id: output
+        // Whichever run has something to say; an Isle run in progress or stopped speaks over the packages.
+        readonly property var lines: IsleUpdate.running || IsleUpdate.failed ? IsleUpdate.log : Updates.log
+        visible: output.lines.length > 0 && (Updates.running || Updates.failed !== "" || IsleUpdate.running || IsleUpdate.failed !== "")
         heading: "Output"
         SettingsRow {
             label: ""
-            description: Updates.log.slice(-8).join("\n")
+            description: output.lines.slice(-8).join("\n")
         }
     }
 

@@ -79,6 +79,8 @@ if ((bars)); then
     sudo pacman -S --needed --noconfirm base-devel cmake cpio hyprpm >/dev/null
     # This repo is the plugin source: hyprbars as upstream builds it, plus no bar over a window that draws its own controls.
     if hyprpm update && (yes | hyprpm add "$DEST") && hyprpm enable hyprbars && hyprpm enable isle-windows; then
+        # What they were built from, so the install that follows does not rebuild them again straight away.
+        python3 "$DEST/tools/update.py" stamp
         ok "hyprbars and isle-windows built and enabled; hyprland.lua loads them at start"
     else
         echo "  ! hyprbars did not build; windows get no title bars (Win+Q, Win+Shift+F, Win+M still work)"

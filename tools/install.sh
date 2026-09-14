@@ -17,14 +17,20 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 ISLE_HOME="${ISLE_HOME:-$HOME/.local/share/isle}"
+ISLE_USER="${USER:-$(id -un)}"
 packages=0; pam=0
 for a in "$@"; do case "$a" in --packages) packages=1 ;; --pam) pam=1 ;; -h|--help) sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
 
-ok() { printf '  \e[32m✓\e[0m %s\n' "$*"; }
+ok()   { printf '  \e[32m✓\e[0m %s\n' "$*"; }
+# What is about to happen, for whatever is watching this run go by.
+step() { printf '  \e[34m→\e[0m %s\n' "$*"; }
+# A step that is root's. Run from a terminal that is sudo; run from Settings there is no terminal to
+# type a password into, and pkexec puts the shell's own auth dialog up instead.
+root() { if [[ -t 0 ]]; then sudo "$@"; else pkexec "$@"; fi; }
 
 if ((packages)); then
     mapfile -t pkgs < <(sed 's/#.*//' "$REPO/packages/shell.txt" | tr -d ' ' | grep -v '^$')
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
+    root pacman -S --needed --noconfirm "${pkgs[@]}"
     ok "packages"
 fi
 
@@ -35,8 +41,8 @@ if ((pam)); then
         f=/etc/pam.d/$svc
         [[ -f "$f" ]] || continue
         if ! grep -q pam_gnome_keyring "$f"; then
-            sudo sed -i '/^auth.*include.*system-local-login/a auth       optional     pam_gnome_keyring.so' "$f"
-            sudo sed -i '/^session.*include.*system-local-login/a session    optional     pam_gnome_keyring.so auto_start' "$f"
+            root sed -i '/^auth.*include.*system-local-login/a auth       optional     pam_gnome_keyring.so' "$f"
+            root sed -i '/^session.*include.*system-local-login/a session    optional     pam_gnome_keyring.so auto_start' "$f"
             ok "pam_gnome_keyring in $f"
         else
             ok "pam_gnome_keyring already in $f"
@@ -48,6 +54,7 @@ fi
 # generated fragments and the built plugins are the installed copy's own and are kept.
 if [[ "$REPO" != "$(mkdir -p "$ISLE_HOME" && cd "$ISLE_HOME" && pwd -P)" ]]; then
     [[ "$ISLE_HOME" != "$HOME" && "$ISLE_HOME" != "/" ]] || { echo "  ! ISLE_HOME must be a directory of its own" >&2; exit 1; }
+    step "Copying the checkout into place"
     rsync -a --delete --exclude '/hypr/generated' --exclude '/dev' --exclude '/shell/userwidgets' --exclude '__pycache__' --exclude '/plugins/*/*.so' --exclude '/plugins/*/*.o' --exclude '/native/*/build' --exclude '/qml' "$REPO/" "$ISLE_HOME/"
     # A first copy has no fragments yet, and the compositor reloads before the shell renders them: the
     # checkout's serve until then.
@@ -61,6 +68,7 @@ fi
 # path the session exports (D66). Without it the file manager and the file chooser are absent; the rest
 # of the shell runs.
 if command -v cmake >/dev/null; then
+    step "Building the browsing engine"
     # Mtimes cannot decide what to rebuild here: rsync gives the copy the checkout's mtime, which is
     # older than the objects this machine already built, so ninja sees a changed source as up to date
     # and a changed source list keeps the moc output of the old one. The sources are hashed instead,
@@ -102,23 +110,8 @@ link "$REPO/shell" "$CFG/quickshell/isle"
 link "$REPO/hypr/hyprland.lua" "$CFG/hypr/hyprland.lua"
 link "$REPO/hypr/generated" "$CFG/hypr/generated"
 link "$REPO/systemd/xremap.service" "$CFG/systemd/user/xremap.service"
-# nethogs counts network traffic per process; it needs two capabilities rather than root.
-if command -v nethogs >/dev/null; then
-    sudo setcap cap_net_admin,cap_net_raw+ep "$(command -v nethogs)" && ok "nethogs can read the network (per-process traffic in Monitor)"
-fi
+step "Rendering the app themes"
 python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, yazi, btop, zathura, portals)"
-# The shell answers org.freedesktop.impl.portal.FileChooser; xdg-desktop-portal reads who can from here (D67).
-if ! cmp -s "$REPO/system/portal/isle.portal" /usr/share/xdg-desktop-portal/portals/isle.portal; then
-    sudo install -Dm644 "$REPO/system/portal/isle.portal" /usr/share/xdg-desktop-portal/portals/isle.portal
-    systemctl --user restart xdg-desktop-portal.service 2>/dev/null || true
-    ok "the file chooser is the shell's (isle.portal)"
-fi
-# Raw HID for the browser keyboard configurators (Keychron Launcher, VIA): the rule is root's.
-if ! cmp -s "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules; then
-    sudo install -Dm644 "$REPO/system/udev/70-isle-hidraw.rules" /etc/udev/rules.d/70-isle-hidraw.rules
-    sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw --subsystem-match=usb
-    ok "hidraw devices are the logged-in user's (keyboard configurators)"
-fi
 # Sites that are really apps get their own window and a launcher entry.
 mkdir -p "$HOME/.local/share/applications"
 cat > "$HOME/.local/share/applications/isle-keychron-launcher.desktop" <<D
@@ -132,10 +125,6 @@ Categories=Settings;HardwareSettings;
 Keywords=keyboard;keychron;firmware;via;
 D
 ok "Keychron Launcher in the launcher (opens in the browser as its own window)"
-# The login screen is a root-owned copy; after a pull it is refreshed.
-if grep -qs isle-greeter /etc/greetd/hyprland.lua; then
-    sudo "$REPO/tools/install-greeter.sh" "$USER" && ok "greeter copy refreshed"
-fi
 systemctl --user daemon-reload
 ok "the shell starts from hyprland.lua's start hook (shell/scripts/isle-session)"
 # A machine without xdg-user-dirs is not a reason to stop: set -e would end the install here.
@@ -157,6 +146,17 @@ if xdg-mime default isle-files.desktop inode/directory 2>/dev/null; then ok "Fil
 # Mousepad for text unless something other than Zed was chosen already.
 if command -v mousepad >/dev/null; then
     case "$(xdg-mime query default text/plain 2>/dev/null)" in ""|dev.zed.Zed.desktop) xdg-mime default org.xfce.mousepad.desktop text/plain && ok "Mousepad opens text" ;; esac
+fi
+# Everything root has to do, in one run at the end, so one authorisation covers the lot and only when
+# something of it is pending. The portal's own restart is the user's, so it stays out here.
+if python3 "$REPO/tools/isle-root.py" --due "$REPO" "$ISLE_USER"; then
+    step "Asking for permission"
+    portal_changed=0
+    cmp -s "$REPO/system/portal/isle.portal" /usr/share/xdg-desktop-portal/portals/isle.portal || portal_changed=1
+    root python3 "$REPO/tools/isle-root.py" "$REPO" "$ISLE_USER" \
+        "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" "${HYPRLAND_INSTANCE_SIGNATURE:-}"
+    ((portal_changed)) && systemctl --user restart xdg-desktop-portal.service 2>/dev/null || true
+    hyprpm reload -n >/dev/null 2>&1 || true
 fi
 systemctl --user enable gcr-ssh-agent.socket >/dev/null 2>&1 && ok "gcr-ssh-agent.socket enabled (SSH agent)"
 if command -v xremap >/dev/null; then

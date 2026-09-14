@@ -39,7 +39,9 @@ Singleton {
     }
     function settingsBack() { if (!settingsCanBack) return; settingsNavigating = true; settingsIndex--; settingsPage = settingsHistory[settingsIndex]; settingsNavigating = false; }
     // Opening a window surface that is already open brings its window to the front instead.
-    readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor", files: "Files" })
+    // Files is not here: it is as many windows as are wanted, each named for the folder it shows,
+    // and showFiles below answers before this is ever reached.
+    readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor" })
     function show(name) {
         if (name === "files") { root.showFiles(""); return; }
         if (root[name]) Windows.focusShellWindow(windowTitles[name]);

@@ -42,6 +42,8 @@ public:
 
     // What is free on the volume a path is on, already said in words. Empty when it cannot be asked.
     Q_INVOKABLE QString freeSpace(const QString &path) const;
+    // The same with what the volume holds altogether: "108.7 GB free of 1.8 TB".
+    Q_INVOKABLE QString spaceOn(const QString &path) const;
     // How much these paths come to, folders counted through. Empty for nothing.
     Q_INVOKABLE QString sizeOf(const QStringList &paths) const;
 

@@ -167,6 +167,13 @@ QString Engine::freeSpace(const QString &path) const {
     return formatSize(where.bytesAvailable()) + QStringLiteral(" free");
 }
 
+QString Engine::spaceOn(const QString &path) const {
+    const QStorageInfo where(path);
+    if (!where.isValid() || !where.isReady() || where.bytesTotal() <= 0)
+        return {};
+    return formatSize(where.bytesAvailable()) + QStringLiteral(" free of ") + formatSize(where.bytesTotal());
+}
+
 QString Engine::formatSize(qint64 bytes) const {
     if (bytes < 0)
         return {};

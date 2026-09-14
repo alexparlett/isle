@@ -38,16 +38,18 @@ Rectangle {
         contentHeight: body.implicitHeight
         clip: true
 
+        // The facts stay a column a person can read down even when the pane is very wide.
         ColumnLayout {
             id: body
-            width: parent.width
+            width: Math.min(420, parent.width)
+            x: Math.max(0, (parent.width - width) / 2)
             spacing: Theme.s3
 
             // The picture where there is one, and the file's own icon at a size worth looking at
             // where there is not.
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(root.width, 200)
+                Layout.preferredHeight: Math.min(body.width, 200)
 
                 // The file itself, decoded no larger than the pane. Anything that is not a picture
                 // never reaches Ready and the icon behind it stands instead.
@@ -86,7 +88,7 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: Theme.s2
                 Label {
-                    Layout.preferredWidth: 70
+                    Layout.preferredWidth: 80
                     horizontalAlignment: Text.AlignRight
                     size: Theme.sizeCaption
                     color: Theme.text3
@@ -114,7 +116,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.s2
                     Label {
-                        Layout.preferredWidth: 70
+                        Layout.preferredWidth: 80
                         Layout.alignment: Qt.AlignTop
                         horizontalAlignment: Text.AlignRight
                         size: Theme.sizeCaption

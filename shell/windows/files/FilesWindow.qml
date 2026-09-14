@@ -945,6 +945,10 @@ FloatingWindow {
                                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                                 glyph: place.modelData.glyph
                                 title: place.modelData.name
+                                // A drive says how much room is left on it, which is what a person
+                                // wants at a glance; what it holds altogether is in the footer when
+                                // the drive is open, where there is room to say it.
+                                subtitle: place.modelData.drive ? Engine.freeSpace(place.modelData.path) : ""
                                 selected: dir.path === place.modelData.path
                                 onClicked: root.go(place.modelData.path)
 
@@ -1158,7 +1162,7 @@ FloatingWindow {
                 Label {
                     size: Theme.sizeCaption
                     color: Theme.text3
-                    text: Engine.freeSpace(dir.path)
+                    text: Engine.spaceOn(dir.path)
                 }
                 // What is being copied or moved, while it is.
                 Repeater {

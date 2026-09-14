@@ -10,30 +10,62 @@ Singleton {
 
     // [{ path, name, label, size, fstype, mountpoint, mounted, removable, drive }]
     property var volumes: []
+    // The same for the filesystems that are not going anywhere: the one the system is on and any
+    // other disk mounted in it. They are listed but never announced and never offered an eject.
+    property var fixed: []
     property var seen: ({})
     property bool primed: false
 
     Process {
         id: lsblk
-        command: ["lsblk", "-J", "-b", "-o", "PATH,NAME,TYPE,FSTYPE,MOUNTPOINT,LABEL,SIZE,HOTPLUG,RM,PKNAME,MODEL,VENDOR"]
+        command: ["lsblk", "-J", "-b", "-o", "PATH,NAME,TYPE,FSTYPE,MOUNTPOINT,MOUNTPOINTS,LABEL,SIZE,HOTPLUG,RM,PKNAME,MODEL,VENDOR"]
         stdout: StdioCollector { onStreamFinished: root.parse(text) }
     }
     function refresh() { lsblk.running = true; }
+
+    // What to call the disk the system is on when it carries no label of its own.
+    property string machineName: ""
+    Process {
+        running: true
+        command: ["sh", "-c", "cat /etc/hostname 2>/dev/null || hostname"]
+        stdout: StdioCollector { onStreamFinished: root.machineName = text.trim() }
+    }
 
     function parse(text) {
         let devs;
         try { devs = JSON.parse(text).blockdevices; } catch (e) { return; }
         const out = [];
+        const stay = [];
+        // Where the system keeps its own business rather than anything a person put there.
+        const plumbing = m => !m || m === "[SWAP]" || m.startsWith("/boot") || m.startsWith("/var/")
+            || m.startsWith("/run/") && !m.startsWith("/run/media/");
+        // One device can be mounted in several places at once — a btrfs root is mounted once per
+        // subvolume — and the one worth showing is the root of the tree, not whichever came first.
+        const placeOf = d => {
+            const all = (d.mountpoints || []).filter(m => m && m !== "[SWAP]");
+            if (all.indexOf("/") >= 0) return "/";
+            const real = all.filter(m => !plumbing(m));
+            return real.length ? real[0] : (all.length ? all[0] : (d.mountpoint || ""));
+        };
         const walk = (d, parent) => {
             const removable = !!(d.hotplug || d.rm || (parent && (parent.hotplug || parent.rm)) || d.type === "loop");
+            const named = d.label || (parent && parent.model ? parent.model.trim() : d.name);
+            const where = placeOf(d);
             if (d.fstype && removable && d.type !== "disk" || (d.fstype && removable && !d.children)) {
-                out.push({ path: d.path, name: d.name, label: d.label || (parent && parent.model ? parent.model.trim() : d.name), size: Number(d.size) || 0,
-                           fstype: d.fstype, mountpoint: d.mountpoint || "", mounted: !!d.mountpoint, removable: true, drive: parent ? parent.path : d.path });
+                out.push({ path: d.path, name: d.name, label: named, size: Number(d.size) || 0,
+                           fstype: d.fstype, mountpoint: where, mounted: !!where, removable: true, drive: parent ? parent.path : d.path });
+            } else if (d.fstype && where && !plumbing(where)) {
+                stay.push({ path: d.path, name: d.name,
+                            // The disk the system is on is the machine, and is named for it.
+                            label: where === "/" ? (root.machineName || named) : named,
+                            size: Number(d.size) || 0, fstype: d.fstype, mountpoint: where,
+                            mounted: true, removable: false, drive: parent ? parent.path : d.path });
             }
             for (const c of d.children || []) walk(c, d);
         };
         for (const d of devs) walk(d, null);
         volumes = out;
+        fixed = stay;
 
         // Announce filesystems that were not there before, once the first scan has primed the set.
         const now = {};

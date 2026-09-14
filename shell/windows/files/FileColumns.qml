@@ -217,7 +217,9 @@ Item {
             // Finder's last column: what is picked, rather than another list. A folder opens a
             // column of its own, so only a file leaves anything for this to show.
             FilePreview {
-                width: 240
+                // The last column takes whatever the columns left, so a preview is a preview and not
+                // a strip with a window of nothing beside it.
+                width: Math.max(280, root.width - root.chain.length * 220)
                 height: row.height
                 visible: root.selected !== "" && !root.selectedIsDir
                 picked: visible ? [root.selected] : []

@@ -39,9 +39,15 @@ Singleton {
             out.push({ group: "Favourites", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });
         for (const b of bookmarks)
             out.push({ group: "Favourites", name: b.name, path: b.path, glyph: "folder", eject: false, bookmark: true });
+        // The disk the system is on leads the locations, as the machine does in Finder.
+        for (const f of Disks.fixed)
+            out.push({ group: "Locations", name: f.label || f.name, path: f.mountpoint,
+                       glyph: f.mountpoint === "/" ? "server" : "hard-drive",
+                       eject: false, bookmark: false, drive: true, volume: f });
         for (const v of Disks.volumes) {
             if (!v.mounted) continue;
-            out.push({ group: "Locations", name: v.label || v.name, path: v.mountpoint, glyph: "hard-drive", eject: true, bookmark: false, volume: v });
+            out.push({ group: "Locations", name: v.label || v.name, path: v.mountpoint,
+                       glyph: "hard-drive", eject: true, bookmark: false, drive: true, volume: v });
         }
         out.push({ group: "Locations", name: "Trash", path: trashFiles, glyph: "trash", eject: false, bookmark: false });
         return out;

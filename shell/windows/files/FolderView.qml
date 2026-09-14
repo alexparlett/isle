@@ -5,6 +5,7 @@ import Quickshell.Widgets
 import Isle.Files
 import qs.theme
 import qs.ui
+import qs.services
 
 // The folder, as a list of rows or a grid of thumbnails. Both are one selection and one set of
 // keys, so the window and the chooser speak to this and not to either view.
@@ -269,6 +270,9 @@ FocusScope {
     // The icon theme's name for a row, read from the file itself when its name said nothing. Only
     // the rows on screen ever ask, so a folder of fifty thousand costs the forty that are visible.
     function iconFor(path, iconName) {
+        // An installed AppImage is drawn as the app it holds rather than as the binary it is (D82).
+        const app = AppImages.iconFor(path);
+        if (app) return app;
         return Engine.isGenericIcon(iconName) ? Engine.sniffIconName(path) : iconName;
     }
 

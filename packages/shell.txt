@@ -61,6 +61,8 @@ words   # and completes words from the dictionary
 yazi        # the terminal one; the window is the shell's own (D73)
 mousepad
 libarchive  # bsdtar, which packs and unpacks for Files
+squashfs-tools  # reads an AppImage's own name and icon out of it without running it (D82)
+fuse2           # what an AppImage's runtime mounts itself with
 
 # Monitor and games
 btop

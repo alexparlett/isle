@@ -1006,3 +1006,76 @@ For Isle the half minute is counted from the `finishedAt` in the state
 file, not from when the service read it: the reload the pull causes would
 otherwise start the moment again, and an instance opened an hour later
 would show a fresh "Done" for a run nobody was watching.
+
+**D82 · An AppImage is installed by being put in `~/Applications`, and the
+folder is watched rather than the gesture hooked.** An AppImage is already
+what a Mac bundle is: one self-contained file that is the whole app. The
+only thing missing on Linux is that a file in a folder is invisible to
+everything that knows what an app is — the launcher, `Windows.appFor`,
+`Restore`, kept running, all of which read desktop entries and nothing
+else. So installing one means putting it somewhere known and minting an
+entry that points at it.
+
+The obvious way to offer that is a drop target: a sidebar place that takes
+a drag and installs what lands on it. Watching the folder instead catches
+the same drag and everything else with it — a browser told to download
+there, a `mv` in a terminal, an updater writing a new version over the old
+one. It also gets the other half free. Files already moves things, throws
+them in the trash, puts them back and undoes the last of it; with the
+folder watched, each of those is an install or an uninstall without Files
+knowing that AppImages exist. Throwing an app in the trash removes it, and
+putting it back installs it again, which is the behaviour a Mac has and
+the reason that behaviour is worth having.
+
+What the bundle calls itself is read out of it rather than asked of it.
+`--appimage-extract` runs the file, which means executing something the
+person has just downloaded in order to find out what it is; the trust
+decision belongs at the launch, not at the listing. A type 2 AppImage is
+an ELF with a squashfs appended at `e_shoff + e_shentsize * e_shnum`, so
+`unsquashfs` at that offset reads the desktop entry and the icon with the
+binary never running. A type 1 is an ISO9660 and bsdtar reads it, which
+Files already depends on.
+
+The work is a script and a service, not part of the compiled engine. D66's
+argument is about a listing of fifty thousand rows arriving while the view
+scrolls; registering an app happens once and takes a second, and it is the
+same spawn-and-parse-JSON every other service does. What did go into the
+engine is `Engine.isAppImage`, eleven bytes read: that is a question about
+what a file is, which is where the mime lookups already live, and Files
+asks it of a row before it offers anything.
+
+Not AppImageLauncher or Gear Lever, which both do this well: each brings a
+daemon and a dialog of its own, and a second desktop's dialog appearing
+inside this one is the thing the whole shell exists to avoid.
+
+**D83 · A package the shell has started calling arrives with the update.**
+`packages/shell.txt` is what the shell calls, and until now only
+`bootstrap.sh` and `install.sh --packages` read it: the updater runs
+`install.sh` with no arguments, so a package added to the list reached
+nobody who already had Isle. `tidy.sh` has always offered to take away
+packages *gone* from the list; nothing brought in the ones added. The two
+AppImage packages were the case that made it obvious — without them a
+bundle still installs, but nameless, iconless and unable to run, which is a
+feature arriving broken rather than arriving.
+
+So it is a step in `tools/isle-root.py` like the others (D77), first in the
+run so a later step has what it needs, with a guard that costs nothing:
+`pacman -T` over the list names what is not installed and wants no root, so
+a machine with the list satisfied is asked for no authorisation at all.
+
+Only what pacman can resolve is pending. An AUR name, or one from a
+repository this machine has switched off — `lib32-gamemode` without
+multilib — can never be installed by the step, and counting it would ask
+for root at every update to fail at the same package for ever; `pacman -Si`
+settles it, and those are left to the person and `paru`.
+
+The database is used as it is. Refreshing it and then installing without a
+full upgrade is the partial upgrade Arch warns about, and upgrading the
+machine is what Settings › Updates already does on its own, deliberately,
+with its own progress. An install that fails on a stale database says so
+and the rest of the install goes on, the way a missing xremap does.
+
+The list is now enforced in both directions: a package taken off a machine
+by hand comes back with the next update. That is the point — the list is
+what the shell needs, not a suggestion — but it does mean removing one
+means taking it off the list.

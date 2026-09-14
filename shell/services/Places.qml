@@ -17,6 +17,8 @@ Singleton {
     // service may not depend on it (D72).
     readonly property string dataHome: Quickshell.env("XDG_DATA_HOME") || home + "/.local/share"
     readonly property string trashFiles: dataHome + "/Trash/files"
+    // Where an AppImage is installed by being put there, as an app is on a Mac (D82).
+    readonly property string applications: home + "/Applications"
     // The gathering of what was opened lately, which is a list of paths rather than a folder.
     readonly property string recentsPath: "recents:"
 
@@ -36,6 +38,7 @@ Singleton {
         ];
         const favourites = [
             { group: "Favourites", name: "Home", path: home, glyph: "house", eject: false, bookmark: false },
+            { group: "Favourites", name: "Applications", path: applications, glyph: "layout-grid", eject: false, bookmark: false },
         ];
         for (const d of userDirs)
             favourites.push({ group: "Favourites", name: d.name, path: d.path, glyph: d.glyph, eject: false, bookmark: false });

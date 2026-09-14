@@ -4,9 +4,9 @@
     tools/isle-root.py --due REPO USER          exit 0 when any of it is pending; needs no root
     tools/isle-root.py REPO USER [RUNTIME HIS]  do the parts that are pending
 
-nethogs' capabilities, the portal file, the hidraw rule, the greeter copy, and the compositor
-plugins. Each is skipped when it is already done. tools/install.sh runs the question as the user and
-the work through sudo on a terminal or pkexec without one (D77).
+The packages the shell calls, nethogs' capabilities, the portal file, the hidraw rule, the greeter
+copy, and the compositor plugins. Each is skipped when it is already done. tools/install.sh runs
+the question as the user and the work through sudo on a terminal or pkexec without one (D77).
 
 The plugins are the awkward one: hyprpm refuses to run as root and escalates eight times with `sudo`
 of its own. It is run here as the user with tools/pkexec-as-sudo ahead of the real sudo on its path,
@@ -46,6 +46,31 @@ def same(a, b):
 
 
 # --- what is pending -------------------------------------------------------------------------
+def wanted(repo):
+    """Every package name packages/shell.txt asks for."""
+    out = []
+    try:
+        with open(os.path.join(repo, "packages/shell.txt")) as f:
+            for line in f:
+                name = line.split("#", 1)[0].strip()
+                if name:
+                    out.append(name)
+    except OSError:
+        pass
+    return out
+
+
+def packages_due(repo):
+    """The names on that list this machine has not got and pacman can resolve. One it cannot — an AUR
+    name, or one from a repository switched off here — is never pending (D83). Neither ask needs root."""
+    names = wanted(repo)
+    if not names or not shutil.which("pacman"):
+        return []
+    missing = subprocess.run(["pacman", "-T"] + names, capture_output=True, text=True).stdout.split()
+    return [n for n in missing
+            if subprocess.run(["pacman", "-Si", n], capture_output=True).returncode == 0]
+
+
 def caps_due():
     n = shutil.which("nethogs")
     if not n:
@@ -78,8 +103,8 @@ def plugins_due(repo, user):
 
 
 def anything_due(repo, user):
-    return (caps_due() or portal_due(repo) or hidraw_due(repo) or greeter_due()
-            or plugins_due(repo, user))
+    return (bool(packages_due(repo)) or caps_due() or portal_due(repo) or hidraw_due(repo)
+            or greeter_due() or plugins_due(repo, user))
 
 
 # --- the escalations hyprpm makes -------------------------------------------------------------
@@ -231,6 +256,16 @@ def main():
         print("  ! run as root: sudo %s %s %s" % (sys.argv[0], repo, user), file=sys.stderr)
         return 1
 
+    # What the list asks for and this machine has not got, first so a step below has what it needs.
+    # The database is used as it is rather than refreshed (D83).
+    pending = packages_due(repo)
+    if pending:
+        step("Installing " + ", ".join(pending))
+        got = subprocess.run(["pacman", "-S", "--needed", "--noconfirm"] + pending)
+        if got.returncode:
+            warn("could not install " + ", ".join(pending) + "; the rest of the install goes on")
+        else:
+            ok("packages installed (" + ", ".join(pending) + ")")
     # nethogs counts network traffic per process; it needs two capabilities rather than root.
     if caps_due():
         subprocess.run(["setcap", "cap_net_admin,cap_net_raw+ep", shutil.which("nethogs")], check=True)

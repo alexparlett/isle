@@ -3,8 +3,11 @@
 # Install the shell on this machine: packages, the installed copy, config links, the user unit.
 #
 #     tools/install.sh            install this checkout and link it into place
-#     tools/install.sh --packages also install packages/shell.txt with pacman
+#     tools/install.sh --packages also install the whole of packages/shell.txt with pacman
 #     tools/install.sh --pam      also let PAM unlock the keyring at login (edits /etc/pam.d/greetd and login)
+#
+# A name on that list this machine has not got is installed by every run as part of the root half
+# (tools/isle-root.py), so a package the shell starts calling arrives with an update (D83).
 #
 # The desktop runs from ~/.local/share/isle (ISLE_HOME to change it). Run from a
 # checkout elsewhere, this copies the checkout there first, so editing the
@@ -19,7 +22,7 @@ CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 ISLE_HOME="${ISLE_HOME:-$HOME/.local/share/isle}"
 ISLE_USER="${USER:-$(id -un)}"
 packages=0; pam=0
-for a in "$@"; do case "$a" in --packages) packages=1 ;; --pam) pam=1 ;; -h|--help) sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
+for a in "$@"; do case "$a" in --packages) packages=1 ;; --pam) pam=1 ;; -h|--help) sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;; esac; done
 
 ok()   { printf '  \e[32m✓\e[0m %s\n' "$*"; }
 # What is about to happen, for whatever is watching this run go by.
@@ -112,6 +115,8 @@ link "$REPO/hypr/generated" "$CFG/hypr/generated"
 link "$REPO/systemd/xremap.service" "$CFG/systemd/user/xremap.service"
 step "Rendering the app themes"
 python3 "$REPO/theme/render.py" && ok "app themes rendered (GTK, Qt, kitty, yazi, btop, zathura, portals)"
+# Where an AppImage is installed by being put there; the shell watches it.
+mkdir -p "$HOME/Applications"
 # Sites that are really apps get their own window and a launcher entry.
 mkdir -p "$HOME/.local/share/applications"
 cat > "$HOME/.local/share/applications/isle-keychron-launcher.desktop" <<D
@@ -158,6 +163,11 @@ if python3 "$REPO/tools/isle-root.py" --due "$REPO" "$ISLE_USER"; then
     ((portal_changed)) && systemctl --user restart xdg-desktop-portal.service 2>/dev/null || true
     hyprpm reload -n >/dev/null 2>&1 || true
 fi
+# Said after the root half, which installs what the package list asks for: these are what is left.
+command -v unsquashfs >/dev/null ||
+    echo "  ! squashfs-tools not installed: an AppImage gets an entry with no name or icon until it is (paru -S squashfs-tools)"
+[ -e /usr/lib/libfuse.so.2 ] ||
+    echo "  ! fuse2 not installed: an AppImage will not run until it is (paru -S fuse2)"
 systemctl --user enable gcr-ssh-agent.socket >/dev/null 2>&1 && ok "gcr-ssh-agent.socket enabled (SSH agent)"
 if command -v xremap >/dev/null; then
     systemctl --user enable xremap.service >/dev/null 2>&1 && ok "xremap.service enabled (keyboard profiles)"

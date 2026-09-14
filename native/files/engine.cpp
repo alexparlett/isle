@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QDirIterator>
+#include <QFile>
 #include <QFileInfo>
 #include <QLocale>
 #include <QStorageInfo>
@@ -45,6 +46,15 @@ QString Engine::sniffIconName(const QString &path) const {
     const QString icon = name.isEmpty() ? QStringLiteral("text-x-generic") : name;
     m_sniffed.insert(path, { icon, mtime, size });
     return icon;
+}
+
+bool Engine::isAppImage(const QString &path) const {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    const QByteArray head = file.read(11);
+    return head.size() == 11 && head.startsWith("\x7f" "ELF") && head[8] == 'A' && head[9] == 'I'
+        && (head[10] == 1 || head[10] == 2);
 }
 
 QString Engine::parentOf(const QString &path) const {

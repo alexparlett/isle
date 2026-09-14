@@ -30,6 +30,9 @@ public:
     Q_INVOKABLE QString sniffIconName(const QString &path) const;
     // What iconNameFor gives a file whose name says nothing, so a view knows when to ask again.
     Q_INVOKABLE bool isGenericIcon(const QString &iconName) const;
+    // Whether a file is an AppImage, which its first bytes say outright: an ELF carrying the
+    // type in place of its unused padding. The name decides nothing, as with a bundle on a Mac.
+    Q_INVOKABLE bool isAppImage(const QString &path) const;
 
     // Path arithmetic, so no view has to do string surgery. parentOf the root is the root.
     Q_INVOKABLE QString parentOf(const QString &path) const;

@@ -333,10 +333,18 @@ FloatingWindow {
 
     function duplicate() { if (acting.length) FileJobs.duplicate(acting); }
 
+    // Installing an AppImage is moving it where installed apps live; the folder is watched, so the
+    // launcher entry follows from the move rather than from this (D82).
+    function addToApplications(path) {
+        if (path) FileJobs.move([path], Places.applications);
+    }
+
     // Opening a file: whatever the desktop says handles it, and when nothing does, the question of
     // what should, rather than xdg-open's guess.
     property string opening: ""
     function openFile(path) {
+        // An AppImage is a program, so opening it runs it, wherever it is sitting (D82).
+        if (Engine.isAppImage(path)) { AppImages.launch(path); return; }
         opening = path;
         opener.command = ["python3", Quickshell.shellDir + "/scripts/openwith.py", "open", path];
         opener.running = true;
@@ -520,6 +528,8 @@ FloatingWindow {
         if (name === "File") return [
             on && !many ? { label: "Open", glyph: "external-link", action: () => view.openPath(actingOne) } : undefined,
             on && !many ? { label: "Open with…", glyph: "app-window", action: () => askOpenWith(actingOne) } : undefined,
+            on && !many && Engine.isAppImage(actingOne) && !AppImages.inFolder(actingOne)
+                ? { label: "Add to Applications", glyph: "layout-grid", action: () => addToApplications(actingOne) } : undefined,
             null,
             { label: "New folder", glyph: "folder-plus", action: askNewFolder },
             { label: "New file", glyph: "file-plus", action: newFile },
@@ -604,6 +614,8 @@ FloatingWindow {
         ] : [
             on && !many ? { label: "Open", glyph: "external-link", action: () => view.openPath(path || actingOne) } : undefined,
             on && !many ? { label: "Open with…", glyph: "app-window", action: () => askOpenWith(path || actingOne) } : undefined,
+            on && !many && Engine.isAppImage(path || actingOne) && !AppImages.inFolder(path || actingOne)
+                ? { label: "Add to Applications", glyph: "layout-grid", action: () => addToApplications(path || actingOne) } : undefined,
             on && !many ? { label: "Rename", glyph: "pencil", action: askRename } : undefined,
             many ? { label: "Rename " + acting.length + " items…", glyph: "pencil", action: askRenameMany } : undefined,
             on ? { label: "Duplicate", glyph: "copy", action: duplicate } : undefined,

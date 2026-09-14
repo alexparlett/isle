@@ -548,8 +548,9 @@ a tab; asking for Files itself opens a window.
 A window is a sidebar of places on the left, dragged by its edge between
 150 and 400 wide and remembered, and the folder on the right. Recents
 stands above the headings, since it is what was open lately rather than
-somewhere to be; then Favourites, the person's own folders and their
-bookmarks together, and Locations, the volumes and the Trash. Each row is
+somewhere to be; then Favourites, led by Home and Applications and holding
+the person's own folders and their bookmarks after them, and Locations, the
+volumes and the Trash. Each row is
 a Lucide glyph and a name, the one being shown marked; a drive says how
 much room is left on it under its name and a removable one carries an
 eject on the row rather than in a menu. Any favourite is dragged up and
@@ -632,6 +633,17 @@ The folder is watched, so a file written into it appears without asking,
 and one written over is redrawn: the size, the time and the thumbnail all
 follow. A file whose name says nothing about its type — no ending at all —
 is read far enough to know what it is, but only for the rows on screen.
+
+Applications is where an app kept on this machine lives, as it is on a Mac.
+An AppImage put there is installed: it appears in the launcher under the
+name and the icon the bundle carries, and the island says so with a way to
+open it. However it gets there does it — dragged onto the place in the
+sidebar, chosen from the menu of one sitting in Downloads, downloaded
+straight into the folder, moved there from a terminal. Taking it out
+uninstalls it, so throwing it in the trash is the whole of removing an app,
+and putting it back from there installs it again. A bundle that has been
+installed is drawn in the folder as the app it holds rather than as the
+binary it is. Opening one runs it, in Applications or anywhere else (D82).
 
 The Keychain lists the system keyring under category chips (logins,
 Wi-Fi, browser, apps) and the SSH keys under their own: the keys in

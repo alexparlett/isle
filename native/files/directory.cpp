@@ -464,8 +464,12 @@ void Directory::rebuild() {
     if (!m_paths.isEmpty()) {
         QVector<DirEntry> kept;
         kept.reserve(int(sortable.size()));
-        for (const Sortable &one : sortable)
+        for (const Sortable &one : sortable) {
             kept.append(*one.entry);
+            // A folder in a gathering opens in place the same as one in a folder does.
+            if (one.entry->isDir && m_expanded.contains(one.entry->path))
+                appendExpanded(kept, one.entry->path, 1);
+        }
         beginResetModel();
         m_rows = std::move(kept);
         m_rowsBase.clear();

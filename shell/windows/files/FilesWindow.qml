@@ -193,6 +193,13 @@ FloatingWindow {
     // handler on the property it depends on runs: it would still name the tab being left.
     onCurrentChanged: if (tabs[current]) root.show(tabs[current].path)
 
+    // Dropped on a place: moved there when it came from another folder on this machine, which is
+    // what dragging within a desktop means.
+    function dropInto(paths, into) {
+        const from = paths.filter(p => p && Engine.parentOf(p) !== into);
+        if (from.length) FileJobs.move(from, into);
+    }
+
     // A bookmark dropped on another takes its place in the order, the rest closing up behind it.
     function reorderPlace(moved, before) {
         if (!moved || moved === before) return;
@@ -888,14 +895,7 @@ FloatingWindow {
                         if (Engine.isDir(p)) Places.addBookmark(p);
                     drop.acceptProposedAction();
                 }
-                Rectangle {
-                    anchors { fill: parent; margins: Theme.s2 }
-                    visible: parent.containsDrag
-                    color: "transparent"
-                    border.width: 2
-                    border.color: Theme.accent
-                    radius: Theme.radiusControl
-                }
+                DropGlow { anchors.margins: Theme.s2; on: parent.containsDrag }
             }
 
             Flickable {
@@ -971,21 +971,64 @@ FloatingWindow {
                             // A bookmark can be dragged up and down the list to reorder it; the
                             // groups above it are the desktop's own and do not move.
                             readonly property bool movable: place.modelData.bookmark === true
+                            readonly property bool favourite: place.modelData.group === "Favourites"
+                            // Recents is not somewhere a thing can be put.
+                            readonly property bool takesFiles: place.modelData.path !== Places.recentsPath
 
+                            // A bookmark being moved and a file being put somewhere are different
+                            // drops, and a drop area only takes the kind it was given keys for, so
+                            // which one is hovering says which is meant.
                             DropArea {
+                                id: placeDrop
                                 anchors.fill: parent
                                 keys: ["isle/place"]
-                                enabled: place.movable
+                                enabled: place.favourite
                                 onDropped: drop => {
                                     root.reorderPlace(drop.getDataAsString("isle/place"), place.modelData.path);
                                     drop.acceptProposedAction();
                                 }
-                                Rectangle {
-                                    anchors { left: parent.left; right: parent.right; top: parent.top }
-                                    height: 2
-                                    visible: parent.containsDrag
-                                    color: Theme.accent
+                            }
+
+                            DropArea {
+                                id: fileDrop
+                                anchors.fill: parent
+                                keys: ["text/uri-list"]
+
+                                // Where in the row it lands says what is meant, the way Finder reads
+                                // it: near an edge it goes between two rows and becomes a bookmark
+                                // sitting there; over the middle it goes into the folder itself.
+                                readonly property bool between: containsDrag && place.favourite
+                                    && (!place.takesFiles || drag.y < 8 || drag.y > height - 8)
+                                readonly property bool into: containsDrag && !between && place.takesFiles
+
+                                onDropped: drop => {
+                                    const paths = String(drop.getDataAsString("text/uri-list")).split(/\r?\n/)
+                                        .filter(u => u.startsWith("file://")).map(u => decodeURI(u.slice(7)));
+                                    if (fileDrop.between) {
+                                        for (const p of paths)
+                                            if (Engine.isDir(p)) Places.addBookmarkAt(p, place.modelData.path);
+                                    } else if (place.modelData.path === Places.trashFiles) {
+                                        FileJobs.trash(paths);
+                                    } else {
+                                        root.dropInto(paths, place.modelData.path);
+                                    }
+                                    drop.acceptProposedAction();
                                 }
+
+                                DropGlow { on: fileDrop.into }
+                            }
+
+                            // Landing between two rows is a line where it will land, not a box drawn
+                            // around the row under the pointer.
+                            Rectangle {
+                                anchors { left: parent.left; right: parent.right }
+                                readonly property real at: placeDrop.containsDrag ? placeDrop.drag.y : fileDrop.drag.y
+                                y: at > place.height / 2 ? place.height - 2 : 0
+                                height: 2
+                                radius: 1
+                                z: 2
+                                visible: placeDrop.containsDrag || fileDrop.between
+                                color: Theme.accent
                             }
 
                             ListRow {
@@ -1171,6 +1214,7 @@ FloatingWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             directory: dir
+            showWhere: !root.showingTrash
             mode: Prefs.p.filesView
             iconSize: Prefs.p.filesIconSize
             onModeChanged: if (Prefs.loaded) Prefs.p.filesView = mode

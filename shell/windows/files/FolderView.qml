@@ -207,8 +207,16 @@ FocusScope {
 
     // What a drag carries: the uri list every desktop reads, so a drop lands in other applications too.
     function uriList(paths) { return paths.map(p => "file://" + encodeURI(p)).join("\r\n"); }
+    // The picture under the pointer while it is carried. Grabbing is answered later, so the drag
+    // starts in the callback rather than beside it.
+    DragChip { id: chip }
+    function carry(item, paths, then) { chip.carry(item, paths, then); }
     // Something dropped here: moved when it came from this machine's own folder, copied otherwise.
     signal dropped(var paths, string into)
+    // Whether a row that was named rather than found says which folder it is in. Recents is worth
+    // saying; the trash keeps everything in one place, so saying it says nothing.
+    property bool showWhere: true
+
     // What each column is given; the name takes whatever is left.
     property int sizeWidth: 90
     property int modifiedWidth: 130
@@ -407,6 +415,7 @@ FocusScope {
                     readonly property int rowHeight: root.directory.paths.length > 0 ? 40 : 30
                     height: (row.opensGroup ? 26 : 0) + row.rowHeight
 
+                    // Automatic wants the drag marked active before it will start one.
                     Drag.active: rowArea.dragging
                     Drag.dragType: Drag.Automatic
                     Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
@@ -431,14 +440,7 @@ FocusScope {
                                 .map(u => decodeURI(u.slice(7))), row.path);
                             drop.acceptProposedAction();
                         }
-                        Rectangle {
-                            anchors.fill: parent
-                            visible: parent.containsDrag
-                            color: "transparent"
-                            border.width: 2
-                            border.color: Theme.accent
-                            radius: Theme.radiusControl
-                        }
+                        DropGlow { on: parent.containsDrag }
                     }
 
                     Label {
@@ -505,7 +507,7 @@ FocusScope {
                                 // A row that was named rather than found says which folder it is in,
                                 // since a gathering has no one folder to stand for them all.
                                 Label {
-                                    visible: root.directory.paths.length > 0
+                                    visible: root.showWhere && root.directory.paths.length > 0
                                     Layout.fillWidth: true
                                     size: Theme.sizeCaption
                                     color: Theme.text3
@@ -570,15 +572,20 @@ FocusScope {
                         // started by hand when the pointer has moved far enough to mean it.
                         property point pressedAt
                         property bool dragging: false
+                        property bool starting: false
                         onPressed: mouse => { rowArea.pressedAt = Qt.point(mouse.x, mouse.y); rowArea.dragging = false; }
                         onReleased: rowArea.dragging = false
                         onPositionChanged: mouse => {
-                            if (rowArea.dragging || !(mouse.buttons & Qt.LeftButton)) return;
+                            if (rowArea.dragging || rowArea.starting || !(mouse.buttons & Qt.LeftButton)) return;
                             const far = Math.abs(mouse.x - rowArea.pressedAt.x) + Math.abs(mouse.y - rowArea.pressedAt.y);
                             if (far < Qt.styleHints.startDragDistance) return;
-                            rowArea.dragging = true;
+                            rowArea.starting = true;
                             if (!root.isPicked(row.path)) root.pick(row.index, Qt.NoModifier);
-                            row.Drag.startDrag();
+                            root.carry(row, root.isPicked(row.path) ? root.selection : [row.path], () => {
+                                rowArea.starting = false;
+                                rowArea.dragging = true;
+                                row.Drag.startDrag();
+                            });
                         }
                         onClicked: mouse => {
                             if (mouse.button === Qt.MiddleButton) {
@@ -651,14 +658,7 @@ FocusScope {
                                 .map(u => decodeURI(u.slice(7))), cell.path);
                             drop.acceptProposedAction();
                         }
-                        Rectangle {
-                            anchors { fill: parent; margins: 3 }
-                            visible: parent.containsDrag
-                            color: "transparent"
-                            border.width: 2
-                            border.color: Theme.accent
-                            radius: Theme.radiusControl
-                        }
+                        DropGlow { anchors.margins: 3; on: parent.containsDrag }
                     }
 
                     Rectangle {
@@ -746,15 +746,20 @@ FocusScope {
                             // the list rows give: a drag target holds every press back.
                             property point pressedAt
                             property bool dragging: false
+                            property bool starting: false
                             onPressed: mouse => { cellArea.pressedAt = Qt.point(mouse.x, mouse.y); cellArea.dragging = false; }
                             onReleased: cellArea.dragging = false
                             onPositionChanged: mouse => {
-                                if (cellArea.dragging || !(mouse.buttons & Qt.LeftButton)) return;
+                                if (cellArea.dragging || cellArea.starting || !(mouse.buttons & Qt.LeftButton)) return;
                                 const far = Math.abs(mouse.x - cellArea.pressedAt.x) + Math.abs(mouse.y - cellArea.pressedAt.y);
                                 if (far < Qt.styleHints.startDragDistance) return;
-                                cellArea.dragging = true;
+                                cellArea.starting = true;
                                 if (!root.isPicked(cell.path)) root.pick(cell.index, Qt.NoModifier);
-                                cell.Drag.startDrag();
+                                root.carry(cell, root.isPicked(cell.path) ? root.selection : [cell.path], () => {
+                                    cellArea.starting = false;
+                                    cellArea.dragging = true;
+                                    cell.Drag.startDrag();
+                                });
                             }
                             onClicked: mouse => {
                                 if (mouse.button !== Qt.RightButton || !root.isPicked(cell.path))

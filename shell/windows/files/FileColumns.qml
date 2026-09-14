@@ -143,6 +143,8 @@ Item {
 
     // What a drag carries: the uri list every desktop reads, so a drop lands in other applications.
     function uriList(paths) { return paths.map(p => "file://" + encodeURI(p)).join("\r\n"); }
+    DragChip { id: chip }
+    function carry(item, paths) { chip.carry(item, paths, () => item.Drag.startDrag()); }
 
     function beginRename(path) { renaming = path; }
     // Settling a name and giving it up both end the edit, and tearing the field down drops focus,
@@ -282,13 +284,7 @@ Item {
                                 .map(u => decodeURI(u.slice(7))), column.modelData);
                             drop.acceptProposedAction();
                         }
-                        Rectangle {
-                            anchors { fill: parent; margins: 2 }
-                            visible: parent.containsDrag
-                            color: "transparent"
-                            border.width: 2
-                            border.color: Theme.accent
-                        }
+                        DropGlow { anchors.margins: 2; on: parent.containsDrag }
                     }
 
                     ListView {
@@ -334,13 +330,7 @@ Item {
                                         .map(u => decodeURI(u.slice(7))), entry.path);
                                     drop.acceptProposedAction();
                                 }
-                                Rectangle {
-                                    anchors.fill: parent
-                                    visible: parent.containsDrag
-                                    color: "transparent"
-                                    border.width: 2
-                                    border.color: Theme.accent
-                                }
+                                DropGlow { on: parent.containsDrag }
                             }
 
                             RowLayout {
@@ -410,7 +400,7 @@ Item {
                                     if (far < Qt.styleHints.startDragDistance) return;
                                     entryArea.dragging = true;
                                     if (!root.isPicked(entry.path)) root.pick(column.index, entry.path, entry.isDir, Qt.NoModifier);
-                                    entry.Drag.startDrag();
+                                    root.carry(entry, root.isPicked(entry.path) ? root.selection : [entry.path]);
                                 }
                                 onClicked: mouse => {
                                     if (mouse.button === Qt.MiddleButton) {

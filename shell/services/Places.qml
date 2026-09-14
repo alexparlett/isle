@@ -78,16 +78,30 @@ Singleton {
         writer.running = true;
     }
 
+    // The whole file at once, which is how a bookmark is added in place as well as moved: writing
+    // one line and then reordering would race the read that follows the first write.
+    function writeBookmarks(lines) {
+        writer.command = ["sh", "-c",
+            "f=$1; shift; printf '%s\n' \"$@\" > \"$f.tmp\" && mv \"$f.tmp\" \"$f\"",
+            "_", bookmarksFile].concat(lines);
+        writer.running = true;
+    }
     // The bookmarks in a new order, written back as the lines they already were.
     function reorderBookmarks(paths) {
         const byPath = {};
         for (const b of bookmarks) byPath[b.path] = b.line;
         const lines = paths.map(p => byPath[p]).filter(l => l !== undefined);
         if (lines.length !== bookmarks.length) return;
-        writer.command = ["sh", "-c",
-            "f=$1; shift; printf '%s\n' \"$@\" > \"$f.tmp\" && mv \"$f.tmp\" \"$f\"",
-            "_", bookmarksFile].concat(lines);
-        writer.running = true;
+        writeBookmarks(lines);
+    }
+    // A bookmark put where it was dropped rather than on the end. An empty `before`, or a row that
+    // is not a bookmark, puts it at the top of them.
+    function addBookmarkAt(path, before) {
+        if (!path || isBookmarked(path)) return;
+        const lines = bookmarks.map(b => b.line);
+        const at = bookmarks.findIndex(b => b.path === before);
+        lines.splice(at < 0 ? 0 : at, 0, "file://" + encodeURI(path));
+        writeBookmarks(lines);
     }
 
     Process { id: writer; onExited: reader.reload() }

@@ -9,6 +9,7 @@ import qs.services
 FloatingWindow {
     id: root
     title: "Keychain"
+    AppId { appId: "isle-keychain" }
     visible: Surfaces.keychain
     implicitWidth: 760
     implicitHeight: 600

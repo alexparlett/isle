@@ -9,6 +9,7 @@ import qs.services
 FloatingWindow {
     id: root
     title: "Settings"
+    AppId { appId: "isle-settings" }
     visible: Surfaces.settings
     implicitWidth: 980
     implicitHeight: 720

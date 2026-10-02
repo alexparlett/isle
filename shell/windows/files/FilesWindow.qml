@@ -18,6 +18,7 @@ FloatingWindow {
     // Every window says Files, the way a file manager's windows all say its name. Which folder this
     // one is showing is the trail's business, and the trail is right there under the title.
     title: "Files"
+    AppId { appId: "isle-files" }
     visible: true
     implicitWidth: 980
     implicitHeight: 680

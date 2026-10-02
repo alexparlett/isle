@@ -44,10 +44,9 @@ Singleton {
     // Opening a window surface that is already open brings its window to the front instead.
     // Files is not here: it is as many windows as are wanted, each named for the folder it shows,
     // and showFiles below answers before this is ever reached.
-    readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor", cleaner: "Cleaner" })
     function show(name) {
         if (name === "files") { root.showFiles(""); return; }
-        if (root[name]) Windows.focusShellWindow(windowTitles[name]);
+        if (root[name]) Windows.focusShellWindow("isle-" + name);
         else root[name] = true;
     }
     function showSettings(page) { settingsPage = page; show("settings"); }

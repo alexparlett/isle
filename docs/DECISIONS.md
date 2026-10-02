@@ -1250,3 +1250,25 @@ hook, after the layout's first placement and before the open animation,
 which starts from whatever box the window then has. The rules of D40 and
 D57 are the plugin's now: the class's only titled floating window, and a
 place on a screen. In game mode the shell hands it an empty table.
+
+**D92 · Each shell window has its own app id, set in the process.**
+Settings, Keychain, Monitor, Cleaner and Files are windows of the one
+Quickshell process, and Wayland's app id comes from the process: Qt sends
+`QGuiApplication::desktopFileName` for every window it maps. All five were
+`org.quickshell`, so the switcher grouped them by guessing from titles,
+D91's places treated them as one app with one place, and no window rule
+could tell them apart. Separate processes would give each a real id
+(`//@ pragma AppId`), but a Quickshell process costs about 106 MB private
+for one bare window, a plain Qt Quick one 86 MB and a Freya one 51 MB,
+against next to nothing for a window in the shell. So the id is set per
+window instead: `WindowAppId` swaps the desktop file name in on the
+window's `visibleChanged`, which Qt emits before the platform window maps,
+and restores the process's on the next pass of the event loop. It lives in
+Isle.Files because that is the native module the shell already builds;
+`ui/AppId` creates it at run time so a machine without the engine still
+loads every window, with the old title-based grouping as the fallback. A
+window shown in the same pass as one that swapped, without an id of its
+own, takes the swapped one; every `FloatingWindow` the shell draws
+therefore carries an `AppId`. Files' id is `isle-files`, its desktop
+entry's, so the launcher, keep-running and session restore treat it as
+the app it is.

@@ -13,6 +13,7 @@ import qs.windows.cleaner
 FloatingWindow {
     id: root
     title: "Cleaner"
+    AppId { appId: "isle-cleaner" }
     visible: Surfaces.cleaner
     implicitWidth: 1280
     implicitHeight: 820

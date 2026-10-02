@@ -10,6 +10,7 @@ import qs.services
 FloatingWindow {
     id: root
     title: "Monitor"
+    AppId { appId: "isle-monitor" }
     visible: Surfaces.monitor
     implicitWidth: 1180
     implicitHeight: 720

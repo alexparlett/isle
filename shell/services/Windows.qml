@@ -20,18 +20,17 @@ Singleton {
     // a stranger's name and icon: nothing is looked up for one.
     function lookup(appId) { return appId ? DesktopEntries.heuristicLookup(appId) : null; }
 
-    // The shell draws several windows out of one process, so the compositor gives every one of them the
-    // same app id and anything grouping by it would make Settings, Monitor and every Files window one
-    // entry. Four of them are named for themselves; everything else the shell draws is a Files window,
-    // and they belong together under the one name the way a file manager's windows do.
+    // The shell's own windows, which have no desktop entry; Files has one, isle-files.
     readonly property var shellApps: ({
-        "org.quickshell.settings": { name: "Settings", icon: "preferences-system" },
-        "org.quickshell.keychain": { name: "Keychain", icon: "security-high" },
-        "org.quickshell.monitor": { name: "Monitor", icon: "utilities-system-monitor" },
-        "org.quickshell.cleaner": { name: "Cleaner", icon: "drive-harddisk" },
+        "isle-settings": { name: "Settings", icon: "preferences-system" },
+        "isle-keychain": { name: "Keychain", icon: "security-high" },
+        "isle-monitor": { name: "Monitor", icon: "utilities-system-monitor" },
+        "isle-cleaner": { name: "Cleaner", icon: "drive-harddisk" },
     })
+    // Each shell window sets its own app id through Isle.Files; without that module they all arrive as
+    // org.quickshell and are told apart by title, every one not named for an app being a Files window (D92).
     function shellAppId(title) {
-        const named = "org.quickshell." + String(title).toLowerCase();
+        const named = "isle-" + String(title).toLowerCase();
         return shellApps[named] ? named : "isle-files";
     }
     function iconFor(appId) {
@@ -362,9 +361,9 @@ Singleton {
         root.fullFrom = from;
     }
 
-    // One of the shell's own windows (Settings, Keychain, Monitor, Cleaner), by title.
-    function focusShellWindow(title) {
-        const t = Hyprland.toplevels.values.find(t => t.wayland && t.wayland.appId === "org.quickshell" && t.title === title);
+    // One of the shell's own windows (Settings, Keychain, Monitor, Cleaner), by app id.
+    function focusShellWindow(appId) {
+        const t = Hyprland.toplevels.values.find(t => entry(t).appId === appId);
         if (t) raise(entry(t));
     }
 

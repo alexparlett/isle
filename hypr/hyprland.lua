@@ -137,7 +137,7 @@ hl.window_rule({ name = "game-tearing", match = { fullscreen = true }, immediate
 -- The dropdown terminal lives on a special workspace, floating across the top.
 hl.window_rule({ name = "isle-dropdown", match = { class = "^isle-dropdown$" }, workspace = "special:terminal silent", float = true, size = "70% 50%", move = "15% 60", opacity = 0.96 })
 -- The shell's own windows float, centred.
-hl.window_rule({ name = "isle-windows", match = { class = "^(quickshell|org\\.quickshell)$" }, float = true, center = true })
+hl.window_rule({ name = "isle-windows", match = { class = "^(quickshell|org\\.quickshell|isle-(settings|keychain|monitor|cleaner|files))$" }, float = true, center = true })
 -- Browser picture-in-picture: a small pinned float without a border; the shell's Pip service parks it bottom-right.
 hl.window_rule({ name = "pip", match = { title = "^(Picture-in-Picture|Picture in picture)$" }, float = true, pin = true, keep_aspect_ratio = true, size = "480 270", border_size = 0 })
 hl.window_rule({

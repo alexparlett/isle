@@ -35,6 +35,8 @@ qt_add_qml_module(isle-files
         kinds.cpp
         duplicates.h
         duplicates.cpp
+        windowappid.h
+        windowappid.cpp
 )
 
 target_compile_definitions(isle-files PRIVATE ISLE_FILES_VERSION="${PROJECT_VERSION}")

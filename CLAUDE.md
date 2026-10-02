@@ -1,13 +1,27 @@
 # CLAUDE.md
 
-Isle: a desktop shell for Hyprland in Quickshell.
-Targets CachyOS; built for gaming and for running coding agents.
+Isle: a purpose-built, macOS-style desktop for the user's own Arch Linux
+(CachyOS) machine, used mostly for gaming and coding.
+
+On `feature/rust-desktop` it is being rebuilt as its own Smithay compositor
+with the shell drawn in Freya (the rust-desktop program). Isle v1, a shell
+for Hyprland in Quickshell (`shell/`, `hypr/`, `plugins/`, `native/`,
+`theme/`), is still in the tree and on `main`, and is the daily desktop
+until the new one replaces it.
 
 ## Working here
 
-- Read `docs/ARCHITECTURE.md` for what drives each capability and
-  `docs/DESIGN.md` for how things look; `docs/DECISIONS.md` is the record
-  of why. Keep all three current in the change that makes them stale.
+- Read `docs/ARCHITECTURE.md` for how the new Isle is put together,
+  `docs/design/` for what each area does, `docs/DESIGN.md` for how things
+  look and `docs/DECISIONS.md` for why. Keep them current in the change
+  that makes them stale. v1's own docs are on `main`.
+- The program's working state is `docs/work/rust-desktop/`: `state.md`
+  first, `roadmap.md` for the build packets, `brainstorm.md` for how
+  decisions were reached. Evidence is in `docs/research/rust-desktop/`.
+- `spikes/` is throwaway code behind a decision; do not build on it.
+
+The notes below are about v1.
+
 - The desktop runs from `~/.local/share/isle`, a copy that `tools/install.sh`
   makes from this checkout. Editing here changes nothing on the host until
   the user runs it; the VM mounts this checkout directly.

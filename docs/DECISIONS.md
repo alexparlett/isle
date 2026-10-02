@@ -1,1274 +1,306 @@
 # Decisions
 
-Numbered so code comments can cite them: `// alpha on the effect: D3`.
-Each entry is what was decided and why, in a few lines. Measurements and
-history go here, not in comments.
+The record of why Isle is built the way it is. Entries are numbered B1
+onwards, the numbers they were locked under in the rust-desktop program's
+brainstorm (`docs/work/rust-desktop/brainstorm.md` while that program is
+open). Isle v1's decisions (Hyprland and Quickshell, D1 to D91) stay on
+`main` in `docs/DECISIONS.md` and are cited as "v1 D55"; their lessons are
+carried as requirements in `docs/design/`. Evidence for these entries is in
+`docs/research/rust-desktop/`.
+
+**B1 · Own compositor on Smithay, not a fork of an existing compositor.**
+This is a project for fun and for a desktop built to its own design. A niri
+fork would inherit its layout model, config, IPC and render pipeline.
+Rejected: forking niri (locked into its choices), staying on Hyprland
+(its crashes and churn are outside our control; see the inventory's
+crash notes), keeping Quickshell as the shell (477 MB RSS measured on the
+host, 2026-10-02; the user does not want it).
+
+**B2 · v1 parity, re-planned (revised).** Every capability v1 has is in
+scope; none is dropped. Each is re-designed against the north star (B17)
+rather than ported, and the roadmap decides only the order. The inventory
+(`isle-v1-inventory.md`) is the checklist and keeps v1's lessons. This
+replaces the first answer, "clean slate", given before the north star was
+stated.
+
+**B3 · Fresh visual design.** v1's look (DESIGN.md, docs/canvas) is not
+carried over; both are on `main` for reference.
+
+**B4 · Docs as a feature-plan program.** Evidence in `docs/research/`,
+intent docs in `docs/design/`, brainstorm and roadmap in
+`docs/work/rust-desktop/`; ARCHITECTURE, DESIGN and DECISIONS are rebuilt
+as the spine once decisions land. Rejected: the three-doc spine alone.
+
+**B5 · Smithay's built-in X11 window manager for Xwayland.** Steam and most
+games are X11; v1's hardest bugs were X11 behaviour (Motif hints,
+`_NET_WM_MOVERESIZE`, untitled Steam popups) and owning the WM puts those in
+our hands. It is what cosmic-comp, Otto and Pinnacle use. Rejected:
+xwayland-satellite (open Steam popup and menu bugs, one on CachyOS + niri
+in September 2026; X11 quirks out of our hands).
+
+**B6 · Our own Smithay fork, pinned, carrying the async page flip PR.**
+Smithay has not released since 0.7.0 (2025-06-24); every serious
+compositor builds from git. Tearing (smithay#1948 async flip,
+#1325 tearing-control) is not upstream; the gaming packet lands it as a
+patch on the fork and tests it on the RTX 5070 Ti, with VRR (48–144 Hz on
+the host monitor) covering the gap until then. Smithay's `AI.md`
+discourages LLM-written contributions, so patches stay on the fork.
+Rejected: upstream git with VRR only.
+
+**B7 · Freya, through the `alexparlett/freya` fork, draws the shell and
+the apps.** The shell's always-on surfaces are Freya trees drawn by Skia on
+the compositor's own EGL context into textures the compositor composites;
+the separate apps are Freya apps. Evidence: `shell-ui-spike.md`. On the GPU
+Freya's cost barely grows with area (about 0.25 ms on the island, 1.2 ms
+p95 animating a 3440×1440 launcher); it has colour emoji, font features,
+transforms and group opacity. The fork (also under strata and cairn)
+answers Freya's single-maintainer risk: fixes land there, and the spike's
+platform glue (events, accessibility tree, futures, animation ticking, GL
+state handover) becomes a crate in it rather than copied code. The fork
+must first take upstream to v0.5.0-rc.8 (the spike's API; the fork is at
+rc.4). Conditions: open and close transitions are animated by the
+compositor, not the toolkit; Skia's resource cache is capped; a way back
+to live iteration on surfaces (running one in `freya-winit` with its hot
+reload) is tried early. Rejected: Slint's software renderer (best-in-class
+live reload and stable, but one CPU core redraws a full-output animation at
+10–20 ms a frame, and no transforms, group fades, colour emoji or font
+features); an own scene graph on Skia (Otto's way: the toolkit becomes the
+project); CPU-drawn textures with iced or Pango (the same area problem as
+Slint).
+
+**B8 · Stacking with snapping, layout as a per-workspace module.** Windows
+float by default and open at their remembered place; drag or keys snap
+them to zones designed for 3440×1440 (halves, thirds, a centred 60%, and
+the space beside an existing window), with a preview while dragging.
+Minimise and maximise are real states, including for X11 clients that ask
+for them; picture-in-picture and the dropdown terminal are part of the
+model, not rules. This is what v1 converged on through its `isle-windows`
+plugin and float-everything rules (inventory §3.4: D40, D57, D91), built in
+rather than patched onto a tiling compositor. Layout sits behind a trait
+chosen per workspace, so other layouts (tiled, scrollable) can be added
+later without touching the rest. Rejected: dynamic
+tiling (v1 turned it off in practice), scrollable columns as the default
+(good for terminals on an ultrawide, fights games, Steam and dialogs).
+
+**B9 · One event loop, blocking work on a service worker.** The main thread
+runs one calloop loop for Wayland, input, the Xwayland WM, every shell
+surface's Freya runner and rendering, without locks (niri's model). D-Bus,
+PipeWire, the app index, icon loading and file search run on a worker
+thread with its own async runtime and reach the loop through calloop
+channels; nothing that can block runs on the main thread. Separate apps
+are separate processes. Containment: each shell surface's event handling
+and drawing sits behind a panic boundary and is rebuilt if it panics; a
+panicking service is restarted on the worker; a compositor-core panic ends
+the session, so a small session supervisor restarts it and keeps the
+crash; a watchdog logs any main-loop stall over a frame's budget.
+Rejected: a render thread per output with shell state behind locks
+(cosmic-comp's model), which pays off on several mixed-refresh outputs, not
+on one main monitor.
+
+**B10 · The compositor owns settings; KDL on disk; tokens reload live.**
+The compositor is the one writer: a D-Bus settings interface serves the
+Settings app, a CLI and the shell; it validates, applies live and writes
+the file. The file is also watched, so hand edits apply live; a parse
+error is shown in the shell and the last good config stays in force.
+Three stores: `settings.kdl` (the user's choices, hand-editable, watched),
+state (window places, launch counts, session restore: machine-written,
+atomic, never watched) and `tokens.kdl` (design tokens: colour, radius,
+motion, blur; watched, applied as state so every Freya surface re-renders,
+which gives back live tuning of the look that B7 gives up for layout).
+Installed apps are themed from the same tokens through templates, as v1
+did; the template set is decided in its packet. KDL because nested binds,
+rules and per-device blocks read best in it (niri's precedent). Open for
+the config packet: which crate maps KDL to types and writes it back
+preserving comments (`kdl` 6.7 is KDL v2 and format-preserving; `knus`
+3.4, the maintained fork of niri's `knuffel`, derives types). Evidence:
+`ui-and-services.md` §4. Rejected: file-only ownership (the app and the
+watcher race and echo), TOML (sound, but KDL suits the nesting), RON
+(unpleasant to hand-edit).
+
+**B11 · Services are shared crates on zbus; audio through pipewire-pulse.**
+Service logic (NetworkManager, BlueZ, UPower, logind, MPRIS, UDisks2,
+power profiles, GameMode, audio) is a set of library crates used by the
+compositor's service worker (B9) and by the separate apps, which talk to
+the system daemons directly. What only the desktop knows (settings,
+window places, mode) comes from the compositor's D-Bus interface. One
+D-Bus stack, zbus 5: proxies generated with `zbus_xmlgen` or taken from
+COSMIC's `dbus-settings-bindings` where its licence allows; `bluer` and
+`mpris` are out (libdbus). Volume, mute and default devices go through
+`libpulse-binding` over pipewire-pulse (COSMIC's and wayle's route);
+`pipewire-rs` only for what Pulse cannot do, such as screencast streams.
+Evidence: `ui-and-services.md` §3. Rejected: a separate desktop daemon
+owning all services (one more process and protocol between apps and the
+system).
+
+**B12 · The desktop takes the system's prompt and tray roles, and locks
+itself.** On the service worker, with every dialog drawn by the shell: the
+notification server (`org.freedesktop.Notifications`, written by hand, no
+crate serves it); the tray (`org.kde.StatusNotifierWatcher` and host); the
+polkit agent through `/run/polkit/agent-helper.socket` (polkit 127's
+helper is not setuid on the host); the keyring unlock prompter
+(`org.gnome.keyring.SystemPrompter`, which gnome-keyring 50 and oo7-daemon
+both call); the NetworkManager secret agent for Wi-Fi passwords. The lock
+screen is the compositor's own, with PAM conversations off the main thread
+(fprintd blocks); v1's locker-death lessons (D15, D43) carry over as
+requirements.
+
+**B13 · Our own portal backend; the shell draws the picker.**
+`xdg-desktop-portal-isle` implements ScreenCast, Screenshot and
+FileChooser as zbus interfaces (xdg-desktop-portal-cosmic's and Otto's
+pattern); the compositor produces the PipeWire streams and the shell draws
+the source picker. The compositor also implements ext-image-copy-capture
+and ext-foreign-toplevel-list (both in Smithay) so standard capture tools
+work. Window previews in the switcher and overview are drawn by the
+compositor and need no capture protocol. v1's rule carries over: capture a
+source only while it is visible (D55; capturing a disappearing output
+crashed Hyprland). Rejected: mimicking GNOME's D-Bus screencast API for
+xdg-desktop-portal-gnome (its GTK picker, against B3), xdg-desktop-portal-
+wlr (an external picker).
+
+**B14 · Built-in widgets, extended by data providers.** Dashboard widgets
+are Freya components compiled into the shell. Extension is v1's provider
+contract: a provider is a program in any language that emits JSON into
+built-in templates (card, list, graph and the like), sandboxed by being a
+separate process. The isle-widgets registry carries providers instead of
+QML widgets. Rejected: WASM plugins (needs a UI description protocol; a
+large build for an uncertain need), built-in only (loses the registry).
+
+**B15 · The name stays Isle.**
+
+**B16 · Built in this repository on `feature/rust-desktop`.** The Rust
+workspace grows here beside v1, which stays the daily desktop on `main`
+until the new one reaches parity; v1's tree is removed when it does.
+Rejected: a new repository.
+
+**B17 · North star: a macOS-style desktop on Arch (CachyOS).** Where a
+choice is open, the answer is the one a Mac user expects, built for this
+machine, which is used mostly for gaming and coding. B18–B21 are its first consequences.
+
+**B18 · A menu bar with the global menu, and the island in the notch.**
+The top of the screen is a menu bar: the focused app's name and menus on
+the left, status items and Control Centre on the right, the island in the
+centre where a notch would be. Menus are collected three ways, all of
+which Isle serves from session start (`macos-model.md` §1):
+`com.canonical.AppMenu.Registrar` with DBusMenu (Qt, Chromium, Electron,
+LibreOffice and Firefox export only while the name is owned, and Qt checks
+once per process); KDE's `org_kde_kwin_appmenu` Wayland protocol (Qt 6.9+
+and Chromium 137+ use it unprompted; only KWin implements it today); and
+GTK's `gtk_shell1` with `org.gtk.Menus`/`org.gtk.Actions` (GtkApplication
+menubars in GTK 3 and 4; libadwaita apps have none). No Rust crate reads
+GTK menus, so Isle writes that client; `system-tray` covers DBusMenu.
+`gtk_shell1`'s menu-bar capability makes GTK hide the in-window menubar, so
+it is advertised only once the reader works. Electron on Wayland
+registers a wrong window id when the KDE protocol is present (fix
+unmerged), so menus are also matched to windows by the D-Bus sender's PID.
+Firefox exports only with two prefs set, and Steam, Wine and games export
+nothing, so the fallback app menu (About, Hide, Quit, the window list) is
+the common case and gets designed as such. Rejected: a menu bar without
+app menus, the island alone (v1).
+
+**B19 · A Dock.** Pinned and running apps with indicators, badges and
+progress (Otto's `otto-dock-v1` shows the client side), minimised windows,
+optional magnification and auto-hide. Rejected: launcher and switcher
+only (v1).
+
+**B20 · App-centric windows.** Cmd+Tab switches apps, Cmd+` cycles the
+front app's windows; the menu bar, Dock and switcher speak in apps; Cmd+Q
+quits. An app that exits when its last window closes cannot be made to
+stay (GTK and Qt apps decide that themselves), so Cmd+W on an app's last
+window hides it where the app allows, and v1's "keep running" list
+(inventory §3.6) becomes the per-app policy for which apps get that.
+Evidence: `macos-model.md` §3. Rejected: window-centric (v1).
+
+**B21 · Cmd everywhere.** Super acts as Cmd across the system: in
+Smithay's keyboard filter the compositor translates Cmd shortcuts (copy,
+paste, undo, close, quit, new tab, find and the rest) into the focused
+app's own shortcuts, with per-app exceptions for terminals, browsers,
+IDEs and file managers; Ctrl stays Ctrl and Option is Alt. Because the
+compositor knows the physical keys it needs none of Toshy's Ctrl-to-Super
+swapping, and it can withhold a translated Alt so menus do not open on
+it. The exception tables are written for Isle: Toshy (GPL-3.0) and Kinto
+(GPL-2.0) are the record of what apps need, not text to copy; keyd and
+xremap are MIT. Translation is off in game windows and while
+keyboard-shortcuts-inhibit is active (VMs, remote desktops); Isle's own
+injected keys are a separate source and never translated; modifiers still
+held are released before focus moves mid-chord. Tiling chords avoid Fn,
+which most keyboards do not report. The per-device keyboard profiles from
+v1 (the Mac preset, D7, D61) move into the compositor, which sees every key
+with its device, so xremap and its silent wrong-device failure (D58) go.
+Open for its packet: synthetic modifier events agreeing with the mask
+(Xwayland), and text-input-v3 as a "text field focused" signal for
+Cmd+arrow. Evidence: `macos-model.md` §2. Rejected: Super for desktop
+actions only (v1).
+
+**B22 · No console mode of Isle's own.** Isle's Big Picture mode is
+dropped: its home, the quick menu and Guide-button handling, the pad
+bridge to keys, and Isle's entries inside Steam (`shortcuts.vdf`). Steam's
+Big Picture is the console experience; Isle handles it as a full-screen
+game (gaming.md) and keeps controller naming, battery and the Controllers
+page. An exception to B2's parity, by the user's choice.
+
+**B23 · HDR is in scope, after Isle replaces v1.** The host monitor (AOC
+U34G2G4R3) takes HDR10 at 10 bpc, with a reported maximum content
+luminance of about 302 cd/m² (`smithay-and-gaming.md`). Smithay has no
+colour management (PR #1143, draft since 2023); a community fork
+(`dividebysandwich/smithay`, `ds-hdr-master`) carries it with a matching
+niri branch and is the starting point. The HDR packet serves the Wayland
+colour-management protocol, sends HDR metadata to the output, composites
+SDR windows and the shell correctly beside HDR content, uses the NVIDIA
+DRM colour pipeline (driver 610+) where it works, and lets nested
+gamescope pass HDR through. NVIDIA HDR crashed KDE on a 5070 Ti with
+driver 595, so the packet tests on the host's driver first.
+
+**B24 · How attention is presented is the design process's call.** What
+the island shows, where banners appear, the order of anything that
+competes for the same place, and where v1's dashboard widgets live are
+decided by the design-language packet (P1), not here. The intent docs say
+only what must be possible: live activity is shown, privacy indicators
+always show, notifications can be read later, widgets can be placed and
+edited (v1's grid editor and gallery, v1 D24, D28–D30, D35, are kept as
+capabilities). The brainstorm's proposals go to P1 as starting points:
+the island for live activities and OSDs, banners top right, widgets in
+Notification Centre and on the desktop with a "Show widgets" chord.
+
+**B25 · Window chrome.** Isle's own apps draw a unified toolbar with the
+traffic lights. The compositor draws Mac-style server-side title bars, in
+Freya, for apps that accept server-side decorations. Stage Manager comes
+later as a layout module (B8), off by default.
+
+**B26 · Where things run.** The portal backend (B13) is a bus name owned by
+the compositor's service worker, as v1 owned its FileChooser (v1 D67); it
+hands FileChooser to Files. The Open and Save panels and Quick Look run in
+the Files process, Quick Look as a D-Bus service that Spotlight also
+calls, so nothing file-browsing loads into the compositor. The greeter is
+the compositor in a greeter mode under greetd, reusing the lock screen.
+Apps render on the GPU by default; the Settings packet measures their
+memory before that is final.
+
+**B27 · Settings in practice.** App preferences are per-app sections of
+`settings.kdl`, written through the compositor (B10's one writer). A write
+that arrives while `settings.kdl` does not parse is refused with a pointer
+to the parse error, so a hand edit is never overwritten. v1's prefs,
+window places and launch counts are imported once; notification and
+clipboard history are not.
+
+**B28 · Roles and protocols, completed.** A Bluetooth pairing agent
+(`org.bluez.Agent1`) joins B12's roles. `ext-session-lock` is not served:
+the lock is Isle's. Layer-shell is served for other programs' overlays and
+tools. Providers (B14) run sandboxed (bubblewrap or Landlock) with
+declared permissions the user grants, carrying v1's trust model (v1
+D28–D31).
+
+**B29 · Delivery.** Isle ships as a PKGBUILD in this repository that builds
+from git, installed with paru and updated through pacman.
+
+**B30 · Keys and games, completed.** Cmd+Q quits, keep-running apps
+included. On a PC-layout keyboard, a per-device setting swaps Alt and Super
+so Cmd sits beside the space bar; it is on by default and suspended while a
+game window has focus, so games get the keys as labelled. A Mac-layout
+keyboard needs no swap: Cmd is Super and Option is Alt everywhere, games
+included, as on macOS. While a game is in
+front a fixed escape set still works (Cmd+Tab, Mission Control, lock,
+screenshot) and every other chord goes to the game. Focus modes work as on
+macOS, with a Gaming Focus that turns on for any detected game in front,
+windowed or not. VRR is on while a full-screen app is in front, with a
+setting to change it.
 
-**D1 · Hyprland + Quickshell.** Chosen on merit over niri, Sway, KWin
-and over Astal, eww and a Rust shell: the only pairing with blur behind
-layer surfaces, declarative animation, the gaming set (VRR, tearing,
-direct scanout, HDR, NVIDIA) and native service types in one process.
-Cost accepted: ~330 MB idle, Hyprland's release churn. Mitigation: the
-compositor config is generated, and the compositor is reached through one
-service file so niri stays a possible move. Full table in STACK.md.
-
-**D2 · The island is the only persistent surface.** Top centre of the
-focused monitor. Other monitors show nothing. Everything else appears on
-intent and leaves on its own.
-
-**D3 · Hover unfolds the island into the control panel.** Two hover
-states were drawn and rejected: a 64px pill with sliders and buttons
-inside it (too dense to read at a glance) and a set of lighter pills that
-only enlarged what rest already showed (not worth a hover). The pill now
-unfolds downward into a 420px panel: header band, toggles, output and
-sliders, media, footer. Sliders and toggles live there and nowhere else.
-
-**D4 · The dashboard replaces the control centre and notification
-centre.** One full-screen surface on the control centre keybinding, a
-12-column grid of widgets. Notifications are a widget in it. The island's
-clock and bell open it too.
-
-**D5 · Widgets are directories with a manifest and one QML file.** The
-dashboard draws the card chrome; a widget draws only its content and
-declares its sizes and requirements. Third-party widgets drop into
-`~/.config/isle/widgets/`. Polled readouts use a command source so a
-shell script is enough. Layout is a preference.
-
-**D6 · Default widgets.** Clock, Media, Workspaces, Notifications,
-Controls, System, Agents, Session, Devices, Storage. Available but off:
-Network, GPU, Games, Clipboard, Timer, Updates, Weather.
-
-**D7 · One bind set on SUPER; xremap shapes it per device.** Hyprland
-never learns which keyboard sent a chord. The Mac profile turns Cmd+key
-into Ctrl+key for apps except the chords the shell owns, and moves
-workspace switching to Ctrl+digit and Ctrl+arrows because Cmd+digit must
-reach browsers. Table in ARCHITECTURE.md.
-
-**D8 · Material: dark glass, 78% at blur 24, hairline 8%, accent
-`#7FA6FF`.** Two alternates (warm amber, opaque ink) are kept on the
-canvas and are a token swap if wanted later. Game mode drops blur and
-raises glass to 94%.
-
-**D9 · Controller input is keyboard input.** The Steam Controller's
-lizard mode and Steam Input both present as a keyboard and mouse, so
-every controller-driven surface is keyboard-navigable with a focus ring
-and no gamepad API is needed.
-
-**D10 · Files: yazi first, Thunar for what a TUI cannot do.** Nautilus
-was rejected for its indexer; Dolphin for the KDE frameworks it drags in.
-
-**D11 · Hyprland 0.56 facts the code relies on.** Dispatchers over IPC
-are Lua expressions (`hl.dsp.focus({ workspace = 2 })`), not the old
-`workspace 2` strings, so `Compositor` builds Lua. Gap values are
-`{ top, right, bottom, left }` tables; an array is read as zeros. The
-example config and the API stubs ship in `/usr/share/hypr/`.
-
-**D12 · Glyphs are SVG data URLs, not effect-tinted images.** The
-vendored Lucide bodies live in `shell/assets/Icons.js`; `Glyph` builds
-an SVG with the colour baked in and the token's alpha as `opacity`. No
-shader effect, no extra Qt module, exact stroke colour. SVG rejects
-Qt's `#AARRGGBB` form, which is why the alpha travels separately.
-
-**D13 · The VM's memory numbers are not the baseline.** Under llvmpipe
-the guest reports ~320 MB for Hyprland and ~440 MB for the shell,
-inflated by software GL buffers. The idle budget in STACK.md is measured
-on the real machine when the shell first runs there.
-
-**D14 · Widgets load through the `qs:` scheme.** Quickshell serves the
-config as `qs:@/qs/...`; a component loaded by `file://` URL cannot
-import `qs.services` or `qs.ui`, and nested modules (`qs.widgets`) and
-relative directory imports do not resolve under that scheme. So
-`WidgetBase` lives in `qs.ui` and built-ins load via `Qt.resolvedUrl`
-from inside the config. A user's own QML widget in
-`~/.config/isle/widgets/<id>/` is reached the same way: `install.sh`
-links that directory in under the served tree as `shell/userwidgets`
-(git-ignored, kept across syncs), and the card loads the widget as
-`Qt.resolvedUrl("../userwidgets/<id>/Widget.qml")`, so it is inside the
-scheme and imports the services exactly as a built-in does, with a
-language server pointed at the config for completion. By default a user QML widget is
-sandboxed (D25); `trust: true` opts one of the user's own back into this
-full-reach path.
-
-**D15 · Never restart the shell while the session is locked.** The
-shell is the locker; if its process dies under an active lock, Hyprland
-shows its "lockscreen app died" screen, and lock requests from a fresh
-shell fail with a protocol error until `hyprctl eval
-'hl.clear_crashed_lockscreen()'` runs and, in practice, the compositor
-restarts. The unit's `Restart=always` is right for every other crash;
-a lock-time crash is the one to engineer out, not restart through.
-
-**D16 · The app themes are rendered in-repo, not by matugen.** matugen
-derives a Material palette from an image and templates against that
-palette's names; our tokens are fixed values with our own names. A
-sixty-line renderer (`theme/render.py`) substitutes tokens into
-templates for GTK 3 and 4 (with adw-gtk3 as the GTK 3 bridge), kitty,
-yazi, btop, the portal config and the Hyprland theme fragment, then sets
-the gsettings keys libadwaita reads. The shell re-runs it when the
-accent changes. (Qt had a qt6ct palette here until D39.)
-
-**D17 · The shell runs in the session scope, not a user unit.** A
-systemd user service belongs to no logind session, and polkit's
-implicit policies key on that: from the unit, NetworkManager refuses
-Wi-Fi toggles outright, udisks demands an admin password to mount a USB
-stick, and logind demands one to suspend. Started from the compositor's
-start hook, the process sits in the session scope and all three are
-allowed. `shell/scripts/isle-session` provides the restart the unit used
-to; xremap stays a unit because it needs nothing from polkit.
-
-**D18 · Idle monitors are recreated, not retuned.** An `IdleMonitor`
-whose `timeout` changes while it is enabled never fires again, and one
-created with a timeout of 0 fires at once, which is how the shell locked
-itself at startup while a preference was still loading. Each idle policy
-is a Loader that builds its monitor with the final timeout and rebuilds
-it when the preference or game mode changes; 0 means no monitor.
-
-**D19 · Mission Control is drawn by the shell, not a compositor plugin.**
-The plugins in this space, hyprexpo, Hyprspace and hyprtasking, are
-exposés of workspaces: each workspace a scaled tile with its windows in
-place, in the plugin's own colours and borders, and the only one still
-tracking this Hyprland (hyprtasking, pinned to 0.56.2) has no spread of
-windows, no title or close under the pointer, and no hidden-window tray.
-macOS's Mission Control is itself drawn from window snapshots, which is
-what the shell already has through `ScreencopyView` on each toplevel, and
-the surface then shares the shell's material, motion, keyboard and drag
-handling with everything else. A plugin would buy animating the real
-windows, which snapshots animated from their real rectangles give as
-well. Gestures come from the compositor's `hl.gesture`, which runs a
-function.
-
-
-**D20 · The Proton sign-in is the CLI fed over stdin, not a terminal.** The
-CLI reads the password and the 2FA code with `getpass`, which falls back to
-stdin when it has no terminal; run under `setsid` it never has one, so the
-shell's own fields (as for Wi-Fi passwords) hand it the secret directly
-and the code when it asks. The alternative, opening a terminal for the
-prompt, kept the password out of the shell but put a stray window in the
-flow.
-
-**D21 · The desktop runs from an installed copy, not the checkout.** With
-`~/.config` linked straight into a working checkout, every edit and every
-pull was live at once, and a half-finished change or a broken file took the
-running desktop down with it. `tools/install.sh` now copies the checkout to
-`~/.local/share/isle` and links into that; the VM mounts the checkout for
-trying things first. Copy rather than clone, so uncommitted work installs
-too when it is wanted, and the copy keeps its git history for Settings ›
-Updates.
-
-**D22 · No installer ISO; the VM harness is local.** The ISO build laid
-Isle over CachyOS's live image and needed a first-login "finish setup"
-step for what only a session can do; the one-line bootstrap does the same
-job from a normal CachyOS install. The QEMU harness, guest provisioning and
-screenshot tools are the maintainer's and now live under `dev/`, which git
-ignores, so the repository holds the shell and its install and nothing
-about how it is tested.
-
-**D23 · A widget library with manifest-only widgets before QML ones.** The
-picker only listed what was missing, and a second clock or a widget of
-the user's own had no way in. The library lists everything by category,
-instances get keys, and a user's widget is a manifest alone, a command
-or a file with a view, drawn by one renderer in the shell's own tree so
-it needs neither code nor the service access user QML still lacks (D14).
-Widgets in QML come after the text ones show which services they need.
-The library, and the form for a text widget, live in the dashboard's edit
-mode rather than Settings: the dashboard is where they are placed.
-
-**D24 · The dashboard is a grid editor, not a size-cycle.** Cards moved by
-springing back on a bad drop and resized by a badge that stepped through a
-fixed list. The editor now shows a live outline of where a drag lands,
-swaps a same-size neighbour or pushes a different-size one down to make
-room, resizes from the card's edges between the manifest's `min` and `max`
-spans, and takes arrow keys on the focused card. Multiple pages, switched
-by tabs or the number keys, hold their own layouts. All of it is QML over
-the prefs layout: a compositor plugin has no view of a surface the shell
-draws, so there is nothing for one to do here.
-
-**D26 · Notification history is records, not notifications.** A live
-notification is an object the server holds for the app: actions, reply, an
-image. It cannot outlive the shell, so a restart used to empty the list. Each
-arrival is now also logged as a plain record (app, summary, body, icon, time,
-urgency) to a file, and the centre shows records that are not live under
-"Earlier": readable, but with no actions, because there is nothing left to
-act on. The centre lives in the island's panel rather than a surface of its
-own so it is one hover away without leaving the window in use; the dashboard
-widget shows the same list for when the dashboard is already up.
-
-**D27 · Hardware cursors on, so a capture never contains the pointer.** The
-compositor's default for `cursor.no_hardware_cursors` is "auto", which turns
-hardware cursors off on NVIDIA and draws the pointer into each frame as
-software. Screencopy then takes the frame as drawn, so every screenshot and
-the frozen frame under the region picker carried the pointer, whatever grim
-was told, and a `cursor.invisible` toggle around the grab applies a cursor
-update too late to help. With the open driver, hardware cursors work, and
-the pointer lives on its own plane that screencopy leaves out unless asked
-for with `-c`. The test VM cannot show this: its virtual GPU has no cursor
-plane, so it draws the pointer in software regardless.
-
-**D28 · The widget library is a store, and grants are the user's.** A
-list of names with a tick was enough while every widget was the shell's
-own. Widgets written by others need what a package manager shows before
-install: a picture, the author, a version, a licence, what changed, and
-what it touches. The manifest carries the identity fields; the picture is
-a shipped screenshot or, failing that, the widget itself drawn live, so
-nothing is ever blank. Permissions are declared by the author but granted
-by the user: a per-widget list in prefs narrows the declared set, the host
-wrapper is built from the intersection, and a revoked scope turns that
-service's calls into no-ops rather than refusing the widget, so a music
-widget can still show the track after its transport has been taken away.
-Sources, installing from a registry and updates build on this manifest.
-
-**D29 · Sources are git repositories, and trust is granted twice.** A
-registry could be a web service with an API; a git repository with an
-index file needs no server, is forked and mirrored for free, carries its
-own history, and is what widget authors already have. Screenshots and
-READMEs come along in the clone, so the store shows them without a
-second fetch. Installing copies (or clones a tagged repository) into a
-staging directory and swaps it in, so a failed download never leaves a
-half widget. Full reach is asked for by the author in the manifest and
-granted by the user at install, or later in the sheet; a widget from a
-source with the ask but not the grant is installed and blocked, so the
-user can read it first. The user's own widgets skip the second step: they
-wrote them. The consent dialog shows grants as toggles already on rather
-than an all-or-nothing accept, because a music widget that may read the
-player but not drive it is a reasonable thing to want.
-
-**D30 · Author tools live in the store, not in an editor.** A widget is a
-folder, and every editor already edits folders; what none of them has is
-the shell's reading of one: whether the manifest is whole, whether the
-QML stays inside the sandbox, what the listing will look like. So the
-store's sheet for one of the user's own carries exactly that (Check,
-Picture, Tag) and leaves the writing to the editor the user has. Picture
-grabs the live preview rather than the screen, so it needs no compositor
-round trip, never contains the pointer, and gives the same image on every
-machine. Tag stops at a local tag: pushing to a remote and asking a
-registry to list it are the author's own moves, said in words on the
-sheet and in the guide.
-
-**D31 · The host fetches for a widget; the widget never touches the
-network.** Most widgets people want are windows onto a service: weather, a
-calendar, a build queue. The sandbox forbids `XMLHttpRequest`, and lifting
-that would hand every widget the whole network. Instead the manifest names
-hosts, one per `fetch:<host>` permission, the store shows them as pills
-the user can switch off, and the host performs the GET with curl on the
-widget's behalf, bounded in time and size. A widget's own state goes the
-same way: `store` keeps it in prefs per instance rather than letting the
-widget write files. Notifications are a scope of their own (`notify`)
-because posting one is a different act from reading the count.
-
-**D32 · A Mac keyboard's symbols follow its profile, not the layouts
-list.** The layouts list is the languages the user types; the Macintosh
-variant is where a Mac keyboard prints its symbols. Putting the variant
-in the list would move @ for every keyboard, so a Mac-profile device gets
-the variant on its own device line instead, and the list stays plain.
-
-**D33 · Fingerprints beside the password, not in front of it.** Putting
-`pam_fprintd` in the lock's PAM stack makes PAM wait on the reader before
-it will take a password, so a user with wet hands stares at a dead field.
-The lock runs fprintd's own verify in parallel and treats a match as the
-unlock, the way hyprlock does over D-Bus; the password path stays exactly
-as it was. The driver for the Goodix 27c6:5042 is the community HTK32
-driver with the id added: same sensor, same CDC-data interface and
-endpoints, three other ids in its table. It turned out to be a different
-firmware (`GF5288_HT_APP`, no security layer, no touch events, its own
-frame layout) and after a patch that got it enrolling, matching stayed
-poor because the frame layout was never fully decoded. That work was
-dropped in favour of a reader libfprint already supports; the script keeps
-only the ids the community driver covers. Building it is a script, not the
-installer, because it pulls opencv and a compiler and most machines have
-no reader.
-
-**D34 · Fingerprint sign-in goes through PAM, and the greeter starts the
-session before the password.** The lock screen can run fprintd beside
-its password field because it owns both. The greeter cannot: greetd runs
-one PAM conversation per session, and `pam_fprintd` in that stack holds
-the conversation while the reader listens. So with sign-in enabled the
-greeter creates the session the moment it shows, displays what PAM says
-("Place your finger…"), and keeps a typed password until PAM asks for it,
-which is after the reader gives up (eight seconds, one try). That wait is
-the cost of the feature and is said on the toggle, which is why it is
-opt-in and separate from the lock screen, where a finger costs nothing.
-sudo is the plain `pam_fprintd` line at the top of its stack. Both edits
-run as root through pkexec, so the shell's own auth dialog asks.
-
-**D35 · Eight rows, not four.** With four rows the smallest card was a
-quarter of the screen tall, which is far more than a row of tray icons
-or two device batteries need. Doubling the rows halves the unit; every
-saved layout and manifest is doubled once so nothing moves, and the
-widgets that were mostly air get a one-row size as their default, and
-Agents and Notifications take a `min`/`max` range rather than a fixed
-list, since how much of the screen they deserve depends on the day. The
-first cut of the migration wrote before the prefs file had loaded and
-reset it to defaults; every write now waits for `Prefs.loaded`.
-
-**D36 · A widget may bring its own settings pane.** The manifest's
-`settings` list covers a toggle, a choice, a number and a text; the
-System widget needs a list of series with a colour each, which no row
-of that kind can express. Rather than grow the generic form a type at a
-time, a manifest may name an `editor` file that the gear loads in place
-of the rows, with the values and a setter. The generic form stays small,
-and a widget that needs more writes exactly the form it needs; the
-editor is scanned like `Widget.qml`, so the sandbox holds.
-
-**D37 · The on-screen keyboard is a shell surface typing through
-wtype.** wvkbd works, but it is another window with its own look, no
-controller, and no room for the shell's conventions. A surface of the
-shell's own draws in the shell's material and takes the pad through the
-same helper Big Picture uses. Speaking the virtual keyboard protocol
-from QML is not possible and a Python client would be a second input
-stack; `wtype` already speaks it, so every key is one short run, queued
-so fast taps land in order. The console keyboards (Steam Deck, the
-PlayStation, the Xbox) set the pad conventions: two cursors on two
-sticks with the triggers pressing, a legend of the buttons, a strip of
-completions; those are borrowed rather than invented.
-
-**D38 · Isle is the console's system layer, not its store.** The first
-Big Picture was a tile grid that launched Steam's gamepad UI, a launcher
-for a launcher, and it read the pad raw while Steam Input wanted the same
-pad. Steam, Heroic and Lutris each keep their own libraries, updates and
-cloud saves; reimplementing that in the shell would never catch up.
-So the rule is that whoever is fullscreen owns the pad: Steam's UI and
-its games get Steam Input untouched, the shell's home shows only when
-nothing else is in front, and the mode follows Steam's own Big Picture in
-both directions. What the shell adds is what none of them has on a Linux
-desktop: the system quick menu, the pad turned into keys for launchers
-without support (Heroic's console mode, Lutris), the on-screen keyboard,
-notifications held and summarised, and two tiles inside Steam's UI that
-reach the shell's menu and the way out. The console conventions (rows,
-a Guide tap for the menu and a hold for home, a legend) are borrowed.
-
-**D39 · Qt themes through the GTK bridge, not qt6ct.** `QT_QPA_PLATFORMTHEME`
-names one theme plugin, and qt6ct answers only for Qt 6, so Qt 5 apps
-were left with Fusion's light defaults. The GTK platform theme exists for
-both versions and derives its palette from the GTK theme Isle already
-renders: measured, it yields the same window, text and accent colours as
-the qt6ct palette did, and the right font, which the qt6ct template had
-been getting wrong. One source for every toolkit, so the qt6ct templates
-and package go.
-
-**D40 · A window's place is its app's main window only.** The Windows
-service put every new window of a class at the class's remembered place
-a moment after it mapped. Steam's menus are X11 popup windows of the
-client's class, so each menu was resized and moved to the main window's
-place, and the recorder then noted the menu's own geometry as Steam's:
-weeks of misrendering read as a compositor or driver fault while the
-compositor, its plugins, the driver and the rules were all cleared one by
-one. A place is the size and position of an app's main window, which is
-its only titled window; an untitled window is a menu or an overlay and a
-second titled one a dialog, and neither is noted nor placed. The X11 float
-rule likewise takes titled windows only, leaving a popup to the
-compositor's own X11 placement.
-
-**D41 · Calendars are subscriptions, not a Proton connector.** Proton
-Calendar has no CalDAV and Proton Bridge carries no calendars, so no
-client syncs it live; what it gives is Share via link, a read-only ICS
-address. That is the same thing Google's private iCal address, Outlook's
-published calendar and any hosted .ics are, so Isle takes subscriptions
-by link, any number, each with a name and a colour, and treats Proton as
-one of them. Read-only, and as fresh as the half-hour poll: a shared link
-has nothing to push. Parsing and repeats come from python-icalendar and
-python-recurring-ical-events rather than a parser of our own, since
-recurrence rules are where hand-written parsers go wrong.
-
-**D42 · A password manager is a provider behind one Vault, secrets
-fetched one at a time.** Every manager whose tool is present is used,
-each with a switch; the launcher and the Keychain know only `Vault`. A
-provider is a manifest and a script on the filesystem, the shell's own
-under `shell/vaults` and the user's under `~/.config/isle/vaults`, so a
-favourite manager is an expert's afternoon and not a change to the shell,
-and nothing in Settings needs to know it exists. The shell keeps no
-manager's notions: a provider says its state in a sentence and names its
-own actions, and the shell renders them where the items would be, so
-Settings is a list with switches, as macOS shows credential providers,
-and signing in or unlocking happens in the Keychain. Proton Pass is the
-first:
-pass-cli is the one supported way into its vault from outside Proton's
-own apps, the desktop app having no automation surface and the browser
-extensions living in the browser. Isle keeps a list of titles and
-vaults, which the CLI hands over without any secret material, and asks
-for a single field of a single item at the moment it is copied or
-revealed, so no password sits in the shell's memory unasked. Sign-in and
-the second factor are the CLI's own flow, in a terminal window, since a
-browser page or an SSO step is not something to reimplement. Passkeys
-stay in the browser extensions until Linux has a credential portal; the
-credentialsd proposal is the one to watch, and Isle's part then is the
-prompt it shows.
-
-**D43 · A lock outlives the shell.** The dev sync restarted the shell
-while the session was locked; the locker died with it, Hyprland showed
-its dead-lock screen and refused every new locker, and the screens,
-turned off by idle, never came back either, since the fresh shell's idle
-monitor had seen no wake. Three things, each general: the Lock service
-keeps a marker in the runtime directory while locked and a starting shell
-that finds it locks at once; the compositor is allowed to hand a dead
-lock to that fresh locker (`allow_session_lock_restore`, safe because the
-shell relocks in the same breath); and the Idle service turns the screens
-on at start. The sync itself now waits while the session is locked or a
-screen is off, asking `lock locked` over IPC. A night later the shell
-died while locked and the loop, having given up after six quick deaths,
-left the compositor's dead-lock screen till morning, and the log that
-would have said why was in the runtime directory the reboot emptied: the
-loop now backs off instead of stopping, and logs to the state directory.
-
-**D44 · VPNs are providers, the same shape as password managers.** The
-VPN service had Proton's CLI and NetworkManager written into it, with
-Proton's sign-in form, kill switch and NetShield as rows of Settings ›
-Network. Now a VPN is a provider on the filesystem with the same
-contract as a vault, plus what is up and where it can connect: the
-provider says its state and names its actions, a toggle or a choice
-where that is the shape, and the panel's VPN page renders them. Settings
-lists the providers found with a switch each. Proton VPN and
-NetworkManager are the shell's own two; another is a folder.
-
-**D45 · Snapshot tools are providers; Snapper reads as the user once
-allowed.** CachyOS installs Snapper with snap-pac, so every package
-change leaves a pair of snapshots and any of them is a rollback away;
-Timeshift is the installer's other choice. Both are providers with the
-vault and VPN contract, the list carrying each snapshot's own actions.
-Snapper refuses a user it does not know, and a polkit prompt on every
-refresh would be unbearable, so the provider's first action puts the
-user in the config's `ALLOW_USERS` once, after which snapperd serves
-reading, taking and deleting without root; only a rollback asks again.
-
-**D46 · A restart owed to an update is said out loud.** A kernel and
-driver upgrade left the machine running the old NVIDIA module against
-the new user-space driver, so Vulkan saw only the iGPU and every game
-failed, with nothing on screen saying why. Arch does not prompt; the
-shell now checks two facts, general ones, after every update: whether
-the running kernel's module tree still exists, and whether the NVIDIA
-module in memory is the installed version. Either one is a restart owed,
-said once in the island and kept in the pill, the panel footer and
-Settings › Updates until the restart.
-
-**D47 · Updates without a terminal.** The terminal window was there so
-pacman could ask and be watched. Behind `pkexec` the asking is the
-shell's own auth dialog, once, and pacman's own lines are enough to show
-each package's state as it goes; the AUR helper builds as the user and
-hands pacman to `pkexec` the same way. Every question takes its default,
-as the graphical updaters do. The end is said in the island with the
-restart action when one is owed, so the run needs no watching at all.
-
-**D48 · A fullscreen window has a space of its own.** With a game
-fullscreen on the desktop's space, the compositor keeps it above
-everything, so alt-tab to a browser focuses a window the game still
-covers, and alt-tab back finds a window that was never really left.
-macOS gives a fullscreen app a space; so does Isle now, from the
-compositor's client list on every fullscreen event rather than from a
-rule, since a rule cannot move a window when its state changes. The
-window returns to its space when fullscreen ends; a window alone on its
-space is left where it is, Steam's Big Picture among them. A game's
-borderless fullscreen is a plain window the size of the screen, which the
-compositor cannot tell from any other; the shell can, by size, and
-treats it the same, without forcing the compositor's fullscreen on it,
-which would leave the client's own resizes ignored when it goes back to
-windowed.
-
-**D49 · An island on every screen.** Plasma puts a panel on each
-screen and macOS a menu bar; a second monitor with nothing on it had
-no clock, no dots and no way to the panel. Each screen gets its own
-island, a pill and a panel over shared state; events and the pages
-opened from elsewhere go to the shell's screen alone, since one
-notification twice is noise. The hot zone in game mode is per screen too.
-
-**D50 · Accessibility from what is already there.** The magnifier is
-the compositor's cursor zoom, so it is one config value stepped from
-the keymap, not a screen-reading surface of the shell's own. Larger
-text is a factor on the theme's type sizes, since every label in the
-shell takes its size from the tokens and nothing sets a size by hand;
-high contrast is the same tokens with the quiet ones brought up, so the
-palette and the accent hold and nothing has a second look to maintain.
-
-**D51 · A phone is a provider, and the bridge does the bridging.** KDE
-Connect already carries a phone's notifications to the desktop's
-notification daemon and the clipboard both ways once the two are paired,
-so the shell adds nothing of its own there: Isle's notifications show
-what the phone sends as they show anything else. What the shell adds is
-the page: the bridges found, each phone's reach and battery, and the
-actions a bridge allows on one (ring, send the clipboard, send a file,
-pair), through the same provider contract as snapshots, so a Continuity
-tool or another bridge is a folder with a manifest and a script, not a
-change to the shell. The two item pages share one shape, `ProviderGroups`.
-
-**D52 · Fonts are preferences over the tokens, one place each.** The
-token file names the families; Settings › Appearance lets a person
-override them and set a point size for the installed apps, and the
-renderer writes those into every target it already owns, so a font is
-one choice that GTK, the terminal, the title bars and the shell's own
-labels all follow. The shell's text size is not a second size here: it
-scales under Accessibility, since a person who wants the shell larger
-wants it for that reason, and the apps have their own points.
-
-**D53 · The session comes back by app and workspace, not by window.**
-What is noted is which apps were open and where, one launch per app and
-workspace, since a launch is the one thing every desktop entry can do:
-the apps that keep their own windows (a browser, an editor) bring them
-back themselves, and the ones that do not would only be opened twice.
-The compositor instance is the unit of "a new session", so a shell
-restart replays nothing and a crash loses nothing but the last few
-seconds. Autostart is left to autostart: an app it starts is not started
-again from the list. What is remembered is the workspace and whether the
-window was put away, since minimise and the tray are the same parking
-spot and an app that was out of the way should not come back over the
-desktop; the place on screen is the window-places pass's business, not
-this list's.
-
-**D54 · The controller page shows, and sets only what the shell uses.**
-A pad's mapping and its dead zones inside a game belong to the game and
-to Steam Input, so the page does not pretend to set them; it draws what
-the kernel reports, so a person can see which pad is which and whether a
-button works, and its one setting, the dead zone, is the one the shell's
-own navigation reads. The same helper serves both, in a second mode that
-prints the whole state rather than presses, run only while the page is
-open.
-
-A pad is named by where it comes from, since Steam publishes a virtual
-pad while it runs with nothing behind it and presents a real controller
-through the same kind of node: the kernel says which pads came through
-uinput, and `/dev/uinput`'s holders say which program made one. That is
-the device's own account of itself, as the vendor id already is, not a
-rule about a named app.
-
-**D55 · A window is captured only while its preview is on screen.** The
-switcher and Mission Control bound their captures to the window list, so
-the shell held a capture of every window whether or not anything was
-showing them. A capture is a session in the compositor against a window
-and its output, and asking for one as an output disappears takes
-Hyprland down: `Screenshare::CScreenshareSession::init` in the crash of
-2026-09-12, when a KVM switch removed the screen. Binding the capture to
-the surface's own visibility removes the whole class of it, and stops the
-shell paying for pictures nobody is looking at.
-
-**D56 · A display that comes back dark is recovered by releasing it, not
-by reloading the renderer.** A KVM that holds EDID leaves the connector
-up with a CRTC, so the compositor logs `Skipping connector DP-4, has crtc
-and is connected`, never re-probes it, and never re-trains the link:
-unplugging the cable changes nothing either. Measured in the VM:
-`force_renderer_reload` leaves a lost output exactly where it was, while
-releasing the output and reloading the config brings it back at its own
-mode with every window still on its workspace. So that pair is the
-recovery, it runs as one shell command since a sequence that stops half
-way would leave no screen at all, and it is on a keybind as well as a
-button because the screen it repairs is the one you cannot see. The
-headless `FALLBACK` monitor the compositor falls to when every output
-goes is the same repair, and the shell does that one itself.
-
-**D57 · A window is never left, nor remembered, off the screens.** When a
-monitor goes and comes back the compositor keeps windows at coordinates
-that no longer land anywhere: after a KVM switch two windows sat at
-x = -4435 on a screen starting at zero, unreachable by pointer, and the
-places pass had written that position down as where they live, so every
-later launch would have reproduced it. So the pass now ignores a place
-that is off every screen, the restorer refuses to hand one back, and a
-floating window found outside them all is moved onto the nearest screen,
-clamped whole when it fits. Rescuing is its own pass rather than a branch
-of the places one, which only looks at apps with a single window, and
-takes one window per round since the mover takes one at a time.
-
-**D58 · On a Mac keyboard the focused app comes first, and the remap
-layer has to actually be running.** Cmd is an application modifier, not a
-system one, so every Cmd chord the shell owns is taken from the app in
-front. Text navigation and selection are the clearest case: Cmd+Left is
-the start of a line, not a window snap, so those chords are translated
-before the compositor sees them, and the shell's own window actions live
-on Cmd+Option. The same reasoning moves close-front, settings and the
-terminal off Cmd+W, Cmd+comma and Cmd+Return, which belong to the tab,
-the app's preferences and its send key.
-
-None of that worked until now, for a reason worth recording: the config
-was rendered once at startup, before the device query answered and before
-the preference file had loaded, so no keyboard counted as Mac and the
-file was written for a fallback device name that matches nothing. A wrong
-device name disables a remap layer silently, which reads as the remaps
-being wrong rather than absent, so there is no fallback name any more:
-with no Mac keyboard the file holds an empty keymap. The profile is
-worked out from the device names rather than stored beside them, the
-query runs again when the profiles change, and the config is rendered
-again whenever the set of Mac keyboards does.
-
-**D59 · The switcher lists apps, not windows.** A row with one card per
-window says the same name three times and makes reaching the next app a
-matter of counting, so it lists apps, as Cmd+Tab does, with a count on
-any app holding more than one window. Which window a release lands on is
-the app's most recent, and the backtick moves through the rest, the same
-key that cycles them when the switcher is down. That cycle walks a stable
-order rather than the recency one: recency puts the window just focused
-at the front, so a second press came back to where it started and a third
-window was unreachable.
-
-The remap layer is verified by measurement, not by reading the file it
-generates: every "fixed" reported on 12 September came from the config
-looking right, and three separate faults in it were invisible that way, a
-device name the kernel does not use, a chord bound twice, and a key the
-compositor calls Print that xremap calls something else. `keycheck.py`
-presses chords on a virtual keyboard the profile matches and reads what
-comes out the other side. It found two of those faults in its first run.
-
-**D60 · A keyboard profile is a preset, and every chord is derived from
-the action it belongs to.** The Mac profile used to be a rule in the
-renderer: set the shell's own chords aside, then rewrite whatever was
-left to Ctrl, with a handful of lines written out by hand for spaces and
-Mission Control. Those hand-written lines rotted without anyone seeing.
-Ctrl+Up sent Super+Up, which is snap-up, not the overview; Ctrl+Left and
-Ctrl+Right snapped instead of changing desktop. Nothing said what a
-modifier means on macOS, so the result was neither platform: Cmd+A and
-Ctrl+A both selected all, where macOS has Ctrl+A as the start of a line.
-
-So the preset is data in the keymap, in macOS's terms, and the shell's
-own chords are derived: an action names the Mac chord it answers and the
-renderer translates it to that action's own chord. A chord can no longer
-point somewhere the keymap does not say, and the user can override any
-entry through `prefs.keyTranslations`. Ctrl now carries the line editor's
-chords, with a terminal passing them through so readline still works,
-and Cmd+A selects the buffer there instead.
-
-A keyboard's layout reaches typing but not binds: the compositor takes a
-per-device variant for what a key types and its own configured layout for
-what a chord means. So the Mac profile's rules are asymmetric, matching
-the key under the keyboard's variant and emitting the key under the
-compositor's. Cmd and the backtick was the case that showed it, since that
-is the one key the Macintosh variant moves.
-
-**D61 · Where a symbol sits is asked of the layout, never assumed.** The
-first fix for that was a table with one entry, grave and the key beside
-the left Shift, which is only this keyboard's version of a general
-problem: AZERTY's A is the key QWERTY calls Q, Dvorak moves everything,
-and every Macintosh variant moves grave. A remap layer matches kernel
-keys, so a chord written as a symbol has to be resolved against a layout
-before it means anything. `scripts/keysyms.py` compiles the keymap with
-`xkbcli` and reports which key carries each symbol, for the keyboard's
-layout on the matching side and the compositor's on the emitting side. A
-symbol the layout has no unshifted key for resolves to nothing and the
-rule is dropped, since a rule aimed at the wrong key is worse than one
-that is missing.
-
-**D62 · A window the shell was showing comes back after a reload.** An
-update rewrites the files the shell runs from, so Quickshell rebuilds
-every window: the Settings page someone started the update from vanished
-under them. The open surface and its page are noted in the runtime
-directory and restored at the next start, honoured only while the note is
-fresh, so a window closed by hand stays closed. It cures the same
-complaint after a crash or a sync, which is where it is felt most.
-
-**D63 · Launching what is already open raises it.** Picking an app in the
-launcher started another copy, and picking Settings while Settings was
-open did nothing at all, which is not what either means: a person picking
-a name wants that thing in front of them. So the launcher raises a window
-that exists, un-hiding one that was put away, and only launches when
-nothing is there. Raising waits a moment first, because the launcher's own
-surface hands the keyboard back to the window it took it from as it
-closes, which lands after the dispatch and undoes it. A second copy is
-still a thing people want sometimes, and that is the app's own new-window
-chord rather than the launcher's job.
-
-**D66 · The browsing engine is compiled, and it runs in the shell rather
-than the compositor.** Listing a directory is the one thing the shell does
-where the language matters: a folder of fifty thousand files is a model
-with fifty thousand rows, each wanting a `statx`, a mime type and a
-thumbnail, and the answer has to arrive in batches while the view is
-already scrolling. Every other service in the shell reaches its subject
-through a command and a JSON parse, which is right for a mount or a VPN
-that changes a few times an hour and wrong here: the drives work was
-withdrawn because a listing that has to be counted before it can be drawn
-is a listing that never arrives. So `native/files/` is a Qt QML module,
-imported as `Isle.Files` from an import path the session exports, holding
-the directory model, the thumbnailer, the file operations and the portal.
-
-It is not a Hyprland plugin, though the repository already builds two of
-those. A plugin runs in the compositor's address space, is rebuilt against
-every Hyprland release, and takes the session with it when it faults; this
-code faults into a shell that restarts in a second and follows the shell to
-another compositor. The two trees stay apart for that reason: `plugins/` is
-the compositor's, `native/` is the shell's.
-
-**D67 · The file chooser is served by the shell, not by a backend of its
-own.** Every application the desktop will never replace — a browser, Steam,
-a chat client — meets Isle at the file dialog, and until now that dialog
-was GTK's. A portal backend is conventionally a daemon that D-Bus
-activation starts on demand, but the shell is already running for the
-length of the session and already draws every other surface, so it takes
-the name `org.freedesktop.impl.portal.desktop.isle` at startup and answers
-`org.freedesktop.impl.portal.FileChooser` itself. That removes a process, a
-round trip, and a second thing that can be dead when an application asks.
-
-The call is held rather than answered: the reply is delayed on the bus for
-as long as the surface is up, and exactly one of accept or reject
-finishes it. A chooser is not one of the surfaces that close each other,
-because an application's file dialog has no business closing the
-dashboard.
-
-`SaveFiles` asks for a folder and names what goes in it, so it is the
-directory chooser with the names joined on at the end rather than a third
-kind of dialog.
-
-**D68 · A thumbnail is a file in the shared cache, not something the shell
-hands out.** The obvious shape is a QML image provider, which turned out
-not to be reachable: the url resolves against an engine the module cannot
-get at, and every request came back "invalid image provider". The shape
-that works is also the better one. A thumbnail is written to
-`~/.cache/thumbnails` under the name the freedesktop spec gives it — the
-md5 of the file's uri — with the uri and the source's mtime in the png, so
-what another application already made is used as it stands and what this
-makes outlives the shell. A view then loads an ordinary file url.
-
-Validity is asked of every row on screen, so it is read from the png's
-text chunks directly rather than through QImageReader, whose `text()` is
-empty until the image itself has been decoded; that mistake made every
-thumbnail look stale and rebuilt the lot on every visit to a folder. The
-mtime it is compared against comes from the row being drawn rather than
-from a fresh stat, which costs nothing and makes a file written since a
-different question that the view asks on its own.
-
-That only works if a listing notices a file being written, and Qt's
-directory watcher does not: it reports entries coming and going, which is
-half of what a row says. The model watches with inotify itself, for writes
-and attribute changes as well as entries.
-
-**D69 · A bookmark is GTK's bookmark.** Places down the left are three
-groups: the folders this machine says are the person's, taken from
-QStandardPaths so a machine with its own `user-dirs.dirs` is followed;
-what they have bookmarked; and what is plugged in, from the Disks service
-that already knows. The bookmarks are read and written at
-`~/.config/gtk-3.0/bookmarks`, the file GTK uses, rather than a list of
-Isle's own. Somebody who bookmarks a folder here finds it bookmarked in
-every GTK file dialog they have not yet replaced, and the ones they made
-before Isle are already there. It costs nothing: the format is a uri and
-an optional name to the line.
-
-**D70 · Deleting puts a thing in the freedesktop trash, and the last thing
-done can be undone.** Delete moves to the trash, writing the spec's note of
-where the thing came from before moving it, so nothing is ever in the trash
-without a way back and every other desktop tool sees the same trash. Which
-trash depends on where the thing is: the home one for anything on the home
-volume, and otherwise that volume's own — `$mount/.Trash/$uid` where the
-administrator has made one, `$mount/.Trash-$uid` where not. A rename cannot
-cross a filesystem, so the alternative is copying a file the length of the
-disk to delete it. A volume's note says where the thing came from relative
-to that volume, so it still goes back after the volume is mounted somewhere
-else. The Trash shows all of them at once, and emptying empties all of
-them. Shift with Delete is the permanent one and asks first, since
-it is the only action here that cannot be taken back.
-
-One step of undo, not a stack. Moving goes back where it came from,
-trashing comes out of the trash and takes its note with it, copying and
-making a folder are undone by taking away what they made. A job that was
-told to replace something is not offered for undo at all: what it replaced
-is gone, and undoing would only delete whatever took its place. A stack would
-have to survive a folder being changed underneath it by something else,
-and one step is what a mistaken drag or a mistaken Delete actually needs.
-
-A job that finds something already at the destination stops and asks, and
-the answer can be given for the rest of the job at once. It asks on the
-worker thread and waits, which is why the surface must always answer:
-cancelling counts as an answer.
-
-Nothing is ever removed to make room for what is replacing it. A copy is
-written beside its destination and moved over it in one rename; a move is a
-rename, which replaces a file in one step and never leaves it missing; a
-folder that is being replaced is moved aside and only dropped once the new
-one is in place. The order matters because every other order has a moment
-where the old thing is gone and the new one has not arrived, and a failure
-in that moment loses the file outright.
-
-**D71 · A job that fails part way can still be undone.** Renaming many
-things, or copying them, does them one at a time, and the one that fails
-leaves the ones before it done. Undo used to be offered only for a job
-that finished, which left exactly the case that wants undoing without it.
-A job now records what it managed whatever its ending, and Ctrl+Z puts
-that much back.
-
-Renaming many takes one name with `#` where the number goes. A name with
-no `#` gets the number on the end rather than being used as it stands,
-since the same name for every file means the second collides with the
-first and the rename stops half way — which is how the case above was
-found.
-
-Packing and unpacking are bsdtar's, since it reads and writes every format
-this desktop is likely to meet and is already on the machine. Unpacking
-goes into a folder beside the archive named after it, never loose into the
-folder being looked at.
-
-**D72 · A service may not depend on the compiled engine.** A directory of
-QML is one module to the engine, and one file in it that will not compile
-takes the whole directory with it. `shell/services/` is imported by
-everything, so a service that imports `Isle.Files` and cannot find it does
-not cost that service: it costs every service, and the shell will not
-start at all. That is what happened when Places was written against the
-engine and reached a machine where the module had not been built yet.
-
-Places asks a script instead, which is how every other service in the
-shell learns anything, and the compiled module stays where only Files and
-the chooser reach it, both of them behind a loader that makes a component
-at run time (D66). The rule is worth stating plainly because the failure is
-total and the cause is a single import in a file nothing appeared to be
-using.
-
-**D73 · Thunar is gone, and what it needed with it.** The window Isle draws
-does what Thunar did: mounts through the Disks service, trash through the
-spec, thumbnails through the shared cache, packing through bsdtar. So
-`thunar`, `thunar-archive-plugin`, `thunar-volman`, `gvfs` and `tumbler`
-leave `packages/shell.txt` and join `tidy.sh`'s list of what an earlier
-Isle installed and this one does not. `yazi` stays: a file manager in the
-terminal is a different tool for a different moment, and SUPER+ALT+E is
-where it lives now that SUPER+E is the window. (D85 takes yazi too.)
-
-`xdg-desktop-portal-gtk` stays installed. It lost the file dialog at D67,
-but it still answers `org.freedesktop.impl.portal.Settings`, which is how
-every GTK application learns whether the desktop is dark. Removing the
-package to finish a list would take that with it.
-
-Folders open through a desktop entry of Isle's own, set as the handler for
-`inode/directory`, whose Exec reaches the shell over its IPC. An
-application asking the desktop to open a folder therefore gets the window
-that is already running rather than a second one.
-
-**D74 · A search can be narrowed and kept.** A search is a term, a scope —
-this folder or everything under it — and two narrowings: a family of file
-and how lately it changed. The family comes from the first half of the icon
-theme's name for the row, which the listing already worked out, so
-narrowing costs no reads. Kept searches are the four of those under a name,
-in the preferences beside the rest of what Files remembers, and they stand
-in the sidebar above the places. Opening one puts the window back the way
-it was rather than standing for a folder that does not exist, which is what
-a smart folder on a filesystem with no index can honestly be.
-
-**D75 · A rebuilt compositor plugin is a restart owed.** The plugin and the
-shell are two halves of one capability on different clocks: the shell syncs
-to the desktop on every save, a plugin only when hyprpm rebuilds it.
-Drag-to-edge tiling moved its drag preview from an IPC call to the event
-socket, and the desktop then ran a plugin calling a handler the shell no
-longer had — silently, because nothing compared the two, and the preview
-simply never drew. `hyprpm reload` is not the answer: it swaps a plugin in
-place and segfaults the compositor when one holds function hooks. So the
-skew joins the facts D46 already checks, as a third reason on the same
-path — the mapped inode against the one on disk — and is said in the same
-words as the kernel and the driver.
-
-**D76 · A screen is watched through Quickshell's list, and a screen that
-comes back is told what to do.** The lock screen survived a KVM switch and
-never came back: the session stayed up, nothing crashed, and the monitor
-returned to a compositor that left it asleep. Three things had to hold and
-none did. `Hyprland.monitors` keeps an entry for a monitor the compositor
-has already dropped and never says it changed, so `Displays.stranded` was
-false while the session sat on the headless `FALLBACK` and the heal D56
-promised never ran at all; the check now reads `Quickshell.screens`, which
-is accurate and does notify. That heal was one attempt two seconds after
-the stranding, which is the one moment the screen is certainly not back
-yet — a KVM hands it over in minutes — so it asks again every five seconds
-for as long as the session is stranded. And an output only leaves DPMS off
-on an idle-to-active edge, which a screen that was away never saw: the
-input that woke the seat happened while the KVM held the screen, and when
-it came back there was no edge left to give it. So the idle policy keeps
-what it last decided and says it again whenever the screen list moves.
-
-One measurement underneath all three: an output the compositor has put to
-sleep is not released. `hl.monitor{ disabled = true }` on a sleeping
-monitor does nothing until something turns it on, so `redetect` — the
-release-and-reload that is the whole of D56 — was inert in exactly the
-case it was written for, a KVM switch after the screens had gone off. It
-wakes the screens first now.
-
-**D75 · The shell's own windows are told apart by their titles.** Settings,
-the Keychain, the Monitor, the Cleaner and every Files window are drawn out of one
-process, so the compositor gives all of them the app id Quickshell
-registers. Anything grouping by that id — the switcher, the dock, Mission
-Control — made them one entry with one name, and naming every Files window
-for its folder made a file manager into an entry per window instead. The
-four named windows stand for themselves and everything else the shell
-draws is a Files window, which takes its name and its icon from the desktop
-entry Files already installs for the folder handler.
-
-A title is a weak thing to key on, and a Files window showing a folder
-called Settings would join the wrong entry. Nothing better is available:
-the app id is per process, not per window. The cost is cosmetic and the
-alternative was a switcher that could not tell the file manager from the
-control panel.
-
-**D76 · Where a favourite sits is the person's, not the script's.** The
-folders down the left come from `xdg-user-dirs` in the order that file
-lists them, and bookmarks from GTK's file in the order it was written.
-Neither order is one anybody chose. Any favourite can be dragged up or
-down, and the order is kept as a list of paths beside the rest of what
-Files remembers; a place that has never been dragged, or one that has only
-just appeared, keeps the place it would have had among the rest. The GTK
-file still holds the bookmarks themselves, so what is bookmarked stays
-shared with every other file manager (D69) while where it sits does not.
-
-**D77 · The install asks for root once, through whatever can ask.** An
-update from Settings runs `install.sh` out of the shell, with no terminal
-behind it, and every `sudo` in it had nothing to read a password from: the
-`setcap` for nethogs ran on every install and failed there first, so the
-install stopped a third of the way in — before the themes were rendered,
-before the desktop entries were written — and the row said only "Stopped
-with code 1". Everything that needs root is `tools/isle-root.py` now (D79),
-each step with its own guard, run through `sudo` when stdin is a terminal
-and `pkexec` when it is not, so the shell's own polkit agent puts the
-dialog up. `--due` answers the same guards as the user, so an install with
-nothing for root to do asks for nothing; a dismissed dialog comes back as
-126 or 127 and is said as "Permission was not given", the words the package
-updates already use.
-
-The greeter is the one step that is due on every update, since it is a copy
-of `shell/`. That is the password an update asks for on a machine with the
-greeter installed, and it is asked once for all four.
-
-Checking is a fetch and has always been one: it counts what HEAD is behind
-`FETCH_HEAD` by and writes nothing. Only Update pulls.
-
-Compositor plugins are not part of this. `install.sh` has never built them
-— `tools/bootstrap.sh --bars` does, and the session's `hyprpm reload`
-loads what is already built — so a pull that changes `plugins/` leaves the
-built plugin behind until `hyprpm update` is run by hand. hyprpm shells out
-to `sudo` itself, which is the same problem one level down, so wiring it
-into the update is its own decision and has not been made.
-
-**D78 · The update is not the shell's child.** Quickshell watches the files
-it is running from and reloads when they change, and a reload destroys
-every object the configuration made, running `Process` included — measured
-in the test VM: a child started from a service was killed the moment an
-unrelated QML file changed, and `running`, `phase` and `log` came back
-empty. The first thing an update does is pull, and a pull rewrites the QML
-the shell is running from. So the update was killing itself in the middle
-of its own pull, every single time, and the page it was killed on forgot
-there had ever been a run.
-
-`tools/update.py run` is started with `execDetached` through `setsid
---fork`, so it belongs to nobody the reload can reach, and it writes what
-it is doing to `$XDG_RUNTIME_DIR/isle/update.json` after every change,
-whole and atomically. The shell reads that with a watching `FileView`.
-Nothing is held in the service: the instance that comes up after the reload
-renders the same run at the same point, and the one that was there when it
-finishes is the only one that says so. The run also refuses to start on top
-of itself — the state file carries its pid.
-
-Python and not a shell script, for a reason that matters here: the
-interpreter reads and compiles the whole file before it runs any of it, and
-the pull overwrites that file mid-run. Bash reads a script as it goes and
-would execute the seam.
-
-The exit code is the arbiter of a failed step, not the output. Reading
-failure out of the lines made the run report `! xremap not installed` — a
-note `install.sh` is perfectly happy to finish on — as the reason the
-update stopped. A line that reads like a complaint is kept as the reason to
-give *if* the command then fails.
-
-**D79 · One authorisation for the whole of an install, hyprpm included.**
-A plugin whose sources moved is stale until hyprpm rebuilds it, and an
-update that leaves a stale plugin behind is not finished. hyprpm will not
-be automated: it refuses to run as root outright ("Don't run hyprpm as a
-superuser"), it runs `sudo -k` before it asks for anything so no credential
-can be warmed for it, it has no environment variable to say what to
-escalate with, and with `sudo` off the path it does not fall back to
-`run0` — it builds and then fails the privileged write. There is no askpass
-on the machine and Isle is not going to grow one; a password Isle has
-handled is a password Isle is responsible for.
-
-Measured: a rebuild escalates eight times, and `org.freedesktop.policykit.exec`
-is `auth_admin` with nothing kept. Sending those to pkexec one by one would
-have been eight dialogs, and an action of Isle's own with `auth_admin_keep`
-would have left a way to run things as root sitting on the machine
-afterwards.
-
-So the whole privileged half of an install is one process.
-`tools/isle-root.py` is reached through a single pkexec — nethogs'
-capabilities, the portal file, the hidraw rule, the greeter copy and the
-plugins, each skipped when it is already done — and for the rebuild it
-becomes hyprpm's own escalation: it opens a socket, forks back down to the
-user to run hyprpm with `tools/pkexec-as-sudo` ahead of the real sudo on
-its path, and serves the eight requests that come back. Each is matched
-against the shapes hyprpm uses — writing inside `/var/cache/hyprpm/<user>`,
-and `make installheaders` in hyprpm's own build directory under
-`/run/user/<n>/hyprpm` — with paths normalised first so `..` buys nothing,
-and everything else refused. The socket is created by root in the user's
-runtime directory, mode 0600, and is gone when the process is. Nothing
-persists: no policy file, no helper left installed, no authorisation
-outliving the run.
-
-`--due` answers the same questions as the user, so an install with nothing
-for root to do asks for nothing at all.
-
-hyprpm's exit code says nothing worth hearing in either direction: 0 with a
-dependency missing, non-zero after a build that worked. Whether it worked
-is read out of its own lines.
-
-**D80 · `IsleUpdate` is created at startup, not on first reference.**
-Singletons in this shell come into being when something reads them, and the
-update service now owns an `IpcHandler` and the `FileView` watching the run.
-Left lazy, `isle update` answered "Target not found" and a run already going
-was invisible until something happened to touch the service. It joins the
-list in `shell.qml` that must exist from the start.
-
-**D81 · A finished run clears itself; a stopped one stays.** Both update
-rows sat on "Done" with their step list intact until something else
-happened to them, which reads as a run still going rather than one long
-over. Half a minute after a run that worked, the phase and the steps go and
-the row is back to what is pending. A run that stopped keeps its reason,
-which is the only record there is of it, until the next run replaces it.
-
-For Isle the half minute is counted from the `finishedAt` in the state
-file, not from when the service read it: the reload the pull causes would
-otherwise start the moment again, and an instance opened an hour later
-would show a fresh "Done" for a run nobody was watching.
-
-**D82 · An AppImage is installed by being put in `~/Applications`, and the
-folder is watched rather than the gesture hooked.** An AppImage is already
-what a Mac bundle is: one self-contained file that is the whole app. The
-only thing missing on Linux is that a file in a folder is invisible to
-everything that knows what an app is — the launcher, `Windows.appFor`,
-`Restore`, kept running, all of which read desktop entries and nothing
-else. So installing one means putting it somewhere known and minting an
-entry that points at it.
-
-The obvious way to offer that is a drop target: a sidebar place that takes
-a drag and installs what lands on it. Watching the folder instead catches
-the same drag and everything else with it — a browser told to download
-there, a `mv` in a terminal, an updater writing a new version over the old
-one. It also gets the other half free. Files already moves things, throws
-them in the trash, puts them back and undoes the last of it; with the
-folder watched, each of those is an install or an uninstall without Files
-knowing that AppImages exist. Throwing an app in the trash removes it, and
-putting it back installs it again, which is the behaviour a Mac has and
-the reason that behaviour is worth having.
-
-What the bundle calls itself is read out of it rather than asked of it.
-`--appimage-extract` runs the file, which means executing something the
-person has just downloaded in order to find out what it is; the trust
-decision belongs at the launch, not at the listing. A type 2 AppImage is
-an ELF with a squashfs appended at `e_shoff + e_shentsize * e_shnum`, so
-`unsquashfs` at that offset reads the desktop entry and the icon with the
-binary never running. A type 1 is an ISO9660 and bsdtar reads it, which
-Files already depends on.
-
-The work is a script and a service, not part of the compiled engine. D66's
-argument is about a listing of fifty thousand rows arriving while the view
-scrolls; registering an app happens once and takes a second, and it is the
-same spawn-and-parse-JSON every other service does. What did go into the
-engine is `Engine.isAppImage`, eleven bytes read: that is a question about
-what a file is, which is where the mime lookups already live, and Files
-asks it of a row before it offers anything.
-
-Not AppImageLauncher or Gear Lever, which both do this well: each brings a
-daemon and a dialog of its own, and a second desktop's dialog appearing
-inside this one is the thing the whole shell exists to avoid.
-
-**D83 · A package the shell has started calling arrives with the update.**
-`packages/shell.txt` is what the shell calls, and until now only
-`bootstrap.sh` and `install.sh --packages` read it: the updater runs
-`install.sh` with no arguments, so a package added to the list reached
-nobody who already had Isle. `tidy.sh` has always offered to take away
-packages *gone* from the list; nothing brought in the ones added. The two
-AppImage packages were the case that made it obvious — without them a
-bundle still installs, but nameless, iconless and unable to run, which is a
-feature arriving broken rather than arriving.
-
-So it is a step in `tools/isle-root.py` like the others (D77), first in the
-run so a later step has what it needs, with a guard that costs nothing:
-`pacman -T` over the list names what is not installed and wants no root, so
-a machine with the list satisfied is asked for no authorisation at all.
-
-Only what pacman can resolve is pending. An AUR name, or one from a
-repository this machine has switched off — `lib32-gamemode` without
-multilib — can never be installed by the step, and counting it would ask
-for root at every update to fail at the same package for ever; `pacman -Si`
-settles it, and those are left to the person and `paru`.
-
-The database is used as it is. Refreshing it and then installing without a
-full upgrade is the partial upgrade Arch warns about, and upgrading the
-machine is what Settings › Updates already does on its own, deliberately,
-with its own progress. An install that fails on a stale database says so
-and the rest of the install goes on, the way a missing xremap does.
-
-The list is now enforced in both directions: a package taken off a machine
-by hand comes back with the next update. That is the point — the list is
-what the shell needs, not a suggestion — but it does mean removing one
-means taking it off the list.
-
-**D84 · A shell whose engine was replaced under it is started again.** An
-update pulls first, and the comment in `update.py` has always said what
-that means: the files under `shell/` change and Quickshell reloads. What it
-did not say is that the reload brings up the *new* QML against the *old*
-browsing engine, because `install.sh` — which rebuilds it — is the next
-line. Nor does installing the new `libisle-files.so` help: it lives under
-`qml/`, not the config path Quickshell watches, so nothing reloads; and a
-reload would not help either, since Qt registers a native module's types
-once, from the library it opened when the process started.
-
-So every update that changed the engine left a shell running QML that
-called methods its engine had not got, until something restarted `qs`.
-Nothing did. It went unnoticed because no change had yet added an engine
-method the QML calls on a common path — the first one that did took the
-Files context menu down with it, a `TypeError` in the middle of the
-expression that builds the items, so the whole menu never appeared.
-
-`install.sh` now compares the inode the running shell has mapped against
-the file on disk, the way `restartneeded.py` already tells a compositor
-plugin Hyprland mapped from the one hyprpm has since built (D46), and kills
-`qs` when they have parted. `isle-session`'s loop brings it back in about a
-second. It is last in the install, so one restart covers everything the run
-changed, and the update is not the shell's child (D78), so it is safe for
-it to do.
-
-The QML is guarded as well, which is the half that matters for whatever
-comes next: a call into the engine for something the engine may not have
-goes through a function that checks the method is there first. A shell that
-is a version behind then loses the feature and nothing else, rather than
-losing the menu the feature was one item of.
-
-**D85 · yazi goes, and SUPER+ALT+E with it.** D73 kept a file manager in
-the terminal on the grounds that it was a different tool for a different
-moment. The window has since grown the things that moment was reached for,
-so the second file manager earns nothing: two ways to browse the same
-files, one of them themed by a template nothing else uses.
-
-`yazi` leaves `packages/shell.txt` for `tidy.sh`'s list, the
-`yazi-theme.toml` template leaves `theme/render.py`, and the `filesTerminal`
-action leaves `shell/keymap.json` and the launcher. `hyprland.lua` no
-longer passes a `fileManager` to the generated binds, so `Keyboard.qml`
-stops emitting the parameter. SUPER+E, which has gone to the shell's own
-window by IPC since D73, is now the only files shortcut.
-
-A terminal file manager is still one `kitty -e <anything>` away for anyone
-who wants one. What goes is Isle shipping, theming and binding a second
-one.
-
-**D86 · An install starts the shell again, whatever it changed.** D84 had
-`install.sh` restart `qs` only when the browsing engine on disk was no longer
-the one the running process had mapped, on the reasoning that changed QML
-reloads itself. It does not, reliably. Both halves of an update replace a file
-by renaming a new one over it — `rsync` writes a temporary and renames, and so
-does `git` — and the inotify watch that would have fired stays on an inode
-nothing will write to again. An update that changed only QML therefore left the
-shell running the QML it started with, and a fix that had landed on disk looked
-like no fix at all.
-
-So the test goes. An install that finds a session up — `isle.pid`, which
-`isle-session` writes and removes — kills `qs`, and that loop brings it back in
-about a second. It is still last in the run, so one restart covers everything
-the install changed, and D78 still makes it safe for an update to do. The
-engine case D84 named is a subset of this one; the QML guard it added stays,
-since a shell a version behind should lose a feature rather than a menu.
-
-**D87 · The Cleaner counts what a place holds itself, once through, and
-keeps only folders.** Broom's and DaisyDisk's analyzers are the model;
-`du`, `ncdu` and `gdu` were the alternatives. Running one of them means
-parsing a whole tree through a pipe and keeping it again in QML, and
-none of them keeps the tree for a second question. So the scan is a type
-in `Isle.Files`, beside the trash it sends things to: a pool of threads
-reading one folder each, which on this machine counts a million and a
-half files in well under a second from a warm cache.
-
-What it keeps is the folders: their own bytes and files and their totals.
-Files are not kept, since there are ten times as many and a view only
-ever wants the ones in the folder it is showing, which are read as it
-opens; the five hundred largest are the exception, for the Largest view.
-Sizes are allocated blocks rather than lengths, so a sparse disk image
-counts what it takes; a file with several names counts at the first one
-met. On a compressed btrfs that is still more than `df` says is used, so
-the window shows the disk's own figures beside the scan's rather than pretending the scan is the disk.
-
-A scan crosses into a mount of the same device and filesystem, which is
-how btrfs subvolumes like `@home` and `@cache` appear, and into nothing
-else: not another disk, not a pseudo filesystem, not the network. It
-never enters `.snapshots`, mounted or not, because snapper's snapshots
-share their blocks with what they copy and counting them counts the disk
-again for every snapshot. Removing is only ever moving to the trash
-(D70), and moving to the trash on the same volume frees nothing until it
-is emptied, which the window says instead of letting the total fall.
-
-**D88 · The Cleaner colours by kind, and removes through a basket.** Broom
-is the model here too. A disk is understood by what fills it, so the scan
-keeps each folder's bytes by kind and every view is coloured by the kind
-most of a thing is: ten fixed colours, one per kind, the same in the ring,
-the bar, the tiles and the rows. This is data encoding, not decoration, and
-it is the one place the shell draws in colours other than the accent and
-the state colours; the palette lives in `shell/windows/cleaner/kinds.js`
-beside the glyphs. Kinds are guessed from folder names first, because a
-PNG inside a game or a cache belongs to the game or the cache, and from a
-file's ending only where no folder has said.
-
-Removing is a basket rather than a button on each row. A row's own button
-made trashing one thing easy and trashing twenty tedious, and hid the
-total until after the fact; with a basket the total is on screen before
-anything moves, the disk card shows what it would give back, and one job
-takes it all, so one Undo puts it all back. The trash is not the end: on
-the same volume it frees nothing, so the bar says so after a move and
-offers Empty trash, which asks first.
-
-**D89 · Cleanup is rules over the scan, the XDG cache rule first among
-them, and the system's share goes through root rather than the trash.**
-A cleaner that knows a list of apps knows those apps. The freedesktop base
-directory specification already says what may go: `~/.cache` is for data
-an application can do without, and a Flatpak app's own `cache` is the same.
-So the general rule is every entry there, each named for the app that made
-it, less the few that misuse it (model weights, shader caches that stutter
-games while they rebuild, a clipboard history). Everything else is a named
-rule for a place the specification does not cover: package stores, the
-caches Electron apps keep in `~/.config`, build folders, which only count
-while their project file sits beside them, and what Steam leaves after an
-uninstall, which is found by the missing `appmanifest` in the same library.
-A named rule comes before the general one and wins where both match.
-
-The rules are data so that adding a place is not a release: a person's own
-file is read beside the shipped one. They are matched against the tree the
-scan already holds, so a cleanup costs a walk of memory, not of the disk.
-
-Safe to clear is ticked for you and Worth a look never is: the second list
-is things a person may still want, and the difference between the lists is
-exactly whether the machine can make it again. The package cache, orphaned
-packages, the journal and crash dumps belong to root; moving them to a
-trash is not possible, so they are cleared by their own tools through
-`pkexec`, one authorisation each, under a card that says they cannot be put
-back.
-
-**D90 · Duplicates are the person's own files, compared by content, and
-the Cleaner sees every disk at once.** A duplicate finder that looks
-everywhere finds mostly copies that are meant to be there: the same DLL in
-two games, the same library in two Python environments, a texture in a
-repository and in its agent's worktree. Removing any of those breaks the
-thing that holds it. So the candidates are files no kind rule has claimed
-(games, the system, build output, caches), outside hidden folders and git
-working trees, not executable and of a megabyte or more, which leaves what
-a person put somewhere themselves. They are matched by size, then both
-ends, then the whole content, so a file is read in full only when
-everything cheaper agrees; copies that already share their blocks through
-a reflink, which btrfs makes for every plain `cp`, give nothing back and
-are counted apart, the way Broom counts APFS clones.
-
-A scan had one root and would not cross onto another device, so a second
-disk was a separate scan and Cleanup could not see a Steam library on it
-while it looked at home. A scan now takes several roots under one node
-that stands for them all, a root the walk through another already reaches
-is dropped, and All disks, every disk mounted, is where the window
-opens.
-
-**D91 · A window opens at its place; it is not moved there.** The
-Windows service put an app's main window at its remembered place a moment
-after the compositor announced it, by which time the compositor had
-centred it and started the open animation there, so it appeared in the
-middle and then slid across. Nothing the shell can send arrives before
-the first frame, so the placing moved into the isle-windows plugin: the
-shell hands it the table of places (`hyprctl isle place`) whenever it
-changes, and the plugin sets the box in the compositor's `window.open`
-hook, after the layout's first placement and before the open animation,
-which starts from whatever box the window then has. The rules of D40 and
-D57 are the plugin's now: the class's only titled floating window, and a
-place on a screen. In game mode the shell hands it an empty table.
-
-**D92 · Each shell window has its own app id, set in the process.**
-Settings, Keychain, Monitor, Cleaner and Files are windows of the one
-Quickshell process, and Wayland's app id comes from the process: Qt sends
-`QGuiApplication::desktopFileName` for every window it maps. All five were
-`org.quickshell`, so the switcher grouped them by guessing from titles,
-D91's places treated them as one app with one place, and no window rule
-could tell them apart. Separate processes would give each a real id
-(`//@ pragma AppId`), but a Quickshell process costs about 106 MB private
-for one bare window, a plain Qt Quick one 86 MB and a Freya one 51 MB,
-against next to nothing for a window in the shell. So the id is set per
-window instead: `WindowAppId` swaps the desktop file name in on the
-window's `visibleChanged`, which Qt emits before the platform window maps,
-and restores the process's on the next pass of the event loop. It lives in
-Isle.Files because that is the native module the shell already builds;
-`ui/AppId` creates it at run time so a machine without the engine still
-loads every window, with the old title-based grouping as the fallback. A
-window shown in the same pass as one that swapped, without an id of its
-own, takes the swapped one; every `FloatingWindow` the shell draws
-therefore carries an `AppId`. Files' id is `isle-files`, its desktop
-entry's, so the launcher, keep-running and session restore treat it as
-the app it is.

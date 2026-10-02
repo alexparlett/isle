@@ -1,0 +1,31 @@
+[package]
+name = "island-freya"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+
+[dependencies]
+spike-base = { path = "../../base" }
+freya = { git = "https://github.com/marc2332/freya", rev = "cfd97ac", default-features = false }
+freya-core = { git = "https://github.com/marc2332/freya", rev = "cfd97ac" }
+freya-engine = { git = "https://github.com/marc2332/freya", rev = "cfd97ac", features = ["gl"] }
+ragnarok = { git = "https://github.com/marc2332/freya", rev = "cfd97ac" }
+accesskit = "0.24"
+futures-channel = "0.3"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[lib]
+name = "island_freya"
+path = "../src/lib.rs"
+
+[[bin]]
+name = "island-freya"
+path = "../src/main.rs"
+
+[[bin]]
+name = "launcher-freya"
+path = "../src/launcher_main.rs"
+
+[profile.release]
+debug = 1

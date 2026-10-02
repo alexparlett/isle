@@ -1,616 +1,102 @@
 # Architecture
 
-How the pieces fit, what drives each feature, how the two keyboards work,
-and the order it gets built in. The technology choices and their
-alternatives are in `STACK.md`.
+How Isle is put together. This is the planned architecture of the
+rust-desktop program: nothing in it is built yet, and each part is settled
+in detail by the build packet that makes it (`docs/work/rust-desktop/
+roadmap.md`). What each capability does is in `docs/design/`; why it is
+built this way is in `docs/DECISIONS.md`.
 
 ## Process layout
 
 ```
-Hyprland
- └── isle (Quickshell)            started by hyprland.lua's start hook through
-      │                           shell/scripts/isle-session, which restarts it (D17)
-      ├── services/               singletons: state + side effects
-      ├── surfaces/               layer-shell: island + control panel, dashboard,
-      │                           launcher, switcher, overview, capture, lock, auth, power,
-      │                           file chooser (the portal's, D67)
-      ├── widgets/                dashboard widgets: one directory each, see Widgets
-      ├── windows/                Settings, Monitor, Keychain, Files, Cleaner, Big Picture
-      ├── theme/                  tokens.json → Theme singleton
-      └── Isle.Files              native/files, built at install time and imported from
-                                  $ISLE_HOME/qml, which isle-session puts on QML_IMPORT_PATH (D66)
- xremap                           systemd --user, reads input/<profile>.yml
- gnome-keyring-daemon, gamemoded, power-profiles-daemon, udisks2, NetworkManager,
- bluez, pipewire, wireplumber, xdg-desktop-portal-*
+isle-session                      supervisor: starts the compositor in the
+ │                                logind session, restarts it, keeps crashes (B9)
+ └── isle                         the compositor, one process
+      ├── main thread             one calloop loop (B9)
+      │    ├── Wayland server     xdg-shell, layer-shell, the protocols in compositor.md
+      │    ├── input              libinput, per-device keyboard profiles, Cmd translation (B21)
+      │    ├── outputs            DRM/KMS through the Smithay fork (B6), VRR, tearing
+      │    ├── Xwayland WM        Smithay's X11 window manager (B5)
+      │    ├── window model       stacking with snapping, per-workspace layout (B8, B20)
+      │    ├── shell              Freya surfaces drawn by Skia on the compositor's
+      │    │                      EGL context: menu bar, island, Dock, Spotlight,
+      │    │                      switcher, Control Centre, notifications, widgets,
+      │    │                      lock (B7, B24), and the server-side title bars (B25)
+      │    └── renderer           Smithay's GLES renderer composites windows and surfaces
+      ├── service worker          async runtime: the service crates (B11), the system
+      │                           roles (B12, B28), the menu registrar (B18), the
+      │                           settings D-Bus interface (B10), the portal backend
+      │                           xdg-desktop-portal-isle (B13, B26), and the runner
+      │                           for providers (B14)
+      ├── PAM thread              lock-screen conversations, which can block (B12)
+      └── watchdog thread         logs any main-loop stall over a frame's budget (B9)
+
+Apps, launched on demand        Settings, Files, Monitor, Keychain, Cleaner:
+                                Freya processes on the same component library,
+                                drawn on the GPU (B7, B26); Files also serves the Open and Save panels and Quick
+                                Look (B26)
+Providers                       programs in any language, started by the service
+                                worker, sandboxed with the permissions the user
+                                granted (B14, B28)
+Greeter                         the compositor in greeter mode under greetd (B26)
+Xwayland                        X11 clients, managed by the compositor's WM
+System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
+                                power-profiles-daemon, gamemoded, PipeWire with
+                                pipewire-pulse and WirePlumber, polkit, the keyring,
+                                greetd
 ```
 
-Everything the user sees is one Quickshell process, running inside the
-compositor's logind session so polkit treats it as the active session. A
-crash restarts it in about a second and the island reappears; nothing is
-lost because the state that matters lives in the daemons, not the shell.
-Its log is `$XDG_RUNTIME_DIR/isle.log`.
+## Rules the layout enforces
 
-The compositor is reached only through `services/Compositor.qml`
-(workspaces, windows, focus, monitors, keywords). Nothing else imports the
-Hyprland module, so the runner-up compositor is a second implementation of
-one file.
+- Nothing that can block runs on the main thread. Services, D-Bus, file
+  and icon work, search and PAM run elsewhere and reach the loop through
+  calloop channels (B9).
+- A shell surface's event handling and drawing run behind a panic
+  boundary; a panicking surface is rebuilt, a panicking service restarted.
+  A panic in the compositor core ends the session and the supervisor
+  starts a new one (B9).
+- The compositor is the one writer of settings. Apps, the shell and the
+  CLI change settings through its D-Bus interface, each app's preferences
+  as its own section of `settings.kdl`; hand edits are picked up by a
+  watcher, and while the file does not parse every write is refused
+  (B10, B27).
+- Apps read system state through the shared service crates and desktop
+  state (settings, window places, the current mode) through the
+  compositor's D-Bus interface; there is no separate desktop daemon (B11).
+- One GPU context: the shell draws with Skia on the compositor's own EGL
+  context, so it adds no per-process driver cost (B7; measured in
+  `docs/research/rust-desktop/shell-ui-spike.md`).
+- Open and close transitions of shell surfaces are animated by the
+  compositor (B7).
+
+## Data on disk
+
+| Store | What | Written by | Watched |
+|---|---|---|---|
+| `settings.kdl` | the user's choices, apps' preferences included | the compositor, or the user by hand | yes |
+| `tokens.kdl` | design tokens | the user by hand; Isle never writes it | yes |
+| state | window places, launch counts, session restore | the compositor | no |
+
+v1's preferences, window places and launch counts are imported once, on
+the first start that finds them (B27).
+
+## Delivery
+
+A PKGBUILD in this repository builds Isle from git; it is installed with
+paru and updated through pacman (B29).
+
+## Dependencies held as forks
+
+- **Smithay**, pinned in `alexparlett/smithay` (to be created), carrying
+  the async page flip patch (B6).
+- **Freya**, through `alexparlett/freya` (B7), which also carries the
+  compositor embedding crate made from the spike's glue. The fork must be
+  at upstream v0.5.0-rc.8 or later.
 
 ## Repository
 
-```
-shell/        the Quickshell config (~/.config/quickshell/isle links to the installed copy's)
-  shell.qml
-  theme/      tokens.json, Theme.qml
-  ui/         the component kit
-  services/   Audio, Network, Bluetooth, Notifications, Media, Power, Idle,
-              Compositor, Windows, Modes, Prefs, Clipboard, Capture, Disks,
-              Monitor, Keychain, Keyboard, Games
-  surfaces/   one directory per surface
-  widgets/    one directory per widget: widget.json + Widget.qml
-  windows/    Settings, Monitor, Keychain, Files, Cleaner, BigPicture
-  assets/     Lucide glyphs, default wallpaper
-native/       compiled QML modules the shell imports
-  files/      Isle.Files: the browsing engine (D66) and the disk scan (D87)
-hypr/         hyprland.lua and the fragments the shell writes (binds, monitors, modes, theme)
-input/        xremap profiles: mac.yml, windows.yml
-theme/        templates: gtk3, gtk4, kitty, btop, zathura, hypr
-packages/     pacman and AUR lists
-tools/        bootstrap, install, the root half of it, the update, the greeter copy, icon vendoring
-docs/
-```
-
-The desktop runs from an installed copy at `~/.local/share/isle`.
-`tools/install.sh` run from a checkout elsewhere copies it there (rsync,
-keeping the copy's `hypr/generated` and built plugins) and links
-`~/.config` into the copy; run from the copy, as Settings › Updates and
-bootstrap do, it installs in place. The steps it cannot do as the user —
-nethogs' capabilities, the portal file, the hidraw rule, the greeter copy,
-the compositor plugins — are `tools/isle-root.py`, one process behind one
-authorisation: `--due` says as the user whether any of them is out of date,
-and only then is it run, through `sudo` when there is a terminal and
-`pkexec` when there is not, so an update from Settings asks once in the
-shell's own auth dialog (D77, D79). The test VM (local tooling under
-`dev/`)
-mounts the checkout itself at `/repo`, so a change is tried there before
-it is installed (D21). `tools/tidy.sh` lists what an earlier Isle installed
-or rendered that this one no longer uses, packages gone from
-`packages/shell.txt`, configuration for tools no longer themed, flags
-files for launchers that are gone, and takes it away with `--yes`; the
-theme render strips its own lines from a flags file whose launcher it no
-longer finds.
-
-## Providers
-
-A password manager, a VPN, a snapshot tool or a phone bridge is a
-provider: a folder under `~/.config/isle/vaults/<name>/`,
-`~/.config/isle/vpns/<name>/`, `~/.config/isle/snapshots/<name>/` or
-`~/.config/isle/phones/<name>/` holding `provider.json` and a script (the
-shell's own live under `shell/vaults`, `shell/vpns`, `shell/snapshots` and
-`shell/phones`). The manifest:
-
-```json
-{ "id": "bitwarden", "name": "Bitwarden", "note": "Through rbw.", "script": "vault.py" }
-```
-
-The script, run as `python3 <script> <command>`, answers:
-
-| command | answer |
-|---|---|
-| `status` | JSON `{installed, ready, state, actions, error}`: `installed` whether the tool is present, `ready` whether `list` can answer, `state` a sentence in the provider's own words ("Not signed in", "Locked", "Connected to …"), `actions` its own `[{id, label, input, terminal, primary, on, options, value}]` for that state: `input` the placeholder of a value sent on stdin, `terminal` when it must run in a terminal window (a browser sign-in, prompts), `primary` the one a plain click means, `on` draws it as a toggle, `options` with `value` as a choice whose pick goes on stdin. A VPN's status also carries `active: {name, detail}` or null |
-| `list` | a vault: JSON `{items: [{id, shareId, vault, title, type}], error}`, `type` one of login, note, credit_card, identity, ssh_key, wifi, alias, custom, never a secret. A VPN: `{choices: [{id, title, subtitle}], error}`, the places it can connect. A snapshot tool or a phone bridge: `{items: [{id, title, subtitle, actions: [{id, label, danger, input, primary}]}], error}`, each item with the actions the tool allows on it (snapshots newest first; phones with the battery in the subtitle), an action with `input` taking the item's id and the typed value on stdin as two lines |
-| `field <shareId> <id> <field>` | a vault only: the value on stdout, no newline: `username`, `email`, `password`, `totp` (the current code), `urls`, `note` |
-| `action <id>` | one of the actions `status` named, or one an item named, its input on stdin: a typed value, a choice, or the item's id; a VPN's `connect` takes a choice id, empty for the default. Exit non-zero with the reason on stderr; anything said on stdout is shown beside the state |
-
-The shell knows no manager's or VPN's notions: it shows the state
-sentence and the actions where the provider's items or places would be,
-the Keychain and the launcher's `*` hint for a vault, the panel's VPN
-page for a VPN, Settings › Snapshots for a snapshot tool, Settings ›
-Phone for a phone bridge. `shell/scripts/protonpass.py`, `protonvpn.py`,
-`nmvpn.py`, `snapper.py` and `kdeconnect.py` are the references. Settings
-› Passwords, Settings › Network, Settings › Snapshots and Settings › Phone
-list every provider found with a switch and its own options, as macOS
-lists credential providers (`ProviderGroups` in `shell/ui` is that page
-shape: the providers, then each ready one's items); `qs ipc call vault
-rescan`, `vpn rescan`, `snapshots rescan` and `phone rescan` pick a new
-folder up without a restart.
-
-## Services
-
-Every capability and what drives it. "native" is a Quickshell type; no
-extra process.
-
-| capability | driven by |
-|---|---|
-| workspaces, windows, focus, fullscreen, monitors | native Hyprland IPC and Wayland toplevel management |
-| audio: sinks, sources, streams, volume, mute, default device | native Pipewire |
-| network: wifi list, connect, ethernet, connectivity | native Networking (NetworkManager) |
-| bluetooth: adapters, devices, pair, connect, battery | native Bluetooth (BlueZ) |
-| notifications: server, actions, inline reply, images, DND | native Notifications. `Notifications` keeps every one until dismissed and logs each arrival as a record to `~/.config/isle/notifications.json` (300 kept), so the history survives a restart as "Earlier" entries without actions. One `NotificationCard` draws them everywhere: the island's centre (a panel page, from the bell, the tile or the summary), the dashboard widget, and the toast. A toast is silenced by do not disturb, quiet hours, a fullscreen window (the compositor's `fullscreen` event), or game mode; critical ones and apps in `dndAllow` toast anyway, low-urgency ones never do; what was silenced is counted and, when silence lifts, summarised with a way to the centre. A toast lasts as long as the app's `expireTimeout` asks, within 3 to 15 s; an optional sound plays through pw-play. The count is what a phone counts: everything waiting to be read, the toasts on screen plus what is kept, until the person clears it, since a toast timing out is not a dismissal and a shell restart leaves only the kept ones. A crossed bell means silenced and nothing else. IPC `notifications status | clear` |
-| media: players, art, transport, seek | native Mpris |
-| battery and power source (controllers, headsets) | native UPower |
-| tray | native SystemTray; the `TrayIcons` and `TrayMenu` ui components show it in the island's control panel (the menu as a page of the panel) and in the dashboard's Session widget (the menu as a card in place) |
-| lock | native WlSessionLock + Pam |
-| idle: dim, lock, screen off | native IdleNotify. The screen policy keeps what it last decided and says it to the compositor again whenever the screen list changes: a screen that was away for the idle-to-active edge is never turned on by one (D76) |
-| polkit agent | native Polkit |
-| thumbnails for switcher and overview | native Screencopy, asked for only while the surface is on screen: a capture of a window whose output has just gone crashes the compositor, and an output goes when a KVM switch or a cable does (D55) |
-| app switching | `Switcher` holds one entry per app with a window on a desktop, frozen while the row is up, and `win` is the window a release focuses: the app's most recent, moved along the app's own list by the backtick. With the switcher down that key is `Windows.cycleApp`, which walks the focused app's windows in a stable order rather than the recency one, since recency would trade two windows for ever and never reach a third (D59) |
-| global shortcuts from the shell | native Hyprland GlobalShortcut |
-| greeter | native Greetd. It runs as the `greeter` user before any login, so it cannot live in a home: `tools/install-greeter.sh` keeps a root-owned copy of `greeter/` and `shell/` under `/usr/local/share/isle-greeter` and points greetd at it; `install.sh` refreshes it after a pull |
-| clipboard history | `wl-paste --watch cliphist store`; `cliphist list` / `decode` |
-| capture | grim / slurp / wf-recorder / satty / hyprpicker, run as compositor children by `capture.sh` since slurp's and hyprpicker's overlays cannot map from a Quickshell child. A shot is frozen first: grim grabs every monitor before the pick, `FreezeFrame` shows those frames under slurp, and `crop.py` cuts the region out of them, so nothing after the key press and never the pick's own veil reaches the shot |
-| removable media | `Disks` mounts a filesystem the moment it appears while `prefs.autoMount` is on (the default) and announces it; off, the announcement carries a Mount button |
-| disks | `udisksctl monitor` and `lsblk` for the list; `udisksctl mount` / `unmount` / `power-off` from the session scope |
-| keychain | The Secret portal is routed to gnome-keyring in `portals.conf`, so Chromium-based browsers and Electron apps keep the key for their saved logins in the same keyring (a 64-byte item per app id). libsecret through `shell/scripts/secrets.py` (list, reveal, delete, store, lock); PAM unlocks it with the password at sign-in and at the lock screen, `pam_gnome_keyring` in the greetd and login stacks, put there by `tools/install.sh --pam`. Categories come from the item's schema and attributes; the generator is `python3 -c` over `secrets` |
-| ssh keys | `shell/scripts/sshkeys.py` over `~/.ssh` (`ssh-keygen -lf` for type and fingerprint, `-y -P ""` to tell a locked key) and `ssh-add -l` / `ssh-add` / `ssh-add -d` against `SSH_AUTH_SOCK`. The agent is gcr's socket-activated wrapper at `$XDG_RUNTIME_DIR/gcr/ssh`, exported by `hyprland.lua` and enabled by install; it preloads `~/.ssh` and prompts for passphrases on use. A passphrase given in the Keychain reaches `ssh-add` through `askpass.sh` reading a one-shot 0600 file. |
-| bluetooth pairing | `bluetoothctl` kept open as the agent (`agent KeyboardDisplay`, `default-agent`); its prompts are parsed and answered on stdin. The code shows in the island, the panel and Settings |
-| drives | `udisksctl dump` through `shell/scripts/drives.py`: drives, block devices and the SMART summary udisks keeps (ATA and NVMe); `SmartUpdate` over gdbus to refresh |
-| AppImages | `~/Applications` is where an installed app lives. `AppImages` watches it with a `FolderListModel` and runs `shell/scripts/appimages.py sync` on every change, which registers what is there and forgets what is gone: for each bundle it reads the squashfs appended to the ELF (`unsquashfs` at the offset the section headers give, so nothing is executed to find out what it is), takes the bundle's own desktop entry and icon out of it, and writes `~/.local/share/applications/isle-appimage-<id>.desktop` with `Exec` and `TryExec` pointing at the file, the icon into `hicolor` under the same name, and `X-Isle-AppImage` and a stamp of the file as the marker it reconciles against. Everything that knows what an app is — the launcher, `Windows.appFor`, `Restore`, kept running — then has it, and nothing else had to learn about AppImages. Removal is the same pass in reverse, so trashing the file uninstalls it and putting it back installs it again. The island announces an arrival with a way to open it. `Engine.isAppImage` reads the first eleven bytes, which is what Files asks to decide whether to offer Add to Applications and what opening the row means (D82) |
-| default apps | `xdg-mime query default` / `xdg-mime default` and `xdg-settings` for the browser, through `shell/scripts/defaults.py`; candidates from the `MimeType` lines of every desktop entry |
-| startup | Settings › Apps shows the three ways a session starts things. Apps: XDG autostart through `scripts/autostart.py` (a user file with `Hidden=true` switches a system entry off; entries naming another desktop are folded as never running here). Services: the enabled systemd user units through `scripts/services.py` (`enable --now` / `disable --now`), with the shell's own locked. The compositor: the `hl.exec_cmd` lines of `hyprland.lua`'s start hook, read from the file |
-| gamepad | `shell/scripts/gamepad.py` reads every evdev node with `BTN_GAMEPAD` and an axis, so a remapper's virtual keyboard does not count (uaccess through the joystick udev rule) and prints presses: the face buttons, bumpers, triggers (buttons or axes past half), Select, Start, Guide (on release, or `guide-hold`), the d-pad and left stick as directions that repeat while held, the right stick as `r`-prefixed ones, `<button>-hold` after 0.6 s, and `pad:<vendor>` when a pad appears; it runs while anything holds `Gamepad.listeners`: the home, the quick menu, the keyboard, and `Games` through every mode and on the desktop when a pad may open Big Picture |
-| on-screen keyboard | `surfaces/keyboard/OnScreenKeyboard.qml`, an overlay layer along the bottom that never takes keyboard focus; `Osk` (the service) queues each key as a `wtype` run (text as is, named keys with `-k`), so it lands in the focused window through the virtual keyboard protocol. Opened by `qs ipc call osk toggle` (SUPER+SHIFT+K in the keymap) or Select held on the pad in game mode. Built the way the consoles build theirs: two cursors, the left stick and d-pad over the left half of the keys and the right stick over the right, LT and RT pressing each, A the one last moved; B deletes, X space, Y shift, LB and RB move the caret, Start enters; a legend of those buttons in the pad's own labels (Sony shapes, Xbox letters, Nintendo's swapped) while a pad is about; a suggestion strip above the keys, the word typed so far completed from `/usr/share/dict/words` (`words`) shortest first, names only for a capitalised start, picking one typing the rest and a space. On the desktop it takes an exclusive zone so tiled windows make room; over a game it sits on top. Pages: letters, symbols, more; shift is one-shot, twice for lock |
-| shell updates | `tools/update.py` is the whole of it. `check` fetches the installed copy's origin and counts the commits behind, and changes nothing; `run` pulls fast-forward, runs `install.sh`, and writes where it has got to — step, phase, log, failure — to `$XDG_RUNTIME_DIR/isle/update.json` as it goes. `IsleUpdate` runs `check` hourly and reads that file with a watching `FileView`; Update starts `run` detached with `Quickshell.execDetached(["setsid", "--fork", …])`, because the pull rewrites the QML the shell is running from, the shell reloads, and a reload destroys every `Process` it owns — an update that was the shell's child was killed in the middle of its own pull, every time (D78). The install's root half is asked for through `pkexec` and a dismissed dialog (exit 126 or 127) read as "Permission was not given", with the phase and the last line on the row. That half leads with the packages: `pacman -T` over `packages/shell.txt` names what this machine has not got and needs no root, `pacman -Si` drops what pacman could never install here (an AUR name, `lib32-gamemode` without multilib) so it is not pending for ever, and the rest are installed with the database as it is — a refresh and an install without a full upgrade is a partial upgrade, and upgrading the machine is the package half's own job. A machine with the list satisfied is asked for nothing (D83). It ends by restarting the shell whenever a session is up: a reload does not take a rebuilt native module, and a file replaced by rename — which is what both `rsync` and `git` do — leaves the watch that would have reloaded the QML on an inode nothing writes to again, so an install a running shell does not take is a shell still serving what it started with (D84, D86). The compositor plugins are the last step of that same run: `update.py` hashes `plugins/` and the Hyprland the headers were built against and keeps the answer in `~/.cache/isle/plugins-built`; when it has moved, `isle-root.py` forks back down to the user to run hyprpm with `tools/pkexec-as-sudo` ahead of the real sudo, and serves the eight escalations hyprpm makes over a socket that exists only for the rebuild, taking only the shapes hyprpm uses (D79). An SSH remote the host does not know gets a row pointing at the key in Keychain; an https remote gets a gh sign-in. Settings › Updates puts it above the package list, one row per step of a run and one per commit an update would bring; the island's download glyph and the panel footer count cover both, and a plugin behind its sources counts |
-| package updates | `Updates`: `checkupdates` and the AUR helper's `-Qua` hourly and on demand. Updating runs `pkexec pacman -Syu --noconfirm --noprogressbar`, or the helper with `--sudo pkexec` when AUR packages are pending, so the privilege comes once through the shell's own polkit dialog and no terminal opens; every question takes its default. The output is read line by line: pacman's `(n/m) upgrading` and `downloading` lines drive a per-package state (waiting, downloading, installing, done) on the page's list, the `::` lines the phase, `error:` the failure. When the run ends the restart check runs and the island says "Updated; restart to finish" with a Restart action, or "Updated"; half a minute later the phase and the step list go and the row is back to what is pending, unless the run stopped, in which case its reason stays (D81). The cache clean and the orphan removal go through the same run. IPC `updates check | update | clean | orphans | status | rehearse`, the last a run of pacman's own lines without a package touched, for the page. Qt's JavaScript has no `trimEnd`; a line is trimmed with a regex. What a run's output said is a guess at what happened and what is still pending is the answer: once the run is over and the list has been read again, a package no longer pending is done whatever line the output carried for it, which is what left packages spinning on "downloading" after a finished update |
-| restart needed | `scripts/restartneeded.py`, run with every update check and after an update: the running kernel's module tree gone from `/usr/lib/modules` (pacman removes it with the upgrade), the NVIDIA module's version in `/proc/driver/nvidia/version` not nvidia-utils's, or a compositor plugin whose file Hyprland mapped is no longer the file on disk — the inode in `/proc/<Hyprland>/maps` against the one under `/var/cache/hyprpm`, since hyprpm rebuilds a plugin as a new file at the same path and a session keeps the one it mapped. `Updates.restartNeeded` with the reasons: the island morphs once ("Restart to finish the update"), the rest pill shows a rotate glyph in the warn colour in place of the download one, the panel footer says "Restart needed", and Settings › Updates leads with the reasons and a Restart button (D46, D75) |
-| title bars | the hyprbars plugin from this repo's `plugins/hyprbars` (upstream at the commit pinned for this Hyprland, plus Isle's change: no bar when the client draws its own decorations, which it says through xdg-decoration, KDE's server-decoration protocol, or for X11 through `_MOTIF_WM_HINTS` with decorations at zero or `_GTK_FRAME_EXTENTS`, which Hyprland does not read, so the plugin reads them over an XCB connection of its own to XWayland once per rules update, the signals KWin honours; Hyprland's own flag covers menus, tooltips and other never-decorated types), built by hyprpm from `hyprpm.toml` at the root in bootstrap and loaded from hyprland.lua's start hook (then `hyprctl reload` so the theme fragment sees it). `theme/templates/hypr-theme.lua` sets its colours, font and padding from the tokens and adds three buttons right to left: close (through the shell, which puts a kept app away instead), fullscreen (the compositor's, so the window takes a space of its own; a double click on the bar is the zoom that fills the work area), minimise to the hidden stack (`switcher hide`). Off with the `titleBars` preference (Settings › Appearance); a plugin change needs `hyprpm update` |
-| picture-in-picture | a window rule floats, pins and sizes a browser's PiP window without a border; the Pip service moves each new one to the bottom-right of its monitor, since the rule's own move is ignored on 0.56 |
-| window tiling | The `plugins/isle-windows` compositor plugin. A drag in progress is the layout's own drag controller holding a target in move mode; the plugin hooks `CLayoutManager::endDragTarget`, where every drag ends whether it began with Super+drag, the hyprbar or the client's own title bar, and tiles the window to a half, quarter or the work area from the pointer's edge, the window sitting inside the tile by its decoration extents so a title bar clears the island. While the pointer is over an edge it posts the target box to the shell as an `isle-ghost` event on the compositor's event socket, which the shell already reads, and `SnapGhost` draws it; a drag never waits on a process. Keys and the bar's double click go through the plugin's hyprctl command, `hyprctl isle snap <zone>`, `zoom`, `restore`: the Lua config cannot call a plugin's dispatcher, but it can run a command. The same plugin answers `_NET_WM_MOVERESIZE`, which an X11 client sends when its own title bar is dragged or its edge pulled and which this Hyprland's XWM ignores, by beginning the layout's drag the way the compositor does for xdg_toplevel.move The same plugin tags every override-redirect X11 window `x11popup` as it opens (the rule engine cannot match override-redirect itself; only dynamic rules can key on the tag, since static ones such as float are read at map, before the hook runs): hyprland.lua's `x11-popup` rule on it drops the open and close animations, shadow and rounding (`no_anim`, `no_shadow`, `rounding = 0`, `no_focus`, and `min_size = "1 1"` so a menu mapped small is not grown to the floating minimum, the old FAQ's Steam fix; the border stays, since removing it makes Hyprland shrink the window by the border it drops); the `x11-untitled` rule gives an untitled X11 window the same look by the compositor's own matchers, since a menu that opens as a plain window and turns override-redirect afterwards is never tagged. The Input service's `isle-float-x11` rule floats every titled X11 window by the compositor's own `xwayland` and `title` matchers; an untitled one at map is a client's menu or overlay, left to the compositor's own X11 handling. The Windows service notes the place of each app's sole titled floating window every few seconds, by class, and hands the table to the plugin with `hyprctl isle place <class> <x> <y> <w> <h>` (`place clear` first, an empty table in game mode); the plugin's `window.open` hook sets the box of the class's sole titled floating window as it maps, before the open animation starts from it, so the window opens there rather than moving there. A menu, an overlay or a second titled window is never noted nor placed (D40, D91) |
-| window places | `Windows`'s 4s pass over the client list remembers where an app's only titled floating window sits (`prefs.windowPlaces`, by class), and the isle-windows plugin opens the app's next window there. A place off every screen is neither remembered nor handed back, a window parked on a special workspace has no place to learn, and a floating window the compositor has left outside all of them is fetched onto the nearest screen, whole where it fits: a monitor that goes, a KVM among them, leaves windows stranded where it used to be (D57) |
-| minimise | The compositor has none. The hyprbar's button and the switcher's Super+M call `hyprctl isle hide [address]`, the isle-windows plugin's own command: it parks the window on the `hidden` special workspace silently, closes that workspace if it came up, and focuses the top window left. A client's own minimise button is a request the compositor's state handler ignores (and, for an X11 client, answers with its sticky maximise toggle); the plugin hooks that handler, consumes the request and takes the same path on the next turn of the event loop. The switcher lists hidden windows and restores one onto the current workspace, focused and on top
-| fullscreen | A window going fullscreen takes a workspace of its own, as a macOS app does: `Windows` reconciles the compositor's client list on every `fullscreen` event, once at start and with the placer's poll, moves a fullscreen window that shares a workspace with others to an empty one (`window.move({ workspace = "empty" })`, following it only when it is the window in use), remembers where it came from, and moves it back when it leaves fullscreen. A floating window the size of its monitor, a game's borderless fullscreen, counts as fullscreen for this, so both of a game's modes get the space; the poll is what catches a window growing to the screen, which has no event. One already alone stays; the alt-tab between it and the desktop is then a workspace switch. When a parked window closes and leaves its workspace empty, the view goes back to the workspace it came from. hyprbars decides the bar again on a window's title, floating and fullscreen events, so a client that turns borderless at run time loses it (D48) |
-| kept running | `prefs.keepRunning` lists apps by desktop entry id (Settings › Apps › In the tray). Such an app sits in the tray row after the tray's own icons while it runs (`Windows.kept`, from the `apps` grouping): click shows or puts away all its windows, the menu offers show or hide and quit, middle click quits. Every close the shell issues, Super+Q, the switcher's quit and the hyprbar's × (which calls `windows close` rather than the compositor's close for that reason), puts a window of such an app away instead, for apps that quit when their window closes; a close the client issues itself, its own × or shortcut, is the client's to handle. Its put-away windows are not the hidden stack's: `Windows.hidden`, which Mission Control's tray lists, leaves them out |
-| display arrangement | `DisplayMap` in `qs.ui` draws the compositor's monitors to scale; a drop snaps the moved one to the others' edges and pushes it out of any overlap, then `Displays.place` pins every monitor's position (`XxY`) and re-renders the fragment. Pending updates show as a glyph in the island's rest pill and a count in the panel footer |
-| display recovery | A monitor handed back by a KVM or a cable is not always driven again: the compositor keeps the connector up with a CRTC, never re-probes it, and the screen stays dark while the session paints happily into it. `Displays.redetect` releases every output (`hl.monitor{ disabled = true }`) and reloads the config, which re-probes and re-acquires them; `force_renderer_reload` does not. It is one shell command, so a half-done sequence cannot leave the session screenless, and it wakes the screens first, since a sleeping output is not released; it has a keymap action (Super+Ctrl+D) because the screen it fixes cannot be seen. Every output gone also leaves the compositor on its headless `FALLBACK` monitor, which `Displays.stranded` notices from `Quickshell.screens` — the compositor's own monitor list keeps dropped entries and never notifies — and heals with a reload every five seconds for as long as the session is stranded. IPC `displays redetect | status` (D56, D76) |
-| keymap overrides | `keymapOverrides` in prefs, action id to chord; the Keyboard service renders them into the same bind fragment and xremap config, then `hyprctl reload`. While a chord is recorded the compositor sits in the `isle-record` submap so Super chords reach the window |
-| screen sharing | A portal screencast is a PipeWire video stream the portal itself produces (`xdph-streaming-N` from xdg-desktop-portal-hyprland): `Audio.screencasts` picks those out of the video streams by name, the rest are cameras, and `watchers` are the apps with a video input stream, the ones seeing it. The rest pill shows a screen-share glyph in the live colour, the island holds "Sharing the screen with <app>" with a Stop for as long as it lasts, and Stop destroys the portal's stream (`pw-cli destroy`), which ends the app's capture. IPC `privacy status | stopSharing` |
-| app volumes | `Audio.apps` groups the PipeWire output streams by process (a game opens several under one name), one row per app in the panel's output page and Settings › Audio, the first stream read for the value and every stream set; a game's row carries its cover from the library |
-| system stats | `/proc/stat`, `/proc/meminfo`, hwmon, `nvidia-smi --query-gpu`, LACT socket, CoolerControl REST on localhost:11987; every process from `/proc/<pid>` with CPU and disk I/O deltas; per-process network from `nethogs -t`, which needs `cap_net_admin,cap_net_raw` (install sets them). The Monitor's strips add the CPU split from `/proc/stat`, `/proc/meminfo`, whole-disk throughput from `/proc/diskstats`, RAPL package power when `energy_uj` is readable, battery draw, hwmon fans (`fan*_input`, `pwm*`), and `systemd-inhibit --list` for what holds off sleep |
-| game detection | gamemode D-Bus `ClientCount`; fullscreen window whose parent is Steam, Heroic or Lutris |
-| power profiles | `powerprofilesctl` |
-| wallpaper | Settings › Wallpaper: `scripts/wallpapers.py` lists the images under Pictures, `~/.local/share/wallpapers`, the system's wallpaper folders and any folder added; a click sets `prefs.wallpaper`, and the `Wallpaper` surface's `Backdrop` follows it |
-| devices | `scripts/devices.py` reads udev's database, lspci, sysfs, lsblk and lscpu into a tree of categories named the way Device Manager names them (Processors, Memory, Display adapters, Monitors, Sound controllers, Keyboards, Mice, Game controllers, Network adapters, Disk drives, Storage controllers, USB controllers and devices, Bluetooth, Cameras, Printers, System devices), each device with its properties: manufacturer, model, driver, location, hardware ids, serial. The `Devices` service runs it at start and again after a burst of `udevadm monitor` events; the Settings page adds the shell's own knowledge (monitors, audio endpoints, Bluetooth peers, batteries) and shows the tree beside a properties pane |
-| brightness | `Brightness`: the backlight through brightnessctl on a laptop, else DDC/CI through ddcutil, surfaced as a slider on the Displays page |
-| clipboard paste | A pick in the launcher's clipboard mode copies, waits for the launcher to go, then has the compositor send the paste chord to the window that had focus (`Windows.pasteCommand`): Ctrl+V, or Ctrl+Shift+V for a terminal by app id |
-| island | `surfaces/island/Island.qml`, one per screen through `Variants` over `Quickshell.screens` in `shell.qml`, each with its hot zone; `primary` marks the one on `Compositor.shellScreen`, which alone shows events and takes the `island` IPC (pin, notifications; text, clear, dnd and demo are shared). The rest pill's dots are its own screen's workspaces (`Compositor.workspaceIdsOn`, `activeIdOn`) |
-| Mission Control | `surfaces/overview/Overview.qml`, one layer surface on the shell screen. Windows come from `Windows.groups` (the compositor's toplevel list, refreshed on entry for positions and sizes); each is a live `ScreencopyView` of its toplevel, with a placeholder when the capture has no content. The spread is computed in QML from the real rectangles; thumbnails animate between the real and stage rectangles. Drops move windows with `window.move({ follow = false })`; closes go through the compositor by address (`Windows.closeWindow`), never the toplevel handle, which is a protocol error on a handle already going away. The three-finger swipe is `hl.gesture` in `hyprland.lua`, the island's workspace dots open it too |
-| vpn | `Vpn` fronts every VPN provider whose tool is on this machine, each switchable off in Settings › Network, which lists them with a switch and nothing else; the panel tile, its VPN page, the launcher's Connect/Disconnect and the island's shield glyph talk to `Vpn` alone. A provider is a manifest and a script, the shell's own under `shell/vpns`, the user's under `~/.config/isle/vpns/<name>/provider.json`, found by `scripts/providers.py` and instantiated as `VpnProvider`s ("Providers" below): `status` carries the state sentence, the connection that is up (`active: {name, detail}`) and the actions; `list` the places it can connect (`choices`); `action connect` takes a choice on stdin. The Proton VPN provider (`protonvpn.py` over the `protonvpn` CLI: `info`, `status`, `config list`, `countries list`) offers Sign in (in a terminal), the fastest server or a country, Disconnect, Kill switch as a toggle, NetShield as a choice, Sign out; the NetworkManager provider (`nmvpn.py` over `nmcli`) offers its vpn, wireguard and tun connections. `ip monitor link` and `nmcli monitor` trigger refreshes. IPC `vpn toggle | connect <provider> <choice> | disconnect | act | status | rescan | refresh` (D44) |
-| snapshots | `Snapshots` fronts every snapshot and rollback provider whose tool is on this machine (`shell/snapshots`, `~/.config/isle/snapshots/<name>/provider.json`), each switchable off in Settings › Snapshots, which lists them with a switch and the provider's own actions, then each ready tool's snapshots beneath with the actions the tool allows on one (a dangerous one asks twice). The Snapper provider (`snapper.py`, `snapper --jsonout`): reading needs the user in the config's `ALLOW_USERS`, which its Allow action sets once through `pkexec` (the shell's polkit agent asks), after which listing, taking and deleting go through snapperd as the user; a rollback is root's, through `pkexec`, and says the next boot uses it. The Timeshift provider opens Timeshift's own window, since everything it does needs root. IPC `snapshots status | items <provider> | act | rescan | refresh` (D45) |
-| phone | `Phones` fronts every phone bridge whose tool is on this machine (`shell/phones`, `~/.config/isle/phones/<name>/provider.json`), each switchable off in Settings › Phone, which lists them with a switch and the provider's own actions, then each ready bridge's phones beneath with what the bridge allows on one. The KDE Connect provider (`kdeconnect.py`, `kdeconnect-cli` and the daemon's D-Bus properties): a phone's reach and battery, ring, the clipboard sent, a file sent, pair and unpair; the daemon itself carries the phone's notifications to the desktop and the clipboard both ways once paired. IPC `phone status | act <provider> <id> <input> | rescan | refresh` (D51) |
-| surfaces across a reload | A window surface open when the shell reloads comes back where it was, its name and the settings page noted in `$XDG_RUNTIME_DIR/isle/reopen.json` and honoured only while the note is fresh, two minutes. Updating Isle rewrites the files the shell is running from, so Quickshell rebuilds every window, which took the page away from under whoever started the update (D62) |
-| session restore | `Restore` notes the open windows from the client list Windows polls, one entry per app, workspace and put-away state for every class with a desktop entry, into `~/.local/state/isle/session.json` when the list changes; a window on the hidden workspace, which is both minimise and the tray, is noted as hidden and parked there again by `hyprctl isle hide` a moment after it maps, so it comes back put away rather than over the desktop; at the first shell start of a compositor instance (a marker in `$XDG_RUNTIME_DIR/isle` keyed by the instance signature) it launches each entry not already started by autostart or already open, and moves each app's next windows to their workspaces as they map. Off with the switch in Settings › Apps. IPC `restore status | replay` (D53) |
-| controllers | Settings › Controllers lists every pad `scripts/gamepad.py --live` sees (name, kind from the vendor, USB or Bluetooth, the battery from UPower when it has one). A pad under `/sys/devices/virtual` came through uinput, so it is a program's rather than hardware: the helper says so (`origin`) and names the program from what holds `/dev/uinput` (`by`, the only holder, or Steam for a pad carrying Valve's id), and the page calls it "Steam Input" or "Virtual pad from <program>" with the name it gives itself beneath. Steam publishes such a pad while it runs whether or not a controller is connected, and presents a real controller the same way, so virtual says where the pad comes from, not whether hardware is behind it and draws each one's state as it changes: buttons lit while down, the sticks in their rings with the dead zone as the inner ring, the triggers as bars. The dead zone (`padDeadZone`) is the travel a stick needs before the helper's navigation takes it as a direction, `--deadzone` on the same helper. Read only while the page is open (`Gamepad.watchers`). IPC `gamepad status` (D54) |
-| calendars | `Calendars`: subscribed ICS calendars (`prefs.calendars`, Settings › Calendars: a link, webcal or https, or a file; a name and a colour), read-only. `scripts/calendars.py` fetches each on a half-hour timer and on change, keeps the last copy under `~/.cache/isle/calendars` for when a fetch fails, and expands the events, repeats included, over sixty days back and four hundred ahead with python-icalendar and python-recurring-ical-events; times come out local. The Calendar widget marks days with a dot per calendar and lists the picked day; the rest pill shows a calendar glyph while an event is within the half hour, and the island says the title at the minute it starts. Proton Calendar's Share via link is such a subscription, and the only way in, since Proton has no CalDAV (D41) |
-| password managers | `Vault` fronts every provider whose tool is on this machine, each switchable off in Settings › Passwords, which lists them with a switch and nothing else; the launcher and the Keychain talk to `Vault` alone. A provider is a manifest and a script, the shell's own under `shell/vaults/<id>.json` (script relative to `shell/scripts`), the user's under `~/.config/isle/vaults/<name>/provider.json` (script relative to that folder), found by `scripts/vaults.py` and instantiated as `VaultProvider`s. The contract, "Password manager providers" below, is four answers: `status` (a state sentence and the provider's own actions), `list` (titles only, never a secret), `field` (one field of one item, fetched when copied or revealed), `action` (one of the actions named, its input on stdin, in a terminal window when it says so). A provider that is not ready shows its state and its actions in the Keychain where its items would be, and as the launcher's `*` hint. The Proton Pass provider (`protonpass.py` over pass-cli, which Proton ships as a download and which needs Pass Plus or a bundle): `status` is `pass-cli info --output json` with Sign in, Unlock (a lock code) and Sign out as its actions; `list` walks `vault list` and `item list --share-id --filter-state active` per vault; `field` is `item view --field` for username, email, password, totp (the code) or urls. The launcher's `*` prefix searches the vaults (Enter copies the password, Shift+Enter the username, Ctrl+Enter the code) and a few matches join the default results; the Keychain window lists each vault under a category of its own. IPC `vault rescan | refresh | items | copy <provider> <id> <field>` (D42) |
-| lock resilience | While the session is locked the Lock service keeps `$XDG_RUNTIME_DIR/isle/locked`; a shell that starts and finds it locks at once, and hyprland.lua's `misc.allow_session_lock_restore` lets that fresh locker take over a lock whose client died, so a shell that dies or restarts while locked leaves the session locked rather than on the compositor's dead-lock screen. The Idle service turns the screens on when the shell starts, since a fresh idle monitor never sees the wake edge that would. IPC `lock locked` reports the state, for anything that must not disturb a locked session (D43). The session loop (`scripts/isle-session`) never stops: six quick deaths slow it to a try every half minute, and its log lives under `~/.local/state/isle/session.log` with the previous session's beside it, so a death in the night can be read after a reboot |
-| emoji and symbols | The launcher's `.` prefix over `scripts/emoji.py`'s table, read once on first use: every fully-qualified emoji with its name, group and subgroup from unicode-emoji's `emoji-test.txt` when that package is there, else the emoji blocks Python's Unicode data knows; then arrows, mathematics, currency, punctuation, Greek, box drawing, shapes, letterlike, fractions, enclosed numbers and technical symbols by their Unicode names. Words match the name (start, word start, anywhere) or the group; recent picks (`prefs.glyphRecent`) lead the empty query and rank higher. Enter types the character through `Osk.run` (wtype) 180ms after the launcher closes, so it lands in the window that had the focus; Shift+Enter copies. The keymap's `emoji` action, Super+., opens the launcher with the prefix |
-| search inside files | The launcher's `?` prefix runs ripgrep-all when it is installed, ripgrep otherwise, over `~` with the caches, git and Steam trees left out, one match per file, twenty files, `path:line:text`; a keystroke waits 250ms before a search. No index: ripgrep is fast enough for a home directory, and ripgrep-all reads PDFs, office documents and archives through their own tools |
-| shortcuts in the launcher | `Launcher.chord(id)` puts the keyboard in use's chord beside a shell result that has a keymap id (Win or Cmd notation, from `Keyboard.actions`); the keymap's other actions are not results of their own |
-| settings in the launcher | `SettingsIndex.pages` is the one list of pages (Settings draws its sidebar from it); the launcher offers a page by name, opening straight to it |
-| disk usage | `DiskUsage` in `Isle.Files`, shown by the Cleaner window (`Surfaces.show("cleaner")`, IPC `surfaces cleaner <path>`, Settings › Storage's Look through, the launcher). A scan takes one place or several, All disks being every mounted disk, which the Cleaner opens on; places the walk through another reaches are dropped, so `/` and its subvolumes are one root and a second disk is another, all under one node that stands for them (the empty path). It walks with a pool of threads, one `openat`/`readdir` per folder and `fstatat` per entry, and keeps a tree of folders only: each with its own bytes and files, its totals, and its bytes by kind (`native/files/kinds.cpp`: a folder's name decides for everything under it, `steamapps`, `.cache`, `node_modules`, `target` and the like, else a file's ending does), counted as allocated blocks, a file with several names once. Files are read again when a folder is opened, and the largest five hundred met are kept apart. `hotspots` walks past folders most of whose space is one child; `untouched` finds the largest folders with nothing changed in a year, leaving out the system's. It crosses into a mount of the same device and filesystem (a btrfs subvolume) and no other, and never into `.snapshots` (D87). The basket goes to `FileJobs.trash` in one job; `forget` takes what went out of the tree and `refresh` counts the trash and whatever an undo put back again in the background. Duplicates (D90) start from the files the scan met that are the person's own, a megabyte or more, in no folder a kind claims, outside hidden folders and git working trees, not executable, and in a folder that can be written: `duplicates.cpp` groups them by size, then by a BLAKE2b of the first and last 64 KB, then of the whole file, on a pool of threads, with hashes cached by device, inode, size and mtime so the search that follows a trash or an undo reads nothing twice; copies whose first extent is at the same place (FIEMAP) are a reflink and not counted. `shell.qml` imports `qs.windows.cleaner` qualified, since an unqualified import would put the directory's type names (Overview among them) over the shell's own |
-| cleanup | The Cleaner's Cleanup page. The rules are data: `shell/windows/cleaner/rules.json`, then `~/.config/isle/cleaner.json` in the same shape, whose groups add to a shipped group of the same id or stand alone. A group is `{ id, name, glyph, kind, note, safe, rules }` and a rule `{ name, label, names, replace, paths, beside, unless, pattern, olderThan, endings, files, except }`; `DiskUsage.evaluate` matches them against the scan's tree (globs from `/`, `~` or, with a leading `**`, anywhere under the root, the name after `**` looked up in an index of folders by name), so cleanup reads nothing the scan has not, besides a `stat` for `beside` and `unless` and a `readdir` where a rule matches files. The general rule is the XDG one: every entry in `~/.cache` and every Flatpak app's `cache`, less the few that hold models, shaders or state; named rules before it say where package stores, Electron caches, build folders, Steam leftovers and the like live, and win where they match the same place. Safe groups are ticked into the basket the first time the page is shown after a scan. What only root can clear, the package cache past two versions, packages nothing needs, the journal past 100 MB and crash dumps, is `shell/scripts/syscleanup.py`: `status` as the user for the sizes, `run <id>` through `pkexec`, so it asks in the shell's own dialog and does not go through the trash (D89) |
-| shell windows | Settings, Keychain, Monitor, Cleaner and Files are `FloatingWindow`s of the shell process, each with its own app id (`isle-settings`, `isle-keychain`, `isle-monitor`, `isle-cleaner`, `isle-files`) so the compositor, window places and the switcher see five apps rather than one. Qt sends the application's desktop file name as every window's app id when it maps, so `ui/AppId` creates Isle.Files' `WindowAppId`, which sets that name on the window's `visibleChanged`, before the map, and puts the process's own back on the next event-loop pass. Without the engine the windows arrive as `org.quickshell` and `Windows` tells them apart by title. `Surfaces.show(name)` opens one, or focuses it through the compositor by app id when it is already open (D92) |
-| keyboard configurators | `system/udev/70-isle-hidraw.rules` gives the logged-in user the hidraw nodes (what the VIA package ships), so Keychron Launcher, VIA and Vial reach the keyboard over WebHID, and the STM32 DFU bootloader (0483:df11) and Keychron's own USB ids, so Launcher can flash firmware over WebUSB; `tools/install.sh` installs it and a Keychron Launcher entry that opens the site as its own window through `shell/scripts/webapp.sh` in the first Chromium-family browser |
-| accessibility | `Access`: the magnifier is the compositor's `cursor.zoom_factor`, set with `hyprctl eval` in quarter steps to 2 then halves to 4 (Super+Ctrl and =, -, 0; the keymap's zoomIn, zoomOut, zoomReset; IPC `access zoom in|out|reset`). Larger text is `prefs.textScale`, which `Theme` multiplies every type size by; high contrast is `prefs.highContrast`, which lifts the secondary and tertiary text alphas, the hairlines and the glass alpha in `Theme`. Settings › Accessibility holds them with reduced motion and the on-screen keyboard |
-| night light | `hyprctl hyprsunset` |
-| brightness | ddcutil for desktop monitors, brightnessctl for laptops |
-| session: sleep, restart, shut down, log out | `systemctl`, `loginctl`, `hyprctl dispatch exit` |
-| keyboard detection | Nothing reports a keyboard's shape or which order its modifiers sit in, so Settings › Keyboard asks, as macOS does: the key right of the left Shift is the ISO key (86) or is absent, which sets the model, and the key left of the space bar sends Meta or Alt, which sets the profile and, for a Mac keyboard in Windows mode, turns on the `altwin:swap_alt_win` option that Advanced already lists. The compositor steps aside into the `isle-record` submap while it listens, and the received code is shown so a key that decides nothing still says it was heard |
-| keyboard profile | `tools/keycheck.py` measures what the chords actually produce: a virtual keyboard through uinput under a name the profile matches, a chord pressed on it, and what the remap layer emits read back from its own device, so a case reads "want CTRL+a, got CTRL+a". Run it in the VM, where the keys it presses reach only the guest. It writes the xremap config, restarts xremap; the config is written again whenever the set of Mac keyboards changes, since the first render happens before the device query answers and before the preference file has loaded (D58) |
-| keyboard hardware | `scripts/keyboards.py` reads `/proc/bus/input/devices` (a keyboard is a device with the letter keys), udev for bus and vendor, and the key bitmap for a size guess, which a USB keyboard's descriptor usually defeats by claiming every key; `Keyboard.hardware` joins it to the compositor's device list by slug. The XKB model per keyboard is `prefs.keyboardModels`, guessed from the vendor (Apple) and the first layout (ISO or ANSI) until chosen; `Input.render` writes one `hl.device` line per interface with `kb_model`, and `numlock_by_default` |
-| compositor settings | writes `hypr/generated/*.lua`, `hyprctl reload` |
-| preferences | `~/.config/isle/prefs.json`, watched |
-
-A missing daemon means the feature is absent, not broken: no toggle, no
-glyph, and Settings names the package.
-
-## Widgets
-
-A widget is a directory holding a manifest and a component:
-
-```
-widgets/system/
-  widget.json     { "id": "system", "name": "System", "glyph": "cpu",
-                    "sizes": ["3x4", "6x4"], "default": "3x4", "requires": [],
-                    "settings": [{ "key": "temps", "label": "Temperatures",
-                                   "type": "toggle", "default": true }] }
-  Widget.qml      WidgetBase { title: "System"; meta: "..."; /* content */ }
-```
-
-Rules of the contract:
-
-- The root is `WidgetBase` from `qs.ui`. It carries `manifest`, `size`
-  (`"3x2"`), `cols`, `rows`, `settings`, and the `title` and `meta` the
-  card shows. The card draws the glass, title and meta; the widget draws
-  only its content, filling its parent.
-- `requires` names services or binaries (`"Pipewire"`, `"lact"`). A
-  missing requirement hides the widget and tells the picker why.
-- Widgets read the same service singletons the rest of the shell uses;
-  none starts its own daemon. Services that poll (`System`, `Storage`)
-  count `listeners`: a widget increments on completion and decrements on
-  destruction, so nothing is sampled while the dashboard is closed.
-- Built-in widgets live in `shell/widgets/<id>/` and load through the
-  config's own URL scheme, which is what lets them import `qs.*`.
-  Widgets in `~/.config/isle/widgets/<id>/` are the user's: a manifest
-  with a `source` (a `command` run with sh, or a `file`, every
-  `interval` seconds) and a `view` of text, number, gauge, sparkline or
-  list is drawn by the built-in renderer in `shell/widgets/text/`, so it
-  needs no code; one with its own `Widget.qml` is
-  sandboxed: it is refused if it imports `qs.*` without `trust: true`,
-  and is handed a permission-gated `host` wrapper instead of the services
-  (D25). `trust: true` runs it with the shell's full reach through the
-  `shell/userwidgets` symlink (D14). The library in the dashboard's edit mode
-  edits and deletes the manifest kind (edit and delete on hover over one
-  of Yours); new widgets start from the store's scaffold.
-- A manifest carries `category` (Shell, System, Hardware, Media; the
-  user's are Yours), `description`, `sizes`, `default`, and `multiple`
-  when more than one instance makes sense (Clock). The library in the
-  dashboard's edit mode lists them by category with a search.
-- A manifest also identifies its widget the way a package does:
-  `version` (semver), `author` (`{name, url}`), `license`, `homepage`,
-  and `screenshots` (paths in the widget's directory; a `screenshots/`
-  directory is taken when the list is absent). The scanner in
-  `shell/scripts/widgets.py` adds what sits beside the manifest:
-  `about` from `README.md`, `changelog` from `CHANGELOG.md`, and
-  `origin` from the directory's git remote when it is a clone. The
-  store (`WidgetStore`, opened by Browse in the library) shows all of it
-  on a card and a sheet, with `WidgetPreview` drawing the first
-  screenshot or, without one, the widget itself live at its default span.
-- Beyond the services, `WidgetHost` offers `fetch(url, done)` for hosts
-  named by `fetch:<host>` permissions (curl in a Process the host owns,
-  20 s and 4 MB caps, subdomains count), `notify(summary, body)` under
-  `notify` (notify-send with the widget's name), and `store`, the
-  instance's own state under `widgetState.<key>` in prefs, cleared with
-  the instance. The card passes the instance key and name to the host.
-- Permissions a sandboxed widget declares can be narrowed by the user:
-  `widgetGrants.<id>` in prefs lists what is allowed, and `Widgets.grantsFor`
-  returns declared ∩ granted (absent means everything declared). The card
-  and the preview hand that set to `WidgetHost`, so a revoked `media.write`
-  makes the host's transport calls no-ops without the widget changing.
-- Sources are git repositories with an `index.json` at the root: a name
-  and a `widgets` list where each entry either has a `path` inside the
-  registry (its widget.json, README, CHANGELOG and screenshots are read
-  from there) or a `repo` with a `ref` (its own repository, cloned at
-  that tag, with the listing carried in the index). The default source
-  is the shell's own origin with the repository swapped for
-  `isle-widgets`; `widgetSources` in prefs adds more.
-  `shell/scripts/widgetstore.py` clones each source shallow under
-  `~/.cache/isle/widget-sources/`, pulls it on a fresh index or after an
-  hour, and installs by copying or cloning into a staging directory under
-  the user's widgets folder before swapping it in, leaving an
-  `.isle-install.json` record (source, version, ref). The scanner folds
-  that record in as `installed`; `Widgets.updateFor` compares the
-  catalogue's version with it, and `Widgets.updates` lists what is behind.
-- A widget from a source runs with full reach only when the author asked
-  (`trust: true`) and the user granted it: `widgetTrust` in prefs lists
-  the ids. Without the grant it is installed but blocked, and the card
-  says so. The user's own widgets need only the manifest's `trust`.
-- A Mac-profile keyboard (Keychron, Apple, or set so on the page) gets
-  `kb_layout`/`kb_variant` on its `hl.device` line with each layout's
-  Macintosh variant where xkeyboard-config has one, so @ sits on ⇧2 as
-  the keycaps say, while the layouts list stays the languages every
-  keyboard types. A layout that already names a variant is left alone.
-  The same line goes on the `xremap` device, because a Mac-profile
-  keyboard's keys reach the compositor through xremap's virtual device,
-  not its own.
-- `shell/scripts/widgetauthor.py` is the author's side: `new` scaffolds
-  a folder with a full manifest, a sandbox-clean `Widget.qml`, README and
-  CHANGELOG; `validate` checks the manifest, the sandbox scan and the
-  listing files and answers `{ ok, errors, warnings }`; `share` makes the
-  folder a git repository, commits and tags `v<version>`. The store's
-  sheet runs them as Check and Tag, and Picture grabs the live preview
-  frame with `grabToImage` at twice its size into `screenshots/card.png`.
-  `docs/WIDGETS.md` is the contract for authors.
-- Every card's gear starts with Title, a toggle that hides the card's title
-  row (`showTitle` in the instance's settings); a widget whose `title` is
-  empty has none to show.
-- `settings` declares what the card's gear offers in edit mode: `toggle`,
-  `choice` (with `options: [[value, label]]`) or `number` (`min`, `max`).
-  Values live in prefs under `widgetSettings.<id>` and reach the widget as
-  `settings.<key>`, with the manifest default filled in. A manifest may
-  name an `editor` QML file instead: the card loads it into the sheet
-  under the Title row with `settings`, `manifest` and a `set(key, value)`
-  function, and the generic rows are not drawn; `settings` then only
-  supplies defaults. A user widget's editor is scanned like its
-  `Widget.qml` (`Widgets.editorUrl`). The System widget's editor keeps
-  `series: [{ measure, color }]`; lists read back from prefs are sequences,
-  not arrays, so readers index them.
-- `Sparkline` draws bars as a Row and a line or area as `QtQuick.Shapes`
-  paths, one per series (`series: [{ values, color }]`), so a new sample
-  redraws in the scene graph rather than blanking a Canvas.
-- A widget with a menu of its own (the Session widget's tray menus) closes
-  it on `Surfaces.dashboardPressed`, which the dashboard's backdrop and
-  every card's inert body emit for a click no widget took, and when the
-  dashboard closes.
-- Pages are `dashboardPages: [{name, layout}]` in prefs with
-  `dashboardPage` the shown one; the older single `dashboard` becomes the
-  first page's layout. A layout is `[{key, id, x, y, w, h}]` on a
-  12-column 8-row grid (layouts saved for the earlier 4-row grid are doubled once, `dashboardGrid` in prefs records it); the first page empty means the default layout.
-  `key` names the instance (`clock`, then `clock#2`), `id` the widget;
-  per-instance settings are stored under the key. Entries from before
-  instances have no key and take their id. An entry whose widget is gone
-  (uninstalled, or removed from the shell) is left out of the layout the
-  page uses, so it holds no cells, and the next save forgets it.
-- The grid editor is the `Widgets` service: `plan(key, x, y)` returns the
-  layout with the card moved, swapping a same-size neighbour or pushing a
-  different-size one down, or null; `place` commits it, `resize` changes a
-  span within the manifest's `min`/`max` (the extremes of `sizes` when
-  unset). The dashboard shows a live outline of the plan while dragging.
-
-## Fingerprints
-
-`tools/fingerprint.sh` installs fprintd and the driver a reader needs: the
-repo libfprint for readers it knows, the community goodix53x5 driver from
-the AUR for the Goodix HTK32 (ids 5335, 5385, 5395), then enrolls a finger
-with `fprintd-enroll` and, with `--sudo`, puts `pam_fprintd` first in
-`/etc/pam.d/sudo`.
-
-Settings › Users carries a Fingerprint group over `shell/scripts/fingerprint.py`
-and the `Fingerprint` service: the reader and the enrolled fingers from
-`fprintd-list`, enrollment streamed from `fprintd-enroll` a stage at a
-time, deletion, and two PAM edits made as root through pkexec: `login`
-puts `pam_fprintd.so timeout=8 max-tries=1` before the password in
-`/etc/pam.d/greetd`, `sudo` puts it first in `/etc/pam.d/sudo`. With the
-login line present the greeter creates the greetd session as soon as it
-shows, so the reader listens while a password is typed; the password
-answers PAM's prompt when it arrives, after the reader's turn.
-
-The lock screen does not go through PAM for fingerprints, because a PAM
-stack with `pam_fprintd` blocks the password prompt while the reader
-waits. Instead `Lock` runs `fprintd-list` on lock and, when a finger is
-enrolled, keeps `fprintd-verify` running beside the password field: a
-`verify-match` unlocks, a `verify-no-match` says "Not recognised" and
-listens again, and anything else (reader unplugged, fprintd refusing)
-drops the fingerprint path until the next lock. Unlocking ends the verify.
-fprintd checks the print against the user's own enrolment under polkit,
-which is what the password path proves too.
-
-## Test hooks
-
-The island exposes an IPC target for review and scripted verification:
-
-```
-qs -p ~/.config/quickshell/isle ipc call island demo osd|media|text
-qs -p ~/.config/quickshell/isle ipc call island text "Copied to clipboard"
-sudo dev/fake-gamepad.py <<< $'right\na'            # a virtual pad for Big Picture
-dev/vm-qmp.py drag 1210 600 1505 540               # drag in the guest
-qs -p ~/.config/quickshell/isle ipc call island pin true|false
-qs -p ~/.config/quickshell/isle ipc call island clear
-```
-
-The session loop (`shell/scripts/isle-session`) stops when its
-compositor's socket is gone, so a crashed compositor's session cannot keep
-bringing a shell up against a dead socket.
-
-The VM harness is local tooling under `dev/`, which git ignores: it is
-the maintainer's, not part of the shell. `dev/guest.sh '<command>'` runs a
-command in the VM with the session's environment; `dev/vm-qmp.py move X Y`
-drives the pointer.
-
-The VM itself: `dev/test-vm.sh` runs a CachyOS guest under QEMU with the
-repo mounted at `/repo` and the config linked to it, so a host edit is
-live in the guest. `dev/install-guest.sh` puts CachyOS on the guest's
-disk without the graphical installer, `dev/provision-guest.sh` makes it
-the shell's target, `dev/guest-baseline.sh` makes it photographable,
-and `dev/test-vm.sh shot` takes a screenshot through QMP. `dev/live.sh`
-syncs `shell/` into the guest on save for the headed loop. Restart the
-shell with `pkill -x qs` in the guest; the compositor's start hook
-relaunches it.
-
-## Modes
-
-One state: `Modes.current ∈ {normal, focus, game, bigpicture}`. Entering a
-mode applies a profile; leaving restores the previous one.
-
-| | island | notifications | compositor | daemons |
-|---|---|---|---|---|
-| **normal** | full | shown | animations, blur, gaps | balanced profile |
-| **focus** | clock + timer | DND; urgent and allowlisted apps still shown | as normal | — |
-| **game** | hidden; 4px top-edge hot zone peeks it | queued; count shown on exit | animations off, blur off, gaps 0, VRR on, tearing allowed for the game window | gamemode, performance profile, night light off, idle inhibited |
-| **bigpicture** | hidden | queued | as game | as game; Isle's home screen is in front unless a game or Steam's UI is |
-
-Game mode enters when gamemoded reports a client or a fullscreen window
-belongs to a game launcher, and leaves when that ends. Focus and Big
-Picture are manual. Every mode is a toggle in the control panel and a
-keybinding.
-
-## Keyboards
-
-Two physical layouts are plugged in at once through the KVM. One rule:
-
-**Hyprland sees one bind set, always on `SUPER`. xremap, per device,
-decides which physical chords reach Hyprland as `SUPER` and which reach
-the app as `CTRL`.**
-
-- The Windows keyboard (Corsair K95) passes through. Win is Super.
-- What each modifier means is a preset in `shell/keymap.json` under
-  `profiles`, not a rule in the renderer: `text` for Cmd and Option in a
-  text field, `control` for the line editor's chords macOS puts on Ctrl,
-  `terminal` for what a terminal keeps. `prefs.keyTranslations` overrides
-  an entry and an empty one drops it. A Mac chord the shell answers is
-  named on the action as `macRemap` and translated to that action's own
-  chord, so a chord cannot come to point at a different action than the
-  keymap says (D60).
-- A Mac keyboard (a name carrying Keychron, Apple or Magic Keyboard, or a
-  profile set by hand in Settings) gets the `mac` profile: Cmd+key →
-  Ctrl+key for apps, except the chords the shell owns, which stay Super.
-  Option+arrows → Ctrl+arrows; Cmd+arrows → Home/End. In kitty, Cmd+C/V/T/
-  W/N → Ctrl+Shift+C/V/T/W/N, so Cmd+C copies rather than interrupts.
-  With no Mac keyboard the file holds an empty keymap rather than a
-  stand-in device name, which would aim the whole profile at a keyboard
-  nobody has and read as the remaps being broken (D58).
-- A rule's two sides speak different layouts, and neither is guessed.
-  `scripts/keysyms.py <layouts> <variants>` compiles a keymap with `xkbcli`
-  and answers which key carries each symbol, by the kernel's name for it:
-  the map for the keyboard's own layout says what a person presses, the map
-  for the compositor's says what to emit, since binds are matched through
-  that one. So a chord written as a symbol lands correctly whatever the
-  layout does with it: AZERTY's A is the key called Q, a Macintosh variant
-  puts grave beside the left Shift, and a symbol the layout has no unshifted
-  key for drops the rule rather than aiming it at the wrong key (D61).
-- Selecting text is the same translation as moving through it, and every
-  one of those chords would otherwise reach the compositor as a window
-  chord: Cmd+Shift+Left/Right → Shift+Home/End, Cmd+Shift+Up/Down →
-  Ctrl+Shift+Home/End, Option+Shift+arrows → Ctrl+Shift+arrows,
-  Option+Delete → Ctrl+Delete, and Cmd+Backspace, which has no single key
-  behind it, → Shift+Home then Backspace.
-- Cmd is an ordinary application modifier, so a chord the shell owns is
-  one the focused app cannot have. Cmd+1..9 and Cmd+Left/Right must reach
-  apps, so those shell actions move to Ctrl+1..9 and Ctrl+Left/Right,
-  which is what macOS uses for Spaces; Ctrl+Up is overview, as Mission
-  Control. Close-front, settings and a new terminal sit on Cmd+Option+W,
-  comma and Return, leaving Cmd+W to close a tab, Cmd+comma to open the
-  app's own preferences and Cmd+Return to send (D58).
-
-### Keymap
-
-`Super` is Win or Cmd. Where the profiles differ, both are shown.
-
-| action | Windows | Mac |
-|---|---|---|
-| launcher | Win+Space | Cmd+Space. An app already running is raised rather than started again, its hidden window brought back, matching the desktop entry against each window's class through `Windows.appFor`; the raise waits a moment, since a layer surface closing hands the keyboard back to the window it took it from and would undo it (D63) |
-| app switcher (hold) | Alt+Tab, Win+Tab | Cmd+Tab |
-| cycle windows of this app | Alt+` | Cmd+` |
-| workspace n / prev / next | Win+n, Win+Left/Right | Ctrl+n, Ctrl+Left/Right |
-| move window to workspace n | Win+Shift+n | Ctrl+Shift+n |
-| focus window ←↓↑→ | Win+Alt+arrows | Cmd+Option+arrows |
-| close window | Alt+F4, Win+Q | Cmd+Q |
-| minimise (to hidden) | Win+M | Cmd+M |
-| fullscreen | Win+Shift+F | Cmd+Shift+F |
-| float | Win+Shift+Space | Cmd+Shift+Space |
-| terminal | Win+Return | Cmd+Return |
-| dropdown terminal | Win+` | Cmd+Option+` |
-| files | Win+E | Cmd+Shift+E |
-| clipboard | Win+V | Cmd+Shift+V |
-| move window left/right/up/down (swap in the tiling) | Win+Shift+Arrows | Cmd+Option+Shift+Arrows |
-| pin window on every workspace (floats it first) | Win+Alt+P | Cmd+Option+P |
-| capture region / screen / toolbar | Win+Shift+S | Cmd+Shift+4 / 3 / 5 |
-| record | Win+Shift+R | Cmd+Shift+R |
-| colour picker | Win+Shift+P | Cmd+Shift+P |
-| dashboard | Win+A, Win+N | Cmd+Shift+C |
-| settings | Win+I, Win+, | Cmd+, |
-| monitor | Ctrl+Shift+Esc | Cmd+Shift+M |
-| power menu | Win+X, Win+Esc | Cmd+Esc |
-| lock | Win+L | Cmd+Ctrl+Q |
-| do not disturb | Win+Shift+D | Cmd+Shift+D |
-| game mode | Win+Shift+G | Cmd+Shift+G |
-| big picture | Win+Shift+B | Cmd+Shift+B |
-| volume, brightness, media | the keyboard's own keys | the keyboard's own keys |
-
-`shell/keymap.json` is the one source. The Keyboard service renders it
-into `hypr/generated/binds.lua`, which `hyprland.lua` loads, and into
-`~/.config/isle/xremap.yml`, which `xremap.service` watches. Settings →
-Keyboard shows the table and assigns each keyboard a profile; "auto"
-picks Mac for Keychron and Apple names. Rebinding in Settings is still
-to come; edit the JSON for now.
-
-## Big Picture
-
-Isle is the console's system layer, not its store. `Games` (the service)
-holds the whole of it:
-
-- **Who is in front owns the pad.** A game (gamemoded, or a fullscreen
-  launcher-class window) or Steam's own Big Picture window (class `steam`,
-  title "Steam Big Picture Mode") is `inFront`; Isle's home
-  (`surfaces/bigpicture/BigPictureHome.qml`) shows only when nothing is.
-  Steam Input drives Steam and its games untouched.
-- **The mode follows Steam.** Steam's Big Picture window appearing puts the
-  mode on and marks it `steamDriven`; the window going away takes the mode
-  off again unless Isle was in Big Picture first. The Steam tile opens
-  `steam://open/bigpicture` (or Steam under gamescope), Desktop closes it
-  with `steam://close/bigpicture` and leaves the mode.
-- **Heroic and Lutris.** Heroic's console mode (`heroic --console`) and
-  Lutris are windows without pad support; the home steps back behind them
-  (`homeAway`) and the bridge below drives them. Games from either are
-  launched headless (`heroic --no-gui heroic://launch/…`,
-  `lutris lutris:rungameid/…`); `scripts/games.py` reads their libraries
-  and art (Heroic's store cache, Lutris' coverart and banners).
-- **The pad bridge.** While a mode is on and the window in front is one of
-  `prefs.padBridgeApps` (Heroic, Lutris and Spotify by default), pad events become
-  keys through wtype: directions to arrows, A and Start to Return, B to
-  Escape, X space, Y Tab, bumpers Page Up and Down, triggers Home and End.
-  Games are never bridged: they read the pad themselves.
-- **Guide.** The helper reports Guide on release, so a tap and a hold are
-  distinct. A tap opens the quick menu (`BigPictureQuick.qml`: sound,
-  output, brightness, Wi-Fi, Bluetooth and pairing, power profile, DND,
-  keyboard, home, sleep, shut down, desktop); a hold brings Isle's home
-  from anywhere, including the desktop when `prefs.padHome` is on, which
-  keeps the helper reading the whole time. Select held is the keyboard.
-- **Isle inside Steam's UI.** `scripts/steamshortcuts.py` writes two
-  non-Steam shortcuts, Isle settings and Desktop, running
-  `scripts/isle-quick.sh`; Steam hands them the pad as it does any game,
-  and the script stays alive while the quick menu is up so it keeps it.
-  Steam rewrites `shortcuts.vdf` on exit, so the tool refuses while Steam
-  runs; the Modes page offers Add and Remove.
-- **Steam's desktop client and its menus.** The client's menus are X11
-  popup windows of the client's own class, opened untitled; they are the
-  compositor's to place, and nothing of the shell's touches them (D40).
-  Steam's own Big Picture has no such menus and takes a mouse and keyboard. `prefs.steamFollowsMode` decides whether that window puts
-  Isle in Big Picture mode (default) or is left as an ordinary window;
-  either way Games parks that window (Steam's, or gamescope's when Steam
-  runs inside it) fullscreen on a `steam` workspace of its own while it is
-  up. Steam hides its desktop window as Big Picture opens and shows it again
-  as Big Picture closes, on whatever workspace is focused then, and
-  minimises the Big Picture window rather than closing it: a minimised one
-  does not count as up, and when it goes the focus returns to where the
-  client was and a client window left on the steam workspace is moved
-  there. The Windows service names a gamescope window after the app it
-  hosts, from the title's first word, and a `steam_app_<id>` window after
-  the game in the library, with its cover as the icon, so the switcher
-  says the game's name and not its id. Isle's own home and quick menu show
-  key hints in place of pad glyphs when no pad is about.
-- **IPC.** `bigpicture home | desktop | quick open|close|toggle | quickOpen`.
-- **Search** on the home is the on-screen keyboard typing into the home's
-  own window, which holds keyboard focus; the Library row filters as you
-  type.
-
-The Steam Controller has no kernel gamepad driver for its Puck (28de:1304
-binds hid-generic; hid-steam knows only the older ids), so outside Steam
-it is a keyboard and mouse. With Steam running and its desktop layout set
-to a gamepad template, Steam Input presents it as an Xbox 360 pad, which
-is what the helper reads. Every surface a controller should drive is also
-keyboard-navigable with a visible focus ring. Controller battery comes
-from UPower and shows in the control panel, the Devices widget and the
-home's top bar. `dev/fake-gamepad.py` is a uinput pad for the VM, with
-triggers, the right stick and `hold <button>`.
-
-## Theming installed apps
-
-`shell/theme/tokens.json` is the source, with the preferences that
-override it: the accent, light or dark, the title bars, and the fonts
-(`fontUi`, `fontMono`, `fontSize` in points; the terminal and the title
-bars sit one point above). `theme/render.py` fills the templates in
-`theme/templates` and writes:
-
-- `~/.config/gtk-3.0/gtk.css` and `settings.ini`, the same for `gtk-4.0`,
-  and gsettings for libadwaita (colour scheme, theme, cursor, fonts)
-- `~/.config/kitty/isle.conf`, `~/.config/zathura/isle`
-- `~/.config/btop/themes/isle.theme`
-- `~/.config/xdg-desktop-portal/portals.conf`
-- `hypr/generated/theme.lua` (border colours, rounding, blur, the bars)
-
-Changing any of those in Settings re-runs it (`Theming`). GTK and Qt apps
-pick up the CSS live, kitty reloads on signal, Hyprland reloads its
-fragment. The shell's own text takes the families from the same
-preferences through `Theme.fontUi` and `Theme.fontMono`; its sizes scale
-under Accessibility, not here.
-
-## Build order
-
-Each slice ships on its own and is verified in the VM before the next.
-
-| # | slice | delivers |
-|---|---|---|
-| 0 | skeleton | Quickshell entry, tokens, component kit, wallpaper, island at rest, systemd unit, Hyprland Lua base, install script, memory baseline measured |
-| 1 | island | hover state, workspaces, clock, status glyphs, event morphs |
-| 2 | notifications | server, island toast, DND |
-| 3 | control panel + dashboard | hover unfold, toggles, sliders, output picker, network and bluetooth drill-downs, media, OSD in the island; the widget grid with the ten default widgets |
-| 4 | launcher | apps, run, calculator, files, clipboard mode, power actions, every keyboard shortcut with its chord |
-| 5 | switcher | app switcher, same-app cycle, minimise to hidden, overview |
-| 6 | capture | region / window / screen, screenshot, record, annotate, picker |
-| 7 | session | lock, idle, power menu, auth dialog, keyring unlock, greeter |
-| 8 | keyboards + settings | xremap profiles, Settings window |
-| 9 | app theming | matugen templates, icons, cursor, portals |
-| 10 | modes | focus, game |
-| 11 | disks + keychain | mount / eject in the island and the Storage widget; Keychain window |
-| 12 | monitor | Monitor window; LACT and CoolerControl |
-| 13 | big picture | 10-foot launcher over Steam, Heroic, Lutris; gamescope option |
+Built on `feature/rust-desktop` in this repository (B16), beside Isle v1,
+which stays the daily desktop on `main` until the new one replaces it
+(roadmap milestone M2) and is removed at cut-over. The Cargo workspace
+layout is settled by the compositor-core packet (P2). `spikes/shell-ui/`
+is the throwaway code behind B7 and is not built on.

@@ -1,0 +1,10 @@
+# A placeholder member: Freya's Skia (`links = "skia"`) cannot share a
+# lockfile with Slint's, so the real crate is its own workspace in `island/`.
+[package]
+name = "island-freya-stub"
+version = "0.1.0"
+edition.workspace = true
+autobins = false
+
+[lib]
+path = "stub.rs"

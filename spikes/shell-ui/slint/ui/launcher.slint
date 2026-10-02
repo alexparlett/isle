@@ -1,0 +1,154 @@
+// The full-output launcher, loaded by launcher-slint at run time and reloaded on save.
+
+export struct App {
+    name: string,
+    color: color,
+}
+
+global Ink {
+    out property <color> primary: #ffffffeb;
+    out property <color> secondary: #ffffff99;
+}
+
+component Tile inherits Rectangle {
+    in property <App> app;
+    width: 160px;
+    height: 140px;
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 0;
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: root.app.color;
+    }
+    Text {
+        y: 64px + 12px;
+        width: parent.width;
+        text: root.app.name;
+        font-size: 14px;
+        color: Ink.primary;
+        horizontal-alignment: center;
+        wrap: no-wrap;
+        overflow: elide;
+    }
+}
+
+export component Launcher inherits Window {
+    in property <bool> open;
+    // False when the compositor animates the surface: show and hide instantly.
+    in property <bool> animated: true;
+    // The tiles to show: the host filters the app list by the query.
+    in property <[App]> apps;
+    in-out property <string> query;
+    out property <bool> search-focused: input.has-focus;
+    callback query-edited(string);
+
+    public function focus-search() {
+        input.focus();
+        input.set-selection-offsets(2147483647, 2147483647);
+    }
+
+    public function blur-search() {
+        input.clear-focus();
+    }
+
+    property <int> columns: 6;
+    property <length> gap: 16px;
+
+    background: transparent;
+    default-font-family: "Inter";
+
+    backdrop := Rectangle {
+        background: #00000073;
+        opacity: 0;
+    }
+
+    panel := Rectangle {
+        // Slides up from here as it opens.
+        property <length> offset: 24px;
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2 + self.offset;
+        width: 1200px;
+        height: 760px;
+        border-radius: 28px;
+        border-width: 1px;
+        border-color: #ffffff1a;
+        background: #14141aeb;
+        opacity: 0;
+        // Ignored by the software renderer, which has no transforms.
+        transform-scale: 0.96;
+
+        VerticalLayout {
+            padding: 32px;
+            spacing: 24px;
+            alignment: start;
+
+            Rectangle {
+                height: 48px;
+                border-radius: 14px;
+                background: #ffffff14;
+
+                Text {
+                    x: 16px;
+                    width: parent.width - 32px;
+                    height: parent.height;
+                    text: "Search apps";
+                    font-size: 18px;
+                    color: Ink.secondary;
+                    vertical-alignment: center;
+                    visible: root.query == "";
+                }
+                input := TextInput {
+                    x: 16px;
+                    width: parent.width - 32px;
+                    height: parent.height;
+                    text <=> root.query;
+                    font-size: 18px;
+                    color: Ink.primary;
+                    vertical-alignment: center;
+                    single-line: true;
+                    edited => {
+                        root.query-edited(self.text);
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: root.columns * 160px + (root.columns - 1) * root.gap;
+                    height: 4 * 140px + 3 * root.gap;
+
+                    for app[i] in root.apps: Tile {
+                        x: mod(i, root.columns) * (160px + root.gap);
+                        y: floor(i / root.columns) * (140px + root.gap);
+                        app: app;
+                    }
+                }
+            }
+        }
+    }
+
+    states [
+        shown when root.open: {
+            backdrop.opacity: 1;
+            panel.opacity: 1;
+            panel.transform-scale: 1;
+            panel.offset: 0;
+            in {
+                animate backdrop.opacity, panel.opacity, panel.transform-scale, panel.offset {
+                    duration: root.animated ? 260ms : 0ms;
+                    easing: ease-out;
+                }
+            }
+            out {
+                animate backdrop.opacity, panel.opacity, panel.transform-scale, panel.offset {
+                    duration: root.animated ? 180ms : 0ms;
+                    easing: ease-in;
+                }
+            }
+        }
+    ]
+}

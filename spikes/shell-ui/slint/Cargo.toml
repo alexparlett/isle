@@ -1,0 +1,20 @@
+[package]
+name = "island-slint"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+spike-base = { path = "../base" }
+slint = { version = "1.18.1", default-features = false, features = ["std", "compat-1-2", "renderer-software"] }
+slint-interpreter = { version = "1.18.1", default-features = false, features = ["std", "compat-1-2", "renderer-software"] }
+bytemuck = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+notify = "8"
+
+[[bin]]
+name = "island-slint"
+path = "src/main.rs"
+
+[[bin]]
+name = "launcher-slint"
+path = "src/launcher.rs"

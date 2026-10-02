@@ -1,0 +1,232 @@
+// The island's content, loaded by island-slint at run time and reloaded on save.
+
+global Ink {
+    out property <color> primary: #ffffffeb;
+    out property <color> secondary: #ffffff99;
+    out property <color> track: #ffffff26;
+    out property <color> fill: #ffffffd9;
+}
+
+// One digit cell of fixed width: Slint has no font-feature property, so
+// tabular figures are laid out by hand.
+component Cell inherits Text {
+    in property <bool> narrow;
+    width: narrow ? 4.5px : 9.4px;
+    height: 38px;
+    font-size: 15px;
+    font-weight: 600;
+    color: Ink.primary;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+}
+
+component Label inherits Text {
+    color: Ink.secondary;
+    font-size: 13px;
+    vertical-alignment: center;
+}
+
+component Slider inherits Rectangle {
+    in-out property <float> value;
+    property <length> knob: 14px;
+    height: knob;
+
+    Rectangle {
+        y: (parent.height - 4px) / 2;
+        height: 4px;
+        border-radius: 2px;
+        background: Ink.track;
+    }
+    Rectangle {
+        x: 0;
+        y: (parent.height - 4px) / 2;
+        width: knob / 2 + root.value * (root.width - knob);
+        height: 4px;
+        border-radius: 2px;
+        background: Ink.fill;
+    }
+    Rectangle {
+        x: root.value * (root.width - knob);
+        width: knob;
+        height: knob;
+        border-radius: knob / 2;
+        background: white;
+    }
+    touch := TouchArea {
+        function set-from(x: length) {
+            root.value = clamp((x - knob / 2) / (root.width - knob), 0, 1);
+        }
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                set-from(self.mouse-x);
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                set-from(self.mouse-x);
+            }
+        }
+    }
+}
+
+export component Island inherits Window {
+    in property <bool> expanded;
+    // Local time of day in whole seconds, set by the host once a second.
+    in property <int> seconds;
+    // The size the expanded content lays itself out in, top-centred.
+    in property <length> layout-width: 520px;
+    in property <length> layout-height: 240px;
+    in-out property <float> volume: 0.4;
+    in-out property <string> query;
+    out property <bool> search-focused: input.has-focus;
+
+    // Focuses the field with the caret after the text.
+    public function focus-search() {
+        input.focus();
+        input.set-selection-offsets(2147483647, 2147483647);
+    }
+
+    property <int> hh: floor(seconds / 3600);
+    property <int> mm: mod(floor(seconds / 60), 60);
+    property <int> ss: mod(seconds, 60);
+    property <float> progress: panel.opacity > 0 ? mod(animation-tick() / 1ms, 8000) / 8000 : 0;
+
+    background: transparent;
+    default-font-family: "Inter";
+
+    changed expanded => {
+        if (!expanded) {
+            input.clear-focus();
+        }
+    }
+
+    rest := Rectangle {
+        x: (root.width - 220px) / 2;
+        y: 0;
+        width: 220px;
+        height: 38px;
+
+        Rectangle {
+            x: 18px - 4px;
+            y: (parent.height - 8px) / 2;
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: #4ade80;
+        }
+        HorizontalLayout {
+            alignment: center;
+            Cell { text: floor(hh / 10); }
+            Cell { text: mod(hh, 10); }
+            Cell { text: ":"; narrow: true; }
+            Cell { text: floor(mm / 10); }
+            Cell { text: mod(mm, 10); }
+            Cell { text: ":"; narrow: true; }
+            Cell { text: floor(ss / 10); }
+            Cell { text: mod(ss, 10); }
+        }
+        Label {
+            x: parent.width - 16px - self.width;
+            height: parent.height;
+            text: "72%";
+        }
+    }
+
+    panel := Rectangle {
+        x: (root.width - root.layout-width) / 2;
+        y: 0;
+        width: root.layout-width;
+        height: root.layout-height;
+        opacity: 0;
+        clip: true;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 10px;
+            alignment: start;
+
+            HorizontalLayout {
+                Label { text: "Now Playing"; horizontal-stretch: 1; }
+                Label { text: (hh < 10 ? "0" : "") + hh + ":" + (mm < 10 ? "0" : "") + mm; }
+            }
+            Text {
+                text: "Midnight City";
+                font-size: 20px;
+                font-weight: 600;
+                color: Ink.primary;
+                overflow: elide;
+            }
+            Text {
+                text: "M83 · Hurry Up, We're Dreaming";
+                font-size: 14px;
+                color: Ink.secondary;
+                overflow: elide;
+            }
+            VerticalLayout {
+                spacing: 6px;
+                Rectangle {
+                    height: 4px;
+                    border-radius: 2px;
+                    background: Ink.track;
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * root.progress;
+                        border-radius: 2px;
+                        background: Ink.fill;
+                    }
+                }
+                HorizontalLayout {
+                    Label { text: "1:23"; font-size: 12px; horizontal-stretch: 1; }
+                    Label { text: "4:03"; font-size: 12px; }
+                }
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                Label { text: "Volume"; color: Ink.primary; }
+                Slider {
+                    horizontal-stretch: 1;
+                    value <=> root.volume;
+                }
+            }
+            Rectangle {
+                height: 36px;
+                border-radius: 10px;
+                background: #ffffff14;
+
+                Label {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    font-size: 14px;
+                    text: "Search…";
+                    visible: root.query == "";
+                }
+                input := TextInput {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    font-size: 14px;
+                    color: Ink.primary;
+                    vertical-alignment: center;
+                    single-line: true;
+                    text <=> root.query;
+                }
+            }
+        }
+    }
+
+    states [
+        open when root.expanded: {
+            rest.opacity: 0;
+            panel.opacity: 1;
+            in {
+                animate rest.opacity { duration: 180ms; easing: ease-out; }
+                animate panel.opacity { delay: 80ms; duration: 220ms; easing: ease-out; }
+            }
+            out {
+                animate rest.opacity { duration: 180ms; easing: ease-out; }
+                animate panel.opacity { duration: 120ms; easing: ease-out; }
+            }
+        }
+    ]
+}

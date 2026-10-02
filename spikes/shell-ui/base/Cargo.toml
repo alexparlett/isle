@@ -1,0 +1,15 @@
+[package]
+name = "spike-base"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+smithay.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+png = "0.17"
+
+[[bin]]
+name = "island-empty"
+path = "src/bin/empty.rs"

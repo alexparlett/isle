@@ -1,0 +1,536 @@
+# Shell
+
+Intent document for the rust-desktop program. Nothing here is built yet.
+
+The shell is every always-on surface Isle draws, from the menu bar to the lock screen. Each is a Freya
+tree drawn by the compositor on its own GL context (B7), fed by services on the worker thread (B9).
+This document says what each surface must make possible and which rules every surface obeys; how
+they look, where they sit, what they show and in what order are the design process's (P1; B3, B24),
+whose open questions are listed under For the design process.
+
+Evidence, cited by file: `isle-v1-inventory.md` (written "inventory §n"; its D-numbers are v1's
+`main:docs/DECISIONS.md`), `macos-model.md`, `shell-ui-spike.md`, `ui-and-services.md` and
+`smithay-and-gaming.md`, all in `docs/research/rust-desktop/`.
+
+## Rests on
+
+- **B2**: every v1 shell capability is in scope, re-designed rather than ported; the parity map below is the checklist.
+- **B3**: no v1 visuals carry over; this document holds capabilities and behaviour only.
+- **B7**: shell surfaces are Freya trees in the compositor; the compositor animates open and close; Skia's cache is capped.
+- **B8**: windows float and snap; minimise is a real state, which the Dock and Mission Control show.
+- **B9**: one main loop, services on a worker; each surface sits behind a panic boundary.
+- **B10**: the compositor owns settings; `tokens.kdl` reloads live into every surface.
+- **B11**: surfaces read system state through the shared service crates, never directly.
+- **B12**: the shell draws every system prompt and the lock screen; PAM runs off the main thread.
+- **B13**: the shell draws the screencast source picker; window previews are compositor textures.
+- **B14**: widgets are built-in Freya components, extended by out-of-process data providers.
+- **B17**: where a choice is open, the shell does what a Mac user expects.
+- **B18**: a menu bar with the global menu, status items and Control Centre, and the island in the centre.
+- **B19**: a Dock with pinned and running apps, indicators, badges, progress and minimised windows.
+- **B20**: the menu bar, Dock and switcher speak in apps; Cmd+Tab switches apps and Cmd+` windows.
+- **B21**: shortcut hints in menus show the Mac chord; Isle's own injected keys are never translated.
+- **B22**: Isle has no console mode: no Big Picture home, quick menu or pad-to-keys bridge, so no surface is driven by a controller.
+- **B24**: the island's content, where banners appear, the order of live activities and where widgets live are P1's; this document says only what must be possible.
+- **B26**: the screencast picker is the shell's; the Open and Save panels and Quick Look run in the Files process; the greeter is the compositor's greeter mode reusing the lock screen.
+- **B27**: v1's notification and clipboard history are not imported.
+- **B28**: a Bluetooth pairing agent joins the prompts; layer-shell is served but `ext-session-lock` is not; providers run sandboxed with permissions the user grants.
+- **B30**: Cmd+Q quits kept-running apps too; a fixed escape set works over a game; Focus modes as on macOS, with a Gaming Focus.
+
+## Features
+
+### Shell runtime
+
+Not a surface the user sees, but what makes every surface behave like part of one system, as the
+macOS shell does: nothing stutters, nothing goes missing, and one surface failing never takes the
+desktop with it.
+
+1. Every surface in this document is a Freya tree inside the compositor process. No shell surface is a separate Wayland client or process (B7).
+2. Each surface's event handling and drawing runs behind a panic boundary. A panicking surface is logged with its name and rebuilt from service state; windows and the other surfaces keep running (B9).
+3. A rebuilt surface comes back in the state it was in: open or closed, with the same page or query where that state is held outside the tree.
+4. The lock screen stays locked whatever happens to its surface. A panic in it never shows session content; repeated panics are an open question below.
+5. Open and close transitions, morphs between surface sizes and the minimise animation are drawn by the compositor on the surface's texture. Freya animates only what changes inside a surface (B7; `shell-ui-spike.md`, launcher rows).
+6. Skia's GPU resource cache has a fixed budget, and a surface's cached resources are released when it closes (B7; `shell-ui-spike.md` measured cached layers as the extra VRAM).
+7. A surface redraws only when its state changes. A closed surface draws nothing and runs no timers; a service that samples (CPU, storage, sensors) samples only while a visible surface shows it (inventory §6 Polling).
+8. A surface never waits on a service. Data arrives over channels from the worker; a slow or dead service shows as stale or absent, never as a stalled frame (B9).
+9. A change to `tokens.kdl` re-renders every surface with the new tokens; a parse error keeps the last good tokens and is shown by the shell (B10). Text scale, high contrast and reduced motion are token overrides (D50); reduced motion and Game Mode set every shell transition to none.
+10. Spotlight, Mission Control, the capture tool and the session dialog close each other: one is open at a time, and Escape closes it. System prompts and Files' Open and Save panels close nothing (D67, B26).
+11. When a surface closes, keyboard focus returns to the window that had it before any action the surface started (raise, paste, type) is delivered to that window (D63).
+12. Every surface is fully usable from the keyboard; the focus ring shows for keyboard input only. No surface takes controller input (B22). Every surface exposes an accessibility tree through Freya's AccessKit integration.
+13. No client surface, layer-shell overlays included, stacks above the lock screen, a system prompt or the capture tool (B28).
+14. Each screen can carry the always-on surfaces. One screen is the main screen (chosen, or following focus); a transient event, Spotlight or a dialog appears on one screen, never on all (D49; inventory §3.7 Primary monitor).
+15. Every surface can run outside the compositor in a `freya-winit` window with hot reload, fed by recorded or fake service state (B7's live-iteration condition).
+16. Every surface can be opened, driven and read through the compositor's CLI, which is the test surface (inventory §13).
+
+v1 lessons kept
+- D72: a crash-prone part must not share a failure domain with everything else; here, a boundary per surface.
+- D62: a surface open before a restart comes back; here, after a rebuild.
+- D63: an action after a surface closes waits for the focus handover, or the handover undoes it.
+
+Open for its packet
+- How `freya_core::Runner` is driven from calloop, and whether input and accessibility work without `freya-winit` (`ui-and-services.md` OPEN).
+- The Skia cache budget, and RSS over a long soak; the spike once ended at 178 MB after relayouts (`shell-ui-spike.md` Not covered).
+- Blur behind shell surfaces and multi-output drawing were not covered by the spike.
+- What the lock falls back to if its surface panics repeatedly.
+
+### Menu bar
+
+B18's menu bar: the focused app's menus, the system's own menu, status items and
+Control Centre. Its arrangement beyond what B18 fixes is P1's.
+
+1. The bar carries a system menu, the app menu named for the app, the app's own menus, and a Window and a Help menu supplied by the desktop where the app has none.
+2. From the system menu the user reaches the computer's details, System Settings, available updates with their count, Force Quit, sleep, restart, shut down, lock and log out; a restart owed is stated there (D46).
+3. The app menu reaches the app's About, its settings, hide, hide others, show all and quit. Settings is the app's own item when its menu has one, else the app's settings chord from the Cmd table (`macos-model.md` §2.4 Cmd+,).
+4. The Window menu reaches minimise, zoom, the snap zones of B8, bring all to front and the app's windows.
+5. The user can search every item in the focused app's menus, the app's own Help or the desktop's; a match opens and highlights its menu (`macos-model.md` §1.3 item 9).
+6. The bar carries status items: tray items (StatusNotifierItem), Control Centre controls the user pinned, and Isle's own for Wi-Fi, Bluetooth, battery, volume, VPN, updates, restart owed, keyboard layout and mode.
+7. The user reorders and removes status items by dragging with Cmd held, as on macOS.
+8. A tray item's click and menu behave as the item asks (activate, secondary activate, DBusMenu menu).
+9. The clock's format (date, weekday, seconds) is a setting.
+10. Nothing in the bar is hidden under the island. When the app's menus do not fit, every one stays reachable.
+11. The focused app's menus can be reached from the bar on any screen that has one.
+12. Ctrl+F2 (macOS's "move focus to the menu bar") opens the first menu; arrows, typing and Return work through menus.
+13. The bar hides while a full-screen window owns the space and comes back when the pointer reaches the top edge. In Game Mode it needs a dwell at the edge first (inventory §4 Hot zone). "Automatically hide and show the menu bar" (always, on desktop, in full screen, never) is a setting.
+
+v1 lessons kept
+- Inventory §4 Hot zone: a short dwell at the edge, not a touch, reveals the bar over a game.
+- D49: every screen gets the top surface; events go to one.
+- D46: a restart owed is said where the user will see it.
+
+Open for its packet: none.
+
+### App menus
+
+The global menu: the focused app's real menus in the bar, and a designed fallback for the many apps
+that export none (B18). On macOS every app has a menu bar; on Linux Steam, Wine, games, libadwaita
+apps, Firefox by default and Electron on Wayland export nothing, so the fallback is the common case
+(`macos-model.md` §3 Notes).
+
+1. Menus come from DBusMenu through `com.canonical.AppMenu.Registrar`, from `org_kde_kwin_appmenu`, from `gtk_shell1` with `org.gtk.Menus`, and from the X11 properties Isle's window manager reads; all are owned from session start (B18; `macos-model.md` §1.3). The serving end belongs to platform.md and compositor.md; this document owns what the bar does with the tree.
+2. A window's menu is found in the order of `macos-model.md` §1.3: its surface's own address, then its X11 registrar entry and properties, then a registration from a bus connection with the window's PID, else the fallback. An app id alone never selects a menu.
+3. The fallback menu is built from what the desktop knows: the app's name and icon from its desktop entry, its desktop-entry actions (New Window and the like), its windows, and the desktop's own hide, minimise and quit. Every item in it works for every app.
+4. For an app with no exported menu but a known shortcut set, the fallback carries those shortcuts as menu items when the per-app Cmd table (B21) lists them, so the menu still teaches the app's keys.
+5. Every call into an app is asynchronous with a timeout. A menu not yet fetched opens as the fallback with the app's items arriving into it, never as a blank or a hang (`macos-model.md` §1.3 item 8).
+6. Isle calls AboutToShow before opening a submenu, refetches on LayoutUpdated and batches bursts of signals.
+7. Shortcut hints show the Mac chord the user presses, mapped back through the Cmd table, not the Ctrl chord the app exported (`macos-model.md` §1.3 item 10).
+8. An app that hides its in-window menubar because the desktop advertised a global one always has its menus in the bar; Isle advertises `gtk_shell1`'s menu-bar capability only once its reader works (B18).
+9. Disabled, checked, radio and icon items, separators and submenus render as the app declares them.
+
+v1 lessons kept
+- None in v1, which had no menu bar (`macos-model.md` §3). The inventory's app-identity rules (§3.6 Apps: desktop entry lookup, `steam_app_<id>` to the game's name) name the app menu.
+
+Open for its packet
+- Whether the PID match recovers Electron's menus today, and which Electron release carries PR #54629.
+- Flatpak: whether the D-Bus PID and the Wayland client PID agree.
+- Whether GTK 4 apps without a menubar export an empty model, and what `gtk_shell1` v5's `titlebar_gesture` obliges.
+- Qt 5 and Qt before 6.9 through the KDE platform theme; JetBrains under WLToolkit; whether Steam exports anything.
+- Whether to load appmenu-gtk-module per launch for plain GtkMenuBar apps, with an exclusion list for the reported crash.
+
+### Island
+
+B18 puts the island where a MacBook's notch is. What it shows, and where each kind of live activity
+appears, is P1's (B24); this section says which activity the shell must show and how it behaves.
+
+1. Live activity is what is happening now that the user may need to see or stop; the shell shows it for as long as it lasts (B24).
+2. Live activities: screen recording with its timer and Stop; screen sharing with the sharing app's name and Stop, for any portal stream; microphone and camera in use; a call; media playing; an authentication waiting; a timer.
+3. Transient events are acknowledged briefly: OSDs (see OSDs), Game Mode and Focus changes, a clipboard copy, Do Not Disturb toggled.
+4. Privacy indicators (recording, sharing, microphone, camera) always show, on every screen, while the capture runs, and cannot be dismissed. Other activities and events show on one screen, never on all (D49).
+5. When several activities are live, privacy indicators still show and every other activity stays reachable.
+6. From an activity the user reaches its controls (media transport and scrubbing, Stop, the requesting app) and where it belongs (an authentication's prompt, the player's full controls).
+7. Activity the user is interacting with is not taken over by an event; the event waits until the pointer leaves (inventory §4 Island details).
+8. Over a game's Space in Game Mode no live activity shows except privacy indicators and OSDs, until the user reveals the menu bar (`gaming.md` Game Mode 7).
+
+v1 lessons kept
+- Inventory §4 Island details: an open panel is never taken over by an event.
+- D49: an event shows on one screen, not on every one.
+- D55: Stop on a share ends the stream at its source; a capture exists only while it is wanted.
+
+Open for its packet: none.
+
+### Control Centre
+
+macOS's Control Centre: a panel from its menu bar icon holding the quick controls, whose modules
+can also be pinned to the bar as status items. It takes over v1's hover panel (inventory §4 Island).
+
+1. Control Centre opens from the menu bar or a chord, on the screen it was opened from.
+2. It gives quick control of Wi-Fi, Bluetooth, Focus, the output device and volume, brightness per monitor, night light, dark mode, now playing, Game Mode (the Gaming Focus), VPN, the power profile, batteries (the machine's and peripherals'), updates, keyboard layout, the phone (through its provider), zoom, the on-screen keyboard and screen capture.
+3. Each control leads to its detail (Wi-Fi networks, Bluetooth devices and pairing, outputs with per-app volumes and inputs, VPN providers, media players) and to its full page in the Settings app. A network that needs a password opens the Wi-Fi prompt (B12), never a field in the panel.
+4. The user adds, removes, reorders and pins controls; a pinned control becomes a status item that opens its own detail.
+5. Provider-backed controls (VPN, Phone) render the provider's state sentence and actions and know nothing of the tool behind them (inventory §8).
+6. Brightness over DDC shows the requested value at once and writes debounced, since one write takes about a second (inventory §3.7 Brightness).
+7. Focus works as on macOS: named modes, Do Not Disturb among them, each with its allowed apps and people and an optional schedule; v1's quiet hours become a schedule (B30).
+8. A Gaming Focus turns on by itself whenever a detected game is in front, windowed or full screen, and off when it leaves (B30).
+
+v1 lessons kept
+- Inventory §3.7: DDC reads are cached and writes debounced.
+- D42, D44, D51: VPNs and phones are providers; the shell renders their actions.
+
+Open for its packet: none; game detection is gaming.md's.
+
+### Dock
+
+macOS's Dock: pinned and running apps with indicators, badges, progress and minimised windows (B19).
+
+1. The Dock carries pinned apps, running apps that are not pinned, optionally recent apps, minimised windows and Trash.
+2. Running apps carry an indicator. Apps hidden with Cmd+H or kept running after their last window closed (B20) count as running.
+3. Badges and progress come from `com.canonical.Unity.LauncherEntry`; an app asking for attention is shown asking, until clicked if urgent.
+4. Clicking an app that is not running launches it; clicking a running app brings its windows forward and unhides it; with only minimised windows, its most recent one is restored (D63).
+5. An app's menu (secondary click or hold) reaches its windows, its desktop-entry actions, any LauncherEntry quicklist, keep in Dock, open at login, show in Files, show all windows, hide and quit.
+6. Dragging reorders; dragging a pinned app out of the Dock unpins it; dropping files on an app opens them with it; dropping on Trash trashes them.
+7. Settings: position (bottom, left, right), size, magnification, auto-hide, indicators, recent apps, and "Minimise windows into application icon" (off, each minimised window has its own entry).
+8. An auto-hidden Dock or one hidden over a full-screen window appears when the pointer reaches its edge.
+9. The Dock names apps the way the switcher and menu bar do: a game's `steam_app_<id>` shows as the game's name and art (inventory §3.6 Apps).
+
+v1 lessons kept
+- Inventory §3.6 Kept running: apps that quit on last-window close are hidden instead, per app; they now show in the Dock rather than a tray row.
+- D63: launching what is already open raises it.
+
+Open for its packet
+- LauncherEntry coverage outside Electron is uneven (`macos-model.md` §3 Dock).
+- Stacks for folders (Downloads) were not in v1.
+- Whether apps running in the background with no window show, as macOS 27 does; there is no shared signal for it.
+
+### Spotlight
+
+macOS Spotlight on Cmd+Space: one field that finds apps, files, actions, settings, menu items and
+clipboard history, with the Apps grid that replaced Launchpad. It carries every v1 launcher source.
+
+1. Cmd+Space opens Spotlight on the main screen with the field focused; keys typed during the opening transition reach the field.
+2. Sources: apps; shell actions, each shown with its chord; Settings pages; open windows; the front app's menu items; file names; file contents; calculator and unit conversion; emoji; clipboard history; the vault; a web search fallback.
+3. Mac quick keys narrow the view (Cmd+1 Apps, Cmd+2 Files, Cmd+3 Actions, Cmd+4 Clipboard; `macos-model.md` §3), and v1's prefixes keep working: `>` run, `=` calculate, `/` file names, `?` file contents, `.` emoji, `:` clipboard, `@` windows, `*` vault (inventory §4 Launcher).
+4. Apps rank by launch count and recency. Choosing an app that is running raises it (D63).
+5. Fast sources (apps, actions, settings, windows, menu items) answer from memory. Slow sources (files, contents, calculator) arrive after them and never change the selected row while the user has not moved.
+6. Content search is debounced and bounded in results, and runs on the worker (inventory §4 Launcher).
+7. Clipboard results include images and pins; a result can be pasted, pinned or deleted. Paste goes into the window focused before Spotlight opened, using that app's paste chord (terminals differ).
+8. Emoji are typed into the previous window through Isle's injected-key source, which Cmd translation never touches (B21). Ctrl+Cmd+Space opens Spotlight in emoji mode.
+9. A vault result copies the password on Return, the username with Shift and the one-time code with Ctrl; each secret is fetched for that keypress and never cached (D42).
+10. Space on a file result opens Quick Look, which Spotlight calls over D-Bus in the Files process (B26); Cmd+Return reveals it in Files.
+11. The Apps view lists every installed app, filterable by typing and by category, and opens from Cmd+1, a hot corner or the Launchpad key. An app dragged out of it onto the Dock is pinned.
+
+v1 lessons kept
+- D63: raise, not relaunch, and only after the focus handover.
+- Inventory §4 Launcher: debounce content search and cap its results; type into the previous window, not into Spotlight's own.
+- D42: secrets are fetched per field.
+
+Open for its packet
+- File search: no indexer was compared (localsearch, plocate, an own index); v1 searched on demand (`macos-model.md` OPEN).
+- Whether an assistant ("Search or ask") slot is wanted (`macos-model.md` §3 Spotlight).
+
+### App switcher
+
+macOS's Cmd+Tab: one entry per app in recent order, released on Cmd up, with Cmd+` cycling the
+front app's windows (B20, D59).
+
+1. Cmd+Tab switches to the previous app. If Cmd is held past a short delay, the switcher appears on the main screen; a quick tap switches without drawing it.
+2. Each entry is an app; its window count and a live preview of its most recent window are available to it (B13: drawn by the compositor).
+3. While held: Tab and Shift+Tab move, arrows move, the pointer selects, ` cycles the selected app's windows, Q quits it (kept-running apps too, B30), H hides it, W closes its front window, Escape cancels.
+4. Releasing Cmd commits: the selected app comes forward with its most recent window, unhidden and restored if needed.
+5. Apps with only hidden or minimised windows, and apps kept running with none (B20), are listed and restored on commit.
+6. Cmd+` without the switcher cycles the front app's windows in a stable order, not recency, so every window is reachable (D59).
+7. Cmd+Tab works out of a game in front; it is in the fixed escape set with Mission Control, lock and screenshot, and every other chord goes to the game (B30).
+8. Modifiers held through the switch never stick in either app (B21).
+
+v1 lessons kept
+- D59: list apps, not windows; cycle windows in a stable order.
+- D55: previews exist only while the switcher shows them.
+- Inventory §16 Switcher: commit on release is tested, since v1 lost releases to the compositor's bind rules.
+
+Open for its packet: none beyond B21's mid-chord focus rules, which compositor.md owns.
+
+### Mission Control, hot corners and gestures
+
+macOS's Mission Control (every window of the current desktop spread out, the desktops along the top,
+App Exposé for one app's windows), reached by keys, hot corners and trackpad gestures. Mouse routes
+come first, since the host is a desktop.
+
+1. Mission Control opens from Ctrl+↑, a three-finger swipe up, a hot corner or the Mission Control key; App Exposé from Ctrl+↓, a three-finger swipe down or the Dock's Show All Windows.
+2. Every window of the current desktop is shown at once, so any can be picked. "Group windows by application" is a setting.
+3. Every desktop and full-screen space is shown and can be switched to, and a desktop can be added.
+4. A window is closed with its close button, W, Delete or a middle click; dragged onto another desktop, it moves there; dragged onto a new desktop, it gets one. Desktops are reordered and removed there too.
+5. App Exposé shows one app's windows, its minimised and hidden windows included and told apart.
+6. Arrows, Tab and Return work throughout; Escape or the opening gesture reversed closes it.
+7. Window images are the compositor's own textures and exist only while Mission Control is open (B13, D55).
+8. Each screen corner can run Mission Control, App Exposé, Show Desktop, Notification Centre, Spotlight's Apps view, Lock Screen, Put Display to Sleep, or nothing, optionally only with a modifier held. A corner fires once per visit, after the pointer rests in it, and never over a full-screen game.
+9. Gestures: three fingers up for Mission Control, down for App Exposé, left and right between desktops, pinch out for Show Desktop. Each drives its surface's progress with the fingers and settles on release; each has a key and a pointer equivalent.
+
+v1 lessons kept
+- D19: Mission Control is drawn from window images; their motion is a P1 proposal.
+- D55: a window is captured only while its image is on screen.
+- D48: a full-screen window has a space of its own, shown among the desktops.
+- Inventory §3.6: closing goes by window identity, never through a dying handle.
+- D56, D76: screens come and go behind a KVM; corners follow the real screen list.
+
+Open for its packet
+- An edge swipe for Notification Centre needs touch positions libinput's gesture events do not carry (`macos-model.md` OPEN).
+- Split View and Stage Manager (a later layout module, off by default, B25) are compositor.md's; how Mission Control shows them follows from there.
+
+### Notification Centre
+
+macOS's Notification Centre: notifications that wait to be read later, with banners for new arrivals
+(B24).
+
+1. Notification Centre opens from the menu bar, a chord or a hot corner, on the screen it was opened from.
+2. Notifications are cleared singly, by app or all. Each keeps its actions, inline reply and image while the app's server object lives.
+3. Each arrival is also kept as a record; records that are no longer live stay readable, without actions, and survive restarts (D26).
+4. A new notification shows a banner on the main screen unless silenced. Silenced: the active Focus (Gaming Focus included, B30), a full-screen window, a screen share, the app muted. Critical notifications and allowed apps break through; low urgency never shows a banner.
+5. What was silenced is counted, and when silence lifts the count is summarised once with a way into the centre.
+6. A banner lasts what the app asks within bounds, pauses while hovered, takes keyboard focus only to reply, and may play a sound.
+7. Clicking a banner or entry runs its default action and brings the app forward with an activation token.
+8. The desktop's own events arrive as notifications with actions: a drive inserted (Mount, Eject), an AppImage installed, an update finished, a restart owed, a calendar event starting, a provider's sign-in needing attention.
+9. On the lock screen notifications show as none, a count or previews, by setting.
+10. History starts empty: v1's notification records are not imported (B27).
+
+v1 lessons kept
+- D26: history is records, not live notifications.
+- Inventory §4 Notifications: the silencing set, per-app mute and allow lists, the summary when silence lifts, the toast's bounded lifetime.
+- D49: a banner on one screen, never all.
+
+Open for its packet: none.
+
+### Widgets
+
+Widgets built into the shell and extended by providers (B14). v1's dashboard keeps its capabilities:
+widgets placed and edited on a grid, and the gallery (B24). Where widgets live is P1's.
+
+1. The user places widgets and can bring them into view with one chord (v1's dashboard chord), whatever is open.
+2. Built-in widgets: Clock (several, each with a zone), Calendar, Weather, Media, Desktops, Notifications, Controls, System (with its own editor for series, D36), Session (power and profile), Devices (batteries), Storage.
+3. Widgets sit on a grid with an editor: a live outline of where a drag lands, pushing to make room, resizing between a widget's minimum and maximum sizes, keyboard nudges (D24, D35). Layouts are kept per screen.
+4. A provider is a program in any language that emits JSON into a built-in template: text, number, gauge, sparkline, graph, list or card (B14; v1's manifest-only views, D23). It runs as its own sandboxed process (B28), on an interval or streaming, is restarted if it dies, and runs only while its widget is visible.
+5. A widget's settings are a form built from its manifest; a built-in may bring its own editor (D36).
+6. The widget gallery shows installed widgets, the user's own and those a source offers, with sources that are git repositories carrying an index, pulled periodically, installed through staging and updated by version (D29). The isle-widgets registry is the default source and carries providers.
+7. A provider declares the permissions it needs (network, files, commands); the sandbox allows only those the user has granted (B28; D28, D31).
+8. Installing a provider from a source asks first, showing what it runs and the permissions it declares; a provider from a source the user has not granted is installed but not run (D28, D29). The user's own providers run without asking for the source, but still only with granted permissions.
+9. Author tools (check a manifest, picture a widget, tag a release) stay with the gallery (D30).
+
+v1 lessons kept
+- D24, D35: the grid editor and its row count.
+- D26: the notification list is the same records in the widget and the centre.
+- D28, D29: consent before third-party code runs; installs swap in whole.
+- D30: authors write in their own editor; the gallery checks and pictures.
+- Inventory §6 Polling: nothing samples while hidden.
+
+Open for its packet
+- The sandbox mechanism (bubblewrap or Landlock) and the permission vocabulary mapped from v1's (D31).
+- Which of the registry's QML widgets (analog-clock, system-rings, transport, battery, focus-timer, uptime) become built-ins and which providers (inventory §6 Registry).
+- Interactive widgets (macOS 27 live widgets) beyond buttons and toggles.
+
+### OSDs
+
+Feedback for volume, brightness, keyboard backlight, mute and the like; where it shows is P1's (B24).
+
+1. Volume, mute, microphone mute, brightness, keyboard brightness and keyboard layout changes raise an OSD, whichever key, device or app caused the change.
+2. An OSD shows the new level and the device it applies to (which output, which monitor).
+3. Repeated changes update one OSD in place; it leaves shortly after the last change.
+4. In Game Mode OSDs still show, briefly, without revealing the menu bar.
+
+v1 lessons kept
+- Inventory §2.4: v1 raised an OSD only for volume; every level change gets one here.
+
+Open for its packet: none.
+
+### Lock screen
+
+macOS's lock screen, drawn by the compositor itself rather than a separate locker (B12).
+
+1. The lock takes the password as soon as the user types; fingerprint verification runs beside the password, never in front of it (D33).
+2. A wrong password says so and counts attempts; Caps Lock is shown when on; the keyboard layout can be changed.
+3. Now Playing controls, battery, notifications (by setting), Sleep, Restart and Shut Down are reachable without unlocking. The on-screen keyboard is available.
+4. The session locks on Ctrl+Cmd+Q, the system menu, a hot corner, idle, lid close, login1's Lock signal and before every sleep. Sleep proceeds only once every screen shows the lock.
+5. No frame of session content is shown between a lock request and the lock, or on resume.
+6. Screens added while locked show the lock; the password field follows the pointer's screen.
+7. PAM conversations run off the main thread; fprintd blocking never stalls the lock (B12).
+8. If the compositor restarts while locked, it comes back locked (D15, D43).
+9. Unlock unlocks the login keyring where PAM allows; when it cannot (a fingerprint unlock), the keyring prompt follows.
+10. The lock is Isle's alone: `ext-session-lock` is not served, so no other locker can take or end it (B28).
+11. At login the compositor runs in greeter mode under greetd and this screen is the greeter: the same password route and power actions, with a choice of user, starting the session instead of unlocking it (B26).
+
+v1 lessons kept
+- D15, D43: a lock must survive the death of whatever draws it; the session restarts locked.
+- D33: fingerprint beside the password.
+
+Open for its packet
+- The login keyring after a fingerprint unlock (`macos-model.md` §3 Touch ID, reasoning only).
+- What the lock falls back to if its surface keeps panicking.
+
+### System prompts
+
+The system's own dialogs, drawn by the shell (B12): administrator authentication, keyring unlock,
+Wi-Fi and VPN secrets, Bluetooth pairing, and the session and Force Quit dialogs.
+
+1. The polkit dialog names the app that asked and the action in plain words, offers a choice of administrator where there is more than one, and takes a password; fingerprint works where polkit's PAM stack allows it.
+2. The keyring prompter unlocks a keyring, or creates one with a confirmed password (`org.gnome.keyring.SystemPrompter`).
+3. The Wi-Fi prompt names the network and its security and takes the secret; VPN secrets use the same dialog.
+4. Bluetooth pairing, asked by Isle's `org.bluez.Agent1`, shows a passkey to confirm or takes a PIN (B28).
+5. A prompt takes keyboard focus when it appears and stays above every window; Escape cancels. One prompt shows at a time; others queue. Text from the requester is shown as plain text, never markup.
+6. A prompt waiting behind a full-screen window or game shows as live activity, from which the user brings it forward.
+7. A prompt raised while the session is locked waits until unlock.
+8. The session dialog (from a chord or the power key) offers Restart, Sleep, Shut Down, Log Out and Lock, each by its first letter; Restart and Shut Down count down before acting, and say which apps are still open.
+9. Force Quit (Cmd+Option+Escape) lists running apps, marks the ones not responding, and ends the chosen one.
+
+v1 lessons kept
+- D67: a dialog an app asked for closes nothing else.
+- Inventory §4 Auth and Power menu: an authentication waiting is announced; a countdown precedes restart and shut down.
+- D47: authorisation in a dialog, never a terminal.
+
+Open for its packet: none; the agents behind these dialogs are platform.md's.
+
+### Capture
+
+macOS's screenshot tool (Shift+Cmd+3, 4 and 5), plus v1's recording, colour pick and annotation, and
+the source picker for screen sharing (B13).
+
+1. Shift+Cmd+3 takes the screen; Shift+Cmd+4 picks a region, with Space switching to window mode; Shift+Cmd+5 opens the capture toolbar. Adding Ctrl sends the result to the clipboard instead of a file.
+2. The toolbar offers screen, window or region; shot or recording; a countdown; whether the pointer is included; whether audio is recorded; where to save.
+3. The screen is frozen before a region or window is picked, and the shot is that frozen frame, so the picker's own veil never reaches the image (inventory §16 Capture). The pointer is in a shot only when asked for (D27).
+4. For a short time after a shot, it can be opened for annotation or dragged out as a file; left alone, it saves.
+5. A recording's timer and Stop are live activity; Stop ends and saves it.
+6. Colour pick reads the colour under the pointer from a frozen frame and copies it.
+7. The screencast source picker lets the user choose among screens and windows, each seen live, says which app is asking and whether it wants audio, and offers to share or cancel. Previews run only while the picker is open (D55). Screenshot portal requests that ask for interaction open the capture tool.
+8. A source that disappears during a share or recording ends it cleanly and says so.
+
+v1 lessons kept
+- Inventory §16 Capture: freeze before the pick.
+- D27: no pointer in shots by default.
+- D55: capture only what is on screen, only while wanted; a vanishing output must not take anything down.
+
+Open for its packet
+- Which annotator opens a shot: an Isle surface or an external tool, as v1's satty was.
+
+### Wallpaper and idle dimmer
+
+The desktop picture per screen, and macOS's dim before the display turns off, with v1's dim, lock and
+screen-off steps.
+
+1. Each screen shows an image, a colour or a drawn backdrop, set per screen or for all. A folder can be the source, cycled on a schedule; light and dark variants follow the appearance.
+2. A wallpaper change applies live; any transition is drawn by the compositor. Nothing on the wallpaper animates in Game Mode or under a full-screen window.
+3. After the dim timeout the screens dim, and any input restores them without unlocking; after the lock timeout the session locks; after the screen-off timeout the screens turn off.
+4. Idle inhibitors (video, calls, presentations) and Game Mode hold all three. A timeout of zero means that step is off, never that it fires at once.
+
+v1 lessons kept
+- Inventory §4 Wallpaper: an image or a drawn backdrop, and a folder to pick from.
+- D18: an idle timer is rebuilt when its timeout changes, and zero means off.
+- D76: screen power is said again whenever the screen list changes.
+
+Open for its packet: none.
+
+### On-screen keyboard
+
+macOS's Accessibility Keyboard: an on-screen keyboard for pointer users (D37). It is not driven by a controller (B22).
+
+1. The keyboard never takes focus; it types into the focused window through Isle's injected-key source, which Cmd translation never touches (B21).
+2. Keys are pressed with the pointer; word completions are offered.
+3. It reserves space so it covers nothing.
+4. It opens from a chord, Control Centre's Accessibility module and the lock screen.
+
+v1 lessons kept
+- D37: a shell surface in the shell's conventions, not a separate keyboard app.
+
+Open for its packet
+- Showing it automatically when a text field takes focus, through text-input-v3, whose reliability per toolkit is unmeasured (`macos-model.md` OPEN).
+
+## For the design process
+
+What this document leaves to P1, per feature; "proposal" is the answer it gave before B24.
+
+- **Shell runtime**: which surfaces each screen carries and which only the main screen (proposal: menu bar, island, Dock and wallpaper on every screen; events, Spotlight and dialogs on the main one); open, close and morph choreography; UI copy rules (proposal: sentence case, "desktop" never "workspace", inventory §14).
+- **Menu bar**: the order of its menus and items (proposal: system menu, app menu, app menus, Window, Help on the left; status items, Control Centre and the clock on the right; island in the centre); the system menu's items, names and order (proposal: About This Computer, System Settings, Updates with count, Force Quit, Sleep, Restart, Shut Down, Lock Screen, Log Out, a restart-owed line); the app menu's and Window menu's names and order (proposal: About, Settings, Hide, Hide Others, Show All, Quit; Minimise, Zoom, zones, Bring All to Front, windows); where menu search sits (proposal: a field at the top of Help); which status items show by default and when (proposal: Isle's own only when they say something, as v1's rest glyphs); where the clock sits and what it opens (proposal: right end, opens Notification Centre); how menus that do not fit are reached (proposal: one overflow menu); how an unfocused screen's bar shows the menus (proposal: inactive).
+- **App menus**: the fallback menu's arrangement (proposal: app menu, Window and Help, entry actions under the app menu); how disabled, checked, radio and icon items look.
+- **Island**: what it shows at rest and while things are live; which live activity and events it carries, and which go elsewhere (proposal: every live activity, transient event and OSD); whether it repeats menu bar state (proposal: never; clock, connection, sound and battery live in the bar); the order when several compete (proposal: privacy always; then one in full and the rest compact, recording and sharing, authentication, call, media, timer); how an activity opens to its controls (proposal: hover expands, click opens Control Centre's Now Playing or the prompt); size-change motion (proposal: a morph the compositor animates); whether it shows desktops (proposal: no; desktops in Mission Control's Spaces bar).
+- **Control Centre**: how controls group into modules, their names, order and defaults (proposal: Wi-Fi, Bluetooth, Focus, Sound, Display, Now Playing, Game Mode, VPN, Power profile, Battery, Updates, Keyboard layout, Phone, Accessibility, Screen capture); whether toggles and sliders appear anywhere else (proposal: no, Control Centre and pinned items only, v1 D3); how a control's detail opens (proposal: drill-down page).
+- **Dock**: order of its sections (proposal: pinned, running, recent, minimised, Trash); whether it carries Apps and Mission Control items (proposal: yes, Apps opening Spotlight's Apps view); default position and size; how attention is shown (proposal: one bounce, or until clicked if urgent); the app menu's grouping (proposal: windows, actions, quicklist, then Options with Keep in Dock, Open at Login, Show in Files, then Show All Windows, Hide, Quit).
+- **Spotlight**: result layout and grouping by source; how clipboard images and pins show (proposal: thumbnails); the Apps view's layout (proposal: a grid by category).
+- **App switcher**: what an entry shows (proposal: icon, window count when over one, live preview of the most recent window).
+- **Mission Control**: how windows are arranged (proposal: spread without overlap, never larger than real, moving from and back to their real places, D19); how desktops show and are added (proposal: a Spaces bar along the top, live miniatures, an add button); how App Exposé sets minimised and hidden windows apart (proposal: below).
+- **Notification Centre**: its pointer route (proposal: the clock); its layout (proposal: notifications above, widgets below); grouping and order (proposal: by app, newest first); how past records show (proposal: under Earlier); where banners appear (proposal: top right of the main screen, under the status items); summary copy (proposal: "while you were away", "while you played").
+- **Widgets**: where widgets live (proposal: Notification Centre's column and the desktop under windows); what the chord does (proposal: "Show widgets" moves windows aside to the desktop widgets; "Dim widgets on desktop" a setting); whether the Notifications widget is desktop only (proposal: yes); the gallery's sections (proposal: Installed, Yours, Browse); whether v1's dashboard pages survive as several layouts.
+- **OSDs**: where they show (proposal: the island).
+- **Lock screen**: what it shows (proposal: time and date, the user, the password field); its backdrop (proposal: a softened form of the current wallpaper); the greeter's face.
+- **System prompts**: where a waiting prompt is announced (proposal: the island); dialog layout and copy.
+- **Capture**: the toolbar's layout; what follows a shot (proposal: a thumbnail in a corner, click to annotate, drag to drop, left to save); where the recording timer shows (proposal: the island); the picker's layout and button names (proposal: Share, Cancel).
+- **Wallpaper**: the change transition (proposal: a crossfade).
+- **On-screen keyboard**: its layout and where completions show (proposal: a strip).
+
+## Acceptance bars
+
+Measured on the host (RTX 5070 Ti, 3440×1440 up to 144 Hz) unless stated.
+
+1. Every row of the parity map exists as stated or is reshaped as stated.
+2. At rest, with no surface open and a minutes clock, the shell causes at most one frame a minute; with a seconds clock, one a second. A closed surface fires no timers (checked by tracing).
+3. The compositor process with every always-on surface at rest uses less RSS than v1's Quickshell process alone (458 MB, `ui-and-services.md` §1.4). The exact budget is set by the shell runtime packet.
+4. After a 24-hour soak that opens and closes every surface, RSS and VRAM return to within the packet's stated margin of their first-hour values.
+5. No shell surface's content draw exceeds 2 ms at p95 at full output size (the spike measured 1.2 ms for a full-screen launcher, `shell-ui-spike.md`). Shell transitions drop no frames at 144 Hz.
+6. Spotlight: keys typed from the moment Cmd+Space is pressed are never lost; apps, actions, settings and windows answer within 50 ms of a keystroke; the selected row never changes under the user as slower results arrive.
+7. App switcher: a quick Cmd+Tab switches without drawing the switcher; 1,000 scripted switches, some with focus changing mid-chord, commit on release every time and leave no modifier stuck.
+8. Menu bar: every focused window has a menu at all times; the app's menu titles appear within 100 ms of focus when its tree is cached; an app that does not answer is replaced by the fallback within its timeout. A matrix of a Qt 6.9+ app, a Chromium 137+ browser, LibreOffice on GTK 3 and a GtkApplication app with a menubar shows their real menus.
+9. Notifications: a new notification's banner is on screen within 100 ms of the Notify call reaching the bus.
+10. Lock: every screen shows the lock before sleep proceeds; no frame of session content is scanned out between a lock request and the lock, or on resume; 100 injected panics in the lock surface never show session content.
+11. An injected panic in any other surface rebuilds it within a second while windows and other surfaces keep running.
+12. A saved change to `tokens.kdl` reaches every visible surface within a second; a broken file keeps the last good tokens and shows the error.
+13. Over a full-screen game at rest, the shell contributes no render element, so direct scanout stays possible.
+14. A scripted keyboard-only walk reaches every action of every surface.
+
+## Parity map
+
+Every v1 capability in this area (inventory §4, §6, the shell chords of §11) and where it lands.
+
+| v1 capability | Lands in |
+|---|---|
+| Wallpaper: image, drawn backdrop, folder pick | Wallpaper and idle dimmer |
+| Rest pill: clock | The clock (Menu bar 9); its place and what it opens are P1's |
+| Rest pill: Wi-Fi, Bluetooth, muted volume, VPN, updates, restart owed and mode glyphs | Menu bar status items (Menu bar 6); restart owed also in the system menu; which show at rest is P1's |
+| Rest pill: recording and screen share glyphs | Privacy indicators (Island 4) |
+| Rest pill: calendar within 30 minutes | Calendar widget; the event's start is a notification |
+| Rest pill: desktop dots, which opened Mission Control | Capability kept in Mission Control (rule 3); whether the island shows desktops is P1's |
+| Hover panel: header of desktops as app icons | Mission Control's Spaces bar and the Dock |
+| Hover panel: toggles (Wi-Fi, Bluetooth, night light, DND as a Focus, game mode, VPN), output picker, volume, brightness, per-app volumes, media, batteries, updates, power profile | Control Centre controls, pinnable as status items; their modules are P1's |
+| Hover panel: Wi-Fi password and Bluetooth pairing drill-downs, VPN providers page | Control Centre drill-downs and the system prompts |
+| Hover panel: tray icons and tray menu page | Menu bar status items |
+| Hover panel: notifications page | Notification Centre |
+| Events: volume OSD | OSDs, widened to every level change |
+| Events: media start, recording and share with Stop, auth pending, mode change, clipboard copy | Live activities and events (Island 2, 3); where each shows is P1's |
+| Events: notification toast with actions, reply and image | Notification Centre banners; their place is P1's (B24) |
+| Events: drive inserted with Mount and Eject, calendar start, AppImage installed, update finished, restart needed | Desktop notifications with actions |
+| An open panel is never taken over by an event | Island rule 7 |
+| Island on every screen, events on one (D49) | Shell runtime rule 14; which surfaces each screen carries is P1's |
+| Game mode: island unmapped, hot zone peeks it | Menu bar 13, Island 8: nothing but privacy and OSDs over a game; a top-edge dwell reveals |
+| Dashboard: full-screen widget grid on a chord | Capability kept (Widgets 1, 3); where widgets live is P1's (B24) |
+| Dashboard: edit mode, grid editor, pages | Widget grid editor (Widgets 3); pages are P1's |
+| Built-in widgets (Clock, Media, Workspaces, Notifications, Controls, System, Session, Devices, Storage, Calendar, Weather) | Built-in widgets |
+| Agents widget (terminal windows) | Dropped: no longer a feature |
+| Manifest-only widgets and the text renderer | Provider templates |
+| QML user widgets, sandbox, permissions, grants and trust | Providers, sandboxed with user-granted permissions (B28) |
+| Widget store: sources, install, update, consent, author tools | Widget gallery |
+| Registry's QML widgets | Re-made as built-ins or providers (open) |
+| Launcher: ranked apps, shell actions with chords, settings pages, windows, vault, web fallback | Spotlight sources, plus menu items and Cmd+1 to Cmd+4 |
+| Launcher prefixes `>` `=` `/` `?` `.` `:` `@` `*` | Spotlight prefixes |
+| Clipboard: thumbnails, pins, delete, paste into the previous window | Spotlight clipboard |
+| Emoji typed after close | Spotlight emoji through the injected-key source |
+| Apps ranked in the launcher (no Launchpad) | Spotlight's Apps view |
+| Switcher: one entry per app, count, live previews, backtick cycle, Q quits, W closes, commit on release | App switcher, plus H hides and Cmd+` without the switcher |
+| Mission Control: spaces bar with add, spread, close, drag between desktops, keyboard, real-rectangle animation, previews only while visible | Mission Control; the spaces bar, spread and animation are P1 proposals |
+| Mission Control: hidden-window tray | App Exposé's minimised set and the Dock |
+| Three-finger swipe up and down | Mission Control gestures |
+| Capture: region, window, screen, shot, record, countdown, cursor, audio, freeze before pick | Capture toolbar and Mac chords |
+| Capture: annotate, colour pick, recording timer with Stop | Capture (annotator open); the timer as live activity |
+| Lock: wallpaper, clock, password on typing, failure count, Caps Lock, fingerprint, login1 signals, relock after restart | Lock screen |
+| Greeter (inventory §12) | Lock screen in greeter mode (B26) |
+| Idle: dim, lock, screen off, inhibitors | Wallpaper and idle dimmer |
+| Polkit dialog | System prompts |
+| Power menu: five actions, first letter, countdown | Session dialog and system menu |
+| Notifications: Earlier records, DND, quiet hours, full-screen and game silencing, summary, per-app lists, sound | Notification Centre; DND, quiet hours and game silencing as Focus modes (B30); records not imported (B27) |
+| On-screen keyboard: two cursors, completions, legend, no focus, exclusion | On-screen keyboard, pointer-driven; two cursors and legend dropped (B22) |
+| Surfaces close each other; Escape closes | Shell runtime rule 10 |
+| Surfaces back after a reload (D62) | Shell runtime rule 3; windows in apps.md |
+| Kept-running apps in the tray row | Dock |
+| Reduced motion, text scale, high contrast | Shell runtime rule 9 |
+| IPC as the test surface | Shell runtime rule 16 |
+| File chooser surface | Open and Save panels in the Files process (B26); apps.md |
+| Big Picture home, quick menu, Guide button and pad-to-keys bridge | Dropped (B22) |
+| Snap ghost | compositor.md |
+
+## Not here
+
+- **compositor.md**: the window model and layouts (snapping and its preview, minimise, hide, quit, Split View, Stage Manager, picture-in-picture, the dropdown terminal); title bars and window controls (B25); Cmd translation, the Alt and Super swap and the full chord table; gesture and hot-corner recognition; outputs, KVM recovery and screen power; the magnifier and night light; app identity from app ids and desktop entries; window images; the X11 window manager's menu properties; session restore; greeter mode under greetd and the session start, whose screen is the lock screen here (B26).
+- **gaming.md**: game detection (which turns on the Gaming Focus), Game Mode's profile, Steam's Big Picture handling and controllers.
+- **apps.md**: Settings and its page index, Files with its Open and Save panels and the Quick Look service (B26), Monitor, Keychain, Cleaner.
+- **P1, the design process**: every question under For the design process.
+- **platform.md**: the notification server, tray watcher and host, AppMenu registrar, polkit agent, keyring prompter, NetworkManager secret agent, Bluetooth agent, the portal backend and its PipeWire streams, providers for vaults, VPNs, snapshots and phones, the clipboard history store, calendars and updates.

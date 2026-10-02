@@ -22,9 +22,9 @@ Rectangle {
 
     // Too narrow for the bar and the count, which give way to the name.
     readonly property bool compact: width < 480
-    // A handler rather than the row's MouseArea, which loses the pointer to the buttons on it.
-    readonly property bool hovered: hover.hovered
-    HoverHandler { id: hover }
+    // The row's own area loses the pointer to the box and the button on it, so any of the three counts.
+    // Mouse areas rather than a HoverHandler, which is not told when the pointer leaves the window.
+    readonly property bool hovered: area.containsMouse || showArea.containsMouse || check.hovered
     readonly property bool real: !!item.path && !item.other && !item.skipped
     readonly property bool picked: { app.basketRev; return real && app.inBasket(item.path); }
     readonly property color tint: item.skipped || item.other ? Theme.text3 : Kinds.color(item.kind)
@@ -46,6 +46,7 @@ Rectangle {
         spacing: Theme.s3
 
         Check {
+            id: check
             app: row.app
             item: row.item
             opacity: row.picked || row.hovered ? 1 : 0.5

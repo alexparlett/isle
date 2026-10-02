@@ -463,7 +463,10 @@ FloatingWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.s3
+                // Takes what the controls leave and elides into it, so a long line never pushes them off.
                 ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
                     spacing: 2
                     Label { text: DiskUsage.ready ? root.pages.find(p => p.id === root.page).label : "Cleaner"; size: Theme.sizeTitle; weight: Font.Bold }
                     Label {
@@ -471,9 +474,9 @@ FloatingWindow {
                             + (DiskUsage.unreadable ? "  ·  " + root.count(DiskUsage.unreadable) + " folders could not be read" : "")
                         size: Theme.sizeSmall
                         color: Theme.text3
+                        Layout.fillWidth: true
                     }
                 }
-                Item { Layout.fillWidth: true }
                 Dropdown {
                     listWidth: 220
                     options: root.targets

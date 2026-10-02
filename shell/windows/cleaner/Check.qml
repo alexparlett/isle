@@ -13,6 +13,7 @@ Item {
     readonly property bool locked: real && app.isProtected(item.path)
     readonly property bool on: { app.basketRev; return real && app.inBasket(item.path); }
     readonly property bool own: { app.basketRev; return on && app.basket[item.path] !== undefined; }
+    readonly property bool hovered: boxArea.containsMouse
 
     implicitWidth: 18
     implicitHeight: 18

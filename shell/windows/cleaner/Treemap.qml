@@ -78,20 +78,24 @@ Item {
             opacity: root.anyPicked && !picked ? 0.72 : 1
             clip: true
 
-            // The tile's own hover, which the box on it does not take away.
-            HoverHandler {
-                id: tileHover
-                onHoveredChanged: if (hovered) root.hovered = tile.item; else if (root.hovered === tile.item) root.hovered = null
-                onPointChanged: if (hovered) root.pointer = tile.mapToItem(root, point.position)
-            }
+            // The tile or the box on it, through mouse areas, which hear the pointer leave the window.
+            readonly property bool over: tileArea.containsMouse || tileCheck.hovered
+            // A delegate's item is a copy, so whether the card is still this tile's is asked by path.
+            readonly property string key: item.other ? "\u0000smaller" : item.path
+            function mine() { return !!root.hovered && (root.hovered.other ? "\u0000smaller" : root.hovered.path) === key; }
+            onOverChanged: if (over) root.hovered = item; else if (mine()) root.hovered = null
+            Component.onDestruction: if (mine()) root.hovered = null
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius
-                color: Qt.alpha("#FFFFFF", tileHover.hovered ? 0.16 : 0)
+                color: Qt.alpha("#FFFFFF", tile.over ? 0.16 : 0)
                 Behavior on color { ColorAnimation { duration: Theme.quick } }
             }
             MouseArea {
+                id: tileArea
                 anchors.fill: parent
+                hoverEnabled: true
+                onPositionChanged: mouse => root.pointer = tile.mapToItem(root, mouse.x, mouse.y)
                 cursorShape: tile.item.dir ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: if (!tile.item.other) root.app.open(tile.item)
             }
@@ -105,9 +109,9 @@ Item {
                     implicitWidth: 24
                     implicitHeight: 24
                     radius: 7
-                    color: Qt.alpha(tile.ink, tile.picked || tileHover.hovered ? 0.22 : 0.1)
-                    Glyph { anchors.centerIn: parent; visible: !tile.picked && !tileHover.hovered; name: tile.item.dir ? "folder" : Kinds.glyph(tile.item.kind); size: 13; color: tile.ink }
-                    Check { anchors.centerIn: parent; visible: tile.picked || tileHover.hovered; app: root.app; item: tile.item }
+                    color: Qt.alpha(tile.ink, tile.picked || tile.over ? 0.22 : 0.1)
+                    Glyph { anchors.centerIn: parent; visible: !tile.picked && !tile.over; name: tile.item.dir ? "folder" : Kinds.glyph(tile.item.kind); size: 13; color: tile.ink }
+                    Check { id: tileCheck; anchors.centerIn: parent; visible: tile.picked || tile.over; app: root.app; item: tile.item }
                 }
                 Item { Layout.fillWidth: true }
                 Label {

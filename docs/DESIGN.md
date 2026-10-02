@@ -457,9 +457,9 @@ placeholder says enough. The stroke is 1.5 on Lucide's 24 grid
 
 ## Windows
 
-Four real windows, same material without blur (they sit over other
-windows, not the wallpaper): **Settings**, **Monitor**, **Keychain** and
-**Files**. A sidebar of sections on the left, content on the right, 15px
+Five real windows, same material without blur (they sit over other
+windows, not the wallpaper): **Settings**, **Monitor**, **Keychain**,
+**Files** and **Cleaner**. A sidebar of sections on the left, content on the right, 15px
 section titles.
 Settings keeps a trail of the pages it has shown: back and forward
 buttons beside its title, the mouse's back and forward buttons, and Alt
@@ -522,6 +522,31 @@ descendants' totals and opens on its chevron, sorted at every level, so
 a browser's thirty helpers are one row until asked. Session managers and
 the compositor are not groups. The list keeps its place across samples
 and has a thin scrollbar.
+
+The Cleaner is Broom's shape. A sidebar of Overview, Space, Large files
+and Untouched, with the disk the scan is on at its foot: a usage bar, what
+is free, and in the accent what the basket and the trash would give back,
+with Empty trash. It scans Home as it opens; the header picks another place
+and scans again.
+
+Overview is a ring and a bar of the scan by kind (games, video, images,
+audio, documents, archives and disk images, developer, apps and system,
+caches and logs, other) with the total large beside it, four cards
+(untouched in a year, caches and logs, developer, the trash) that each lead
+somewhere, and two lists: where the space is, which skips folders that are
+only the way to one big child, and the biggest files. Space is one folder at
+a time under a trail of pills, as squarified tiles in the colour of the kind
+most of each is, with its share and size, or as a list; a filter narrows
+either. Large files and Untouched are lists.
+
+Nothing is removed from a row. Every row and tile has a box that puts it in
+the basket (a folder stands for what is under it; a protected place, which
+is the root, a volume, home, its standard folders or a `.git`, has a lock
+instead), and the basket is a bar at the foot of the page: its size and
+count, Clear, and Move to Trash. After the move the bar says what went and
+that the space comes back when the trash is emptied, with Undo and Empty
+trash; emptying asks first, since it is the one thing that cannot be put
+back.
 
 The Monitor is Activity Monitor's shape: CPU, Memory, Energy, Disk and
 Network tabs each show every process in that tab's columns with a strip

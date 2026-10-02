@@ -1144,3 +1144,49 @@ about a second. It is still last in the run, so one restart covers everything
 the install changed, and D78 still makes it safe for an update to do. The
 engine case D84 named is a subset of this one; the QML guard it added stays,
 since a shell a version behind should lose a feature rather than a menu.
+
+**D87 · The Cleaner counts what a place holds itself, once through, and
+keeps only folders.** Broom's and DaisyDisk's analyzers are the model;
+`du`, `ncdu` and `gdu` were the alternatives. Running one of them means
+parsing a whole tree through a pipe and keeping it again in QML, and
+none of them keeps the tree for a second question. So the scan is a type
+in `Isle.Files`, beside the trash it sends things to: a pool of threads
+reading one folder each, which on this machine counts a million and a
+half files in well under a second from a warm cache.
+
+What it keeps is the folders: their own bytes and files and their totals.
+Files are not kept, since there are ten times as many and a view only
+ever wants the ones in the folder it is showing, which are read as it
+opens; the five hundred largest are the exception, for the Largest view.
+Sizes are allocated blocks rather than lengths, so a sparse disk image
+counts what it takes; a file with several names counts at the first one
+met. On a compressed btrfs that is still more than `df` says is used, so
+the window shows the disk's own figures beside the scan's rather than pretending the scan is the disk.
+
+A scan crosses into a mount of the same device and filesystem, which is
+how btrfs subvolumes like `@home` and `@cache` appear, and into nothing
+else: not another disk, not a pseudo filesystem, not the network. It
+never enters `.snapshots`, mounted or not, because snapper's snapshots
+share their blocks with what they copy and counting them counts the disk
+again for every snapshot. Removing is only ever moving to the trash
+(D70), and moving to the trash on the same volume frees nothing until it
+is emptied, which the window says instead of letting the total fall.
+
+**D88 · The Cleaner colours by kind, and removes through a basket.** Broom
+is the model here too. A disk is understood by what fills it, so the scan
+keeps each folder's bytes by kind and every view is coloured by the kind
+most of a thing is: ten fixed colours, one per kind, the same in the ring,
+the bar, the tiles and the rows. This is data encoding, not decoration, and
+it is the one place the shell draws in colours other than the accent and
+the state colours; the palette lives in `shell/windows/cleaner/kinds.js`
+beside the glyphs. Kinds are guessed from folder names first, because a
+PNG inside a game or a cache belongs to the game or the cache, and from a
+file's ending only where no folder has said.
+
+Removing is a basket rather than a button on each row. A row's own button
+made trashing one thing easy and trashing twenty tedious, and hid the
+total until after the fact; with a basket the total is on screen before
+anything moves, the disk card shows what it would give back, and one job
+takes it all, so one Undo puts it all back. The trash is not the end: on
+the same volume it frees nothing, so the bar says so after a move and
+offers Empty trash, which asks first.

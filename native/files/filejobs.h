@@ -31,6 +31,8 @@ class FileJob : public QObject {
     Q_PROPERTY(QStringList made READ made NOTIFY stateChanged)
     // Where it was asked to put things, so a window can tell its own jobs from another window's.
     Q_PROPERTY(QString destination READ destination CONSTANT)
+    // Restore and PutBack only: where each thing goes back to.
+    Q_PROPERTY(QStringList returnsTo READ returnsTo CONSTANT)
 
 public:
     // Restore is the trash's own: it takes each thing's note away with it. PutBack is the same
@@ -58,6 +60,7 @@ public:
     QString conflictName() const { return m_conflictName; }
     QStringList made() const { return m_undoFrom; }
     QString destination() const { return m_destination; }
+    QStringList returnsTo() const { return m_targets; }
 
     // Replace what is there, skip this one, or keep both by giving the new one another name.
     Q_INVOKABLE void answer(Answer answer, bool forAll = false);

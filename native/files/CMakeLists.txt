@@ -29,6 +29,10 @@ qt_add_qml_module(isle-files
         thumbnails.cpp
         filejobs.h
         filejobs.cpp
+        diskusage.h
+        diskusage.cpp
+        kinds.h
+        kinds.cpp
 )
 
 target_compile_definitions(isle-files PRIVATE ISLE_FILES_VERSION="${PROJECT_VERSION}")

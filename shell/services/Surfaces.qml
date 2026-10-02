@@ -19,6 +19,9 @@ Singleton {
     property bool monitor: false
     property bool keychain: false
     property bool files: false
+    property bool cleaner: false
+    // A folder or volume Cleaner is to look through when it next opens.
+    property string cleanerPath: ""
     // The folder Files opens at; an empty one means home.
     property string filesPath: ""
     property string settingsPage: "network"
@@ -41,7 +44,7 @@ Singleton {
     // Opening a window surface that is already open brings its window to the front instead.
     // Files is not here: it is as many windows as are wanted, each named for the folder it shows,
     // and showFiles below answers before this is ever reached.
-    readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor" })
+    readonly property var windowTitles: ({ settings: "Settings", keychain: "Keychain", monitor: "Monitor", cleaner: "Cleaner" })
     function show(name) {
         if (name === "files") { root.showFiles(""); return; }
         if (root[name]) Windows.focusShellWindow(windowTitles[name]);
@@ -59,7 +62,7 @@ Singleton {
     Process { id: noteWriter }
     function note() {
         if (!restored) return;
-        const open = ["settings", "keychain", "monitor", "files"].filter(n => root[n]);
+        const open = ["settings", "keychain", "monitor", "files", "cleaner"].filter(n => root[n]);
         const text = open.length ? JSON.stringify({ open: open, page: settingsPage, at: Date.now() }) : "";
         noteWriter.command = ["sh", "-c", text ? "mkdir -p \"$(dirname \"$1\")\" && printf %s \"$2\" > \"$1\"" : "rm -f \"$1\"", "_", reopenFile, text];
         noteWriter.running = true;
@@ -68,6 +71,7 @@ Singleton {
     onKeychainChanged: note()
     onMonitorChanged: note()
     onFilesChanged: note()
+    onCleanerChanged: note()
     Process {
         id: noteReader
         command: ["cat", root.reopenFile]
@@ -142,13 +146,19 @@ Singleton {
             else if (action === "close") root.monitor = false;
             else root.monitor = !root.monitor;
         }
-        // "open", "close", "toggle", or a folder to open at.
         // "open", "close", "toggle", or a folder to open at. A window already there takes a tab.
         function files(action: string): void {
             if (action === "close") { FileWindows.closeAll(); root.files = false; }
             else if (action === "open" || !action || action === "-") root.showFiles("");
             else if (action === "toggle") { if (FileWindows.any) { FileWindows.closeAll(); root.files = false; } else root.showFiles(""); }
             else root.showFiles(action);
+        }
+        // "open", "close", "toggle", or a folder or volume to look through.
+        function cleaner(action: string): void {
+            if (action === "close") root.cleaner = false;
+            else if (action === "toggle") root.cleaner = !root.cleaner;
+            else if (action === "open" || !action || action === "-") root.show("cleaner");
+            else { root.cleanerPath = action; root.show("cleaner"); }
         }
         function power(action: string): void {
             if (action === "open") root.power = true;

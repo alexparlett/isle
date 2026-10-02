@@ -21,6 +21,8 @@ import qs.windows.settings
 import qs.windows.keychain
 import qs.windows.monitor
 import qs.windows.files
+// Qualified, so nothing in Cleaner's directory can take a name the shell uses.
+import qs.windows.cleaner as CleanerParts
 
 ShellRoot {
     // Singletons are created on first reference; these must exist from the start.
@@ -77,6 +79,8 @@ ShellRoot {
     // the shell failing to start; the import above only registers the directory, which is what lets
     // Files.qml name its own sibling.
     LazyLoader { loading: true; component: Qt.createComponent(Qt.resolvedUrl("windows/files/Files.qml")) }
+    // Cleaner uses the same engine, and is held the same way for the same reason.
+    LazyLoader { loading: true; component: Qt.createComponent(Qt.resolvedUrl("windows/cleaner/Cleaner.qml")) }
     // The portal chooser needs the same engine, and is held the same way for the same reason.
     LazyLoader { loading: true; component: Qt.createComponent(Qt.resolvedUrl("surfaces/filechooser/FileChooser.qml")) }
     Component { id: lockSurface; LockSurface {} }

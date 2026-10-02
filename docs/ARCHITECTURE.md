@@ -15,7 +15,7 @@ Hyprland
       │                           launcher, switcher, overview, capture, lock, auth, power,
       │                           file chooser (the portal's, D67)
       ├── widgets/                dashboard widgets: one directory each, see Widgets
-      ├── windows/                Settings, Monitor, Keychain, Files, Big Picture
+      ├── windows/                Settings, Monitor, Keychain, Files, Cleaner, Big Picture
       ├── theme/                  tokens.json → Theme singleton
       └── Isle.Files              native/files, built at install time and imported from
                                   $ISLE_HOME/qml, which isle-session puts on QML_IMPORT_PATH (D66)
@@ -47,10 +47,10 @@ shell/        the Quickshell config (~/.config/quickshell/isle links to the inst
               Monitor, Keychain, Keyboard, Games
   surfaces/   one directory per surface
   widgets/    one directory per widget: widget.json + Widget.qml
-  windows/    Settings, Monitor, Keychain, Files, BigPicture
+  windows/    Settings, Monitor, Keychain, Files, Cleaner, BigPicture
   assets/     Lucide glyphs, default wallpaper
 native/       compiled QML modules the shell imports
-  files/      Isle.Files: the browsing engine (D66)
+  files/      Isle.Files: the browsing engine (D66) and the disk scan (D87)
 hypr/         hyprland.lua and the fragments the shell writes (binds, monitors, modes, theme)
 input/        xremap profiles: mac.yml, windows.yml
 theme/        templates: gtk3, gtk4, kitty, btop, zathura, hypr
@@ -186,7 +186,8 @@ extra process.
 | search inside files | The launcher's `?` prefix runs ripgrep-all when it is installed, ripgrep otherwise, over `~` with the caches, git and Steam trees left out, one match per file, twenty files, `path:line:text`; a keystroke waits 250ms before a search. No index: ripgrep is fast enough for a home directory, and ripgrep-all reads PDFs, office documents and archives through their own tools |
 | shortcuts in the launcher | `Launcher.chord(id)` puts the keyboard in use's chord beside a shell result that has a keymap id (Win or Cmd notation, from `Keyboard.actions`); the keymap's other actions are not results of their own |
 | settings in the launcher | `SettingsIndex.pages` is the one list of pages (Settings draws its sidebar from it); the launcher offers a page by name, opening straight to it |
-| shell windows | Settings, Keychain and Monitor are `FloatingWindow`s of the shell process (app id `org.quickshell`); `Surfaces.show(name)` opens one, or focuses it through the compositor by title when it is already open |
+| disk usage | `DiskUsage` in `Isle.Files`, shown by the Cleaner window (`Surfaces.show("cleaner")`, IPC `surfaces cleaner <path>`, Settings › Storage's Look through, the launcher). A scan walks a folder with a pool of threads, one `openat`/`readdir` per folder and `fstatat` per entry, and keeps a tree of folders only: each with its own bytes and files, its totals, and its bytes by kind (`native/files/kinds.cpp`: a folder's name decides for everything under it, `steamapps`, `.cache`, `node_modules`, `target` and the like, else a file's ending does), counted as allocated blocks, a file with several names once. Files are read again when a folder is opened, and the largest five hundred met are kept apart. `hotspots` walks past folders most of whose space is one child; `untouched` finds the largest folders with nothing changed in a year, leaving out the system's. It crosses into a mount of the same device and filesystem (a btrfs subvolume) and no other, and never into `.snapshots` (D87). The basket goes to `FileJobs.trash` in one job; `forget` takes what went out of the tree and `refresh` counts the trash and whatever an undo put back again in the background. `shell.qml` imports `qs.windows.cleaner` qualified, since an unqualified import would put the directory's type names (Overview among them) over the shell's own |
+| shell windows | Settings, Keychain, Monitor and Cleaner are `FloatingWindow`s of the shell process (app id `org.quickshell`); `Surfaces.show(name)` opens one, or focuses it through the compositor by title when it is already open |
 | keyboard configurators | `system/udev/70-isle-hidraw.rules` gives the logged-in user the hidraw nodes (what the VIA package ships), so Keychron Launcher, VIA and Vial reach the keyboard over WebHID, and the STM32 DFU bootloader (0483:df11) and Keychron's own USB ids, so Launcher can flash firmware over WebUSB; `tools/install.sh` installs it and a Keychron Launcher entry that opens the site as its own window through `shell/scripts/webapp.sh` in the first Chromium-family browser |
 | accessibility | `Access`: the magnifier is the compositor's `cursor.zoom_factor`, set with `hyprctl eval` in quarter steps to 2 then halves to 4 (Super+Ctrl and =, -, 0; the keymap's zoomIn, zoomOut, zoomReset; IPC `access zoom in|out|reset`). Larger text is `prefs.textScale`, which `Theme` multiplies every type size by; high contrast is `prefs.highContrast`, which lifts the secondary and tertiary text alphas, the hairlines and the glass alpha in `Theme`. Settings › Accessibility holds them with reduced motion and the on-screen keyboard |
 | night light | `hyprctl hyprsunset` |

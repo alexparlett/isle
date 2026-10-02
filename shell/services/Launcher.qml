@@ -119,6 +119,7 @@ Singleton {
         { title: "Settings", glyph: "sliders-horizontal", kind: "Shell", key: "settings", run: () => Surfaces.show("settings") },
         { title: "Keychain", glyph: "key-round", kind: "Shell", run: () => Surfaces.show("keychain") },
         { title: "Monitor", glyph: "cpu", kind: "Shell", key: "monitor", run: () => Surfaces.show("monitor") },
+        { title: "Cleaner", glyph: "hard-drive", kind: "Shell", words: "disk space storage usage analyzer", run: () => Surfaces.show("cleaner") },
         { title: "Dashboard", glyph: "layout-grid", kind: "Shell", key: "dashboard", run: () => { Surfaces.dashboard = true; } },
         { title: "Mission Control", glyph: "app-window", kind: "Shell", key: "overview", words: "desktops workspaces windows", run: () => { Surfaces.overview = true; } },
         { title: "Files", glyph: "folder", kind: "Shell", key: "files", run: () => Surfaces.show("files") },

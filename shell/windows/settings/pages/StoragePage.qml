@@ -26,6 +26,7 @@ SettingsPage {
                         Rectangle { width: parent.width * modelData.pct; height: parent.height; radius: 3; color: modelData.pct > 0.9 ? Theme.warn : Theme.accent }
                     }
                     Label { text: Math.round(modelData.pct * 100) + "%"; mono: true; tabular: true; size: Theme.sizeCaption; color: Theme.text2; Layout.preferredWidth: 36; horizontalAlignment: Text.AlignRight }
+                    Button { text: "Look through"; variant: "text"; onClicked: { Surfaces.cleanerPath = modelData.target; Surfaces.show("cleaner"); } }
                     Button { text: "Open"; variant: "text"; onClicked: Compositor.exec("xdg-open " + JSON.stringify(modelData.target)) }
                 }
             }

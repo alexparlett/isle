@@ -14,7 +14,8 @@ ColumnLayout {
     readonly property var here: { DiskUsage.generation; return DiskUsage.node(app.at); }
     readonly property var rows: {
         DiskUsage.generation;
-        const all = DiskUsage.children(app.at, 200);
+        // Above the roots, each is named the way the place picker names it.
+        const all = DiskUsage.children(app.at, 200).map(r => app.at || !r.dir ? r : Object.assign({}, r, { name: app.labelFor(r.path) }));
         const q = filter.toLowerCase();
         return q ? all.filter(r => !r.other && r.name.toLowerCase().indexOf(q) >= 0) : all;
     }

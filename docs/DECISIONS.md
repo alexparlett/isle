@@ -866,12 +866,12 @@ case it was written for, a KVM switch after the screens had gone off. It
 wakes the screens first now.
 
 **D75 · The shell's own windows are told apart by their titles.** Settings,
-the Keychain, the Monitor and every Files window are drawn out of one
+the Keychain, the Monitor, the Cleaner and every Files window are drawn out of one
 process, so the compositor gives all of them the app id Quickshell
 registers. Anything grouping by that id — the switcher, the dock, Mission
 Control — made them one entry with one name, and naming every Files window
 for its folder made a file manager into an entry per window instead. The
-three named windows stand for themselves and everything else the shell
+four named windows stand for themselves and everything else the shell
 draws is a Files window, which takes its name and its icon from the desktop
 entry Files already installs for the folder handler.
 
@@ -1216,3 +1216,24 @@ packages, the journal and crash dumps belong to root; moving them to a
 trash is not possible, so they are cleared by their own tools through
 `pkexec`, one authorisation each, under a card that says they cannot be put
 back.
+
+**D90 · Duplicates are the person's own files, compared by content, and
+the Cleaner sees every disk at once.** A duplicate finder that looks
+everywhere finds mostly copies that are meant to be there: the same DLL in
+two games, the same library in two Python environments, a texture in a
+repository and in its agent's worktree. Removing any of those breaks the
+thing that holds it. So the candidates are files no kind rule has claimed
+(games, the system, build output, caches), outside hidden folders and git
+working trees, not executable and of a megabyte or more, which leaves what
+a person put somewhere themselves. They are matched by size, then both
+ends, then the whole content, so a file is read in full only when
+everything cheaper agrees; copies that already share their blocks through
+a reflink, which btrfs makes for every plain `cp`, give nothing back and
+are counted apart, the way Broom counts APFS clones.
+
+A scan had one root and would not cross onto another device, so a second
+disk was a separate scan and Cleanup could not see a Steam library on it
+while it looked at home. A scan now takes several roots under one node
+that stands for them all, a root the walk through another already reaches
+is dropped, and All disks, every disk mounted, is where the window
+opens.

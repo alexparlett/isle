@@ -23,7 +23,7 @@ FloatingWindow {
         Storage.listeners += visible ? 1 : -1;
         if (!visible) return;
         take();
-        if (!DiskUsage.ready && !DiskUsage.scanning) start(Engine.home);
+        if (!DiskUsage.ready && !DiskUsage.scanning) start("all");
         readSystem();
     }
 
@@ -34,6 +34,7 @@ FloatingWindow {
         { id: "overview", label: "Overview", glyph: "house" },
         { id: "cleanup", label: "Cleanup", glyph: "wand-sparkles" },
         { id: "space", label: "Space", glyph: "layout-grid" },
+        { id: "duplicates", label: "Duplicates", glyph: "copy" },
         { id: "large", label: "Large files", glyph: "file-search" },
         { id: "old", label: "Untouched", glyph: "clock" },
     ]
@@ -42,11 +43,27 @@ FloatingWindow {
     property string path: ""
     readonly property string at: path && inside(path) ? path : DiskUsage.root
 
-    readonly property var targets: [[Engine.home, "Home"]].concat(Storage.mounts.map(m => [m.target, Storage.label(m)]))
-    // The volume the scan is on: the mount with the longest path the root is under.
-    readonly property var mount: Storage.mounts.filter(m => within(DiskUsage.root, m.target)).sort((a, b) => b.target.length - a.target.length)[0] || null
-    readonly property string placeName: DiskUsage.root === Engine.home ? "Home" : DiskUsage.root === "/" ? "System"
-        : mount && mount.target === DiskUsage.root ? Storage.label(mount) : Engine.displayName(DiskUsage.root)
+    readonly property var targets: [["all", "All disks"], [Engine.home, "Home"]].concat(Storage.mounts.map(m => [m.target, labelFor(m.target)]))
+    readonly property bool many: DiskUsage.roots.length > 1
+    // The volume a path is on: the mount with the longest path it is under.
+    function mountOf(p) { return Storage.mounts.filter(m => within(p, m.target)).sort((a, b) => b.target.length - a.target.length)[0] || null; }
+    // The disks the scan is on, one each.
+    readonly property var disks: {
+        const out = [];
+        for (const r of DiskUsage.roots) {
+            const m = mountOf(r);
+            if (m && !out.some(o => o.target === m.target)) out.push(m);
+        }
+        return out;
+    }
+    readonly property real disksFree: disks.reduce((s, m) => s + m.size - m.used, 0)
+    readonly property string placeName: many ? "All disks" : labelFor(DiskUsage.root)
+    function labelFor(p) {
+        if (p === Engine.home) return "Home";
+        if (p === "/") return "System";
+        const m = Storage.mounts.find(m => m.target === p);
+        return m ? Storage.label(m) : Engine.displayName(p);
+    }
 
     readonly property string trashDir: Engine.parentOf(FileJobs.trashPath)
     // The trash's own bookkeeping takes a few blocks even when it is empty.
@@ -134,6 +151,13 @@ FloatingWindow {
     onPageChanged: preselect()
     onCleanupChanged: preselect()
 
+    readonly property var dupes: { DiskUsage.generation; dupesRev; return DiskUsage.duplicatesReady ? DiskUsage.duplicates() : ({ groups: [], canFree: 0, files: 0, sharing: 0 }); }
+    Connections {
+        target: DiskUsage
+        function onDuplicatesChanged() { root.dupesRev++; }
+    }
+    property int dupesRev: 0
+
     // What the system keeps that only root can clear: [{ id, name, note, size }].
     property var system: []
     property string systemRunning: ""
@@ -174,13 +198,21 @@ FloatingWindow {
     }
 
     function within(p, dir) { return dir === "/" ? p.startsWith("/") : p === dir || p.startsWith(dir + "/"); }
-    function inside(p) { return within(p, DiskUsage.root); }
+    function inside(p) { return DiskUsage.roots.some(r => within(p, r)); }
+    // A place to scan, or "all" for every disk mounted, which waits for df to have said what they are.
+    property bool allWanted: false
     function start(p) {
+        allWanted = p === "all" && !Storage.mounts.length;
+        if (allWanted) return;
         path = "";
         scannedAt = 0;
         clear();
         lastTrashed = null;
-        DiskUsage.scan(p);
+        DiskUsage.scan(p === "all" ? Storage.mounts.map(m => m.target) : [p]);
+    }
+    Connections {
+        target: Storage
+        function onMountsChanged() { if (root.allWanted) root.start("all"); }
     }
     function take() {
         if (!Surfaces.cleanerPath) return;
@@ -188,7 +220,10 @@ FloatingWindow {
         Surfaces.cleanerPath = "";
     }
     function goTo(p) { path = p; page = "space"; }
-    function up() { if (at !== DiskUsage.root) path = Engine.parentOf(at); }
+    function up() {
+        if (at === DiskUsage.root) return;
+        path = DiskUsage.roots.indexOf(at) >= 0 ? "" : Engine.parentOf(at);
+    }
     function open(item) { goTo(item.dir && !item.skipped ? item.path : Engine.parentOf(item.path)); }
     function reveal(item) { Surfaces.showFiles(item.dir ? item.path : Engine.parentOf(item.path)); }
     function isProtected(p) { return DiskUsage.isProtected(p); }
@@ -245,10 +280,13 @@ FloatingWindow {
     // A path as a person reads it: home is a tilde.
     function place(p) { return p === Engine.home ? "~" : p.startsWith(Engine.home + "/") ? "~" + p.slice(Engine.home.length) : p; }
     function crumbs() {
-        const base = DiskUsage.root;
-        const out = [{ name: placeName, path: base }];
+        const out = [{ name: placeName, path: DiskUsage.root }];
+        if (!at) return out;
+        // With several roots, the one this is under comes next, by its own name.
+        const base = DiskUsage.roots.filter(r => within(at, r)).sort((a, b) => b.length - a.length)[0];
+        if (many) out.push({ name: labelFor(base), path: base });
         let acc = base;
-        for (const part of at.slice(base.length).split("/").filter(x => x)) {
+        for (const part of at.slice(base === "/" ? 1 : base.length).split("/").filter(x => x)) {
             acc = Engine.join(acc, part);
             out.push({ name: part, path: acc });
         }
@@ -314,8 +352,10 @@ FloatingWindow {
                             Glyph { name: nav.modelData.glyph; size: 15; color: nav.sel ? Theme.accent : Theme.text2 }
                             Label { text: nav.modelData.label; size: Theme.sizeSmall; weight: Font.DemiBold; color: nav.sel ? Theme.text : Theme.text2; Layout.fillWidth: true }
                             Label {
-                                visible: nav.modelData.id === "cleanup" && root.cleanup.safeSize > 0
-                                text: Engine.formatSize(root.cleanup.safeSize)
+                                readonly property real badge: nav.modelData.id === "cleanup" ? root.cleanup.safeSize
+                                    : nav.modelData.id === "duplicates" && DiskUsage.duplicatesReady ? root.dupes.canFree : 0
+                                visible: badge > 0
+                                text: Engine.formatSize(badge)
                                 size: Theme.sizeCaption
                                 weight: Font.DemiBold
                                 mono: true
@@ -328,9 +368,9 @@ FloatingWindow {
 
                 Item { Layout.fillHeight: true }
 
-                // The disk the scan is on, and what the basket and the trash would give back.
+                // The disks the scan is on, and what the basket and the trash would give back.
                 Rectangle {
-                    visible: !!root.mount
+                    visible: root.disks.length > 0
                     Layout.fillWidth: true
                     implicitHeight: disk.implicitHeight + Theme.s3 * 2
                     radius: Theme.radiusCard
@@ -341,35 +381,50 @@ FloatingWindow {
                         id: disk
                         anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.s3 }
                         spacing: Theme.s2
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.s2
-                            Glyph { name: "hard-drive"; size: 14; color: Theme.text2 }
-                            Label { text: root.mount ? Storage.label(root.mount) : ""; size: Theme.sizeSmall; weight: Font.DemiBold; Layout.fillWidth: true }
-                            Label { text: root.mount ? Math.round(root.mount.pct * 100) + "%" : ""; size: Theme.sizeSmall; mono: true; tabular: true; color: Theme.text2 }
-                        }
-                        Rectangle {
-                            id: usage
-                            Layout.fillWidth: true
-                            implicitHeight: 8
-                            radius: 4
-                            color: Theme.hairline
-                            readonly property real used: root.mount ? root.mount.pct : 0
-                            readonly property real freed: root.mount && root.mount.size ? Math.min(used, (root.basketSize + root.trashHeld) / root.mount.size) : 0
-                            Rectangle { height: parent.height; radius: 4; width: parent.width * usage.used; color: usage.used > 0.9 ? Theme.warn : Theme.text2 }
-                            Rectangle {
-                                visible: usage.freed > 0
-                                height: parent.height
-                                radius: 4
-                                x: parent.width * (usage.used - usage.freed)
-                                width: Math.max(3, parent.width * usage.freed)
-                                color: Theme.accent
+                        Repeater {
+                            model: root.disks
+                            ColumnLayout {
+                                id: one
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: Theme.s1 + 2
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Theme.s2
+                                    Glyph { name: "hard-drive"; size: 14; color: Theme.text2 }
+                                    Label { text: root.labelFor(one.modelData.target); size: Theme.sizeSmall; weight: Font.DemiBold; Layout.fillWidth: true }
+                                    Label { text: Math.round(one.modelData.pct * 100) + "%"; size: Theme.sizeSmall; mono: true; tabular: true; color: Theme.text2 }
+                                }
+                                Rectangle {
+                                    id: usage
+                                    Layout.fillWidth: true
+                                    implicitHeight: 8
+                                    radius: 4
+                                    color: Theme.hairline
+                                    readonly property real used: one.modelData.pct
+                                    // What the basket and the trash hold on this disk.
+                                    readonly property real held: {
+                                        root.basketRev;
+                                        const on = p => { const m = root.mountOf(p); return !!m && m.target === one.modelData.target; };
+                                        return Object.values(root.basket).filter(i => on(i.path)).reduce((s, i) => s + i.size, 0) + (on(root.trashDir) ? root.trashHeld : 0);
+                                    }
+                                    readonly property real freed: one.modelData.size ? Math.min(used, held / one.modelData.size) : 0
+                                    Rectangle { height: parent.height; radius: 4; width: parent.width * usage.used; color: usage.used > 0.9 ? Theme.warn : Theme.text2 }
+                                    Rectangle {
+                                        visible: usage.freed > 0
+                                        height: parent.height
+                                        radius: 4
+                                        x: parent.width * (usage.used - usage.freed)
+                                        width: Math.max(3, parent.width * usage.freed)
+                                        color: Theme.accent
+                                    }
+                                }
+                                Label {
+                                    text: Engine.formatSize(one.modelData.size - one.modelData.used) + " free of " + Engine.formatSize(one.modelData.size)
+                                    size: Theme.sizeCaption
+                                    color: Theme.text3
+                                }
                             }
-                        }
-                        Label {
-                            text: root.mount ? Engine.formatSize(root.mount.size - root.mount.used) + " free of " + Engine.formatSize(root.mount.size) : ""
-                            size: Theme.sizeCaption
-                            color: Theme.text3
                         }
                         RowLayout {
                             visible: root.basketSize + root.trashHeld > 0
@@ -422,14 +477,14 @@ FloatingWindow {
                 Dropdown {
                     listWidth: 220
                     options: root.targets
-                    value: DiskUsage.root || Engine.home
+                    value: root.many ? "all" : DiskUsage.root || Engine.home
                     onPicked: v => root.start(v)
                 }
                 Button {
                     text: DiskUsage.scanning ? "Stop" : "Scan again"
                     glyph: DiskUsage.scanning ? "x" : "refresh-cw"
                     variant: DiskUsage.scanning ? "raised" : "accent"
-                    onClicked: DiskUsage.scanning ? DiskUsage.cancel() : root.start(DiskUsage.root || Engine.home)
+                    onClicked: DiskUsage.scanning ? DiskUsage.cancel() : DiskUsage.scan(DiskUsage.roots.length ? DiskUsage.roots : [Engine.home])
                 }
             }
 
@@ -467,7 +522,7 @@ FloatingWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 sourceComponent: !DiskUsage.ready ? null
-                    : root.page === "cleanup" ? cleanupPage : root.page === "space" ? spacePage : root.page === "large" ? largePage : root.page === "old" ? oldPage : overviewPage
+                    : root.page === "cleanup" ? cleanupPage : root.page === "duplicates" ? duplicatesPage : root.page === "space" ? spacePage : root.page === "large" ? largePage : root.page === "old" ? oldPage : overviewPage
             }
 
             // The basket, what was just sent, or the question before emptying the trash.
@@ -547,6 +602,7 @@ FloatingWindow {
     Component { id: overviewPage; Overview { app: root } }
     Component { id: spacePage; Space { app: root } }
     Component { id: cleanupPage; Cleanup { app: root } }
+    Component { id: duplicatesPage; Duplicates { app: root } }
     Component {
         id: largePage
         FileList {

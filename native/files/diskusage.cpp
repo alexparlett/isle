@@ -1,4 +1,5 @@
 #include "diskusage.h"
+#include "duplicates.h"
 #include "kinds.h"
 
 #include <QDateTime>
@@ -54,6 +55,7 @@ struct DiskUsage::Result {
     std::vector<std::string> folders;
     std::vector<std::unique_ptr<Node>> trees;
     std::vector<Top> top;
+    std::vector<duplicates::File> own;
     int unreadable = 0;
     qint64 elapsed = 0;
     bool cancelled = false;
@@ -132,7 +134,7 @@ public:
 
     void run(const std::vector<std::pair<DiskUsage::Node *, std::string>> &roots) {
         for (const auto &r : roots)
-            m_queue.push_back({ r.first, r.second, kinds::ofPath(r.second) });
+            m_queue.push_back({ r.first, r.second, kinds::ofPath(r.second), false });
         m_pending = int(m_queue.size());
         const int count = std::clamp(int(std::thread::hardware_concurrency()), 4, 16);
         std::vector<std::thread> threads;
@@ -143,6 +145,8 @@ public:
     }
 
     std::vector<DiskUsage::Top> top;
+    // The person's own files big enough to be worth comparing, for duplicates.
+    std::vector<duplicates::File> own;
     std::atomic_int unreadable { 0 };
 
 private:
@@ -151,10 +155,14 @@ private:
         std::string path;
         // What the folders above said everything under them is, or kinds::None.
         int kind = kinds::None;
+        // Inside a git working tree or a hidden folder: the repository's files or an app's, never the
+        // person's own copies.
+        bool repo = false;
     };
 
     void work() {
         std::vector<DiskUsage::Top> heap;
+        std::vector<duplicates::File> mine;
         for (;;) {
             Work item;
             {
@@ -166,13 +174,14 @@ private:
                 m_queue.pop_front();
             }
             if (!m_cancelled)
-                read(item, heap);
+                read(item, heap, mine);
             std::lock_guard lock(m_mutex);
             if (--m_pending == 0)
                 m_ready.notify_all();
         }
         std::lock_guard lock(m_mutex);
         top.insert(top.end(), heap.begin(), heap.end());
+        own.insert(own.end(), std::make_move_iterator(mine.begin()), std::make_move_iterator(mine.end()));
     }
 
     static bool smaller(const DiskUsage::Top &a, const DiskUsage::Top &b) { return a.size > b.size; }
@@ -194,7 +203,7 @@ private:
         return m_inodes.insert({ dev, ino }).second;
     }
 
-    void read(const Work &item, std::vector<DiskUsage::Top> &heap) {
+    void read(const Work &item, std::vector<DiskUsage::Top> &heap, std::vector<duplicates::File> &mine) {
         DiskUsage::Node *node = item.node;
         const std::string &path = item.path;
         const int fd = open(path.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
@@ -211,9 +220,17 @@ private:
             return;
         }
 
+        std::vector<dirent> entries;
+        bool repo = item.repo;
+        while (dirent *e = readdir(dir)) {
+            entries.push_back(*e);
+            repo = repo || std::strcmp(e->d_name, ".git") == 0;
+        }
+
         std::vector<Work> found;
         qint64 own = 0, count = 0, newest = 0;
-        while (dirent *e = readdir(dir)) {
+        for (dirent &entry : entries) {
+            dirent *e = &entry;
             const char *name = e->d_name;
             if (name[0] == '.' && (name[1] == 0 || (name[1] == '.' && name[2] == 0)))
                 continue;
@@ -233,7 +250,7 @@ private:
                 if (m_fenced.count(childPath) || std::strcmp(name, ".snapshots") == 0)
                     child->skipped = true;
                 else
-                    found.push_back({ child.get(), std::move(childPath), kinds::ofFolder(name, path == "/", item.kind) });
+                    found.push_back({ child.get(), std::move(childPath), kinds::ofFolder(name, path == "/", item.kind), repo || name[0] == '.' });
                 node->dirs.push_back(std::move(child));
                 continue;
             }
@@ -247,6 +264,10 @@ private:
             newest = std::max<qint64>(newest, st.st_mtim.tv_sec);
             if (S_ISREG(st.st_mode) && (heap.size() < TopKept || size > heap.front().size))
                 keep(heap, joinPath(path, name), size, st.st_mtim.tv_sec, kind);
+            // Only what no folder has claimed is the person's own; a game's or a package's copies are its business.
+            if (S_ISREG(st.st_mode) && item.kind == kinds::None && !repo && st.st_size >= duplicates::Smallest
+                && !(st.st_mode & 0111) && kind != kinds::System && kind != kinds::Developer)
+                mine.push_back({ joinPath(path, name), qint64(st.st_size), size, st.st_mtim.tv_sec, st.st_dev, st.st_ino });
         }
         closedir(dir);
 
@@ -322,6 +343,11 @@ void sortTop(std::vector<DiskUsage::Top> &top) {
 DiskUsage::DiskUsage(QObject *parent) : QObject(parent) {
     m_tick.setInterval(150);
     connect(&m_tick, &QTimer::timeout, this, &DiskUsage::progressChanged);
+    m_hashTick.setInterval(150);
+    connect(&m_hashTick, &QTimer::timeout, this, &DiskUsage::hashProgressChanged);
+    m_again.setSingleShot(true);
+    m_again.setInterval(300);
+    connect(&m_again, &QTimer::timeout, this, [this] { findDuplicates(); });
 }
 
 DiskUsage::~DiskUsage() {
@@ -329,12 +355,34 @@ DiskUsage::~DiskUsage() {
         *m_cancelled = true;
     if (m_thread.joinable())
         m_thread.join();
+    if (m_hashCancelled)
+        *m_hashCancelled = true;
+    if (m_hashThread.joinable())
+        m_hashThread.join();
 }
 
-void DiskUsage::scan(const QString &path) {
-    const QString target = QDir::cleanPath(QFileInfo(path.isEmpty() ? QDir::homePath() : path).absoluteFilePath());
+void DiskUsage::scan(const QStringList &paths) {
+    QStringList roots;
+    for (const QString &p : paths.isEmpty() ? QStringList { QDir::homePath() } : paths)
+        roots.append(QDir::cleanPath(QFileInfo(p).absoluteFilePath()));
+    // A root the walk through another one reaches is already counted by it; one behind a mount that
+    // walk stays out of, another disk, is not.
+    std::sort(roots.begin(), roots.end(), [](const QString &a, const QString &b) { return a.size() < b.size(); });
+    QStringList kept;
+    for (const QString &r : roots) {
+        const std::string raw = QFile::encodeName(r).toStdString();
+        const bool reached = std::any_of(kept.begin(), kept.end(), [&](const QString &k) {
+            const std::string outer = QFile::encodeName(k).toStdString();
+            if (!under(raw, outer))
+                return false;
+            const auto fenced = fencedMounts(outer);
+            return std::none_of(fenced.begin(), fenced.end(), [&](const std::string &m) { return under(raw, m); });
+        });
+        if (!reached && !kept.contains(r))
+            kept.append(r);
+    }
     cancel();
-    m_root = target;
+    m_roots = kept;
     const QString home = QDir::homePath();
     m_protected = { QStringLiteral("/"), home };
     for (const auto where : { QStandardPaths::DesktopLocation, QStandardPaths::DocumentsLocation,
@@ -350,11 +398,21 @@ void DiskUsage::scan(const QString &path) {
         m_protected.insert(volume.rootPath());
     m_tree.reset();
     m_top.clear();
+    m_own.clear();
+    cancelDuplicates();
+    m_groups.clear();
+    if (m_duplicatesReady) {
+        m_duplicatesReady = false;
+        emit duplicatesChanged();
+    }
     m_unreadable = 0;
     m_files = 0;
     m_bytes = 0;
     ++m_generation;
-    start({ QFile::encodeName(target).toStdString() }, true);
+    std::vector<std::string> folders;
+    for (const QString &r : m_roots)
+        folders.push_back(QFile::encodeName(r).toStdString());
+    start(std::move(folders), true);
     emit changed();
 }
 
@@ -404,24 +462,30 @@ void DiskUsage::start(std::vector<std::string> folders, bool whole) {
         emit stateChanged();
     }
 
-    const std::string root = QFile::encodeName(m_root).toStdString();
+    std::vector<std::string> roots;
+    for (const QString &r : m_roots)
+        roots.push_back(QFile::encodeName(r).toStdString());
     auto cancelled = m_cancelled;
-    m_thread = std::thread([this, result, cancelled, root] {
+    m_thread = std::thread([this, result, cancelled, roots] {
         QElapsedTimer clock;
         clock.start();
         std::atomic<qint64> files { 0 }, bytes { 0 };
-        Walker walker(fencedMounts(root), *cancelled, result->whole ? m_files : files, result->whole ? m_bytes : bytes);
-        std::vector<std::pair<Node *, std::string>> roots;
+        std::unordered_set<std::string> fenced;
+        for (const std::string &r : roots)
+            fenced.merge(fencedMounts(r));
+        Walker walker(std::move(fenced), *cancelled, result->whole ? m_files : files, result->whole ? m_bytes : bytes);
+        std::vector<std::pair<Node *, std::string>> starts;
         for (const std::string &f : result->folders) {
             auto node = std::make_unique<Node>();
             node->name = f;
-            roots.emplace_back(node.get(), f);
+            starts.emplace_back(node.get(), f);
             result->trees.push_back(std::move(node));
         }
-        walker.run(roots);
+        walker.run(starts);
         for (auto &t : result->trees)
             total(t.get());
         result->top = std::move(walker.top);
+        result->own = std::move(walker.own);
         sortTop(result->top);
         result->unreadable = walker.unreadable;
         result->elapsed = clock.elapsed();
@@ -437,9 +501,17 @@ void DiskUsage::finish(Result *result) {
         m_thread.join();
 
     if (result->whole) {
-        m_tree = std::move(result->trees.front());
-        m_tree->name = QFile::encodeName(m_root).toStdString();
+        // One node above the roots, standing for all of them; each root is named by its whole path.
+        // The roots were totalled as they were walked, so only the node above them is added up here.
+        m_tree = std::make_unique<Node>();
+        for (auto &t : result->trees) {
+            t->parent = m_tree.get();
+            adjust(m_tree.get(), t->size, t->files, t->kinds);
+            m_tree->newest = std::max(m_tree->newest, t->newest);
+            m_tree->dirs.push_back(std::move(t));
+        }
         m_top = std::move(result->top);
+        m_own = std::move(result->own);
         m_unreadable = result->unreadable;
         m_elapsed = int(result->elapsed);
         m_files = m_tree->files;
@@ -476,9 +548,12 @@ void DiskUsage::finish(Result *result) {
                 m_files += files;
             }
             std::erase_if(m_top, [&](const Top &t) { return under(t.path, path); });
+            std::erase_if(m_own, [&](const duplicates::File &f) { return under(f.path, path); });
         }
         m_top.insert(m_top.end(), result->top.begin(), result->top.end());
         sortTop(m_top);
+        m_own.insert(m_own.end(), result->own.begin(), result->own.end());
+        againLater();
     }
     ++m_generation;
     emit changed();
@@ -513,6 +588,8 @@ bool DiskUsage::forget(const QString &path, qint64 size) {
         return true;
     }
     std::erase_if(m_top, [&](const Top &t) { return under(t.path, raw); });
+    std::erase_if(m_own, [&](const duplicates::File &f) { return under(f.path, raw); });
+    againLater();
     ++m_generation;
     emit changed();
     emit progressChanged();
@@ -522,14 +599,17 @@ bool DiskUsage::forget(const QString &path, qint64 size) {
 DiskUsage::Node *DiskUsage::find(const QString &path) const {
     if (!m_tree)
         return nullptr;
-    const QString p = QDir::cleanPath(path);
-    if (p == m_root)
+    if (path.isEmpty())
         return m_tree.get();
-    const QString prefix = m_root == QLatin1String("/") ? m_root : m_root + QLatin1Char('/');
-    if (!p.startsWith(prefix))
+    const std::string p = QFile::encodeName(QDir::cleanPath(path)).toStdString();
+    Node *n = nullptr;
+    for (const auto &r : m_tree->dirs)
+        if (under(p, r->name) && (!n || r->name.size() > n->name.size()))
+            n = r.get();
+    if (!n)
         return nullptr;
-    Node *n = m_tree.get();
-    for (const QString &part : p.mid(prefix.size()).split(QLatin1Char('/'), Qt::SkipEmptyParts)) {
+    const QString rest = QFile::decodeName(QByteArray::fromStdString(p.substr(std::min(p.size(), n->name.size()))));
+    for (const QString &part : rest.split(QLatin1Char('/'), Qt::SkipEmptyParts)) {
         const std::string name = QFile::encodeName(part).toStdString();
         const auto it = std::find_if(n->dirs.begin(), n->dirs.end(), [&](const auto &c) { return c->name == name; });
         if (it == n->dirs.end())
@@ -545,9 +625,12 @@ int dominant(const Kinds &by) {
     return int(std::max_element(by.begin(), by.end()) - by.begin());
 }
 
+// The node above the roots has no path; a root's name is its whole path.
 QString pathOf(const DiskUsage::Node *n) {
+    if (!n->parent)
+        return {};
     std::vector<const std::string *> names;
-    for (; n->parent; n = n->parent)
+    for (; n->parent->parent; n = n->parent)
         names.push_back(&n->name);
     std::string path = n->name;
     for (auto it = names.rbegin(); it != names.rend(); ++it)
@@ -580,7 +663,7 @@ QVariantMap DiskUsage::node(const QString &path) const {
     QVariantMap row = folderRow(n);
     const QString p = QDir::cleanPath(path);
     row[QStringLiteral("path")] = p;
-    row[QStringLiteral("name")] = p == m_root ? p : QFileInfo(p).fileName();
+    row[QStringLiteral("name")] = m_roots.contains(p) || p.isEmpty() ? p : QFileInfo(p).fileName();
     QVariantList by;
     for (qint64 bytes : n->kinds)
         by.append(bytes);
@@ -595,16 +678,12 @@ QVariantList DiskUsage::children(const QString &path, int limit) const {
     const QString dirPath = QDir::cleanPath(path);
     const QByteArray raw = QFile::encodeName(dirPath);
     std::vector<QVariantMap> rows;
-    for (const auto &c : n->dirs) {
-        QVariantMap row = folderRow(c.get());
-        row[QStringLiteral("path")] = dirPath == QLatin1String("/") ? QLatin1Char('/') + row[QStringLiteral("name")].toString()
-                                                                    : dirPath + QLatin1Char('/') + row[QStringLiteral("name")].toString();
-        rows.push_back(std::move(row));
-    }
+    for (const auto &c : n->dirs)
+        rows.push_back(folderRow(c.get()));
 
     // Files are not kept by the scan, so they are read as the folder is opened.
     const int folder = kinds::ofPath(raw.toStdString());
-    const int fd = open(raw.constData(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    const int fd = raw.isEmpty() ? -1 : open(raw.constData(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (DIR *dir = fd < 0 ? nullptr : fdopendir(fd)) {
         while (dirent *e = readdir(dir)) {
             if (e->d_type == DT_DIR)
@@ -827,8 +906,6 @@ QVariantList DiskUsage::evaluate(const QVariantList &rules) const {
     if (!m_tree)
         return {};
     const std::string home = QFile::encodeName(QDir::homePath()).toStdString();
-    const std::string root = m_tree->name;
-    const std::vector<std::string> rootParts = splitPath(root);
     const qint64 now = QDateTime::currentSecsSinceEpoch();
     std::vector<Match> found;
 
@@ -879,20 +956,25 @@ QVariantList DiskUsage::evaluate(const QVariantList &rules) const {
             if (glob.rfind("~/", 0) == 0)
                 glob = home + glob.substr(1);
             std::vector<std::string> parts = splitPath(glob);
-            // An absolute pattern has to pass through the scan's root to be found in the tree.
-            if (glob.rfind("**", 0) != 0) {
+            // An absolute pattern starts at the root it passes through; one from ** at every root.
+            std::vector<std::pair<const Node *, size_t>> starts;
+            const bool anywhere = glob.rfind("**", 0) == 0;
+            for (const auto &r : m_tree->dirs) {
+                if (anywhere) {
+                    starts.push_back({ r.get(), 0 });
+                    continue;
+                }
+                const std::vector<std::string> rootParts = splitPath(r->name);
                 if (parts.size() < rootParts.size())
                     continue;
                 bool through = true;
                 for (size_t i = 0; i < rootParts.size() && through; ++i)
-                    through = parts[i] == "**" ? false : fnmatch(parts[i].c_str(), rootParts[i].c_str(), 0) == 0;
-                if (!through)
-                    continue;
-                parts.erase(parts.begin(), parts.begin() + long(rootParts.size()));
+                    through = parts[i] != "**" && fnmatch(parts[i].c_str(), rootParts[i].c_str(), 0) == 0;
+                if (through)
+                    starts.push_back({ r.get(), rootParts.size() });
             }
             // Anywhere, then a name: start from every folder with that name rather than walking to them.
-            std::vector<std::pair<const Node *, size_t>> starts { { m_tree.get(), 0 } };
-            if (parts.size() > 1 && parts[0] == "**" && !isGlob(parts[1])) {
+            if (anywhere && parts.size() > 1 && !isGlob(parts[1])) {
                 if (m_byNameGeneration != m_generation) {
                     m_byName.clear();
                     std::function<void(const Node *)> index = [&](const Node *n) {
@@ -913,7 +995,7 @@ QVariantList DiskUsage::evaluate(const QVariantList &rules) const {
             }
             PatternWalk walk { parts, {}, {}, withFiles };
             walk.folder = [&](const DiskUsage::Node *n, const std::string &path, const QStringList &caps) {
-                if (n == m_tree.get() || n->size == 0 || !keep(path, n->name, n->newest, true))
+                if (!n->parent || !n->parent->parent || n->size == 0 || !keep(path, n->name, n->newest, true))
                     return;
                 found.push_back({ r, safe, path, n->name, n->size, n->newest, dominant(n->kinds), true, caps });
             };
@@ -939,8 +1021,12 @@ QVariantList DiskUsage::evaluate(const QVariantList &rules) const {
                 }
                 closedir(dir);
             };
-            for (const auto &[node, from] : starts)
-                walk.walk(node, from ? QFile::encodeName(pathOf(node)).toStdString() : root, from, {});
+            // The walk takes the parts after the ones its start stands for.
+            for (const auto &[node, from] : starts) {
+                const std::vector<std::string> rest(parts.begin() + long(from), parts.end());
+                PatternWalk at { rest, walk.folder, walk.files, withFiles };
+                at.walk(node, QFile::encodeName(pathOf(node)).toStdString(), 0, {});
+            }
         }
     }
 
@@ -976,4 +1062,115 @@ QVariantList DiskUsage::evaluate(const QVariantList &rules) const {
 bool DiskUsage::isProtected(const QString &path) const {
     const QString p = QDir::cleanPath(path);
     return m_protected.contains(p) || QFileInfo(p).absolutePath() == QLatin1String("/") || QFileInfo(p).fileName() == QLatin1String(".git");
+}
+
+void DiskUsage::againLater() {
+    if (m_duplicatesReady || m_hashing)
+        m_again.start();
+}
+
+void DiskUsage::cancelDuplicates() {
+    m_again.stop();
+    ++m_hashTicket;
+    if (m_hashCancelled)
+        *m_hashCancelled = true;
+    if (m_hashThread.joinable())
+        m_hashThread.join();
+    if (m_hashing) {
+        m_hashing = false;
+        m_hashTick.stop();
+        emit duplicatesChanged();
+    }
+}
+
+void DiskUsage::findDuplicates() {
+    if (!m_tree || m_scanning)
+        return;
+    cancelDuplicates();
+    // Nothing in the trash is offered as a copy of what is still out of it.
+    const std::string trash = QFile::encodeName(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/Trash")).toStdString();
+    std::vector<duplicates::File> files;
+    for (const duplicates::File &f : m_own)
+        if (!under(f.path, trash))
+            files.push_back(f);
+
+    m_hashCancelled = std::make_shared<std::atomic_bool>(false);
+    m_hashDone = 0;
+    m_hashTotal = 0;
+    m_hashing = true;
+    m_hashTick.start();
+    emit duplicatesChanged();
+    const int ticket = m_hashTicket;
+    auto cancelled = m_hashCancelled;
+    m_hashThread = std::thread([this, files = std::move(files), cancelled, ticket]() mutable {
+        auto groups = std::make_shared<std::vector<duplicates::Group>>(
+            duplicates::find(std::move(files), *cancelled, m_hashDone, m_hashTotal, m_hashCache));
+        const bool stopped = *cancelled;
+        QMetaObject::invokeMethod(this, [this, groups, stopped, ticket] {
+            if (ticket != m_hashTicket || stopped)
+                return;
+            if (m_hashThread.joinable())
+                m_hashThread.join();
+            m_groups = std::move(*groups);
+            m_hashing = false;
+            m_duplicatesReady = true;
+            m_hashTick.stop();
+            emit duplicatesChanged();
+        }, Qt::QueuedConnection);
+    });
+}
+
+qreal DiskUsage::hashProgress() const {
+    const qint64 total = m_hashTotal.load();
+    return total > 0 ? qreal(m_hashDone.load()) / qreal(total) : 0;
+}
+
+QVariantMap DiskUsage::duplicates() const {
+    QVariantList groups;
+    qint64 canFree = 0, files = 0;
+    int sharing = 0;
+    for (const duplicates::Group &g : m_groups) {
+        // Every copy still has to be there; one trashed since the search is not a copy any more.
+        QVariantList list;
+        for (const duplicates::File &f : g.files) {
+            const QString path = QFile::decodeName(QByteArray::fromStdString(f.path));
+            list.append(QVariantMap {
+                { QStringLiteral("name"), QFileInfo(path).fileName() },
+                { QStringLiteral("path"), path },
+                { QStringLiteral("size"), f.bytes },
+                { QStringLiteral("dir"), false },
+                { QStringLiteral("files"), 1 },
+                { QStringLiteral("newest"), f.mtime },
+                { QStringLiteral("kind"), kinds::ofFile(QFile::encodeName(QFileInfo(path).fileName()).constData()) },
+                { QStringLiteral("skipped"), false },
+                { QStringLiteral("other"), false },
+            });
+        }
+        if (g.distinct <= 1) {
+            ++sharing;
+            continue;
+        }
+        const qint64 each = g.files.front().bytes;
+        const qint64 reclaim = each * (g.distinct - 1);
+        canFree += reclaim;
+        files += qint64(g.files.size());
+        groups.append(QVariantMap {
+            { QStringLiteral("name"), list.front().toMap().value(QStringLiteral("name")) },
+            { QStringLiteral("kind"), list.front().toMap().value(QStringLiteral("kind")) },
+            { QStringLiteral("each"), each },
+            { QStringLiteral("count"), int(g.files.size()) },
+            { QStringLiteral("shared"), int(g.files.size()) - g.distinct },
+            { QStringLiteral("reclaim"), reclaim },
+            { QStringLiteral("files"), list },
+        });
+    }
+    std::sort(groups.begin(), groups.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap().value(QStringLiteral("reclaim")).toLongLong() > b.toMap().value(QStringLiteral("reclaim")).toLongLong();
+    });
+    return {
+        { QStringLiteral("groups"), groups },
+        { QStringLiteral("canFree"), canFree },
+        { QStringLiteral("files"), files },
+        { QStringLiteral("sharing"), sharing },
+    };
 }

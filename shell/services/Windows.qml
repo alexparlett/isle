@@ -22,12 +22,13 @@ Singleton {
 
     // The shell draws several windows out of one process, so the compositor gives every one of them the
     // same app id and anything grouping by it would make Settings, Monitor and every Files window one
-    // entry. Three of them are named for themselves; everything else the shell draws is a Files window,
+    // entry. Four of them are named for themselves; everything else the shell draws is a Files window,
     // and they belong together under the one name the way a file manager's windows do.
     readonly property var shellApps: ({
         "org.quickshell.settings": { name: "Settings", icon: "preferences-system" },
         "org.quickshell.keychain": { name: "Keychain", icon: "security-high" },
         "org.quickshell.monitor": { name: "Monitor", icon: "utilities-system-monitor" },
+        "org.quickshell.cleaner": { name: "Cleaner", icon: "drive-harddisk" },
     })
     function shellAppId(title) {
         const named = "org.quickshell." + String(title).toLowerCase();
@@ -357,7 +358,7 @@ Singleton {
         root.fullFrom = from;
     }
 
-    // One of the shell's own windows (Settings, Keychain, Monitor), by title.
+    // One of the shell's own windows (Settings, Keychain, Monitor, Cleaner), by title.
     function focusShellWindow(title) {
         const t = Hyprland.toplevels.values.find(t => t.wayland && t.wayland.appId === "org.quickshell" && t.title === title);
         if (t) raise(entry(t));

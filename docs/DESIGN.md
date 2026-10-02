@@ -524,16 +524,17 @@ the compositor are not groups. The list keeps its place across samples
 and has a thin scrollbar.
 
 The Cleaner is Broom's shape. A sidebar of Overview, Cleanup, Space,
-Large files and Untouched, Cleanup carrying what is safe to clear in the
-accent, with the disk the scan is on at its foot: a usage bar, what
-is free, and in the accent what the basket and the trash would give back,
-with Empty trash. It scans Home as it opens; the header picks another place
-and scans again.
+Duplicates, Large files and Untouched, Cleanup and Duplicates carrying
+what they would free in the accent, with a card for each disk the scan is
+on at its foot: a usage bar, what is free, and in the accent what the
+basket and the trash would give back on that disk, with Empty trash. It
+scans All disks as it opens; the header picks Home or one disk instead and
+scans again.
 
 Overview is a ring and a bar of the scan by kind (games, video, images,
 audio, documents, archives and disk images, developer, apps and system,
 caches and logs, other) with the total large beside it, four cards
-(safe to clear, worth a look, untouched in a year, the trash) that each lead
+(safe to clear, worth a look, duplicates, the trash) that each lead
 somewhere, and two lists: where the space is, which skips folders that are
 only the way to one big child, and the biggest files. Space is one folder at
 a time under a trail of pills, as squarified tiles in the colour of the kind
@@ -551,6 +552,19 @@ starts ticked; Worth a look never does. Beneath the safe list a System card
 holds what only root can clear, each with its own Clear, and says plainly
 that it asks for the password and cannot be put back; a row with nothing
 to clear is not shown.
+
+A tile on the Space map shows its name and size when it has the room;
+any tile, under the pointer, shows a card beside it with its name, size,
+share, file count, kind and last change, kept inside the map.
+
+Duplicates opens comparing, with a bar for the reading and Stop, then
+shows three figures (what can be freed keeping one copy of each, the sets
+of copies, those already sharing space and so not counted) and a card per
+set, largest saving first: the file, how many copies of what size, what
+can go, and every copy by where it is, the one to be kept marked. Keep
+picks the oldest, the newest or the shortest path, and Tick the rest puts
+every other copy in the basket; a set with every copy ticked turns its
+border to warn and says nothing would be left.
 
 Nothing is removed from a row. Every row and tile has a box that puts it in
 the basket (a folder stands for what is under it; a protected place, which

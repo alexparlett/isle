@@ -8,6 +8,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "duplicates.h"
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -21,7 +23,10 @@ class DiskUsage : public QObject {
     QML_ELEMENT
     QML_SINGLETON
 
+    // What was scanned: `root` is the one place, or empty when there are several, which is also the
+    // path that stands for all of them.
     Q_PROPERTY(QString root READ root NOTIFY stateChanged)
+    Q_PROPERTY(QStringList roots READ roots NOTIFY stateChanged)
     Q_PROPERTY(bool scanning READ scanning NOTIFY stateChanged)
     // Whether a finished scan is there to be shown.
     Q_PROPERTY(bool ready READ ready NOTIFY stateChanged)
@@ -33,6 +38,11 @@ class DiskUsage : public QObject {
     Q_PROPERTY(int elapsed READ elapsed NOTIFY stateChanged)
     // What each kind index means, in order.
     Q_PROPERTY(QStringList kindNames READ kindNames CONSTANT)
+    // Whether a search for duplicates is running, how far through the reading it is (0 to 1), and
+    // whether one has finished for this scan.
+    Q_PROPERTY(bool hashing READ hashing NOTIFY duplicatesChanged)
+    Q_PROPERTY(qreal hashProgress READ hashProgress NOTIFY hashProgressChanged)
+    Q_PROPERTY(bool duplicatesReady READ duplicatesReady NOTIFY duplicatesChanged)
     // Bumped whenever the tree changes, so a binding that calls into it can depend on something.
     Q_PROPERTY(int generation READ generation NOTIFY changed)
 
@@ -49,7 +59,8 @@ public:
     explicit DiskUsage(QObject *parent = nullptr);
     ~DiskUsage() override;
 
-    QString root() const { return m_root; }
+    QString root() const { return m_roots.size() == 1 ? m_roots.front() : QString(); }
+    QStringList roots() const { return m_roots; }
     bool scanning() const { return m_scanning; }
     bool ready() const { return bool(m_tree); }
     qint64 files() const { return m_files.load(); }
@@ -58,8 +69,12 @@ public:
     int elapsed() const { return m_elapsed; }
     int generation() const { return m_generation; }
     QStringList kindNames() const;
+    bool hashing() const { return m_hashing; }
+    qreal hashProgress() const;
+    bool duplicatesReady() const { return m_duplicatesReady; }
 
-    Q_INVOKABLE void scan(const QString &path);
+    // Scans these places together, a disk each or a folder; none means home.
+    Q_INVOKABLE void scan(const QStringList &paths);
     Q_INVOKABLE void cancel();
     // Counts these folders again, in the background.
     Q_INVOKABLE void refresh(const QStringList &paths);
@@ -91,6 +106,16 @@ public:
     // same safety one inside or at the other, only the outer, or the earlier rule's, is kept. Rows carry `rule`, the rule's
     // index, and `captures`, what each * matched.
     Q_INVOKABLE QVariantList evaluate(const QVariantList &rules) const;
+    // Looks for files that are the same inside among the person's own of a megabyte or more, in the
+    // background. Once one search has finished, a change to the tree starts another, which reads only
+    // what it has not hashed before.
+    Q_INVOKABLE void findDuplicates();
+    Q_INVOKABLE void cancelDuplicates();
+    // { groups, canFree, files, sharing }: groups largest saving first, each { name, kind, each,
+    // count, shared, reclaim, files } with its copies as rows oldest first; `shared` copies already
+    // share their blocks with another, so `reclaim` leaves them out, and `sharing` counts groups that
+    // are all one set of blocks and so not listed.
+    Q_INVOKABLE QVariantMap duplicates() const;
     // A place trashing from here must never offer: the root, a volume, home and its standard folders.
     Q_INVOKABLE bool isProtected(const QString &path) const;
 
@@ -98,13 +123,16 @@ signals:
     void stateChanged();
     void progressChanged();
     void changed();
+    void duplicatesChanged();
+    void hashProgressChanged();
 
 private:
     void start(std::vector<std::string> folders, bool whole);
     void finish(Result *result);
+    void againLater();
     Node *find(const QString &path) const;
 
-    QString m_root;
+    QStringList m_roots;
     bool m_scanning = false;
     int m_unreadable = 0;
     int m_elapsed = 0;
@@ -116,6 +144,19 @@ private:
     // Every folder by its name, for rules that look anywhere; made again after the tree changes.
     mutable std::unordered_map<std::string, std::vector<const Node *>> m_byName;
     mutable int m_byNameGeneration = -1;
+    std::vector<duplicates::File> m_own;
+    std::vector<duplicates::Group> m_groups;
+    duplicates::Cache m_hashCache;
+    std::thread m_hashThread;
+    std::shared_ptr<std::atomic_bool> m_hashCancelled;
+    std::atomic<qint64> m_hashDone { 0 };
+    std::atomic<qint64> m_hashTotal { 0 };
+    int m_hashTicket = 0;
+    bool m_hashing = false;
+    bool m_duplicatesReady = false;
+    QTimer m_hashTick;
+    // A change to the tree starts the search again once the changes stop coming.
+    QTimer m_again;
     // What isProtected refuses by name, gathered when a scan starts.
     QSet<QString> m_protected;
     std::vector<Top> m_top;

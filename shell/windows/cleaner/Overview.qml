@@ -15,7 +15,6 @@ Flickable {
     readonly property var byKind: (whole.kinds || []).map((b, k) => [k, b]).filter(p => p[1] > 0).sort((a, b) => b[1] - a[1])
     readonly property var hotspots: { DiskUsage.generation; return DiskUsage.hotspots(DiskUsage.root, 8); }
     readonly property var biggest: { DiskUsage.generation; return DiskUsage.largest(DiskUsage.root, 8); }
-    readonly property var old: { DiskUsage.generation; return DiskUsage.untouched(DiskUsage.root, 365, 0); }
 
     function kindBytes(k) { return whole.kinds ? whole.kinds[k] : 0; }
 
@@ -87,7 +86,8 @@ Flickable {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         color: Theme.text2
-                        text: "in " + root.app.placeName + (root.app.mount ? ", on a " + Engine.formatSize(root.app.mount.size) + " disk with " + Engine.formatSize(root.app.mount.size - root.app.mount.used) + " free." : ".")
+                        text: "in " + root.app.placeName + (root.app.disks.length > 1 ? ", across " + root.app.disks.length + " disks with " + Engine.formatSize(root.app.disksFree) + " free."
+                            : root.app.disks.length ? ", on a " + Engine.formatSize(root.app.disks[0].size) + " disk with " + Engine.formatSize(root.app.disksFree) + " free." : ".")
                     }
                     // The same parts as the ring, laid end to end.
                     Row {
@@ -143,10 +143,10 @@ Flickable {
                 action: () => { root.app.cleanupTab = "worth"; root.app.page = "cleanup"; }
             }
             Stat {
-                label: "Untouched in a year"
-                bytes: root.old.size || 0
-                note: "Folders nothing has changed in"
-                action: () => root.app.page = "old"
+                label: "Duplicates"
+                bytes: root.app.dupes.canFree
+                note: DiskUsage.hashing ? "Comparing files…" : DiskUsage.duplicatesReady ? "Copies of your own files, beyond the first" : "Find copies, matched by what is inside"
+                action: () => root.app.page = "duplicates"
             }
             Stat {
                 label: "In the trash"

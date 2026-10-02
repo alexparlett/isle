@@ -12,7 +12,8 @@ const std::unordered_map<std::string, int> &folders() {
     static const std::unordered_map<std::string, int> map {
         { "steamapps", Games }, { "Steam", Games }, { ".steam", Games }, { "Games", Games },
         { "lutris", Games }, { "heroic", Games }, { "Heroic", Games }, { "itch", Games },
-        { ".wine", Games }, { "compatibilitytools.d", Games },
+        { ".wine", Games }, { "compatibilitytools.d", Games }, { "compatdata", Games }, { "pfx", Games },
+        { "drive_c", Games },
 
         { ".cache", Caches }, { "cache", Caches }, { "Cache", Caches }, { "caches", Caches },
         { "Caches", Caches }, { "CachedData", Caches }, { "GPUCache", Caches }, { "Code Cache", Caches },
@@ -25,7 +26,8 @@ const std::unordered_map<std::string, int> &folders() {
         { ".yarn", Developer }, { ".gradle", Developer }, { ".m2", Developer }, { ".venv", Developer },
         { "venv", Developer }, { "__pycache__", Developer }, { ".nuget", Developer },
         { ".dotnet", Developer }, { ".android", Developer }, { "Android", Developer },
-        { "docker", Developer }, { "containers", Developer }, { "target", Developer },
+        { "docker", Developer }, { "containers", Developer }, { "target", Developer }, { "site-packages", Developer },
+        { "dist-packages", Developer },
 
         { "flatpak", System }, { "Applications", System }, { "pacman", System },
     };

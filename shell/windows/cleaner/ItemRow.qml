@@ -22,7 +22,9 @@ Rectangle {
 
     // Too narrow for the bar and the count, which give way to the name.
     readonly property bool compact: width < 480
-    readonly property bool hovered: area.containsMouse
+    // A handler rather than the row's MouseArea, which loses the pointer to the buttons on it.
+    readonly property bool hovered: hover.hovered
+    HoverHandler { id: hover }
     readonly property bool real: !!item.path && !item.other && !item.skipped
     readonly property bool picked: { app.basketRev; return real && app.inBasket(item.path); }
     readonly property color tint: item.skipped || item.other ? Theme.text3 : Kinds.color(item.kind)

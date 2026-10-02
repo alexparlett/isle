@@ -15,6 +15,9 @@ Item {
     property real total: 1
 
     readonly property var tiles: layout(items.filter(i => i.size > 0 && !i.skipped), width, height)
+    // The tile under the pointer and where the pointer is, for the card that says what it is.
+    property var hovered: null
+    property point pointer
     // Unticked tiles stand back only while something here is ticked.
     readonly property bool anyPicked: { app.basketRev; return items.some(i => !i.other && app.inBasket(i.path)); }
 
@@ -75,16 +78,20 @@ Item {
             opacity: root.anyPicked && !picked ? 0.72 : 1
             clip: true
 
+            // The tile's own hover, which the box on it does not take away.
+            HoverHandler {
+                id: tileHover
+                onHoveredChanged: if (hovered) root.hovered = tile.item; else if (root.hovered === tile.item) root.hovered = null
+                onPointChanged: if (hovered) root.pointer = tile.mapToItem(root, point.position)
+            }
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius
-                color: Qt.alpha("#FFFFFF", tileArea.containsMouse ? 0.16 : 0)
+                color: Qt.alpha("#FFFFFF", tileHover.hovered ? 0.16 : 0)
                 Behavior on color { ColorAnimation { duration: Theme.quick } }
             }
             MouseArea {
-                id: tileArea
                 anchors.fill: parent
-                hoverEnabled: true
                 cursorShape: tile.item.dir ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: if (!tile.item.other) root.app.open(tile.item)
             }
@@ -98,9 +105,9 @@ Item {
                     implicitWidth: 24
                     implicitHeight: 24
                     radius: 7
-                    color: Qt.alpha(tile.ink, tile.picked || tileArea.containsMouse ? 0.22 : 0.1)
-                    Glyph { anchors.centerIn: parent; visible: !tile.picked && !tileArea.containsMouse; name: tile.item.dir ? "folder" : Kinds.glyph(tile.item.kind); size: 13; color: tile.ink }
-                    Check { anchors.centerIn: parent; visible: tile.picked || tileArea.containsMouse; app: root.app; item: tile.item }
+                    color: Qt.alpha(tile.ink, tile.picked || tileHover.hovered ? 0.22 : 0.1)
+                    Glyph { anchors.centerIn: parent; visible: !tile.picked && !tileHover.hovered; name: tile.item.dir ? "folder" : Kinds.glyph(tile.item.kind); size: 13; color: tile.ink }
+                    Check { anchors.centerIn: parent; visible: tile.picked || tileHover.hovered; app: root.app; item: tile.item }
                 }
                 Item { Layout.fillWidth: true }
                 Label {
@@ -139,6 +146,56 @@ Item {
                     size: Theme.sizeCaption
                     color: Qt.alpha(tile.ink, 0.65)
                 }
+            }
+        }
+    }
+
+    // What the tile under the pointer is, beside the pointer, kept inside the map.
+    Rectangle {
+        id: tip
+        readonly property var item: root.hovered
+        visible: !!item && opacity > 0
+        opacity: item ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.quick } }
+        z: 10
+        width: Math.min(320, tipCol.implicitWidth + Theme.s3 * 2)
+        height: tipCol.implicitHeight + Theme.s2 * 2
+        x: Math.max(0, Math.min(root.width - width, root.pointer.x + 16))
+        y: root.pointer.y + 20 + height > root.height ? Math.max(0, root.pointer.y - height - 8) : root.pointer.y + 20
+        radius: Theme.radiusControl
+        color: Theme.raised
+        border.width: 1
+        border.color: Theme.hairlineStrong
+        ColumnLayout {
+            id: tipCol
+            anchors { left: parent.left; top: parent.top; margins: Theme.s2; leftMargin: Theme.s3 }
+            width: Math.min(implicitWidth, 320 - Theme.s3 * 2)
+            spacing: 1
+            RowLayout {
+                spacing: Theme.s2
+                Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: tip.item && !tip.item.other ? Kinds.color(tip.item.kind) : Theme.text3 }
+                Label {
+                    Layout.maximumWidth: 260
+                    text: !tip.item ? "" : tip.item.other ? root.app.count(tip.item.files) + " smaller items" : tip.item.name
+                    weight: Font.DemiBold
+                    elide: Text.ElideMiddle
+                }
+            }
+            Label {
+                text: !tip.item ? "" : Engine.formatSize(tip.item.size) + "  ·  " + (tip.item.size / root.total * 100).toFixed(1) + "%"
+                    + (tip.item.dir ? "  ·  " + root.app.count(tip.item.files) + (tip.item.files === 1 ? " file" : " files") : "")
+                size: Theme.sizeSmall
+                mono: true
+                tabular: true
+                color: Theme.text2
+            }
+            Label {
+                visible: !!tip.item && !tip.item.other
+                Layout.maximumWidth: 296
+                text: !tip.item || tip.item.other ? "" : DiskUsage.kindNames[tip.item.kind] + (tip.item.newest ? "  ·  changed " + root.app.ago(tip.item.newest) : "")
+                size: Theme.sizeCaption
+                color: Theme.text3
+                elide: Text.ElideRight
             }
         }
     }

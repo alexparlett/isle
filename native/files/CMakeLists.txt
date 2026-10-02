@@ -33,6 +33,8 @@ qt_add_qml_module(isle-files
         diskusage.cpp
         kinds.h
         kinds.cpp
+        duplicates.h
+        duplicates.cpp
 )
 
 target_compile_definitions(isle-files PRIVATE ISLE_FILES_VERSION="${PROJECT_VERSION}")

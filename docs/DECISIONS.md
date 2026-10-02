@@ -1190,3 +1190,29 @@ anything moves, the disk card shows what it would give back, and one job
 takes it all, so one Undo puts it all back. The trash is not the end: on
 the same volume it frees nothing, so the bar says so after a move and
 offers Empty trash, which asks first.
+
+**D89 · Cleanup is rules over the scan, the XDG cache rule first among
+them, and the system's share goes through root rather than the trash.**
+A cleaner that knows a list of apps knows those apps. The freedesktop base
+directory specification already says what may go: `~/.cache` is for data
+an application can do without, and a Flatpak app's own `cache` is the same.
+So the general rule is every entry there, each named for the app that made
+it, less the few that misuse it (model weights, shader caches that stutter
+games while they rebuild, a clipboard history). Everything else is a named
+rule for a place the specification does not cover: package stores, the
+caches Electron apps keep in `~/.config`, build folders, which only count
+while their project file sits beside them, and what Steam leaves after an
+uninstall, which is found by the missing `appmanifest` in the same library.
+A named rule comes before the general one and wins where both match.
+
+The rules are data so that adding a place is not a release: a person's own
+file is read beside the shipped one. They are matched against the tree the
+scan already holds, so a cleanup costs a walk of memory, not of the disk.
+
+Safe to clear is ticked for you and Worth a look never is: the second list
+is things a person may still want, and the difference between the lists is
+exactly whether the machine can make it again. The package cache, orphaned
+packages, the journal and crash dumps belong to root; moving them to a
+trash is not possible, so they are cleared by their own tools through
+`pkexec`, one authorisation each, under a card that says they cannot be put
+back.

@@ -15,6 +15,8 @@ Item {
     property real total: 1
 
     readonly property var tiles: layout(items.filter(i => i.size > 0 && !i.skipped), width, height)
+    // Unticked tiles stand back only while something here is ticked.
+    readonly property bool anyPicked: { app.basketRev; return items.some(i => !i.other && app.inBasket(i.path)); }
 
     function layout(list, w, h) {
         const sum = list.reduce((s, i) => s + i.size, 0);
@@ -70,7 +72,7 @@ Item {
             height: Math.max(0, modelData.h - 4)
             radius: Math.min(Theme.radiusControl, width / 3, height / 3)
             color: item.other ? Qt.alpha(Theme.text, 0.12) : Kinds.color(item.kind)
-            opacity: root.app.basketCount && !picked ? 0.72 : 1
+            opacity: root.anyPicked && !picked ? 0.72 : 1
             clip: true
 
             Rectangle {

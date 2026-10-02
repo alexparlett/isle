@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Isle.Files
 import qs.theme
 import qs.ui
@@ -23,12 +24,15 @@ FloatingWindow {
         if (!visible) return;
         take();
         if (!DiskUsage.ready && !DiskUsage.scanning) start(Engine.home);
+        readSystem();
     }
 
     property string page: "overview"
     property string spaceView: "tiles"
+    property string cleanupTab: "safe"
     readonly property var pages: [
         { id: "overview", label: "Overview", glyph: "house" },
+        { id: "cleanup", label: "Cleanup", glyph: "wand-sparkles" },
         { id: "space", label: "Space", glyph: "layout-grid" },
         { id: "large", label: "Large files", glyph: "file-search" },
         { id: "old", label: "Untouched", glyph: "clock" },
@@ -47,6 +51,108 @@ FloatingWindow {
     readonly property string trashDir: Engine.parentOf(FileJobs.trashPath)
     // The trash's own bookkeeping takes a few blocks even when it is empty.
     readonly property real trashHeld: { DiskUsage.generation; const n = DiskUsage.ready ? DiskUsage.node(trashDir) : ({}); return n.size > 65536 ? n.size : 0; }
+
+    // The cleanup rules: the shell's own, then the person's from ~/.config/isle/cleaner.json, whose
+    // groups add to one of the same id or stand on their own.
+    property var shippedGroups: []
+    property var ownGroups: []
+    readonly property var ruleGroups: {
+        const out = shippedGroups.map(g => Object.assign({}, g, { rules: g.rules.slice() }));
+        for (const g of ownGroups) {
+            const same = out.find(o => o.id === g.id);
+            if (same) same.rules = same.rules.concat(g.rules || []);
+            else out.push(Object.assign({ glyph: "folder", kind: 0, note: "", safe: false }, g, { rules: g.rules || [] }));
+        }
+        return out;
+    }
+    readonly property var flatRules: {
+        const out = [];
+        ruleGroups.forEach((g, gi) => g.rules.forEach(r => out.push(Object.assign({ group: gi, safe: !!g.safe }, r))));
+        return out;
+    }
+    FileView {
+        path: Quickshell.shellDir + "/windows/cleaner/rules.json"
+        onLoaded: { try { root.shippedGroups = JSON.parse(text()).groups || []; } catch (e) { root.shippedGroups = []; } }
+    }
+    FileView {
+        path: Quickshell.env("HOME") + "/.config/isle/cleaner.json"
+        printErrors: false
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: { try { root.ownGroups = JSON.parse(text()).groups || []; } catch (e) { root.ownGroups = []; } }
+        onLoadFailed: root.ownGroups = []
+    }
+
+    // What the rules match in the scan, as { safe: [group], worth: [group], safeSize, worthSize }, each
+    // group with its items largest first. Nothing already in the trash is offered again.
+    readonly property var cleanup: {
+        DiskUsage.generation;
+        const empty = { safe: [], worth: [], safeSize: 0, worthSize: 0 };
+        if (!DiskUsage.ready || DiskUsage.scanning || !flatRules.length) return empty;
+        const groups = ruleGroups.map(g => ({ id: g.id, name: g.name, glyph: g.glyph, kind: g.kind, note: g.note, safe: !!g.safe, items: [], size: 0 }));
+        for (const m of DiskUsage.evaluate(flatRules)) {
+            if (within(m.path, trashDir)) continue;
+            const rule = flatRules[m.rule], g = groups[rule.group];
+            g.items.push(Object.assign({}, m, { name: label(rule, m) }));
+            g.size += m.size;
+        }
+        const out = empty;
+        for (const g of groups) {
+            if (!g.items.length) continue;
+            g.items.sort((a, b) => b.size - a.size);
+            (g.safe ? out.safe : out.worth).push(g);
+            if (g.safe) out.safeSize += g.size; else out.worthSize += g.size;
+        }
+        out.safe.sort((a, b) => b.size - a.size);
+        out.worth.sort((a, b) => b.size - a.size);
+        return out;
+    }
+    // A match's name from its rule: {name}, {project} (the folder it sits in), {1} and on for what each *
+    // matched, then the rule's own replacements; a name in `names` is said the way the rule says it.
+    function label(rule, m) {
+        if (!rule.label) return rule.name;
+        let t = rule.label.replace(/\{name\}/g, rule.names && rule.names[m.name] ? rule.names[m.name] : m.name)
+                          .replace(/\{project\}/g, projectOf(m.path))
+                          .replace(/\{(\d+)\}/g, (_, n) => m.captures[Number(n) - 1] || "");
+        for (const r of rule.replace || []) t = t.replace(new RegExp(r[0], "g"), r[1]);
+        return t;
+    }
+    // The folder a match belongs to, looking past a worktrees folder to the repository that has it.
+    function projectOf(path) {
+        let p = Engine.parentOf(path);
+        if (Engine.displayName(p) === "worktrees") p = Engine.parentOf(p);
+        if (Engine.displayName(p) === ".claude") p = Engine.parentOf(p);
+        return Engine.displayName(p);
+    }
+    // Safe items start ticked, once for each scan, the first time Cleanup is looked at.
+    property real preselectedFor: -1
+    function preselect() {
+        if (page !== "cleanup" || !DiskUsage.ready || !scannedAt || preselectedFor === scannedAt || !cleanup.safe.length) return;
+        preselectedFor = scannedAt;
+        addAll(cleanup.safe.reduce((all, g) => all.concat(g.items), []));
+    }
+    onPageChanged: preselect()
+    onCleanupChanged: preselect()
+
+    // What the system keeps that only root can clear: [{ id, name, note, size }].
+    property var system: []
+    property string systemRunning: ""
+    readonly property string systemScript: Quickshell.shellDir + "/scripts/syscleanup.py"
+    Process {
+        id: systemStatus
+        command: ["python3", root.systemScript, "status"]
+        stdout: StdioCollector { onStreamFinished: { try { root.system = JSON.parse(text).items || []; } catch (e) { root.system = []; } } }
+    }
+    Process {
+        id: systemRun
+        onExited: { root.systemRunning = ""; root.readSystem(); }
+    }
+    function readSystem() { if (!systemStatus.running) systemStatus.running = true; }
+    function clearSystem(id) {
+        systemRunning = id;
+        systemRun.command = ["pkexec", "/usr/bin/python3", systemScript, "run", id];
+        systemRun.running = true;
+    }
 
     // What is to go to the trash, by path. A folder in it stands for everything under it.
     property var basket: ({})
@@ -104,6 +210,12 @@ FloatingWindow {
     }
     function addAll(rows) {
         for (const r of rows) if (r.path && !r.other && !r.skipped && !inBasket(r.path)) toggle(r);
+    }
+    function removeAll(rows) {
+        const b = Object.assign({}, basket);
+        for (const r of rows) delete b[r.path];
+        basket = b;
+        basketRev++;
     }
     function clear() { basket = {}; basketRev++; }
     function trashBasket() {
@@ -201,6 +313,14 @@ FloatingWindow {
                             spacing: Theme.s2 + 2
                             Glyph { name: nav.modelData.glyph; size: 15; color: nav.sel ? Theme.accent : Theme.text2 }
                             Label { text: nav.modelData.label; size: Theme.sizeSmall; weight: Font.DemiBold; color: nav.sel ? Theme.text : Theme.text2; Layout.fillWidth: true }
+                            Label {
+                                visible: nav.modelData.id === "cleanup" && root.cleanup.safeSize > 0
+                                text: Engine.formatSize(root.cleanup.safeSize)
+                                size: Theme.sizeCaption
+                                weight: Font.DemiBold
+                                mono: true
+                                color: Theme.accent
+                            }
                         }
                         MouseArea { id: navArea; anchors.fill: parent; hoverEnabled: true; enabled: DiskUsage.ready; cursorShape: Qt.PointingHandCursor; onClicked: root.page = nav.modelData.id }
                     }
@@ -347,7 +467,7 @@ FloatingWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 sourceComponent: !DiskUsage.ready ? null
-                    : root.page === "space" ? spacePage : root.page === "large" ? largePage : root.page === "old" ? oldPage : overviewPage
+                    : root.page === "cleanup" ? cleanupPage : root.page === "space" ? spacePage : root.page === "large" ? largePage : root.page === "old" ? oldPage : overviewPage
             }
 
             // The basket, what was just sent, or the question before emptying the trash.
@@ -426,6 +546,7 @@ FloatingWindow {
 
     Component { id: overviewPage; Overview { app: root } }
     Component { id: spacePage; Space { app: root } }
+    Component { id: cleanupPage; Cleanup { app: root } }
     Component {
         id: largePage
         FileList {

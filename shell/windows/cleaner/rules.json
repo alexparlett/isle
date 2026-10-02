@@ -1,0 +1,583 @@
+{
+  "groups": [
+    {
+      "id": "packages",
+      "name": "Package downloads",
+      "glyph": "package",
+      "kind": 7,
+      "safe": true,
+      "note": "Downloaded again the next time a build needs them",
+      "rules": [
+        {
+          "name": "npm",
+          "paths": [
+            "~/.npm/_cacache"
+          ]
+        },
+        {
+          "name": "pnpm",
+          "paths": [
+            "~/.local/share/pnpm/store"
+          ]
+        },
+        {
+          "name": "Bun",
+          "paths": [
+            "~/.bun/install/cache"
+          ]
+        },
+        {
+          "name": "Cargo",
+          "paths": [
+            "~/.cargo/registry/cache",
+            "~/.cargo/registry/src",
+            "~/.cargo/git/checkouts"
+          ]
+        },
+        {
+          "name": "Gradle",
+          "paths": [
+            "~/.gradle/caches"
+          ]
+        },
+        {
+          "name": "Maven",
+          "paths": [
+            "~/.m2/repository"
+          ]
+        },
+        {
+          "name": "NuGet",
+          "paths": [
+            "~/.nuget/packages"
+          ]
+        },
+        {
+          "name": "Yarn",
+          "paths": [
+            "~/.yarn/berry/cache"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "build",
+      "name": "Build folders",
+      "glyph": "code",
+      "kind": 7,
+      "safe": true,
+      "note": "Made again by the next build; only where the project file is still beside them",
+      "rules": [
+        {
+          "name": "node_modules",
+          "label": "{project}",
+          "paths": [
+            "**/node_modules"
+          ],
+          "beside": [
+            "package.json"
+          ]
+        },
+        {
+          "name": "Rust",
+          "label": "{project}",
+          "paths": [
+            "**/target"
+          ],
+          "beside": [
+            "Cargo.toml"
+          ]
+        },
+        {
+          "name": "Python environments",
+          "label": "{project}",
+          "paths": [
+            "**/.venv",
+            "**/venv"
+          ],
+          "beside": [
+            "pyproject.toml",
+            "requirements.txt",
+            "setup.py",
+            "Pipfile"
+          ]
+        },
+        {
+          "name": "CMake",
+          "label": "{project}",
+          "paths": [
+            "**/build",
+            "**/cmake-build-*"
+          ],
+          "beside": [
+            "CMakeLists.txt"
+          ]
+        },
+        {
+          "name": "Meson",
+          "label": "{project}",
+          "paths": [
+            "**/builddir"
+          ],
+          "beside": [
+            "meson.build"
+          ]
+        },
+        {
+          "name": "Gradle",
+          "label": "{project}",
+          "paths": [
+            "**/build",
+            "**/.gradle"
+          ],
+          "beside": [
+            "build.gradle",
+            "build.gradle.kts",
+            "settings.gradle",
+            "settings.gradle.kts"
+          ]
+        },
+        {
+          "name": "Web frameworks",
+          "label": "{project}",
+          "paths": [
+            "**/.next",
+            "**/.nuxt",
+            "**/.svelte-kit",
+            "**/.turbo",
+            "**/.parcel-cache",
+            "**/.angular"
+          ],
+          "beside": [
+            "package.json"
+          ]
+        },
+        {
+          "name": "Zig",
+          "label": "{project}",
+          "paths": [
+            "**/zig-cache",
+            "**/.zig-cache",
+            "**/zig-out"
+          ],
+          "beside": [
+            "build.zig"
+          ]
+        },
+        {
+          "name": "Dart",
+          "label": "{project}",
+          "paths": [
+            "**/.dart_tool"
+          ],
+          "beside": [
+            "pubspec.yaml"
+          ]
+        },
+        {
+          "name": "Elixir",
+          "label": "{project}",
+          "paths": [
+            "**/_build",
+            "**/deps"
+          ],
+          "beside": [
+            "mix.exs"
+          ]
+        },
+        {
+          "name": "Haskell",
+          "label": "{project}",
+          "paths": [
+            "**/.stack-work",
+            "**/dist-newstyle"
+          ],
+          "beside": [
+            "stack.yaml",
+            "cabal.project"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "caches",
+      "name": "App caches",
+      "glyph": "app-window",
+      "kind": 9,
+      "safe": true,
+      "note": "Kept only to be quick; every app makes its cache again",
+      "rules": [
+        {
+          "name": "Electron apps",
+          "label": "{1}",
+          "paths": [
+            "~/.config/*/Cache",
+            "~/.config/*/Code Cache",
+            "~/.config/*/GPUCache",
+            "~/.config/*/DawnGraphiteCache",
+            "~/.config/*/DawnWebGPUCache",
+            "~/.config/*/Service Worker/CacheStorage"
+          ]
+        },
+        {
+          "name": "Crash reports",
+          "label": "{1} crash reports",
+          "paths": [
+            "~/.config/*/Crashpad/completed",
+            "~/.config/*/Crashpad/pending",
+            "~/.config/*/Crash Reports"
+          ]
+        },
+        {
+          "name": "Flatpak apps",
+          "label": "{1}",
+          "paths": [
+            "~/.var/app/*/cache"
+          ]
+        },
+        {
+          "name": "Steam web pages",
+          "paths": [
+            "~/.local/share/Steam/config/htmlcache",
+            "~/.local/share/Steam/appcache/httpcache"
+          ]
+        },
+        {
+          "name": "Caches",
+          "label": "{name}",
+          "files": true,
+          "paths": [
+            "~/.cache/*"
+          ],
+          "names": {
+            "mozilla": "Firefox",
+            "zen": "Zen",
+            "librewolf": "LibreWolf",
+            "chromium": "Chromium",
+            "google-chrome": "Google Chrome",
+            "BraveSoftware": "Brave",
+            "vivaldi": "Vivaldi",
+            "microsoft-edge": "Microsoft Edge",
+            "thumbnails": "Thumbnails",
+            "spotify": "Spotify",
+            "JetBrains": "JetBrains",
+            "fontconfig": "Font cache",
+            "pip": "pip",
+            "uv": "uv",
+            "yarn": "Yarn",
+            "go-build": "Go builds",
+            "deno": "Deno",
+            "paru": "paru",
+            "yay": "yay",
+            "pnpm": "pnpm",
+            "electron": "Electron",
+            "node-gyp": "node-gyp",
+            "pre-commit": "pre-commit",
+            "ms-playwright": "Playwright browsers",
+            "flatpak": "Flatpak",
+            "mesa_shader_cache": "Mesa shaders",
+            "winetricks": "Winetricks",
+            "lutris": "Lutris",
+            "heroic": "Heroic",
+            "Steam": "Steam",
+            "vscode-cpptools": "VS Code C++",
+            "typescript": "TypeScript",
+            "bazel": "Bazel",
+            "ccache": "ccache",
+            "sccache": "sccache",
+            "nix": "Nix",
+            "pypoetry": "Poetry"
+          },
+          "except": [
+            "huggingface",
+            "torch",
+            "whisper",
+            "lm-studio",
+            "mesa_shader_cache",
+            "mesa_shader_cache_db",
+            "nvidia",
+            "dxvk",
+            "vkd3d-proton",
+            "cliphist",
+            "keepassxc",
+            "isle",
+            "*.lock"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "games",
+      "name": "Games you no longer have",
+      "glyph": "gamepad-2",
+      "kind": 1,
+      "safe": false,
+      "note": "Left by Steam after an uninstall. A prefix can hold saves that Steam Cloud does not",
+      "rules": [
+        {
+          "name": "Proton prefix",
+          "label": "Proton prefix \u00b7 app {name}",
+          "paths": [
+            "**/steamapps/compatdata/*"
+          ],
+          "pattern": "^[1-9][0-9]{0,8}$",
+          "unless": [
+            "{match}/../../appmanifest_{name}.acf"
+          ]
+        },
+        {
+          "name": "Shader cache",
+          "label": "Shader cache \u00b7 app {name}",
+          "paths": [
+            "**/steamapps/shadercache/*"
+          ],
+          "pattern": "^[1-9][0-9]{0,8}$",
+          "unless": [
+            "{match}/../../appmanifest_{name}.acf"
+          ]
+        },
+        {
+          "name": "Workshop",
+          "label": "Workshop items \u00b7 app {name}",
+          "paths": [
+            "**/steamapps/workshop/content/*"
+          ],
+          "pattern": "^[1-9][0-9]{0,8}$",
+          "unless": [
+            "{match}/../../../appmanifest_{name}.acf"
+          ]
+        },
+        {
+          "name": "Unfinished download",
+          "label": "Unfinished download \u00b7 app {name}",
+          "paths": [
+            "**/steamapps/downloading/*"
+          ],
+          "pattern": "^[1-9][0-9]{0,8}$",
+          "unless": [
+            "{match}/../../appmanifest_{name}.acf"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "runners",
+      "name": "Proton and Wine versions",
+      "glyph": "gamepad-2",
+      "kind": 1,
+      "safe": false,
+      "note": "Versions downloaded alongside Steam's own. A game set to one needs it",
+      "rules": [
+        {
+          "name": "Steam",
+          "label": "{name}",
+          "paths": [
+            "~/.local/share/Steam/compatibilitytools.d/*"
+          ]
+        },
+        {
+          "name": "Lutris",
+          "label": "{name}",
+          "paths": [
+            "~/.local/share/lutris/runners/wine/*"
+          ]
+        },
+        {
+          "name": "Heroic",
+          "label": "{name}",
+          "paths": [
+            "~/.config/heroic/tools/proton/*",
+            "~/.config/heroic/tools/wine/*"
+          ]
+        },
+        {
+          "name": "Bottles",
+          "label": "{name}",
+          "paths": [
+            "~/.local/share/bottles/runners/*"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shaders",
+      "name": "Graphics shader caches",
+      "glyph": "database-backup",
+      "kind": 9,
+      "safe": false,
+      "note": "Made again as games run, which stutters while it happens",
+      "rules": [
+        {
+          "name": "Mesa",
+          "paths": [
+            "~/.cache/mesa_shader_cache",
+            "~/.cache/mesa_shader_cache_db"
+          ]
+        },
+        {
+          "name": "NVIDIA",
+          "paths": [
+            "~/.cache/nvidia"
+          ]
+        },
+        {
+          "name": "DXVK and VKD3D",
+          "paths": [
+            "~/.cache/dxvk",
+            "~/.cache/vkd3d-proton"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "models",
+      "name": "AI models",
+      "glyph": "cpu",
+      "kind": 7,
+      "safe": false,
+      "note": "Downloaded again on next use, which can take a while",
+      "rules": [
+        {
+          "name": "Hugging Face",
+          "label": "{1}",
+          "replace": [
+            [
+              "^(models|datasets)--",
+              ""
+            ],
+            [
+              "--",
+              "/"
+            ]
+          ],
+          "paths": [
+            "~/.cache/huggingface/hub/models--*",
+            "~/.cache/huggingface/hub/datasets--*"
+          ]
+        },
+        {
+          "name": "Ollama models",
+          "paths": [
+            "~/.ollama/models"
+          ]
+        },
+        {
+          "name": "LM Studio",
+          "label": "{1}/{2}",
+          "paths": [
+            "~/.lmstudio/models/*/*",
+            "~/.cache/lm-studio/models/*/*"
+          ]
+        },
+        {
+          "name": "PyTorch hub",
+          "paths": [
+            "~/.cache/torch"
+          ]
+        },
+        {
+          "name": "Whisper",
+          "paths": [
+            "~/.cache/whisper"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "worktrees",
+      "name": "Agent worktrees",
+      "glyph": "list-tree",
+      "kind": 7,
+      "safe": false,
+      "note": "Checkouts agents worked in. Anything not merged or pushed goes with them",
+      "rules": [
+        {
+          "name": "Worktree",
+          "label": "{project} \u00b7 {1}",
+          "paths": [
+            "**/.claude/worktrees/*",
+            "**/.worktrees/*"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "downloads",
+      "name": "Old downloads",
+      "glyph": "download",
+      "kind": 6,
+      "safe": false,
+      "note": "Installers and archives from more than a month ago, and anything untouched for a year",
+      "rules": [
+        {
+          "name": "Installers and archives",
+          "label": "{name}",
+          "files": true,
+          "olderThan": 30,
+          "paths": [
+            "~/Downloads/*"
+          ],
+          "endings": [
+            ".iso",
+            ".img",
+            ".appimage",
+            ".deb",
+            ".rpm",
+            ".exe",
+            ".msi",
+            ".dmg",
+            ".zip",
+            ".tar.gz",
+            ".tgz",
+            ".tar.xz",
+            ".tar.zst",
+            ".7z",
+            ".rar"
+          ]
+        },
+        {
+          "name": "Untouched for a year",
+          "label": "{name}",
+          "files": true,
+          "olderThan": 365,
+          "paths": [
+            "~/Downloads/*"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vms",
+      "name": "Virtual machines",
+      "glyph": "hard-drive",
+      "kind": 6,
+      "safe": false,
+      "note": "Disk images that keep a whole machine",
+      "rules": [
+        {
+          "name": "libvirt",
+          "label": "{name}",
+          "files": true,
+          "paths": [
+            "~/.local/share/libvirt/images/*"
+          ]
+        },
+        {
+          "name": "GNOME Boxes",
+          "label": "{name}",
+          "files": true,
+          "paths": [
+            "~/.local/share/gnome-boxes/images/*"
+          ]
+        },
+        {
+          "name": "VirtualBox",
+          "label": "{name}",
+          "paths": [
+            "~/VirtualBox VMs/*"
+          ]
+        }
+      ]
+    }
+  ]
+}

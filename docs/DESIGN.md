@@ -523,8 +523,9 @@ a browser's thirty helpers are one row until asked. Session managers and
 the compositor are not groups. The list keeps its place across samples
 and has a thin scrollbar.
 
-The Cleaner is Broom's shape. A sidebar of Overview, Space, Large files
-and Untouched, with the disk the scan is on at its foot: a usage bar, what
+The Cleaner is Broom's shape. A sidebar of Overview, Cleanup, Space,
+Large files and Untouched, Cleanup carrying what is safe to clear in the
+accent, with the disk the scan is on at its foot: a usage bar, what
 is free, and in the accent what the basket and the trash would give back,
 with Empty trash. It scans Home as it opens; the header picks another place
 and scans again.
@@ -532,12 +533,24 @@ and scans again.
 Overview is a ring and a bar of the scan by kind (games, video, images,
 audio, documents, archives and disk images, developer, apps and system,
 caches and logs, other) with the total large beside it, four cards
-(untouched in a year, caches and logs, developer, the trash) that each lead
+(safe to clear, worth a look, untouched in a year, the trash) that each lead
 somewhere, and two lists: where the space is, which skips folders that are
 only the way to one big child, and the biggest files. Space is one folder at
 a time under a trail of pills, as squarified tiles in the colour of the kind
 most of each is, with its share and size, or as a list; a filter narrows
 either. Large files and Untouched are lists.
+
+Cleanup is two lists under a segmented control, Safe to clear and Worth
+a look, each with its total. A list is cards, one per group (app caches,
+package downloads, build folders; games no longer installed, Proton and
+Wine versions, shader caches, AI models, agent worktrees, old downloads,
+virtual machines), each with a box for the whole group, its kind's glyph,
+a line on why it can go, its count and size; a click opens it onto its
+items, each with where it is and when it last changed. Safe to clear
+starts ticked; Worth a look never does. Beneath the safe list a System card
+holds what only root can clear, each with its own Clear, and says plainly
+that it asks for the password and cannot be put back; a row with nothing
+to clear is not shown.
 
 Nothing is removed from a row. Every row and tile has a box that puts it in
 the basket (a folder stands for what is under it; a protected place, which

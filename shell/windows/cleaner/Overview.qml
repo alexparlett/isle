@@ -130,24 +130,23 @@ Flickable {
             Layout.fillWidth: true
             spacing: Theme.s4
             Stat {
+                label: "Safe to clear"
+                bytes: root.app.cleanup.safeSize
+                tint: Theme.accent
+                note: "Caches, package downloads and build folders"
+                action: () => { root.app.cleanupTab = "safe"; root.app.page = "cleanup"; }
+            }
+            Stat {
+                label: "Worth a look"
+                bytes: root.app.cleanup.worthSize
+                note: "Big things you might still want"
+                action: () => { root.app.cleanupTab = "worth"; root.app.page = "cleanup"; }
+            }
+            Stat {
                 label: "Untouched in a year"
                 bytes: root.old.size || 0
                 note: "Folders nothing has changed in"
                 action: () => root.app.page = "old"
-            }
-            Stat {
-                label: "Caches and logs"
-                bytes: root.kindBytes(9)
-                tint: Kinds.color(9)
-                note: "Made again by the apps that made them"
-                action: () => root.app.goTo(Engine.join(Engine.home, ".cache"))
-            }
-            Stat {
-                label: "Developer"
-                bytes: root.kindBytes(7)
-                tint: Kinds.color(7)
-                note: "Build output, dependencies and models"
-                action: () => root.app.page = "space"
             }
             Stat {
                 label: "In the trash"

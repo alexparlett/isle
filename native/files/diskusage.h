@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QSet>
 #include <QQmlEngine>
 #include <QStringList>
 #include <QTimer>
@@ -11,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 // What a volume or folder holds, counted once through and kept as a tree of folders (D87).
@@ -79,6 +81,16 @@ public:
     Q_INVOKABLE QVariantList hotspots(const QString &under, int limit) const;
     // The folders under one where nothing has changed in `days`: { size, items }.
     Q_INVOKABLE QVariantMap untouched(const QString &under, int days, int limit) const;
+    // Matches cleanup rules against the tree. Each rule is { paths, safe, beside, unless, pattern,
+    // olderThan, endings, files, except }: `paths` are globs from / or ~, or from the scan's root when they
+    // start with **, where * is one name and ** any depth. A match is kept when a name in `beside`
+    // sits next to it, the `unless` path ({match} and {name} filled in) does not exist, its name
+    // fits `pattern` and no glob in `except`, nothing in it changed in `olderThan` days, and a file
+    // ends in one of `endings`; `files` lets the last name match files as well as folders. Nothing under .git, a
+    // protected place, or a folder that cannot be written is matched, and of two matches of the
+    // same safety one inside or at the other, only the outer, or the earlier rule's, is kept. Rows carry `rule`, the rule's
+    // index, and `captures`, what each * matched.
+    Q_INVOKABLE QVariantList evaluate(const QVariantList &rules) const;
     // A place trashing from here must never offer: the root, a volume, home and its standard folders.
     Q_INVOKABLE bool isProtected(const QString &path) const;
 
@@ -101,6 +113,11 @@ private:
     std::atomic<qint64> m_bytes { 0 };
 
     std::unique_ptr<Node> m_tree;
+    // Every folder by its name, for rules that look anywhere; made again after the tree changes.
+    mutable std::unordered_map<std::string, std::vector<const Node *>> m_byName;
+    mutable int m_byNameGeneration = -1;
+    // What isProtected refuses by name, gathered when a scan starts.
+    QSet<QString> m_protected;
     std::vector<Top> m_top;
 
     // The walk runs on a thread of its own, which runs the workers; a later scan cancels it first.

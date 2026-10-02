@@ -17,6 +17,8 @@ Rectangle {
     property bool showFiles: true
     // The last column says how many files a folder holds, or when anything in it last changed.
     property bool showAge: false
+    // What to say under the name; where it is, when nothing is given.
+    property string caption: ""
 
     // Too narrow for the bar and the count, which give way to the name.
     readonly property bool compact: width < 480
@@ -70,7 +72,7 @@ Rectangle {
                 Layout.fillWidth: true
                 elide: Text.ElideMiddle
                 text: row.item.skipped ? (row.item.name === ".snapshots" ? "Snapshots share their space with what they copy, so they are not counted" : "Another disk or a system folder, not counted")
-                    : row.app.place(Engine.parentOf(row.item.path))
+                    : row.caption || row.app.place(Engine.parentOf(row.item.path))
                 size: Theme.sizeCaption
                 color: Theme.text3
             }

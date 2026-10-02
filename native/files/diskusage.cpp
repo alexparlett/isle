@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QRegularExpression>
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
@@ -22,6 +23,7 @@
 #include <unordered_set>
 
 #include <dirent.h>
+#include <fnmatch.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -333,6 +335,19 @@ void DiskUsage::scan(const QString &path) {
     const QString target = QDir::cleanPath(QFileInfo(path.isEmpty() ? QDir::homePath() : path).absoluteFilePath());
     cancel();
     m_root = target;
+    const QString home = QDir::homePath();
+    m_protected = { QStringLiteral("/"), home };
+    for (const auto where : { QStandardPaths::DesktopLocation, QStandardPaths::DocumentsLocation,
+                              QStandardPaths::DownloadLocation, QStandardPaths::MusicLocation,
+                              QStandardPaths::PicturesLocation, QStandardPaths::MoviesLocation,
+                              QStandardPaths::TemplatesLocation, QStandardPaths::PublicShareLocation,
+                              QStandardPaths::GenericConfigLocation, QStandardPaths::GenericDataLocation,
+                              QStandardPaths::GenericCacheLocation })
+        m_protected.insert(QStandardPaths::writableLocation(where));
+    for (const char *kept : { "/.local", "/.ssh", "/.gnupg", "/.var", "/.var/app" })
+        m_protected.insert(home + QLatin1String(kept));
+    for (const QStorageInfo &volume : QStorageInfo::mountedVolumes())
+        m_protected.insert(volume.rootPath());
     m_tree.reset();
     m_top.clear();
     m_unreadable = 0;
@@ -728,26 +743,237 @@ QVariantMap DiskUsage::untouched(const QString &underPath, int days, int limit) 
     return { { QStringLiteral("size"), total }, { QStringLiteral("items"), items } };
 }
 
+namespace {
+
+struct Match {
+    int rule = 0;
+    bool safe = false;
+    std::string path;
+    std::string name;
+    qint64 size = 0;
+    qint64 newest = 0;
+    int kind = 0;
+    bool dir = false;
+    QStringList captures;
+};
+
+std::vector<std::string> splitPath(const std::string &path) {
+    std::vector<std::string> out;
+    size_t start = 0;
+    while (start <= path.size()) {
+        size_t end = path.find('/', start);
+        if (end == std::string::npos)
+            end = path.size();
+        if (end > start)
+            out.push_back(path.substr(start, end - start));
+        start = end + 1;
+    }
+    return out;
+}
+
+bool isGlob(const std::string &s) { return s.find_first_of("*?[") != std::string::npos; }
+
+bool exists(const std::string &path) {
+    struct stat st;
+    return lstat(path.c_str(), &st) == 0;
+}
+
+// Walks the tree along one pattern's components, calling `found` with each folder it reaches at the
+// end, and with the parent and the remaining glob when the last name may also be a file.
+struct PatternWalk {
+    const std::vector<std::string> &parts;
+    std::function<void(const DiskUsage::Node *, const std::string &, const QStringList &)> folder;
+    std::function<void(const DiskUsage::Node *, const std::string &, const std::string &, const QStringList &)> files;
+    bool withFiles = false;
+
+    void walk(const DiskUsage::Node *n, const std::string &path, size_t i, const QStringList &caps) {
+        if (i == parts.size()) {
+            folder(n, path, caps);
+            return;
+        }
+        const std::string &part = parts[i];
+        if (part == "**") {
+            walk(n, path, i + 1, caps);
+            for (const auto &c : n->dirs)
+                if (!c->skipped && c->name != ".git")
+                    walk(c.get(), joinPath(path, c->name), i, caps);
+            return;
+        }
+        if (i + 1 == parts.size() && withFiles)
+            files(n, path, part, caps);
+        if (!isGlob(part)) {
+            for (const auto &c : n->dirs)
+                if (c->name == part && !c->skipped)
+                    walk(c.get(), joinPath(path, c->name), i + 1, caps);
+            return;
+        }
+        for (const auto &c : n->dirs) {
+            if (c->skipped || fnmatch(part.c_str(), c->name.c_str(), FNM_PERIOD) != 0)
+                continue;
+            QStringList more = caps;
+            more.append(QFile::decodeName(QByteArray::fromStdString(c->name)));
+            walk(c.get(), joinPath(path, c->name), i + 1, more);
+        }
+    }
+};
+
+std::string normalise(const std::string &path) {
+    return QFile::encodeName(QDir::cleanPath(QFile::decodeName(QByteArray::fromStdString(path)))).toStdString();
+}
+
+} // namespace
+
+QVariantList DiskUsage::evaluate(const QVariantList &rules) const {
+    if (!m_tree)
+        return {};
+    const std::string home = QFile::encodeName(QDir::homePath()).toStdString();
+    const std::string root = m_tree->name;
+    const std::vector<std::string> rootParts = splitPath(root);
+    const qint64 now = QDateTime::currentSecsSinceEpoch();
+    std::vector<Match> found;
+
+    for (int r = 0; r < rules.size(); ++r) {
+        const QVariantMap rule = rules[r].toMap();
+        const bool safe = rule.value(QStringLiteral("safe")).toBool();
+        const bool withFiles = rule.value(QStringLiteral("files")).toBool();
+        const QStringList beside = rule.value(QStringLiteral("beside")).toStringList();
+        const QStringList unless = rule.value(QStringLiteral("unless")).toStringList();
+        const QStringList endings = rule.value(QStringLiteral("endings")).toStringList();
+        std::vector<std::string> except;
+        for (const QString &e : rule.value(QStringLiteral("except")).toStringList())
+            except.push_back(QFile::encodeName(e).toStdString());
+        const QString patternText = rule.value(QStringLiteral("pattern")).toString();
+        const QRegularExpression pattern(patternText);
+        const int olderThan = rule.value(QStringLiteral("olderThan")).toInt();
+
+        // Whether a candidate passes every condition but the ones about where it is.
+        const auto keep = [&](const std::string &path, const std::string &name, qint64 newest, bool dir) {
+            const std::string parent = path.substr(0, path.rfind('/'));
+            if (std::any_of(except.begin(), except.end(), [&](const std::string &e) { return fnmatch(e.c_str(), name.c_str(), 0) == 0; }))
+                return false;
+            if (!beside.isEmpty() && std::none_of(beside.begin(), beside.end(), [&](const QString &b) {
+                    return exists(joinPath(parent.empty() ? "/" : parent, QFile::encodeName(b).toStdString()));
+                }))
+                return false;
+            for (const QString &u : unless) {
+                QString t = u;
+                t.replace(QStringLiteral("{match}"), QFile::decodeName(QByteArray::fromStdString(path)));
+                t.replace(QStringLiteral("{name}"), QFile::decodeName(QByteArray::fromStdString(name)));
+                if (exists(normalise(QFile::encodeName(t).toStdString())))
+                    return false;
+            }
+            if (!patternText.isEmpty() && !pattern.match(QFile::decodeName(QByteArray::fromStdString(name))).hasMatch())
+                return false;
+            if (olderThan > 0 && newest >= now - qint64(olderThan) * 86400)
+                return false;
+            if (!dir && !endings.isEmpty()) {
+                const QString lower = QFile::decodeName(QByteArray::fromStdString(name)).toLower();
+                if (std::none_of(endings.begin(), endings.end(), [&](const QString &e) { return lower.endsWith(e.toLower()); }))
+                    return false;
+            }
+            return access(parent.empty() ? "/" : parent.c_str(), W_OK) == 0;
+        };
+
+        for (const QString &globText : rule.value(QStringLiteral("paths")).toStringList()) {
+            std::string glob = QFile::encodeName(globText).toStdString();
+            if (glob.rfind("~/", 0) == 0)
+                glob = home + glob.substr(1);
+            std::vector<std::string> parts = splitPath(glob);
+            // An absolute pattern has to pass through the scan's root to be found in the tree.
+            if (glob.rfind("**", 0) != 0) {
+                if (parts.size() < rootParts.size())
+                    continue;
+                bool through = true;
+                for (size_t i = 0; i < rootParts.size() && through; ++i)
+                    through = parts[i] == "**" ? false : fnmatch(parts[i].c_str(), rootParts[i].c_str(), 0) == 0;
+                if (!through)
+                    continue;
+                parts.erase(parts.begin(), parts.begin() + long(rootParts.size()));
+            }
+            // Anywhere, then a name: start from every folder with that name rather than walking to them.
+            std::vector<std::pair<const Node *, size_t>> starts { { m_tree.get(), 0 } };
+            if (parts.size() > 1 && parts[0] == "**" && !isGlob(parts[1])) {
+                if (m_byNameGeneration != m_generation) {
+                    m_byName.clear();
+                    std::function<void(const Node *)> index = [&](const Node *n) {
+                        for (const auto &c : n->dirs) {
+                            m_byName[c->name].push_back(c.get());
+                            if (!c->skipped && c->name != ".git")
+                                index(c.get());
+                        }
+                    };
+                    index(m_tree.get());
+                    m_byNameGeneration = m_generation;
+                }
+                starts.clear();
+                if (const auto it = m_byName.find(parts[1]); it != m_byName.end())
+                    for (const Node *n : it->second)
+                        if (!n->skipped)
+                            starts.push_back({ n, 2 });
+            }
+            PatternWalk walk { parts, {}, {}, withFiles };
+            walk.folder = [&](const DiskUsage::Node *n, const std::string &path, const QStringList &caps) {
+                if (n == m_tree.get() || n->size == 0 || !keep(path, n->name, n->newest, true))
+                    return;
+                found.push_back({ r, safe, path, n->name, n->size, n->newest, dominant(n->kinds), true, caps });
+            };
+            walk.files = [&](const DiskUsage::Node *, const std::string &dirPath, const std::string &part, const QStringList &caps) {
+                DIR *dir = opendir(dirPath.c_str());
+                if (!dir)
+                    return;
+                const int folderKind = kinds::ofPath(dirPath);
+                while (dirent *e = readdir(dir)) {
+                    if (e->d_type == DT_DIR || fnmatch(part.c_str(), e->d_name, FNM_PERIOD) != 0)
+                        continue;
+                    struct stat st;
+                    if (fstatat(dirfd(dir), e->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0 || !S_ISREG(st.st_mode))
+                        continue;
+                    const std::string path = joinPath(dirPath, e->d_name);
+                    const qint64 size = qint64(st.st_blocks) * 512;
+                    if (size == 0 || !keep(path, e->d_name, st.st_mtim.tv_sec, false))
+                        continue;
+                    QStringList more = caps;
+                    more.append(QFile::decodeName(e->d_name));
+                    found.push_back({ r, safe, path, e->d_name, size, st.st_mtim.tv_sec,
+                                      folderKind != kinds::None ? folderKind : kinds::ofFile(e->d_name), false, more });
+                }
+                closedir(dir);
+            };
+            for (const auto &[node, from] : starts)
+                walk.walk(node, from ? QFile::encodeName(pathOf(node)).toStdString() : root, from, {});
+        }
+    }
+
+    // Outer before inner, so a match inside one already kept is dropped; of two at the same place,
+    // the earlier rule's is kept, which lets a named rule come before a general one.
+    std::sort(found.begin(), found.end(), [](const Match &a, const Match &b) { return a.path != b.path ? a.path < b.path : a.rule < b.rule; });
+    QVariantList out;
+    std::vector<const Match *> kept;
+    for (const Match &m : found) {
+        if (std::any_of(kept.begin(), kept.end(), [&](const Match *k) { return k->safe == m.safe && under(m.path, k->path); }))
+            continue;
+        const QString path = QFile::decodeName(QByteArray::fromStdString(m.path));
+        if (isProtected(path) || m.path.find("/.git/") != std::string::npos)
+            continue;
+        kept.push_back(&m);
+        out.append(QVariantMap {
+            { QStringLiteral("rule"), m.rule },
+            { QStringLiteral("name"), QFile::decodeName(QByteArray::fromStdString(m.name)) },
+            { QStringLiteral("path"), path },
+            { QStringLiteral("size"), m.size },
+            { QStringLiteral("dir"), m.dir },
+            { QStringLiteral("files"), m.dir ? find(path) ? find(path)->files : 0 : 1 },
+            { QStringLiteral("newest"), m.newest },
+            { QStringLiteral("kind"), m.kind },
+            { QStringLiteral("skipped"), false },
+            { QStringLiteral("other"), false },
+            { QStringLiteral("captures"), m.captures },
+        });
+    }
+    return out;
+}
+
 bool DiskUsage::isProtected(const QString &path) const {
     const QString p = QDir::cleanPath(path);
-    const QString home = QDir::homePath();
-    if (p == QLatin1String("/") || p == home || QFileInfo(p).absolutePath() == QLatin1String("/"))
-        return true;
-    for (const auto where : { QStandardPaths::DesktopLocation, QStandardPaths::DocumentsLocation,
-                              QStandardPaths::DownloadLocation, QStandardPaths::MusicLocation,
-                              QStandardPaths::PicturesLocation, QStandardPaths::MoviesLocation,
-                              QStandardPaths::TemplatesLocation, QStandardPaths::PublicShareLocation,
-                              QStandardPaths::GenericConfigLocation, QStandardPaths::GenericDataLocation,
-                              QStandardPaths::GenericCacheLocation })
-        if (p == QStandardPaths::writableLocation(where))
-            return true;
-    for (const char *kept : { "/.local", "/.ssh", "/.gnupg" })
-        if (p == home + QLatin1String(kept))
-            return true;
-    if (QFileInfo(p).fileName() == QLatin1String(".git"))
-        return true;
-    for (const QStorageInfo &volume : QStorageInfo::mountedVolumes())
-        if (volume.rootPath() == p)
-            return true;
-    return false;
+    return m_protected.contains(p) || QFileInfo(p).absolutePath() == QLatin1String("/") || QFileInfo(p).fileName() == QLatin1String(".git");
 }

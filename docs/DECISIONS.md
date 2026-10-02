@@ -1237,3 +1237,16 @@ while it looked at home. A scan now takes several roots under one node
 that stands for them all, a root the walk through another already reaches
 is dropped, and All disks, every disk mounted, is where the window
 opens.
+
+**D91 · A window opens at its place; it is not moved there.** The
+Windows service put an app's main window at its remembered place a moment
+after the compositor announced it, by which time the compositor had
+centred it and started the open animation there, so it appeared in the
+middle and then slid across. Nothing the shell can send arrives before
+the first frame, so the placing moved into the isle-windows plugin: the
+shell hands it the table of places (`hyprctl isle place`) whenever it
+changes, and the plugin sets the box in the compositor's `window.open`
+hook, after the layout's first placement and before the open animation,
+which starts from whatever box the window then has. The rules of D40 and
+D57 are the plugin's now: the class's only titled floating window, and a
+place on a screen. In game mode the shell hands it an empty table.

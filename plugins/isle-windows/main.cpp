@@ -8,6 +8,8 @@
 //
 // The same tiling by key or from the title bar's double click: hyprctl isle snap <zone> | zoom | restore.
 // Minimise is hyprctl isle hide [address], which the shell calls for every way a window is put away.
+// An app's main window opens where it was last: the shell hands over each class's place with
+// hyprctl isle place <class> <x> <y> <w> <h> (or place clear), and the window is put there as it maps.
 //
 // A client's own minimise button asks the compositor, whose state handler ignores the request (and, for an X11
 // client, re-runs its sticky maximise toggle instead). The request is honoured here by parking the window on
@@ -41,6 +43,7 @@
 #include <unordered_map>
 #include <string>
 #include <format>
+#include <vector>
 #include <sstream>
 
 // windowForXID and handleClientMessage are private to the X window manager. The standard headers it pulls in
@@ -53,6 +56,7 @@
 #include <hyprland/src/xwayland/XSurface.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
+#include <hyprland/src/state/MonitorState.hpp>
 #include <xcb/xproto.h>
 
 inline HANDLE PHANDLE = nullptr;
@@ -64,6 +68,7 @@ static CFunctionHook*                                    g_stateHook     = nullp
 static CHyprSignalListener                               g_moveCb;
 static std::string                                       g_dragZone;
 static std::unordered_map<Desktop::View::CWindow*, CBox> g_preTile; // the box a window had before its first tile
+static std::unordered_map<std::string, CBox>             g_places;  // by class, in layout coordinates
 
 constexpr double EDGE = 30;
 
@@ -329,9 +334,72 @@ static void hide(PHLWINDOW win) {
     });
 }
 
+// A place is used while a usable part of it is on a screen; a sliver over an edge is where someone put it.
+static bool onScreens(const CBox& b) {
+    for (const auto& m : State::monitorState()->monitors()) {
+        const CBox M = m->logicalBox();
+        if (std::min(b.x + b.w, M.x + M.w) - std::max(b.x, M.x) > 80 && std::min(b.y + b.h, M.y + M.h) - std::max(b.y, M.y) > 40)
+            return true;
+    }
+    return false;
+}
+
+// Called from window.open, after the layout has given the window its first box and before the open animation
+// starts from it. Only the class's sole titled window is placed: an untitled one is a menu or an overlay, a
+// second titled one a dialog (D40).
+static void placeOnOpen(PHLWINDOW w) {
+    if (!w || !w->m_isFloating || !w->m_target || w->m_title.empty() || (w->m_isX11 && w->isX11OverrideRedirect()))
+        return;
+    const auto IT = g_places.find(w->m_class);
+    if (IT == g_places.end() || !onScreens(IT->second))
+        return;
+    for (const auto& o : Desktop::windowState()->windows())
+        if (o != w && o->m_isMapped && o->m_class == w->m_class && !o->m_title.empty())
+            return;
+    g_layoutManager->setTargetGeom(IT->second, w->m_target);
+}
+
+// place clear | place <class> | place <class> <x> <y> <w> <h>; the class is everything before the numbers.
+static std::string place(const std::string& args) {
+    if (args == "clear") {
+        g_places.clear();
+        return "ok";
+    }
+    std::vector<std::string> words;
+    std::istringstream       in(args);
+    for (std::string w; in >> w;)
+        words.push_back(w);
+    if (words.empty())
+        return "no class";
+    double v[4];
+    try {
+        if (words.size() < 5)
+            throw std::invalid_argument("");
+        for (int i = 0; i < 4; i++) {
+            size_t used = 0;
+            v[i]        = std::stod(words[words.size() - 4 + i], &used);
+            if (used != words[words.size() - 4 + i].size())
+                throw std::invalid_argument("");
+        }
+    } catch (...) {
+        g_places.erase(args);
+        return "ok";
+    }
+    words.resize(words.size() - 4);
+    std::string cls = words[0];
+    for (size_t i = 1; i < words.size(); i++)
+        cls += " " + words[i];
+    if (v[2] < 1 || v[3] < 1)
+        return "bad size";
+    g_places[cls] = CBox(v[0], v[1], v[2], v[3]);
+    return "ok";
+}
+
 // hyprctl isle snap <left|right|up|down|top-left|top-right|bottom-left|bottom-right> | zoom | restore | hide [address]
 static std::string ctl(eHyprCtlOutputFormat, std::string req) {
     std::string args = req.size() > 4 ? req.substr(5) : "";
+    if (args.starts_with("place "))
+        return place(args.substr(6));
     // Minimise takes any window, tiled or floating, named or focused.
     if (args == "hide" || args.starts_with("hide ")) {
         std::istringstream in(args.size() > 5 ? args.substr(5) : "");
@@ -414,6 +482,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         w->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_TAG);
     });
 
+    static auto P_PLACE = Event::bus()->m_events.window.open.listen([](PHLWINDOW w) { placeOnOpen(w); });
+
     for (const auto& fn : HyprlandAPI::findFunctionsByName(PHANDLE, "endDragTarget")) {
         if (!fn.demangled.contains("CLayoutManager"))
             continue;
@@ -462,4 +532,5 @@ APICALL EXPORT void PLUGIN_EXIT() {
     if (g_stateHook)
         g_stateHook->unhook();
     g_preTile.clear();
+    g_places.clear();
 }

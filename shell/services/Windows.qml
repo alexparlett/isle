@@ -212,12 +212,9 @@ Singleton {
     }
 
     // Windows reopen where they were last: the place of an app's main window is noted every few seconds, by
-    // class, and the app's next first window is put there once it has mapped. The main window is the app's
-    // only titled window: an untitled one is a menu or an overlay, and a second titled one a dialog, and
-    // neither is noted nor placed, since a place is the size and position of the main window.
-    function titled(cls) {
-        return Hyprland.toplevels.values.filter(t => t.wayland && t.wayland.appId === cls && (t.title || "") !== "").length;
-    }
+    // class, and the app's next first window opens there. The main window is the app's only titled window: an
+    // untitled one is a menu or an overlay, and a second titled one a dialog, and neither is noted nor placed,
+    // since a place is the size and position of the main window.
     // The screens' boxes in layout coordinates, from what the compositor reports.
     function screenBoxes() {
         const out = [];
@@ -293,19 +290,26 @@ Singleton {
         }
     }
     Timer { interval: 4000; running: true; repeat: true; onTriggered: if (!placer.running) placer.running = true }
-    Process { id: restorer }
-    Connections {
-        target: Hyprland
-        function onRawEvent(event) {
-            if (event.name !== "openwindow") return;
-            const [addr, ws, cls, title] = event.data.split(",");
-            const p = (Prefs.p.windowPlaces || {})[cls];
-            if (!p || Modes.game || !title || titled(cls) > 1) return;
-            if (!root.onScreens(p[0], p[1], p[2], p[3])) return;
-            // After the float rule has sized it.
-            restorer.command = ["sh", "-c", "sleep 0.15; hyprctl dispatch 'hl.dsp.window.resize({ x = " + p[2] + ", y = " + p[3] + ", exact = true, window = \"address:0x" + addr + "\" })'; hyprctl dispatch 'hl.dsp.window.move({ x = " + p[0] + ", y = " + p[1] + ", exact = true, window = \"address:0x" + addr + "\" })'"];
-            restorer.running = true;
+    // The isle-windows plugin puts the window at its place as it maps, so it opens there rather than being
+    // moved after; it is handed the whole table on every change, and an empty one in game mode.
+    Process { id: placePush }
+    Timer { id: placeSoon; interval: 300; onTriggered: root.pushPlaces() }
+    Connections { target: Prefs.p; function onWindowPlacesChanged() { placeSoon.restart(); } }
+    Connections { target: Modes; function onGameChanged() { placeSoon.restart(); } }
+    Connections { target: Prefs; function onLoadedChanged() { placeSoon.restart(); } }
+    function pushPlaces() {
+        if (!Prefs.loaded) return;
+        if (placePush.running) { placeSoon.restart(); return; }
+        const cmds = ["isle place clear"];
+        const places = Modes.game ? {} : (Prefs.p.windowPlaces || {});
+        for (const cls of Object.keys(places)) {
+            const p = places[cls];
+            // A batch is split on semicolons.
+            if (!p || p.length !== 4 || cls.indexOf(";") >= 0) continue;
+            cmds.push("isle place " + cls + " " + p.map(Math.round).join(" "));
         }
+        placePush.command = ["hyprctl", "--batch", cmds.join(" ; ")];
+        placePush.running = true;
     }
 
     // A window going fullscreen takes a workspace of its own, as a macOS app does, and comes back to where it

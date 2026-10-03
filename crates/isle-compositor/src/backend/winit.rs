@@ -15,10 +15,8 @@ use smithay::{
 };
 use tracing::{info, warn};
 
-use super::{Backend, Rendered};
+use super::{Backend, CLEAR, Rendered};
 use crate::state::{Isle, State};
-
-const CLEAR: [f32; 4] = [0.11, 0.11, 0.12, 1.0];
 
 pub struct Winit {
     backend: WinitGraphicsBackend<GlesRenderer>,
@@ -111,6 +109,10 @@ impl Winit {
         })
     }
 
+    pub fn renderer(&mut self) -> &mut GlesRenderer {
+        self.backend.renderer()
+    }
+
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         self.backend.renderer().import_dmabuf(dmabuf, None).is_ok()
     }
@@ -132,7 +134,9 @@ impl Winit {
 
 /// Registers the output, the dmabuf global and the window's events, once the state exists.
 pub fn setup(state: &mut State, events: WinitEventLoop) -> Result<(), Box<dyn std::error::Error>> {
-    let Backend::Winit(winit) = &mut state.backend;
+    let Backend::Winit(winit) = &mut state.backend else {
+        unreachable!("setup for the winit backend");
+    };
     let output = winit.output.clone();
     let _global = output.create_global::<State>(&state.isle.display_handle);
 
@@ -186,7 +190,9 @@ pub fn setup(state: &mut State, events: WinitEventLoop) -> Result<(), Box<dyn st
                     };
                     output.change_current_state(Some(mode), None, None, None);
                     output.set_preferred(mode);
-                    let Backend::Winit(winit) = &mut state.backend;
+                    let Backend::Winit(winit) = &mut state.backend else {
+                        return;
+                    };
                     winit.damage_tracker = OutputDamageTracker::from_output(&output);
                     winit.full_redraw = 4;
                     state.isle.queue_redraw(&output);

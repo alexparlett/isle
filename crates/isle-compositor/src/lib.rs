@@ -35,7 +35,7 @@ use crate::{
 /// A main-loop dispatch stuck this long ends the process (choice 7).
 const HANG_LIMIT: Duration = Duration::from_secs(10);
 
-pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     let heartbeat = Heartbeat::new();
     crash::install_panic_hook(heartbeat.clone());
     info!("isle-compositor {}", build_info::describe());
@@ -51,8 +51,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut event_loop: EventLoop<'static, State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;
-    let (winit, winit_events) = Winit::new()?;
-    let backend = Backend::Winit(winit);
+    let (backend, winit_events) = match kind {
+        backend::Kind::Winit => {
+            let (winit, events) = Winit::new()?;
+            (Backend::Winit(winit), Some(events))
+        }
+        backend::Kind::Headless => (Backend::Headless(backend::headless::Headless::new()?), None),
+    };
 
     let (jobs, job_source) = channel::channel::<worker::Job>();
     event_loop
@@ -79,7 +84,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     );
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
-    backend::winit::setup(&mut state, winit_events)?;
+    match winit_events {
+        Some(events) => backend::winit::setup(&mut state, events)?,
+        None => backend::headless::setup(&mut state)?,
+    }
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };

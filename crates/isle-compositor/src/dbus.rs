@@ -137,6 +137,122 @@ impl Test {
         });
     }
 
+    /// A key by its evdev code, as a keyboard sends it.
+    async fn key(&self, code: u32, pressed: bool) -> fdo::Result<()> {
+        use smithay::backend::input::{InputTime, KeyState};
+        let key_state = if pressed {
+            KeyState::Pressed
+        } else {
+            KeyState::Released
+        };
+        let keycode = smithay::input::keyboard::Keycode::new(code + 8);
+        Ok(self
+            .to_loop
+            .call(move |state| state.on_key(keycode, key_state, InputTime::now()))
+            .await?)
+    }
+
+    /// Moves the pointer to a point in the global space.
+    async fn pointer_to(&self, x: f64, y: f64) -> fdo::Result<()> {
+        use smithay::backend::input::InputTime;
+        Ok(self
+            .to_loop
+            .call(move |state| state.on_pointer_to((x, y).into(), InputTime::now()))
+            .await?)
+    }
+
+    /// A button by its evdev code: 272 is the left button.
+    async fn button(&self, button: u32, pressed: bool) -> fdo::Result<()> {
+        use smithay::backend::input::{ButtonState, InputTime};
+        let button_state = if pressed {
+            ButtonState::Pressed
+        } else {
+            ButtonState::Released
+        };
+        Ok(self
+            .to_loop
+            .call(move |state| state.on_button(button, button_state, InputTime::now()))
+            .await?)
+    }
+
+    /// Adds a virtual display; headless only.
+    #[allow(clippy::too_many_arguments)]
+    async fn add_output(
+        &self,
+        name: String,
+        make: String,
+        model: String,
+        serial: String,
+        width: i32,
+        height: i32,
+    ) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| match &mut state.backend {
+                crate::backend::Backend::Headless(headless) => headless
+                    .add_output(
+                        &mut state.isle,
+                        &name,
+                        (&make, &model, &serial),
+                        (width, height),
+                    )
+                    .map(|_| ()),
+                _ => Err("outputs are added only to the headless backend".into()),
+            })
+            .await?
+            .map_err(fdo::Error::Failed)
+    }
+
+    async fn remove_output(&self, name: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| match &mut state.backend {
+                crate::backend::Backend::Headless(headless) => {
+                    headless.remove_output(&mut state.isle, &name)
+                }
+                _ => false,
+            })
+            .await?)
+    }
+
+    /// Frames presented on an output since it was added.
+    async fn frames(&self, output: String) -> fdo::Result<u64> {
+        self.to_loop
+            .call(move |state| {
+                state
+                    .isle
+                    .space
+                    .outputs()
+                    .find(|o| o.name() == output)
+                    .map(|o| crate::redraw::OutputState::of(o).borrow().frames_presented)
+            })
+            .await?
+            .ok_or_else(|| fdo::Error::InvalidArgs("no such output".into()))
+    }
+
+    /// Draws an output and writes it to `path` as a PNG.
+    async fn screenshot(&self, output: String, path: String) -> fdo::Result<()> {
+        let pixels = self
+            .to_loop
+            .call(move |state| {
+                let target = state
+                    .isle
+                    .space
+                    .outputs()
+                    .find(|o| o.name() == output)
+                    .cloned();
+                match target {
+                    Some(target) => state.backend.screenshot(&state.isle, &target),
+                    None => Err("no such output".into()),
+                }
+            })
+            .await?
+            .map_err(fdo::Error::Failed)?;
+        tokio::task::spawn_blocking(move || write_png(&path, &pixels))
+            .await
+            .map_err(|e| fdo::Error::Failed(e.to_string()))?
+            .map_err(|e| fdo::Error::Failed(e.to_string()))
+    }
+
     fn panic_service(&self) {
         self.to_loop
             .post(|state| state.isle.notify(crate::worker::Event::PanicService));
@@ -257,6 +373,19 @@ impl Settings {
 
     #[zbus(signal)]
     async fn status_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
+#[cfg(feature = "test-hooks")]
+fn write_png(
+    path: &str,
+    pixels: &crate::backend::Pixels,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let file = std::io::BufWriter::new(std::fs::File::create(path)?);
+    let mut encoder = png::Encoder::new(file, pixels.width, pixels.height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.write_header()?.write_image_data(&pixels.rgba)?;
+    Ok(())
 }
 
 pub async fn serve(

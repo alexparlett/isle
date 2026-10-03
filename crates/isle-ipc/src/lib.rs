@@ -160,6 +160,28 @@ pub mod test {
     pub trait Test {
         /// Holds the main loop for `millis`, from its next dispatch.
         fn stall(&self, millis: u32) -> zbus::Result<()>;
+        /// A key by its evdev code, as a keyboard sends it.
+        fn key(&self, code: u32, pressed: bool) -> zbus::Result<()>;
+        /// Moves the pointer to a point in the global space.
+        fn pointer_to(&self, x: f64, y: f64) -> zbus::Result<()>;
+        /// A button by its evdev code: 272 is the left button.
+        fn button(&self, button: u32, pressed: bool) -> zbus::Result<()>;
+        /// Adds a virtual display; headless only.
+        #[allow(clippy::too_many_arguments)]
+        fn add_output(
+            &self,
+            name: &str,
+            make: &str,
+            model: &str,
+            serial: &str,
+            width: i32,
+            height: i32,
+        ) -> zbus::Result<()>;
+        fn remove_output(&self, name: &str) -> zbus::Result<bool>;
+        /// Frames presented on an output since it was added.
+        fn frames(&self, output: &str) -> zbus::Result<u64>;
+        /// Draws an output and writes it to `path` as a PNG.
+        fn screenshot(&self, output: &str, path: &str) -> zbus::Result<()>;
         /// Panics in the worker's D-Bus service.
         fn panic_service(&self) -> zbus::Result<()>;
         /// Panics on the main loop.

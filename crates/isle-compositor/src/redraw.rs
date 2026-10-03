@@ -200,6 +200,19 @@ impl State {
                 frame = state.frames_presented,
                 "presented"
             );
+            drop(state);
+            if self.backend.paces_by_timer() {
+                let target = output.clone();
+                let timer = Timer::from_duration(refresh_interval(output));
+                self.isle
+                    .loop_handle
+                    .insert_source(timer, move |_, _, state| {
+                        let _beat = state.isle.heartbeat.beat("headless-vblank");
+                        state.on_vblank(&target);
+                        TimeoutAction::Drop
+                    })
+                    .expect("the headless vblank timer");
+            }
             return;
         }
 

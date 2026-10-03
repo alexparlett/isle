@@ -104,5 +104,14 @@
   domain under `~/.local/state/isle/`, moving a damaged or newer file
   aside as `.bad`; the worker's `Saver` writes the last value of a burst
   after half a second. Domains so far: the supervisor's crash history and
-  the v1 import marker. Next: 2.5, the headless backend and the Test
-  interface.
+  the v1 import marker.
+- P2 phase 2.5 done: `isle-compositor --headless` draws each output into
+  a texture on an EGL device with no surface, a timer standing in for
+  vblank. `Test1` injects keys, pointer and buttons through the same
+  handlers devices use, adds and removes outputs, counts frames and
+  writes screenshots. `isle-test-client` is a one-colour shm window that
+  prints what it receives. `cargo test --workspace --features
+  isle-compositor/test-hooks` runs seven headless tests, each on its own
+  bus and runtime directory: mapping, input, idle frames, the stall
+  timeout, a settings hand edit, a screenshot, outputs. Next: 2.6, DRM,
+  libinput and outputs.

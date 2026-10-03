@@ -2,6 +2,10 @@
 
 ## 2026-10-03
 
+- P2 phase 2.5: the headless backend, the Test interface's input,
+  outputs, frames and screenshots, a Wayland test client and seven
+  integration tests, passing twice in a row in about four seconds.
+
 - P2 phase 2.4: the state store and the worker's debounced writer, with
   tests for a round trip, a damaged file, a newer version and a burst of
   fifty saves written once.

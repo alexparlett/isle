@@ -1,0 +1,14 @@
+{
+    "rules": [
+        {
+            "pattern": { "feature": "procname", "matches": "isle-compositor" },
+            "profile": "Isle: return freed buffers to the driver"
+        }
+    ],
+    "profiles": [
+        {
+            "name": "Isle: return freed buffers to the driver",
+            "settings": [ { "key": "GLVidHeapReuseRatio", "value": 0 } ]
+        }
+    ]
+}

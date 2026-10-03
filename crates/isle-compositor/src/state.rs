@@ -3,7 +3,7 @@
 use std::{ffi::OsString, sync::Arc, time::Duration};
 
 use smithay::{
-    desktop::{PopupManager, Space, Window, WindowSurfaceType},
+    desktop::{PopupManager, Space, Window, WindowSurfaceType, layer_map_for_output},
     input::{Seat, SeatState, keyboard::XkbConfig, pointer::CursorImageStatus},
     output::Output,
     reexports::{
@@ -25,6 +25,7 @@ use smithay::{
         selection::{data_device::DataDeviceState, primary_selection::PrimarySelectionState},
         shell::{
             kde::decoration::KdeDecorationState,
+            wlr_layer::{Layer, WlrLayerShellState},
             xdg::{XdgShellState, decoration::XdgDecorationState},
         },
         shm::ShmState,
@@ -68,6 +69,7 @@ pub struct Isle {
 
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
+    pub layer_shell_state: WlrLayerShellState,
     pub xdg_decoration_state: XdgDecorationState,
     pub kde_decoration_state: KdeDecorationState,
     pub xdg_activation_state: XdgActivationState,
@@ -138,6 +140,7 @@ impl Isle {
 
         let compositor_state = CompositorState::new::<State>(&dh);
         let xdg_shell_state = XdgShellState::new::<State>(&dh);
+        let layer_shell_state = WlrLayerShellState::new::<State>(&dh);
         let xdg_decoration_state = XdgDecorationState::new::<State>(&dh);
         let kde_decoration_state = KdeDecorationState::new::<State>(&dh, KdeMode::Client);
         let xdg_activation_state = XdgActivationState::new::<State>(&dh);
@@ -174,6 +177,7 @@ impl Isle {
             cursor_status: CursorImageStatus::default_named(),
             compositor_state,
             xdg_shell_state,
+            layer_shell_state,
             xdg_decoration_state,
             kde_decoration_state,
             xdg_activation_state,
@@ -213,17 +217,44 @@ impl Isle {
             .cloned()
     }
 
+    /// The surface under `pos` and its origin: overlay and top layers, then windows,
+    /// then bottom and background layers.
     pub fn surface_under(
         &self,
         pos: Point<f64, Logical>,
     ) -> Option<(WlSurface, Point<f64, Logical>)> {
-        self.space
-            .element_under(pos)
-            .and_then(|(window, location)| {
-                window
-                    .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
-                    .map(|(s, p)| (s, (p + location).to_f64()))
+        let output = self.space.output_under(pos).next()?;
+        let origin = self.space.output_geometry(output)?.loc;
+        let map = layer_map_for_output(output);
+        let layer_at = |layer: Layer| {
+            let surface = map.layer_under(layer, pos - origin.to_f64())?;
+            let geometry = map.layer_geometry(surface)?;
+            let location = origin + geometry.loc;
+            surface
+                .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
+                .map(|(s, p)| (s, (p + location).to_f64()))
+        };
+        layer_at(Layer::Overlay)
+            .or_else(|| layer_at(Layer::Top))
+            .or_else(|| {
+                self.space
+                    .element_under(pos)
+                    .and_then(|(window, location)| {
+                        window
+                            .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
+                            .map(|(s, p)| (s, (p + location).to_f64()))
+                    })
             })
+            .or_else(|| layer_at(Layer::Bottom))
+            .or_else(|| layer_at(Layer::Background))
+    }
+
+    /// The part of `output` layer surfaces leave free, in the global space.
+    pub fn work_area(&self, output: &Output) -> smithay::utils::Rectangle<i32, Logical> {
+        let origin = self.space.output_geometry(output).unwrap_or_default().loc;
+        let mut zone = layer_map_for_output(output).non_exclusive_zone();
+        zone.loc += origin;
+        zone
     }
 
     /// The output new windows open on: the one under the pointer.

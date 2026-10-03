@@ -14,12 +14,14 @@ use wayland_client::{
     },
 };
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
+use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 
 struct Client {
     compositor: Option<wl_compositor::WlCompositor>,
     shm: Option<wl_shm::WlShm>,
     wm_base: Option<xdg_wm_base::XdgWmBase>,
     seat: Option<wl_seat::WlSeat>,
+    layer_shell: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
     surface: Option<wl_surface::WlSurface>,
     size: (i32, i32),
     colour: [u8; 4],
@@ -78,6 +80,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "wl_shm" => state.shm = Some(registry.bind(name, 1, qh, ())),
                 "xdg_wm_base" => state.wm_base = Some(registry.bind(name, 1, qh, ())),
                 "wl_seat" => state.seat = Some(registry.bind(name, 5, qh, ())),
+                "zwlr_layer_shell_v1" => state.layer_shell = Some(registry.bind(name, 4, qh, ())),
                 _ => {}
             }
         }
@@ -229,7 +232,42 @@ macro_rules! ignore {
         }
     )*};
 }
+impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Client {
+    fn event(
+        state: &mut Self,
+        layer: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
+        event: zwlr_layer_surface_v1::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        match event {
+            zwlr_layer_surface_v1::Event::Configure {
+                serial,
+                width,
+                height,
+            } => {
+                layer.ack_configure(serial);
+                if width > 0 {
+                    state.size.0 = width as i32;
+                }
+                if height > 0 {
+                    state.size.1 = height as i32;
+                }
+                say(format!("configured {} {}", state.size.0, state.size.1));
+                state.draw(qh);
+            }
+            zwlr_layer_surface_v1::Event::Closed => {
+                say("closed".into());
+                state.closed = true;
+            }
+            _ => {}
+        }
+    }
+}
+
 ignore!(
+    zwlr_layer_shell_v1::ZwlrLayerShellV1,
     wl_compositor::WlCompositor,
     wl_shm::WlShm,
     wl_shm_pool::WlShmPool,
@@ -263,6 +301,7 @@ fn main() {
         shm: None,
         wm_base: None,
         seat: None,
+        layer_shell: None,
         surface: None,
         size: (w, h),
         colour,
@@ -271,14 +310,42 @@ fn main() {
     queue.roundtrip(&mut client).unwrap();
 
     let surface = client.compositor.as_ref().unwrap().create_surface(&qh, ());
-    let xdg_surface = client
-        .wm_base
-        .as_ref()
-        .unwrap()
-        .get_xdg_surface(&surface, &qh, ());
-    let toplevel = xdg_surface.get_toplevel(&qh, ());
-    toplevel.set_app_id(app_id);
-    toplevel.set_title(title);
+    if args.iter().any(|a| a == "--layer") {
+        use zwlr_layer_shell_v1::Layer;
+        use zwlr_layer_surface_v1::{Anchor, KeyboardInteractivity};
+        let layer = match arg("--layer", "top").as_str() {
+            "background" => Layer::Background,
+            "bottom" => Layer::Bottom,
+            "overlay" => Layer::Overlay,
+            _ => Layer::Top,
+        };
+        let shell = client.layer_shell.as_ref().expect("zwlr_layer_shell_v1");
+        let layer_surface = shell.get_layer_surface(&surface, None, layer, app_id, &qh, ());
+        let anchor = match arg("--anchor", "top").as_str() {
+            "bottom" => Anchor::Bottom | Anchor::Left | Anchor::Right,
+            "left" => Anchor::Left | Anchor::Top | Anchor::Bottom,
+            "right" => Anchor::Right | Anchor::Top | Anchor::Bottom,
+            _ => Anchor::Top | Anchor::Left | Anchor::Right,
+        };
+        layer_surface.set_anchor(anchor);
+        let (lw, lh) = (client.size.0 as u32, client.size.1 as u32);
+        if anchor.contains(Anchor::Left | Anchor::Right) {
+            layer_surface.set_size(0, lh);
+        } else {
+            layer_surface.set_size(lw, 0);
+        }
+        layer_surface.set_exclusive_zone(arg("--exclusive", "0").parse().unwrap());
+        layer_surface.set_keyboard_interactivity(KeyboardInteractivity::OnDemand);
+    } else {
+        let xdg_surface = client
+            .wm_base
+            .as_ref()
+            .unwrap()
+            .get_xdg_surface(&surface, &qh, ());
+        let toplevel = xdg_surface.get_toplevel(&qh, ());
+        toplevel.set_app_id(app_id);
+        toplevel.set_title(title);
+    }
     surface.commit();
     client.surface = Some(surface);
 

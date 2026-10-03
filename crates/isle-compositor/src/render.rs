@@ -8,10 +8,11 @@ use smithay::{
             surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
         },
     },
+    desktop::{LayerMap, layer_map_for_output},
     input::pointer::{CursorImageAttributes, CursorImageStatus},
     output::Output,
     utils::{Point, Scale},
-    wayland::compositor::with_states,
+    wayland::{compositor::with_states, shell::wlr_layer::Layer},
 };
 use std::sync::Mutex;
 
@@ -58,6 +59,10 @@ impl Isle {
             }
         }
 
+        let layers = layer_map_for_output(output);
+        push_layers(&layers, Layer::Overlay, renderer, scale, push);
+        push_layers(&layers, Layer::Top, renderer, scale, push);
+
         for window in self.space.elements_for_output(output).rev() {
             let Some(location) = self.space.element_location(window) else {
                 continue;
@@ -72,6 +77,35 @@ impl Isle {
             ) {
                 push(element);
             }
+        }
+
+        push_layers(&layers, Layer::Bottom, renderer, scale, push);
+        push_layers(&layers, Layer::Background, renderer, scale, push);
+    }
+}
+
+fn push_layers<R>(
+    layers: &LayerMap,
+    kind: Layer,
+    renderer: &mut R,
+    scale: Scale<f64>,
+    push: &mut dyn FnMut(IsleElement<R>),
+) where
+    R: Renderer + ImportAll + ImportMem,
+    R::TextureId: Texture + Clone + 'static,
+{
+    for layer in layers.layers_on(kind).rev() {
+        let Some(at) = layers.layer_geometry(layer) else {
+            continue;
+        };
+        for element in AsRenderElements::<R>::render_elements::<IsleElement<R>>(
+            layer,
+            renderer,
+            at.loc.to_physical_precise_round(scale),
+            scale,
+            1.0,
+        ) {
+            push(element);
         }
     }
 }

@@ -117,12 +117,21 @@ impl State {
         let pointer = self.isle.seat.get_pointer().unwrap();
         let serial = SERIAL_COUNTER.next_serial();
         if button_state == ButtonState::Pressed && !pointer.is_grabbed() {
-            let window = self
-                .isle
-                .space
-                .element_under(pointer.current_location())
-                .map(|(w, _)| w.clone());
-            self.set_focus(window.as_ref());
+            let location = pointer.current_location();
+            match self.isle.layer_taking_focus_at(location) {
+                Some(surface) => {
+                    let keyboard = self.isle.seat.get_keyboard().unwrap();
+                    keyboard.set_focus(self, Some(surface), serial);
+                }
+                None => {
+                    let window = self
+                        .isle
+                        .space
+                        .element_under(location)
+                        .map(|(w, _)| w.clone());
+                    self.set_focus(window.as_ref());
+                }
+            }
         }
         pointer.button(
             self,

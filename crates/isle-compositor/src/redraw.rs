@@ -5,10 +5,13 @@ use std::{cell::RefCell, time::Duration};
 
 use smithay::{
     backend::renderer::element::{RenderElementStates, default_primary_scanout_output_compare},
-    desktop::utils::{
-        OutputPresentationFeedback, surface_presentation_feedback_flags_from_states,
-        surface_primary_scanout_output, update_surface_primary_scanout_output,
-        with_surfaces_surface_tree,
+    desktop::{
+        layer_map_for_output,
+        utils::{
+            OutputPresentationFeedback, surface_presentation_feedback_flags_from_states,
+            surface_primary_scanout_output, update_surface_primary_scanout_output,
+            with_surfaces_surface_tree,
+        },
     },
     input::pointer::CursorImageStatus,
     output::Output,
@@ -93,6 +96,9 @@ impl Isle {
                 window.send_frame(output, time, throttle, surface_primary_scanout_output);
             }
         }
+        for layer in layer_map_for_output(output).layers() {
+            layer.send_frame(output, time, throttle, surface_primary_scanout_output);
+        }
         if let CursorImageStatus::Surface(surface) = &self.cursor_status {
             smithay::desktop::utils::send_frames_surface_tree(
                 surface,
@@ -121,6 +127,18 @@ impl Isle {
                         fractional.set_preferred_scale(primary.current_scale().fractional_scale());
                     });
                 }
+            });
+        }
+        for layer in layer_map_for_output(output).layers() {
+            layer.with_surfaces(|surface, surface_states| {
+                update_surface_primary_scanout_output(
+                    surface,
+                    output,
+                    surface_states,
+                    None,
+                    states,
+                    default_primary_scanout_output_compare,
+                );
             });
         }
         if let CursorImageStatus::Surface(surface) = &self.cursor_status {

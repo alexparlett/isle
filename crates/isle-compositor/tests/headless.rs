@@ -129,8 +129,12 @@ impl Isle {
     }
 
     fn client(&mut self, app_id: &str, colour: &str) -> Client {
+        self.client_with(&["--app-id", app_id, "--colour", colour])
+    }
+
+    fn client_with(&mut self, args: &[&str]) -> Client {
         let mut child = Command::new(env!("CARGO_BIN_EXE_isle-test-client"))
-            .args(["--app-id", app_id, "--colour", colour])
+            .args(args)
             .env("XDG_RUNTIME_DIR", self.dir.join("runtime"))
             .env("WAYLAND_DISPLAY", self.socket())
             .stdout(Stdio::piped())
@@ -421,4 +425,46 @@ async fn with_no_output_the_session_continues_and_windows_return() {
     let lit = isle.wait_for_window("isle.test.Dark").await;
     assert_eq!(lit.output, "HEADLESS-9", "{lit:?}");
     assert!(lit.x >= 0 && lit.x + lit.width <= 800, "{lit:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_layer_with_an_exclusive_zone_keeps_new_windows_clear_and_takes_clicks() {
+    let mut isle = Isle::start("layer").await;
+    let bar = isle.client_with(&[
+        "--layer",
+        "top",
+        "--anchor",
+        "top",
+        "--size",
+        "10x100",
+        "--exclusive",
+        "100",
+        "--colour",
+        "ffffff",
+        "--app-id",
+        "isle.test.Bar",
+    ]);
+    bar.wait_for("configured 1920 100").await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let _client = isle.client("isle.test.Below", "3366ff");
+    let window = isle.wait_for_window("isle.test.Below").await;
+    assert_eq!(window.y, 100 + (980 - window.height) / 2, "{window:?}");
+
+    let path = isle.dir.join("layer.png");
+    let test = isle.test().await;
+    test.screenshot("HEADLESS-1", path.to_str().unwrap())
+        .await
+        .unwrap();
+    let decoder = png::Decoder::new(std::io::BufReader::new(fs::File::open(&path).unwrap()));
+    let mut reader = decoder.read_info().unwrap();
+    let mut buf = vec![0; reader.output_buffer_size()];
+    reader.next_frame(&mut buf).unwrap();
+    let i = (50 * 1920 + 960) * 4;
+    assert_eq!(&buf[i..i + 3], &[255, 255, 255], "the bar across the top");
+
+    test.pointer_to(960.0, 50.0).await.unwrap();
+    test.button(272, true).await.unwrap();
+    bar.wait_for("button 272 pressed").await;
+    bar.wait_for("keyboard-enter").await;
 }

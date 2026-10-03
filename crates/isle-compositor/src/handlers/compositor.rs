@@ -49,6 +49,9 @@ impl CompositorHandler for State {
             }
         }
 
+        if self.commit_layer(surface) {
+            return;
+        }
         self.commit_popup(surface);
         crate::grabs::handle_resize_commit(&mut self.isle.space, surface);
         if let smithay::input::pointer::CursorImageStatus::Surface(cursor) =
@@ -80,7 +83,7 @@ impl State {
         let Some(output) = self.isle.active_output() else {
             return;
         };
-        let area = self.isle.space.output_geometry(&output).unwrap();
+        let area = self.isle.work_area(&output);
         let size = window.geometry().size;
         let location = (
             area.loc.x + ((area.size.w - size.w) / 2).max(0),

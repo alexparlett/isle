@@ -71,7 +71,9 @@ it runs nothing while closed.
 ### Density and empty states
 
 - **Defaults are the smallest size that reads** (v1 `87783c0`: one-row
-  defaults for widgets that were mostly air).
+  defaults for widgets that were mostly air). A 2×1 size is a widget's
+  one-line form; Clock, Weather and System default to 2×2, the smallest
+  that reads more than one value, and Devices to 2×1.
 - **Empty collapses.** A widget with nothing to show draws one line at the
   top of its place ("Not playing", "No devices", "No events today") and no
   card behind the rest, so its other cells show the softened wallpaper.
@@ -99,7 +101,7 @@ Every built-in fetches and samples only while the dashboard shows it
 | Storage | Each mounted volume: name, used and free as a bar | No | Opens it in Files (`files.md`) | Not applicable | UDisks2 |
 | Desktops | This screen's desktops as rows of their windows' app icons, the current one marked (v1's Workspaces) | No | Switches to that desktop | Not applicable | compositor |
 | Controls | Control Centre modules chosen in its settings (default Sound and Display), drawn by the same component with the same state: the same switches, not a second set (`control-centre.md` Shared places) | Yes | As the module | Not applicable | as each module |
-| Session | Lock Screen, Sleep, Restart…, Shut Down…, Log Out…, and the Energy Mode module | No | Each asks as the system menu does (`copy.md` Log out) | Not applicable | session, power |
+| Session | Lock Screen, Sleep, Restart…, Shut Down…, Log Out…, and the Energy Mode module (4×1 omits Energy Mode) | No | Each asks as the system menu does (`copy.md` Log out) | Not applicable | session, power |
 | Notifications | A glance: each app with waiting notifications by icon, name and count, newest first; no actions and no clearing (For the user 2) | No | Opens Notification Centre with that app's stack expanded | "No notifications" | the notification server |
 
 A click that goes somewhere (raise the player, Files, Monitor, a desktop,
@@ -138,9 +140,9 @@ widgets).
 | Answering | The template with the latest data; the last data is kept and drawn first on the next opening |
 | Stale | The last data, with "Updated {time}" once it is older than twice its interval |
 | Failing | The last data, or with none one line: the reason as the provider gave it (`copy.md` rule 7); "Try Again" in its menu. A provider that keeps dying is left stopped with the same line |
-| Its source not allowed | "{widget} isn't allowed to run." with "Allow…" (Installing and trust, below) |
+| Its source not allowed | "“{widget}” isn't allowed to run." with "Allow…" (Installing and trust, below) |
 | A permission it needs not granted | It runs and is denied inside the sandbox (`platform.md` Providers 5); its own error shows as Failing |
-| Not installed | A layout naming a widget that is gone keeps its place and shows "{widget} isn't installed." with "Remove"; nothing is dropped silently |
+| Not installed | A layout naming a widget that is gone keeps its place and shows "“{widget}” isn't installed." with "Remove"; nothing is dropped silently |
 
 ### Edit mode
 
@@ -149,7 +151,7 @@ v1's grid editor and its soft rearrange (v1 D24, D35;
 
 - **Entering.** "Edit widgets" at the bottom; E; "Edit widgets" in a
   widget's or a gap's secondary-click menu; the wallpaper's "Edit
-  widgets…", which opens the dashboard straight into edit mode
+  widgets", which opens the dashboard straight into edit mode
   (`wallpaper.md`); Spotlight's "Edit widgets".
 - **What changes.** A faint grid of cells shows, so places can be read.
   Each widget shows a remove badge and resize handles on its edges and
@@ -195,7 +197,7 @@ v1's grid editor and its soft rearrange (v1 D24, D35;
     placed reads "Added". Updates waiting show as a count on the section.
   - **Yours**: the user's own providers, from their folder, with the
     author tools (`shell.md` Widgets 9; v1 D30): "New widget…" (makes the
-    folder from a template and opens it in the user's editor), "Check",
+    folder from a template and opens it in the user's editor), "Check widget",
     "Update picture", "Tag release…", "Show in Files".
   - **Browse**: each source's widgets, the default registry
     (`isle-widgets`) first; Install on those not installed, Update on
@@ -207,7 +209,7 @@ v1's grid editor and its soft rearrange (v1 D24, D35;
 - **Adding.** A click adds the widget at its default size in the free place
   nearest the top centre of the screen, selected and outlined so the user
   sees where it went; a drag places it where it is dropped. With no room,
-  the item says "No room for {widget}. Remove or resize a widget to make
+  the item says "No room for “{widget}”. Remove or resize a widget to make
   space." and a drag shows the place refused.
 - **Details.** Space, or "Details" in an item's menu, opens a panel over the
   gallery: description, author, version, licence, source, sizes, the
@@ -278,7 +280,7 @@ Keychain's providers (`keychain.md`), and Spotlight's locked-vault row
   `921f032`).
 - **An error** replaces the sentence with the reason the provider wrote,
   cut to one line, and keeps the actions; a provider that overran its time
-  limit reads "{provider} didn't answer." (`copy.md` rule 7;
+  limit reads "{provider} didn't answer. Try again later." (`copy.md` rule 7;
   `platform.md` Providers 4).
 - **Secondary click**: "Permissions…" (its Privacy & Security page), and
   "Show in Files" for the user's own.
@@ -292,7 +294,7 @@ Keychain's providers (`keychain.md`), and Spotlight's locked-vault row
 | Edit mode | The faint grid, badges and handles, the gallery, "Add widgets" and "Done". |
 | Dragging, resizing | The live outline and the soft push; the gallery faded while a widget is dragged from it. |
 | Empty | No widgets: one line, "No widgets", centred, and "Edit widgets". |
-| Full | No free place: the gallery's "No room" line; a drag shows the place refused. |
+| Full | No free place: the gallery's "No room for “{widget}”…" line; a drag shows the place refused. |
 | Loading | Every widget draws its data from the last showing in the first frame, then refreshes; one with none shows its title only; nothing waits (`shell.md` Shell runtime 8). |
 | Error | Per widget, as above. A panic in the dashboard rebuilds it open, in edit mode if it was (`shell.md` Shell runtime 2, 3); whether one widget's panic can be contained to that widget is the packet's. A sources pull that fails leaves Browse with the last good index and the error in Sources. |
 | Many widgets | One canvas: no pages, no scrolling. |
@@ -312,7 +314,7 @@ Keychain's providers (`keychain.md`), and Spotlight's locked-vault row
 
 - **Opens** on the widgets chord (Keyboard), a hot corner set to Widgets
   (none by default, `dock.md` For the user 3), Spotlight's "Widgets" and
-  "Edit widgets", the wallpaper's "Edit widgets…" (in edit mode), and the
+  "Edit widgets", the wallpaper's "Edit widgets" (in edit mode), and the
   CLI and D-Bus (`shell.md` Shell runtime 16).
 - **Motion.** The softened wallpaper fades in over the windows, and the
   widgets fade in with a small scale about their own places; nothing
@@ -480,12 +482,12 @@ What this sheet adds to `competition.md`:
 | Widget names | "Clock", "Calendar", "Weather", "Media", "Timer", "System", "Devices", "Storage", "Desktops", "Controls", "Session", "Notifications" |
 | Timer | "Start", "Pause", "Reset"; "{label} done" (the island's, `island.md`) |
 | Session | "Lock Screen", "Sleep", "Restart…", "Shut Down…", "Log Out…" (`copy.md` rule 1) |
-| Provider widget | "Updated {time}", "Try Again", "{widget} isn't allowed to run.", "Allow…", "{widget} isn't installed.", "Remove" |
-| Gallery | "Search widgets", "Installed", "Yours", "Browse", "Added", "Install", "Update", "Remove", "Sources…", "New widget…", "Check", "Update picture", "Tag release…", "Show in Files"; "No room for {widget}. Remove or resize a widget to make space."; groups "Time and calendar", "Weather", "Media", "System", "Devices", "Desktop" |
+| Provider widget | "Updated {time}", "Try Again", "“{widget}” isn't allowed to run.", "Allow…", "“{widget}” isn't installed.", "Remove" |
+| Gallery | "Search widgets", "Installed", "Yours", "Browse", "Added", "Install", "Update", "Remove", "Sources…", "New widget…", "Check widget", "Update picture", "Tag release…", "Show in Files"; "No room for “{widget}”. Remove or resize a widget to make space."; a browse item's "{author} · {version}"; Details' "What it runs"; groups "Time and calendar", "Weather", "Media", "System", "Devices", "Desktop" |
 | Sources | "Allow widgets from this source to run", "Last updated {time}", "Couldn't update {source}. {reason}" |
 | Consent | "Install “{widget}”?", "It runs {command}.", "It asks to:" then the permissions; "This also allows other widgets from {source} to run."; "Install", "Cancel"; for new permissions "“{widget}” now asks to:", "Update", "Cancel"; for the user's own "Allow “{widget}” to:", "Allow", "Cancel" |
 | Permissions | "Connect to {host}", "Read {path}", "Read and change {path}", "Use {bus name}", "Run {command}"; "Change…" |
-| Provider row | The provider's own sentence; "Options"; "{provider} didn't answer."; "Permissions…" |
+| Provider row | The provider's own sentence; "Options"; "{provider} didn't answer. Try again later."; "Permissions…" |
 | Settings › Desktop | "Widgets", "Reset to default" |
 | Settings › Privacy & Security | "Providers"; a provider's page titled with its name |
 | Spotlight actions | "Widgets", "Edit widgets" |

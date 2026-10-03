@@ -95,7 +95,7 @@ packet; this is the behaviour presented, for the packet to implement:
 - **The island's Focus glyph** (`island.md`): the mode's symbol, shown when
   a Focus is on, on every screen's island; *Show when active* by default.
   Its click opens Control Centre at the Focus detail.
-- **The island's events** (`island.md`): "{Focus} on" and "{Focus} off"
+- **The island's events** (`island.md`): "{focus} on" and "{focus} off"
   when the change was automatic or by chord, not when made in Control
   Centre, where the module shows it. Over a full-screen window, a game
   included, events are dropped (`island.md` The queue 11), so a game
@@ -103,13 +103,16 @@ packet; this is the behaviour presented, for the packet to implement:
   revealed.
 - **Control Centre's Focus module.** Its place and size are
   `control-centre.md`'s; what it holds is set here:
-  - off: "Focus" and the Do Not Disturb symbol;
+  - off: "Focus" and the last-used mode's symbol (Do Not Disturb's until
+    another mode is used), since the symbol turns that mode on;
   - on: the mode's symbol and name, marked as on (the accent, brief P6),
     and a second line saying how it ends or why it is on: "Until 07:00",
     "For 47 min", "Until the end of {event}", "Schedule", "{app}", or the
     game's name for Game Mode;
-  - its symbol turns the last-used mode on or off; the rest of the module
-    opens the detail (macOS's Focus module).
+  - at Medium its symbol turns the last-used mode on or off and the rest of
+    the module opens the detail (macOS's Focus module); at Small the whole
+    module is the switch, and Return or the secondary-click menu opens the
+    detail.
 - **The Focus detail**, a page in the panel (`island.md`): each mode as a
   row, the one on marked. A row turns its mode on until turned off, or
   off. Each row opens its durations: "For 1 hour", "Until this evening"
@@ -156,7 +159,7 @@ earlier Focus returns, and the held notifications are summarised.
 | Game Mode by hand, no game | As on by hand; a manual on stays until turned off (`gaming.md` Game Mode 1), including after a game comes and goes. |
 | Game Mode off for this game | No glyph; the detail's Game Mode row reads off for this game; the game is listed in Settings. |
 | Two due at once | The winner by the order above; the other shows nowhere until it returns. |
-| Ending | The glyph goes; "{Focus} off" if automatic; the summary banner if two or more were held (`notifications.md`). |
+| Ending | The glyph goes; "{focus} off" if automatic; the summary banner if two or more were held (`notifications.md`). |
 | Second screen | Focus is one state for the session: every island shows the glyph. Banners are on the main screen anyway (`notifications.md`). |
 | Locked, idle, asleep | Focus continues; schedules start and end, with no events; the lock shows the symbol. |
 | Error | The calendar unavailable: no "Until the end of this event". An app trigger's app removed: the trigger stays, marked "Not installed", and never fires. A schedule whose times are equal is refused when entered. The Focus service gone: the glyph and module show their last state, stale, never a stalled frame (shell runtime 8). |
@@ -265,10 +268,10 @@ What this sheet adds to `competition.md`:
 | Where | String |
 |---|---|
 | Modes | "Do Not Disturb", "Game Mode" (Apple's title case, `copy.md` rule 1), the user's own names as typed |
-| Control Centre module | "Focus"; "{Focus}" with "Until {time}", "For {n} min", "Until the end of {event}", "Schedule", "{app}", "{game}" |
+| Control Centre module | "Focus"; "{focus}" with "Until {time}", "For {n} min", "Until the end of {event}", "Schedule", "{app}", "{game}" |
 | Focus detail | "For 1 hour", "Until this evening", "Until tomorrow morning", "Until the end of this event", "Off for {game}", "Focus Settings…" |
 | Settings › Focus | "Add Focus…", "Name", "Symbol", "Allowed notifications", "Apps", "People", "Add…", "Allow time-sensitive notifications", "Turn on automatically", "Add schedule…", "Time", "App", "From", "To", "Every day", "Weekdays", "Weekends", "While {app} is in front", "When a game is in front", "Off for these games", "Not installed", "Delete Focus" |
-| Island events | `island.md`'s: "{Focus} on", "{Focus} off", "Do Not Disturb on", "Game Mode on", "Game Mode off" |
+| Island events | `island.md`'s: "{focus} on", "{focus} off", "Do Not Disturb on", "Game Mode on", "Game Mode off" |
 | Other modules | `control-centre.md`'s: Energy Mode's hold, "Off during Game Mode" for Night Light |
 | Summary | `notifications.md`'s |
 

@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B30 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B34 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -60,6 +60,11 @@
   Settings and the app conventions.
 - Wave C passed gate 5 (board `p1/surfaces-c.html`); stage 5 is
   complete. The graph colours were replaced after a colour-vision check
-  (`p1/system/data-colours.md`). Next: stage 6, the review, and gate 6,
-  signing off DESIGN.md. P2 is
+  (`p1/system/data-colours.md`).
+- P1 is done: stage 6's review (critique, accessibility, copy;
+  `p1/review/`) applied, DESIGN.md signed off at gate 6, B31–B34 recorded,
+  every intent doc's design list answered. The tokens, schema, contrast
+  script and Phosphor subset in `p1/system/` move into the workspace when
+  P2 lays it out; P3 reads the schema. Next: P2 (compositor core), planned
+  by its own run; P3 waits for the Freya fork at rc.8. P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

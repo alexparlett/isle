@@ -57,16 +57,16 @@ Centre item or clock: those are the island's glyphs, tray and clock
 
 | Group | Item | Notes |
 |---|---|---|
-| 1 | About this computer | Opens Settings › General › About |
+| 1 | About This Computer | Opens Settings › General › About |
 | 2 | System Settings… | |
-| 2 | Updates… | Count at the trailing end when updates are waiting; opens Settings › Software Update |
+| 2 | Software Update… | Count at the trailing end when updates are waiting; opens Settings › Software Update |
 | 2 | Restart to finish updating… | Only while a restart is owed; opens the session dialog's restart with its countdown |
 | 3 | Force Quit… | ⌥⌘⎋; the Force Quit dialog (`prompts.md`, batch 2) |
 | 4 | Sleep | |
 | 4 | Restart… | The session dialog's countdown (`shell.md` System prompts 8) |
 | 4 | Shut Down… | Same |
 | 5 | Lock Screen | ⌃⌘Q |
-| 5 | Log Out <user>… | ⇧⌘Q; the log-out confirmation |
+| 5 | Log Out {user}… | ⇧⌘Q; the log-out confirmation |
 
 macOS's Recent Items and App Store have no Isle source and are left out.
 
@@ -74,13 +74,13 @@ macOS's Recent Items and App Store have no Isle source and are left out.
 
 | Group | Item | Notes |
 |---|---|---|
-| 1 | About <App> | The app's own About when its tree has one, else Isle's About panel: icon, name, version, the package it came from, the entry's description |
+| 1 | About {app} | The app's own About when its tree has one, else Isle's About panel: icon, name, version, the package it came from, the entry's description |
 | 2 | Settings… | ⌘,; the app's own item when its tree has one, else its settings chord from the Cmd table, else shown disabled so the menu keeps its shape |
 | 3 | Desktop-entry actions | Fallback only, and only if the entry has them: New Window, New Private Window, Library and the like |
-| 4 | Hide <App> | ⌘H |
+| 4 | Hide {app} | ⌘H |
 | 4 | Hide Others | ⌥⌘H |
 | 4 | Show All | |
-| 5 | Quit <App> | ⌘Q; kept-running apps quit too (B30) |
+| 5 | Quit {app} | ⌘Q; kept-running apps quit too (B30) |
 
 An app's own About, Settings and Quit items also stay where the app put
 them (File, Edit, Help): Isle points the app menu at them by label and
@@ -97,7 +97,7 @@ chord, and never removes an item on a guess.
 | 1 | Full screen tile ▸ | Split View left and right (`compositor.md` Split View) |
 | 1 | Enter Full Screen | ⌃⌘F |
 | 2 | Move to desktop ▸ | Each desktop of this screen, New desktop |
-| 2 | Move to <display> | Only with a second output |
+| 2 | Move to {display} | Only with a second output |
 | 2 | Keep on top | Checked when on (`compositor.md` Stacking 9) |
 | 3 | The app's own Window items | Only when the app exports a Window menu |
 | 4 | Bring All to Front | |
@@ -120,7 +120,7 @@ knows, and every item in it works:
   present, ends with Close Window (⌘W). An entry action the table also lists
   shows once, in the table's menu;
 - **Window** as above;
-- **Help** with menu search, then "<App> Help" and "<App> Website" where
+- **Help** with menu search, then "{app} Help" and "{app} Website" where
   the app's AppStream data gives the links.
 
 A game's fallback is the app menu, Window and Help only: closing a game's
@@ -134,7 +134,7 @@ a trailing column for the shortcut hint or a submenu's chevron.
 | Kind | Structure |
 |---|---|
 | Normal | Label; hint if any, as the Mac chord the user presses (`shell.md` App menus 7; `copy.md` rule 11) |
-| Disabled | Dimmed; no hover highlight; skipped by arrow keys; still in the accessibility tree |
+| Disabled | Dimmed; no hover highlight; skipped by arrow keys (Help's results excepted); still in the accessibility tree |
 | Checked | A check in the mark column; a dash for the mixed state |
 | Radio | A check in the mark column, as on macOS; the group is separated |
 | Icon | The icon is not drawn; the label shows. An item with an icon and no label shows its accessible name, and only if it has none is the icon drawn, so nothing is blank |
@@ -232,7 +232,7 @@ where they stand, anchored at the left, with no slide. Values are stage
 | Ctrl+F2 | Reveal the bar with focus, the system menu open; on a full-screen window too. Not over a game |
 | Shift+Cmd+/ | Reveal the bar with Help open and its search field focused |
 | Left, Right | Move between titles; with a menu open, open the neighbour's. In a menu, Right opens a submenu and Left closes it |
-| Up, Down | Move between enabled items, skipping separators and disabled rows |
+| Up, Down | Move between items, skipping separators and disabled rows, except Help's results |
 | Typing | Marks the next item whose label starts with what was typed |
 | Return, Space | Activate the marked item; on a title, open it |
 | Escape | Close one level; at the top, hide the bar and return focus to the window |
@@ -314,7 +314,7 @@ Control Centre (`island.md`).
    centre). **Changed** by revision 1: the left as proposed; nothing on the
    right; status items, Control Centre's entry and the clock are the
    island's (`island.md`); the island stays in front at the centre.
-2. **System menu** (About this computer, System Settings, Updates with
+2. **System menu** (About This Computer, System Settings, Updates with
    count, Force Quit, Sleep, Restart, Shut Down, Lock Screen, Log Out, a
    restart-owed line). **Adopted**, grouped as macOS groups the Apple menu;
    the restart-owed line is an action, "Restart to finish updating…", in the
@@ -324,7 +324,7 @@ Control Centre (`island.md`).
    the app's own items pointed at, not moved.
 4. **Window menu** (Minimise, Zoom, zones, Bring All to Front, windows).
    **Changed**: adds Fill and Centre, Full screen tile, Enter Full Screen,
-   Move to desktop, Move to <display> and Keep on top, shared with the
+   Move to desktop, Move to {display} and Keep on top, shared with the
    title bar's window menu, because apps that draw their own title bar have
    no other pointer route to them.
 5. **Menu search** (a field at the top of Help). **Adopted**, opened by
@@ -372,12 +372,12 @@ Control Centre (`island.md`).
 
 | Where | String |
 |---|---|
-| System menu | "About this computer", "System Settings…", "Updates…", "Restart to finish updating…", "Force Quit…", "Sleep", "Restart…", "Shut Down…", "Lock Screen", "Log Out <user>…" |
-| App menu | "About <App>", "Settings…", "Hide <App>", "Hide Others", "Show All", "Quit <App>" |
-| Window menu | "Minimise", "Zoom", "Fill", "Centre", "Move and resize", "Return to previous size", "Full screen tile", "Enter Full Screen", "Move to desktop", "New desktop", "Move to <display>", "Keep on top", "Bring All to Front" |
-| Fallback | "Close Window", "<App> Help", "<App> Website" |
+| System menu | "About This Computer", "System Settings…", "Software Update…", "Restart to finish updating…", "Force Quit…", "Sleep", "Restart…", "Shut Down…", "Lock Screen", "Log Out {user}…" |
+| App menu | "About {app}", "Settings…", "Hide {app}", "Hide Others", "Show All", "Quit {app}" |
+| Window menu | "Minimise", "Zoom", "Fill", "Centre", "Move and resize", "Return to previous size", "Full screen tile", "Enter Full Screen", "Move to desktop", "New desktop", "Move to {display}", "Keep on top", "Bring All to Front" |
+| Fallback | "Close Window", "{app} Help", "{app} Website" |
 | Help | Search field placeholder: "Search" |
-| Isle's About panel | "Version <v>", "From <package>" |
+| Isle's About panel | "Version {v}", "From {package}" |
 
 ## For the user
 

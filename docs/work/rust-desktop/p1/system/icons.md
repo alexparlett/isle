@@ -87,15 +87,16 @@ nothing already shipped; a glyph it lacks is drawn by Isle.
 ### How it is used
 
 - **Weights by size**, so the line stays between 1 and 1.5 px: Regular at
-  16 to 24 (1.0 to 1.5 px), Light at 32 and above (1.5 px and up). Fill
-  for "on". Increase Contrast steps one weight up (Regular to Bold). At 16,
+  16 to 24 (1.0 to 1.5 px), Light at 32 and above (1.5 px and up;
+  `icon-weight-large` from `icon-weight-large-from`). Fill for "on".
+  Increase Contrast steps one weight up (Regular to Bold). At 16,
   Regular's 1.0-px line is what v1's Lucide 1.5 on a 24 grid drew at 16
   (`isle-v1-inventory.md` §14), which the user accepted at true scale.
 - **Levels in two layers**: the full glyph (`wifi-high`, `speaker-high`)
-  in `text-3`, the level glyph over it in the glyph's colour. Phosphor's
-  level glyphs share the full glyph's paths (checked for Wi-Fi and the
-  speaker), so the empty bars show dimmed, as SF Symbols' variable colour
-  does.
+  in `colour-text-disabled`, the level glyph over it in the glyph's
+  colour. Phosphor's level glyphs share the full glyph's paths (checked
+  for Wi-Fi and the speaker), so the empty bars show dimmed, as SF
+  Symbols' variable colour does.
 - **Isle-drawn glyphs** for what Phosphor lacks, on its 256 grid with its
   stroke, caps and joins, kept in the same vendored directory with the
   source SVG:

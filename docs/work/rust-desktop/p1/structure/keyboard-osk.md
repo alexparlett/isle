@@ -32,7 +32,7 @@ and not a touch keyboard that appears by itself on every text field
  │                  │ ⇥   q  w  e  r  t  y  u  i  o  p  [  ]   \    │                 │
  │                  │ ⇪    a  s  d  f  g  h  j  k  l  ;  '    ⏎     │                 │  keys
  │                  │ ⇧     z  x  c  v  b  n  m  ,  .  /       ⇧    │                 │
- │                  │ 🌐  ⌃  ⌥  ⌘        space        ⌘  ⌥  ← ↑↓ →  │                 │
+ │                  │ `  🌐  ⌃  ⌥  ⌘      space       ⌘  ⌥  ← ↑↓ →  │                 │
  │                  └───────────────────────────────────────────────┘                 │
  └────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -44,8 +44,11 @@ and not a touch keyboard that appears by itself on every text field
 - **Keys**: a Mac layout in the order above, with the legends of the
   active XKB layout (a German layout shows its own letters), modifiers as
   ⌃ ⌥ ⌘ ⇧ whatever the physical keyboards' profiles are, and 🌐 to switch
-  layouts when more than one is set. An optional function row (F1 to F12,
-  Escape moving up to it) is off by default (Settings, below).
+  layouts when more than one is set. The key left of 1 on the layout
+  (`` ` `` on a US layout) leads the bottom row, so a backtick and the
+  dropdown terminal's Ctrl+Option+`` ` `` can be typed. An optional
+  function row (F1 to F12, Escape moving up to it and that key taking
+  Escape's place) is off by default (Settings, below).
 - **Modifiers latch**, as macOS's Sticky Keys and Accessibility Keyboard
   do: one click holds a modifier for the next key, two clicks lock it until
   clicked again. A held or locked modifier is marked. Caps Lock is marked
@@ -59,7 +62,8 @@ and not a touch keyboard that appears by itself on every text field
   stores nothing, since it types passwords too. The strip keeps its height
   when empty, so the keys never move (brief P5).
 - **Close** (×) and **More** (…) at the panel's trailing end: More holds
-  Show function keys, the layouts, and Keyboard Settings….
+  Show function keys, the layouts, and Accessibility Settings… (the
+  keyboard's own rows).
 
 ### What it types into
 
@@ -95,7 +99,7 @@ declares it a password through text-input-v3. The strip is then empty.
   same, in its solid form; a game holding the pointer cannot be typed into
   with it.
 - **One screen at a time**: the screen of the focused window when it
-  opens. It stays there until closed; More offers Move to {screen} when
+  opens. It stays there until closed; More offers Move to {display} when
   there are two.
 
 ### On the lock and the greeter
@@ -113,7 +117,7 @@ the lock: the lock has its own.
 
 Settings › Accessibility, in a Keyboard group (`settings.md`): On-screen
 keyboard (on or off; the same state as Control Centre's switch), Word
-suggestions (on), Show function keys (off), On lock screen (off: shows
+suggestions (on), Show function keys (off), On the lock screen (off: shows
 the button on the lock and the greeter). Showing it by itself when a text
 field takes focus waits on text-input-v3's reliability (`shell.md` Open)
 and is not drawn until its packet measures it.
@@ -215,10 +219,10 @@ pressed on a Mac keyboard, including the desktop's chords.
 | Where | String |
 |---|---|
 | Name | "On-screen keyboard" (Control Centre, Settings, Spotlight's action "Show on-screen keyboard", "Hide on-screen keyboard") |
-| More | "Show function keys", "Hide function keys", "Move to {screen}", "Keyboard Settings…" |
+| More | "Show function keys", "Hide function keys", "Move to {display}", "Accessibility Settings…" |
 | Strip | "Nothing to type into" |
-| Settings | "On-screen keyboard", "Word suggestions", "Show function keys", "On lock screen" |
-| Accessible names | "Close on-screen keyboard", "More", each key by its character or name ("Command", "Option", "Control", "Shift", "Caps Lock", "Delete", "Return", "Tab", "Escape", "Space", "Next layout"); a latched modifier "{Key}, held" or "{Key}, locked" |
+| Settings | "On-screen keyboard", "Word suggestions", "Show function keys", "On the lock screen" |
+| Accessible names | "Close on-screen keyboard", "More", each key by its character or name ("Command", "Option", "Control", "Shift", "Caps Lock", "Delete", "Return", "Tab", "Escape", "Space", "Next layout"); a latched modifier "{key}, held" or "{key}, locked" |
 
 ## For the user
 

@@ -824,11 +824,12 @@ What this document leaves to P1, per feature; "proposal" is the answer it
 gave before.
 
 - **Settings**: Answered in P1
-  (`docs/work/rust-desktop/p1/structure/island.md`, `settings.md`); recorded in DESIGN.md at gate 6.
-- **Design tokens**: the token names and values (B3).
+  (`docs/work/rust-desktop/p1/structure/island.md`, `settings.md`); recorded in DESIGN.md.
+- **Design tokens**: Answered in P1 (`docs/work/rust-desktop/p1/system/tokens.kdl` and
+  `schema.md`; B31); recorded in DESIGN.md.
 - **Notifications and badges**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/notifications.md`, `dock.md`,
-  `switcher.md`, `spotlight.md`); recorded in DESIGN.md at gate 6.
+  `switcher.md`, `spotlight.md`); recorded in DESIGN.md.
 - **Polkit agent, keyring prompter, network and Bluetooth agents**: Answered
   in P1 (`docs/work/rust-desktop/p1/structure/prompts.md`); recorded in
   DESIGN.md at gate 6.
@@ -836,7 +837,7 @@ gave before.
   (`docs/work/rust-desktop/p1/structure/capture.md`, `island.md`); recorded
   in DESIGN.md at gate 6.
 - **Calendars**: Answered in P1
-  (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
+  (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md.
 - **Providers**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/widgets.md`); recorded in DESIGN.md
   at gate 6.
@@ -850,7 +851,7 @@ gave before.
   (`docs/work/rust-desktop/p1/structure/prompts.md`); recorded in DESIGN.md
   at gate 6.
 - **Focus**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`,
-  `focus.md`, `notifications.md`); recorded in DESIGN.md at gate 6.
+  `focus.md`, `notifications.md`); recorded in DESIGN.md.
 
 ## Acceptance bars
 

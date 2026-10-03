@@ -66,7 +66,7 @@ at 16, white, the tile keeping its hue on the selection.
 | Second line | `type-style-subheadline` `colour-text-2`: the user name or main attribute, then, where the list spans sources, " · " and the source's name; cut at its end |
 | Vaults | A provider with several vaults: `conventions.md`'s section header (24, `type-style-subheadline` semibold `colour-text-2`) over each vault's rows |
 | Selected | `conventions.md`'s selection; the tile keeps its colours |
-| Locked row | First in a list that spans a locked source, not selectable: the tile with `lock` Regular at 20 in `colour-text-2`; "{Source} is locked" in `type-style-body`; "Unlock…" a regular button at `size-control`, trailing `space-s` in; a `colour-hairline` under the row |
+| Locked row | First in a list that spans a locked source, not selectable: the tile with `lock` Regular at 20 in `colour-text-2`; "{source} is locked" in `type-style-body`; "Unlock…" a regular button at `size-control`, trailing `space-s` in; a `colour-hairline` under the row. A signed-out provider's row carries the provider's own action in its words instead ("Unlock…" or its sign-in label), as a regular button |
 
 ### The detail
 
@@ -75,12 +75,12 @@ least, `space-xl` from the toolbar.
 
 | Part | Look |
 |---|---|
-| Header | The item's tile at `size-app-icon-medium` (48), radius 12, drawn as the list's at that size (site icon at 32, monogram in `type-style-title`); `space-m`; the title in `type-style-title-2` `colour-text` over "{kind} · {source}" in `type-style-body` `colour-text-2`. Trailing, centred on the header: "Edit", a regular button at `size-control` |
+| Header | The item's tile at `size-app-icon-medium` (48), radius 12, drawn as the list's at that size (site icon at 32, monogram in `type-style-title`); `space-m`; the title in `type-style-title-2` `colour-text` over "{kind} · {source}" in `type-style-body` `colour-text-2`. Trailing, centred on the header: "Edit", a regular button at `size-control`. Wi-Fi items have no Edit button, and Return does nothing there |
 | Field group | `space-xl` under: `settings.md`'s group (`colour-window-raised`, `radius-card`, `colour-hairline` ring, separators from the label edge). Rows at least `size-row-large` (40), padding `space-m`: the label in a `size-detail-label` (120) column, `type-style-body` `colour-text-2`; `space-m`; the value in `type-style-body` `colour-text`, selectable, cut at its end; the row's buttons trailing, `space-s` apart |
 | Secret value | Hidden: ten dots, always ten whatever the length, in `type-style-body` `colour-text`, tracked 0.12 em. Shown: the value in `type-style-mono` `colour-text`, wrapping, selectable |
-| Show, Copy | Regular buttons at `size-control-small` (20), padded `space-s`: "Show" (then "Hide") and "Copy". Show precedes Copy; non-secret fields (user name) carry Copy alone |
+| Show, Copy | Regular buttons at `size-control` (24), padded `space-s`: "Show" (then "Hide") and "Copy". Show precedes Copy; non-secret fields (user name) carry Copy alone |
 | Verification code | Hidden: "••• •••". Shown: the six digits as two groups of three in `type-mono` at `type-style-title-3`'s size, semibold, tabular, `space-xs` between groups; `space-s` after, the countdown ring (below) |
-| Countdown ring | `size-glyph` (16) across, `stroke-progress` (2): track `colour-fill-strong`, the time left as an arc in `colour-text-2` from twelve o'clock, shrinking anticlockwise once a second; no number, no colour change near the end |
+| Countdown ring | `size-glyph` (16) across, `stroke-progress` (2): track `colour-fill-strong`, the time left as an arc in `colour-text-2` from twelve o'clock, shrinking anticlockwise once a second; no number, no colour change near the end. Its accessible name is "Changes in {n} seconds", read on focus, never announced each second |
 | Website | The value as a plain button in `colour-accent-text`, opening the site |
 | Notes | The row's value wraps, `type-style-body`, no cut |
 | About group | `space-xl` under: Kind, Stored by, Source, Created, Modified, as the field group with rows of `size-row` (28) and no buttons; dates in the user's format |
@@ -136,9 +136,14 @@ rows, labels leading, fields at `size-row-field` (200); "Save in" a pop-up
 button; Cancel and Save (default). Generating a key shows
 `conventions.md`'s determinate bar under the fields and disables Save.
 The passphrase sheet: "Enter the passphrase for “{key}”" in
-`type-style-headline`, one secure field, Cancel and Add. Delete is the
+`type-style-headline`, one secure field, Cancel and Add. A provider's
+sign-in is `window-chrome.md`'s sheet of the fields it declares, Cancel
+and its action as the default. Deleting a login or an Apps item is the
 alert form with the `warning` glyph (it cannot be undone), the Apps line
 as its informative text, Cancel default, Delete in `colour-danger-text`.
+Deleting an SSH key asks nothing: both files go to the Trash, with Undo,
+as Files. Leaving Edit with changes is `window-chrome.md`'s alert:
+Discard (`colour-danger-text`), Keep Editing, Save the default.
 
 ### Keychain's settings
 
@@ -155,11 +160,11 @@ rows, "Clear copied passwords after" and "Hide shown passwords after".
 | Nothing selected | The detail's line |
 | No results | `conventions.md`'s line in the list; the detail empty |
 | Locked source | The sidebar lock; the locked row heading every list that spans it; its titles listed below |
-| Provider failed | Its state sentence and error in the list's place, as `conventions.md`'s missing-daemon form |
-| No Secret Service | "No keyring service is running." in the list for All, Logins, Apps and the keyring; Wi-Fi and SSH keys as normal |
+| Provider failed | Its state sentence and error in the list's place, as `conventions.md`'s missing-daemon form; in All and the kinds, one row at the top in the locked row's form, carrying the error |
+| No Secret Service | "No keyring service is running. Choose one in Settings › General › Passwords." in the list's place for Logins, Apps and the keyring; in All, one row at the top in the locked row's form, Wi-Fi and SSH items listed under it; Wi-Fi and SSH keys as normal |
 | Shown value | The value in mono in place of the dots; "Hide" in place of "Show" |
 | Code shown | The digits and the ring |
-| Editing | Fields, Cancel and Done, Delete…; the list and sidebar still work |
+| Editing | Fields, Cancel and Done, Delete…; the list and sidebar still work; leaving with changes asks (Sheets and alerts) |
 | Generating a key | The sheet's bar; the switcher card's |
 | Narrow | The sidebar collapses; then list and detail stack, the detail over the list with a Back button (`caret-left`) leading in the toolbar |
 | Inactive | `conventions.md`'s inactive form |
@@ -177,6 +182,7 @@ rows, "Clear copied passwords after" and "Hide shown passwords after".
 | Ring | One step a second, cut | Same |
 | A locked source unlocks | The locked row leaves over `motion-exit-fade-ms`; rows under it close up on `motion-move`; secrets now reachable change nothing visible | Cut |
 | Narrow stack | Detail over list and Back: a crossfade over `motion-fade-ms`, no slide (as Settings' sub-pages) | Cut |
+| A login dragged out | Its drag image as `files.md`'s: the row's tile and title at 70% | Same |
 | Generator popover, sheets, alert | `conventions.md` and `window-chrome.md` | As there |
 | Prompts, island event | `prompts.md`, `island.md` | As there |
 
@@ -205,7 +211,7 @@ rows, "Clear copied passwords after" and "Hide shown passwords after".
   go above their values (structure), the buttons staying trailing on the
   value's first line; the dots and digits grow with the text; tiles keep
   their size.
-- **Targets.** Sidebar and list rows 28 and 40; Show and Copy 20 tall and at
+- **Targets.** Sidebar and list rows 28 and 40; Show and Copy 24 tall and at
   least 44 wide; the generator button 20; the ring is not a target.
 
 ## Board
@@ -226,11 +232,13 @@ y, width, height on the ultrawide.
 5. **Edit**: fields, Done in the accent, the generator's popover open.
 6. **Generator sheet**: 24 characters, symbols off; then 64.
 7. **Sheets and alerts**: New login with Save in open; New SSH key
-   generating; the passphrase sheet; Delete for an Apps item.
+   generating; the passphrase sheet; a provider's sign-in; Delete for an
+   Apps item; leaving Edit with changes.
 8. **The reveal gate**: the polkit frame over the window, password and
    fingerprint forms. Crop: `prompts.md`'s.
 9. **States**: empty SSH keys, nothing selected, no results, no Secret
-   Service, a provider failed; inactive.
+   Service (in Logins and in All), a provider failed (its own list and
+   All); inactive.
 10. **Narrow**: the stacked form with Back, 560 wide.
 11. **Accessibility**: scenes 1 and 2 under Increase Contrast and at the
     largest text size.

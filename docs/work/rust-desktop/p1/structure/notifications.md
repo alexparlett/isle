@@ -39,7 +39,7 @@ hidden. Why the top right and not under the island is For the user 1.
 | Part | What | From |
 |---|---|---|
 | App icon | Leading; the app's icon, never the notification's picture | `desktop-entry` hint → the entry's icon; else `app_icon` when it names an icon; else a generic icon. A file given as `app_icon` is a picture, not an icon (v1 `Notifications.qml`): it goes to Image |
-| App name and time | One line: the app's name, then "now" while on screen | the desktop entry's name; else `app_name` |
+| App name and time | One line: the app's name, then "Now" while on screen | the desktop entry's name; else `app_name` |
 | Summary | One line, cut at the end | `summary` |
 | Body | Two lines at rest, cut at the end; the whole of it, to a maximum, while hovered | `body`, with the sanitised markup the server advertises (bold, italic, underline; links shown as text, not followed from a banner) |
 | Image | A thumbnail at the trailing edge; larger while hovered | `image-data` or `image-path` hint, or a file given as `app_icon`; copied at arrival (`platform.md` Notifications 3) |
@@ -256,7 +256,7 @@ politely, critical ones assertively, and its parts readable.
 | Click | Options | A pop-up of the actions past the second |
 | Middle click | A banner | Closes it, as the close control |
 | Drag or horizontal scroll | Toward the trailing edge | Swipes it to the centre |
-| Secondary click | A banner | A menu: "Mute {app} for 1 hour", "Mute {app}", "Notification Settings…" |
+| Secondary click | A banner | A menu: "Mute {app} for 1 hour", "Mute {app}", "Notifications Settings…" |
 
 While the pointer is over the stack nothing in it moves: timers pause and
 new arrivals wait until it leaves, so a click never lands on a banner that
@@ -343,17 +343,17 @@ free and left banners' place to this sheet:
 
 | Where | String |
 |---|---|
-| Banner time | "now"; in the centre, `notification-centre.md`'s; on a re-shown held one, "12 min ago" |
+| Banner time | "Now"; in the centre, `notification-centre.md`'s; on a re-shown held one, "12 min ago" |
 | Grouped | "{n} new" |
 | Overflow row | "{n} more in Notification Centre" |
 | Buttons | "Reply", "Send", "Cancel", "Options" |
 | Close (accessible name) | "Close notification" |
-| Secondary click | "Mute {app} for 1 hour", "Mute {app}", "Notification Settings…" |
+| Secondary click | "Mute {app} for 1 hour", "Mute {app}", "Notifications Settings…" |
 | Summary | Title "While you were away" or "While you played"; body "{n} notifications from {app}", "{n} notifications from {app} and {app}", "{n} notifications from {app}, {app} and {k} more"; action "Show" |
 | Lock | "{app}" with "{n} notifications"; with previews, the summary only |
 | Settings › Notifications | "Allow notifications", "Banner style", "Temporary", "Persistent", "Play sound", "Show badges", "Show over full-screen windows", "Hold banners while a window is full screen", "Hold banners while sharing your screen", "On the lock screen", "Don't show", "Show count", "Show previews" |
 | Settings › Sound | "Alert sound", "Play sound for notifications", "Alert volume" |
-| Desktop's own | "{drive} connected" (Open, Mount, Eject); "{app} installed" (Open, Show in Files); "Update installed" (Restart…); "{event} starts now" or "{event} at {time}"; "{provider} needs you to sign in" (Sign in…); `copy.md`'s rejected-edit string (Open in editor); `copy.md`'s crash notice (Reopen, Report…) |
+| Desktop's own | "{volume} connected" (Open, Mount, Eject); "{app} installed" (Open, Show in Files); "Update installed" (Restart…); "{event} starts now" or "{event} at {time}"; "{provider} needs you to sign in" (Sign in…); `copy.md`'s rejected-edit string (Open in editor); `copy.md`'s crash notice (Reopen, Report…) |
 | Earlier | "Earlier" (the heading is `notification-centre.md`'s to place) |
 
 ## For the user

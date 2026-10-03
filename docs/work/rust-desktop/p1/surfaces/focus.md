@@ -30,7 +30,7 @@ the user's own, so the glyph alone always says which of the two is on.
 | Part | Look |
 |---|---|
 | Glyph | The on mode's symbol at `size-glyph` (16), Fill, `colour-island-text`, in the status glyphs' fixed place (after VPN), hit box 24 by the pill's height (`island.md`). One glyph whatever the mode; Game Mode has no second |
-| Mode event | The island's line form: 30 tall, inset `space-m`, the symbol at 16 (Fill for "on", Regular for "off"), `space-s`, "{Focus} on" or "{Focus} off" in `type-style-body` medium, `colour-island-text`. Shown for `timing-mode-ms` |
+| Mode event | The island's line form: 30 tall, inset `space-m`, the symbol at 16 (Fill for "on", Regular for "off"), `space-s`, "{focus} on" or "{focus} off" in `type-style-body` medium, `colour-island-text`. Shown for `timing-mode-ms` |
 
 ### The Focus module
 
@@ -43,9 +43,10 @@ the user's own, so the glyph alone always says which of the two is on.
 | State (Medium) | "Off", `type-style-subheadline`, `colour-text-2` | How it ends or why it is on: "Until 07:00", "For 47 min", "Until the end of {event}", "Schedule", "{app}", the game's name; tabular where a time. On by hand with no end: no state line, the name centred on the circle |
 | Small | The circle alone; name and state in the tooltip | The same |
 
-The circle is the switch (it turns the last-used mode on or off); the rest
-of the tile opens the page. Hover, pressed, focus and disabled are the
-frame's.
+At Medium the circle is the switch (it turns the last-used mode on or off)
+and the rest of the tile opens the page. At Small the whole tile is the
+switch; Return or the secondary-click menu opens the page. Hover, pressed,
+focus and disabled are the frame's.
 
 ### The Focus page
 
@@ -55,17 +56,19 @@ the foot.
 | Part | Look |
 |---|---|
 | Head | The module as a Wide tile: back button (`caret-left`), the circle, then the name over the state line as in Medium. No trailing switch: the circle is it, as in the grid |
-| Mode rows | In one card, Do Not Disturb, Game Mode, then the user's modes in the order made. Every row `size-row-large` (40), so a row does not change height when it turns on: inset `space-m`; a 24 circle (`size-control`) holding the symbol at `size-glyph` (16), off `colour-fill-strong` with Regular `colour-text`, on `colour-accent` with Fill `colour-on-accent`; `space-m`; the name in `type-style-body` `colour-text` over the secondary line in `type-style-subheadline` `colour-text-2`; a disclosure `caret-right` at `size-glyph-small`, `colour-text-2`, at the trailing inset, `caret-down` while open. A row with nothing to say on its second line centres its name |
+| Mode rows | In one card, Do Not Disturb, Game Mode, then the user's modes in the order made. Every row `size-row-large` (40), so a row does not change height when it turns on: inset `space-m`; a 24 circle (`size-control`) holding the symbol at `size-glyph` (16), off `colour-fill-strong` with Regular `colour-text`, on `colour-accent` with Fill `colour-on-accent`; `space-s`; the name in `type-style-body` `colour-text` over the secondary line in `type-style-subheadline` `colour-text-2`; a disclosure `caret-right` at `size-glyph-small`, `colour-text-2`, at the trailing inset, `caret-down` while open. A row with nothing to say on its second line centres its name |
 | Secondary line | On: the module's state line ("Until 07:00", "Elden Ring"). Off: the first schedule, as Settings states it ("Weekdays 22:00–07:00", "While Zed is in front", "When a game is in front"), with "+{n}" for more; nothing if none. Game Mode off for the game in front: "Off for {game}" |
-| Durations | Opened from the disclosure, in place under the row, inside the same card: `size-row` (28) rows, labels aligned with the mode's name (from 48), `type-style-body` `colour-text`, no glyph: "For 1 hour", "Until this evening" or "Until tomorrow morning", "Until the end of this event" while one is in progress. For Game Mode with a game in front, its first row is "Off for {game}" |
-| Row states | Hover `colour-fill-strong` at `radius-row`; pressed `colour-control-pressed`. The on mode is told by its accent circle and Fill symbol: no check as well |
+| Durations | Opened from the disclosure, in place under the row, inside the same card: `size-row` (28) rows, labels aligned with the mode's name (from 44), `type-style-body` `colour-text`, no glyph: "For 1 hour", "Until this evening" or "Until tomorrow morning", "Until the end of this event" while one is in progress. For Game Mode with a game in front, its first row is "Off for {game}" |
+| Row states | As `control-centre.md`'s rows: hover `colour-fill-strong` edge to edge, clipped by the card; pressed `colour-control-pressed`. The on mode is told by its accent circle and Fill symbol: no check as well |
 | Foot | "Focus Settings…", plain small button, leading, `type-style-callout`, `colour-text-2` |
 
 ### Game Mode's holds elsewhere
 
 Shown only on the modules that own them, as their state lines: Energy
 Mode's "High Power while Game Mode is on", Night Light's "Off during Game
-Mode" (Control Centre's spec draws those modules). Nothing at rest.
+Mode" (Control Centre's spec draws those modules). At Small, where a
+module has no state line, the hold is in its tooltip and accessible name
+only. Nothing at rest.
 
 ## States
 
@@ -80,7 +83,7 @@ Mode" (Control Centre's spec draws those modules). Nothing at rest.
 | Game Mode by hand, no game | As on by hand |
 | Game Mode off for this game | No glyph; Game Mode's row reads "Off for {game}" |
 | Two due at once | Only the winner shows anywhere |
-| Ending | The glyph goes; "{Focus} off" if automatic; the summary banner if two or more were held |
+| Ending | The glyph goes; "{focus} off" if automatic; the summary banner if two or more were held |
 | Second screen | Every island shows the glyph; the page is the same at the same size |
 | Locked, idle | No events; the lock shows the symbol (`lock.md` places it) |
 | Error | Calendar gone: no "Until the end of this event". Service gone: glyph and module keep their last state, controls in `colour-text-disabled` until it answers |
@@ -111,8 +114,9 @@ Mode" (Control Centre's spec draws those modules). Nothing at rest.
 - **Reduce Transparency.** The island's and panel's solid forms.
 - **Focus ring.** On the island's glyph, the pill's capsule ring
   (`island.md`). In the panel: round the tile at `radius-card` plus
-  `stroke-focus-offset`, round a row or duration row inside its card at
-  `radius-row` plus the offset. Up and Down move between modes, Right and
+  `stroke-focus-offset`; round a row or duration row inset by the ring's
+  width so the card does not clip it, as `control-centre.md`. On glass the
+  ring carries a 1-point `colour-text` line inside it. Up and Down move between modes, Right and
   Left open and close durations.
 - **Largest text size.** The island's rules (glyph to 24); rows grow with
   their lines (40 to 54 at 1.5×) and circles to 32; the state line may

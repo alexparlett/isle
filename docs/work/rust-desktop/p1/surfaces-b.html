@@ -243,7 +243,7 @@
         { id: "pick", name: "Pick a region", crop: [1000, 100, 1800, 900], note: "The screen frozen under a veil; the selection cut clear with a two-tone line and 8-point handles; the size in a solid capsule.", render(s) {
           S.desktop(s); pill(s, [clock()]);
           add(s, box("", 0, 0, W, H, { background: "var(--colour-veil)", clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, 1500px 260px, 1500px 780px, 2400px 780px, 2400px 260px, 1500px 260px)" }));
-          add(s, box("", 1500, 260, 900, 520, { boxShadow: "0 0 0 1px var(--capture-line), 0 0 0 2px var(--capture-line-shadow)" }));
+          add(s, box("", 1500, 260, 900, 520, { boxShadow: "0 0 0 1px var(--colour-capture-line), 0 0 0 2px var(--colour-capture-line-shadow)" }));
           [[1500, 260], [2400, 260], [1500, 780], [2400, 780], [1950, 260], [1950, 780], [1500, 520], [2400, 520]].forEach(([x, y]) => add(s, box("", x - 4, y - 4, 8, 8, { background: "#fff", borderRadius: "2px", boxShadow: "0 0 0 1px rgba(0,0,0,0.5)" })));
           add(s, box("", 2400 - 110, 790, 110, 22, { borderRadius: "11px", background: "var(--material-solid)", display: "grid", placeItems: "center" }, sp("s-callout s-num", "900 × 520")));
         } },

@@ -26,9 +26,9 @@ and everything grows down from it. The island's strip stays clear above.
 | Shape | `size-spotlight-width` (720) × `size-spotlight-field` (48), `radius-panel`; `material-glass` at the user's glass position, `material-blur`, `material-saturation`, `material-noise-opacity`; `shadow-panel` |
 | Query | `type-style-title-2`'s size and line (17/22) at `type-weight-regular`, `colour-text`, from `space-l` in (after the scope token when one is on), cut at its start as it scrolls. No magnifier glyph (the sheet) |
 | Placeholder | The scope's string (`structure/spotlight.md` Copy) in the query's style, `colour-text-2` |
-| Caret, selection | Caret 2 wide, the line's height, `colour-accent`. A reopened query's selection: `colour-accent` mixed in at `selection-mix` behind `colour-text` |
+| Caret, selection | Caret 2 wide, the line's height, `colour-text`. A reopened query's selection: `colour-accent` mixed in at `selection-mix` behind `colour-text` |
 | Scope token | A capsule `size-control` (24) tall, `space-m` from the leading edge, padding `space-s`, `colour-fill-strong`; its name in `type-style-body` at `type-weight-medium`, `colour-text`. One app: the app's icon at `size-app-icon-small` (16), `space-xs`, its name. The query starts `space-s` after it |
-| Quick keys | Four icon buttons while the query is empty, trailing, `space-s` (8) from the top, foot and trailing edge, `space-xs` apart: 32 square, `radius-card` (concentric: 18 less 8), `colour-fill`; hover `colour-control-hover`, pressed `colour-control-pressed`. Glyphs at `size-glyph-large` (20), Regular, `colour-text-2`: Apps `squares-four`, Files `folder`, Actions `command`, Clipboard `clipboard-text`. Hover after `timing-tooltip-ms` (700) shows a tooltip (component) under the button: "Apps ⌘1" |
+| Quick keys | Four icon buttons while the query is empty, trailing, `space-s` (8) from the top, foot and trailing edge, `space-xs` apart: 32 square, `radius-card` (concentric: 18 less 8), `colour-fill`; hover `colour-control-hover`, pressed `colour-control-pressed`. Glyphs at `size-glyph-large` (20), Regular, `colour-text-2`: Apps `squares-four`, Files `folder`, Actions `command`, Clipboard `clipboard-text`. Hover after `timing-tooltip-ms` (700) shows a tooltip (component) under the button: "Apps {shortcut}", the shortcut in `copy.md` rule 11's form ("⌘1" on a Mac keyboard, words on a PC one). In a scope with an empty query, the active scope's key in its pressed form (`colour-control-pressed`) |
 | Activity mark | While a slow source searches: `dots-three` at `size-glyph` (16), still, `colour-text-2`, `space-l` from the trailing edge. Never with the quick keys (they need an empty query; slow sources need one typed) |
 
 ### The results panel
@@ -40,7 +40,7 @@ and everything grows down from it. The island's strip stays clear above.
 | List | Clipped to the panel's inner rectangle at `radius-card`; group headers scroll with the rows |
 | Group header | `size-row` (28) tall, its label at the foot: `type-style-subheadline`, `type-weight-semibold`, `colour-text-2`, aligned with the rows' icons. No rule above it |
 | Scroller | Overlay only: a thumb 6 wide, radius 3, `colour-hairline-strong`, inset `space-xxs` from the trailing edge, shown while scrolling and for `timing-hover-settle-ms` after |
-| Files strip | In the Files scope: a segmented control (component) "Names", "Contents" at `size-control`, leading at the rows' inset, then `space-s`; the panel is 368 tall in that scope |
+| Files strip | In the Files scope: a segmented control (component) "Names", "Contents" at `size-control`, the chosen segment `material-solid` as on all shell glass (`conventions.md`), leading at the rows' inset, then `space-s`; the panel is 368 tall in that scope |
 
 **A row.** `size-row-large` (40) tall, every row the same; `radius-card`
 (concentric: the panel's 18 less 8). Inset `space-s`, a leading slot 32
@@ -49,7 +49,7 @@ square, `space-m`, the text column, the trailing column, inset `space-m`.
 | Part | Look |
 |---|---|
 | Title | `type-style-body`, `colour-text`, one line, cut at its end (window titles and paths in the middle). Centred in the row when there is no second line |
-| Second line | `type-style-subheadline`, `colour-text-2`, one line: a path with home as ~, an app's name, "{App} · Desktop 2", a pane ("Settings › Displays"), a menu path ("Edit › Find") |
+| Second line | `type-style-subheadline`, `colour-text-2`, one line: a path with home as ~, an app's name, "{app} · Desktop 2", a pane ("Settings › Displays"), a menu path ("Edit › Find") |
 | Trailing | A chord for an action or menu item in `type-style-body`, `colour-text-2`, laid out as a menu's shortcut column (`menus.md`); a pinned clipboard item's `push-pin` at `size-glyph-small`, Fill, `colour-text-2`. Nothing else: no row names its kind |
 | Top hit | The same 40-point row (the sheet's uniform rows), its title in `type-style-headline`, under the "Top hit" header |
 | Calculation | `calculator` glyph; the answer as the title in `type-style-headline`, tabular; the normalised expression as the second line. Until the calculator answers, the title is "=" in `colour-text-2`; the answer replaces it in place |
@@ -70,13 +70,16 @@ square, `space-m`, the text column, the trailing column, inset `space-m`.
 
 **Contents rows.** The title is the name followed, `space-s` on, by its
 folder in `colour-text-2`; the second line is the matching line with the
-match on `colour-match`, `radius-small`. On a selected row the match is
-`type-weight-semibold` instead of the fill.
+match in `type-weight-semibold`, never a fill: the find highlight's
+colour does not hold contrast on glass, so on Spotlight's glass the weight
+alone marks it, on a selected row too.
 
 **Selection.** The selected row fills `colour-accent`; title, second line,
 chord, pin and a glyph in `colour-on-accent`. The accent is the one thing
-Return acts on (brief P6), as a menu's selected row. One selection on
-screen; none in the field.
+Return acts on (brief P6), as a menu's selected row. One selected row on
+screen. While focus is elsewhere (a system prompt above, or Tab on the
+Apps view's category pop-up) the selected row, or a tile's name capsule,
+is `colour-selection-unfocused` with `colour-text` until focus returns.
 
 ### Clipboard preview (Cmd+Y)
 
@@ -105,14 +108,15 @@ A glyph's menu lists its variants as menu rows, the glyph leading.
 | Section header | Between Favourites and All apps: `size-row` (28), as the list's header. Absent while a query or a category is on |
 | Tile | 112 square, no fill at rest. Icon at `size-app-icon-large` (64), its own shape, centred, `space-m` from the top; `space-s`; the name in `type-style-body`, `colour-text`, centred, one line, cut at its end inside `space-xs` each side; the full name in a tooltip on hover |
 | Game tile | The cover in the icon's place: fitted to 64 tall keeping its shape (a 2:3 cover is 43×64), at most 104 wide, `radius-small`, `colour-hairline` edge; centred in the 64 slot |
-| Badge | The badge component (18, `colour-danger`, white, 11 semibold, tabular, "999+" past three digits), its centre on the icon's top trailing corner inset 4, as the switcher's cards; on a cover, on the cover's corner |
+| Badge | The badge component (18, `colour-danger`, `colour-on-danger`, 11 semibold, tabular, "999+" past three digits), its centre on the icon's top trailing corner inset 4, as the switcher's cards; on a cover, on the cover's corner |
 | Selection | Finder's form: a plate 72 square (the icon and `space-xs` round it), `radius-card`, `colour-fill-strong`, behind the icon; the name in a `colour-accent` capsule (padding `space-xs` each side, the line's height plus 2) in `colour-on-accent` |
-| Drag | The picked tile follows the pointer at full opacity with `shadow-menu`; its place empties; neighbours make room (Motion) |
+| Drag | The picked tile follows the pointer at full opacity with `shadow-menu`; its place empties; neighbours make room (Motion). With no favourites, while a tile is dragged a "Favourites" header and an empty `colour-fill` well open at the grid's top on `motion-move`, the drop target |
+| Drag out | A file or clipboard row's leading slot follows the pointer with `shadow-menu` |
 | No match | "No results for “{query}”" in `type-style-body`, `colour-text-2`, in the first row's place, leading |
 
 **Categories** (desktop entries' main categories under Mac-style names,
 sentence case per `copy.md` rule 1), in this order: Developer tools
-(Development), Games (Game, and the game library), Graphics & design
+(Development), Games (Game, and the game library), Graphics and design
 (Graphics), Internet (Network), Music (Audio), Video (Video, bare
 AudioVideo), Productivity (Office), Education (Education, Science),
 Utilities (Utility, System, Settings), Other (none of these). A category
@@ -125,6 +129,11 @@ The tile's and a result's menu (secondary click, Cmd+K) are menus as
 at the pointer; from Cmd+K, under the selected row's slot or the tile's
 icon, leading edges aligned. Options ▸ is a submenu with checks; Assign
 to ▸ a radio group.
+
+**Clear clipboard history.** An alert attached under the field as
+`prompts.md`'s Force Quit sheet: `material-solid`, square top corners,
+bottom `radius-card`; "Clear clipboard history?"; Cancel the default,
+"Clear {n} items" destructive in `colour-danger-text`.
 
 ## States
 
@@ -142,14 +151,14 @@ to ▸ a radio group.
 | No results | General: the web row alone. A scope: the one line, as the Apps view's no-match. |
 | Empty sources | That line ("No copied items", "No open windows"); "No password manager" as a row with `key`, second line "Open Keychain". |
 | Error | The failed group absent; a provider's error as a row with `warning-circle` and its reason. |
-| Vault locked | A row per provider: `lock`, "{Provider} is locked", second line "Unlock in Keychain". |
+| Vault locked | A row per provider: `lock`, "{source} is locked", second line "Unlock in Keychain". |
 | Many results | The list scrolls with the overlay scroller; the selection kept in view. |
 | Nothing to paste into | No visual change; the island's "Copied" after closing. |
 | Second screen | The same sizes, at that screen's two ninths; the Apps view six rows. |
 | Full-screen app in front | As normal, over it. |
 | Windowed game in front | `material-solid`, no blur, no transitions. |
 | Full-screen game in front | Not drawn. |
-| A system prompt | Spotlight unchanged beneath; the field shows its unfocused form (caret hidden) until focus returns. |
+| A system prompt | Spotlight beneath, the prompt's frame solid over it; the field shows its unfocused form (caret hidden) and the selection its unfocused form until focus returns. |
 | Locked, shortcuts inhibited, Focus on | Closed; no change; no change. |
 | Reduce Motion, Reduce Transparency, Increase Contrast, largest text | Motion and Accessibility. |
 
@@ -161,16 +170,18 @@ never its own clock; exits are quicker than entrances.
 | Transition | Form |
 |---|---|
 | Open | On `motion-open`, the field (and the panel, when the last query returns with results) scales from `motion-panel-scale` (0.96) to 1 about the field's centre, opacity min(1, 2p). No drop and no growth from a hot corner. Keys typed from the chord land in the field from the first frame |
-| Panel appears (first result) | Its rectangle is final at once; a clip reveals it downward from the field's foot on `motion-open`, rows at opacity 2p − 1. The field does not move |
+| Panel appears (first result) | Its rectangle is final at once; alpha 0 → 1 over `motion-fade-ms`, rows with it. The field does not move |
+| Panel goes (Escape clears the query) | Alpha 1 → 0 over `motion-exit-fade-ms` in place; the quick keys back over `motion-fade-ms` |
 | Keystroke | The new list replaces the old in one frame; nothing animates per key |
 | Slow rows arriving | Only below the selected row. Rows beneath the insertion part on `motion-move`; the new row's opacity follows that spring from its half. Appended at the end, it fades in over `motion-fade-ms`. The selected row and all above it never move |
 | Selection | Instant, in lists and grids (as menus and the switcher). Scrolling to keep it in view runs on `motion-move` |
 | Quick keys | Out over `motion-exit-fade-ms` with the first character; back over `motion-fade-ms` when the query empties |
 | Scope token | In and out in one frame; the query shifts with it |
 | Results ↔ Apps view | The panel's rectangle springs (width about the axis, height from its fixed top) on `motion-open` toward the Apps view and `motion-exit` back; outgoing content 1 − 2p, incoming 2p − 1 |
-| Apps view from closed | As Open, the panel revealed downward as above |
+| Apps view from closed | As Open, the panel fading in as above |
 | Tiles making room | Neighbours move on `motion-move`; a dropped tile settles on the same spring |
 | Row or tile leaves (deleted, unpinned) | Out over `motion-exit-fade-ms`; the rest close the gap on `motion-move` |
+| Pin or unpin (Cmd+P) | Out over `motion-exit-fade-ms`, in at its new place (Pinned or Recent) over `motion-fade-ms`; the selection follows |
 | Clipboard preview | Crossfades with the list over `motion-fade-ms`; out over `motion-exit-fade-ms` |
 | Quick Look | Grows from the selected row's rectangle and back (`files.md`); Spotlight beneath does not change |
 | Close (choice, Escape, click outside) | Everything to opacity 0 over `motion-exit-fade-ms`, in place, no scale. Focus returns in the first frame; the action is delivered then |
@@ -193,17 +204,22 @@ never its own clock; exits are quicker than entrances.
 - **Reduce Transparency.** Field and panels on `material-solid`, no blur or
   noise; shadows kept.
 - **Focus.** The field holds the keyboard throughout; the selection is the
-  focus, so no ring is drawn on rows, tiles or cells. Quick keys and the
+  focus, so no ring is drawn on rows, tiles or cells. The field is a combo
+  box controlling the list or grid; the selected row or tile is its active
+  descendant, announced with its group's header; a new result count is
+  announced politely. Quick keys and the
   Names / Contents switch are pointer targets with chords. In the Apps
   view, Tab moves focus from the grid to the category pop-up, which takes
   the focus ring (`stroke-focus-ring` at `stroke-focus-offset`, round
-  `radius-control`) and opens on Space; Tab again returns to the grid with
+  `radius-control`, with a 1-point `colour-text` line inside it on glass)
+  and opens on Space; Tab again returns to the grid with
   its selection kept. A menu opened from Spotlight follows `menus.md`.
 - **Largest text size** (1.5×, as `island.md`). The field is the query's
   line plus 26 (59); rows are the two lines plus 10, rounded up to the grid (56) and the panel
   still shows eight (464); headers and the name line grow. Tiles grow by
   the name's line (120), and the column count is reset on the next open to
-  what fits 928 (seven). Icons, covers and badges keep their size.
+  what fits 928 (seven). Icons and covers keep their size; badges grow with
+  their text, as the switcher's.
 - **Hit targets.** Rows 40, tiles 112, emoji cells 44, quick keys 32, the
   pop-up and switch at `size-control`: all above `size-hit-minimum`.
 - **Never colour alone.** Pins have the pin glyph; a locked vault says so;
@@ -230,7 +246,7 @@ over a window-covered desktop on the Haze wallpaper. Crops (harness
 7. **Emoji grid**: recent and Smileys, one selected, its name line.
 8. **Passwords**: items, a locked provider, "No password manager".
 9. **One app**: Tab on Firefox.
-10. **Empty and none**: "No results" in a scope; the general web row alone;
+10. **Empty and none**: "No results for “{query}”" in a scope; the general web row alone;
     "No copied items".
 11. **Apps view**: two rows of favourites, All apps with games' covers and
     a badge, one tile selected; the bar's hairline after a scroll.

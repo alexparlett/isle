@@ -96,7 +96,7 @@ at once from Show.
 
 - **Who asks**: the subject's app; else the action's icon from its
   policy; else the padlock.
-- **Title**: "{App} needs your password"; with no app known, "An
+- **Title**: "{app} needs your password"; with no app known, "An
   administrator's password is needed".
 - **Message**: polkit's message for the action, as given.
 - **Identity**: with one administrator, the field is labelled "Password
@@ -155,14 +155,14 @@ Keyring 1–2); the frame draws what it is given.
   it remembers every one joined; forgetting is in Control Centre's Wi-Fi
   detail and Settings.
 - **A wrong password**: NetworkManager asks again with its "new secrets"
-  flag; the status line says "Couldn't connect to {network}. Check the
+  flag; the status line says "Couldn't connect to “{network}”. Check the
   password and try again." (`copy.md` rule 7) with the field selected.
 - **Enterprise (802.1X)**: only the fields NetworkManager's request asks
   for (identity, password, a key's password); title "Sign in to
   “{network}”". Certificates are the packet's (`platform.md` Open).
 - **VPN** (System prompts 3): NetworkManager's VPN plugins describe their
   fields through their auth dialogs' external-UI mode, and Isle draws them
-  in this frame, as GNOME Shell does; title "“{VPN}” needs a password",
+  in this frame, as GNOME Shell does; title "“{vpn}” needs a password",
   action Connect. A plugin without that mode shows its own GTK window,
   outside Isle. VPN providers (B14) ask through their own contract.
 - **From Control Centre.** Choosing a secured network in the Wi-Fi detail
@@ -191,7 +191,8 @@ Keyring 1–2); the frame draws what it is given.
 - **Arrives with Settings closed** (B28; `platform.md` Network and
   Bluetooth agents 2).
 - **Timeout**: BlueZ's Cancel closes the prompt; a failure shows in the
-  Bluetooth detail ("Couldn't pair with {device}."). Pairing is bound by
+  Bluetooth detail ("Couldn't pair with {device}. Make sure it's on and
+  nearby, then try again."). Pairing is bound by
   BlueZ's timeout, so one that waits behind a game or the lock usually
   lapses.
 
@@ -231,10 +232,10 @@ Out {user}… (Shift+Cmd+Q), and from "Restart to finish updating…"
 **Quitting.** After either form, apps are asked to quit as by Cmd+Q
 (`compositor.md` Session 8), and the dialog shows the icons of those not
 yet gone, each leaving as its app quits. An app that asks to save stops
-the action: the dialog says "Couldn't restart because {App} didn't quit."
-with "Show {App}", which closes the dialog and brings the app forward with
+the action: the dialog says "Couldn't restart because {app} didn't quit."
+with "Show {app}", which closes the dialog and brings the app forward with
 its question (macOS's interrupted restart). An app that does not answer
-within the wait is marked "Not responding" and offered "Force Quit {App}",
+within the wait is marked "Not responding" and offered "Force Quit {app}",
 after which the action goes on.
 
 **Sleep and Lock Screen** act at once. The session dialog never opens over
@@ -259,7 +260,7 @@ chord goes to the game, since it is not in B30's escape set.
 - **The list is live**: an app that quits leaves it, and the selection
   stays on its app.
 - **Force Quit** (the default button) asks once, as a sheet on the panel:
-  "Do you want to force {App} to quit? You will lose any unsaved changes."
+  "Do you want to force {app} to quit? You will lose any unsaved changes."
   with Cancel and Force Quit. Then every process of the app is ended. One
   that cannot be ended is marked "Couldn't force quit".
 - The not-responding alert on close (`window-chrome.md` For the user 5)
@@ -275,7 +276,7 @@ form the notification's and the island's.
   draws any (a banner once, then kept in Notification Centre until
   dismissed): "Isle quit unexpectedly." with "Your apps were reopened."
   when session restore ran, and "Report…", which opens the crash record. An
-  app that crashes gets the same form with `copy.md`'s "{App} quit
+  app that crashes gets the same form with `copy.md`'s "{app} quit
   unexpectedly." and Reopen and Report…. A notification rather than macOS's
   dialog, because the user is already looking at a desktop rebuilt around
   them and a modal on top of it says nothing more (brief P1). The lock's
@@ -293,7 +294,7 @@ form the notification's and the island's.
 | State | What shows |
 |---|---|
 | Rest | Nothing. |
-| One prompt | The frame on its screen, the scrim on every screen, focus in its first field (or on its default button when it has none). |
+| One prompt | The frame on its screen, the scrim on every screen, focus in its first field (or on its default button when it has none) from the first frame; until armed, Return and Space on the button do nothing, and arming moves no focus. |
 | Armed | After the moment, Return and Space answer. |
 | Typing | Dots; Caps Lock in the status line while on. |
 | Checking | "Checking"; the action disabled; Cancel works. |
@@ -314,7 +315,7 @@ form the notification's and the island's.
 | Focus on | Unchanged: prompts are not notifications. |
 | Session dialog: countdown | The line counting; stops on any input. |
 | Session dialog: quitting | The icons of apps not yet gone. |
-| Session dialog: interrupted | "Couldn't restart because {App} didn't quit.", Show {App}; or Not responding and Force Quit {App}. |
+| Session dialog: interrupted | "Couldn't restart because {app} didn't quit.", Show {app}; or Not responding and Force Quit {app}. |
 | Force Quit: open | The list, a not responding app selected, else the front app. |
 | Force Quit: confirming | The sheet on the panel. |
 | Reduce Motion | No shake; the frame and scrim fade. |
@@ -324,8 +325,8 @@ form the notification's and the island's.
 
 ## Opening and closing
 
-- A prompt opens where it belongs, fading in with its scrim, with no slide
-  (brief P5). It closes faster, and focus returns to what had it (Shell
+- A prompt opens where it belongs, fading in with its scrim, scaling from
+  `motion-panel-scale` about its anchor in place, with no slide (brief P5). It closes faster, and focus returns to what had it (Shell
   runtime 11), Spotlight or a pinned Control Centre included, since a
   prompt closes nothing (Shell runtime 10).
 - The next prompt in the queue opens in place of the last after a short
@@ -382,7 +383,8 @@ Shut Down) and add v1's L and O for the two actions macOS's lacks, since
   own app asked.
 - **A prompt against Control Centre**: a prompt the panel started (a
   network, a device) opens over the pinned panel; the panel stays under the
-  scrim and shows the outcome.
+  scrim and shows the outcome. Over Control Centre or Spotlight the frame
+  is solid, so glass never sits on glass.
 - **A prompt against a sheet or an app's dialog**: the prompt wins focus;
   the sheet keeps its window's focus for after (`window-chrome.md`).
 - **Prompts against the lock**: they wait; the lock wins (`lock.md`).
@@ -442,25 +444,25 @@ Shut Down) and add v1's L and O for the two actions macOS's lacks, since
 
 | Where | String |
 |---|---|
-| Polkit title | "{App} needs your password"; "An administrator's password is needed" |
+| Polkit title | "{app} needs your password"; "An administrator's password is needed" |
 | Polkit field | "Password for {name}" |
 | Polkit buttons | "Cancel", "Allow"; "Details" |
 | Refusal (callers) | "Permission was not given." |
 | Keyring | The requester's own; "Unlock" when it names no action |
 | Keyring mismatch | "The passwords don't match." |
 | Wi-Fi | "“{network}” needs a password"; "Show password"; "Cancel", "Join" |
-| Wi-Fi wrong | "Couldn't connect to {network}. Check the password and try again." |
-| 802.1X | "Sign in to “{network}”"; "Username", "Password" |
-| VPN | "“{VPN}” needs a password"; "Cancel", "Connect" |
-| Bluetooth | "Pair with {device}?", "Check that {device} shows this code.", "Pair with {device}", "Type this code on {device}", "{device} wants to pair", "Allow {device} to connect?"; "Cancel", "Pair", "Don't Allow", "Allow" |
-| Bluetooth failure (in Control Centre) | "Couldn't pair with {device}." |
+| Wi-Fi wrong | "Couldn't connect to “{network}”. Check the password and try again." |
+| 802.1X | "Sign in to “{network}”"; "User name", "Password", "Private key password"; "Cancel", "Join" |
+| VPN | "“{vpn}” needs a password"; "Cancel", "Connect" |
+| Bluetooth | "Pair with {device}?", "Check that {device} shows this code." ("Cancel", "Pair"); "Pair with {device}" ("Cancel", "Pair"); "Type this code on {device}" ("Cancel"); "{device} wants to pair" ("Cancel", "Pair"); "Allow {device} to connect?" ("Don't Allow", "Allow"); the displayed code's accessible name "{n} of {total} digits typed" |
+| Bluetooth failure (in Control Centre) | "Couldn't pair with {device}. Make sure it's on and nearby, then try again." |
 | Status | "Wrong password. Try again.", "Checking", "Caps Lock is on", "Waiting for the fingerprint reader", "Too many attempts. Try again in {n} min." |
 | Queue | "1 more request", "{n} more requests" |
 | Chooser | "Lock Screen", "Log Out", "Sleep", "Restart", "Shut Down", "Cancel"; "Reopen windows when logging back in"; "If you do nothing, the computer will shut down in {n} seconds." |
 | Confirmation | "Are you sure you want to restart?", "Are you sure you want to shut down?", "Are you sure you want to log out?", "Restart to finish updating?"; "Cancel", "Restart", "Shut Down", "Log Out"; "If you do nothing, the computer will restart in {n} seconds." (and "shut down", "log out") |
-| Interrupted | "Couldn't restart because {App} didn't quit." ("shut down", "log out" likewise); "Show {App}"; "Not responding"; "Force Quit {App}" |
-| Force Quit | "Force Quit" (title and button); "If an app doesn't respond for a while, select it and choose Force Quit."; "Not responding"; "Do you want to force {App} to quit? You will lose any unsaved changes."; "Couldn't force quit" |
-| Crash notice | "Isle quit unexpectedly.", "Your apps were reopened.", "Report…"; "{App} quit unexpectedly.", "Reopen", "Report…" |
+| Interrupted | "Couldn't restart because {app} didn't quit." ("shut down", "log out" likewise); "Show {app}"; "Not responding"; "Force Quit {app}" |
+| Force Quit | "Force Quit" (title and button); "If an app doesn't respond for a while, select it and choose Force Quit."; "Not responding"; "Do you want to force {app} to quit? You will lose any unsaved changes."; "Couldn't force quit" |
+| Crash notice | "Isle quit unexpectedly.", "Your apps were reopened.", "Report…"; "{app} quit unexpectedly.", "Reopen", "Report…" |
 | Safe start | "Isle started without your settings because they stopped it starting."; "Use my settings", "Report…" |
 | Island waiting row | As `island.md`: "{app} needs your password", "“{network}” needs a password", "{device} wants to pair"; "Show", "Cancel" |
 

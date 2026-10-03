@@ -1,6 +1,7 @@
 # P1 · Design
 
-Planned 2026-10-03. Not started.
+Planned 2026-10-03; done 2026-10-03, signed off at gate 6. The record is
+`docs/DESIGN.md` with B31 to B34; the working files are in `p1/`.
 
 The design process for the new Isle (B3, B17). It answers every
 presentation question the intent docs leave open (each doc's "For the

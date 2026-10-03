@@ -35,12 +35,13 @@ desktop are not drawn in their places while open: they are the tiles.
   Space leads with its app's icon at `size-app-icon-small` (16), `space-xs`,
   then the name; a game's leads with its cover fitted to 16 tall (a 2:3
   cover is 11 × 16), `radius-small` floored to 2, `colour-hairline` edge.
-  A Split View Space: both icons `space-xxs` apart, then "{App} and {App}".
+  A Split View Space: both icons `space-xxs` apart, then "{app} and {app}".
 - **Split View miniature**: the two windows at their split, a `space-xxs`
   gap of `colour-window-sunken` between them, edge to edge otherwise.
-- **Current Space**: a ring of `stroke-focus-ring` (3) in full
-  `colour-accent`, `stroke-focus-offset` outside the miniature, its radius
-  the miniature's plus the offset. The accent's one use in the bar.
+- **Current Space**: a ring of `stroke-found` (2) in `colour-text`,
+  `stroke-focus-offset` outside the miniature, its radius the miniature's
+  plus the offset. No accent: the accent ring is only the selection
+  (spread, below), so one accent mark is on screen.
 - **Selected or hovered Space** (and a Space under a drag): the
   switcher's plate, `colour-fill-strong`, `space-xs` round the miniature
   and its label, `radius-card` (6 + 4). A place takes the plate; a window
@@ -53,7 +54,8 @@ desktop are not drawn in their places while open: they are the tiles.
   Hidden at the compositor's limit; nothing takes its place.
 - **Remove**: on hover over a miniature, a badge centred on its top
   leading corner: a `size-control-small` (20) circle of `material-solid`,
-  `shadow-control`, `x` at `size-glyph-small` in `colour-text`; hit box 24.
+  `shadow-control`, a `stroke-hairline` edge in `colour-hairline`, `x` at
+  `size-glyph-small` in `colour-text`; hit box 24.
   A full-screen or Split View Space shows `arrows-in-simple` instead (Exit
   Full Screen). Never on a screen's only desktop. Hover
   `colour-control-hover` over the solid, pressed `colour-control-pressed`.
@@ -87,10 +89,11 @@ desktop are not drawn in their places while open: they are the tiles.
   `type-style-body`, `colour-text`, one line, cut in the middle (as the
   switcher's window titles), at most the tile's width or `size-menu-max`
   (480), whichever is wider.
-- **Selection ring**: the hovered or keyboard-selected tile takes the ring
-  the current Space wears: `stroke-focus-ring`, full `colour-accent`,
-  `stroke-focus-offset` outside the tile. This is the keyboard focus: no
-  second ring is drawn.
+- **Selection ring**: the hovered or keyboard-selected tile takes a ring
+  of `stroke-focus-ring` in full `colour-accent`, `stroke-focus-offset`
+  outside the tile: the screen's one accent mark. This is the keyboard
+  focus: no second ring is drawn. While a tile's menu is open it keeps its
+  ring.
 - **Close**: on pointer hover only, the Remove badge (above) with `x`,
   centred on the tile's top leading corner, where the close light sits.
   Keyboard selection shows no badge; W, Delete and Cmd+W close.
@@ -121,8 +124,9 @@ desktop are not drawn in their places while open: they are the tiles.
   `size-tray-tile-height` (192 × 80), `radius-small`, `space-l` apart; the
   app's icon at `size-app-icon` (32) centred on its lower edge. A hidden
   app's thumbnail at 50% over a `colour-fill` well (the switcher's hidden
-  form). Hover: the ring and the title capsule, the capsule `space-xs`
-  above the thumbnail since the tray sits at the foot.
+  form). Hover: the ring and the title capsule, the capsule's foot
+  `space-xs` above the tray panel's top edge, over the dim, never on the
+  tray (no glass on glass).
 - Height: 12 + 14 + 4 + 80 + 16 + 12 = 138.
 
 **App Exposé**
@@ -137,6 +141,8 @@ desktop are not drawn in their places while open: they are the tiles.
 - Other apps' windows are not drawn while it is open.
 - Nothing to show: the header, then a glass capsule `size-control` tall at
   the spread's centre, "No windows" in `type-style-body`, `colour-text-2`.
+- On a second screen: the header and that screen's spread; the set-apart
+  row only on the screen with focus.
 
 **Space switch.** Nothing is drawn but the windows moving (Motion): no
 OSD, no dots, no label.
@@ -160,8 +166,12 @@ OSD, no dots, no label.
   windows fit" in `type-style-body` `colour-text-2`.
 - **Drop on a full-screen Space** in the bar: the miniature shows the half
   the window would take as the zone preview's form (`window-chrome.md`):
-  `material-glass-clear`, an inner hairline of `colour-hairline-strong`,
-  `radius-small`, over the half under the pointer.
+  `colour-fill-strong`, no blur, an inner `stroke-hairline` of
+  `colour-hairline-strong`, `radius-small`, over the half under the
+  pointer.
+- **Swap by drag**: a pane's revealed bar dragged onto the other: the
+  other pane takes the zone preview's form over its half; on drop both
+  move on `motion-move`.
 
 **Stage Manager**
 
@@ -179,6 +189,10 @@ OSD, no dots, no label.
   not a selection.
 - **Stage**: the front set in the work area beside the column, which
   reserves its width plus `space-l` each side (192) while shown.
+- **Drop on an entry**: the switcher's plate round the stack and icon,
+  `radius-card`; the window shrinks toward it on `motion-move`.
+- **Entry to the stage**: the stack follows the pointer; the stage takes
+  the zone preview's form; on drop its windows grow on `motion-move`.
 
 **Hot corners.** No feedback is drawn: no glyph, no glow, no mark at
 rest or during the rest in the corner. The corner's action is its own
@@ -220,7 +234,7 @@ progress p; nothing fades on its own clock. Exits run on `motion-exit`.
 | Transition | Form |
 |---|---|
 | Open | Each window travels from its real rectangle to its tile on `motion-move`, scale and position together, its radius and shadow blending to the tile's by p. The dim, the bar and the tray fade in at their places by p; tile icons by 2p − 1. Nothing grows from a corner or drops. |
-| Close | The reverse on `motion-exit`: each tile back to its real rectangle; bar, tray and icons out by 1 − 2p, the dim by 1 − p. The chosen window is drawn on top throughout and lands with the rest. A chosen Space adds the switch (below) from the same frame. |
+| Close | The reverse on `motion-exit`: each tile back to its real rectangle; bar, tray and icons out by 1 − 2p, the dim by 1 − p. The chosen window is drawn last, on top, and lands with the rest. A chosen Space adds the switch (below) from the same frame. |
 | Gesture | p follows the fingers; on release it settles on `motion-move` (open) or `motion-exit` (closed) from the fingers' speed, by distance or past `motion-flick-speed`. |
 | App Exposé | As Open for the app's windows; other apps' windows fade by 1 − p in place; the set-apart row rises from below the screen's foot to its place by p, on the same spring. Tab to the next app: the old app's tiles return to their rectangles on `motion-exit` while the new app's travel to theirs on `motion-move`; the header crossfades by p. |
 | Hover, selection | Instant: ring, shadow, title capsule and badge appear in the next frame and go in one. |
@@ -234,11 +248,13 @@ progress p; nothing fades on its own clock. Exits run on `motion-exit`.
 | Restore from the tray | The window grows from its thumbnail to its box on `motion-open` (`window-chrome.md`); the tray narrows on `motion-move`, and goes by `motion-exit-fade-ms` when empty. |
 | Split View: enter | The window to its half on `motion-move` with the switch; the free half's dim and candidates fade in by its p, the candidates travelling from their rectangles on the origin desktop as in Open. |
 | Split View: choose, cancel | The chosen tile grows to fill the half on `motion-move`; the other candidates and the dim fade by 1 − 2p. Cancel: the first window back to its box on `motion-move` and the switch back on `motion-switch`. |
-| Divider | Both panes follow the pointer live; a double-click returns them to halves on `motion-move`. |
+| Divider | Both panes follow the pointer live, or the window menu's Resize from the keyboard; a double-click returns them to halves on `motion-move`. |
 | Stage Manager swap | The chosen entry's windows grow from their places in the stack to their boxes on `motion-move`; the front set shrinks into a new entry at the column's top on `motion-exit`; entries below move down on `motion-move`. |
-| Stage Manager reveal | A push of `size-edge-push` into the leading edge, held `timing-hover-dwell-ms`: the column slides in from beyond the edge on `motion-open`, its shadows with it; leaving it, after `timing-hover-grace-ms`, back out on `motion-exit`. |
+| Stage Manager reveal | A push of `size-edge-push` into the leading edge, held `timing-hover-dwell-ms`: the column slides in from beyond the edge on `motion-open`, its shadows with it; leaving it, after `timing-hover-grace-ms`, back out on `motion-exit`. With Show recent apps on, covered by a staged window: out past the edge on `motion-exit`; uncovered, back on `motion-open`. |
+| Tray thumbnail dragged out | It grows to its spread size leaving the tray, on `motion-move`, then drags as a tile. |
+| Ctrl+Shift moves | A window or desktop moved by key runs the drop and reorder motions above without a pointer. |
 | Hot corner | None of its own. |
-| Reduce Motion | Open and close: the spread at its places and the real windows crossfade over `motion-reduced-fade-ms`, the dim, bar and tray with it; a gesture drives the crossfade. The switch, Split View, Stage Manager swaps and the column's reveal are crossfades of the same length at their end places. Re-layout and drags of a tile jump; the dragged tile itself still follows the pointer. |
+| Reduce Motion | Open and close: the spread at its places and the real windows crossfade over `motion-reduced-fade-ms`, the dim, bar and tray with it; a gesture drives the crossfade. The switch, Split View, Stage Manager swaps and the column's reveal are crossfades of the same length at their end places. Re-layout and drags of a tile jump; the dragged tile itself still follows the pointer. The column's hide and return when covered fade. |
 | Game Mode | No transitions: each state replaces the last in one frame; the dragged tile follows the pointer; no blur sampled. |
 
 ## Accessibility
@@ -249,24 +265,31 @@ progress p; nothing fades on its own clock. Exits run on `motion-exit`.
   `colour-text` on `material-solid`.
 - **Increase Contrast.** Every tile, thumbnail, miniature and stack gets a
   `stroke-hairline` of `colour-hairline-strong`; glass takes
-  `material-glass-tinted` with the same edge; the accent rings gain a
-  1-point `colour-hairline-strong` outer edge so they read on any
-  wallpaper; the plate becomes `colour-control-pressed` with a
-  `colour-hairline-strong` inner edge (the switcher's); the tray's rule and
-  the divider's grip `colour-hairline-strong`; glyphs step to Bold.
+  `material-glass-tinted` with the same edge; the rings gain a 1-point
+  `colour-hairline-strong` outer edge so they read on any wallpaper; the
+  plate becomes `colour-control-pressed` with a `colour-hairline-strong`
+  inner edge (the switcher's); the tray's rule and the divider's grip
+  `colour-hairline-strong`; glyphs step to Bold.
 - **Reduce Transparency.** Bar, tray, capsules and header
-  `material-solid`. The dim and the wallpaper are unchanged.
+  `material-solid`. The Split View drop half and the other screen's drop
+  form are the zone preview's form, not glass, and stay. The dim and the
+  wallpaper are unchanged.
 - **Focus.** The ring (spread, tray, Split View) or the plate (bar) is the
   keyboard selection, drawn from the first key; nothing else rings. The
-  selection crosses between screens with the arrows.
+  selection crosses between screens with the arrows. While its menu is
+  open a miniature keeps the plate.
+- **Names.** Tiles "{title}, {app}"; tray and set-apart thumbnails
+  "{title}, minimised", "{title}, hidden" or "{title}, Desktop 2";
+  miniatures "Desktop {n}", with "current" as their state.
 - **Largest text.** Labels, titles, headings and the header scale, and the
   bar and tray grow by the extra line height; miniatures, tiles,
   thumbnails, icons and badges keep their size. Labels cut at their end.
 - **Hit targets.** Miniatures at least 64 tall; the + tile its full well;
   badges 20 with a 24 hit box; tiles their whole rectangle; the divider
   `size-hit-minimum`. All at or above `size-hit-minimum`.
-- **Never colour alone.** The current Space is also the only label in
-  `colour-text`; a refused drop changes the pointer; a misfit says why.
+- **Never colour alone.** The current Space's ring is neutral and it is
+  also the only label in `colour-text`; a refused drop changes the pointer;
+  a misfit says why.
 
 ## Board
 
@@ -277,9 +300,10 @@ the tray `[920, 1240, 2520, 1440]`.
 
 1. **Open, seven windows** on Desktop 2 of three with a full-screen Firefox
    Space and a game's Space; whole screen, then the bar crop.
-2. **Bar states**: current ring, plate on a selected Space, the plate
-   under the ring, Remove on hover, Exit Full Screen on a full-screen
-   Space, + tile hovered, a Split View pair label, a game's cover label.
+2. **Bar states**: current Space's neutral ring, plate on a selected Space,
+   the plate under the ring, Remove on hover, Exit Full Screen on a
+   full-screen Space, + tile hovered, a Split View pair label, a game's
+   cover label.
 3. **Spread hover**: ring, title capsule, close badge; and keyboard
    selection without the badge.
 4. **Tray**: three minimised and two hidden, the rule, headings; a hovered

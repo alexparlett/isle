@@ -148,7 +148,7 @@ Show Preview ⇧⌘P and the toolbar's preview toggle.
 |---|---|
 | Leading | The lights; the sidebar toggle; back and forward; the title, the folder's name with "{n} items" as its subtitle |
 | Centre | The view switcher (Icons, List, Columns, a segmented control); the Group and Sort pop-up (⊞▾), whose menu is View's Use Groups, Group By and Sort By |
-| Trailing | The jobs button (◔), only while a job runs, waits on a question or has failed; the primary action where the folder has one (Empty in the Trash; nothing elsewhere); More (…), carrying the selection's context menu, or the folder's with nothing selected; the preview toggle; the search field |
+| Trailing | The jobs button (◔), only while a job runs, waits on a question or has failed; the primary action where the folder has one (Empty Trash… in the Trash; nothing elsewhere); More (…), carrying the selection's context menu, or the folder's with nothing selected; the preview toggle; the search field |
 
 - **The title** carries the folder's icon as a proxy: dragged, it carries
   the folder; ⌘-click or secondary click on the title opens the path menu
@@ -213,7 +213,8 @@ Commands are in File and Edit and the item's context menu
   becomes a submenu of them.
 - **Rename** on Return: the name is edited in place with the name selected
   and the extension not. Return commits, Escape cancels. A taken name
-  keeps the field open with "“{name}” is already taken." under it. A name
+  keeps the field open with "“{name}” is already taken. Choose a different
+  name." under it. A name
   starting with a dot asks first ("A name that begins with a dot makes the
   item hidden."). Changing an extension asks while Settings › Advanced's
   warning is on, with "Keep .{old}" as the default and "Use .{new}".
@@ -358,7 +359,7 @@ the capture thumbnail (`apps.md` Files 21; B26).
   again close it.
 - **A window of its own** with a title bar: the lights (minimise disabled; zoom is full screen, also ⌥⌘Y), the
   file's name, and at the trailing end the actions its kind has: Open with
-  {App}, Markup (images), Rotate Left (images), Trim (video and audio).
+  {app}, Markup (images), Rotate Left (images), Trim (video and audio).
   Sized to the content within the screen, resizable, its size kept.
 - **Over its caller.** It floats above the window or surface that opened
   it, on its screen, as that caller's child: it is not a switcher entry
@@ -441,9 +442,9 @@ Save, collapsed
   Favourites, and a disclosure that expands it into the full browser,
   remembered per app. "Format" from the filters changes the extension in
   the name. A name already taken asks in the panel's place, as the next
-  step of the same sheet (`conventions.md`, Sheets): "“{name}” already
-  exists in “{folder}”.", "Replacing it overwrites it.", Cancel (back to
-  the panel as it was, the default) and Replace.
+  step of the same sheet (`conventions.md`, Sheets): "An item named
+  “{name}” already exists in “{folder}”.", "Replacing it overwrites it.",
+  Cancel (back to the panel as it was, the default) and Replace.
 - **SaveFiles** is the Open panel choosing one folder, with "Save" as its
   button; each name that is taken asks as above (`apps.md` Files 24).
 - **Choices** the request carries (checkboxes and pop-ups) sit in a row
@@ -493,7 +494,7 @@ Finder's panes:
 | Locked | Nothing shows; jobs run on; a question waits for unlock |
 | Focus on | Job notifications follow the Focus; the window's own report is unchanged |
 | Configuration error | Files' settings window shows the notice; its rows keep their last good values (`conventions.md`) |
-| Reduce Motion | Quick Look, sheets and spring-loaded folders fade instead of growing; a cancelled drag's image fades rather than flying back |
+| Reduce Motion | Quick Look and sheets fade instead of growing; spring-loaded folders blink as before and open by a cut, as every folder does; a cancelled drag's image fades rather than flying back |
 | Reduce Transparency | Sidebar, preview and toolbar solid (`conventions.md`) |
 | Increase Contrast | Borders on rows' selection, the tab bar, the panel's edges and Quick Look's window |
 | Largest text size | Rows and the sidebar grow; Icons' names wrap to two lines then truncate in the middle; List's columns keep their widths and truncate in the middle |
@@ -534,7 +535,9 @@ file managers), on top of `conventions.md`'s standard table. Cmd is Super
 | Acting | Return rename, ⌘O or ⌘↓ open, ⇧⌘N new folder, ⌥⇧⌘N new file, ⌃⌘N new folder with items, ⌘D duplicate, ⌃⌘A make alias, ⌘R show original, ⌘I Get Info, ⌃⌘I summary, ⌥⌘I inspector, ⌘C ⌘X ⌘V, ⌥⌘V move here, ⌥⌘C copy as pathname, ⌃⌘T add to sidebar, ⌘E eject, ⌘Z ⇧⌘Z undo and redo |
 | Trash | ⌘⌫ move to Trash (Put Back in the Trash), ⌥⌘⌫ delete immediately (asks), ⇧⌘⌫ empty (asks), ⌥⇧⌘⌫ empty without asking |
 | Search | ⌘F; Return searches everything under the folder; Escape clears then leaves |
-| Quick Look | Space or ⌘Y opens and closes; Escape closes; arrows move the selection; ⌘Return index sheet; ⌥⌘Y full screen; Tab into its toolbar |
+| Quick Look | Space or ⌘Y opens and closes; Escape closes; arrows move the selection; ⌘Return index sheet; ⌥⌘Y full screen; Tab into its toolbar, then the media controls; Return plays or pauses the focused control, arrows move a focused slider |
+| Markup | Tab through tools and colours, Return chooses; Return on the image places the chosen shape, crop or redaction at a default size at its centre; a mark is selected by Tab, moved with the arrows, resized with Option and the arrows (capture's portion mode), Delete removes it |
+| Trim | Tab to each handle; arrows move it a frame, Shift and the arrows a second; Space plays |
 | Panels | Return default, Escape and ⌘. cancel; Tab through the name field, sidebar, list, choices and buttons; the Go, view, hidden-file, New Folder and Quick Look keys as in a window |
 | Drag | Escape cancels; ⌥ copies, ⌘ moves; Space opens a spring-loading folder at once; ⌘Tab carries the drag to another app (`switcher.md`) |
 
@@ -611,8 +614,8 @@ folder is read again each time it is shown.
 3. **The toolbar's contents.** **Answered**: back and forward and the
    folder's title with its count; the view switcher and the Group and Sort
    pop-up in the centre; the jobs button only while it has something to
-   say, Empty as the Trash's one primary action, More, the preview toggle
-   and search at the trailing end.
+   say, Empty Trash… as the Trash's one primary action, More, the preview
+   toggle and search at the trailing end.
 4. **How a file job's question and progress show.** **Answered**: dimmed
    items with bars in the folder, a jobs button and popover in every Files
    window, the switcher card's total, a notification at the end only when
@@ -671,18 +674,19 @@ in sentence case.
 | Edit | "Copy “{name}” as Pathname", "Move Item Here", "Deselect All", "Undo Move to Trash", "Undo Copy of {n} Items", "Undo Rename", "Can't Undo" |
 | View | "as Icons", "as List", "as Columns", "Use Groups", "Group By", "Sort By", "Show View Options", "Show Preview", "Show Path Bar", "Show Status Bar", "Show Hidden Files", "Calculate all sizes", "Use as Defaults" |
 | Go | "Back", "Forward", "Enclosing Folder", "Recents", "Documents", "Desktop", "Downloads", "Home", "Computer", "Applications", "Recent Folders", "Go to Folder…" |
-| Titles and counts | "{n} items", "1 item", "{n} items, {free} available", "Searching “{folder}”", "{i} of {n}" |
+| Titles and counts | "{n} items", "1 item", "{n} items, {free} available", "Searching “{folder}”", "{n} of {total}"; the jobs button "File jobs: {n} running", "…, waiting for you", "…, failed" |
 | Search | "This folder", "Everything under “{folder}”", "Home", "Kind", "Last modified", "Contents contain", "Save" |
 | Empty | "No items", "No recent files", "No items in Trash", "No results for “{query}”" |
-| Errors | "You don't have permission to see the contents of “{folder}”.", "“{folder}” was moved or deleted.", "“{name}” is already taken.", "“{volume}” doesn't have enough space." with "{needed} is needed and {free} is available.", "{k} items couldn't be copied.", "“{volume}” is in use and can't be ejected." with "Quit the apps using it and try again." |
-| Jobs | "Copying {n} items to “{folder}”", "Moving {n} items to “{folder}”", "Waiting", "{done} of {total}, about {time}", notification "Copied {n} items to “{folder}”", "Copied {k} of {n} items to “{folder}”", "Show", "Try Again", "Done" |
+| Errors | "You don't have permission to see the contents of “{folder}”.", "“{folder}” was moved or deleted.", "Go to Enclosing Folder", "“{name}” is already taken. Choose a different name.", "“{volume}” doesn't have enough space." with "{needed} is needed and {free} is available." and "Free up space or choose another location.", "{n} items couldn't be copied.", "“{volume}” is in use and can't be ejected." with "Quit the apps using it and try again." |
+| Jobs | "Copying {n} items to “{folder}”", "Moving {n} items to “{folder}”", "Waiting", "{n} of {total}, about {time}", notification "Copied {n} items to “{folder}”", "Copied {n} of {total} items to “{folder}”", "Show", "Try Again", "Done" |
 | Name taken | "An item named “{name}” already exists in “{folder}”.", "Apply to all", "Stop", "Keep Both", "Merge", "Replace" |
-| Trash | "Permanently erase {n} items in the Trash?", "You can't undo this.", "Empty Trash", "Empty", "Delete {n} items" |
+| Trash | "Permanently erase {n} items in the Trash?", "You can't undo this.", "Empty Trash", "Empty Trash…", "Delete {n} items" |
 | Rename asks | "A name that begins with a dot makes the item hidden.", "Change the extension from “.{old}” to “.{new}”?", "Keep .{old}", "Use .{new}" |
 | Volumes | "Eject", "Force Eject", "Try Again", "Remember in Keychain" |
-| Panels | "Open", "Choose", "Save", "Cancel", "Save As:", "Where:", "Format:", "Show:", "New Folder", "“{name}” already exists in “{folder}”.", "Replacing it overwrites it.", "Replace" |
-| Quick Look | "Open with {App}", "Markup", "Rotate Left", "Trim", "Done", "Revert", "Don't Save", "Save" |
-| Get Info | "General", "More Info", "Name & Extension", "Comments", "Open with", "Change All…", "Preview", "Sharing & Permissions", "Read & Write", "Read only", "No access", "Allow running as a program" |
+| Panels | "Open", "Choose", "Save", "Cancel", "Save As:", "Where:", "Format:", "Show:", "New Folder", "An item named “{name}” already exists in “{folder}”.", "Replacing it overwrites it.", "Replace" |
+| Quick Look | "Open with {app}", "Markup", "Rotate Left", "Trim", "Done", "Revert", "Don't Save", "Save" |
+| Preview | "Information", "Calculating…" |
+| Get Info | "{name} Info", "General", "More Info", "Name & Extension", "Comments", "Open with", "Change All…", "Preview", "Sharing & Permissions", "Read & Write", "Read only", "No access", "Allow running as a program" |
 | Kind | "Folder", "Application (AppImage)", "Alias" |
 
 ## For the user

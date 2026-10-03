@@ -86,7 +86,7 @@ opens it. It replaces nothing and adds no width at rest.
   event whose location or link is a meeting address carries "Join", which
   opens it in the default browser (Itsycal, macOS Calendar).
 - **No calendars.** The month alone; the agenda is absent. The month's
-  secondary-click menu holds "Calendar Settings…" (Settings › Calendars,
+  secondary-click menu holds "Calendars Settings…" (Settings › Calendars,
   `settings.md`), which is also the way to subscribe. Nothing invites setup
   at rest (brief P1).
 - **A calendar that cannot be fetched** shows its last good copy
@@ -123,7 +123,7 @@ app (`notifications.md`).
 - A stack holds every notification from the app, live or record, in its
   own section: an app can have a stack above and another under Earlier.
 
-**Times.** Under a minute "now"; under an hour "{n} min ago"; earlier today
+**Times.** Under a minute "Now"; under an hour "{n} min ago"; earlier today
 the time ("14:05"); yesterday "Yesterday 18:04"; within the week the
 weekday and time ("Tuesday 09:12"); older the date ("3 Oct"). Times are
 refreshed only while the centre is open (`shell.md` Shell runtime 7).
@@ -136,7 +136,7 @@ removes it and its record and sends `NotificationClosed` as dismissed
 |---|---|
 | One | Its close control (hover or focus); dragged toward the trailing edge past a threshold (released short, it returns); middle click; Delete |
 | A stack | The close control on its header, or Delete on the header |
-| Everything | The Clear all control in the Notifications header: a close mark that widens to "Clear all" on hover or focus and acts on a second click or Return, macOS's two-step for a stack's clear, so one stray click never empties the centre. It clears live notifications and records alike (`notifications.md`). No confirmation dialog |
+| Everything | The Clear all control in the Notifications header: a close mark that widens to "Clear all" on a click or keyboard focus (never on hover) and acts on a second click or Return, macOS's two-step for a stack's clear, so one stray click never empties the centre. It clears live notifications and records alike (`notifications.md`). No confirmation dialog |
 
 **Acting.** A click on a card runs the default action, or with none raises
 the app; the centre closes and the app comes forward with the activation
@@ -267,8 +267,8 @@ stack as a group of notifications whose parts are readable.
 | Click | An event row | Expands it in place |
 | Middle click | A card | Clears it |
 | Drag or horizontal scroll | A card toward the trailing edge | Clears it past a threshold, returns short of it |
-| Secondary click | A card or stack header | "Mute {app} for 1 hour", "Mute {app}", "Clear", "Notification Settings…" (`notifications.md`) |
-| Secondary click | The month | "Show week numbers", "Calendar Settings…" |
+| Secondary click | A card or stack header | "Mute {app} for 1 hour", "Mute {app}", "Clear", "Notifications Settings…" (`notifications.md`) |
+| Secondary click | The month | "Show week numbers", "Calendars Settings…" |
 | Scroll | The panel | Scrolls it; never pages the month (Page Up and the controls do) |
 | Click | Outside the panel and the pill | Closes the centre; the click does not also reach the window beneath |
 
@@ -354,13 +354,13 @@ What this sheet adds to `competition.md`:
 |---|---|
 | Date | "{weekday} {day} {month}", e.g. "Saturday 3 October" |
 | Agenda | "Today", "Tomorrow", "Earlier today", "All day", "Now", "No events", "No more events today", "Join" |
-| Month | Accessible names "Previous month", "Next month", "{date}, {n} events"; menu "Show week numbers", "Calendar Settings…" |
+| Month | Accessible names "Previous month", "Next month", "{date}, {n} events"; menu "Show week numbers", "Calendars Settings…" |
 | Notifications header | "Notifications"; "Clear all" (accessible name of the close mark before it widens, too) |
 | Stacks | "{n} more", "Show less", "Show {n} more"; accessible name of a stack's close "Clear {app} notifications" |
 | Earlier | "Earlier" |
-| Times | "now", "{n} min ago", "14:05", "Yesterday 18:04", "Tuesday 09:12", "3 Oct" |
+| Times | "Now", "{n} min ago", "14:05", "Yesterday 18:04", "Tuesday 09:12", "3 Oct" |
 | Empty | "No notifications" |
-| Secondary click | "Mute {app} for 1 hour", "Mute {app}", "Clear", "Notification Settings…" |
+| Secondary click | "Mute {app} for 1 hour", "Mute {app}", "Clear", "Notifications Settings…" |
 | Accessible name of the panel | "Notification Centre" |
 | Spotlight action | "Notification Centre" |
 

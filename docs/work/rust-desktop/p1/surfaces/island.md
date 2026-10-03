@@ -23,7 +23,7 @@ clipped to the shape.
 
 | Form | Fill | Shadow | Edge |
 |---|---|---|---|
-| Pill, compact, events, the start row | `colour-island` | `shadow-menu` | none |
+| Pill, compact, events, the start row | `colour-island` over `material-blur` and `material-saturation` | `shadow-menu` | none |
 | Control Centre, Notification Centre | `material-glass` at the user's glass position, `material-blur`, `material-saturation`, `material-noise-opacity` | `shadow-panel` | none |
 | Privacy form | `material-solid` | `shadow-menu` | none |
 
@@ -84,7 +84,7 @@ the leading end (inset 4, radius 11), the same well the trailing marks use.
 | Media | Cover art 22×22 at the leading end, inset 4, radius 11 (a circle, by the concentric rule); `space-s`, then `isle-equaliser` (three bars, Isle-drawn) at 12, still, `colour-island-text`; paused, `pause` at 12. Art not yet loaded: a `colour-fill-strong` circle with `music-note` 12 |
 | Recording | A well: an 8-point dot in `colour-live`, `space-xs`, the elapsed time ("0:42") in `type-style-clock`, tabular, `colour-text`, padded `space-s`. It stands in for the screen mark, which leaves the trailing well |
 | Sharing | A well: `screencast` 12 Fill in `colour-privacy-screen`, `space-xs`, the sharing app's icon at `size-app-icon-small` (16); then, outside the well, the app's name in `type-style-body`, cut at the face's maximum. It stands in for the screen mark |
-| Prompt waiting | The prompt's kind at 16 in Fill: `lock` (polkit, keyring), `wifi-high` (Wi-Fi secret), `isle-vpn` (VPN secret), `bluetooth` (pairing); then the asking app's icon at 16 |
+| Prompt waiting | The prompt's kind at 16 in Fill: `lock` (polkit), `key` (keyring), `wifi-high` (Wi-Fi secret), `isle-vpn` (VPN secret), `bluetooth` (pairing); then the asking app's icon at 16 |
 | Call | A well: `phone` 12 Fill in `colour-ok`, `space-xs`, the elapsed time in `type-style-clock`, tabular |
 | Timer | `timer` 16, `space-xs`, the time left in `type-style-clock`, tabular; with several running, the soonest, then "+{n}" in `type-style-subheadline`, `colour-text-2` |
 
@@ -126,6 +126,9 @@ well stays at the trailing end, top inset 4, in every event form.
   the window closed". Timer done: `timer` Fill and "{label} done", held.
   Microphone mute: `microphone-slash` and "Muted", unmute `microphone` and
   the device's name. Keyboard layout: `keyboard` and the layout's name.
+  An ending with a reason also leaves a silent entry in Notification
+  Centre under the capture part (no banner, no sound), so the reason can
+  be read later.
 
 ### Control Centre
 
@@ -138,10 +141,12 @@ well stays at the trailing end, top inset 4, in every event form.
 | Leader row | 56 tall: inset `space-m`, the kind's icon or the app's at `size-app-icon` (32), `space-m`, two lines (`type-style-headline` `colour-text`; `type-style-subheadline` `colour-text-2`, tabular where a time), then the row's actions as small buttons (`size-control-small`, `space-xs` apart). Recording's 32 is a well circle with the 8 `colour-live` dot; sharing lists its streams under the lines as `size-row` sub-rows, each with Stop |
 | Collapsed row | `size-row` (28): inset `space-m`, glyph or icon at 16, `space-s`, one line `type-style-body` cut at its end, its one action as a small button, `caret-down` at 12 to expand |
 | Privacy row | `size-row`: the mark at 12 in a `size-island-well` circle, `space-s`, "{app} is using the microphone" |
-| Notice rows | Configuration error: `warning-circle` Fill 16, the message in `type-style-callout` (file, line and column in `type-mono`), then "Open in editor" and "Show in Files" as small buttons on a line of their own. Shortcuts inhibited: `isle-keyboard-slash`, the line, the escape chord in `colour-text-2`, "Take keys back" |
+| Notice rows | Configuration error: `warning-circle` Fill 16, the message in `type-style-callout` (file, line and column in `type-mono`), then "Open in editor" and "Show in Files" as small buttons on a line of their own. After a safe start: the same row, `copy.md`'s safe-start line in `type-style-callout`, then "Use my settings" and "Report…" as small buttons on a line of their own. Shortcuts inhibited: `isle-keyboard-slash`, the line, the escape chord in `colour-text-2`, "Take keys back" |
 | More | Past `limit-now-rows` (4), one collapsed row "{n} more", expanding in place, "Show less" |
 | Grid | Four columns of `size-module-cell-width` (84) by `size-module-cell-height` (64), gaps `space-s`: an inner width of 360 |
-| Tray | A card, padding `space-s`: items in boxes of `size-row` (28), `space-xs` apart, wrapping; icons at `size-app-icon-small`. Attention: a 6 dot in `colour-accent`, ringed 1 point in `material-solid`, on the box's top trailing corner |
+| Tray | A card, padding `space-s`: items in boxes of `size-row` (28), `space-xs` apart, wrapping; icons at `size-app-icon-small`. Attention: a 6 dot in `colour-warn`, ringed 1 point in `material-solid`, on the box's top trailing corner. Cmd+drag: the box lifts at `colour-control-pressed` under the pointer; the others reflow on `motion-move`, as Control Centre's grid |
+| Row and box hover | Now rows, collapsed rows, privacy rows and tray boxes: hover and keyboard selection `colour-fill-strong`, clipped by the card, as `control-centre.md`'s rows |
+| OSD line | An OSD raised while the panel is open, when no module shows that level: above the footer, `size-row`: the OSD's glyph at 16, its name in `type-style-callout` `colour-text-2`, the level bar (6, track `colour-fill-strong`, fill `colour-text`) to the trailing inset; held `timing-osd-ms`, out on `motion-exit` |
 | Footer | `size-row` tall, no card: "Edit controls" leading and "Control Centre Settings…" trailing, plain small buttons in `type-style-callout`, `colour-text-2`; in edit mode "Done", a default button |
 
 **A module's frames.** Every module is a tile: `colour-fill`,
@@ -167,11 +172,12 @@ headings in `type-style-subheadline` semibold `colour-text-2`, `space-m`
 above and `space-xs` below, never inside the card; a chosen row's
 `check` 12 in Fill, `colour-text` (the accent's text form is for
 windows, not glass); a sub-page's `caret-right` 12 trailing,
-`colour-text-2`. Foot: "{Pane} Settings…", naming the Settings pane it opens, as a plain button, leading. A sub-page uses the same frame with
+`colour-text-2`. Foot: "{pane} Settings…", naming the Settings pane it opens, as a plain button, leading. A sub-page uses the same frame with
 its row as the head. The page scrolls under its head.
 
-**Edit mode.** Remove badges, 16 circles of `colour-control` holding
-`minus` 12, centred on each tile's top leading corner. The gallery is a
+**Edit mode.** Remove badges: `notifications.md`'s close form (20,
+`material-solid`, `shadow-control`, `colour-hairline` edge) holding `minus`
+12, centred on each tile's top leading corner. The gallery is a
 second shape of the panel's width and material at the same top, `space-s`
 to the panel's leading side; its insides are wave B's.
 
@@ -186,8 +192,15 @@ height and scrolling as Control Centre.
 
 Over a full-screen window and on the lock: the shape shrunk to the well
 alone, `size-island-well` (22) tall, its top at `size-island-top`, centred,
-`material-solid`, the marks as in the pill. OSDs take the Level form at the
-same anchor. With no capture running nothing is drawn.
+`material-solid`, the marks as in the pill. OSDs take their own form
+(Level or Line) at the same anchor. With no capture running nothing is
+drawn.
+
+### Secondary click
+
+On a glyph or a compact face: `menus.md`'s menu at the pointer on
+`material-solid` (opened from shell glass): Always show, Show when active,
+Never show, `check` on the current; on an activity, Hide.
 
 ## States
 
@@ -209,8 +222,10 @@ same anchor. With no capture running nothing is drawn.
 | Overflow | The steps under Overflow; the panel scrolls with row and footer fixed |
 | Second screen | The 1920×1080 island: clock, glyphs, well; faces and events stay on the main screen, except that monitor's brightness OSD. Its panel is the main screen's design at the same size |
 | Windowed game, Game Mode | Every form `material-solid`, no blur; the Focus glyph `game-controller`; no transitions |
-| Full screen | The privacy form alone, or nothing; OSDs in the Level form; the island returns at its anchor on a push |
+| Full screen | The privacy form alone, or nothing; OSDs in their own form; the island returns on a push (Motion) |
 | Locked | The privacy form and OSDs over the lock, nothing else |
+| Mission Control | The rest form above the veil, privacy well and OSDs; no hover |
+| Widgets dashboard | The privacy form and OSDs only (`widgets.md`) |
 | Focus on | The mode's symbol among the glyphs |
 | Shortcuts inhibited, configuration error | Their glyph; their notice row in Now |
 | Reduce Motion, Reduce Transparency, Increase Contrast, largest text | See Motion and Accessibility |
@@ -243,7 +258,7 @@ well, which rides the trailing edge.
 | Page and back | `motion-open`; back `motion-exit` | The panel's height changes; the page is revealed by a clip growing from the module's tile to the body, while the grid fades by p; back closes the clip onto the tile |
 | Control Centre ↔ Notification Centre | `motion-open` if taller, `motion-exit` if shorter | Height only (one width); the column below the row crossfades by p |
 | Edit mode | `motion-open`; Done `motion-exit` | The gallery grows from the panel's leading edge, its top fixed; badges fade by its p |
-| Return over full screen | `motion-open`; leaving `motion-exit` | With no capture, the pill comes down from above the screen's top to its place and leaves back up, with the bar when it comes too (`menus.md`); with a capture, it grows out of the privacy form, which stays put |
+| Return over full screen | `motion-open`; leaving `motion-exit` | A push inside the island's zone: it grows at its anchor, from nothing or, with a capture, out of the privacy form, which stays put. With the bar (a push outside the zone): with no capture, the pill comes down from above the screen's top with the band and leaves back up with it (`menus.md`); with a capture, it grows from its privacy form in place while the band travels |
 | Pill → privacy form | `motion-exit` | Width and height to the well's; the clock and glyphs out by the first half |
 
 **Durations.** OSD `timing-osd-ms`; copied `timing-copied-ms`; mode
@@ -276,21 +291,28 @@ over a game is in place, not a slide.
   colour; level bars' tracks take `colour-hairline-strong`.
 - **Reduce Transparency.** Pill and events `material-solid` (the wells
   then match it); panels `material-solid`, no blur.
-- **Focus ring.** `stroke-focus-ring` in the accent, `stroke-focus-offset`
-  out, keyboard only. In the pill's row the ring is a capsule 30 tall
-  around a 22 box (the item and `space-xs` each side), concentric with the
+- **Focus ring.** `stroke-focus-ring` in the full accent,
+  `stroke-focus-offset` out, keyboard only; on glass a 1-point
+  `colour-text` line inside it, so it holds over any backdrop. In the
+  pill's row the ring is a capsule 30 tall around a 22 box (the item and `space-xs` each side), concentric with the
   pill and never clipped by it. In the panel: round tiles at `radius-card`
   plus the offset, round rows inside the card, round buttons at their own
   radius; the panel's 8 padding leaves room for every ring.
 - **Hit targets.** Pill items are the pill's full height and at least 24
-  wide; tray boxes 28; buttons `size-control-small` and up; badges 16 with
+  wide; tray boxes 28; buttons `size-control-small` and up; badges 20 with
   a 24 hit box. All at or above `size-hit-minimum`.
-- **Largest text size** (assumed 1.5×; Gaps). The pill is the clock's line
+- **Largest text size** (1.5×, `type-scale-max`). The pill is the clock's line
   plus 14: 38 tall, the strip 56 with it, the menu bar's reserve growing
   to match; glyphs step to 24, privacy marks to 16, wells to 30. Activity
   text drops before marks. Cells scale with the text (126×96), so the
   panel is 544 wide; Medium's state line may take two lines; Small keeps
-  no text.
+  no text. The Level form is its name line, the bar and its insets (57 at
+  1.5×) and widens to 360; the Start row is its leader row's lines plus 24.
+- **Announcements.** Each event is announced politely as it shows (an OSD
+  as its level, "Volume 40%"); a held event (timer done, urgent attention)
+  and a privacy mark's arrival assertively.
+- **Names.** Every glyph, mark, face and count is named (`structure/island.md`
+  Copy).
 
 ## Board
 

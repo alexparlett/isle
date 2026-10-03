@@ -441,23 +441,23 @@ Open for its packet
 What this document leaves to P1, per feature; "proposal" is the answer it gave before B24. Items
 P1 has answered point to the sheet that answers them.
 
-- **Shell runtime**: open, close and morph choreography. Which screens carry the island, the menu bar and the wallpaper, which other surfaces show only on the main screen, and the UI copy rules, are answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`, `wallpaper.md`, `notifications.md`, `spotlight.md`, `prompts.md`, `copy.md`) and recorded in DESIGN.md at gate 6.
-- **Menu bar**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`, `island.md`); recorded in DESIGN.md at gate 6.
-- **App menus**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`); recorded in DESIGN.md at gate 6.
-- **Island**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
-- **Control Centre**: Answered in P1 (`docs/work/rust-desktop/p1/structure/control-centre.md`, `focus.md`, `island.md`); recorded in DESIGN.md at gate 6.
-- **No Dock**: the Dock's arrangement, attention, badges and running apps are answered in P1 (`docs/work/rust-desktop/p1/structure/dock.md`, `switcher.md`) and recorded in DESIGN.md at gate 6.
-- **Spotlight**: Answered in P1 (`docs/work/rust-desktop/p1/structure/spotlight.md`); recorded in DESIGN.md at gate 6.
-- **App switcher**: Answered in P1 (`docs/work/rust-desktop/p1/structure/switcher.md`); recorded in DESIGN.md at gate 6.
-- **Mission Control**: Answered in P1 (`docs/work/rust-desktop/p1/structure/mission-control.md`); recorded in DESIGN.md at gate 6.
-- **Notification Centre**: Answered in P1 (`docs/work/rust-desktop/p1/structure/notification-centre.md`, `notifications.md`, `focus.md`, `island.md`); recorded in DESIGN.md at gate 6.
-- **Widgets**: Answered in P1 (`docs/work/rust-desktop/p1/structure/widgets.md`, `wallpaper.md`); recorded in DESIGN.md at gate 6.
-- **OSDs**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
-- **Lock screen**: Answered in P1 (`docs/work/rust-desktop/p1/structure/lock.md`, `wallpaper.md`); recorded in DESIGN.md at gate 6.
-- **System prompts**: Answered in P1 (`docs/work/rust-desktop/p1/structure/prompts.md`, `island.md`); recorded in DESIGN.md at gate 6.
-- **Capture**: Answered in P1 (`docs/work/rust-desktop/p1/structure/capture.md`, `island.md`); recorded in DESIGN.md at gate 6.
-- **Wallpaper**: Answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`); recorded in DESIGN.md at gate 6.
-- **On-screen keyboard**: Answered in P1 (`docs/work/rust-desktop/p1/structure/keyboard-osk.md`); recorded in DESIGN.md at gate 6.
+- **Shell runtime**: open, close and morph choreography. Which screens carry the island, the menu bar and the wallpaper, which other surfaces show only on the main screen, and the UI copy rules, are answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`, `wallpaper.md`, `notifications.md`, `spotlight.md`, `prompts.md`, `copy.md`) and recorded in DESIGN.md.
+- **Menu bar**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`, `island.md`); recorded in DESIGN.md.
+- **App menus**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`); recorded in DESIGN.md.
+- **Island**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md.
+- **Control Centre**: Answered in P1 (`docs/work/rust-desktop/p1/structure/control-centre.md`, `focus.md`, `island.md`); recorded in DESIGN.md.
+- **No Dock**: the Dock's arrangement, attention, badges and running apps are answered in P1 (`docs/work/rust-desktop/p1/structure/dock.md`, `switcher.md`) and recorded in DESIGN.md.
+- **Spotlight**: Answered in P1 (`docs/work/rust-desktop/p1/structure/spotlight.md`); recorded in DESIGN.md.
+- **App switcher**: Answered in P1 (`docs/work/rust-desktop/p1/structure/switcher.md`); recorded in DESIGN.md.
+- **Mission Control**: Answered in P1 (`docs/work/rust-desktop/p1/structure/mission-control.md`); recorded in DESIGN.md.
+- **Notification Centre**: Answered in P1 (`docs/work/rust-desktop/p1/structure/notification-centre.md`, `notifications.md`, `focus.md`, `island.md`); recorded in DESIGN.md.
+- **Widgets**: Answered in P1 (`docs/work/rust-desktop/p1/structure/widgets.md`, `wallpaper.md`); recorded in DESIGN.md.
+- **OSDs**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md.
+- **Lock screen**: Answered in P1 (`docs/work/rust-desktop/p1/structure/lock.md`, `wallpaper.md`); recorded in DESIGN.md.
+- **System prompts**: Answered in P1 (`docs/work/rust-desktop/p1/structure/prompts.md`, `island.md`); recorded in DESIGN.md.
+- **Capture**: Answered in P1 (`docs/work/rust-desktop/p1/structure/capture.md`, `island.md`); recorded in DESIGN.md.
+- **Wallpaper**: Answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`); recorded in DESIGN.md.
+- **On-screen keyboard**: Answered in P1 (`docs/work/rust-desktop/p1/structure/keyboard-osk.md`); recorded in DESIGN.md.
 
 ## Acceptance bars
 

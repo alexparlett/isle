@@ -422,7 +422,7 @@ gave before.
   (`docs/work/rust-desktop/p1/structure/mission-control.md`); recorded in DESIGN.md
   at gate 6.
 - **Picture-in-picture**: Answered in P1
-  (`docs/work/rust-desktop/p1/structure/pip.md`); recorded in DESIGN.md at gate 6.
+  (`docs/work/rust-desktop/p1/structure/pip.md`); recorded in DESIGN.md.
 - **Dropdown terminal**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/dropdown-terminal.md`); recorded in
   DESIGN.md at gate 6.

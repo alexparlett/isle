@@ -106,7 +106,7 @@ glyphs for its duration; the privacy marks stay.
 | Focus, Do Not Disturb, Game Mode on or off | the change was automatic (schedule, detected game) or made by chord; not when made in Control Centre | about 2 s |
 | An app asks for attention | an activation request without focus, or an urgent hint (revision 1: attention moves off the Dock) | about 3 s; an urgent request until the app is focused or the event clicked |
 | An activity starts | a new activity that leads: its row form briefly, then compact | media about 4 s; others about 3 s |
-| An activity ends with a reason | a recording or share ends because its source went (`shell.md` Capture 8) | about 5 s |
+| An activity ends with a reason | a recording or share ends because its source went (`shell.md` Capture 8); a silent entry also stays in Notification Centre under the capture part (no banner, no sound), so the reason can be read later | about 5 s |
 | A timer ends | holds until clicked, with the alert sound if sounds are on | until acknowledged |
 
 **Control Centre, opened from the island.** The panel unfolds downward
@@ -179,7 +179,7 @@ window covers it. The on-demand menu bar comes down into it
 | Focus on | The Focus glyph. Focus governs banners and sounds, not live activity. |
 | Shortcuts inhibited, configuration error | Their glyph, and their notice row in Now. |
 | Reduce Motion | No morph: the shape takes its new size at once and content changes at once or by a short fade (stage 4, shell runtime 9). |
-| Reduce Transparency | The pill is solid already; the panel loses any blur behind it. |
+| Reduce Transparency | The pill and panel turn `material-solid`. |
 | Increase Contrast | An edge around the pill and the panel (stage 4). |
 | Largest text size | The pill grows with the text, within its maximum, dropping activity text before marks; the panel grows. |
 
@@ -193,7 +193,8 @@ window covers it. The on-demand menu bar comes down into it
 - **Anchored.** The top edge and the horizontal centre never move; growth
   is outward and downward only, and a size change never re-centres or
   slides (brief P5; v1 lessons §5, `d1af0a8`). The menu bar coming or
-  going does not move it.
+  going does not move it. The one exception is the return over a
+  full-screen window with the bar (below).
 - **Content with the shape.** Content is clipped to the shape and its
   opacity follows the growth rather than running on its own clock (v1
   lessons §5). A tall form's corner radius is capped so text stays out of
@@ -210,8 +211,11 @@ window covers it. The on-demand menu bar comes down into it
   between them is one morph, never a close and an open
   (`notification-centre.md`).
 - **Over a full-screen window** the island leaves with the strip and comes
-  back with a top-edge push, at the same anchor; the privacy form does not
-  move.
+  back with a top-edge push. A push inside its zone brings it back at the
+  same anchor. A push outside it brings the menu bar, and with no capture
+  running the island slides down with the bar and leaves with it, so the
+  two arrive as one. The privacy form does not move: with a capture
+  running the island grows from it in place.
 - **Minimise** shrinks a window toward the island (revision 1); the island
   does not change for it.
 
@@ -231,7 +235,10 @@ window covers it. The on-demand menu bar comes down into it
 | Stop a recording | the capture sheet's chord (proposal: Cmd+Ctrl+Escape, as macOS) |
 | Media and volume | the media and volume keys, which raise OSDs |
 
-A peek never takes keyboard focus, so typing continues in the window.
+A peek never takes keyboard focus, so typing continues in the window,
+with one exception: Escape, while the pointer rests in the island's zone
+with a peek open, closes the peek and disarms hover until the pointer
+leaves; that one Escape is not passed to the window.
 Ctrl+F8 is a desktop chord, taken before Cmd translation (B21) and given
 up under shortcuts-inhibit.
 
@@ -478,11 +485,13 @@ up under shortcuts-inhibit.
 | Prompt waiting | "{app} needs your password", "“{network}” needs a password", "{device} wants to pair"; Show, Cancel |
 | Activity ended | "Recording stopped: the window closed", "Sharing stopped: the screen was disconnected" |
 | Copied | "Copied", "Colour copied", "Password copied" |
-| Mode events | "{Focus} on", "{Focus} off", "Do Not Disturb on", "Game Mode on", "Game Mode off" |
+| Mode events | "{focus} on", "{focus} off", "Do Not Disturb on", "Game Mode on", "Game Mode off" |
 | Attention | "{app} needs your attention" |
 | OSDs | the device's name (output, monitor or keyboard); "Muted"; the layout's name |
 | Timer end | "{label} done", or "Timer done" |
-| Glyphs (accessible names) | "Wi-Fi: {network}", "Not connected", "Bluetooth: {device}", "Sound muted", "VPN: {name}", "{Focus}", "Updating", "Restart to finish updating", "Battery {n}%", "{app} is receiving all keyboard shortcuts", "Configuration error" |
+| Glyphs (accessible names) | "Wi-Fi: {network}, signal {low, medium, high}", "Connecting to Wi-Fi", "Not connected", "Bluetooth: {device}", "Sound muted", "VPN: {name}", "VPN: connecting", "{focus}", "Updating", "Restart to finish updating", "Battery {n}%", "Battery {n}%, charging", "Battery low, {n}%", "{app} is receiving all keyboard shortcuts", "Configuration error" |
+| Privacy marks (accessible names) | "Microphone in use", "Camera in use", "Screen being recorded" or "Screen being shared" |
+| Compact faces (accessible names) | "Recording, {time}", "Sharing with {app}", "Call, {time}", "Timer, {time} left", "Now playing: {title}", "{app} is waiting for an answer"; the other activities' marks by their kind; the count "{n} more activities" |
 | Shortcuts inhibited row | "{app} is receiving all keyboard shortcuts", the escape chord, "Take keys back" |
 | Configuration error row | `copy.md`'s rejected-edit string, then "Open in editor", "Show in Files"; after a safe start, `copy.md`'s safe-start string, then "Use my settings", "Report…" |
 | Restart reasons | "The kernel was updated", "The graphics driver was updated", "Isle was updated" |

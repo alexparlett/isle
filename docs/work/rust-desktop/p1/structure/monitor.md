@@ -71,7 +71,7 @@ No sidebar and no inspector (`conventions.md`, Window anatomy table).
 | GPU | % GPU, GPU memory, GPU (shown only with more than one), PID, User | One block per GPU, named: utilisation graph, memory used of total, temperature, power, fan, clocks; "Open LACT" when LACT is installed (`apps.md` Monitor 10) |
 
 - **Preventing sleep** names what a process holds from logind ("Sleep",
-  "Idle", "Shutdown"); a process holding none shows nothing (`apps.md`
+  "Idle", "Shut down"); a process holding none shows nothing (`apps.md`
   Monitor 5).
 - **Energy impact** is one relative number per process, as Activity
   Monitor's; how it weighs CPU, GPU and wake-ups is the packet's.
@@ -94,11 +94,11 @@ remembered; the first-run filter is All Processes, as Activity Monitor.
 ### The table under a moving sort
 
 Rows re-sort at each sample, as Activity Monitor's do, except while the
-pointer is over the table or a context menu or alert is open: then values
-update in place and no row moves, so a click or Quit lands on the process
-the user aimed at. The order catches up when the pointer leaves. A
-selected row stays selected as it moves and is kept in view while the
-keyboard holds the selection.
+pointer is over the table, for `timing-type-select-ms` after a key in it,
+or while a context menu or alert is open: then values update in place and
+no row moves, so a click or Quit lands on the process the user aimed at.
+The order catches up when the pointer leaves. A selected row stays selected
+as it moves and is kept in view while the keyboard holds the selection.
 
 ### Sampling
 
@@ -136,7 +136,7 @@ keyboard holds the selection.
 ### Inspect
 
 ⌘I, a double-click or Inspect Process opens a window per process
-(`conventions.md`, the table), titled "{process} ({PID})", placed by the
+(`conventions.md`, the table), titled "{process} ({pid})", placed by the
 compositor; inspecting the same process again raises it.
 
 - Toolbar centre: **General** and **Open Files and Ports**; trailing:
@@ -157,12 +157,12 @@ compositor; inspecting the same process again raises it.
 | Rest | The table sorted by the resource's first column, the footer live |
 | Loading | The frame and the table's names at once; rate columns and graphs empty until the second sample; no spinner |
 | No results | "No results for “{query}”" in the table's place, the footer still live |
-| A figure not available | Its column shows no value and the footer says why in one line: "Per-process network traffic isn't available.", "GPU figures aren't available for {GPU}." (`apps.md` Monitor Open). A sensor not found is left out, not shown as zero |
+| A figure not available | Its column shows no value and the footer says why in one line: "Per-process network traffic isn't available.", "GPU figures aren't available for {gpu}." (`apps.md` Monitor Open). A sensor not found is left out, not shown as zero |
 | A refused action | The polkit dialog said no: nothing changes |
 | Process ended while selected | Its row goes; the selection clears; its inspect window says so |
 | Many processes | The table scrolls under the toolbar; the footer stays |
 | Hidden or covered | Nothing sampled; a gap in the graphs on return |
-| Narrow window | The resource switch folds into » before the title truncates (`conventions.md`); columns past the window's edge scroll sideways; the footer drops its sensors, then its right-hand figures |
+| Narrow window | The resource switch folds into » before the title truncates (`conventions.md`); columns past the window's edge scroll sideways; the footer drops its sensors, then its right-hand figures, except Energy's, which key its graph and stay |
 | Second screen | No difference |
 | Game in front | An ordinary window, typically on the second screen or behind; it samples only while shown, so a game in front of it costs nothing |
 | Locked | Nothing shows; covered, it stops sampling |
@@ -251,9 +251,9 @@ standard map is `conventions.md`'s.
 | View | "Columns", "Update Frequency", "Very Often (1 s)", "Often (2 s)", "Normally (5 s)" |
 | Window | "Sensors" |
 | Quit alert | "Quit “{process}”?", "Quit {n} processes?"; "Force Quit", "Cancel", "Quit" |
-| Row state | "Stopped" |
-| Inspect | "{process} ({PID})", "General", "Open Files and Ports", "This process has ended." |
-| Unavailable | "Per-process network traffic isn't available.", "GPU figures aren't available for {GPU}." |
+| Row state | "Stopped"; Preventing sleep's "Sleep", "Idle", "Shut down" |
+| Inspect | "{process} ({pid})", "General", "Open Files and Ports", "This process has ended." |
+| Unavailable | "Per-process network traffic isn't available.", "GPU figures aren't available for {gpu}." |
 | Launchers | "Open LACT", "Open CoolerControl" |
 
 ## For the user

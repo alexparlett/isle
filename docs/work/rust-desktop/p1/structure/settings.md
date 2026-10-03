@@ -29,7 +29,7 @@ pane's packet.
 **Name.** The app is "System Settings" in its desktop entry, the switcher,
 Spotlight and the on-demand menu bar, matching the system menu's "System
 Settings…" (`menu-bar.md`) and setting it apart from an app's own
-"<App> Settings" window. In prose and paths it is "Settings"
+"{app} Settings" window. In prose and paths it is "Settings"
 ("Settings › Displays"), as the batch 1 sheets write it.
 
 ### The window
@@ -92,7 +92,7 @@ the trailing edge. Kinds of row:
 | Details | A "Details…" or "Options…" button; opens a sheet for one item's settings (a Wi-Fi network, a printer, Hot Corners…) |
 | List | A table the user builds (login items, allowed apps, calendars), + and − at its foot, reordered by drag only where order matters |
 | Provider | A provider's state sentence and its actions, drawn without knowing the tool behind it (`apps.md` Settings 11; D42) |
-| Action | A button named for what it does ("Redetect Displays", "Check for Updates"); one that cannot be undone asks first |
+| Action | A button named for what it does ("Detect Displays", "Check now"); one that cannot be undone asks first |
 | Live | A meter, the pad drawing, SMART figures: sampled only while the pane is shown (`apps.md` Settings 15) |
 
 Changes apply as they are made; there is no Apply button (`apps.md`
@@ -142,12 +142,12 @@ desktop setting; rows and their order are each pane's packet.
 | 1 | Phone | *Isle only*, after VPN | Phone providers; shown only while one is installed | Phone |
 | 1 | Energy, or Battery on a machine with one | Energy, Battery | Power profile, sleep and wake, batteries | Power |
 | 2 | General | General | Sub-pages: About, Software Update, Storage (each disk as a bar by kind, and Recommendations that open Cleaner, `cleaner.md` For the user 1) · Passwords, Date & Time, Language & Region, Login Items · Snapshots | About, Updates, Storage, Devices, Passwords, Date and time, Region, Apps (autostart, user services, start commands), Snapshots |
-| 2 | Accessibility | Accessibility | Display (contrast, transparency, motion, text size), Zoom, the on-screen keyboard, pointer | Accessibility |
+| 2 | Accessibility | Accessibility | Display (contrast, transparency, motion, text size), Zoom, the on-screen keyboard, pointer, Sticky Keys and Slow Keys (latched in the compositor, drawn with the on-screen keyboard's held and locked forms; with P5's chord table) | Accessibility |
 | 2 | Appearance | Appearance | Light, Dark or Auto; the glass slider; accent; fonts (D52); other apps' title bars (`window-chrome.md`) | Appearance |
 | 2 | Apps | *Isle only*, beside Desktop & Dock, which holds macOS's default browser | Default apps; per app: keep running after its last window (B20), Cmd translation (B21) | Apps (keep-running, default apps) |
-| 2 | Control Centre | Control Centre (macOS 15; Menu Bar in 26) | The island: clock options, each glyph's tier (`island.md`); Control Centre's modules, shown or not, and Edit Controls…; which programs may show in the tray | |
+| 2 | Control Centre | Control Centre (macOS 15; Menu Bar in 26) | The island: clock options, each glyph's tier (`island.md`); Control Centre's modules, shown or not, and Edit controls; which programs may show in the tray | |
 | 2 | Desktop | Desktop & Dock, without the Dock | Windows: title-bar double-click, prefer tabs, close windows when quitting, session restore; tiling: edges, the pointer panel, margins; Mission Control; Hot Corners…; the widgets dashboard; click wallpaper to reveal desktop; the dropdown terminal | Apps (session restore) |
-| 2 | Displays | Displays | The arrangement (below); per display: mode, scale, rotation, VRR, tearing, enabled, brightness; the main display; night light; the render GPU; Redetect Displays | Displays, Modes (tearing) |
+| 2 | Displays | Displays | The arrangement (below); per display: mode, scale, rotation, VRR, tearing, enabled, brightness; the main display; night light; the render GPU; Detect Displays | Displays, Modes (tearing) |
 | 2 | Spotlight | Spotlight | Sources shown, clipboard history, web search | |
 | 2 | Wallpaper | Wallpaper | As `wallpaper.md` | Wallpaper |
 | 3 | Notifications | Notifications | Per app; previews; showing banners while a window is full screen or the screen is shared (`platform.md` Focus 3) | Notifications |
@@ -204,7 +204,7 @@ Choices made in the table:
 The field at the top of the sidebar, on ⌘F (`conventions.md`).
 
 - **Results replace the pane list** while a query stands: each result is a
-  row's label with its path under it ("Displays › Night light"), grouped
+  row's label with its path under it ("Displays › Night Light"), grouped
   by pane in the sidebar's order, with panes whose name matches first. It
   matches every row's label, description and keywords on every pane and
   sheet (`apps.md` Settings 3), and keywords carry other desktops' and
@@ -329,12 +329,12 @@ so a half-filled sheet is never lost.
 
 | From | Opens |
 |---|---|
-| System menu: About this computer | General › About (`menu-bar.md`) |
+| System menu: About This Computer | General › About (`menu-bar.md`) |
 | System menu: System Settings… | The pane last shown |
-| System menu: Updates… | General › Software Update |
-| A Control Centre module's detail: "{Pane} Settings…" | Its pane: Wi-Fi, Bluetooth, Sound, Displays, Focus, VPN, Energy, Keyboard, Phone, Accessibility (`shell.md` Control Centre 3; `control-centre.md`) |
+| System menu: Software Update… | General › Software Update |
+| A Control Centre module's detail: "{pane} Settings…" | Its pane: Wi-Fi, Bluetooth, Sound, Displays, Focus, VPN, Energy, Keyboard, Phone, Accessibility (`shell.md` Control Centre 3; `control-centre.md`) |
 | Control Centre's footer: Control Centre Settings… | Control Centre (`island.md`) |
-| The wallpaper's menu: Change wallpaper… | Wallpaper (`wallpaper.md`) |
+| The wallpaper's menu: Wallpaper Settings… | Wallpaper (`wallpaper.md`) |
 | Spotlight: a settings result | Its pane, the row marked (`spotlight.md`) |
 | A notification's action from the desktop | The pane it names (an update finished: General › Software Update) |
 | The configuration glyph | Not Settings: the notice row in Control Centre, whose "Open in editor" opens the file (`island.md`) |
@@ -427,14 +427,14 @@ gesture, and both have a key route above.
 
 | Place or input | Competes with | Proposed winner |
 |---|---|---|
-| A setting's state | Control Centre's quick control for the same thing | One state. Control Centre acts quickly, Settings fully; each shows the other's change live (Conventions 21). A module's detail ends with "{Pane} Settings…" to its pane; Settings has no link back |
+| A setting's state | Control Centre's quick control for the same thing | One state. Control Centre acts quickly, Settings fully; each shows the other's change live (Conventions 21). A module's detail ends with "{pane} Settings…" to its pane; Settings has no link back |
 | The rejected-edit notice | The island's glyph and notice row (`island.md`); a banner on first rejection (`notifications.md`) | All, from one source: the compositor's error. The island says it from anywhere; Settings says it in every pane and holds the rows; both offer "Open in editor" |
 | Settings results | Spotlight's settings source | One index; the same row and mark either way |
 | Focus over Settings | A polkit dialog for a privileged row; the Wi-Fi password prompt when joining from Wi-Fi; Bluetooth pairing from Bluetooth | The system prompt, above the window (`competition.md` Keyboard focus 2); Settings registers no agent and draws no password field (`apps.md` Settings 16; B12) |
 | Keys while recording | Desktop chords and Cmd translation | The recorder, until Escape, a chord or losing focus. No island glyph: it is the user's own act in a focused window and ends with focus. The lock's idle timer still runs |
 | Each screen's centre while arranging | Other surfaces | The display names, in the top layer, only while the pointer is over the map or a drag is in progress; they take no input. *Added for `competition.md`* |
 | Glyph tiers | The island's secondary click on a glyph (`island.md`) and Settings › Control Centre | Two routes to one value |
-| Module list | Control Centre's Edit Controls (`control-centre.md`) and Settings › Control Centre | The pane shows which modules are on and opens Edit Controls for their arrangement; the arrangement has one editor, in the panel |
+| Module list | Control Centre's Edit controls (`control-centre.md`) and Settings › Control Centre | The pane shows which modules are on and opens Edit controls for their arrangement; the arrangement has one editor, in the panel |
 | Hot corners | `dock.md` For the user 3's defaults | Set in Desktop › Hot Corners…; the defaults as accepted |
 | Game Mode | Focus › Game Mode, and Displays for VRR and tearing per output | Folded (For the user 2) |
 | An app's preferences | System Settings and the app's own settings window | The app's window; desktop policies about the app in System Settings (`conventions.md`) |
@@ -493,11 +493,12 @@ gesture, and both have a key route above.
 | Rejected hand edit | `copy.md`'s string with the column: "settings.kdl has an error on line 12, column 4. Changes won't be saved until it's fixed.", then the parser's message; "Open in editor", "Show in Files" |
 | Rejected token edit | "tokens.kdl has an error on line 12, column 4. The last good look is in use." |
 | Changed settings | "Show changed settings", "Hide changed settings", "Reset to default" |
-| Displays | "Keep these display settings?", "Reverting in {n} seconds.", buttons "Revert", "Keep"; "Redetect Displays"; "Follow focus"; disabled reason "This is the only display that's on." |
-| Recorder | "Type shortcut"; "Used by {action}" |
-| Missing device | "No Bluetooth adapter is connected.", "No trackpad is connected.", "No printers", "No calendars" |
+| Displays | "Keep these display settings?", "Reverting in {n} seconds.", buttons "Revert", "Keep"; "Detect Displays"; "Follow focus"; disabled reason "This is the only display that's on." |
+| Recorder | "Type shortcut"; "Used by {action}"; Detect's "Press any key…" |
+| Missing device, empty list | "No Bluetooth adapter is connected.", "No trackpad is connected.", "No printers", "No calendars", "No login items" |
 | Refused value | "Couldn't change {setting}. {reason}" |
 | Privileged change refused | "Permission was not given." (`copy.md`) |
+| General › Storage | "{size} safe to clear", "Review", "Empty Trash…", "Large and untouched files" |
 | Hot Corners | "Hot Corners…", the corner actions as `shell.md` Mission Control 8 names them, and "—" for none |
 
 ## For the user

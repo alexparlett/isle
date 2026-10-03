@@ -30,11 +30,19 @@ inspector and focus are `surfaces/conventions.md`'s, sheets and alerts
   (`monitor.md`'s form); Duplicates, Large files and Untouched a Kind
   pop-up; Untouched the period pop-up after it. Trailing: "Rescan", the
   primary action (a regular button, "Stop" while scanning); More; the basket
-  toggle (`sidebar-simple` mirrored, Fill while shown); search.
-- **Scan progress.** While a scan runs, a `stroke-progress` (2) line of
-  `colour-accent` along the toolbar's lower edge over the content region,
-  from its leading edge, its length the scanned share of the scope's used
-  space; no track. It is the one place the scan shows as live.
+  toggle (`sidebar-simple` mirrored, Fill while shown; folded, it carries
+  the quiet badge of the basket's count at its top trailing corner);
+  search.
+- **Scan progress.** While a scan runs, `conventions.md`'s determinate bar
+  (6 tall, radius 3, track `colour-fill-strong`, fill `colour-accent`)
+  `space-xxs` under the subtitle, the title block's width; title,
+  subtitle and bar centred as one on the toolbar's height. Its fill is the
+  scanned share of the scope's used space. It is the one place the scan
+  shows as live.
+- **Drag and drop.** A folder dragged over the window: the content region
+  takes a `stroke-found` ring in `colour-accent`, inset `space-xs`; the
+  drop scans it. Rows and tiles dragged out carry `files.md`'s drag
+  image.
 
 ### Kinds
 
@@ -72,15 +80,17 @@ normal-vision floor (16.2, 16.6); `system/data-colours.md`.
   Overview `chart-pie-slice`, Cleanup `broom`, Space `layout`, Duplicates
   `copy`, Large files `arrows-out-simple`, Untouched
   `clock-counter-clockwise`.
-- **Disks**, fixed at the foot, `colour-sidebar`, a `colour-hairline` above,
-  padding `space-m`. Each disk: `hard-drive` at 16 in `colour-text-2`,
-  `space-s`, the name in `type-style-body`, cut at its end, the free space in
-  `type-style-subheadline` `colour-text-2` trailing, tabular; `space-xs`
-  under, a bar the row's width, 6 tall, `radius-small` 3: track
-  `colour-fill-strong`, the used share `colour-text-2`, past nine-tenths
-  `colour-warn` (as Files' capacity mark). `space-s` between disks. Then
-  the Trash: `trash` at 16, "Trash", its size; "Empty Trash…" a small
-  regular button (`size-control-small`) trailing.
+- **Disks**, fixed at the foot, `colour-sidebar`, a `colour-hairline`
+  above, padding `space-m`. Each disk: `hard-drive` at 16 in
+  `colour-text-2`, `space-s`, the name in `type-style-body`, cut at its
+  end, the free space in `type-style-subheadline` `colour-text-2` trailing,
+  tabular; `space-xs` under, a bar the row's width, 6 tall, radius 3 (half
+  its height): track `colour-fill-strong`, the used share `colour-text-2`;
+  past nine-tenths the share `colour-warn` (as Files' capacity mark),
+  `warning` in place of `hard-drive`, and the free figure semibold
+  `colour-text`. `space-s` between disks. Then the Trash: `trash` at 16,
+  "Trash", its size; "Empty Trash…" a small regular button
+  (`size-control-small`) trailing.
 
 ### Overview
 
@@ -102,8 +112,9 @@ Top to bottom in the column, `space-xl` between sections:
    a regular button trailing.
 5. **Disks**: a group of rows of `size-row-large`: `hard-drive` at 20, the
    name over used of total in `type-style-subheadline` `colour-text-2`, the
-   sidebar's bar at `size-row-slider` (200) trailing. "{n} folders couldn't
-   be read" is the group's last row, `info` at 16 in `colour-text-2`.
+   sidebar's bar at `size-row-slider` (200) trailing, nearly full as the
+   sidebar's. "{n} folders couldn't be read" is the group's last row,
+   `info` at 16 in `colour-text-2`.
 6. **Largest folders** and **Largest files**: a group title in
    `type-style-headline`, then up to `limit-overview-rows` (5) navigation
    rows of `size-row-large`: kind tile, the name over its path (cut in the
@@ -116,7 +127,7 @@ Three cards, `settings.md`'s groups, `space-xl` apart.
 
 | Part | Look |
 |---|---|
-| Card head | 44 tall, padding `space-m`: a checkbox carrying the card's state (on, off or mixed), `space-s`, the name in `type-style-headline`, its total in `type-style-mono` `colour-text-2` trailing. System has no checkbox and "These can't be put back." under its name in `type-style-callout` `colour-text-2` |
+| Card head | 44 tall, padding `space-m`: the name in `type-style-headline`, its total in `type-style-mono` `colour-text-2` trailing. Safe to clear's head alone leads with a checkbox carrying the card's state (on, off or mixed), `space-s` before the name; Worth a look's rows are ticked one at a time, never from the head. System has no checkbox and "These can't be put back." under its name in `type-style-callout` `colour-text-2` |
 | Row | `size-row-large` (40), padding `space-m`: checkbox, `space-s`, kind tile, `space-s`, the find's name (the app that made it) in `type-style-body` over a second line in `type-style-subheadline` `colour-text-2`: the path, cut in the middle; in Worth a look the reason, " · ", then the path. The size in `type-style-mono` trailing |
 | More | Past `limit-cleanup-rows` (5): a row "{n} more" in `colour-accent-text`, a plain button, then "Show less" when open |
 | System row | `size-row-large`: the name in `type-style-body`, its size in `type-style-mono` `colour-text-2`, then "Clear…" or "Remove…" a regular button in `colour-danger-text` trailing |
@@ -130,9 +141,9 @@ Three cards, `settings.md`'s groups, `space-xl` apart.
 | Tile | The kind's map tile (Kinds), by the kind most of it is. At `size-tile-symbol` (32) square or more, the kind tile at its top leading corner inset `space-xs`; at `size-tile-label-width` by `size-tile-label-height` (96 by 44) or more, the name in `type-style-callout` semibold `colour-text`, cut at its end, over the size in `type-style-subheadline` `colour-text-2`, tabular, beside the kind tile |
 | Smaller items | Children whose tile would be under `size-tile-min` (8) on a side share one tile, "{n} smaller items", in `colour-fill-strong` with no band; it does not open |
 | Hover | A 1-point `colour-hairline-strong` inner ring at once; after `timing-tooltip-ms`, `conventions.md`'s tooltip: name, size, kind |
-| Selected | `stroke-found` (2) ring in `colour-accent` inside the tile, inset `space-xxs`; unfocused, the same in `colour-hairline-strong` |
+| Selected | `stroke-found` (2) ring in `colour-accent` inside the tile, inset `space-xxs`; unfocused, the same in `colour-hairline-strong`. A selected tile without a label shows `conventions.md`'s tooltip (name, size, kind) at once while selected |
 | In the basket | `check-circle` Fill at 16 in `colour-text` at the tile's top trailing corner, inset `space-xs`; in a tile under 32, the band thickens to 6 |
-| List | `conventions.md`'s table: Name (disclosure `caret-right` 12, a 16 slot holding `check-circle` Fill in `colour-accent-text` when in the basket, the kind tile, the name), Size, Share (a bar 64 by 6, `radius-small`, track `colour-fill-strong`, the share of its parent in the kind's colour), Kind |
+| List | `conventions.md`'s table: Name (disclosure `caret-right` 12, a 16 slot holding `check-circle` Fill in `colour-text` when in the basket, the kind tile, the name), Size, Share (a bar 64 by 6, `radius-small`, track `colour-fill-strong`, the share of its parent in the kind's colour), Kind |
 
 ### Duplicates, Large files, Untouched
 
@@ -156,25 +167,26 @@ the kind tile before each name.
 | Part | Look |
 |---|---|
 | Head | "Basket" in `type-style-headline`; `space-xs`; the total in `type-style-title-2`, tabular; "{n} items" in `type-style-subheadline` `colour-text-2` |
-| Items | `space-m` under; rows of `size-row` inset `space-s`: the kind tile, the name in `type-style-body` cut in the middle, the size in `type-style-mono` `colour-text-2` trailing; on hover and on the selected row the size gives way to `x-circle` Fill at 16 in `colour-text-2`, a 20 target, which takes it out |
+| Items | `space-m` under; rows of `size-row` inset `space-s`: the kind tile, the name in `type-style-body` cut in the middle, the size in `type-style-mono` `colour-text-2` trailing; on hover and on the selected row the size gives way to `x-circle` Fill at 16 in `colour-text-2`, a 20 target named "Remove {name} from basket", which takes it out (Delete does the same for the selected row) |
 | Foot | Fixed, a `colour-hairline` above, padding `space-l`: "Frees {size} on {disk} once the Trash is emptied", one line per disk, `type-style-callout` `colour-text-2`, wrapping; `space-m`; "Move to Trash", a regular button at `size-control-large`, the full width |
 | Moving | The button gives way to `conventions.md`'s determinate bar (6) |
 | Moved | Head and items give way to "Moved {n} items to the Trash" in `type-style-headline`, "Undo" a regular button `space-s` under; the foot to "Nothing is freed until the Trash is emptied" and "Empty Trash…" |
+| Moved with failures | Under Undo, `space-m`: `warning-circle` Fill 12 in `colour-danger-text`, "Couldn't move {n} items" in `type-style-callout`, then those items as basket rows with their reason as a second line in `type-style-subheadline` `colour-text-2` |
 
 ## States
 
 | State | What changes |
 |---|---|
-| Scanning | The progress line; "Scanning… {n}%"; Stop for Rescan; views fill in place, the map re-laid at most once every `timing-scan-layout-ms` (1000) |
+| Scanning | The progress bar; "Scanning… {n}%"; Stop for Rescan; views fill in place, the map re-laid at most once every `timing-scan-layout-ms` (1000) |
 | Rest | The view; the basket if it holds anything |
 | Empty view | `conventions.md`'s empty line in the content |
 | No results | `conventions.md`'s line |
-| Partial scan | Subtitle "Partial scan"; Overview's Not scanned segment and row; the progress line gone |
+| Partial scan | Subtitle "Partial scan"; Overview's Not scanned segment and row; the progress bar gone |
 | Unreadable folders | Overview's disks group row |
 | Moving to Trash, Moved | The basket's forms; the switcher card's bar |
 | System clear refused | Nothing changes |
 | Narrow | The basket folds into its toggle with a quiet badge of its count; then the sidebar; the map drops labels before symbols |
-| Inactive | `conventions.md`'s inactive form; the progress line `colour-text-2` |
+| Inactive | `conventions.md`'s inactive form; the progress bar's fill `colour-text-2` |
 | Second screen, game in front, locked, Focus on | No change of their own |
 
 ## Motion
@@ -184,7 +196,7 @@ the kind tile before each name.
 | Opening a folder in Space | **Zoom from the tile** (structure; brief P5: the folder opens from where it was). The tile's rectangle grows to the map's on `motion-open`. Its children are laid out at the map's size and each child's rectangle is mapped through the growth, so tiles never stretch text: labels are drawn at their own size and fade in with the second half. Siblings fade out over `motion-exit-fade-ms` from the start, in place. The new crumb appears at the start | Crossfade in place over `motion-reduced-fade-ms` |
 | Up, Back | The reverse on `motion-exit`: the map shrinks into the folder's tile in the parent's layout, its labels gone by the first half; siblings fade in over `motion-fade-ms` | As above |
 | Map and List | Crossfade over `motion-fade-ms`, the old out over `motion-exit-fade-ms` | Over `motion-reduced-fade-ms` |
-| Scanning | Bar segments change width on `motion-move` at each update; the map is re-laid in one frame; the progress line's length on `motion-move` | Widths and line cut |
+| Scanning | Bar segments change width on `motion-move` at each update; the map is re-laid in one frame; the progress bar's fill on `motion-move` | Widths and fill cut |
 | Basket shows, hides | `conventions.md`'s inspector: width on `motion-move` | Crossfade |
 | An item goes in or out | Its basket row's height on `motion-move`, content with the second half going in, gone by the first half going out; the total changes in place | Cut |
 | Card "more" | Height on `motion-move`, rows with the second half | Cut |
@@ -231,7 +243,7 @@ y, width, height on the ultrawide.
    appearances, with each contrast. Crop: the strip, 1600 by 400.
 2. **Overview** after a scan of All disks, basket shown. Crop 920, 260,
    1600, 900.
-3. **Scanning**: Overview at 30% and 61%; the progress line. Crops as 2.
+3. **Scanning**: Overview at 30% and 61%; the progress bar. Crops as 2.
 4. **Cleanup**: Safe to clear ticked, Worth a look with reasons, System;
    "{n} more" open. Crop as 2.
 5. **Space, map**: a home folder with labels, symbols-only and smaller
@@ -239,9 +251,11 @@ y, width, height on the ultrawide.
 6. **Space drill**: opening `~/.local/share/Steam` in five frames, and up.
 7. **Space, list**, with shares and disclosure.
 8. **Duplicates** with "Shares storage"; **Large files**; **Untouched**.
-9. **Basket**: 31 items; moving; moved with Undo and Empty Trash….
+9. **Basket**: 31 items; moving; moved with Undo and Empty Trash…; moved
+   with failures.
 10. **States**: each empty view, no results, partial with unreadable
-    folders, System's polkit frame (`prompts.md`'s crop).
+    folders, a nearly full disk, a folder dragged over the window,
+    System's polkit frame (`prompts.md`'s crop).
 11. **Narrow**: 720 wide, basket folded with its badge.
 12. **Accessibility**: scenes 2 and 5 under Increase Contrast and at the
     largest text size.
@@ -269,4 +283,4 @@ its colours as marks (3:1) on the window surfaces. Phosphor glyphs to
 vendor: `chart-pie-slice`, `broom`, `layout`, `copy`, `arrows-out-simple`,
 `clock-counter-clockwise`, `hard-drive`, `film-strip`, `music-notes`,
 `file-text`, `file-zip`, `code`, `package`, `stack`, `shapes`,
-`check-circle`, `link`, `info`.
+`check-circle`, `link`, `info`, `warning`.

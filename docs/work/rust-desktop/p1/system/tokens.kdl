@@ -3,8 +3,9 @@
 
 version 1
 
-// Text roles: text, text-2 and text-3 on windows; on the shell's glass only
-// text and text-2 (contrast.py checks both rules).
+// Text roles: text, text-2 and text-3 on windows, text-3 never on a fill; on
+// the shell's glass only text and text-2; text-disabled only for disabled
+// controls, on either (contrast.py checks the rest).
 colour {
     dark {
         window "#1e1f23"
@@ -15,7 +16,7 @@ colour {
         control-pressed "rgba(255,255,255,0.20)"
         text "#f2f3f5"
         text-2 "rgba(242,243,245,0.64)"
-        text-3 "rgba(242,243,245,0.52)"
+        text-3 "rgba(242,243,245,0.56)"
         text-disabled "rgba(242,243,245,0.28)"
         hairline "rgba(255,255,255,0.09)"
         hairline-strong "rgba(255,255,255,0.20)"
@@ -28,11 +29,12 @@ colour {
         titlebar-inactive "#1e1f23"
         ok-text "#4cc38a"
         warn-text "#f2c14e"
-        danger-text "#ff7b73"
-        match "rgba(242,193,78,0.55)"
+        danger-text "#ff8a83"
+        match "rgba(242,193,78,0.40)"
         ok "#4cc38a"
         warn "#f2c14e"
         danger "#ff6961"
+        on-danger "#1c0806"
         live "#ff453a"
         privacy-microphone "#ff9f0a"
         privacy-camera "#32d74b"
@@ -43,6 +45,9 @@ colour {
         shadow "rgba(0,0,0,0.55)"
         dim "rgba(0,0,0,0.50)"
         veil "rgba(0,0,0,0.32)"
+        // Capture's selection line: white inside a dark line, on any picture.
+        capture-line "#ffffff"
+        capture-line-shadow "rgba(0,0,0,0.50)"
     }
     light {
         window "#f6f6f7"
@@ -53,7 +58,7 @@ colour {
         control-pressed "rgba(0,0,0,0.14)"
         text "#1b1c1f"
         text-2 "rgba(27,28,31,0.72)"
-        text-3 "rgba(27,28,31,0.63)"
+        text-3 "rgba(27,28,31,0.64)"
         text-disabled "rgba(27,28,31,0.30)"
         hairline "rgba(0,0,0,0.09)"
         hairline-strong "rgba(0,0,0,0.22)"
@@ -66,11 +71,12 @@ colour {
         titlebar-inactive "#f6f6f7"
         ok-text "#137044"
         warn-text "#8a6400"
-        danger-text "#c4302b"
+        danger-text "#b82a25"
         match "rgba(255,214,10,0.55)"
         ok "#1f9d5c"
         warn "#b07d05"
         danger "#d93c32"
+        on-danger "#ffffff"
         live "#e5372c"
         privacy-microphone "#bf6a00"
         privacy-camera "#178a30"
@@ -81,6 +87,8 @@ colour {
         shadow "rgba(0,0,0,0.20)"
         dim "rgba(0,0,0,0.50)"
         veil "rgba(0,0,0,0.22)"
+        capture-line "#ffffff"
+        capture-line-shadow "rgba(0,0,0,0.50)"
     }
     // Increase Contrast: replaces the roles it names.
     contrast {
@@ -90,6 +98,7 @@ colour {
             hairline "rgba(255,255,255,0.26)"
             hairline-strong "rgba(255,255,255,0.45)"
             control "rgba(255,255,255,0.16)"
+            danger-text "#ffa6a0"
         }
         light {
             text-2 "rgba(27,28,31,0.88)"
@@ -97,6 +106,7 @@ colour {
             hairline "rgba(0,0,0,0.28)"
             hairline-strong "rgba(0,0,0,0.50)"
             control "rgba(0,0,0,0.10)"
+            danger-text "#a82420"
         }
     }
 }
@@ -105,6 +115,10 @@ colour {
 // fill, the text on it, and the form used as text on a window.
 accent {
     default "blue"
+    // A default button's hover and pressed fills: the inverse of `on` mixed
+    // into the fill at these shares, so the label keeps its contrast.
+    hover-mix 0.08
+    pressed-mix 0.16
     blue { dark { fill "#2f6fe4"; on "#ffffff"; text "#79a8ff" }; light { fill "#2563d6"; on "#ffffff"; text "#1f56c0" } }
     purple { dark { fill "#7e58ec"; on "#ffffff"; text "#b39cff" }; light { fill "#6d4ad8"; on "#ffffff"; text "#5f3dc6" } }
     pink { dark { fill "#ff6fae"; on "#1b0a12"; text "#ff8fc0" }; light { fill "#d0357a"; on "#ffffff"; text "#b52a69" } }
@@ -148,15 +162,17 @@ term {
     }
 }
 
-// Capture's selection line, and Markup's fixed palette (surfaces/capture.md).
-capture { line "#ffffff"; line-shadow "rgba(0,0,0,0.50)" }
+// Markup's fixed palette (surfaces/capture.md).
 annotation { default "red"; red "#ff3b30"; orange "#ff9500"; yellow "#ffcc00"; green "#34c759"; blue "#0a84ff"; purple "#af52de"; black "#1b1c1f"; white "#ffffff" }
 
 // Symbols, app icons and the cursor (icons.md). Phosphor: regular for
-// outlines, fill for "on", bold under Increase Contrast.
+// outlines (light from `weight-large-from`), fill for "on", bold under
+// Increase Contrast.
 icon {
     set "Phosphor"
     weight "regular"
+    weight-large "light"
+    weight-large-from 32
     weight-on "fill"
     weight-contrast "bold"
     theme { dark "Papirus-Dark"; light "Papirus" }
@@ -165,10 +181,10 @@ icon {
 }
 
 // The shell's glass. The user's glass setting runs from clear to tinted;
-// `glass` is its default, the middle. Increase Contrast uses `glass-tinted`;
+// `glass` is its default. Increase Contrast uses `glass-tinted`;
 // Reduce Transparency and Game Mode use `solid`.
 material {
-    glass { dark "rgba(34,35,40,0.68)"; light "rgba(246,246,248,0.76)" }
+    glass { dark "rgba(34,35,40,0.76)"; light "rgba(246,246,248,0.76)" }
     glass-clear { dark "rgba(34,35,40,0.48)"; light "rgba(246,246,248,0.52)" }
     glass-tinted { dark "rgba(34,35,40,0.90)"; light "rgba(246,246,248,0.92)" }
     solid { dark "#25262b"; light "#f3f3f5" }
@@ -205,6 +221,9 @@ type {
         figure { size 40; weight 600; line 44 }
     }
     weight { regular 400; medium 500; semibold 600; bold 700 }
+    // The largest text size the user can set; every style multiplies by the
+    // user's factor, 1 to this.
+    scale-max 1.5
 }
 
 space { xxs 2; xs 4; s 8; m 12; l 16; xl 20; xxl 24; xxxl 32 }
@@ -228,6 +247,8 @@ size {
     control-small 20
     control 24
     control-large 30
+    badge 18
+    badge-quiet 16
     hit-minimum 20
     glyph-small 12
     glyph 16
@@ -381,6 +402,8 @@ size {
     tile-label-width 96
     tile-label-height 44
     tile-min 8
+    dropdown-min-width 320
+    dropdown-min-height 160
 }
 
 // Counts, not points.
@@ -466,4 +489,5 @@ timing {
     job-done-ms 2000
     controls-ms 2000
     scan-layout-ms 1000
+    lock-media-paused-ms 600000
 }

@@ -42,7 +42,7 @@ titles. The sorted column's title is `colour-text` with `caret-down`
 |---|---|
 | Process name | First, flexible, at least 240: the app's icon at `size-app-icon-small` (16) for a windowed process, else an empty 16 slot so names align; `space-s`; the name in `type-style-body`, cut at its end. A stopped process adds "Stopped" in `type-style-callout` `colour-text-2`, `space-s` after the name |
 | Figures | % CPU 64, CPU time 80, Threads 64, PID 64, Memory 88, Energy impact 96, % GPU 64, Bytes written and read 104, Bytes received 112, Bytes sent 104, GPU memory 104. Units in the cell ("1.2 GB", "84 KB"); a rate column with no second sample is empty |
-| Text columns | User 96, Preventing sleep 120 ("Sleep", "Idle", "Shutdown", joined by commas), GPU 120 (the GPU's short name: "RTX 5070 Ti"); `type-style-body`, leading-aligned |
+| Text columns | User 96, Preventing sleep 120 ("Sleep", "Idle", "Shut down", joined by commas), GPU 120 (the GPU's short name: "RTX 5070 Ti"); `type-style-body`, leading-aligned |
 | Selected | Focused: `colour-accent` with `colour-on-accent` for every cell, figures too; runs of rows join. Unfocused: `colour-selection-unfocused` |
 | Unavailable | A column whose figure the system lacks shows every cell empty; the reason is the footer's (below) |
 
@@ -87,7 +87,8 @@ the graph takes the rest, at least 240 and at most 520, centred in it.
 
 Disk and Network draw either the operations or the data: a click on either
 figure group's labels chooses it, and the chosen group's labels take
-`colour-text`, the other's stay `colour-text-2`.
+`colour-text` semibold, the other's stay `colour-text-2` regular. The group
+is a toggle with "selected" as its state.
 
 **GPU.** One block per GPU, side by side, sharing the footer's width
 equally. A block is a figure column (Memory "9.2 of 16 GB", temperature,
@@ -95,7 +96,9 @@ power, fan, clocks) and a graph titled with the GPU's name in `colour-text`,
 utilisation in `series-a` from 0 to 100. With one GPU the block fills the
 footer as the other resources do. "Open LACT", a small regular button
 (`size-control-small`), sits on the graph-title line at the footer's
-trailing end.
+trailing end when LACT is installed. Narrow with two GPUs: each block
+keeps its graph and Memory row; below 2 × (240 + `space-xxl`) the blocks
+stack and the footer grows by one well.
 
 **Unavailable.** "Per-process network traffic isn't available." and its
 kind take a line across the footer's top: `info` at 12, `space-xs`,
@@ -111,25 +114,31 @@ found is left out.
 priority or another user's process brings `prompts.md`'s polkit frame with
 Monitor's icon and the `lock` badge.
 
+**Send Signal to Process…** is `window-chrome.md`'s sheet, `size-alert`
+wide: the title; one row with a pop-up of signals by name and number
+(TERM first); Cancel, and Send as the default.
+
 ### The Inspect window
 
 `size-inspect-width` by `size-inspect-height` (520 by 600), placed by the
-compositor. Toolbar: the lights, the title "{process} ({PID})" in
+compositor. Toolbar: the lights, the title "{process} ({pid})" in
 `type-style-headline` cut at its end; centre, a text segmented control
 (General, Open Files and Ports); trailing, Quit Process as the primary
 action, then search on the second tab.
 
-- **General**: `colour-window`, `space-xl` padding. Two groups
+- **General**: `colour-window`, `space-xl` padding. Three groups
   (`settings.md`'s group: `colour-window-raised`, `radius-card`,
-  `colour-hairline` ring) of 28-point rows: a label column
-  `size-detail-label` (120) wide,
+  `colour-hairline` ring) of 28-point rows. Group 1: Parent process, User,
+  Started, State, Priority. Group 2: % CPU, Memory, GPU memory, Threads.
+  Then the command-line well with Copy, then Group 3: Executable, Working
+  folder, Unit. A label column `size-detail-label` (120) wide,
   trailing-aligned, `type-style-callout` `colour-text-2`; `space-m`; the
   value in `type-style-body` `colour-text` (figures `type-style-mono`
   tabular). Parent process is a plain button in `colour-accent-text`. The
-  command line follows the groups in a well (`colour-window-sunken`,
-  `radius-control`, padding `space-s`), `type-style-mono`, wrapping,
-  selectable, at most six lines then scrolling, with "Copy" (small regular)
-  `space-s` under it, trailing.
+  command line sits between groups 2 and 3 in a well
+  (`colour-window-sunken`, `radius-control`, padding `space-s`),
+  `type-style-mono`, wrapping, selectable, at most six lines then
+  scrolling, with "Copy" (small regular) `space-s` under it, trailing.
 - **Open Files and Ports**: `conventions.md`'s table on `colour-view`, files
   first then sockets, the path column cut in the middle.
 - **Ended**: above the first group, `info` at 16 and "This process has
@@ -150,7 +159,7 @@ opening, figures right-aligned, mono and tabular.
 | State | What changes |
 |---|---|
 | Rest | The table sorted by the resource's first column; the footer live |
-| Loading | Toolbar, header, names and footer labels in the first frame; rate cells and figures empty, wells empty, until the second sample; no spinner |
+| Loading | Toolbar, header, names and footer labels in the first frame; rate cells, rate figures and wells empty until the second sample; other figures fill from the first; no spinner |
 | No results | `conventions.md`'s line in the table's place; the footer live |
 | A figure not available | Empty cells; the footer's line (Anatomy) |
 | A refused action | Nothing changes |
@@ -159,9 +168,9 @@ opening, figures right-aligned, mono and tabular.
 | Hierarchical | Indents, carets and the paired figures |
 | Many processes | The table scrolls under the toolbar's scroll-edge bar; the footer stays |
 | Hidden or covered | Nothing drawn or sampled; on return, the gap in each well |
-| Pointer over the table, menu or alert open | Rows hold their order; figures change in place |
-| Narrow window | The switch into »; the footer drops its third column, then its trailing figures; columns past the edge scroll sideways |
-| Two GPUs | The GPU column in the table; two blocks in the GPU footer |
+| Pointer over the table, a key in it within `timing-type-select-ms`, menu or alert open | Rows hold their order; figures change in place |
+| Narrow window | The switch into »; the footer drops its sensors first (CPU's third column, Disk's drive temperatures, each GPU block's temperature, power, fan and clocks), then its trailing figures. Energy keeps its keyed trailing column at every width and drops the battery row instead. Columns past the edge scroll sideways |
+| Two GPUs | The GPU column in the table; two blocks in the GPU footer, stacked when narrow (GPU, above) |
 | Inactive | `conventions.md`'s inactive form; wells and series unchanged |
 | Second screen, game in front, locked, Focus on | No change of their own |
 
@@ -177,11 +186,14 @@ them except what the user moves.
 | A row leaves | Out over `motion-exit-fade-ms`, then the rows under it close up on `motion-move` | Cut |
 | Disclosure | The caret turns on `motion-move`; the children's rows grow in, the rows under them moving on `motion-move` and the new rows' content fading with the second half | Cut |
 | Resource switch | None: table and footer swap in the frame (structure) | Same |
+| Column drag | The column's title and cells lift as a `colour-window-raised` column with `shadow-control` and follow the pointer; neighbours move on `motion-move` | Neighbours jump |
+| Column resize | At a title's trailing divider, a `size-resize-band` band, the column-resize cursor; the divider `colour-hairline-strong` while dragged; live with the pointer | Same |
 | Figures | Change in place; no counting up | Same |
 | Graph hover | At once | Same |
 | Alert, Inspect, Sensors | `window-chrome.md`'s sheet and the compositor's open | As there |
 
-**Game Mode:** every row is a cut, and the glide is a jump.
+**Game Mode:** every row is a cut, and the glide is a jump; a dragged
+column's neighbours jump.
 
 ## Accessibility
 
@@ -202,6 +214,9 @@ them except what the user moves.
   selected, the ring inside the first row); the resource switch, Quit
   Process, More and search take the ring outside; figure-group labels that
   choose a graph are buttons and take the ring around the group.
+- **Graphs.** Each well is a focusable graph named for its title, with a
+  summary ("CPU load, last 2 minutes, 12 to 46%, now 31%"); focused, Left
+  and Right move the hover line by a sample and read its value and time.
 - **Largest text size.** Rows grow to their line plus 12; the footer's
   figure columns wrap into two columns each before any value is cut, and
   the footer grows to hold them; wells keep their height; column defaults
@@ -232,10 +247,13 @@ y, width, height on the ultrawide.
    frame for root's process. Crops as 1 and `prompts.md`'s.
 9. **Inspect**: General, Open Files and Ports filtered, ended. Crop: each.
 10. **Sensors**: three devices with low and high. Crop: the window.
-11. **Narrow**: 640 wide with the switch in » and the footer reduced.
-12. **Accessibility**: scene 1 under Increase Contrast and at the largest
-    text size.
-13. **Motion**, on the harness's spring: three samples' glides, a re-sort,
+11. **Narrow**: 640 wide with the switch in » and the footer reduced;
+    Energy keeping its keys; two GPU blocks stacked.
+12. **Columns and signals**: a column mid-drag; a divider resized; the
+    Send Signal sheet.
+13. **Accessibility**: scene 1 under Increase Contrast and at the largest
+    text size; a focused graph with its hover line.
+14. **Motion**, on the harness's spring: three samples' glides, a re-sort,
     a row leaving, a disclosure; each under Reduce Motion.
 
 ## New tokens

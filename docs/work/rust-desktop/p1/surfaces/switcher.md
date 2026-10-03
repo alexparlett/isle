@@ -41,11 +41,12 @@ in a band under its row.
   keeping its aspect (a 2:3 library cover is 32 × 48), `radius-small`, with
   a `colour-hairline` edge (`structure/spotlight.md`).
 - **Window count**: when the app has more than one window, the quiet badge
-  (badge component's quiet form: `colour-fill-strong` with `colour-text`,
-  11 semibold, tabular) `space-xs` past the icon's trailing edge, centred
+  (badge component's quiet form: 16 tall, `colour-fill-strong` with
+  `colour-text`, `type-style-subheadline` semibold, tabular, padded
+  `space-xs`, capsule) `space-xs` past the icon's trailing edge, centred
   on the icon's lower half, so it sits on glass below the card.
-- **Badge**: the badge component (18 high, `colour-danger`, white, 11
-  semibold, tabular, "999+" past three digits), its centre on the icon's
+- **Badge**: the badge component (18 high, `colour-danger`,
+  `colour-on-danger`, 11 semibold, tabular, "999+" past three digits), its centre on the icon's
   top trailing corner, inset 4 so it overlaps the icon.
 - **Progress**: the progress component (6 high, track `colour-fill-strong`,
   fill `colour-accent`) across the card's full width, `space-s` under the
@@ -63,7 +64,7 @@ in a band under its row.
 | Not responding | `hourglass-medium` | |
 | Running in background | `tray` | See background entries |
 | Attention | `bell-simple-ringing` in `colour-warn-text` | |
-| Attention, urgent | `bell-simple-ringing` fill weight, white, on a `colour-danger` capsule | |
+| Attention, urgent | `bell-simple-ringing` fill weight, `colour-on-danger`, on a `colour-danger` capsule | |
 | Quitting (after Q) | the spinner component at 12 | Until the app has gone |
 
 Plate height: 160 + 24 (icon overhang) + `space-s` + 6 (progress) + 2 ×
@@ -86,13 +87,17 @@ are empty.
 centred in the gap), then plates whose well is `size-switcher-background-width`
 (128) × 160, empty `colour-fill`, with the icon in its usual place over the
 lower edge and the `tray` tag. No preview, count or progress; a badge if
-the app keeps one.
+the app keeps one. With many apps the background group stays whole at the
+end of the last row; if it does not fit, it starts its own row, centred,
+with no hairline.
 
 **Window row** (↓ or `): under the last row's band, a `colour-hairline`
 across the panel inset `space-l`, `space-s` above and below it, then one
 plate per window in Cmd+`'s order, centred under the app's plate and
-clamped inside the panel. Window plates are the app plates without icon,
-count, badge or progress: 256 × 160 card, `space-s` padding (272 × 176).
+clamped inside the panel. With several rows the window row opens under
+the last row, centred on the app plate's x, so no row reflows. Window
+plates are the app plates without icon, count, badge or progress: 256 ×
+160 card, `space-s` padding (272 × 176).
 A minimised window carries the `minus` tag. The selected window's title
 in its band in `type-style-body`, `colour-text`, cut in the middle so a
 document's name and its app suffix both survive.
@@ -124,6 +129,7 @@ a row before shrinking.
 | Loading | Plates with icon and empty well at once; previews, badges, count and progress fade in as they arrive (Motion). |
 | Error (protected surface) | The well stays empty `colour-fill`; the icon in its place says whose it is. |
 | App quitting | Spinner tag; then the plate leaves (Motion); to the background group if it quits to the background. |
+| Last window closed | Process running: the plate moves to the background group (Motion). A keep-running app: the plate stays, with the Hidden tag. |
 | Not responding | `hourglass-medium` tag; name band "Not responding". |
 | During a drag | As Held; the dragged item stays drawn under the pointer, above the panel. |
 | Many apps | Shrunk cards, then centred rows of equal count. |
@@ -144,7 +150,7 @@ never on its own clock; exits run quicker than entrances.
 
 | Transition | Form |
 |---|---|
-| Appear | After `timing-switcher-delay-ms` with Cmd held, the whole panel fades 0 → 1 over `motion-fade-ms`, in place: no scale, no slide (Choices 2). Plates, icons and the name come with the panel's alpha. A second Tab inside the delay draws it at once (beyond the sheet; for the gate). |
+| Appear | After `timing-switcher-delay-ms` with Cmd held, the whole panel fades 0 → 1 over `motion-fade-ms`, in place: no scale, no slide (Choices 2). Plates, icons and the name come with the panel's alpha. A second Tab inside the delay draws it at once, so a fast double Tab never selects blind. |
 | Late content | A preview, badge, count or bar arriving after the panel is shown fades in over `motion-fade-ms` in its reserved place; nothing reflows. |
 | Selection | Instant: the plate is drawn on the new entry in the next frame (Choices 3). Hover selects the same way. |
 | Window row open | The panel's lower edge grows on `motion-open` from its app-row height, top fixed; if the window row is wider, the width grows about the panel's centre on the same spring. The row's alpha is the spring's progress. |
@@ -152,8 +158,8 @@ never on its own clock; exits run quicker than entrances.
 | Commit, Escape | The panel fades 1 → 0 over `motion-exit-fade-ms`. The chosen window is raised in the commit frame, under the fading panel, not after it; a restored window grows from the island (`window-chrome.md`). |
 | H | The preview crossfades to or from its hidden form, and the tag in or out, over `motion-fade-ms`. |
 | W | The preview crossfades to the next window's texture over `motion-fade-ms`; the count changes in place. In the window row, the closed window's plate leaves as below. |
-| A plate leaves (app gone, last window closed) | Its alpha 1 → 0 over `motion-exit-fade-ms`; then the plates after it close the gap on `motion-move`, and the panel narrows about its centre on the same spring. The selection moves to the next plate, instantly. |
-| To the background group | The plate fades out of the row and a new one fades in at the group's end; nothing travels across the row. |
+| A plate leaves (app gone) | Its alpha 1 → 0 over `motion-exit-fade-ms`; then the plates after it close the gap on `motion-move`, and the panel narrows about its centre on the same spring. The selection moves to the next plate, instantly. |
+| To the background group (last window closed, process running) | The plate fades out of the row and a new one fades in at the group's end; nothing travels across the row. A keep-running app's last window closing moves nothing: the Hidden tag fades in. |
 | Reduce Motion | Every spring becomes `motion-reduced-fade-ms` in place: the panel at its new size crossfades with the old for the window row and for a plate leaving; appear and dismissal are fades of that length. Selection is instant anyway. |
 | Game Mode | No transitions: the panel is drawn whole on the first frame after the delay and gone on the commit frame; the window row and leaving plates jump. No backdrop blur is sampled. |
 
@@ -161,8 +167,9 @@ never on its own clock; exits run quicker than entrances.
 
 - **Text roles.** On the glass only `colour-text` (names, titles, the
   count) and `colour-text-2` (the state word); never `colour-text-3`. Tag
-  glyphs are `colour-text-2` on `material-solid`; the badge is white on
-  `colour-danger`, as the component; the urgent tag likewise.
+  glyphs are `colour-text-2` on `material-solid`; the badge is
+  `colour-on-danger` on `colour-danger`, as the component; the urgent tag
+  likewise.
 - **Increase Contrast.** The panel moves to `material-glass-tinted` with a
   `colour-hairline-strong` edge (components). The selected plate fills
   `colour-control-pressed` with a 1-point `colour-hairline-strong` inner
@@ -179,6 +186,10 @@ never on its own clock; exits run quicker than entrances.
   its end.
 - **Hit targets.** A plate is at least 176 × 154, far over
   `size-hit-minimum`; hover and click take the whole plate.
+- **Names.** Each plate's name is "{app}" then its states: "{n} windows",
+  "{n} notifications", "{n}% done", "needs attention" (urgently),
+  "hidden", "minimised", "not responding", "running in background",
+  "quitting". The selection's move is announced.
 - **Never colour alone.** Hidden, minimised, background and attention each
   have a glyph, and the selected app's state is spelt out in its band.
 

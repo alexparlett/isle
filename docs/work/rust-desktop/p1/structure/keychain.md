@@ -59,11 +59,12 @@ as Passwords; no inspector (`conventions.md`, Window anatomy).
      machines one, "Login"), then each password manager enabled in
      Settings › General › Passwords, by the provider's name. A source
      shows only its own items. A locked source carries a lock.
-- **The list**: one row per item, its kind's symbol, its title, and a
-  second line with the user name or the item's main attribute and, where
-  the list spans sources, the source's name. Sorted by title. A provider
-  with more than one vault groups its rows under vault names. No row ever
-  holds a secret (`apps.md` Keychain 3).
+- **The list**: one row per item, led by a login's site icon or monogram
+  (as Passwords), an Apps item's app icon or another kind's symbol; its
+  title; and a second line with the user name or the item's main attribute
+  and, where the list spans sources, the source's name. Sorted by title. A
+  provider with more than one vault groups its rows under vault names. No
+  row ever holds a secret (`apps.md` Keychain 3).
 - **The detail**: the item's title, then its fields as rows: user name,
   password, verification code (when the provider gives one), website or
   server, notes; then a group of what Keychain knows about it: kind,
@@ -83,7 +84,7 @@ Items a provider reports of other kinds (notes, cards) show under All and
 their provider only. Browser is not a kind of its own (v1 had one): a
 browser's site logins are logins and its storage key is an app secret, so
 the kind follows what the item is, not who wrote it. Deleting an Apps
-item says what will stop working ("{App} will ask you to sign in again.").
+item says what will stop working ("{app} will ask you to sign in again.").
 
 ### Reveal and copy
 
@@ -110,12 +111,14 @@ item says what will stop working ("{App} will ask you to sign in again.").
 ### Editing and deleting
 
 Edit turns the detail's fields into text fields in place, with Cancel and
-Done, as Passwords; the password field has a generator button
-(Generator, below). Delete is in Edit mode, the Item menu (⌘Delete) and
-the context menu, and asks: "Delete “{title}”?", "You can't undo this.",
-Cancel (default) and Delete (`apps.md` Keychain 6; `conventions.md`).
-Wi-Fi items are read-only here: forgetting a network and its settings are
-Settings › Wi-Fi's, reached by "Wi-Fi Settings…" in the detail.
+Done, as Passwords; the password field has a generator button (Generator,
+below). Delete is in Edit mode, the Item menu (⌘Delete) and the context
+menu, and asks: "Delete “{title}”?", "You can't undo this.", Cancel
+(default) and Delete (`apps.md` Keychain 6; `conventions.md`); an SSH key
+is not asked about, since it goes to the Trash with Undo (SSH keys, below).
+Wi-Fi items are read-only here, with no Edit: forgetting a network and its
+settings are Settings › Wi-Fi's, reached by "Wi-Fi Settings…" in the
+detail.
 
 **New login** is a sheet: title, user name, password, website or server,
 notes, and "Save in", a pop-up of the sources that accept new items.
@@ -144,7 +147,7 @@ remembered.
 
 - **A locked keyring** (as after a fingerprint login, `apps.md`
   Keychain 4): its sidebar row shows a lock. Selecting it, or any kind
-  that spans it, puts one row at the top of the list: "{Source} is
+  that spans it, puts one row at the top of the list: "{source} is
   locked" with Unlock, which calls the Secret Service's Unlock and brings
   up the compositor's keyring prompt (`prompts.md`). Keychain draws no
   password field for it. Titles a locked collection still lists stay
@@ -156,8 +159,8 @@ remembered.
 - **No provider enabled**: the Sources group holds the keyrings only;
   nothing is drawn for absent providers (brief P1).
 - **No Secret Service**: the content says "No keyring service is
-  running." and Wi-Fi and SSH keys keep working (`apps.md` Conventions
-  23).
+  running. Choose one in Settings › General › Passwords." and Wi-Fi and
+  SSH keys keep working (`apps.md` Conventions 23).
 
 ### Spotlight's `*` scope
 
@@ -166,7 +169,7 @@ and Wi-Fi across every unlocked source, never Apps items or SSH keys,
 which are plumbing rather than something typed. Rows carry the title and
 the source's name; Return copies the password, Shift+Return the user name,
 Ctrl+Return the verification code, through the same fetch and gate as
-Keychain's Copy. A locked source is one row, "{Source} is locked", whose
+Keychain's Copy. A locked source is one row, "{source} is locked", whose
 action opens Keychain on that source. The row's menu (Cmd+K) adds "Show in
 Keychain".
 
@@ -186,7 +189,7 @@ own (For the user 1).
 | Empty kind | One line: "No saved logins", "No saved Wi-Fi networks", "No SSH keys" with "New SSH key…", "No app secrets" |
 | Nothing selected | The detail says "No item selected" |
 | No results | "No results for “{query}”" |
-| Locked source | Its lock in the sidebar; one "{Source} is locked" row at the top of each list that spans it |
+| Locked source | Its lock in the sidebar; one "{source} is locked" row at the top of each list that spans it |
 | Provider failed | Its state sentence and error in the content (`copy.md` rule 7); other sources unaffected |
 | Shown value | The field's value in place of the dots, until hidden as above |
 | Editing | The detail's fields as text fields; the list and sidebar still work, and leaving asks to keep or discard changes |
@@ -214,7 +217,7 @@ the process ends with the window unless a key is being generated.
 | Key | Action |
 |---|---|
 | ↑ ↓, type to select | Move in the sidebar or the list |
-| Return | Edit the selected item; in Edit, Done |
+| Return | Edit the selected item (nothing on a Wi-Fi item); in Edit, Done |
 | ⌘N, ⇧⌘N | New login, New SSH key |
 | ⌘C | Copy the password, when no text is selected |
 | ⇧⌘C, ⌥⌘C | Copy the user name, the verification code |
@@ -281,10 +284,13 @@ The standard map is `conventions.md`'s.
 | Item menu | "Copy Password", "Copy User Name", "Copy Verification Code", "Show Password", "Hide Password", "Edit", "Delete…", "Generate password…", "Lock", "Unlock…", "Change password…" |
 | Generator | "Length", "Upper case", "Lower case", "Digits", "Symbols" |
 | New Login | "Save in" |
-| Delete alert | "Delete “{title}”?", "You can't undo this.", "Cancel", "Delete"; for an Apps item, "{App} will ask you to sign in again." |
-| Locked | "{Source} is locked" |
+| Delete alert | "Delete “{title}”?", "You can't undo this.", "Cancel", "Delete"; for an Apps item, "{app} will ask you to sign in again." |
+| Leaving Edit | "Discard", "Keep Editing", "Save" |
+| Locked | "{source} is locked" |
 | Empty | "No saved logins", "No saved Wi-Fi networks", "No SSH keys", "No app secrets", "No item selected" |
-| Missing | "No keyring service is running." |
+| Missing | "No keyring service is running. Choose one in Settings › General › Passwords." |
+| Spotlight | A `*` row's menu: "Show in Keychain" |
+| Accessible names | The code's ring "Changes in {n} seconds" |
 | Passphrase sheet | "Enter the passphrase for “{key}”" |
 | Settings | "Clear copied passwords after", "Hide shown passwords after" |
 | Island | "Password copied" (`island.md`) |

@@ -81,11 +81,15 @@ content region only (`colour-titlebar-inactive` when inactive).
 - Title: `type-style-headline` in `colour-text`; a subtitle under it in
   `type-style-subheadline`, `colour-text-2`. Inactive: title `colour-text-3`,
   glyphs `colour-text-3`.
+- The » for folded centre items and the title's place after the leading
+  controls: as `conventions.md` (toolbar items).
 
 **Zoom menu.** A panel on the shell's glass (`material-glass`, blur and
 saturation, `shadow-panel`), `radius-panel`, padding `space-m`. In the top
 layer, its top leading corner `space-xs` below the bar under the zoom light,
-flipped up or leading to stay on the output.
+flipped up or leading to stay on the output. On a window without Isle's
+lights (opened by chord or from the window menu): its top leading corner
+`space-xs` under the window's top edge, `space-l` in from its leading edge.
 
 - Section labels: `type-style-subheadline` semibold, `colour-text-2`,
   `space-xs` above their row; `space-m` between sections.
@@ -96,21 +100,22 @@ flipped up or leading to stay on the output.
   inside each thumbnail are `space-xxs` apart and inset `space-xxs`,
   `radius-small`, fill `colour-fill-strong`. Beside draws the real windows
   as `colour-hairline-strong` outlines and each gap as a slot.
-- Full screen section: three thumbnails (full screen, left of screen,
+- Full screen section: three thumbnails (Enter Full Screen, left of screen,
   right of screen), slots edge to edge with no strip, each carrying
   Phosphor `arrows-out-simple` at `size-glyph-small` in `colour-text-2`.
 - Hovered or keyboard-selected slot: `colour-accent` fill. Current zone:
   its slot filled `colour-text-2`, so it reads apart from both.
 - Name line: under the grid, `type-style-callout` in `colour-text-2`, the
   name of the hovered slot ("Left third"), else the current zone's.
-- Text rows (Return to previous size; Move to <display>; in Split View,
+- Text rows (Return to previous size; Move to {display}; in Split View,
   Swap sides, Replace window…, Exit Full Screen): menu rows as the window
   menu's, inside the panel.
 
 **Zone preview.** The target zone's real rectangle (inside the margins
 when on), `radius-window`, in the windows layer under the dragged window:
-`material-glass-clear` with the material's blur, an inner
-`stroke-hairline` of `colour-hairline-strong`, no shadow. Neutral, never
+`colour-fill-strong`, no blur, an inner `stroke-hairline` of
+`colour-hairline-strong`, no shadow. Not glass, so the pointer panel and
+zoom menu over it are never glass on glass. Neutral, never
 the accent: the dragged window is the subject, the preview a place.
 
 **Pointer panel.** The zoom menu's Move and resize section alone (its
@@ -119,14 +124,24 @@ leading edge `space-xxl` beyond the pointer and centred on it vertically,
 flipped to the other side near an output edge; it stays where it opened
 so the pointer can travel to it.
 
-**Window menu.** A menu on the menu material, as every in-window menu
-(`conventions.md`): `colour-window-raised`, `shadow-menu`, `radius-card`,
-padding 5, minimum width 220. Rows 22, `radius-row`, `type-style-body`;
-the leading mark column (Phosphor `check` at `size-glyph-small` for Keep
-on top); chords trailing in `colour-text-2`; submenus by `caret-right` at
-`size-glyph-small`; separators `colour-hairline` inset `space-s`. Chosen
-row `colour-accent` with `colour-on-accent`; disabled `colour-text-disabled`.
-At the pointer, or under the lights group when opened by chord.
+**Window menu.** `menus.md`'s shell menu on glass, as the zoom menu
+(the menu is the shell's, opened from the shell's lights):
+`material-glass` at the user's glass position, `shadow-menu`,
+`radius-card`, padding 5, minimum width 220. Rows: `menu-bar.md`'s Window
+groups 1 (Minimise, Zoom, Fill, Centre, Move and resize ▸, Full screen
+tile ▸, Enter Full Screen) and 2 (Move to desktop ▸, Move to {display},
+Keep on top), then Move, Resize, then Close, separators between groups.
+Rows 22, `radius-row`, `type-style-body`; the leading mark column
+(Phosphor `check` at `size-glyph-small` for Keep on top); chords trailing
+in `colour-text-2`; submenus by `caret-right` at `size-glyph-small`;
+separators `colour-hairline` inset `space-s`. Chosen row `colour-accent`
+with `colour-on-accent`; disabled `colour-text-disabled`. At the pointer,
+or under the lights group when opened by chord.
+
+**Keyboard move or resize.** From the window menu's Move or Resize: the
+pointer jumps to the bar's centre (move) or the trailing bottom corner
+(resize) with Bibata's move or resize cursor; the window steps on
+`motion-move`; Escape returns it on `motion-exit`.
 
 **Sheet.** Attached flush to the lower edge of the title bar or toolbar,
 centred across the window: `colour-window`, square top corners, bottom
@@ -136,23 +151,29 @@ side. The window's content below the bar takes `colour-scrim`; the bar
 and its lights do not. Buttons at the foot, `size-control`, `space-s`
 apart, default trailing in `colour-accent`.
 
+**Another app's modal dialog** smaller than its parent: its own surface
+flush under the parent's bar, centred, `shadow-window`; the parent's
+content under `colour-scrim`, bar clear; it moves with the parent.
+
 **Alert.** A sheet 320 wide (more at large text), its content centred:
 title `type-style-headline` in `colour-text`, one line of informative text
-in `type-style-callout`, `colour-text-2`, `space-xs` under it; buttons
+in `type-style-callout`, `colour-text-2`, `space-xs` under it, wrapping,
+never cut: "one line" is a length for the copy, not a clip; buttons
 `space-l` below, side by side and equal width, default trailing. A
 destructive button uses `colour-danger-text` and is never default. A
 caution glyph (Phosphor `warning`, 32, `colour-warn`) only above the title
 of an alert about what cannot be undone.
 
 - Not responding, on close: drawn by the compositor as this alert on the
-  frozen window: "{App} is not responding", "You will lose any unsaved
+  frozen window: "{app} is not responding", "You will lose any unsaved
   changes." (`copy.md`, Force Quit), Force Quit (destructive, leading),
   Wait (default). Until then the window shows only Bibata's `wait` pointer
   while the pointer is over it.
 
 **Inhibit notice.** A capsule on `material-glass`, height
 `size-control-large`, radius half its height, padding `space-m` across,
-`shadow-menu`, top centre: `space-m` under the bar in a window, `size-strip`
+`shadow-menu`, top centre: `space-m` under the window's top edge, or under
+its bar where it has one, in a window, `size-strip`
 from the output's top in a full-screen one (clear of the island's privacy
 form). Isle's keyboard-slash glyph at `size-glyph` then the notice in
 `type-style-callout`, `colour-text`, the chord in semibold, `space-s`
@@ -182,7 +203,7 @@ stays on its output edge, shadow drawn.
 | Keys inhibited | The notice once per gain; the island's glyph is `island.md`'s |
 | Show Desktop | Slivers at the edges |
 | Second screen | Same sizes at that output's scale; thumbnails 78 wide; preview on the output under the pointer |
-| Game windowed, Game Mode on | Chrome as normal, no shadows, no motion; zoom menu, panel and preview solid |
+| Game windowed, Game Mode on | Chrome as normal, no shadows, no motion; zoom menu, panel, window menu and preview solid |
 | Game full screen | No chrome; the reveal shows the menu bar only |
 | Locked, Focus on | Nothing / no change |
 | Reduce Motion, Transparency, Contrast, largest text | See Motion and Accessibility |
@@ -196,13 +217,14 @@ its own clock. Exits use `motion-exit` and `exit-fade-ms`.
 |---|---|---|---|
 | Open | `motion-open` | Its box at scale 0.94, opacity 0 → its box; about the box's centre, no translation | Fade in place, `reduced-fade-ms` |
 | Close, hide | `motion-exit` | Its box → scale 0.94, opacity 0; centre | Fade out in place |
+| Show after hide | `fade-ms` | Opacity 0 → 1 in its box, no scale | The same |
 | Minimise | `motion-exit` | Its box → a 96-wide rectangle (its aspect) `space-s` under the island, at top centre of its output; opacity reaches 0 at arrival; the island does not move | Fade out in place |
 | Restore | `motion-open` | That rectangle, or its tile in App Exposé or Mission Control → its box, set before the move | Fade in place |
 | Zoom, fill, tile, return, drop, unsnap | `motion-move` | Old frame → new frame; old content held, scaled to the frame, until the client commits, then a `fade-ms` crossfade | Cut to the new box with the crossfade |
-| Enter full screen | bar `motion-exit`, frame `motion-move` | Bar's height to 0 with its opacity; frame to the output, radius and shadow to 0 as it lands; the Space motion is Mission Control's | Crossfade to the full-screen window |
+| Enter full screen | bar `motion-exit`, then frame `motion-move` | Bar's height to 0 with its opacity on `motion-exit`; the frame starts on `motion-move` when the bar is done, to the output, radius and shadow to 0 as it lands; the Space motion is Mission Control's | Crossfade to the full-screen window |
 | Leave full screen | `motion-move`, bar `motion-open` | The reverse; the bar grows back once the frame reaches its box | Crossfade |
 | Revealed bar in full screen | The menu bar's reveal | The window's bar rides under the menu bar on its spring | As the menu bar's |
-| Zoom menu | `motion-open` in, `motion-exit` out | Scale 0.96 → 1 from the zoom light's centre, opacity with it; out the reverse | Fade |
+| Zoom menu | `motion-open` in, `exit-fade-ms` out | Scale 0.96 → 1 from the zoom light's centre, opacity with it. Out: opacity to 0 over `exit-fade-ms`, in place | Fade |
 | Zone preview | `motion-move`; `fade-ms` in, `exit-fade-ms` out | Enters from the dragged window's frame to the zone; between zones its rectangle springs from one to the next, never replaced; on leaving it fades in place; on drop it fades as the window moves in | Jumps between zones; fades |
 | Pointer panel | `fade-ms` in, `exit-fade-ms` out | In place, no movement | Same |
 | Window menu | The menu motion of `menu-bar.md` | | As there |
@@ -211,20 +233,22 @@ its own clock. Exits use `motion-exit` and `exit-fade-ms`.
 | Show Desktop | `motion-move` | Box → edge and back, straight | Fade out and back |
 | Light hover, press | None | Glyphs and fills change at once | Same |
 
-Zoom menu timings: hover opens after 600 ms over the zoom light (and a
-press held 600 ms), so a pass never opens it; `timing-hover-grace-ms`
+Zoom menu timings: hover opens after `timing-zoom-dwell-ms` (600) over the
+zoom light (and a press held as long), so a pass never opens it; `timing-hover-grace-ms`
 covers the crossing to the panel; disarmed after a click until the pointer
 leaves. Game Mode: while its profile applies, every row above is a cut
-with no shadows; the zoom menu, panel and preview use `material-solid`.
+with no shadows; the zoom menu, pointer panel, window menu and zone
+preview use `material-solid`.
 
 ## Accessibility
 
 - **Surfaces.** Title-bar and toolbar text sits on `colour-titlebar`,
   `colour-titlebar-inactive`, `colour-sidebar`, `colour-window` or
   `colour-view`: window roles, so `colour-text-3` is allowed there. On the
-  zoom menu, pointer panel and inhibit notice (glass) only `colour-text`
-  and `colour-text-2`. Sheets and alerts are on `colour-window`, the window
-  menu on `colour-window-raised`. The lights' glyphs are marks, not text.
+  zoom menu, pointer panel, window menu and inhibit notice (glass) only
+  `colour-text` and `colour-text-2` (`colour-text-disabled` for disabled
+  rows, as `menus.md`). Sheets and alerts are on `colour-window`. The
+  lights' glyphs are marks, not text.
 - **Increase Contrast.** Every window, the zone preview and each light
   (inactive and disabled included) get a `stroke-hairline` of
   `colour-hairline-strong`; glass surfaces take `material-glass-tinted`;
@@ -233,13 +257,16 @@ with no shadows; the zoom menu, panel and preview use `material-solid`.
   3:1 against their thumbnail; Phosphor steps to bold.
 - **Reduce Transparency.** Bars and toolbars are opaque already; the
   toolbar shows its solid form at all times; the zoom menu, pointer panel,
-  inhibit notice and zone preview use `material-solid` (the preview then
-  hides what is under the zone, which the dragged window is not).
+  window menu and inhibit notice use `material-solid`. The zone preview
+  has no glass and needs no form of its own.
 - **Focus.** The zoom menu's keyboard selection is the hovered slot's
   accent fill and shows the preview; no separate ring, as menus. Sheets,
   alerts and toolbar controls draw the focus ring (`stroke-focus-ring`,
   offset `stroke-focus-offset`) outside the control. Title bars and the
   lights take no keyboard focus; their actions have chords.
+- **Names.** The lights are named "Close", "Minimise", and "Enter Full
+  Screen" or "Exit Full Screen" ("Zoom" while Option is held); a disabled
+  light is announced as dimmed.
 - **Largest text.** The bar's height becomes the title's line height plus
   16 when that is more than `size-titlebar`; the toolbar grows likewise;
   the lights, their gap and hit areas keep their size and stay centred.

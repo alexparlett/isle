@@ -52,3 +52,7 @@ Kept as they are. Two of the validator's checks fail by design: `other`
 is grey, below the chroma floor, so it reads as no kind; the dark set sits
 above the dark band (lightness 0.68 to 0.80), because each kind tile
 carries a dark glyph in `colour-view` that needs a light fill.
+
+`contrast.py` also checks the pairs Cleaner draws with them: a kind tile's
+`colour-view` glyph on its kind (3:1), and on a map tile, `text` and
+`text-2` (4.5:1) and the kind's band (3:1) against the tile's mix.

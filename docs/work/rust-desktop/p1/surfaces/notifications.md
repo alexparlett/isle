@@ -23,13 +23,14 @@ sits (In Notification Centre, below).
 | Padding | `space-m` (12) on every side. Inner corners are `radius-control` (18 less 12, concentric) |
 | App icon | Papirus at `size-app-icon` (32), its own shape, no tile, top at the padding, leading at the padding (12, 12). Generic icon when none resolves: Papirus's `application-x-executable` |
 | Text column | From 56 (padding, icon, `space-m`) to 348: 292 wide; 232 beside a thumbnail |
-| Header line | 16 tall, the full text column (it runs over the thumbnail's column). App name in `type-style-subheadline` semibold, `colour-text-2`, cut at its end. Trailing: the count, then `space-xs`, then the time in `type-style-subheadline`, tabular, `colour-text-2` ("now") |
+| Header line | 16 tall, the full text column (it runs over the thumbnail's column). App name in `type-style-subheadline` semibold, `colour-text-2`, cut at its end. Trailing: the count, then `space-xs`, then the time in `type-style-subheadline`, tabular, `colour-text-2` ("Now") |
 | Count | "{n} new" in the quiet badge (`colour-fill-strong`, `colour-text`, `type-style-subheadline` semibold, capsule 16 tall, padded `space-xs`), as menus' and the island's counts |
 | Summary | Directly under the header: `type-style-headline` (13 semibold, line 16), `colour-text`, one line, cut at its end |
 | Body | Under the summary: `type-style-body`, `colour-text`, `limit-banner-lines` (2) at rest, cut at the end of the last; bold, italic and underline drawn, links as plain text |
 | Thumbnail | Trailing, a square of `size-banner-thumbnail` (48: the summary and two body lines), top on the summary's top, `radius-control`, a `stroke-hairline` edge in `colour-hairline`; the picture fills it, centre-cropped |
 | Progress | The progress component (6 tall, radius 3, track `colour-fill-strong`, fill `colour-accent`), `space-s` under the body, the full text column. Absent without the `value` hint |
 | Actions | Shown while hovered: `space-m` under the body or progress, a row of buttons across the text column, `space-s` apart, equal widths (three make 92 each). Each a regular button: `size-control` (24), `radius-control`, `colour-control`, `type-style-body` `colour-text`, label cut at its end. No glyphs. Past three actions, the third is "Options" with `caret-down` at `size-glyph-small` trailing its label |
+| Menus | Options and the secondary-click menu: `menus.md`'s menu on `material-solid` (opened from shell glass), under Options' leading edge or at the pointer |
 | Close | A 20 circle (`size-control-small`), `material-solid`, `shadow-control`, a `stroke-hairline` edge in `colour-hairline`, holding `x` at `size-glyph-small` in `colour-text`. Its centre sits on the card's top leading corner curve (5 in from each edge), so it overhangs the corner and the icon's corner, as macOS's. Hit box 24 square. Shown while hovered; always on a persistent card |
 | Card heights | Summary only 56 (the icon's 32 plus padding); summary and one body line 72; two lines 88; with progress 102; hovered with actions, plus 36 |
 
@@ -60,14 +61,14 @@ place: 32 (`size-module-glyph`), `colour-fill-strong`, the glyph at
 |---|---|
 | Anchor | The main screen's top trailing corner: the newest card's top on `size-strip`'s lower edge (48, or the strip's height at larger text), its trailing edge `space-l` (16) from the screen's edge. The stack grows down from there; nothing re-anchors |
 | Order | Newest at the anchor, older below, `space-s` (8) apart; at most `limit-banners` (3) |
-| Overflow row | Under the stack, `space-s` below the last card: a glass shape 360 × `size-row-large` (40), `radius-panel`, the card's material and shadow. `bell` at `size-glyph` (16) Regular in `colour-text-2`, centred on the icon column (x 28); "{n} more in Notification Centre" in `type-style-body` `colour-text` from 56; `caret-right` at `size-glyph-small` in `colour-text-2` at the trailing padding. The whole row is its hit area |
+| Overflow row | Under the stack, `space-s` below the last card: a glass shape 360 × `size-row-large` (40), `radius-panel`, matching the cards above, the card's material and shadow. `bell` at `size-glyph` (16) Regular in `colour-text-2`, centred on the icon column (x 28); "{n} more in Notification Centre" in `type-style-body` `colour-text` from 56; `caret-right` at `size-glyph-small` in `colour-text-2` at the trailing padding. The whole row is its hit area |
 | Height | Three cards at rest with the row: about 330. It never reaches far down, and over a full-screen window it sits at the same anchor |
 
 ### The summary after silence
 
 The card with the glyph circle holding `game-controller` ("While you
 played") or `bell` ("While you were away"). Header: "Notification Centre"
-(the part that follows up) and "now". Summary line: the title; body: "{n}
+(the part that follows up) and "Now". Summary line: the title; body: "{n}
 notifications from {app} and {app}". One action, "Show", shown on hover as
 a button the width of the text column. A held notification re-shown alone
 is its own card with its real time ("12 min ago").
@@ -78,7 +79,9 @@ The same card, the same 360, the same parts, sizes and type, so a banner
 and its entry read as one thing. Two changes follow from where it sits:
 its fill is `colour-fill` on the panel's glass, not glass of its own (glass
 never sits on glass), with no shadow; its corner is `radius-card` (the
-panel's 18 less its 8 padding, concentric). The close control's overhang
+panel's 18 less its 8 padding, concentric), and the inner shapes at its
+corner (thumbnail, preview, buttons, field) take `radius-small`. The close
+control's overhang
 fits in the panel's padding. A record is the card without actions or
 Reply. Stacks, headers and the rest of the centre are wave C's.
 
@@ -88,7 +91,7 @@ Reply. Stacks, headers and the rest of the centre are wave C's.
 |---|---|
 | Rest | Nothing drawn: no area, no empty stack, no count anywhere |
 | One banner | One card at the anchor; no close control |
-| Hovered | After `timing-hover-dwell-ms`, the hovered card grows: full body, preview, actions, close control. Others keep their rest form; every timer is paused |
+| Hovered | After `timing-hover-dwell-ms`, the hovered card grows: full body, preview, actions, close control. Cards not yet hovered keep their rest form; one hovered earlier stays grown until the pointer leaves the stack; every timer is paused |
 | Replying | The reply in place of the actions; the card stays grown while the pointer is away; the ring rules below |
 | Persistent, critical | The close control shown at rest; nothing else differs. Critical is told apart only by staying |
 | Grouped | The count badge in the header; the newest content |
@@ -123,16 +126,19 @@ something falling out of the island, which never shows a notification.
 | Stack steps down | `motion-open`, the arrival's spring | Older cards move down by the newcomer's height plus `space-s`, together with it |
 | Oldest leaves early | `motion-exit-fade-ms` | Fades in place as the arrival starts |
 | Grouped or replaced | `motion-fade-ms` crossfade; height `motion-open` if taller, `motion-exit` if shorter | Content swaps in place, top fixed; no entrance, the count changes in place |
-| Hover grows | `motion-open` | Height down from the top edge; new parts in by p from half; cards below move down on the same spring. Growth that adds no height (a short card) fades the close control over `motion-fade-ms` |
-| Hover ends | `motion-exit`, after `timing-hover-grace-ms` | The reverse; parts out by the first half |
+| Hover grows | `motion-open` | A newly hovered card grows down from its own top; new parts in by p from half; cards below move down on the same spring. Growth that adds no height (a short card) fades the close control over `motion-fade-ms` |
+| Hover moves to another card | None | The card that lost hover keeps its grown height; only the newly hovered card grows, so nothing slides under the pointer |
+| Pointer leaves the stack | `motion-exit`, after `timing-hover-grace-ms` | Every grown card shrinks: the reverse; parts out by the first half |
 | Time out, close, act | `motion-exit-fade-ms` | Opacity to 0 in place; then the cards below close the gap on `motion-exit` |
 | Swipe | Direct, then `motion-exit` | The card follows the pointer or scroll 1:1 toward the trailing edge (a third of the travel toward the leading edge), opacity 1 − d/360. Released past `size-swipe-threshold` (120), or with velocity the spring would carry past it, it leaves off-screen on `motion-exit` from that velocity; short, it returns on `motion-move` |
 | Overflow row | `motion-fade-ms` in, `motion-exit-fade-ms` out | In place, under the stack; its count changes in place |
 | Reply opens | `motion-open` | The action row out by the first half, the field in by the second |
 
 While the pointer is over the stack nothing arrives and no timer runs; the
-only movement is the hovered card's own growth, which happens under the
-pointer and pushes cards below it, never under it. After the pointer leaves,
+only movement is a newly hovered card's own growth, which happens under the
+pointer and pushes cards below it, never under it. A card that loses hover
+to another in the stack stays grown until the pointer leaves the stack, so
+a click never lands on a card that slid under it. After the pointer leaves,
 each card's time resumes, and none leaves sooner than
 `timing-banner-resume-ms`.
 
@@ -165,7 +171,8 @@ reply jump; a swipe follows the pointer and the card is gone on release.
 - **Focus ring.** A banner takes keyboard focus only to reply. The field
   shows its focused edge; Tab moves to Cancel and Send, which take
   `stroke-focus-ring` in the accent at `stroke-focus-offset`, round their
-  `radius-control`. The card's 12 padding leaves room for the ring. Keyboard
+  `radius-control`, with a 1-point `colour-text` line inside it, since no
+  accent holds 3:1 over every backdrop on glass. The card's 12 padding leaves room for the ring. Keyboard
   work on notifications happens in the centre, where the ring goes round
   the whole card at `radius-card` plus the offset (the panel's padding
   holds it).

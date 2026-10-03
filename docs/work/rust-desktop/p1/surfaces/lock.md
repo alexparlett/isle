@@ -19,7 +19,13 @@ on it use `colour-text` and `colour-text-2`, never `colour-text-3`
 Everything else on the face sits on **lock plates**: `material-glass` at
 the user's glass position, `material-noise-opacity`, `shadow-menu`, and no
 backdrop blur pass, since the backdrop beneath is already blurred and holds
-no shapes. A menu opened from a plate is `material-solid` (`menus.md`).
+no shapes. At the greeter, plates use the shipped `material-glass`: it draws
+only the published look, which has no glass position. A menu opened from a
+plate is `material-solid` (`menus.md`).
+
+Every clickable plate answers the pointer: hover adds `colour-fill` over the
+plate, pressed `colour-fill-strong` (power circles, utility capsules, Now
+Playing's buttons); a notification plate on press `colour-fill`.
 
 ### The face, top to bottom
 
@@ -30,9 +36,9 @@ sits the same on the ultrawide and the 1920×1080 screen.
 |---|---|
 | Date | Top at `size-strip` + `space-xxxl` (80), below the island's privacy form and Level OSD (which end at 57). `type-style-title-2`, `colour-text`, "Saturday 3 October" in the locale's long form. The current Focus's symbol leads it at `size-glyph` in Fill, `space-s` before the text |
 | Time | `space-xs` under the date. **`type-style-display`** (new: 96, semibold, line 104), Inter's display optical size, tabular figures, `colour-text`, tracking −0.02 em. Its box is the format's widest string ("88:88"), text centred, so nothing moves as the minutes change |
-| Column | Top `space-xxxl` under the time; the notification card's width, `size-panel` less 2 × `space-s` (360); plates `space-s` apart. Now Playing first, then notifications, newest first |
+| Column | Top `space-xxxl` under the time; the notification card's width, `size-panel` less 2 × `space-s` (360); plates `space-s` apart. Now Playing first, while a player plays or for `timing-lock-media-paused-ms` (10 min) after it pauses; then notifications, newest first |
 | Now Playing | A plate 360 × 72, `radius-panel`, padding `space-m`: art 48 at `radius-control` (concentric: 18 less 12); `space-m`; title `type-style-headline` `colour-text` over artist `type-style-subheadline` `colour-text-2`, one line each, cut at the end; trailing, `skip-back`, `play` or `pause` (Fill), `skip-forward` at `size-glyph` as plain icon buttons (`size-control`), `space-xxs` apart. No art: a `colour-fill-strong` square with `music-note` 20 |
-| Notification, by app (default) | A plate 360 × 56, `radius-panel`, padding `space-m`: the app's icon at `size-app-icon` (32); `space-m`; "{App}" in `type-style-headline` `colour-text` over "{n} notifications" in `type-style-subheadline` `colour-text-2` |
+| Notification, by app (default) | A plate 360 × 56, `radius-panel`, padding `space-m`: the app's icon at `size-app-icon` (32); `space-m`; "{app}" in `type-style-headline` `colour-text` over "{n} notifications" in `type-style-subheadline` `colour-text-2` |
 | Notification, previews | The notification card as `surfaces/notifications.md` draws it, summary only, no body or actions, at 360 |
 | More | A plate 360 × `size-row` (28), "{n} more" centred in `type-style-callout` `colour-text-2`. Shown past `limit-lock-notifications` (5) or past what fits above the user, whichever is fewer |
 | The user | Picture `size-avatar` (64), a circle with a `stroke-hairline` inner edge in `colour-hairline`; `space-s`; full name in `type-style-title-3` `colour-text`, one line. No picture yet: a `colour-fill-strong` circle with `user` 32 (Light) in `colour-text-2` |
@@ -43,14 +49,16 @@ sits the same on the ultrawide and the 1920×1080 screen.
 
 **Wrong-layout mark.** After a wrong password with several layouts, the
 layout capsule takes the tray's attention dot (`island.md`): 6 points of
-`colour-accent` ringed 1 point in `material-solid`, on its top trailing
-corner, until the next unlock attempt or a layout change.
+`colour-warn` ringed 1 point in `material-solid`, on its top trailing
+corner, until the next unlock attempt or a layout change. The message
+names the layout ("Wrong password. Check the keyboard layout ({name}).").
 
 **Confirm in place.** Restart or Shut Down replaces the three circles with
 one lock-plate capsule 40 tall, radius 20, centred where they were: inset
 `space-l`, "Restart now?" in `type-style-body` `colour-text`, `space-l`,
 Cancel (control) and Restart (default, `colour-accent`) at `size-control`,
-`space-s` apart. The labels' row stays reserved and empty. Once confirmed,
+`space-s` apart. While it shows, focus moves to it: Return confirms, Escape
+cancels and returns focus to the field. The labels' row stays reserved and empty. Once confirmed,
 the capsule holds the spinner at 12, `space-s`, and "Quitting apps…" in
 `type-style-body` `colour-text`, in place of the question and buttons, until
 the session ends or an app stops it (status line).
@@ -69,7 +77,7 @@ the field.
 
 No picture, plates or glass: a full screen of `colour-window-sunken`; the
 time in `type-style-display` `colour-text` at the face's place; "The lock
-screen had a problem." in `type-style-callout` `colour-text-2`, `space-m`
+screen had a problem. Enter your password to unlock." in `type-style-callout` `colour-text-2`, `space-m`
 above the field; the field as the window's text field component (240 ×
 `size-control-large`, `colour-window-raised`, `colour-hairline-strong`
 edge); the status line as above. Window roles throughout, so `contrast.py`
@@ -92,7 +100,7 @@ takes no hit target but the one input that ends it.
 | Typing | Dots; Caps Lock's message while it is on. |
 | Pending | Dots kept, the caret gone; spinner and "Checking", after `timing-check-long-ms` "Still checking"; the fingerprint glyph stays. |
 | Wrong password | The shake; the dots go with it; the field takes its error edge (`colour-danger`, 1 point, inside) until the next key; the message with its count; the layout mark if several layouts. |
-| Locked out | Field disabled: placeholder `colour-text-disabled`, no caret; "Too many attempts. Try again in {n} min."; the fingerprint glyph and the power row unchanged. |
+| Locked out | Field disabled: placeholder `colour-text-disabled` (a disabled control), no caret; "Too many attempts. Try again in {n} min."; the fingerprint glyph and the power row unchanged. |
 | Fingerprint | Glyph while listening; "Not recognised. Try again." for `timing-event-ms`; at the limit the glyph in `colour-text-disabled` and "Use your password" until the next wake. |
 | Unlocking | Face out, then the backdrop dissolves (Motion). |
 | Empty | Date, time, the user and field; the column absent, nothing reserved for it. |
@@ -108,7 +116,7 @@ takes no hit target but the one input that ends it.
 | Restart or Shut Down asked | Confirm in place; once confirmed, the spinner and "Quitting apps…"; after an app stops it, "Couldn't restart because an app didn't quit. Unlock to see it." |
 | Greeter | No column, no island; the session capsule when several sessions; the user list when several users. |
 | Greeter, fingerprint sign-in | PAM's message with `fingerprint`; a typed password's dots kept, and "Waiting for the fingerprint reader" on an early Return. |
-| Greeter, session failed | "Couldn't start {session}." with `warning-circle`, field ready. |
+| Greeter, session failed | "Couldn't start {session}. Choose another session and try again." with `warning-circle`, field ready. |
 | Dimmed | `colour-dim` over the screen. |
 | Display off, idle held | Nothing drawn. |
 | Reduce Motion, Transparency, Contrast, largest text | Motion and Accessibility. |
@@ -121,7 +129,7 @@ The compositor draws all of it (B7). Nothing on the lock scales or zooms
 | Transition | Form |
 |---|---|
 | Lock in | Backdrop and wash complete in the first frame on every screen (a cut: no frame of the session after the request). The face's alpha 0 → 1 over `motion-fade-ms`, all parts together. |
-| Unlock | The face's alpha 1 → 0 over `motion-exit-fade-ms`; from its halfway point the backdrop's alpha 1 → 0 over `motion-exit-fade-ms`, uncovering the session already drawn beneath: the softened form clearing to the plain one. Each half is quicker than its entrance. No blur ramp. |
+| Unlock | The face's alpha 1 → 0 over `motion-exit-fade-ms`; 40 ms after it starts, the backdrop's alpha 1 → 0 over `motion-exit-fade-ms` (done at 150, quicker than lock in), uncovering the session already drawn beneath: the softened form clearing to the plain one. No blur ramp. |
 | Doze | The lower parts' alpha 1 → 0 over `motion-exit-fade-ms` after `timing-doze-ms` with the field empty. |
 | Wake | Back over `motion-fade-ms`; a printable key's dot is drawn in the first frame, under the fading-in field. |
 | Face to another screen | Out on the old screen over `motion-exit-fade-ms`, in on the new over `motion-fade-ms`, dots kept; date and time do not move. |
@@ -138,21 +146,24 @@ The compositor draws all of it (B7). Nothing on the lock scales or zooms
 picture in the greeter does not travel: old and new rows crossfade over
 `motion-reduced-fade-ms`. Lock in, unlock, doze, wake and the dim stay
 fades at their own lengths, since a fade moves nothing; plates arriving
-cut into place, those below them jump.
+cut into place, those below them jump; the confirm capsule's width jumps.
 
 **Game Mode.** Lock in and unlock are cuts; no shake (as Reduce Motion);
-doze and wake are cuts. The plates already skip the blur pass. The dim
+doze and wake are cuts; plates cut, those below jump; the confirm capsule's
+width jumps. The plates already skip the blur pass. The dim
 still fades, since it is one layer.
 
 ## Accessibility
 
 - **Colour roles.** On the washed backdrop and on lock plates, only
-  `colour-text` and `colour-text-2`, by the glass rule: with the wash, text
+  `colour-text` and `colour-text-2`, by the glass rule (`colour-text-disabled`
+  only for disabled controls, as `menus.md`): with the wash, text
   passes 4.5:1 over a white, grey and black picture (dark 4.69 at worst,
   over white), text-2 over grey and the appearance's own extreme (dark 5.16,
   light 5.09). `colour-text-3` appears nowhere on the lock or greeter.
   Status meaning is by glyph and wording; colour on the face sits only in
-  the solid-ringed dot and the field's error edge, both repeated in words.
+  the solid-ringed `colour-warn` dot and the field's error edge, both
+  repeated in words.
   The minimal lock uses window roles.
 - **Increase Contrast.** The wash steps to `material-lock-wash-contrast`
   (dark 0.45, light 0.30), where every role passes everywhere (text-2's
@@ -164,10 +175,11 @@ still fades, since it is one layer.
 - **Reduce Transparency.** The backdrop is unchanged (a picture); plates,
   the field, circles and capsules are `material-solid`.
 - **Focus ring.** `stroke-focus-ring` in the accent at `stroke-focus-offset`,
-  for keyboard focus only: a capsule round the field when Tab returns to it
-  (the caret alone marks it at rest), circles round the power buttons and
-  the greeter's pictures, capsules round the utilities, `radius-panel` plus
-  the offset round a plate. Tab order is the structure's.
+  with a 1-point `colour-text` line inside it, for keyboard focus only: a
+  capsule round the field when Tab returns to it (the caret alone marks it
+  at rest), circles round the power buttons, Now Playing's three buttons
+  and the greeter's pictures, capsules round the utilities, `radius-panel`
+  plus the offset round a plate. Tab order is the structure's.
 - **Largest text size** (1.5×). Date, name, labels, the field's
   placeholder and dots, the status line, plates' text and capsules grow; the
   field is its line plus 14 tall and 360 wide; plates grow downward and the
@@ -176,7 +188,13 @@ still fades, since it is one layer.
   Playing's buttons `size-control`; plates whole; the field whole. All
   above `size-hit-minimum`.
 - **Never colour alone.** Caps Lock, wrong, checking and the reader each
-  have their glyph; the layout mark is backed by the message.
+  have their glyph; the layout mark is backed by the message, which names
+  the layout, and the capsule's name becomes "Keyboard layout: {name},
+  check it".
+- **Names.** Besides the field, the reader and the layout: "Previous
+  track", "Play", "Pause", "Next track"; "On-screen keyboard"; "Battery
+  {n}%" (with "charging"); "Session: {name}"; a plate "{app}, {n}
+  notifications".
 
 ## Board
 
@@ -240,6 +258,7 @@ screen whole.
 | `motion` | `dim-ms` | 2000 |
 | `timing` | `doze-ms` | 12000 |
 | `timing` | `check-long-ms` | 5000 |
+| `timing` | `lock-media-paused-ms` | 600000 (Now Playing stays this long after a pause) |
 | `timing` | `lock-dim-ms` | 45000 (dim once locked) |
 | `timing` | `lock-off-ms` | 60000 (display off once locked) |
 | `limit` | `lock-notifications` | 5 |

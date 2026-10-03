@@ -284,7 +284,7 @@ system must add (next section).
 | `selection` *new* | (from accent) | (from accent) | Selection BackgroundNormal *(unsure)* | `selection_background` | `selected_bg` | `index-active-bg` |
 | `focus-ring` *new* | `outline-color` rule | `outline-color` rule | DecorationFocus | | | |
 | `link` *new* | `accent_color` | `--accent-color` | ForegroundLink | `url_color` | | |
-| `ok`, `warn`, `danger` and their `-text` *new* | `success_`, `warning_`, `destructive_`, `error_` bg and text | `--success-*`, `--warning-*`, `--destructive-*`, `--error-*` | ForegroundPositive, Neutral, Negative | (ANSI 1–3) | gradients | notifications |
+| `ok`, `warn`, `danger`, their `-text` and `on-danger` *new* | `success_`, `warning_`, `destructive_`, `error_` bg, fg and text | `--success-*`, `--warning-*`, `--destructive-*`, `--error-*` | ForegroundPositive, Neutral, Negative | (ANSI 1–3) | gradients | notifications |
 | `match` *new* | | | | `mark1_background` | | `highlight-color` |
 | `term.*` *new* | | | | `color0`–`color15` | | |
 | `series.*` *new* | | | | | graphs | |
@@ -320,11 +320,15 @@ increased-contrast set:
   passes on the user's accent (white fails on Frost's dark accent).
 - **`selection`** and **`selection-inactive`**: the accent mixed into
   `view` (about 35% in dark, 25% in light), with `text` on it at 4.5:1.
-- **`focus-ring`**: the accent, at least 3:1 against what it surrounds;
+- **`focus-ring`**: the accent at full strength, at least 3:1 against
+  what it surrounds (every accent passes on every window surface);
   width and offset with it (v1: 2 at 2).
 - **`link`**: `accent-text` unless the user's accent fails as text.
+- **`on-danger`**: the label on a `danger` fill (a badge, the switcher's
+  urgent tag), 4.5:1, near-black in dark as the red accent's `on`.
 - **`ok-text`**, **`warn-text`**, **`danger-text`**: the status colours
-  as text at 4.5:1 on `window` and `view`; the current values stay as
+  as text at 4.5:1 on `window` and `view`, and `danger-text` on a
+  control as a destructive button's label; the current values stay as
   fills.
 - **`match`**: a find highlight, yellow, as macOS's.
 - **`term`**: the 16 ANSI colours above, per appearance and contrast.

@@ -31,8 +31,8 @@ switcher (Cmd+Tab is), and not a widgets surface (the dashboard is,
 |---|---|---|
 | Desktop | A live miniature: the screen's wallpaper with that desktop's windows at their real places, scaled; labelled "Desktop 1", "Desktop 2" in bar order | compositor's window list and textures, drawn only while Mission Control is open (B13, v1 D55) |
 | Full-screen Space | A live miniature of its window, labelled with the app's name; a game's by the game's name from the library, its cover as the label's icon (`gaming.md` Games as apps) | as above |
-| Split View Space | Both windows side by side at their split, labelled "{App} and {App}" | as above |
-| The current Space | Marked; the accent's one use in the bar (brief P6) | |
+| Split View Space | Both windows side by side at their split, labelled "{app} and {app}" | as above |
+| The current Space | Marked by a neutral ring; the accent is kept for the selection, the one thing (brief P6) | |
 | Add | A + tile at the end of the row, always shown, not on hover (GNOME's critique of macOS's hover +, `design-references.md` § 6). Hidden when the screen has as many desktops as the compositor allows (`compositor.md` Spaces, Open) | |
 | Remove | On hover over a desktop, a remove control at its top leading corner; never on a screen's only desktop. On a full-screen or Split View Space, the control exits full screen instead | |
 
@@ -408,9 +408,12 @@ Control. Stage Manager's edge reveal carries the guards.
 Words follow `copy.md`: "desktop", never "workspace" or "Space", in
 anything the user reads; macOS's feature names keep their capitals.
 
-- Bar: "Desktop 1"…; a full-screen Space's app or game name; "{App} and
-  {App}" for a Split View. Accessible names: "Add desktop", "Remove
-  desktop", "Exit Full Screen", "Close".
+- Bar: "Desktop 1"…; a full-screen Space's app or game name; "{app} and
+  {app}" for a Split View. Accessible names: "Add desktop", "Remove
+  desktop", "Exit Full Screen", "Close"; a miniature "Desktop {n}", with
+  "current" as its state.
+- Spread: a tile's accessible name "{title}, {app}". Tray and set-apart
+  thumbnails: "{title}, minimised", "{title}, hidden", "{title}, Desktop 2".
 - Tray and App Exposé labels: "Minimised", "Hidden", "Desktop 2".
 - App Exposé with nothing to show: "No windows".
 - Split View: "Left of screen", "Right of screen" (`window-chrome.md`),

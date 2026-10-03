@@ -109,7 +109,7 @@ them is empty panel, not a shorter panel.
 **Clipboard.** Pinned items first, in the order pinned, under "Pinned";
 then the rest newest first under "Recent". A text item shows its first
 line, with the line count when there are more; an image shows a thumbnail
-in the icon slot and its size and source app ("Image · 1920×1080 ·
+in the icon slot and its size and source app ("Image · 1920 × 1080 ·
 Firefox"); copied files show the first file's icon and name. Cmd+Y opens a
 preview of the selected item over the list: the whole text, scrollable, or
 the image fitted. Secret offers are never recorded (`platform.md`
@@ -173,7 +173,7 @@ taking the duties the Dock's app menu had (`dock.md`):
 | 3 | Add to favourites, or Remove from favourites | |
 | 4 | Options ▸ | Open at login (checked when on); Keep running after last window (checked when on; not for games; the B20 policy, also in Settings › Apps); Assign to ▸ All desktops, This desktop, None |
 | 4 | Show in Files | The desktop entry or AppImage, selected |
-| 4 | Show in <launcher> | Games only: the game's page in Steam, Heroic or Lutris |
+| 4 | Show in {launcher} | Games only: the game's page in Steam, Heroic or Lutris |
 | 5 | Quit | Only while it is running |
 
 `menu-bar.md` did not take "Keep running after last window" into the app
@@ -195,7 +195,7 @@ menu, so this menu and Settings are its homes.
 | No results | Only "Search the web for “{query}”" in the general search. In a scope without the web: one line, "No results for “{query}”". |
 | Empty sources | Clipboard: "No copied items". Windows: "No open windows". Passwords with no provider: "No password manager", with "Open Keychain". |
 | Error | A source that fails or is missing (no file search tool, the calculator absent, a provider erroring) leaves its group out, never a stalled frame (shell runtime 8). A provider's error is one row with its reason, as the provider gave it (`copy.md` rule 7). |
-| Vault locked | One row per locked provider: "{Provider} is locked", acting to unlock it in Keychain. |
+| Vault locked | One row per locked provider: "{source} is locked", acting to unlock it in Keychain. |
 | Many results | The list scrolls; the selection stays in view. Each group shows every match except Files, capped with "Show all in Files". The Apps view scrolls. |
 | Nothing to paste into | No window had focus when Spotlight opened: a clipboard pick or an emoji is copied instead, and the island shows "Copied". |
 | Second screen | Opens on the screen holding the focused window, or under the pointer if no window has focus; from a hot corner, on that corner's screen. Never on two screens. |
@@ -223,7 +223,8 @@ menu, so this menu and Settings are its homes.
   corner** after a rest (`dock.md` For the user 3) open the Apps view. The
   hot corner fires once per visit and closes a Spotlight it opened if it
   fires again.
-- **Opening** is a quick fade in place: no drop from the top and no
+- **Opening** is a quick fade in place, scaling from `motion-panel-scale`
+  about the field's centre: no drop from the top and no
   growth from a hot corner, since the panel opens where it belongs (v1
   D91). The results panel fades in under the field with the first result.
 - **Closing** is faster than opening (brief P5). On a choice, Spotlight
@@ -374,16 +375,16 @@ capture thumbnail and picture-in-picture, and Spotlight closing on lock.
 |---|---|
 | Field placeholder | "Search"; in a scope: "Search apps", "Search files", "Search actions", "Search clipboard", "Calculate", "Search emoji", "Search windows", "Search passwords", "Run a command" |
 | Scope tokens | "Apps", "Files", "Actions", "Clipboard", "Calculator", "Emoji", "Windows", "Passwords", "Run", or the app's name |
-| Quick-key buttons (hover) | "Apps ⌘1", "Files ⌘2", "Actions ⌘3", "Clipboard ⌘4" |
+| Quick-key buttons (hover) | "Apps {shortcut}", "Files {shortcut}", "Actions {shortcut}", "Clipboard {shortcut}"; {shortcut} in `copy.md` rule 11's form: ⌘1 to ⌘4 on a Mac keyboard, the words on a PC one |
 | Group headers | "Calculation", "Top hit", "Apps", "Actions", "Menu items", "Settings", "Windows", "Files", "Pinned", "Recent" |
 | Files | "Names", "Contents", "Show all in Files" |
 | Web row | "Search the web for “{query}”" |
 | Apps view | "Favourites", "All apps"; category filter "All apps" |
-| Tile menu | "Open", "Add to favourites", "Remove from favourites", "Options", "Open at login", "Keep running after last window", "Assign to", "All desktops", "This desktop", "None", "Show in Files", "Show in <launcher>", "Quit" |
+| Tile menu | "Open", "Add to favourites", "Remove from favourites", "Options", "Open at login", "Keep running after last window", "Assign to", "All desktops", "This desktop", "None", "Show in Files", "Show in {launcher}", "Quit" |
 | Result menu | "Open", "Show in Files", "Quick Look", "Copy", "Copy path", "Pin", "Unpin", "Delete", "Paste", "Run in terminal", "Clear clipboard history…" |
-| Clear history | "Clear clipboard history?" with "Delete {n} items" and "Cancel"; "Pinned items are kept." |
-| Clipboard item | "Image · {w}×{h} · {App}"; "{n} more lines" |
-| Empty and errors | "No results for “{query}”", "No copied items", "No open windows", "No password manager" with "Open Keychain", "{Provider} is locked" with "Unlock in Keychain" |
+| Clear history | "Clear clipboard history?" with "Clear {n} items" and "Cancel"; "Pinned items are kept." |
+| Clipboard item | "Image · {w} × {h} · {app}"; "{n} more lines" |
+| Empty and errors | "No results for “{query}”", "No copied items", "No open windows", "No password manager" with "Open Keychain", "{source} is locked" with "Unlock in Keychain" |
 | Island | "Copied" (`island.md`) |
 
 Words follow `copy.md`.

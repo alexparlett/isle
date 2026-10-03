@@ -22,7 +22,7 @@ its `shell.md` section is `lock.md`'s (batch 2).
 | Image | A picture file, scaled to its screen by the fit mode | The user's file or folder, or Isle's bundled set; `settings.kdl` |
 | Colour | A solid colour, also the fill around a fitted image | `settings.kdl` |
 | Drawn backdrop | Isle's default: drawn from neutral tokens, with a light and a dark form; never from the accent (brief P6) | `tokens.kdl` |
-| Softened form | The same picture blurred and darkened, made once per change, for the lock and the widgets surface | Drawn by the compositor from the above |
+| Softened form | The same picture blurred and washed toward the appearance's ground, made once per change, for the lock and the widgets surface | Drawn by the compositor from the above |
 
 - **Choice per screen or for all** (`shell.md` Wallpaper 1). A screen is
   keyed by its monitor's identity, not its connector, so a KVM switch or a
@@ -88,8 +88,8 @@ softened form to the plain one; its motion is `lock.md`'s.
 ## Keyboard
 
 The wallpaper never takes keyboard focus and has no keys of its own.
-Everything its menu offers is reached elsewhere: Change wallpaper from
-Settings › Wallpaper and Spotlight's settings results; the widgets from
+Everything its menu offers is reached elsewhere: the wallpaper's settings
+from Settings › Wallpaper and Spotlight's settings results; the widgets from
 their chord (`widgets.md`); Show Desktop from its chord.
 
 ## Pointer
@@ -97,7 +97,7 @@ their chord (`widgets.md`); Show Desktop from its chord.
 | Input | Does |
 |---|---|
 | Click | Takes focus from the windows; the front app becomes whatever the on-demand menu bar shows with no window focused (`menu-bar.md`). It does not reveal the desktop: macOS's "Click wallpaper to reveal desktop" is a setting, off by default |
-| Secondary click | A menu: "Change wallpaper…" (Settings › Wallpaper), "Edit widgets…" (the widgets surface in edit mode) |
+| Secondary click | A menu: "Wallpaper Settings…" (Settings › Wallpaper), "Edit widgets" (the widgets surface in edit mode) |
 | Drag a file onto it | Nothing: the desktop holds no files |
 | Scroll | Nothing |
 
@@ -148,9 +148,9 @@ compositor's (`shell.md` Mission Control 8).
 
 | Where | String |
 |---|---|
-| Wallpaper menu | "Change wallpaper…", "Edit widgets…" |
+| Wallpaper menu | "Wallpaper Settings…", "Edit widgets" |
 | Settings › Wallpaper | "Show on all screens", "Fill screen", "Fit to screen", "Centre", "Change picture", "Every hour", "Every day", "When logging in", "Random order" |
-| Missing file | "<file> couldn't be found. Showing the default wallpaper." |
+| Missing file | "“{file}” couldn't be found. Showing the default wallpaper." |
 
 ## For the user
 

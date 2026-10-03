@@ -16,11 +16,12 @@ sheets and alerts `surfaces/window-chrome.md`'s, Markup's tool row
   the first time on the 3440×1440 screen the compositor centres it in the
   work area: x 1020, y 314. Minimum 560 by 400, which holds the widest
   sheet (Rename many, `size-form-narrow` plus `space-xxxl` each side).
-- **Regions** as `conventions.md`: toolbar 52; sidebar 220, `colour-sidebar`;
-  content `colour-view`; the preview inspector 260, `colour-window`. Under
-  the toolbar, top to bottom over the content and preview only: the tab bar
-  (two or more tabs), the scope bar (a search standing). At the content's
-  foot, over the content only: the path bar, then the status bar, when on.
+- **Regions** as `conventions.md`: toolbar 52; sidebar 220,
+  `colour-sidebar`; content `colour-view`; the preview inspector 260,
+  `colour-window`. Under the toolbar, top to bottom over the content and
+  preview only: the tab bar (two or more tabs, or one while View › Show Tab
+  Bar is on), the scope bar (a search standing). At the content's foot,
+  over the content only: the path bar, then the status bar, when on.
 
 ### The toolbar
 
@@ -31,8 +32,8 @@ sheets and alerts `surfaces/window-chrome.md`'s, Markup's tool row
 | Path menu | ⌘-click or secondary click on the title: the in-window menu (`menus.md`), its top `space-xs` under the plate, leading edges aligned; one row per folder from this one up to the computer's name, names only (no icons on menu items, brief), the current folder checked |
 | View switcher | `conventions.md`'s segmented control, three segments: Icons `squares-four`, List `list-bullets`, Columns `columns`; 112 wide |
 | Group and Sort | `space-xs` after it: an icon button 48 by 30 holding `rows` at 20 and `caret-down` at 12, `space-xxs` apart, both `colour-text-2`; its menu is the in-window menu: Use Groups, Group By and Sort By as View's, checks in the mark column |
-| Jobs button | First in the trailing group, present only while a job runs, waits or has failed. A 30 icon button holding a ring `size-progress-ring` (18) across, `stroke-progress` (2): track `colour-fill-strong`, the running total's arc in `colour-accent` from twelve o'clock. Waiting: the ring holds, and a `size-mark` (6) dot of `colour-warn` sits on its top trailing edge. Failed with nothing running: `warning-circle` Fill at 20 in `colour-danger-text` instead of the ring. Open: the pressed plate |
-| Empty | In the Trash only: `conventions.md`'s primary action, "Empty", disabled (`colour-text-disabled` label) while the Trash is empty |
+| Jobs button | First in the trailing group, present only while a job runs, waits or has failed; named "File jobs: {n} running", with ", waiting for you" or ", failed" added. A 30 icon button holding a ring `size-progress-ring` (18) across, `stroke-progress` (2): track `colour-fill-strong`, the running total's arc in `colour-accent` from twelve o'clock. Waiting: the ring holds, and a `size-mark` (6) dot of `colour-warn` sits on its top trailing edge. Failed with nothing running: `warning-circle` Fill at 20 in `colour-danger-text` instead of the ring. Open: the pressed plate |
+| Empty Trash… | In the Trash only: `conventions.md`'s primary action, "Empty Trash…", disabled (`colour-text-disabled` label) while the Trash is empty |
 | More, preview, search | `dots-three-circle`; the inspector toggle (`sidebar-simple` mirrored), its glyph Fill while the preview shows; the search field |
 
 Narrowing as `conventions.md`: the centre group into », the title cut at its
@@ -69,18 +70,21 @@ drop ring (below).
 - **Headers** (Favourites, Locations): on hover over the header,
   `caret-down` (open) or `caret-right` (collapsed) at 12 in `colour-text-2`
   at its trailing edge less `space-s`, in a 20 hit square.
-- **Volumes.** Mounted: as any row, Eject at the trailing accessory, `eject`
-  at 16 in `colour-text-2` in a `size-control-small` square, pressed
-  `colour-control-pressed`. Unmounted: glyph and label `colour-text-3`, no
-  Eject. Mounting: Eject's place holds a 16 spinner in `colour-text-2`.
+- **Volumes.** A mounted removable or network volume: as any row, Eject at
+  the trailing accessory, `eject` at 16 in `colour-text-2` in a
+  `size-control-small` square, pressed `colour-control-pressed`; internal
+  volumes and the computer have none. Unmounted: glyph and label
+  `colour-text-3`, no Eject. Mounting: Eject's place holds a 16 spinner in
+  `colour-text-2`.
 - **Nearly full** (past nine-tenths): a capacity mark before the
   accessory, `space-s` from it: a bar `size-capacity-mark` (20) by 4,
   radius 2, track `colour-fill-strong`, the used share in `colour-warn`. On
   the selected row, track `colour-on-accent` at 35% and fill
   `colour-on-accent`. Free space is the row's tooltip.
 - Drop and insertion: the drop ring of `conventions.md`; between two
-  Favourites, an insertion line 2 points of `colour-accent` across the
-  rows' inset width with a `size-mark` circle ringed 2 at its leading end.
+  Favourites, `conventions.md`'s insertion line (2 points of
+  `colour-accent`) across the rows' inset width with a `size-mark` circle
+  ringed 2 at its leading end.
 
 ### Icons view
 
@@ -144,19 +148,23 @@ Padding `space-l`, content top-aligned and scrolling:
 
 | State | Look, in each view |
 |---|---|
-| Being written | Icon and name at 50%; a bar `size-item-progress` (4) tall, `radius-small` 2, track `colour-fill-strong`, fill `colour-accent`: in Icons across the icon's box at its foot, inset an eighth of the box each side; in List and Columns in the Date Modified cell (or the row's trailing end in Columns), 96 wide, centred on the row |
+| Being written | Icon and name at 50%; a bar `size-item-progress` (4) tall, radius 2, track `colour-fill-strong`, fill `colour-accent`: in Icons across the icon's box at its foot, inset an eighth of the box each side; in List and Columns in the Date Modified cell (or the row's trailing end in Columns), 96 wide, centred on the row |
 | Cut, awaiting Paste | Icon at 50%, ringed by a dashed `stroke-hairline` outline in `colour-text-2` round its box at `radius-small` (dashes and gaps of 3); name unchanged |
 | Hidden (shown by ⇧⌘.) | Icon at 50%, name `colour-text-2` |
 | Alias | A badge on the icon's bottom leading corner: a square a quarter of the icon (at least 10), `colour-window-raised`, `radius-small`, `shadow-control`, holding `arrow-bend-up-right` in `colour-text` at three quarters of it; a broken alias's icon at 50% |
 | Excluded by a panel's filter | Icon at 40%, name `colour-text-disabled`, no hover, no selection |
+| Under a context menu, outside the selection | A 2-point `colour-accent` ring (`stroke-found`) round its plate or inside its row while the menu is open |
 
 ### Drag and drop
 
-- **Drag image**: the dragged icons at their view's size, at 70%, names
-  under them in Icons, stacked as the preview's stack past three; a count
-  in the badge component's shape in `colour-accent` with `colour-on-accent`
-  on the top trailing corner for two or more. The pointer carries Bibata's
-  `copy` while the drop copies.
+`conventions.md`'s Drag and drop: the drag image at 70% with its count
+badge, the drop ring, the insertion line, the pointer's `copy`, a refused
+drop's return. Files' own forms:
+
+- **Drag image**: the dragged icons at their view's size, names under them
+  in Icons, stacked as the preview's stack past three; the count in the
+  badge component's shape in `colour-accent` with `colour-on-accent` on
+  the top trailing corner for two or more.
 - **Drop targets** (only while accepting): a folder in Icons takes the
   selection plate in `colour-fill-strong` ringed 2 points (`stroke-found`)
   in `colour-accent`; a folder row in List or Columns the ring inside the
@@ -197,16 +205,27 @@ which raises the question. Failed: `warning-circle` Fill 12 in
 
 ### Questions and alerts
 
-All `window-chrome.md` alerts on the job's window. **Name taken**: title "An
-item named “{name}” already exists in “{folder}”.", the newer-item line
+All `window-chrome.md` alerts on the job's window. **Name taken**: title
+"An item named “{name}” already exists in “{folder}”.", the newer-item line
 under it; the "Apply to all" checkbox centred on its own line `space-m`
-above the buttons (only while more items remain); Stop, Keep Both (default,
-accent), Replace (`colour-danger-text`), equal widths; with ⌥ held Keep Both
-reads Merge in the same place. **Not enough space**, **eject in use** (Force
-Eject destructive, leading), **Empty Trash** (the `warning` glyph: it cannot
-be undone) and **failures** (the items as a list of 20 rows, at most five
-showing, icon 16 and name cut in the middle, in a `colour-window-sunken`
-well `radius-control` `space-s` under the informative line).
+above the buttons (only while more items remain); Replace
+(`colour-danger-text`) leading, then Stop and Keep Both (default, accent)
+trailing, equal widths; with ⌥ held Keep Both reads Merge in the same
+place. **Not enough space**, **eject in use** (Force Eject destructive,
+leading), **Empty Trash** (the `warning` glyph: it cannot be undone) and
+**failures** (the items as a list of 20 rows, at most five showing, icon 16
+and name cut in the middle, in a `colour-window-sunken` well
+`radius-control` `space-s` under the informative line).
+
+Sheets on the window, each built from `conventions.md`'s form rows:
+
+| Sheet | Rows |
+|---|---|
+| Rename many | A name field (`#` for the number), a start number; the example line, first and last result, in `type-style-callout` `colour-text-2`; Cancel, Rename |
+| Open With › Other… | A list of every app (icon 16, name); "Always open with" checkbox; Cancel, Open |
+| Saving a search | A name field; Cancel, Save |
+| An encrypted volume | Its name in the title; a passphrase field; "Remember in Keychain" checkbox; Cancel, Unlock |
+| Go to Folder | `size-form-narrow` wide: a path field; completions as `size-row` rows under it, the typed prefix `colour-text` and the rest `colour-text-2`; Cancel, Go. In a panel it is a step of the panel's sheet, not a sheet on a sheet |
 
 ### Path bar and status bar
 
@@ -229,7 +248,16 @@ each `size-row-large` (40), `colour-window`, hairline under: pop-up buttons
 at `size-control` (Kind, Last modified, Contents contain with a field
 `size-row-field` wide), `space-s` apart; `minus-circle` and `plus-circle`
 at 16 trailing. Results take a Where column: the enclosing folder's icon 16
-and name in `colour-text-2`.
+and name in `colour-text-2`. While a search stands the Columns segment is
+disabled. Last modified's range: two date pop-ups with "to" between in
+`colour-text-2`.
+
+### View Options
+
+`conventions.md`'s popover from the view switcher, `size-form-narrow`
+wide: Group By and Sort By pop-ups, then the view's own options (icon size
+and Show item info in Icons, the columns shown in List), Calculate all
+sizes, and Use as Defaults trailing at the foot.
 
 ### Get Info
 
@@ -262,10 +290,10 @@ the lights (zoom disabled) and "{name} Info" as its title.
 | Size | The content's own size, fitted inside `size-quick-look-max-width` (1280) by `size-quick-look-height-scale` (two thirds) of the work area's height (928 on the ultrawide), at least `size-quick-look-min-width` (480) by `size-quick-look-min-height` (320); text, code and PDF `size-quick-look-text` (720) wide; a file with no renderer the minimum. The frame is kept while moving between items (content refits inside it); the size the user gave it is kept for the next time |
 | Place | Centred over its caller's window (Spotlight: the screen's work area), clamped inside the work area |
 | Window | `radius-window`, `shadow-window`; content `colour-view` |
-| Toolbar | `size-toolbar` (52), solid `colour-titlebar`, a `colour-hairline` under it. Leading: the lights (minimise disabled); with several items, `space-l`, `caret-left` and `caret-right` buttons, `space-s`, "3 of 12" in `type-style-subheadline` `colour-text-2`, tabular, and the index button `squares-four`. The file's name centred on the window in `type-style-headline`, laid after the leading items and cut in the middle as window titles are. Trailing, `space-xs` apart: the kind's icon buttons (Rotate Left `arrow-arc-left`, Markup `pencil-simple`, Trim `scissors`, chosen ones in the pressed plate), `space-l`, then "Open with {App}" as the primary action. No share button |
-| Full screen | The toolbar shows on pointer movement and fades after `timing-controls-ms` (2000) at rest; content on `colour-view` edge to edge |
+| Toolbar | `size-toolbar` (52), solid `colour-titlebar`, a `colour-hairline` under it. Leading: the lights (minimise disabled); with several items, `space-l`, `caret-left` and `caret-right` buttons, `space-s`, "3 of 12" in `type-style-subheadline` `colour-text-2`, tabular, and the index button `squares-four`. The file's name centred on the window in `type-style-headline`, laid after the leading items and cut in the middle as window titles are. Trailing, `space-xs` apart: the kind's icon buttons (Rotate Left `arrow-arc-left`, Markup `pencil-simple`, Trim `scissors`, chosen ones in the pressed plate), `space-l`, then "Open with {app}" as the primary action. No share button |
+| Full screen | The toolbar shows on pointer movement or any key, stays while focus is in it, and fades after `timing-controls-ms` (2000) at rest; content on `colour-view` edge to edge |
 | Images | Fitted, no margin. Text and code: `type-style-mono` `colour-text`, padding `space-l`, wrapping off. PDF: pages on `colour-window-sunken`, `space-l` apart, each with `shadow-control`. Fonts: "The quick brown fox" at `type-style-large-title`, then 22, 17, 13 and the alphabet in `type-style-body`. Archives: the List view's table, read-only. A folder or unknown file: icon 128, `space-m`, name `type-style-title-3`, kind, size and dates in `type-style-callout` `colour-text-2`, centred |
-| Audio and video | Controls on a capsule `size-control-large` (30) tall, inset `space-l` from the content's foot and sides (at most 480 wide, centred), `colour-window-raised`, `radius-card`, `shadow-menu`: `play` or `pause` Fill at 16, the slider component (accent fill), the time "0:42 / 3:10" in `type-style-callout` tabular `colour-text-2`, `speaker-high` at 16. Over video it fades after `timing-controls-ms` at rest; audio keeps it, under its cover or icon at 128 |
+| Audio and video | Controls on a capsule `size-control-large` (30) tall, inset `space-l` from the content's foot and sides (at most 480 wide, centred), `colour-window-raised`, `radius-card`, `shadow-menu`: `play` or `pause` Fill at 16, the slider component (accent fill), the time "0:42 / 3:10" in `type-style-callout` tabular `colour-text-2`, `speaker-high` at 16. Over video it shows on pointer movement or any key, stays while focus is in it, and fades after `timing-controls-ms` at rest; audio keeps it, under its cover or icon at 128 |
 | Index sheet | The content becomes the Icons grid at 128 on `colour-view`, the shown item selected in Finder's form |
 | Markup | `capture.md`'s tool row under the toolbar; the Markup button pressed |
 | Trim bar | Replaces the controls: a band `size-trim-bar` (56) at the content's foot, `colour-titlebar`, a `colour-hairline` above, padding `space-m`: `play` button 30; `space-s`; the strip `size-trim-strip` (40) tall, `radius-control`, frames fitted end to end (audio: its waveform in `colour-text-2` on `colour-fill`); the kept range framed 3 points in `colour-accent` with handles `size-trim-handle` (10) wide at its ends (a 1 by 12 `colour-on-accent` grip each), the frames outside it under `colour-scrim`; the playhead a 2-point `colour-text` line with `shadow-control`; the kept length in `type-style-callout` tabular over the range's centre, above the strip; `space-l`; Revert and Done at `size-control`, as Markup's |
@@ -278,7 +306,7 @@ the lights (zoom disabled) and "{name} Info" as its title.
 | Title line | When the request has a title and the panel is a sheet: `size-titlebar` (32), the title in `type-style-headline` centred |
 | Navigation row | `size-row-large` (40), padding `space-m` across, `colour-window`, `colour-hairline` under: back and forward at `size-control` (24) squares; `space-s`; the view switcher at `size-control` (segments 32); `space-s`; the folder pop-up (the component, 200 wide, its menu the path menu's rows); search at `size-toolbar-search` and `size-control`, trailing |
 | Browser | Sidebar at `size-sidebar-min` (160), `colour-sidebar`, rows as Files'; the content in the window's own views (Icons, List, Columns with the preview column), at the same sizes |
-| Foot | `colour-window`, `colour-hairline` above, padding `space-m` `space-l`. A row of "Show:" (`type-style-body`) and its pop-up, then the request's choices, `space-l` apart, leading; `space-s` under it, New Folder (regular, `size-control`) leading and Cancel then Open (default, accent; "Choose", "Save" or the request's label) trailing, `space-s` apart. One row when there is no filter or choice. The default is disabled until a choice is made |
+| Foot | `colour-window`, `colour-hairline` above, padding `space-m` `space-l`. A row of "Show:" (`type-style-body`) and its pop-up, then the request's choices, `space-l` apart, leading; `space-s` under it, New Folder (regular, `size-control`) leading and Cancel then Open (default, accent; "Choose", "Save" or the request's label) trailing, `space-s` apart. One row when there is no filter or choice. The default is disabled until a choice is made; in a folder request and SaveFiles, the shown folder is the choice when nothing is selected |
 | Save, collapsed | `size-chooser-save` (520) wide, padding `space-l` `space-xl`: rows `space-s` apart of a label column `size-chooser-label` (80) trailing-aligned in `type-style-body` `colour-text` and controls at `size-control`: "Save As:" a text field 320 wide, base name selected; "Where:" a pop-up 320 wide (current folder, recent folders, then Favourites, each section under a menu section label) and, `space-s` after it, the expand button: a 24 square `colour-control` `radius-control`, `caret-down` at 12; "Format:" a pop-up when the request has filters. No Tags row. Choices, then New Folder, Cancel and Save, `space-l` below |
 | Save, expanded | Save As alone on a row of `size-row-large` centred, field 280; then the navigation row (Where's pop-up becomes its folder pop-up), the browser, the foot with Format and choices; the expand button shows `caret-up` at the Save As row's trailing end |
 | Replace step | The sheet's content becomes an alert's (title, "Replacing it overwrites it.", Cancel default, Replace in `colour-danger-text`) and the sheet takes `size-alert` width |
@@ -301,7 +329,7 @@ the lights (zoom disabled) and "{name} Info" as its title.
 | No window, job running | No look of its own; activating Files opens a window with the jobs popover open |
 | No window focused | `menus.md`'s bar with Files' name |
 | Narrow window | Toolbar folds; preview then sidebar collapse; a panel clamps, then centres |
-| Trash | The Trash's title, columns, Empty; Open disabled; the preview's Put Back |
+| Trash | The Trash's title, columns, Empty Trash…; Open disabled; the preview's Put Back |
 | Quick Look open | Its window over the caller; the caller's selection stays in the accent (it keeps focus) |
 | Second screen | No change; Quick Look and panels on their caller's screen |
 | Game in front | No change of look; no transitions |
@@ -329,7 +357,7 @@ tool for many quick steps.
 | Jobs button | In over `motion-fade-ms` after `timing-job-delay-ms` (1000), out over `motion-exit-fade-ms`; the trailing group's items slide over on `motion-move`; the ring follows the total with no spring | Fade only |
 | Drag cancelled or refused | The image flies back to its source on `motion-move` | Fades out over `motion-reduced-fade-ms` |
 | Drop ring, insertion line | At once | Same |
-| Spring-loading | Two blinks, then a cut | No blink: the ring holds, then a cut |
+| Spring-loading | Two blinks, then a cut | Same: the blinks change colour, not place |
 | Popovers, menus, sheets, alerts | `conventions.md`, `menus.md`, `window-chrome.md` | As there |
 | Quick Look in | From the item's rectangle (the icon's box, a row's icon or a Spotlight row's icon) to its frame on `motion-open`: the item's image scaled with the frame; the window's fill and toolbar by 2p − 1; the rendered content crossfades over the image in the last half. With no rectangle to hand (scrolled out, a D-Bus caller without one): the window's own open, from `motion-window-scale` about its centre | Fade in place, `motion-reduced-fade-ms` |
 | Quick Look out | Back to the item's current rectangle on `motion-exit`, toolbar and fill out by 1 − 2p; none to hand, the window's close | Fade out in place |
@@ -364,8 +392,9 @@ fallback is the in-place open.
 - **Increase Contrast.** `conventions.md`'s borders, plus: a
   `colour-hairline-strong` edge round icon selections' plates and capsules,
   thumbnails, the tab bar's tabs, the drag image, the item progress track,
-  the capacity mark, Quick Look's window and controls capsule and the trim
-  strip; dimmed items at 65% rather than 50%; the drop ring at 3.
+  the capacity mark, Quick Look's window and controls capsule, the trim
+  strip and the Open and Save panels' edges; dimmed items at 65% rather
+  than 50%; the drop ring at 3.
 - **Reduce Transparency.** No change: Files has no translucent part.
 - **Focus.** Lists, grids, columns and the sidebar show focus as the
   accent selection; with nothing selected, the first item's ring is inside
@@ -393,8 +422,9 @@ first and each scene in light. Crops `[x0, y0, x1, y1]`: the window
    (saved search, Backup nearly full, an unmounted volume, Trash full), the
    preview on a Markdown file. Whole screen at fit; the window crop.
 2. **Toolbar strip**: rest; the title's hover and path menu; Group and Sort
-   open; the jobs button running, waiting and failed; Trash with Empty; a
-   search with the scope bar and two criteria; the four narrowings.
+   open; the jobs button running, waiting and failed; Trash with Empty
+   Trash…; a search with the scope bar and two criteria; the four
+   narrowings.
 3. **Icons**: at 64 with a focused selection of three, unfocused, item
    info, an alias, hidden files, a cut item, a writing item, a band in
    progress; the same folder at 32 and 128; groups by Kind.
@@ -408,12 +438,14 @@ first and each scene in light. Crops `[x0, y0, x1, y1]`: the window
 8. **Drag and drop**: three items with their count over a folder in
    Icons, a row in List, a sidebar place, between Favourites, the whole
    view; a spring-load's two blinks.
-9. **Rename**: in Icons and List, the taken-name callout, the dot alert,
-   the extension alert, Rename many's sheet.
+9. **Rename and sheets**: in Icons and List, the taken-name callout, the
+   dot alert, the extension alert, Rename many's sheet, Go to Folder with
+   completions, View Options, an encrypted volume's passphrase.
 10. **Jobs**: the popover with running, waiting, failed and done rows; the
     name-taken alert with Apply to all; Merge under ⌥; not enough space;
     the failures alert.
-11. **Trash**: its columns and Empty; the Empty alert; "No items in Trash".
+11. **Trash**: its columns and Empty Trash…; the Empty Trash alert; "No
+    items in Trash".
 12. **States in place**: empty, no results, no permission, folder gone,
     loading with the spinner, Recents empty. Six windows tiled.
 13. **Bars and Get Info**: path and status bars in Icons with the slider;

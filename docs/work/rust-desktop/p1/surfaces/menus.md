@@ -15,33 +15,31 @@ listed at the end.
 
 | Part | Look |
 |---|---|
-| Band | Full width of its screen, `size-bar-height` (34) from the screen's top edge, inside the `size-strip` (48); square ends. Material `material-glass` at the user's glass position, `material-blur`, `material-saturation`, `material-noise-opacity` |
+| Band | Full width of its screen, `size-bar-height` (48) from the screen's top edge, filling the `size-strip` (48), so the titles and the island share one centre line (gate 5); square ends. Material `material-glass` at the user's glass position, `material-blur`, `material-saturation`, `material-noise-opacity` |
 | Edge | A `stroke-hairline` rule in `colour-hairline` along the lower edge, inside the band, and `shadow-bar` (new) beneath it: the bar is a place with an edge, not text over the wallpaper (`design-macos.md` §3.2) |
 | Layout | Leading inset `space-s`. Each item is a title cell: `space-s` padding each side of its content, cells `space-xxs` apart. A cell's hit area is the bar's full height and runs to the top edge; the first cell's runs to the corner |
-| Title highlight | The open title, or the focused one: a shape `size-control` (24) tall, centred in the bar (5 above and below), the cell's width, `radius-control`, `colour-fill-strong`. Neutral, never the accent: the accent marks the menu's selected row |
+| Title highlight | The open title, or the focused one: a shape `size-control` (24) tall, centred in the bar (12 above and below), the cell's width, `radius-control`, `colour-fill-strong`. Neutral, never the accent: the accent marks the menu's selected row |
 | System menu | Isle's mark, `isle-mark`, drawn by Isle on Phosphor's 256 grid in a `size-glyph` (16) box, `colour-text`, one weight in every state. Proposed form: **the isle**, a solid, slightly irregular island seen from above, about 14×12, with a small cove cut into its trailing side. It keeps the Mac's solid mark in the corner without Apple's, and shares nothing with Phosphor's glyphs (a dome over a line would read as Night Light's `sun-horizon`). Alternative for the gate: **the pill**, a filled capsule 14×7, the island in miniature, which risks reading as a minus or a switch |
 | App name | `type-style-headline` (13 semibold), `colour-text`; at most `size-bar-name` (240), cut at its end past it |
 | Menu titles | `type-style-body`, `colour-text`, never cut (they fold instead); a title the app marks disabled in `colour-text-disabled` |
 | Overflow » | A title cell holding Phosphor `caret-double-right` at `size-glyph-small`, `colour-text`, where the folded titles would start. Its menu lists each folded menu as a submenu row, in order |
 | Island reserve | The island's maximum width plus its guard gap each side (`island.md`'s values), centred on the screen; nothing is laid out in it. The right of the bar is empty |
 
-Text sits on the band's vertical centre (`type-style-body-line` 16, so 9
-above). Vertical metrics hold on the 1920×1080 screen; only the width and
+Text sits on the band's vertical centre (`type-style-body-line` 16, so 16
+above), the island's centre line. Vertical metrics hold on the 1920×1080 screen; only the width and
 so the fold point change.
 
 **The island in front.** The island is unchanged and does not move: it
-sits at `size-island-top` with `size-island-height`, so its lower 5 points
-stand below the bar's edge, and the bar's hairline passes behind it. That
-overhang, the island's own shadow and its darker (dark) or whiter (light)
-tint are what separate it from the bar; it is not restyled. Its clock sits
-7 points lower than the titles, which the reserve's width keeps from
-reading as a misalignment. The board checks light mode over a light
+sits at `size-island-top` with `size-island-height`, inside the bar, 9
+points from its top and bottom edges, its clock on the titles' centre line.
+The island's own shadow and its darker (dark) or whiter (light) tint are
+what separate it from the bar; it is not restyled. The board checks light mode over a light
 wallpaper; if the pill dissolves into the bar there, it takes its Increase
 Contrast ring (`colour-hairline-strong`) while the bar is down, and nothing
 else changes.
 
 **Over a full-screen window** the band is the same, over the content's top
-34 points with `shadow-bar` on the content; the island returns with it
+48 points with `shadow-bar` on the content; the island returns with it
 (`island.md`), and for a window with Isle's title bar that bar comes
 beneath, its top on the bar's lower edge (`window-chrome.md`'s look).
 **Over a full-screen game** the band is `material-solid` with no blur or
@@ -59,11 +57,12 @@ the same solid form, as the island does.
 | Placement | From the bar: top `space-xs` under the bar's lower edge, leading edge on the title highlight's leading edge. Context menu: top-leading corner on the pointer's hotspot, flipped to the side that fits; from the keyboard, under the focused item's leading edge. Pop-up button: the current item's row over the button, its label on the button's label, at least the button's width. Every menu stays inside its screen, `space-s` from the screen's edges |
 | Row | `size-menu-row` (22), `radius-row`. Leading inset `space-xs`; a mark column of 16 in every menu, so labels align; `space-s` gap; the label in `type-style-body` `colour-text`; the trailing column; trailing inset `space-s` |
 | Mark column | Phosphor at `size-glyph-small`, centred: `check` for checked and radio, `minus` for mixed, `diamond` (fill) for a minimised window in the Window menu's list |
+| Icon, last resort | An item with neither label nor accessible name: its icon at `size-glyph` (16) in the label column, monochrome `colour-text` |
 | Shortcut column | `type-style-body`, `colour-text-2`, `space-xxl` at least after the label. macOS's symbols in Apple's order ⌃ ⌥ ⇧ ⌘, then the key; the keys sit in a slot as wide as the menu's widest key, left-aligned, so letters line up and modifiers right-align against them. On a PC-layout profile, words ("Ctrl+Shift+T") right-aligned (`copy.md` rule 11). Context menus carry none and the column collapses |
 | Submenu chevron | Phosphor `caret-right` at `size-glyph-small`, `colour-text-2`, at the trailing inset |
 | Separator | 9 tall: a `stroke-hairline` rule in `colour-hairline`, `space-s` in from the row edges. Consecutive and trailing ones collapse |
 | Section label | A `size-menu-row` row, not selectable: `type-style-subheadline`, `type-weight-semibold`, `colour-text-2`, aligned to the label column |
-| Count | The system menu's Updates… count: a quiet badge (`colour-fill-strong`, `colour-text`, `type-style-subheadline`, capsule, 16 tall) in the trailing column |
+| Count | The system menu's Software Update… count: a quiet badge (`colour-fill-strong`, `colour-text`, `type-style-subheadline` semibold, padded `space-xs`, capsule, 16 tall) in the trailing column |
 | Scroll arrows | A menu taller than its screen's room stops `space-s` from the edge; a `size-menu-row` row at the end that has more, holding `caret-up` or `caret-down` at `size-glyph-small` in `colour-text-2`, centred, on the menu's material, the rows clipped under it. The pointer resting on it scrolls a row at a time; the wheel scrolls freely |
 | Submenu | The same body; its first row level with its parent row, its leading edge on the parent's trailing edge, flipped left when the screen ends. The parent keeps its full material and contrast while the submenu is open (26's opacity swap is the fault to avoid, `design-macos.md` §2) |
 
@@ -82,7 +81,7 @@ display name.
 | Result row | A menu row: the path in `colour-text-2` ("Edit › Find › "), then the item's label in `colour-text`, the hint in the trailing column. The path is cut in the middle first, the label last |
 | Disabled result | Path and label in `colour-text-disabled`; it can be moved onto, so its place in the menus shows, and Return does nothing |
 | No results | One row, not selectable, "No results for “{query}”" (`copy.md`) in `colour-text-2` |
-| The found item | Moving onto a result opens its titles and menus in the bar down to it: its title highlighted, each parent row in the open-parent state, the item itself in `colour-fill-strong`. The accent stays on the result row, the one thing Return acts on |
+| The found item | Moving onto a result opens its titles and menus in the bar down to it: its title highlighted, each parent row in the open-parent state, the item itself in `colour-fill-strong`. The accent stays on the result row, the one thing Return acts on. Where the found item's menus overlap Help's menu they draw on `material-solid`; Help's menu stays on top |
 
 ## States
 
@@ -105,7 +104,7 @@ display name.
 | Full-screen window | The band over the content with its shadow, the island in front, Isle's title bar beneath for a non-game window |
 | Full-screen game, Game Mode | The solid band, the island solid in front, menus on `material-solid` |
 | Shortcuts inhibited, locked | No visual change of their own; the bar is never drawn over the lock |
-| Restart owed | "Restart to finish updating…" in the system menu's group 2; the Updates… count |
+| Restart owed | "Restart to finish updating…" in the system menu's group 2; the Software Update… count |
 | Reduce Motion, Reduce Transparency, Increase Contrast, largest text | Motion and Accessibility below |
 
 ## Motion
@@ -114,7 +113,7 @@ display name.
 |---|---|
 | Bar reveal | **A slide**: the band moves from just above the screen (its height plus `shadow-bar`'s reach) to its place on `motion-open`, anchored at the top edge. It comes from the edge the pointer pushed and leaves back into it; a fade would not say where it lives (`menu-bar.md` Character). Its content rides with it, never on its own clock. The island does not move; the band passes behind it |
 | Bar leave | Back up on `motion-exit`, after `timing-hover-grace-ms`. A pointer returning mid-leave retargets the spring from where the band is |
-| Over a full-screen window | The island and Isle's title bar ride the same spring and travel as the band, so the three arrive and leave as one |
+| Over a full-screen window | The island and Isle's title bar ride the same spring and travel as the band, so the three arrive and leave as one, unless a capture runs: then the island grows from its privacy form in place; only the band and title bar travel |
 | Front app changes while revealed | The name and titles are replaced in place in one frame, anchored at the left |
 | Menu open | **Instant**, as macOS: the menu is whole in the next frame. A press-drag-release must find it there, and a menu opened dozens of times an hour should cost no time (brief P5) |
 | Menu close (Escape, click elsewhere) | Opacity to zero over `motion-exit-fade-ms`, in place |
@@ -140,13 +139,15 @@ display name.
   of `colour-hairline-strong`; separators take the contrast `colour-hairline`;
   glyphs (the mark aside) step to `icon-weight-contrast`. Disabled stays
   `colour-text-disabled`, as WCAG exempts it, and is never the only sign:
-  it is also skipped and announced as dimmed.
+  arrows skip it (Help's results excepted), and it is in the accessibility
+  tree as dimmed, so a screen reader's own navigation reads it.
 - **Reduce Transparency**: the band and every glass menu on
   `material-solid`, no blur or noise; edges and shadows kept.
 - **Focus.** In a menu the selected row is the focus, as on macOS; no ring
   is drawn inside menus. A focused title with no menu open shows the focus
-  ring, `stroke-focus-ring` at `stroke-focus-offset` around the title
-  highlight (it fits the band's 5 points). Help's field takes the focused
+  ring, `stroke-focus-ring` in the full accent at `stroke-focus-offset`
+  around the title highlight (it fits the band's 5 points), with a 1-point
+  `colour-text` line inside it on the glass. Help's field takes the focused
   field's look. Rows reached by type-to-select take the selection the same
   way; the typed letters are not shown, and they reset after
   `timing-type-select-ms`.
@@ -155,6 +156,9 @@ display name.
   rows are the body line plus 6; menus widen to `size-menu-max` and then cut
   in the middle; more titles fold, since the island's reserve grows too.
   Nothing is clipped.
+- **Names.** The system mark is "System menu", » "More menus", the scroll
+  arrows "Scroll up" and "Scroll down", the Software Update count
+  "{n} updates".
 - **Targets**: title cells are the bar's height and reach the top edge, the
   first the corner; rows (22) and scroll arrows (22) exceed
   `size-hit-minimum`; the » cell is 28 wide. Separators and section labels
@@ -169,8 +173,8 @@ width, height on the ultrawide.
 
 1. **Rest and revealed**: the strip with the island, then the bar revealed
    over the wallpaper. Crops 0, 0, 1600, 300 (the left) and 920, 0, 1600,
-   300 (the island in front, its overhang and the empty right).
-2. **The system menu**, open, Updates… with a count and the restart line.
+   300 (the island in front on the titles' centre line, and the empty right).
+2. **The system menu**, open, Software Update… with a count and the restart line.
    Crop 0, 0, 1600, 700.
 3. **The app menu of Files** over a Files window: About, Settings…, Hide,
    Quit; the open title's highlight. Crop 0, 0, 1600, 700.
@@ -215,6 +219,7 @@ scene of their own.
 
 | Group | Token | Value |
 |---|---|---|
+| `size` | `bar-height` | 48 (the band fills the strip, `size-strip`) |
 | `size` | `menu-row` | 22 |
 | `size` | `menu-min` | 220 |
 | `size` | `menu-max` | 480 |

@@ -52,10 +52,10 @@ blurred at `material-softened-blur`, saturated at
 (`rgba(16,17,20,0.45)` in dark, `rgba(246,246,248,0.50)` in light). Shapes
 do not read in it; colour does. Light washes toward the glass's own
 light base rather than darkening, so the lock's dark text has a light
-ground in light appearance (the sheet says darkened; for the gate).
+ground in light appearance.
 
 **Menu** (secondary click): the menu component on glass, as menus over the
-desktop are, at the pointer: "Change wallpaper…", "Edit widgets…".
+desktop are, at the pointer: "Wallpaper Settings…", "Edit widgets".
 
 **Bundled set.** Isle ships its drawn backdrop as the default and five
 pictures, each with a dark and a light variant, all dark and quiet in their
@@ -78,7 +78,7 @@ dark form (brief, interview). Each meets these rules:
 | Tide | A still sea under an overcast blue-hour sky, the horizon on the lower third, almost no texture on the water | The same under a silver noon overcast | Rendered for Isle (procedural water and sky) |
 | Pine | A conifer slope in fog, trees fading to dark green-grey toward the top | The same in snow fog, near white | Rendered for Isle (Blender, volumetric fog) |
 | Dune | Sand ridges lit low from one side, warm grey shadows filling most of the frame | The same at midday, pale and flat | Rendered for Isle (procedural terrain) |
-| Night side | The Earth's limb at night from orbit, a thin airglow band and scattered city lights low in the frame | The day-side limb, thin blue atmosphere over cloud | NASA ISS crew photographs, public domain; each frame's page checked for third-party credit |
+| Night side | The Earth's limb at night from orbit, a thin airglow band over the dark limb, low in the frame | The day-side limb, thin blue atmosphere over cloud | NASA ISS crew photographs, public domain; each frame's page checked for third-party credit |
 
 The harness's Slate, Pine and Dusk stand in for Frost, Pine and Ridge
 until the pictures exist.

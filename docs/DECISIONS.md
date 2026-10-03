@@ -337,3 +337,42 @@ macOS, with a Gaming Focus that turns on for any detected game in front,
 windowed or not. VRR is on while a full-screen app is in front, with a
 setting to change it.
 
+
+**B31 · Frost, as data.** Isle's look is the Frost direction (P1 gate 3):
+macOS 27's frosted glass in neutral cool greys, Inter, soft depth, medium
+corners, critically damped motion, dark first with light fully designed.
+It lives entirely in `tokens.kdl` with its schema
+(`docs/work/rust-desktop/p1/system/`), checked by a contrast script that
+must pass in both appearances and under Increase Contrast before a change
+lands. Symbols are Phosphor, app icons Papirus, the cursor Bibata.
+Rejected: Slate (solid, hairline-drawn, Geist) and Dusk (deeper glass,
+warm, Figtree), drawn beside it at gate 3.
+
+**B32 · Attention, presented.** This answers B24. The island carries live
+activity in one queue (a waiting prompt, recording and sharing, a call, a
+timer, media), privacy marks always and outside the queue, and every OSD;
+it never shows a notification. Banners sit at the top right under the
+island's strip, three at most. Notification Centre unfolds from the
+island's clock with the date, month and agenda and no widgets. Widgets
+live on one full-screen dashboard per screen (Ctrl+Option+Cmd+W), never on
+the desktop at rest. Rejected: OSDs as macOS's capsule under a Sound item
+(there is no status area to hang it from), banners at top centre (they
+would cover the window in use and fight the island), widgets on the
+desktop (against calm at rest).
+
+**B33 · Glass, and where it may go.** Glass is only on the shell's
+floating surfaces: the island's panels, the revealed menu bar and the
+shell's menus, banners, Spotlight, the switcher and Mission Control's
+bars. Windows are opaque; menus inside an app's window are its raised
+surface; menus over a glass panel are solid, so glass never sits on glass.
+Colour on the translucent island sits in solid wells. Every glass surface
+has a solid form for Reduce Transparency and Game Mode, and the compositor
+keeps a contrast floor under text-bearing glass at every Glass setting.
+
+**B34 · Readings of the principles.** Recorded so later packets keep them:
+Control Centre's modules fill with the accent when on, as "active" (P6);
+title bars use their own roles rather than an app's body colour, which a
+third-party app does not report; control edges and unfocused selections
+sit at the Mac's contrast by default and reach 3:1 under Increase
+Contrast, a deliberate departure from WCAG 1.4.11 (P1, P3); the text size
+goes to 1.5× and the compositor's Zoom serves beyond.

@@ -26,20 +26,30 @@ prompt's scrim, under the lock and the idle dim. It never takes focus.
   units at a pitch of `size-osk-key` (56) + `space-xs`, less one gap: 866.
   The same size on both screens; only a screen narrower than the block
   plus `space-xxxl` each side would shrink it.
-- **Trailing controls**: centred on the strip's line, `space-l` in from
-  the screen's trailing edge, `space-xs` apart: More (`dots-three`) and
-  Close (`x`), plain icon buttons `size-control` (24) square,
-  `radius-control`, glyph `size-glyph` (16) in `colour-text-2`; hover
-  `colour-control-hover`, pressed `colour-control-pressed`. They are outside
-  the key block, so on the ultrawide they sit far to the trailing side,
-  clear of the corner point by `space-l`.
+- **Trailing controls**: centred on the strip's line, `space-l` in from the
+  screen's trailing edge, `space-xs` apart: Close (`x`) then More
+  (`dots-three`), leading to trailing, plain icon buttons `size-control`
+  (24) square, `radius-control`, glyph `size-glyph` (16) in
+  `colour-text-2`; hover `colour-control-hover`, pressed
+  `colour-control-pressed`. They are outside the key block, so on the
+  ultrawide they sit far to the trailing side, clear of the corner point by
+  `space-l`.
 
 **Keys**
 
 - **Key**: `size-osk-key` (56) wide per unit, `size-osk-key-height` (44)
   tall, `radius-control`. Wide keys span their units with the gaps: Tab
   and Delete 1.5, Caps Lock and Return 1.75, Shift 2.25, Command 1.25,
-  Space 5; the rest 1.
+  Space 4; the rest 1.
+- **Rows**: Escape, the layout's number row (1 to =), Delete; Tab, the
+  top letter row, `\`; Caps Lock, the home row, Return; Shift, the bottom
+  letter row, Shift; then the key left of 1 on the layout (`` ` `` on a US
+  layout, so a backtick and the dropdown terminal's Ctrl+Option+`` ` ``
+  can be typed), the globe, Control, Option, Command, Space, Command,
+  Option and the arrows. With one layout there is no globe key and
+  Control is 2 units. With the function row on, Escape moves up to it,
+  the key left of 1 takes Escape's place, and Space is 5 units. Every row
+  is 14.5 units.
 - **Fills**: letter, digit and symbol keys `colour-control`; named keys
   (Escape, Tab, Caps Lock, Shift, Control, Option, Command, Return,
   Delete, the arrows, the globe) `colour-fill`, a step quieter, as a Mac's
@@ -65,8 +75,10 @@ prompt's scrim, under the lock and the idle dim. It never takes focus.
   foot, so held and locked differ by a mark, not a shade. The accent is the
   one live thing on the keyboard (brief P6).
 - **Caps Lock on**: a dot of `size-mark` (6) in `colour-ok` at the key's
-  top leading corner, inset `space-s`, as a Mac key's light; absent when
-  off. The key's fill is not changed: Caps Lock is a state, not a latch.
+  top leading corner, inset `space-s`, as a Mac key's light; on the lock's
+  plate the dot sits in a 1-point `material-solid` ring, as the tray's
+  attention dot; absent when off. The key's fill is not changed: Caps Lock
+  is a state, not a latch.
 - **Accents** (press and hold on a letter): a row of key-sized cells
   above the key, centred on it and kept on the screen, on
   `colour-window-raised` with `shadow-menu`, `radius-card`, padding
@@ -89,6 +101,8 @@ prompt's scrim, under the lock and the idle dim. It never takes focus.
   `type-style-callout`, `colour-text-2`; the keys keep their fills.
 - **More menu**: a menu as `menus.md` draws it, on `material-solid`, its
   foot `space-xs` above the panel, trailing edge on the More button's.
+  From a secondary click on the panel's margin it opens at the pointer
+  (`menus.md`).
 
 **On the lock and the greeter**
 
@@ -97,7 +111,8 @@ prompt's scrim, under the lock and the idle dim. It never takes focus.
   glass position, `material-noise-opacity`, no blur pass, as `lock.md`),
   with no top hairline; there is no completion strip and no More (the
   panel is 252 tall, 286 with function keys); Close hides it, as the
-  utilities' keyboard button does.
+  utilities' keyboard button does, and sits centred on the first key
+  row's line, `space-l` in from the trailing edge.
 - The face moves up by the panel's height: the lock's positions measured
   from the screen's foot (the power row and utilities) are measured from
   the panel's top, and the password field's centre moves from 80% of the
@@ -137,6 +152,7 @@ prompt's scrim, under the lock and the idle dim. It never takes focus.
 | Latch, lock, unlatch | Instant. |
 | Suggestions change | In place, in the frame the word changes; nothing slides. |
 | Accents row | Appears at once after the hold (the keyboard's repeat delay); goes at once on release. |
+| Move to {display} | A close on one screen and an open on the other from the same frame; nothing travels between screens. |
 | On the lock | The lock's panel rises on `motion-open` while the face moves up by the same height on the same spring, so the field stays the same distance above the keys throughout; closing reverses both on `motion-exit`. Dozing fades it with the field over `motion-exit-fade-ms`; a wake fades both back over `motion-fade-ms`. |
 | Reduce Motion | The panel fades in and out in place over `motion-reduced-fade-ms`; windows jump to the new work area with `window-chrome.md`'s crossfade; on the lock the face jumps and the panel fades. |
 | Game Mode | Cuts: the panel whole on its first frame, gone on the next; windows jump. |
@@ -166,7 +182,7 @@ prompt's scrim, under the lock and the idle dim. It never takes focus.
   `size-hit-minimum`; trailing buttons 24; suggestion slots the strip's
   height. The block never reaches a bottom corner.
 - **Never colour alone.** Locked has its bar; Caps Lock its dot; the
-  accessible names say "{Key}, held" or "{Key}, locked".
+  accessible names say "{key}, held" or "{key}, locked".
 
 ## Board
 
@@ -181,7 +197,8 @@ unless noted.
    on, Option held (Option legends).
 4. **Accents**: e held, the row above it, one cell under the pointer.
 5. **States of the strip**: password field (blank), nothing focused.
-6. **Function row** on; and a German layout's legends.
+6. **Function row** on; one layout (no globe); and a German layout's
+   legends.
 7. **Over a full-screen video**, and **over a prompt's scrim** typing into
    it.
 8. **Second screen**: open on the 1920 screen; crop `[160, 680, 1760, 1080]`.

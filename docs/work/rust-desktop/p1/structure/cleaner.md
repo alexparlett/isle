@@ -160,6 +160,7 @@ trailing edge as `conventions.md` has the inspector.
 | Arrows | Move in a list or between map tiles |
 | Return | Open a folder in Space; Review from Overview |
 | Space | Tick or untick the selected row; add or remove the selected tile |
+| Delete | Remove the selected basket item from the basket |
 | ⌘Delete | Move the basket to the Trash |
 | ⇧⌘Delete | Empty Trash… |
 | ⌘Z | Undo the last move |
@@ -221,7 +222,7 @@ trailing edge as `conventions.md` has the inspector.
 | Space | "Map", "List" |
 | Untouched | "Not opened in", "6 months", "1 year", "2 years" |
 | Duplicates | "Shares storage", "Select all but the newest" |
-| Basket | "Basket", "{size}", "{n} items", "Frees {size} on {disk} once the Trash is emptied", "Move to Trash", "Moved {n} items to the Trash", "Undo", "Nothing is freed until the Trash is emptied", "Empty Trash…" |
+| Basket | "Basket", "{size}", "{n} items", "Couldn't move {n} items", a remove target's name "Remove {name} from basket", "Frees {size} on {disk} once the Trash is emptied", "Move to Trash", "Moved {n} items to the Trash", "Undo", "Nothing is freed until the Trash is emptied", "Empty Trash…" |
 | Item menu | "Add to basket", "Remove from basket", "Show in Files", "Quick Look", "Copy path" |
 | Empty | "Nothing safe to clear", "No duplicates found", "No files untouched in {period}" |
 
@@ -232,8 +233,8 @@ Decided at gate 2 on 2026-10-03: every recommendation below was accepted.
 1. **Cleaner's findings in Settings › General › Storage.** (a) As macOS:
    Storage shows each disk as a bar by kind, computed by the shared scan
    when the page is shown and dropped when it closes, and a
-   Recommendations group: "{size} safe to clear" with Review…, the Trash
-   with Empty Trash…, and "Large and untouched files" with Review…, each
+   Recommendations group: "{size} safe to clear" with Review, the Trash
+   with Empty Trash…, and "Large and untouched files" with Review, each
    Review opening Cleaner at that view; Settings never removes anything
    but the Trash. (b) Storage keeps its drives and SMART, with the used
    and free bar from the filesystem and one "Open Cleaner" row.

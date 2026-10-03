@@ -50,7 +50,7 @@ Isle's is drawn on it.
 | Hover | The player's controls. Nothing from Isle. |
 | Dragging | The window follows the pointer; the corner it will settle in is marked by the zone preview's shape (`window-chrome.md`), never a tiling zone: a PiP window never tiles. |
 | Resizing | Aspect kept; the corner it sits in stays fixed and the window grows or shrinks toward the screen's centre. |
-| Focused | The video's keys are the player's (Space, arrows); the corner chords move it (Keyboard). |
+| Focused | The video's keys are the player's (Space, arrows); the corner chords move it (Keyboard). Reached by the keyboard it shows the focus ring; by a click, no change of look. |
 | The player changes aspect | The window takes the new aspect, its corner fixed. |
 | Second screen | Snaps to the corners of the screen it is dropped on; remembered with that screen. When that screen goes, it moves to the same corner of the screen with focus (`compositor.md` Outputs 4). |
 | Full-screen app in front | Over it, in its corner (Picture-in-picture 1). |
@@ -96,7 +96,7 @@ focus:
 | Play, pause, seek, mute | The player's keys |
 | Move to a corner | Ctrl+Option+U, I, J, K, the quarter chords (`window-chrome.md`), read as corners |
 | The window menu: Move to corner ▸, Resize, Close | Ctrl+Option+Space |
-| Resize, from the window menu | Arrows grow and shrink it, keeping aspect and its corner; Return keeps, Escape undoes |
+| Resize, from the window menu | Arrows grow and shrink it, keeping aspect and its corner; Return keeps, Escape undoes. The focus ring marks the mode |
 | Close | Cmd+W (to the player), or Close in the window menu |
 
 ## Pointer

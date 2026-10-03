@@ -41,6 +41,10 @@ is in `docs/DECISIONS.md`, the one authoritative copy. Index:
 - B28 · Roles and protocols, completed.
 - B29 · Delivery.
 - B30 · Keys and games, completed.
+- B31 · Frost, as data.
+- B32 · Attention, presented.
+- B33 · Glass, and where it may go.
+- B34 · Readings of the principles.
 
 ## Open
 

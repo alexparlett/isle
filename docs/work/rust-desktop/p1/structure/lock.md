@@ -28,7 +28,7 @@ On the screen that has it (Many screens, under States), top to bottom.
 | Part | What it is | Data from |
 |---|---|---|
 | Date and time | The date over a large time, below the island's strip, as macOS since Sonoma (`design-macos.md` §3.10). The lock's own clock, not the island's (`island.md` Locked); the clock setting's 24-hour form, no seconds. The current Focus's symbol beside the date while one is on (`focus.md`) | timedate1, the clock setting, Focus |
-| Now Playing | One row: art, title, artist, previous, play or pause, next. Only while a player plays, or was paused recently (stage 4) | MPRIS, the island's media source (the most recently playing player) |
+| Now Playing | One row: art, title, artist, previous, play or pause, next. Only while a player plays, or for `timing-lock-media-paused-ms` (10 min) after it pauses | MPRIS, the island's media source (the most recently playing player) |
 | Notifications | What arrived since locking, by `notifications.md`'s setting and Focus; cards are `notifications.md`'s, this sheet places them | The notification server |
 | The user | Picture and full name | AccountsService, else the login name |
 | Password field | Takes keys the moment they are typed (Lock 1); dots, no echo; a fingerprint mark at its trailing end while the reader listens | The lock's PAM thread; fprintd |
@@ -93,7 +93,8 @@ layout is the likeliest cause. A change raises the island's layout OSD.
 ### Power on the lock
 
 Sleep acts at once. Restart and Shut Down ask once, in place: the row
-becomes "Restart now?" with Cancel and Restart. There is no countdown and
+becomes "Restart now?" with Cancel and Restart, and focus moves to it:
+Return confirms, Escape cancels and returns focus to the field. There is no countdown and
 no list of open apps, because the lock does not name what is open behind
 it. Apps are then asked to quit as by Cmd+Q (`compositor.md` Session 8).
 An app that will not quit (it asks to save) stops the action; the status
@@ -142,7 +143,7 @@ Session 9), with these differences:
   Before any session has published them: the shipped wallpaper, dark, the
   system keymap, the first screen found.
 - **A session that fails to start** returns to the field with
-  "Couldn't start {session}." (Copy).
+  "Couldn't start {session}. Choose another session and try again." (Copy).
 - **Autologin** (greetd's initial session, `isle setup`) skips the greeter.
 
 ### Idle
@@ -196,7 +197,7 @@ display sleep and the password delay there.
 | Unlocking | The face fades, then the backdrop dissolves into the session, faster than the lock came. |
 | Empty | Nothing playing, no notifications: the date and time, the user and the field. |
 | Loading | Before AccountsService answers, the login name and no picture; Now Playing and notifications appear as their sources answer; the field never waits. |
-| Error: the lock surface panics | Rebuilt at once, still locked (B9). After repeated panics (count is the packet's) it is replaced by the minimal lock: a solid backdrop, the time, the field and its status line, PAM still off the main thread, with "The lock screen had a problem." above the field. Session content is never shown (acceptance bar 10). After unlock the crash notice says what happened (`prompts.md`). |
+| Error: the lock surface panics | Rebuilt at once, still locked (B9). After repeated panics (count is the packet's) it is replaced by the minimal lock: a solid backdrop, the time, the field and its status line, PAM still off the main thread, with "The lock screen had a problem. Enter your password to unlock." above the field. Session content is never shown (acceptance bar 10). After unlock the crash notice says what happened (`prompts.md`). |
 | Error: the compositor restarts while locked | It comes back locked from the marker, its first frame the lock (`platform.md` Lock 4). |
 | Error: PAM fails | "Couldn't check the password. Try again.", field cleared. |
 | Many screens | The face on the screen with the pointer (Lock 6); the others show the backdrop with the date and time. Moving the pointer to another screen moves the face there with its dots kept. A screen added while locked shows the lock in its first frame. The island's privacy form shows on every screen. |
@@ -240,7 +241,8 @@ display sleep and the password delay there.
 | Action | Key |
 |---|---|
 | Type the password | Any printable key, dozing or not |
-| Unlock | Return |
+| Unlock | Return (in the field) |
+| Confirm Restart or Shut Down | Return while the confirm shows; Escape cancels |
 | Clear the field | Escape |
 | Move through the face | Tab, Shift+Tab: field, layout menu, bottom row, Now Playing, notifications |
 | Act on the focused control | Return or Space |
@@ -254,7 +256,7 @@ display sleep and the password delay there.
 While locked only these keys act. Every desktop chord, the escape set
 included (Cmd+Tab, Mission Control, screenshots), does nothing; Ctrl+Cmd+Q
 does nothing. Focus starts in the field and returns there after each
-action.
+action; the power confirm holds it while it shows.
 
 ## Pointer
 
@@ -342,7 +344,7 @@ action.
 | Field | "Enter password"; with a finger enrolled, "Password or fingerprint" |
 | Status: Caps Lock | "Caps Lock is on" |
 | Status: checking | "Checking", then "Still checking" |
-| Status: wrong | "Wrong password. Try again."; from the second, "Wrong password, {n} attempts. Try again." |
+| Status: wrong | "Wrong password. Try again."; from the second, "Wrong password, {n} attempts. Try again."; with several layouts set, "Wrong password. Check the keyboard layout ({name})." |
 | Status: locked out | "Too many attempts. Try again in {n} min." |
 | Status: PAM error | "Couldn't check the password. Try again." |
 | Status: fingerprint | "Not recognised. Try again.", "Use your password"; at the greeter, PAM's own message |
@@ -350,13 +352,13 @@ action.
 | Status: restart stopped | "Couldn't restart because an app didn't quit. Unlock to see it." ("shut down" likewise) |
 | Bottom row | "Sleep", "Restart", "Shut Down" (`copy.md` rule 1's title case) |
 | Confirm in place | "Restart now?", "Shut down now?"; "Cancel", "Restart", "Shut Down" |
-| Notifications, without previews | "{App}", "{n} notifications" |
+| Notifications, without previews | "{app}", "{n} notifications" |
 | More notifications | "{n} more" |
-| Minimal lock | "The lock screen had a problem." |
-| Greeter | "Session"; "Couldn't start {session}." |
+| Minimal lock | "The lock screen had a problem. Enter your password to unlock." |
+| Greeter | "Session"; "Couldn't start {session}. Choose another session and try again." |
 | Layout menu | The layout's short name; its full name in the menu |
-| Settings › Lock Screen | "Dim the screen after", "Lock after", "Turn display off after", each with "Never" |
-| Accessible names | "Password", "Fingerprint reader listening", "Keyboard layout: {name}" |
+| Settings › Lock Screen | "Dim the display after", "Lock after", "Turn display off after", each with "Never" |
+| Accessible names | "Password", "Fingerprint reader listening", "Keyboard layout: {name}" ("Keyboard layout: {name}, check it" after a wrong password with several layouts); "Previous track", "Play", "Pause", "Next track", "On-screen keyboard", "Battery {n}%" ("charging"), "Session: {name}"; a plate "{app}, {n} notifications" |
 
 ## For the user
 

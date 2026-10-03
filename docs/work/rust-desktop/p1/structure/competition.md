@@ -128,6 +128,7 @@ or Tab has moved focus into it (`files.md`).
 | Any chord while locked | Everything | The lock: only media, volume, brightness, layout and the power key act (`lock.md`). |
 | Any chord while Settings records a shortcut | Desktop chords and Cmd translation | The recorder, until Escape, a chord or losing focus (`settings.md`). |
 | Keys in Control Centre's grid | `island.md`'s Right or Return, as batch 1 had it | Arrows move between modules, Space acts, Return opens a module's page; Right still opens sub-pages and tray menus; E, + and − only with focus in the grid; volume, brightness and media keys keep their meaning (`control-centre.md`; `island.md` follows). In Notification Centre the arrows, Page Up and Down, Cmd+T and Delete are the centre's only while it has focus. |
+| Escape while a Control Centre peek shows and the pointer rests in the island's zone | The focused window | The peek: Escape closes it and disarms hover until the pointer leaves the zone, and that one Escape does not reach the window; the window keeps every other key (`control-centre.md`). |
 | ⌘1 to ⌘6 (Monitor's resources, Cleaner's views), ⌘E (Eject in Files), ⌥⌘I (Finder's Inspector in Files), ⌥⌘Q (Quit Process in Monitor) | `conventions.md`'s ⌘1 to ⌘4 for an app's views, ⌘E Use Selection for Find, ⌥⌘I Show Inspector | The app's own: an app's command table may extend or replace the conventions'. None is a desktop chord. |
 
 ## Between sheets

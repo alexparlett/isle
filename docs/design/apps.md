@@ -423,12 +423,11 @@ D89: rules as data, XDG cache first, root's share by its own tools. D90: own fil
 
 What this document leaves to P1, per app; "proposal" is the answer it gave before.
 
-- **Conventions**: the unified toolbar's look, which is stage 4's. The menu set and order, the
-  toolbar's contents and how a modal dialog is presented are answered in P1
-  (`docs/work/rust-desktop/p1/structure/conventions.md`, `menu-bar.md`, `window-chrome.md`) and
-  recorded in DESIGN.md at gate 6.
+- **Conventions**: Answered in P1 (`docs/work/rust-desktop/p1/structure/conventions.md`,
+  `menu-bar.md`, `window-chrome.md`; the toolbar's look in `p1/surfaces/conventions.md`); recorded in
+  DESIGN.md.
 - **Settings**: Answered in P1 (`docs/work/rust-desktop/p1/structure/settings.md`, `focus.md`);
-  recorded in DESIGN.md at gate 6.
+  recorded in DESIGN.md.
 - **Files**: Answered in P1 (`docs/work/rust-desktop/p1/structure/files.md`); recorded in DESIGN.md
   at gate 6.
 - **Monitor**: Answered in P1 (`docs/work/rust-desktop/p1/structure/monitor.md`); recorded in

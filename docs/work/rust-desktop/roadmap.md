@@ -18,7 +18,7 @@ desktop on `main` until milestone M2.
 
 ## Milestone M1: a desktop that runs in the VM
 
-**P1 · Design.** A full design process for the new Isle (B3, B17), run as
+**P1 · Design.** Done 2026-10-03: `docs/DESIGN.md`, B31–B34, working files in `p1/`. A full design process for the new Isle (B3, B17), run as
 its own packet with the user deciding at each gate; it is where every
 presentation question in the intent docs is answered (each doc's "For the
 design process" list, and B24). Its stages:

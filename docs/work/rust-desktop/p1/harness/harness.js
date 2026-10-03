@@ -100,7 +100,7 @@
         if (node.name === "dark" || node.name === "light") t = node.name;
         else p = path.concat(node.name);
         if (node.args.length) {
-          const v = node.args.map((a) => (typeof a === "number" && p[0] !== "limit" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor|saturation|brightness|height-ratio|mix|-ms)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
+          const v = node.args.map((a) => (typeof a === "number" && p[0] !== "limit" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor|saturation|brightness|height-ratio|mix|scale-max|-ms)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
           vars[t || "any"]["--" + p.join("-")] = v;
         }
         walk(node.children, p, t);

@@ -18,7 +18,7 @@ shots and streams without these parts (the sheet).
 | Frozen frame | Each screen's last composed frame, drawn unchanged |
 | Veil | `colour-veil` over every screen: a dim, not a material, so it reads the same over any content and in every glass setting |
 | Pointer | Region mode: Bibata's `crosshair`. Window mode: `isle-camera`, an Isle-drawn cursor in Bibata's style (black camera, white edge) at `icon-cursor-size` |
-| Selection (region, while dragging) | The veil cut away inside the rectangle. Its edge a capture line: 1 point of `colour-capture-line` inside 1 point of `colour-capture-line-shadow`, so it holds on white and black alike. Square corners: it is a pixel rectangle. No handles while dragging; the release takes the shot |
+| Selection (region, while dragging) | The veil cut away inside the rectangle. Its edge a capture line: `size-capture-line` (1) of `colour-capture-line` inside `size-capture-line` of `colour-capture-line-shadow`, so it holds on white and black alike. Square corners: it is a pixel rectangle. No handles while dragging; the release takes the shot |
 | Size readout | "1280 × 720" in device pixels: `type-style-callout`, tabular, `colour-text`, on a `material-solid` capsule `size-control-small` (20) tall, padding `space-s`, `shadow-control`. `space-s` below the selection's trailing foot, its trailing edge on the selection's; flipped inside the selection, then above it, where the screen ends |
 | Window mode | The window under the pointer lifted clear: the veil cut to its shape (its corners, not its shadow), the capture line along that shape. An open menu, popover or shell panel lifts the same way. Tab moves the lift in one frame |
 
@@ -31,11 +31,11 @@ shots and streams without these parts (the sheet).
 | Handle | The bar itself: any point between controls drags it, pointer `grab` |
 | Groups | Leading to trailing, `space-m` apart with a 1 × 20 `colour-hairline` rule centred in each gap: Close; the modes; Pick colour; Options; the action |
 | Close | Plain icon button `size-control-large` (30) square, `radius-card` (concentric: 18 less 9, to the token), `x` at `size-glyph` (16), `colour-text-2` |
-| Modes | One segmented control (component) holding all six, `size-control-large` tall: track `colour-fill`, `radius-card`, padding `space-xxs`; segments 36 wide, radius 8 (concentric); glyphs at `size-glyph-large` (20), Regular, `colour-text-2`; the chosen segment `colour-window-raised` with `shadow-control`, its glyph `colour-text`. A 1 × 16 `colour-hairline` between the third and fourth segments marks shots from recordings |
+| Modes | One segmented control (component) holding all six, `size-control-large` tall: track `colour-fill`, `radius-control`, padding `space-xxs`; segments 36 wide, `radius-small` (concentric); glyphs at `size-glyph-large` (20), Regular, `colour-text-2`; the chosen segment `material-solid` with `shadow-control`, its glyph `colour-text`. A 1 × 16 `colour-hairline` between the third and fourth segments marks shots from recordings |
 | Mode glyphs | Shots: `monitor`, `app-window`, `selection`. Recordings: Isle-drawn `isle-record-screen`, `isle-record-window`, `isle-record-portion` (the shot glyph with a 6-point filled dot at its foot trailing). Pick colour: `eyedropper`, a plain icon button |
 | Options | A plain button, `size-control-large`, "Options" in `type-style-body`, `colour-text`, then `caret-down` at `size-glyph-small`, `colour-text-2` |
 | Options menu | A menu as `menus.md` draws it, on `material-solid` (opened from glass). Its foot `space-xs` above the bar, leading edge on the button's. Section labels as menu section labels; checks in the mark column |
-| Action | The default button (component) at `size-control-large`: `colour-accent`, label in `type-style-body`, `colour-on-accent`, padding `space-l`: "Capture", "Record", "Stop recording", "Share". Absent in window mode; the bar narrows (Motion) |
+| Action | The default button (component) at `size-control-large`: `colour-accent`, label in `type-style-body`, `colour-on-accent`, padding `space-l`: "Capture", "Record", "Stop recording", "Share". Absent in window mode; the bar narrows (Motion). Reopened while recording: the running recording's segment is chosen and the action reads "Stop recording"; a shot segment makes it "Capture"; the other record segments take their disabled form |
 | Request line | For a portal screenshot: after Close and its rule, the asking app's icon at `size-app-icon-small` (16), `space-xs`, "{app} wants a screenshot" in `type-style-body`, `colour-text`; only the shot modes follow |
 | Tooltips | The tooltip component, `space-s` above the control, after `timing-tooltip-ms` (700): the control's name and chord |
 
@@ -80,7 +80,7 @@ copied" are Line events too: `camera`, and `check` as Copied.
 | Hover | No change of look; the timer holds |
 | Drag | The thumbnail itself follows the pointer at 0.9 opacity; its place empties |
 | Duration | `timing-thumbnail-ms` (5000), restarting from the full length when the pointer leaves |
-| Menu | Secondary click: a menu on `colour-window-raised` (it sits on no glass), the sheet's items, at the pointer |
+| Menu | Secondary click: a shell menu as `menus.md` draws it (glass), the sheet's items, at the pointer |
 
 ### Markup (in Quick Look)
 
@@ -108,7 +108,8 @@ edge; window roles, so its text and glyphs follow the window's.
   `space-l`: Revert a regular button, Done the default, at `size-control`.
 - **On the image**: a chosen mark shows the capture line and handles of
   portion mode; crop shows the veil outside its rectangle with the same
-  line and handles.
+  line and handles. A redaction is the box's area blurred at half
+  `material-blur`, with no edge once placed.
 
 ### The screen-share picker
 
@@ -116,20 +117,20 @@ A sheet (`window-chrome.md`): `colour-window`, square top corners, bottom
 corners `radius-window`, `shadow-window`, padding `space-l` `space-xl`, the
 window's content under `colour-scrim`. Width `size-picker` (680), or the
 window's width less `space-xxxl` each side when that is narrower. Without a
-window it stands centred on the screen as an alert does, all corners
-`radius-window`, over `colour-scrim` on that screen. Window roles throughout.
+window it stands centred on the screen as a panel, all corners
+`radius-window`, `shadow-window`, no scrim. Window roles throughout.
 
 | Part | Look |
 |---|---|
 | Title | The app's icon at `size-app-icon` (32), `space-m`, "Choose what to share with {app}" in `type-style-headline`, `colour-text` |
 | Tabs | `space-m` below: the segmented control component at `size-control`, centred: "Screens", "Windows", "Portion of screen" |
 | Filter | In Windows, once typing starts: the search field component (`size-control`, 180 wide) at the tabs' row trailing end, holding the typed text |
-| Grid well | `space-m` below: `colour-window-sunken`, `radius-card`, padding `space-s`; three columns of tiles `space-m` apart; two rows show, then it scrolls |
+| Grid well | `space-m` below: `colour-window-sunken`, `radius-card`, padding `space-s`; columns of tiles `space-m` apart, as many as fit the well (three at full width), at least one; two rows show, then it scrolls |
 | Tile | 200 wide: a preview area 200 × 125, `radius-small`, `colour-fill`, the live preview fitted and centred; `space-s`; a screen's name in `type-style-body` `colour-text` over its size ("3440 × 1440") in `type-style-subheadline` `colour-text-2`; a window's app icon at 16, `space-xs`, its title in `type-style-body`, cut in the middle |
 | Window groups | Before each app's tiles, a header: the app's icon at 16 and name in `type-style-subheadline` semibold, `colour-text-2`, `space-xs` below |
-| Chosen | The preview ringed `stroke-focus-ring` in `colour-accent` at `stroke-focus-offset`; the name line unchanged |
-| Several allowed | The checkbox component at the preview's top trailing corner, inset `space-xs`, on a `material-solid` 20 circle; a checked tile also carries the ring |
-| Portion | The well holds "Select portion…" (a regular button) centred; once chosen, one tile with the portion's live preview and its size, the button under it |
+| Chosen | The preview ringed `stroke-found` (2) in `colour-accent` at `stroke-focus-offset`, with `check-circle` Fill 16 at its top trailing corner on a `material-solid` circle; the name line unchanged. The keyboard-focused tile takes the focus ring, so focus and choice never look alike |
+| Several allowed | The checkbox component in the check's place, inset `space-xs`, on a `material-solid` 20 circle; a checked tile also carries the chosen ring |
+| Portion | The well holds "Select portion…" (a regular button) centred; once chosen, one tile with the portion's live preview and its size, the button under it. "Select portion…" steps aside: the sheet and scrim fade out over `motion-exit-fade-ms`; the toolbar opens in portion mode with Close and the action only; the action or Escape fades the sheet back with the portion tile |
 | Options | `space-m` below the well, leading, `space-s` apart: checkbox rows "Share audio", "Let {app} share this again without asking", `type-style-body` |
 | Buttons | `space-l` below, trailing, `space-s` apart, `size-control`: "Cancel", then "Share" (default; disabled form until a source is chosen; "Share 2 sources") |
 | Empty, loading | "No windows" in `type-style-body`, `colour-text-2`, centred in the well. A tile waiting for its preview shows the app's icon at `size-app-icon-medium` (48), or the screen's name, centred on `colour-fill` |
@@ -178,6 +179,7 @@ never its own clock; exits are quicker than entrances.
 | Replaced by a new shot | The old fades out over `motion-exit-fade-ms` while the new comes in as above, in the same place |
 | Loupe | Follows the pointer every frame; in over `motion-fade-ms`, out over `motion-exit-fade-ms` |
 | Picker | The sheet's motion (`window-chrome.md`): grows down from the bar on `motion-open`, content with the reveal; out on `motion-exit`; scrim over `motion-fade-ms`. The centred form: as Spotlight's open, and a fade out. Previews fade in over `motion-fade-ms` on arrival |
+| Select portion… | The sheet and scrim out over `motion-exit-fade-ms`, the toolbar in as Toolbar in; back, the toolbar out and the sheet in over `motion-fade-ms` |
 | Reduce Motion | Veil, bar, thumbnail, loupe and picker fade in place over `motion-reduced-fade-ms`; a flicked thumbnail fades instead of travelling; the bar's width jumps |
 | Game Mode | No transitions: each part appears and goes in one frame; `material-solid`, no blur |
 
@@ -198,10 +200,11 @@ never its own clock; exits are quicker than entrances.
 - **Reduce Transparency.** The bar on `material-solid`; nothing else
   changes (the rest is opaque already).
 - **Focus.** The bar's controls take the focus ring outside themselves (the
-  bar's 9 points hold it); in the modes, the ring is on the focused
-  segment. The thumbnail never takes focus. In the picker the well takes
-  the ring when the grid has focus, and the chosen tile's ring is the
-  selection; tabs, options and buttons take their own rings.
+  bar's 9 points hold it), with a 1-point `colour-text` line inside it on
+  the glass; in the modes, the ring is on the focused segment. The
+  thumbnail never takes focus. In the picker the focused tile takes the
+  focus ring; the chosen tile keeps its `stroke-found` ring and check;
+  tabs, options and buttons take their own rings.
 - **Largest text size.** The readout, the loupe's value, tooltips, the
   Options menu, the request line and the picker grow; the bar's icons,
   height and the action button keep their size (the sheet). Picker tiles
@@ -210,7 +213,11 @@ never its own clock; exits are quicker than entrances.
   picker tiles their whole area; checkboxes their row. All above
   `size-hit-minimum`.
 - **Never colour alone.** Modes differ by glyph, recordings by their dot,
-  the chosen tile by its ring and checkbox.
+  the chosen tile by its ring and check or checkbox.
+- **Names.** Markup's tools, undo and colour button carry names and
+  tooltips: "Pen", "Highlighter", "Line", "Arrow", "Rectangle", "Ellipse",
+  "Text", "Redact", "Crop", "Undo", "Colour"; the swatches by colour ("Red"
+  … "White"), the current one with "selected" as its state.
 
 ## Board
 
@@ -261,7 +268,7 @@ over windows on the Haze wallpaper. Crops (`[x0, y0, x1, y1]`): pick
 | `colour` | `veil` | dark "rgba(0,0,0,0.32)"; light "rgba(0,0,0,0.22)" |
 | `colour` | `capture-line` | "#ffffff" (both appearances) |
 | `colour` | `capture-line-shadow` | "rgba(0,0,0,0.50)" (both appearances) |
-| `annotation` (new group: fixed, never by appearance) | `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `black`, `white` | "#f2392b", "#ff8a00", "#ffd60a", "#2fbf5b", "#2f7cf6", "#8e5cf7", "#111214", "#ffffff"; `default` "red" |
+| `annotation` (new group: fixed, never by appearance) | `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `black`, `white` | "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#0a84ff", "#af52de", "#1b1c1f", "#ffffff"; `default` "red" |
 | `size` | `capture-bar` | 48 |
 | `size` | `capture-handle` | 8 |
 | `size` | `loupe` | 120 |

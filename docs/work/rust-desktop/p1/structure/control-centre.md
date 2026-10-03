@@ -33,7 +33,7 @@ four sizes:
 
 | Size | Cells | Shows |
 |---|---|---|
-| Small | 1 | The module's glyph, which is its switch or action; nothing else |
+| Small | 1 | The module's glyph, which is its switch or action; nothing else (a state such as a Game Mode hold is in the tooltip and the accessible name) |
 | Medium | 2 side by side | Glyph, name, a state line |
 | Large | 2 × 2 | The module's content: art and transport, a list of devices |
 | Wide | 4 in a row | Glyph, name and a slider, or a short row of content |
@@ -62,7 +62,7 @@ not macOS 26's extra pages: the panel scrolls before it pages
 | Batteries | S, **M**, L | Yes, when any battery is reported | (none; opens its page) | Every battery | Battery | power, bluetooth |
 | Dark Mode | **S**, M | No | Dark or light | None | | appearance setting |
 | Keyboard layout | S, **M** | No | (none; opens its page) | The focused keyboard's layouts | | compositor keyboards (B30) |
-| Accessibility | S, **M** | No | (none; opens its page) | Zoom, On-screen keyboard, Increase Contrast, Reduce Motion, Reduce Transparency | | settings, compositor |
+| Accessibility | S, **M** | No | (none; opens its page) | Zoom, On-screen keyboard, Increase contrast, Reduce motion, Reduce transparency | | settings, compositor |
 | Screenshot | **S** | No | Opens the capture toolbar | None | | capture (`capture.md`) |
 | Phone | S, **M** | No, offered when a phone provider exists | The provider's primary action, if it has one | The provider's state sentence and actions | | providers (`phones`) |
 
@@ -139,32 +139,34 @@ A module's detail is a page in the panel, as v1's drill-downs (`island.md`;
 sections; the pill's row stays above it and the footer below.
 
 - **Head.** A back control, then the module itself at full width: its
-  name, state and switch or slider. The grid is not on screen while a page
-  is, so this is the same control moved up, not a second one; nothing
-  else on the page toggles what it toggles (For the user 1).
+  name, state and switch or slider, unless the page's rows are that
+  control (Focus's modes, Display's sliders, Now Playing's player card).
+  The grid is not on screen while a page is, so this is the same control
+  moved up, not a second one; nothing else on the page toggles what it
+  toggles (For the user 1).
 - **Body.** Rows that choose (a network, an output, a player, a Focus) or
   act on one thing (connect a device, set one screen's brightness). A row
   with more behind it has a chevron to its own sub-page. No row repeats the
   head's switch (v1 `49a415d`, `921f032`).
-- **Foot.** One link to the matching Settings pane, "{Pane} Settings…",
+- **Foot.** One link to the matching Settings pane, "{pane} Settings…",
   which folds the panel and disarms hover (`island.md` Pointer).
 
 What each page holds:
 
 | Page | Rows |
 |---|---|
-| Wi-Fi | A wired connection's state when there is one ("Connected", "Cable unplugged"); the current network with signal and security; known networks in range; "Other Networks", collapsed; "Join Other Network…" (Settings). Scans only while open. A row connects; a secured network NetworkManager has no secret for raises the Wi-Fi prompt (`prompts.md`; `shell.md` Control Centre 3), never a field in the panel. The row shows "Connecting", then the result or the error in the row |
+| Wi-Fi | A wired connection's state when there is one ("Connected", "Cable unplugged"); the current network with signal and security; known networks in range; "Other networks", collapsed; "Join other network…" (Settings). Scans only while open. A row connects; a secured network NetworkManager has no secret for raises the Wi-Fi prompt (`prompts.md`; `shell.md` Control Centre 3), never a field in the panel. The row shows "Connecting", then the result or the error in the row |
 | Bluetooth | Connected devices with battery; "My devices" (paired); "Nearby devices", discovered only while the page is open. A paired row connects or disconnects; a nearby row pairs, and a passkey or PIN is the pairing prompt (`prompts.md`; B28). Forgetting a device is Settings' |
 | Now Playing | The chosen player in full: art, title, artist, scrubber, transport, shuffle and repeat where offered, and its name, which raises it; then every other MPRIS player as a row, choosing it makes it the one shown |
-| Focus | Do Not Disturb, Game Mode and the user's modes, each with its symbol; the one on is marked with what turned it on (by hand, a schedule, a game in front). A row turns that mode on, or off if on; its chevron offers durations. What wins when modes overlap, and what turning Game Mode off over a detected game does, are `focus.md`'s |
+| Focus | Do Not Disturb, Game Mode and the user's modes, each with its symbol; the one on is marked with what turned it on (a schedule, a game in front; by hand: no second line). A row turns that mode on, or off if on; its chevron offers durations. What wins when modes overlap, and what turning Game Mode off over a detected game does, are `focus.md`'s |
 | VPN | Per provider: its state sentence, its connections or choices as rows that connect (v1 `921f032`), its actions (Sign in, a terminal action). NetworkManager VPN connections under their own heading. A VPN secret is the VPN prompt (`prompts.md`) |
-| Sound | Output devices, the default marked; a Bluetooth headset with its battery. Then each app playing sound, by its icon (a game's cover art, as in the switcher: `gaming.md` Games as apps) and name, with its own slider and mute; absent when nothing plays. Then input devices, the input level with its mute and a level meter that samples only while shown (`shell.md` Shell runtime 7) |
+| Sound | Output devices, the default marked; a Bluetooth headset with its battery. Then each app playing sound, by its icon (a game's cover art, as in the switcher: `gaming.md` Games as apps) and name, with its own slider and mute; when nothing plays, the Apps heading with one row, "No apps playing sound". Then input devices, the input level with its mute and a level meter that samples only while shown (`shell.md` Shell runtime 7) |
 | Display | One brightness slider per screen, named by the monitor (EDID, or the user's name for it in Displays), the screen the panel is on first. DDC shows the requested value at once and writes debounced (`shell.md` Control Centre 6); a monitor that answers no DDC says so in its row |
 | Energy Mode | Low Power, Automatic, High Power as choices; while Game Mode holds High Power, the row says so, and a choice made during Game Mode stands (`gaming.md` Game Mode 4) |
 | Updates | "Up to date" with the last check and "Check now"; or the count by source (repositories, AUR, Isle) with "Install updates…", which opens Settings › Software Update; or the run's progress ("Installing 4 of 14"); or the restart owed with its reasons (`island.md`) and "Restart…", which opens the session dialog |
 | Batteries | Every battery: the machine's with time left on a laptop, then devices by kind (mouse, keyboard, headset, pads), each with its name, level and charging. A pad is named as `gaming.md` Controllers 2 names it; a virtual pad carries no battery and is not listed |
 | Keyboard layout | The focused keyboard's name and its layouts (B30 per-device profiles); a row switches to it |
-| Accessibility | Switches for Zoom, On-screen keyboard, Increase Contrast, Reduce Motion and Reduce Transparency. These are the panel's only switches for them; Settings › Accessibility holds the rest |
+| Accessibility | Switches for Zoom, On-screen keyboard, Increase contrast, Reduce motion and Reduce transparency. These are the panel's only switches for them; Settings › Accessibility holds the rest |
 | Phone | The provider's state sentence and its actions (ring, send a file, the phone's battery), as the provider lists them |
 | Tray item | The item's DBusMenu as rows, submenus as sub-pages (`island.md`) |
 
@@ -226,7 +228,7 @@ What moves to Settings (pane names are `settings.md`'s):
 |---|---|
 | The island's glyph tiers; the module list, order and sizes as a keyboard-first alternative to edit mode; Reset to default | Settings › Control Centre |
 | Night light's schedule and warmth | Displays |
-| Display arrangement and Redetect; per display, mode, scale, HDR, VRR and tearing | Displays (`apps.md` Settings 13). VRR and tearing are per output and apply to any full-screen window, so they are not Game Mode's (`focus.md`) |
+| Display arrangement and Detect Displays; per display, mode, scale, HDR, VRR and tearing | Displays (`apps.md` Settings 13). VRR and tearing are per output and apply to any full-screen window, so they are not Game Mode's (`focus.md`) |
 | Focus modes: allowed apps, schedules, Game Mode's automatic start and the games it is off for | Focus (`focus.md`) |
 | Forgetting a Wi-Fi network or Bluetooth device; hidden networks; network details | Wi-Fi, Bluetooth, Network |
 | VPN and phone providers: adding, grants, sign-in details | Network › VPN, Phone (`apps.md` Settings 11) |
@@ -268,7 +270,7 @@ with Now and a tray fits without scrolling; the 1080p screen may scroll.
 | Many items | Pages scroll; the tray wraps; Now collapses past its cap. |
 | Overflow | The panel scrolls past its maximum height (above). |
 | Second screen | Control Centre opens on the screen whose island was used, with the same arrangement; Display shows that screen's brightness first; Now as `island.md` (Now included on every screen). Opening it on one screen closes it on the other. |
-| Game in front, windowed | As normal (brief), drawn in the solid form without transitions (`competition.md` For the user 1). Focus shows Game Mode; Energy Mode shows the hold; Night Light shows "Off during Game Mode". |
+| Game in front, windowed | As normal (brief), drawn in the solid form without transitions (`competition.md` For the user 1). Focus shows Game Mode; Energy Mode shows the hold; Night Light shows "Off during Game Mode"; a Small module shows a hold in its tooltip and accessible name only. |
 | Full screen, game or not | Reached only through the island's return at the top edge (`island.md`); over a game, after the dwell, never while the game holds the pointer. Solid, no transitions over a game. Ctrl+F8 does not reach it over a game (B30's escape set). |
 | Locked | Nothing. The lock has its own media controls and battery (`lock.md`). |
 | Focus on | The Focus module shows the mode and its glyph. Nothing else changes. |
@@ -292,7 +294,9 @@ with Now and a tray fits without scrolling; the 1080p screen may scroll.
 - **Opened from elsewhere.** The CLI and D-Bus open the panel at a module's
   page (`shell.md` Shell runtime 16), which the island's glyphs use.
 - **Closed by** Escape at the grid, a click outside, Ctrl+F8 again, the
-  pointer leaving a peek, a top-layer surface opening, or anything in
+  pointer leaving a peek, Escape while the pointer rests in the island's
+  zone over a peek (which takes that one Escape from the window and
+  disarms hover until the pointer leaves), a top-layer surface opening, or anything in
   `island.md`'s list (Spotlight, Mission Control, the capture tool, the
   session dialog), and the widgets dashboard. A system prompt raised from a
   row (a Wi-Fi password, a pairing code) closes nothing: it takes focus
@@ -332,6 +336,7 @@ This refines `island.md`'s map for the grid, where the arrows move.
 | Edit mode: to the gallery and back | Tab; Return on a gallery module adds it at the end |
 | Edit mode: leave | Escape, or Done |
 | Close | Escape at the grid; focus returns to the window that had it |
+| Close a peek | Escape while the pointer rests in the island's zone; hover disarmed until the pointer leaves |
 
 Volume, brightness and media keys move the matching module's control in
 place while the panel is open (`island.md`).
@@ -345,8 +350,9 @@ place while the panel is open (`island.md`).
   opens its page; on a row, chooses or acts. A click inside a peek also
   pins it.
 - **Secondary click** on a module: Show details, its sizes, Remove, Edit
-  controls, "{Pane} Settings…". On a page's row: the row's own menu
-  (Disconnect, "{network} settings…"). On a tray item: its menu page.
+  controls, "{pane} Settings…". On a page's row: the row's own menu
+  (Disconnect, "Details…", which opens the network's Details sheet in
+  Settings › Wi-Fi). On a tray item: its menu page.
 - **Drag**: sliders and the scrubber; modules in edit mode; tray items with
   Cmd held. A drag that starts in the panel holds it open until release,
   wherever the pointer goes.
@@ -376,7 +382,7 @@ which it keeps:
   Widgets 2), it draws these modules with the same state, never a second
   set of switches; the two are never on screen together (`widgets.md`).
 - **Control Centre against Settings.** Settings is a window with its own
-  rows; a module's "settings…" link folds the panel and opens the pane.
+  rows; a module's "{pane} Settings…" link folds the panel and opens the pane.
   The panel holds the quick control, Settings the configuration
   (Not in Control Centre above).
 - **Control Centre against prompts.** A row that needs a secret or a
@@ -452,23 +458,24 @@ which it keeps:
 | Wi-Fi states | "{network}", "Not connected", "Off", "Connecting" |
 | Bluetooth states | "On", "Off", "{device}", "{n} devices" |
 | Now Playing | "Not playing"; the player's name |
-| Focus states | "Off", "{Focus}", "{Focus} until {time}" |
-| VPN states | "{name}", "Not connected", "Connecting" |
+| Focus states | "Off", "{focus}", "{focus} until {time}" |
+| VPN states | "{name}", "Not connected", "Connecting"; the provider card's "Sign in…", "Options" |
 | Sound | the output's name; "Muted" |
 | Display | the monitor's name; "Brightness can't be set on this display" |
 | Night Light | "On until {time}", "Off until {time}", "Off during Game Mode" |
-| Energy Mode | "Low Power", "Automatic", "High Power", "High Power while Game Mode is on" |
-| Updates | "Up to date", "1 update", "{n} updates", "Installing {n} of {m}", "Restart to finish updating", "Checked {time}", "Check now", "Install updates…", "Restart…" |
+| Energy Mode | "Low Power", "Automatic", "High Power", "High Power while Game Mode is on"; on the page, High Power's second line "While Game Mode is on" |
+| Updates | "Up to date", "1 update", "{n} updates", "Installing {n} of {total}", "Restart to finish updating", "Checked {time}", "Check now", "Install updates…", "Restart…" |
 | Batteries | "{device} {n}%", "Charging", "{time} left" |
-| Wi-Fi page | "Other Networks", "Join Other Network…", "Cable unplugged", "Couldn't connect to {network}. Check the password and try again." |
+| Wi-Fi page | "Known networks", "Other networks", "Join other network…", "Cable unplugged", "Couldn't connect to “{network}”. Check the password and try again.", "Details…" |
 | Bluetooth page | "My devices", "Nearby devices", "Connecting", "Pairing", "Couldn't connect to {device}. Make sure it's on and nearby." |
 | Sound page | "Output", "Input", "Apps", "No apps playing sound" |
-| Display page | "Couldn't set brightness on {monitor}." |
-| Pages' foot | "{Pane} Settings…" |
+| Display page | "Couldn't set brightness on {monitor}. Try again." |
+| Accessibility page | "Zoom", "On-screen keyboard", "Increase contrast", "Reduce motion", "Reduce transparency" |
+| Pages' foot | "{pane} Settings…" |
 | Errors and empty | "Not available", "No networks found", "No devices", "No controls" |
 | Footer | "Edit controls", "Control Centre Settings…", "Done" |
-| Edit mode | "Search controls", "Remove", "Small", "Medium", "Large", "Wide", "Set up…", "Show details"; gallery groups "Connectivity", "Sound and display", "Focus", "System", "Accessibility", "Providers" |
-| Accessible names | "{Module}: {state}"; a switch adds "on" or "off"; "Back to Control Centre" |
+| Edit mode | "Search controls", "Remove", "Small", "Medium", "Large", "Wide", "Set up…", "Show details", "No Bluetooth adapter is connected."; gallery groups "Connectivity", "Sound and display", "Focus", "System", "Accessibility", "Providers" |
+| Accessible names | "{module}: {state}"; a switch adds "on" or "off"; "Back to Control Centre"; "Previous track", "Play", "Pause", "Next track", "Shuffle, on" or "off", "Repeat, off", "all" or "one", "Position", "{app} volume", "Mute {app}", "Mute microphone", "Input level", "Other networks, collapsed" or "expanded", "Remove {module}", "Add {module}"; a tray item by its title |
 
 Feature names (Now Playing, Night Light, Dark Mode, Energy Mode, Game Mode,
 Do Not Disturb) keep their capitals as names, as Control Centre does

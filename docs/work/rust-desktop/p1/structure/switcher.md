@@ -89,7 +89,9 @@ A row of entries, one per app, centred on the screen it opens on:
 
 - **Cmd+Tab** switches at once to the previous app. Only if Cmd is still
   held after a short delay does the switcher draw, on the screen with the
-  focused window (`shell.md` App switcher 1). The delay is stage 4's.
+  focused window (`shell.md` App switcher 1). A second Tab inside the
+  delay draws it at once, so a fast double Tab never selects blind. The
+  delay is stage 4's.
 - **Appearing** is a quick fade in place, no growth or slide (brief P5).
 - **Release of Cmd commits**, whatever was pressed in between
   (`compositor.md` § Shortcuts and keybinds 5): the switcher goes at once,
@@ -202,6 +204,9 @@ cancel leaves it untouched.
 - State marks, as text where a mark alone is unclear: "Hidden",
   "Minimised", "Not responding", "Running in background".
 - A badge past three digits: "999+".
+- Accessible names: "{app}" then its states, "{n} windows",
+  "{n} notifications", "{n}% done", "needs attention", "hidden",
+  "minimised", "not responding", "running in background", "quitting".
 
 Words follow `copy.md`.
 

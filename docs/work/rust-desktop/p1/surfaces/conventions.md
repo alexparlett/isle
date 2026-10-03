@@ -25,7 +25,8 @@ Measured from the window's top leading corner, in a window with every region.
 | Auto-collapse | The sidebar collapses when content would fall under `size-content-min` (400), then the inspector; each returns when the window widens past the width that took it | |
 
 A double-click on a sidebar or inspector edge returns its default width. The
-edge's drag area is `size-resize-band` (8), centred on the hairline.
+edge's drag area is `size-resize-band` (8), centred on the hairline; over the
+band the pointer is the column-resize cursor.
 
 ### The toolbar's items
 
@@ -33,16 +34,16 @@ edge's drag area is `size-resize-band` (8), centred on the hairline.
 |---|---|
 | Icon button | `size-control-large` (30) square, `radius-control`, Phosphor regular at `size-glyph-large` (20) in `colour-text-2`; no fill at rest, `colour-control-hover` on hover, `colour-control-pressed` pressed and while its menu or popover is open; disabled glyph `colour-text-disabled` |
 | Spacing | `space-xs` (4) between items in a group, `space-l` (16) between groups, `space-l` trailing padding (`window-chrome.md`) |
-| Leading group | Sidebar toggle `sidebar-simple` at the sidebar's trailing edge less `space-s`; then, `space-l` after the sidebar, back `caret-left` and forward `caret-right` as two icon buttons; `space-s`, the title in `type-style-headline` `colour-text`, a subtitle under it in `type-style-subheadline` `colour-text-2` (the pair centred on the toolbar's height) |
-| Grouped segments | Related symbol buttons that choose one of several (a view switcher) are a segmented control: a plate `size-control-large` tall, `colour-fill`, `radius-control`, padding `space-xxs`; segments 36 wide holding the glyph at 20; the chosen segment `colour-window-raised` with `shadow-control`, its glyph Fill in `colour-text`, others regular in `colour-text-2`. Text segments never share a group with symbols |
+| Leading group | Sidebar toggle `sidebar-simple` at the sidebar's trailing edge less `space-s`; then, `space-l` after the sidebar, back `caret-left` and forward `caret-right` as two icon buttons; `space-s`, the title in `type-style-headline` `colour-text`, a subtitle under it in `type-style-subheadline` `colour-text-2` (the pair centred on the toolbar's height). Sidebar collapsed: the toggle `space-l` after the lights; back and forward follow at `space-xs` |
+| Grouped segments | Related symbol buttons that choose one of several (a view switcher) are a segmented control: a plate `size-control-large` tall, `colour-fill`, `radius-control`, padding `space-xxs`; segments 36 wide holding the glyph at 20; the chosen segment `colour-window-raised` with `shadow-control`, its glyph Fill in `colour-text`, others regular in `colour-text-2`. Text segments never share a group with symbols. On shell glass the chosen segment is `material-solid` (`widgets.md`, `capture.md`, `spotlight.md`) |
 | Centre group | Centred on the content region, not the window; folds from its trailing end into a » button (`caret-double-right` at 20) whose menu lists the folded items by name |
 | Primary action | At most one, a regular button with its label (`size-control-large`, `colour-control`), never the accent: the window's default button is a sheet's |
 | More menu | An icon button holding `dots-three-circle`; its menu is the in-window menu (`menus.md`: `colour-window-raised`, `shadow-menu`), top `space-xs` under the button, trailing edges aligned |
 | Inspector toggle | `sidebar-simple` mirrored, before the search field |
-| Search field | Last. `size-control-large` tall, `size-toolbar-search` (180) wide at rest, `size-toolbar-search-wide` (260) while focused or holding a query, its trailing edge fixed so it grows toward the centre; `colour-fill`, `radius-control`; `magnifying-glass` at `size-glyph` (16) in `colour-text-2`, `space-s` from its leading edge; placeholder "Search" in `colour-text-3`; while a query stands, `x-circle` (Fill) at 16 in `colour-text-2` at `space-xs` from its trailing edge clears it |
+| Search field | Last. `size-control-large` tall, `size-toolbar-search` (180) wide at rest, `size-toolbar-search-wide` (260) while focused or holding a query, its trailing edge fixed so it grows toward the centre; `colour-fill`, `radius-control`; `magnifying-glass` at `size-glyph` (16) in `colour-text-2`, `space-s` from its leading edge; placeholder "Search" in `colour-text-2`; while a query stands, `x-circle` (Fill) at 16 in `colour-text-2` at `space-xs` from its trailing edge clears it |
 | Folded search | Narrow windows: an icon button holding `magnifying-glass`; a click or ⌘F opens the field in place at `size-toolbar-search`, growing toward the leading side, the centre folding further to make room |
 | Scope bar | Under the toolbar while a search stands (Files): `size-row` (28) tall, `colour-window`, a `colour-hairline` under it; scopes as a text segmented control at `size-control-small` (20), `space-l` from the content's leading edge |
-| Tooltip | `colour-window-raised`, `shadow-menu`, `radius-small`, padding 3 by `space-s`, `type-style-callout`: the name in `colour-text`, `space-s`, the chord in `colour-text-2`; `space-xs` under the control, after `timing-tooltip-ms` (700) of rest, gone on press or leave |
+| Tooltip | `colour-window-raised`, `shadow-menu`, `radius-small`, padding 3 by `space-s`, `type-style-callout`: the name in `colour-text`, `space-s`, the chord in `colour-text-2`; `space-xs` under the control, after `timing-tooltip-ms` (700) of rest, or of keyboard focus on the control; gone on press, leave, focus moving or Escape |
 
 **The scroll-edge bar.** Once content scrolls under the toolbar, a
 `colour-titlebar` bar with a `colour-hairline` lower edge fills the toolbar
@@ -60,7 +61,7 @@ does the same over the sidebar's width in `colour-sidebar`.
 | Groups | `space-m` (12) between groups with no heading |
 | Section header | Only for the user's own groups (Files' Favourites, Locations): 24 tall, `type-style-subheadline` semibold `colour-text-2`, aligned to the rows' glyph edge (16 from the sidebar's edge), its baseline `space-xs` above the first row; `space-m` above it |
 | Selected, sidebar focused | `colour-accent` fill; label, glyph and accessory `colour-on-accent`; tiles and app icons keep their colours |
-| Selected, not focused or window inactive | `colour-fill-strong`; text unchanged |
+| Selected, not focused or window inactive | `colour-selection-unfocused`; text unchanged; in an inactive window, sidebar glyphs `colour-text-2` |
 | Hover | Nothing, as macOS; pressed `colour-fill` |
 | Drop target | Under a drag it accepts: `colour-accent` 2-point ring (`stroke-found`) inside the row, `radius-row` |
 
@@ -75,7 +76,27 @@ does the same over the sidebar's width in `colour-sidebar`.
 | Selection, focused | `colour-accent`, text and glyphs `colour-on-accent`, figures too; adjacent selected rows join into one shape, corners only at the run's ends |
 | Selection, unfocused or inactive | `colour-selection-unfocused`, text unchanged; stripes show through no row it covers |
 | Text selection | In fields and text views, the accent mixed into the surface at `selection-mix`, text staying `colour-text` (the `selection` group) |
-| Search match | Matched characters in a filtered list on a `colour-match` run, `radius-small` 2, text unchanged |
+| Search match | Matched characters in a filtered list on a `colour-match` run, radius 2, text unchanged |
+
+### Drag and drop
+
+- **Drag image**: the dragged items at their view's size, at 70%; a row
+  drags as its leading icon and title. For two or more, a count in the badge
+  component's shape in `colour-accent` with `colour-on-accent` on the image's
+  top trailing corner. The pointer carries Bibata's `copy` while the drop
+  copies.
+- **Drop targets** (only while accepting): a row in a list or table, or a
+  sidebar row, the `stroke-found` ring in `colour-accent` inside the row,
+  `radius-row`; a tile its plate in `colour-fill-strong` with the same ring;
+  the view itself the ring inset `space-xxs` round the content region,
+  `radius-card`. A target that refuses shows nothing.
+- **Reorder**: where order is the user's, an insertion line 2 points of
+  `colour-accent` across the rows' inset width between two rows, a
+  `size-mark` circle ringed 2 at its leading end; the rows do not move until
+  the drop.
+- **Cancelled or refused**: the image returns to its source on
+  `motion-move`; under Reduce Motion it fades out over
+  `motion-reduced-fade-ms`; under Game Mode it goes at once.
 
 ### Empty, loading and error states in place
 
@@ -88,7 +109,7 @@ does the same over the sidebar's width in `colour-sidebar`.
 | Refused value | Under its row, `type-style-callout` in `colour-danger-text`, `warning-circle` Fill at 12 leading, `space-xs`: "Couldn't change {setting}. {reason}" |
 | Failed action | An alert (`window-chrome.md`): title naming what failed, one line on what to do, Try Again as the default where it can help |
 | Configuration error | The notice (`settings.md`, Anatomy) at the top of every settings pane; rows bound to `settings.kdl` disabled |
-| Work in flight | Progress in the window (each app's own place: Files' jobs button) as a determinate bar 6 tall, `radius-small` 3, track `colour-fill-strong`, fill `colour-accent` |
+| Work in flight | Progress in the window (each app's own place: Files' jobs button) as a determinate bar 6 tall, radius 3 (half its height), track `colour-fill-strong`, fill `colour-accent` |
 
 ### Sheets, alerts and popovers
 
@@ -120,7 +141,7 @@ zoom in their disabled form), no title. Then, centred: the app's icon at
 `colour-text-2`, the commit in `type-mono`, selectable; `space-m`; the
 description in `type-style-callout` `colour-text`, wrapping at 232; `space-m`;
 "From {package}" and the licence in `type-style-footnote` `colour-text-2`;
-"Source" as a plain button in `colour-accent-text`; `space-xl` to the
+"Source code" as a plain button in `colour-accent-text`; `space-xl` to the
 bottom. Padding `space-xxl` at the sides.
 
 ### An app's settings window
@@ -141,7 +162,7 @@ bar (`control-centre.md`).
 
 ### Focus ring and full keyboard access
 
-- **The ring**: `stroke-focus-ring` (3) in `colour-accent` at 55%, at
+- **The ring**: `stroke-focus-ring` (3) in `colour-accent`, at
   `stroke-focus-offset` (1) outside the control, its radius the control's
   plus the offset, for keyboard focus only, on every control including the
   toolbar's (reached by Tab or ⌃F5).
@@ -162,12 +183,12 @@ bar (`control-centre.md`).
 | State | What changes |
 |---|---|
 | Rest, active | Anatomy as above; lights coloured |
-| Inactive | Lights neutral; title and toolbar glyphs `colour-text-3`; sidebar and list selections `colour-fill-strong` / `colour-selection-unfocused`; the scroll-edge bar `colour-titlebar-inactive` |
+| Inactive | Lights neutral; title and toolbar glyphs `colour-text-3`; sidebar and list selections `colour-selection-unfocused`, sidebar glyphs `colour-text-2`; the scroll-edge bar `colour-titlebar-inactive` |
 | Empty, no results, loading, missing device, refused value, failed action | Their rows in Anatomy |
 | Configuration error | The notice on every settings pane; bound rows disabled (`settings.md`) |
 | Work in flight | The window's determinate bar; the switcher card's (`switcher.md`) |
 | With a sheet | Content under `colour-scrim`; bar and lights clear; close waits |
-| Narrow window | In order: centre into »; title cut at its end; search into its button; sidebar collapsed; then the inspector |
+| Narrow window | In order: centre into »; title cut at its end; search into its button; sidebar collapsed; then the inspector. The window's minimum holds its largest sheet: that sheet's width plus `space-xxxl` each side |
 | Overflowing content | The scroll-edge bar over the content; the sidebar's own over the sidebar |
 | Full screen | Toolbar kept; corners square; the revealed menu bar slides over it |
 | Second screen, locked, Focus on | No change of their own |
@@ -184,7 +205,8 @@ Content rides its spring's progress, never its own clock; exits run on
 | Sheet, alert | `window-chrome.md`: grows down from the toolbar's lower edge on `motion-open`, out on `motion-exit`; scrim on `motion-fade-ms` | Fade in place, scrim with it |
 | Popover | `motion-open` from `motion-panel-scale` (0.96) and opacity 0, anchored at the point of its edge nearest the anchor; out, opacity to 0 over `motion-exit-fade-ms` in place | Fade in place, `motion-reduced-fade-ms` |
 | Context and pop-up menus | `menus.md`: whole in the next frame, fading out, the blink kept | As there |
-| Sidebar, inspector show and hide | The region's width on `motion-move` from 0 to its width, its rows clipped, not scaled; the content's edge rides with it and lays out each frame. Auto-collapse uses the same | The window's content crossfades from the old layout to the new over `motion-reduced-fade-ms` |
+| Sidebar, inspector show and hide | The region's width on `motion-move` from 0 to its width, its rows riding the moving edge, clipped, not scaled; the content's edge rides with it and lays out each frame. Auto-collapse uses the same | The window's content crossfades from the old layout to the new over `motion-reduced-fade-ms` |
+| Drag cancelled or refused | The image returns to its source on `motion-move` | Fades out over `motion-reduced-fade-ms` |
 | Edge drag | Follows the pointer, no spring; a double-click springs to the default on `motion-move` | Cut |
 | Search field widening | Width on `motion-move` between its two widths; the folded button opens to the field the same way | Cut |
 | Toolbar folding | None: items fold and return in the frame the width changes |
@@ -200,13 +222,14 @@ Content rides its spring's progress, never its own clock; exits run on
 
 - **Surfaces.** Window text sits on `colour-window`, `colour-window-raised`,
   `colour-view`, `colour-sidebar`, `colour-titlebar` and the selections:
-  window roles, so `colour-text-3` is allowed, used only for placeholders and
-  an inactive window's title and glyphs. On `colour-accent`,
+  window roles, so `colour-text-3` is allowed, used only for an inactive
+  window's title and glyphs and placeholders in fields on
+  `colour-window-raised`; never on a fill. On `colour-accent`,
   `colour-on-accent` only. No Isle app surface is glass.
 - **Increase Contrast.** `colour-hairline-strong` borders on every control,
   field, segmented plate, the toolbar's lower edge (shown at rest too), the
   sidebar's and inspector's edges, groups, sheets, popovers and the About
-  window; the focus ring at full accent; Phosphor bold; table stripes kept.
+  window; Phosphor bold; table stripes kept.
 - **Reduce Transparency.** Windows are opaque already; the toolbar shows its
   scroll-edge bar at all times.
 - **Largest text size** (1.5×). The toolbar is the larger of `size-toolbar`

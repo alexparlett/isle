@@ -45,8 +45,9 @@ the traffic lights (`window-chrome.md`, Unified toolbar; B25).
   and Mail do. In a wide window, reading content (forms, detail) keeps a
   maximum line width and centres; tables and grids use the whole width.
 - **Inspector.** Optional detail about the selection, at the trailing
-  edge, full height under the toolbar, dragged to resize, toggled from the
-  toolbar and View › Show Inspector (⌥⌘I). An app names it for what it
+  edge, its fill running to the window's top as the sidebar's does (macOS
+  27) and its rows starting under the toolbar, dragged to resize, toggled
+  from the toolbar and View › Show Inspector (⌥⌘I). An app names it for what it
   holds where macOS does (Files' preview: View › Show Preview, ⇧⌘P, as
   Finder).
 - **No bottom bar** by default. A status or path bar is an app's own View
@@ -113,13 +114,13 @@ Help's search), the app does not repeat it.
 
 | Menu | Items, in groups | Carried by |
 |---|---|---|
-| App menu | About <App> · Settings… ⌘, · Hide <App> ⌘H, Hide Others ⌥⌘H, Show All · Quit <App> ⌘Q | Every app, as `menu-bar.md`. Settings… is disabled in an app with no settings window, so the menu keeps its shape |
+| App menu | About {app} · Settings… ⌘, · Hide {app} ⌘H, Hide Others ⌥⌘H, Show All · Quit {app} ⌘Q | Every app, as `menu-bar.md`. Settings… is disabled in an app with no settings window, so the menu keeps its shape |
 | File | New Window ⌘N, New Tab ⌘T, Open… ⌘O · Close Tab ⌘W, Close Window ⇧⌘W (⌘W where the app has no tabs), Close All ⌥⌘W · the app's own (Get Info, Compress…) · Print… ⌘P where something prints | Every app, with at least Close Window: the same place for ⌘W everywhere, matching the fallback's File (`menu-bar.md`) |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z · Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A · Find ▸ (Find… ⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E) · the app's own · Emoji & Symbols ⌃⌘Space | Every app, since every app has text fields. Find's submenu carries only what the app's search does; Files leaves ⇧⌘G to Go to Folder, as Finder |
 | View | Show Sidebar ⌃⌘S, Show Inspector ⌥⌘I · the app's views (⌘1 to ⌘4) · sort, grouping and the app's display options · Show Tab Bar ⇧⌘T in tabbed apps | Apps with any of these |
 | The app's own | Go (Files: Back ⌘[, Forward ⌘], Enclosing Folder ⌘↑, the places, Go to Folder… ⇧⌘G), Process (Monitor), Item (Keychain) | Between View and Window, as on macOS |
 | Window | The desktop's groups (Minimise, Zoom, Fill, Centre, Move and resize, Full screen tile, Enter Full Screen, Move to desktop, Keep on top); then the app's own: Show Previous Tab ⌃⇧Tab, Show Next Tab ⌃Tab, Move Tab to New Window, Merge All Windows in tabbed apps, and the app's named windows; then Bring All to Front and the window list | The desktop merges it (`menu-bar.md`, The Window menu, group 3) |
-| Help | The desktop's search field; <App> Help, opening the app's page in Isle's documentation from its AppStream help link | Every app |
+| Help | The desktop's search field; {app} Help, opening the app's page in Isle's documentation from its AppStream help link | Every app |
 
 - Enter Full Screen is in the desktop's Window group, not in View as on
   macOS, because the desktop merges it into every app's Window menu and
@@ -168,7 +169,7 @@ in `window-chrome.md`; this sheet says when each is used.
 | Form | Used for | Behaviour |
 |---|---|---|
 | **Sheet** | A task that must finish or be cancelled before its window goes on: a form (new key, rename many, add a VPN), Files' Open and Save panels in Isle's apps, an item's details to edit (a Wi-Fi network's Details…) | Modal to its window only; Cancel and the action at its foot, the default trailing; never Cancel and Done beside Back (HIG, `design-macos.md` §3.1). One sheet at a time: a step inside a task replaces the sheet's content with a Back, rather than stacking a second sheet |
-| **Alert** | A confirmation or a failure the user must read: something that cannot be undone, quitting with work in flight, a failed action | A sheet with a title, at most one line of text and up to three buttons (`window-chrome.md`). A "Don't ask again" box only on a confirmation the user may sensibly silence, and the app's settings can turn it back on. With no window open, the alert is a small window of its own, centred |
+| **Alert** | A confirmation or a failure the user must read: something that cannot be undone, quitting with work in flight, a failed action | A sheet with a title, at most one line of text (a length for the copy: it wraps, never cut) and up to three buttons (`window-chrome.md`). A "Don't ask again" box only on a confirmation the user may sensibly silence, and the app's settings can turn it back on. With no window open, the alert is a small window of its own, centred |
 | **Popover** | Quick detail or a small edit about one control or item: a colour, a date, a row's info | Anchored to what opened it; not modal; changes apply as made, so it has no OK or Cancel; closes on Escape, a click outside, or the opening control again; one open at a time. Drawn on the window's raised material, never glass (`design-v1-lessons.md` § Files and the other windows) |
 | **Window** | Something worth keeping open beside others: Get Info, a process inspector, About, the app's settings | A window of the app, placed by the compositor (B8), with its own lights; in the switcher's window row and the Window menu |
 
@@ -325,15 +326,15 @@ through the compositor (B27; Conventions 19).
 - **The last window closing** ends the app unless work is in flight
   (Conventions 4); B20's keep-running list does not apply to Isle's apps.
 - **Quitting with work in flight** (Conventions 5): an alert on the front
-  window naming the work ("Copying 3 items to Backup"), "Quitting stops
+  window naming the work ("Copying 3 items to “Backup”"), "Quitting stops
   it.", with Cancel (default) and Quit.
 
 ### The About window
 
-App › About <App> opens Isle's About window for the app, the same panel
+App › About {app} opens Isle's About window for the app, the same panel
 `menu-bar.md` gives any app without its own:
 
-- the app's icon and name; "Version <v>" with the git commit Isle was built
+- the app's icon and name; "Version {v}" with the git commit Isle was built
   from, which can be selected and copied (B29); the one-line description
   from its desktop entry; the licence; a link to the source;
 - a small window of fixed size, centred on its app's screen the first time,
@@ -476,15 +477,15 @@ own phrases are in sentence case.
 
 | Where | String |
 |---|---|
-| App menu | "About <App>", "Settings…", "Hide <App>", "Hide Others", "Show All", "Quit <App>" (`menu-bar.md`) |
+| App menu | "About {app}", "Settings…", "Hide {app}", "Hide Others", "Show All", "Quit {app}" (`menu-bar.md`) |
 | File | "New Window", "New Tab", "Open…", "Close Tab", "Close Window", "Close All", "Print…" |
-| Edit | "Undo", "Redo", "Undo <action>", "Cut", "Copy", "Paste", "Delete", "Select All", "Find", "Find…", "Find Next", "Find Previous", "Use Selection for Find", "Emoji & Symbols" |
+| Edit | "Undo", "Redo", "Undo {act}", "Cut", "Copy", "Paste", "Delete", "Select All", "Find", "Find…", "Find Next", "Find Previous", "Use Selection for Find", "Emoji & Symbols" |
 | View | "Show Sidebar", "Hide Sidebar", "Show Inspector", "Hide Inspector", "Show Tab Bar", "Hide Tab Bar" |
 | Window (app's group) | "Show Previous Tab", "Show Next Tab", "Move Tab to New Window", "Merge All Windows" |
-| Help | "<App> Help" |
+| Help | "{app} Help" |
 | Search field | Placeholder "Search" |
 | No results | "No results for “{query}”" |
-| Quit with work in flight | Title naming the work ("Copying 3 items to Backup"), "Quitting stops it.", buttons "Cancel", "Quit" |
+| Quit with work in flight | Title naming the work ("Copying 3 items to “Backup”"), "Quitting stops it.", buttons "Cancel", "Quit" |
 | A failed action | What failed, then what to do; "Try Again" where it can help |
 | Don't ask again | "Don't ask again" |
 | About | "Version {v} ({commit})", "From {package}" |

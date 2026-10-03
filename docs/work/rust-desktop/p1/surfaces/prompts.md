@@ -19,10 +19,10 @@ the two together are what reads as the system's.
 |---|---|
 | Scrim | `colour-scrim` over every screen, above windows and every surface but the island's privacy form, the lock, the on-screen keyboard and the idle dim |
 | Frame | `size-panel` (376) wide, `material-glass` at the user's glass position (`material-blur`, `material-saturation`, `material-noise-opacity`), `radius-panel`, `shadow-panel`, padding `space-xl` (inner 336). Centred across its screen, its top at a fifth of the screen's height (288 on the ultrawide, 216 on the 1920 screen); it grows downward only |
-| Who asks | The app's icon at `size-app-icon-medium` (48), centred, with the kind's badge: a 20 circle of `material-solid` holding the kind's glyph at `size-glyph-small` in Fill, `colour-text`, centred on the icon's lower trailing corner inset 4. Kinds: `lock` (polkit), `key` (keyring), `wifi-high` (Wi-Fi, 802.1X), `isle-vpn` (VPN), `bluetooth` (pairing). No app: the kind's glyph alone at 48, Light, `colour-text`, no badge. Bluetooth: the device's kind glyph at 48 Light (`headphones`, `keyboard`, `mouse`, `game-controller`, `device-mobile`, `speaker-hifi`, else `bluetooth`) |
-| Title | `space-m` under; `type-style-title-3`, `colour-text`, centred, at most two lines, cut at the end |
+| Who asks | The app's icon at `size-app-icon-medium` (48), centred, with the kind's badge: a 20 circle of `material-solid` holding the kind's glyph at `size-glyph-small` in Fill, `colour-text`, centred on the icon's lower trailing corner inset 4. Kinds: `lock` (polkit), `key` (keyring), `wifi-high` (Wi-Fi, 802.1X), `isle-vpn` (VPN), `bluetooth` (pairing). No app, but the policy names an icon: that icon at 48 with the `lock` badge. Neither: the kind's glyph alone at 48, Light, `colour-text`, no badge. Bluetooth: the device's kind glyph at 48 Light (`headphones`, `keyboard`, `mouse`, `game-controller`, `device-mobile`, `speaker-hifi`, else `bluetooth`) |
+| Title | `space-m` under; `type-style-title-3`, `colour-text`, centred, one line, cut at its end (two at the largest text) |
 | Message | `space-xs` under; `type-style-callout`, `colour-text-2`, centred, plain text, at most `limit-prompt-lines` (4); past that cut at the end, the whole in Details |
-| Fields | `space-l` under, aligned to the inner width. Each: its label in `type-style-subheadline` `colour-text-2`, `space-xs`, then the field: `size-control-large` (30) tall, full width, `radius-control`, `colour-fill` with a `stroke-hairline` inner edge in `colour-hairline-strong`, inset `space-s`, `type-style-body` `colour-text`; placeholder `colour-text-2`; secrets as the lock's dots. Focused: the edge in `colour-accent` (the field component). `space-m` between fields |
+| Fields | `space-l` under, aligned to the inner width. Each: its label in `type-style-subheadline` `colour-text-2`, `space-xs`, then the field: `size-control-large` (30) tall, full width, `radius-control`, `colour-fill` with a `stroke-hairline` inner edge in `colour-hairline-strong`, inset `space-s`, `type-style-body` `colour-text`; placeholder `colour-text-2`; secrets as the lock's dots. Focused: the edge in `colour-accent` with the glass focus line (a 1-point `colour-text` line inside it), since an accent edge alone can fall to about 1.2:1 on glass over a bright backdrop. `space-m` between fields |
 | Identity | Several administrators: the pop-up button component at `size-control-large`, full width, the user's picture at 16 before the name, above the password field. Its menu is `material-solid` |
 | Choices | `space-s` under the last field: checkbox rows `size-row` tall, the checkbox component, `space-s`, `type-style-body` `colour-text` |
 | Status line | `space-xs` under fields or choices, a reserved slot of 16; leading. The lock's forms (`lock.md`): a glyph at 12 then `type-style-callout`, `colour-text` for what needs acting on, `colour-text-2` for checking and the reader |
@@ -33,6 +33,7 @@ the two together are what reads as the system's.
 **The armed moment.** For `timing-prompt-arm-ms` (600) after the frame
 appears, the action is drawn as a regular button (`colour-control`) and
 Return, Space and clicks on buttons do nothing; fields take typing at once.
+Focus is where it will stay from the first frame; arming moves none.
 On arming its fill crossfades to `colour-accent` over `motion-fade-ms`. The
 accent arriving is the sign that Return now answers (brief P6: it marks the
 one thing Return acts on).
@@ -41,16 +42,16 @@ one thing Return acts on).
 
 | Kind | Contents |
 |---|---|
-| Polkit | App icon with `lock`; "{App} needs your password" or "An administrator's password is needed"; polkit's message; the pop-up if several; "Password for {name}"; Details (action id, vendor; for `pkexec`, the command line), in `type-mono`; Cancel, Allow |
+| Polkit | App icon with `lock`; "{app} needs your password" or "An administrator's password is needed"; polkit's message; the pop-up if several; "Password for {name}"; Details (action id, vendor; for `pkexec`, the command line), in `type-mono`; Cancel, Allow |
 | Keyring, unlock | `key`; the requester's title and message; one password field; its "Automatically unlock…" choice when sent; its continue label, else "Unlock" |
 | Keyring, new | Password, then Confirm; while they differ, "The passwords don't match." with `warning-circle` and the action disabled |
 | Keyring, confirm | No fields: title, message, the two buttons it names |
 | Wi-Fi | `wifi-high`; "“{network}” needs a password"; the security as the message ("WPA2 Personal"); a password field; "Show password" (shows the characters in `type-style-body`); Cancel, Join. Wrong: the old password kept and selected (`selection-mix` of the accent), the status line's message |
-| 802.1X | `wifi-high`; "Sign in to “{network}”"; only the fields asked for: Username, Password, a key's password |
-| VPN | App icon if a provider asked, else `isle-vpn`; "“{VPN}” needs a password"; the plugin's fields in its order, labelled as it labels them, secrets with "Show password"; Cancel, Connect |
+| 802.1X | `wifi-high`; "Sign in to “{network}”"; only the fields asked for: "User name", "Password", "Private key password"; Cancel, Join |
+| VPN | App icon if a provider asked, else `isle-vpn`; "“{vpn}” needs a password"; the plugin's fields in its order, labelled as it labels them, secrets with "Show password"; Cancel, Connect |
 | Bluetooth, confirm | The device's glyph; "Pair with {device}?"; "Check that {device} shows this code."; the code `space-l` under the message in `type-style-large-title`, tabular, tracking 0.08 em, `colour-text`, centred; Cancel, Pair |
-| Bluetooth, passkey or PIN | "Pair with {device}"; one field (six digits, or up to sixteen characters), its text in `type-mono` |
-| Bluetooth, display | "Type this code on {device}"; the code in cells: each digit in a `size-code-cell` (32) × `size-row-large` (40) box, `radius-small`, `space-xs` apart, the digit in `type-style-large-title`; untyped digits `colour-fill` and `colour-text-2`, typed ones `colour-fill-strong` and `colour-text`; Cancel |
+| Bluetooth, passkey or PIN | "Pair with {device}"; one field (six digits, or up to sixteen characters), its text in `type-mono`; Cancel, Pair |
+| Bluetooth, display | "Type this code on {device}"; the code in cells: each digit in a `size-code-cell` (32) × `size-row-large` (40) box, `radius-small`, `space-xs` apart, the digit in `type-style-large-title`; untyped digits `colour-fill` and `colour-text-2`, typed ones `colour-fill-strong` and `colour-text` semibold. Longer than eight: one line in `type-style-large-title`, `type-mono`, centred, in place of the cells. Cancel |
 | Bluetooth, authorise | "{device} wants to pair", Cancel, Pair; a service: "Allow {device} to connect?", its name as the message, Don't Allow, Allow |
 
 ### The session dialog
@@ -85,11 +86,11 @@ countdown line, then Cancel and the action, armed after
 
 **Quitting.** The icons of apps not yet gone; the buttons disabled, a
 spinner at 12 leading the countdown's slot. Interrupted: the slot says
-"Couldn't restart because {App} didn't quit." with `warning-circle`, and
-the buttons become Cancel and "Show {App}" (default). Not responding: that
+"Couldn't restart because {app} didn't quit." with `warning-circle`, and
+the buttons become Cancel and "Show {app}" (default). Not responding: that
 app's icon takes the switcher's `hourglass-medium` tag (`switcher.md`), the
 slot says "Not responding" with that glyph, and the buttons are Cancel and
-"Force Quit {App}": destructive, never default, and on glass drawn as a
+"Force Quit {app}": destructive, never default, and on glass drawn as a
 well (fill `material-solid`, label `colour-danger-text`) so its colour sits
 on a solid ground, as the island's wells do.
 
@@ -120,7 +121,7 @@ Quit is reached by Tab (then Space). The list below takes `colour-scrim`.
 
 | State | What changes |
 |---|---|
-| One prompt | Frame and scrim; focus in the first field, else on Cancel until armed, then the action. |
+| One prompt | Frame and scrim; focus in the first field, else on the action from the first frame; until armed, Return and Space on it do nothing; arming moves no focus. |
 | Armed | The action turns `colour-accent`. |
 | Typing | Dots; Caps Lock's message. |
 | Checking | Spinner and "Checking"; the action disabled (`colour-text-disabled`, no fill); Cancel works. |
@@ -134,8 +135,8 @@ Quit is reached by Tab (then Space). The list below takes `colour-scrim`.
 | Loading | The kind's glyph at 48 until the icon resolves, then the icon with its badge crossfades in. |
 | Many screens | Frame on one screen, scrim on all. |
 | Windowed game | `material-solid`, no blur, no transitions. |
-| Full-screen game or window, locked | Waiting. |
-| Over Control Centre | The pinned panel under the scrim, still showing its outcome. |
+| Full-screen game or window, locked | Waiting. A full-screen window whose app asked: as One prompt, over it. |
+| Over Control Centre or Spotlight | The frame `material-solid`, no blur; the pinned panel or Spotlight under the scrim, the panel still showing its outcome. |
 | Session dialog | Countdown counting, then stopped (the line fades); quitting; interrupted; not responding. |
 | Force Quit | Open with a selection; several selected; confirming (sheet); a row "Couldn't force quit". |
 | Reduce Motion, Transparency, Contrast, largest text | Motion and Accessibility. |
@@ -158,15 +159,18 @@ Quit is reached by Tab (then Space). The list below takes `colour-scrim`.
 
 **Reduce Motion.** No scale and no shake: frames and scrim fade in place
 over `motion-reduced-fade-ms`; growth is a crossfade to the new height at
-the same top; the field's error edge carries a wrong password.
+the same top; the field's error edge carries a wrong password; the
+quitting row's icons jump.
 
 **Game Mode.** No transitions: frame and scrim appear and go in one frame;
-no shake; the armed accent cuts in; `material-solid`, no blur.
+no shake; the armed accent cuts in; the quitting row's icons jump;
+`material-solid`, no blur.
 
 ## Accessibility
 
 - **Colour roles.** On the frame (glass) only `colour-text` and
-  `colour-text-2`; `colour-text-3` nowhere, placeholders included. Fields
+  `colour-text-2`; `colour-text-disabled` only for disabled controls, as
+  `menus.md`; `colour-text-3` nowhere, placeholders included. Fields
   are `colour-fill` on the glass, so the glass rule holds inside them.
   Errors are told by glyph and words; the danger edge repeats them. The
   kind badge and Force Quit's sheet are `material-solid`.
@@ -174,19 +178,25 @@ no shake; the armed accent cuts in; `material-solid`, no blur.
   `stroke-hairline` edge of `colour-hairline-strong`; fields keep their
   `colour-hairline-strong` edge, buttons and checkboxes take theirs
   (`conventions.md`); Force Quit's list card and the chooser's circles get
-  the same edge; glyphs bold; the danger edge 2 points.
+  the same edge; glyphs bold; the danger edge 2 points. The selection takes
+  its stronger form: a Wi-Fi field's selected password full `colour-accent`
+  with `colour-on-accent`; Force Quit's selected run a
+  `colour-hairline-strong` inner edge. A pairing code's typed cells take the
+  `colour-hairline-strong` edge.
 - **Reduce Transparency.** Frames and panels `material-solid`; the scrim
   stays.
 - **Focus ring.** `stroke-focus-ring` in the accent at `stroke-focus-offset`,
-  keyboard only, outside each button, checkbox, pop-up and the Details
-  button; a focused field shows its accent edge instead. The chooser's
-  selection is its accent circle (no ring), as the switcher's plate. The
+  with a 1-point `colour-text` line inside it on glass, keyboard only,
+  outside each button, checkbox, pop-up and the Details button; a focused
+  field shows its accent edge instead. The chooser's selection is its
+  accent circle (no ring), as a menu's selected row. The
   frame's 20 padding leaves room for every ring.
 - **Largest text size** (1.5×). The frame grows downward; the title takes
-  three lines and the message six before Details takes the rest; fields
+  two lines and the message six before Details takes the rest; fields
   are their line plus 14; buttons grow with their text and stay equal
   width; chooser labels wrap to two lines; Force Quit's rows are their
   line plus 12. Icons and the code cells keep their size.
+- **Names.** A displayed pairing code is named "{n} of {total} digits typed".
 - **Hit targets.** Buttons `size-control` by at least 80; checkbox rows
   `size-row` with the label clickable; chooser columns 84 × 82; Force Quit
   rows `size-row`. All above `size-hit-minimum`.

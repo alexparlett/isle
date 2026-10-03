@@ -1,10 +1,11 @@
 # Design
 
 How Isle looks and moves. Made afresh (B3) by the design packet, P1 in
-`docs/work/rust-desktop/roadmap.md`; this is its record. First draft, from
-gate 4 (2026-10-03): the principles, the system and the components. Each
-surface's look joins at stage 5 and the whole is signed off at gate 6.
-Isle v1's design is on `main` for reference only.
+`docs/work/rust-desktop/roadmap.md`; this is its record, reviewed at stage
+6 (critique, accessibility and copy, `docs/work/rust-desktop/p1/review/`)
+and signed off at gate 6 on 2026-10-03, open to adjustment as building
+shows what needs it. The design decisions are B31 to B34 in
+`DECISIONS.md`. Isle v1's design is on `main` for reference only.
 
 The values live in `tokens.kdl` (now `docs/work/rust-desktop/p1/system/`,
 until P2's workspace gives it a home); this document says what they are
@@ -59,8 +60,16 @@ three states; three text levels and disabled; hairlines; fills; status
 the island; the scrim. Increase Contrast replaces the roles it names.
 
 - **Accent.** Eight, the user's choice, blue by default: each has a fill,
-  the colour of text on it, and its form as text on a window. Dark mode's
-  blue is deeper than macOS's so white text on it passes.
+  the colour of text on it, its form as text on a window, and hover and
+  pressed fills that keep its label at 4.5:1. Dark mode's blue is deeper
+  than macOS's so white text on it passes. The accent marks the one thing
+  active, focused or live; Control Centre's modules fill with it when on,
+  which is P6's "active" (B34). Where two things on one screen would both
+  claim it, the lesser takes a neutral `colour-text` ring (Mission
+  Control's current desktop beside its selected window).
+- **Danger.** A fill for badges and marks with its own text colour
+  (`on-danger`), and a darker or lighter form for text, so a badge's count
+  and a destructive button's label both pass.
 - **Data colours.** Four graph series and Settings' pane hues are data:
   never status, never the accent.
 - **Terminal.** A 16-colour palette of its own, so blue stays blue
@@ -79,6 +88,23 @@ without Increase Contrast:
 - Increase Contrast moves the glass to its tinted end and every role must
   pass everywhere; borders that identify controls reach 3:1.
 - Reduce Transparency and Game Mode use the solid form.
+- **The glass floor.** At every position of the Glass setting the
+  compositor samples the blurred backdrop under a text-bearing glass
+  surface and moves its tint toward `glass-tinted` until secondary text
+  holds 4.5:1, so the setting changes how much colour shows through, never
+  whether text can be read. Until P3 can sample cheaply, dark glass sits at
+  0.76.
+- **On fills on glass** only `text` is used on a `fill-strong` plate;
+  tertiary text is never on a fill. The find highlight is never drawn on
+  glass: Spotlight marks a match by weight.
+- **Departure from WCAG 1.4.11.** By default, control edges and unfocused
+  selections sit at the Mac's levels (about 1.7:1 and 1.2 to 1.6:1);
+  Increase Contrast raises them to 3:1. Outlining every control at rest
+  would break P1 and P3, and Increase Contrast is one switch away.
+- **The focus ring** is the full accent, 3 points at 1, for keyboard focus
+  only; on glass it carries a 1-point `colour-text` line inside it, since
+  no accent holds 3:1 on glass over every backdrop. Every accent passes
+  3:1 at full strength on every window surface.
 
 ## Materials
 
@@ -98,7 +124,10 @@ Inter, with its optical sizes, at macOS's text styles and Mac density:
 large title 26, title 22, title 2 17, title 3 15, headline 13 semibold,
 body 13, callout 12, subheadline 11, footnote 10 (the minimum). Tabular
 figures wherever digits change; the clock semibold. JetBrains Mono for
-code and figures in tables. The user's text size multiplies every style.
+code and figures in tables. The user's text size multiplies every style,
+up to 1.5×; past that the compositor's Zoom serves (WCAG 1.4.4 at 200%).
+At a larger text size a control's or badge's height is the larger of its
+token and its label's line; alerts wrap their lines, never cut them.
 
 ## Space, corners and depth
 
@@ -106,10 +135,12 @@ code and figures in tables. The user's text size multiplies every style.
 - Corners: window 10, panel 18, card 10, control 6, row 5, small 4.
   Nested corners are concentric: a child's radius is its parent's less
   the padding, never below small.
-- Five shadows: window, inactive window (the active one is deeper),
-  panel, menu, control.
-- Hairlines are one point; the focus ring is the accent, 3 points at 1,
-  for keyboard focus only.
+- Six shadows: window, inactive window (the active one is deeper),
+  panel, menu, control, and the revealed bar's.
+- Hairlines are one point. The focus ring: see Contrast.
+- A control smaller than `size-control` takes a hit box `size-control`
+  (24) tall, centred, wherever its row has room; nothing is under
+  `size-hit-minimum` (20).
 
 ## Motion
 
@@ -142,6 +173,10 @@ items; checked and radio both a check, mixed a dash), popovers, tooltips,
 sheets, alerts, the toolbar with the traffic lights, sidebars, grouped
 rows, tables, badges, Control Centre tiles, banners and the island.
 Drawn on P1's system board (`p1/system-1.html`, `p1/system/components.css`).
+Every icon-only control and glyph-only state has an accessible name
+(`structure/copy.md`), and the island's events and OSDs are announced.
+Title bars use the title-bar roles rather than an app's body colour, which
+a third-party app does not report (B34).
 
 ## Installed apps
 

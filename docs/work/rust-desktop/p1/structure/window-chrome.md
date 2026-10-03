@@ -25,8 +25,10 @@ and the dropdown terminal are later batches.
 
 **Server-side title bar.** Drawn by the compositor in Freya for a window
 in server-side mode (`compositor.md` Server-side decorations 1–2). It is
-part of the window, not a separate surface: the window's own body
-colour, the same corner radius as every window (brief, Left out), and it
+part of the window, not a separate surface: filled with the title-bar
+role (`colour-titlebar`, as the scroll-edge bar), since a third-party
+app's body colour cannot be read, the same corner radius as every window
+(brief, Left out), and it
 moves, scales and animates with the window (`design-v1-lessons.md` § Title
 bars: the bar reads as part of the window).
 
@@ -97,7 +99,7 @@ In macOS's sections (`design-macos.md` §3.1, the green button's menu):
 2. **Full screen**: full screen; left of screen and right of screen, which
    start Split View (Split View 1; its candidates are the Split View
    sheet's).
-3. **Move to <display>**, only while a second output is connected.
+3. **Move to {display}**, only while a second output is connected.
 
 Arrangements of several windows at once (macOS's Fill & Arrange) are open
 for P4 (`compositor.md` Snapping, Open); the menu gains a section for them
@@ -148,11 +150,15 @@ here), or a chord. In order:
 ```
 Minimise                       Cmd+M
 Zoom
+Fill                             (its zone chord)
+Centre                           (its zone chord)
+Move and resize              ▸ (the zones by name, with their chords;
+                                Return to previous size)
+Full screen tile             ▸ (Left of screen, Right of screen)
 Enter Full Screen              Ctrl+Cmd+F
-Move and resize              ▸ (the zones by name, with their chords)
 —
 Move to desktop              ▸ (each desktop, New desktop)
-Move to <display>                (with a second output)
+Move to {display}                (with a second output)
 Keep on top                    ✓ when on
 —
 Move
@@ -165,8 +171,8 @@ Close                          Cmd+W
 "Move" and "Resize" start a keyboard move or resize (arrows, Shift for
 larger steps, Return to keep, Escape to undo), so placing a window freely
 is not reached only by pointer; macOS has no equivalent, Windows, GNOME
-and KDE do. The window menu's first group and the menu bar's Window menu
-carry the same items in the same order; the menu bar's sheet owns that
+and KDE do. The window menu's first two groups and the menu bar's Window
+menu's groups 1 and 2 carry the same items in the same order; the menu bar's sheet owns that
 order and this sheet follows it.
 
 **What other clients get.**
@@ -224,7 +230,8 @@ largest sheet (Conventions 16). An alert is a sheet with a title, at most
 one line of informative text, and up to three buttons named for their
 action, the default one trailing; a destructive action is never the
 default. No app icon, since the sheet hangs from its own app's window; a
-caution symbol only for what cannot be undone. Files' Open and Save panels
+caution symbol only for what cannot be undone. The one line of text is a
+length for the copy, not a clip: it wraps and is never cut. Files' Open and Save panels
 as sheets are the Files sheet's.
 
 **Not responding.** A window whose app misses a ping (Apps 10) shows the
@@ -360,9 +367,10 @@ the zoom menu, arrows move between slots across thumbnails, Tab moves
 between sections, Return chooses, Escape closes. When either closes,
 focus returns to the window in the same frame (Shell surface hosting 3).
 Keyboard move and resize from the window menu: arrows, Shift+arrows,
-Return, Escape. In a sheet: Return takes the default button, Escape and
-Cmd+. cancel, Cmd+Delete takes a destructive button such as "Don't save"
-(macOS), Tab reaches every control (Conventions 18, 28).
+Return, Escape. On a Split View pane, the window menu's Resize moves the
+divider: arrows, Shift for larger steps, Return keeps, Escape undoes. In
+a sheet: Return takes the default button, Escape and Cmd+. cancel,
+Cmd+Delete takes a destructive button such as "Don't Save" (macOS), Tab reaches every control (Conventions 18, 28).
 
 ## Pointer
 
@@ -452,8 +460,8 @@ Cmd+. cancel, Cmd+Delete takes a destructive button such as "Don't save"
   this sheet's parts only (Shared places, Layers); the rest is
   `competition.md`'s.
 - **Conventions: the menu set and order.** The menu bar's sheet. This
-  sheet only requires that the window menu's first group match the
-  Window menu.
+  sheet only requires that the window menu's first two groups match the
+  Window menu's.
 - **Conventions: the unified toolbar's contents.** Answered above: the
   lights as on the server-side bar, three groups in HIG order, a sidebar
   to the edge, one height, a solid bar when content scrolls under. Its
@@ -467,20 +475,22 @@ Cmd+. cancel, Cmd+Delete takes a destructive button such as "Don't save"
 In sentence case (`design-v1-lessons.md` §8), except macOS's standard
 items, which keep Apple's title case (`copy.md` rule 1).
 
-- Window menu: Minimise, Zoom, Enter Full Screen, Exit Full Screen, Move
-  and resize, Move to desktop, Desktop 1…, New desktop, Move to
-  <display>, Keep on top, Move, Resize, Close.
+- Window menu: Minimise, Zoom, Fill, Centre, Move and resize, Return to
+  previous size, Full screen tile (Left of screen, Right of screen), Enter
+  Full Screen, Exit Full Screen, Move to desktop, Desktop 1…, New desktop,
+  Move to {display}, Keep on top, Move, Resize, Close.
 - Zones: Left half, Right half, Left third, Centre third, Right third,
   Left two-thirds, Right two-thirds, Top left, Top right, Bottom left,
   Bottom right, Centre, Fill, Fill the space beside, Return to previous
   size.
-- Zoom menu sections: Move and resize, Full screen; items Full screen,
-  Left of screen, Right of screen, Move to <display>.
-- Inhibit: the glyph's detail "<App> has the keys", "Take keys back"; the
-  notice "<App> has the keys. Press <chord> to take them back."
-- Not responding: "{App} is not responding", buttons "Force Quit" and
+- Zoom menu sections: Move and resize, Full screen; items Enter Full
+  Screen, Left of screen, Right of screen, Move to {display}.
+- Inhibit: the notice "{app} is receiving all keyboard shortcuts. Press
+  {chord} to take them back." The island's glyph and row are
+  `island.md`'s.
+- Not responding: "{app} is not responding", buttons "Force Quit" and
   "Wait".
-- Sheets: buttons named for their action ("Delete", "Don't save"),
+- Sheets: buttons named for their action ("Delete", "Don't Save"),
   "Cancel"; never "OK" where a verb fits.
 
 ## For the user
@@ -506,7 +516,7 @@ Decided at gate 2 on 2026-10-03: every recommendation below was accepted.
    parent (`compositor.md` Stacking 6). Recommendation: yes for a modal
    dialog smaller than its parent; anything larger stays centred over it.
 5. **Closing an app that is not responding.** A Mac does nothing until
-   Force Quit. Offer an alert ("{App} is not responding": Force Quit,
+   Force Quit. Offer an alert ("{app} is not responding": Force Quit,
    Wait) when close is pressed on a window whose app has missed its ping.
    Recommendation: yes; otherwise close looks broken, and Force Quit is a
    chord away few remember.

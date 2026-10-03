@@ -73,7 +73,7 @@ screen, the last one restored when Remember last selection is on.
 | Section | Items |
 |---|---|
 | Save to | Screenshots and Recordings (the default folders, below), Documents, Clipboard, Other location… |
-| Timer | None, 5 seconds, 10 seconds |
+| Timer | None, 5 s, 10 s |
 | Microphone | None, then each input device by name |
 | Audio | Record system audio |
 | Options | Show floating thumbnail, Remember last selection, Show mouse pointer, Show mouse clicks |
@@ -139,8 +139,9 @@ the same loupe and returns the colour to the app instead.
   and Stop (`island.md`, adopted there). The screen privacy mark shows on
   every screen; the microphone's too when the microphone is recorded.
 - Stop is the Now row's button, Cmd+Ctrl+Escape (macOS's), or the toolbar
-  opened again, whose action button reads Stop recording while one runs;
-  its shot modes still work.
+  opened again: it opens on the running recording's segment with Stop
+  recording; a shot segment makes the action Capture, so a shot can still
+  be taken; the other record segments are disabled.
 - One recording at a time. Stop saves the file and shows the thumbnail
   (`shell.md` Capture 5).
 - A recorded window that closes, or a screen that goes (the KVM switching
@@ -205,7 +206,7 @@ that does not ask for interaction is the portal packet's policy
 | Picker | The sheet over the requesting window; previews live. |
 | Picker, empty | A tab with no sources reads "No windows"; the Screens tab is never empty. |
 | Loading | Picker tiles show the icon or the screen's name until their preview arrives; Share never waits on a preview. The pick and the toolbar wait on nothing. |
-| Error | A preview that cannot be had (a protected surface) shows the icon. A file that cannot be written: the shot goes to the clipboard instead and a banner says so, "Couldn't save the screenshot. {folder} is full. It was copied instead." A recording that cannot start: a banner, "Couldn't start recording. {reason}". The picker is cancelled if the app goes, and a source that goes while the picker is open drops out of the grid. |
+| Error | A preview that cannot be had (a protected surface) shows the icon. A file that cannot be written: the shot goes to the clipboard instead and a banner says so, "Couldn't save the screenshot. “{folder}” is full. It was copied instead." A recording that cannot start: a banner, "Couldn't start recording. {reason}". The picker is cancelled if the app goes, and a source that goes while the picker is open drops out of the grid. |
 | Many sources | The picker's grid scrolls; typing filters the windows by app or title. |
 | Second screen | Both screens freeze and are pickable; a region stays on one. The toolbar opens on the screen with the pointer; the thumbnail on the screen shot. Shift+Cmd+3 writes a file per screen. The picker lists every screen; the island's activity shows on the main screen, the privacy marks on both (`island.md`). |
 | Windowed game in front | As normal, in solid forms and without transitions (`competition.md` For the user 1). |
@@ -227,7 +228,8 @@ that does not ask for interaction is the portal packet's policy
 - **The toolbar** fades in place at its spot; no slide up from the edge.
   It closes on Close, Escape, a shot in window mode, Capture or Record, or
   another overlay surface opening.
-- **The thumbnail** fades in at its corner, in place; a flick sends it
+- **The thumbnail** fades in at its corner, in place, scaling from
+  `motion-panel-scale` about that corner; a flick sends it
   out under the pointer; otherwise it fades out. Exits are faster.
 - **The picker** opens as a sheet does (`window-chrome.md`, grows down
   from its anchor), and closes on Share, Cancel, Escape, or its window
@@ -357,13 +359,14 @@ before Cmd translation, so apps never see them, and they are what B30's
 |---|---|
 | Toolbar (accessible names and tooltips) | "Close", "Capture entire screen", "Capture selected window", "Capture selected portion", "Record entire screen", "Record selected window", "Record selected portion", "Pick colour", "Options" |
 | Toolbar action | "Capture", "Record", "Stop recording"; for a portal request, "Share" |
-| Options menu | "Save to", "Screenshots", "Recordings", "Documents", "Clipboard", "Other location…"; "Timer", "None", "5 seconds", "10 seconds"; "Microphone", "None", device names; "Record system audio"; "Show floating thumbnail", "Remember last selection", "Show mouse pointer", "Show mouse clicks" |
+| Options menu | "Save to", "Screenshots", "Recordings", "Documents", "Clipboard", "Other location…"; "Timer", "None", "5 s", "10 s"; "Microphone", "None", device names; "Record system audio"; "Show floating thumbnail", "Remember last selection", "Show mouse pointer", "Show mouse clicks" |
 | Pick | the size, "1280 × 720" |
 | Thumbnail menu | "Save to", "Copy", "Show in Files", "Markup", "Move to Trash", "Close" |
+| Markup (accessible names and tooltips) | "Pen", "Highlighter", "Line", "Arrow", "Rectangle", "Ellipse", "Text", "Redact", "Crop", "Undo", "Colour"; swatches "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Black", "White" |
 | Island events (added to `island.md`'s) | "Screenshot copied", "Screenshot saved", the countdown's seconds |
 | Picker | "Choose what to share with {app}"; "Screens", "Windows", "Portion of screen"; "Select portion…"; "Share audio"; "Let {app} share this again without asking"; "No windows"; "Cancel", "Share", "Share 2 sources" |
 | Screenshot request | "{app} wants a screenshot" |
-| Errors (banners) | "Couldn't save the screenshot. {folder} is full. It was copied instead.", "Couldn't start recording. {reason}" |
+| Errors (banners) | "Couldn't save the screenshot. “{folder}” is full. It was copied instead.", "Couldn't start recording. {reason}" |
 | Files | "Screenshot {date} at {time}.png", "Screen Recording {date} at {time}.{ext}" |
 
 "Markup" and "Screen Recording" keep macOS's words (`copy.md` 2); the

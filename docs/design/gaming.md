@@ -229,20 +229,21 @@ gave before.
 
 - **Games as apps**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/switcher.md`, `dock.md`,
-  `spotlight.md`, `control-centre.md`); recorded in DESIGN.md at gate 6.
-- **Full-screen Spaces**: how a game's Space is shown among the desktops
-  (proposal: by name in Mission Control's Spaces bar).
-- **Game Mode**: how the top-edge reveal looks (stage 5). Where its state
+  `spotlight.md`, `control-centre.md`); recorded in DESIGN.md.
+- **Full-screen Spaces**: Answered in P1 (`docs/work/rust-desktop/p1/surfaces/mission-control.md`:
+  by the game's name and cover in the Spaces bar); recorded in DESIGN.md.
+- **Game Mode**: how the top-edge reveal looks is answered in P1 (`p1/surfaces/menus.md`,
+  `island.md`: solid, after a dwell, without motion). Where its state
   is shown, the reveal's structure, the shell beside a windowed game, the
   held-notification summary's form and copy and where held banners would
   have shown are answered in P1
   (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`,
   `competition.md`, `notifications.md`, `focus.md`) and recorded in
   DESIGN.md at gate 6.
-- **Controllers**: the names given to virtual pads (proposal: "Steam
-  Input", "Virtual pad from" the program). Where pad batteries show is
+- **Controllers**: virtual pads are named "Steam Input" and "Virtual pad from {program}"
+  (P1, `structure/copy.md`). Where pad batteries show is
   answered in P1 (`docs/work/rust-desktop/p1/structure/control-centre.md`)
-  and recorded in DESIGN.md at gate 6.
+  and recorded in DESIGN.md.
 
 ## Acceptance bars
 

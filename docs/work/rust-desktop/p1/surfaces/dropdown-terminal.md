@@ -2,7 +2,7 @@
 
 P1 stage 5, wave C. How the dropdown terminal looks and moves, in Frost,
 from `structure/dropdown-terminal.md` (binding). Values are `tokens.kdl`
-names; it adds no tokens.
+names; numbers not yet tokens are listed at the end.
 
 ## Anatomy
 
@@ -38,8 +38,9 @@ windows layer while shown, under the top layer.
   edge moves the foot, the top fixed. Live, as a window resize: the old
   content held and scaled to the frame until the terminal commits. No size
   readout; the terminal's own rows and columns are its business.
-- **Bounds**: at least the terminal's minimum (its own) and 320 wide
-  (`size-alert`) by 160 tall; at most the work area less `space-s` at the
+- **Bounds**: at least the terminal's minimum (its own) and
+  `size-dropdown-min-width` (320) by `size-dropdown-min-height` (160); at
+  most the work area less `space-s` at the
   sides and foot.
 
 ## States
@@ -56,7 +57,8 @@ windows layer while shown, under the top layer.
 | Second screen | Its place and size from that screen's work area; moving screens is a close on one and an open on the other. |
 | Full-screen app in front | The same place and frame; the strip is not drawn, the clip line stays at 48. |
 | Game in front | Hidden; the chord goes to the game. |
-| Mission Control or another overlay opens | It closes. |
+| Mission Control opens | It closes. |
+| Spotlight, the switcher or another overlay opens | Unchanged under it. |
 | Locked | Under the lock. |
 | Focus on | No change. |
 | Reduce Motion, Transparency, Contrast, largest text | Motion and Accessibility. |
@@ -70,6 +72,7 @@ windows layer while shown, under the top layer.
 | Resize | Live with the pointer, no spring. Released at a bound, it stays at the bound. |
 | Moving screens | Close on the old screen and open on the new from the same frame; nothing travels between screens. |
 | Mission Control opening | Its close, from the same frame as Mission Control's open. |
+| Chord with an overlay open | The overlay's exit and the dropdown's open from the same frame. |
 | Reduce Motion | Open and close fade in place at full size over `motion-reduced-fade-ms`; focus moves at the start of each. |
 | Game Mode, or over a full-screen window while Game Mode applies | Cuts: drawn whole on the first frame, gone on the next; no shadow. |
 
@@ -106,3 +109,10 @@ noted.
 8. **Motion**: open and close as five-frame strips (0, 25, 50, 75, 100%)
    showing the clip line and the corners rounding at the end, on the
    harness's spring; with Reduce Motion and Game Mode.
+
+## New tokens
+
+| Group | Name | Value |
+|---|---|---|
+| `size` | `dropdown-min-width` | 320 |
+| `size` | `dropdown-min-height` | 160 |

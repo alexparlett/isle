@@ -11,7 +11,8 @@ and focus are `surfaces/conventions.md`'s and are not restated. Values are
 ### The window
 
 - **Default size** `size-settings-width` by `size-settings-height` (900 by
-  760), minimum 720 by 520, which holds the widest sheet (Hot Corners). On
+  760), minimum 784 by 564, which holds the widest sheet (Keyboard
+  Shortcuts, 720 by 480) with `space-xxxl` each side and below. On
   the 3440×1440 screen the compositor centres it in the work area the first
   time: x 1270, y 364. It resizes from every edge; width beyond the default
   only adds margin round the column.
@@ -32,7 +33,7 @@ and focus are `surfaces/conventions.md`'s and are not restated. Values are
 | Account row | `space-m` under the field; inset `space-s`, `radius-row`, padding `space-s`: the picture as a 32 circle (`size-app-icon`; with none, initials in `type-style-headline` on `colour-fill-strong`), `space-s`, the full name in `type-style-headline` over the login name in `type-style-subheadline` `colour-text-2`; 48 tall; selected as a sidebar row when Users & Groups shows the user's own account |
 | Pane list | `space-m` under the account row; rows of `conventions.md` (28, inset `space-s`), each a pane tile then the name; `space-m` between the six groups; no headings |
 | Pane tile | `size-pane-tile` (20) square, its radius a quarter of its side (`radius-row` at 20), filled with the pane's `pane` hue; the glyph in a `size-glyph` (16) box, Phosphor Fill, white. It keeps its hue on the accent selection |
-| Changed mark | With Show changed settings on, a `size-mark` (6) dot in `colour-accent-text` (`colour-on-accent` on the selection) at the row's trailing end, `space-s` in |
+| Changed mark | With Show changed settings on, a `size-mark` (6) dot in `colour-text-2` (`colour-on-accent` on the selection) at the row's trailing end, `space-s` in |
 | Scrolling | The account row and panes scroll under the fixed band; the selected pane is scrolled into view, a third of the way down when it was out of it |
 
 **The panes, their glyphs and hues** (Phosphor names; `isle-` glyphs are
@@ -44,7 +45,7 @@ Isle-drawn on Phosphor's grid, `icons.md`):
 | 1 | Bluetooth | `bluetooth` | `pane-blue` |
 | 1 | Network | `globe` | `pane-blue` |
 | 1 | VPN | `isle-vpn` | `pane-blue` |
-| 1 | Phone | `device-mobile` | `pane-green` |
+| 1 | Phone | `device-mobile` | `pane-teal` |
 | 1 | Energy · Battery | `lightning` · `battery-high` | `pane-orange` · `pane-green` |
 | 2 | General | `gear` | `pane-grey` |
 | 2 | Accessibility | `person-arms-spread` | `pane-blue` |
@@ -96,10 +97,10 @@ before its name is read.
 | Control | One control (below) |
 | Navigation | The current value, if any, in `type-style-body` `colour-text-2`, `space-s`, then `caret-right` at `size-glyph-small` (12) in `colour-text-2`. The whole row is the target: pressed `colour-fill` |
 | Details | A regular button, "Details…" or "Options…" (`size-control`) |
-| List | A table inside the group, edge to edge: rows of `size-row` (28) with an icon at 20, label, a trailing value in `colour-text-2`; selection as `conventions.md`. A foot `size-control` (24) tall on `colour-window-sunken`, a `colour-hairline` above it: + and − as plain icon buttons at `size-control-small` with `plus` and `minus` at 12, a `colour-hairline` 12 tall between them; − disabled with nothing selected. Empty: its line ("No login items") centred in a body 80 tall |
+| List | A table inside the group, edge to edge: rows of `size-row` (28) with an icon at 20, label, a trailing value in `colour-text-2`; selection as `conventions.md`. A foot `size-control` (24) tall on `colour-window-sunken`, a `colour-hairline` above it: + and − as plain icon buttons at `size-control-small` with `plus` and `minus` at 12, a `colour-hairline` 12 tall between them; − disabled with nothing selected. Empty: its line ("No login items") in `type-style-body` `colour-text-2`, centred in a body 80 tall, as Missing daemon in a form. Where order matters, rows reorder by drag in `conventions.md`'s Drag and drop form |
 | Provider | `widgets.md`'s provider row in its window form: the provider's icon at 32, `space-m`, name in `type-style-headline` over the state sentence in `type-style-subheadline` `colour-text-2`, one line cut at the end; the on switch trailing; while on, up to two actions as regular buttons under the sentence, the rest under "Options" |
 | Action | A regular button named for its act; a destructive one in `colour-danger-text`, asking first in an alert |
-| Live | Sampled while shown. A meter: 6 tall, `radius-small` 3, `size-row-slider` (200) wide, track `colour-fill-strong`, fill `colour-accent` (live), no segments. Figures (SMART, levels) in `type-style-mono` tabular, `colour-text`. A pad: its outline at 160 by 100 in `colour-hairline-strong` strokes, a pressed control filled `colour-accent`, sticks as dots that move |
+| Live | Sampled while shown. A meter: 6 tall, radius 3 (half its height), `size-row-slider` (200) wide, track `colour-fill-strong`, fill `colour-accent` (live), no segments. Figures (SMART, levels) in `type-style-mono` tabular, `colour-text`. A pad: its outline at 160 by 100 in `colour-hairline-strong` strokes, a pressed control filled `colour-accent`, sticks as dots that move |
 
 **Controls by kind** (components from gate 4; sizes in the row):
 
@@ -121,7 +122,7 @@ before its name is read.
 - **Results** replace the pane list under the account row: rows of
   `size-row-large` (40), inset as sidebar rows, the pane's tile at 20, then
   the row's label in `type-style-body` over its path ("Displays › Night
-  light") in `type-style-subheadline` `colour-text-2`; matched characters on
+  Light") in `type-style-subheadline` `colour-text-2`; matched characters on
   a `colour-match` run. Grouped by pane, `space-m` between groups.
 - **The selected result** takes the sidebar's selection (accent while the
   field or list has the keyboard, which it does while searching); its pane
@@ -137,7 +138,7 @@ before its name is read.
 
 ### Show changed settings
 
-A `size-mark` (6) dot in `colour-accent-text` in the column's gutter,
+A `size-mark` (6) dot in `colour-text-2` in the column's gutter,
 centred `space-m` outside the group's leading edge on the row's label line,
 so rows keep their layout; the same dot on the pane's sidebar row.
 "Reset to default" is a context menu item (`menus.md`).
@@ -161,10 +162,10 @@ and Accessibility only.
 | Map | The visual lead: a card `size-arrangement` (220) tall, the column's width, `colour-window-sunken`, `radius-card`, `colour-hairline` ring. Displays scaled together to fit inside `space-xl` padding, centred; on this machine 0.103, so the ultrawide is 354×148 beside a 1080p screen of 198×111 |
 | Display | Its logical rectangle at that scale, `radius-small`, `colour-window-raised`, a 1-point `colour-hairline-strong` ring; its name in `type-style-headline` `colour-text` over its resolution in `type-style-subheadline` `colour-text-2`, centred, the name cut at its end |
 | Selected | A `stroke-found` ring in `colour-accent` at offset `space-xxs` outside |
-| Island mark | On the main display: a 28×8 capsule in `colour-text`, its top `space-xs` under the display's top edge, centred; a 28×20 hit area. While dragged it carries `shadow-control` |
+| Island mark | On the main display: a 28×8 capsule in `colour-text`, its top `space-xs` under the display's top edge, centred; a 28×20 hit area. While dragged it carries `shadow-control`. With Follow focus: on the display holding the focused window, `colour-text-2`, not draggable |
 | Dragging a display | It follows the pointer 1:1 above the others with `shadow-control`; the edge it will snap to is drawn as a `colour-accent` line, `stroke-found` thick, along that side |
 | Disabled displays | Rows in the group under the map: the name, "Off" in `colour-text-2`, its switch |
-| Names on the real screens | While arranging, at each screen's centre in the top layer: a panel on `material-glass` (blur, saturation), `radius-panel`, `shadow-panel`, padding `space-l` by `space-xxl`: the name in `type-style-large-title` `colour-text`, its resolution in `type-style-body` `colour-text-2` under it, centred |
+| Names on the real screens | While the pointer is over the map or a display is being dragged, at each screen's centre in the top layer: a panel on `material-glass` (blur, saturation), `radius-panel`, `shadow-panel`, padding `space-l` by `space-xxl`: the name in `type-style-large-title` `colour-text`, its resolution in `type-style-body` `colour-text-2` under it, centred |
 
 ### Sheets
 
@@ -180,18 +181,21 @@ and Accessibility only.
 - **The recorder**: a field at `size-control`, at least 120 wide, `colour-fill`,
   `radius-control`, the chord right-aligned in `type-style-body` (macOS
   symbols in Apple's order, or words on a PC profile, `menus.md`); none set,
-  "None" in `colour-text-3`. Recording: the field's editing edge and the
-  focus ring; "Type shortcut" in `colour-text-3` until a key is held, then the
+  "None" in `colour-text-2`. Recording: the field's editing edge and the
+  focus ring; "Type shortcut" in `colour-text-2` until a key is held, then the
   held modifiers in `colour-text` as they are pressed. Refused: a 1-point
   `colour-danger` edge and the refused-value line under the row, "Used by
   {action}".
+- **Detect** (Keyboard): the row's button reads "Press any key…" in its
+  pressed form with the focus ring; the detected device's name replaces the
+  value on the first key; Escape cancels.
 - **Hot Corners…**: the main display's wallpaper drawn at `size-hot-corners-screen`
   (240) wide in its shape (100 tall on the ultrawide), `radius-small`,
   `colour-hairline-strong` ring; a pop-up button at each corner outside it,
   180 wide, `space-m` from the picture, level with its top and bottom edges;
   sheet padding as sheets; "Done" the default at the foot. A corner set with
-  a modifier shows its symbols before the action ("⌘ Mission Control"); none
-  shows "—".
+  a modifier shows the modifier in `copy.md` rule 11's form before the action
+  ("⌘ Mission Control" on a Mac keyboard); none shows "—".
 
 ## States
 
@@ -206,12 +210,12 @@ and Accessibility only.
 | Refused value | The row keeps its value; the refused line under it |
 | Rejected hand edit | The notice on every pane; bound rows in their disabled form; daemon rows as normal |
 | Changed settings shown | Dots in the gutter and the sidebar |
-| Recording a chord | The recorder's recording form |
+| Recording a chord, detecting a keyboard | The recorder's recording form; Detect's waiting button |
 | Privileged change | The row at its old value under the polkit prompt; "Permission was not given." as the refused line if refused |
 | Display change pending | The keep-or-revert sheet |
 | Arranging | The names on the real screens; a dragged display or mark lifted |
 | Many panes, long pane | The sidebar scrolls under its band; the pane under the toolbar's scroll-edge bar |
-| Inactive | `conventions.md`'s inactive form; the sidebar selection `colour-fill-strong` |
+| Inactive | `conventions.md`'s inactive form; the sidebar selection `colour-selection-unfocused` |
 | Second screen | The map draws both; the window is ordinary on either |
 | Game Mode on | Unchanged look; no transitions; the names' panel `material-solid` |
 | Locked, Focus on | Nothing / no change |
@@ -238,18 +242,29 @@ and Accessibility only.
 - **Surfaces.** Sidebar text on `colour-sidebar`; pane text on `colour-window`
   and `colour-window-raised`; the map's labels on `colour-window-raised`. The
   names on the real screens are glass: `colour-text` and `colour-text-2`
-  only. `colour-text-3` only for placeholders and "None" in the recorder.
+  only. `colour-text-3` only for placeholders in fields on
+  `colour-window-raised`; never on a fill.
 - **Pane tiles** are not the only sign: the name is beside every tile, so the
   white glyph on the lighter hues (`pane-orange`, `pane-green`, `pane-teal`,
   under 3:1) is decoration; the tile has no accessible name of its own.
 - **Marks.** The changed dot and the found ring pass 3:1 as
-  `colour-accent-text` and `colour-accent` on window roles; the notice's
+  `colour-text-2` and `colour-accent` on window roles; the notice's
   `colour-warn` ring and glyph pass 3:1 on `colour-window-raised`.
 - **Increase Contrast.** `conventions.md`'s borders; groups, the map and
   each display ringed in `colour-hairline-strong`; the changed dot gains a
   1-point `colour-text` ring; the names' panel `material-glass-tinted`.
 - **Reduce Transparency.** The names' panel `material-solid`; the rest is
   opaque already.
+- **Names and descriptions.** A changed row's accessible description is
+  "Changed from default"; a pane's sidebar row "{pane}, has changed
+  settings". The accent swatches are named by colour ("Blue" … "Graphite",
+  "Other colour…"), the chosen one with "selected" as its state; a list's +
+  and − "Add {item}" and "Remove {item}"; a stepper's halves "Increase
+  {setting}" and "Decrease {setting}"; the Displays map's mark "Island: main
+  display".
+- **Announcements.** The keep-or-revert sheet is announced on opening
+  ("Keep these display settings? Reverting in 15 seconds.") and again at 5
+  seconds.
 - **Focus.** The sidebar and results show focus as the accent selection; a
   pane's controls take the ring outside; navigation rows and the map's
   selected display take it inside (the display's ring becomes the focus ring

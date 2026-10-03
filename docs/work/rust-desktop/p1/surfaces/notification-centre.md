@@ -37,7 +37,7 @@ so nothing below it moves when the month changes.
 | Weekdays | `space-xs` under: the locale's short names from its first weekday, `type-style-subheadline` `colour-text-2`, centred in their columns |
 | Days | `space-xs` under: seven columns of 48 by six rows of `size-month-row` (32). A day's number in `type-style-body`, tabular, `colour-text`, centred in a mark circle `size-control` (24) at the cell's top centre. Days of other months are not drawn; weekends look as weekdays |
 | Today | The mark circle in `colour-accent`, the number `colour-on-accent` semibold: the one marked day (brief P6) |
-| Selected day | Another day once chosen: the circle `colour-fill-strong`, the number semibold. Today keeps its accent while another is selected |
+| Selected day | Another day once chosen: a 1.5-point ring of `colour-text` round the mark circle, no fill, the number semibold, in every mode, so it differs from today's filled circle by more than colour. Today keeps its accent while another is selected |
 | Event mark | A 4-point dot in `colour-text-2` centred under the circle, its centre 29 down the cell: neutral, whatever the calendars' colours. Today's dot is the same |
 | Hover, pressed | The circle `colour-control-hover`, `colour-control-pressed` |
 | Week numbers | When set: a leading column of 28, the number in subheadline tabular `colour-text-2`; the seven columns share the rest (44 each) |
@@ -60,14 +60,18 @@ alone. Rows run edge to edge in the card, no rules between.
 | Nothing | One `size-row-large` row, "No more events today" or "No events", `type-style-body` `colour-text-2`, inset `space-m` |
 | Hover, pressed | The row `colour-fill-strong`, `colour-control-pressed`, clipped by the card |
 
+The agenda's height changes only on the user's act (a day chosen, an event
+expanded or collapsed); an event ending while the centre is open stays
+where it is and moves under Earlier today at the next opening.
+
 ### Notifications
 
 | Part | Look |
 |---|---|
 | Header | A heading row `size-row` (28) tall: "Notifications" in the heading style, leading; Clear all trailing, at the cards' trailing edge |
 | Clear all, at rest | A `size-control-small` (20) circle of `colour-control` holding `x` at `size-glyph-small` in `colour-text`. Hit box 24 |
-| Clear all, armed | On hover after `timing-hover-dwell-ms`, on keyboard focus, or after a click on the circle: a capsule 20 tall, trailing edge fixed, growing toward the leading side to hold "Clear all" in `type-style-callout` semibold `colour-text`, padded `space-s`, the `x` gone. A click or Return on it clears. It returns to the circle when the pointer leaves or focus moves |
-| A card | `notifications.md`'s card in its centre form; the time is the sheet's centre format ("14:05", "Yesterday 18:04"). Hover shows its close control, actions and full body as on a banner. Cards `space-s` apart |
+| Clear all, armed | On a click on the circle or on keyboard focus, never on hover: a capsule 20 tall, trailing edge fixed, growing toward the leading side to hold "Clear all" in `type-style-callout` semibold `colour-text`, padded `space-s`, the `x` gone. A second click or Return on it clears, so one stray click never empties the centre. It returns to the circle when the pointer leaves or focus moves |
+| A card | `notifications.md`'s card in its centre form; the time is the sheet's centre format ("14:05", "Yesterday 18:04"). Hover or keyboard focus shows its close control and actions; hover also shows the full body, as on a banner. Cards `space-s` apart |
 | Collapsed stack | The newest card, and behind it up to `limit-stack-layers` (2) layers: each inset `space-s` more on each side than the shape in front (344, then 328 wide) and showing `size-stack-layer` (6) below it, `colour-fill`, `radius-card`. A layer is drawn only where the shape in front does not cover it, less a 1-point seam of the panel's glass along that shape's edge, so fills never stack and the edges read as cards behind. "{n} more" takes the header's count place as the quiet badge (`notifications.md`'s "{n} new" slot). The whole stack is one target: a click expands it |
 | Expanded stack | A header row `size-row`: the app's icon at `size-app-icon-small` (16), `space-s`, its name in `type-style-headline` `colour-text`; trailing "Show less" as a plain small button in `type-style-callout` `colour-text-2`, `space-xs`, then the stack's close as the Clear all circle at rest, one click, accessible name "Clear {app} notifications". Then its cards, `space-s` apart |
 | Show more | Past `limit-stack-cards` (5) in an expanded stack: a `size-row` plain button "Show {n} more", `type-style-callout` `colour-text-2`, centred under the last card |
@@ -84,6 +88,7 @@ glyph circle (`notifications.md`): a calendar notification shows
 |---|---|
 | Closed | Nothing; the clock carries no mark |
 | Open | The column; keyboard focus on the newest card (else today), the ring only after a key |
+| Opened from the summary or a banner | That notification focused, its stack expanded |
 | Day chosen | That day's selected circle; the agenda shows its heading and card alone; back to today on closing |
 | Another month | The days crossfade; today's circle absent if not in it; the month's name as the way back |
 | Event expanded | Its row grown; the others unchanged |
@@ -97,6 +102,7 @@ glyph circle (`notifications.md`): a calendar notification shows
 | Loading | Records absent until read, then Earlier fills below; a calendar not fetched shows its cached days, else no agenda |
 | Error | Unreadable records: no Earlier. A dead sender's card becomes a record (actions go, the card's height on `motion-exit`). An image that fails: no thumbnail |
 | Second screen | The same panel at the same size under that screen's pill |
+| Locked | Nothing; the lock has its own list |
 | Windowed game, Game Mode | `material-solid` panel, cards `colour-fill` on it; no transitions |
 | Focus on | Nothing here changes; the pill's row shows the glyph |
 | Reduce Motion, Transparency, Contrast, largest text | Motion and Accessibility |
@@ -147,12 +153,13 @@ the card fades.
   pair), and any two are told apart under each colour-vision deficiency
   (`system/data-colours.md`). Event marks and dots are never the only sign: the agenda names
   each event and its calendar.
+- **Names.** An event row's accessible name ends with its calendar
+  ("Stand-up, 09:30 to 10:00, Work"), collapsed or expanded; the calendar
+  mark's tooltip names the calendar.
 - **Increase Contrast.** `island.md`'s panel edge; a `stroke-hairline`
   edge in `colour-hairline-strong` round the calendar card, agenda cards,
   every notification card and each stack layer; Clear all, Join and the
-  month's buttons take the same edge. The selected day becomes a 1.5-point
-  ring of `colour-text` with no fill, so it differs from today's filled
-  circle by more than colour. Glyphs Bold.
+  month's buttons take the same edge. Glyphs Bold.
 - **Reduce Transparency.** The panel `material-solid`; cards keep
   `colour-fill` on it.
 - **Focus ring.** `stroke-focus-ring` in the accent at
@@ -160,8 +167,8 @@ the card fades.
   (front card and layers as one shape) at `radius-card` plus the offset,
   which the panel's 8 padding holds; round a day inside its 48 by 32 cell
   at `radius-row`, so it never covers the next row's mark; round an event
-  row inset by the ring's width; round buttons and Clear all at their own
-  radius.
+  row, and an expanded stack's header row, inset by the ring's width at
+  `radius-row`; round buttons and Clear all at their own radius.
 - **Largest text size** (1.5×, as `island.md`). The panel is 544 wide and
   cards 528 (`notifications.md`). Day cells grow with the text (72 by 48,
   mark 36); the calendar card grows to match and stays fixed in height
@@ -187,7 +194,7 @@ long scenes `[920, 0, 2520, 1440]`. The second screen `[160, 0, 1760, 1080]`.
    calendars' colours, "No more events today", "No events".
 4. **Stacks**: collapsed with one and two layers; expanded with its header;
    "Show 3 more"; a stack's close focused.
-5. **Clear all**: at rest, armed by hover, armed by focus.
+5. **Clear all**: at rest, armed by a click, armed by focus.
 6. **Hover and reply** in the centre: actions, full body, the close control;
    a reply open with the ring on Send.
 7. **Empty**: no notifications with calendars; no notifications and no
@@ -196,8 +203,8 @@ long scenes `[920, 0, 2520, 1440]`. The second screen `[160, 0, 1760, 1080]`.
 9. **Arrival while open**, pointer outside the list: the frames of a new
    stack opening at the top.
 10. **Second screen**, and **windowed game** (solid).
-11. **Settings**: scene 1 under Increase Contrast (the selected day's ring),
-    Reduce Transparency and the largest text size.
+11. **Settings**: scene 1 under Increase Contrast, Reduce Transparency and
+    the largest text size.
 12. **Motion**, on the harness spring: a stack expanding and collapsing; a
     card swiped and cleared; Clear all; a day chosen; an event expanding;
     the month paged; each with Reduce Motion and Game Mode.

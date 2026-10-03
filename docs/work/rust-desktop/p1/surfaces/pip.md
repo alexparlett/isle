@@ -12,7 +12,8 @@ layer above windows kept on top. Isle draws nothing on it or over it.
 - **Shape**: the video's rectangle, `radius-window` on all four corners,
   clipped by the compositor; `shadow-window` at all times, focused or not,
   since it floats over every window. No title bar, no lights, no icon, no
-  edge but the shadow's own half-point ring.
+  edge but the shadow's own half-point ring. Keyboard focus shows as the
+  focus ring (Accessibility).
 - **Controls**: the player's (play, pause, close, back to tab), drawn by
   the player on its hover. Isle adds none, not even a drag handle or a
   close: the whole video is the drag area (Pointer in the sheet), and the
@@ -33,9 +34,9 @@ layer above windows kept on top. Isle draws nothing on it or over it.
 - **Corner target while dragging**: the zone preview's form
   (`window-chrome.md`): the rectangle the window would take in the nearest
   corner (or the one it is being thrown toward), `radius-window`,
-  `material-glass-clear` with the material's blur, an inner
-  `stroke-hairline` of `colour-hairline-strong`, no shadow, under the
-  dragged window. Never the accent.
+  `colour-fill-strong`, no blur, an inner `stroke-hairline` of
+  `colour-hairline-strong`, no shadow, under the dragged window. Never the
+  accent.
 - **Pointer**: the player's over the video; Bibata `grabbing` during a move
   Isle drives; the resize cursors on the `size-resize-band` (8) band that
   straddles its edges, which Isle gives it though it draws no bar.
@@ -51,7 +52,8 @@ layer above windows kept on top. Isle draws nothing on it or over it.
 | Dragging | The window under the pointer, `grabbing`; the corner target under it, moving between corners as the nearest one changes. |
 | Dragging with the move modifier | No corner target: it will stay where dropped. |
 | Resizing | Aspect kept; the corner it sits in fixed; it grows toward the screen's centre, between floor and ceiling. Nothing else drawn. |
-| Focused | No change of look: it has no bar to show focus on. |
+| Resizing from the keyboard | The window menu's Resize: a ring of `stroke-focus-ring` in `colour-accent` at `stroke-focus-offset` outside the frame until Return or Escape. |
+| Focused | By keyboard, the focus ring round the window at `radius-window` plus `stroke-focus-offset` while it holds focus; by a click, no change. The shadow stays `shadow-window` either way. |
 | Aspect changes | The window takes the new shape, its corner fixed (Motion). |
 | Second screen | The same sizes and inset on that screen's work area. |
 | Full-screen app in front | Over it, in its corner, the same inset (the strip is not drawn, but the corner stays where the strip would end). |
@@ -79,7 +81,7 @@ layer above windows kept on top. Isle draws nothing on it or over it.
 | Full-screen game comes to the front | Gone in that frame; back over `motion-fade-ms` in place when the game leaves the front. |
 | Its screen goes | It appears in the same corner of the focused screen over `motion-fade-ms`; nothing travels between screens. |
 | Reduce Motion | Open and close fade in place over `motion-reduced-fade-ms`. Snap and chord moves: out at the drop point and in at the corner, a crossfade of that length. The corner target jumps between corners. Resize unchanged (it follows the pointer). |
-| Game Mode | Open, close, snap and moves are cuts; no shadow; no corner target is drawn, and the window jumps to its corner on release. |
+| Game Mode | Open, close, snap and moves are cuts; no shadow; the corner target in `material-solid`, jumping between corners, and the window jumps to its corner on release. |
 
 ## Accessibility
 
@@ -87,11 +89,13 @@ layer above windows kept on top. Isle draws nothing on it or over it.
 - **Increase Contrast**: the `stroke-hairline` of `colour-hairline-strong`
   every window gets (`window-chrome.md`); the corner target's edge stays
   `colour-hairline-strong`.
-- **Reduce Transparency**: the video is opaque; the corner target uses
-  `material-solid`.
-- **Focus.** Reached by moving focus by direction or by clicking it; no
-  ring (it is a window, and windows show focus by their shadow and bar,
-  which it lacks). The window menu (Ctrl+Option+Space) opens at its top
+- **Reduce Transparency**: the video is opaque; the corner target is
+  already no glass and needs no form of its own.
+- **Focus.** Reached by moving focus by direction or by clicking it. A
+  keyboard arrival draws the focus ring (`stroke-focus-ring` in the accent
+  at `stroke-focus-offset`, `radius-window` plus the offset) while it holds
+  focus; a click does not, since it has no bar and already wears the
+  active shadow. The window menu (Ctrl+Option+Space) opens at its top
   leading corner and draws its own selection.
 - **Largest text**: no change; the window menu's rows grow as menus do.
 - **Hit targets**: the floor of 240 × 135 keeps the players' own controls
@@ -115,7 +119,8 @@ light. Crops 1600 × 670 of the screen's bottom trailing corner unless noted.
    top trailing; the on-screen keyboard open beneath it.
 8. **Over a full-screen video app** and **Mission Control open** (under
    the dim).
-9. **Increase Contrast** and **Reduce Transparency** (the target solid).
+9. **Increase Contrast** and **Reduce Transparency**; **keyboard focus**
+   (the ring) and **keyboard resize**.
 10. **Motion**: open, snap, aspect change, each with Reduce Motion and
     Game Mode.
 

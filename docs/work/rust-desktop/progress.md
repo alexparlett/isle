@@ -2,6 +2,13 @@
 
 ## 2026-10-03
 
+- P1 done. Stage 6 reviewed every surface for critique, accessibility and
+  copy (298 findings, all applied); the contrast script grew to cover
+  focus rings, badges, hover states, labels on fills and kind colours, and
+  passes. The user signed off DESIGN.md at gate 6 ("lock it in for now").
+  B31–B34 record Frost as data, how attention is presented, where glass
+  may go, and the readings of the principles.
+
 - P1 gate 5, wave C passed: Notification Centre and widgets, Mission
   Control and the window surfaces, Files, Monitor, Keychain and Cleaner,
   drawn on the wave C board. A colour-vision check failed stage 4's graph

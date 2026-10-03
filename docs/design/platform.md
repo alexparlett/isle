@@ -690,8 +690,8 @@ a reboot. How a character reaches a client that has no text-input-v3.
 
 ### Calendars
 
-Subscribed calendars show their events in the Calendar widget and as
-notifications.
+Subscribed calendars show their events in Notification Centre's agenda, in
+the Calendar widget and as notifications.
 
 1. Calendars are subscriptions by link (webcal or https) or by file, any
    number, each named and coloured, and read-only.
@@ -701,7 +701,7 @@ notifications.
 3. Events, repeats included, are expanded from 60 days back to 400 ahead, in
    local time, by a maintained recurrence library.
 4. An event's start raises a notification; upcoming events are served to
-   the shell's Calendar widget (`shell.md`).
+   Notification Centre's agenda and the shell's Calendar widget (`shell.md`).
 
 **v1 lessons kept.** D41: a shared ICS link is the one way into Proton
 Calendar; recurrence is where hand-written parsers fail.
@@ -728,6 +728,9 @@ and Isle shows its state and actions without knowing the tool.
    network hosts, paths and bus names. Declared permissions are granted
    when a provider is added and each can be revoked; a revoked permission is
    denied inside the sandbox and the provider still runs (B28; v1 D28, D29, D31).
+   The grants are in one place, Settings › Privacy & Security › Providers,
+   as switches labelled in words ("Connect to api.open-meteo.com"); everywhere
+   else they are read only, with a way there.
 6. Secrets are fetched one field at a time when wanted, never cached and
    never logged.
 7. An action marked `terminal` opens in the user's terminal. A sign-in feeds
@@ -829,8 +832,9 @@ gave before.
   in DESIGN.md at gate 6.
 - **Calendars**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
-- **Providers**: how grants are shown (proposal: toggles); how a state
-  sentence and actions are laid out.
+- **Providers**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/widgets.md`); recorded in DESIGN.md
+  at gate 6.
 - **Supervisor and crash records**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/prompts.md`); recorded in DESIGN.md
   at gate 6.

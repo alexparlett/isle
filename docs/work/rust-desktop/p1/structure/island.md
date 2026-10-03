@@ -140,10 +140,10 @@ stay clickable. Then, in order:
 
 | What | Where |
 |---|---|
-| Notifications, including the desktop's own (drive inserted, calendar start, update finished, AppImage installed) | banners and Notification Centre (later batch); the island never shows a notification |
+| Notifications, including the desktop's own (drive inserted, calendar start, update finished, AppImage installed) | banners and Notification Centre (`notifications.md`, `notification-centre.md`); the island never shows a notification |
 | File jobs, downloads, an app's long work | the switcher's cards (revision 1, LauncherEntry); its finish is a notification |
 | Updates waiting | the system menu's count and Control Centre's Updates module |
-| Calendar events | Calendar widget; a start is a notification (`platform.md` Calendars) |
+| Calendar events | Notification Centre's agenda and the dashboard's Calendar widget; a start is a notification (`platform.md` Calendars) |
 | Desktops | Mission Control's Spaces bar; no desktop dots (brief, interview) |
 | A screenshot taken, a recording saved | the capture thumbnail (capture sheet) |
 | An ordinary Cmd+C in an app | nothing; the app is the feedback |
@@ -206,7 +206,9 @@ window covers it. The on-demand menu bar comes down into it
   Return or Ctrl+F8 and closes on Escape, a click outside, Ctrl+F8 again or
   opening another top-layer surface.
 - **Notification Centre** opens from the clock and closes the panel; the
-  panel and Notification Centre are never open together on one screen.
+  panel and Notification Centre are never open together on one screen, and
+  between them is one morph, never a close and an open
+  (`notification-centre.md`).
 - **Over a full-screen window** the island leaves with the strip and comes
   back with a top-edge push, at the same anchor; the privacy form does not
   move.
@@ -259,10 +261,13 @@ up under shortcuts-inhibit.
     pointer to move first, so the return and the peek never fire from one
     dwell;
   - while a menu bar menu is open or a window is being dragged, the island
-    takes no hover.
+    takes no hover;
+  - while Notification Centre is open on its screen, the pill takes no
+    hover, so a peek never replaces the centre (`notification-centre.md`).
 - **Click** on the clock opens or closes Notification Centre on this screen.
-  A click elsewhere on the pill, or inside a peeked panel, pins Control
-  Centre with keyboard focus; on a glyph it pins it at that glyph's detail
+  While the centre is open, a click elsewhere on the pill turns it into
+  Control Centre, pinned. A click elsewhere on the pill, or inside a peeked
+  panel, pins Control Centre with keyboard focus; on a glyph it pins it at that glyph's detail
   or notice. A click on a control acts at once (Stop, a toggle, play). A
   click on an activity's app or prompt goes where it belongs: Show brings
   the prompt forward, the player's name raises the player, a share's app
@@ -298,10 +303,16 @@ up under shortcuts-inhibit.
   Spotlight and window content.** Control Centre, Notification Centre and
   the menu bar's menus are top-layer surfaces: one open per screen,
   opening one closes the other. Spotlight, Mission Control, the capture
-  toolbar and the session dialog close the panel (shell runtime 10); the
+  toolbar, the session dialog and the widgets dashboard close the panel
+  (shell runtime 10), and neither panel opens over the dashboard; the
   freeze pick (Shift+Cmd+4) closes nothing, so a shot can include the
   panel (`capture.md`). System
   prompts close nothing and take focus over it.
+- **The island over overlays.** In Mission Control the island keeps its
+  strip above the overlay in its rest form, with privacy marks and OSDs,
+  and takes no hover or click (`mission-control.md`). Over the widgets
+  dashboard only its privacy form and OSDs show; other events wait and are
+  dropped past their duration (`widgets.md`).
 - **OSDs.** The island, the only OSD (v1). macOS 26's capsule hangs under
   the Sound item, which no longer exists.
 - **The island's queue against notification banners.** Anything from the

@@ -1,0 +1,255 @@
+<title>Isle structure, batch 3</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<style>
+  .hb-intro { max-width: 75ch; color: var(--hb-fg-2); line-height: 1.5; margin: 0; }
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs h3 { font-size: 13px; margin: 14px 0 4px; color: var(--hb-fg); }
+  .hb-qs ol { margin: 0; padding-left: 20px; color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs li { margin-bottom: 6px; }
+  .hb-qs b { color: var(--hb-fg); font-weight: 600; }
+  .hb-qs em { color: var(--hb-accent); font-style: normal; }
+</style>
+<script src="harness/harness.js"></script>
+<script>
+(function () {
+  // Wireframe of batch 3 on the revision 1 desktop. Sizes are placeholders
+  // in points; stage 4 sets them.
+  const W = 3440, H = 1440, STRIP = 48, CX = W / 2;
+  const PILL_Y = 9, PILL_H = 30;
+  const { h } = Isle;
+
+  const box = (x, y, w, hh, cls, style, ...kids) => h("div", { class: "wf " + (cls || ""), style: Object.assign({ left: x + "px", top: y + "px", width: w + "px", height: hh === "auto" ? "auto" : hh + "px" }, style || {}) }, ...kids);
+  const text = (x, y, s, cls, style) => h("div", { class: "wf " + (cls || "wf-text"), style: Object.assign({ left: x + "px", top: y + "px" }, style || {}) }, s);
+  const callout = (x, y, s) => h("div", { class: "wf-callout", style: { left: x + "px", top: y + "px" } }, s);
+  const glyph = (size) => h("span", { class: "wf-icon", style: { width: (size || 14) + "px", height: (size || 14) + "px", background: "var(--wf-line)", borderRadius: "3px", flex: "none" } });
+  const dot = (c) => h("span", { class: "wf-dot", style: { background: c } });
+  const t = (s, style) => h("span", { style: Object.assign({ fontSize: "13px" }, style || {}) }, s);
+  const t2 = (s, style) => h("span", { style: Object.assign({ fontSize: "12px", color: "var(--wf-ink-2)" }, style || {}) }, s);
+  const row = (...kids) => h("div", { class: "wf-row" }, ...kids);
+  const col = (gap, ...kids) => h("div", { class: "wf-col", style: { gap: gap + "px" } }, ...kids);
+  const btn = (s, primary) => h("span", { style: { fontSize: "13px", padding: "5px 14px", borderRadius: "7px", border: "1px solid var(--wf-line)", background: primary ? "var(--wf-ink)" : "var(--wf-fill)", color: primary ? "var(--wf-wall)" : "var(--wf-ink)" } }, s);
+  const field = (s, w) => h("div", { class: "wf-box-2", style: { position: "static", height: "28px", width: w ? w + "px" : "100%", borderRadius: "7px", display: "flex", alignItems: "center", padding: "0 10px", fontSize: "13px", color: "var(--wf-ink-2)", boxSizing: "border-box" } }, s || "");
+  const sep = () => h("div", { style: { borderTop: "1px solid var(--wf-line)", margin: "4px 0" } });
+  const card = (style, ...kids) => h("div", { style: Object.assign({ background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)", borderRadius: "12px", padding: "10px 12px", boxSizing: "border-box" }, style || {}) }, ...kids);
+
+  function pill(s, o = {}) {
+    const kids = [];
+    if (o.event) kids.push(o.event);
+    else {
+      if (o.face) kids.push(o.face);
+      kids.push(h("span", { style: { fontVariantNumeric: "tabular-nums", fontSize: "13px", fontWeight: 600 } }, "14:32"));
+      for (let i = 0; i < (o.glyphs || 0); i++) kids.push(glyph());
+    }
+    if (o.privacy) kids.push(h("span", { style: { display: "flex", gap: "4px" } }, dot("#e8a33d"), dot("#5fbf6f")));
+    s.append(h("div", { class: "wf wf-box wf-pill", style: { left: CX + "px", top: PILL_Y + "px", height: PILL_H + "px", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px", padding: "0 14px", whiteSpace: "nowrap" } }, ...kids));
+  }
+  function win(s, x, y, w, hh, o = {}) {
+    const el = box(x, y, w, hh, "wf-box", { borderRadius: "12px", boxShadow: o.active ? "0 18px 48px rgba(0,0,0,.45)" : "0 8px 24px rgba(0,0,0,.3)", overflow: "hidden" });
+    const bar = box(0, 0, w, 32, "", { borderBottom: "1px solid var(--wf-line)" });
+    bar.append(h("div", { class: "wf-row", style: { position: "absolute", left: "14px", top: "10px", gap: "8px" } },
+      ...[0, 1, 2].map(() => h("span", { style: { width: "12px", height: "12px", borderRadius: "50%", border: "1px solid var(--wf-line)", background: o.active ? "var(--wf-ink-2)" : "transparent" } }))),
+      h("div", { class: "wf-text", style: { position: "absolute", left: 0, right: 0, top: "10px", textAlign: "center", opacity: o.active ? 1 : .6 } }, o.title || "Window"));
+    el.append(bar);
+    if (!o.empty) for (let i = 0; i < Math.min(12, (hh - 60) / 40); i++) el.append(box(24, 56 + i * 40, (w - 48) * (0.4 + ((i * 37) % 50) / 100), 10, "wf-bar"));
+    s.append(el);
+    return el;
+  }
+  function desktop(s, o = {}) {
+    win(s, 220, 140, 1180, 780, { title: "Terminal" });
+    win(s, 1480, 190, 1320, 860, { title: "Documents", active: !o.dim });
+    if (o.pill !== false) pill(s, o.pill || {});
+  }
+  const scrim = (s) => s.append(h("div", { class: "wf-scrim", style: { background: "rgba(0,0,0,.45)" } }));
+
+  const C = (x, y, w, hh) => [x, y, w, hh];
+  const sw = (on) => h("span", { style: { width: "30px", height: "18px", borderRadius: "9px", background: on ? "var(--wf-ink-2)" : "var(--wf-fill)", border: "1px solid var(--wf-line)", flex: "none" } });
+  const spacer = () => h("span", { style: { flex: 1 } });
+  const bars = (n, x, y, w) => Array.from({ length: n }, (_, i) => box(x, y + i * 34, w * (0.45 + ((i * 37) % 50) / 100), 9, "wf-bar"));
+  function appWin(s, x, y, w, hh, title, o = {}) {
+    const el = win(s, x, y, w, hh, { title: "", active: true, empty: true });
+    el.append(box(0, 0, w, 52, "", { borderBottom: "1px solid var(--wf-line)", display: "flex", alignItems: "center", gap: "14px", padding: "0 18px 0 96px", boxSizing: "border-box" },
+      ...(o.toolbar || [t("‹"), t("›"), t(title, { fontWeight: 600 }), spacer(), field("Search", 200)])));
+    if (o.side !== false) el.append(box(0, 52, o.side || 260, hh - 52, "", { background: "var(--wf-fill-2)", borderRight: "1px solid var(--wf-line)", padding: "12px", boxSizing: "border-box" }, ...(o.sideKids ? [o.sideKids] : [])));
+    if (o.inspector) el.append(box(w - o.inspector, 52, o.inspector, hh - 52, "", { background: "var(--wf-fill-2)", borderLeft: "1px solid var(--wf-line)", padding: "14px", boxSizing: "border-box" }, ...(o.inspKids ? [o.inspKids] : [])));
+    return el;
+  }
+  const sideList = (groups) => col(4, ...groups.flatMap(([head, items]) => [head ? t2(head, { margin: "8px 0 2px" }) : null, ...items.map((it, i) => h("div", { class: "wf-row", style: { padding: "4px 6px", borderRadius: "6px", background: it.startsWith("*") ? "var(--wf-fill)" : "transparent" } }, glyph(16), t(it.replace(/^\*/, ""))))]).filter(Boolean));
+
+  // Notification Centre unfolded from the pill.
+  function notificationCentre(s) {
+    const w = 440;
+    const p = box(CX - w / 2, PILL_Y, w, "auto", "wf-box", { borderRadius: "22px", padding: "0 0 14px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" });
+    const days = h("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", fontSize: "11px", textAlign: "center", color: "var(--wf-ink-2)" } },
+      ..."MTWTFSS".split("").map((d) => h("span", {}, d)), ...Array.from({ length: 35 }, (_, i) => h("span", { style: { padding: "3px 0", borderRadius: "50%", background: i === 5 ? "var(--wf-ink-2)" : "transparent", color: i === 5 ? "var(--wf-wall)" : "var(--wf-ink)" } }, String(((i + 28) % 31) + 1))));
+    const stack = (app, sum, body, n) => card({ position: "relative", marginBottom: n ? "10px" : "0" }, col(4, row(glyph(16), t2(app), spacer(), t2("9 min")), t(sum, { fontWeight: 600 }), t2(body)),
+      n ? h("div", { style: { position: "absolute", left: "10px", right: "10px", bottom: "-8px", height: "8px", borderRadius: "0 0 10px 10px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)", borderTop: "0" } }) : null);
+    p.append(h("div", { style: { display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", height: PILL_H + "px" } }, h("span", { style: { fontWeight: 600, fontSize: "13px" } }, "14:32")),
+      col(12, h("div", { style: { margin: "6px 18px 0" } }, t("Saturday 3 October", { fontWeight: 600, fontSize: "15px" })),
+        h("div", { style: { margin: "0 18px" } }, days),
+        h("div", { style: { margin: "0 14px" } }, card({}, col(6, t2("Today"), row(h("span", { style: { width: "3px", height: "30px", background: "var(--wf-ink-2)", borderRadius: "2px" } }), col(2, t("Build review"), t2("16:00–16:30")), spacer(), btn("Join")), t2("Tomorrow"), row(h("span", { style: { width: "3px", height: "30px", background: "var(--wf-line)", borderRadius: "2px" } }), col(2, t("Dentist"), t2("09:30")))))),
+        h("div", { style: { margin: "4px 18px 0", display: "flex" } }, t("Notifications", { fontWeight: 600 }), spacer(), t2("Clear all")),
+        h("div", { style: { margin: "0 14px" } }, col(10, stack("Mail", "3 new", "Sam Rivera, Build bot, Calendar", 3), stack("Discord", "#isle", "New release notes are up.", 0))),
+        h("div", { style: { margin: "4px 18px 0" } }, t2("Earlier")),
+        h("div", { style: { margin: "0 14px" } }, card({ opacity: .8 }, row(glyph(16), t("Steam: Download complete"), spacer(), t2("Yesterday"))))));
+    s.append(p);
+  }
+
+  // Widgets dashboard.
+  function dashboard(s, edit) {
+    s.append(h("div", { class: "wf-scrim", style: { background: "var(--wf-fill-2)", opacity: .92 } }));
+    const cw = 120, gap = 14, cols = 24, x0 = (W - (cols * cw + (cols - 1) * gap)) / 2, y0 = 120;
+    const cell = (c, r, w, hh, label, kids) => {
+      const el = box(x0 + c * (cw + gap), y0 + r * (cw + gap), w * cw + (w - 1) * gap, hh * cw + (hh - 1) * gap, "wf-box", { borderRadius: "18px", padding: "14px" }, col(8, t2(label), ...(kids || [])));
+      if (edit) el.append(h("span", { style: { position: "absolute", top: "-8px", left: "-8px", width: "20px", height: "20px", borderRadius: "50%", background: "var(--wf-ink-2)" } }));
+      return el;
+    };
+    s.append(cell(0, 0, 3, 2, "Clock", [t("14:32", { fontSize: "40px", fontWeight: 600 })]),
+      cell(3, 0, 4, 2, "Calendar", [t("Build review 16:00"), t2("Dentist tomorrow 09:30")]),
+      cell(7, 0, 3, 1, "Weather", [t("12° Showers")]),
+      cell(7, 1, 3, 1, "Media", [t("Midnight City")]),
+      cell(10, 0, 4, 3, "System", [...bars(4, 14, 50, 300)]),
+      cell(14, 0, 3, 1, "Devices", [t2("Controller 70% · Mouse 40%")]),
+      cell(14, 1, 3, 1, "Storage", [h("div", { class: "wf-bar", style: { width: "100%" } })]),
+      cell(17, 0, 4, 2, "Controls", [row(glyph(24), glyph(24), glyph(24), glyph(24))]),
+      cell(0, 2, 3, 1, "Notifications", [t2("Mail 3 · Discord 1")]),
+      cell(3, 2, 4, 1, "Desktops", [row(glyph(22), glyph(22), glyph(22))]));
+    pill(s, { privacy: false });
+    if (edit) {
+      s.append(box(40, 120, 300, 900, "wf-box", { borderRadius: "18px", padding: "14px" }, col(8, t("Add widgets", { fontWeight: 600 }), field("Search widgets"), ...["Installed", "Yours", "Browse"].map((g, i) => h("div", { class: "wf-row", style: { padding: "4px 6px", borderRadius: "6px", background: i === 0 ? "var(--wf-fill)" : "transparent" } }, glyph(16), t(g))), sep(), ...["Clock", "Calendar", "Timer", "Session"].map((g) => card({ padding: "8px" }, row(glyph(20), t(g)))))));
+      s.append(callout(x0 + 20, y0 + 3 * (cw + gap) + 30, "edit: drag pushes neighbours softly; Cmd+arrows move, Option+Cmd+arrows resize"));
+    }
+  }
+
+  // Mission Control.
+  function missionControl(s, mode) {
+    s.append(box(0, 0, W, H, "", { background: "var(--wf-fill-2)" }));
+    const tw = 280, th = 150;
+    const bar = box(CX - 900, 60, 1800, th + 40, "", { display: "flex", gap: "24px", justifyContent: "center", alignItems: "center" },
+      ...["Desktop 1", "Desktop 2", "Elden Ring"].map((n, i) => col(6, h("div", { style: { width: tw + "px", height: th + "px", borderRadius: "10px", background: "var(--wf-fill)", border: i === 0 ? "3px solid var(--wf-ink)" : "1px solid var(--wf-line)", boxSizing: "border-box" } }), row(i === 2 ? glyph(14) : null, t2(n)))),
+      h("div", { style: { width: "80px", height: th + "px", borderRadius: "10px", border: "1.5px dashed var(--wf-line)", display: "grid", placeItems: "center", fontSize: "28px", color: "var(--wf-ink-2)" } }, "+"));
+    pill(s);
+    s.append(bar);
+    if (mode === "split") {
+      s.append(box(40, 300, W / 2 - 60, H - 340, "wf-box", { borderRadius: "12px" }, t("Documents (left half)", { position: "absolute", top: "16px", left: "20px" })));
+      for (let i = 0; i < 4; i++) s.append(box(W / 2 + 120 + (i % 2) * 760, 360 + Math.floor(i / 2) * 480, 700, 420, "wf-box", { borderRadius: "12px", opacity: i === 3 ? .45 : 1 }));
+      s.append(callout(W / 2 + 120, 320, "pick the other half; too-wide windows dimmed"));
+      return;
+    }
+    const wins = mode === "expose" ? [[700, 380, 900, 560], [1700, 380, 900, 560]] : [[300, 360, 900, 560], [1260, 330, 1000, 620], [2320, 380, 820, 520], [700, 960, 760, 360], [1560, 980, 700, 340]];
+    wins.forEach(([x, y, w, hh], i) => { s.append(box(x, y, w, hh, "wf-box", { borderRadius: "12px", outline: i === 1 ? "3px solid var(--wf-ink)" : "none", outlineOffset: "4px" })); s.append(box(x + w / 2 - 22, y + hh - 22, 44, 44, "wf-icon", { borderRadius: "10px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)" })); });
+    if (mode === "expose") {
+      s.append(t2("Minimised", { position: "absolute", left: "700px", top: "1060px" }));
+      s.append(box(700, 1090, 300, 180, "wf-box", { borderRadius: "10px", opacity: .6 }), box(1030, 1090, 300, 180, "wf-box", { borderRadius: "10px", opacity: .6 }));
+      s.append(t2("On other desktops", { position: "absolute", left: "1500px", top: "1060px" }), box(1500, 1090, 300, 180, "wf-box", { borderRadius: "10px", opacity: .6 }));
+    } else {
+      s.append(box(CX - 500, H - 110, 1000, 90, "wf-box", { borderRadius: "16px", display: "flex", alignItems: "center", gap: "14px", padding: "0 18px" }, t2("Minimised"), ...Array.from({ length: 3 }, () => h("span", { style: { width: "110px", height: "64px", borderRadius: "8px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)" } })), t2("Hidden"), h("span", { style: { width: "110px", height: "64px", borderRadius: "8px", background: "var(--wf-fill-2)", border: "1px dashed var(--wf-line)" } })));
+    }
+  }
+
+  Isle.board({
+    title: "Isle structure, batch 3",
+    subtitle: "The parity surfaces, built after Isle replaces v1: Notification Centre, the widgets dashboard, Mission Control, Files, Monitor, Keychain, Cleaner, the dropdown terminal, picture-in-picture and the on-screen keyboard. Grey wireframes; the sheets are the source.",
+    tokens: null,
+    surfaces: [
+      { id: "nc", name: "Notification Centre", sheet: "p1/structure/notification-centre.md", states: [
+        { id: "open", name: "Open", crop: C(CX - 700, 0, 1400, 1080), note: "A click on the clock unfolds it from the pill: the date, the month, today's and tomorrow's agenda with Join for a meeting, then notifications stacked by app, then Earlier. No widgets. It morphs to and from Control Centre as one shape.", render(s) { desktop(s, { pill: false }); notificationCentre(s); } },
+      ] },
+      { id: "widgets", name: "Widgets", sheet: "p1/structure/widgets.md", states: [
+        { id: "dash", name: "Dashboard", note: "A full-screen canvas per screen over the softened wallpaper, on a chord (Ctrl+Option+Cmd+W proposed). Finer cells than v1, no pages; a widget with nothing to say draws one line. A click on a gap never closes it.", render(s) { dashboard(s, false); } },
+        { id: "edit", name: "Edit and gallery", note: "Edit mode with v1's soft push; the gallery as a sidebar: Installed, Yours, Browse.", render(s) { dashboard(s, true); } },
+      ] },
+      { id: "mc", name: "Mission Control", sheet: "p1/structure/mission-control.md", states: [
+        { id: "spread", name: "Spread", note: "Windows spread without overlap, never larger than real, near their real places; the Spaces bar under the island's strip at full size with + always shown (a game's Space by its name); minimised and hidden windows in a tray along the bottom.", render(s) { missionControl(s, "spread"); } },
+        { id: "expose", name: "App Exposé", note: "Ctrl+↓: the app's windows, then a row setting apart its minimised windows, then hidden ones and those on other desktops. Tab moves to the next app.", render(s) { missionControl(s, "expose"); } },
+        { id: "split", name: "Split View", note: "Choosing Tile left from the zoom menu fills the left half; the candidates spread in the free half, too-wide ones dimmed. Two panes only.", render(s) { missionControl(s, "split"); } },
+      ] },
+      { id: "files", name: "Files", sheet: "p1/structure/files.md", states: [
+        { id: "window", name: "Window", crop: C(200, 60, 3040, 1300), note: "Sidebar of Recents, Favourites (with saved searches) and Locations (Trash last); List view with folders on top and extensions shown; the preview as the inspector (⇧⌘P). Toolbar: back, forward, title; the view switcher and Group/Sort; then jobs (only while one runs), More, preview, search.", render(s) {
+          appWin(s, 300, 120, 2840, 1160, "isle", { toolbar: [t("‹"), t("›"), glyph(18), t("isle", { fontWeight: 600 }), t2("14 items"), spacer(), row(btn("▦"), btn("☰", true), btn("▥")), btn("Group ▾"), spacer(), glyph(18), t("⋯"), glyph(18), field("Search", 220)],
+            sideKids: sideList([[null, ["Recents"]], ["Favourites", ["Home", "Documents", "Downloads", "*Development", "Games", "Large files (search)"]], ["Locations", ["This computer", "Games SSD", "Trash"]]]), side: 300, inspector: 520,
+            inspKids: col(10, h("div", { style: { height: "260px", borderRadius: "10px", background: "var(--wf-fill)" } }), t("Cargo.toml", { fontWeight: 600 }), t2("TOML document · 2 KB"), t2("Modified today at 11:02")) });
+          for (let i = 0; i < 14; i++) s.append(box(640, 210 + i * 40, 1900, 34, "", { display: "flex", alignItems: "center", gap: "14px", padding: "0 10px", borderRadius: "6px", background: i === 5 ? "var(--wf-fill)" : "transparent" }, glyph(18), t(["crates", "docs", "dev", "spikes", "tools", "Cargo.toml", "Cargo.lock", "README.md", "CLAUDE.md", ".gitignore", "rustfmt.toml", "LICENSE", "PKGBUILD", "deny.toml"][i]), spacer(), t2(i < 5 ? "--" : "2 KB"), t2("Today 11:02")));
+        } },
+        { id: "job", name: "A file job", crop: C(1600, 60, 1600, 800), note: "Items being written show dimmed with a bar; the jobs button opens a popover with a row and Stop per job; the switcher card carries the total; the island carries nothing. A name already taken is a sheet: Stop, Keep Both, Replace.", render(s) {
+          appWin(s, 300, 120, 2840, 1160, "Downloads", { toolbar: [t("‹"), t("›"), t("Downloads", { fontWeight: 600 }), spacer(), glyph(18), t("⋯"), field("Search", 220)], side: 300 });
+          s.append(box(2380, 176, 420, "auto", "wf-box", { borderRadius: "12px", padding: "12px", boxShadow: "0 12px 32px rgba(0,0,0,.4)" }, col(10, row(t("Copying 312 items to Games SSD"), spacer(), t("✕")), h("div", { class: "wf-bar", style: { width: "100%", opacity: 1 } }), t2("4.2 GB of 9.8 GB · about 2 minutes"))));
+          s.append(box(1500, 172, 640, "auto", "wf-box", { borderRadius: "0 0 14px 14px", padding: "18px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" }, col(10, t("An item named “notes.md” already exists in this location.", { fontWeight: 600 }), t2("Do you want to replace it with the one you're moving?"), row(h("span", { style: { width: "14px", height: "14px", border: "1px solid var(--wf-line)", borderRadius: "3px" } }), t("Apply to all")), row(btn("Stop"), spacer(), btn("Replace"), btn("Keep Both", true)))));
+        } },
+        { id: "save", name: "Save panel", crop: C(500, 100, 2000, 900), note: "Handed FileChooser by the portal, the panel is a sheet on the asking window and belongs to that app. Save opens collapsed and expands into the full browser.", render(s) {
+          win(s, 600, 160, 1700, 1000, { title: "Untitled — Text Editor", active: true });
+          s.append(box(1050, 192, 800, "auto", "wf-box", { borderRadius: "0 0 14px 14px", padding: "18px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" }, col(12, row(t("Save As:"), field("Untitled.md")), row(t("Where:"), field("Documents ▾", 300), btn("⌄")), row(t2("Format: Markdown"), spacer(), btn("Cancel"), btn("Save", true)))));
+        } },
+      ] },
+      { id: "monitor", name: "Monitor", sheet: "p1/structure/monitor.md", states: [
+        { id: "window", name: "Window", crop: C(200, 60, 3040, 1300), note: "Six resources on a segmented control (CPU, Memory, Energy, Disk, Network, GPU; ⌘1–⌘6), the process table, a footer with the system's figures, one history graph and the resource's sensors. Quit Process is the one primary action.", render(s) {
+          appWin(s, 300, 120, 2840, 1160, "All Processes", { side: false, toolbar: [t("All Processes ▾", { fontWeight: 600 }), spacer(), row(...["CPU", "Memory", "Energy", "Disk", "Network", "GPU"].map((r, i) => btn(r, i === 0))), spacer(), btn("✕ Quit Process"), t("⋯"), field("Search", 220)] });
+          for (let i = 0; i < 16; i++) s.append(box(320, 186 + i * 36, 2800, 32, "", { display: "flex", alignItems: "center", gap: "40px", padding: "0 14px", background: i % 2 ? "var(--wf-fill-2)" : "transparent" }, glyph(16), t(["isle-compositor", "Firefox", "steam", "rust-analyzer", "kitty", "pipewire", "Discord", "cargo", "Xwayland", "Files", "Monitor", "gamescope", "NetworkManager", "bluetoothd", "Keychain", "fish"][i], { width: "300px" }), t2((14.2 - i * 0.8).toFixed(1) + "%"), t2("1:2" + i + ":04"), t2(String(40 - i)), t2("alex")));
+          s.append(box(320, 1000, 2800, 260, "", { borderTop: "1px solid var(--wf-line)", display: "flex", gap: "60px", padding: "24px" }, col(6, t2("System: 12%"), t2("User: 18%"), t2("Idle: 70%")), h("div", { style: { flex: 1, borderRadius: "8px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)" } }), col(6, t2("CPU 54 °C"), t2("Fan 900 rpm"))));
+        } },
+      ] },
+      { id: "keychain", name: "Keychain", sheet: "p1/structure/keychain.md", states: [
+        { id: "window", name: "Window", crop: C(200, 60, 3040, 1300), note: "Like the Passwords app: kinds (All, Logins, Wi-Fi, SSH keys, Apps), then sources (keyring collections, then each provider). Show is a click, one field at a time, hidden again after idle.", render(s) {
+          appWin(s, 300, 120, 2840, 1160, "Logins", { side: 320, sideKids: sideList([[null, ["All", "*Logins", "Wi-Fi", "SSH keys", "Apps"]], ["Sources", ["Login keyring", "Proton Pass", "Bitwarden (locked)"]]]),
+            inspector: 1100, inspKids: col(14, row(glyph(40), col(2, t("github.com", { fontWeight: 600, fontSize: "15px" }), t2("Login keyring"))), card({}, col(10, row(t2("User name"), spacer(), t("alexparlett")), sep(), row(t2("Password"), spacer(), t("••••••••••"), btn("Show")), sep(), row(t2("Verification code"), spacer(), t("482 913"))))) });
+          for (let i = 0; i < 12; i++) s.append(box(640, 190 + i * 48, 1360, 42, "", { display: "flex", alignItems: "center", gap: "12px", padding: "0 12px", borderRadius: "8px", background: i === 2 ? "var(--wf-fill)" : "transparent" }, glyph(24), col(2, t(["aur.archlinux.org", "crates.io", "github.com", "gitlab.com", "proton.me", "steamcommunity.com", "store.steampowered.com", "discord.com", "docs.rs", "kagi.com", "lwn.net", "news.ycombinator.com"][i]), t2("alexparlett"))));
+        } },
+      ] },
+      { id: "cleaner", name: "Cleaner", sheet: "p1/structure/cleaner.md", states: [
+        { id: "overview", name: "Overview", crop: C(200, 60, 3040, 1300), note: "Views in a sidebar (Overview, Cleanup, Space, Duplicates, Large files, Untouched) with the disks and the Trash at its foot; the basket is the inspector and opens when it holds anything. Kinds by colour, symbol and name together.", render(s) {
+          appWin(s, 300, 120, 2840, 1160, "Overview", { side: 300, sideKids: col(8, sideList([[null, ["*Overview", "Cleanup", "Space", "Duplicates", "Large files", "Untouched"]]]), h("div", { style: { height: "560px" } }), sideList([["Disks", ["System 61%", "Games SSD 82%", "Trash 3.1 GB"]]])),
+            toolbar: [t("Overview", { fontWeight: 600 }), spacer(), btn("Scope: Home ▾"), btn("Scan", true)], inspector: 480, inspKids: col(10, t("Basket", { fontWeight: 600 }), t2("3 items · 6.4 GB"), card({}, t("~/.cache/cargo")), card({}, t("Old Proton prefixes")), spacer(), btn("Move to Trash", true)) });
+          s.append(box(640, 200, 1880, 70, "", { display: "flex", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--wf-line)" }, ...[30, 22, 14, 10, 8, 16].map((p, i) => h("span", { style: { width: p + "%", background: i % 2 ? "var(--wf-fill-2)" : "var(--wf-fill)", borderRight: "1px solid var(--wf-line)" } }))));
+          ["Safe to clear · 8.2 GB", "Worth a look · 21 GB", "System · 4.1 GB"].forEach((c, i) => s.append(box(640 + i * 640, 320, 600, 300, "wf-box", { borderRadius: "14px", padding: "18px" }, col(10, t(c, { fontWeight: 600 }), ...[0, 1, 2].map(() => h("div", { class: "wf-bar", style: { width: "80%" } })), btn("Review")))));
+        } },
+      ] },
+      { id: "small", name: "Terminal, PiP, keyboard", sheet: "p1/structure/dropdown-terminal.md, pip.md, keyboard-osk.md", states: [
+        { id: "dropdown", name: "Dropdown terminal", crop: C(CX - 1300, 0, 2600, 900), note: "Ctrl+Option+` (proposed): slides down from behind the island's strip, the width of the centred 60% zone and half the work area tall. Hides when another window takes focus (For the user).", render(s) {
+          desktop(s);
+          s.append(box(CX - 1032, 48, 2064, 640, "wf-box", { borderRadius: "0 0 14px 14px", boxShadow: "0 18px 48px rgba(0,0,0,.45)", fontFamily: "var(--hb-mono)" }, ...bars(8, 30, 30, 1400)));
+          pill(s);
+        } },
+        { id: "pip", name: "Picture in picture", crop: C(W - 1400, H - 700, 1400, 700), note: "No title bar; the player's controls on hover; the last-used corner, bottom-trailing at first, inset short of the hot corner; snaps to the nearest or thrown-toward corner; resizes keeping its aspect.", render(s) {
+          desktop(s);
+          s.append(box(W - 560, H - 360, 520, 292, "wf-box", { borderRadius: "12px", boxShadow: "0 18px 48px rgba(0,0,0,.45)", display: "grid", placeItems: "center" }, t("▶", { fontSize: "40px", opacity: .6 })));
+        } },
+        { id: "osk", name: "On-screen keyboard", crop: C(CX - 1300, H - 700, 2600, 700), note: "macOS's Accessibility Keyboard for pointer typing: docked across the bottom with the keys in a capped centred block, reserving the work area above it, a completion strip of up to three words, never taking focus.", render(s) {
+          desktop(s);
+          const kb = box(0, H - 340, W, 340, "wf-box", { borderRadius: 0 });
+          const keys = h("div", { style: { width: "1500px", margin: "16px auto 0", display: "grid", gridTemplateColumns: "repeat(15, 1fr)", gap: "8px" } }, ...Array.from({ length: 60 }, () => h("span", { style: { height: "52px", borderRadius: "8px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)" } })));
+          kb.append(h("div", { style: { width: "1500px", margin: "14px auto 0", display: "flex", gap: "40px", justifyContent: "center" } }, t("isle"), t("island"), t("inside")), keys);
+          s.append(kb);
+        } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Questions for gate 2">
+  <h2>Gate 2, batch 3: questions</h2>
+  <p class="hb-intro">Each has a recommendation; the reasoning is in the sheets. These surfaces are built after Isle replaces v1, so nothing here holds up milestone M1.</p>
+  <h3>Notification Centre and widgets</h3>
+  <ol>
+    <li><b>Where Notification Centre opens</b>: unfolding from the pill under the clock, or a right-edge column as macOS? <em>From the pill: the clock is at top centre, and it makes one shape with Control Centre.</em></li>
+    <li><b>Beside the notifications</b>: the date, month and agenda, no widgets. <em>Yes.</em></li>
+    <li><b>Dashboard</b>: one canvas per screen with finer cells, no pages. <em>One canvas.</em></li>
+    <li><b>Notifications widget</b>: a glance (each app with a count) opening Notification Centre. <em>A glance.</em></li>
+    <li><b>Dashboard chord</b>: v1's Super+A can't carry over (Super is Cmd, and Cmd+A is Select All). Ctrl+Option+Cmd+W proposed. <em>Accept, or name another.</em></li>
+  </ol>
+  <h3>Mission Control and windows</h3>
+  <ol start="6">
+    <li><b>Desktop switch</b>: a short slide with a crossfade rather than a full 3440 px slide. <em>Short slide.</em></li>
+    <li><b>Dropdown terminal</b>: hides when another window takes focus, with a setting to keep it. <em>Hides.</em></li>
+    <li><b>Picture in picture over a full-screen game</b>: hides and keeps playing, returns after. <em>Hides.</em></li>
+  </ol>
+  <h3>Apps</h3>
+  <ol start="9">
+    <li><b>Files: tags</b>: none for now, with a place kept for them. <em>None for now.</em></li>
+    <li><b>Files: undo</b>: a stack per window, as Finder, not v1's one step. <em>A stack.</em></li>
+    <li><b>Files: Connect to Server</b> (⌘K, SMB/NFS): left out unless you reach a NAS or another machine's share day to day. <em>Left out; tell me if you do.</em></li>
+    <li><b>Monitor: GPU</b> as a sixth resource with per-process GPU memory for the 5070 Ti and the iGPU. <em>Yes.</em></li>
+    <li><b>Keychain: revealing a secret</b> asks for your password or fingerprint once on opening and again after idle, as the Passwords app. <em>Yes.</em></li>
+    <li><b>Cleaner in Settings › Storage</b>: a bar by kind and Recommendations that open Cleaner, as macOS. <em>Yes.</em></li>
+  </ol>
+</section>

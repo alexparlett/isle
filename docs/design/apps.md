@@ -234,8 +234,8 @@ searches as places; Icons, List and Columns views; a preview; Quick Look; Get In
    renamed over it, and a replaced folder is moved aside and dropped only afterwards (D70).
 6. A job that meets an existing name stops and asks, with an answer for the rest of the job;
    cancelling is an answer (D70).
-7. Undo is one step and covers what a job did even when it failed part way; a job that replaced
-   something is not offered for undo (D70, D71).
+7. Undo is a stack per window, each step one job, and covers what a job did even when it failed part
+   way; a job that replaced something is not offered for undo and ends the stack there (D70, D71).
 8. Rename many takes one name with `#` for the number and appends one where there is none. Compress
    and Expand use bsdtar; expanding goes into a folder beside the archive, named after it (D71).
 9. File operations are one crate shared with the Cleaner, so both trash, put back and undo alike.
@@ -244,12 +244,14 @@ searches as places; Icons, List and Columns views; a preview; Quick Look; Get In
 
 10. Favourites are the xdg-user-dirs folders and the bookmarks in `~/.config/gtk-3.0/bookmarks`, read
     and written as GTK writes them (D69); their order is the user's, dragged and kept by Files (D76).
-11. Locations lists every volume UDisks2 reports, by name with its free space; mount, unmount and eject
-    go through UDisks2 (B11), with polkit where it asks.
+11. Locations lists every volume UDisks2 reports, by name, its free space in reach and marked when it
+    is nearly full; mount, unmount and eject go through UDisks2 (B11), with polkit where it asks.
+    Network shares appear when the system mounts them: there is no Connect to Server.
 12. Recents is the shared recently-used list.
 13. A search is a term, a scope (this folder, or everything under it), a kind and a date range. It runs
     on a worker and fills as it goes. A saved search is kept as a place and reopens the window as it
-    was (D74).
+    was (D74). There are no tags for now: Linux has no shared standard beyond extended attributes
+    (`macos-model.md` §3 Finder row).
 
 **Views and actions**
 
@@ -288,8 +290,9 @@ searches as places; Icons, List and Columns views; a preview; Quick Look; Get In
 **File chooser**
 
 22. The portal backend, owned by the compositor's service worker, hands FileChooser to Files, which
-    shows a chooser window, starting if it is not running (B13, B26; `platform.md`). The window is the
-    requesting app's dialog, attached to its window. No chooser or Quick Look code loads into the
+    shows the Open or Save panel, starting if it is not running (B13, B26; `platform.md`). The panel
+    is the requesting app's dialog, a sheet on its window through the portal's parent handle, or a
+    window of its own when there is no parent. No chooser or Quick Look code loads into the
     compositor (B26).
 23. The portal reply is held until the user accepts or cancels, and exactly one of the two answers it;
     closing the chooser, or Files ending, answers cancel, so no app waits forever (D67).
@@ -305,18 +308,15 @@ replacement order, partial undo, `#` renames, bsdtar. D73: the folder handler re
 D74: searches are narrowed and kept. D76: favourite order is the user's. D82: AppImages by folder, read
 without running. D75, D92: one app id for every Files window.
 
-**Open for its packet.** Whether undo becomes a stack, as Finder's is, or stays one step (D70). Tags,
-which have no shared Linux standard (`macos-model.md` §3 Finder row). Connect to Server (SMB, NFS).
-Content search and an index (`macos-model.md` OPEN, file indexing). A Gallery view. Who watches
-`~/Applications` while Files is not running. Quick Look's D-Bus interface. How the chooser binds to
-the requesting window (the portal's parent handle).
+**Open for its packet.** An index for content search (`macos-model.md` OPEN, file indexing). Who
+watches `~/Applications` while Files is not running. Quick Look's D-Bus name.
 
 ### Monitor
 
-The user gets Activity Monitor: CPU, memory, energy, disk and network use over one process list,
+The user gets Activity Monitor: CPU, memory, energy, disk, network and GPU use over one process list,
 inspection, Quit and Force Quit, plus the sensors and GPU figures a gaming machine needs.
 
-1. One process table, seen by resource (CPU, memory, energy, disk, network), each with its own
+1. One process table, seen by resource (CPU, memory, energy, disk, network, GPU), each with its own
    figures (inventory §5).
 2. The list shows all processes, the user's, or windowed processes; a hierarchical view gives each
    process its descendants' totals (inventory §5). A windowed process is named and iconed from the
@@ -346,8 +346,9 @@ secrets, SSH keys and every password manager present, under one search.
 
 1. Items come from the Secret Service through the shared client crate (`oo7`, `ui-and-services.md` §3),
    whether gnome-keyring 50 or oo7-daemon owns the bus name.
-2. Items can be narrowed by kind (logins, Wi-Fi, browser, apps; inventory §5) and by password-manager
-   provider (inventory §8; D42).
+2. Items can be narrowed by kind (logins, Wi-Fi, SSH keys, apps; a browser's items are logins or app
+   secrets by what each is; inventory §5) and by source, a keyring or a password-manager provider
+   (inventory §8; D42).
 3. No secret is in memory until asked: lists hold titles and attributes, and reveal or copy fetches one
    field of one item at that moment (D42). A fetched value is zeroed after use and never logged.
 4. A locked collection is unlocked through the Secret Service's Unlock, which brings up the
@@ -367,13 +368,14 @@ secrets, SSH keys and every password manager present, under one search.
    D20).
 10. Wi-Fi passwords of saved networks come from NetworkManager's own secrets call, which polkit gates.
 11. Revealed values hide again after a period idle and when the window closes.
+12. With the keyring unlocked, revealing or copying a secret asks for the user's password or
+    fingerprint in the desktop's polkit dialog once when Keychain opens and again after it has sat
+    idle, as the Passwords app; the same gate covers Spotlight's vault copies.
 
 **v1 lessons kept.** D42: one vault behind providers; titles without secrets; one field on demand. D20:
 a provider's sign-in is its own CLI flow. Inventory §5: categories, generator, SSH keys with agent state.
 
-**Open for its packet.** What gates revealing a secret beyond an unlocked keyring (macOS asks per
-reveal). Passkeys, which wait for a credential portal (D42). Certificates. Whether browsers' own
-Secret Service entries are shown.
+**Open for its packet.** Passkeys, which wait for a credential portal (D42). Certificates.
 
 ### Cleaner
 
@@ -408,6 +410,9 @@ safely, duplicates, large and untouched files, removed through a basket with one
     then says nothing is freed yet and offers Empty Trash, which asks (D88, D70).
 11. Closing the window cancels a scan; a removal in progress keeps the process until it ends
     (Conventions rule 4).
+12. Settings › General › Storage shows each disk as a bar by kind from the same scan, and
+    Recommendations whose Review opens Cleaner at that view. Settings removes nothing but the Trash;
+    everything else goes through Cleaner's basket.
 
 **v1 lessons kept.** D87: scan once, keep folders, never `.snapshots`. D88: by kind, through a basket.
 D89: rules as data, XDG cache first, root's share by its own tools. D90: own files only, all disks.
@@ -424,16 +429,14 @@ What this document leaves to P1, per app; "proposal" is the answer it gave befor
   recorded in DESIGN.md at gate 6.
 - **Settings**: Answered in P1 (`docs/work/rust-desktop/p1/structure/settings.md`, `focus.md`);
   recorded in DESIGN.md at gate 6.
-- **Files**: how places are laid out (proposal: a sidebar of Recents, Favourites, Locations and saved
-  searches); where the preview sits (proposal: a pane beside the folder, the last column in Columns);
-  the toolbar's contents; how a file job's question and progress are shown.
-- **Monitor**: how resources are switched (proposal: five tabs, CPU, Memory, Energy, Disk, Network).
-- **Keychain**: how kinds and providers are laid out (proposal: categories Logins, Wi-Fi, Browser,
-  Apps, then one section per provider).
-- **Cleaner**: its views and their names (proposal: Overview, Cleanup with Safe to clear, Worth a look
-  and a System card, Space as a treemap or list, Duplicates, Large files, Untouched); how a kind is
-  shown (proposal: the same way in every view, D88); whether Cleanup's findings also show in Settings'
-  Storage pane, as macOS shows Recommendations.
+- **Files**: Answered in P1 (`docs/work/rust-desktop/p1/structure/files.md`); recorded in DESIGN.md
+  at gate 6.
+- **Monitor**: Answered in P1 (`docs/work/rust-desktop/p1/structure/monitor.md`); recorded in
+  DESIGN.md at gate 6.
+- **Keychain**: Answered in P1 (`docs/work/rust-desktop/p1/structure/keychain.md`); recorded in
+  DESIGN.md at gate 6.
+- **Cleaner**: Answered in P1 (`docs/work/rust-desktop/p1/structure/cleaner.md`); recorded in
+  DESIGN.md at gate 6.
 
 ## Acceptance bars
 
@@ -483,23 +486,23 @@ lands. Pane names are P1's (`docs/work/rust-desktop/p1/structure/settings.md`).
 | Settings › Displays (arrangement, mode, scale, VRR, redetect) | Displays pane (Settings 13) |
 | Settings › Controllers (live pad, dead zone) | Game Controllers pane (D54; kept by B22) |
 | Settings › Power (profiles, batteries, idle dim, lock, screens off) | Energy pane; idle timers in Lock Screen |
-| Settings › Storage (drives, SMART) and Devices (device tree) | Storage in General; About, as a system report |
+| Settings › Storage (drives, SMART) and Devices (device tree) | Storage in General, with Cleaner's bar by kind and Recommendations (Cleaner 12); About, as a system report |
 | Settings › Users (accounts, fingerprint, PAM switches, autologin) | Users & Groups (Settings 14) |
 | Settings › Calendars (subscriptions) | Calendars pane (D41) |
 | Settings › Updates (system, AUR, Isle, restart owed) | Software Update (Settings 12) |
 | Settings search, launcher entries, back and forward | Settings 3, 4, 8; the launcher in `shell.md` |
-| Files windows, tabs, sidebar, saved searches | Conventions 3; Files 10–13; the sidebar's layout is P1's |
+| Files windows, tabs, sidebar, saved searches | Conventions 3; Files 10–13; the sidebar's layout in P1 (`docs/work/rust-desktop/p1/structure/files.md`) |
 | Files List, Columns, Grid, disclosure, grouping, sorting, widths, preview, Quick Look | Files 14, 15, 21 |
 | Files drag and drop, keyboard map | Files 16, 17 |
 | Files copy, move, trash, put back, empty, delete, undo, rename many, pack, unpack | Files 4–8 |
 | Files open with, set default, open in terminal, info; folder handler `isle-files.desktop` | Files 18, 19 |
 | Files mount, eject; AppImage install by folder | Files 11, 20; the drive-inserted notification in `shell.md` |
 | File chooser surface and portal reply | Files 22–26, in the Files process (B26); the backend in `platform.md` |
-| Monitor tabs, process tree, sensors, GPU, energy, inhibitors, per-process network | Monitor 1–6; tabs are P1's |
+| Monitor tabs, process tree, sensors, GPU, energy, inhibitors, per-process network | Monitor 1–6; the tabs become a resource switch in P1 (`docs/work/rust-desktop/p1/structure/monitor.md`) |
 | Monitor STOP, CONT, TERM, KILL, renice; LACT and CoolerControl | Monitor 7, 10 |
 | Keychain categories, reveal, copy, delete, generator, providers | Keychain 2, 3, 6, 7, 9 |
 | Keychain SSH keys and agent | Keychain 8 |
-| Cleaner Overview, Space, Large files, Untouched, disk cards | Cleaner 1, 3–5; views and cards are P1's |
+| Cleaner Overview, Space, Large files, Untouched, disk cards | Cleaner 1, 3–5; views and cards in P1 (`docs/work/rust-desktop/p1/structure/cleaner.md`) |
 | Cleaner Cleanup, System card, Duplicates, basket, undo, Empty Trash | Cleaner 6–10 |
 | Windows reopened after a shell reload (D62) | Conventions 6; apps outlive a shell restart (B9) |
 | One app id per shell window (D92, D75); raise, don't relaunch (D63) | Conventions 1, 3 |

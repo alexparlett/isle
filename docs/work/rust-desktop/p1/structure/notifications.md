@@ -175,7 +175,7 @@ follows up:
 | A drive connected | Files | Open (Mount when not mounted), Eject |
 | An AppImage installed | Files | Open, Show in Files |
 | An update finished | Software Update | Restart… when a restart is owed |
-| A calendar event starting | Calendar | none; the click opens the dashboard's Calendar widget |
+| A calendar event starting | Calendar | none; the click opens Notification Centre with the event expanded in its agenda (`notification-centre.md`) |
 | A provider needs signing in | the provider's name | Sign in… |
 | A hand edit rejected (`island.md` deferral) | Settings | Open in editor. Once per broken state of a file, not per save; the island's glyph holds while it lasts |
 | An app crashed | the app | Reopen, Report… (the notice's form is the crash sheet's, batch 3) |
@@ -193,7 +193,7 @@ follows up:
 | Several | Up to three, newest at the anchor. |
 | Overflow | The oldest temporary banner leaves early; with three persistent, the "{n} more in Notification Centre" row. |
 | Waiting | A menu or Control Centre is open on the main screen, or an overlay that covers it (Shared places, below): the banner waits. One that waits longer than its own lifetime is not shown, and stays in the centre. Persistent ones wait without limit. |
-| Notification Centre open | No banners on that screen: arrivals appear in the open centre, at the top of their app's stack. |
+| Notification Centre open | While it is open on any screen, no banner shows on any screen: arrivals appear in the open centre, at the top of their app's stack (`notification-centre.md`). |
 | Loading | A banner is on screen within 100 ms (`shell.md` acceptance bar 9) and never waits on an icon or image lookup; one that arrives late fills in without resizing the banner past its first height. |
 | Error | Missing icon: the generic one. An image that will not decode: no thumbnail. Markup that will not parse: plain text. An action invoked on a sender that has gone: the banner leaves and the notification becomes a record. A panicking banner surface is rebuilt from the server's state (shell runtime 2, 3). |
 | Held by a Focus | No banner, no sound; counted for the summary. Critical notifications pass if the Focus allows them, and the Focus's allowed apps pass (`focus.md`). |
@@ -278,7 +278,8 @@ free and left banners' place to this sheet:
   Control Centre or the island's expanded form is open on the main screen
   waits until it closes (`menu-bar.md` proposal, adopted here), as v1's
   island held events while its panel was open (v1 lessons §3.5). While
-  Notification Centre is open, arrivals go into it and no banner shows.
+  Notification Centre is open on any screen, arrivals go into it and no
+  banner shows anywhere.
 - **Banners against the island.** Separate places; both may show at once
   (`island.md`). The island never shows a notification and a banner never
   shows an island event.

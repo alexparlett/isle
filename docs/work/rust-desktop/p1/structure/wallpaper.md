@@ -109,8 +109,10 @@ compositor's (`shell.md` Mission Control 8).
 - **The layer above the wallpaper, under windows.** Empty at rest. Show
   Desktop reveals the plain wallpaper there and nothing else (For the
   user 1).
-- **The widgets surface** (`widgets.md`, batch 3). Proposed here as the
-  dashboard: a full-screen surface on v1's chord, drawn over this sheet's
+- **The widgets surface** (`widgets.md`). Proposed here as the
+  dashboard: a full-screen surface on its own chord, Ctrl+Option+Cmd+W
+  (`widgets.md`, decided at gate 2), which replaces "v1's chord" in For the user 1,
+  since v1's Super+A is Cmd+A under the Mac model; drawn over this sheet's
   softened form rather than over the windows, so windows neither show
   through nor move (For the user 1). Its grid, editor and gallery are
   `widgets.md`'s.

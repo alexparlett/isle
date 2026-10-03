@@ -255,10 +255,10 @@ come first, since the host is a desktop.
 2. Every window of the current desktop is shown at once, so any can be picked. "Group windows by application" is a setting.
 3. Every desktop and full-screen space is shown and can be switched to, and a desktop can be added.
 4. A window is closed with its close button, W, Delete or a middle click; dragged onto another desktop, it moves there; dragged onto a new desktop, it gets one. Desktops are reordered and removed there too.
-5. App Exposé shows one app's windows, its minimised and hidden windows included and told apart. Mission Control shows the current desktop's minimised windows apart from the spread.
+5. App Exposé shows one app's windows, its minimised and hidden windows included and told apart. Mission Control shows the current desktop's minimised windows, and its hidden apps' windows, in a tray along the bottom apart from the spread, since there is no Dock to hold them.
 6. Arrows, Tab and Return work throughout; Escape or the opening gesture reversed closes it.
 7. Window images are the compositor's own textures and exist only while Mission Control is open (B13, D55).
-8. Each screen corner can run Mission Control, App Exposé, Show Desktop, Notification Centre, Spotlight's Apps view, Lock Screen, Put Display to Sleep, or nothing, optionally only with a modifier held. A corner fires once per visit, after the pointer rests in it, and never over a full-screen game. By default the bottom-left corner runs Mission Control and the bottom-right Spotlight's Apps view (B19).
+8. Each screen corner can run Mission Control, App Exposé, Show Desktop, Notification Centre, Spotlight's Apps view, the widgets dashboard, Lock Screen, Put Display to Sleep, or nothing, optionally only with a modifier held. A corner fires once per visit, after the pointer rests in it, and never over a full-screen game. By default the bottom-left corner runs Mission Control and the bottom-right Spotlight's Apps view (B19).
 9. Gestures: three fingers up for Mission Control, down for App Exposé, left and right between desktops, pinch out for Show Desktop. Each drives its surface's progress with the fingers and settles on release; each has a key and a pointer equivalent.
 
 v1 lessons kept
@@ -277,7 +277,7 @@ Open for its packet
 macOS's Notification Centre: notifications that wait to be read later, with banners for new arrivals
 (B24).
 
-1. Notification Centre opens from the island's clock, a chord or a hot corner, on the screen it was opened from.
+1. Notification Centre opens from the island's clock, a chord or a hot corner, on the screen it was opened from. It unfolds from the pill under the clock, as Control Centre does from the rest of the pill, and one centre is open across all screens.
 2. Notifications are cleared singly, by app or all. Each keeps its actions, inline reply and image while the app's server object lives.
 3. Each arrival is also kept as a record; records that are no longer live stay readable, without actions, and survive restarts (D26).
 4. A new notification shows a banner at the top right of the main screen, under the island's strip, unless silenced. Silenced: the active Focus (Gaming Focus included, B30), a full-screen window (unless another screen is free of one, where the banner shows instead), a share or recording of a screen (not of one window), the user away (idle dim, sleep, lock), the app muted. Critical notifications and allowed apps break through, except that a screen capture holds even critical ones; low urgency never shows a banner.
@@ -287,6 +287,7 @@ macOS's Notification Centre: notifications that wait to be read later, with bann
 8. The desktop's own events arrive as notifications with actions: a drive inserted (Mount, Eject), an AppImage installed, an update finished, a restart owed, a calendar event starting, a provider's sign-in needing attention.
 9. On the lock screen notifications show as none, each app with a count, or previews, by setting; each app with a count by default.
 10. History starts empty: v1's notification records are not imported (B27).
+11. Above the notifications it shows the date, a month and the agenda of the subscribed calendars (`platform.md` Calendars). It holds no widgets.
 
 v1 lessons kept
 - D26: history is records, not live notifications.
@@ -298,11 +299,11 @@ Open for its packet: none.
 ### Widgets
 
 Widgets built into the shell and extended by providers (B14). v1's dashboard keeps its capabilities:
-widgets placed and edited on a grid, and the gallery (B24). They live on the full-screen dashboard (P1, `wallpaper.md`); whether they also sit in Notification Centre is P1's.
+widgets placed and edited on a grid, and the gallery (B24). They live on the full-screen dashboard and nowhere else, not in Notification Centre (P1, `wallpaper.md`, `widgets.md`).
 
-1. The user places widgets and can bring them into view with one chord (v1's dashboard chord), whatever is open.
-2. Built-in widgets: Clock (several, each with a zone), Calendar, Weather, Media, Desktops, Notifications, Controls, System (with its own editor for series, D36), Session (power and profile), Devices (batteries), Storage.
-3. Widgets sit on a grid with an editor: a live outline of where a drag lands, pushing to make room, resizing between a widget's minimum and maximum sizes, keyboard nudges (D24, D35). Layouts are kept per screen.
+1. The user places widgets and can bring them into view with one desktop chord, Ctrl+Option+Cmd+W, from whatever is open but a game in front, which keeps the chord (B30). v1's Super+A cannot carry: it is Cmd+A, Select All (B21).
+2. Built-in widgets: Clock (several, each with a zone), Calendar, Weather, Media, Desktops, Notifications (a glance at each app's waiting count that opens Notification Centre, never a second list), Controls, System (with its own editor for series, D36), Session (power and profile), Devices (batteries), Storage.
+3. Widgets sit on a grid with an editor: a live outline of where a drag lands, pushing to make room, resizing between a widget's minimum and maximum sizes, keyboard nudges (D24, D35). Each screen has one canvas with its own layout, without pages or scrolling.
 4. A provider is a program in any language that emits JSON into a built-in template: text, number, gauge, sparkline, graph, list or card (B14; v1's manifest-only views, D23). It runs as its own sandboxed process (B28), on an interval or streaming, is restarted if it dies, and runs only while its widget is visible.
 5. A widget's settings are a form built from its manifest; a built-in may bring its own editor (D36).
 6. The widget gallery shows installed widgets, the user's own and those a source offers, with sources that are git repositories carrying an index, pulled periodically, installed through staging and updated by version (D29). The isle-widgets registry is the default source and carries providers.
@@ -312,7 +313,7 @@ widgets placed and edited on a grid, and the gallery (B24). They live on the ful
 
 v1 lessons kept
 - D24, D35: the grid editor and its row count.
-- D26: the notification list is the same records in the widget and the centre.
+- D26: the Notifications widget and the centre read the same records.
 - D28, D29: consent before third-party code runs; installs swap in whole.
 - D30: authors write in their own editor; the gallery checks and pictures.
 - Inventory §6 Polling: nothing samples while hidden.
@@ -448,15 +449,15 @@ P1 has answered point to the sheet that answers them.
 - **No Dock**: the Dock's arrangement, attention, badges and running apps are answered in P1 (`docs/work/rust-desktop/p1/structure/dock.md`, `switcher.md`) and recorded in DESIGN.md at gate 6.
 - **Spotlight**: Answered in P1 (`docs/work/rust-desktop/p1/structure/spotlight.md`); recorded in DESIGN.md at gate 6.
 - **App switcher**: Answered in P1 (`docs/work/rust-desktop/p1/structure/switcher.md`); recorded in DESIGN.md at gate 6.
-- **Mission Control**: how windows are arranged (proposal: spread without overlap, never larger than real, moving from and back to their real places, D19); how desktops show and are added (proposal: a Spaces bar along the top, live miniatures, an add button); how App Exposé sets minimised and hidden windows apart (proposal: below), and how Mission Control shows the desktop's minimised windows.
-- **Notification Centre**: its layout (proposal: notifications above, widgets below); grouping and order (proposal: by app, newest first). Where banners appear, how past records show, the summary copy and its pointer route, the clock, are answered in P1 (`docs/work/rust-desktop/p1/structure/notifications.md`, `focus.md`, `island.md`) and recorded in DESIGN.md at gate 6.
-- **Widgets**: whether widgets also sit in Notification Centre's column; whether the Notifications widget is dashboard only (proposal: yes); the gallery's sections (proposal: Installed, Yours, Browse); whether v1's dashboard pages survive as several layouts. Where widgets live on the desktop and what the chord does (the dashboard on v1's chord, no widgets on the desktop) are answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`) and recorded in DESIGN.md at gate 6.
+- **Mission Control**: Answered in P1 (`docs/work/rust-desktop/p1/structure/mission-control.md`); recorded in DESIGN.md at gate 6.
+- **Notification Centre**: Answered in P1 (`docs/work/rust-desktop/p1/structure/notification-centre.md`, `notifications.md`, `focus.md`, `island.md`); recorded in DESIGN.md at gate 6.
+- **Widgets**: Answered in P1 (`docs/work/rust-desktop/p1/structure/widgets.md`, `wallpaper.md`); recorded in DESIGN.md at gate 6.
 - **OSDs**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
 - **Lock screen**: Answered in P1 (`docs/work/rust-desktop/p1/structure/lock.md`, `wallpaper.md`); recorded in DESIGN.md at gate 6.
 - **System prompts**: Answered in P1 (`docs/work/rust-desktop/p1/structure/prompts.md`, `island.md`); recorded in DESIGN.md at gate 6.
 - **Capture**: Answered in P1 (`docs/work/rust-desktop/p1/structure/capture.md`, `island.md`); recorded in DESIGN.md at gate 6.
 - **Wallpaper**: Answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`); recorded in DESIGN.md at gate 6.
-- **On-screen keyboard**: its layout and where completions show (proposal: a strip).
+- **On-screen keyboard**: Answered in P1 (`docs/work/rust-desktop/p1/structure/keyboard-osk.md`); recorded in DESIGN.md at gate 6.
 
 ## Acceptance bars
 
@@ -503,7 +504,7 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 | Island on every screen, events on one (D49) | Shell runtime rule 14; which surfaces each screen carries is P1's |
 | Game mode: island unmapped, hot zone peeks it | Island 8, 12, Menu bar 10: nothing but privacy and OSDs over a game; a top-edge dwell reveals the island, or the bar with it |
 | Dashboard: full-screen widget grid on a chord | Capability kept (Widgets 1, 3); the dashboard is the one widgets surface (P1, `wallpaper.md`) |
-| Dashboard: edit mode, grid editor, pages | Widget grid editor (Widgets 3); pages are P1's |
+| Dashboard: edit mode, grid editor, pages | Widget grid editor (Widgets 3); pages replaced by one canvas per screen |
 | Built-in widgets (Clock, Media, Workspaces, Notifications, Controls, System, Session, Devices, Storage, Calendar, Weather) | Built-in widgets |
 | Agents widget (terminal windows) | Dropped: no longer a feature |
 | Manifest-only widgets and the text renderer | Provider templates |

@@ -245,15 +245,16 @@ the app. Closing it while it does not respond: For the user.
 The escape chord itself is `compositor.md`'s (Keyboard-shortcuts-inhibit,
 Open).
 
-**Show Desktop.** The window side of Show Desktop (Stacking 10) and of
-B24's "Show widgets": every window on the output moves to its nearest
+**Show Desktop.** The window side of Show Desktop (Stacking 10): every
+window on the output moves to its nearest
 output edge (left, right or bottom; the top is the island's strip and the
 menu bar's reveal), keeping its size, until only a sliver of each shows at
 the edge (macOS). Clicking a
 sliver, the chord again, activating any window or a window mapping puts
-them all back in their boxes along the same path. Whether "Show widgets"
-is this move with desktop widgets beneath, or a dashboard over the
-windows that moves none, is the widgets sheet's (batch 3; brief Changed).
+them all back in their boxes along the same path. It reveals the plain
+wallpaper. It is the only such move: there is no "Show widgets" move,
+since the widgets dashboard covers the windows and moves none
+(`widgets.md`).
 
 **Choreography.** Every move starts and ends at a window's real rectangle;
 nothing slides into a place it should have opened in (brief P5, v1 D91).
@@ -400,7 +401,7 @@ Cmd+. cancel, Cmd+Delete takes a destructive button such as "Don't save"
 | Keyboard: Ctrl+Option chords | Apps' own Ctrl+Alt chords (IDEs) | The desktop, on the physical keys; Mac-chord users reach the app's through Cmd+Option, which is translated |
 | Keyboard: the inhibit escape chord | The game escape set (B30); a game's own inhibitor | `competition.md` with `gaming.md` Open: the escape chord survives every inhibitor |
 | Keyboard focus | The zoom and window menus against the window; a sheet against its window; system prompts against a sheet | Menus take focus on demand and give it back; a sheet holds its window's focus; a system prompt takes focus over everything (system prompts sheet) |
-| Show Desktop and Show widgets | Hot corner, pinch, the widgets chord, Mission Control | One window move for both; which surface each chord reveals is the widgets sheet's |
+| Show Desktop | Hot corner, the spread gesture, Cmd+F3, Mission Control | Show Desktop is the only window move; the widgets dashboard moves no window (`widgets.md`) |
 | The zoom menu's Full screen section | Split View's tile left and right | The entries live here; their behaviour and candidates are the Split View sheet's (batch 3) |
 | Undecorated windows | Picture-in-picture (proposal: no bar), the dropdown terminal | Their sheets (batch 3); this sheet draws no bar on either |
 | Full-screen motion | The Space switch | The window grows in this sheet; the Space moves in the Spaces sheet |
@@ -416,10 +417,10 @@ Cmd+. cancel, Cmd+Delete takes a destructive button such as "Don't save"
   restore returns it from there, or from its tile in App Exposé or Mission
   Control, to its real box (brief P5, Changed; revision 1; v1 D91).
 - **Stacking: whether Show Desktop reveals widgets, and on which chord**
-  (proposal, B24: "Show widgets" on v1's dashboard chord). **Split**: the
-  window move is answered here and shared by both; whether the chord
-  reveals desktop widgets or a dashboard is the widgets sheet's, which the
-  brief leaves to the structure stage.
+  (proposal, B24: "Show widgets" on v1's dashboard chord). **Replaced**:
+  the window move is answered here and is Show Desktop's alone, revealing
+  the plain wallpaper; the widgets are a dashboard over the windows on
+  their own chord, which moves none (`widgets.md`).
 - **Stacking: where windows go when moved aside.** **New**: each to its
   nearest output edge, keeping its size, a sliver left showing, back along
   the same path (macOS).

@@ -2,6 +2,13 @@
 
 ## 2026-10-03
 
+- P1 gate 2, batch 3 passed: Notification Centre unfolding from the pill
+  with the date, month and agenda; the widgets dashboard as one canvas
+  per screen on Ctrl+Option+Cmd+W; Mission Control with a minimised tray
+  and a short slide between desktops; Files without tags or Connect to
+  Server, undo as a stack; Monitor with a GPU view; Keychain's reveal
+  gated once on opening. Stage 2 is complete; the intent docs follow.
+
 - P1 gate 3: the user chose Frost. Three directions (Frost, Slate, Dusk)
   were drawn on the harness, now able to switch directions, each from its
   own `tokens.kdl` through a shared kit of components. Batch 3 of the

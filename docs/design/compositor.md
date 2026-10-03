@@ -121,8 +121,8 @@ own beside the one it came from, as on macOS.
 
 1. Spaces are per output ("displays have separate Spaces"); each output has at least one; Spaces are added and removed from Mission Control and persist in the state store.
 2. Ctrl+←/→ moves between Spaces and Ctrl+1…9 jumps to one, taken from the physical Ctrl key only; a window moves to a Space by Mission Control drag, a chord or the window menu.
-3. Space switches are animated by the compositor and can be driven by a gesture that tracks the fingers.
-4. "Automatically rearrange Spaces based on most recent use" is a setting; an app can be assigned to one Space or to all, and its new windows open there.
+3. Space switches are animated by the compositor as a short slide in the switch's direction with the two Spaces crossfading, and can be driven by a gesture that tracks the fingers. The wallpaper, the island and the top layer stay still; only that output's windows move, and nothing bounces at either end of the row.
+4. "Automatically rearrange Spaces based on most recent use" is a setting, off by default; an app can be assigned to one Space or to all, and its new windows open there.
 5. A window that becomes full screen (`set_fullscreen`, `_NET_WM_STATE_FULLSCREEN`, the zoom button, Ctrl+Cmd+F) moves to a new full-screen Space to the right of its origin, and the view follows only if the window has focus.
 6. A window that covers its whole output without decoration (a game's borderless fullscreen) is given a full-screen Space the same way, without forcing the fullscreen state on it.
 7. When fullscreen ends, or the window closes, the Space is removed, the window returns to its origin Space and box, and the view returns with it; a window already alone on its Space is left where it is.
@@ -138,11 +138,10 @@ Two windows share a full-screen Space with a divider between them, as macOS
 Split View.
 
 1. Split View is entered from the zoom button's menu ("tile to the left or right of the screen"), by chord, or by dragging a window onto a full-screen Space in Mission Control.
-2. The other half is chosen from the Space's remaining windows.
+2. The other half is chosen from the origin Space's other windows, offered in the free half; a window whose minimum width does not fit the half is not offered, and cancelling returns the first window to its box and removes the Space.
 3. The divider moves both windows; it stops at either window's minimum size.
 4. Leaving full screen for one window returns it to its origin Space; the other stays in its full-screen Space alone.
-
-**Open for its packet.** Whether a third column is offered on an ultrawide. How a window that refuses the half size is handled.
+5. Two panes only: no third column on an ultrawide, where the zones divide a desktop in thirds.
 
 ### Stage Manager
 
@@ -150,17 +149,18 @@ macOS Stage Manager (a strip of recent apps beside one front app) is a
 layout module behind B8's per-Space trait, not a change to stacking. It comes
 later than the rest of this document and is off by default (B25).
 
-1. Stage Manager is a layout module chosen per Space and off by default; the recent apps are shown by a shell surface (`shell.md`) fed with the compositor's app and window list and live textures.
-2. With it on, the front app's windows have the work area and other apps' windows are parked, each app reachable in one step; activating an app swaps it in.
+1. Stage Manager is a layout module chosen per Space and off by default; the recent apps are shown by a shell surface (`shell.md`) fed with the compositor's app and window list and live textures, in a column at the leading edge of the work area that stays hidden until the pointer presses that edge unless the user shows it.
+2. With it on, the front app's windows have the work area and other apps' windows are parked, each app reachable in one step; activating an app swaps it in. A set keeps the user's arrangement; it is centred only the first time it is staged.
 
 ### Picture-in-picture
 
 A video's picture-in-picture window floats above everything, on every Space,
 in a corner, as on macOS.
 
-1. A PiP window is recognised by title ("Picture-in-Picture", "Picture in picture") or by an `xdg-toplevel-tag`, and is kept on top and on every Space, including full-screen Spaces.
+1. A PiP window is recognised by title ("Picture-in-Picture", "Picture in picture") or by an `xdg-toplevel-tag`, and is kept on top and on every Space, including full-screen Spaces. While a full-screen game is in front it is hidden, still playing, and comes back in its corner when the game leaves the front.
 2. It keeps its aspect ratio when resized, snaps to the nearest corner of the work area when dropped, and opens in the corner it last used.
-3. It is not listed in the switcher.
+3. It is not listed in the switcher or in Mission Control's spread.
+4. It has no title bar or lights: the compositor gives it the system radius, a shadow and a resize band, and the player draws its own controls.
 
 **v1 lessons kept.** Inventory §3.3 `pip`: a rule's own move was ignored, so v1 moved each PiP window after it mapped; placement here is at map.
 
@@ -172,8 +172,9 @@ A terminal appears on a chord, over every Space, and goes again on the
 same chord.
 
 1. One dropdown terminal exists per session, launched on first use under an app id of Isle's own and kept running when hidden.
-2. The chord toggles it on the output with focus; it is above windows, below shell overlays, and on every Space.
-3. Its size is a setting; it is excluded from places, the switcher and session restore.
+2. The chord toggles it on the output with focus; it is above windows, below shell overlays, and on every Space. It slides down from behind the island's strip, which stays above it.
+3. Its size is a setting; it is excluded from places, the switcher, Mission Control and session restore.
+4. It hides when another window takes focus, a setting on by default; a shell surface taking focus for a moment does not hide it.
 
 **v1 lessons kept.** Inventory §3.10: v1 sized it by dispatch after it mapped; size is set at map here.
 
@@ -411,13 +412,20 @@ gave before.
 - **Snapping**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/window-chrome.md`); recorded in DESIGN.md at
   gate 6.
-- **Spaces**: the Space-switch motion.
-- **Split View**: how the candidates for the other half are offered
-  (proposal: shown in the free half).
-- **Stage Manager**: where the recent apps sit and how the front app is laid
-  out (proposal: a strip beside the work area, front app centred).
-- **Picture-in-picture**: whether it is decorated (proposal: no title bar).
-- **Dropdown terminal**: how it appears (proposal: slides down from the top).
+- **Spaces**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/mission-control.md`); recorded in DESIGN.md
+  at gate 6.
+- **Split View**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/mission-control.md`); recorded in DESIGN.md
+  at gate 6.
+- **Stage Manager**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/mission-control.md`); recorded in DESIGN.md
+  at gate 6.
+- **Picture-in-picture**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/pip.md`); recorded in DESIGN.md at gate 6.
+- **Dropdown terminal**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/dropdown-terminal.md`); recorded in
+  DESIGN.md at gate 6.
 - **Server-side decorations**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/window-chrome.md`); recorded in DESIGN.md at
   gate 6.

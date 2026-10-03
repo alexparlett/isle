@@ -28,7 +28,7 @@ replace it.
 | Running indicator | The switcher: every app with a window is an entry; hidden and minimised-only apps carry their marks. The on-demand menu bar names the front app | `switcher.md` |
 | Running in background after quit | The switcher, at the end of the row with a background mark; Q there stops it (`switcher.md` For the user 3) | `switcher.md` |
 | Badges | The switcher's cards, on the icon's top trailing corner; also the app's tile in the Apps grid, which `spotlight.md` confirms | `switcher.md`, `spotlight.md` |
-| Progress | The switcher's cards. Whether a long job's progress also shows in the island as a live activity is `island.md`'s; its finish is a notification either way | `switcher.md`, `island.md` |
+| Progress | The switcher's cards and the app's own window; never the island (`island.md` For the user 3). Its finish is a notification unless the app is in front | `switcher.md`, `island.md`, `files.md` |
 | Attention | A held mark on the app's switcher card, and an island event naming the app, whose form and hold are `island.md`'s | `switcher.md`, `island.md` |
 | Minimised windows | App Exposé (Ctrl+↓), where they are set apart (`shell.md` Mission Control 5); in Mission Control, a tray of the current desktop's minimised windows, which is v1's hidden-window tray back again now that no Dock holds them (`design-v1-lessons.md` § 5 Mission Control); in the switcher, the minimised mark and the window row; in the Window menu by title | `mission-control.md`, batch 3; `switcher.md`; `menu-bar.md` |
 | Minimise and restore motion | The window shrinks toward the island and restores from there or from its tile in App Exposé or Mission Control | `window-chrome.md` |
@@ -39,8 +39,8 @@ replace it.
 | Show all windows | App Exposé (Ctrl+↓), or ↓ in the switcher | `mission-control.md`, `switcher.md` |
 | Open at login, Show in Files, Assign to desktop | The app tile's menu in the Apps grid; Open at login also in Settings › General › Login items | `spotlight.md`, Settings (batch 2) |
 | Keep running after last window (the B20 policy) | Settings › Apps, per app; and the app's menu in the on-demand menu bar, as an item Isle adds, if `menu-bar.md` takes it | Settings, `menu-bar.md` |
-| Dropping files on an app | Files' Open With; or Cmd+Tab while dragging brings the app forward and the drop lands in its window (`switcher.md`, During a drag) | `files.md`, batch 3; `switcher.md` |
-| Trash | Files: the sidebar's Trash, Cmd+Delete, Empty Trash, ejecting volumes. Spotlight finds "Trash". The trash sound plays from Files | `files.md` |
+| Dropping files on an app | Files' Open With; or Cmd+Tab while dragging brings the app forward and the drop lands in its window (`switcher.md`, During a drag) | `files.md`; `switcher.md` |
+| Trash | Files: the sidebar's Trash, Cmd+Delete, Put Back, Empty Trash, ejecting volumes; Cleaner moves to the same Trash and shows the same Empty Trash alert. Spotlight finds "Trash". The trash sound plays from Files | `files.md`, `cleaner.md` |
 | Games' cover art | The switcher (icon and name), Spotlight's results and Apps grid, Mission Control | `switcher.md`, `spotlight.md`, `mission-control.md` |
 | Recent apps | Spotlight's recency ranking | `spotlight.md` |
 | Stacks (Downloads) | Not built; Files covers them | |

@@ -141,7 +141,7 @@ desktop setting; rows and their order are each pane's packet.
 | 1 | VPN | VPN | NetworkManager VPNs and VPN providers (`apps.md` Settings 11) | Network › VPN providers |
 | 1 | Phone | *Isle only*, after VPN | Phone providers; shown only while one is installed | Phone |
 | 1 | Energy, or Battery on a machine with one | Energy, Battery | Power profile, sleep and wake, batteries | Power |
-| 2 | General | General | Sub-pages: About, Software Update, Storage · Passwords, Date & Time, Language & Region, Login Items · Snapshots | About, Updates, Storage, Devices, Passwords, Date and time, Region, Apps (autostart, user services, start commands), Snapshots |
+| 2 | General | General | Sub-pages: About, Software Update, Storage (each disk as a bar by kind, and Recommendations that open Cleaner, `cleaner.md` For the user 1) · Passwords, Date & Time, Language & Region, Login Items · Snapshots | About, Updates, Storage, Devices, Passwords, Date and time, Region, Apps (autostart, user services, start commands), Snapshots |
 | 2 | Accessibility | Accessibility | Display (contrast, transparency, motion, text size), Zoom, the on-screen keyboard, pointer | Accessibility |
 | 2 | Appearance | Appearance | Light, Dark or Auto; the glass slider; accent; fonts (D52); other apps' title bars (`window-chrome.md`) | Appearance |
 | 2 | Apps | *Isle only*, beside Desktop & Dock, which holds macOS's default browser | Default apps; per app: keep running after its last window (B20), Cmd translation (B21) | Apps (keep-running, default apps) |
@@ -154,7 +154,7 @@ desktop setting; rows and their order are each pane's packet.
 | 3 | Sound | Sound | Output and input with meters; alert sound; each system sound on or off (brief, interview) | Audio |
 | 3 | Focus | Focus | Do Not Disturb, Game Mode and the user's modes, each a sub-page; Game Mode's settings (For the user 2) | Notifications (do not disturb, quiet hours), Modes (game auto) |
 | 4 | Lock Screen | Lock Screen | Idle dim, display off, lock after, lock on sleep, the greeter | Power (idle timers) |
-| 4 | Privacy & Security | Privacy & Security | The permissions Isle has granted: remembered screen-sharing choices, providers' declared permissions (B28) | |
+| 4 | Privacy & Security | Privacy & Security | The permissions Isle has granted: remembered screen-sharing choices; Providers, every provider of every kind with its grants as switches, one page each, read only with "Change…" everywhere else (B28, `widgets.md`) | |
 | 4 | Login Password, or Fingerprint & Password with a reader | Login Password, Touch ID & Password | The password; fingerprints, and where a fingerprint is accepted (D33, D34) | Users (fingerprint, PAM switches) |
 | 4 | Users & Groups | Users & Groups | Accounts; automatic login | Users |
 | 5 | Calendars | *Isle only*, in Internet Accounts' place | Calendar subscriptions (D41) | Calendars |

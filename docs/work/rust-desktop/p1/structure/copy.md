@@ -1,6 +1,6 @@
 # Copy
 
-Batch 1, with batch 2's recurring strings collected. Answers to:
+Batch 1, with batches 2 and 3's recurring strings collected. Answers to:
 shell.md "Shell runtime" (UI copy rules), and the copy items every other
 sheet points here for. The rules every string in the shell and Isle's apps
 follows, and the strings that recur.
@@ -70,7 +70,17 @@ follows, and the strings that recur.
 | Display change | "Keep these display settings?", "Reverting in {n} seconds.", "Revert", "Keep" |
 | A changed setting | "Reset to default" |
 | Search with no match | "No results for “{query}”" |
-| Feature names | "Do Not Disturb", "Game Mode", "Night Light", "Dark Mode", "Energy Mode", "Now Playing" keep their capitals as names (rule 1) |
+| Feature names | "Do Not Disturb", "Game Mode", "Night Light", "Dark Mode", "Energy Mode", "Now Playing", "Notification Centre", "Mission Control", "App Exposé", "Show Desktop", "Split View", "Stage Manager", "Quick Look" keep their capitals as names (rule 1). The user reads "desktop", never "Space" or "workspace": "Desktop 1" |
+| Hot corner actions | "Mission Control", "Application Windows", "Desktop", "Notification Centre", "Apps", "Widgets", "Lock Screen", "Put Display to Sleep", "—" |
+| Clearing | "Clear" (one), "Clear {app} notifications" (a stack), "Clear all", a close mark that widens to it before acting |
+| Trash | "Move to Trash", "Put Back", "Empty Trash…"; alert "Permanently erase {n} items in the Trash?", "You can't undo this.", "Empty Trash" (Files and Cleaner alike) |
+| Undo | "Undo {act}" naming it ("Undo Move to Trash", "Undo Rename"); "Can't Undo" when there is none; "Undo" on a done notice |
+| Name taken | "An item named “{name}” already exists in “{folder}”." with "Keep Both", "Replace" ("Merge" for folders; "Apply to all", "Stop" for many) |
+| Deleting and quitting one thing | Title asks with the name: "Delete “{title}”?", "Quit “{process}”?"; the button names the act: "Delete", "Quit", "Force Quit". Monitor's menu item is "Quit Process" |
+| Locked source | "{Source} is locked" with "Unlock…" |
+| Copied secret | "Password copied" (the island's event, from Keychain and Spotlight) |
+| A file in another app's menu | "Show in Files", "Quick Look", "Copy path", "Open With" |
+| More of a list | "{n} more", "Show less" |
 | Empty states | One line saying what will appear: "No notifications". Never a card of filler. |
 
 Strings a later sheet owns are added there and collected here at the

@@ -176,7 +176,7 @@ island, so the right stays empty (revision 1).
 | A menu open | Its title marked; the menu under it. Moving the pointer across titles switches menus without a click. |
 | Menus loading | The app's tree is not cached: the fallback titles show at once and the app's own replace them once, when the tree arrives or the timeout (2 s) passes. An open menu whose items arrive takes them in place and keeps the marked row. |
 | App not answering | The fallback stays; a submenu whose AboutToShow times out opens with what it had. An item activated in an app that does not answer does nothing visible; the menu has already closed. |
-| Empty: no window focused | The front app is Files, as Finder on macOS (For the user 1). |
+| Empty: no window focused | The front app is Files, as Finder on macOS (For the user 1, which `files.md` confirms): its name and fallback menus, without starting it until one is chosen. |
 | Many menus | » on the left (Overflow, above). |
 | Second screen | The bar reveals on the screen where the pointer pushed, with the focused app's menus wherever its window is; a menu chosen there acts on that app without moving focus (`shell.md` Menu bar 8). Ctrl+F2 reveals it on the screen of the focused window. Each screen overflows on its own width. |
 | Full-screen window | The same reveal as at rest: a push at the top edge outside the island's zone brings the bar down over the content, without resizing it, with the island in front of it and, for a window with Isle's title bar, that bar beneath (`window-chrome.md`). It leaves as at rest. |

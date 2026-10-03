@@ -113,5 +113,12 @@
   prints what it receives. `cargo test --workspace --features
   isle-compositor/test-hooks` runs seven headless tests, each on its own
   bus and runtime directory: mapping, input, idle frames, the stall
-  timeout, a settings hand edit, a screenshot, outputs. Next: 2.6, DRM,
-  libinput and outputs.
+  timeout, a settings hand edit, a screenshot, outputs.
+- P2 phase 2.6 done: windows follow an output away and back by its
+  identity, the session survives no output, layer-shell with exclusive
+  zones, and the udev backend (libseat, DRM output managers, libinput,
+  themed cursors, VT switching, re-probing, `isle displays redetect`).
+  Checked in the VM on tty8 (llvmpipe): kitty draws and takes typing,
+  switching to tty1 and back redraws, scale changes live, redetect
+  relights with kitty in place. Second-GPU scan-out moved to P14 and
+  mode confirm-or-revert to P13. Next: 2.7, the supervisor.

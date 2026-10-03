@@ -2,6 +2,13 @@
 
 ## 2026-10-03
 
+- P2 phase 2.6: outputs, layer-shell and DRM. The compositor runs on the
+  VM's real DRM in a logind session on tty8. Found there: a GPU opened
+  before the session is active cannot become DRM master, so opening waits
+  for activation; a re-lit output's first frame drew no windows, because
+  the space learns window-output overlap in its refresh, which ran after
+  the redraw. Twelve headless tests pass.
+
 - P2 phase 2.5: the headless backend, the Test interface's input,
   outputs, frames and screenshots, a Wayland test client and seven
   integration tests, passing twice in a row in about four seconds.

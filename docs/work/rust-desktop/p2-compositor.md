@@ -243,9 +243,10 @@ idle frames, the stall time limit and a settings hand edit.
   the fallback and cursor planes reassigned on every output change.
 - libinput with device settings applied live by identity; keyboard layouts
   and repeat from settings.
-- Outputs by EDID make, model and serial, restored with their settings;
-  the last enabled output cannot be disabled; a mode change reverts unless
-  confirmed within a timeout (`isle displays confirm`).
+- Outputs by EDID make, model and serial, restored with their settings.
+  Moved out at 2.6: scan-out of a second GPU's connectors (P14, on the
+  host, the only machine with two), and a mode change that reverts unless
+  confirmed (P13, with the Displays pane that asks).
 - The KVM lessons: windows on a vanished output move to a remaining one,
   clamped whole, and go back when it returns; with no output lit the
   session runs headless and re-probes connectors every few seconds;

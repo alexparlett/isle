@@ -99,6 +99,8 @@ pub struct Udev {
     cursors: Cursors,
     pointers: Vec<libinput::Device>,
     reprobe: Option<RegistrationToken>,
+    /// The render GPU, until the session is first active and it can be opened.
+    waiting: Option<(DrmNode, std::path::PathBuf)>,
 }
 
 impl Udev {
@@ -143,6 +145,7 @@ impl Udev {
                 cursors: Cursors::load(),
                 pointers: Vec::new(),
                 reprobe: None,
+                waiting: None,
             },
             notifier,
         ))
@@ -209,27 +212,16 @@ pub fn setup(
         .filter_map(|(id, path)| Some((DrmNode::from_dev_id(id).ok()?, path.to_owned())))
         .collect();
     let primary = udev.primary;
-    for (node, path) in &devices {
-        if *node == primary {
-            state.device_added(*node, path)?;
-        } else {
-            info!(%node, "not driving this GPU's outputs; one GPU renders for now");
-        }
+    for (node, _) in devices.iter().filter(|(node, _)| *node != primary) {
+        info!(%node, "not driving this GPU's outputs; one GPU renders for now");
     }
-    let Backend::Udev(udev) = &mut state.backend else {
-        unreachable!();
-    };
-    let renderer = udev
-        .renderer
-        .as_mut()
-        .ok_or("the render GPU did not open")?;
-    state.isle.shm_state.update_formats(renderer.shm_formats());
-    let feedback =
-        DmabufFeedbackBuilder::new(udev.render_node.dev_id(), renderer.dmabuf_formats()).build()?;
-    state
-        .isle
-        .dmabuf_state
-        .create_global_with_default_feedback::<State>(&state.isle.display_handle, &feedback);
+    udev.waiting = devices.into_iter().find(|(node, _)| *node == primary);
+    // A device opened before the session is active cannot become DRM master.
+    if udev.session.is_active() {
+        state.open_render_gpu()?;
+    } else {
+        info!("waiting for the session to become active");
+    }
 
     let handle = state.isle.loop_handle.clone();
     handle
@@ -282,6 +274,28 @@ pub fn setup(
 }
 
 impl State {
+    /// Opens the render GPU, then serves the formats it can import.
+    fn open_render_gpu(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let Some((node, path)) = self.udev().waiting.take() else {
+            return Ok(());
+        };
+        self.device_added(node, &path)?;
+        let udev = self.udev();
+        let render_node = udev.render_node;
+        let renderer = udev
+            .renderer
+            .as_mut()
+            .ok_or("the render GPU did not open")?;
+        let shm = renderer.shm_formats();
+        let formats = renderer.dmabuf_formats();
+        self.isle.shm_state.update_formats(shm);
+        let feedback = DmabufFeedbackBuilder::new(render_node.dev_id(), formats).build()?;
+        self.isle
+            .dmabuf_state
+            .create_global_with_default_feedback::<State>(&self.isle.display_handle, &feedback);
+        Ok(())
+    }
+
     fn udev(&mut self) -> &mut Udev {
         match &mut self.backend {
             Backend::Udev(udev) => udev,
@@ -646,7 +660,14 @@ impl State {
                 }
             }
             SessionEvent::ActivateSession => {
-                info!("session resumed");
+                info!("session active");
+                if self.udev().waiting.is_some() {
+                    if let Err(err) = self.open_render_gpu() {
+                        error!("could not open the render GPU: {err}");
+                        self.isle.loop_signal.stop();
+                    }
+                    return;
+                }
                 let udev = self.udev();
                 if udev.libinput.resume().is_err() {
                     error!("libinput did not resume");

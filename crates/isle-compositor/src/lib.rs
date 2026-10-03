@@ -104,9 +104,11 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };
 
     event_loop.run(None, &mut state, |state| {
-        state.redraw_queued();
+        // The space learns which outputs each window overlaps in its refresh, and a
+        // redraw reads that.
         state.isle.space.refresh();
         state.isle.popups.cleanup();
+        state.redraw_queued();
         let _ = state.isle.display_handle.flush_clients();
     })?;
     info!("exiting");

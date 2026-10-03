@@ -129,4 +129,11 @@
   keeps `session.log` and the old one, adds the exit and log tail to
   crash records and keeps ten, restarts with a doubling backoff, and
   after three quick deaths starts on the defaults until `isle settings
-  use-mine`. Four supervisor tests. Next: 2.8, the VM boot and the host.
+  use-mine`. Four supervisor tests.
+- P2 phase 2.8, VM part done: the guest's tty1 autologin runs
+  `/repo/target/debug/isle-session` when `~/.isle-rust-session` exists
+  (guest-side switch in `~/.bash_profile`; remove the file for Hyprland);
+  `isle-session.target` and `graphical-session.target` come up, Super+Return
+  opens kitty, typing works, `isle version` over ssh matches. Nested VRAM
+  recorded (`docs/research/rust-desktop/p2-vram.md`). Waiting on the host
+  smoke run on tty8, which needs the user (sudo). Then 2.9, close.

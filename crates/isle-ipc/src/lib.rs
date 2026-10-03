@@ -40,6 +40,11 @@ pub struct WindowInfo {
     /// The output the window is on, or empty while it is on none.
     pub output: String,
     pub focused: bool,
+    /// The window's box in the global space, in logical points.
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]

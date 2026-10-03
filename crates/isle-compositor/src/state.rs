@@ -40,7 +40,7 @@ use tracing::{info, warn};
 use isle_settings::schema::Settings;
 use tokio::sync::broadcast;
 
-use crate::{backend::Backend, redraw::OutputState, watchdog::Heartbeat, worker::Event};
+use crate::{backend::Backend, watchdog::Heartbeat, worker::Event};
 
 pub struct State {
     pub backend: Backend,
@@ -192,22 +192,7 @@ impl Isle {
         }
     }
 
-    pub fn add_output(&mut self, output: &Output, location: Point<i32, Logical>) {
-        output.user_data().insert_if_missing(OutputState::cell);
-        self.space.map_output(output, location);
-        self.apply_output_settings(output);
-        self.update_frame_budget();
-        self.queue_redraw(output);
-        self.notify(Event::DisplaysChanged);
-    }
-
-    pub fn remove_output(&mut self, output: &Output) {
-        self.space.unmap_output(output);
-        self.update_frame_budget();
-        self.notify(Event::DisplaysChanged);
-    }
-
-    fn update_frame_budget(&self) {
+    pub fn update_frame_budget(&self) {
         let fastest = self
             .space
             .outputs()

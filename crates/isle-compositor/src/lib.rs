@@ -8,6 +8,7 @@ mod dbus;
 mod grabs;
 mod handlers;
 mod input;
+mod outputs;
 pub mod redraw;
 mod render;
 pub mod settings;

@@ -56,7 +56,12 @@ impl Isle {
                     .first()
                     .map(|o| o.name())
                     .unwrap_or_default();
+                let geometry = self.space.element_geometry(window).unwrap_or_default();
                 Some(WindowInfo {
+                    x: geometry.loc.x,
+                    y: geometry.loc.y,
+                    width: geometry.size.w,
+                    height: geometry.size.h,
                     id: Self::window_id(window),
                     app_id,
                     title,

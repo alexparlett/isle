@@ -177,7 +177,7 @@ impl Isle {
         }
     }
 
-    async fn test(&self) -> TestProxy<'_> {
+    async fn test(&self) -> TestProxy<'static> {
         TestProxy::new(&self.bus).await.unwrap()
     }
 }
@@ -371,4 +371,54 @@ async fn outputs_come_and_go_through_the_test_interface() {
     assert_eq!((list[1].x, list[1].width), (1920, 1280));
     assert!(test.remove_output("HEADLESS-2").await.unwrap());
     assert_eq!(displays.list().await.unwrap().len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_leaves_with_its_output_whole_and_returns_with_it() {
+    let mut isle = Isle::start("kvm").await;
+    let test = isle.test().await;
+    test.add_output("HEADLESS-2", "AOC", "U34G2G4R3", "7", 1280, 720)
+        .await
+        .unwrap();
+    // New windows open on the output under the pointer.
+    test.pointer_to(1920.0 + 640.0, 360.0).await.unwrap();
+    let _client = isle.client("isle.test.Kvm", "ffaa00");
+    let before = isle.wait_for_window("isle.test.Kvm").await;
+    assert_eq!(before.output, "HEADLESS-2");
+
+    assert!(test.remove_output("HEADLESS-2").await.unwrap());
+    let moved = isle.wait_for_window("isle.test.Kvm").await;
+    assert_eq!(moved.output, "HEADLESS-1");
+    assert!(moved.x >= 0 && moved.y >= 0, "{moved:?}");
+    assert!(
+        moved.x + moved.width <= 1920 && moved.y + moved.height <= 1080,
+        "{moved:?}"
+    );
+
+    test.add_output("HEADLESS-3", "AOC", "U34G2G4R3", "7", 1280, 720)
+        .await
+        .unwrap();
+    let back = isle.wait_for_window("isle.test.Kvm").await;
+    assert_eq!(
+        back.output, "HEADLESS-3",
+        "the same display, by its identity"
+    );
+    assert_eq!((back.x - 1920, back.y), (before.x - 1920, before.y));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn with_no_output_the_session_continues_and_windows_return() {
+    let mut isle = Isle::start("dark").await;
+    let _client = isle.client("isle.test.Dark", "00aaff");
+    isle.wait_for_window("isle.test.Dark").await;
+    let test = isle.test().await;
+    assert!(test.remove_output("HEADLESS-1").await.unwrap());
+    let dark = isle.wait_for_window("isle.test.Dark").await;
+    assert_eq!(dark.output, "");
+    test.add_output("HEADLESS-9", "Isle", "Other", "9", 800, 600)
+        .await
+        .unwrap();
+    let lit = isle.wait_for_window("isle.test.Dark").await;
+    assert_eq!(lit.output, "HEADLESS-9", "{lit:?}");
+    assert!(lit.x >= 0 && lit.x + lit.width <= 800, "{lit:?}");
 }

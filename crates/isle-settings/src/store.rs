@@ -85,14 +85,35 @@ impl<S: Section> Store<S> {
         store
     }
 
-    /// Defaults only, the file never read: the safe start after repeated crashes.
+    /// Defaults only, the file never read: the safe start after repeated crashes. The
+    /// file is not written either, since it may be what stopped Isle, until `use_file`.
     pub fn defaults(path: impl Into<PathBuf>) -> Self {
+        let path = path.into();
+        let error = FileError {
+            file: path.clone(),
+            line: 0,
+            column: 0,
+            message: "Isle started on the default settings because it stopped soon after \
+                      starting three times; settings.kdl was not read"
+                .into(),
+        };
         Self {
-            path: path.into(),
+            path,
             text: String::new(),
             current: S::default(),
-            error: None,
+            error: Some(error),
         }
+    }
+
+    /// Reads the file and puts it in force, after a safe start.
+    pub fn use_file(&mut self) -> Reload {
+        let text = read(&self.path).unwrap_or_default();
+        self.text = String::from("\0");
+        let reload = self.reload_text(Some(text.clone()));
+        if text.is_empty() && matches!(reload, Reload::Applied(_)) {
+            self.text = text;
+        }
+        reload
     }
 
     pub fn path(&self) -> &Path {

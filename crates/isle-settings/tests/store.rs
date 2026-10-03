@@ -237,3 +237,22 @@ fn the_schema_lists_every_key_with_its_default() {
             .any(|k| k.key == "app[io.github.alexparlett.Isle.Example].sidebar-width")
     );
 }
+
+#[test]
+fn a_safe_start_ignores_the_file_until_asked_and_writes_nothing_until_then() {
+    let dir = Dir::new("safe");
+    fs::write(dir.file(), "keyboard { repeat-rate 40; }\n").unwrap();
+    let mut store: Store<Settings> = Store::defaults(dir.file());
+    assert_eq!(store.current().keyboard.repeat_rate, 25);
+    assert!(store.error().is_some());
+    assert!(matches!(
+        store.set("keyboard.repeat-rate", Value::Int(30)),
+        Err(SetError::Refused(_))
+    ));
+    assert_eq!(
+        store.use_file(),
+        Reload::Applied(vec!["keyboard.repeat-rate".into()])
+    );
+    assert!(store.error().is_none());
+    assert_eq!(store.current().keyboard.repeat_rate, 40);
+}

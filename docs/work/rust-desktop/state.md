@@ -121,4 +121,12 @@
   Checked in the VM on tty8 (llvmpipe): kitty draws and takes typing,
   switching to tty1 and back redraws, scale changes live, redetect
   relights with kitty in place. Second-GPU scan-out moved to P14 and
-  mode confirm-or-revert to P13. Next: 2.7, the supervisor.
+  mode confirm-or-revert to P13.
+- P2 phase 2.7 done: `isle-session` starts the compositor (beside it, or
+  `ISLE_COMPOSITOR`), learns its socket through an inherited pipe,
+  exports the session environment and starts `isle-session.target`
+  (`data/systemd/`; graphical-session.target refuses a manual start),
+  keeps `session.log` and the old one, adds the exit and log tail to
+  crash records and keeps ten, restarts with a doubling backoff, and
+  after three quick deaths starts on the defaults until `isle settings
+  use-mine`. Four supervisor tests. Next: 2.8, the VM boot and the host.

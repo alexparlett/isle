@@ -73,6 +73,8 @@ enum Settings {
     Status,
     /// Every key, its type, default and range.
     Schema,
+    /// Put settings.kdl in force after Isle started on the defaults.
+    UseMine,
 }
 
 #[derive(Subcommand)]
@@ -236,6 +238,12 @@ async fn settings(cli: &Cli, bus: &zbus::Connection, command: &Settings) -> zbus
                 isle_settings::Value::List(l) => zvariant::Value::from(l),
             };
             let changed = proxy.set(key, &value).await?;
+            if cli.json {
+                print_json(&changed);
+            }
+        }
+        Settings::UseMine => {
+            let changed = proxy.use_mine().await?;
             if cli.json {
                 print_json(&changed);
             }

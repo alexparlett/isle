@@ -2,6 +2,10 @@
 
 ## 2026-10-03
 
+- P2 phase 2.7: the supervisor, tested over the headless compositor: a
+  core panic, `kill -9`, three quick deaths into a safe start and back,
+  and a clean quit.
+
 - P2 phase 2.6: outputs, layer-shell and DRM. The compositor runs on the
   VM's real DRM in a logind session on tty8. Found there: a GPU opened
   before the session is active cannot become DRM master, so opening waits

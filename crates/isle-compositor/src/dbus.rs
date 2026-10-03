@@ -45,6 +45,12 @@ impl Version {
             .unwrap_or(0)
     }
 
+    /// The compositor's process id, which changes when the supervisor restarts it.
+    #[zbus(property)]
+    fn pid(&self) -> u32 {
+        std::process::id()
+    }
+
     #[zbus(property)]
     fn features(&self) -> Vec<String> {
         crate::build_info::features()
@@ -351,6 +357,28 @@ impl Settings {
                 doc: k.doc,
             })
             .collect()
+    }
+
+    /// Reads settings.kdl and puts it in force, after a safe start.
+    async fn use_mine(&self) -> fdo::Result<Vec<String>> {
+        let mut store = self.store.lock().await;
+        match store.use_file() {
+            isle_settings::Reload::Rejected(err) => Err(fdo::Error::Failed(err.to_string())),
+            isle_settings::Reload::Applied(keys) => {
+                crate::settings::publish(
+                    &self.to_loop,
+                    &self.events,
+                    store.current().clone(),
+                    keys.clone(),
+                );
+                let _ = self.events.send(Event::SettingsStatus);
+                Ok(keys)
+            }
+            isle_settings::Reload::Unchanged => {
+                let _ = self.events.send(Event::SettingsStatus);
+                Ok(Vec::new())
+            }
+        }
     }
 
     async fn status(&self) -> SettingsStatus {

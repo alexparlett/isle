@@ -1,0 +1,6 @@
+[Unit]
+Description=Isle session
+Documentation=https://github.com/alexparlett/hyprland
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target

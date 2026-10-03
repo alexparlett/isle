@@ -80,6 +80,9 @@ pub mod version {
         fn built(&self) -> zbus::Result<u64>;
         #[zbus(property)]
         fn features(&self) -> zbus::Result<Vec<String>>;
+        /// The compositor's process id, which changes when the supervisor restarts it.
+        #[zbus(property)]
+        fn pid(&self) -> zbus::Result<u32>;
     }
 }
 
@@ -98,6 +101,8 @@ pub mod settings {
         fn set(&self, key: &str, value: &zvariant::Value<'_>) -> zbus::Result<Vec<String>>;
         fn schema(&self) -> zbus::Result<Vec<SettingKey>>;
         fn status(&self) -> zbus::Result<SettingsStatus>;
+        /// Reads settings.kdl and puts it in force, after a safe start.
+        fn use_mine(&self) -> zbus::Result<Vec<String>>;
         #[zbus(signal)]
         fn changed(&self, keys: Vec<String>) -> zbus::Result<()>;
         #[zbus(signal)]

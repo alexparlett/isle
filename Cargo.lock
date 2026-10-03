@@ -929,6 +929,11 @@ dependencies = [
 [[package]]
 name = "isle-session"
 version = "0.1.0"
+dependencies = [
+ "humantime",
+ "isle-state",
+ "libc",
+]
 
 [[package]]
 name = "isle-settings"

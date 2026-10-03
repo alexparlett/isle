@@ -129,7 +129,8 @@ B26's default is final. Intent: apps.md.
 paru and updated through pacman (B29); the compositor's greeter mode under
 greetd (B26) and session start, Login Items and autostart, crash logs, the
 update path, the dev loop that replaces `isle-dev-sync`; theming installed
-apps from tokens; the one-time import of v1's preferences, window places
+apps from tokens as P1's `system/theming.md` maps them, with Qt apps
+reaching Isle's file panels; the one-time import of v1's preferences, window places
 and launch counts (B27). Ends with the host booting into the new Isle.
 Intent: platform.md, compositor.md.
 

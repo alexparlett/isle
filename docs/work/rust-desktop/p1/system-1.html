@@ -1,0 +1,264 @@
+<title>Isle system</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<link rel="stylesheet" href="system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs h3 { font-size: 13px; margin: 14px 0 4px; color: var(--hb-fg); }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs em { color: var(--hb-accent); font-style: normal; }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+</style>
+<script src="harness/harness.js"></script>
+<script>
+(function () {
+  // P1 stage 4: Frost made into a system. Every value comes from system/tokens.kdl.
+  const W = 3440, H = 1440, CX = W / 2;
+  const { h } = Isle;
+  const el = (cls, style, ...kids) => h("div", { class: cls, style: style || {} }, ...kids);
+  const at = (x, y, w, hh) => ({ left: x + "px", top: y + "px", width: w ? w + "px" : undefined, height: hh ? hh + "px" : undefined });
+  const S = (cls, style, ...kids) => el("s " + cls, style, ...kids);
+  const sp = (cls, s, style) => h("span", { class: cls, style: style || {} }, s);
+  // Phosphor glyphs, drawn through a mask so they take the text colour; "on" states use the fill weight.
+  const PH = {"search": "magnifying-glass", "chevron-left": "caret-left", "chevron-right": "caret-right", "plus": "plus", "ellipsis": "dots-three", "wifi": "wifi-high", "moon": "moon", "bluetooth": "bluetooth", "volume-x": "speaker-x", "volume-2": "speaker-high", "music": "music-note", "shield": "shield", "mail": "envelope", "trash-2": "trash", "app-window": "app-window", "settings": "gear", "accessibility": "person-arms-spread", "sun-moon": "circle-half", "layout-grid": "squares-four", "monitor": "monitor", "globe": "globe"};
+  const ic = (name, size, fill) => { const f = "system/icons/" + (PH[name] || name) + (fill ? "-fill" : "") + ".svg"; return h("i", { class: "s-ic", style: Object.assign({ background: "currentColor", WebkitMask: "url(" + f + ") center / contain no-repeat", mask: "url(" + f + ") center / contain no-repeat" }, size ? { width: size + "px", height: size + "px" } : {}) }); };
+  const row = (style, ...kids) => el("s-row", style, ...kids);
+  const col = (style, ...kids) => el("s-col", style, ...kids);
+  const label = (s) => sp("s-spec", s);
+  const icons = () => {};
+  const v = (s, name, fb) => parseFloat(getComputedStyle(s).getPropertyValue(name)) || fb;
+
+  // A specimen window: a plain window body to lay components on.
+  function sheetWin(s, x, y, w, hh, title, ...kids) {
+    const win = S("s-window", at(x, y, w, hh));
+    win.append(el("s-titlebar", {}, el("s-lights", {}, h("i"), h("i"), h("i")), sp("t", title)), el("", { padding: "24px 28px", display: "flex", flexDirection: "column", gap: "22px" }, ...kids));
+    s.append(win);
+    return win;
+  }
+  const specRow = (name, ...kids) => row({ gap: "18px", alignItems: "center" }, el("", { width: "130px" }, label(name)), ...kids);
+
+  // ---- Tokens --------------------------------------------------------------
+  const ROLES = [["window", "window"], ["window-raised", "raised"], ["window-sunken", "sunken"], ["fill", "fill"], ["fill-strong", "fill-strong"], ["hairline-strong", "hairline-strong"], ["accent", "accent"], ["ok", "ok"], ["warn", "warn"], ["danger", "danger"], ["live", "live"], ["privacy-microphone", "microphone"], ["privacy-camera", "camera"], ["privacy-screen", "screen"]];
+  function colourSpecimen(s) {
+    sheetWin(s, 200, 120, 1560, 1180, "Colour",
+      el("", { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "16px" }, ...ROLES.map(([r, n]) => col({ gap: "6px" }, el("s-swatch", { background: "var(--colour-" + r + ")", width: "100%" }), sp("s-callout", n), label("--colour-" + r)))),
+      el("", { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "28px", marginTop: "10px" },
+        col({ gap: "6px" }, sp("s-title-3", "Primary text"), sp("s-body s-2", "Secondary text, for labels and details"), sp("s-body s-3", "Tertiary text, windows only"), sp("s-body", "Disabled", { color: "var(--colour-text-disabled)" }), sp("s-body", "A link in the accent", { color: "var(--colour-accent-text)" })),
+        col({ gap: "8px" }, sp("s-headline", "Accents"), row({ gap: "10px" }, ...["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"].map((a) => col({ gap: "4px", alignItems: "center" }, el("", { width: "44px", height: "44px", borderRadius: "50%", background: "var(--accent-" + a + "-fill)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" }), label(a))))),
+        col({ gap: "8px", gridColumn: "span 2" }, sp("s-headline", "Contrast"), sp("s-callout s-2", "contrast.py: every text role passes 4.5:1 and every status mark 3:1 against the surface it sits on, in light and dark and under Increase Contrast. On glass, text and text-2 pass over black, grey and the matching extreme; Increase Contrast uses the tinted glass, Reduce Transparency the solid."))));
+  }
+  const STYLES = [["large-title", "Large title · 26/32 bold", "Displays"], ["title", "Title · 22/28 bold", "Appearance"], ["title-2", "Title 2 · 17/22 semibold", "Software Update"], ["title-3", "Title 3 · 15/20 semibold", "Midnight City"], ["headline", "Headline · 13/16 semibold", "Wi-Fi"], ["body", "Body · 13/16", "Turn display off after 15 minutes"], ["callout", "Callout · 12/15", "Isle's own apps follow these."], ["sub", "Subheadline · 11/14", "Favourites"], ["foot", "Footnote · 10/13", "Updated 14:32"], ["mono", "Mono · 12/17", "cargo build -p isle-compositor"]];
+  function typeSpecimen(s) {
+    sheetWin(s, 200, 120, 1560, 1180, "Type",
+      col({ gap: "36px" },
+        col({ gap: "16px" }, ...STYLES.map(([c, n, eg]) => row({ gap: "24px", alignItems: "baseline" }, el("", { width: "240px" }, label(n)), sp("s-" + c, eg)))),
+        col({ gap: "14px", maxWidth: "900px" }, sp("s-headline", "Inter"), sp("s-callout s-2", "macOS's text styles at Mac density, minimum 10 pt. Inter's optical size follows the size; tabular figures wherever digits change; the clock semibold. JetBrains Mono for code and figures in tables."),
+          row({ gap: "14px" }, ...["Regular", "Medium", "Semibold", "Bold"].map((w, i) => sp("s-title-3", w, { fontWeight: [400, 500, 600, 700][i] }))),
+          sp("s-large-title s-num", "14:32 · 0123456789"))));
+  }
+  function spaceSpecimen(s) {
+    sheetWin(s, 200, 120, 1560, 1180, "Space, corners, depth",
+      row({ gap: "50px", alignItems: "flex-start" },
+        col({ gap: "10px" }, sp("s-headline", "Space · 4-point grid"), ...["xxs", "xs", "s", "m", "l", "xl", "xxl", "xxxl"].map((k) => row({ gap: "14px" }, el("", { width: "70px" }, label(k)), el("", { height: "14px", width: "var(--space-" + k + ")", background: "var(--colour-accent)", borderRadius: "2px" })))),
+        col({ gap: "10px" }, sp("s-headline", "Corners"), row({ gap: "18px", alignItems: "flex-end" }, ...["window", "panel", "card", "control", "row", "small"].map((k) => col({ gap: "6px", alignItems: "center" }, el("", { width: "64px", height: "64px", borderRadius: "var(--radius-" + k + ")", background: "var(--colour-window-raised)", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" }), label(k))))),
+        col({ gap: "10px" }, sp("s-headline", "Concentric"), el("", { width: "260px", height: "180px", borderRadius: "var(--radius-panel)", background: "var(--colour-window-raised)", padding: "10px", boxSizing: "border-box", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" },
+          el("", { height: "100%", borderRadius: "calc(var(--radius-panel) - 10px)", background: "var(--colour-fill-strong)", padding: "8px", boxSizing: "border-box" }, el("", { height: "100%", borderRadius: "max(var(--radius-small), calc(var(--radius-panel) - 18px))", background: "var(--colour-fill-strong)" }))), sp("s-callout s-2", "child = parent − padding"))),
+      row({ gap: "40px", marginTop: "20px" }, ...["window", "window-inactive", "panel", "menu", "control"].map((k) => col({ gap: "10px", alignItems: "center" }, el("", { width: "220px", height: "140px", borderRadius: "var(--radius-card)", background: "var(--colour-window-raised)", boxShadow: "var(--shadow-" + k + ")" }), label("shadow " + k)))));
+  }
+  function materialSpecimen(s) {
+    const kinds = [["glass-clear", "Clear end"], ["glass", "Default"], ["glass-tinted", "Tinted end · Increase Contrast"], ["solid", "Solid · Reduce Transparency, Game Mode"]];
+    kinds.forEach(([k, n], i) => {
+      const x = 260 + (i % 2) * 760, y = 220 + Math.floor(i / 2) * 560;
+      s.append(S("", Object.assign(at(x, y, 700, 500), { borderRadius: "var(--radius-panel)", background: "var(--material-" + k + ")", backdropFilter: k === "solid" ? "none" : "blur(var(--material-blur)) saturate(var(--material-saturation))", WebkitBackdropFilter: k === "solid" ? "none" : "blur(var(--material-blur)) saturate(var(--material-saturation))", boxShadow: "var(--shadow-panel)", padding: "26px" }),
+        col({ gap: "10px" }, sp("s-title-3", n), sp("s-body", "Primary text on glass"), sp("s-body s-2", "Secondary text on glass"), row({ gap: "8px", marginTop: "10px" }, el("s-tile", { flex: 1 }, row({}, el("dot on", {}, ic("wifi", 0, true)), col({ gap: "0" }, sp("s-callout", "Wi-Fi", { fontWeight: 500 }), sp("s-foot s-2", "Home")))), el("s-tile", { flex: 1 }, row({}, el("dot", {}, ic("moon")), col({ gap: "0" }, sp("s-callout", "Focus", { fontWeight: 500 }), sp("s-foot s-2", "Off"))))), label("--material-" + k))));
+    });
+    s.append(S("", at(260, 880, 2900)), sp("s-callout", "The user's Glass setting runs from the clear end to the tinted end, default in the middle. Blur 48, saturation 1.8. Busy wallpapers are the test: switch Wallpaper above.", { position: "absolute", left: "260px", top: "1340px", width: "1400px", color: "var(--colour-text)" }));
+  }
+  function motionSpecimen(s, c) {
+    const springs = ["morph", "open", "exit", "move", "switch"];
+    sheetWin(s, 200, 120, 1560, 1000, "Motion");
+    springs.forEach((k, i) => {
+      const y = 230 + i * 150;
+      s.append(S("", at(260, y + 18)), label(k + " · stiffness " + v(s, "--motion-" + k + "-stiffness", 0) + ", damping " + v(s, "--motion-" + k + "-damping", 0)));
+      Object.assign(s.lastChild.style, { position: "absolute", left: "260px", top: (y + 18) + "px" });
+      s.append(S("", Object.assign(at(720, y + 6, 980, 2), { background: "var(--colour-hairline)" })));
+      const dot = S("", Object.assign(at(720, y - 18, 48, 48), { borderRadius: "var(--radius-card)", background: "var(--colour-accent)" }));
+      s.append(dot);
+      const st = v(s, "--motion-" + k + "-stiffness", 300), dp = v(s, "--motion-" + k + "-damping", 30);
+      setTimeout(() => c.spring({ from: 0, to: 930, stiffness: st, damping: dp }, (x) => { dot.style.transform = "translateX(" + x + "px)"; }), 300 + i * 120);
+    });
+    s.append(S("", at(260, 1000)), sp("s-callout s-2", "Critically damped or close to it: no bounce. Exits use the stiffer spring. Reduce Motion turns each into a 120 ms fade in place. Click the state again to replay.", { position: "absolute", left: "260px", top: "1010px", width: "1400px" }));
+  }
+
+  const GLYPHS = ["magnifying-glass", "wifi-high", "wifi-low", "bluetooth", "speaker-high", "speaker-x", "moon", "shield", "sun", "sun-dim", "gauge", "download-simple", "game-controller", "music-note", "envelope", "trash", "gear", "squares-four", "monitor", "globe", "cloud", "chat-circle", "key", "app-window"];
+  const TERM = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white", "bright-black", "bright-red", "bright-green", "bright-yellow", "bright-blue", "bright-magenta", "bright-cyan", "bright-white"];
+  function iconSpecimen(s) {
+    sheetWin(s, 200, 120, 1560, 1180, "Icons and terminal",
+      sp("s-headline", "Phosphor: regular for outlines, fill for on"),
+      el("", { display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "18px 10px" }, ...GLYPHS.map((g) => col({ gap: "6px", alignItems: "center" }, row({ gap: "10px" }, ic(g, 20), ic(g, 20, true)), label(g)))),
+      row({ gap: "30px", alignItems: "flex-end" }, ...[12, 16, 20, 24, 32].map((n) => col({ gap: "6px", alignItems: "center" }, ic("wifi-high", n), label(n + " pt")))),
+      sp("s-callout s-2", "App icons: Papirus (Papirus-Dark in dark), each app's own outline, never forced into a squircle. Isle's five apps get icons drawn for them. Cursor: Bibata Modern Classic at 24."),
+      sp("s-headline", "Terminal palette"),
+      el("", { background: "var(--colour-window)", borderRadius: "var(--radius-card)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)", padding: "16px 18px" },
+        el("", { display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "10px" }, ...TERM.map((n) => col({ gap: "4px" }, el("", { height: "28px", borderRadius: "var(--radius-row)", background: "var(--term-" + n + ")", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" }), sp("s-mono", n, { color: "var(--term-" + n + ")", fontSize: "11px" })))),
+        el("s-mono", { marginTop: "14px", whiteSpace: "pre", lineHeight: "1.6" },
+          h("span", { style: { color: "var(--term-blue)" } }, "~/D/isle"), " ", h("span", { style: { color: "var(--term-bright-black)" } }, "feature/rust-desktop"), " cargo test\n",
+          h("span", { style: { color: "var(--term-green)" } }, "test tokens::reload ... ok"), "\n",
+          h("span", { style: { color: "var(--term-red)" } }, "test island::queue ... FAILED"), "\n",
+          h("span", { style: { color: "var(--term-yellow)" } }, "warning"), ": unused variable `frame`")));
+  }
+
+  // ---- Controls ------------------------------------------------------------
+  function controls(s, which) {
+    if (which === 0) sheetWin(s, 200, 120, 1500, 1180, "Buttons and switches",
+      specRow("button", sp("s-btn", "Cancel"), sp("s-btn is-hover", "Hover"), sp("s-btn is-pressed", "Pressed"), sp("s-btn is-focus", "Focus"), sp("s-btn is-disabled", "Disabled")),
+      specRow("default", sp("s-btn primary", "Install update"), sp("s-btn primary is-hover", "Hover"), sp("s-btn primary is-pressed", "Pressed"), sp("s-btn primary is-focus", "Focus")),
+      specRow("destructive", sp("s-btn destructive", "Delete 3 items"), sp("s-btn", "Keep Both")),
+      specRow("sizes", sp("s-btn small", "Small"), sp("s-btn", "Regular"), sp("s-btn large", "Large"), h("span", { class: "s-btn icon" }, ic("plus")), h("span", { class: "s-btn plain" }, ic("ellipsis"))),
+      specRow("switch", h("span", { class: "s-switch" }), h("span", { class: "s-switch on" }), h("span", { class: "s-switch on is-focus" }), h("span", { class: "s-switch is-disabled" })),
+      specRow("checkbox", h("span", { class: "s-check" }), h("span", { class: "s-check on" }), h("span", { class: "s-check mixed" }), sp("s-body", "Reopen windows when logging back in")),
+      specRow("radio", row({ gap: "8px" }, h("span", { class: "s-radio on" }), sp("s-body", "Fill")), row({ gap: "8px" }, h("span", { class: "s-radio" }), sp("s-body", "Minimise"))),
+      specRow("badge", h("span", { class: "s-badge" }, "3"), h("span", { class: "s-badge" }, "999+"), h("span", { class: "s-badge quiet" }, "12")));
+    if (which === 1) sheetWin(s, 200, 120, 1500, 1180, "Values and fields",
+      specRow("slider", el("", { width: "360px" }, el("s-slider", {}, h("b", { style: { width: "62%" } }), h("i", { style: { left: "62%" } }))), sp("s-callout s-2", "62%")),
+      specRow("ticks", el("", { width: "360px" }, el("s-slider", {}, h("b", { style: { width: "50%" } }), h("i", { style: { left: "50%" } })), el("s-ticks", {}, ...Array.from({ length: 9 }, () => h("span"))))),
+      specRow("stepper", el("s-field", { width: "80px" }, sp("s-num", "8")), el("s-stepper", {}, h("span", {}, "▲"), h("span", {}, "▼")), sp("s-body s-2", "pt")),
+      specRow("progress", el("", { width: "360px" }, el("s-progress", {}, h("b", { style: { width: "43%" } }))), h("span", { class: "s-spinner" })),
+      specRow("segmented", el("s-seg", {}, sp("", "Light"), sp("on", "Dark"), sp("", "Auto"))),
+      specRow("pop-up", h("span", { class: "s-popup" }, "Fill", h("span", { class: "chev" }, "⌃⌄"))),
+      specRow("text field", el("s-field", { width: "260px" }, sp("ph", "Computer name")), el("s-field is-focus is-focus", { width: "260px" }, sp("", "alex-desktop"))),
+      specRow("error", el("s-field is-error", { width: "260px" }, sp("", "192.168.1")), sp("s-callout", "Enter a full address.", { color: "var(--colour-danger)" })),
+      specRow("search", el("s-field search", { width: "260px" }, ic("search", 14), sp("ph", "Search"))),
+      specRow("tabs", el("s-tabs", { width: "420px" }, sp("on", "Documents"), sp("", "Downloads"), sp("", "Projects"))));
+  }
+
+  // ---- Menus and popovers --------------------------------------------------
+  function menus(s) {
+    sheetWin(s, 200, 120, 1560, 1000, "");
+    const m = S("s-glass s-menu", at(300, 200));
+    const mi = (lab, key, cls, mark, sub) => el("s-mi" + (cls ? " " + cls : ""), {}, sp("mark", mark || ""), sp("", lab), key ? sp("key", key) : null, sub ? sp("sub", "›") : null);
+    m.append(mi("Back", "⌘["), mi("Forward", "⌘]", "dim"), h("hr"), el("head", {}, "View"), mi("as Icons", "⌘1"), mi("as List", "⌘2", "", "✓"), mi("as Columns", "⌘3"), h("hr"), mi("Sort By", "", "sel", "", true), mi("Show Path Bar", "⌥⌘P"), mi("Show Status Bar", "⌘/", "", "✓"), h("hr"), mi("Enter Full Screen", "⌃⌘F"));
+    s.append(m);
+    const sub = S("s-glass s-menu", at(560, 424));
+    sub.append(mi("Name", "", "", "✓"), mi("Kind"), mi("Date Modified"), mi("Size"), h("hr"), mi("Mixed selection", "", "", "–"));
+    s.append(sub);
+    s.append(S("", at(360, 800)), sp("s-callout s-2", "Menus: no icons on items; checked and radio both a check, mixed a dash; disabled dimmed and skipped; submenus by a chevron; shortcuts in macOS's symbols.", { position: "absolute", left: "300px", top: "820px", width: "560px" }));
+    const pop = S("s-glass s-pop", at(1000, 220, 380));
+    pop.append(col({ gap: "10px" }, sp("s-headline", "View Options"), row({}, sp("s-body", "Icon size"), el("s-grow"), el("", { width: "150px" }, el("s-slider", { minWidth: "0" }, h("b", { style: { width: "40%" } }), h("i", { style: { left: "40%" } })))), row({}, sp("s-body", "Show folders first"), el("s-grow"), h("span", { class: "s-switch on" })), row({}, sp("s-body", "Group by"), el("s-grow"), h("span", { class: "s-popup" }, "Kind", h("span", { class: "chev" }, "⌃⌄")))));
+    s.append(pop, S("", Object.assign(at(1160, 196), { width: 0, height: 0, borderLeft: "12px solid transparent", borderRight: "12px solid transparent", borderBottom: "12px solid var(--material-glass)" })));
+    s.append(S("s-tip", at(1440, 520)), S("", at(1440, 560)));
+    s.lastChild.previousSibling.textContent = "Move to Trash (⌘⌫)";
+    s.append(S("s-glass s-menu", at(1000, 560)), S("", at(0, 0)));
+    const ctx = s.children[s.children.length - 2];
+    ctx.append(mi("Open"), mi("Open With", "", "", "", true), h("hr"), mi("Get Info", "⌘I"), mi("Rename…"), mi("Quick Look", "Space"), h("hr"), mi("Move to Trash", "⌘⌫"));
+  }
+
+  // ---- Windows -------------------------------------------------------------
+  const PANES = [["wifi", "var(--pane-blue)", "Wi-Fi"], ["bluetooth", "var(--pane-blue)", "Bluetooth"], ["globe", "var(--pane-blue)", "Network"], null, ["settings", "var(--pane-grey)", "General"], ["accessibility", "var(--pane-blue)", "Accessibility"], ["sun-moon", "var(--pane-graphite)", "Appearance"], ["layout-grid", "var(--pane-purple)", "Control Centre"], ["app-window", "var(--pane-graphite)", "Desktop"], ["monitor", "var(--pane-blue)", "Displays"]];
+  function settingsWindow(s, x, y, focused) {
+    const w = 1500, hh = 900;
+    const win = S("s-window", at(x, y, w, hh));
+    const side = el("s-sidebar", { position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--size-sidebar)" },
+      el("s-lights", { margin: "6px 6px 18px" }, h("i"), h("i"), h("i")), el("s-field search", { marginBottom: "10px" }, ic("search", 14), sp("ph", "Search")),
+      ...PANES.map((p) => p ? el("s-side-item" + (p[2] === "Appearance" ? " sel" + (focused ? " focused" : "") : ""), {}, h("span", { class: "s-pane-ic", style: { background: p[1] } }, ic(p[0])), sp("", p[2])) : el("", { height: "10px" })));
+    const main = el("", { position: "absolute", left: "var(--size-sidebar)", right: 0, top: 0, bottom: 0 },
+      el("s-toolbar", {}, ic("chevron-left"), ic("chevron-right"), sp("s-headline", "Appearance")),
+      col({ width: "620px", margin: "26px auto", gap: "20px" },
+        el("s-group", {}, el("r", {}, sp("", "Appearance"), el("s-grow"), el("s-seg", {}, sp("", "Light"), sp("on", "Dark"), sp("", "Auto"))), el("r", {}, sp("", "Accent colour"), el("s-grow"), row({ gap: "8px" }, ...["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"].map((a) => h("span", { style: { width: "16px", height: "16px", borderRadius: "50%", background: "var(--accent-" + a + "-fill)" } }))))),
+        el("s-group", {}, el("r", {}, sp("", "Glass"), el("s-grow"), sp("s-callout s-2", "Clear"), el("", { width: "200px" }, el("s-slider", { minWidth: "0" }, h("b", { style: { width: "50%" } }), h("i", { style: { left: "50%" } }))), sp("s-callout s-2", "Tinted")), el("r", {}, sp("", "Reduce transparency"), el("s-grow"), h("span", { class: "s-switch" }))),
+        el("s-group", {}, el("r", {}, sp("", "Show scroll bars"), el("s-grow"), h("span", { class: "s-popup" }, "When scrolling", h("span", { class: "chev" }, "⌃⌄"))), el("r", {}, sp("", "Sidebar icon size"), el("s-grow"), h("span", { class: "s-popup" }, "Medium", h("span", { class: "chev" }, "⌃⌄"))))));
+    win.append(side, main);
+    s.append(win);
+  }
+  function tableWindow(s, x, y) {
+    const win = S("s-window", at(x, y, 1300, 900));
+    const names = ["isle-compositor", "Firefox", "steam", "rust-analyzer", "kitty", "pipewire", "Discord", "cargo", "Xwayland", "Files", "Monitor", "gamescope"];
+    win.append(el("s-toolbar", { paddingLeft: "96px" }, el("s-lights", { position: "absolute", left: "16px" }, h("i"), h("i"), h("i")), sp("s-headline", "All Processes"), el("s-grow"), el("s-seg", {}, sp("on", "CPU"), sp("", "Memory"), sp("", "Energy"), sp("", "Disk"), sp("", "Network"), sp("", "GPU")), el("s-grow"), el("s-field search", { width: "180px" }, ic("search", 14), sp("ph", "Search"))),
+      el("s-table", { margin: "8px 12px" }, el("h", {}, sp("", "Process name", { width: "300px" }), sp("", "% CPU", { width: "80px" }), sp("", "CPU time", { width: "100px" }), sp("", "Threads", { width: "80px" }), sp("", "User")),
+        ...names.map((n, i) => el("tr" + (i === 2 ? " sel" : ""), {}, row({ width: "300px", gap: "8px" }, ic("app-window", 14), sp("", n)), sp("s-num", (14.2 - i * 1.1).toFixed(1), { width: "80px" }), sp("s-num", "1:2" + i + ":04", { width: "100px" }), sp("s-num", String(40 - i * 2), { width: "80px" }), sp("", "alex")))));
+    s.append(win);
+  }
+
+  // ---- Shell -----------------------------------------------------------------
+  function shellSpecimen(s) {
+    const isl = (x, y, ...kids) => { const e = S("s-island", at(x, y)); e.append(...kids); s.append(e); };
+    const priv = () => row({ gap: "4px" }, h("span", { style: { width: "7px", height: "7px", borderRadius: "50%", background: "var(--colour-privacy-microphone)" } }), h("span", { style: { width: "7px", height: "7px", borderRadius: "50%", background: "var(--colour-privacy-camera)" } }));
+    isl(300, 120, sp("s-clock", "14:32"));
+    isl(300, 180, sp("s-clock", "14:32"), ic("bluetooth", 15), ic("volume-x", 15));
+    isl(300, 240, h("span", { style: { width: "18px", height: "18px", borderRadius: "4px", background: "linear-gradient(135deg,#c05a8a,#4a3a9a)" } }), sp("", "Midnight City"), sp("s-2", "M83"), sp("s-clock", "14:32"));
+    isl(300, 300, h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: "var(--colour-live)" } }), sp("s-num", "02:14"), ic("music", 14), sp("s-clock", "14:32"), priv());
+    isl(300, 360, ic("volume-2", 16), el("", { width: "180px", height: "6px", borderRadius: "3px", background: "var(--colour-fill-strong)", position: "relative" }, h("b", { style: { position: "absolute", left: 0, top: 0, bottom: 0, width: "64%", borderRadius: "3px", background: "var(--colour-island-text)" } })));
+    const tiles = S("s-glass", Object.assign(at(1000, 120, 420), { borderRadius: "var(--radius-panel)", padding: "14px" }));
+    const t = (on, icon, name, sub) => el("s-tile", {}, row({}, el("dot" + (on ? " on" : ""), {}, ic(icon, 0, on)), col({ gap: "0" }, sp("s-callout", name, { fontWeight: 500 }), sp("s-foot s-2", sub))));
+    tiles.append(el("", { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }, t(true, "wifi", "Wi-Fi", "Home"), t(true, "bluetooth", "Bluetooth", "2 devices"), t(false, "moon", "Focus", "Off"), t(false, "shield", "VPN", "Not connected")));
+    s.append(tiles);
+    const b = S("s-glass s-banner", at(1520, 120, 380));
+    b.append(h("span", { class: "s-appicon", style: { background: "linear-gradient(180deg,#4aa3ff,#1f6fe0)" } }, ic("mail")), col({ gap: "2px", minWidth: 0, flex: 1 }, row({}, sp("s-foot s-2", "Mail"), el("s-grow"), sp("s-foot s-2", "now")), sp("s-callout", "Sam Rivera", { fontWeight: 600 }), sp("s-callout s-2", "Are we still on for the build review at four?"), row({ marginTop: "8px", gap: "6px" }, sp("s-btn small", "Reply"), sp("s-btn small", "Mark as Read"))));
+    s.append(b);
+  }
+
+  Isle.board({
+    title: "Isle system",
+    subtitle: "P1 stage 4: Frost made into the system. Every value is read from system/tokens.kdl; the components are the set the shell and Isle's apps share. Try Light, the accents, Increase contrast and Reduce transparency.",
+    tokens: "system/tokens.kdl",
+    wallpaper: "haze",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    afterRender: icons,
+    surfaces: [
+      { id: "tokens", name: "Tokens", sheet: "p1/system/tokens.kdl", states: [
+        { id: "colour", name: "Colour", crop: [160, 80, 1640, 1260], note: "Roles, not colours: windows, fills, hairlines, the accent and status. Status colours are for status; everything else is neutral (brief P6).", render(s) { colourSpecimen(s); } },
+        { id: "type", name: "Type", crop: [160, 80, 1640, 1260], note: "Inter at macOS's text styles; JetBrains Mono for code.", render(s) { typeSpecimen(s); } },
+        { id: "space", name: "Space and depth", crop: [160, 80, 1640, 1260], note: "The 4-point grid, the corner set with the concentric rule, and five shadows.", render(s) { spaceSpecimen(s); } },
+        { id: "material", name: "Glass", crop: [160, 160, 1640, 1240], note: "The glass setting's range, the tinted form Increase Contrast uses, and the solid form for Reduce Transparency and Game Mode.", render(s) { materialSpecimen(s); } },
+        { id: "icons", name: "Icons and terminal", crop: [160, 80, 1640, 1260], note: "Phosphor's regular and fill weights at the symbol sizes, and the 16 terminal colours, each checked against the window.", render(s) { iconSpecimen(s); } },
+        { id: "motion", name: "Motion", crop: [160, 80, 1640, 1100], note: "The five springs, played side by side.", render(s, c) { motionSpecimen(s, c); } },
+      ] },
+      { id: "controls", name: "Controls", sheet: "p1/system/components.css", states: [
+        { id: "buttons", name: "Buttons and switches", crop: [160, 80, 1580, 1000], note: "Every control with hover, pressed, focus and disabled. The focus ring shows for keyboard focus only.", render(s) { controls(s, 0); } },
+        { id: "values", name: "Values and fields", crop: [160, 80, 1580, 1000], note: "Sliders, steppers, progress, segmented controls, pop-ups, fields and tabs.", render(s) { controls(s, 1); } },
+      ] },
+      { id: "menus", name: "Menus and popovers", states: [
+        { id: "all", name: "Menus", crop: [160, 80, 1640, 1080], note: "A menu with every kind of item and a submenu, a popover, a tooltip and a context menu.", render(s) { menus(s); } },
+      ] },
+      { id: "windows", name: "Windows", states: [
+        { id: "settings", name: "Settings", crop: [160, 60, 1640, 1060], note: "Sidebar to the edge with coloured pane icons; selection grey when the sidebar is not focused, accent when it is (see the next state); grouped rows with a maximum width.", render(s) { settingsWindow(s, 220, 120, false); } },
+        { id: "settings-focus", name: "Sidebar focused", crop: [160, 60, 1640, 1060], note: "The same window with keyboard focus in the sidebar: the selection takes the accent.", render(s) { settingsWindow(s, 220, 120, true); } },
+        { id: "table", name: "Table", crop: [160, 60, 1440, 1000], note: "A table with alternating rows and a selection.", render(s) { tableWindow(s, 220, 120); } },
+        { id: "sheet", name: "Sheet and alert", crop: [160, 60, 1640, 1060], note: "A sheet on its window, and an alert.", render(s) {
+          const win = S("s-window", at(220, 120, 1500, 900)); win.append(el("s-titlebar", {}, el("s-lights", {}, h("i"), h("i"), h("i")), sp("t", "Untitled — Text Editor"))); s.append(win);
+          const sh = S("s-sheet", at(570, 152, 800)); sh.append(col({ gap: "14px" }, row({ gap: "12px" }, sp("s-body", "Save As:", { width: "80px", textAlign: "right" }), el("s-field", { flex: 1 }, sp("", "Untitled.md"))), row({ gap: "12px" }, sp("s-body", "Where:", { width: "80px", textAlign: "right" }), h("span", { class: "s-popup" }, "Documents", h("span", { class: "chev" }, "⌃⌄"))), row({ marginTop: "8px" }, el("s-grow"), sp("s-btn", "Cancel"), sp("s-btn primary", "Save")))); s.append(sh);
+          const al = S("s-alert", at(770, 560, 400)); al.append(h("span", { class: "s-appicon", style: { width: "56px", height: "56px", borderRadius: "13px", background: "linear-gradient(180deg,#8f9399,#5d6067)" } }, ic("trash-2", 28)), sp("s-headline", "Permanently erase 3 items in the Trash?"), sp("s-callout s-2", "You can't undo this."), col({ gap: "8px", width: "100%", marginTop: "8px" }, sp("s-btn primary", "Empty Trash", { width: "100%" }), sp("s-btn", "Cancel", { width: "100%" }))); s.append(al);
+        } },
+      ] },
+      { id: "shell", name: "Shell", states: [
+        { id: "pieces", name: "Island, tiles, banner", crop: [200, 60, 1800, 600], note: "The island's forms, Control Centre tiles and a banner on the glass.", render(s) { shellSpecimen(s); } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 4">
+  <h2>Gate 4: the system</h2>
+  <p>Frost made into tokens, a contrast check and the shared components. The token file and its schema are what P3 reads.</p>
+  <h3>Decided here, for you to confirm or change</h3>
+  <ol>
+    <li><b>Text styles</b>: macOS's at Mac density (body 13, minimum 10), Inter with optical sizes, JetBrains Mono for code.</li>
+    <li><b>Contrast policy</b>: every text role 4.5:1 and status marks 3:1 against their own surface, both appearances; on glass, tertiary text is never used; Increase Contrast switches glass to its tinted end, Reduce Transparency to solid.</li>
+    <li><b>Accent default</b>: a deeper blue than macOS in dark mode, so white text on it passes; eight accents, each with its own fill, text-on and text forms.</li>
+    <li><b>Corners</b>: window 10, panel 18, card 10, control 6, row 5, with the concentric rule.</li>
+    <li><b>Motion</b>: five critically damped springs; exits stiffer; Reduce Motion a 120 ms fade.</li>
+    <li><b>Separators</b> stay light by default; only under Increase Contrast do borders reach 3:1.</li>
+    <li><b>Symbols</b>: Phosphor (MIT): regular for outlines, fill for on, bold under Increase Contrast. Lucide was rejected for having no fill, Material and Fluent for reading as Android and Windows.</li>
+    <li><b>App icons</b>: Papirus (Papirus-Dark in dark), keeping each app's own shape; Isle's five apps get icons drawn for them.</li>
+    <li><b>Cursor</b>: Bibata Modern Classic at 24, as v1.</li>
+    <li><b>Installed apps</b> are themed from these tokens (GTK, libadwaita, Qt, kitty, btop, zathura; <code>system/theming.md</code>), with a 16-colour terminal palette checked for contrast.</li>
+  </ol>
+  <h3>Found along the way</h3>
+  <ol start="11">
+    <li><b>Isle serves the appearance settings itself</b>: the GTK portal gives apps light or dark and contrast but not the accent or reduced motion, so Isle's portal backend also takes the Settings portal (an addition to B13).</li>
+    <li><b>Qt's file dialog</b>: with v1's GTK platform theme, Qt apps open GTK's own file chooser rather than Isle's panels; P14 tests the alternatives.</li>
+  </ol>
+</section>

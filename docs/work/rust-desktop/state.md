@@ -47,5 +47,12 @@
   `p1/directions-1.html`, tokens in `p1/directions/`). Batch 3 passed
   gate 2 (`p1/structure-3.html`); every recommendation accepted, the
   dashboard on Ctrl+Option+Cmd+W, no Connect to Server. Stage 2 is
-  complete. Stage 4 (the system) is under way in `p1/system/`. P2 is
+  complete.
+- P1 stage 4 passed gate 4 (board `p1/system-1.html`): `p1/system/`
+  holds `tokens.kdl`, its `schema.md` for P3, `contrast.py` (all pass),
+  `components.css`, `icons.md` (Phosphor, Papirus, Bibata) and
+  `theming.md`. `docs/DESIGN.md` has its first draft. B13 now includes
+  the Settings portal. Next: stage 5, wave A (window chrome, island and
+  Control Centre, menus, wallpaper, switcher) in HTML on the system's
+  components. P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

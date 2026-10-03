@@ -1,0 +1,241 @@
+// Isle's design tokens (Frost). Read by the shell and Isle's apps, reloaded live (B10).
+// Schema: system/schema.md. Points are logical points; colours are sRGB.
+
+version 1
+
+// Text roles: text, text-2 and text-3 on windows; on the shell's glass only
+// text and text-2 (contrast.py checks both rules).
+colour {
+    dark {
+        window "#1e1f23"
+        window-raised "#28292e"
+        window-sunken "#191a1d"
+        control "rgba(255,255,255,0.10)"
+        control-hover "rgba(255,255,255,0.14)"
+        control-pressed "rgba(255,255,255,0.20)"
+        text "#f2f3f5"
+        text-2 "rgba(242,243,245,0.64)"
+        text-3 "rgba(242,243,245,0.52)"
+        text-disabled "rgba(242,243,245,0.28)"
+        hairline "rgba(255,255,255,0.09)"
+        hairline-strong "rgba(255,255,255,0.20)"
+        fill "rgba(255,255,255,0.07)"
+        fill-strong "rgba(255,255,255,0.14)"
+        selection-unfocused "rgba(255,255,255,0.12)"
+        view "#17181b"
+        sidebar "#191a1d"
+        titlebar "#25262b"
+        titlebar-inactive "#1e1f23"
+        ok-text "#4cc38a"
+        warn-text "#f2c14e"
+        danger-text "#ff7b73"
+        match "rgba(242,193,78,0.55)"
+        ok "#4cc38a"
+        warn "#f2c14e"
+        danger "#ff6961"
+        live "#ff453a"
+        privacy-microphone "#ff9f0a"
+        privacy-camera "#32d74b"
+        privacy-screen "#bf5af2"
+        island "rgba(20,21,24,0.74)"
+        island-text "#f2f3f5"
+        scrim "rgba(0,0,0,0.42)"
+        shadow "rgba(0,0,0,0.55)"
+    }
+    light {
+        window "#f6f6f7"
+        window-raised "#ffffff"
+        window-sunken "#eeeef0"
+        control "rgba(0,0,0,0.06)"
+        control-hover "rgba(0,0,0,0.09)"
+        control-pressed "rgba(0,0,0,0.14)"
+        text "#1b1c1f"
+        text-2 "rgba(27,28,31,0.72)"
+        text-3 "rgba(27,28,31,0.63)"
+        text-disabled "rgba(27,28,31,0.30)"
+        hairline "rgba(0,0,0,0.09)"
+        hairline-strong "rgba(0,0,0,0.22)"
+        fill "rgba(0,0,0,0.045)"
+        fill-strong "rgba(0,0,0,0.09)"
+        selection-unfocused "rgba(0,0,0,0.08)"
+        view "#ffffff"
+        sidebar "#eeeef0"
+        titlebar "#ececee"
+        titlebar-inactive "#f6f6f7"
+        ok-text "#137044"
+        warn-text "#8a6400"
+        danger-text "#c4302b"
+        match "rgba(255,214,10,0.55)"
+        ok "#1f9d5c"
+        warn "#b07d05"
+        danger "#d93c32"
+        live "#e5372c"
+        privacy-microphone "#bf6a00"
+        privacy-camera "#178a30"
+        privacy-screen "#a347d6"
+        island "rgba(250,250,251,0.76)"
+        island-text "#1b1c1f"
+        scrim "rgba(0,0,0,0.26)"
+        shadow "rgba(0,0,0,0.20)"
+    }
+    // Increase Contrast: replaces the roles it names.
+    contrast {
+        dark {
+            text-2 "rgba(242,243,245,0.86)"
+            text-3 "rgba(242,243,245,0.72)"
+            hairline "rgba(255,255,255,0.26)"
+            hairline-strong "rgba(255,255,255,0.45)"
+            control "rgba(255,255,255,0.16)"
+        }
+        light {
+            text-2 "rgba(27,28,31,0.88)"
+            text-3 "rgba(27,28,31,0.76)"
+            hairline "rgba(0,0,0,0.28)"
+            hairline-strong "rgba(0,0,0,0.50)"
+            control "rgba(0,0,0,0.10)"
+        }
+    }
+}
+
+// The accents the user chooses from; blue is the default. Each gives the
+// fill, the text on it, and the form used as text on a window.
+accent {
+    default "blue"
+    blue { dark { fill "#2f6fe4"; on "#ffffff"; text "#79a8ff" }; light { fill "#2563d6"; on "#ffffff"; text "#1f56c0" } }
+    purple { dark { fill "#7e58ec"; on "#ffffff"; text "#b39cff" }; light { fill "#6d4ad8"; on "#ffffff"; text "#5f3dc6" } }
+    pink { dark { fill "#ff6fae"; on "#1b0a12"; text "#ff8fc0" }; light { fill "#d0357a"; on "#ffffff"; text "#b52a69" } }
+    red { dark { fill "#ff6961"; on "#1c0806"; text "#ff8a83" }; light { fill "#d93c32"; on "#ffffff"; text "#bf2f26" } }
+    orange { dark { fill "#ff9f43"; on "#1d1004"; text "#ffb36b" }; light { fill "#b35a00"; on "#ffffff"; text "#a85300" } }
+    yellow { dark { fill "#f2c14e"; on "#1c1503"; text "#f5cd6c" }; light { fill "#8a6300"; on "#ffffff"; text "#8a6200" } }
+    green { dark { fill "#4cc38a"; on "#04150c"; text "#6fd3a2" }; light { fill "#1a7d48"; on "#ffffff"; text "#16743f" } }
+    graphite { dark { fill "#9a9da4"; on "#111214"; text "#b4b7bd" }; light { fill "#6b6e75"; on "#ffffff"; text "#585b61" } }
+}
+
+// How much of the accent tints a selection on `view`; text on it stays `text`.
+selection { mix { dark 0.38; light 0.24 } }
+
+// Data colours: graphs (Monitor, btop) and Settings' pane tiles. Never status.
+series { dark { a "#5c9bff"; b "#4fc7d9"; c "#d68cf5"; d "#f2a541" }; light { a "#1f5fcc"; b "#0a7486"; c "#9a35b8"; d "#b35a00" } }
+pane { blue "#2f7cf6"; grey "#8a8d93"; graphite "#3a3b40"; purple "#7a5af8"; red "#ef4444"; pink "#ec4899"; indigo "#6366f1"; teal "#20a4c8"; green "#22c55e"; orange "#f59e0b" }
+
+// The 16 ANSI colours for terminals and the programs in them (theming.md).
+// Text colours pass 4.5:1 on `window`, bright black 3:1; backgrounds unchecked.
+term {
+    dark {
+        black "#2a2b30"; red "#ff6961"; green "#4cc38a"; yellow "#f2c14e"; blue "#5c9bff"; magenta "#d68cf5"; cyan "#4fc7d9"; white "#c8cad0"
+        bright-black "#7a7c85"; bright-red "#ff8a84"; bright-green "#6fd8a4"; bright-yellow "#f7d27a"; bright-blue "#86b4ff"; bright-magenta "#e3aaf9"; bright-cyan "#7fd9e6"; bright-white "#f2f3f5"
+    }
+    light {
+        black "#1b1c1f"; red "#c4302b"; green "#17804c"; yellow "#8a6400"; blue "#1f5fcc"; magenta "#9a35b8"; cyan "#0a7486"; white "#d9dadd"
+        bright-black "#6b6d75"; bright-red "#a52520"; bright-green "#106a3e"; bright-yellow "#715200"; bright-blue "#184ea8"; bright-magenta "#7f2a99"; bright-cyan "#075f6e"; bright-white "#ffffff"
+    }
+}
+
+// Symbols, app icons and the cursor (icons.md). Phosphor: regular for
+// outlines, fill for "on", bold under Increase Contrast.
+icon {
+    set "Phosphor"
+    weight "regular"
+    weight-on "fill"
+    weight-contrast "bold"
+    theme { dark "Papirus-Dark"; light "Papirus" }
+    cursor "Bibata-Modern-Classic"
+    cursor-size 24
+}
+
+// The shell's glass. The user's glass setting runs from clear to tinted;
+// `glass` is its default, the middle. Increase Contrast uses `glass-tinted`;
+// Reduce Transparency and Game Mode use `solid`.
+material {
+    glass { dark "rgba(34,35,40,0.68)"; light "rgba(246,246,248,0.76)" }
+    glass-clear { dark "rgba(34,35,40,0.48)"; light "rgba(246,246,248,0.52)" }
+    glass-tinted { dark "rgba(34,35,40,0.90)"; light "rgba(246,246,248,0.92)" }
+    solid { dark "#25262b"; light "#f3f3f5" }
+    blur 48
+    saturation 1.8
+    noise-opacity 0.02
+}
+
+type {
+    family "Inter, system-ui, sans-serif"
+    mono "JetBrains Mono, ui-monospace, monospace"
+    // macOS's text styles at Mac density; line is the line height.
+    style {
+        large-title { size 26; weight 700; line 32 }
+        title { size 22; weight 700; line 28 }
+        title-2 { size 17; weight 600; line 22 }
+        title-3 { size 15; weight 600; line 20 }
+        headline { size 13; weight 600; line 16 }
+        body { size 13; weight 400; line 16 }
+        callout { size 12; weight 400; line 15 }
+        subheadline { size 11; weight 400; line 14 }
+        footnote { size 10; weight 400; line 13 }
+        clock { size 13; weight 600; line 16 }
+        mono { size 12; weight 400; line 17 }
+    }
+    weight { regular 400; medium 500; semibold 600; bold 700 }
+}
+
+space { xxs 2; xs 4; s 8; m 12; l 16; xl 20; xxl 24; xxxl 32 }
+
+// Nested corners are concentric: a child's radius is its parent's less the
+// padding between them, never below `small`.
+radius { window 10; panel 18; card 10; control 6; row 5; small 4 }
+
+stroke { hairline 1; focus-ring 3; focus-offset 1 }
+
+size {
+    strip 48
+    island-top 9
+    island-height 30
+    bar-height 34
+    titlebar 32
+    toolbar 52
+    sidebar 220
+    row 28
+    row-large 40
+    control-small 20
+    control 24
+    control-large 30
+    hit-minimum 20
+    glyph-small 12
+    glyph 16
+    glyph-large 20
+    app-icon-small 16
+    app-icon 32
+    app-icon-large 64
+    app-icon-hero 128
+}
+
+shadow {
+    window { dark "0 22px 60px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(0,0,0,0.70)"; light "0 22px 60px rgba(0,0,0,0.18), 0 0 0 0.5px rgba(0,0,0,0.22)" }
+    window-inactive { dark "0 10px 30px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(0,0,0,0.60)"; light "0 10px 30px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.18)" }
+    panel { dark "0 18px 50px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.10)"; light "0 18px 50px rgba(0,0,0,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.60)" }
+    menu { dark "0 10px 30px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.10)"; light "0 10px 30px rgba(0,0,0,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.60)" }
+    control { dark "0 1px 2px rgba(0,0,0,0.30)"; light "0 1px 2px rgba(0,0,0,0.12)" }
+}
+
+// Springs are critically damped or close to it: no bounce (brief P5).
+// Exits run on `exit`, quicker than entrances.
+motion {
+    morph { stiffness 360; damping 38 }
+    open { stiffness 420; damping 41 }
+    exit { stiffness 560; damping 47 }
+    move { stiffness 480; damping 44 }
+    switch { stiffness 300; damping 35 }
+    fade-ms 160
+    exit-fade-ms 110
+    // Reduce Motion: every spring becomes a fade of this length, in place.
+    reduced-fade-ms 120
+}
+
+// Behaviour timings the hover guards and events use (v1 lessons §3.5).
+timing {
+    hover-dwell-ms 120
+    hover-grace-ms 250
+    hover-settle-ms 500
+    osd-ms 1500
+    copied-ms 2000
+    event-ms 3000
+    banner-default-ms 5000
+}

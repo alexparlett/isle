@@ -153,7 +153,11 @@ and ext-foreign-toplevel-list (both in Smithay) so standard capture tools
 work. Window previews in the switcher and overview are drawn by the
 compositor and need no capture protocol. v1's rule carries over: capture a
 source only while it is visible (D55; capturing a disappearing output
-crashed Hyprland). Rejected: mimicking GNOME's D-Bus screencast API for
+crashed Hyprland). It also serves the Settings portal, listed ahead of
+xdg-desktop-portal-gtk (`Settings=isle;gtk`): GTK's backend gives apps
+the colour scheme and contrast but not the accent colour or reduced
+motion, which Isle's adds (P1, `system/theming.md`). Rejected: mimicking
+GNOME's D-Bus screencast API for
 xdg-desktop-portal-gnome (its GTK picker, against B3), xdg-desktop-portal-
 wlr (an external picker).
 

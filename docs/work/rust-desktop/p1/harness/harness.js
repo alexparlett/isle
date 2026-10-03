@@ -100,7 +100,7 @@
         if (node.name === "dark" || node.name === "light") t = node.name;
         else p = path.concat(node.name);
         if (node.args.length) {
-          const v = node.args.map((a) => (typeof a === "number" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor|saturation|brightness|height-ratio|-ms)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
+          const v = node.args.map((a) => (typeof a === "number" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor|saturation|brightness|height-ratio|mix|-ms)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
           vars[t || "any"]["--" + p.join("-")] = v;
         }
         walk(node.children, p, t);
@@ -175,6 +175,7 @@
 
   // config: { title, subtitle, tokens: "path/to/tokens.kdl" | null,
   //   directions: [{ id, name, tokens, note }] (optional; replaces tokens),
+  //   selects: [{ id, label, options: { value: name }, value, apply(screen, value) }] (optional),
   //   surfaces: [{ id, name, sheet, states: [{ id, name, note, screen, render(screen, ctx) }] }] }
   Isle.board = function (config) {
     const directions = config.directions || null;
@@ -191,6 +192,7 @@
       direction: directions ? load("direction:" + config.title, directions[0].id) : null,
     };
     if (directions && !directions.find((d) => d.id === state.direction)) state.direction = directions[0].id;
+    const extra = (config.selects || []).map((x) => ({ ...x, value: load("sel:" + config.title + ":" + x.id, x.value) }));
     const tokensPath = () => directions ? directions.find((d) => d.id === state.direction).tokens : config.tokens;
     Object.assign(Isle.flags, load("flags", {}));
 
@@ -242,6 +244,7 @@
     function buildControls() {
       controls.replaceChildren(...[
         directions ? select("direction", "Direction", Object.fromEntries(directions.map((d) => [d.id, d.name])), state.direction, (v) => { state.direction = v; save("direction:" + config.title, v); tokenText = null; readTokens(); }) : null,
+        ...extra.map((x) => select("x-" + x.id, x.label, x.options, x.value, (v) => { x.value = v; save("sel:" + config.title + ":" + x.id, v); render(); })),
         select("theme", "Appearance", { dark: "Dark", light: "Light" }, state.theme, (v) => { state.theme = v; save("theme", v); render(); }),
         hasTokens ? select("mode", "Draw", { tokens: "Tokens", wire: "Wireframe" }, state.mode, (v) => { state.mode = v; save("mode", v); render(); }) : null,
         select("wallpaper", "Wallpaper", Object.fromEntries(Object.entries(WALLPAPERS).map(([k, v]) => [k, v.name])), state.wallpaper, (v) => { state.wallpaper = v; save("wallpaper:" + config.title, v); render(); }),
@@ -291,6 +294,10 @@
       if (state.mode === "tokens" && tokenVars) {
         for (const set of [tokenVars.any, tokenVars[state.theme]])
           for (const [k, v] of Object.entries(set)) screen.style.setProperty(k, v);
+        // Increase Contrast: `colour { contrast { … } }` replaces the roles it names.
+        if (Isle.flags.increaseContrast)
+          for (const [k, v] of Object.entries(tokenVars[state.theme]))
+            if (k.startsWith("--colour-contrast-")) screen.style.setProperty("--colour-" + k.slice(18), v);
       }
     }
 
@@ -312,6 +319,7 @@
       screen.dataset.rt = Isle.flags.reduceTransparency ? "1" : "0";
       screen.dataset.ic = Isle.flags.increaseContrast ? "1" : "0";
       applyVars();
+      for (const x of extra) x.apply(screen, x.value);
       const wp = WALLPAPERS[state.wallpaper];
       wall.style.background = wp.wire || state.mode === "wire" ? "var(--wf-wall)" : wp.css;
 

@@ -174,14 +174,19 @@ follow light and dark.
    file. A file the user wrote is left alone; a flags file with the user's
    own ozone line is not touched. `isle setup --undo` removes Isle's files
    and blocks.
-5. The Settings portal stays with xdg-desktop-portal-gtk, which reads the
-   gsettings Isle writes, so every portal-aware app learns the colour
-   scheme.
+5. Isle's portal backend serves the Settings portal ahead of
+   xdg-desktop-portal-gtk (`Settings=isle;gtk`): colour scheme, accent
+   colour, contrast and reduced motion, from the tokens and the user's
+   settings (B13). xdg-desktop-portal-gtk stays installed for what it
+   serves besides, and still reads the gsettings Isle writes.
 
 **v1 lessons kept.** D39: Qt themes through the GTK 3 platform theme, one
 source for both Qt versions. Chromium themes on Wayland only with
 `--qt-version=6` (inventory §16). D73: removing xdg-desktop-portal-gtk would
-take dark mode from every GTK app.
+take dark mode from every GTK app. Under the GTK 3 platform theme Qt opens
+GTK's own file chooser rather than the portal's, so Qt apps would miss
+Isle's Open and Save panels; P14 tests the alternatives (P1,
+`system/theming.md`).
 
 **Open for its packet.** The template engine, and targets beyond the floor
 (B10).

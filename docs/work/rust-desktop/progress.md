@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+- P1 gate 4 passed: Frost made into the system. The token file grew roles
+  for every surface, eight accents, the glass range, macOS's text styles
+  in Inter, the concentric corner rule, five springs, a terminal palette
+  and the icon group; a contrast script checks every pair in both
+  appearances and under Increase Contrast. Phosphor, Papirus and Bibata
+  chosen. Research found Isle must serve the Settings portal (B13) and
+  that Qt under the GTK platform theme bypasses Isle's file panels (P14).
+  DESIGN.md's first draft written.
+
 - P1 gate 2, batch 3 passed: Notification Centre unfolding from the pill
   with the date, month and agenda; the widgets dashboard as one canvas
   per screen on Ctrl+Option+Cmd+W; Mission Control with a minimised tray

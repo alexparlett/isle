@@ -167,7 +167,7 @@
   Isle.board({
     title: "Isle surfaces, wave A",
     subtitle: "P1 stage 5, wave A: the island and its panels, menus, window chrome, the switcher and the wallpaper, drawn from p1/surfaces/*.md in the system's tokens. Try Light, the accents, Increase contrast, Reduce transparency and Reduce motion.",
-    tokens: "system/tokens.kdl",
+    tokens: "../../../../data/tokens/tokens.kdl",
     wallpaper: "frost",
     selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
       apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],

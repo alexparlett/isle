@@ -1,0 +1,39 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["spikes"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+
+[workspace.dependencies]
+isle-ipc = { path = "crates/isle-ipc" }
+isle-settings = { path = "crates/isle-settings" }
+isle-settings-derive = { path = "crates/isle-settings-derive" }
+isle-state = { path = "crates/isle-state" }
+
+# Upstream master until alexparlett/smithay exists; moving changes only the URL (B6).
+smithay = { git = "https://github.com/Smithay/smithay", rev = "118e34ffc9b99854a2230c4805e1f37dc9029edb", default-features = false, features = [
+    "backend_winit",
+    "desktop",
+    "renderer_gl",
+    "wayland_frontend",
+] }
+kdl = { version = "6.7", features = ["span"] }
+zbus = { version = "5.19", default-features = false, features = ["tokio"] }
+tokio = "1.53"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.6", features = ["derive"] }
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
+
+[profile.release]
+debug = 1

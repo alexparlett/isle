@@ -825,7 +825,7 @@ gave before.
 
 - **Settings**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/island.md`, `settings.md`); recorded in DESIGN.md.
-- **Design tokens**: Answered in P1 (`docs/work/rust-desktop/p1/system/tokens.kdl` and
+- **Design tokens**: Answered in P1 (`data/tokens/tokens.kdl` and
   `schema.md`; B31); recorded in DESIGN.md.
 - **Notifications and badges**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/notifications.md`, `dock.md`,

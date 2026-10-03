@@ -3,10 +3,11 @@
 
 import http.server
 import io
+import os
 import pathlib
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parents[5]
 
 # The same wrapper the Artifact host puts around a published page, so a
 # board renders alike in the browser pane and as a published link.
@@ -43,5 +44,5 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
+    port = int(sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PORT", 8766))
     http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()

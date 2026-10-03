@@ -7,9 +7,8 @@ and signed off at gate 6 on 2026-10-03, open to adjustment as building
 shows what needs it. The design decisions are B31 to B34 in
 `DECISIONS.md`. Isle v1's design is on `main` for reference only.
 
-The values live in `tokens.kdl` (now `docs/work/rust-desktop/p1/system/`,
-until P2's workspace gives it a home); this document says what they are
-for. What each surface does is in `docs/design/` and P1's structure
+The values live in `data/tokens/tokens.kdl`, its shape in `schema.md`
+beside it; this document says what they are for. What each surface does is in `docs/design/` and P1's structure
 sheets (`docs/work/rust-desktop/p1/structure/`).
 
 ## The desktop

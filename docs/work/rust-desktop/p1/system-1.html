@@ -15,7 +15,7 @@
 <script src="harness/harness.js"></script>
 <script>
 (function () {
-  // P1 stage 4: Frost made into a system. Every value comes from system/tokens.kdl.
+  // P1 stage 4: Frost made into a system. Every value comes from data/tokens/tokens.kdl.
   const W = 3440, H = 1440, CX = W / 2;
   const { h } = Isle;
   const el = (cls, style, ...kids) => h("div", { class: cls, style: style || {} }, ...kids);
@@ -202,14 +202,14 @@
 
   Isle.board({
     title: "Isle system",
-    subtitle: "P1 stage 4: Frost made into the system. Every value is read from system/tokens.kdl; the components are the set the shell and Isle's apps share. Try Light, the accents, Increase contrast and Reduce transparency.",
-    tokens: "system/tokens.kdl",
+    subtitle: "P1 stage 4: Frost made into the system. Every value is read from data/tokens/tokens.kdl; the components are the set the shell and Isle's apps share. Try Light, the accents, Increase contrast and Reduce transparency.",
+    tokens: "../../../../data/tokens/tokens.kdl",
     wallpaper: "haze",
     selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
       apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
     afterRender: icons,
     surfaces: [
-      { id: "tokens", name: "Tokens", sheet: "p1/system/tokens.kdl", states: [
+      { id: "tokens", name: "Tokens", sheet: "data/tokens/tokens.kdl", states: [
         { id: "colour", name: "Colour", crop: [160, 80, 1640, 1260], note: "Roles, not colours: windows, fills, hairlines, the accent and status. Status colours are for status; everything else is neutral (brief P6).", render(s) { colourSpecimen(s); } },
         { id: "type", name: "Type", crop: [160, 80, 1640, 1260], note: "Inter at macOS's text styles; JetBrains Mono for code.", render(s) { typeSpecimen(s); } },
         { id: "space", name: "Space and depth", crop: [160, 80, 1640, 1260], note: "The 4-point grid, the corner set with the concentric rule, and five shadows.", render(s) { spaceSpecimen(s); } },

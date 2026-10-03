@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+- P2 phase 2.0: the workspace (`Cargo.toml`, `rust-toolchain.toml`,
+  seven crates), `data/tokens/` and `data/icons/phosphor/` moved from P1,
+  the board server rooted at the repository so boards find them. Smithay
+  pinned upstream; the fork waits until a patch needs it. `kdl` 6.7.1
+  reprints `} }` as `}}` (its parser discards the space after a children
+  block, still so on main), so the settings writer will splice by span
+  rather than print the document; a test checks every span in
+  `tokens.kdl`.
+
 - P2 planned (`p2-compositor.md`): the workspace at the repository root
   with seven crates and `data/`, the Smithay fork on an `isle` branch,
   and phases from a nested compositor through D-Bus, settings, state, a

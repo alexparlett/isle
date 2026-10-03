@@ -156,7 +156,7 @@
   Isle.board({
     title: "Isle surfaces, wave B",
     subtitle: "P1 stage 5, wave B: banners and Focus, Control Centre's modules, the lock and prompts, Spotlight and capture, Settings and the app conventions, drawn from p1/surfaces/*.md in the system's tokens.",
-    tokens: "system/tokens.kdl",
+    tokens: "../../../../data/tokens/tokens.kdl",
     wallpaper: "frost",
     selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
       apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],

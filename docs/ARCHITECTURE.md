@@ -98,5 +98,8 @@ paru and updated through pacman (B29).
 Built on `feature/rust-desktop` in this repository (B16), beside Isle v1,
 which stays the daily desktop on `main` until the new one replaces it
 (roadmap milestone M2) and is removed at cut-over. The Cargo workspace
-layout is settled by the compositor-core packet (P2). `spikes/shell-ui/`
+is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
+(the `isle` command), `isle-ipc`, `isle-settings` with its derive and
+`isle-state`; `data/` holds the shipped tokens with their schema and
+contrast check, and the Phosphor subset. `spikes/shell-ui/`
 is the throwaway code behind B7 and is not built on.

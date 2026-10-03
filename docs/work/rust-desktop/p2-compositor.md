@@ -55,6 +55,11 @@ rest are recommendations the plan carries.
    a derive macro (`isle-settings-derive`) generates parsing, validation,
    the D-Bus value types and an introspectable schema from one Rust
    definition (`platform.md` Settings 8). No `include` in P2.
+   `kdl` is used to parse only. Its printer loses text on round trip
+   (whitespace after a children block, kdl-rs #178, #179, #193; found in
+   2.0), so a Set splices the new value into the file's own text at the
+   value's source span, and adds or removes a node the same way; every
+   byte it did not change stays as typed.
 4. **State format.** One JSON file per domain (serde), each with a
    `version` field, written atomically from the worker. State is never
    hand-edited, so it needs no comments, and JSON keeps it inspectable.
@@ -115,10 +120,11 @@ paths still resolve. DESIGN.md, `schema.md` and the intent docs point at
 the new path. P3 adds `isle-shell` and its token reader; later packets add
 crates beside these.
 
-Smithay comes from `alexparlett/smithay`, branch `isle`, cut from master at
-the newest revision that builds the spike base unchanged or with the
-churn `smithay-and-gaming.md` §1.1 lists, pinned by `rev`. Upgrades are
-their own commits. Patches (the async flip, P12) land on that branch.
+Smithay is pinned by `rev` to upstream master at `118e34f`, the revision
+the spike builds. The user deferred the fork at 2.0; it becomes
+`alexparlett/smithay`, branch `isle`, at that revision when a patch first
+needs it (the async flip, P12, at the latest), and moving to it changes
+only the git URL. Upgrades are their own commits.
 
 ## Phases
 
@@ -127,15 +133,16 @@ commits. Nothing later starts on an unchecked phase.
 
 ### 2.0 · Ground
 
-- The Smithay fork created with `gh` (asking first) and pinned; the workspace, crates as empty skeletons, `cargo build` and
+- Smithay pinned (the fork deferred, above); the workspace, crates as empty skeletons, `cargo build` and
   `cargo clippy` clean.
 - P1's system files moved into `data/`; the boards still render from
   `serve.py` (checked in the browser pane); references updated.
-- Confirm `knus`'s KDL version and `kdl` 6.7's round-trip on `tokens.kdl`
-  (a test that parses and re-emits it byte for byte).
+- Confirm `knus`'s KDL version (v1 only: it rejects `#true`) and that
+  `kdl` 6.7 locates every value of `tokens.kdl` by its span, which the
+  writer relies on (choice 3).
 
-**Check:** the workspace builds; the round-trip test passes; one board
-renders with the moved tokens.
+**Check:** the workspace builds and passes clippy; the span tests pass;
+one board renders with the moved tokens.
 
 ### 2.1 · A nested compositor
 

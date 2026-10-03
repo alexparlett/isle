@@ -73,4 +73,10 @@
   until P4, NVIDIA defaults) and ten phases from the workspace to the VM
   boot and a host smoke test. Reviewed: the user took every
   recommendation (`isle-compositor`, `io.github.alexparlett.Isle`, the
-  fork made with `gh`, the host smoke in P2). Next: phase 2.0.
+  fork made with `gh`, the host smoke in P2).
+- P2 phase 2.0 done: the Cargo workspace at the root (seven crates under
+  `crates/`), P1's tokens, schema, contrast script and Phosphor subset in
+  `data/`, the boards reading them there. Smithay pinned upstream at
+  `118e34f`; the user deferred the fork. `knus` is KDL v1 only; `kdl`'s
+  printer drops text, so settings writes splice by span. Next: 2.1, the
+  nested compositor.

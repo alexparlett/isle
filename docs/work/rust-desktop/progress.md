@@ -2,6 +2,12 @@
 
 ## 2026-10-03
 
+- P2 planned (`p2-compositor.md`): the workspace at the repository root
+  with seven crates and `data/`, the Smithay fork on an `isle` branch,
+  and phases from a nested compositor through D-Bus, settings, state, a
+  headless test backend, DRM and outputs, and the supervisor, to booting
+  the VM into kitty. The user took every recommendation.
+
 - P1 done. Stage 6 reviewed every surface for critique, accessibility and
   copy (298 findings, all applied); the contrast script grew to cover
   focus rings, badges, hover states, labels on fills and kind colours, and

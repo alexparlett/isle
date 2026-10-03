@@ -46,7 +46,7 @@ Runs beside P2 and P3. Surfaces are built from P4 onwards against its
 output; a surface whose design is not done is built as structure only.
 Intent: shell.md, apps.md, compositor.md, gaming.md.
 
-**P2 · Compositor core.** The Cargo workspace; the pinned Smithay fork (B6);
+**P2 · Compositor core.** Planned 2026-10-03 in `p2-compositor.md`. The Cargo workspace; the pinned Smithay fork (B6);
 udev/DRM and winit backends; libinput; outputs with hotplug, scale and the
 KVM lessons; xdg-shell and layer-shell; the calloop loop, service worker,
 watchdog and session supervisor (B9); the settings store and its D-Bus

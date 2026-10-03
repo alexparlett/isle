@@ -66,5 +66,11 @@
   every intent doc's design list answered. The tokens, schema, contrast
   script and Phosphor subset in `p1/system/` move into the workspace when
   P2 lays it out; P3 reads the schema. Next: P2 (compositor core), planned
-  by its own run; P3 waits for the Freya fork at rc.8. P2 is
-  planned by its own run; P3 waits for the Freya fork at rc.8.
+  by its own run; P3 waits for the Freya fork at rc.8.
+- P2 planned in `p2-compositor.md`: nine choices made provisionally
+  (binary and bus names, `kdl` with an own derive, JSON state, tokio on
+  the worker, niri's redraw loop, the watchdog, client-side decorations
+  until P4, NVIDIA defaults) and ten phases from the workspace to the VM
+  boot and a host smoke test. Reviewed: the user took every
+  recommendation (`isle-compositor`, `io.github.alexparlett.Isle`, the
+  fork made with `gh`, the host smoke in P2). Next: phase 2.0.

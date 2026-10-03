@@ -3,6 +3,7 @@
 pub mod backend;
 pub mod build_info;
 pub mod crash;
+mod dbus;
 mod grabs;
 mod handlers;
 mod input;
@@ -10,10 +11,16 @@ pub mod redraw;
 mod render;
 pub mod state;
 pub mod watchdog;
+mod windows;
+pub mod worker;
 
 use std::time::Duration;
 
-use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
+use smithay::reexports::{
+    calloop::{EventLoop, channel},
+    wayland_server::Display,
+};
+use tokio::sync::broadcast;
 use tracing::info;
 
 use crate::{
@@ -37,17 +44,32 @@ pub fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut event_loop: EventLoop<'static, State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;
-    let (winit, events) = Winit::new()?;
+    let (winit, winit_events) = Winit::new()?;
     let backend = Backend::Winit(winit);
+
+    let (jobs, job_source) = channel::channel::<worker::Job>();
+    event_loop
+        .handle()
+        .insert_source(job_source, |event, _, state| {
+            if let channel::Event::Msg(job) = event {
+                let _beat = state.isle.heartbeat.beat("worker-job");
+                job(state);
+            }
+        })
+        .map_err(|e| e.error)?;
+    let (events, _) = broadcast::channel(64);
+    worker::spawn(worker::ToLoop::new(jobs), events.clone());
+
     let isle = Isle::new(
         display,
         event_loop.handle(),
         event_loop.get_signal(),
         heartbeat,
+        events,
         backend.seat_name(),
     );
     let mut state = State { backend, isle };
-    backend::winit::setup(&mut state, events)?;
+    backend::winit::setup(&mut state, winit_events)?;
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };

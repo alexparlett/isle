@@ -100,6 +100,7 @@ impl State {
             )
         });
         info!(app_id, title, ?location, size = ?size, "mapped");
+        self.isle.notify(crate::worker::Event::WindowsChanged);
         self.set_focus(Some(&window));
     }
 }

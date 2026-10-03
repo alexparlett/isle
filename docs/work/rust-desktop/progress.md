@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+- P2 phase 2.2: the worker, the D-Bus API and `isle`. Checked nested on
+  a private bus: version, window and display lists, close (kitty asked
+  first, as it should), an unknown id refused, `Windows1.Changed` on
+  close, quit; a request during an injected 3 s stall failed after 1 s
+  while the watchdog logged the stall; an injected service panic was
+  restarted in a second with the compositor untouched and no crash
+  record. The build time now comes from the binary's own file, since a
+  build script only reran on git changes.
+
 - P2 phase 2.1: the nested compositor. One calloop loop over `State {
   backend, isle }`; xdg-shell with toplevels placed centred on their
   first buffer, click to focus and raise, popups kept on the output and

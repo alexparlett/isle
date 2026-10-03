@@ -37,7 +37,9 @@ use smithay::{
 use smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as KdeMode;
 use tracing::{info, warn};
 
-use crate::{backend::Backend, redraw::OutputState, watchdog::Heartbeat};
+use tokio::sync::broadcast;
+
+use crate::{backend::Backend, redraw::OutputState, watchdog::Heartbeat, worker::Event};
 
 pub struct State {
     pub backend: Backend,
@@ -51,6 +53,8 @@ pub struct Isle {
     pub clock: Clock<Monotonic>,
     pub socket_name: OsString,
     pub heartbeat: Heartbeat,
+    pub events: broadcast::Sender<Event>,
+    pub next_window_id: u64,
 
     pub space: Space<Window>,
     /// Toplevels that have not committed a buffer yet; they are placed when they do.
@@ -94,6 +98,7 @@ impl Isle {
         loop_handle: LoopHandle<'static, State>,
         loop_signal: LoopSignal,
         heartbeat: Heartbeat,
+        events: broadcast::Sender<Event>,
         seat_name: String,
     ) -> Self {
         let dh = display.handle();
@@ -154,6 +159,8 @@ impl Isle {
             clock,
             socket_name,
             heartbeat,
+            events,
+            next_window_id: 1,
             space: Space::default(),
             unmapped: Vec::new(),
             popups: PopupManager::default(),
@@ -183,11 +190,13 @@ impl Isle {
         self.space.map_output(output, location);
         self.update_frame_budget();
         self.queue_redraw(output);
+        self.notify(Event::DisplaysChanged);
     }
 
     pub fn remove_output(&mut self, output: &Output) {
         self.space.unmap_output(output);
         self.update_frame_budget();
+        self.notify(Event::DisplaysChanged);
     }
 
     fn update_frame_budget(&self) {
@@ -270,6 +279,7 @@ impl State {
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         keyboard.set_focus(self, surface, serial);
         self.isle.queue_redraw_all();
+        self.isle.notify(Event::WindowsChanged);
     }
 
     /// Focuses the topmost window, after the focused one went away.

@@ -72,10 +72,16 @@ fn write_in(
     Ok(path)
 }
 
-/// Every panic in the compositor writes a record, then the default hook prints it.
+/// A panic on the main thread ends the session and writes a record; elsewhere the
+/// panicking service is restarted (B9). The default hook prints it either way.
 pub fn install_panic_hook(heartbeat: Heartbeat) {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        if thread.name() != Some("main") {
+            default(info);
+            return;
+        }
         let message = match info.payload().downcast_ref::<&str>() {
             Some(s) => (*s).to_owned(),
             None => info
@@ -88,7 +94,6 @@ pub fn install_panic_hook(heartbeat: Heartbeat) {
             Some(l) => format!("{message} at {}:{}", l.file(), l.line()),
             None => message,
         };
-        let thread = std::thread::current();
         let backtrace = Backtrace::force_capture().to_string();
         match write(
             "panic",

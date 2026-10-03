@@ -5,9 +5,16 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+# The Test interface: input injection, forced stalls and panics. Never in a package.
+test-hooks = []
+
 [dependencies]
 humantime.workspace = true
+isle-ipc.workspace = true
 libc.workspace = true
 smithay.workspace = true
 tracing.workspace = true
+tokio.workspace = true
 tracing-subscriber.workspace = true
+zbus.workspace = true

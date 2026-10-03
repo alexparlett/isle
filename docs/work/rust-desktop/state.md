@@ -85,4 +85,10 @@
   map; a static desktop presents no frames. Not yet checked: typing and
   clicking in clients (by hand, or scripted once 2.5's Test interface
   exists), and foot, Firefox, a GTK 4 and a Qt 6 app, which the host
-  does not have. Next: 2.2, the worker, D-Bus and the CLI.
+  does not have.
+- P2 phase 2.2 done: the worker thread (tokio, two workers) runs the
+  D-Bus service under a restarting supervisor and reaches the loop by
+  jobs with a one-second limit. `io.github.alexparlett.Isle` serves
+  Version1, Session1, Windows1 and Displays1, and Test1 in `test-hooks`
+  builds; `isle` covers them with `--json`, exit 1 on failure and 69 when
+  Isle is not running. Checked on a private bus. Next: 2.3, settings.

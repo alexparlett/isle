@@ -32,7 +32,9 @@ impl XdgShellHandler for State {
     }
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
-        self.isle.unmapped.push(Window::new_wayland_window(surface));
+        let window = Window::new_wayland_window(surface);
+        self.isle.assign_window_id(&window);
+        self.isle.unmapped.push(window);
     }
 
     fn toplevel_destroyed(&mut self, surface: ToplevelSurface) {
@@ -45,6 +47,7 @@ impl XdgShellHandler for State {
         };
         self.isle.queue_redraw_for_window(&window);
         self.isle.space.unmap_elem(&window);
+        self.isle.notify(crate::worker::Event::WindowsChanged);
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         if keyboard.current_focus().is_none_or(|f| f == *wl_surface) {
             self.focus_top();

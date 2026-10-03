@@ -1,11 +1,23 @@
 //! The running build's identity, reported by `isle version` and in crash records.
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const COMMIT: &str = env!("ISLE_COMMIT");
 
+/// When the running binary was linked, read from its own file.
 pub fn built() -> SystemTime {
-    UNIX_EPOCH + Duration::from_secs(env!("ISLE_BUILT").parse().unwrap_or(0))
+    std::env::current_exe()
+        .and_then(std::fs::metadata)
+        .and_then(|m| m.modified())
+        .unwrap_or(UNIX_EPOCH)
+}
+
+pub fn features() -> Vec<String> {
+    let mut features = Vec::new();
+    if cfg!(feature = "test-hooks") {
+        features.push("test-hooks".to_owned());
+    }
+    features
 }
 
 pub fn describe() -> String {

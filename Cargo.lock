@@ -849,6 +849,7 @@ dependencies = [
  "humantime",
  "isle-ipc",
  "isle-settings",
+ "isle-state",
  "libc",
  "notify",
  "smithay",

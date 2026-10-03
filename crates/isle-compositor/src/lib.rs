@@ -12,6 +12,7 @@ pub mod redraw;
 mod render;
 pub mod settings;
 pub mod state;
+pub mod state_writer;
 pub mod watchdog;
 mod windows;
 pub mod worker;

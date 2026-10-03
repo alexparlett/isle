@@ -100,4 +100,9 @@
   directory and a symlink's target; the loop applies keyboard, output
   scale, position and the watchdog live. `Settings1` and `isle settings
   get|set|status|schema`. `platform.md` acceptance 7 passes nested.
-  Next: 2.4, state.
+- P2 phase 2.4 done: `isle-state` keeps one versioned JSON file per
+  domain under `~/.local/state/isle/`, moving a damaged or newer file
+  aside as `.bad`; the worker's `Saver` writes the last value of a burst
+  after half a second. Domains so far: the supervisor's crash history and
+  the v1 import marker. Next: 2.5, the headless backend and the Test
+  interface.

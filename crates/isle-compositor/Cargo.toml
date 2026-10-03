@@ -13,6 +13,7 @@ test-hooks = []
 humantime.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true
+isle-state.workspace = true
 libc.workspace = true
 notify.workspace = true
 smithay.workspace = true

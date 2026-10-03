@@ -2,6 +2,10 @@
 
 ## 2026-10-03
 
+- P2 phase 2.4: the state store and the worker's debounced writer, with
+  tests for a round trip, a damaged file, a newer version and a burst of
+  fifty saves written once.
+
 - P2 phase 2.3: settings. A broken hand edit keeps the last good settings
   and refuses Sets with its line and column until it is fixed; Sets keep
   the user's comments, create keyed nodes and app sections where absent,

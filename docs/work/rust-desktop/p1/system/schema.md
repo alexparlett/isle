@@ -20,9 +20,10 @@ read and which P3 implements. The file is KDL v2; the values are in
 - **Units.** Numbers are logical points unless the name ends in `-ms`
   (milliseconds), ends in `opacity`, `weight`, `saturation`,
   `stiffness`, `damping`, `mass`, `mix` or `scale`, or sits under
-  `limit`; those are plain numbers. Colours are
-  sRGB strings: `#rrggbb` or `rgba(r,g,b,a)`. Shadows are CSS shadow
-  strings, which the shell parses into its own shadow list.
+  `limit`; those are plain numbers. `motion-flick-speed` is in points
+  per second. Colours are sRGB strings: `#rrggbb` or `rgba(r,g,b,a)`.
+  Shadows are CSS shadow strings, which the shell parses into its own
+  shadow list.
 - **Version.** `version 1` at the top. A file with a newer major version
   is refused with a pointer to the error, as `settings.kdl` is (B27).
 - **Errors.** A file that does not parse, or a required token that is
@@ -36,9 +37,9 @@ read and which P3 implements. The file is KDL v2; the values are in
 
 | Group | Tokens | Notes |
 |---|---|---|
-| `colour` | Roles per appearance: `window`, `window-raised`, `window-sunken`, `view`, `sidebar`, `titlebar`, `titlebar-inactive`, `control`, `control-hover`, `control-pressed`, `text`, `text-2`, `text-3`, `text-disabled`, `hairline`, `hairline-strong`, `fill`, `fill-strong`, `selection-unfocused`, `ok`, `warn`, `danger` (fills and marks) and `ok-text`, `warn-text`, `danger-text` (as text), `match`, `live`, `privacy-microphone`, `privacy-camera`, `privacy-screen`, `island`, `island-text`, `scrim`, `shadow`; and `contrast` overrides | Components use roles, never raw colours. `text-3` is for windows only; on glass, `text` and `text-2`. |
+| `colour` | Roles per appearance: `window`, `window-raised`, `window-sunken`, `view`, `sidebar`, `titlebar`, `titlebar-inactive`, `control`, `control-hover`, `control-pressed`, `text`, `text-2`, `text-3`, `text-disabled`, `hairline`, `hairline-strong`, `fill`, `fill-strong`, `selection-unfocused`, `ok`, `warn`, `danger` (fills and marks) and `ok-text`, `warn-text`, `danger-text` (as text), `match`, `live`, `privacy-microphone`, `privacy-camera`, `privacy-screen`, `island`, `island-text`, `scrim`, `shadow`; and `contrast` overrides | Components use roles, never raw colours. `text-3` is for windows only; on glass, `text` and `text-2`. A focused selection in lists and tables is the full `accent` fill with `on-accent` text; unfocused, `selection-unfocused`. |
 | `accent` | `default`, then per accent (`blue`, `purple`, `pink`, `red`, `orange`, `yellow`, `green`, `graphite`) and appearance: `fill`, `on`, `text` | The user's choice (settings.kdl) picks one; components read `colour-accent`, `colour-on-accent`, `colour-accent-text`, which the runtime points at the chosen set. |
-| `selection` | `mix` per appearance | A selection on `view` is the accent mixed in at this share; `text` stays on it at 4.5:1. |
+| `selection` | `mix` per appearance | Text selection only: in fields and text views the accent is mixed into the surface at this share, and `text` stays on it at 4.5:1. Row and item selections are `colour`'s. |
 | `series` | `a` to `d` per appearance | Categorical colours for graphs; never status. |
 | `pane` | Fixed hues for Settings' pane tiles | Data, not the accent. |
 | `term` | The 16 ANSI colours per appearance | Terminals and the programs in them (`theming.md`). |
@@ -46,7 +47,7 @@ read and which P3 implements. The file is KDL v2; the values are in
 | `limit` | Counts: `island-marks`, `now-rows` | Plain numbers, never points. |
 | `icon` | `set`, `weight`, `weight-on`, `weight-contrast`; `theme` per appearance; `cursor`, `cursor-size` | Phosphor, Papirus, Bibata (`icons.md`). |
 | `material` | `glass`, `glass-clear`, `glass-tinted`, `solid` per appearance; `blur`, `saturation`, `noise-opacity` | The glass setting interpolates between `glass-clear` and `glass-tinted`, `glass` being its default. Reduce Transparency and Game Mode use `solid`. |
-| `type` | `family`, `mono`; `style.<name>.{size, weight, line}` for `large-title`, `title`, `title-2`, `title-3`, `headline`, `body`, `callout`, `subheadline`, `footnote`, `clock`, `mono`; `weight.*` | Inter's optical size follows the size. The user's text size multiplies every style. |
+| `type` | `family`, `mono`; `style.<name>.{size, weight, line}` for `large-title`, `title`, `title-2`, `title-3`, `headline`, `body`, `callout`, `subheadline`, `footnote`, `clock`, `mono`, `display` (the lock's time); `weight.*` | Inter's optical size follows the size. The user's text size multiplies every style. |
 | `space` | `xxs` 2 to `xxxl` 32 | The 4-point grid. |
 | `radius` | `window`, `panel`, `card`, `control`, `row`, `small` | Nested corners are concentric: a child's radius is its parent's less the padding between them, never below `small`. |
 | `stroke` | `hairline`, `focus-ring`, `focus-offset` | The focus ring is the accent at reduced opacity, keyboard focus only. |

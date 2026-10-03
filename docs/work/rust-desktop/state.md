@@ -54,7 +54,10 @@
   `theming.md`. `docs/DESIGN.md` has its first draft. B13 now includes
   the Settings portal. - P1 stage 5, wave A passed gate 5 (board `p1/surfaces-a.html`, specs
   in `p1/surfaces/`, drawing kit `p1/surfaces/scene.js`): the island and
-  its panels, menus, window chrome, the switcher, the wallpaper. Next:
-  wave B (banners, Control Centre's modules, Focus, lock and greeter,
-  prompts, Spotlight, capture, Settings). P2 is
+  its panels, menus, window chrome, the switcher, the wallpaper.
+- Wave B passed gate 5 (board `p1/surfaces-b.html`): banners, Focus,
+  Control Centre's modules, the lock and prompts, Spotlight, capture,
+  Settings and the app conventions. Next: wave C (Notification Centre
+  and widgets, Mission Control, Files, Monitor, Keychain, Cleaner, the
+  dropdown terminal, PiP, the on-screen keyboard). P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

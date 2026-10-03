@@ -41,6 +41,8 @@ colour {
         island-text "#f2f3f5"
         scrim "rgba(0,0,0,0.42)"
         shadow "rgba(0,0,0,0.55)"
+        dim "rgba(0,0,0,0.50)"
+        veil "rgba(0,0,0,0.32)"
     }
     light {
         window "#f6f6f7"
@@ -77,6 +79,8 @@ colour {
         island-text "#1b1c1f"
         scrim "rgba(0,0,0,0.26)"
         shadow "rgba(0,0,0,0.20)"
+        dim "rgba(0,0,0,0.50)"
+        veil "rgba(0,0,0,0.22)"
     }
     // Increase Contrast: replaces the roles it names.
     contrast {
@@ -111,7 +115,7 @@ accent {
     graphite { dark { fill "#9a9da4"; on "#111214"; text "#b4b7bd" }; light { fill "#6b6e75"; on "#ffffff"; text "#585b61" } }
 }
 
-// How much of the accent tints a selection on `view`; text on it stays `text`.
+// How much of the accent tints selected text; list and table selections are the full accent.
 selection { mix { dark 0.38; light 0.24 } }
 
 // Data colours: graphs (Monitor, btop) and Settings' pane tiles. Never status.
@@ -130,6 +134,10 @@ term {
         bright-black "#6b6d75"; bright-red "#a52520"; bright-green "#106a3e"; bright-yellow "#715200"; bright-blue "#184ea8"; bright-magenta "#7f2a99"; bright-cyan "#075f6e"; bright-white "#ffffff"
     }
 }
+
+// Capture's selection line, and Markup's fixed palette (surfaces/capture.md).
+capture { line "#ffffff"; line-shadow "rgba(0,0,0,0.50)" }
+annotation { default "red"; red "#ff3b30"; orange "#ff9500"; yellow "#ffcc00"; green "#34c759"; blue "#0a84ff"; purple "#af52de"; black "#1b1c1f"; white "#ffffff" }
 
 // Symbols, app icons and the cursor (icons.md). Phosphor: regular for
 // outlines, fill for "on", bold under Increase Contrast.
@@ -158,6 +166,9 @@ material {
     softened { dark "rgba(16,17,20,0.45)"; light "rgba(246,246,248,0.50)" }
     softened-blur 80
     softened-saturation 1.4
+    // The lock's own wash over the softened wallpaper, so its text passes.
+    lock-wash { dark "rgba(16,17,20,0.30)"; light "rgba(246,246,248,0.20)" }
+    lock-wash-contrast { dark "rgba(16,17,20,0.45)"; light "rgba(246,246,248,0.30)" }
 }
 
 type {
@@ -176,6 +187,7 @@ type {
         footnote { size 10; weight 400; line 13 }
         clock { size 13; weight 600; line 16 }
         mono { size 12; weight 400; line 17 }
+        display { size 96; weight 600; line 104 }
     }
     weight { regular 400; medium 500; semibold 600; bold 700 }
 }
@@ -186,7 +198,7 @@ space { xxs 2; xs 4; s 8; m 12; l 16; xl 20; xxl 24; xxxl 32 }
 // padding between them, never below `small`.
 radius { window 10; panel 18; card 10; control 6; row 5; small 4 }
 
-stroke { hairline 1; focus-ring 3; focus-offset 1 }
+stroke { hairline 1; focus-ring 3; focus-offset 1; progress 2; found 2 }
 
 size {
     strip 48
@@ -238,10 +250,55 @@ size {
     switcher-card-height 160
     switcher-card-min-width 160
     switcher-background-width 128
+    banner-thumbnail 48
+    swipe-threshold 120
+    app-icon-row 20
+    media-art 64
+    slider-label 112
+    scrubber-knob 12
+    avatar 64
+    lock-field 240
+    lock-button 40
+    button-minimum 80
+    code-cell 32
+    sidebar-min 160
+    sidebar-max 320
+    inspector 260
+    inspector-min 220
+    inspector-max 360
+    content-min 400
+    form 600
+    form-narrow 480
+    toolbar-search 180
+    toolbar-search-wide 260
+    toolbar-tab 44
+    toolbar-tab-width 64
+    about 280
+    settings-width 900
+    settings-height 760
+    pane-tile 20
+    pane-tile-large 32
+    mark 6
+    row-slider 200
+    row-field 200
+    arrangement 220
+    hot-corners-screen 240
+    spotlight-top-scale 0.222
+    spotlight-width 720
+    spotlight-field 48
+    spotlight-tile 112
+    emoji-cell 44
+    capture-bar 48
+    capture-handle 8
+    capture-line 1
+    loupe 120
+    thumbnail-width 240
+    thumbnail-height 160
+    picker 680
 }
 
 // Counts, not points.
-limit { island-marks 2; now-rows 4 }
+limit { island-marks 2; now-rows 4; banners 3; banner-lines 2; banner-lines-expanded 10; reply-lines 4; lock-notifications 5; prompt-lines 4; session-apps 12; force-quit-rows 10; results-rows 8; apps-columns 8; apps-rows 7 }
 
 // The traffic lights' colours: the one fixed exception to roles.
 traffic {
@@ -277,6 +334,11 @@ motion {
     // Open and close scale from these, toward full size.
     window-scale 0.94
     panel-scale 0.96
+    shake-ms 320
+    shake-distance 6
+    dim-ms 2000
+    // Points per second.
+    flick-speed 600
 }
 
 // Behaviour timings the hover guards and events use (v1 lessons §3.5).
@@ -295,4 +357,19 @@ timing {
     type-select-ms 1000
     zoom-dwell-ms 600
     switcher-delay-ms 150
+    tooltip-ms 700
+    progress-delay-ms 500
+    display-revert-ms 15000
+    doze-ms 12000
+    check-long-ms 5000
+    lock-dim-ms 45000
+    lock-off-ms 60000
+    prompt-arm-ms 600
+    prompt-gap-ms 200
+    session-countdown-ms 60000
+    thumbnail-ms 5000
+    banner-min-ms 3000
+    banner-max-ms 15000
+    banner-resume-ms 1500
+    sound-burst-ms 2000
 }

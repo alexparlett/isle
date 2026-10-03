@@ -134,6 +134,13 @@ def main():
                 rows.append(("island text", f"island over {extreme}", ratio(rgba(col["island-text"]), isl), 4.5))
                 if extreme in (own, "grey") or contrast:
                     rows.append(("text-2", f"island over {extreme}", ratio(over(rgba(col["text-2"]), isl), isl), 4.5))
+            # The lock: softened wallpaper plus the lock's wash, over any picture.
+            wash = t[f"material.lock-wash-contrast.{theme}"] if contrast else t[f"material.lock-wash.{theme}"]
+            for extreme, base in (("black", (0, 0, 0, 1)), ("grey", GREY), ("white", (255, 255, 255, 1))):
+                lock = over(rgba(wash), over(rgba(t[f"material.softened.{theme}"]), base))
+                rows.append(("text", f"lock over {extreme}", ratio(rgba(col["text"]), lock), 4.5))
+                if extreme in (own, "grey") or contrast:
+                    rows.append(("text-2", f"lock over {extreme}", ratio(over(rgba(col["text-2"]), lock), lock), 4.5))
             # Colour on the island sits in solid wells (surfaces/island.md).
             well = rgba(t[f"material.solid.{theme}"])
             for role in ["privacy-microphone", "privacy-camera", "privacy-screen", "live"]:

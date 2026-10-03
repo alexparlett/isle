@@ -1,0 +1,283 @@
+<title>Isle surfaces, wave B</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<link rel="stylesheet" href="system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+</style>
+<script src="system/phosphor.js"></script>
+<script src="harness/harness.js"></script>
+<script src="surfaces/scene.js"></script>
+<script>
+(function () {
+  // P1 stage 5, wave B: banners and Focus, Control Centre's modules, the lock and prompts, Spotlight and capture, Settings and the app conventions.
+  const S = Scene, { h } = Isle, { W, H, CX, el, sp, box, row, col, grow, ic, level, isle, cover, appIcon, clock, pill, glyphs, privacy } = S;
+  // DOM append writes "null" for empty slots; drop them.
+  const add = (n, ...k) => (n.append(...k.filter((x) => x != null && x !== false)), n);
+  const glassAbs = (x, y, w, hh, style, ...kids) => box("s-glass", x, y, w, hh, Object.assign({ borderRadius: "var(--radius-panel)" }, style || {}), ...kids);
+  const mail = (n) => appIcon(n || 32, "#4aa3ff", "#1f6fe0", "envelope");
+  const steam = (n) => appIcon(n || 32, "#2a4a7a", "#14243e", "game-controller");
+  const discord = (n) => appIcon(n || 32, "#7a86ff", "#5865f2", "chat-circle");
+  const firefox = (n) => appIcon(n || 32, "#ff9a3c", "#e6572c", "globe");
+  const plain = (t) => sp("s-btn", t);
+  const prim = (t) => sp("s-btn primary", t);
+
+  // ---- Banners ------------------------------------------------------------------
+  const BX = W - 16 - 360, BY = 48;
+  function banner(y, o) {
+    o = o || {};
+    const c = glassAbs(BX, y, 360, null, { padding: "var(--space-m)", display: "flex", gap: "var(--space-m)", color: "var(--colour-text)" });
+    add(c, o.icon || mail(), col({ gap: "0", flex: 1, minWidth: 0 },
+      row({ height: "16px", gap: "var(--space-xs)" }, sp("s-sub s-2", o.app || "Mail", { fontWeight: 600 }), grow(), o.count ? sp("s-badge quiet", o.count + " new", { height: "16px" }) : null, sp("s-sub s-2", o.time || "now")),
+      sp("s-headline", o.summary || "Sam Rivera"),
+      o.body !== null ? sp("", o.body || "Are we still on for the build review at four? I'll bring the frame timings.", { display: "-webkit-box", WebkitLineClamp: o.expanded ? 6 : 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) : null,
+      o.progress ? el("s-progress", { marginTop: "var(--space-s)" }, h("b", { style: { width: o.progress + "%" } })) : null,
+      o.actions ? row({ marginTop: "var(--space-m)", gap: "var(--space-s)" }, ...o.actions.map((a) => sp("s-btn", a, { flex: 1 }))) : null,
+      o.reply ? col({ marginTop: "var(--space-m)", gap: "var(--space-s)" }, el("s-field", { background: "var(--colour-fill)", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" }, sp("ph", "Reply")), row({ gap: "var(--space-s)", justifyContent: "flex-end" }, plain("Cancel"), prim("Send"))) : null),
+      o.thumb ? h("span", { style: { width: "48px", height: "48px", borderRadius: "var(--radius-control)", background: "linear-gradient(135deg,#3a6ea5,#1d3557)", flex: "none", marginTop: "20px" } }) : null);
+    if (o.close) add(c, el("", { position: "absolute", left: "-6px", top: "-6px", width: "20px", height: "20px", borderRadius: "50%", background: "var(--material-solid)", boxShadow: "var(--shadow-control)", display: "grid", placeItems: "center" }, ic("x", 12)));
+    return c;
+  }
+  const BCROP = [W - 1300, 0, 1300, 520];
+
+  // ---- Lock -----------------------------------------------------------------------
+  function lockFace(s, o) {
+    o = o || {};
+    add(s, box("", 0, 0, W, H, { background: "var(--material-softened)", backdropFilter: "blur(var(--material-softened-blur)) saturate(var(--material-softened-saturation))", WebkitBackdropFilter: "blur(var(--material-softened-blur)) saturate(var(--material-softened-saturation))" }));
+    add(s, box("", 0, 0, W, H, { background: "var(--material-lock-wash)" }));
+    const plate = (style, ...kids) => el("", Object.assign({ background: "var(--material-glass)", borderRadius: "var(--radius-panel)", padding: "var(--space-m)", boxShadow: "var(--shadow-menu)" }, style || {}), ...kids);
+    const c = col({ position: "absolute", left: CX - 180 + "px", top: "80px", width: "360px", gap: "var(--space-s)", alignItems: "stretch" },
+      row({ justifyContent: "center", gap: "var(--space-s)" }, o.focus ? ic("moon", 16, true) : null, sp("s-title-2", "Saturday 3 October")),
+      sp("s-num", "14:32", { fontSize: "var(--type-style-display-size)", fontWeight: "var(--type-style-display-weight)", lineHeight: "var(--type-style-display-line)", textAlign: "center", letterSpacing: "-0.02em" }));
+    add(s, c);
+    if (!o.doze) {
+      const col2 = col({ position: "absolute", left: CX - 180 + "px", top: "336px", width: "360px", gap: "var(--space-s)" },
+        plate({ display: "flex", gap: "var(--space-m)", alignItems: "center" }, cover(48), col({ gap: "0", flex: 1 }, sp("s-headline", "Midnight City"), sp("s-sub s-2", "M83")), ic("skip-back", 16, true), ic("pause", 18, true), ic("skip-forward", 16, true)),
+        plate({ display: "flex", gap: "var(--space-m)", alignItems: "center" }, mail(), col({ gap: "0" }, sp("s-headline", "Mail"), sp("s-sub s-2", "3 notifications"))),
+        plate({ display: "flex", gap: "var(--space-m)", alignItems: "center" }, discord(), col({ gap: "0" }, sp("s-headline", "Discord"), sp("s-sub s-2", "1 notification"))));
+      add(s, col2);
+    }
+    const fy = Math.round(H * 0.8);
+    const user = col({ position: "absolute", left: CX - 160 + "px", top: fy - 140 + "px", width: "320px", alignItems: "center", gap: "var(--space-s)" },
+      h("span", { style: { width: "var(--size-avatar)", height: "var(--size-avatar)", borderRadius: "50%", background: "linear-gradient(135deg,#6a7fdb,#3d4a8f)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" } }),
+      sp("s-title-3", "Alex Parlett"),
+      el("", { width: "var(--size-lock-field)", height: "var(--size-control-large)", borderRadius: "15px", background: "var(--material-glass)", display: "flex", alignItems: "center", padding: "0 var(--space-m)", boxSizing: "border-box", boxShadow: o.wrong ? "inset 0 0 0 1px var(--colour-danger-text)" : "inset 0 0 0 1px var(--colour-hairline)", gap: "var(--space-s)", transform: o.wrong ? "translateX(4px)" : "none" },
+        sp(o.typed ? "" : "s-2", o.typed ? "••••••••" : "Enter password", { flex: 1 }), ic("fingerprint", 16)),
+      row({ height: "16px", gap: "var(--space-xs)", justifyContent: "center" }, o.wrong ? ic("warning-circle", 12, true) : null, sp("s-callout", o.wrong ? "Incorrect password. 2 attempts so far." : o.caps ? "Caps Lock is on" : "", { color: "var(--colour-text)" })));
+    if (!o.doze) add(s, user);
+    if (!o.doze) {
+      const pw = (g, t) => col({ alignItems: "center", gap: "var(--space-xs)" }, el("", { width: "var(--size-lock-button)", height: "var(--size-lock-button)", borderRadius: "50%", background: "var(--material-glass)", display: "grid", placeItems: "center" }, ic(g, 18)), sp("s-callout", t));
+      add(s, row({ position: "absolute", left: CX - 160 + "px", width: "320px", bottom: "32px", justifyContent: "space-between" }, pw("moon-stars", "Sleep"), pw("arrow-clockwise", "Restart"), pw("power", "Shut Down")));
+      add(s, row({ position: "absolute", right: "32px", bottom: "48px", gap: "var(--space-s)" }, ...(o.greeter ? [el("", { height: "30px", borderRadius: "15px", background: "var(--material-glass)", display: "flex", alignItems: "center", gap: "var(--space-xs)", padding: "0 var(--space-m)" }, sp("s-callout", "Isle"), ic("caret-down", 12))] : []), el("", { height: "30px", borderRadius: "15px", background: "var(--material-glass)", display: "flex", alignItems: "center", padding: "0 var(--space-m)" }, sp("s-callout", "EN"))));
+    }
+    if (!o.greeter) add(s, box("", CX - 22, 9, 44, 22, { borderRadius: "11px", background: "var(--material-solid)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "var(--shadow-menu)" }, ic("microphone", 12, true, { color: "var(--colour-privacy-microphone)" })));
+  }
+
+  // ---- Prompts --------------------------------------------------------------------
+  function scrim(s) { add(s, box("", 0, 0, W, H, { background: "var(--colour-scrim)" })); }
+  function prompt(s, o) {
+    S.desktop(s); scrim(s); pill(s, [clock(), o.waiting ? S.isle("vpn", 0) : null].filter(Boolean));
+    const p = glassAbs(CX - 188, Math.round(H / 5), 376, null, { padding: "var(--space-xl)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-xs)", color: "var(--colour-text)" });
+    add(p, el("", { position: "relative", marginBottom: "var(--space-s)" }, o.icon, el("", { position: "absolute", right: "-4px", bottom: "-4px", width: "20px", height: "20px", borderRadius: "50%", background: "var(--material-solid)", display: "grid", placeItems: "center" }, ic(o.kind, 12, true))),
+      sp("s-title-3", o.title, { textAlign: "center" }), sp("s-callout s-2", o.message, { textAlign: "center" }),
+      ...(o.fields || []).map((f) => col({ gap: "var(--space-xs)", width: "100%", marginTop: "var(--space-s)" }, sp("s-sub s-2", f), el("", { height: "var(--size-control-large)", borderRadius: "var(--radius-control)", background: "var(--colour-fill)", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)", display: "flex", alignItems: "center", padding: "0 var(--space-s)" }, sp("", "••••••••")))),
+      o.extra || null,
+      el("", { height: "16px" }),
+      row({ width: "100%", gap: "var(--space-s)" }, o.details ? row({ gap: "var(--space-xs)" }, ic("caret-right", 12), sp("s-callout s-2", "Details")) : null, grow(), sp("s-btn", "Cancel", { minWidth: "var(--size-button-minimum)" }), sp("s-btn" + (o.armed === false ? "" : " primary"), o.action, { minWidth: "var(--size-button-minimum)" })),
+      o.queue ? sp("s-sub s-2", o.queue, { marginTop: "var(--space-m)" }) : null);
+    add(s, p);
+  }
+  const PCROP = [CX - 800, 160, 1600, 760];
+
+  // ---- Spotlight ------------------------------------------------------------------
+  const SPX = CX - 360, SPY = 320;
+  function spotField(s, o) {
+    o = o || {};
+    const f = glassAbs(SPX, SPY, 720, 48, { display: "flex", alignItems: "center", padding: "0 var(--space-s) 0 var(--space-l)", gap: "var(--space-s)", color: "var(--colour-text)" });
+    add(f, o.scope ? sp("", o.scope, { height: "24px", lineHeight: "24px", padding: "0 var(--space-s)", borderRadius: "12px", background: "var(--colour-fill-strong)", fontWeight: 500 }) : null,
+      sp(o.query ? "" : "s-2", o.query || o.placeholder || "Spotlight Search", { fontSize: "var(--type-style-title-2-size)", flex: 1 }),
+      ...(o.query || o.scope ? [] : ["squares-four", "folder", "lightning", "clipboard-text"].map((g) => el("", { width: "32px", height: "32px", borderRadius: "var(--radius-card)", background: "var(--colour-fill)", display: "grid", placeItems: "center" }, ic(g, 16)))));
+    add(s, f);
+  }
+  function results(s, rows) {
+    const p = glassAbs(SPX, SPY + 56, 720, 336, { padding: "var(--space-s)", color: "var(--colour-text)", overflow: "hidden" });
+    for (const r of rows) {
+      if (typeof r === "string") { add(p, el("", { height: "var(--size-row)", display: "flex", alignItems: "flex-end", padding: "0 var(--space-m) 2px" }, sp("s-sub s-2", r, { fontWeight: 600 }))); continue; }
+      add(p, el("", { height: "var(--size-row-large)", display: "flex", alignItems: "center", gap: "var(--space-m)", padding: "0 var(--space-m)", borderRadius: "var(--radius-card)", background: r.sel ? "var(--colour-accent)" : "transparent", color: r.sel ? "var(--colour-on-accent)" : "var(--colour-text)" },
+        r.icon, col({ gap: "0", flex: 1, minWidth: 0 }, sp(r.top ? "s-headline" : "", r.title), r.sub ? sp("s-sub", r.sub, { color: r.sel ? "var(--colour-on-accent)" : "var(--colour-text-2)" }) : null), r.key ? sp("", r.key, { color: r.sel ? "var(--colour-on-accent)" : "var(--colour-text-2)" }) : null));
+    }
+    add(s, p);
+  }
+  function appsView(s) {
+    const tiles = [["Firefox", "#ff9a3c", "#e6572c", "globe"], ["Terminal", "#4a4c52", "#2a2b30", "terminal-window"], ["Code", "#3aa0f0", "#1b6fc0", "code"], ["Steam", "#2a4a7a", "#14243e", "game-controller"], ["Discord", "#7a86ff", "#5865f2", "chat-circle"], ["Files", "#5fb4ff", "#2f7cf6", "folder"], ["Mail", "#4aa3ff", "#1f6fe0", "envelope"], ["Settings", "#8a8d93", "#5d6067", "gear"]];
+    const all = ["Blender", "Bottles", "Calculator", "Calendar", "Cleaner", "Discord", "Elden Ring", "Files", "Firefox", "GIMP", "Heroic", "Keychain", "Krita", "Lutris", "Mail", "Monitor"];
+    const p = glassAbs(CX - 464, SPY + 56, 928, 640, { padding: "var(--space-s)", color: "var(--colour-text)" });
+    const tile = (n, a, b, g, i, badge) => col({ width: "112px", alignItems: "center", gap: "var(--space-xs)", padding: "var(--space-s) 0" }, el("", { position: "relative", padding: "4px", borderRadius: "var(--radius-card)", background: i === 0 ? "var(--colour-fill-strong)" : "transparent" }, appIcon(64, a, b, g), badge ? el("", { position: "absolute", right: "-2px", top: "-2px" }, h("span", { class: "s-badge" }, badge)) : null), sp("s-callout", n, { padding: "1px 6px", borderRadius: "8px", background: i === 0 ? "var(--colour-accent)" : "transparent", color: i === 0 ? "var(--colour-on-accent)" : "var(--colour-text)" }));
+    const hue = (i) => ["#5fb4ff", "#ff9a3c", "#7a86ff", "#3aa0f0", "#a06cf0", "#4cc38a", "#e6572c", "#8a8d93"][i % 8];
+    add(p, row({ height: "var(--size-row)", padding: "0 var(--space-m)" }, sp("s-sub s-2", "Favourites", { fontWeight: 600 }), grow(), h("span", { class: "s-popup", style: { height: "22px" } }, "All categories", h("span", { class: "chev" }, "⌃⌄"))),
+      el("", { display: "grid", gridTemplateColumns: "repeat(8, 112px)" }, ...tiles.map((t, i) => tile(t[0], t[1], t[2], t[3], i, t[0] === "Mail" ? "12" : null))),
+      row({ height: "var(--size-row)", padding: "0 var(--space-m)" }, sp("s-sub s-2", "All apps", { fontWeight: 600 })),
+      el("", { display: "grid", gridTemplateColumns: "repeat(8, 112px)" }, ...all.map((n, i) => tile(n, hue(i), "#2a2b30", "app-window", -1))));
+    add(s, p);
+  }
+
+  // ---- Capture --------------------------------------------------------------------
+  function captureBar(s) {
+    const seg = (g, on) => el("", { width: "36px", height: "30px", borderRadius: "var(--radius-control)", display: "grid", placeItems: "center", background: on ? "var(--colour-fill-strong)" : "transparent" }, ic(g, 18));
+    add(s, glassAbs(CX - 300, H - 80, 600, 48, { display: "flex", alignItems: "center", gap: "var(--space-s)", padding: "0 var(--space-s)", color: "var(--colour-text)" },
+      el("", { width: "30px", height: "30px", borderRadius: "50%", display: "grid", placeItems: "center", background: "var(--colour-fill)" }, ic("x", 14)),
+      el("", { display: "flex", gap: "2px", padding: "2px", borderRadius: "var(--radius-control)", background: "var(--colour-fill)" }, seg("monitor"), seg("app-window"), seg("selection", true), el("", { width: "1px", background: "var(--colour-hairline-strong)", margin: "4px 2px" }), seg("monitor-play"), seg("video-camera"), seg("selection-plus")),
+      seg("eyedropper"), grow(), sp("s-btn plain", "Options"), ic("caret-down", 12), prim("Capture")));
+  }
+
+  // ---- Settings -------------------------------------------------------------------
+  function settingsSearch(s) {
+    const win = box("s-window", 1270, 364, 900, 760);
+    const side = el("s-sidebar", { position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--size-sidebar)", background: "var(--colour-sidebar)" },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-s)" }, S.lights()),
+      el("s-field search is-focus", { marginBottom: "var(--space-s)" }, ic("magnifying-glass", 14), sp("", "night")),
+      ...[["Night Light", "Displays"], ["Turn display off after", "Lock Screen"], ["Night Light schedule", "Displays"], ["Dark Mode", "Appearance"]].map(([t, pane], i) => col({ gap: "0", padding: "6px var(--space-s)", borderRadius: "var(--radius-row)", background: i === 0 ? "var(--colour-accent)" : "transparent", color: i === 0 ? "var(--colour-on-accent)" : "var(--colour-text)" }, sp("", t), sp("s-sub", pane, { color: i === 0 ? "var(--colour-on-accent)" : "var(--colour-text-2)" }))));
+    const main = el("", { position: "absolute", left: "var(--size-sidebar)", right: 0, top: 0, bottom: 0 },
+      el("s-toolbar", {}, ic("caret-left", 20), ic("caret-right", 20, false, { color: "var(--colour-text-3)" }), sp("s-headline", "Displays")),
+      col({ width: "560px", margin: "var(--space-xl) auto", gap: "var(--space-l)" },
+        row({ gap: "var(--space-m)" }, el("", { width: "32px", height: "32px", borderRadius: "8px", background: "var(--pane-blue)", display: "grid", placeItems: "center", color: "#fff" }, ic("monitor", 20, true)), col({ gap: "0" }, sp("s-title-2", "Displays"), sp("s-callout s-2", "Arrangement, resolution and colour for each screen."))),
+        el("", { height: "180px", borderRadius: "var(--radius-card)", background: "var(--colour-window-sunken)", position: "relative", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" },
+          box("", 60, 20, 354, 148, { borderRadius: "6px", background: "var(--colour-accent)", boxShadow: "0 0 0 2px var(--colour-window)" }, box("", 163, 4, 28, 8, { borderRadius: "4px", background: "#fff" })), box("", 420, 40, 120, 68, { borderRadius: "6px", background: "var(--colour-fill-strong)" })),
+        el("s-group", {}, el("r", { boxShadow: "0 0 0 2px var(--colour-accent)", borderRadius: "var(--radius-card)" }, sp("", "Night Light"), grow(), sp("s-callout s-2", "Sunset to sunrise"), h("span", { class: "s-popup" }, "Schedule", h("span", { class: "chev" }, "⌃⌄"))),
+          el("r", {}, sp("", "Refresh rate"), grow(), sp("s-callout s-2", "144 Hz · variable")), el("r", {}, sp("", "Tearing for games"), el("", { width: "6px", height: "6px", borderRadius: "50%", background: "var(--colour-accent)", marginLeft: "-6px" }), grow(), h("span", { class: "s-switch on" })))));
+    add(win, side, main);
+    add(s, win);
+  }
+
+  Isle.board({
+    title: "Isle surfaces, wave B",
+    subtitle: "P1 stage 5, wave B: banners and Focus, Control Centre's modules, the lock and prompts, Spotlight and capture, Settings and the app conventions, drawn from p1/surfaces/*.md in the system's tokens.",
+    tokens: "system/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "banners", name: "Banners", sheet: "p1/surfaces/notifications.md", states: [
+        { id: "one", name: "Banner", crop: BCROP, note: "360 wide glass, the newest on the strip's lower edge 16 from the screen's edge: icon at 32, app and time, summary in headline, two lines of body.", render(s) { S.desktop(s); pill(s, [clock()]); add(s, banner(BY)); } },
+        { id: "hover", name: "Hovered", crop: BCROP, note: "Hover holds it and shows the actions as equal-width buttons, and the close control on the leading corner; an image shows as a 48 thumbnail.", render(s) { S.desktop(s); pill(s, [clock()]); add(s, banner(BY, { actions: ["Reply", "Mark as Read", "Options"], close: true, thumb: true })); } },
+        { id: "reply", name: "Reply", crop: BCROP, note: "The inline reply field on the glass, with Cancel and Send.", render(s) { S.desktop(s); pill(s, [clock()]); add(s, banner(BY, { reply: true, close: true })); } },
+        { id: "stack", name: "Stack", crop: [W - 1300, 0, 1300, 640], note: "Up to three, newest at the anchor, 8 apart, one per app with a count; then the overflow row.", render(s) {
+          S.desktop(s); pill(s, [clock()]);
+          add(s, banner(BY, { count: 3, summary: "Sam Rivera" }), banner(BY + 104, { icon: discord(), app: "Discord", summary: "#isle", body: "New release notes are up." }), banner(BY + 192, { icon: steam(), app: "Steam", summary: "Download complete", body: "Elden Ring is ready to play.", progress: 100 }));
+          add(s, glassAbs(BX, BY + 302, 360, 40, { display: "flex", alignItems: "center", gap: "var(--space-s)", padding: "0 var(--space-m)", color: "var(--colour-text)" }, ic("bell", 16, false, { color: "var(--colour-text-2)" }), sp("s-callout", "2 more in Notification Centre")));
+        } },
+        { id: "summary", name: "After a game", crop: BCROP, note: "One summary card for what was held, opening Notification Centre.", render(s) { S.desktop(s); pill(s, [clock()]); add(s, banner(BY, { icon: el("", { width: "32px", height: "32px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, ic("game-controller", 18)), app: "Notification Centre", summary: "While you played", body: "6 notifications from Mail, Discord and Steam", actions: ["Show"] })); } },
+      ] },
+      { id: "cc", name: "Control Centre", sheet: "p1/surfaces/control-centre.md", states: [
+        { id: "focus", name: "Focus page", crop: [CX - 560, 0, 1120, 760], note: "Every mode a 40-point row with its symbol circle (accent when on) and its schedule or how it ends; Game Mode's row says Automatic. The island shows the moon.", render(s) {
+          S.desktop(s);
+          const mode = (g, name, sub, on) => row({ height: "var(--size-row-large)", padding: "0 var(--space-m)", gap: "var(--space-m)" }, el("", { width: "24px", height: "24px", borderRadius: "50%", display: "grid", placeItems: "center", background: on ? "var(--colour-accent)" : "var(--colour-fill-strong)", color: on ? "var(--colour-on-accent)" : "var(--colour-text)" }, ic(g, 14, on)), col({ gap: "0", flex: 1 }, sp("", name), sp("s-sub s-2", sub)));
+          S.panel(s, [clock(), glyphs([ic("moon", 16, true)])], [
+            S.module("W", { glyph: "moon", on: true, name: "Focus", content: sp("s-sub s-2", "Do Not Disturb · until 18:00") }),
+            S.card({ padding: "var(--space-xs) 0" }, mode("moon", "Do Not Disturb", "Until 18:00", true), mode("game-controller", "Game Mode", "Automatic", false), mode("briefcase", "Work", "Weekdays 09:00–17:00", false), mode("bed", "Sleep", "Every day 23:00–07:00", false)),
+            row({ height: "var(--size-row)", padding: "0 var(--space-xs)" }, ic("caret-left", 14), sp("s-callout s-2", "Back"), grow(), sp("s-callout s-2", "Focus Settings…"))]);
+        } },
+        { id: "sound", name: "Sound page", crop: [CX - 560, 0, 1120, 820], note: "Outputs, then each app's volume (games by their covers), then the input with its level; sliders on glass fill with the text colour.", render(s) {
+          S.desktop(s);
+          const appRow = (icon, name, pct) => row({ height: "var(--size-row-large)", padding: "0 var(--space-m)", gap: "var(--space-m)" }, icon, sp("", name, { width: "var(--size-slider-label)" }), el("", { flex: 1 }, S.ccSlider(pct, "speaker-low")));
+          S.panel(s, [clock()], [
+            S.module("W", { glyph: "speaker-high", name: "Sound", content: S.ccSlider(64, "speaker-low") }),
+            S.card({ padding: "var(--space-xs) 0" }, sp("s-sub s-2", "Output", { display: "block", padding: "6px var(--space-m)" }), row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)" }, ic("speaker-hifi", 16), sp("", "Desk speakers", { flex: 1 }), ic("check", 14)), row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)" }, ic("headphones", 16), sp("", "WH-1000XM5"))),
+            S.card({ padding: "var(--space-xs) 0" }, sp("s-sub s-2", "Apps", { display: "block", padding: "6px var(--space-m)" }), appRow(firefox(20), "Firefox", 70), appRow(steam(20), "Elden Ring", 50), appRow(discord(20), "Discord", 85)),
+            row({ height: "var(--size-row)", padding: "0 var(--space-xs)" }, ic("caret-left", 14), sp("s-callout s-2", "Back"), grow(), sp("s-callout s-2", "Sound Settings…"))]);
+        } },
+        { id: "edit", name: "Edit controls", crop: [CX - 760, 0, 1520, 820], note: "Edit mode: a remove mark on each module, a size menu, the gallery beside the panel on its leading side.", render(s) {
+          S.desktop(s);
+          const p = S.panel(s, [clock()], [S.defaultGrid(), row({ height: "var(--size-row)", padding: "0 var(--space-xs)" }, grow(), sp("s-btn small primary", "Done"))], { style: { left: CX + 120 + "px" } });
+          [...p.querySelectorAll(":scope > .s-col > div:first-child > div")].forEach((m) => { m.style.position = "relative"; m.append(el("", { position: "absolute", left: "-6px", top: "-6px", width: "18px", height: "18px", borderRadius: "50%", background: "var(--material-solid)", boxShadow: "var(--shadow-control)", display: "grid", placeItems: "center" }, ic("minus", 10))); });
+          const g = glassAbs(CX - 420, 9, 320, null, { padding: "var(--space-s)", color: "var(--colour-text)" });
+          add(g, el("s-field search", { marginBottom: "var(--space-s)" }, ic("magnifying-glass", 14), sp("ph", "Search controls")), sp("s-sub s-2", "Appearance", { display: "block", padding: "6px var(--space-s)", fontWeight: 600 }),
+            ...[["moon-stars", "Dark Mode"], ["keyboard", "Keyboard layout"], ["person-arms-spread", "Accessibility"]].map(([gl, n]) => row({ height: "var(--size-row-large)", padding: "0 var(--space-s)", gap: "var(--space-m)" }, el("", { width: "28px", height: "28px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, ic(gl, 16)), sp("", n, { flex: 1 }), ic("plus-circle", 18))),
+            sp("s-sub s-2", "Capture", { display: "block", padding: "6px var(--space-s)", fontWeight: 600 }), row({ height: "var(--size-row-large)", padding: "0 var(--space-s)", gap: "var(--space-m)" }, el("", { width: "28px", height: "28px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, ic("camera", 16)), sp("", "Screenshot", { flex: 1 }), ic("plus-circle", 18)));
+          add(s, g);
+        } },
+      ] },
+      { id: "lock", name: "Lock", sheet: "p1/surfaces/lock.md", states: [
+        { id: "lock", name: "Lock screen", crop: [CX - 900, 0, 1800, H], note: "The softened wallpaper with the lock's own wash; date and a 96-point time straight on it; Now Playing and notifications on glass plates; the user and the password field at 80% down; sleep, restart, shut down at the foot. The island keeps only privacy marks.", render(s) { S.desktop(s); lockFace(s, { focus: true }); } },
+        { id: "typing", name: "Wrong password", crop: [CX - 900, 900, 1800, 540], note: "A wrong password: the field's danger edge, a short shake (dropped under Reduce motion) and a message led by a glyph.", render(s) { S.desktop(s); lockFace(s, { wrong: true, typed: true }); } },
+        { id: "doze", name: "Dozing", crop: [CX - 900, 0, 1800, H], note: "After 12 s untouched the lower parts leave; what stays keeps full contrast. Typing works from here.", render(s) { S.desktop(s); lockFace(s, { doze: true }); } },
+        { id: "greeter", name: "Greeter", crop: [CX - 900, 0, 1800, H], note: "The same face before a session, in the user's published look, with a session menu while more than one is installed.", render(s) { lockFace(s, { greeter: true }); } },
+      ] },
+      { id: "prompts", name: "Prompts", sheet: "p1/surfaces/prompts.md", states: [
+        { id: "polkit", name: "Authentication", crop: PCROP, note: "One glass frame over a scrim on every screen, its top at a fifth of the screen: the asking app's icon with the kind's badge, title, message, fields, Details, Cancel and the action.", render(s) { prompt(s, { icon: appIcon(48, "#5fb4ff", "#2f7cf6", "arrow-circle-up"), kind: "lock", title: "Software Update needs your password", message: "Installing updates changes system files.", fields: ["Password for Alex Parlett"], action: "Allow", details: true }); } },
+        { id: "armed", name: "Arming", crop: PCROP, note: "For 600 ms the action is a plain button; then it takes the accent, which shows Return now answers.", render(s) { prompt(s, { icon: appIcon(48, "#5fb4ff", "#2f7cf6", "arrow-circle-up"), kind: "lock", title: "Software Update needs your password", message: "Installing updates changes system files.", fields: ["Password for Alex Parlett"], action: "Allow", armed: false }); } },
+        { id: "wifi", name: "Wi-Fi", crop: PCROP, note: "A secured network's password, with Show password and Join; the queue line under the buttons.", render(s) { prompt(s, { icon: el("", { width: "48px", height: "48px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, ic("wifi-high", 26)), kind: "wifi-high", title: "“Office” needs a password", message: "WPA2 Personal", fields: ["Password"], extra: row({ width: "100%", gap: "var(--space-s)", marginTop: "var(--space-s)" }, h("span", { class: "s-check" }), sp("", "Show password")), action: "Join", queue: "1 more request" }); } },
+        { id: "bt", name: "Pairing", crop: PCROP, note: "A code to type on the device, in cells; typed digits change fill.", render(s) { prompt(s, { icon: el("", { width: "48px", height: "48px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, ic("keyboard", 26)), kind: "bluetooth", title: "Type this code on Keychron K3", message: "Then press Return on the keyboard.", extra: row({ gap: "var(--space-xs)", marginTop: "var(--space-l)" }, ..."482913".split("").map((d, i) => el("", { width: "var(--size-code-cell)", height: "var(--size-row-large)", borderRadius: "var(--radius-small)", background: i < 3 ? "var(--colour-fill-strong)" : "var(--colour-fill)", display: "grid", placeItems: "center" }, sp("s-large-title s-num", d, { color: i < 3 ? "var(--colour-text)" : "var(--colour-text-2)" })))), action: "Done" }); } },
+        { id: "session", name: "Shut down", crop: PCROP, note: "The session chooser: five actions with the chosen one in the accent, the open apps, Reopen windows, the countdown, and a Cancel to back out.", render(s) {
+          S.desktop(s); scrim(s); pill(s, [clock()]);
+          const act = (g, t, on) => col({ width: "64px", alignItems: "center", gap: "var(--space-xs)" }, el("", { width: "48px", height: "48px", borderRadius: "50%", display: "grid", placeItems: "center", background: on ? "var(--colour-accent)" : "var(--colour-fill-strong)", color: on ? "var(--colour-on-accent)" : "var(--colour-text)" }, ic(g, 22)), sp("s-callout", t));
+          add(s, glassAbs(CX - 240, Math.round(H / 5), 480, null, { padding: "var(--space-xl)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-m)", color: "var(--colour-text)" },
+            sp("s-title-3", "Shut down your computer now?"), sp("s-callout s-2", "Isle will shut down in 58 seconds."),
+            row({ gap: "var(--space-s)" }, act("lock", "Lock"), act("sign-out", "Log Out"), act("moon-stars", "Sleep"), act("arrow-clockwise", "Restart"), act("power", "Shut Down", true)),
+            row({ gap: "var(--space-s)" }, firefox(20), steam(20), discord(20), appIcon(20, "#4a4c52", "#2a2b30", "terminal-window")),
+            row({ gap: "var(--space-s)" }, h("span", { class: "s-check on" }), sp("", "Reopen windows when logging back in")),
+            row({ width: "100%" }, grow(), plain("Cancel"))));
+        } },
+        { id: "forcequit", name: "Force Quit", crop: PCROP, note: "macOS's panel, no scrim: background apps listed, several can be chosen; Cancel is the default in the confirmation.", render(s) {
+          S.desktop(s); pill(s, [clock()]);
+          const r = (icon, t, sel, note) => row({ height: "var(--size-row)", padding: "0 var(--space-s)", gap: "var(--space-s)", borderRadius: "var(--radius-row)", background: sel ? "var(--colour-accent)" : "transparent", color: sel ? "var(--colour-on-accent)" : "var(--colour-text)" }, icon, sp("", t, { flex: 1 }), note ? sp("s-sub", note) : null);
+          add(s, glassAbs(CX - 210, 300, 420, null, { padding: "var(--space-l)", display: "flex", flexDirection: "column", gap: "var(--space-s)", color: "var(--colour-text)" },
+            sp("s-headline", "Force Quit Applications"), sp("s-callout s-2", "If an app doesn't respond for a while, select its name and click Force Quit."),
+            el("", { background: "var(--material-solid)", borderRadius: "var(--radius-card)", padding: "var(--space-xs)" }, r(firefox(16), "Firefox"), r(appIcon(16, "#4a4c52", "#2a2b30", "terminal-window"), "fish (not responding)", true), r(steam(16), "Steam"), r(discord(16), "Discord", false, "background")),
+            row({}, grow(), sp("s-btn destructive", "Force Quit"))));
+        } },
+      ] },
+      { id: "spotlight", name: "Spotlight", sheet: "p1/surfaces/spotlight.md", states: [
+        { id: "empty", name: "Empty", crop: [CX - 800, 200, 1600, 300], note: "720 by 48 glass at two ninths of the screen's height; no magnifier; the four quick keys while empty.", render(s) { S.desktop(s); pill(s, [clock()]); spotField(s); } },
+        { id: "results", name: "Results", crop: [CX - 800, 200, 1600, 600], note: "A separate glass panel 8 below, eight 40-point rows tall; group headers; the top hit's title in headline; the selection is the accent as in menus.", render(s) {
+          S.desktop(s); pill(s, [clock()]); spotField(s, { query: "term" });
+          results(s, ["Top hit", { icon: appIcon(32, "#4a4c52", "#2a2b30", "terminal-window"), title: "Terminal", sub: "App", top: true, sel: true, key: "⏎" }, "Actions", { icon: ic("plus", 20), title: "New terminal window", sub: "Terminal", key: "⌘N" }, "Menu items", { icon: appIcon(16, "#4a4c52", "#2a2b30", "terminal-window"), title: "Shell › New Window", sub: "Terminal", key: "⌘N" }, "Settings", { icon: el("", { width: "32px", height: "32px", borderRadius: "8px", background: "var(--pane-graphite)", display: "grid", placeItems: "center", color: "#fff" }, ic("squares-four", 20, true)), title: "Default terminal", sub: "Settings › Apps" }]);
+        } },
+        { id: "apps", name: "Apps view", crop: [CX - 800, 200, 1600, 900], note: "Favourites first, then every app A to Z; Finder's selection (a grey plate, the name in an accent capsule); badges as in the switcher; the category pop-up reachable by Tab.", render(s) { S.desktop(s); pill(s, [clock()]); spotField(s, { scope: "Apps", placeholder: "Search apps" }); appsView(s); } },
+      ] },
+      { id: "capture", name: "Capture", sheet: "p1/surfaces/capture.md", states: [
+        { id: "pick", name: "Pick a region", crop: [1000, 100, 1800, 900], note: "The screen frozen under a veil; the selection cut clear with a two-tone line and 8-point handles; the size in a solid capsule.", render(s) {
+          S.desktop(s); pill(s, [clock()]);
+          add(s, box("", 0, 0, W, H, { background: "var(--colour-veil)", clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, 1500px 260px, 1500px 780px, 2400px 780px, 2400px 260px, 1500px 260px)" }));
+          add(s, box("", 1500, 260, 900, 520, { boxShadow: "0 0 0 1px var(--capture-line), 0 0 0 2px var(--capture-line-shadow)" }));
+          [[1500, 260], [2400, 260], [1500, 780], [2400, 780], [1950, 260], [1950, 780], [1500, 520], [2400, 520]].forEach(([x, y]) => add(s, box("", x - 4, y - 4, 8, 8, { background: "#fff", borderRadius: "2px", boxShadow: "0 0 0 1px rgba(0,0,0,0.5)" })));
+          add(s, box("", 2400 - 110, 790, 110, 22, { borderRadius: "11px", background: "var(--material-solid)", display: "grid", placeItems: "center" }, sp("s-callout s-num", "900 × 520")));
+        } },
+        { id: "toolbar", name: "Toolbar", crop: [CX - 800, H - 300, 1600, 300], note: "48-point glass at the bottom centre: close; the six modes as one segmented control; the colour pick; Options; the action named for the mode.", render(s) { S.desktop(s); captureBar(s); } },
+        { id: "thumb", name: "Thumbnail", crop: [W - 1200, H - 500, 1200, 500], note: "Fitted within 240 by 160 on a raised mat, 16 in from the corner, held 5 s; click for Markup, drag to carry the file, flick to dismiss.", render(s) { S.desktop(s); add(s, box("", W - 16 - 248, H - 16 - 168, 248, 168, { borderRadius: "var(--radius-card)", background: "var(--colour-window-raised)", boxShadow: "var(--shadow-panel)", padding: "4px" }, el("", { height: "100%", borderRadius: "calc(var(--radius-card) - 4px)", background: "linear-gradient(135deg,#25262b,#1e1f23)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" }))); } },
+        { id: "picker", name: "Share picker", crop: [1200, 100, 1800, 900], note: "A sheet on the asking window: segmented tabs, a sunken well of live tiles with an accent ring on the chosen one, then options and Cancel / Share.", render(s) {
+          S.terminal(s, 1520, 180, 1180, 720, { inactive: true });
+          const w = S.titlebarWindow(s, 1300, 140, 1400, 860, { title: "Meet — Firefox" });
+          add(s, box("", 1300 + 360, 140 + 32, 680, null, { background: "var(--colour-window)", borderRadius: "0 0 var(--radius-window) var(--radius-window)", boxShadow: "var(--shadow-window)", padding: "var(--space-l) var(--space-xl)" },
+            col({ gap: "var(--space-m)" }, sp("s-headline", "Choose what to share with Firefox"), el("s-seg", { alignSelf: "flex-start" }, sp("on", "Screens"), sp("", "Windows"), sp("", "Portion of screen")),
+              el("", { background: "var(--colour-window-sunken)", borderRadius: "var(--radius-card)", padding: "var(--space-m)", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--space-m)" }, ...["Ultrawide", "Second screen"].map((n, i) => col({ gap: "var(--space-xs)", alignItems: "center" }, el("", { width: "100%", aspectRatio: i === 0 ? "3440/1440" : "16/9", borderRadius: "var(--radius-small)", background: "var(--colour-fill-strong)", boxShadow: i === 0 ? "0 0 0 3px var(--colour-accent)" : "inset 0 0 0 1px var(--colour-hairline)" }), sp("s-callout", n)))),
+              row({ gap: "var(--space-s)" }, h("span", { class: "s-check on" }), sp("", "Share audio"), grow(), plain("Cancel"), prim("Share")))));
+        } },
+      ] },
+      { id: "settings", name: "Settings and apps", sheet: "p1/surfaces/settings.md", states: [
+        { id: "search", name: "Search", crop: [1170, 300, 1100, 900], note: "Results replace the pane list as two-line rows; the found row is scrolled into view and ringed in the accent; changed settings carry a 6-point dot in the gutter; the Displays map is to scale with the island on the main display.", render(s) { settingsSearch(s); } },
+        { id: "window", name: "Settings", crop: [200, 60, 1640, 1000], note: "System Settings at rest: the sidebar with its search, the account row and the panes' coloured tiles; a pane's header; grouped rows.", render(s) { S.settings(s, 320, 110, 1100, 760); pill(s, [clock()]); } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 5, wave B">
+  <h2>Gate 5, wave B</h2>
+  <p>The specs are in <code>p1/surfaces/</code>. Decided there, for you to confirm or change:</p>
+  <ol>
+    <li><b>Banners</b> arrive from the trailing edge; the same card is plain (no glass, smaller corner) inside Notification Centre so glass never sits on glass.</li>
+    <li><b>Sliders on glass</b> fill with the text colour, as the island's volume bar; sliders in windows keep the accent.</li>
+    <li><b>The lock</b> adds its own wash over the softened wallpaper so its text passes over any picture; a 96-point display time; the wrong-password shake stays (two small decaying cycles), dropped under Reduce motion.</li>
+    <li><b>Prompts</b> are one glass frame over a scrim on every screen, so no app can fake one; the action takes the accent only after a 600 ms armed moment.</li>
+    <li><b>Force Quit</b>: Cancel is the default; the destructive button never is.</li>
+    <li><b>Spotlight</b> has no magnifier, uniform 40-point rows, Finder's selection in the Apps view, and solid menus over its glass.</li>
+    <li><b>Markup</b> uses a fixed eight-colour palette, red by default.</li>
+    <li><b>Settings</b>: switching panes is a quick crossfade; a found setting is ringed; changed settings marked by a dot.</li>
+    <li><b>App conventions</b>: alternating rows only in multi-column tables; empty states one line, no illustration; the toolbar's primary action never the accent.</li>
+  </ol>
+</section>

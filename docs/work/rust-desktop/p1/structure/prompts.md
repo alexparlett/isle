@@ -348,7 +348,7 @@ form the notification's and the island's.
 | Choose an administrator | Up and Down in the pop-up |
 | Set the prompt aside | Cmd+Tab (For the user 1) |
 | Bring a waiting prompt forward | Show in the island's Now row (Ctrl+F8, then Tab to Show and Return) |
-| Session chooser | Left and Right move; L Lock Screen, O Log Out, S Sleep, R Restart; Return acts on the selection (Shut Down at first) |
+| Session chooser | Left and Right move; L Lock Screen, O Log Out, S Sleep, R Restart; Return acts on the selection (Shut Down at first); Escape or the Cancel button closes it |
 | Confirmation | Return the action, Escape Cancel |
 | Open Force Quit | Cmd+Option+Escape |
 | Force Quit list | Up and Down; Cmd or Shift with them to add to the selection; Return Force Quit; Escape or Cmd+W close |
@@ -456,7 +456,7 @@ Shut Down) and add v1's L and O for the two actions macOS's lacks, since
 | Bluetooth failure (in Control Centre) | "Couldn't pair with {device}." |
 | Status | "Wrong password. Try again.", "Checking", "Caps Lock is on", "Waiting for the fingerprint reader", "Too many attempts. Try again in {n} min." |
 | Queue | "1 more request", "{n} more requests" |
-| Chooser | "Lock Screen", "Log Out", "Sleep", "Restart", "Shut Down"; "Reopen windows when logging back in"; "If you do nothing, the computer will shut down in {n} seconds." |
+| Chooser | "Lock Screen", "Log Out", "Sleep", "Restart", "Shut Down", "Cancel"; "Reopen windows when logging back in"; "If you do nothing, the computer will shut down in {n} seconds." |
 | Confirmation | "Are you sure you want to restart?", "Are you sure you want to shut down?", "Are you sure you want to log out?", "Restart to finish updating?"; "Cancel", "Restart", "Shut Down", "Log Out"; "If you do nothing, the computer will restart in {n} seconds." (and "shut down", "log out") |
 | Interrupted | "Couldn't restart because {App} didn't quit." ("shut down", "log out" likewise); "Show {App}"; "Not responding"; "Force Quit {App}" |
 | Force Quit | "Force Quit" (title and button); "If an app doesn't respond for a while, select it and choose Force Quit."; "Not responding"; "Do you want to force {App} to quit? You will lose any unsaved changes."; "Couldn't force quit" |

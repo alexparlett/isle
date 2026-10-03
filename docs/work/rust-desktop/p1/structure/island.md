@@ -134,7 +134,7 @@ stay clickable. Then, in order:
    order, those asking for attention marked. A menu opens as a page in the
    panel, as v1's did (`4eb009c`). Absent when no program has one.
 4. **Footer.** Edit controls (the gallery editor, `control-centre.md`) and
-   Control Centre settings….
+   Control Centre Settings….
 
 **Elsewhere, not in the island.**
 
@@ -486,7 +486,7 @@ up under shortcuts-inhibit.
 | Shortcuts inhibited row | "{app} is receiving all keyboard shortcuts", the escape chord, "Take keys back" |
 | Configuration error row | `copy.md`'s rejected-edit string, then "Open in editor", "Show in Files"; after a safe start, `copy.md`'s safe-start string, then "Use my settings", "Report…" |
 | Restart reasons | "The kernel was updated", "The graphics driver was updated", "Isle was updated" |
-| Footer | "Edit controls", "Control Centre settings…" |
+| Footer | "Edit controls", "Control Centre Settings…" |
 | Tiers | "Always show", "Show when active", "Never show" |
 | Secondary click on an activity | Hide |
 

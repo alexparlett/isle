@@ -332,8 +332,8 @@ so a half-filled sheet is never lost.
 | System menu: About this computer | General › About (`menu-bar.md`) |
 | System menu: System Settings… | The pane last shown |
 | System menu: Updates… | General › Software Update |
-| A Control Centre module's detail: "{Module} Settings…" | Its pane: Wi-Fi, Bluetooth, Sound, Displays, Focus, VPN, Energy, Keyboard, Phone, Accessibility (`shell.md` Control Centre 3; `control-centre.md`) |
-| Control Centre's footer: Control Centre settings… | Control Centre (`island.md`) |
+| A Control Centre module's detail: "{Pane} Settings…" | Its pane: Wi-Fi, Bluetooth, Sound, Displays, Focus, VPN, Energy, Keyboard, Phone, Accessibility (`shell.md` Control Centre 3; `control-centre.md`) |
+| Control Centre's footer: Control Centre Settings… | Control Centre (`island.md`) |
 | The wallpaper's menu: Change wallpaper… | Wallpaper (`wallpaper.md`) |
 | Spotlight: a settings result | Its pane, the row marked (`spotlight.md`) |
 | A notification's action from the desktop | The pane it names (an update finished: General › Software Update) |
@@ -427,7 +427,7 @@ gesture, and both have a key route above.
 
 | Place or input | Competes with | Proposed winner |
 |---|---|---|
-| A setting's state | Control Centre's quick control for the same thing | One state. Control Centre acts quickly, Settings fully; each shows the other's change live (Conventions 21). A module's detail ends with "{Module} Settings…" to its pane; Settings has no link back |
+| A setting's state | Control Centre's quick control for the same thing | One state. Control Centre acts quickly, Settings fully; each shows the other's change live (Conventions 21). A module's detail ends with "{Pane} Settings…" to its pane; Settings has no link back |
 | The rejected-edit notice | The island's glyph and notice row (`island.md`); a banner on first rejection (`notifications.md`) | All, from one source: the compositor's error. The island says it from anywhere; Settings says it in every pane and holds the rows; both offer "Open in editor" |
 | Settings results | Spotlight's settings source | One index; the same row and mark either way |
 | Focus over Settings | A polkit dialog for a privileged row; the Wi-Fi password prompt when joining from Wi-Fi; Bluetooth pairing from Bluetooth | The system prompt, above the window (`competition.md` Keyboard focus 2); Settings registers no agent and draws no password field (`apps.md` Settings 16; B12) |

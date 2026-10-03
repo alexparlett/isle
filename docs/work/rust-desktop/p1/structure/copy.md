@@ -13,6 +13,7 @@ follows, and the strings that recur.
    macOS's standard menu items and system commands, which keep Apple's
    title case so they read as the Mac's own: Hide Others, Show All, Bring
    All to Front, Force Quit, Shut Down, Log Out, Lock Screen (gate 2).
+   A link to a Settings pane is such an item: "{Pane} Settings…".
    Isle's own phrases stay in sentence case: Move and resize, Keep on top.
 2. **macOS words where macOS has one.** Desktop, not workspace; Trash, not
    bin or wastebasket; Quit, not exit; Settings, not preferences or
@@ -30,7 +31,8 @@ follows, and the strings that recur.
    leaves something to say. No instructions under switches. (v1
    `39c886d`.)
 6. **No ellipsis** except on a command that asks for more before acting
-   ("Settings…", "Rename…"), as on macOS.
+   ("Settings…", "Rename…"), as on macOS, and on work under way that ends
+   by itself ("Quitting apps…").
 7. **Errors say what happened and what to do**, in that order, without
    blame or codes up front: "Couldn't connect to Home Wi-Fi. Check the
    password and try again." A code or log path goes after, for the user
@@ -51,19 +53,24 @@ follows, and the strings that recur.
 
 | Where | String |
 |---|---|
-| Summary after silence | "While you were away" / "While you played", then "{n} notifications from {app}" |
+| Summary after silence | "While you were away" / "While you played", then "{n} notifications from {app}"; its sender "Notification Centre" |
+| Notification reply | "Reply" (the field's placeholder and the action), "Send", "Cancel" |
 | Banner overflow | "{n} more in Notification Centre" |
 | Refused permission (callers) | "Permission was not given." |
 | Password prompts | "{App} needs your password", "“{network}” needs a password", "“{VPN}” needs a password"; status "Wrong password. Try again.", "Caps Lock is on", "Too many attempts. Try again in {n} min." (prompts and the lock alike) |
 | Sharing picker | "Choose what to share with {app}" |
 | Capture files | "Screenshot {date} at {time}.png", "Screen Recording {date} at {time}.{ext}", in macOS's case |
 | Restart owed | "Restart to finish updating" |
-| Updates | "Updates" with the count as a badge; "Install updates…" |
+| Updates | "Updates" with the count as a badge; "Install updates…"; the sources "Repositories", "AUR", "Isle" |
+| Settings links | "{Pane} Settings…", naming the pane it opens: "Wi-Fi Settings…", "Focus Settings…", "Keyboard Settings…", "Software Update Settings…", "Control Centre Settings…" (rule 1) |
+| Control Centre | "Known Networks"; "Not playing"; a failed action's first clause, "Couldn't connect"; Dark Mode "On", "Off"; Accessibility "{n} on" |
 | Rejected hand edit | "settings.kdl has an error on line 12, column 4. Changes won't be saved until it's fixed." |
 | Rejected token edit | "tokens.kdl has an error on line 12, column 4. The last good look is in use." |
 | Safe start | "Isle started without your settings because they stopped it starting."; "Use my settings", "Report…" |
 | Crash notice | "{App} quit unexpectedly." with "Reopen" and "Report…"; for Isle, "Isle quit unexpectedly." and "Your apps were reopened." |
 | Log out | "Are you sure you want to log out?" with "Reopen windows when logging back in" and "Log Out"; restart and shut down likewise, with "If you do nothing, the computer will shut down in {n} seconds." |
+| Session chooser | "Lock Screen", "Log Out", "Sleep", "Restart", "Shut Down", "Cancel" |
+| Quitting for a restart or shut down | "Quitting apps…" (the lock's confirm in place) |
 | Session interrupted | "Couldn't restart because {App} didn't quit." ("shut down", "log out" likewise), "Show {App}" |
 | Force Quit | "Force Quit" (window title and button); "Do you want to force {App} to quit? You will lose any unsaved changes." |
 | Quit with work in flight | Title naming the work ("Copying 3 items to Backup"), "Quitting stops it.", "Cancel", "Quit" |
@@ -80,7 +87,8 @@ follows, and the strings that recur.
 | Locked source | "{Source} is locked" with "Unlock…" |
 | Copied secret | "Password copied" (the island's event, from Keychain and Spotlight) |
 | A file in another app's menu | "Show in Files", "Quick Look", "Copy path", "Open With" |
-| More of a list | "{n} more", "Show less" |
+| More of a list | "{n} more", "Show less"; "+{n}" where a count stands for the rest in a row (timers, schedules, open apps) |
+| Spotlight Apps categories | "All apps", "Favourites"; "Developer tools", "Games", "Graphics & design", "Internet", "Music", "Video", "Productivity", "Education", "Utilities", "Other" |
 | Empty states | One line saying what will appear: "No notifications". Never a card of filler. |
 
 Strings a later sheet owns are added there and collected here at the

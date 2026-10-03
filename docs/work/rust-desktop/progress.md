@@ -2,6 +2,13 @@
 
 ## 2026-10-03
 
+- P1 gate 5, wave B passed: specs for banners, Focus, Control Centre's
+  modules, the lock and prompts, Spotlight, capture, Settings and the app
+  conventions, reconciled and drawn on the wave B board. The lock adds its
+  own wash so its text passes; prompts are one glass frame over a scrim
+  with an armed moment; sliders on glass fill with the text colour.
+  About seventy tokens added; every glyph the specs name is vendored.
+
 - P1 gate 5, wave A passed: specs for the island, menus, window chrome,
   the switcher and the wallpaper, drawn on the wave A board with a shared
   scene kit. The strip and the revealed bar are both 48 so their centres

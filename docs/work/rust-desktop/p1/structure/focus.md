@@ -116,7 +116,7 @@ packet; this is the behaviour presented, for the packet to implement:
   (before evening) or "Until tomorrow morning" (after), and "Until the end
   of this event" while the calendar has one in progress (`platform.md`
   Calendars). Game Mode's row, with a game in front, reads "Off for
-  {game}" as its off choice. The page ends with "Focus settings…".
+  {game}" as its off choice. The page ends with "Focus Settings…".
 - **One switch per thing** (v1 lessons §8): Game Mode is a row of the
   Focus module, not a module of its own. `shell.md`'s proposed list has
   both; `control-centre.md` takes this.
@@ -266,7 +266,7 @@ What this sheet adds to `competition.md`:
 |---|---|
 | Modes | "Do Not Disturb", "Game Mode" (Apple's title case, `copy.md` rule 1), the user's own names as typed |
 | Control Centre module | "Focus"; "{Focus}" with "Until {time}", "For {n} min", "Until the end of {event}", "Schedule", "{app}", "{game}" |
-| Focus detail | "For 1 hour", "Until this evening", "Until tomorrow morning", "Until the end of this event", "Off for {game}", "Focus settings…" |
+| Focus detail | "For 1 hour", "Until this evening", "Until tomorrow morning", "Until the end of this event", "Off for {game}", "Focus Settings…" |
 | Settings › Focus | "Add Focus…", "Name", "Symbol", "Allowed notifications", "Apps", "People", "Add…", "Allow time-sensitive notifications", "Turn on automatically", "Add schedule…", "Time", "App", "From", "To", "Every day", "Weekdays", "Weekends", "While {app} is in front", "When a game is in front", "Off for these games", "Not installed", "Delete Focus" |
 | Island events | `island.md`'s: "{Focus} on", "{Focus} off", "Do Not Disturb on", "Game Mode on", "Game Mode off" |
 | Other modules | `control-centre.md`'s: Energy Mode's hold, "Off during Game Mode" for Night Light |

@@ -142,7 +142,7 @@ well stays at the trailing end, top inset 4, in every event form.
 | More | Past `limit-now-rows` (4), one collapsed row "{n} more", expanding in place, "Show less" |
 | Grid | Four columns of `size-module-cell-width` (84) by `size-module-cell-height` (64), gaps `space-s`: an inner width of 360 |
 | Tray | A card, padding `space-s`: items in boxes of `size-row` (28), `space-xs` apart, wrapping; icons at `size-app-icon-small`. Attention: a 6 dot in `colour-accent`, ringed 1 point in `material-solid`, on the box's top trailing corner |
-| Footer | `size-row` tall, no card: "Edit controls" leading and "Control Centre settings…" trailing, plain small buttons in `type-style-callout`, `colour-text-2`; in edit mode "Done", a default button |
+| Footer | `size-row` tall, no card: "Edit controls" leading and "Control Centre Settings…" trailing, plain small buttons in `type-style-callout`, `colour-text-2`; in edit mode "Done", a default button |
 
 **A module's frames.** Every module is a tile: `colour-fill`,
 `radius-card`. Its glyph is a `size-module-glyph` (32) circle holding the
@@ -167,7 +167,7 @@ headings in `type-style-subheadline` semibold `colour-text-2`, `space-m`
 above and `space-xs` below, never inside the card; a chosen row's
 `check` 12 in Fill, `colour-text` (the accent's text form is for
 windows, not glass); a sub-page's `caret-right` 12 trailing,
-`colour-text-2`. Foot: "{Module} Settings…" as a plain button, leading. A sub-page uses the same frame with
+`colour-text-2`. Foot: "{Pane} Settings…", naming the Settings pane it opens, as a plain button, leading. A sub-page uses the same frame with
 its row as the head. The page scrolls under its head.
 
 **Edit mode.** Remove badges, 16 circles of `colour-control` holding

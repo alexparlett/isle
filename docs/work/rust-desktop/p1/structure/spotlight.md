@@ -57,7 +57,7 @@ scope token, and Backspace in an empty query clears it.
 | Windows | | `@` | Every open window |
 | Passwords | | `*` | The vault's items |
 | Run | | `>` | A command to run |
-| One app | Tab on an app result | | That app's windows, desktop-entry actions, quicklist and recent files |
+| One app | Tab on an app result (in the Apps view, Tab moves to the category pop-up instead) | | That app's windows, desktop-entry actions, quicklist and recent files |
 
 **The general search.** With no scope, results are grouped by source under
 a small header, in a fixed order so the eye learns where each kind lands:

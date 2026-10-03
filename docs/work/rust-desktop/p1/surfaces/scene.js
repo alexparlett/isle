@@ -116,7 +116,7 @@
       module("M", { glyph: "game-controller", on: false, name: "Batteries", state: "Controller 70%" }));
   }
   const tray = () => card({ padding: "var(--space-s)", display: "flex", gap: "var(--space-xs)" }, ...["cloud", "chat-circle", "key"].map((g) => el("", { width: "var(--size-row)", height: "var(--size-row)", display: "grid", placeItems: "center", borderRadius: "var(--radius-row)" }, ic(g, 16))));
-  const footer = () => el("s-row", { height: "var(--size-row)", padding: "0 var(--space-xs)" }, sp("s-callout s-2", "Edit controls"), grow(), sp("s-callout s-2", "Control Centre settings…"));
+  const footer = () => el("s-row", { height: "var(--size-row)", padding: "0 var(--space-xs)" }, sp("s-callout s-2", "Edit controls"), grow(), sp("s-callout s-2", "Control Centre Settings…"));
 
   // ---- Windows ----------------------------------------------------------------
   function lights(o) {

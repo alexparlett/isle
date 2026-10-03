@@ -256,7 +256,7 @@ politely, critical ones assertively, and its parts readable.
 | Click | Options | A pop-up of the actions past the second |
 | Middle click | A banner | Closes it, as the close control |
 | Drag or horizontal scroll | Toward the trailing edge | Swipes it to the centre |
-| Secondary click | A banner | A menu: "Mute {app} for 1 hour", "Mute {app}", "Notification settings…" |
+| Secondary click | A banner | A menu: "Mute {app} for 1 hour", "Mute {app}", "Notification Settings…" |
 
 While the pointer is over the stack nothing in it moves: timers pause and
 new arrivals wait until it leaves, so a click never lands on a banner that
@@ -348,7 +348,7 @@ free and left banners' place to this sheet:
 | Overflow row | "{n} more in Notification Centre" |
 | Buttons | "Reply", "Send", "Cancel", "Options" |
 | Close (accessible name) | "Close notification" |
-| Secondary click | "Mute {app} for 1 hour", "Mute {app}", "Notification settings…" |
+| Secondary click | "Mute {app} for 1 hour", "Mute {app}", "Notification Settings…" |
 | Summary | Title "While you were away" or "While you played"; body "{n} notifications from {app}", "{n} notifications from {app} and {app}", "{n} notifications from {app}, {app} and {k} more"; action "Show" |
 | Lock | "{app}" with "{n} notifications"; with previews, the summary only |
 | Settings › Notifications | "Allow notifications", "Banner style", "Temporary", "Persistent", "Play sound", "Show badges", "Show over full-screen windows", "Hold banners while a window is full screen", "Hold banners while sharing your screen", "On the lock screen", "Don't show", "Show count", "Show previews" |

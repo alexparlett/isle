@@ -193,3 +193,40 @@ Each surface's look, states and motion, by wave. The full specs are in
   light from above the island to a darker floor; a 600 ms crossfade on
   change; the shipped set adds four pictures rendered for Isle and a NASA
   photograph of Earth's night side, in dark and light.
+
+### Wave B (gate 5, 2026-10-03; board `p1/surfaces-b.html`)
+
+- **Banners** (`notifications.md`): 360-wide glass cards at the top right
+  under the strip, 16 from the edge, three at most then an overflow row;
+  icon at 32, summary in headline, two body lines; actions, the close
+  control and reply on hover. They arrive from the trailing edge. Inside
+  Notification Centre the same card is plain with a smaller corner.
+- **Focus** (`focus.md`): the island shows the mode's symbol; the module's
+  circle shows the mode a click would turn on; every mode a 40-point row.
+- **Control Centre** (`control-centre.md`): every module in each of its
+  sizes, thirteen pages that grow out of their tiles, the tray, edit mode
+  with the gallery beside the panel. Sliders on glass fill with the text
+  colour; in windows they keep the accent.
+- **Lock** (`lock.md`): the softened wallpaper with the lock's own wash,
+  so its text passes over any picture; date and a 96-point time straight
+  on it; glass plates for the rest; the field at 80% down; a short shake
+  for a wrong password, dropped under Reduce Motion; dozing removes rather
+  than dims. The greeter wears the user's published look.
+- **Prompts** (`prompts.md`): one 376-wide glass frame over a scrim on
+  every screen, at a fifth of the screen's height; the action takes the
+  accent after a 600 ms armed moment. The session chooser has a visible
+  Cancel; Force Quit's default is Cancel.
+- **Spotlight** (`spotlight.md`): a 720 by 48 field at two ninths of the
+  screen's height, no magnifier, and a separate results panel of eight
+  40-point rows; the Apps view in eight columns of 64-point icons with
+  Finder's selection. Menus over it are solid.
+- **Capture** (`capture.md`): a frozen pick under a veil with a two-tone
+  line, a 48-point glass toolbar at the bottom centre, a thumbnail on a
+  raised mat, Markup with a fixed eight-colour palette, the share picker
+  as a sheet.
+- **Settings and apps** (`settings.md`, `conventions.md`): System Settings
+  at 900 by 760 with coloured pane tiles, a pane header, grouped rows,
+  search that rings the found row, a dot for changed settings, the
+  Displays map to scale. Every Isle app: a 52-point toolbar whose primary
+  action is never the accent, alternating rows only in tables, one-line
+  empty states.

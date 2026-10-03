@@ -214,9 +214,9 @@ so a 16 box beside 13-pt text draws a glyph near the text's cap height.
 | 12 | Regular | inline with caption and small text (11, 12); badges; disclosure chevrons |
 | 16 | Regular | inline with body text; the island's status glyphs and privacy marks (in its 30 pill); list and sidebar rows; Settings' pane tiles (glyph 16 in a 20 tile); toolbar buttons |
 | 20 | Regular | Control Centre glyphs at Small and Medium (in a 32 circle); title-bar toolbar items in Isle's apps; text-field accessories |
-| 24 | Regular | Control Centre at Large and Wide; OSD capsule; banner action glyphs |
-| 32 | Light; Fill in tiles | Settings pane headers (a 32 tile, glyph 24); empty states in panels |
-| 48 | Light | empty states in windows; system prompts' padlock |
+| 24 | Regular; Fill in tiles | Control Centre at Large and Wide; OSD capsule; Settings pane header tiles (a 32 tile, glyph 24 in Fill) |
+| 32 | Light | the lock's picture placeholder (`user`) |
+| 48 | Light | system prompts' glyph where no app asks (the padlock); the session confirmation's action |
 
 **App icons.**
 

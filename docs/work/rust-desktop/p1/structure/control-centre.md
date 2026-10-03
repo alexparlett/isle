@@ -146,14 +146,14 @@ sections; the pill's row stays above it and the footer below.
   act on one thing (connect a device, set one screen's brightness). A row
   with more behind it has a chevron to its own sub-page. No row repeats the
   head's switch (v1 `49a415d`, `921f032`).
-- **Foot.** One link to the matching Settings pane, "{Module} Settings…",
+- **Foot.** One link to the matching Settings pane, "{Pane} Settings…",
   which folds the panel and disarms hover (`island.md` Pointer).
 
 What each page holds:
 
 | Page | Rows |
 |---|---|
-| Wi-Fi | A wired connection's state when there is one ("Connected", "Cable unplugged"); the current network with signal and security; known networks in range; "Other networks", collapsed; "Join other network…" (Settings). Scans only while open. A row connects; a secured network NetworkManager has no secret for raises the Wi-Fi prompt (`prompts.md`; `shell.md` Control Centre 3), never a field in the panel. The row shows "Connecting", then the result or the error in the row |
+| Wi-Fi | A wired connection's state when there is one ("Connected", "Cable unplugged"); the current network with signal and security; known networks in range; "Other Networks", collapsed; "Join Other Network…" (Settings). Scans only while open. A row connects; a secured network NetworkManager has no secret for raises the Wi-Fi prompt (`prompts.md`; `shell.md` Control Centre 3), never a field in the panel. The row shows "Connecting", then the result or the error in the row |
 | Bluetooth | Connected devices with battery; "My devices" (paired); "Nearby devices", discovered only while the page is open. A paired row connects or disconnects; a nearby row pairs, and a passkey or PIN is the pairing prompt (`prompts.md`; B28). Forgetting a device is Settings' |
 | Now Playing | The chosen player in full: art, title, artist, scrubber, transport, shuffle and repeat where offered, and its name, which raises it; then every other MPRIS player as a row, choosing it makes it the one shown |
 | Focus | Do Not Disturb, Game Mode and the user's modes, each with its symbol; the one on is marked with what turned it on (by hand, a schedule, a game in front). A row turns that mode on, or off if on; its chevron offers durations. What wins when modes overlap, and what turning Game Mode off over a detected game does, are `focus.md`'s |
@@ -194,7 +194,7 @@ program has an item.
 
 ### Footer
 
-"Edit controls" and "Control Centre settings…" (`island.md`). In edit mode
+"Edit controls" and "Control Centre Settings…" (`island.md`). In edit mode
 the footer holds "Done" instead.
 
 ### Edit mode and the gallery
@@ -345,7 +345,7 @@ place while the panel is open (`island.md`).
   opens its page; on a row, chooses or acts. A click inside a peek also
   pins it.
 - **Secondary click** on a module: Show details, its sizes, Remove, Edit
-  controls, "{Module} Settings…". On a page's row: the row's own menu
+  controls, "{Pane} Settings…". On a page's row: the row's own menu
   (Disconnect, "{network} settings…"). On a tray item: its menu page.
 - **Drag**: sliders and the scrubber; modules in edit mode; tray items with
   Cmd held. A drag that starts in the panel holds it open until release,
@@ -460,13 +460,13 @@ which it keeps:
 | Energy Mode | "Low Power", "Automatic", "High Power", "High Power while Game Mode is on" |
 | Updates | "Up to date", "1 update", "{n} updates", "Installing {n} of {m}", "Restart to finish updating", "Checked {time}", "Check now", "Install updates…", "Restart…" |
 | Batteries | "{device} {n}%", "Charging", "{time} left" |
-| Wi-Fi page | "Other networks", "Join other network…", "Cable unplugged", "Couldn't connect to {network}. Check the password and try again." |
+| Wi-Fi page | "Other Networks", "Join Other Network…", "Cable unplugged", "Couldn't connect to {network}. Check the password and try again." |
 | Bluetooth page | "My devices", "Nearby devices", "Connecting", "Pairing", "Couldn't connect to {device}. Make sure it's on and nearby." |
 | Sound page | "Output", "Input", "Apps", "No apps playing sound" |
 | Display page | "Couldn't set brightness on {monitor}." |
-| Pages' foot | "{Module} Settings…" |
+| Pages' foot | "{Pane} Settings…" |
 | Errors and empty | "Not available", "No networks found", "No devices", "No controls" |
-| Footer | "Edit controls", "Control Centre settings…", "Done" |
+| Footer | "Edit controls", "Control Centre Settings…", "Done" |
 | Edit mode | "Search controls", "Remove", "Small", "Medium", "Large", "Wide", "Set up…", "Show details"; gallery groups "Connectivity", "Sound and display", "Focus", "System", "Accessibility", "Providers" |
 | Accessible names | "{Module}: {state}"; a switch adds "on" or "off"; "Back to Control Centre" |
 

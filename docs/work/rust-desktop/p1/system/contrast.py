@@ -129,9 +129,15 @@ def main():
                         if theme == "dark" and name == "bright-white":
                             need = 4.5
                         rows.append((f"term {name}", "window", ratio(rgba(val), win), need))
-            for extreme, base in (("black", (0, 0, 0, 1)), ("white", (255, 255, 255, 1))):
+            for extreme, base in (("black", (0, 0, 0, 1)), ("grey", GREY), ("white", (255, 255, 255, 1))):
                 isl = over(rgba(col["island"]), base)
                 rows.append(("island text", f"island over {extreme}", ratio(rgba(col["island-text"]), isl), 4.5))
+                if extreme in (own, "grey") or contrast:
+                    rows.append(("text-2", f"island over {extreme}", ratio(over(rgba(col["text-2"]), isl), isl), 4.5))
+            # Colour on the island sits in solid wells (surfaces/island.md).
+            well = rgba(t[f"material.solid.{theme}"])
+            for role in ["privacy-microphone", "privacy-camera", "privacy-screen", "live"]:
+                rows.append((role, "island well", ratio(rgba(col[role]), well), 3.0))
             bad = [r for r in rows if r[2] < r[3]]
             failures += len(bad)
             print(f"{label}: {len(rows) - len(bad)}/{len(rows)} pass")

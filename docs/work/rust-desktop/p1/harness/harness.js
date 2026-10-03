@@ -100,7 +100,7 @@
         if (node.name === "dark" || node.name === "light") t = node.name;
         else p = path.concat(node.name);
         if (node.args.length) {
-          const v = node.args.map((a) => (typeof a === "number" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor|saturation|brightness|height-ratio|mix|-ms)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
+          const v = node.args.map((a) => (typeof a === "number" && p[0] !== "limit" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor|saturation|brightness|height-ratio|mix|-ms)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
           vars[t || "any"]["--" + p.join("-")] = v;
         }
         walk(node.children, p, t);
@@ -164,6 +164,7 @@
     dusk: { name: "Dusk", css: "radial-gradient(120% 90% at 70% 110%, #3b2f5c 0%, #1d1a33 40%, #0d0d16 75%)" },
     slate: { name: "Slate", css: "linear-gradient(160deg, #23262b 0%, #15171a 60%, #0f1012 100%)" },
     pine: { name: "Pine", css: "radial-gradient(90% 120% at 15% 0%, #1f3a35 0%, #10201d 45%, #0a1110 100%)" },
+    frost: { name: "Frost (drawn)", css: "radial-gradient(70% 90% at 50% -10%, #303137 0%, #1c1d21 45%, #0f1012 100%)", light: "radial-gradient(70% 90% at 50% -10%, #ffffff 0%, #ececee 50%, #d9d9db 100%)" },
     haze: { name: "Haze", css: "radial-gradient(40% 55% at 18% 30%, #3a2f63 0%, transparent 70%), radial-gradient(45% 60% at 82% 70%, #1f4a57 0%, transparent 70%), radial-gradient(30% 40% at 55% 15%, #5a3348 0%, transparent 70%), #101116" },
     mist: { name: "Mist", css: "radial-gradient(100% 120% at 30% 0%, #e9eef4 0%, #cfd8e3 55%, #b7c3d1 100%)" },
   };
@@ -321,7 +322,7 @@
       applyVars();
       for (const x of extra) x.apply(screen, x.value);
       const wp = WALLPAPERS[state.wallpaper];
-      wall.style.background = wp.wire || state.mode === "wire" ? "var(--wf-wall)" : wp.css;
+      wall.style.background = wp.wire || state.mode === "wire" ? "var(--wf-wall)" : (state.theme === "light" && wp.light ? wp.light : wp.css);
 
       layer.replaceChildren();
       const ctx = {

@@ -52,7 +52,9 @@
   holds `tokens.kdl`, its `schema.md` for P3, `contrast.py` (all pass),
   `components.css`, `icons.md` (Phosphor, Papirus, Bibata) and
   `theming.md`. `docs/DESIGN.md` has its first draft. B13 now includes
-  the Settings portal. Next: stage 5, wave A (window chrome, island and
-  Control Centre, menus, wallpaper, switcher) in HTML on the system's
-  components. P2 is
+  the Settings portal. - P1 stage 5, wave A passed gate 5 (board `p1/surfaces-a.html`, specs
+  in `p1/surfaces/`, drawing kit `p1/surfaces/scene.js`): the island and
+  its panels, menus, window chrome, the switcher, the wallpaper. Next:
+  wave B (banners, Control Centre's modules, Focus, lock and greeter,
+  prompts, Spotlight, capture, Settings). P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

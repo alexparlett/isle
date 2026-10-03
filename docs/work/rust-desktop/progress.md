@@ -2,6 +2,13 @@
 
 ## 2026-10-03
 
+- P1 gate 5, wave A passed: specs for the island, menus, window chrome,
+  the switcher and the wallpaper, drawn on the wave A board with a shared
+  scene kit. The strip and the revealed bar are both 48 so their centres
+  align; colour on the island sits in solid wells; menus are glass in the
+  shell, raised in windows, solid over glass. About forty tokens added;
+  the contrast check covers the island. DESIGN.md has its first surfaces.
+
 - P1 gate 4 passed: Frost made into the system. The token file grew roles
   for every surface, eight accents, the glass range, macOS's text styles
   in Inter, the concentric corner rule, five springs, a terminal palette

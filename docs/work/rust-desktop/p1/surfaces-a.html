@@ -1,0 +1,259 @@
+<title>Isle surfaces, wave A</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<link rel="stylesheet" href="system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs h3 { font-size: 13px; margin: 14px 0 4px; color: var(--hb-fg); }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs em { color: var(--hb-accent); font-style: normal; }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+</style>
+<script src="system/phosphor.js"></script>
+<script src="harness/harness.js"></script>
+<script src="surfaces/scene.js"></script>
+<script>
+(function () {
+  // P1 stage 5, wave A: window chrome, the island and its panels, menus, the switcher and the wallpaper.
+  const S = Scene, { h } = Isle, { W, H, CX, el, sp, box, row, col, grow, ic, level, isle, cover, appIcon, clock, mark, count, faces, pill, glyphs, privacy } = S;
+
+  const PILL = [CX - 520, 0, 1040, 120];
+  const PANEL = [CX - 560, 0, 1120, 1000];
+  const BAR = [0, 0, 1800, 640];
+  const WIN = [200, 60, 1640, 1000];
+  const SW = [CX - 900, 340, 1800, 640];
+
+  const steam = (n) => appIcon(n || 16, "#2a4a7a", "#14243e", "game-controller");
+
+  // ---- Island states -------------------------------------------------------------
+  function restGlyphs() { return glyphs([level("wifi-high", "wifi-medium", 16), ic("bluetooth-connected", 16), ic("speaker-slash", 16)]); }
+
+  function controlCentre(s) {
+    S.panel(s, [clock(), restGlyphs(), privacy(["microphone"])], [
+      S.card({}, S.nowLeader({ icon: S.well(h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: "var(--colour-live)" } })), title: "Recording", sub: "Whole screen · 0:42 · with audio", actions: ["Stop"] }),
+        S.nowRow(ic("microphone", 12, true, { color: "var(--colour-privacy-microphone)" }), "Firefox is using the microphone")),
+      S.defaultGrid(), S.tray(), S.footer()]);
+  }
+  function wifiPage(s) {
+    const net = (name, on, lock) => row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)", borderRadius: "var(--radius-row)" }, ic("wifi-high", 16, on, { color: on ? "var(--colour-accent-text)" : "var(--colour-text)" }), sp("", name, { flex: 1 }), on ? ic("check", 14) : null, lock ? ic("lock", 12, false, { color: "var(--colour-text-2)" }) : null);
+    S.panel(s, [clock(), restGlyphs()], [
+      S.module("W", { glyph: "wifi-high", on: true, name: "Wi-Fi", content: row({}, sp("s-sub s-2", "Home"), grow(), h("span", { class: "s-switch on" })) }),
+      S.card({ padding: "var(--space-xs) 0" }, sp("s-sub s-2", "Known network", { padding: "4px var(--space-m)", display: "block" }), net("Home", true, true), sp("s-sub s-2", "Other networks", { padding: "8px var(--space-m) 4px", display: "block" }), net("Office", false, true), net("Café guest", false, false), net("PRINTER-4F2", false, true)),
+      row({ height: "var(--size-row)", padding: "0 var(--space-xs)" }, ic("caret-left", 14), sp("s-callout s-2", "Back"), grow(), sp("s-callout s-2", "Wi-Fi Settings…"))]);
+  }
+  function notificationCentre(s) {
+    const days = el("", { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", textAlign: "center" }, ..."MTWTFSS".split("").map((d) => sp("s-foot s-2", d)), ...Array.from({ length: 35 }, (_, i) => sp("s-callout s-num", String(((i + 28) % 31) + 1), { padding: "3px 0", borderRadius: "50%", background: i === 5 ? "var(--colour-accent)" : "transparent", color: i === 5 ? "var(--colour-on-accent)" : i < 3 ? "var(--colour-text-2)" : "var(--colour-text)" })));
+    S.panel(s, [clock(), restGlyphs()], [
+      S.card({ padding: "var(--space-m)" }, col({ gap: "var(--space-s)" }, sp("s-title-3", "Saturday 3 October"), days)),
+      S.card({ padding: "var(--space-m)" }, col({ gap: "var(--space-s)" }, sp("s-sub s-2", "Today"), row({ gap: "var(--space-s)" }, h("span", { style: { width: "3px", height: "30px", borderRadius: "2px", background: "var(--series-a)" } }), col({ gap: "0", flex: 1 }, sp("s-headline", "Build review"), sp("s-sub s-2", "16:00–16:30")), S.btnS("Join")))),
+      row({ padding: "0 var(--space-xs)" }, sp("s-headline", "Notifications"), grow(), sp("s-callout s-2", "Clear all")),
+      S.card({ padding: "var(--space-m)", display: "flex", gap: "var(--space-m)" }, appIcon(32, "#4aa3ff", "#1f6fe0", "envelope"), col({ gap: "0", flex: 1, minWidth: 0 }, row({}, sp("s-sub s-2", "Mail"), grow(), sp("s-sub s-2", "9 min")), sp("s-headline", "Sam Rivera"), sp("s-callout s-2", "Are we still on for the build review at four?")))]);
+  }
+  function startRow(s) {
+    const e = el("s s-island", { left: CX + "px", top: "var(--size-island-top)", transform: "translateX(-50%)", width: "var(--size-panel)", height: "72px", borderRadius: "var(--radius-panel)", padding: "var(--space-s)", boxSizing: "border-box", boxShadow: "var(--shadow-menu)" },
+      el("s-row", { gap: "var(--space-m)", padding: "0 var(--space-xs)", width: "100%" }, cover(40), col({ gap: "0", flex: 1 }, sp("s-headline", "Midnight City"), sp("s-sub s-2", "M83 · Spotify")), ic("pause", 18, true), ic("skip-forward", 16, true)));
+    s.append(e);
+  }
+  function morph(s, c) {
+    S.desktop(s);
+    const e = pill(s, [clock()]);
+    const stiff = S.tok(s, "--motion-morph-stiffness", 360), damp = S.tok(s, "--motion-morph-damping", 38);
+    const openS = S.tok(s, "--motion-open-stiffness", 420), openD = S.tok(s, "--motion-open-damping", 41);
+    const kids0 = [...e.children];
+    setTimeout(() => {
+      const w0 = e.offsetWidth; const face = faces.media(); e.prepend(...face); e.style.width = "auto"; const w1 = e.scrollWidth; e.style.width = w0 + "px"; e.style.overflow = "hidden";
+      face.forEach((f) => (f.style.opacity = 0));
+      c.spring({ from: 0, to: 1, stiffness: stiff, damping: damp }, (p) => { e.style.width = (w0 + (w1 - w0) * p) + "px"; face.forEach((f) => (f.style.opacity = Math.max(0, 2 * p - 1))); });
+    }, 600);
+    setTimeout(() => {
+      const w0 = e.offsetWidth; const panelW = 376, panelH = 560;
+      const body = el("", { position: "absolute", left: "8px", right: "8px", top: "38px", opacity: 0 }, S.defaultGrid());
+      e.append(body); e.style.flexWrap = "nowrap"; e.style.alignItems = "flex-start"; e.style.paddingTop = "0";
+      const first = el("", { position: "absolute", left: 0, right: 0, top: 0, height: "var(--size-island-height)", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--space-s)" }, ...[...e.children].filter((x) => x !== body));
+      e.replaceChildren(first, body);
+      e.classList.remove("s-island"); e.classList.add("s-glass");
+      c.spring({ from: 0, to: 1, stiffness: openS, damping: openD }, (p) => {
+        e.style.width = (w0 + (panelW - w0) * p) + "px"; e.style.height = (30 + (panelH - 30) * p) + "px";
+        e.style.borderRadius = Math.min(18, (30 + (panelH - 30) * p) / 2) + "px";
+        body.style.opacity = String(Math.max(0, 2 * p - 1));
+      });
+    }, 2200);
+  }
+
+  // ---- Chrome -------------------------------------------------------------------
+  function zoomMenu(s) {
+    S.desktop(s, { termActive: true });
+    const m = box("s-glass", 1700, 214, 520, null, { borderRadius: "var(--radius-panel)", padding: "var(--space-m)" });
+    const th = (parts, sel, cur) => h("div", { style: { width: "105px", height: "var(--size-zone-thumbnail)", borderRadius: "var(--radius-small)", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)", display: "flex", gap: "2px", padding: "3px", boxSizing: "border-box" } },
+      ...parts.map((f, i) => h("span", { style: { flex: f[0], borderRadius: "2px", background: i === sel ? "var(--colour-accent)" : i === cur ? "var(--colour-text-2)" : "var(--colour-fill-strong)", opacity: f[1] === 0 ? 0 : 1 } })));
+    m.append(sp("s-sub s-2", "Move and resize", { display: "block", marginBottom: "var(--space-s)" }),
+      el("", { display: "grid", gridTemplateColumns: "repeat(4, 105px)", gap: "var(--space-s)" },
+        th([[1], [1]]), th([[1], [1], [1]], 1), th([[2], [1]]), th([[1], [2]]), th([[1], [1], [1], [1]]), th([[1, 0], [3], [1, 0]], -1, 1), th([[1]]), th([[1], [1]])),
+      sp("s-callout", "Centre third", { display: "block", margin: "var(--space-s) 0" }), h("hr", { style: { border: 0, borderTop: "1px solid var(--colour-hairline)", margin: "var(--space-xs) 0" } }),
+      ...["Enter Full Screen", "Tile Window to Left of Screen", "Tile Window to Right of Screen", "Move to Second Display"].map((t) => el("s-mi", { height: "var(--size-menu-row)" }, sp("mark", "", { width: "16px" }), sp("", t))));
+    s.append(m);
+  }
+  function drag(s) {
+    S.terminal(s, 320, 120, 1000, 640, { inactive: true });
+    box("", 0, 0, 0, 0);
+    s.append(box("", W / 3 + 8, 56, W / 3 - 16, H - 64, { borderRadius: "var(--radius-window)", background: "var(--material-glass-clear)", backdropFilter: "blur(var(--material-blur))", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" }));
+    S.settings(s, 1400, 260, 960, 620);
+    const p = box("s-glass", 2400, 300, 4 * 105 + 3 * 8 + 24, null, { borderRadius: "var(--radius-panel)", padding: "var(--space-m)", display: "grid", gridTemplateColumns: "repeat(4, 105px)", gap: "var(--space-s)" });
+    const zones = [[[1], [1]], [[1], [1], [1]], [[2], [1]], [[1], [2]]];
+    zones.forEach((z, zi) => p.append(h("div", { style: { height: "44px", borderRadius: "var(--radius-small)", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)", display: "flex", gap: "2px", padding: "3px", boxSizing: "border-box" } }, ...z.map((f, i) => h("span", { style: { flex: f[0], borderRadius: "2px", background: zi === 1 && i === 1 ? "var(--colour-accent)" : "var(--colour-fill-strong)" } })))));
+    s.append(p);
+    pill(s, [clock()]);
+  }
+  function alertSheet(s) {
+    S.desktop(s, { termActive: true });
+    s.append(box("", 1520, 180 + 32, 1180, 720 - 32, { background: "var(--colour-scrim)", borderRadius: "0 0 var(--radius-window) var(--radius-window)" }));
+    const a = box("s-alert", 1520 + 590 - 160, 220, 320, null, { borderRadius: "0 0 var(--radius-window) var(--radius-window)" });
+    a.append(appIcon(56, "#4a4c52", "#2a2b30", "terminal-window"), sp("s-headline", "“fish” is not responding"), sp("s-callout s-2", "You can wait for it to respond or force it to quit. Unsaved changes may be lost."), col({ gap: "var(--space-s)", width: "100%", marginTop: "var(--space-s)" }, sp("s-btn primary", "Wait", { width: "100%" }), sp("s-btn destructive", "Force Quit", { width: "100%" })));
+    s.append(a);
+  }
+  function inhibit(s) {
+    S.terminal(s, 120, 120, W - 240, H - 240, { title: "Windows 11 — Virtual Machine Manager" });
+    s.append(box("s-glass", CX - 220, 168, 440, null, { borderRadius: "999px", padding: "var(--space-s) var(--space-l)", display: "flex", alignItems: "center", gap: "var(--space-s)" }, isle("keyboard-slash", 16), sp("s-callout", "Virtual Machine Manager has the keyboard"), grow(), sp("s-callout s-2", "⌃⌥⌘⎋ to take it back")));
+    pill(s, [clock(), glyphs([isle("keyboard-slash", 16)])]);
+  }
+  function openClose(s, c, minimise) {
+    S.terminal(s, 1520, 180, 1180, 720, { inactive: true });
+    const w = S.settings(s, 320, 110, 1100, 760);
+    pill(s, [clock()]);
+    const sc = S.tok(s, "--motion-window-scale", 0.94), oS = S.tok(s, "--motion-open-stiffness", 420), oD = S.tok(s, "--motion-open-damping", 41), xS = S.tok(s, "--motion-exit-stiffness", 560), xD = S.tok(s, "--motion-exit-damping", 47);
+    if (!minimise) {
+      w.style.transformOrigin = "50% 50%";
+      c.spring({ from: 0, to: 1, stiffness: oS, damping: oD }, (p) => { w.style.transform = "scale(" + (sc + (1 - sc) * p) + ")"; w.style.opacity = String(Math.min(1, p * 1.6)); });
+    } else {
+      w.style.transformOrigin = (CX - 320) + "px -110px";
+      setTimeout(() => c.spring({ from: 0, to: 1, stiffness: xS, damping: xD }, (p) => { w.style.transform = "scale(" + (1 - 0.9 * p) + ")"; w.style.opacity = String(1 - p); }), 500);
+    }
+  }
+
+  // ---- Switcher ------------------------------------------------------------------
+  function switcher(s, o) {
+    S.desktop(s);
+    const apps = [["Terminal", "#4a4c52", "#2a2b30", "terminal-window"], ["Firefox", "#ff9a3c", "#e6572c", "globe"], ["Mail", "#4aa3ff", "#1f6fe0", "envelope"], ["Steam", "#2a4a7a", "#14243e", "game-controller"], ["Files", "#5fb4ff", "#2f7cf6", "folder"], ["Notes", "#ffd75a", "#e6a817", "file"]];
+    const cw = 256, ch = 160, pad = 8, gap = 8, n = apps.length;
+    const panelW = pad * 2 + n * cw + (n - 1) * gap + (o.background ? 24 + 2 * 128 + 8 : 0);
+    const p = box("s-glass", CX - panelW / 2, 470, panelW, null, { borderRadius: "var(--radius-panel)", padding: pad + "px", display: "flex", flexDirection: "column", gap: "var(--space-s)" });
+    const cards = row({ gap: gap + "px", alignItems: "flex-start" });
+    apps.forEach(([name, a, b, g], i) => {
+      const sel = i === 1;
+      const c = el("", { width: cw + "px", padding: "var(--space-s) var(--space-s) 30px", boxSizing: "border-box", borderRadius: "var(--radius-card)", background: sel ? (o.windows ? "var(--colour-selection-unfocused)" : "var(--colour-fill-strong)") : "transparent", position: "relative" },
+        el("", { height: ch - 16 + "px", borderRadius: "var(--radius-small)", background: name === "Terminal" ? "var(--colour-view)" : "var(--colour-window)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)", opacity: name === "Notes" ? 0.5 : 1, overflow: "hidden" }, el("", { height: "12px", background: "var(--colour-titlebar)" })),
+        el("", { position: "absolute", left: "50%", bottom: "6px", transform: "translateX(-50%)" }, appIcon(48, a, b, g)));
+      if (name === "Mail") c.append(el("", { position: "absolute", left: "calc(50% + 14px)", bottom: "38px" }, h("span", { class: "s-badge" }, "12")));
+      if (name === "Firefox") c.append(el("", { position: "absolute", left: "16px", right: "16px", bottom: "58px" }, el("s-progress", {}, h("b", { style: { width: "43%" } }))));
+      if (name === "Steam") c.append(el("", { position: "absolute", left: "12px", top: "12px", width: "22px", height: "22px", borderRadius: "11px", background: "var(--material-solid)", display: "grid", placeItems: "center", color: "var(--colour-warn-text)" }, ic("bell-simple-ringing", 13, true)));
+      if (name === "Notes") c.append(el("", { position: "absolute", left: "12px", top: "12px", width: "22px", height: "22px", borderRadius: "11px", background: "var(--material-solid)", display: "grid", placeItems: "center" }, ic("minus", 13)));
+      if (name === "Terminal") c.append(el("", { position: "absolute", left: "calc(50% + 22px)", bottom: "6px" }, h("span", { class: "s-badge quiet" }, "3")));
+      cards.append(c);
+    });
+    if (o.background) {
+      cards.append(el("", { width: "1px", alignSelf: "stretch", background: "var(--colour-hairline)", margin: "0 12px" }));
+      [["Discord", "#7a86ff", "#5865f2", "chat-circle"], ["Syncthing", "#3aa6d9", "#1d7fb0", "arrows-clockwise"]].forEach(([n2, a, b, g]) => cards.append(el("", { width: "128px", padding: "var(--space-s) var(--space-s) 30px", boxSizing: "border-box", position: "relative" }, el("", { height: ch - 16 + "px", borderRadius: "var(--radius-small)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" }), el("", { position: "absolute", left: "50%", bottom: "6px", transform: "translateX(-50%)" }, appIcon(48, a, b, g)), el("", { position: "absolute", left: "12px", top: "12px", width: "22px", height: "22px", borderRadius: "11px", background: "var(--material-solid)", display: "grid", placeItems: "center" }, ic("tray", 13)))));
+    }
+    p.append(cards);
+    if (o.windows) {
+      p.append(el("", { borderTop: "1px solid var(--colour-hairline)" }));
+      p.append(row({ gap: gap + "px", justifyContent: "center" }, ...["Isle — docs", "Isle — PR", "crates.io"].map((t, i) => col({ gap: "var(--space-xs)", alignItems: "center", padding: "var(--space-s)", borderRadius: "var(--radius-card)", background: i === 0 ? "var(--colour-fill-strong)" : "transparent" }, el("", { width: "240px", height: "140px", borderRadius: "var(--radius-small)", background: "var(--colour-window)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" }), sp("s-callout", t)))));
+    } else p.append(row({ justifyContent: "center", marginTop: "-4px" }, sp("s-headline", "Firefox"), sp("s-callout s-2", o.background ? "" : "")));
+    s.append(p);
+  }
+
+  Isle.board({
+    title: "Isle surfaces, wave A",
+    subtitle: "P1 stage 5, wave A: the island and its panels, menus, window chrome, the switcher and the wallpaper, drawn from p1/surfaces/*.md in the system's tokens. Try Light, the accents, Increase contrast, Reduce transparency and Reduce motion.",
+    tokens: "system/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "island", name: "Island", sheet: "p1/surfaces/island.md", states: [
+        { id: "rest", name: "Rest", crop: PILL, note: "The clock alone, in a 30-point capsule 9 below the top edge.", render(s) { S.desktop(s); pill(s, [clock()]); } },
+        { id: "glyphs", name: "Glyphs", crop: PILL, note: "Wi-Fi at medium strength (the level over the dimmed full glyph), Bluetooth connected, sound muted. Monochrome: severity by shape.", render(s) { S.desktop(s); pill(s, [clock(), restGlyphs()]); } },
+        { id: "privacy", name: "Privacy", crop: PILL, note: "Microphone and camera in a solid well at the trailing end, so their colours pass 3:1 over any window.", render(s) { S.desktop(s); pill(s, [clock(), glyphs([ic("bluetooth-connected", 16)]), privacy(["microphone", "camera"])]); } },
+        { id: "media", name: "Media", crop: PILL, note: "Media leads: the cover as a 22 circle at the leading end, the equaliser, then the clock.", render(s) { S.desktop(s); pill(s, [...faces.media(), clock()]); } },
+        { id: "recording", name: "Recording", crop: PILL, note: "Recording leads in a well (it stands in for the screen mark), media as a mark, the clock, the microphone in its well.", render(s) { S.desktop(s); pill(s, [...faces.recording("0:42"), mark("music-note"), clock(), privacy(["microphone"])]); } },
+        { id: "several", name: "Several", crop: PILL, note: "Past two marks the rest give way to a count.", render(s) { S.desktop(s); pill(s, [...faces.sharing("Firefox"), mark("music-note"), mark("timer"), count(2), clock(), privacy(["microphone", "camera"])]); } },
+        { id: "volume", name: "Volume", crop: PILL, note: "The level form: 300 by 48, the glyph at 20, the device's name over a continuous bar. Privacy marks stay.", render(s) { S.desktop(s); S.levelEvent(s, level("speaker-high", "speaker-low", 20), "MacBook Speakers · Headphones", 46, ["microphone"]); } },
+        { id: "attention", name: "Attention", crop: PILL, note: "A line event: the app's icon and one line. An urgent request holds until the app is focused.", render(s) { S.desktop(s); S.lineEvent(s, steam(16), "Steam needs your attention"); } },
+        { id: "copied", name: "Copied", crop: PILL, note: "A line event for what the shell copied.", render(s) { S.desktop(s); S.lineEvent(s, ic("key", 16), "Password copied"); } },
+        { id: "start", name: "Media starts", crop: [CX - 520, 0, 1040, 200], note: "A new leading activity shows its row briefly before settling to its compact face.", render(s) { S.desktop(s); startRow(s); } },
+        { id: "cc", name: "Control Centre", crop: PANEL, note: "Hover unfolds Control Centre around the pill's row: Now (recording leading, a privacy row), the grid in its four frames, the tray, the footer. 376 wide, 8 padding, so cards take the card radius.", render(s) { S.desktop(s); controlCentre(s); } },
+        { id: "page", name: "A page", crop: PANEL, note: "A module's page: its head is the module as a wide tile with its switch, then rows, then Back and the Settings link.", render(s) { S.desktop(s); wifiPage(s); } },
+        { id: "nc", name: "Notification Centre", crop: PANEL, note: "The clock's panel, the same width and frame, so switching between the two changes only the height. Content is wave C's.", render(s) { S.desktop(s); notificationCentre(s); } },
+        { id: "morph", name: "Morph", crop: PANEL, note: "The pill grows into the media face on the morph spring, then unfolds into Control Centre on the open spring; content fades in only in the second half of each growth. Click again to replay; Reduce motion crossfades.", render(s, c) { morph(s, c); } },
+        { id: "fullscreen", name: "Over full screen", crop: PILL, note: "Over a full-screen window only the privacy form shows, solid.", render(s) { S.terminal(s, 0, 0, W, H, { title: "Elden Ring" }); s.lastChild.style.borderRadius = 0; s.append(box("", CX - 22, 4, 44, 22, { borderRadius: "11px", background: "var(--material-solid)", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", boxShadow: "var(--shadow-menu)" }, ic("microphone", 12, true, { color: "var(--colour-privacy-microphone)" }))); } },
+      ] },
+      { id: "menus", name: "Menus", sheet: "p1/surfaces/menus.md", states: [
+        { id: "view", name: "Revealed", crop: BAR, note: "The bar slides down as glass into the island's strip, 48 high; Isle's mark, the app's name in headline weight, the titles. The open title is a neutral shape; the accent is only on the selected row. The island stays in front.", render(s) {
+          S.desktop(s); S.bar(s, { open: "View" }); pill(s, [clock()]);
+          s.append(S.menu(300, 48, [{ label: "Back", key: "⌘[" }, { label: "Forward", key: "⌘]", dim: true }, "—", { head: "View" }, { label: "as Icons", key: "⌘1" }, { label: "as List", key: "⌘2", check: "✓" }, { label: "as Columns", key: "⌘3" }, "—", { label: "Sort By", sub: true, sel: true }, { label: "Show Path Bar", key: "⌥⌘P" }, "—", { label: "Enter Full Screen", key: "⌃⌘F" }]));
+        } },
+        { id: "submenu", name: "Submenu", crop: BAR, note: "With a submenu open the parent row drops to the neutral fill, so only one row carries the accent.", render(s) {
+          S.desktop(s); S.bar(s, { open: "View" }); pill(s, [clock()]);
+          s.append(S.menu(300, 48, [{ label: "Back", key: "⌘[" }, { label: "Forward", key: "⌘]", dim: true }, "—", { label: "as Icons", key: "⌘1" }, { label: "as List", key: "⌘2", check: "✓" }, "—", { label: "Sort By", sub: true, open: true }, { label: "Show Path Bar", key: "⌥⌘P" }]));
+          s.append(S.menu(548, 196, [{ label: "Name", check: "✓", sel: true }, "Kind", "Date Modified", "Size", "—", { label: "Mixed", check: "–" }]));
+        } },
+        { id: "help", name: "Help search", crop: BAR, note: "A field at the top of Help; results show their menu path in secondary text; moving onto one opens the bar down to it in the neutral fill.", render(s) {
+          S.desktop(s); S.bar(s, { open: "Help" }); pill(s, [clock()]);
+          const m = S.menu(560, 48, [{ label: "View › Show Path Bar", key: "⌥⌘P", sel: true }, { label: "View › Show Status Bar", key: "⌘/" }, { label: "Go › Go to Folder…", key: "⇧⌘G" }, "—", "System Settings Help", "Keyboard shortcuts"], {});
+          m.style.width = "var(--size-menu-search)";
+          m.prepend(el("s-field search", { margin: "4px 4px 6px" }, ic("magnifying-glass", 14), sp("", "pat"), sp("ph", "h bar")));
+          s.append(m);
+        } },
+        { id: "fallback", name: "Fallback menu", crop: BAR, note: "Steam exports no menus; Isle's fallback: the app menu, Window and Help.", render(s) {
+          S.desktop(s); S.bar(s, { app: "Steam", menus: ["Window", "Help"], open: null }); pill(s, [clock()]);
+          s.append(S.menu(48, 48, ["About Steam", "—", { label: "Settings…", key: "⌘," }, "—", "Library", "Store", "Friends list", "—", { label: "Hide Steam", key: "⌘H" }, { label: "Hide Others", key: "⌥⌘H" }, { label: "Show All", dim: true }, "—", { label: "Quit Steam", key: "⌘Q" }]));
+        } },
+        { id: "context", name: "Context menu", crop: WIN, note: "A menu belonging to a window sits on the window's raised surface, not glass.", render(s) {
+          S.desktop(s); pill(s, [clock()]);
+          s.append(S.menu(760, 360, ["Open", { label: "Open With", sub: true }, "—", { label: "Get Info", key: "⌘I", sel: true }, "Rename…", { label: "Quick Look", key: "⌘Y" }, "—", { label: "Move to Trash", key: "⌘⌫" }], { material: "window" }));
+        } },
+        { id: "game", name: "Over a game", crop: BAR, note: "Over a full-screen game the bar comes solid and without motion after a dwell.", render(s) { S.terminal(s, 0, 0, W, H, { title: "Elden Ring" }); s.lastChild.style.borderRadius = 0; S.bar(s, { app: "Elden Ring", menus: ["Window", "Help"], solid: true }); pill(s, [clock()], { style: { background: "var(--material-solid)" } }); } },
+      ] },
+      { id: "chrome", name: "Window chrome", sheet: "p1/surfaces/window-chrome.md", states: [
+        { id: "bars", name: "Title bars", crop: WIN, note: "Isle's app (unified toolbar, sidebar to the edge) inactive behind a third-party window with Isle's title bar, active, with the lights' glyphs on hover. Both windows' lights sit at the same inset.", render(s) {
+          S.settings(s, 320, 110, 1100, 760, { inactive: true });
+          S.titlebarWindow(s, 760, 300, 1000, 640, { title: "~/Development/isle — fish", hover: true, body: h("div", { class: "s-mono", style: { padding: "14px 18px", height: "100%", background: "var(--colour-view)", color: "var(--term-white)" } }, "~/D/isle ▌") });
+          pill(s, [clock()]);
+        } },
+        { id: "zoom", name: "Zoom menu", crop: [1500, 120, 1300, 700], note: "Resting on the zoom button opens a glass grid of layouts in the output's shape; the hovered slot is the accent, the current one secondary text; its name below; then Full Screen and Move to display as rows.", render(s) { zoomMenu(s); } },
+        { id: "drag", name: "Drag to a zone", note: "The preview is clear glass with a strong hairline, never the accent, springing between zones. With Option held the zones come to the pointer.", render(s) { drag(s); } },
+        { id: "alert", name: "Not responding", crop: [1460, 140, 1300, 760], note: "Closing a hung app: an alert sheet on its window, Wait the default, Force Quit destructive.", render(s) { alertSheet(s); } },
+        { id: "inhibit", name: "Keys held", crop: [CX - 800, 0, 1600, 300], note: "While a window holds the keyboard, a notice at its top names the way back, and the island shows the glyph.", render(s) { inhibit(s); } },
+        { id: "open", name: "Open", crop: WIN, note: "A window opens from 94% and transparent on the open spring. Click again to replay.", render(s, c) { openClose(s, c, false); } },
+        { id: "minimise", name: "Minimise", crop: [200, 0, 1840, 1000], note: "Minimise shrinks the window toward the island and fades it, on the exit spring.", render(s, c) { openClose(s, c, true); } },
+      ] },
+      { id: "switcher", name: "Switcher", sheet: "p1/surfaces/switcher.md", states: [
+        { id: "apps", name: "Apps", crop: SW, note: "A glass panel of cards; the selection a neutral plate; the icon on each card's lower edge; Mail's badge, Firefox's progress, Steam's attention, Notes minimised, Terminal's three windows. Only the selected name shows.", render(s) { switcher(s, {}); pill(s, [clock()]); } },
+        { id: "windows", name: "Windows", crop: SW, note: "↓ opens the held app's windows below, the app's plate turning quiet while it does.", render(s) { switcher(s, { windows: true }); pill(s, [clock()]); } },
+        { id: "background", name: "Background apps", crop: [CX - 1300, 340, 2600, 640], note: "Apps running with no window come last, after a gap, in narrower cards.", render(s) { switcher(s, { background: true }); pill(s, [clock()]); } },
+      ] },
+      { id: "wallpaper", name: "Wallpaper", sheet: "p1/surfaces/wallpaper.md", states: [
+        { id: "drawn", name: "Drawn backdrop", note: "Isle's default when no picture is chosen: a soft light falling from above the island to a darker floor, in neutral tokens. Light mode inverts it.", render(s) { pill(s, [clock()]); } },
+        { id: "softened", name: "Softened", note: "The wallpaper blurred and washed, for the lock and the dashboard. It promises no contrast: what sits on it brings its own material.", render(s) { s.append(box("", 0, 0, W, H, { background: "var(--material-softened)", backdropFilter: "blur(var(--material-softened-blur)) saturate(var(--material-softened-saturation))", WebkitBackdropFilter: "blur(var(--material-softened-blur)) saturate(var(--material-softened-saturation))" })); pill(s, [clock()]); } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 5, wave A">
+  <h2>Gate 5, wave A</h2>
+  <p>The specs are in <code>p1/surfaces/</code>. Decided there, for you to confirm or change:</p>
+  <ol>
+    <li><b>Strip and bar</b>: the island's strip and the revealed bar are both 48, so the bar's titles and the island share a centre line (the same share of the screen as a notched MacBook's bar).</li>
+    <li><b>Colour on the island</b> sits in small solid wells (privacy marks, the recording dot), because colours on the translucent pill drop to about 2:1 over a white window.</li>
+    <li><b>Menus</b>: the bar's menus and the shell's are glass; menus inside an app's window are on the window's raised surface; menus opened from glass panels are solid, so glass is never on glass. The open title is neutral; the accent is only the selected row.</li>
+    <li><b>Isle's mark</b> for the system menu: an island seen from above. The alternative was a filled pill, which reads as a minus.</li>
+    <li><b>Traffic lights</b> keep macOS's red, amber and green as the one fixed exception to colour roles; their glyphs are drawn, not Phosphor (too thin at 12).</li>
+    <li><b>Zone preview</b> is clear glass with a hairline, never the accent.</li>
+    <li><b>Switcher selection</b> is a neutral plate, as macOS, not an accent ring; it appears after 150 ms so a quick tap draws nothing.</li>
+    <li><b>Default wallpaper</b>: a drawn backdrop; the shipped set adds four pictures rendered for Isle and a NASA photograph of Earth's night side, each in dark and light.</li>
+    <li><b>The softened wallpaper</b> washes toward light grey in light mode, not darker, so the lock's dark text has a light ground.</li>
+  </ol>
+</section>

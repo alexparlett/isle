@@ -154,6 +154,10 @@ material {
     blur 48
     saturation 1.8
     noise-opacity 0.02
+    // The wallpaper softened for the lock and the dashboard: blurred, then washed.
+    softened { dark "rgba(16,17,20,0.45)"; light "rgba(246,246,248,0.50)" }
+    softened-blur 80
+    softened-saturation 1.4
 }
 
 type {
@@ -188,7 +192,7 @@ size {
     strip 48
     island-top 9
     island-height 30
-    bar-height 34
+    bar-height 48
     titlebar 32
     toolbar 52
     sidebar 220
@@ -203,8 +207,48 @@ size {
     glyph-large 20
     app-icon-small 16
     app-icon 32
+    app-icon-medium 48
     app-icon-large 64
     app-icon-hero 128
+    // Surfaces (p1/surfaces/*.md).
+    edge-push 24
+    menu-row 22
+    menu-min 220
+    menu-max 480
+    menu-search 360
+    bar-name 240
+    traffic-light 12
+    zone-thumbnail 44
+    alert 320
+    title-minimum 48
+    resize-band 8
+    minimise-target 96
+    sliver 24
+    island-well 22
+    island-max 560
+    island-guard 24
+    island-face-max 160
+    island-event 48
+    island-osd 300
+    panel 376
+    module-cell-width 84
+    module-cell-height 64
+    module-glyph 32
+    switcher-card-width 256
+    switcher-card-height 160
+    switcher-card-min-width 160
+    switcher-background-width 128
+}
+
+// Counts, not points.
+limit { island-marks 2; now-rows 4 }
+
+// The traffic lights' colours: the one fixed exception to roles.
+traffic {
+    close "#ff5f57"; close-pressed "#c9443e"; close-glyph "#7a0c08"
+    minimise "#febc2e"; minimise-pressed "#c8921d"; minimise-glyph "#8a5200"
+    zoom "#28c840"; zoom-pressed "#1f9a32"; zoom-glyph "#0a5c12"
+    edge "rgba(0,0,0,0.25)"
 }
 
 shadow {
@@ -213,6 +257,7 @@ shadow {
     panel { dark "0 18px 50px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.10)"; light "0 18px 50px rgba(0,0,0,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.60)" }
     menu { dark "0 10px 30px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.10)"; light "0 10px 30px rgba(0,0,0,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.60)" }
     control { dark "0 1px 2px rgba(0,0,0,0.30)"; light "0 1px 2px rgba(0,0,0,0.12)" }
+    bar { dark "0 6px 18px rgba(0,0,0,0.30)"; light "0 6px 18px rgba(0,0,0,0.10)" }
 }
 
 // Springs are critically damped or close to it: no bounce (brief P5).
@@ -227,6 +272,11 @@ motion {
     exit-fade-ms 110
     // Reduce Motion: every spring becomes a fade of this length, in place.
     reduced-fade-ms 120
+    blink-ms 80
+    wallpaper-fade-ms 600
+    // Open and close scale from these, toward full size.
+    window-scale 0.94
+    panel-scale 0.96
 }
 
 // Behaviour timings the hover guards and events use (v1 lessons §3.5).
@@ -238,4 +288,11 @@ timing {
     copied-ms 2000
     event-ms 3000
     banner-default-ms 5000
+    mode-ms 2000
+    start-media-ms 4000
+    ended-ms 5000
+    edge-dwell-ms 400
+    type-select-ms 1000
+    zoom-dwell-ms 600
+    switcher-delay-ms 150
 }

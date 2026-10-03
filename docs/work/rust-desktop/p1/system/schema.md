@@ -18,8 +18,9 @@ read and which P3 implements. The file is KDL v2; the values are in
   replaces the roles it names while the setting is on. Under it the
   shell's glass uses `material-glass-tinted`.
 - **Units.** Numbers are logical points unless the name ends in `-ms`
-  (milliseconds) or ends in `opacity`, `weight`, `saturation`,
-  `stiffness`, `damping`, `mass` or `mix`, which are plain numbers. Colours are
+  (milliseconds), ends in `opacity`, `weight`, `saturation`,
+  `stiffness`, `damping`, `mass`, `mix` or `scale`, or sits under
+  `limit`; those are plain numbers. Colours are
   sRGB strings: `#rrggbb` or `rgba(r,g,b,a)`. Shadows are CSS shadow
   strings, which the shell parses into its own shadow list.
 - **Version.** `version 1` at the top. A file with a newer major version
@@ -41,6 +42,8 @@ read and which P3 implements. The file is KDL v2; the values are in
 | `series` | `a` to `d` per appearance | Categorical colours for graphs; never status. |
 | `pane` | Fixed hues for Settings' pane tiles | Data, not the accent. |
 | `term` | The 16 ANSI colours per appearance | Terminals and the programs in them (`theming.md`). |
+| `traffic` | The traffic lights' fills, pressed fills, glyphs and edge | The one fixed exception to colour roles. |
+| `limit` | Counts: `island-marks`, `now-rows` | Plain numbers, never points. |
 | `icon` | `set`, `weight`, `weight-on`, `weight-contrast`; `theme` per appearance; `cursor`, `cursor-size` | Phosphor, Papirus, Bibata (`icons.md`). |
 | `material` | `glass`, `glass-clear`, `glass-tinted`, `solid` per appearance; `blur`, `saturation`, `noise-opacity` | The glass setting interpolates between `glass-clear` and `glass-tinted`, `glass` being its default. Reduce Transparency and Game Mode use `solid`. |
 | `type` | `family`, `mono`; `style.<name>.{size, weight, line}` for `large-title`, `title`, `title-2`, `title-3`, `headline`, `body`, `callout`, `subheadline`, `footnote`, `clock`, `mono`; `weight.*` | Inter's optical size follows the size. The user's text size multiplies every style. |

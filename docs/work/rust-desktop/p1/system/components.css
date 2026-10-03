@@ -101,6 +101,8 @@
 /* Fields. */
 .s-field { height: var(--size-control); border-radius: var(--radius-control); background: var(--colour-window-raised); box-shadow: inset 0 0 0 1px var(--colour-hairline-strong); display: flex; align-items: center; gap: 6px; padding: 0 8px; font-size: var(--type-style-body-size); box-sizing: border-box; color: var(--colour-text); }
 .s-field .ph { color: var(--colour-text-3); }
+/* Glass carries text and text-2 only (contrast policy). */
+.s-glass .s-field .ph, .s-island .ph { color: var(--colour-text-2); }
 .s-field.search { background: var(--colour-fill); box-shadow: none; border-radius: var(--radius-control); }
 .s-field.is-error { box-shadow: inset 0 0 0 1px var(--colour-danger); }
 .s-field.is-focus { box-shadow: inset 0 0 0 1px var(--colour-accent); }
@@ -113,11 +115,11 @@
 .s-mi .mark { width: 14px; text-align: center; font-size: 11px; }
 .s-mi .key { margin-left: auto; color: var(--colour-text-2); padding-left: 24px; }
 .s-mi.sel { background: var(--colour-accent); color: var(--colour-on-accent); }
-.s-mi.sel .key { color: inherit; opacity: 0.85; }
+.s-mi.sel .key { color: inherit; }
 .s-mi.dim { color: var(--colour-text-disabled); }
 .s-mi .sub { margin-left: auto; color: var(--colour-text-2); }
 .s-menu hr { border: 0; border-top: 1px solid var(--colour-hairline); margin: 4px 8px; }
-.s-menu .head { font-size: var(--type-style-subheadline-size); font-weight: var(--type-weight-semibold); color: var(--colour-text-2); padding: 4px 10px 2px 20px; }
+.s-menu .head { font-size: var(--type-style-subheadline-size); font-weight: var(--type-weight-semibold); color: var(--colour-text-2); padding: 4px 10px 2px 28px; }
 .s-pop { border-radius: var(--radius-card); padding: var(--space-m); box-shadow: var(--shadow-menu); }
 .s-tip { background: var(--colour-window-raised); color: var(--colour-text); font-size: var(--type-style-callout-size); padding: 3px 8px; border-radius: var(--radius-small); box-shadow: var(--shadow-menu); white-space: nowrap; }
 

@@ -11,6 +11,7 @@
   .hb-qs em { color: var(--hb-accent); font-style: normal; }
   .hb-qs ol { padding-left: 20px; margin: 0; }
 </style>
+<script src="system/phosphor.js"></script>
 <script src="harness/harness.js"></script>
 <script>
 (function () {
@@ -23,7 +24,7 @@
   const sp = (cls, s, style) => h("span", { class: cls, style: style || {} }, s);
   // Phosphor glyphs, drawn through a mask so they take the text colour; "on" states use the fill weight.
   const PH = {"search": "magnifying-glass", "chevron-left": "caret-left", "chevron-right": "caret-right", "plus": "plus", "ellipsis": "dots-three", "wifi": "wifi-high", "moon": "moon", "bluetooth": "bluetooth", "volume-x": "speaker-x", "volume-2": "speaker-high", "music": "music-note", "shield": "shield", "mail": "envelope", "trash-2": "trash", "app-window": "app-window", "settings": "gear", "accessibility": "person-arms-spread", "sun-moon": "circle-half", "layout-grid": "squares-four", "monitor": "monitor", "globe": "globe"};
-  const ic = (name, size, fill) => { const f = "system/icons/" + (PH[name] || name) + (fill ? "-fill" : "") + ".svg"; return h("i", { class: "s-ic", style: Object.assign({ background: "currentColor", WebkitMask: "url(" + f + ") center / contain no-repeat", mask: "url(" + f + ") center / contain no-repeat" }, size ? { width: size + "px", height: size + "px" } : {}) }); };
+  const ic = (name, size, fill) => { const n = (PH[name] || name) + (fill ? "-fill" : ""); const e = h("i", { class: "s-ic", style: size ? { width: size + "px", height: size + "px" } : {} }); e.innerHTML = '<svg viewBox="0 0 256 256" fill="currentColor" width="100%" height="100%">' + (window.PHOSPHOR[n] || "") + "</svg>"; return e; };
   const row = (style, ...kids) => el("s-row", style, ...kids);
   const col = (style, ...kids) => el("s-col", style, ...kids);
   const label = (s) => sp("s-spec", s);

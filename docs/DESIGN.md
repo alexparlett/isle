@@ -84,9 +84,13 @@ without Increase Contrast:
 
 The shell's glass, from clear to tinted along the user's Glass setting,
 default in the middle; blur 48, saturation 1.8. Glass is only on the
-shell's floating surfaces (the island, its panels, menus over the
-desktop, banners, Spotlight); windows are opaque and their menus and
-popovers sit on the menu material.
+shell's floating surfaces (the island's panels, the revealed bar and the
+shell's menus, banners, Spotlight); windows are opaque. Menus and
+popovers inside an app's window are the window's raised surface with the
+menu shadow; menus opened from a glass panel are solid, so glass never
+sits on glass. Colour on the island's translucent pill sits in small
+solid wells. The wallpaper has a softened form (blurred and washed) for
+the lock and the dashboard, which promises no contrast of its own.
 
 ## Type
 
@@ -153,4 +157,39 @@ spelling, buttons named for their action, short sentences, no blame.
 
 ## Surfaces
 
-Each surface's look, states and motion join here from P1 stage 5.
+Each surface's look, states and motion, by wave. The full specs are in
+`docs/work/rust-desktop/p1/surfaces/`, drawn on P1's surface boards.
+
+### Wave A (gate 5, 2026-10-03; board `p1/surfaces-a.html`)
+
+- **Island** (`island.md`): one shape at the top centre, its radius half
+  its height up to the panel radius, never re-centring. At rest a 30-point
+  pill with the clock and monochrome status glyphs (levels drawn over the
+  dimmed full glyph); privacy marks and other colour in solid wells.
+  Live faces lead, other activities as marks, a count past two. Events
+  take three forms: a line, a 300 by 48 level with a continuous bar, and
+  a start row. Control Centre and Notification Centre unfold from the
+  pill's own row as 376-wide glass panels; modules come in four frames on
+  an 84 by 64 grid. The morph and panel springs carry content that fades
+  in only with the second half of the growth.
+- **Menus** (`menus.md`): the revealed bar fills the 48-point strip in
+  glass with Isle's mark (an island seen from above) for the system menu,
+  the app's name in headline weight and neutral open titles; the island
+  stays in front on the same centre line. Menus: 22-point rows, a check
+  column, macOS's shortcut symbols, the accent only on the selected row.
+  The bar slides down and up; menus appear at once and fade out, with
+  macOS's blink on a chosen row; Game Mode draws them solid and still.
+- **Window chrome** (`window-chrome.md`): the traffic lights in macOS's
+  red, amber and green (the one exception to colour roles) at one inset on
+  every window, their glyphs drawn; title bars in the title-bar roles with
+  the title in headline weight; the zoom menu a glass grid of layouts in
+  the output's shape; the zone preview clear glass, never the accent.
+  Windows open from 94% and minimise toward the island.
+- **Switcher** (`switcher.md`): a glass panel of 256 by 160 cards with the
+  app's icon on the lower edge, a neutral plate for the selection, marks
+  for badges, progress, attention, minimised, hidden and background apps.
+  It appears after 150 ms with a fade; the selection moves at once.
+- **Wallpaper** (`wallpaper.md`): a drawn backdrop by default, a soft
+  light from above the island to a darker floor; a 600 ms crossfade on
+  change; the shipped set adds four pictures rendered for Isle and a NASA
+  photograph of Earth's night side, in dark and light.

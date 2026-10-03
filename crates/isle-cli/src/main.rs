@@ -7,8 +7,8 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use isle_ipc::{
-    displays::DisplaysProxy, session::SessionProxy, test::TestProxy, version::VersionProxy,
-    windows::WindowsProxy,
+    displays::DisplaysProxy, session::SessionProxy, settings::SettingsProxy, test::TestProxy,
+    version::VersionProxy, windows::WindowsProxy,
 };
 use serde::Serialize;
 
@@ -35,6 +35,8 @@ enum Command {
     Windows(Windows),
     #[command(subcommand)]
     Displays(Displays),
+    #[command(subcommand)]
+    Settings(Settings),
     /// Hooks served only by test builds.
     #[command(subcommand, hide = true)]
     Test(Test),
@@ -53,6 +55,22 @@ enum Windows {
 #[derive(Subcommand)]
 enum Displays {
     List,
+}
+
+#[derive(Subcommand)]
+enum Settings {
+    /// A setting's value in force.
+    Get { key: String },
+    /// Set a setting; the value is written as in settings.kdl: 1.25, true, "us".
+    Set {
+        key: String,
+        #[arg(num_args = 1.., required = true)]
+        value: Vec<String>,
+    },
+    /// Whether settings.kdl is in force, or why not.
+    Status,
+    /// Every key, its type, default and range.
+    Schema,
 }
 
 #[derive(Subcommand)]
@@ -167,12 +185,95 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 }
             }
         }
+        Command::Settings(command) => settings(cli, &bus, command).await?,
         Command::Test(command) => {
             let proxy = TestProxy::new(&bus).await?;
             match command {
                 Test::Stall { millis } => proxy.stall(*millis).await?,
                 Test::PanicService => proxy.panic_service().await?,
                 Test::PanicCore => proxy.panic_core().await?,
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn settings(cli: &Cli, bus: &zbus::Connection, command: &Settings) -> zbus::Result<()> {
+    let proxy = SettingsProxy::new(bus).await?;
+    match command {
+        Settings::Get { key } => {
+            let value = proxy.get(key).await?;
+            let text = match &*value {
+                zvariant::Value::Bool(b) => serde_json::json!(b),
+                zvariant::Value::I64(i) => serde_json::json!(i),
+                zvariant::Value::F64(f) => serde_json::json!(f),
+                zvariant::Value::Str(s) => serde_json::json!(s.as_str()),
+                zvariant::Value::Array(a) => serde_json::json!(
+                    a.iter()
+                        .filter_map(|v| v
+                            .downcast_ref::<zvariant::Str>()
+                            .ok()
+                            .map(|s| s.to_string()))
+                        .collect::<Vec<_>>()
+                ),
+                other => serde_json::json!(other.to_string()),
+            };
+            match (&text, cli.json) {
+                (serde_json::Value::String(s), false) => println!("{s}"),
+                _ => println!("{text}"),
+            }
+        }
+        Settings::Set { key, value } => {
+            let value = isle_settings::Value::parse_kdl(&value.join(" "));
+            let value = match value {
+                isle_settings::Value::Bool(b) => zvariant::Value::from(b),
+                isle_settings::Value::Int(i) => zvariant::Value::from(i),
+                isle_settings::Value::Float(f) => zvariant::Value::from(f),
+                isle_settings::Value::Str(s) => zvariant::Value::from(s),
+                isle_settings::Value::List(l) => zvariant::Value::from(l),
+            };
+            let changed = proxy.set(key, &value).await?;
+            if cli.json {
+                print_json(&changed);
+            }
+        }
+        Settings::Status => {
+            let status = proxy.status().await?;
+            if cli.json {
+                print_json(&status);
+            } else if status.ok {
+                println!("{} is in force", status.file);
+            } else {
+                println!(
+                    "{}:{}:{}: {}",
+                    status.file, status.line, status.column, status.message
+                );
+            }
+            if !status.ok {
+                return Err(zbus::Error::Failure("settings.kdl has an error".into()));
+            }
+        }
+        Settings::Schema => {
+            let keys = proxy.schema().await?;
+            if cli.json {
+                print_json(&keys);
+            } else {
+                for k in keys {
+                    let constraint = if k.constraint.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({})", k.constraint)
+                    };
+                    let default = if k.default.is_empty() {
+                        "unset".to_owned()
+                    } else {
+                        k.default
+                    };
+                    println!("{}  {}{constraint} = {default}", k.key, k.kind);
+                    if !k.doc.is_empty() {
+                        println!("    {}", k.doc);
+                    }
+                }
             }
         }
     }

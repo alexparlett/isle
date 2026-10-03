@@ -19,7 +19,7 @@ use smithay::{
         },
         wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
     },
-    wayland::presentation::Refresh,
+    wayland::{fractional_scale::with_fractional_scale, presentation::Refresh},
 };
 use tracing::{trace, warn};
 
@@ -104,10 +104,11 @@ impl Isle {
         }
     }
 
+    /// Also tells each surface the fractional scale of the output it is mostly on.
     pub fn update_primary_scanout_output(&self, output: &Output, states: &RenderElementStates) {
         for window in self.space.elements() {
             window.with_surfaces(|surface, surface_states| {
-                update_surface_primary_scanout_output(
+                let primary = update_surface_primary_scanout_output(
                     surface,
                     output,
                     surface_states,
@@ -115,6 +116,11 @@ impl Isle {
                     states,
                     default_primary_scanout_output_compare,
                 );
+                if let Some(primary) = primary {
+                    with_fractional_scale(surface_states, |fractional| {
+                        fractional.set_preferred_scale(primary.current_scale().fractional_scale());
+                    });
+                }
             });
         }
         if let CursorImageStatus::Surface(surface) = &self.cursor_status {

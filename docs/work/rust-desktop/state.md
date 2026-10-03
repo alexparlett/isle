@@ -91,4 +91,13 @@
   jobs with a one-second limit. `io.github.alexparlett.Isle` serves
   Version1, Session1, Windows1 and Displays1, and Test1 in `test-hooks`
   builds; `isle` covers them with `--json`, exit 1 on failure and 69 when
-  Isle is not running. Checked on a private bus. Next: 2.3, settings.
+  Isle is not running. Checked on a private bus.
+- P2 phase 2.3 done: `isle-settings` with `#[derive(Section)]` and
+  `#[derive(Choice)]`, the P2 schema (keyboard, outputs and pointers by
+  identity, render device, a three-chord bind table, debug, one example
+  app section), and a store that splices Sets into the file's own text.
+  The worker owns the store and watches the file with inotify through its
+  directory and a symlink's target; the loop applies keyboard, output
+  scale, position and the watchdog live. `Settings1` and `isle settings
+  get|set|status|schema`. `platform.md` acceptance 7 passes nested.
+  Next: 2.4, state.

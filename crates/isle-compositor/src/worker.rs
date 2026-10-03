@@ -7,7 +7,7 @@ use smithay::reexports::calloop::channel::Sender;
 use tokio::sync::{broadcast, oneshot};
 use tracing::{error, warn};
 
-use crate::state::State;
+use crate::{settings::SharedStore, state::State};
 
 /// How long a request waits for the main loop before it fails.
 pub const LOOP_TIMEOUT: Duration = Duration::from_secs(1);
@@ -15,10 +15,14 @@ pub const LOOP_TIMEOUT: Duration = Duration::from_secs(1);
 pub type Job = Box<dyn FnOnce(&mut State) + Send>;
 
 /// Changes the worker announces on D-Bus.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
     WindowsChanged,
     DisplaysChanged,
+    /// The keys whose values changed.
+    SettingsChanged(Vec<String>),
+    /// A hand edit was rejected, or a rejected one was fixed.
+    SettingsStatus,
     /// Makes the D-Bus service panic, to test its restart.
     #[cfg(feature = "test-hooks")]
     PanicService,
@@ -67,8 +71,9 @@ impl ToLoop {
     }
 }
 
-/// Starts the worker thread, which serves D-Bus until the process ends.
-pub fn spawn(to_loop: ToLoop, events: broadcast::Sender<Event>) {
+/// Starts the worker thread, which serves D-Bus and watches the settings until the
+/// process ends.
+pub fn spawn(to_loop: ToLoop, events: broadcast::Sender<Event>, store: SharedStore) {
     thread::Builder::new()
         .name("worker".into())
         .spawn(move || {
@@ -78,8 +83,12 @@ pub fn spawn(to_loop: ToLoop, events: broadcast::Sender<Event>) {
                 .enable_all()
                 .build()
                 .expect("the worker's runtime");
+            let (loop_w, events_w, store_w) = (to_loop.clone(), events.clone(), store.clone());
+            runtime.spawn(supervise("settings-watch", move || {
+                crate::settings::watch(store_w.clone(), loop_w.clone(), events_w.clone())
+            }));
             runtime.block_on(supervise("dbus", move || {
-                crate::dbus::serve(to_loop.clone(), events.subscribe())
+                crate::dbus::serve(to_loop.clone(), events.clone(), store.clone())
             }));
         })
         .expect("the worker thread");

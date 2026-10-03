@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+- P2 phase 2.3: settings. A broken hand edit keeps the last good settings
+  and refuses Sets with its line and column until it is fixed; Sets keep
+  the user's comments, create keyed nodes and app sections where absent,
+  and write through symlinks; an editor's rename-replace is picked up.
+  Two bugs found in the run and fixed: reading the file raised inotify
+  access events, which re-read it every 100 ms; an output's new scale did
+  not reach clients' fractional scale. The `binds` section runs a
+  terminal, closes the focused window and quits.
+
 - P2 phase 2.2: the worker, the D-Bus API and `isle`. Checked nested on
   a private bus: version, window and display lists, close (kitty asked
   first, as it should), an unknown id refused, `Windows1.Changed` on

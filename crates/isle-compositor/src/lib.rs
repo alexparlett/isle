@@ -1,6 +1,7 @@
 //! The compositor: one calloop loop, its backends, outputs, input and shells (B9).
 
 pub mod backend;
+mod binds;
 pub mod build_info;
 pub mod crash;
 mod dbus;
@@ -9,6 +10,7 @@ mod handlers;
 mod input;
 pub mod redraw;
 mod render;
+pub mod settings;
 pub mod state;
 pub mod watchdog;
 mod windows;
@@ -21,7 +23,7 @@ use smithay::reexports::{
     wayland_server::Display,
 };
 use tokio::sync::broadcast;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     backend::{Backend, winit::Winit},
@@ -32,15 +34,19 @@ use crate::{
 /// A main-loop dispatch stuck this long ends the process (choice 7).
 const HANG_LIMIT: Duration = Duration::from_secs(10);
 
-pub struct Options {
-    pub watchdog_abort: bool,
-}
-
-pub fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let heartbeat = Heartbeat::new();
     crash::install_panic_hook(heartbeat.clone());
-    heartbeat.spawn_watchdog(options.watchdog_abort.then_some(HANG_LIMIT));
     info!("isle-compositor {}", build_info::describe());
+
+    let store: isle_settings::Store<isle_settings::schema::Settings> =
+        isle_settings::Store::open(settings::settings_path());
+    if let Some(err) = store.error() {
+        warn!("settings.kdl rejected, starting on the defaults: {err}");
+    }
+    let initial = store.current().clone();
+    heartbeat.set_abort(initial.debug.watchdog_abort);
+    heartbeat.spawn_watchdog(HANG_LIMIT);
 
     let mut event_loop: EventLoop<'static, State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;
@@ -58,7 +64,8 @@ pub fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
         })
         .map_err(|e| e.error)?;
     let (events, _) = broadcast::channel(64);
-    worker::spawn(worker::ToLoop::new(jobs), events.clone());
+    let store = std::sync::Arc::new(tokio::sync::Mutex::new(store));
+    worker::spawn(worker::ToLoop::new(jobs), events.clone(), store);
 
     let isle = Isle::new(
         display,
@@ -66,9 +73,11 @@ pub fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
         event_loop.get_signal(),
         heartbeat,
         events,
+        initial.clone(),
         backend.seat_name(),
     );
     let mut state = State { backend, isle };
+    state.apply_settings(initial, None);
     backend::winit::setup(&mut state, winit_events)?;
 
     // Children connect to Isle, not to the compositor this one may be nested in.

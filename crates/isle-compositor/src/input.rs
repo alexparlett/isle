@@ -3,7 +3,7 @@
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
-        KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
+        KeyState, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
     },
     input::{
         keyboard::FilterResult,
@@ -12,7 +12,7 @@ use smithay::{
     utils::SERIAL_COUNTER,
 };
 
-use crate::state::State;
+use crate::{binds::Action, state::State};
 
 impl State {
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
@@ -21,14 +21,37 @@ impl State {
                 let serial = SERIAL_COUNTER.next_serial();
                 let time = Event::time(&event);
                 let keyboard = self.isle.seat.get_keyboard().unwrap();
-                keyboard.input::<(), _>(
+                let code = event.key_code();
+                let pressed = event.state() == KeyState::Pressed;
+                let action = keyboard.input::<Option<Action>, _>(
                     self,
-                    event.key_code(),
+                    code,
                     event.state(),
                     serial,
                     time,
-                    |_, _, _| FilterResult::Forward,
+                    |state, modifiers, handle| {
+                        if !pressed {
+                            if state.isle.suppressed_keys.remove(&code) {
+                                return FilterResult::Intercept(None);
+                            }
+                            return FilterResult::Forward;
+                        }
+                        let action = handle
+                            .raw_syms()
+                            .iter()
+                            .find_map(|sym| state.bound_action(modifiers, *sym));
+                        match action {
+                            Some(action) => {
+                                state.isle.suppressed_keys.insert(code);
+                                FilterResult::Intercept(Some(action))
+                            }
+                            None => FilterResult::Forward,
+                        }
+                    },
                 );
+                if let Some(Some(action)) = action {
+                    self.run_action(action);
+                }
             }
             InputEvent::PointerMotionAbsolute { event } => {
                 let Some(output) = self.isle.space.outputs().next().cloned() else {

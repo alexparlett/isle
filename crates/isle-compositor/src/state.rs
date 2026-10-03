@@ -37,6 +37,7 @@ use smithay::{
 use smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as KdeMode;
 use tracing::{info, warn};
 
+use isle_settings::schema::Settings;
 use tokio::sync::broadcast;
 
 use crate::{backend::Backend, redraw::OutputState, watchdog::Heartbeat, worker::Event};
@@ -55,6 +56,9 @@ pub struct Isle {
     pub heartbeat: Heartbeat,
     pub events: broadcast::Sender<Event>,
     pub next_window_id: u64,
+    pub settings: Settings,
+    /// Keys whose press ran a bind; their release is not sent to clients.
+    pub suppressed_keys: std::collections::HashSet<smithay::input::keyboard::Keycode>,
 
     pub space: Space<Window>,
     /// Toplevels that have not committed a buffer yet; they are placed when they do.
@@ -99,6 +103,7 @@ impl Isle {
         loop_signal: LoopSignal,
         heartbeat: Heartbeat,
         events: broadcast::Sender<Event>,
+        settings: Settings,
         seat_name: String,
     ) -> Self {
         let dh = display.handle();
@@ -161,6 +166,8 @@ impl Isle {
             heartbeat,
             events,
             next_window_id: 1,
+            settings,
+            suppressed_keys: Default::default(),
             space: Space::default(),
             unmapped: Vec::new(),
             popups: PopupManager::default(),
@@ -188,6 +195,7 @@ impl Isle {
     pub fn add_output(&mut self, output: &Output, location: Point<i32, Logical>) {
         output.user_data().insert_if_missing(OutputState::cell);
         self.space.map_output(output, location);
+        self.apply_output_settings(output);
         self.update_frame_budget();
         self.queue_redraw(output);
         self.notify(Event::DisplaysChanged);

@@ -10,6 +10,27 @@ pub const SESSION_PATH: &str = "/io/github/alexparlett/Isle/Session";
 pub const WINDOWS_PATH: &str = "/io/github/alexparlett/Isle/Windows";
 pub const DISPLAYS_PATH: &str = "/io/github/alexparlett/Isle/Displays";
 pub const TEST_PATH: &str = "/io/github/alexparlett/Isle/Test";
+pub const SETTINGS_PATH: &str = "/io/github/alexparlett/Isle/Settings";
+
+/// One key of `settings.kdl`, as the Settings interface introspects it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct SettingKey {
+    pub key: String,
+    pub kind: String,
+    pub default: String,
+    pub constraint: String,
+    pub doc: String,
+}
+
+/// Whether `settings.kdl` is in force, or the rejected hand edit that is not.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct SettingsStatus {
+    pub ok: bool,
+    pub file: String,
+    pub line: u32,
+    pub column: u32,
+    pub message: String,
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct WindowInfo {
@@ -54,6 +75,28 @@ pub mod version {
         fn built(&self) -> zbus::Result<u64>;
         #[zbus(property)]
         fn features(&self) -> zbus::Result<Vec<String>>;
+    }
+}
+
+pub mod settings {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Settings1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Settings"
+    )]
+    pub trait Settings {
+        fn get(&self, key: &str) -> zbus::Result<zvariant::OwnedValue>;
+        /// Validates, writes and applies; returns the keys that changed. Refused while a
+        /// rejected hand edit stands.
+        fn set(&self, key: &str, value: &zvariant::Value<'_>) -> zbus::Result<Vec<String>>;
+        fn schema(&self) -> zbus::Result<Vec<SettingKey>>;
+        fn status(&self) -> zbus::Result<SettingsStatus>;
+        #[zbus(signal)]
+        fn changed(&self, keys: Vec<String>) -> zbus::Result<()>;
+        #[zbus(signal)]
+        fn status_changed(&self) -> zbus::Result<()>;
     }
 }
 

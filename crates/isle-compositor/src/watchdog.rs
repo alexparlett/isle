@@ -4,7 +4,7 @@ use std::{
     collections::VecDeque,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicU32, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
     },
     thread,
     time::{Duration, Instant, SystemTime},
@@ -36,6 +36,7 @@ struct Shared {
     depth: AtomicU32,
     source: Mutex<&'static str>,
     budget_ns: AtomicU64,
+    abort: AtomicBool,
     recent: Mutex<VecDeque<Stall>>,
 }
 
@@ -60,6 +61,7 @@ impl Heartbeat {
                 depth: AtomicU32::new(0),
                 source: Mutex::new(""),
                 budget_ns: AtomicU64::new(Duration::from_millis(16).as_nanos() as u64),
+                abort: AtomicBool::new(true),
                 recent: Mutex::new(VecDeque::new()),
             }),
         }
@@ -70,6 +72,11 @@ impl Heartbeat {
         self.shared
             .budget_ns
             .store(budget.as_nanos() as u64, Ordering::Relaxed);
+    }
+
+    /// Whether a hang ends the process (`debug.watchdog-abort`).
+    pub fn set_abort(&self, abort: bool) {
+        self.shared.abort.store(abort, Ordering::Relaxed);
     }
 
     pub fn beat(&self, source: &'static str) -> Beat {
@@ -93,9 +100,9 @@ impl Heartbeat {
     }
 
     /// Starts the watchdog thread. Called on the main thread, which it signals on a hang.
-    /// A dispatch stuck for `abort_after` writes a crash record and aborts the main thread
-    /// so its stack is in the core dump.
-    pub fn spawn_watchdog(&self, abort_after: Option<Duration>) {
+    /// A dispatch stuck for `abort_after`, while aborting is on, writes a crash record and
+    /// aborts the main thread so its stack is in the core dump.
+    pub fn spawn_watchdog(&self, abort_after: Duration) {
         let shared = self.shared.clone();
         let main = unsafe { libc::pthread_self() };
         let heartbeat = self.clone();
@@ -115,9 +122,7 @@ impl Heartbeat {
                         reported = began;
                         warn!(source, "main loop stuck for {} ms", age.as_millis());
                     }
-                    if let Some(limit) = abort_after
-                        && age >= limit
-                    {
+                    if age >= abort_after && shared.abort.load(Ordering::Relaxed) {
                         error!(source, "main loop hung for {} s, aborting", age.as_secs());
                         let message = format!("main loop hung in {source} for {} s", age.as_secs());
                         let _ = crate::crash::write(

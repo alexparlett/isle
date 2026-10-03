@@ -5,10 +5,7 @@ fn main() {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
-    let options = isle_compositor::Options {
-        watchdog_abort: std::env::var("ISLE_WATCHDOG_ABORT").as_deref() != Ok("0"),
-    };
-    if let Err(err) = isle_compositor::run(options) {
+    if let Err(err) = isle_compositor::run() {
         tracing::error!("{err}");
         std::process::exit(1);
     }

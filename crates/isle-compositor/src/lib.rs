@@ -4,6 +4,7 @@ pub mod backend;
 mod binds;
 pub mod build_info;
 pub mod crash;
+mod cursor;
 mod dbus;
 mod grabs;
 mod handlers;
@@ -52,12 +53,20 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut event_loop: EventLoop<'static, State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;
-    let (backend, winit_events) = match kind {
+    let mut winit_events = None;
+    let mut session_events = None;
+    let backend = match kind {
+        backend::Kind::Udev => {
+            let (udev, notifier) = backend::udev::Udev::new(initial.render_device.as_deref())?;
+            session_events = Some(notifier);
+            Backend::Udev(udev)
+        }
         backend::Kind::Winit => {
             let (winit, events) = Winit::new()?;
-            (Backend::Winit(winit), Some(events))
+            winit_events = Some(events);
+            Backend::Winit(winit)
         }
-        backend::Kind::Headless => (Backend::Headless(backend::headless::Headless::new()?), None),
+        backend::Kind::Headless => Backend::Headless(backend::headless::Headless::new()?),
     };
 
     let (jobs, job_source) = channel::channel::<worker::Job>();
@@ -85,9 +94,10 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     );
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
-    match winit_events {
-        Some(events) => backend::winit::setup(&mut state, events)?,
-        None => backend::headless::setup(&mut state)?,
+    match (winit_events, session_events) {
+        (Some(events), _) => backend::winit::setup(&mut state, events)?,
+        (_, Some(notifier)) => backend::udev::setup(&mut state, notifier)?,
+        _ => backend::headless::setup(&mut state)?,
     }
 
     // Children connect to Isle, not to the compositor this one may be nested in.

@@ -10,6 +10,8 @@ pub enum Action {
     Terminal,
     CloseWindow,
     Quit,
+    /// The kernel's VT keys, Ctrl+Alt+F1 to F12, which XKB turns into these keysyms.
+    SwitchVt(i32),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,6 +48,14 @@ fn parse(text: &str) -> Option<Chord> {
 }
 
 impl State {
+    /// The VT a key switches to, from its symbol with modifiers applied.
+    pub fn vt_for(sym: Keysym) -> Option<Action> {
+        let raw = sym.raw();
+        (keysyms::KEY_XF86Switch_VT_1..=keysyms::KEY_XF86Switch_VT_12)
+            .contains(&raw)
+            .then(|| Action::SwitchVt((raw - keysyms::KEY_XF86Switch_VT_1 + 1) as i32))
+    }
+
     /// The action bound to `sym` with `modifiers`, if any. `sym` is the key's unshifted
     /// symbol, which is what a case-insensitive name resolves to.
     pub fn bound_action(&self, modifiers: &ModifiersState, sym: Keysym) -> Option<Action> {
@@ -82,6 +92,7 @@ impl State {
                 }
             }
             Action::Quit => self.isle.loop_signal.stop(),
+            Action::SwitchVt(vt) => self.switch_vt(vt),
         }
     }
 }

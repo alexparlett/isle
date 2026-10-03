@@ -148,6 +148,8 @@ pub mod displays {
     )]
     pub trait Displays {
         fn list(&self) -> zbus::Result<Vec<DisplayInfo>>;
+        /// Releases every output and probes the connectors again, as one step.
+        fn redetect(&self) -> zbus::Result<()>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

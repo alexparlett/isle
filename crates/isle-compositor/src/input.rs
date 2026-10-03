@@ -5,6 +5,7 @@ use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
         InputTime, KeyState, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
+        PointerMotionEvent,
     },
     input::{
         keyboard::{FilterResult, Keycode},
@@ -28,6 +29,13 @@ impl State {
                 let geometry = self.isle.space.output_geometry(&output).unwrap();
                 let location = event.position_transformed(geometry.size) + geometry.loc.to_f64();
                 self.on_pointer_to(location, event.time());
+            }
+            InputEvent::PointerMotion { event } => {
+                let pointer = self.isle.seat.get_pointer().unwrap();
+                let target = self
+                    .isle
+                    .clamp_to_outputs(pointer.current_location() + event.delta());
+                self.on_pointer_to(target, event.time());
             }
             InputEvent::PointerButton { event } => {
                 self.on_button(event.button_code(), event.state(), event.time())
@@ -75,10 +83,12 @@ impl State {
                     }
                     return FilterResult::Forward;
                 }
-                let action = handle
-                    .raw_syms()
-                    .iter()
-                    .find_map(|sym| state.bound_action(modifiers, *sym));
+                let action = State::vt_for(handle.modified_sym()).or_else(|| {
+                    handle
+                        .raw_syms()
+                        .iter()
+                        .find_map(|sym| state.bound_action(modifiers, *sym))
+                });
                 match action {
                     Some(action) => {
                         state.isle.suppressed_keys.insert(code);

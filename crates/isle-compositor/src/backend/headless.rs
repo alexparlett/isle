@@ -71,7 +71,7 @@ impl Headless {
             .bind(&mut target.texture)
             .map_err(|e| e.to_string())?;
         let mut elements = Vec::new();
-        isle.render_elements(&mut self.renderer, output, &mut |e| elements.push(e));
+        isle.render_elements(&mut self.renderer, output, None, &mut |e| elements.push(e));
         let result = target
             .damage_tracker
             .render_output(&mut self.renderer, &mut framebuffer, age, &elements, CLEAR)

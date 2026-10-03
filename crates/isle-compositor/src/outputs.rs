@@ -104,6 +104,29 @@ impl Isle {
         }
     }
 
+    /// `pos` if an output shows it, else the nearest point an output does.
+    pub fn clamp_to_outputs(&self, pos: Point<f64, Logical>) -> Point<f64, Logical> {
+        if self.space.output_under(pos).next().is_some() {
+            return pos;
+        }
+        self.space
+            .outputs()
+            .filter_map(|o| self.space.output_geometry(o))
+            .map(|area| {
+                let area = area.to_f64();
+                Point::from((
+                    pos.x.clamp(area.loc.x, area.loc.x + area.size.w - 1.0),
+                    pos.y.clamp(area.loc.y, area.loc.y + area.size.h - 1.0),
+                ))
+            })
+            .min_by(|a, b| {
+                let da = (a.x - pos.x).powi(2) + (a.y - pos.y).powi(2);
+                let db = (b.x - pos.x).powi(2) + (b.y - pos.y).powi(2);
+                da.total_cmp(&db)
+            })
+            .unwrap_or(pos)
+    }
+
     fn nearest_output(&self, geometry: Rectangle<i32, Logical>) -> Option<Output> {
         let centre = geometry.loc + geometry.size.downscale(2).to_point();
         self.space

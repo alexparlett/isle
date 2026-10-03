@@ -118,6 +118,11 @@ impl Displays {
             .await?)
     }
 
+    /// Releases every output and probes the connectors again, as one step.
+    async fn redetect(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.redetect()).await?)
+    }
+
     #[zbus(signal)]
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }

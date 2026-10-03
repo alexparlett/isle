@@ -2,6 +2,7 @@
 //! tests, or real hardware.
 
 pub mod headless;
+pub mod udev;
 pub mod winit;
 
 use smithay::{
@@ -25,6 +26,7 @@ pub const CLEAR: [f32; 4] = [0.11, 0.11, 0.12, 1.0];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
+    Udev,
     Winit,
     Headless,
 }
@@ -32,6 +34,7 @@ pub enum Kind {
 // One value for the life of the process; its size does not matter.
 #[allow(clippy::large_enum_variant)]
 pub enum Backend {
+    Udev(udev::Udev),
     Winit(winit::Winit),
     Headless(headless::Headless),
 }
@@ -51,6 +54,7 @@ pub struct Pixels {
 impl Backend {
     pub fn seat_name(&self) -> String {
         match self {
+            Backend::Udev(udev) => udev.seat_name(),
             Backend::Winit(_) => "winit".into(),
             Backend::Headless(_) => "headless".into(),
         }
@@ -58,6 +62,7 @@ impl Backend {
 
     pub fn render(&mut self, isle: &mut Isle, output: &Output) -> Result<Rendered, String> {
         match self {
+            Backend::Udev(udev) => udev.render(isle, output),
             Backend::Winit(winit) => winit.render(isle, output),
             Backend::Headless(headless) => headless.render(isle, output),
         }
@@ -70,6 +75,7 @@ impl Backend {
 
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         match self {
+            Backend::Udev(udev) => udev.import_dmabuf(dmabuf),
             Backend::Winit(winit) => winit.import_dmabuf(dmabuf),
             Backend::Headless(headless) => headless.import_dmabuf(dmabuf),
         }
@@ -78,12 +84,13 @@ impl Backend {
     pub fn update_cursor(&mut self, isle: &Isle) {
         match self {
             Backend::Winit(winit) => winit.update_cursor(isle),
-            Backend::Headless(_) => {}
+            Backend::Udev(_) | Backend::Headless(_) => {}
         }
     }
 
     fn renderer(&mut self) -> &mut GlesRenderer {
         match self {
+            Backend::Udev(udev) => udev.renderer(),
             Backend::Winit(winit) => winit.renderer(),
             Backend::Headless(headless) => &mut headless.renderer,
         }
@@ -105,7 +112,7 @@ impl Backend {
         );
         let mut framebuffer = renderer.bind(&mut texture).map_err(|e| e.to_string())?;
         let mut elements = Vec::new();
-        isle.render_elements(renderer, output, &mut |e| elements.push(e));
+        isle.render_elements(renderer, output, None, &mut |e| elements.push(e));
         tracker
             .render_output(renderer, &mut framebuffer, 0, &elements, CLEAR)
             .map_err(|e| format!("{e:?}"))?;

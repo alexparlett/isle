@@ -158,6 +158,9 @@ impl State {
                 self.isle.apply_output_settings(output);
             }
         }
+        if touched("pointer[") {
+            self.reapply_pointer_settings();
+        }
         if touched("debug.") {
             self.isle
                 .heartbeat

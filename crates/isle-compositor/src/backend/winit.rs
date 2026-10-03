@@ -79,7 +79,7 @@ impl Winit {
         let (damage, states) = {
             let (renderer, mut framebuffer) = self.backend.bind().map_err(|e| e.to_string())?;
             let mut elements = Vec::new();
-            isle.render_elements(renderer, output, &mut |e| elements.push(e));
+            isle.render_elements(renderer, output, None, &mut |e| elements.push(e));
             let result = self
                 .damage_tracker
                 .render_output(renderer, &mut framebuffer, age, &elements, CLEAR)

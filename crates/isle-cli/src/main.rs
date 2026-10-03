@@ -55,6 +55,8 @@ enum Windows {
 #[derive(Subcommand)]
 enum Displays {
     List,
+    /// Release every display and probe the connectors again, as after a KVM switch.
+    Redetect,
 }
 
 #[derive(Subcommand)]
@@ -163,6 +165,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 Windows::Close { id } => found(proxy.close(*id).await?, *id)?,
             }
         }
+        Command::Displays(Displays::Redetect) => DisplaysProxy::new(&bus).await?.redetect().await?,
         Command::Displays(Displays::List) => {
             let displays = DisplaysProxy::new(&bus).await?.list().await?;
             if cli.json {

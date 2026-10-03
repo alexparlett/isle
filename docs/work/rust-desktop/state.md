@@ -27,5 +27,9 @@
 - P1 planned in `p1-design.md`: six stages with a user gate each;
   mock-ups in HTML on a shared harness that reads `tokens.kdl`, moving to
   Freya once P3's preview mode exists; boards also published as private
-  Artifacts. Next: P1 stage 1 (research and the interview), and P2
+  Artifacts.
+- P1 stage 1: the three research notes are written
+  (`design-macos.md`, `design-references.md`, `design-v1-lessons.md`),
+  the interview is done, and `p1/brief.md` passed gate 1. Stage 2
+  (structure) has started on its first batch. P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

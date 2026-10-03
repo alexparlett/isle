@@ -2,6 +2,13 @@
 
 ## 2026-10-03
 
+- P1 stage 1: research notes on macOS 27, other desktops and v1's
+  lessons written; the interview took four rounds (both appearances dark
+  first, frosted glass with a slider, Mac density, one picked accent,
+  restrained motion, Dock at the bottom, the island a dark pill opening
+  on hover, a full-screen widget dashboard kept). The brief passed
+  gate 1 ("agreed for now").
+
 - P1 planned (`p1-design.md`). The user chose HTML mock-ups first, then
   Freya from P3's preview mode on, and working files in the repo with
   each gate's board also published as an Artifact.

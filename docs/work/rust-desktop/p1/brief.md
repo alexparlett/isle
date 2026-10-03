@@ -27,7 +27,7 @@ Asked 2026-10-03 in four rounds of choices.
 | A glass setting | Yes: one slider from more see-through to fully tinted, frosted by default; Reduce Transparency still makes it solid |
 | Density | Mac default sizes |
 | Colour | One accent, the user picks it |
-| Typeface | Left to the directions (free to ship; no SF Pro) |
+| Typeface | Left to the directions (free to ship; no SF Pro); Inter, with Frost at gate 3 |
 | Motion | Restrained: short, critically damped moves and fades, no bounce |
 | Dock | Bottom, always shown; replaced by revision 1: no Dock |
 | Island at rest | A small dark pill, always present, like a notch; replaced by revision 1: v1's pill with the clock and glyphs |
@@ -120,6 +120,12 @@ To design to. Each is checked at every gate.
   minimal desktop to batch 1's menu bar and Dock. At rest: the wallpaper
   and v1's pill; menus on demand; no Dock. Directions in
   `structure/revision-1.md`; B18 and B19 are revised at the gate.
+
+- **Gate 3** (2026-10-03): direction A, Frost, chosen over Slate and
+  Dusk: macOS 27's frosted glass, neutral cool greys, Inter, soft shadows
+  for depth, medium corners, coloured pane icons, critically damped
+  motion. Its draft tokens are `directions/frost/tokens.kdl`; stage 4
+  makes them the system.
 
 ## Constraints
 

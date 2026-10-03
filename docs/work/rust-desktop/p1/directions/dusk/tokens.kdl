@@ -1,0 +1,70 @@
+// Direction C, Dusk: deeper glass that carries the wallpaper's colour, soft depth and larger corners, Figtree.
+colour {
+    dark {
+        window "#211e21"
+        window-raised "#2c282c"
+        window-sunken "#1a171a"
+        text "#f5f1ee"
+        text-2 "rgba(245,241,238,0.62)"
+        text-3 "rgba(245,241,238,0.38)"
+        hairline "rgba(255,240,230,0.08)"
+        hairline-strong "rgba(255,240,230,0.22)"
+        fill "rgba(255,240,230,0.08)"
+        fill-strong "rgba(255,240,230,0.16)"
+        accent "#f2a541"
+        on-accent "#1d1406"
+        ok "#6cc98f"
+        warn "#f2c14e"
+        danger "#ff7468"
+        live "#ff4f3f"
+        island "rgba(22,19,22,0.58)"
+        island-text "#f5f1ee"
+        scrim "rgba(10,6,8,0.45)"
+    }
+    light {
+        window "#f6f3f1"
+        window-raised "#fdfbfa"
+        window-sunken "#ece8e5"
+        text "#221d1f"
+        text-2 "rgba(34,29,31,0.62)"
+        text-3 "rgba(34,29,31,0.38)"
+        hairline "rgba(60,30,20,0.09)"
+        hairline-strong "rgba(60,30,20,0.24)"
+        fill "rgba(60,30,20,0.05)"
+        fill-strong "rgba(60,30,20,0.10)"
+        accent "#b8650b"
+        on-accent "#ffffff"
+        ok "#1f8f55"
+        warn "#a77707"
+        danger "#cc3b30"
+        live "#dd3727"
+        island "rgba(252,249,247,0.62)"
+        island-text "#221d1f"
+        scrim "rgba(30,15,10,0.26)"
+    }
+}
+material {
+    glass { dark "rgba(36,30,34,0.54)"; light "rgba(250,247,245,0.60)" }
+    glass-solid { dark "#2a2529"; light "#f4f0ed" }
+    blur 64
+    saturation 2.1
+}
+type {
+    family "Figtree, system-ui, sans-serif"
+    mono "JetBrains Mono, ui-monospace, monospace"
+    size { caption 11; small 12; body 13; title 15; large 21; display 36 }
+    weight { regular 400; medium 500; bold 650 }
+}
+radius { window 12; panel 26; card 16; control 10; row 8 }
+space { xs 4; s 8; m 12; l 16; xl 24 }
+size { strip 52; island-top 10; island-height 32; bar-height 36; row 30; titlebar 40 }
+shadow {
+    window { dark "0 30px 80px rgba(0,0,0,0.60), 0 0 0 0.5px rgba(0,0,0,0.7)"; light "0 30px 80px rgba(60,30,20,0.20), 0 0 0 0.5px rgba(60,30,20,0.20)" }
+    window-inactive { dark "0 14px 40px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(0,0,0,0.6)"; light "0 14px 40px rgba(60,30,20,0.12), 0 0 0 0.5px rgba(60,30,20,0.16)" }
+    panel { dark "0 24px 64px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,240,230,0.10)"; light "0 24px 64px rgba(60,30,20,0.18), inset 0 1px 0 rgba(255,255,255,0.70)" }
+}
+motion {
+    morph { stiffness 300; damping 33 }
+    open { stiffness 340; damping 35 }
+    fade-ms 200
+}

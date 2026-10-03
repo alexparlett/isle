@@ -1,0 +1,70 @@
+// Direction A, Frost: macOS 27's frosted glass, neutral and cool, Inter.
+colour {
+    dark {
+        window "#1e1f23"
+        window-raised "#2a2b30"
+        window-sunken "#18191c"
+        text "#f2f3f5"
+        text-2 "rgba(242,243,245,0.62)"
+        text-3 "rgba(242,243,245,0.38)"
+        hairline "rgba(255,255,255,0.09)"
+        hairline-strong "rgba(255,255,255,0.22)"
+        fill "rgba(255,255,255,0.08)"
+        fill-strong "rgba(255,255,255,0.16)"
+        accent "#4f8dff"
+        on-accent "#ffffff"
+        ok "#4cc38a"
+        warn "#f2c14e"
+        danger "#ff6961"
+        live "#ff453a"
+        island "rgba(18,19,22,0.72)"
+        island-text "#f2f3f5"
+        scrim "rgba(0,0,0,0.42)"
+    }
+    light {
+        window "#f6f6f7"
+        window-raised "#ffffff"
+        window-sunken "#ececee"
+        text "#1b1c1f"
+        text-2 "rgba(27,28,31,0.62)"
+        text-3 "rgba(27,28,31,0.38)"
+        hairline "rgba(0,0,0,0.09)"
+        hairline-strong "rgba(0,0,0,0.24)"
+        fill "rgba(0,0,0,0.05)"
+        fill-strong "rgba(0,0,0,0.10)"
+        accent "#2563d6"
+        on-accent "#ffffff"
+        ok "#1f9d5c"
+        warn "#b7860b"
+        danger "#d93c32"
+        live "#e5372c"
+        island "rgba(250,250,251,0.72)"
+        island-text "#1b1c1f"
+        scrim "rgba(0,0,0,0.28)"
+    }
+}
+material {
+    glass { dark "rgba(34,35,40,0.66)"; light "rgba(246,246,248,0.70)" }
+    glass-solid { dark "#25262b"; light "#f3f3f5" }
+    blur 48
+    saturation 1.8
+}
+type {
+    family "Inter, system-ui, sans-serif"
+    mono "JetBrains Mono, ui-monospace, monospace"
+    size { caption 11; small 12; body 13; title 15; large 20; display 34 }
+    weight { regular 400; medium 500; bold 600 }
+}
+radius { window 10; panel 20; card 12; control 7; row 6 }
+space { xs 4; s 8; m 12; l 16; xl 24 }
+size { strip 48; island-top 9; island-height 30; bar-height 34; row 28; titlebar 38 }
+shadow {
+    window { dark "0 22px 60px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(0,0,0,0.7)"; light "0 22px 60px rgba(0,0,0,0.18), 0 0 0 0.5px rgba(0,0,0,0.22)" }
+    window-inactive { dark "0 10px 30px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(0,0,0,0.6)"; light "0 10px 30px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.18)" }
+    panel { dark "0 18px 50px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.10)"; light "0 18px 50px rgba(0,0,0,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.60)" }
+}
+motion {
+    morph { stiffness 360; damping 38 }
+    open { stiffness 420; damping 41 }
+    fade-ms 160
+}

@@ -42,5 +42,9 @@
   (parity surfaces: Notification Centre and widgets, Mission Control and
   the window model's rest, Files, Monitor, Keychain, Cleaner, the
   dropdown terminal, PiP, the on-screen keyboard, clipboard and emoji),
-  which can run beside stage 3 (directions). P2 is
+  which can run beside stage 3 (directions).
+- P1 stage 3 passed gate 3: direction A, Frost (board
+  `p1/directions-1.html`, tokens in `p1/directions/`). Batch 3's sheets
+  are written and wait for gate 2 on `p1/structure-3.html`. Next: stage 4,
+  the system, from Frost's tokens. P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

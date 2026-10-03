@@ -100,7 +100,7 @@
         if (node.name === "dark" || node.name === "light") t = node.name;
         else p = path.concat(node.name);
         if (node.args.length) {
-          const v = node.args.map((a) => (typeof a === "number" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
+          const v = node.args.map((a) => (typeof a === "number" && !/(opacity|weight|scale|ratio|stiffness|damping|mass|factor|saturation|brightness|height-ratio|-ms)$/.test(p.join("-")) ? a + "px" : a)).join(" ");
           vars[t || "any"]["--" + p.join("-")] = v;
         }
         walk(node.children, p, t);
@@ -164,6 +164,7 @@
     dusk: { name: "Dusk", css: "radial-gradient(120% 90% at 70% 110%, #3b2f5c 0%, #1d1a33 40%, #0d0d16 75%)" },
     slate: { name: "Slate", css: "linear-gradient(160deg, #23262b 0%, #15171a 60%, #0f1012 100%)" },
     pine: { name: "Pine", css: "radial-gradient(90% 120% at 15% 0%, #1f3a35 0%, #10201d 45%, #0a1110 100%)" },
+    haze: { name: "Haze", css: "radial-gradient(40% 55% at 18% 30%, #3a2f63 0%, transparent 70%), radial-gradient(45% 60% at 82% 70%, #1f4a57 0%, transparent 70%), radial-gradient(30% 40% at 55% 15%, #5a3348 0%, transparent 70%), #101116" },
     mist: { name: "Mist", css: "radial-gradient(100% 120% at 30% 0%, #e9eef4 0%, #cfd8e3 55%, #b7c3d1 100%)" },
   };
 
@@ -173,19 +174,24 @@
   };
 
   // config: { title, subtitle, tokens: "path/to/tokens.kdl" | null,
+  //   directions: [{ id, name, tokens, note }] (optional; replaces tokens),
   //   surfaces: [{ id, name, sheet, states: [{ id, name, note, screen, render(screen, ctx) }] }] }
   Isle.board = function (config) {
-    const hasTokens = !!config.tokens;
+    const directions = config.directions || null;
+    const hasTokens = !!(config.tokens || directions);
     const state = {
       surface: config.surfaces[0].id,
       st: config.surfaces[0].states[0].id,
       theme: load("theme", "dark"),
       mode: hasTokens ? load("mode", "tokens") : "wire",
-      wallpaper: load("wallpaper", hasTokens ? "dusk" : "wire"),
+      wallpaper: load("wallpaper:" + config.title, config.wallpaper || (hasTokens ? "dusk" : "wire")),
       screen: "ultrawide",
       actual: false,
       whole: load("whole", false),
+      direction: directions ? load("direction:" + config.title, directions[0].id) : null,
     };
+    if (directions && !directions.find((d) => d.id === state.direction)) state.direction = directions[0].id;
+    const tokensPath = () => directions ? directions.find((d) => d.id === state.direction).tokens : config.tokens;
     Object.assign(Isle.flags, load("flags", {}));
 
     function readHash() {
@@ -235,9 +241,10 @@
 
     function buildControls() {
       controls.replaceChildren(...[
+        directions ? select("direction", "Direction", Object.fromEntries(directions.map((d) => [d.id, d.name])), state.direction, (v) => { state.direction = v; save("direction:" + config.title, v); tokenText = null; readTokens(); }) : null,
         select("theme", "Appearance", { dark: "Dark", light: "Light" }, state.theme, (v) => { state.theme = v; save("theme", v); render(); }),
         hasTokens ? select("mode", "Draw", { tokens: "Tokens", wire: "Wireframe" }, state.mode, (v) => { state.mode = v; save("mode", v); render(); }) : null,
-        select("wallpaper", "Wallpaper", Object.fromEntries(Object.entries(WALLPAPERS).map(([k, v]) => [k, v.name])), state.wallpaper, (v) => { state.wallpaper = v; save("wallpaper", v); render(); }),
+        select("wallpaper", "Wallpaper", Object.fromEntries(Object.entries(WALLPAPERS).map(([k, v]) => [k, v.name])), state.wallpaper, (v) => { state.wallpaper = v; save("wallpaper:" + config.title, v); render(); }),
         select("screen", "Screen", Object.fromEntries(Object.entries(SCREENS).map(([k, v]) => [k, v.name])), state.screen, (v) => { state.screen = v; render(); }),
         toggle("whole", "Whole screen", state.whole, (v) => { state.whole = v; save("whole", v); fit(); }),
         toggle("actual", "Actual size", state.actual, (v) => { state.actual = v; fit(); }),
@@ -262,7 +269,7 @@
     async function readTokens() {
       if (!hasTokens) return;
       try {
-        const res = await fetch(config.tokens, { cache: "no-store" });
+        const res = await fetch(tokensPath(), { cache: "no-store" });
         if (!res.ok) throw new Error("tokens.kdl: " + res.status);
         const text = await res.text();
         if (text === tokenText) return;
@@ -300,6 +307,7 @@
       history.replaceState(null, "", "#" + surface.id + "." + st.id);
 
       screen.dataset.mode = state.mode;
+      if (directions) screen.dataset.direction = state.direction;
       screen.dataset.themeScreen = state.theme;
       screen.dataset.rt = Isle.flags.reduceTransparency ? "1" : "0";
       screen.dataset.ic = Isle.flags.increaseContrast ? "1" : "0";
@@ -314,9 +322,12 @@
         replay: () => render(),
       };
       st.render(layer, ctx);
+      if (config.afterRender) config.afterRender(layer, ctx);
 
+      const dir = directions ? directions.find((d) => d.id === state.direction) : null;
       note.replaceChildren(...[
-        h("h2", {}, surface.name + " · " + st.name),
+        h("h2", {}, (dir ? dir.name + " · " : "") + surface.name + " · " + st.name),
+        dir && dir.note ? h("p", { class: "hb-dir" }, dir.note) : null,
         st.note ? h("p", {}, st.note) : null,
         surface.sheet ? h("p", { class: "hb-sheet" }, "Sheet: ", h("code", {}, surface.sheet)) : null].filter(Boolean));
       fit();

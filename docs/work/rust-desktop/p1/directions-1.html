@@ -1,0 +1,230 @@
+<title>Isle directions</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<link rel="stylesheet" href="directions/kit.css">
+<style>
+  .hb-dir { color: var(--hb-fg) !important; }
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ul { padding-left: 20px; margin: 0; }
+</style>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="harness/harness.js"></script>
+<script>
+(function () {
+  // The same sample drawn in each direction, every value from its tokens.kdl.
+  const W = 3440, H = 1440, CX = W / 2;
+  const { h } = Isle;
+
+  const k = (cls, style, ...kids) => h("div", { class: "k " + cls, style: style || {} }, ...kids);
+  const at = (x, y, w, hh) => ({ left: x + "px", top: y + "px", width: w ? w + "px" : undefined, height: hh ? hh + "px" : undefined });
+  const ic = (name, size) => h("i", { "data-lucide": name, class: "k-ic", style: size ? { width: size + "px", height: size + "px" } : {} });
+  const span = (cls, s, style) => h("span", { class: cls, style: style || {} }, s);
+  const div = (cls, style, ...kids) => h("div", { class: cls, style: style || {} }, ...kids);
+  const row = (style, ...kids) => div("k-row", style, ...kids);
+  const col = (style, ...kids) => div("k-col", style, ...kids);
+  const v = (s, name, fallback) => parseFloat(getComputedStyle(s).getPropertyValue(name)) || fallback;
+  const cover = (size, a, b) => h("span", { style: { width: size + "px", height: size + "px", borderRadius: Math.round(size / 5) + "px", background: "linear-gradient(135deg," + (a || "#c05a8a") + "," + (b || "#4a3a9a") + ")", flex: "none", display: "block" } });
+
+  // ---- Island ---------------------------------------------------------------
+  function islandKids(form) {
+    const clock = span("k-clock", "14:32");
+    const privacy = () => h("span", { style: { display: "flex", gap: "4px" } },
+      h("span", { style: { width: "7px", height: "7px", borderRadius: "50%", background: "var(--colour-warn)" } }),
+      h("span", { style: { width: "7px", height: "7px", borderRadius: "50%", background: "var(--colour-ok)" } }));
+    switch (form) {
+      case "glyphs": return [clock, ic("bluetooth", 15), ic("volume-x", 15)];
+      case "media": return [cover(18), span("", "Midnight City"), span("k-t2", "M83"), ic("audio-lines", 15), clock];
+      case "several": return [h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: "var(--colour-live)" } }), span("k-num", "02:14"), ic("music", 14), clock, ic("bluetooth", 15), privacy()];
+      case "osd": return [ic("volume-2", 16), h("span", { class: "k-ccslider", style: { width: "180px", height: "6px", borderRadius: "3px" } }, h("b", { style: { width: "64%" } }))];
+      default: return [clock];
+    }
+  }
+  function island(s, form) {
+    const el = k("k-island", { left: CX + "px", top: "var(--size-island-top)", transform: "translateX(-50%)" }, ...islandKids(form));
+    s.append(el);
+    return el;
+  }
+
+  // ---- Windows ----------------------------------------------------------------
+  const PANES = [["wifi", "#2f7cf6", "Wi-Fi"], ["bluetooth", "#2f7cf6", "Bluetooth"], ["globe", "#2f7cf6", "Network"], null,
+    ["settings", "#8a8d93", "General"], ["accessibility", "#2f7cf6", "Accessibility"], ["sun-moon", "#1f1f22", "Appearance"], ["layout-grid", "#7a5af8", "Control Centre"], ["app-window", "#1f1f22", "Desktop"], ["monitor", "#2f7cf6", "Displays"], ["image", "#20a4c8", "Wallpaper"], null,
+    ["bell", "#ef4444", "Notifications"], ["volume-2", "#ec4899", "Sound"], ["moon", "#6366f1", "Focus"]];
+  function settingsWindow(s, x, y, w, hh, o = {}) {
+    const side = 250;
+    const win = k("k-window" + (o.inactive ? " is-inactive" : ""), at(x, y, w, hh));
+    const sidebar = div("", { position: "absolute", left: 0, top: 0, bottom: 0, width: side + "px", background: "var(--colour-window-sunken)", borderRight: "1px solid var(--colour-hairline)", padding: "14px 10px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "4px" },
+      div("k-lights", { margin: "2px 4px 14px" }, h("i"), h("i"), h("i")),
+      div("k-field", { marginBottom: "8px" }, ic("search", 14), "Search"),
+      row({ padding: "6px", gap: "10px", marginBottom: "6px" }, h("span", { style: { width: "34px", height: "34px", borderRadius: "50%", background: "linear-gradient(135deg,#6a7fdb,#3d4a8f)" } }), col({ gap: "1px" }, span("k-t", "Alex Parlett", { fontWeight: "var(--type-weight-medium)" }), span("k-cap", "Users & Groups"))),
+      ...PANES.map((p) => p ? row({ padding: "5px 6px", gap: "10px", borderRadius: "var(--radius-row)", background: p[2] === "Appearance" ? "var(--colour-fill-strong)" : "transparent" }, h("span", { class: "k-pane-ic", style: { background: p[1] } }, ic(p[0])), span("k-t", p[2])) : h("div", { style: { height: "10px" } })));
+    const content = div("", { position: "absolute", left: side + "px", right: 0, top: 0, bottom: 0, overflow: "hidden" },
+      div("", { height: "var(--size-titlebar)", display: "flex", alignItems: "center", gap: "12px", padding: "0 20px", borderBottom: "1px solid var(--colour-hairline)" }, ic("chevron-left", 16), ic("chevron-right", 16), span("k-title", "Appearance")),
+      col({ width: "560px", margin: "22px auto", gap: "18px" },
+        div("k-group", {},
+          div("k-grow-row", {}, span("k-t", "Appearance"), div("k-grow"), div("k-seg", {}, span("", "Light"), span("on", "Dark"), span("", "Auto"))),
+          div("k-grow-row", {}, span("k-t", "Accent colour"), div("k-grow"), row({ gap: "8px" }, ...["#4f8dff", "#8b5cf6", "#ec4899", "#ef4444", "#f59e0b", "#22c55e", "#8a8d93"].map((c, i) => h("span", { class: "k-swatch" + (i === 0 ? " on" : ""), style: { background: i === 0 ? "var(--colour-accent)" : c } }))))),
+        div("k-group", {},
+          div("k-grow-row", {}, span("k-t", "Glass"), div("k-grow"), span("k-t3", "Clear"), div("k-slider", { maxWidth: "200px" }, h("b", { style: { width: "62%" } })), span("k-t3", "Tinted")),
+          div("k-grow-row", {}, span("k-t", "Reduce transparency"), div("k-grow"), div("k-switch"))),
+        div("k-group", {},
+          div("k-grow-row", {}, span("k-t", "Show scroll bars"), div("k-grow"), span("k-t2", "When scrolling"), ic("chevrons-up-down", 14)),
+          div("k-grow-row", {}, span("k-t", "Sidebar icon size"), div("k-grow"), span("k-t2", "Medium"), ic("chevrons-up-down", 14))),
+        span("k-t3", "Isle's own apps follow these. Other apps take the closest match.", { padding: "0 4px" })));
+    win.append(sidebar, content);
+    s.append(win);
+    return win;
+  }
+  function terminalWindow(s, x, y, w, hh, o = {}) {
+    const win = k("k-window" + (o.inactive ? " is-inactive" : ""), Object.assign(at(x, y, w, hh), { background: "#15161a", color: "#d6d8dc" }));
+    win.append(div("k-titlebar", { background: "var(--colour-window)", color: "var(--colour-text)" }, div("k-lights", {}, h("i"), h("i"), h("i")), span("k-wtitle", "~/Development/isle — fish")),
+      h("div", { class: "k-term" },
+        h("span", { class: "d" }, "~/D/isle"), " ", h("span", { class: "m" }, "feature/rust-desktop"), " cargo build -p isle-compositor\n",
+        "   Compiling smithay v0.7.0 (git+https://github.com/alexparlett/smithay)\n",
+        "   Compiling isle-compositor v0.1.0 (~/Development/isle/crates/compositor)\n",
+        h("span", { class: "p" }, "    Finished"), " `dev` profile [unoptimized + debuginfo] target(s) in 41.2s\n",
+        h("span", { class: "d" }, "~/D/isle"), " ", h("span", { class: "m" }, "feature/rust-desktop"), " git status --short\n",
+        " M docs/work/rust-desktop/state.md\n",
+        "?? crates/compositor/src/island.rs\n",
+        h("span", { class: "d" }, "~/D/isle"), " ", h("span", { class: "m" }, "feature/rust-desktop"), " ▌"));
+    s.append(win);
+    return win;
+  }
+  function desktop(s, o = {}) {
+    terminalWindow(s, 1500, 170, 1180, 720, { inactive: !o.termActive });
+    settingsWindow(s, 300, 110, 1100, 760, { inactive: !!o.termActive });
+    if (o.island !== false) island(s, o.island || "rest");
+  }
+
+  // ---- Control Centre ------------------------------------------------------------
+  function ccPanel(s, inner) {
+    const w = 400;
+    const p = k("k-glass", Object.assign(at(CX - w / 2, null, w), { top: "var(--size-island-top)", borderRadius: "var(--radius-panel)", padding: "0 0 14px" }));
+    p.append(div("", { height: "var(--size-island-height)", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }, span("k-clock", "14:32"), ic("bluetooth", 15)), inner);
+    s.append(p);
+  }
+  function ccGrid() {
+    const tile = (c, r, kids, style) => div("k-tile", Object.assign({ gridColumn: "span " + c, gridRow: "span " + r }, style || {}), ...kids);
+    const sw = (icon, on, name, sub) => row({ gap: "10px", minWidth: 0 }, h("span", { class: "k-dot" + (on ? " on" : "") }, ic(icon)), col({ gap: "0", minWidth: 0 }, span("k-small", name, { fontWeight: "var(--type-weight-medium)" }), span("k-cap", sub)));
+    const small = (icon, on) => tile(1, 1, [h("span", { class: "k-dot" + (on ? " on" : ""), style: { margin: "auto" } }, ic(icon))]);
+    const slider = (label, icon, pct) => tile(4, 1, [span("k-cap", label), h("div", { class: "k-ccslider" }, ic(icon), h("b", { style: { width: pct + "%" } }))], { gap: "8px" });
+    return div("", { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "56px", gap: "8px", margin: "10px 14px 0" },
+      tile(2, 1, [sw("wifi", true, "Wi-Fi", "Home")]),
+      tile(2, 2, [row({ gap: "10px" }, cover(44), col({ gap: "2px", minWidth: 0 }, span("k-small", "Midnight City", { fontWeight: "var(--type-weight-medium)" }), span("k-cap", "M83"))), row({ justifyContent: "space-around", marginTop: "auto" }, ic("skip-back", 18), ic("pause", 20), ic("skip-forward", 18))]),
+      tile(2, 1, [sw("bluetooth", true, "Bluetooth", "2 devices")]),
+      tile(2, 1, [sw("moon", false, "Focus", "Off")]),
+      tile(2, 1, [sw("shield", false, "VPN", "Not connected")]),
+      slider("Sound", "volume-2", 64),
+      slider("Display", "sun", 78),
+      small("sunset", false), small("gauge", true),
+      tile(2, 1, [sw("download", false, "Updates", "3 available")]),
+      tile(2, 1, [sw("gamepad-2", false, "Batteries", "Controller 70%")]));
+  }
+  const ccFoot = () => div("", { display: "flex", justifyContent: "space-between", margin: "14px 18px 0", paddingTop: "10px", borderTop: "1px solid var(--colour-hairline)" }, span("k-cap", "Edit Controls"), span("k-cap", "Control Centre Settings…"));
+
+  // ---- Banner and menu ------------------------------------------------------------
+  function banner(s, x, y) {
+    s.append(k("k-glass k-banner", at(x, y, 380),
+      h("span", { class: "k-appicon", style: { background: "linear-gradient(180deg,#4aa3ff,#1f6fe0)" } }, ic("mail")),
+      col({ gap: "2px", minWidth: 0, flex: 1 },
+        row({}, span("k-cap", "Mail"), div("k-grow"), span("k-cap", "now")),
+        span("k-small", "Sam Rivera", { fontWeight: "var(--type-weight-bold)" }),
+        span("k-small", "Are we still on for the build review at four? I'll bring the frame timings.", { color: "var(--colour-text-2)" }),
+        row({ marginTop: "8px", gap: "6px" }, span("k-btn", "Reply", { fontSize: "var(--type-size-small)" }), span("k-btn", "Mark as Read", { fontSize: "var(--type-size-small)" })))));
+  }
+  function menuBar(s) {
+    s.append(k("k-glass k-bar", { left: 0, top: 0, width: W + "px", height: "var(--size-strip)", borderRadius: 0, boxShadow: "0 1px 0 var(--colour-hairline)" },
+      ic("hexagon", 16), span("", "System Settings", { fontWeight: "var(--type-weight-bold)" }), span("k-mt", "File"), span("k-mt", "Edit"), span("k-mt open", "View"), span("k-mt", "Window"), span("k-mt", "Help")));
+    const m = k("k-glass k-menu", at(290, 46));
+    const mi = (label, key, cls) => div("k-mi" + (cls ? " " + cls : ""), {}, span("", label), key ? span("k-key", key) : null);
+    m.append(mi("Back", "⌘["), mi("Forward", "⌘]", "dim"), h("hr"), mi("Show All Panes", "⌘L", "sel"), mi("Search", "⌘F"), h("hr"), mi("Enter Full Screen", "⌃⌘F"));
+    s.append(m);
+  }
+
+  const icons = () => { if (window.lucide) lucide.createIcons({ icons: lucide.icons }); };
+
+  const CENTRE = [CX - 420, 0, 840, 110];
+  Isle.board({
+    title: "Isle directions",
+    subtitle: "P1 stage 3: three directions drawing the same sample, each from its own tokens.kdl. Switch Direction above the screen; try Light, the wallpapers and Reduce transparency.",
+    wallpaper: "haze",
+    directions: [
+      { id: "frost", name: "A · Frost", tokens: "directions/frost/tokens.kdl", note: "macOS 27's frosted glass, neutral and cool. Inter. Soft shadows carry depth; medium corners; coloured pane icons; motion critically damped." },
+      { id: "slate", name: "B · Slate", tokens: "directions/slate/tokens.kdl", note: "Mostly solid surfaces drawn by hairlines, crisp and technical. Geist and Geist Mono. Small corners, little shadow, monochrome glyphs, a near-black island; the quickest motion." },
+      { id: "dusk", name: "C · Dusk", tokens: "directions/dusk/tokens.kdl", note: "Deeper glass that carries the wallpaper's colour, warm neutrals, an amber accent. Figtree. Larger corners and deep soft shadows; the softest motion, still without bounce." },
+    ],
+    afterRender: icons,
+    surfaces: [
+      { id: "desk", name: "Desktop", states: [
+        { id: "rest", name: "At rest", crop: [180, 0, 2700, 960], note: "The island at rest over two windows: Isle's System Settings (unified toolbar, sidebar to the edge) and a third-party terminal with Isle's title bar.", render(s) { desktop(s); } },
+        { id: "windows", name: "Terminal in front", crop: [180, 0, 2700, 960], note: "The same windows with the terminal active: the deeper shadow and lit lights move to it.", render(s) { desktop(s, { termActive: true }); } },
+      ] },
+      { id: "island", name: "Island", states: [
+        { id: "rest", name: "Rest", crop: CENTRE, note: "The clock alone.", render(s) { desktop(s); } },
+        { id: "glyphs", name: "Glyphs", crop: CENTRE, note: "Bluetooth connected, sound muted.", render(s) { desktop(s, { island: "glyphs" }); } },
+        { id: "media", name: "Media", crop: CENTRE, note: "Media leading: cover, title, artist, a playing mark, then the clock.", render(s) { desktop(s, { island: "media" }); } },
+        { id: "several", name: "Several", crop: CENTRE, note: "Recording leads, media as a mark, then the clock, a glyph and the privacy marks.", render(s) { desktop(s, { island: "several" }); } },
+        { id: "osd", name: "Volume", crop: CENTRE, note: "An OSD covers the pill's row for its moment.", render(s) { desktop(s, { island: "osd" }); } },
+      ] },
+      { id: "cc", name: "Control Centre", states: [
+        { id: "grid", name: "Grid", crop: [CX - 520, 0, 1040, 820], note: "Unfolded from the pill on hover: the default grid.", render(s) { desktop(s, { island: false }); ccPanel(s, div("", {}, ccGrid(), div("", { margin: "12px 18px 0" }, span("k-cap", "Tray")), row({ margin: "6px 18px 0", gap: "14px", color: "var(--colour-text-2)" }, ic("cloud", 16), ic("message-circle", 16), ic("key-round", 16)), ccFoot())); } },
+        { id: "page", name: "Wi-Fi page", crop: [CX - 520, 0, 1040, 600], note: "A module's page: its head carries the switch, then the networks, then a link to Settings.", render(s) {
+          desktop(s, { island: false });
+          const net = (name, on, lock) => row({ padding: "6px 10px", gap: "10px", borderRadius: "var(--radius-row)", background: on ? "var(--colour-fill)" : "transparent" }, h("span", { class: "k-dot" + (on ? " on" : ""), style: { width: "26px", height: "26px", borderRadius: "50%", display: "grid", placeItems: "center", background: on ? "var(--colour-accent)" : "var(--colour-fill-strong)", color: on ? "var(--colour-on-accent)" : "var(--colour-text)" } }, ic("wifi", 14)), span("k-small", name), div("k-grow"), lock ? ic("lock", 13) : null);
+          ccPanel(s, col({ margin: "10px 14px 0", gap: "4px" },
+            row({ padding: "6px 4px 10px", gap: "10px" }, ic("chevron-left", 16), span("k-title", "Wi-Fi"), div("k-grow"), div("k-switch on")),
+            span("k-cap", "Known network", { padding: "0 10px" }), net("Home", true, true),
+            span("k-cap", "Other networks", { padding: "8px 10px 0" }), net("Office", false, true), net("Café guest", false, false), net("PRINTER-4F2", false, true),
+            div("", { borderTop: "1px solid var(--colour-hairline)", margin: "8px 4px 4px" }), span("k-small", "Other…", { padding: "4px 10px" }), span("k-small", "Wi-Fi Settings…", { padding: "4px 10px" })));
+        } },
+      ] },
+      { id: "bar", name: "Menu bar", states: [
+        { id: "menu", name: "Revealed", crop: [0, 0, 2000, 600], note: "Pushed down from the top edge: the app's menus on the left, nothing on the right, the island in front.", render(s) { desktop(s, { island: false }); menuBar(s); island(s, "rest"); } },
+      ] },
+      { id: "banner", name: "Banner", states: [
+        { id: "banner", name: "Over windows", crop: [W - 1500, 0, 1500, 640], note: "Top right under the island's strip.", render(s) { terminalWindow(s, 1900, 170, 1300, 720); island(s, "rest"); banner(s, W - 396, 60); } },
+      ] },
+      { id: "motion", name: "Motion", states: [
+        { id: "morph", name: "Island morph", crop: [CX - 520, 0, 1040, 820], note: "The pill grows into the media face, then unfolds into Control Centre, on the direction's own springs. Click the state again to replay; Reduce motion makes each change instant.", render(s, c) {
+          desktop(s, { island: false });
+          const el = island(s, "rest");
+          const stiff = v(s, "--motion-morph-stiffness", 360), damp = v(s, "--motion-morph-damping", 38);
+          const openS = v(s, "--motion-open-stiffness", 420), openD = v(s, "--motion-open-damping", 41);
+          const w0 = el.offsetWidth || 80;
+          el.style.overflow = "hidden"; el.style.justifyContent = "center";
+          setTimeout(() => {
+            el.replaceChildren(...islandKids("media")); icons();
+            el.style.width = "auto"; const w1 = el.scrollWidth; el.style.width = w0 + "px";
+            c.spring({ from: w0, to: w1, stiffness: stiff, damping: damp }, (x) => { el.style.width = x + "px"; });
+          }, 500);
+          setTimeout(() => {
+            const p = h("div", { style: { position: "absolute", left: 0, right: 0, top: "var(--size-island-height)", opacity: 0 } }, ccGrid());
+            el.classList.remove("k-island"); el.classList.add("k-glass");
+            Object.assign(el.style, { alignItems: "flex-start", padding: "0", display: "block", borderRadius: "var(--radius-panel)" });
+            const row0 = h("div", { style: { height: "var(--size-island-height)", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" } }, span("k-clock", "14:32"));
+            el.replaceChildren(row0, p);
+            const wStart = el.offsetWidth, hStart = 30;
+            c.spring({ from: 0, to: 1, stiffness: openS, damping: openD }, (t) => {
+              el.style.width = (wStart + (400 - wStart) * t) + "px";
+              el.style.height = (hStart + (480 - hStart) * t) + "px";
+              p.style.opacity = String(Math.max(0, Math.min(1, (t - 0.15) / 0.85)));
+            });
+            icons();
+          }, 1900);
+        } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 3">
+  <h2>Gate 3: pick a direction, or name what to take from each</h2>
+  <ul>
+    <li><b>A · Frost</b>: the faithful Mac. Frosted glass, Inter, soft depth. Safest, most familiar.</li>
+    <li><b>B · Slate</b>: a coding machine's desktop. Near-solid surfaces and hairlines, Geist, small corners, quickest motion. Calmest, least Mac-like.</li>
+    <li><b>C · Dusk</b>: the most atmosphere. Glass that carries the wallpaper's colour, warm neutrals, larger corners, Figtree. Most character, the most to keep legible.</li>
+  </ul>
+  <p>Things to look at: the island in each, Control Centre's tiles, the Settings window's grouped rows and pane icons, the menu over a window, Light with the Mist wallpaper, and Reduce transparency. The accent is a default you would change; judge everything else.</p>
+</section>

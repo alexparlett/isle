@@ -2,6 +2,11 @@
 
 ## 2026-10-03
 
+- P1 gate 3: the user chose Frost. Three directions (Frost, Slate, Dusk)
+  were drawn on the harness, now able to switch directions, each from its
+  own `tokens.kdl` through a shared kit of components. Batch 3 of the
+  structure sheets ran beside it and is on its own board.
+
 - P1 gate 2, batch 2 passed with every recommendation accepted: banners
   top right under the island's strip; Game Mode wins over a manual Focus;
   Control Centre a four-column grid of sixteen modules, media only in Now

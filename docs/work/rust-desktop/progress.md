@@ -2,6 +2,20 @@
 
 ## 2026-10-03
 
+- P1 gate 2, batch 1 passed. The first board (menu bar always shown, Dock
+  at the bottom) was redrawn when the user preferred v1's minimal desktop:
+  revision 1 keeps v1's pill with the clock and active glyphs, opens
+  Control Centre from it, brings the app's menus down on demand, and drops
+  the Dock for Spotlight's Apps grid and the switcher. Every
+  recommendation accepted; standard menu items keep Apple's title case.
+  B18 and B19 revised; shell, compositor, gaming, apps and platform intent
+  docs, DESIGN, ARCHITECTURE, README and the roadmap (P6 island and menus,
+  P7 switcher and launching) updated.
+- P1 stage 2 started: the structure template, the harness
+  (`p1/harness/`, served by `serve.py`, `p1-boards` in launch.json), and
+  batch 1's sheets for window chrome, the menu bar, the island, the Dock,
+  the switcher and the wallpaper, with the copy and competition sheets.
+
 - P1 stage 1: research notes on macOS 27, other desktops and v1's
   lessons written; the interview took four rounds (both appearances dark
   first, frosted glass with a slider, Mac density, one picked accent,

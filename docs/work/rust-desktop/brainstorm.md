@@ -28,8 +28,8 @@ is in `docs/DECISIONS.md`, the one authoritative copy. Index:
 - B15 · The name stays Isle.
 - B16 · Built in this repository on `feature/rust-desktop`.
 - B17 · North star: a macOS-style desktop on Arch (CachyOS).
-- B18 · A menu bar with the global menu, and the island in the notch.
-- B19 · A Dock.
+- B18 · The island at rest, the global menu on demand (revised).
+- B19 · No Dock (revised).
 - B20 · App-centric windows.
 - B21 · Cmd everywhere.
 - B22 · No console mode of Isle's own.

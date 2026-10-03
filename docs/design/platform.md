@@ -238,7 +238,7 @@ bindings or pacman's CLIs. Volume through WirePlumber semantics
 ### App index and launching
 
 Every installed app, including an AppImage dropped in `~/Applications`, is
-known by name and icon to the launcher, Dock, menu bar, switcher and session
+known by name and icon to the launcher, menu bar, switcher and session
 restore.
 
 1. The index of desktop entries and icons is built on the worker and updated
@@ -281,17 +281,19 @@ and survive a restart as history.
 5. Invoking an action hands the app an activation token so it can raise its
    window.
 6. Badges and progress from `com.canonical.Unity.LauncherEntry` signals are
-   kept per desktop entry for the Dock (`macos-model.md` §3).
+   kept per desktop entry for the switcher's cards and the Apps view's
+   tiles (`macos-model.md` §3).
 
 **v1 lessons kept.** D26. A phone's notifications arrive through KDE Connect
 like any other (D51).
 
 ### Tray and global menu registrar
 
-Status items sit in the menu bar with their menus, and the focused app's
-menus are in the menu bar wherever the app exports them, with a designed
-fallback menu otherwise. The menu bar itself is `shell.md`; the Wayland and
-X11 halves of menu collection are `compositor.md`.
+Other programs' status items sit in Control Centre's tray with their menus,
+and the focused app's menus are in the on-demand menu bar wherever the app
+exports them, with a designed fallback menu otherwise. The menu bar and
+Control Centre themselves are `shell.md`; the Wayland and X11 halves of menu
+collection are `compositor.md`.
 
 1. Isle owns `com.canonical.AppMenu.Registrar` at
    `/com/canonical/AppMenu/Registrar` before the compositor accepts its
@@ -799,28 +801,33 @@ first.
 What this document leaves to P1, per feature; "proposal" is the answer it
 gave before.
 
-- **Settings**: how a rejected hand edit is shown (proposal: by the shell,
-  with file, line, column and message, until fixed).
+- **Settings**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
 - **Design tokens**: the token names and values (B3).
-- **Notifications and badges**: how records without actions are shown; how
-  badges and progress look in the Dock.
+- **Notifications and badges**: how records without actions are shown.
+  Where badges and progress show (B19) is answered in P1
+  (`docs/work/rust-desktop/p1/structure/dock.md`, `switcher.md`) and
+  recorded in DESIGN.md at gate 6.
 - **Polkit agent, keyring prompter, network and Bluetooth agents**: each
   prompt's layout and copy; the refusal callers show (proposal: "Permission
   was not given").
-- **Portal backend**: where a running cast is shown (proposal: the island,
-  with Stop, B24); the picker's layout.
-- **Calendars**: whether an event soon to start is shown as live activity
-  (proposal: no; the island carries no calendar, the Calendar widget shows
-  it).
+- **Portal backend**: the picker's layout. Where a running cast is shown is
+  answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in
+  DESIGN.md at gate 6.
+- **Calendars**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
 - **Providers**: how grants are shown (proposal: toggles); how a state
   sentence and actions are laid out.
 - **Supervisor and crash records**: the crash notice's form and copy; how the
   safe start (settings ignored) is announced.
-- **Updates**: where a restart owed is shown (proposal: a status item and a
-  line in the system menu, `shell.md`).
+- **Updates**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`); recorded in
+  DESIGN.md at gate 6.
 - **Login Items and session restore**: the log-out confirmation's copy
   (proposal: "Reopen windows when logging back in").
-- **Focus**: how the current Focus is shown, and the summary's copy.
+- **Focus**: the summary's copy. How the current Focus is shown is answered
+  in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at
+  gate 6.
 
 ## Acceptance bars
 
@@ -903,7 +910,7 @@ gave before.
 
 ## Not here
 
-- Surfaces: the menu bar, island, Control Centre, Notification Centre, Dock,
+- Surfaces: the island, menu bar, Control Centre, Notification Centre,
   launcher, switcher, lock and greeter drawing, pickers and dialogs:
   `shell.md`. How anything is presented: P1, the design process.
 - The separate apps (Settings, Files, Keychain, Monitor, Cleaner) and their

@@ -176,11 +176,22 @@ Rejected: a new repository.
 choice is open, the answer is the one a Mac user expects, built for this
 machine, which is used mostly for gaming and coding. B18–B21 are its first consequences.
 
-**B18 · A menu bar with the global menu, and the island in the notch.**
-The top of the screen is a menu bar: the focused app's name and menus on
-the left, status items and Control Centre on the right, the island in the
-centre where a notch would be. Menus are collected three ways, all of
-which Isle serves from session start (`macos-model.md` §1):
+**B18 · The island at rest, the global menu on demand (revised).** At
+rest each screen shows the wallpaper and the island: v1's pill at top
+centre with the clock, and a status glyph only while its state is not the
+normal one (Wi-Fi only on Wi-Fi, Bluetooth only with a device connected,
+sound only when muted, a VPN, Focus, a restart owed, shortcuts inhibited, a
+configuration error), each settable to always or never. Hovering the island
+opens Control Centre from it, as v1's panel opened, with live activities
+first and other programs' tray items under its modules; a click on the
+clock opens Notification Centre. Windows keep a strip along the top clear
+for the island. The front app's menu bar (the system menu, the app menu,
+the app's menus, Window, and Help with menu search) is macOS's
+automatically hidden bar: it slides down over windows when the pointer
+pushes the top edge outside the island's zone, or on Ctrl+F2, carries menus
+on the left and nothing on the right, and leaves with the pointer. Menu
+items are also searchable from Spotlight. Menus are collected three ways,
+all of which Isle serves from session start (`macos-model.md` §1):
 `com.canonical.AppMenu.Registrar` with DBusMenu (Qt, Chromium, Electron,
 LibreOffice and Firefox export only while the name is owned, and Qt checks
 once per process); KDE's `org_kde_kwin_appmenu` Wayland protocol (Qt 6.9+
@@ -194,16 +205,34 @@ registers a wrong window id when the KDE protocol is present (fix
 unmerged), so menus are also matched to windows by the D-Bus sender's PID.
 Firefox exports only with two prefs set, and Steam, Wine and games export
 nothing, so the fallback app menu (About, Hide, Quit, the window list) is
-the common case and gets designed as such. Rejected: a menu bar without
-app menus, the island alone (v1).
+the common case and gets designed as such. Structure:
+`docs/work/rust-desktop/p1/structure/revision-1.md`, `island.md`,
+`menu-bar.md`. Rejected: a menu bar always shown, with status items,
+Control Centre and the clock on the right and the island in the notch, as
+drawn for P1's gate 2 (the user preferred v1's minimal desktop, and since
+most Linux apps export no menus, a bar always shown would mostly show
+fallback menus); the island with no app menus at all (v1). This replaces
+the first answer, that permanent menu bar.
 
-**B19 · A Dock.** Pinned and running apps with indicators, badges and
-progress (Otto's `otto-dock-v1` shows the client side), minimised windows,
-optional magnification and auto-hide. Rejected: launcher and switcher
-only (v1).
+**B19 · No Dock (revised).** Nothing at rest takes its place; each of its
+duties moves to a surface that opens on demand. Launching is Spotlight and
+its Apps grid, which keeps a row of favourites in the user's order;
+switching is Cmd+Tab, Cmd+` and Mission Control. The switcher's cards
+carry what the Dock's icons did: badges and progress (LauncherEntry),
+attention (also an island event), hidden and minimised marks, and apps
+running in the background after quit, which Q there stops. Minimised
+windows are in App Exposé and Mission Control, and minimise shrinks the
+window toward the island. The bottom edge belongs to windows. The default
+hot corners are bottom left Mission Control and bottom right the Apps
+grid, so the pointer alone can switch and launch. Duty by duty:
+`docs/work/rust-desktop/p1/structure/dock.md`. Rejected: a Dock of pinned
+and running apps with indicators, badges, progress, minimised windows,
+magnification and auto-hide (Otto's `otto-dock-v1` shows the client
+side), as drawn for P1's gate 2, where the user preferred v1's minimal
+desktop. This replaces the first answer, "a Dock".
 
 **B20 · App-centric windows.** Cmd+Tab switches apps, Cmd+` cycles the
-front app's windows; the menu bar, Dock and switcher speak in apps; Cmd+Q
+front app's windows; the menu bar and switcher speak in apps; Cmd+Q
 quits. An app that exits when its last window closes cannot be made to
 stay (GTK and Qt apps decide that themselves), so Cmd+W on an app's last
 window hides it where the app allows, and v1's "keep running" list

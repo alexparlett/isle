@@ -29,8 +29,8 @@ Asked 2026-10-03 in four rounds of choices.
 | Colour | One accent, the user picks it |
 | Typeface | Left to the directions (free to ship; no SF Pro) |
 | Motion | Restrained: short, critically damped moves and fades, no bounce |
-| Dock | Bottom, always shown |
-| Island at rest | A small dark pill, always present, like a notch |
+| Dock | Bottom, always shown; replaced by revision 1: no Dock |
+| Island at rest | A small dark pill, always present, like a notch; replaced by revision 1: v1's pill with the clock and glyphs |
 | Wallpapers | Dark and quiet |
 | Windowed game in front | Shell stays as normal; Gaming Focus only holds notifications |
 | Sounds | A few, Mac-like (alert, screenshot, volume tick, trash), each switchable |
@@ -43,8 +43,8 @@ Asked 2026-10-03 in four rounds of choices.
 
 To design to. Each is checked at every gate.
 
-1. **Calm at rest.** The screen at rest is the wallpaper, the menu bar, the
-   pill and the Dock. Nothing else shows unless it has something to say,
+1. **Calm at rest.** The screen at rest is the wallpaper and the island.
+   Nothing else shows unless it has something to say,
    and nothing reports the normal state loudly. (Interview: visual noise;
    v1 lessons §1.1.)
 2. **One desktop.** Shell, Isle's apps and installed apps read as one
@@ -73,10 +73,10 @@ To design to. Each is checked at every gate.
 
 **As is**
 
-- The structure: menu bar with the app's menus, status items and Control
-  Centre; the Dock at the bottom; Cmd+Tab app switching; Notification
-  Centre from the clock; Spotlight; Mission Control and Spaces; System
-  Settings' sidebar.
+- The behaviour: the app's menus with the system menu, Window and Help
+  search; Cmd shortcuts; Cmd+Tab app switching; Control Centre;
+  Notification Centre from the clock; Spotlight with its Apps grid;
+  Mission Control and Spaces; System Settings' sidebar.
 - Light, dark and Auto; one accent; Reduce Transparency, Increase Contrast,
   Reduce Motion and text size as first-class settings.
 - 27's glass slider (clear to tinted, a middle default), here starting
@@ -90,14 +90,18 @@ To design to. Each is checked at every gate.
 
 - The glass is frosted, not Liquid Glass: no refraction or moving
   highlights; blur strong enough that shapes behind never read.
-- Motion is quieter: no bounce, no genie; minimise uses Scale.
-- The island: a small dark pill in the menu bar's centre, always present,
-  that grows to show live activity and opens on hover (with v1's hover
-  guards), where macOS has a notch and no island.
-- Status items: macOS's per-item "show always / when active / never"
-  choice, with Isle's own defaulting to "when active" so the bar stays
-  calm. (Reconciles the interview's dislike of noise with not making v1's
-  rule absolute.)
+- Motion is quieter: no bounce, no genie; minimise shrinks the window
+  toward the island.
+- No menu bar at rest: the app's menus appear on demand, as macOS's
+  auto-hidden menu bar does, from the top edge or Ctrl+F2 (revision 1).
+- No Dock: apps launch from Spotlight's Apps grid, as macOS 26 replaced
+  Launchpad; running apps, badges and attention show in the switcher
+  (revision 1).
+- The island: v1's pill at top centre, with the clock and status glyphs
+  that show only when they say something (macOS's per-item "always /
+  when active / never", Isle's own defaulting to "when active"). It grows
+  to show live activity, opens Control Centre on hover (with v1's hover
+  guards) and Notification Centre from the clock (revision 1).
 - Widgets: a full-screen widget dashboard on a chord, alongside or
   instead of macOS's desktop widgets; which one the structure stage
   decides (B24).
@@ -109,6 +113,13 @@ To design to. Each is checked at every gate.
 - Icons beside menu items.
 - Large or varying window corners.
 - Anything that needs SF Pro, SF Symbols or Apple artwork.
+
+## Revisions
+
+- **Revision 1** (2026-10-03, gate 2 batch 1): the user preferred v1's
+  minimal desktop to batch 1's menu bar and Dock. At rest: the wallpaper
+  and v1's pill; menus on demand; no Dock. Directions in
+  `structure/revision-1.md`; B18 and B19 are revised at the gate.
 
 ## Constraints
 

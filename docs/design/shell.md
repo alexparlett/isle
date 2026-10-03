@@ -2,22 +2,22 @@
 
 Intent document for the rust-desktop program. Nothing here is built yet.
 
-The shell is every always-on surface Isle draws, from the menu bar to the lock screen. Each is a Freya
+The shell is every always-on surface Isle draws, from the island to the lock screen. Each is a Freya
 tree drawn by the compositor on its own GL context (B7), fed by services on the worker thread (B9).
 This document says what each surface must make possible and which rules every surface obeys; how
 they look, where they sit, what they show and in what order are the design process's (P1; B3, B24),
 whose open questions are listed under For the design process.
 
 Evidence, cited by file: `isle-v1-inventory.md` (written "inventory §n"; its D-numbers are v1's
-`main:docs/DECISIONS.md`), `macos-model.md`, `shell-ui-spike.md`, `ui-and-services.md` and
-`smithay-and-gaming.md`, all in `docs/research/rust-desktop/`.
+`main:docs/DECISIONS.md`), `macos-model.md`, `design-v1-lessons.md`, `shell-ui-spike.md`,
+`ui-and-services.md` and `smithay-and-gaming.md`, all in `docs/research/rust-desktop/`.
 
 ## Rests on
 
 - **B2**: every v1 shell capability is in scope, re-designed rather than ported; the parity map below is the checklist.
 - **B3**: no v1 visuals carry over; this document holds capabilities and behaviour only.
 - **B7**: shell surfaces are Freya trees in the compositor; the compositor animates open and close; Skia's cache is capped.
-- **B8**: windows float and snap; minimise is a real state, which the Dock and Mission Control show.
+- **B8**: windows float and snap; minimise is a real state, which the switcher, App Exposé and Mission Control show.
 - **B9**: one main loop, services on a worker; each surface sits behind a panic boundary.
 - **B10**: the compositor owns settings; `tokens.kdl` reloads live into every surface.
 - **B11**: surfaces read system state through the shared service crates, never directly.
@@ -25,9 +25,9 @@ Evidence, cited by file: `isle-v1-inventory.md` (written "inventory §n"; its D-
 - **B13**: the shell draws the screencast source picker; window previews are compositor textures.
 - **B14**: widgets are built-in Freya components, extended by out-of-process data providers.
 - **B17**: where a choice is open, the shell does what a Mac user expects.
-- **B18**: a menu bar with the global menu, status items and Control Centre, and the island in the centre.
-- **B19**: a Dock with pinned and running apps, indicators, badges, progress and minimised windows.
-- **B20**: the menu bar, Dock and switcher speak in apps; Cmd+Tab switches apps and Cmd+` windows.
+- **B18**: at rest the wallpaper and the island, with the clock, status glyphs only when active, and Control Centre opening from it; the front app's menu bar with the global menu appears on demand.
+- **B19**: no Dock: launching from Spotlight's Apps grid, switching by Cmd+Tab and Mission Control, badges, progress and attention on the switcher's cards.
+- **B20**: the menu bar and switcher speak in apps; Cmd+Tab switches apps and Cmd+` windows.
 - **B21**: shortcut hints in menus show the Mac chord; Isle's own injected keys are never translated.
 - **B22**: Isle has no console mode: no Big Picture home, quick menu or pad-to-keys bridge, so no surface is driven by a controller.
 - **B24**: the island's content, where banners appear, the order of live activities and where widgets live are P1's; this document says only what must be possible.
@@ -74,26 +74,23 @@ Open for its packet
 
 ### Menu bar
 
-B18's menu bar: the focused app's menus, the system's own menu, status items and
-Control Centre. Its arrangement beyond what B18 fixes is P1's.
+B18's menu bar: the front app's menus and the system's own menu, shown on demand as macOS's
+automatically hidden bar. At rest it is not on screen; the clock, status and Control Centre are the
+island's. Its arrangement beyond what B18 fixes is P1's.
 
 1. The bar carries a system menu, the app menu named for the app, the app's own menus, and a Window and a Help menu supplied by the desktop where the app has none.
 2. From the system menu the user reaches the computer's details, System Settings, available updates with their count, Force Quit, sleep, restart, shut down, lock and log out; a restart owed is stated there (D46).
 3. The app menu reaches the app's About, its settings, hide, hide others, show all and quit. Settings is the app's own item when its menu has one, else the app's settings chord from the Cmd table (`macos-model.md` §2.4 Cmd+,).
 4. The Window menu reaches minimise, zoom, the snap zones of B8, bring all to front and the app's windows.
-5. The user can search every item in the focused app's menus, the app's own Help or the desktop's; a match opens and highlights its menu (`macos-model.md` §1.3 item 9).
-6. The bar carries status items: tray items (StatusNotifierItem), Control Centre controls the user pinned, and Isle's own for Wi-Fi, Bluetooth, battery, volume, VPN, updates, restart owed, keyboard layout and mode.
-7. The user reorders and removes status items by dragging with Cmd held, as on macOS.
-8. A tray item's click and menu behave as the item asks (activate, secondary activate, DBusMenu menu).
-9. The clock's format (date, weekday, seconds) is a setting.
-10. Nothing in the bar is hidden under the island. When the app's menus do not fit, every one stays reachable.
-11. The focused app's menus can be reached from the bar on any screen that has one.
-12. Ctrl+F2 (macOS's "move focus to the menu bar") opens the first menu; arrows, typing and Return work through menus.
-13. The bar hides while a full-screen window owns the space and comes back when the pointer reaches the top edge. In Game Mode it needs a dwell at the edge first (inventory §4 Hot zone). "Automatically hide and show the menu bar" (always, on desktop, in full screen, never) is a setting.
+5. The user can search every item in the focused app's menus, the app's own Help or the desktop's; a match opens and highlights its menu (`macos-model.md` §1.3 item 9). The same items are a Spotlight source (Spotlight 2).
+6. At rest the bar is hidden on every screen. It appears when the pointer pushes the top edge outside the island's zone, or from the keyboard, and leaves when the pointer leaves it and its menus or a menu closes. It slides over windows and reserves no space, so no window moves when it comes.
+7. The bar carries no status items, Control Centre item or clock; those are the island's (Island 9–11). The island stays in front of the bar at the centre and nothing in the bar is hidden under it. When the app's menus do not fit, every one stays reachable.
+8. The focused app's menus can be reached from the bar on any screen.
+9. Ctrl+F2 (macOS's "move focus to the menu bar") reveals the bar with its first menu open; arrows, typing and Return work through menus.
+10. Over a full-screen window the bar is revealed the same way, over the content. Over a game in Game Mode it needs a dwell at the edge instead of a push (inventory §4 Hot zone), and never appears while the game holds the pointer. It never appears during a window drag, when the top edge is the fill target.
 
 v1 lessons kept
 - Inventory §4 Hot zone: a short dwell at the edge, not a touch, reveals the bar over a game.
-- D49: every screen gets the top surface; events go to one.
 - D46: a restart owed is said where the user will see it.
 
 Open for its packet: none.
@@ -127,67 +124,77 @@ Open for its packet
 
 ### Island
 
-B18 puts the island where a MacBook's notch is. What it shows, and where each kind of live activity
-appears, is P1's (B24); this section says which activity the shell must show and how it behaves.
+B18 makes the island, v1's pill at top centre, the one thing on screen at rest besides the
+wallpaper: the clock, status glyphs only when active, and the way into Control Centre and
+Notification Centre. What it shows while live, and where each kind of live activity appears, is P1's
+(B24); this section says what the shell must make possible.
 
 1. Live activity is what is happening now that the user may need to see or stop; the shell shows it for as long as it lasts (B24).
 2. Live activities: screen recording with its timer and Stop; screen sharing with the sharing app's name and Stop, for any portal stream; microphone and camera in use; a call; media playing; an authentication waiting; a timer.
-3. Transient events are acknowledged briefly: OSDs (see OSDs), Game Mode and Focus changes, a clipboard copy, Do Not Disturb toggled.
+3. Transient events are acknowledged briefly: OSDs (see OSDs), Game Mode and Focus changes, a clipboard copy, Do Not Disturb toggled, an app asking for attention (B19).
 4. Privacy indicators (recording, sharing, microphone, camera) always show, on every screen, while the capture runs, and cannot be dismissed. Other activities and events show on one screen, never on all (D49).
 5. When several activities are live, privacy indicators still show and every other activity stays reachable.
 6. From an activity the user reaches its controls (media transport and scrubbing, Stop, the requesting app) and where it belongs (an authentication's prompt, the player's full controls).
 7. Activity the user is interacting with is not taken over by an event; the event waits until the pointer leaves (inventory §4 Island details).
-8. Over a game's Space in Game Mode no live activity shows except privacy indicators and OSDs, until the user reveals the menu bar (`gaming.md` Game Mode 7).
+8. Over a game's Space in Game Mode no live activity shows except privacy indicators and OSDs, until the user reveals the island at the top edge (`gaming.md` Game Mode 7).
+9. The island always carries the clock; its format (date, weekday, seconds) is a setting. A click on the clock opens Notification Centre.
+10. The island carries a glyph for Isle's own status: Wi-Fi, Bluetooth, sound, VPN, Focus (the Gaming Focus included), updates and a restart owed, battery, keyboard shortcuts inhibited, a configuration error. Each shows only while its state is not the normal one, and the user can set each to always or never show; the last two show whenever their state holds. Other programs' status items are Control Centre's (Control Centre 9).
+11. Hovering the island opens Control Centre from it after a short dwell, without taking keyboard focus; a click pins it with focus. Hover never opens it during a window drag or while a menu is open, and a click that opens something elsewhere disarms it until the pointer leaves (`design-v1-lessons.md` §3.5).
+12. Windows keep a strip along the top of each screen clear for the island. A full-screen window covers it and the island hides, leaving its privacy indicators and OSDs; a push at the top edge in the island's zone brings it back.
 
 v1 lessons kept
 - Inventory §4 Island details: an open panel is never taken over by an event.
-- D49: an event shows on one screen, not on every one.
+- D49: every screen gets the island; an event shows on one screen, not on every one.
+- `design-v1-lessons.md` §3.5: the hover guards (a dwell before opening, a grace before closing, hover held while the panel settles) are requirements.
+- `design-v1-lessons.md` §2: a glyph shows only if its absence says something; the normal state shows none.
 - D55: Stop on a share ends the stream at its source; a capture exists only while it is wanted.
 
 Open for its packet: none.
 
 ### Control Centre
 
-macOS's Control Centre: a panel from its menu bar icon holding the quick controls, whose modules
-can also be pinned to the bar as status items. It takes over v1's hover panel (inventory §4 Island).
+macOS's Control Centre: a panel holding the quick controls. It unfolds from the island, as v1's
+hover panel did (inventory §4 Island), laid out the macOS way: live activity first, then the
+controls, then other programs' tray items.
 
-1. Control Centre opens from the menu bar or a chord, on the screen it was opened from.
+1. Control Centre opens from the island (hover, a click, or Ctrl+F8), on the screen it was opened from.
 2. It gives quick control of Wi-Fi, Bluetooth, Focus, the output device and volume, brightness per monitor, night light, dark mode, now playing, Game Mode (the Gaming Focus), VPN, the power profile, batteries (the machine's and peripherals'), updates, keyboard layout, the phone (through its provider), zoom, the on-screen keyboard and screen capture.
 3. Each control leads to its detail (Wi-Fi networks, Bluetooth devices and pairing, outputs with per-app volumes and inputs, VPN providers, media players) and to its full page in the Settings app. A network that needs a password opens the Wi-Fi prompt (B12), never a field in the panel.
-4. The user adds, removes, reorders and pins controls; a pinned control becomes a status item that opens its own detail.
+4. The user adds, removes and reorders controls. Controls are not pinned to the island: the glyphs of Island 10 are the only status it carries, and each opens its control's detail.
 5. Provider-backed controls (VPN, Phone) render the provider's state sentence and actions and know nothing of the tool behind them (inventory §8).
 6. Brightness over DDC shows the requested value at once and writes debounced, since one write takes about a second (inventory §3.7 Brightness).
 7. Focus works as on macOS: named modes, Do Not Disturb among them, each with its allowed apps and people and an optional schedule; v1's quiet hours become a schedule (B30).
 8. A Gaming Focus turns on by itself whenever a detected game is in front, windowed or full screen, and off when it leaves (B30).
+9. Other programs' status items (StatusNotifierItem) sit in Control Centre as its tray, in the user's order, reordered by dragging with Cmd held. A tray item's click and menu behave as the item asks (activate, secondary activate, DBusMenu menu); its menu opens as a page in the panel.
 
 v1 lessons kept
 - Inventory §3.7: DDC reads are cached and writes debounced.
 - D42, D44, D51: VPNs and phones are providers; the shell renders their actions.
+- Inventory §4 Island: tray icons and their menus as a page in the panel.
 
 Open for its packet: none; game detection is gaming.md's.
 
-### Dock
+### No Dock
 
-macOS's Dock: pinned and running apps with indicators, badges, progress and minimised windows (B19).
+Isle has no Dock (B19). Nothing at rest replaces it; each of its duties lives in a surface that opens
+on demand.
 
-1. The Dock carries pinned apps, running apps that are not pinned, optionally recent apps, minimised windows and Trash.
-2. Running apps carry an indicator. Apps hidden with Cmd+H or kept running after their last window closed (B20) count as running.
-3. Badges and progress come from `com.canonical.Unity.LauncherEntry`; an app asking for attention is shown asking, until clicked if urgent.
-4. Clicking an app that is not running launches it; clicking a running app brings its windows forward and unhides it; with only minimised windows, its most recent one is restored (D63).
-5. An app's menu (secondary click or hold) reaches its windows, its desktop-entry actions, any LauncherEntry quicklist, keep in Dock, open at login, show in Files, show all windows, hide and quit.
-6. Dragging reorders; dragging a pinned app out of the Dock unpins it; dropping files on an app opens them with it; dropping on Trash trashes them.
-7. Settings: position (bottom, left, right), size, magnification, auto-hide, indicators, recent apps, and "Minimise windows into application icon" (off, each minimised window has its own entry).
-8. An auto-hidden Dock or one hidden over a full-screen window appears when the pointer reaches its edge.
-9. The Dock names apps the way the switcher and menu bar do: a game's `steam_app_<id>` shows as the game's name and art (inventory §3.6 Apps).
+1. Apps are launched from Spotlight and its Apps view, which keeps a row of favourites in the user's order (Spotlight 11).
+2. Running apps are seen and switched in the app switcher and Mission Control. Apps hidden with Cmd+H, kept running after their last window closed (B20), with only minimised windows, or running in the background after quit are listed in the switcher with a mark (App switcher 5).
+3. Badges and progress come from `com.canonical.Unity.LauncherEntry` and show on the app's switcher entry and its tile in the Apps view. An app asking for attention is marked on its switcher entry until activated, and announced by the island (Island 3).
+4. Minimised windows are reached from App Exposé, Mission Control, the switcher and the Window menu. Minimise shrinks the window toward the island and restore returns it from there (`compositor.md` Minimise and maximise).
+5. An app's desktop-entry actions and LauncherEntry quicklist, Open at login, Show in Files and the desktop it is assigned to are reached from its Spotlight result and its tile in the Apps view.
+6. Files dragged to an app reach it through Cmd+Tab during the drag, which brings the app forward to take the drop, or through Files' Open With. Trash is in Files.
+7. By default the bottom-left hot corner opens Mission Control and the bottom-right Spotlight's Apps view, so the pointer alone can switch and launch (Mission Control 8).
+8. A game shows as the game's name and art wherever an app is shown: the switcher, Spotlight and Mission Control (inventory §3.6 Apps).
 
 v1 lessons kept
-- Inventory §3.6 Kept running: apps that quit on last-window close are hidden instead, per app; they now show in the Dock rather than a tray row.
+- Inventory §3.6 Kept running: apps that quit on last-window close are hidden instead, per app; they show in the switcher rather than a tray row.
 - D63: launching what is already open raises it.
 
 Open for its packet
 - LauncherEntry coverage outside Electron is uneven (`macos-model.md` §3 Dock).
-- Stacks for folders (Downloads) were not in v1.
-- Whether apps running in the background with no window show, as macOS 27 does; there is no shared signal for it.
+- Which apps run in the background with no window; there is no shared signal for it.
 
 ### Spotlight
 
@@ -204,7 +211,7 @@ clipboard history, with the Apps grid that replaced Launchpad. It carries every 
 8. Emoji are typed into the previous window through Isle's injected-key source, which Cmd translation never touches (B21). Ctrl+Cmd+Space opens Spotlight in emoji mode.
 9. A vault result copies the password on Return, the username with Shift and the one-time code with Ctrl; each secret is fetched for that keypress and never cached (D42).
 10. Space on a file result opens Quick Look, which Spotlight calls over D-Bus in the Files process (B26); Cmd+Return reveals it in Files.
-11. The Apps view lists every installed app, filterable by typing and by category, and opens from Cmd+1, a hot corner or the Launchpad key. An app dragged out of it onto the Dock is pinned.
+11. The Apps view lists every installed app, filterable by typing and by category, with a row of favourites at the top in the user's order, added from a tile's menu or by dragging a tile there. It opens from Cmd+1, a hot corner or the Launchpad key. A tile shows the app's badge, and its menu reaches the app's actions (No Dock 5).
 
 v1 lessons kept
 - D63: raise, not relaunch, and only after the focus handover.
@@ -221,10 +228,10 @@ macOS's Cmd+Tab: one entry per app in recent order, released on Cmd up, with Cmd
 front app's windows (B20, D59).
 
 1. Cmd+Tab switches to the previous app. If Cmd is held past a short delay, the switcher appears on the main screen; a quick tap switches without drawing it.
-2. Each entry is an app; its window count and a live preview of its most recent window are available to it (B13: drawn by the compositor).
+2. Each entry is an app; its window count, a live preview of its most recent window (B13: drawn by the compositor), its badge and progress, and whether it is hidden, minimised, not responding, asking for attention or running in the background are available to it (B19).
 3. While held: Tab and Shift+Tab move, arrows move, the pointer selects, ` cycles the selected app's windows, Q quits it (kept-running apps too, B30), H hides it, W closes its front window, Escape cancels.
 4. Releasing Cmd commits: the selected app comes forward with its most recent window, unhidden and restored if needed.
-5. Apps with only hidden or minimised windows, and apps kept running with none (B20), are listed and restored on commit.
+5. Apps with only hidden or minimised windows, and apps kept running with none (B20), are listed and restored on commit. Apps running in the background after quit are listed last, and Q stops them.
 6. Cmd+` without the switcher cycles the front app's windows in a stable order, not recency, so every window is reachable (D59).
 7. Cmd+Tab works out of a game in front; it is in the fixed escape set with Mission Control, lock and screenshot, and every other chord goes to the game (B30).
 8. Modifiers held through the switch never stick in either app (B21).
@@ -242,14 +249,14 @@ macOS's Mission Control (every window of the current desktop spread out, the des
 App Exposé for one app's windows), reached by keys, hot corners and trackpad gestures. Mouse routes
 come first, since the host is a desktop.
 
-1. Mission Control opens from Ctrl+↑, a three-finger swipe up, a hot corner or the Mission Control key; App Exposé from Ctrl+↓, a three-finger swipe down or the Dock's Show All Windows.
+1. Mission Control opens from Ctrl+↑, a three-finger swipe up, a hot corner or the Mission Control key; App Exposé from Ctrl+↓, a three-finger swipe down or ↓ in the switcher.
 2. Every window of the current desktop is shown at once, so any can be picked. "Group windows by application" is a setting.
 3. Every desktop and full-screen space is shown and can be switched to, and a desktop can be added.
 4. A window is closed with its close button, W, Delete or a middle click; dragged onto another desktop, it moves there; dragged onto a new desktop, it gets one. Desktops are reordered and removed there too.
-5. App Exposé shows one app's windows, its minimised and hidden windows included and told apart.
+5. App Exposé shows one app's windows, its minimised and hidden windows included and told apart. Mission Control shows the current desktop's minimised windows apart from the spread.
 6. Arrows, Tab and Return work throughout; Escape or the opening gesture reversed closes it.
 7. Window images are the compositor's own textures and exist only while Mission Control is open (B13, D55).
-8. Each screen corner can run Mission Control, App Exposé, Show Desktop, Notification Centre, Spotlight's Apps view, Lock Screen, Put Display to Sleep, or nothing, optionally only with a modifier held. A corner fires once per visit, after the pointer rests in it, and never over a full-screen game.
+8. Each screen corner can run Mission Control, App Exposé, Show Desktop, Notification Centre, Spotlight's Apps view, Lock Screen, Put Display to Sleep, or nothing, optionally only with a modifier held. A corner fires once per visit, after the pointer rests in it, and never over a full-screen game. By default the bottom-left corner runs Mission Control and the bottom-right Spotlight's Apps view (B19).
 9. Gestures: three fingers up for Mission Control, down for App Exposé, left and right between desktops, pinch out for Show Desktop. Each drives its surface's progress with the fingers and settles on release; each has a key and a pointer equivalent.
 
 v1 lessons kept
@@ -268,7 +275,7 @@ Open for its packet
 macOS's Notification Centre: notifications that wait to be read later, with banners for new arrivals
 (B24).
 
-1. Notification Centre opens from the menu bar, a chord or a hot corner, on the screen it was opened from.
+1. Notification Centre opens from the island's clock, a chord or a hot corner, on the screen it was opened from.
 2. Notifications are cleared singly, by app or all. Each keeps its actions, inline reply and image while the app's server object lives.
 3. Each arrival is also kept as a record; records that are no longer live stay readable, without actions, and survive restarts (D26).
 4. A new notification shows a banner on the main screen unless silenced. Silenced: the active Focus (Gaming Focus included, B30), a full-screen window, a screen share, the app muted. Critical notifications and allowed apps break through; low urgency never shows a banner.
@@ -289,7 +296,7 @@ Open for its packet: none.
 ### Widgets
 
 Widgets built into the shell and extended by providers (B14). v1's dashboard keeps its capabilities:
-widgets placed and edited on a grid, and the gallery (B24). Where widgets live is P1's.
+widgets placed and edited on a grid, and the gallery (B24). They live on the full-screen dashboard (P1, `wallpaper.md`); whether they also sit in Notification Centre is P1's.
 
 1. The user places widgets and can bring them into view with one chord (v1's dashboard chord), whatever is open.
 2. Built-in widgets: Clock (several, each with a zone), Calendar, Weather, Media, Desktops, Notifications, Controls, System (with its own editor for series, D36), Session (power and profile), Devices (batteries), Storage.
@@ -320,7 +327,7 @@ Feedback for volume, brightness, keyboard backlight, mute and the like; where it
 1. Volume, mute, microphone mute, brightness, keyboard brightness and keyboard layout changes raise an OSD, whichever key, device or app caused the change.
 2. An OSD shows the new level and the device it applies to (which output, which monitor).
 3. Repeated changes update one OSD in place; it leaves shortly after the last change.
-4. In Game Mode OSDs still show, briefly, without revealing the menu bar.
+4. In Game Mode OSDs still show, briefly, without revealing the island or the menu bar.
 
 v1 lessons kept
 - Inventory §2.4: v1 raised an OSD only for volume; every level change gets one here.
@@ -429,24 +436,25 @@ Open for its packet
 
 ## For the design process
 
-What this document leaves to P1, per feature; "proposal" is the answer it gave before B24.
+What this document leaves to P1, per feature; "proposal" is the answer it gave before B24. Items
+P1 has answered point to the sheet that answers them.
 
-- **Shell runtime**: which surfaces each screen carries and which only the main screen (proposal: menu bar, island, Dock and wallpaper on every screen; events, Spotlight and dialogs on the main one); open, close and morph choreography; UI copy rules (proposal: sentence case, "desktop" never "workspace", inventory §14).
-- **Menu bar**: the order of its menus and items (proposal: system menu, app menu, app menus, Window, Help on the left; status items, Control Centre and the clock on the right; island in the centre); the system menu's items, names and order (proposal: About This Computer, System Settings, Updates with count, Force Quit, Sleep, Restart, Shut Down, Lock Screen, Log Out, a restart-owed line); the app menu's and Window menu's names and order (proposal: About, Settings, Hide, Hide Others, Show All, Quit; Minimise, Zoom, zones, Bring All to Front, windows); where menu search sits (proposal: a field at the top of Help); which status items show by default and when (proposal: Isle's own only when they say something, as v1's rest glyphs); where the clock sits and what it opens (proposal: right end, opens Notification Centre); how menus that do not fit are reached (proposal: one overflow menu); how an unfocused screen's bar shows the menus (proposal: inactive).
-- **App menus**: the fallback menu's arrangement (proposal: app menu, Window and Help, entry actions under the app menu); how disabled, checked, radio and icon items look.
-- **Island**: what it shows at rest and while things are live; which live activity and events it carries, and which go elsewhere (proposal: every live activity, transient event and OSD); whether it repeats menu bar state (proposal: never; clock, connection, sound and battery live in the bar); the order when several compete (proposal: privacy always; then one in full and the rest compact, recording and sharing, authentication, call, media, timer); how an activity opens to its controls (proposal: hover expands, click opens Control Centre's Now Playing or the prompt); size-change motion (proposal: a morph the compositor animates); whether it shows desktops (proposal: no; desktops in Mission Control's Spaces bar).
-- **Control Centre**: how controls group into modules, their names, order and defaults (proposal: Wi-Fi, Bluetooth, Focus, Sound, Display, Now Playing, Game Mode, VPN, Power profile, Battery, Updates, Keyboard layout, Phone, Accessibility, Screen capture); whether toggles and sliders appear anywhere else (proposal: no, Control Centre and pinned items only, v1 D3); how a control's detail opens (proposal: drill-down page).
-- **Dock**: order of its sections (proposal: pinned, running, recent, minimised, Trash); whether it carries Apps and Mission Control items (proposal: yes, Apps opening Spotlight's Apps view); default position and size; how attention is shown (proposal: one bounce, or until clicked if urgent); the app menu's grouping (proposal: windows, actions, quicklist, then Options with Keep in Dock, Open at Login, Show in Files, then Show All Windows, Hide, Quit).
-- **Spotlight**: result layout and grouping by source; how clipboard images and pins show (proposal: thumbnails); the Apps view's layout (proposal: a grid by category).
-- **App switcher**: what an entry shows (proposal: icon, window count when over one, live preview of the most recent window).
-- **Mission Control**: how windows are arranged (proposal: spread without overlap, never larger than real, moving from and back to their real places, D19); how desktops show and are added (proposal: a Spaces bar along the top, live miniatures, an add button); how App Exposé sets minimised and hidden windows apart (proposal: below).
-- **Notification Centre**: its pointer route (proposal: the clock); its layout (proposal: notifications above, widgets below); grouping and order (proposal: by app, newest first); how past records show (proposal: under Earlier); where banners appear (proposal: top right of the main screen, under the status items); summary copy (proposal: "while you were away", "while you played").
-- **Widgets**: where widgets live (proposal: Notification Centre's column and the desktop under windows); what the chord does (proposal: "Show widgets" moves windows aside to the desktop widgets; "Dim widgets on desktop" a setting); whether the Notifications widget is desktop only (proposal: yes); the gallery's sections (proposal: Installed, Yours, Browse); whether v1's dashboard pages survive as several layouts.
-- **OSDs**: where they show (proposal: the island).
-- **Lock screen**: what it shows (proposal: time and date, the user, the password field); its backdrop (proposal: a softened form of the current wallpaper); the greeter's face.
-- **System prompts**: where a waiting prompt is announced (proposal: the island); dialog layout and copy.
-- **Capture**: the toolbar's layout; what follows a shot (proposal: a thumbnail in a corner, click to annotate, drag to drop, left to save); where the recording timer shows (proposal: the island); the picker's layout and button names (proposal: Share, Cancel).
-- **Wallpaper**: the change transition (proposal: a crossfade).
+- **Shell runtime**: which of the other surfaces show only on the main screen (proposal: events, Spotlight and dialogs on the main one); open, close and morph choreography. Which screens carry the island, the menu bar and the wallpaper, and the UI copy rules, are answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`, `wallpaper.md`, `copy.md`) and recorded in DESIGN.md at gate 6.
+- **Menu bar**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`, `island.md`); recorded in DESIGN.md at gate 6.
+- **App menus**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`); recorded in DESIGN.md at gate 6.
+- **Island**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
+- **Control Centre**: how controls group into modules, their names, order and defaults (proposal: Wi-Fi, Bluetooth, Focus, Sound, Display, Now Playing, Game Mode, VPN, Power profile, Battery, Updates, Keyboard layout, Phone, Accessibility, Screen capture). Whether toggles and sliders appear anywhere else, and how a control's detail opens, are answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
+- **No Dock**: the Dock's arrangement, attention, badges and running apps are answered in P1 (`docs/work/rust-desktop/p1/structure/dock.md`, `switcher.md`) and recorded in DESIGN.md at gate 6.
+- **Spotlight**: result layout and grouping by source; how clipboard images and pins show (proposal: thumbnails); the Apps view's layout (proposal: a grid by category under the favourites row, B19).
+- **App switcher**: Answered in P1 (`docs/work/rust-desktop/p1/structure/switcher.md`); recorded in DESIGN.md at gate 6.
+- **Mission Control**: how windows are arranged (proposal: spread without overlap, never larger than real, moving from and back to their real places, D19); how desktops show and are added (proposal: a Spaces bar along the top, live miniatures, an add button); how App Exposé sets minimised and hidden windows apart (proposal: below), and how Mission Control shows the desktop's minimised windows.
+- **Notification Centre**: its layout (proposal: notifications above, widgets below); grouping and order (proposal: by app, newest first); how past records show (proposal: under Earlier); where banners appear (proposal: top right of the main screen); summary copy (proposal: "while you were away", "while you played"). Its pointer route, the clock, is answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
+- **Widgets**: whether widgets also sit in Notification Centre's column; whether the Notifications widget is dashboard only (proposal: yes); the gallery's sections (proposal: Installed, Yours, Browse); whether v1's dashboard pages survive as several layouts. Where widgets live on the desktop and what the chord does (the dashboard on v1's chord, no widgets on the desktop) are answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`) and recorded in DESIGN.md at gate 6.
+- **OSDs**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
+- **Lock screen**: what it shows (proposal: time and date, the user, the password field); the greeter's face. Its backdrop is answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`) and recorded in DESIGN.md at gate 6.
+- **System prompts**: dialog layout and copy. Where a waiting prompt is announced is answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
+- **Capture**: the toolbar's layout; what follows a shot (proposal: a thumbnail in a corner, click to annotate, drag to drop, left to save); the picker's layout and button names (proposal: Share, Cancel). Where the recording timer shows is answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
+- **Wallpaper**: Answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`); recorded in DESIGN.md at gate 6.
 - **On-screen keyboard**: its layout and where completions show (proposal: a strip).
 
 ## Acceptance bars
@@ -460,7 +468,7 @@ Measured on the host (RTX 5070 Ti, 3440×1440 up to 144 Hz) unless stated.
 5. No shell surface's content draw exceeds 2 ms at p95 at full output size (the spike measured 1.2 ms for a full-screen launcher, `shell-ui-spike.md`). Shell transitions drop no frames at 144 Hz.
 6. Spotlight: keys typed from the moment Cmd+Space is pressed are never lost; apps, actions, settings and windows answer within 50 ms of a keystroke; the selected row never changes under the user as slower results arrive.
 7. App switcher: a quick Cmd+Tab switches without drawing the switcher; 1,000 scripted switches, some with focus changing mid-chord, commit on release every time and leave no modifier stuck.
-8. Menu bar: every focused window has a menu at all times; the app's menu titles appear within 100 ms of focus when its tree is cached; an app that does not answer is replaced by the fallback within its timeout. A matrix of a Qt 6.9+ app, a Chromium 137+ browser, LibreOffice on GTK 3 and a GtkApplication app with a menubar shows their real menus.
+8. Menu bar: every focused window has a menu whenever the bar is revealed; the app's menu titles appear within 100 ms of the reveal when its tree is cached; an app that does not answer is replaced by the fallback within its timeout. A matrix of a Qt 6.9+ app, a Chromium 137+ browser, LibreOffice on GTK 3 and a GtkApplication app with a menubar shows their real menus.
 9. Notifications: a new notification's banner is on screen within 100 ms of the Notify call reaching the bus.
 10. Lock: every screen shows the lock before sleep proceeds; no frame of session content is scanned out between a lock request and the lock, or on resume; 100 injected panics in the lock surface never show session content.
 11. An injected panic in any other surface rebuilds it within a second while windows and other surfaces keep running.
@@ -475,15 +483,16 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 | v1 capability | Lands in |
 |---|---|
 | Wallpaper: image, drawn backdrop, folder pick | Wallpaper and idle dimmer |
-| Rest pill: clock | The clock (Menu bar 9); its place and what it opens are P1's |
-| Rest pill: Wi-Fi, Bluetooth, muted volume, VPN, updates, restart owed and mode glyphs | Menu bar status items (Menu bar 6); restart owed also in the system menu; which show at rest is P1's |
+| Rest pill: clock | The island's clock (Island 9), opening Notification Centre |
+| Rest pill: Wi-Fi, Bluetooth, muted volume, VPN, updates, restart owed and mode glyphs | The island's status glyphs, shown only when active (Island 10); restart owed also in the system menu; mode as the Focus glyph |
 | Rest pill: recording and screen share glyphs | Privacy indicators (Island 4) |
 | Rest pill: calendar within 30 minutes | Calendar widget; the event's start is a notification |
-| Rest pill: desktop dots, which opened Mission Control | Capability kept in Mission Control (rule 3); whether the island shows desktops is P1's |
-| Hover panel: header of desktops as app icons | Mission Control's Spaces bar and the Dock |
-| Hover panel: toggles (Wi-Fi, Bluetooth, night light, DND as a Focus, game mode, VPN), output picker, volume, brightness, per-app volumes, media, batteries, updates, power profile | Control Centre controls, pinnable as status items; their modules are P1's |
+| Rest pill: desktop dots, which opened Mission Control | Capability kept in Mission Control (rule 3); the island shows no desktops |
+| Hover panel: opened by hover on the pill, with its guards | Control Centre from the island (Island 11) |
+| Hover panel: header of desktops as app icons | Mission Control's Spaces bar and the app switcher |
+| Hover panel: toggles (Wi-Fi, Bluetooth, night light, DND as a Focus, game mode, VPN), output picker, volume, brightness, per-app volumes, media, batteries, updates, power profile | Control Centre controls; their modules are P1's |
 | Hover panel: Wi-Fi password and Bluetooth pairing drill-downs, VPN providers page | Control Centre drill-downs and the system prompts |
-| Hover panel: tray icons and tray menu page | Menu bar status items |
+| Hover panel: tray icons and tray menu page | Control Centre's tray (Control Centre 9) |
 | Hover panel: notifications page | Notification Centre |
 | Events: volume OSD | OSDs, widened to every level change |
 | Events: media start, recording and share with Stop, auth pending, mode change, clipboard copy | Live activities and events (Island 2, 3); where each shows is P1's |
@@ -491,8 +500,8 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 | Events: drive inserted with Mount and Eject, calendar start, AppImage installed, update finished, restart needed | Desktop notifications with actions |
 | An open panel is never taken over by an event | Island rule 7 |
 | Island on every screen, events on one (D49) | Shell runtime rule 14; which surfaces each screen carries is P1's |
-| Game mode: island unmapped, hot zone peeks it | Menu bar 13, Island 8: nothing but privacy and OSDs over a game; a top-edge dwell reveals |
-| Dashboard: full-screen widget grid on a chord | Capability kept (Widgets 1, 3); where widgets live is P1's (B24) |
+| Game mode: island unmapped, hot zone peeks it | Island 8, 12, Menu bar 10: nothing but privacy and OSDs over a game; a top-edge dwell reveals the island, or the bar with it |
+| Dashboard: full-screen widget grid on a chord | Capability kept (Widgets 1, 3); the dashboard is the one widgets surface (P1, `wallpaper.md`) |
 | Dashboard: edit mode, grid editor, pages | Widget grid editor (Widgets 3); pages are P1's |
 | Built-in widgets (Clock, Media, Workspaces, Notifications, Controls, System, Session, Devices, Storage, Calendar, Weather) | Built-in widgets |
 | Agents widget (terminal windows) | Dropped: no longer a feature |
@@ -504,10 +513,10 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 | Launcher prefixes `>` `=` `/` `?` `.` `:` `@` `*` | Spotlight prefixes |
 | Clipboard: thumbnails, pins, delete, paste into the previous window | Spotlight clipboard |
 | Emoji typed after close | Spotlight emoji through the injected-key source |
-| Apps ranked in the launcher (no Launchpad) | Spotlight's Apps view |
+| Apps ranked in the launcher (no Launchpad) | Spotlight's Apps view, with favourites |
 | Switcher: one entry per app, count, live previews, backtick cycle, Q quits, W closes, commit on release | App switcher, plus H hides and Cmd+` without the switcher |
 | Mission Control: spaces bar with add, spread, close, drag between desktops, keyboard, real-rectangle animation, previews only while visible | Mission Control; the spaces bar, spread and animation are P1 proposals |
-| Mission Control: hidden-window tray | App Exposé's minimised set and the Dock |
+| Mission Control: hidden-window tray | App Exposé's minimised set and Mission Control's minimised windows (Mission Control 5) |
 | Three-finger swipe up and down | Mission Control gestures |
 | Capture: region, window, screen, shot, record, countdown, cursor, audio, freeze before pick | Capture toolbar and Mac chords |
 | Capture: annotate, colour pick, recording timer with Stop | Capture (annotator open); the timer as live activity |
@@ -520,7 +529,7 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 | On-screen keyboard: two cursors, completions, legend, no focus, exclusion | On-screen keyboard, pointer-driven; two cursors and legend dropped (B22) |
 | Surfaces close each other; Escape closes | Shell runtime rule 10 |
 | Surfaces back after a reload (D62) | Shell runtime rule 3; windows in apps.md |
-| Kept-running apps in the tray row | Dock |
+| Kept-running apps in the tray row | App switcher (App switcher 5) |
 | Reduced motion, text scale, high contrast | Shell runtime rule 9 |
 | IPC as the test surface | Shell runtime rule 16 |
 | File chooser surface | Open and Save panels in the Files process (B26); apps.md |
@@ -529,7 +538,7 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 
 ## Not here
 
-- **compositor.md**: the window model and layouts (snapping and its preview, minimise, hide, quit, Split View, Stage Manager, picture-in-picture, the dropdown terminal); title bars and window controls (B25); Cmd translation, the Alt and Super swap and the full chord table; gesture and hot-corner recognition; outputs, KVM recovery and screen power; the magnifier and night light; app identity from app ids and desktop entries; window images; the X11 window manager's menu properties; session restore; greeter mode under greetd and the session start, whose screen is the lock screen here (B26).
+- **compositor.md**: the window model and layouts (the work area under the island's strip, snapping and its preview, minimise, hide, quit, Split View, Stage Manager, picture-in-picture, the dropdown terminal); title bars and window controls (B25); Cmd translation, the Alt and Super swap and the full chord table; gesture and hot-corner recognition; outputs, KVM recovery and screen power; the magnifier and night light; app identity from app ids and desktop entries; window images; the X11 window manager's menu properties; session restore; greeter mode under greetd and the session start, whose screen is the lock screen here (B26).
 - **gaming.md**: game detection (which turns on the Gaming Focus), Game Mode's profile, Steam's Big Picture handling and controllers.
 - **apps.md**: Settings and its page index, Files with its Open and Save panels and the Quick Look service (B26), Monitor, Keychain, Cleaner.
 - **P1, the design process**: every question under For the design process.

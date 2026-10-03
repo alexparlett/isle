@@ -8,9 +8,15 @@ first `tokens.kdl`. Isle v1's design is on `main` for reference only.
 Until then, what holds (the design process can revisit how any of it
 looks, not that it exists):
 
-- The north star is a macOS-style desktop (B17): a menu bar with the
-  focused app's menus and the island where a notch would be (B18), a Dock
-  (B19), app-centric switching (B20), Mac shortcuts (B21).
+- The north star is a macOS-style desktop (B17). At rest each screen
+  shows the wallpaper and the island, v1's pill with the clock and status
+  glyphs only when active, from which Control Centre and Notification
+  Centre open; the front app's menus come on demand as macOS's
+  automatically hidden menu bar (B18). There is no Dock: launching is
+  Spotlight's Apps grid, switching is Cmd+Tab and Mission Control (B19).
+  Windows are app-centric (B20) and shortcuts are the Mac's (B21). The
+  direction is P1's revision 1
+  (`docs/work/rust-desktop/p1/structure/revision-1.md`).
 - What the island shows, where banners appear and where widgets live are
   for the design process to decide (B24), which lists the brainstorm's
   proposals as starting points.

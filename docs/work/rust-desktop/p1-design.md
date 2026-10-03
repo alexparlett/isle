@@ -37,10 +37,11 @@ as structure only (roadmap, P1).
 - **The harness** (`p1/harness/`): a 3440×1440 stage scaled to fit the
   window, with a 1920×1080 second screen beside it; a wallpaper picker;
   light and dark; reduced motion, reduced transparency and increased
-  contrast; a state picker per surface. It reads `tokens.kdl` itself
-  (kdljs from a CDN) and maps tokens to CSS custom properties, reloading
-  when the file changes, so mock-ups use the token file the shell will
-  read. Motion runs on a small JS spring with the same parameters the
+  contrast; a state picker per surface; an actual-size view. It reads
+  `tokens.kdl` with a small reader of its own and maps tokens to CSS
+  custom properties, reloading when the file changes, so mock-ups use the
+  token file the shell will read. `harness/serve.py` serves the boards
+  locally in the same wrapper the Artifact host adds. Motion runs on a small JS spring with the same parameters the
   compositor will take, not on CSS easing.
 - **Materials are approximated.** CSS `backdrop-filter` stands in for the
   compositor's blur. Each material is specified in terms the compositor
@@ -108,7 +109,7 @@ The surfaces, in build order:
 - **Menu bar** with the system menu, app menus, fallback app menu, menu
   search, status items, overflow and the clock; the **island**; the
   **wallpaper**.
-- **Dock**; **app switcher** (Cmd+Tab, Cmd+`).
+- **App switcher** (Cmd+Tab, Cmd+`); launching without a Dock (revision 1).
 - **Notification banners**, **OSDs**, **Control Centre** and its modules;
   **Focus** and **Game Mode** state.
 - **Lock** and the **greeter**; **system prompts** (polkit, keyring,
@@ -135,7 +136,7 @@ Two cross-cutting sheets:
   system's recurring strings.
 
 **Gate 2:** the structure, in three batches so the early surfaces are not
-held up: chrome, menu bar, island, Dock and switcher with the competition
+held up: chrome, menu bar, island, switcher and wallpaper with the competition
 sheet; then the rest of milestone M1's surfaces; then the parity surfaces.
 
 ### 3. Directions
@@ -146,8 +147,9 @@ character of the type, how loud motion is. Each is a draft `tokens.kdl`
 with any CSS it cannot express, over the same harness, drawing the same
 sample:
 
-- the menu bar with the island at rest and showing media and a recording;
-- the Dock with a running, a pinned, a badged and a minimised entry;
+- the island at rest and showing media and a recording, and the menu bar
+  revealed;
+- the switcher with a badged, an attention and a minimised entry;
 - Control Centre open with a module drilled into;
 - a notification banner over a full-screen window;
 - a Settings window and a third-party window with Isle's title bar, side
@@ -178,7 +180,7 @@ component board in `p1/system/`.
   handed to P3, which reads them. Until then P3 works from a stub.
 - **Icons and cursor:** the symbol set for the shell (Lucide, Phosphor,
   Material Symbols or another, chosen on the board), the app icon theme
-  and how app icons sit in the Dock and switcher, and the cursor theme.
+  and how app icons sit in the switcher and the Apps grid, and the cursor theme.
 - **Components** shared by the shell and the apps: buttons, toggles,
   sliders, segmented controls, steppers, text and search fields, pop-up
   buttons, menus and their items (checked, radio, disabled, icon,
@@ -202,7 +204,7 @@ both themes. Its answers go into `DESIGN.md`.
 In waves that stay ahead of the building packets:
 
 - **Wave A** (P4, P6, P7): window chrome, menu bar and menus, island,
-  wallpaper, Dock, switcher.
+  wallpaper, switcher.
 - **Wave B** (P8 to P13): banners, OSDs, Control Centre, Focus and Game
   Mode state, lock, greeter, prompts, idle dim, Spotlight, capture and the
   picker, Settings.

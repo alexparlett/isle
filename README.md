@@ -4,8 +4,8 @@ A purpose-built, macOS-style desktop for my own Arch Linux (CachyOS)
 machine, used mostly for gaming and coding.
 
 This branch rebuilds Isle as its own Wayland compositor on Smithay, with
-the shell (menu bar, island, Dock, Spotlight, Control Centre, notifications,
-lock) drawn by the compositor in Freya, and the desktop's apps (Settings,
+the shell (island, menu bar, Spotlight, switcher, Control Centre,
+notifications, lock) drawn by the compositor in Freya, and the desktop's apps (Settings,
 Files, Monitor, Keychain, Cleaner) as Freya apps. It is being planned and
 built as the rust-desktop program; nothing of it runs yet.
 

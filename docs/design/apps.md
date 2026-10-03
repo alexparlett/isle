@@ -6,8 +6,8 @@ Isle's own windows are five apps: Settings, Files, Monitor, Keychain and Cleaner
 process on the user's fork (B7), the fork strata and cairn (`~/Development/`) also build on, started when
 wanted and gone when closed. This document sets the rules every app follows, then what each gives the
 user, measured against the Mac app it stands for (B17) and everything v1's window did (B2). The D-Bus
-interfaces the apps call are in `platform.md`; the menu bar, Dock, launcher and shell-drawn dialogs are
-in `shell.md`. Evidence: `docs/research/rust-desktop/` `isle-v1-inventory.md` (cited as "inventory §n"),
+interfaces the apps call are in `platform.md`; the menu bar, switcher, launcher and shell-drawn dialogs
+are in `shell.md`. Evidence: `docs/research/rust-desktop/` `isle-v1-inventory.md` (cited as "inventory §n"),
 `macos-model.md` and `ui-and-services.md`. `Dn` is entry n of `main:docs/DECISIONS.md`.
 
 ## Rests on
@@ -26,8 +26,8 @@ in `shell.md`. Evidence: `docs/research/rust-desktop/` `isle-v1-inventory.md` (c
   FileChooser to Files; the Open and Save panels and Quick Look run in the Files process; apps render
   on the GPU by default, measured in the Settings packet.
 - **B17** · where a choice is open, the answer is the one a Mac user expects.
-- **B18** · app menus live in the menu bar.
-- **B19** · the Dock carries badges and progress.
+- **B18** · app menus live in the menu bar, shown on demand and searchable from Spotlight.
+- **B19** · no Dock: badges and progress show on the switcher's cards.
 - **B20** · app-centric windows: Cmd+Q quits, Cmd+W closes, launching what is open raises it.
 - **B21** · Super is Cmd everywhere.
 - **B22** · no Big Picture of Isle's own: Settings loses its options, the Controllers page stays.
@@ -45,14 +45,14 @@ Every Isle app follows these rules.
 
 1. Each app is its own binary and process, with its own Wayland app id and desktop entry:
    `isle-settings`, `isle-files`, `isle-monitor`, `isle-keychain`, `isle-cleaner` (D92). The switcher,
-   Dock and menu bar show five apps under five names without matching titles (D75).
+   Spotlight and menu bar show five apps under five names without matching titles (D75).
 2. No app starts with the session. An app is started by its desktop entry, its command line, or D-Bus
    activation of its own well-known bus name (`ui-and-services.md` §1.4: big apps start on demand).
 3. Each app is single-instance. A second launch hands its arguments (a pane, a folder, files) to the
    running instance and exits; the running instance raises its window or opens what was asked (D63).
 4. An app exits when its last window closes and no work is in flight. Work in flight is a file job, a
    removal, a key generation or an update hand-off: the process stays while it runs, with progress on
-   its Dock icon (B19; `macos-model.md` §3 Dock row). Isle's apps are not on B20's keep-running list.
+   its switcher card (B19; `macos-model.md` §3 Dock row). Isle's apps are not on B20's keep-running list.
 5. Cmd+Q in an Isle app is the app's own Quit item, so an app with work in flight says what quitting
    stops and lets the user cancel.
 6. An app quit with windows open reopens them with the same content (pane, folder, tabs, view) on its
@@ -86,7 +86,7 @@ Every Isle app follows these rules.
 15. Each app draws a unified toolbar carrying the traffic lights and asks xdg-decoration for
     client-side mode, so the compositor draws no title bar over it (B25). Close, minimise and zoom act
     through the compositor (`xdg_toplevel` close, set_minimized and set_maximized), so they behave as
-    for any other app: minimise goes to the Dock and zoom goes to B8's zones. A double click on the
+    for any other app: minimise shrinks the window toward the island and zoom goes to B8's zones. A double click on the
     toolbar does what the user's system setting says.
 16. Every window resizes from every edge and has a minimum size at which nothing is clipped.
 17. Translucency is asked of the compositor through `ext-background-effect-v1`; no app blurs behind
@@ -152,8 +152,8 @@ The user gets System Settings: one window holding every setting in panes, search
 forward.
 
 1. Every v1 page has a home (the 27 pages in inventory §5; Parity map).
-2. Settings covers what B8 and B18–B21 create: the Dock and window snapping, the menu bar's
-   status items and Control Centre modules, and per-device keyboard profiles with the Cmd translation
+2. Settings covers what B8 and B18–B21 create: window snapping and hot corners, the island's
+   status glyphs and Control Centre modules, and per-device keyboard profiles with the Cmd translation
    exceptions and the Alt and Super swap, on by default for a PC-layout keyboard (B30).
 3. Search covers every row's label and description on every pane; a result opens the pane, scrolls to
    the row and marks it (inventory §7 SettingsIndex).
@@ -399,9 +399,9 @@ D89: rules as data, XDG cache first, root's share by its own tools. D90: own fil
 
 What this document leaves to P1, per app; "proposal" is the answer it gave before.
 
-- **Conventions**: the menu set and order (proposal: app menu with About, Settings…, Hide, Hide
-  Others, Quit, then File, Edit, View, Window, Help as needed); the unified toolbar's contents and look;
-  how a modal dialog is presented (proposal: a sheet on its window).
+- **Conventions**: the unified toolbar's look. The menu set and order, the toolbar's contents and how
+  a modal dialog is presented are answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`,
+  `window-chrome.md`) and recorded in DESIGN.md at gate 6.
 - **Settings**: the window's layout (proposal: a sidebar of panes, search at its top, the user's
   account above the panes, each pane a list of grouped rows); the pane list, names, order and grouping
   (proposal: each takes the name and place of the macOS pane that covers it, an Isle-only pane beside
@@ -462,7 +462,7 @@ lands. Pane names are proposals; P1 settles them (For the design process).
 | Settings › Notifications (do not disturb, quiet hours, per-app rules) | Notifications pane; do not disturb and quiet hours as Focus (Settings 17; B30) |
 | Settings › Modes (game auto, tearing) | Game Mode settings; game auto as Gaming Focus (Settings 17) |
 | Settings › Modes (pad home, Steam shortcuts, gamescope, Steam follows) | Dropped with Isle's Big Picture (B22; `gaming.md` parity map) |
-| Settings › Apps (session restore, keep running, autostart, user services, start commands, default apps) | Desktop & Dock (session restore, B20's keep-running policy), Login Items, default apps |
+| Settings › Apps (session restore, keep running, autostart, user services, start commands, default apps) | Desktop (session restore), Apps (B20's keep-running policy, per app), Login Items, default apps |
 | Settings › Keyboard (per-device profile, Detect, layouts, XKB options) and Shortcuts (chord recording) | Keyboard pane (Settings 9, 10); profiles applied by the compositor (B21) |
 | Settings › Displays (arrangement, mode, scale, VRR, redetect) | Displays pane (Settings 13) |
 | Settings › Controllers (live pad, dead zone) | Controllers page (D54; kept by B22) |
@@ -495,8 +495,8 @@ lands. Pane names are proposals; P1 settles them (For the design process).
 - The compositor's D-Bus interface for settings, tokens, the window list and chord capture; the portal
   backend; the polkit agent, keyring prompter, Wi-Fi secret agent, Bluetooth pairing agent and
   notification server: `platform.md`.
-- The menu bar, its fallback menu and menu search; the Dock; the launcher and its Settings and file
-  results; Control Centre; the polkit, keyring and pairing dialogs; clipboard history; live activity:
+- The island; the menu bar, its fallback menu and menu search; the switcher; the launcher and its
+  Settings and file results; Control Centre; the polkit, keyring and pairing dialogs; clipboard history; live activity:
   `shell.md`.
 - Server-side title bars for other apps (B25): `compositor.md`.
 - How any window looks and is laid out: P1, the design process (B3; For the design process).

@@ -31,7 +31,7 @@ under `docs/research/rust-desktop/`: `inventory` (isle-v1-inventory.md),
 - B11: GameMode, UPower and power profiles are zbus service crates.
 - B12: notifications are Isle's own server, so Isle decides when they show.
 - B17: a Mac user's expectations decide what is open: Game Mode, full-screen Spaces.
-- B18, B19: a menu bar and a Dock that a game's Space hides.
+- B18, B19: the island at rest and the menu bar on demand, both hidden over a game's Space; no Dock.
 - B20: a game is an app; Cmd+Tab and Quit speak in apps.
 - B21: no Cmd translation in game windows or under shortcuts-inhibit.
 - B22: no console mode of Isle's own; Steam's Big Picture is the console experience.
@@ -59,7 +59,7 @@ Open for its packet: whether `*.exe` matching catches Wine installers and launch
 
 ### Games as apps
 
-The user gets: the Dock, the switcher, Mission Control and per-app volume show a game's name and cover, never `steam_app_1245620`.
+The user gets: the switcher, Spotlight, Mission Control and per-app volume show a game's name and cover, never `steam_app_1245620`.
 
 1. A `steam_app_<id>` window takes that app's name and art from the Steam library.
 2. A gamescope window takes the name of the library game running under it, otherwise the first word of its title.
@@ -92,7 +92,7 @@ The user gets: as on a Mac, a full-screen game has a Space of its own; Cmd+Tab t
 2. A borderless game gets its Space without being put into the compositor's fullscreen state, so its own resize back to windowed is honoured.
 3. When full screen ends the window returns to the Space it came from; when the game closes, the view returns to the Space the user was on.
 4. Leaving a game's Space releases its pointer lock or confinement; returning restores what the game asked for.
-5. The game's Space shows no menu bar, Dock or island unless revealed (Game Mode).
+5. The game's Space shows no island or menu bar unless revealed (Game Mode).
 
 Requires of `compositor.md`: full-screen Spaces as a window state; borderless detection by geometry. Of `shell.md`: game Spaces among the desktops in Mission Control.
 
@@ -108,11 +108,11 @@ The user gets: Game Mode is the Gaming Focus (B30). Like a Mac's Gaming Focus it
 2. Turning the Gaming Focus's automatic start off in Settings leaves only the manual toggle. Its allowed apps are set like any Focus's.
 3. On entering, Isle holds the performance power profile (power-profiles-daemon `HoldProfile`) and turns night light off; on leaving it releases the hold and restores night light.
 4. Leaving restores only what Game Mode changed; a change the user made during Game Mode stands.
-5. The menu bar and Dock stay hidden over a game's Space; resting the pointer at the top edge reveals the menu bar, never while the game holds the pointer locked or confined.
+5. The island and the menu bar stay hidden over a game's Space; resting the pointer at the top edge reveals the island, or outside the island's zone the menu bar with it, never while the game holds the pointer locked or confined.
 6. Notification banners are held and counted, except critical ones and the Focus's allowed apps; on leaving, one summary of what was held leads to Notification Centre.
-7. Over a game's Space no live activity shows except privacy indicators, until the menu bar is revealed. OSDs still show briefly without revealing the menu bar.
+7. Over a game's Space no live activity shows except privacy indicators, until the island is revealed. OSDs still show briefly without revealing the island or the menu bar.
 8. No dim, lock or display sleep happens while a game window is in front.
-9. A shell surface shown during Game Mode opens and closes without transitions or background blur.
+9. A shell surface shown during Game Mode opens and closes without transitions or background blur. With a windowed game in front the shell stays shown and works as normal, drawn this way (P1, gate 2).
 10. Game Mode's state is readable and settable over Isle's D-Bus interface (B10).
 
 Requires of `shell.md`: the Gaming Focus among the Focus modes, a visible Game Mode state, the reveal, held banners and the summary. Of `platform.md`: the power profile hold, idle inhibition.
@@ -177,7 +177,7 @@ The user gets: Steam's Big Picture takes the screen like a console; closing it p
 
 1. Steam's Big Picture is a window of class `steam`, or a gamescope window hosting Steam, whose title contains "Big Picture" and which is not minimised; title changes do not lose it.
 2. It gets a full-screen Space of its own, and the Space it opened from is remembered.
-3. Steam minimises Big Picture rather than closing it, so a minimised Big Picture counts as closed: its Space goes, the view returns, and the Dock does not show it as minimised.
+3. Steam minimises Big Picture rather than closing it, so a minimised Big Picture counts as closed: its Space goes, the view returns, and the switcher and App Exposé do not show it as minimised.
 4. Steam shows its desktop window again on whatever Space is current when Big Picture closes; Isle moves it back to the Space it was on before.
 5. Steam's Big Picture is a full-screen game: Game Mode's rules apply while it is in front.
 6. Steam Input owns the pad while Steam's Big Picture is in front.
@@ -227,15 +227,20 @@ Open for its packet: device access through logind uaccess on CachyOS (services O
 What this document leaves to P1, per feature; "proposal" is the answer it
 gave before.
 
-- **Games as apps**: how a game's art stands in for an icon in the Dock,
-  switcher, Mission Control and per-app volume (proposal: its cover).
+- **Games as apps**: how a game's art stands in for an icon in per-app
+  volume (proposal: its cover). In the switcher, Spotlight and Mission
+  Control it is answered in P1
+  (`docs/work/rust-desktop/p1/structure/switcher.md`, `dock.md`) and
+  recorded in DESIGN.md at gate 6.
 - **Full-screen Spaces**: how a game's Space is shown among the desktops
   (proposal: by name in Mission Control's Spaces bar).
-- **Game Mode**: where its state is shown (proposal: a menu bar status
-  item); how the top-edge reveal looks; the held-notification summary's form
-  and copy (proposal: one summary, "while you played", leading to
-  Notification Centre); where held banners would have shown (proposal: top
-  right, B24).
+- **Game Mode**: how the top-edge reveal looks; the held-notification
+  summary's form and copy (proposal: one summary, "while you played",
+  leading to Notification Centre); where held banners would have shown
+  (proposal: top right, B24). Where its state is shown (the island's Focus
+  glyph), the reveal's structure and the shell beside a windowed game are
+  answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`,
+  `menu-bar.md`, `competition.md`) and recorded in DESIGN.md at gate 6.
 - **Controllers**: where pad batteries show (proposal: Control Centre and
   the Devices widget); the names given to virtual pads (proposal: "Steam
   Input", "Virtual pad from" the program).
@@ -270,7 +275,7 @@ Measured on the host (RTX 5070 Ti, the 3440×1440 48–144 Hz monitor) unless th
 | Tearing allowed for the fullscreen game (§3.3, §10) | Presentation |
 | VRR on, direct scanout on (§3.1) | Presentation (VRR for any full-screen window, B30); compositor.md |
 | Night light off and power profile to performance, both restored (§10) | Game Mode |
-| Island unmapped, top-edge hot zone peek (§4, §10) | Game Mode 5, 7 (only privacy indicators and OSDs over a game, menu bar reveal) |
+| Island unmapped, top-edge hot zone peek (§4, §10) | Game Mode 5, 7 (only privacy indicators and OSDs over a game; a top-edge dwell reveals the island, or the menu bar with it) |
 | Notifications silenced, counted and summarised (§4, §10) | Game Mode 6 (banners held by the Gaming Focus); shell.md |
 | Idle inhibited (§10) | Game Mode |
 | Window places off in game mode (§3.4) | Games |
@@ -303,7 +308,7 @@ Measured on the host (RTX 5070 Ti, the 3440×1440 48–144 Hz monitor) unless th
 ## Not here
 
 - Display mechanics (plane assignment, the async flip patch, VRR plumbing, frame scheduling, the NVIDIA VRAM profile): `compositor.md`.
-- The menu bar, Dock, island and its live activities, Control Centre, notification banners, Focus modes other than Gaming, the on-screen keyboard and Mission Control as surfaces: `shell.md`.
+- The island and its live activities, the menu bar, Control Centre, notification banners, Focus modes other than Gaming, the on-screen keyboard and Mission Control as surfaces: `shell.md`.
 - The escape set's chords in the keyboard filter and the per-device Alt and Super swap (B30): `compositor.md`.
 - Settings pages: `apps.md`. GameMode, UPower and power-profile crates: `platform.md`.
 - HDR and colour management: in scope by B23 as their own packet after Isle replaces v1; the display side is `compositor.md`. Games, nested gamescope included, get HDR when it lands (Proton-CachyOS enables it on its own, gaming §2).

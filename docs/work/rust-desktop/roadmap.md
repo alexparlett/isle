@@ -26,7 +26,7 @@ design process" list, and B24). Its stages:
 1. **Research.** macOS as it is today (macOS 27, Apple's HIG), the
    desktops worth learning from, v1's lessons about its own surfaces, and
    the user's taste and daily use, gathered by asking.
-2. **Structure.** For every surface (menu bar, island, Dock, Control
+2. **Structure.** For every surface (island, menu bar, Control
    Centre, Notification Centre and widgets, Spotlight, switcher, Mission
    Control, lock and greeter, prompts, capture, title bars and app
    toolbars, OSDs): what it is for, its content, its states, what wins
@@ -74,13 +74,18 @@ compositor, with the Alt and Super swap on PC keyboards on by default
 shortcuts-inhibit (B21); the default shortcut set. Retires xremap. Intent:
 compositor.md.
 
-**P6 · Menu bar and island.** The menu bar with the three menu sources and
-the registrar owned from session start, the fallback app menu, status
-items, the island in the notch (B18) showing live activity as P1
-designs it (B24); the wallpaper. Intent: shell.md, platform.md, compositor.md.
+**P6 · Island and menus.** The island on every screen (B18): the clock,
+the status glyphs, live activity as P1 designs it (B24), and Control
+Centre's panel opening from it, whose modules and tray fill in with P8.
+The menu bar on demand from the top edge and Ctrl+F2, with the three menu
+sources and the registrar owned from session start, the fallback app menu
+and menu search. The wallpaper. Intent: shell.md, platform.md,
+compositor.md.
 
-**P7 · Dock and switcher.** The Dock (B19) with running and pinned apps,
-badges, progress and minimised windows; Cmd+Tab and Cmd+` (B20). Intent:
+**P7 · Switcher and launching.** Cmd+Tab and Cmd+` (B20), the switcher's
+cards carrying what a Dock would (B19): badges, progress, attention, and
+hidden, minimised and background marks. Launching from Spotlight's Apps
+grid with its favourites row is built with Spotlight in P10. Intent:
 shell.md.
 
 **P8 · Services, notifications and Control Centre.** The zbus service
@@ -96,8 +101,9 @@ polkit agent, keyring prompter and NetworkManager secret agent (B12) and
 the Bluetooth pairing agent (B28) with their dialogs; idle, dim and DPMS.
 Intent: shell.md, platform.md, compositor.md.
 
-**P10 · Spotlight.** Launcher with apps, the Apps grid, windows, settings,
-actions and v1's prefixes and sources. Intent: shell.md.
+**P10 · Spotlight.** Launcher with apps, the Apps grid with its favourites
+(B19), windows, settings, the front app's menu items (B18), actions and
+v1's prefixes and sources. Intent: shell.md.
 
 **P11 · Capture and portals.** `xdg-desktop-portal-isle` (B13), a bus name
 on the compositor's service worker (B26): ScreenCast and Screenshot with
@@ -113,8 +119,8 @@ chords over a game (B30); Steam, its Big Picture as a full-screen game
 (B22), and nested gamescope. Intent: gaming.md, compositor.md.
 
 **P13 · Settings, core.** The Settings app on the app conventions: displays,
-sound, network, Bluetooth, keyboard and shortcuts, appearance, Dock and
-desktop, Focus and Game Mode. Measures an app's memory on the GPU before
+sound, network, Bluetooth, keyboard and shortcuts, appearance, desktop and
+hot corners, Control Centre, Focus and Game Mode. Measures an app's memory on the GPU before
 B26's default is final. Intent: apps.md.
 
 ## Milestone M2: Isle replaces v1 on the host

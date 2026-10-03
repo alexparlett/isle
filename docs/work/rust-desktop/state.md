@@ -30,6 +30,12 @@
   Artifacts.
 - P1 stage 1: the three research notes are written
   (`design-macos.md`, `design-references.md`, `design-v1-lessons.md`),
-  the interview is done, and `p1/brief.md` passed gate 1. Stage 2
-  (structure) has started on its first batch. P2 is
+  the interview is done, and `p1/brief.md` passed gate 1.
+- P1 stage 2, batch 1 passed gate 2 (`p1/structure/`, board
+  `p1/structure-1.html`, published as a private Artifact) after revision 1:
+  at rest only the wallpaper and v1's pill; menus on demand; no Dock. B18
+  and B19 are revised and the intent docs, DESIGN and the roadmap follow.
+  Next: batch 2 (the rest of M1's surfaces: banners, OSDs, Control Centre,
+  Focus and Game Mode, lock, greeter, prompts, Spotlight with the Apps
+  grid, capture, Settings). P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

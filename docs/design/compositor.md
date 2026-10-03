@@ -25,7 +25,7 @@ whose open questions are listed under For the design process.
 - B13: window previews are the compositor's own textures; capture only while visible.
 - B17: where a choice is open, the answer is what a Mac user expects.
 - B18: the compositor serves the Wayland and X11 halves of the global menu.
-- B19: the Dock shows minimised windows and running apps; the compositor supplies them.
+- B19: no Dock; the switcher, App Exposé and Mission Control show running apps and minimised windows, and the compositor supplies them.
 - B20: app-centric windows: hide versus close, keep-running policy, Cmd+Tab and Cmd+`.
 - B21: Cmd translation in the keyboard filter, per-device profiles, inhibit and games pass through.
 - B22: no console mode and no pad bridge; Steam's Big Picture is a full-screen game like any other.
@@ -50,7 +50,7 @@ Space, keeping their order.
 4. Untitled windows, a second titled window (a dialog), PiP, the dropdown terminal and windows recognised as games are never recorded or placed. While Game Mode is on, no places are applied.
 5. A place that is off every output is never recorded and never applied; places are clamped whole onto the output they name, or onto the output with focus when that one is absent.
 6. A window with no place opens at its requested size, or a default proportion of the work area, centred on the output with focus; a dialog opens centred over its parent; a modal dialog (xdg-dialog, X11 transient with modal state) keeps its parent from taking focus.
-7. The work area of each output excludes the menu bar and, when it is not hidden, the Dock; snapping and fill respect it, full-screen Spaces ignore it.
+7. The work area of each output excludes a strip along its top kept clear for the island, and reaches the bottom edge. The menu bar reserves nothing: it slides over windows when revealed and moves none. Snapping and fill respect the work area, full-screen Spaces ignore it.
 8. Open, close, minimise and restore are animated by the compositor; a window placed at map starts its open animation at its place, never sliding there.
 9. A window can be kept on top and on every Space (v1's pin), from the window menu or a chord; focus moves by direction between visible windows with a chord.
 10. Show Desktop (a chord, a hot corner or the spread gesture) moves every window on the output aside to show the desktop; the same route puts them back in their boxes.
@@ -66,7 +66,7 @@ tiling does, with zones designed for 3440×1440 and a preview while dragging.
 
 1. Zones: left and right halves, left, centre and right thirds, two-thirds left and right, quarters at corners, a centred 60%, fill (the work area), and the free space beside an existing window.
 2. A drag that ends with the pointer in an edge or corner region tiles the window to that region's zone, whatever started the drag: a modifier drag, a server-side title bar, a client's own title bar, or X11 `_NET_WM_MOVERESIZE`.
-3. Dragging to the top edge fills; holding Option while dragging shows the zone targets immediately, as on macOS.
+3. Dragging to the top edge fills; the bottom edge gives no zone, only its corners do. Holding Option while dragging shows the zone targets immediately, as on macOS.
 4. A preview of the target zone is drawn by the compositor while the pointer is in a region; nothing in the drag path waits on another process.
 5. Each zone has a keyboard chord and a place in the zoom button's menu; the chords do not use Fn.
 6. Tiles keep margins when the "tiled windows have margins" setting is on; the window's decoration sits inside the tile.
@@ -85,7 +85,7 @@ app's windows, Cmd+H hides an app, Cmd+Q quits it, Cmd+W closes a window
 
 1. Each window belongs to an app, resolved from `xdg_toplevel.app_id` or `WM_CLASS` through desktop entries; `steam_app_<id>` resolves to the game; a gamescope window is named from its title; Isle's own apps each carry their own app id.
 2. The compositor keeps a most-recently-used order of apps and of windows; Cmd+Tab orders by app recency, and Cmd+` walks the front app's windows in a stable order, not recency.
-3. Activating an app (switcher, Dock, launcher) raises its most recent window and its other windows on that Space; if it has no window on the current Space, the view moves to a Space where it has one.
+3. Activating an app (switcher, launcher, Mission Control) raises its most recent window and its other windows on that Space; if it has no window on the current Space, the view moves to a Space where it has one.
 4. Launching an app that already has a window raises it, un-hiding it if hidden; a second instance is the app's own new-window chord.
 5. Hide (Cmd+H) removes all of an app's windows from view on every Space; Hide Others (Cmd+Option+H) hides every other app; activating a hidden app shows its windows again in their order.
 6. Cmd+W on an app's last window hides the app instead of closing the window when the app is on the keep-running list; for every other app it closes the window, and the app decides whether to exit.
@@ -101,15 +101,14 @@ app's windows, Cmd+H hides an app, Cmd+Q quits it, Cmd+W closes a window
 
 ### Minimise and maximise
 
-Minimise sends a window to the Dock; maximise fills the work area. Both are
-real states, including when an X11 client asks for them.
+Minimise shrinks a window toward the island; maximise fills the work area.
+Both are real states, including when an X11 client asks for them.
 
-1. Minimise (Cmd+M, the title bar button, or a client request through `xdg_toplevel.set_minimized` or X11 `WM_CHANGE_STATE` iconic) removes the window from its Space and gives it to the Dock; restoring returns it to its Space and box.
-2. "Minimise windows into application icon" is a setting; with it, restoring is through the app.
-3. Maximise (`set_maximized`, `_NET_WM_STATE_MAXIMIZED_*`, the zoom button with Option, or the title-bar double-click action) fills the work area and remembers the previous box; the client is told it is maximised.
-4. The title-bar double-click action is a setting: fill, minimise or nothing, as on macOS.
-5. Minimised and hidden windows keep their live texture for the Dock and Mission Control, drawn only while a surface shows them.
-6. A client minimise request is never answered with another state.
+1. Minimise (Cmd+M, the title bar button, or a client request through `xdg_toplevel.set_minimized` or X11 `WM_CHANGE_STATE` iconic) removes the window from its Space, shrinking it toward the island; it is reached from App Exposé, Mission Control, the switcher and the Window menu, and restoring returns it to its Space and box.
+2. Maximise (`set_maximized`, `_NET_WM_STATE_MAXIMIZED_*`, the zoom button with Option, or the title-bar double-click action) fills the work area and remembers the previous box; the client is told it is maximised.
+3. The title-bar double-click action is a setting: fill, minimise or nothing, as on macOS.
+4. Minimised and hidden windows keep their live texture for the switcher, App Exposé and Mission Control, drawn only while a surface shows them.
+5. A client minimise request is never answered with another state.
 
 **v1 lessons kept.** Inventory §3.4: Hyprland answered an X11 minimise request with a sticky maximise toggle; the request is consumed and handled as minimise.
 
@@ -127,7 +126,7 @@ own beside the one it came from, as on macOS.
 5. A window that becomes full screen (`set_fullscreen`, `_NET_WM_STATE_FULLSCREEN`, the zoom button, Ctrl+Cmd+F) moves to a new full-screen Space to the right of its origin, and the view follows only if the window has focus.
 6. A window that covers its whole output without decoration (a game's borderless fullscreen) is given a full-screen Space the same way, without forcing the fullscreen state on it.
 7. When fullscreen ends, or the window closes, the Space is removed, the window returns to its origin Space and box, and the view returns with it; a window already alone on its Space is left where it is.
-8. In a full-screen Space the menu bar and Dock are hidden and revealed by the pointer at their edge.
+8. In a full-screen Space the island and the menu bar are hidden and revealed by the pointer at the top edge.
 
 **v1 lessons kept.** D48: a fullscreen window on a shared Space covered windows that alt-tab then "focused"; borderless fullscreen is detected by size and not forced into fullscreen, which would make the client's resize back to windowed be ignored. Inventory §3.6: v1's special workspaces (`hidden`, `terminal`, `steam`) become states of the model: hidden, the dropdown, and a full-screen Space.
 
@@ -260,7 +259,7 @@ every gesture also has a key and a mouse route, since the host is a desktop.
 2. Focus follows click: a click on an inactive window focuses and raises it and is delivered; scrolling goes to the window under the pointer without focusing it; focus never warps the pointer.
 3. A modifier drag moves a window and a modifier right-drag resizes it; the chord is in the shortcut set. Middle-click paste is off by default.
 4. The pointer is drawn on the cursor plane, so captures leave it out unless asked; the compositor falls back to drawing it when the plane is unavailable.
-5. Hot corners: a pointer dwelling in an output's corner, with an optional modifier, triggers the action set for it (the actions are the shell's); a pointer dwelling at a hidden menu bar's or Dock's edge reveals it, as v1's game-mode hot zone did.
+5. Hot corners: a pointer dwelling in an output's corner, with an optional modifier, triggers the action set for it (the actions are the shell's); a pointer pushing the top edge reveals the island inside its zone and the menu bar outside it, by a dwell instead over a game, as v1's game-mode hot zone did. Nothing is revealed from the bottom edge.
 6. Three fingers up open Mission Control and down open App Exposé; three or four fingers sideways move between Spaces (the count is a setting); thumb and three fingers spread shows the desktop.
 7. A gesture tracks the fingers one to one and commits by distance or velocity at release, otherwise springs back; gestures the desktop does not use reach the focused client through pointer-gestures.
 
@@ -330,7 +329,7 @@ Isle types on the user's behalf reach the right window untouched.
 
 **v1 lessons kept.** D37: v1 typed through `wtype`, a process per key; injection is in-process here.
 
-**Open for its packet.** The escape chord, and whether inhibitors are granted always or asked once per app. Whether libei is served for portal RemoteDesktop.
+**Open for its packet.** The escape chord. Inhibitors are granted always, shown by the island's glyph and a notice in the window (P1, `window-chrome.md`). Whether libei is served for portal RemoteDesktop.
 
 ### Gaming display path
 
@@ -406,13 +405,12 @@ Not served: ext-session-lock (the lock is Isle's, B28), wlr-foreign-toplevel-man
 What this document leaves to P1, per feature; "proposal" is the answer it
 gave before.
 
-- **Stacking**: the choreography of open, close, minimise and restore
-  (proposal: from and to the window's real rectangle); whether Show Desktop
-  reveals widgets and on which chord (proposal, B24: "Show widgets" on v1's
-  dashboard chord, revealing the desktop's widgets); where windows go when
-  moved aside.
-- **Snapping**: the look of the zone preview; how the zones are laid out in
-  the zoom button's menu.
+- **Stacking**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/window-chrome.md`, `wallpaper.md`); recorded
+  in DESIGN.md at gate 6.
+- **Snapping**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/window-chrome.md`); recorded in DESIGN.md at
+  gate 6.
 - **Spaces**: the Space-switch motion.
 - **Split View**: how the candidates for the other half are offered
   (proposal: shown in the free half).
@@ -420,14 +418,15 @@ gave before.
   out (proposal: a strip beside the work area, front app centred).
 - **Picture-in-picture**: whether it is decorated (proposal: no title bar).
 - **Dropdown terminal**: how it appears (proposal: slides down from the top).
-- **Server-side decorations**: where the controls and title sit (proposal:
-  controls on the left, as on macOS); how zoom offers its zones (proposal:
-  a menu on hover); the window menu's layout.
-- **Keyboard-shortcuts-inhibit**: where its active state is shown (proposal:
-  the menu bar).
-- **Shell surface hosting**: which layer each surface takes (proposal: menu
-  bar and Dock in top; switcher, Mission Control, launcher and notifications
-  in overlay).
+- **Server-side decorations**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/window-chrome.md`); recorded in DESIGN.md at
+  gate 6.
+- **Keyboard-shortcuts-inhibit**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/island.md`, `window-chrome.md`); recorded in
+  DESIGN.md at gate 6.
+- **Shell surface hosting**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/competition.md`); recorded in DESIGN.md at
+  gate 6.
 
 ## Acceptance bars
 
@@ -488,7 +487,7 @@ gave before.
 
 ## Not here
 
-- `shell.md`: the menu bar and its menus, the Dock, the switcher, Mission Control and App Exposé, the Stage Manager surface, the launcher, Notification Centre, Control Centre, the lock screen's face, the idle dimmer's drawing, hot-corner actions, which output carries the shell.
+- `shell.md`: the island, the menu bar and its menus, the switcher, Mission Control and App Exposé, the Stage Manager surface, the launcher, Notification Centre, Control Centre, the lock screen's face, the idle dimmer's drawing, hot-corner actions, which output carries the shell.
 - `gaming.md`: game detection, Game Mode (the Gaming Focus) and when the game profile applies, Steam and its Big Picture as a full-screen game, controllers. There is no console mode and no pad-to-keys bridge (B22).
 - `apps.md`: the Settings pages for displays, keyboards, mouse and shortcuts; Isle's own apps and their unified toolbar (B25); theming installed apps, including GTK's button layout and Chromium flags.
 - `platform.md`: the settings store and its D-Bus interface (B10, B27), services (B11), the lock's and the greeter's PAM conversations (B12, B26), the portal backend on the compositor's service worker and the capture pipeline (B13, B26), install and update (B29), the NVIDIA profile file and restart-owed checks.

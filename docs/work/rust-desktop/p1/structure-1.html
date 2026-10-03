@@ -1,0 +1,315 @@
+<title>Isle structure, batch 1</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<style>
+  .hb-intro { max-width: 75ch; color: var(--hb-fg-2); line-height: 1.5; margin: 0; }
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs h3 { font-size: 13px; margin: 14px 0 4px; color: var(--hb-fg); }
+  .hb-qs ol { margin: 0; padding-left: 20px; color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs li { margin-bottom: 6px; }
+  .hb-qs b { color: var(--hb-fg); font-weight: 600; }
+  .hb-qs em { color: var(--hb-accent); font-style: normal; }
+</style>
+<script src="harness/harness.js"></script>
+<script>
+(function () {
+  // Wireframe of batch 1 after revision 1: the island at rest, menus on
+  // demand, no Dock. Sizes are placeholders in points; stage 4 sets them.
+  const W = 3440, H = 1440, STRIP = 48, CX = W / 2;
+  const PILL_Y = 9, PILL_H = 30;
+  const { h } = Isle;
+
+  function box(x, y, w, hh, cls, style, ...kids) {
+    return h("div", { class: "wf " + (cls || ""), style: Object.assign({ left: x + "px", top: y + "px", width: w + "px", height: hh + "px" }, style || {}) }, ...kids);
+  }
+  function text(x, y, s, cls, style) {
+    return h("div", { class: "wf " + (cls || "wf-text"), style: Object.assign({ left: x + "px", top: y + "px" }, style || {}) }, s);
+  }
+  function callout(x, y, s) { return h("div", { class: "wf-callout", style: { left: x + "px", top: y + "px" } }, s); }
+  const glyph = (c) => h("span", { class: "wf-icon", style: { width: "14px", height: "14px", background: c || "var(--wf-line)", borderRadius: "3px" } });
+  const dot = (c) => h("span", { class: "wf-dot", style: { background: c } });
+  const privacy = () => h("span", { style: { display: "flex", gap: "4px" } }, dot("#e8a33d"), dot("#5fbf6f"));
+
+  // ---- Island ------------------------------------------------------------
+  // The pill's row, leading to trailing: activity face and marks, clock,
+  // glyphs, privacy marks.
+  function pillRow(o) {
+    const kids = [];
+    if (o.event) kids.push(o.event);
+    else {
+      if (o.face) kids.push(o.face);
+      if (o.marks) for (let i = 0; i < o.marks; i++) kids.push(glyph());
+      kids.push(h("span", { style: { fontVariantNumeric: "tabular-nums", fontSize: "13px", fontWeight: 600 } }, "14:32"));
+      for (const g of o.glyphs || []) kids.push(glyph());
+    }
+    if (o.privacy) kids.push(privacy());
+    return kids;
+  }
+  function pill(s, o = {}) {
+    const el = h("div", { class: "wf wf-box wf-pill", style: { left: CX + "px", top: PILL_Y + "px", height: PILL_H + "px", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px", padding: "0 14px", whiteSpace: "nowrap" } }, ...pillRow(o));
+    s.append(el);
+    return el;
+  }
+  const face = (label, sub) => h("span", { style: { display: "flex", gap: "8px", alignItems: "center", fontSize: "12px" } },
+    h("span", { class: "wf-icon", style: { width: "16px", height: "16px", background: "var(--wf-line)", borderRadius: "4px" } }), label,
+    sub ? h("span", { style: { opacity: .6 } }, sub) : null);
+
+  function controlCentre(s) {
+    const w = 440, x = CX - w / 2;
+    const panel = box(x, PILL_Y, w, 0, "wf-box", { height: "auto", borderRadius: "22px", padding: "0 0 14px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" });
+    const row = h("div", { style: { display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", height: PILL_H + "px" } }, ...pillRow({ glyphs: [1, 2], privacy: true }));
+    const sec = (label) => h("div", { style: { fontSize: "11px", opacity: .55, margin: "14px 18px 6px" } }, label);
+    const tile = (cols, rows, label, kids) => h("div", { style: { gridColumn: "span " + cols, gridRow: "span " + rows, background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)", borderRadius: "14px", padding: "10px", fontSize: "12px", display: "flex", flexDirection: "column", gap: "8px" } }, label ? h("span", {}, label) : null, ...(kids || []));
+    const slider = () => h("div", { style: { height: "8px", borderRadius: "4px", background: "var(--wf-fill)" } }, h("div", { style: { width: "60%", height: "100%", borderRadius: "4px", background: "var(--wf-ink-2)" } }));
+    const grid = h("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "58px", gap: "8px", margin: "0 14px" } },
+      tile(2, 2, null, [h("div", { class: "wf-row" }, glyph(), "Wi-Fi"), h("div", { class: "wf-row" }, glyph(), "Bluetooth"), h("div", { class: "wf-row" }, glyph(), "Focus")]),
+      tile(2, 2, "Now Playing", [h("div", { class: "wf-row" }, h("span", { class: "wf-icon", style: { width: "36px", height: "36px", background: "var(--wf-line)" } }), "Song title")]),
+      tile(4, 1, "Display", [slider()]),
+      tile(4, 1, "Sound", [slider()]),
+      tile(1, 1, null, [glyph()]), tile(1, 1, null, [glyph()]), tile(1, 1, null, [glyph()]), tile(1, 1, null, [glyph()]));
+    panel.append(row,
+      sec("Now"),
+      h("div", { style: { margin: "0 14px", padding: "10px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)", borderRadius: "14px", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" } },
+        h("div", { class: "wf-row" }, dot("#e8a33d"), "Microphone · Firefox"), h("div", { class: "wf-row" }, dot("#5fbf6f"), "Camera · Firefox")),
+      sec("Controls"), grid,
+      sec("Tray"),
+      h("div", { style: { display: "flex", gap: "14px", margin: "0 18px" } }, glyph(), glyph(), glyph()),
+      h("div", { style: { borderTop: "1px solid var(--wf-line)", margin: "14px 14px 8px" } }),
+      h("div", { style: { display: "flex", justifyContent: "space-between", margin: "0 18px", fontSize: "12px", opacity: .7 } }, h("span", {}, "Edit controls"), h("span", {}, "Control Centre settings…")));
+    s.append(panel);
+  }
+
+  // ---- On-demand menu bar --------------------------------------------------
+  const RESERVE = 560;
+  function menuBar(s, o = {}) {
+    const app = o.app || "Documents";
+    const menus = o.menus || ["File", "Edit", "View", "Go", "Window", "Help"];
+    s.append(box(0, 0, W, STRIP, "wf-box", { borderWidth: "0 0 1px 0", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }));
+    s.append(box(18, 16, 16, 16, "wf-icon", { background: "var(--wf-ink)" }));
+    let x = 54;
+    s.append(text(x, 18, app, "wf-text", { fontWeight: 700 }));
+    x += app.length * 8 + 26;
+    for (const m of menus) { s.append(text(x, 18, m)); x += m.length * 8 + 26; }
+    if (o.showReserve) {
+      s.append(box(CX - RESERVE / 2, 3, RESERVE, STRIP - 6, "wf-outline", { borderColor: "#ffd166" }));
+      s.append(callout(CX + RESERVE / 2 + 12, 56, "island's reserve: menus fold before it; the right is empty"));
+    }
+  }
+  function menu(x, y, rows, w = 260) {
+    const el = box(x, y, w, 0, "wf-box", { height: "auto", borderRadius: "10px", padding: "6px", boxShadow: "0 12px 32px rgba(0,0,0,.4)" });
+    for (const r of rows) {
+      if (r === "—") { el.append(h("div", { style: { borderTop: "1px solid var(--wf-line)", margin: "5px 8px" } })); continue; }
+      const [label, key, mark, dim] = Array.isArray(r) ? r : [r];
+      el.append(h("div", { class: "wf-row", style: { padding: "5px 8px", fontSize: "13px", opacity: dim ? .45 : 1 } },
+        h("span", { style: { width: "14px", fontSize: "11px" } }, mark || ""), h("span", { style: { flex: 1 } }, label),
+        key ? h("span", { style: { color: "var(--wf-ink-2)", fontSize: "12px" } }, key) : null));
+    }
+    return el;
+  }
+
+  // ---- Windows -----------------------------------------------------------
+  function win(s, x, y, w, hh, o = {}) {
+    const el = box(x, y, w, hh, "wf-box", { borderRadius: "12px", boxShadow: o.active ? "0 18px 48px rgba(0,0,0,.45)" : "0 8px 24px rgba(0,0,0,.3)", overflow: "hidden", opacity: o.opacity == null ? 1 : o.opacity });
+    const bar = box(0, 0, w, 32, "", { borderBottom: "1px solid var(--wf-line)", position: "absolute" });
+    const lights = h("div", { class: "wf-row", style: { position: "absolute", left: "14px", top: "10px", gap: "8px" } },
+      ...[0, 1, 2].map(() => h("span", { style: { width: "12px", height: "12px", borderRadius: "50%", border: "1px solid var(--wf-line)", background: o.active ? "var(--wf-ink-2)" : "transparent" } })));
+    bar.append(lights, h("div", { class: "wf-text", style: { position: "absolute", left: 0, right: 0, top: "10px", textAlign: "center", opacity: o.active ? 1 : .6 } }, o.title || "Window"));
+    el.append(bar);
+    for (let i = 0; i < Math.min(12, (hh - 60) / 40); i++) el.append(box(24, 56 + i * 40, (w - 48) * (0.4 + ((i * 37) % 50) / 100), 10, "wf-bar", { position: "absolute" }));
+    s.append(el);
+    return el;
+  }
+  function desktop(s, o = {}) {
+    win(s, 220, 140, 1180, 780, { title: "Terminal" });
+    win(s, 1480, 190, 1320, 860, { title: "Documents", active: true });
+    if (o.strip) {
+      s.append(box(0, 0, W, STRIP, "wf-outline", { borderColor: "#ffd166", borderWidth: "0 0 1.5px 0" }));
+      s.append(callout(40, 56, "top strip kept clear for the island; windows and zones stop below it"));
+    }
+    if (o.bar) menuBar(s, o.bar);
+    if (o.pill !== false) pill(s, o.pill || {});
+  }
+
+  const TOP = [0, 0, 2000, 640];
+  const CENTRE = [CX - 500, 0, 1000, 200];
+  const CARD = [CX - 560, 0, 1120, 900];
+
+  Isle.board({
+    title: "Isle structure, batch 1",
+    subtitle: "Revision 1: at rest only the wallpaper and v1's pill; menus on demand; no Dock. Grey wireframes; sizes are placeholders and the sheets are the source.",
+    tokens: null,
+    surfaces: [
+      { id: "desk", name: "Desktop", sheet: "p1/structure/wallpaper.md", states: [
+        { id: "rest", name: "At rest", note: "The wallpaper and the island. No menu bar and no Dock (brief P1, revision 1). The top strip stays clear for the island; the bottom edge is the windows'.", render(s) { desktop(s, { strip: true }); } },
+        { id: "dashboard", name: "Widgets dashboard", note: "Proposed: the one widgets surface. A full-screen dashboard on v1's chord, over the softened wallpaper; windows neither show through nor move.", render(s) {
+          s.append(h("div", { class: "wf-scrim", style: { background: "var(--wf-fill-2)", opacity: .9 } }));
+          const cols = 12, cw = 236, gap = 16, x0 = (W - (cols * cw + (cols - 1) * gap)) / 2;
+          const cards = [[0, 0, 2, 2], [2, 0, 4, 2], [6, 0, 3, 1], [9, 0, 3, 1], [6, 1, 3, 1], [9, 1, 3, 3], [0, 2, 3, 3], [3, 2, 3, 2], [6, 2, 3, 2], [3, 4, 6, 1]];
+          for (const [c, r, w, hh] of cards) s.append(box(x0 + c * (cw + gap), 140 + r * 180, w * cw + (w - 1) * gap, hh * 180 - gap, "wf-box", { borderRadius: "18px" }));
+          pill(s);
+        } },
+      ] },
+      { id: "island", name: "Island", sheet: "p1/structure/island.md", states: [
+        { id: "rest", name: "Rest", crop: CENTRE, note: "v1's pill: the clock, and nothing else when everything is normal.", render(s) { desktop(s); } },
+        { id: "glyphs", name: "Glyphs", crop: CENTRE, note: "Status glyphs after the clock only while active (here Bluetooth connected, sound muted). Each can be set to always or never. Shortcuts inhibited and a configuration error always show while they hold.", render(s) { desktop(s, { pill: { glyphs: [1, 2] } }); } },
+        { id: "privacy", name: "Privacy", crop: CENTRE, note: "Microphone, camera and screen marks at the trailing end, inside the pill, on every screen and in every form.", render(s) { desktop(s, { pill: { glyphs: [1], privacy: true } }); } },
+        { id: "one", name: "One live", crop: CENTRE, note: "The leading activity's compact face before the clock (media here).", render(s) { desktop(s, { pill: { face: face("Song title", "Artist") } }); } },
+        { id: "several", name: "Several live", crop: CENTRE, note: "The leader's face (recording leads media), a mark per other activity in rank order, then the clock, glyphs and privacy marks.", render(s) { desktop(s, { pill: { face: face("Recording", "02:14"), marks: 2, privacy: true } }); } },
+        { id: "osd", name: "OSD", crop: CENTRE, note: "An event covers the face, clock and glyphs for its duration; the privacy marks stay. The island is the only OSD.", render(s) {
+          desktop(s, { pill: { event: h("span", { class: "wf-row", style: { gap: "10px", fontSize: "12px" } }, glyph(), "Volume", h("span", { class: "wf-bar", style: { width: "180px", opacity: 1, background: "var(--wf-ink-2)" } })), privacy: true } });
+        } },
+        { id: "attention", name: "Attention", crop: CENTRE, note: "With no Dock, an app asking for attention is an island event, and a held mark on its switcher card. An urgent request holds until the app is focused.", render(s) {
+          desktop(s, { pill: { event: h("span", { class: "wf-row", style: { gap: "10px", fontSize: "12px" } }, h("span", { class: "wf-icon", style: { width: "18px", height: "18px", borderRadius: "50%", background: "var(--wf-line)" } }), "Steam wants your attention") } });
+        } },
+        { id: "cc", name: "Control Centre", crop: CARD, note: "Hover (after v1's dwell) unfolds Control Centre from the pill, its top row the pill's own. Now (live activities, privacy, notices), the module grid (batch 2 decides the modules), the tray, a footer. A click pins it with keyboard focus; a click on the clock opens Notification Centre instead.", render(s) { desktop(s); controlCentre(s); } },
+      ] },
+      { id: "bar", name: "Menu bar", sheet: "p1/structure/menu-bar.md", states: [
+        { id: "revealed", name: "Revealed", crop: TOP, note: "Pushing the top edge outside the island's zone, or Ctrl+F2, slides the front app's menu bar down into the strip: system menu, app menu, the app's menus, Window, Help. Nothing on the right. The island stays in front, unmoved.", render(s) { desktop(s, { bar: { showReserve: true } }); } },
+        { id: "fallback", name: "Fallback app menu", crop: TOP, note: "Steam exports no menus, so Isle builds them: the app menu, Window and Help with search. File, Edit and View only when Isle's per-app table knows commands for them.", render(s) {
+          desktop(s, { bar: { app: "Steam", menus: ["Window", "Help"] } });
+          s.append(menu(48, STRIP + 2, ["About Steam", "—", "Settings…", "—", "Library", "Store", "Friends list", "—", ["Hide Steam", "⌘H"], ["Hide Others", "⌥⌘H"], ["Show All", "", "", true], "—", ["Quit Steam", "⌘Q"]]));
+          s.append(callout(330, 90, "desktop-entry actions go under the app menu"));
+        } },
+        { id: "system", name: "System menu", crop: TOP, note: "About this computer, System Settings, Updates with its count, the restart-owed line only while owed, Force Quit, then sleep, restart, shut down, lock, log out.", render(s) {
+          desktop(s, { bar: {} });
+          s.append(menu(10, STRIP + 2, ["About this computer", "—", "System Settings…", ["Updates…", "3"], "Restart to finish updating…", "—", ["Force Quit…", "⌥⌘⎋"], "—", "Sleep", "Restart…", "Shut Down…", "—", ["Lock Screen", "⌃⌘Q"], ["Log Out…", "⇧⌘Q"]], 280));
+        } },
+        { id: "help", name: "Menu search", crop: TOP, note: "A field at the top of Help (⇧⌘/), which also reveals the bar. Menu items are searchable from Spotlight too; choosing one there acts without revealing the bar.", render(s) {
+          desktop(s, { bar: {} });
+          const m = menu(560, STRIP + 2, ["—", ["Edit ▸ Find ▸ Find…", "⌘F"], ["View ▸ Show Path Bar", "⌥⌘P"], ["Go ▸ Go to Folder…", "⇧⌘G"], "—", "Documents Help", "Keyboard shortcuts"], 340);
+          m.prepend(h("div", { class: "wf-box-2", style: { margin: "4px 6px 6px", height: "26px", borderRadius: "6px", padding: "0 8px", display: "flex", alignItems: "center", fontSize: "13px" } }, "fi|"));
+          s.append(m);
+        } },
+        { id: "fullscreen", name: "Over a full-screen game", crop: TOP, note: "Nothing shows but the island's privacy form while a capture runs, and OSDs. A dwell at the top edge brings back the island (inside its zone) or the bar with it (outside), solid and without motion, never while the game holds the pointer.", render(s) {
+          s.append(box(0, 0, W, H, "wf-box-2", { borderWidth: 0 }));
+          s.append(text(80, 300, "Full-screen game", "wf-text", { fontSize: "40px", opacity: .4 }));
+          s.append(box(CX - 30, 4, 60, 20, "wf-box wf-pill", { display: "flex", alignItems: "center", justifyContent: "center" }, privacy()));
+          s.append(callout(CX + 50, 30, "privacy form stays"));
+        } },
+      ] },
+      { id: "chrome", name: "Window chrome", sheet: "p1/structure/window-chrome.md", states: [
+        { id: "bars", name: "Title bars", crop: [160, 0, 2720, 1100], note: "Traffic lights leading (close, minimise, zoom), the title centred, nothing else. The active window has the deeper shadow and lit lights.", render(s) { desktop(s, { strip: true }); } },
+        { id: "zoom", name: "Zoom menu", crop: [1380, 140, 1720, 720], note: "Resting on the zoom button opens a grid of layout thumbnails in the output's shape: halves, thirds, two-thirds and a third, quarters, centred 60%, fill, and beside when there is a gap. Then Full screen (with Split View) and Move to display.", render(s) {
+          desktop(s);
+          const m = box(1500, 230, 560, 0, "wf-box", { height: "auto", borderRadius: "12px", padding: "12px", boxShadow: "0 12px 32px rgba(0,0,0,.45)" });
+          const grid = h("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" } });
+          const layouts = [[1, 1], [1, 1, 1], [2, 1], [1, 2], [1, 1, 1, 1], ["c"], ["f"], ["b"]];
+          for (const l of layouts) {
+            const t = h("div", { style: { aspectRatio: "3440/1440", border: "1px solid var(--wf-line)", borderRadius: "5px", display: "flex", gap: "3px", padding: "3px", boxSizing: "border-box" } });
+            if (l[0] === "c") t.append(h("div", { class: "wf-box-2", style: { margin: "0 20%", flex: 1, borderRadius: "3px" } }));
+            else if (l[0] === "f") t.append(h("div", { class: "wf-box-2", style: { flex: 1, borderRadius: "3px" } }));
+            else if (l[0] === "b") t.append(h("div", { style: { flex: 1, border: "1px dashed var(--wf-line)", borderRadius: "3px" } }), h("div", { class: "wf-box-2", style: { flex: 1, borderRadius: "3px" } }));
+            else if (l.length === 4) { const g = h("div", { style: { flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px" } }); for (let i = 0; i < 4; i++) g.append(h("div", { class: "wf-box-2", style: { borderRadius: "3px" } })); t.append(g); }
+            else for (const f of l) t.append(h("div", { class: "wf-box-2", style: { flex: f, borderRadius: "3px" } }));
+            grid.append(t);
+          }
+          m.append(h("div", { style: { fontSize: "12px", color: "var(--wf-ink-2)", margin: "0 0 8px 2px" } }, "Move and resize"), grid,
+            h("div", { style: { borderTop: "1px solid var(--wf-line)", margin: "12px 0 8px" } }),
+            ...["Enter full screen", "Tile left of screen", "Tile right of screen"].map((t) => h("div", { style: { fontSize: "13px", padding: "4px 2px" } }, t)));
+          s.append(m);
+        } },
+        { id: "drag", name: "Drag to a zone", note: "Option held while dragging brings the zone grid to the pointer. The preview is the target's real rectangle, under the dragged window, moving between zones rather than replaced. During a drag the top edge is the fill target: the bar does not reveal.", render(s) {
+          s.append(box(W / 3 + 8, STRIP + 8, W / 3 - 16, H - STRIP - 16, "wf-outline", { borderRadius: "12px", background: "var(--wf-scrim)" }));
+          win(s, 1300, 300, 1000, 640, { title: "Documents", active: true });
+          const panel = box(2340, 360, 330, 150, "wf-box", { borderRadius: "10px", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "6px", padding: "8px" });
+          for (let i = 0; i < 6; i++) panel.append(h("div", { style: { border: "1px solid var(--wf-line)", borderRadius: "4px", background: i === 1 ? "var(--wf-ink-2)" : "transparent" } }));
+          s.append(panel, callout(2340, 520, "pointer panel: release over a slot"), callout(W / 3 + 30, 1300, "preview: centre third"));
+          pill(s);
+        } },
+        { id: "minimise", name: "Minimise", crop: [CX - 900, 0, 1800, 900], note: "With no Dock, minimise shrinks the window toward the island and fades it, with no genie. It comes back from there, from its tile in App Exposé or Mission Control, or from the switcher.", render(s, c) {
+          win(s, 220, 140, 1180, 780, { title: "Terminal" });
+          const el = win(s, 1480, 190, 1320, 860, { title: "Documents", active: true });
+          el.style.transformOrigin = (CX - 1480) + "px " + (-190) + "px";
+          c.spring({ from: 0, to: 1, stiffness: 170, damping: 26 }, (t) => {
+            el.style.transform = "scale(" + (1 - 0.94 * t) + ")";
+            el.style.opacity = String(1 - t);
+          });
+          pill(s);
+          s.append(callout(CX + 200, 60, "click the state again to replay"));
+        } },
+        { id: "menu", name: "Window menu", crop: [1380, 140, 1720, 720], note: "Secondary click on the bar. Its first group matches the menu bar's Window menu; Move and Resize give keyboard placement, which macOS lacks.", render(s) {
+          desktop(s);
+          s.append(menu(1700, 216, [["Minimise", "⌘M"], "Zoom", ["Enter full screen", "⌃⌘F"], "Move and resize ▸", "—", "Move to desktop ▸", "Keep on top", "—", "Move", "Resize", "—", ["Close", "⌘W"]]));
+        } },
+      ] },
+      { id: "switcher", name: "Switcher", sheet: "p1/structure/switcher.md", states: [
+        { id: "apps", name: "Apps", crop: [CX - 1000, 300, 2000, 840], note: "Cmd+Tab: a card per app, most recent first, the selection on the second. With no Dock the cards carry badges (Mail), progress (Firefox), attention (Steam), a minimised-only mark (Notes); apps running in the background come last after a gap.", render(s) {
+          desktop(s);
+          const apps = ["Documents", "Firefox", "Mail", "Steam", "Notes", "Terminal"];
+          const n = apps.length, cw = 240, ch = 150, gap = 20, bg = 2, w = n * cw + (n - 1) * gap + 40 + bg * 60 + 40, x0 = CX - w / 2, y0 = 560;
+          s.append(box(x0, y0, w, ch + 110, "wf-box", { borderRadius: "22px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" }));
+          apps.forEach((name, i) => {
+            const x = x0 + 20 + i * (cw + gap);
+            s.append(box(x, y0 + 20, cw, ch, "wf-box-2", { borderRadius: "10px", outline: i === 1 ? "3px solid var(--wf-ink)" : "none", outlineOffset: "4px", opacity: name === "Notes" ? .5 : 1 }));
+            s.append(box(x + cw / 2 - 20, y0 + ch, 40, 40, "wf-icon", { borderRadius: "10px", background: "var(--wf-fill)", border: "1px solid var(--wf-line)" }));
+            if (name === "Mail") s.append(box(x + cw - 34, y0 + 28, 26, 16, "wf-pill", { background: "var(--wf-ink)", color: "var(--wf-wall)", fontSize: "10px", textAlign: "center", lineHeight: "16px" }, "12"));
+            if (name === "Firefox") s.append(box(x + 12, y0 + ch + 6, cw - 24, 4, "wf-pill", { background: "var(--wf-ink)" }));
+            if (name === "Steam") s.append(box(x + cw - 24, y0 + 28, 12, 12, "", { borderRadius: "50%", background: "var(--wf-live)" }));
+            if (name === "Notes") s.append(text(x + cw / 2 - 30, y0 + 80, "minimised", "wf-text-2"));
+          });
+          const bx = x0 + 20 + n * (cw + gap) + 20;
+          for (let i = 0; i < bg; i++) s.append(box(bx + i * 60, y0 + 70, 44, 44, "wf-icon", { borderRadius: "10px", background: "transparent", border: "1px dashed var(--wf-line)" }));
+          s.append(text(bx - 4, y0 + 130, "background", "wf-text-2"));
+          s.append(text(x0 + 20 + (cw + gap) + cw / 2 - 26, y0 + ch + 60, "Firefox"));
+        } },
+        { id: "windows", name: "App's windows", crop: [CX - 900, 300, 1800, 840], note: "↓ or ` while held opens a row of the held app's windows in place, in the stable order Cmd+` uses; minimised windows are marked. Releasing Cmd commits; Q, W, H act on the held app or window.", render(s) {
+          desktop(s);
+          const n = 3, cw = 300, ch = 190, gap = 24, w = n * cw + (n - 1) * gap + 40, x0 = CX - w / 2, y0 = 520;
+          s.append(box(x0, y0, w, ch + 80, "wf-box", { borderRadius: "22px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" }));
+          for (let i = 0; i < n; i++) {
+            const x = x0 + 20 + i * (cw + gap);
+            s.append(box(x, y0 + 20, cw, ch, "wf-box-2", { borderRadius: "10px", outline: i === 0 ? "3px solid var(--wf-ink)" : "none", outlineOffset: "4px", opacity: i === 2 ? .5 : 1 }));
+            s.append(text(x + 8, y0 + ch + 36, ["Projects", "Downloads", "Pictures (minimised)"][i], "wf-text-2"));
+          }
+        } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Questions for gate 2">
+  <h2>Gate 2, batch 1: questions</h2>
+  <p class="hb-intro">After revision 1. Each has a recommendation; the reasoning is in the sheets. Settled by revision 1 and no longer asked: OSDs are the island's, the island's click and hover, where privacy marks sit, the status overflow, the Dock's reveal.</p>
+  <h3>Island</h3>
+  <ol>
+    <li><b>Clock</b>: time only, or weekday, date and time? <em>Time only.</em></li>
+    <li><b>Glyphs</b>: only the listed status glyphs, or any Control Centre module pinnable as one? <em>Only the listed ones.</em></li>
+    <li><b>Activities from any program</b> (builds, long jobs)? <em>Only the listed sources for now, revisited early: with no Dock, progress is out of sight until Cmd+Tab.</em></li>
+    <li><b>Queue order</b>: prompt, recording and sharing, call, timer, media. <em>This order.</em></li>
+  </ol>
+  <h3>Menu bar on demand</h3>
+  <ol start="5">
+    <li><b>No window focused</b>: the menus are Files', as Finder's on macOS. <em>Files.</em></li>
+    <li><b>Ctrl+F2</b> opens the system menu, as on macOS. <em>System menu.</em></li>
+    <li><b>An "always show the menu bar" setting</b>: it would fit in the strip. <em>Not for now.</em></li>
+    <li><b>Menu case</b>: Apple's title case for standard items (Hide Others) or sentence case everywhere (Hide others)? <em>Your call; title case in the sheets now.</em></li>
+  </ol>
+  <h3>No Dock</h3>
+  <ol start="9">
+    <li><b>Favourites</b>: a row of your own apps at the top of Spotlight's Apps grid, the rest alphabetical? <em>Yes, no folders or pages.</em></li>
+    <li><b>Badges at rest</b>: anywhere? <em>No; the notification is the signal.</em></li>
+    <li><b>Default hot corners</b>: bottom left Mission Control, bottom right the Apps grid, so the pointer alone can switch and launch? <em>Yes.</em></li>
+  </ol>
+  <h3>Switcher</h3>
+  <ol start="12">
+    <li><b>Entries</b>: preview cards, not macOS's icon row. <em>Cards.</em></li>
+    <li><b>Second screen</b>: every app, no current-screen filter. <em>Every app.</em></li>
+    <li><b>Apps in the background</b>: all of them, listed last; Q stops one. <em>All.</em></li>
+  </ol>
+  <h3>Window chrome</h3>
+  <ol start="15">
+    <li><b>Option-drag</b> brings the zone grid to the pointer. <em>Yes.</em></li>
+    <li><b>Repeated chords</b> cycle half, two-thirds, third. <em>Yes.</em></li>
+    <li><b>Almost-maximise</b>: none; the centred 60% is the large readable size. <em>None.</em></li>
+    <li><b>Other apps' dialogs</b> attached under their parent when smaller. <em>Yes.</em></li>
+    <li><b>Not responding</b>: closing offers Force quit or Wait. <em>Yes.</em></li>
+    <li><b>Shortcuts-inhibit</b> granted always, shown by an island glyph and a notice. <em>Always.</em></li>
+    <li><b>Bottom edge</b>: no drag zone, as macOS. <em>No zone.</em></li>
+  </ol>
+  <h3>Across sheets</h3>
+  <ol start="22">
+    <li><b>Widgets</b>: one surface, the full-screen dashboard on a chord. <em>Yes.</em></li>
+    <li><b>A windowed game</b>: shell shown and working, without transitions or blur. <em>Yes.</em></li>
+  </ol>
+</section>

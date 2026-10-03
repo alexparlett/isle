@@ -19,7 +19,7 @@ isle-session                      supervisor: starts the compositor in the
       │    ├── Xwayland WM        Smithay's X11 window manager (B5)
       │    ├── window model       stacking with snapping, per-workspace layout (B8, B20)
       │    ├── shell              Freya surfaces drawn by Skia on the compositor's
-      │    │                      EGL context: menu bar, island, Dock, Spotlight,
+      │    │                      EGL context: island, menu bar, Spotlight,
       │    │                      switcher, Control Centre, notifications, widgets,
       │    │                      lock (B7, B24), and the server-side title bars (B25)
       │    └── renderer           Smithay's GLES renderer composites windows and surfaces

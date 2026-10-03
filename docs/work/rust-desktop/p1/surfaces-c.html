@@ -1,0 +1,273 @@
+<title>Isle surfaces, wave C</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<link rel="stylesheet" href="system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+</style>
+<script src="system/phosphor.js"></script>
+<script src="harness/harness.js"></script>
+<script src="surfaces/scene.js"></script>
+<script>
+(function () {
+  // P1 stage 5, wave C: Notification Centre and widgets, Mission Control and the window surfaces, Files, Monitor, Keychain, Cleaner.
+  const S = Scene, { h } = Isle, { W, H, CX, el, sp, box, row, col, grow, ic, cover, appIcon, clock, pill, glyphs } = S;
+  const add = (n, ...k) => (n.append(...k.filter((x) => x != null && x !== false)), n);
+  const glassAbs = (x, y, w, hh, style, ...kids) => box("s-glass", x, y, w, hh, Object.assign({ borderRadius: "var(--radius-panel)", color: "var(--colour-text)" }, style || {}), ...kids);
+  const plate = (x, y, w, hh, style, ...kids) => box("", x, y, w, hh, Object.assign({ background: "var(--material-glass)", borderRadius: "var(--radius-panel)", padding: "var(--space-m)", boxShadow: "var(--shadow-menu)", color: "var(--colour-text)" }, style || {}), ...kids);
+  const mail = (n) => appIcon(n || 32, "#4aa3ff", "#1f6fe0", "envelope");
+  const discord = (n) => appIcon(n || 32, "#7a86ff", "#5865f2", "chat-circle");
+  const steam = (n) => appIcon(n || 32, "#2a4a7a", "#14243e", "game-controller");
+  const firefox = (n) => appIcon(n || 32, "#ff9a3c", "#e6572c", "globe");
+  const folder = (n) => appIcon(n || 32, "#5fb4ff", "#2f7cf6", "folder");
+  const K = ["games", "video", "images", "audio", "documents", "archives", "developer", "apps", "caches", "other"];
+  const KD = ["#6a94f4", "#ffa659", "#2cdcaf", "#cb73c4", "#69caff", "#ff9bba", "#79aa3b", "#c9acff", "#e6705f", "#ababab"];
+  const kind = (i) => "var(--kind-" + K[i] + ", " + KD[i] + ")";
+
+  // An Isle app window per conventions.md: toolbar band, sidebar, content, optional inspector.
+  function appWindow(s, x, y, w, hh, o) {
+    const win = box("s-window", x, y, w, hh);
+    const side = o.side === false ? null : el("s-sidebar", { position: "absolute", left: 0, top: 0, bottom: 0, width: (o.side || 220) + "px", background: "var(--colour-sidebar)", paddingTop: 0 },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-s)" }, S.lights()), ...(o.sideKids || []));
+    const left = o.side === false ? 0 : (o.side || 220);
+    const tb = el("s-toolbar", { position: "absolute", left: left + "px", right: 0, top: 0, paddingLeft: o.side === false ? "88px" : "var(--space-l)" }, ...(o.toolbar || []));
+    if (o.side === false) win.append(el("", { position: "absolute", left: "var(--space-l)", top: "20px" }, S.lights()));
+    const body = el("", { position: "absolute", left: left + "px", right: (o.inspector || 0) + "px", top: "var(--size-toolbar)", bottom: 0, overflow: "hidden", background: o.view ? "var(--colour-view)" : "transparent" }, ...(o.body || []));
+    const insp = o.inspector ? el("", { position: "absolute", right: 0, width: o.inspector + "px", top: "var(--size-toolbar)", bottom: 0, background: "var(--colour-window)", borderLeft: "1px solid var(--colour-hairline)", padding: "var(--space-l)", boxSizing: "border-box" }, ...(o.inspKids || [])) : null;
+    add(win, side, tb, body, insp);
+    s.append(win);
+    return win;
+  }
+  const sideItem = (g, t, sel, tile) => el("s-side-item" + (sel ? " sel" : ""), {}, tile ? h("span", { class: "s-pane-ic", style: { background: tile } }, ic(g, 13, true)) : ic(g, 16, false, { color: "var(--colour-accent-text)" }), sp("", t, { flex: 1 }));
+  const sideHead = (t) => el("s-side-head", {}, t);
+  const tbBtn = (g, on) => el("", { width: "30px", height: "30px", borderRadius: "var(--radius-control)", display: "grid", placeItems: "center", background: on ? "var(--colour-fill-strong)" : "transparent" }, ic(g, 20));
+  const segIcons = (gs, on) => el("", { display: "flex", padding: "2px", gap: "2px", borderRadius: "var(--radius-control)", background: "var(--colour-fill)" }, ...gs.map((g, i) => el("", { width: "32px", height: "26px", borderRadius: "calc(var(--radius-control) - 2px)", display: "grid", placeItems: "center", background: i === on ? "var(--colour-window-raised)" : "transparent", boxShadow: i === on ? "var(--shadow-control)" : "none" }, ic(g, 16))));
+  const search = (w) => el("s-field search", { width: (w || 180) + "px" }, ic("magnifying-glass", 14), sp("ph", "Search"));
+
+  // ---- Notification Centre ---------------------------------------------------------
+  function ncPanel(s, expanded) {
+    const days = el("", { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: "0", textAlign: "center" }, ..."MTWTFSS".split("").map((d) => sp("s-foot s-2", d, { height: "20px" })),
+      ...Array.from({ length: 42 }, (_, i) => { const d = ((i + 28) % 31) + 1, dim = i < 3 || i > 33, today = i === 5; return el("", { height: "var(--size-month-row, 32px)", display: "grid", placeItems: "center", position: "relative" }, sp("s-callout s-num", String(d), { width: "26px", height: "26px", lineHeight: "26px", borderRadius: "50%", background: today ? "var(--colour-accent)" : "transparent", color: today ? "var(--colour-on-accent)" : dim ? "var(--colour-text-2)" : "var(--colour-text)" }), [8, 12, 19, 26].includes(i) ? h("span", { style: { position: "absolute", bottom: "2px", width: "4px", height: "4px", borderRadius: "50%", background: "var(--colour-text-2)" } }) : null); }));
+    const ev = (c, t, sub, now, join) => row({ gap: "var(--space-s)", minHeight: "36px" }, h("span", { style: { width: "10px", height: "10px", borderRadius: "50%", background: c, boxShadow: "0 0 0 2px var(--material-solid)", flex: "none" } }), col({ gap: "0", flex: 1 }, sp(now ? "s-headline" : "", t), sp("s-sub s-2", sub)), join ? sp("s-btn small", "Join") : null);
+    const card = (icon, app, sum, body, time, more) => el("", { background: "var(--colour-fill)", borderRadius: "var(--radius-card)", padding: "var(--space-m)", display: "flex", gap: "var(--space-m)", position: "relative" }, icon,
+      col({ gap: "0", flex: 1, minWidth: 0 }, row({ height: "16px", gap: "var(--space-xs)" }, sp("s-sub s-2", app, { fontWeight: 600 }), grow(), more ? sp("s-badge quiet", more + " more", { height: "16px" }) : null, sp("s-sub s-2", time)), sp("s-headline", sum), sp("", body, { color: "var(--colour-text)" })));
+    const stack = (c, n) => el("", { position: "relative", paddingBottom: (n * 6) + "px" }, ...Array.from({ length: n }, (_, i) => el("", { position: "absolute", left: (8 * (n - i)) + "px", right: (8 * (n - i)) + "px", bottom: (6 * (n - 1 - i)) + "px", height: "20px", borderRadius: "0 0 var(--radius-card) var(--radius-card)", background: "var(--colour-fill)", boxShadow: "0 1px 0 var(--material-glass) inset" })), c);
+    S.panel(s, [clock()], [
+      el("", { background: "var(--colour-fill)", borderRadius: "var(--radius-card)", padding: "var(--space-m)" }, row({ marginBottom: "var(--space-s)" }, sp("s-title-3", "October 2026"), grow(), ic("caret-left", 14), el("", { width: "12px" }), ic("caret-right", 14)), days),
+      el("", { background: "var(--colour-fill)", borderRadius: "var(--radius-card)", padding: "var(--space-m)" }, col({ gap: "var(--space-xs)" }, sp("s-sub s-2", "Today", { fontWeight: 600 }), ev("var(--series-a)", "Build review", "Now · 16:00–16:30", true, true), ev("var(--series-b)", "Dentist", "Tomorrow 09:30"))),
+      row({ padding: "0 var(--space-xs)" }, sp("s-headline", "Notifications"), grow(), el("", { width: "20px", height: "20px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, ic("x", 10))),
+      expanded ? col({ gap: "var(--space-s)" }, row({ padding: "0 var(--space-xs)" }, sp("s-sub s-2", "Mail", { fontWeight: 600 }), grow(), sp("s-callout s-2", "Show less"), el("", { width: "8px" }), ic("x", 12)), card(mail(), "Mail", "Sam Rivera", "Are we still on for the build review?", "9 min"), card(mail(), "Mail", "Build bot", "isle #412 passed", "1 hr"), card(mail(), "Mail", "Calendar", "Dentist tomorrow 09:30", "2 hr"))
+        : stack(card(mail(), "Mail", "Sam Rivera", "Are we still on for the build review?", "9 min", 2), 2),
+      card(discord(), "Discord", "#isle", "New release notes are up.", "40 min"),
+      row({ padding: "var(--space-xs) var(--space-xs) 0" }, sp("s-sub s-2", "Earlier", { fontWeight: 600 })),
+      el("", { background: "var(--colour-fill)", borderRadius: "var(--radius-card)", padding: "var(--space-s) var(--space-m)", display: "flex", gap: "var(--space-m)", alignItems: "center", opacity: 0.9 }, steam(20), sp("", "Steam: download complete", { flex: 1 }), sp("s-sub s-2", "Yesterday"))]);
+  }
+
+  // ---- Widgets dashboard ----------------------------------------------------------
+  const CELL = 72, PITCH = 88;
+  function dashboard(s, edit) {
+    s.append(box("", 0, 0, W, H, { background: "var(--material-softened)", backdropFilter: "blur(var(--material-softened-blur)) saturate(var(--material-softened-saturation))", WebkitBackdropFilter: "blur(var(--material-softened-blur)) saturate(var(--material-softened-saturation))" }));
+    s.append(box("", 0, 0, W, H, { background: "var(--material-lock-wash)" }));
+    const x0 = Math.round((W - 38 * PITCH + 16) / 2), y0 = 140;
+    const w = (c, r, cw, ch, title, ...kids) => { const p = plate(x0 + c * PITCH, y0 + r * PITCH, cw * PITCH - 16, ch * PITCH - 16, { display: "flex", flexDirection: "column", gap: "var(--space-s)" }, sp("s-sub s-2", title, { fontWeight: 600 }), ...kids); if (edit) p.append(el("", { position: "absolute", left: "-6px", top: "-6px", width: "18px", height: "18px", borderRadius: "50%", background: "var(--material-solid)", boxShadow: "var(--shadow-control)", display: "grid", placeItems: "center" }, ic("minus", 10))); s.append(p); return p; };
+    const fig = (t) => sp("s-num", t, { fontSize: "var(--type-style-figure-size, 40px)", fontWeight: 600, lineHeight: "var(--type-style-figure-line, 44px)" });
+    const ox = edit ? 6 : 10;
+    w(ox, 0, 4, 2, "Clock", fig("14:32"), sp("s-callout s-2", "Saturday 3 October"));
+    w(ox + 4, 0, 4, 2, "Calendar", row({ gap: "var(--space-s)" }, h("span", { style: { width: "3px", height: "30px", borderRadius: "2px", background: "var(--series-a)" } }), col({ gap: "0" }, sp("s-headline", "Build review"), sp("s-sub s-2", "16:00–16:30"))));
+    w(ox + 8, 0, 3, 2, "Weather", fig("12°"), sp("s-callout s-2", "Showers · 14° / 8°"));
+    w(ox + 11, 0, 4, 2, "Media", row({ gap: "var(--space-m)" }, cover(48), col({ gap: "0" }, sp("s-headline", "Midnight City"), sp("s-sub s-2", "M83"))));
+    w(ox + 15, 0, 5, 2, "System", ...["CPU", "Memory", "GPU"].map((n, i) => row({ gap: "var(--space-s)" }, sp("s-callout", n, { width: "64px" }), el("s-progress", { flex: 1 }, h("b", { style: { width: [34, 58, 22][i] + "%", background: "var(--colour-text)" } })))));
+    w(ox, 2, 6, 1, "Devices", row({ gap: "var(--space-l)" }, row({ gap: "var(--space-xs)" }, ic("game-controller", 16), sp("s-callout", "70%")), row({ gap: "var(--space-xs)" }, ic("headphones", 16), sp("s-callout", "40%")), row({ gap: "var(--space-xs)" }, ic("mouse", 16), sp("s-callout", "88%"))));
+    w(ox + 6, 2, 5, 1, "Storage", sp("s-callout", "412 GB free of 2 TB"));
+    w(ox + 11, 2, 4, 1, "Notifications", sp("s-callout", "Mail 3 · Discord 1"));
+    s.append(plate(x0 + (ox + 15) * PITCH, y0 + 2 * PITCH, 5 * PITCH - 16, 40, { padding: "0 var(--space-m)", display: "flex", alignItems: "center" }, sp("s-callout s-2", "Timer · No timers running")));
+    pill(s, [], { style: { minWidth: "0", width: "0", padding: "0", opacity: 0 } });
+    if (edit) {
+      s.append(box("", x0 + (ox + 15) * PITCH, y0 + 3 * PITCH, 5 * PITCH - 16, PITCH - 16, { borderRadius: "var(--radius-panel)", boxShadow: "inset 0 0 0 2px var(--colour-hairline-strong)", background: "var(--colour-fill)" }));
+      const g = glassAbs(40, 140, 376, 900, { background: "var(--material-glass-tinted)", padding: "var(--space-s)" });
+      add(g, el("s-field search", { marginBottom: "var(--space-s)" }, ic("magnifying-glass", 14), sp("ph", "Search widgets")),
+        ...[["Installed", true], ["Yours"], ["Browse"]].map(([t, on]) => el("s-side-item" + (on ? " sel" : ""), {}, sp("", t))),
+        el("", { borderTop: "1px solid var(--colour-hairline)", margin: "var(--space-s) 0" }),
+        ...[["Timer", "timer", "1×1 · 2×1"], ["Session", "user-circle", "2×1 · 3×2"], ["Phone", "device-mobile", "2×1 · Connect to KDE Connect"]].map(([n, gl, sub]) => row({ padding: "var(--space-s)", gap: "var(--space-m)", borderRadius: "var(--radius-card)" }, el("", { width: "48px", height: "48px", borderRadius: "var(--radius-card)", background: "var(--colour-fill)", display: "grid", placeItems: "center" }, ic(gl, 22)), col({ gap: "0", flex: 1 }, sp("s-headline", n), sp("s-sub s-2", sub)), ic("plus-circle", 20))));
+      s.append(g);
+    }
+  }
+
+  // ---- Mission Control ----------------------------------------------------------------
+  function missionControl(s, mode) {
+    s.append(box("", 0, 0, W, H, { background: "var(--colour-veil)" }));
+    const names = ["Desktop 1", "Desktop 2", "Elden Ring"];
+    const mw = 268, mh = 112, n = 3;
+    const bw = 16 + n * (mw + 16) + 112 + 16;
+    const bar = glassAbs(CX - bw / 2, 56, bw, mh + 52, { padding: "var(--space-s) var(--space-l)", display: "flex", gap: "var(--space-l)", alignItems: "flex-start" });
+    names.forEach((nm, i) => bar.append(col({ gap: "var(--space-xs)", alignItems: "center" }, el("", { width: mw + "px", height: mh + "px", borderRadius: "var(--radius-small)", background: i === 2 ? "linear-gradient(135deg,#3a3a2a,#1a1a12)" : "var(--colour-window-sunken)", boxShadow: i === 0 ? "0 0 0 3px var(--colour-accent)" : "inset 0 0 0 1px var(--colour-hairline)", position: "relative", overflow: "hidden" }, i < 2 ? el("", { position: "absolute", left: "30px", top: "20px", width: "100px", height: "60px", borderRadius: "3px", background: "var(--colour-window)" }) : null), row({ gap: "var(--space-xs)" }, i === 2 ? steam(14) : null, sp("s-callout", nm)))));
+    bar.append(el("", { width: "112px", height: mh + "px", borderRadius: "var(--radius-small)", background: "var(--colour-fill)", display: "grid", placeItems: "center" }, ic("plus", 24)));
+    s.append(bar);
+    pill(s, [clock()]);
+    const tile = (x, y, w, hh, o) => { const t = box("", x, y, w, hh, { borderRadius: "var(--radius-window)", background: "var(--colour-window)", boxShadow: o && o.sel ? "0 0 0 3px var(--colour-accent), var(--shadow-window)" : "var(--shadow-window-inactive)", opacity: o && o.dim ? 0.4 : 1 }); t.append(el("", { height: "28px", background: "var(--colour-titlebar)", borderRadius: "var(--radius-window) var(--radius-window) 0 0" })); if (o && o.icon) t.append(el("", { position: "absolute", left: "50%", bottom: "-20px", transform: "translateX(-50%)" }, o.icon)); if (o && o.sel) { t.append(el("", { position: "absolute", left: "50%", bottom: "-58px", transform: "translateX(-50%)" }, el("s-glass", { borderRadius: "999px", padding: "4px var(--space-m)", whiteSpace: "nowrap" }, sp("s-callout", o.title)))); t.append(el("", { position: "absolute", left: "-8px", top: "-8px", width: "20px", height: "20px", borderRadius: "50%", background: "var(--material-solid)", boxShadow: "var(--shadow-control)", display: "grid", placeItems: "center" }, ic("x", 10))); } s.append(t); return t; };
+    if (mode === "split") {
+      s.append(box("", 40, 260, W / 2 - 52, H - 300, { borderRadius: "var(--radius-window)", background: "var(--colour-window)", boxShadow: "var(--shadow-window)" }, el("", { height: "32px", background: "var(--colour-titlebar)", borderRadius: "var(--radius-window) var(--radius-window) 0 0" })));
+      s.append(box("", W / 2 - 4, 260, 8, H - 300, { borderRadius: "4px", background: "var(--colour-fill-strong)" }));
+      tile(W / 2 + 120, 360, 640, 420, { icon: appIcon(48, "#4a4c52", "#2a2b30", "terminal-window") }); tile(W / 2 + 860, 360, 640, 420, { icon: firefox(48), sel: true, title: "Meet — Firefox" }); tile(W / 2 + 120, 880, 640, 420, { icon: folder(48), dim: true });
+      s.append(box("", W / 2 + 120, 1310, 640, 24, {}, sp("s-callout s-2", "Doesn't fit in Split View")));
+      return;
+    }
+    if (mode === "expose") {
+      s.append(glassAbs(CX - 120, 280, 240, 40, { borderRadius: "999px", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--space-s)" }, firefox(20), sp("s-headline", "Firefox")));
+      tile(700, 380, 900, 560, { icon: firefox(48), sel: true, title: "Isle — docs" }); tile(1720, 380, 900, 560, { icon: firefox(48) });
+    } else {
+      tile(260, 320, 900, 560, { icon: appIcon(48, "#4a4c52", "#2a2b30", "terminal-window") }); tile(1260, 300, 1000, 620, { icon: firefox(48), sel: true, title: "Isle — docs" }); tile(2360, 340, 820, 520, { icon: folder(48) }); tile(700, 980, 760, 300, { icon: mail(48) }); tile(1560, 1000, 700, 280, { icon: discord(48) });
+    }
+    const trayW = 1000;
+    s.append(glassAbs(CX - trayW / 2, H - 132, trayW, 112, { display: "flex", alignItems: "center", gap: "var(--space-l)", padding: "0 var(--space-l)" },
+      col({ gap: "var(--space-xs)" }, sp("s-sub s-2", mode === "expose" ? "On other desktops" : "Minimised", { fontWeight: 600 }), row({ gap: "var(--space-s)" }, ...[0, 1].map(() => el("", { width: "192px", height: "80px", borderRadius: "var(--radius-small)", background: "var(--colour-window)" })))),
+      el("", { width: "1px", alignSelf: "stretch", background: "var(--colour-hairline)", margin: "var(--space-m) 0" }),
+      col({ gap: "var(--space-xs)" }, sp("s-sub s-2", "Hidden", { fontWeight: 600 }), el("", { width: "192px", height: "80px", borderRadius: "var(--radius-small)", background: "var(--colour-window)", opacity: 0.7 }))));
+  }
+
+  // ---- Files ------------------------------------------------------------------------
+  const FILES = [["crates", "folder", "—", "Today 11:02"], ["docs", "folder", "—", "Today 10:40"], ["spikes", "folder", "—", "2 Oct"], ["Cargo.toml", "file", "2 KB", "Today 11:02"], ["Cargo.lock", "file", "84 KB", "Today 11:02"], ["README.md", "file", "6 KB", "1 Oct"], ["PKGBUILD", "file", "1 KB", "30 Sep"], ["notes.md", "file", "3 KB", "29 Sep"]];
+  function filesWindow(s, view, o) {
+    o = o || {};
+    const fsSide = [sideItem("clock-counter-clockwise", "Recents"), sideHead("Favourites"), sideItem("house", "Home"), sideItem("file-text", "Documents"), sideItem("download-simple", "Downloads"), sideItem("code", "Development", true), sideItem("magnifying-glass", "Large files"), sideHead("Locations"), sideItem("desktop-tower", "This computer"), el("s-side-item", {}, ic("hard-drive", 16, false, { color: "var(--colour-accent-text)" }), sp("", "Games SSD", { flex: 1 }), h("span", { style: { width: "20px", height: "4px", borderRadius: "2px", background: "var(--colour-fill-strong)", position: "relative", overflow: "hidden" } }, h("b", { style: { position: "absolute", inset: "0 2px 0 0", background: "var(--colour-warn)" } }))), sideItem("trash", "Trash")];
+    let body;
+    if (view === "list") {
+      body = el("s-table", { padding: "0 var(--space-s)" }, el("h", {}, sp("", "Name", { flex: 1 }), sp("", "Size", { width: "80px", textAlign: "right" }), sp("", "Modified", { width: "140px" })),
+        ...FILES.map(([n, k, sz, d], i) => el("tr" + (i === 3 ? " sel" : ""), { background: i === 3 ? undefined : "transparent" }, row({ flex: 1, gap: "var(--space-s)" }, k === "folder" ? ic("caret-right", 10) : el("", { width: "10px" }), k === "folder" ? folder(16) : ic("file-text", 16), sp("", n)), sp("s-mono", sz, { width: "80px", textAlign: "right", fontSize: "12px" }), sp("s-num", d, { width: "140px" }))));
+    } else if (view === "icons") {
+      body = el("", { display: "grid", gridTemplateColumns: "repeat(auto-fill, 112px)", gap: "var(--space-s)", padding: "var(--space-l)" }, ...FILES.map(([n, k], i) => col({ alignItems: "center", gap: "var(--space-xs)", padding: "var(--space-s) 0" }, el("", { padding: "4px", borderRadius: "var(--radius-card)", background: i === 3 ? "var(--colour-fill-strong)" : "transparent", opacity: o.cut && i === 5 ? 0.5 : 1, outline: o.cut && i === 5 ? "1.5px dashed var(--colour-text-2)" : "none" }, k === "folder" ? folder(64) : appIcon(64, "#d9dadd", "#b8babd", "file-text")), sp("s-callout", n, { padding: "1px 6px", borderRadius: "8px", background: i === 3 ? "var(--colour-accent)" : "transparent", color: i === 3 ? "var(--colour-on-accent)" : "var(--colour-text)" }))));
+    } else {
+      const column = (items, sel, w) => el("", { width: (w || 240) + "px", borderRight: "1px solid var(--colour-hairline)", padding: "var(--space-xs)", flex: "none" }, ...items.map((t, i) => row({ height: "var(--size-row)", padding: "0 var(--space-s)", gap: "var(--space-s)", borderRadius: "var(--radius-row)", background: i === sel ? "var(--colour-accent)" : "transparent", color: i === sel ? "var(--colour-on-accent)" : "var(--colour-text)" }, ic(t[1] ? "folder" : "file-text", 16), sp("", t[0], { flex: 1 }), t[1] ? ic("caret-right", 10) : null)));
+      body = el("", { display: "flex", height: "100%" }, column([["crates", 1], ["docs", 1], ["spikes", 1], ["Cargo.toml"]], 0), column([["compositor", 1], ["shell", 1], ["tokens", 1]], 1), column([["src", 1], ["Cargo.toml"], ["README.md"]], 1));
+    }
+    const insp = col({ gap: "var(--space-s)", alignItems: "stretch" }, el("", { height: "180px", borderRadius: "var(--radius-card)", background: "var(--colour-view)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)", display: "grid", placeItems: "center" }, appIcon(64, "#d9dadd", "#b8babd", "file-text")), sp("s-headline", "Cargo.toml"), sp("s-sub s-2", "TOML document · 2 KB"),
+      el("", { borderTop: "1px solid var(--colour-hairline)", margin: "var(--space-s) 0" }), ...[["Created", "12 Sep 2026"], ["Modified", "Today 11:02"], ["Where", "~/Development/isle"]].map(([a, b]) => row({}, sp("s-callout s-2", a, { width: "80px" }), sp("s-callout", b))));
+    const win = appWindow(s, o.x || 1020, o.y || 314, 1400, 860, { sideKids: fsSide, view: true, inspector: view === "columns" ? 0 : 280, inspKids: [insp],
+      toolbar: [ic("caret-left", 20), ic("caret-right", 20, false, { color: "var(--colour-text-3)" }), folder(16), sp("s-headline", "isle"), sp("s-callout s-2", "14 items"), grow(), segIcons(["squares-four", "list-bullets", "columns"], view === "icons" ? 0 : view === "list" ? 1 : 2), el("", { display: "flex", alignItems: "center", gap: "2px" }, tbBtn("rows"), ic("caret-down", 10)), grow(), o.jobs ? el("", { width: "18px", height: "18px", borderRadius: "50%", border: "2px solid var(--colour-fill-strong)", borderTopColor: "var(--colour-accent)", borderRightColor: "var(--colour-accent)" }) : null, tbBtn("dots-three-circle"), tbBtn("sidebar-simple", true), search()],
+      body: [body] });
+    return win;
+  }
+  function quickLook(s) {
+    filesWindow(s, "icons");
+    const q = box("s-window", 1200, 220, 1040, 760);
+    add(q, el("s-toolbar", { paddingLeft: "88px" }, el("", { position: "absolute", left: "var(--space-l)" }, S.lights()), ic("caret-left", 18), ic("caret-right", 18), sp("s-callout s-2", "4 of 14"), grow(), sp("s-headline", "Cargo.toml"), grow(), tbBtn("pencil-simple"), sp("s-btn", "Open with Code")),
+      el("", { position: "absolute", left: 0, right: 0, top: "var(--size-toolbar)", bottom: 0, background: "var(--colour-view)", padding: "var(--space-xl)" }, el("s-mono", { whiteSpace: "pre", lineHeight: "1.6", color: "var(--colour-text)" }, '[workspace]\nmembers = ["crates/*"]\nresolver = "2"\n\n[workspace.package]\nedition = "2024"\nlicense = "GPL-3.0-or-later"\n\n[workspace.dependencies]\nsmithay = { git = "https://github.com/alexparlett/smithay" }\nfreya = { git = "https://github.com/alexparlett/freya" }')));
+    s.append(q);
+  }
+
+  // ---- Monitor, Keychain, Cleaner --------------------------------------------------
+  function monitor(s) {
+    const procs = ["isle-compositor", "Firefox", "steam", "rust-analyzer", "kitty", "pipewire", "Discord", "cargo", "Xwayland", "Files"];
+    const graph = () => { const svg = h("div", { style: { flex: 1, height: "84px", borderRadius: "var(--radius-small)", background: "var(--colour-window-sunken)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)", overflow: "hidden" } }); const pts = Array.from({ length: 60 }, (_, i) => 84 - (20 + 30 * Math.abs(Math.sin(i / 6)) + (i % 7) * 2)); const pts2 = pts.map((p) => Math.min(84, p + 18)); const path = (ps) => "M0 " + ps[0] + ps.map((p, i) => " L" + i * 10 + " " + p).join(""); svg.innerHTML = '<svg viewBox="0 0 590 84" width="100%" height="84" preserveAspectRatio="none"><path d="' + path(pts) + ' L590 84 L0 84Z" fill="var(--series-a)" opacity="0.24"/><path d="' + path(pts) + '" stroke="var(--series-a)" stroke-width="2" fill="none"/><path d="' + path(pts2) + ' L590 84 L0 84Z" fill="var(--series-b)" opacity="0.24"/><path d="' + path(pts2) + '" stroke="var(--series-b)" stroke-width="2" fill="none"/></svg>'; return svg; };
+    appWindow(s, 1200, 300, 1040, 680, { side: false, toolbar: [sp("s-headline", "All Processes"), ic("caret-down", 10), grow(), el("s-seg", {}, ...["CPU", "Memory", "Energy", "Disk", "Network", "GPU"].map((r, i) => sp(i === 0 ? "on" : "", r))), grow(), sp("s-btn", "Quit Process"), tbBtn("dots-three-circle"), search(160)],
+      body: [el("s-table", { padding: "0 var(--space-s)" }, el("h", {}, sp("", "Process name", { flex: 1 }), sp("", "% CPU ↓", { width: "70px", textAlign: "right" }), sp("", "CPU time", { width: "90px", textAlign: "right" }), sp("", "Threads", { width: "70px", textAlign: "right" }), sp("", "User", { width: "70px" })),
+        ...procs.map((n, i) => el("tr" + (i === 2 ? " sel" : ""), {}, row({ flex: 1, gap: "var(--space-s)" }, ic("app-window", 14), sp("", n)), sp("s-num", (24.2 - i * 2.3).toFixed(1), { width: "70px", textAlign: "right" }), sp("s-num", "1:2" + i + ":04", { width: "90px", textAlign: "right" }), sp("s-num", String(40 - i * 3), { width: "70px", textAlign: "right" }), sp("", "alex", { width: "70px" })))),
+        el("", { position: "absolute", left: 0, right: 0, bottom: 0, height: "136px", borderTop: "1px solid var(--colour-hairline)", background: "var(--colour-window)", display: "flex", gap: "var(--space-l)", padding: "var(--space-l)", boxSizing: "border-box" },
+          col({ gap: "var(--space-xs)", width: "200px" }, row({}, h("span", { style: { width: "8px", height: "8px", borderRadius: "2px", background: "var(--series-a)" } }), sp("s-callout", "System", { flex: 1, marginLeft: "6px" }), sp("s-num s-callout", "12.4%")), row({}, h("span", { style: { width: "8px", height: "8px", borderRadius: "2px", background: "var(--series-b)" } }), sp("s-callout", "User", { flex: 1, marginLeft: "6px" }), sp("s-num s-callout", "18.1%")), row({}, sp("s-callout s-2", "Idle", { flex: 1, marginLeft: "14px" }), sp("s-num s-callout", "69.5%"))),
+          graph(), col({ gap: "var(--space-xs)", width: "140px" }, sp("s-callout s-2", "CPU 54 °C"), sp("s-callout s-2", "Fan 900 rpm")))] });
+  }
+  function keychain(s) {
+    const rows = ["aur.archlinux.org", "crates.io", "github.com", "gitlab.com", "proton.me", "steamcommunity.com"];
+    appWindow(s, 1200, 300, 1000, 640, { sideKids: [sideItem("key", "All", false, "var(--pane-grey)"), sideItem("globe", "Logins", true, "var(--pane-blue)"), sideItem("wifi-high", "Wi-Fi", false, "var(--pane-blue)"), sideItem("terminal-window", "SSH keys", false, "var(--pane-graphite)"), sideItem("app-window", "Apps", false, "var(--pane-purple)"), sideHead("Sources"), sideItem("lock-simple", "Login keyring"), el("s-side-item", {}, ic("lock", 16, false, { color: "var(--colour-text-2)" }), sp("", "Bitwarden", { flex: 1 }), ic("lock", 12))],
+      toolbar: [sp("s-headline", "Logins"), grow(), sp("s-btn", "New Login…"), search(160)],
+      body: [el("", { display: "flex", height: "100%" },
+        el("", { width: "300px", borderRight: "1px solid var(--colour-hairline)", padding: "var(--space-xs)" }, ...rows.map((n, i) => row({ height: "var(--size-row-large)", padding: "0 var(--space-s)", gap: "var(--space-s)", borderRadius: "var(--radius-row)", background: i === 2 ? "var(--colour-accent)" : "transparent", color: i === 2 ? "var(--colour-on-accent)" : "var(--colour-text)" }, el("", { width: "24px", height: "24px", borderRadius: "6px", background: i === 2 ? "rgba(255,255,255,0.25)" : "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, sp("s-callout", n[0].toUpperCase(), { fontWeight: 600 })), col({ gap: "0" }, sp("", n), sp("s-sub", "alexparlett", { color: i === 2 ? "var(--colour-on-accent)" : "var(--colour-text-2)" }))))),
+        col({ flex: 1, padding: "var(--space-xl)", gap: "var(--space-l)" }, row({ gap: "var(--space-m)" }, el("", { width: "48px", height: "48px", borderRadius: "12px", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, sp("s-title-2", "G")), col({ gap: "0" }, sp("s-title-2", "github.com"), sp("s-callout s-2", "Login keyring"))),
+          el("s-group", {}, el("r", {}, sp("s-2", "User name", { width: "120px" }), sp("", "alexparlett")), el("r", {}, sp("s-2", "Password", { width: "120px" }), sp("", "••••••••••", { flex: 1 }), sp("s-btn small", "Show")), el("r", {}, sp("s-2", "Verification code", { width: "120px" }), sp("", "••• •••", { flex: 1 }), el("", { width: "16px", height: "16px", borderRadius: "50%", border: "2px solid var(--colour-fill-strong)", borderTopColor: "var(--colour-text-2)" }), sp("s-btn small", "Show")))))] });
+  }
+  function cleaner(s, space) {
+    const sizes = [32, 14, 11, 6, 9, 4, 12, 5, 4, 3];
+    let body;
+    if (!space) {
+      body = col({ width: "760px", margin: "var(--space-xl) auto", gap: "var(--space-l)" },
+        col({ gap: "var(--space-s)" }, row({}, sp("s-headline", "System"), grow(), sp("s-callout s-2 s-num", "1.2 TB used of 2 TB")), el("", { height: "20px", borderRadius: "6px", overflow: "hidden", display: "flex", gap: "2px" }, ...sizes.map((p, i) => h("span", { style: { width: p * 0.6 + "%", background: kind(i) } })), h("span", { style: { flex: 1, background: "var(--colour-fill)" } })),
+          el("", { display: "flex", flexWrap: "wrap", gap: "var(--space-xs) var(--space-l)" }, ...K.map((k, i) => row({ gap: "var(--space-xs)" }, h("span", { style: { width: "8px", height: "8px", borderRadius: "2px", background: kind(i) } }), sp("s-callout", k[0].toUpperCase() + k.slice(1)), sp("s-callout s-2 s-num", sizes[i] * 12 + " GB"))))),
+        el("s-group", {}, ...[["Safe to clear", "8.2 GB · caches, logs, old packages"], ["Worth a look", "21 GB · large and untouched files"], ["System", "4.1 GB · old kernels, journal"]].map(([a, b]) => el("r", {}, col({ gap: "0", flex: 1 }, sp("s-headline", a), sp("s-callout s-2", b)), sp("s-btn small", "Review")))));
+    } else {
+      const tiles = [[0, 0, 46, 60, 0, "Steam"], [46, 0, 30, 34, 1, "Videos"], [76, 0, 24, 34, 2, "Pictures"], [46, 34, 20, 26, 6, "Development"], [66, 34, 18, 26, 8, ".cache"], [84, 34, 16, 26, 3, "Music"], [0, 60, 30, 40, 4, "Documents"], [30, 60, 25, 40, 7, "Apps"], [55, 60, 25, 40, 5, "Archives"], [80, 60, 20, 40, 9, "112 smaller items"]];
+      body = col({ padding: "var(--space-l)", gap: "var(--space-s)", height: "100%", boxSizing: "border-box" }, row({ gap: "var(--space-xs)" }, sp("s-callout s-2", "Home"), ic("caret-right", 10), sp("s-callout", "alex")),
+        el("", { position: "relative", flex: 1 }, ...tiles.map(([x, y, w, hh, k, n]) => el("", { position: "absolute", left: x + "%", top: y + "%", width: "calc(" + w + "% - 2px)", height: "calc(" + hh + "% - 2px)", borderRadius: "var(--radius-small)", background: "color-mix(in srgb, " + kind(k) + " 22%, var(--colour-window))", boxShadow: "inset 0 3px 0 " + kind(k), padding: "10px", boxSizing: "border-box", overflow: "hidden" }, col({ gap: "0" }, sp("s-headline", n), sp("s-sub s-2 s-num", (w * hh / 30).toFixed(0) + " GB"))))));
+    }
+    appWindow(s, 1100, 300, 1200, 760, { sideKids: [sideItem("chart-pie-slice", "Overview", !space, "var(--pane-blue)"), sideItem("broom", "Cleanup", false, "var(--pane-green)"), sideItem("squares-four", "Space", !!space, "var(--pane-purple)"), sideItem("copy", "Duplicates", false, "var(--pane-orange)"), sideItem("file", "Large files", false, "var(--pane-red)"), sideItem("clock", "Untouched", false, "var(--pane-grey)")],
+      toolbar: [sp("s-headline", space ? "Space" : "Overview"), grow(), h("span", { class: "s-popup" }, "Home", h("span", { class: "chev" }, "⌃⌄")), sp("s-btn", "Rescan"), search(160)], body: [body] });
+  }
+
+  Isle.board({
+    title: "Isle surfaces, wave C",
+    subtitle: "P1 stage 5, wave C: Notification Centre and widgets, Mission Control and the window surfaces, Files, Monitor, Keychain and Cleaner, drawn from p1/surfaces/*.md in the system's tokens.",
+    tokens: "system/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "nc", name: "Notification Centre", sheet: "p1/surfaces/notification-centre.md", states: [
+        { id: "open", name: "Open", crop: [CX - 560, 0, 1120, 1100], note: "The clock's panel: a fixed six-week month with today in the accent and neutral event dots; the agenda, calendars in the series colours, Now in semibold; notifications stacked by app with layered edges; Earlier; Clear all as a close circle that widens.", render(s) { S.desktop(s); ncPanel(s, false); } },
+        { id: "stack", name: "Stack open", crop: [CX - 560, 0, 1120, 1100], note: "An open stack with its header: the app, Show less, and a one-click clear.", render(s) { S.desktop(s); ncPanel(s, true); } },
+      ] },
+      { id: "widgets", name: "Widgets", sheet: "p1/surfaces/widgets.md", states: [
+        { id: "dash", name: "Dashboard", note: "The softened wallpaper with the lock's wash; plates on a 72-point grid; figures in a 40-point style; Timer with nothing running collapses to a one-line strip.", render(s) { dashboard(s, false); } },
+        { id: "edit", name: "Edit", note: "Edit mode: remove marks, a ghost of the landing place, and the gallery as tinted glass on the leading side.", render(s) { dashboard(s, true); } },
+      ] },
+      { id: "mc", name: "Mission Control", sheet: "p1/surfaces/mission-control.md", states: [
+        { id: "spread", name: "Spread", note: "The wallpaper under a veil; the Spaces bar as glass under the strip, the current desktop ringed in the accent, a game's Space by its name and cover, + always shown; tiles carry their icons; the selected tile is ringed with its title and close; the minimised and hidden tray along the bottom.", render(s) { missionControl(s, "spread"); } },
+        { id: "expose", name: "App Exposé", note: "One app's windows with a header capsule; the tray holds its windows on other desktops.", render(s) { missionControl(s, "expose"); } },
+        { id: "split", name: "Split View", note: "The free half offers the windows that fit; too-wide ones drop to 40% with a line saying why; an 8-point divider.", render(s) { missionControl(s, "split"); } },
+      ] },
+      { id: "small", name: "PiP, dropdown, keyboard", states: [
+        { id: "pip", name: "Picture in picture", crop: [W - 1200, H - 600, 1200, 600], note: "Undecorated, the window's corners and shadow, 480 wide, 16 in from the corner; the player's own controls only.", render(s) { S.desktop(s); s.append(box("", W - 16 - 480, H - 16 - 270, 480, 270, { borderRadius: "var(--radius-window)", background: "linear-gradient(135deg,#1d3557,#457b9d)", boxShadow: "var(--shadow-window)" })); } },
+        { id: "dropdown", name: "Dropdown terminal", crop: [CX - 1100, 0, 2200, 900], note: "Ctrl+Option+`: 60% of the width and half the height, sliding down from behind the strip; the window's corners and the active shadow.", render(s) { S.desktop(s); S.terminal(s, CX - 1032, 48, 2064, 696); s.lastChild.style.borderRadius = "0 0 var(--radius-window) var(--radius-window)"; pill(s, [clock()]); } },
+        { id: "osk", name: "On-screen keyboard", crop: [CX - 900, H - 520, 1800, 520], note: "A solid panel 288 tall with a top hairline; 56 by 44 keys in an 866-wide block; named keys quieter; a held Shift in the accent; the completion strip.", render(s) {
+          S.desktop(s);
+          const kb = box("", 0, H - 288, W, 288, { background: "var(--material-solid)", borderTop: "1px solid var(--colour-hairline)" });
+          const key = (t, w, named, on) => el("", { width: (w || 56) + "px", height: "44px", borderRadius: "var(--radius-control)", background: on ? "var(--colour-accent)" : named ? "var(--colour-fill)" : "var(--colour-control)", color: on ? "var(--colour-on-accent)" : "var(--colour-text)", display: "grid", placeItems: "center", fontSize: "15px" }, t);
+          const rowK = (ks) => row({ gap: "6px", justifyContent: "center" }, ...ks);
+          add(kb, col({ gap: "6px", width: "866px", margin: "8px auto 0" }, row({ height: "32px", justifyContent: "center", gap: "40px" }, sp("s-callout", "isle"), sp("s-callout", "island", { fontWeight: 600 }), sp("s-callout", "inside")),
+            rowK("QWERTYUIOP".split("").map((c) => key(c)).concat([key("⌫", 80, true)])), rowK("ASDFGHJKL".split("").map((c) => key(c)).concat([key("return", 100, true)])), rowK([key("⇧", 80, true, true)].concat("ZXCVBNM".split("").map((c) => key(c))).concat([key("⇧", 80, true)])), rowK([key("⌃", 56, true), key("⌥", 56, true), key("⌘", 70, true), key("", 300), key("⌘", 70, true), key("⌥", 56, true)])));
+          s.append(kb);
+        } },
+      ] },
+      { id: "files", name: "Files", sheet: "p1/surfaces/files.md", states: [
+        { id: "list", name: "List", crop: [900, 220, 1640, 1040], note: "1400 by 860: the sidebar with Recents, Favourites and Locations (the Games SSD nearly full, its bar in warn); the toolbar with the proxy icon, count, view switcher, Group and Sort, More, the preview toggle and search; List with folders first, sizes in mono; the preview as the inspector.", render(s) { filesWindow(s, "list"); } },
+        { id: "icons", name: "Icons", crop: [900, 220, 1640, 1040], note: "Icons at 64 in 112 cells, Finder's selection; a cut item dimmed and outlined in dashes.", render(s) { filesWindow(s, "icons", { cut: true }); } },
+        { id: "columns", name: "Columns", crop: [900, 220, 1640, 1040], note: "Columns 240 wide; the path's selections stay accent in the focused column.", render(s) { filesWindow(s, "columns"); } },
+        { id: "jobs", name: "A job", crop: [900, 220, 1640, 1040], note: "A running job shows the jobs ring in the toolbar; its popover lists each job with progress and Stop.", render(s) {
+          filesWindow(s, "list", { jobs: true });
+          s.append(glassAbs(1020 + 1400 - 560, 314 + 48, 320, null, { background: "var(--colour-window-raised)", boxShadow: "var(--shadow-menu)", backdropFilter: "none", padding: "var(--space-m)" }, col({ gap: "var(--space-s)" }, row({}, sp("s-headline", "Copying 312 items"), grow(), ic("x-circle", 16)), el("s-progress", {}, h("b", { style: { width: "43%" } })), sp("s-sub s-2 s-num", "4.2 GB of 9.8 GB · about 2 minutes"))));
+        } },
+        { id: "quicklook", name: "Quick Look", crop: [900, 160, 1640, 1100], note: "A window that floats over its caller: ‹ › and the index, Markup, and Open with as the one primary action; content on the view surface.", render(s) { quickLook(s); } },
+        { id: "save", name: "Save panel", crop: [900, 160, 1640, 900], note: "Collapsed: 520 wide as a sheet on the asking window, Save As, Where with the expand button, Format; no Tags.", render(s) {
+          const w = S.titlebarWindow(s, 1020, 200, 1400, 860, { title: "Untitled — Text Editor" });
+          s.append(box("", 1020 + 440, 232, 520, null, { background: "var(--colour-window)", borderRadius: "0 0 var(--radius-window) var(--radius-window)", boxShadow: "var(--shadow-window)", padding: "var(--space-l) var(--space-xl)" },
+            col({ gap: "var(--space-m)" }, row({ gap: "var(--space-s)" }, sp("", "Save As:", { width: "80px", textAlign: "right" }), el("s-field", { flex: 1 }, sp("", "Untitled.md"))), row({ gap: "var(--space-s)" }, sp("", "Where:", { width: "80px", textAlign: "right" }), h("span", { class: "s-popup", style: { flex: 1 } }, folder(16), "Documents", h("span", { style: { flex: 1 } }), h("span", { class: "chev" }, "⌃⌄")), el("", { width: "24px", height: "24px", borderRadius: "var(--radius-control)", background: "var(--colour-control)", display: "grid", placeItems: "center" }, ic("caret-down", 12))), row({ gap: "var(--space-s)" }, sp("", "Format:", { width: "80px", textAlign: "right" }), h("span", { class: "s-popup" }, "Markdown", h("span", { class: "chev" }, "⌃⌄"))), row({ gap: "var(--space-s)", marginTop: "var(--space-s)" }, grow(), sp("s-btn", "Cancel"), sp("s-btn primary", "Save")))));
+        } },
+      ] },
+      { id: "apps", name: "Monitor, Keychain, Cleaner", states: [
+        { id: "monitor", name: "Monitor", crop: [1100, 220, 1240, 840], note: "Six resources in the toolbar centre; the table with the sort indicator; the footer with keyed figures, a stepped graph in the series colours over a sunken well, and the sensors. Quit Process is a labelled button.", render(s) { monitor(s); } },
+        { id: "keychain", name: "Keychain", crop: [1100, 220, 1200, 800], note: "Kinds and sources in the sidebar; monograms rather than fetched site icons; the detail as grouped rows with Show; the verification code hidden with its countdown ring.", render(s) { keychain(s); } },
+        { id: "cleaner", name: "Cleaner", crop: [1000, 220, 1400, 920], note: "Overview: the disk by kind in the ten kind colours with a legend, then the three findings with Review.", render(s) { cleaner(s, false); } },
+        { id: "space", name: "Space", crop: [1000, 220, 1400, 920], note: "The treemap: tiles tinted with their kind, a 3-point band of the full colour on top, names and sizes in text colours; a folder opens by zooming from its tile.", render(s) { cleaner(s, true); } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 5, wave C">
+  <h2>Gate 5, wave C</h2>
+  <p>The specs are in <code>p1/surfaces/</code>. Decided there, for you to confirm or change:</p>
+  <ol>
+    <li><b>Mission Control</b> dims the plain wallpaper under a veil; hot corners show no feedback of their own; a desktop switch is an 80-point slide with a crossfade.</li>
+    <li><b>Notification Centre</b> colours calendars from Isle's graph colours, not each feed's own, so none can pass for the accent or a status.</li>
+    <li><b>The widgets dashboard</b> draws on the lock's wash; an empty widget shrinks to a one-line strip; nothing staggers in.</li>
+    <li><b>The on-screen keyboard</b> is solid rather than glass, so it costs no blur over a game.</li>
+    <li><b>Files</b> navigates and switches views instantly; Quick Look grows from the item; a cut item is dimmed and outlined in dashes.</li>
+    <li><b>Monitor's graph</b> moves once per sample rather than every frame.</li>
+    <li><b>Keychain</b> fetches no site icons (monograms instead), and treats verification codes as secrets.</li>
+    <li><b>Cleaner</b> has ten kind colours chosen with a colour-blindness check, always with a symbol and a name; its map zooms from the tile.</li>
+    <li><b>Graph colours fixed</b>: the stage 4 series failed a colour-blindness check. The new four (cyan, pink, violet, amber) pass it for every pair, in both appearances, and stay clear of the status colours and the blue accent (<code>system/data-colours.md</code>).</li>
+    <li><b>Two kind-colour exceptions</b>: "other" is grey on purpose, and the dark set is a little lighter than the check prefers, because each kind's tile carries a dark symbol that needs a light fill.</li>
+  </ol>
+</section>

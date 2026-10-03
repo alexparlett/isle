@@ -55,6 +55,10 @@ the capsule holds the spinner at 12, `space-s`, and "Quitting apps…" in
 `type-style-body` `colour-text`, in place of the question and buttons, until
 the session ends or an app stops it (status line).
 
+**The lock's keyboard.** The utilities' keyboard button shows the lock's
+own on-screen keyboard; how it is drawn, and how the face moves up by its
+height, is `keyboard-osk.md` (On the lock and the greeter).
+
 **Greeter's user list** (two or more users): in the user's place, pictures
 at `size-avatar` in a row, `space-xxxl` apart, each name under it in
 `type-style-body`, `colour-text-2`; the hovered or keyboard-selected name
@@ -100,6 +104,7 @@ takes no hit target but the one input that ends it.
 | Game in front, full-screen window | As Awake; the backdrop is the wallpaper's, never the game's frame. |
 | A prompt showing, a capture running | Nothing on the face; the island's privacy form over it. |
 | Focus on | Its symbol before the date; the column filtered. |
+| On-screen keyboard shown | The face moved up by the panel's height (`keyboard-osk.md`). |
 | Restart or Shut Down asked | Confirm in place; once confirmed, the spinner and "Quitting apps…"; after an app stops it, "Couldn't restart because an app didn't quit. Unlock to see it." |
 | Greeter | No column, no island; the session capsule when several sessions; the user list when several users. |
 | Greeter, fingerprint sign-in | PAM's message with `fingerprint`; a typed password's dots kept, and "Waiting for the fingerprint reader" on an early Return. |

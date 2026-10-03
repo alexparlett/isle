@@ -14,6 +14,8 @@ MARKS = ["ok", "warn", "danger", "live", "privacy-microphone", "privacy-camera",
 BORDERS = ["hairline-strong"]
 GREY = (128, 128, 128, 1)
 SURFACES = ["window", "window-raised", "window-sunken"]
+# Data colours are marks on every window surface; series also on solid wells.
+DATA_SURFACES = SURFACES + ["view", "sidebar"]
 
 
 def parse(src):
@@ -129,6 +131,12 @@ def main():
                         if theme == "dark" and name == "bright-white":
                             need = 4.5
                         rows.append((f"term {name}", "window", ratio(rgba(val), win), need))
+                for group, extra in (("series", ["solid"]), ("kind", [])):
+                    marks = {k.split(".")[-1]: v for k, v in t.items() if k.startswith(f"{group}.{theme}.")}
+                    for name, val in marks.items():
+                        for sname in DATA_SURFACES + extra:
+                            s_ = rgba(t[f"material.solid.{theme}"]) if sname == "solid" else rgba(col[sname])
+                            rows.append((f"{group} {name}", sname, ratio(rgba(val), s_), 3.0))
             for extreme, base in (("black", (0, 0, 0, 1)), ("grey", GREY), ("white", (255, 255, 255, 1))):
                 isl = over(rgba(col["island"]), base)
                 rows.append(("island text", f"island over {extreme}", ratio(rgba(col["island-text"]), isl), 4.5))

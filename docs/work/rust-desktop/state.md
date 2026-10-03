@@ -57,7 +57,9 @@
   its panels, menus, window chrome, the switcher, the wallpaper.
 - Wave B passed gate 5 (board `p1/surfaces-b.html`): banners, Focus,
   Control Centre's modules, the lock and prompts, Spotlight, capture,
-  Settings and the app conventions. Next: wave C (Notification Centre
-  and widgets, Mission Control, Files, Monitor, Keychain, Cleaner, the
-  dropdown terminal, PiP, the on-screen keyboard). P2 is
+  Settings and the app conventions.
+- Wave C passed gate 5 (board `p1/surfaces-c.html`); stage 5 is
+  complete. The graph colours were replaced after a colour-vision check
+  (`p1/system/data-colours.md`). Next: stage 6, the review, and gate 6,
+  signing off DESIGN.md. P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

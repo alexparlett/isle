@@ -329,7 +329,7 @@ increased-contrast set:
 - **`match`**: a find highlight, yellow, as macOS's.
 - **`term`**: the 16 ANSI colours above, per appearance and contrast.
 - **`series`**: four categorical colours for graphs (btop, Monitor),
-  distinct from the status colours.
+  distinct from the status colours (`data-colours.md`).
 - **`pane`**: the fixed hues of Settings' pane tiles (`icons.md`).
 - **`icons`** and **`cursor`**: the symbol set and weights, the app icon
   theme per appearance, the cursor theme and size (`platform.md` lists

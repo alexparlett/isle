@@ -40,24 +40,24 @@ read and which P3 implements. The file is KDL v2; the values are in
 | `colour` | Roles per appearance: `window`, `window-raised`, `window-sunken`, `view`, `sidebar`, `titlebar`, `titlebar-inactive`, `control`, `control-hover`, `control-pressed`, `text`, `text-2`, `text-3`, `text-disabled`, `hairline`, `hairline-strong`, `fill`, `fill-strong`, `selection-unfocused`, `ok`, `warn`, `danger` (fills and marks) and `ok-text`, `warn-text`, `danger-text` (as text), `match`, `live`, `privacy-microphone`, `privacy-camera`, `privacy-screen`, `island`, `island-text`, `scrim`, `shadow`; and `contrast` overrides | Components use roles, never raw colours. `text-3` is for windows only; on glass, `text` and `text-2`. A focused selection in lists and tables is the full `accent` fill with `on-accent` text; unfocused, `selection-unfocused`. |
 | `accent` | `default`, then per accent (`blue`, `purple`, `pink`, `red`, `orange`, `yellow`, `green`, `graphite`) and appearance: `fill`, `on`, `text` | The user's choice (settings.kdl) picks one; components read `colour-accent`, `colour-on-accent`, `colour-accent-text`, which the runtime points at the chosen set. |
 | `selection` | `mix` per appearance | Text selection only: in fields and text views the accent is mixed into the surface at this share, and `text` stays on it at 4.5:1. Row and item selections are `colour`'s. |
-| `series` | `a` to `d` per appearance | Categorical colours for graphs; never status. |
+| `series` | `a` to `d` per appearance; `area-opacity` | Categorical colours for graphs, calendars and the System widget, used in order and never status; any two may meet (`data-colours.md`). An area under a line is its series at `area-opacity`. |
+| `kind` | Cleaner's ten kinds per appearance, `games` to `other` in their fixed order; `mix` | Data colours, never on a control; neighbours in the order are told apart (`data-colours.md`). A map tile is its kind mixed into `colour-view` at `mix`. |
 | `pane` | Fixed hues for Settings' pane tiles | Data, not the accent. |
 | `term` | The 16 ANSI colours per appearance | Terminals and the programs in them (`theming.md`). |
 | `traffic` | The traffic lights' fills, pressed fills, glyphs and edge | The one fixed exception to colour roles. |
-| `limit` | Counts: `island-marks`, `now-rows` | Plain numbers, never points. |
+| `limit` | Counts: `island-marks`, `now-rows`, the surfaces' row and card caps | Plain numbers, never points. |
 | `icon` | `set`, `weight`, `weight-on`, `weight-contrast`; `theme` per appearance; `cursor`, `cursor-size` | Phosphor, Papirus, Bibata (`icons.md`). |
 | `material` | `glass`, `glass-clear`, `glass-tinted`, `solid` per appearance; `blur`, `saturation`, `noise-opacity` | The glass setting interpolates between `glass-clear` and `glass-tinted`, `glass` being its default. Reduce Transparency and Game Mode use `solid`. |
-| `type` | `family`, `mono`; `style.<name>.{size, weight, line}` for `large-title`, `title`, `title-2`, `title-3`, `headline`, `body`, `callout`, `subheadline`, `footnote`, `clock`, `mono`, `display` (the lock's time); `weight.*` | Inter's optical size follows the size. The user's text size multiplies every style. |
+| `type` | `family`, `mono`; `style.<name>.{size, weight, line}` for `large-title`, `title`, `title-2`, `title-3`, `headline`, `body`, `callout`, `subheadline`, `footnote`, `clock`, `mono`, `display` (the lock's time), `figure` (a widget's one large figure); `weight.*` | Inter's optical size follows the size. The user's text size multiplies every style. |
 | `space` | `xxs` 2 to `xxxl` 32 | The 4-point grid. |
 | `radius` | `window`, `panel`, `card`, `control`, `row`, `small` | Nested corners are concentric: a child's radius is its parent's less the padding between them, never below `small`. |
-| `stroke` | `hairline`, `focus-ring`, `focus-offset` | The focus ring is the accent at reduced opacity, keyboard focus only. |
+| `stroke` | `hairline`, `focus-ring`, `focus-offset`, `progress`, `found`, `graph`, `kind` | The focus ring is the accent at reduced opacity, keyboard focus only. |
 | `size` | The island's strip and pill, bars, rows, the three control heights, the hit minimum, glyph and app icon sizes | |
 | `shadow` | `window`, `window-inactive`, `panel`, `menu`, `control` per appearance | |
 | `motion` | Springs `morph`, `open`, `exit`, `move`, `switch` as `{stiffness, damping}`; `fade-ms`, `exit-fade-ms`, `reduced-fade-ms` | Springs are critically damped or close to it. Reduce Motion turns each spring into `reduced-fade-ms` in place. Game Mode draws shell surfaces without transitions. |
 | `timing` | The hover guards (`hover-dwell-ms`, `hover-grace-ms`, `hover-settle-ms`) and event durations | Behaviour timings shared by the island and banners. |
 
-What installed apps take from these is in `theming.md`. The Cleaner's
-kind colours join as a `kind` group when its packet starts.
+What installed apps take from these is in `theming.md`.
 
 ## What is not a token
 

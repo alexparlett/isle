@@ -97,9 +97,21 @@ nothing already shipped; a glyph it lacks is drawn by Isle.
   speaker), so the empty bars show dimmed, as SF Symbols' variable colour
   does.
 - **Isle-drawn glyphs** for what Phosphor lacks, on its 256 grid with its
-  stroke, caps and joins: VPN (a shield over the network glyph), shortcuts
-  inhibited (keyboard with a slash), the island's activity marks if the
-  set has none. Kept in the same vendored directory, with the source SVG.
+  stroke, caps and joins, kept in the same vendored directory with the
+  source SVG:
+
+| Glyph | Drawing | Where |
+|---|---|---|
+| `isle-mark` | the isle: a solid island seen from above, a cove in its trailing side | the System menu (`menus.md`) |
+| `isle-vpn` | a shield over the network glyph | island, Control Centre, prompts, Settings |
+| `isle-keyboard-slash` | `keyboard` with a slash | shortcuts inhibited (`island.md`) |
+| `isle-equaliser` | three bars | the island's media face, Control Centre's players |
+| `isle-record-screen`, `-window`, `-portion` | the shot glyph with a filled dot at its foot trailing | Capture's modes |
+| `isle-trash-full` | `trash` with paper over its rim | Files' sidebar row for a Trash with items in it |
+| Isle's folders | the plain folder and the special folders (Documents, Downloads and so on), one family | Files and its panels |
+
+  The cursor `isle-camera` (Capture's window mode) is drawn in Bibata's
+  style instead.
 - **One symbol per thing**, in a table in the shell crate that the sheets
   reference by name; a sample of the mapping:
 

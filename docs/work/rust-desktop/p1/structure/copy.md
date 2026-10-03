@@ -93,3 +93,21 @@ follows, and the strings that recur.
 
 Strings a later sheet owns are added there and collected here at the
 gate.
+
+## Collected from the surfaces
+
+Strings the wave C surface sheets draw that their structure sheets do not
+list.
+
+| Where | String |
+|---|---|
+| Weather | One word per glyph: "Clear", "Partly cloudy", "Cloudy", "Rain", "Snow", "Thunderstorms", "Fog", "Windy"; "{n}°"; high and low "H:{high}° L:{low}°" |
+| Storage widget, Cleaner's disks | "{size} free" |
+| Grants, read only | "Allowed", "Not allowed", then "Change…" |
+| Monitor's GPU block | "Memory" as "{used} of {total}", "Temperature", "Power", "Fan", "Clocks"; graph titles "CPU load", "Memory pressure", "Power" and the GPU's name |
+| Keychain sheets | "Save" (new login, new SSH key), "Add" (a key's passphrase) |
+| Cleaner's Overview | "{size} used", "{size} free", "{size} scanned"; legend "Not scanned", "Free"; "Disks", a disk "{used} of {total}" |
+| Cleaner's tables | Space's list "Name", "Size", "Share", "Kind"; "{n} smaller items"; Duplicates' groups "{size} each", "{n} copies", their rows "Folder", "Modified"; Large files and Untouched "Name", "Folder", "Kind", "Last opened", "Size" |
+| Files' status bar | "{n} items, {size} available"; with a selection "{n} of {total} selected, {size}" |
+| Quick Look's trim | The kept length as a duration: "0:42", "1:02:05" |
+| Split View chooser | "No other windows fit" |

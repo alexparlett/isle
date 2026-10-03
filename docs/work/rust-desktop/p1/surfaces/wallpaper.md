@@ -99,7 +99,7 @@ until the pictures exist.
 | Game Mode (windowed game) | Shown, still; a change is a cut. |
 | Locked | Unseen; the lock draws the softened form. |
 | Show Desktop | Plain, with nothing over it but the island. |
-| Mission Control | Plain, behind the spread. |
+| Mission Control | Plain, under `colour-veil`, behind the spread (`mission-control.md`). |
 | Idle dim | Dimmed with everything (`lock.md`). |
 | Focus on | No change. |
 | Reduce Motion | The crossfade stays at full length (Choices 2). |

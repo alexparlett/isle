@@ -118,8 +118,21 @@ accent {
 // How much of the accent tints selected text; list and table selections are the full accent.
 selection { mix { dark 0.38; light 0.24 } }
 
-// Data colours: graphs (Monitor, btop) and Settings' pane tiles. Never status.
-series { dark { a "#5c9bff"; b "#4fc7d9"; c "#d68cf5"; d "#f2a541" }; light { a "#1f5fcc"; b "#0a7486"; c "#9a35b8"; d "#b35a00" } }
+// Data colours for graphs and calendars, never status. Any two are told apart
+// under each colour-vision deficiency (data-colours.md).
+series {
+    dark { a "#1ca2c3"; b "#fa378c"; c "#bd50fd"; d "#d1791e" }
+    light { a "#0f7eae"; b "#dc0075"; c "#8f38ed"; d "#a6560a" }
+    area-opacity 0.24
+}
+// Cleaner's kinds, in their fixed order (surfaces/cleaner.md); a map tile is
+// its kind mixed into `view` at `mix`.
+kind {
+    dark { games "#6a94f4"; video "#ffa659"; images "#2cdcaf"; audio "#cb73c4"; documents "#69caff"; archives "#ff9bba"; developer "#79aa3b"; apps "#c9acff"; caches "#e6705f"; other "#ababab" }
+    light { games "#3054ae"; video "#b36300"; images "#048f70"; audio "#873482"; documents "#0584b8"; archives "#be4d77"; developer "#426801"; apps "#8962c5"; caches "#9e2e21"; other "#6f6f6f" }
+    mix 0.22
+}
+// Settings' pane tiles.
 pane { blue "#2f7cf6"; grey "#8a8d93"; graphite "#3a3b40"; purple "#7a5af8"; red "#ef4444"; pink "#ec4899"; indigo "#6366f1"; teal "#20a4c8"; green "#22c55e"; orange "#f59e0b" }
 
 // The 16 ANSI colours for terminals and the programs in them (theming.md).
@@ -188,6 +201,8 @@ type {
         clock { size 13; weight 600; line 16 }
         mono { size 12; weight 400; line 17 }
         display { size 96; weight 600; line 104 }
+        // A widget's one large figure.
+        figure { size 40; weight 600; line 44 }
     }
     weight { regular 400; medium 500; semibold 600; bold 700 }
 }
@@ -198,7 +213,7 @@ space { xxs 2; xs 4; s 8; m 12; l 16; xl 20; xxl 24; xxxl 32 }
 // padding between them, never below `small`.
 radius { window 10; panel 18; card 10; control 6; row 5; small 4 }
 
-stroke { hairline 1; focus-ring 3; focus-offset 1; progress 2; found 2 }
+stroke { hairline 1; focus-ring 3; focus-offset 1; progress 2; found 2; graph 2; kind 3 }
 
 size {
     strip 48
@@ -295,10 +310,81 @@ size {
     thumbnail-width 240
     thumbnail-height 160
     picker 680
+    month-row 32
+    stack-layer 6
+    widget-cell 72
+    desktop-miniature 112
+    desktop-miniature-min 64
+    tray-tile-width 192
+    tray-tile-height 80
+    stage-entry-width 160
+    stage-entry-height 100
+    pip-width 480
+    pip-min-width 240
+    // Of the work area's width.
+    pip-max-scale 0.33
+    osk-key 56
+    osk-key-height 44
+    osk-strip 32
+    // Of the screen's height.
+    osk-max-scale 0.33
+    files-width 1400
+    files-height 860
+    tab-bar 30
+    tab-min 140
+    progress-ring 18
+    capacity-mark 20
+    icon-cell-pad 48
+    column 240
+    column-min 160
+    item-progress 4
+    jobs 320
+    icon-slider 96
+    info 300
+    quick-look-max-width 1280
+    quick-look-min-width 480
+    quick-look-min-height 320
+    quick-look-text 720
+    // Of the work area's height.
+    quick-look-height-scale 0.667
+    trim-bar 56
+    trim-strip 40
+    trim-handle 10
+    chooser-width 760
+    chooser-height 480
+    chooser-min-width 600
+    chooser-min-height 380
+    chooser-save 520
+    chooser-label 80
+    monitor-width 1040
+    monitor-height 680
+    monitor-footer 136
+    monitor-figures 200
+    graph 84
+    graph-step 4
+    inspect-width 520
+    inspect-height 600
+    sensors-width 560
+    sensors-height 640
+    keychain-width 1000
+    keychain-height 640
+    list-pane 300
+    list-pane-min 240
+    list-pane-max 420
+    detail-label 120
+    generator 320
+    cleaner-width 1200
+    cleaner-height 760
+    cleaner-column 760
+    kind-bar 20
+    tile-symbol 32
+    tile-label-width 96
+    tile-label-height 44
+    tile-min 8
 }
 
 // Counts, not points.
-limit { island-marks 2; now-rows 4; banners 3; banner-lines 2; banner-lines-expanded 10; reply-lines 4; lock-notifications 5; prompt-lines 4; session-apps 12; force-quit-rows 10; results-rows 8; apps-columns 8; apps-rows 7 }
+limit { island-marks 2; now-rows 4; banners 3; banner-lines 2; banner-lines-expanded 10; reply-lines 4; lock-notifications 5; prompt-lines 4; session-apps 12; force-quit-rows 10; results-rows 8; apps-columns 8; apps-rows 7; stack-layers 2; stack-cards 5; overview-rows 5; cleanup-rows 5 }
 
 // The traffic lights' colours: the one fixed exception to roles.
 traffic {
@@ -339,6 +425,8 @@ motion {
     dim-ms 2000
     // Points per second.
     flick-speed 600
+    // How far windows travel in a Space switch.
+    switch-distance 80
 }
 
 // Behaviour timings the hover guards and events use (v1 lessons §3.5).
@@ -372,4 +460,10 @@ timing {
     banner-max-ms 15000
     banner-resume-ms 1500
     sound-burst-ms 2000
+    corner-dwell-ms 250
+    spring-ms 500
+    job-delay-ms 1000
+    job-done-ms 2000
+    controls-ms 2000
+    scan-layout-ms 1000
 }

@@ -230,3 +230,37 @@ Each surface's look, states and motion, by wave. The full specs are in
   Displays map to scale. Every Isle app: a 52-point toolbar whose primary
   action is never the accent, alternating rows only in tables, one-line
   empty states.
+
+### Wave C (gate 5, 2026-10-03; board `p1/surfaces-c.html`)
+
+- **Notification Centre** (`notification-centre.md`): the clock's panel,
+  a fixed six-week month with today in the accent, the agenda with
+  calendars in the graph colours (never a feed's own), notifications
+  stacked by app with layered edges, Earlier, and a two-step Clear all.
+- **Widgets** (`widgets.md`): a full-screen canvas per screen on the
+  softened wallpaper with the lock's wash; plates on a 72-point grid;
+  figures in a 40-point style; empty widgets shrink to a one-line strip;
+  v1's soft push in edit mode; the gallery as tinted glass; consent in the
+  prompt frame; one provider row everywhere.
+- **Mission Control** (`mission-control.md`): the wallpaper under a veil,
+  a glass Spaces bar with the current desktop ringed in the accent, tiles
+  with their icons, a tray for minimised and hidden windows; windows
+  travel from their real places; a desktop switch is an 80-point slide
+  with a crossfade; hot corners show nothing of their own.
+- **Picture in picture, the dropdown terminal, the on-screen keyboard**
+  (`pip.md`, `dropdown-terminal.md`, `keyboard-osk.md`): PiP undecorated
+  and snapping between corners; the terminal sliding from behind the
+  strip; the keyboard a solid panel, never glass, so it costs no blur
+  over a game.
+- **Files** (`files.md`): 1400 by 860 on the app conventions; Icons, List
+  and Columns; navigation and view switches instant; Quick Look growing
+  from the item; Open and Save panels as sheets; a cut item dimmed and
+  outlined in dashes.
+- **Monitor, Keychain, Cleaner** (`monitor.md`, `keychain.md`,
+  `cleaner.md`): Monitor's graphs step once per sample in the graph
+  colours; Keychain fetches no site icons and treats verification codes
+  as secrets; Cleaner's ten kind colours always come with a symbol and a
+  name, and its map zooms from the tile.
+- **Data colours** (`system/data-colours.md`): four graph colours and ten
+  kind colours chosen with a colour-vision check, distinct from status
+  and the accent, each at least 3:1 on the surfaces they sit on.

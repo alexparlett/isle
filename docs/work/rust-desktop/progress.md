@@ -2,6 +2,12 @@
 
 ## 2026-10-03
 
+- P1 gate 5, wave C passed: Notification Centre and widgets, Mission
+  Control and the window surfaces, Files, Monitor, Keychain and Cleaner,
+  drawn on the wave C board. A colour-vision check failed stage 4's graph
+  colours; a new four pass it, and Cleaner's ten kind colours were checked
+  the same way. Stage 5 is complete.
+
 - P1 gate 5, wave B passed: specs for banners, Focus, Control Centre's
   modules, the lock and prompts, Spotlight, capture, Settings and the app
   conventions, reconciled and drawn on the wave B board. The lock adds its

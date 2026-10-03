@@ -2,6 +2,16 @@
 
 ## 2026-10-03
 
+- P2 phase 2.1: the nested compositor. One calloop loop over `State {
+  backend, isle }`; xdg-shell with toplevels placed centred on their
+  first buffer, click to focus and raise, popups kept on the output and
+  grabbed, client moves and resizes; the protocol baseline; damage-only
+  rendering through niri's redraw states, with an estimated-vblank timer
+  for frame callbacks. A heartbeat logs dispatches over a frame's budget,
+  a watchdog aborts after ten seconds stuck, and panics write a crash
+  record. Found on NVIDIA: Smithay never sets the swap interval, so every
+  swap waited about 16.7 ms inside the loop; Isle sets it to 0.
+
 - P2 phase 2.0: the workspace (`Cargo.toml`, `rust-toolchain.toml`,
   seven crates), `data/tokens/` and `data/icons/phosphor/` moved from P1,
   the board server rooted at the repository so boards find them. Smithay

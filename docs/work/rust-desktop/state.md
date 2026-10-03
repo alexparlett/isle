@@ -78,5 +78,11 @@
   `crates/`), P1's tokens, schema, contrast script and Phosphor subset in
   `data/`, the boards reading them there. Smithay pinned upstream at
   `118e34f`; the user deferred the fork. `knus` is KDL v1 only; `kdl`'s
-  printer drops text, so settings writes splice by span. Next: 2.1, the
-  nested compositor.
+  printer drops text, so settings writes splice by span.
+- P2 phase 2.1 done in part: `isle-compositor` runs nested on the host
+  (winit on the 5070 Ti) with the protocol baseline, niri's redraw loop,
+  the watchdog and crash records. kitty, Chromium, VS Code and zathura
+  map; a static desktop presents no frames. Not yet checked: typing and
+  clicking in clients (by hand, or scripted once 2.5's Test interface
+  exists), and foot, Firefox, a GTK 4 and a Qt 6 app, which the host
+  does not have. Next: 2.2, the worker, D-Bus and the CLI.

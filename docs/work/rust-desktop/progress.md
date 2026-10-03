@@ -1,5 +1,11 @@
 # Progress
 
+## 2026-10-03
+
+- P1 planned (`p1-design.md`). The user chose HTML mock-ups first, then
+  Freya from P3's preview mode on, and working files in the repo with
+  each gate's board also published as an Artifact.
+
 ## 2026-10-02
 
 - The user pointed out that presentation (the island's priority order and

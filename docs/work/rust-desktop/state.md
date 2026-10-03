@@ -23,6 +23,9 @@
 - Presentation is separated from capability: each intent doc ends with a
   "For the design process" list that P1 answers (B24 rewritten). B18's
   arrangement stays a decision.
-- The planning docs are committed. Next: P1 (design) and P2 (compositor
-  core), each planned by its own feature-plan run; P3 waits for the Freya
-  fork at rc.8.
+- The planning docs are committed.
+- P1 planned in `p1-design.md`: six stages with a user gate each;
+  mock-ups in HTML on a shared harness that reads `tokens.kdl`, moving to
+  Freya once P3's preview mode exists; boards also published as private
+  Artifacts. Next: P1 stage 1 (research and the interview), and P2
+  planned by its own run; P3 waits for the Freya fork at rc.8.

@@ -11,4 +11,5 @@ one at a time.
 - `progress.md`: running log, newest first.
 - `roadmap.md`: the build packets in order.
 - `spike-shell-ui.md`: the spike that decided how the shell UI is drawn.
+- `p1-design.md`: P1, the design process; its working files in `p1/`.
 - Evidence: `docs/research/rust-desktop/`.

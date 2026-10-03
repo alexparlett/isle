@@ -148,7 +148,7 @@ here), or a chord. In order:
 ```
 Minimise                       Cmd+M
 Zoom
-Enter full screen              Ctrl+Cmd+F
+Enter Full Screen              Ctrl+Cmd+F
 Move and resize              ▸ (the zones by name, with their chords)
 —
 Move to desktop              ▸ (each desktop, New desktop)
@@ -463,10 +463,10 @@ Cmd+. cancel, Cmd+Delete takes a destructive button such as "Don't save"
 
 ## Copy
 
-In sentence case, the rule v1 carried (`design-v1-lessons.md` §8); if
-`copy.md` takes macOS's title case for menu items, these follow it.
+In sentence case (`design-v1-lessons.md` §8), except macOS's standard
+items, which keep Apple's title case (`copy.md` rule 1).
 
-- Window menu: Minimise, Zoom, Enter full screen, Exit full screen, Move
+- Window menu: Minimise, Zoom, Enter Full Screen, Exit Full Screen, Move
   and resize, Move to desktop, Desktop 1…, New desktop, Move to
   <display>, Keep on top, Move, Resize, Close.
 - Zones: Left half, Right half, Left third, Centre third, Right third,
@@ -477,7 +477,7 @@ In sentence case, the rule v1 carried (`design-v1-lessons.md` §8); if
   Left of screen, Right of screen, Move to <display>.
 - Inhibit: the glyph's detail "<App> has the keys", "Take keys back"; the
   notice "<App> has the keys. Press <chord> to take them back."
-- Not responding: "<App> is not responding", buttons "Force quit" and
+- Not responding: "{App} is not responding", buttons "Force Quit" and
   "Wait".
 - Sheets: buttons named for their action ("Delete", "Don't save"),
   "Cancel"; never "OK" where a verb fits.
@@ -505,7 +505,7 @@ Decided at gate 2 on 2026-10-03: every recommendation below was accepted.
    parent (`compositor.md` Stacking 6). Recommendation: yes for a modal
    dialog smaller than its parent; anything larger stays centred over it.
 5. **Closing an app that is not responding.** A Mac does nothing until
-   Force Quit. Offer an alert ("<App> is not responding": Force quit,
+   Force Quit. Offer an alert ("{App} is not responding": Force Quit,
    Wait) when close is pressed on a window whose app has missed its ping.
    Recommendation: yes; otherwise close looks broken, and Force Quit is a
    chord away few remember.

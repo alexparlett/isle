@@ -1,8 +1,9 @@
 # Copy
 
-Batch 1. Answers to: shell.md "Shell runtime" (UI copy rules), and the
-copy items every other sheet points here for. The rules every string in
-the shell and Isle's apps follows, and the strings that recur.
+Batch 1, with batch 2's recurring strings collected. Answers to:
+shell.md "Shell runtime" (UI copy rules), and the copy items every other
+sheet points here for. The rules every string in the shell and Isle's apps
+follows, and the strings that recur.
 
 ## Rules
 
@@ -50,15 +51,26 @@ the shell and Isle's apps follows, and the strings that recur.
 
 | Where | String |
 |---|---|
-| Summary after silence | "While you were away" / "While you played", then a count: "4 notifications" |
+| Summary after silence | "While you were away" / "While you played", then "{n} notifications from {app}" |
+| Banner overflow | "{n} more in Notification Centre" |
 | Refused permission (callers) | "Permission was not given." |
+| Password prompts | "{App} needs your password", "“{network}” needs a password", "“{VPN}” needs a password"; status "Wrong password. Try again.", "Caps Lock is on", "Too many attempts. Try again in {n} min." (prompts and the lock alike) |
+| Sharing picker | "Choose what to share with {app}" |
+| Capture files | "Screenshot {date} at {time}.png", "Screen Recording {date} at {time}.{ext}", in macOS's case |
 | Restart owed | "Restart to finish updating" |
 | Updates | "Updates" with the count as a badge; "Install updates…" |
-| Rejected hand edit | "settings.kdl has an error on line 12. Changes won't be saved until it's fixed." |
-| Safe start | "Isle started without your settings because they stopped it starting." |
-| Crash notice | "<App> quit unexpectedly." with "Reopen" and "Report…" |
-| Log out | "Are you sure you want to log out?" with "Reopen windows when logging back in" and "Log Out" |
-| Force Quit | "Force Quit" (window title and button) |
+| Rejected hand edit | "settings.kdl has an error on line 12, column 4. Changes won't be saved until it's fixed." |
+| Rejected token edit | "tokens.kdl has an error on line 12, column 4. The last good look is in use." |
+| Safe start | "Isle started without your settings because they stopped it starting."; "Use my settings", "Report…" |
+| Crash notice | "{App} quit unexpectedly." with "Reopen" and "Report…"; for Isle, "Isle quit unexpectedly." and "Your apps were reopened." |
+| Log out | "Are you sure you want to log out?" with "Reopen windows when logging back in" and "Log Out"; restart and shut down likewise, with "If you do nothing, the computer will shut down in {n} seconds." |
+| Session interrupted | "Couldn't restart because {App} didn't quit." ("shut down", "log out" likewise), "Show {App}" |
+| Force Quit | "Force Quit" (window title and button); "Do you want to force {App} to quit? You will lose any unsaved changes." |
+| Quit with work in flight | Title naming the work ("Copying 3 items to Backup"), "Quitting stops it.", "Cancel", "Quit" |
+| Display change | "Keep these display settings?", "Reverting in {n} seconds.", "Revert", "Keep" |
+| A changed setting | "Reset to default" |
+| Search with no match | "No results for “{query}”" |
+| Feature names | "Do Not Disturb", "Game Mode", "Night Light", "Dark Mode", "Energy Mode", "Now Playing" keep their capitals as names (rule 1) |
 | Empty states | One line saying what will appear: "No notifications". Never a card of filler. |
 
 Strings a later sheet owns are added there and collected here at the

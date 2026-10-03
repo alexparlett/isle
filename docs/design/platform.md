@@ -506,8 +506,13 @@ Wi-Fi and suspend without an admin password.
    conversation and starts `isle-session` as the user's session. A
    `wayland-sessions` entry lets other display managers start it too.
 2. The greeter is installed root-owned by the package, runs as greetd's
-   user, lists users from AccountsService and draws with the shipped tokens,
-   never a user's.
+   user and lists users from AccountsService. It draws with the shipped
+   tokens and the choices the user's session publishes for it (the
+   wallpaper, light or dark, the accent, the keyboard layouts and
+   per-device profiles, the main screen), so signing in and the lock are
+   one face; it never reads the user's token file, so a broken hand edit
+   cannot reach it. Before any session has published them it uses shipped
+   defaults.
 3. Fingerprint sign-in is opt-in. With it on, the greeter creates the greetd
    session as it shows, so the reader listens while a password is typed.
    Autologin is greetd's initial session, set through `isle setup`.
@@ -531,7 +536,8 @@ Wi-Fi and suspend without an admin password.
 **v1 lessons kept.** D17. D34: greetd holds one PAM conversation per
 session. D39.
 
-**Open for its packet.** The greetd IPC client.
+**Open for its packet.** The greetd IPC client. Where the session writes
+the greeter's choices so greetd's user can read them.
 
 ### Supervisor and crash records
 
@@ -547,9 +553,12 @@ start says what happened.
 4. Each crash leaves a record in `~/.local/state/isle/crashes/`: time,
    build, panic message and backtrace (written by the compositor's panic
    hook), the last log lines and recent watchdog stalls. The next start
-   shows a notice that links to it. The last ten are kept.
+   posts a notification saying Isle quit unexpectedly, with Report…, which
+   opens the record. The last ten are kept.
 5. After three crashes within a minute of start, the next start ignores the
-   user's `settings.kdl` and `tokens.kdl` and says so.
+   user's `settings.kdl` and `tokens.kdl` and says so: the island shows its
+   configuration-error glyph, whose notice row offers Use my settings,
+   which applies them live, and a banner says the same once.
 6. Logs go to the user journal and to `~/.local/state/isle/session.log`, the
    previous session's kept beside it.
 7. The watchdog logs every main-loop stall over a frame's budget with what
@@ -748,9 +757,13 @@ schedule or by situation.
    optional schedule of days and times (B30).
 2. Gaming Focus is one of the modes and turns itself on while any detected
    game (`gaming.md`, Games) is in front, windowed or full screen, and off
-   when none is. Its allowed apps are edited like any mode's (B30).
-3. A fullscreen window and screen sharing or casting each silence banners
-   unless the user turns that off.
+   when none is. It wins over any other Focus, one turned on by hand
+   included, and gives that Focus back when it ends. Its allowed apps are
+   edited like any mode's (B30).
+3. A full-screen window (unless another screen is free of one) and sharing
+   or recording a screen each hold banners unless the user turns that off;
+   sharing one window does not. So does the user being away (idle dim,
+   sleep, lock).
 4. While silenced, banners and sounds are held back and notifications still
    reach the centre. What was silenced is counted and summarised when
    silence ends.
@@ -761,8 +774,9 @@ schedule or by situation.
 silencing and per-app lists; §10: the summary after a game. Inventory §2: a
 focus mode was documented and never built.
 
-**Open for its packet.** Which mode wins when a scheduled, a manual and
-Gaming Focus overlap.
+**Open for its packet.** Which of a scheduled and a manual Focus wins when
+they overlap; P1 proposes the manual one, then the latest automatic start
+(`docs/work/rust-desktop/p1/structure/focus.md`).
 
 ### Test hooks and VM workflow
 
@@ -802,32 +816,32 @@ What this document leaves to P1, per feature; "proposal" is the answer it
 gave before.
 
 - **Settings**: Answered in P1
-  (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
+  (`docs/work/rust-desktop/p1/structure/island.md`, `settings.md`); recorded in DESIGN.md at gate 6.
 - **Design tokens**: the token names and values (B3).
-- **Notifications and badges**: how records without actions are shown.
-  Where badges and progress show (B19) is answered in P1
-  (`docs/work/rust-desktop/p1/structure/dock.md`, `switcher.md`) and
-  recorded in DESIGN.md at gate 6.
-- **Polkit agent, keyring prompter, network and Bluetooth agents**: each
-  prompt's layout and copy; the refusal callers show (proposal: "Permission
-  was not given").
-- **Portal backend**: the picker's layout. Where a running cast is shown is
-  answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in
+- **Notifications and badges**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/notifications.md`, `dock.md`,
+  `switcher.md`, `spotlight.md`); recorded in DESIGN.md at gate 6.
+- **Polkit agent, keyring prompter, network and Bluetooth agents**: Answered
+  in P1 (`docs/work/rust-desktop/p1/structure/prompts.md`); recorded in
   DESIGN.md at gate 6.
+- **Portal backend**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/capture.md`, `island.md`); recorded
+  in DESIGN.md at gate 6.
 - **Calendars**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
 - **Providers**: how grants are shown (proposal: toggles); how a state
   sentence and actions are laid out.
-- **Supervisor and crash records**: the crash notice's form and copy; how the
-  safe start (settings ignored) is announced.
+- **Supervisor and crash records**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/prompts.md`); recorded in DESIGN.md
+  at gate 6.
 - **Updates**: Answered in P1
   (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`); recorded in
   DESIGN.md at gate 6.
-- **Login Items and session restore**: the log-out confirmation's copy
-  (proposal: "Reopen windows when logging back in").
-- **Focus**: the summary's copy. How the current Focus is shown is answered
-  in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at
-  gate 6.
+- **Login Items and session restore**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/prompts.md`); recorded in DESIGN.md
+  at gate 6.
+- **Focus**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`,
+  `focus.md`, `notifications.md`); recorded in DESIGN.md at gate 6.
 
 ## Acceptance bars
 

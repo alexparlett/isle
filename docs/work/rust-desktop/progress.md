@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+- P1 gate 2, batch 2 passed with every recommendation accepted: banners
+  top right under the island's strip; Game Mode wins over a manual Focus;
+  Control Centre a four-column grid of sixteen modules, media only in Now
+  Playing, Game Mode a row of the Focus page; Cmd+Tab sets a prompt
+  aside; Spotlight without an assistant, Quick Look on Cmd+Y; one capture
+  thumbnail with Markup in Quick Look; the greeter in the user's look;
+  System Settings in 28 panes with Game Mode folded into Focus and
+  Displays. The batch 1 sheets and the intent docs follow.
+
 - P1 gate 2, batch 1 passed. The first board (menu bar always shown, Dock
   at the bottom) was redrawn when the user preferred v1's minimal desktop:
   revision 1 keeps v1's pill with the clock and active glyphs, opens

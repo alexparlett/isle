@@ -52,12 +52,13 @@ state shows nothing (brief P1; v1 lessons §5, the conditional-glyph rule).
 | Updates | An update is installing, or a restart is owed (two forms of one glyph) | Updates detail, with the restart-owed reasons |
 | Battery | The machine has a battery and is on it, or a battery is low; absent on a desktop | Battery detail |
 | Shortcuts inhibited | A window holds a keyboard-shortcuts inhibitor | its notice row |
-| Configuration error | `settings.kdl` or `tokens.kdl` holds a rejected edit | its notice row |
+| Configuration error | `settings.kdl` or `tokens.kdl` holds a rejected edit, or Isle started without them after they stopped it starting (the safe start, `prompts.md`) | its notice row |
 
 The last two are not tiered: they show while their state holds, because
 the user cannot otherwise tell why chords do nothing or settings will not
-save. Updates waiting are not a glyph: they are routine, counted in the
-system menu (`menu-bar.md`) and in Control Centre's Updates module. The
+save or are not in force. Updates waiting are not a glyph: they are
+routine, counted in the system menu (`menu-bar.md`) and in Control
+Centre's Updates module. The
 keyboard layout is not a glyph: a change is an OSD and the layout is in
 Control Centre. Other programs' status items never show in the pill; they
 are Control Centre's tray (below).
@@ -115,11 +116,15 @@ stay clickable. Then, in order:
 
 1. **Now.** Only while something is live or a notice holds. Every live
    activity as a row (the table above), the leader first and in full, the
-   others collapsed and expanding in place; privacy rows naming each app
-   using the microphone, camera or screen; and two notice rows: the
-   configuration error (the message, file, line and column; Open in
-   Editor, Show in Files) and shortcuts inhibited (the app that has the
-   keys, the escape chord, Take keys back).
+   others collapsed and expanding in place, media only when the Now
+   Playing module has been removed from the grid, since that module is
+   media's one place in the panel (`control-centre.md`); privacy rows
+   naming each app using the microphone, camera or screen; and two notice
+   rows: the configuration error (the message, file, line and column; Open
+   in editor, Show in Files; after a safe start, `copy.md`'s safe-start
+   line with Use my settings and Report…, `prompts.md`) and shortcuts
+   inhibited (the app that has the keys, the escape chord, Take keys
+   back).
 2. **Modules.** Control Centre's grid, a module taking one, two or four
    cells (`design-macos.md` §3.7). Which modules exist, their grouping,
    order and defaults are `control-centre.md`'s (batch 2). A module's
@@ -168,7 +173,7 @@ window covers it. The on-demand menu bar comes down into it
 | Error | A dead or slow service's glyph, activity or module is absent or stale, never a stalled frame (shell runtime 8); a share whose source vanished ends with its "ended" event. |
 | Overflow | The pill never exceeds a maximum width, which is what the menu bar reserves for it. Past it, text in the leader's face shortens, then drops to the kind's mark, then the other activities' marks become a count; the clock, the glyphs and the privacy marks never drop. The panel grows downward and scrolls past a fixed height. |
 | Second screen | An island on every screen, each with the clock, its glyphs and the privacy marks (v1 D49). Compact faces and events only on the main screen (shell runtime 14); a monitor's brightness OSD on that monitor. Hover opens Control Centre on the screen it is on, Now included. |
-| Game in front, windowed | As normal (interview), in its solid form and without transitions (`competition.md` For the user 2). The Focus glyph shows the Gaming Focus. |
+| Game in front, windowed | As normal (interview), in its solid form and without transitions (`competition.md`, decided at gate 2). The Focus glyph shows the Gaming Focus. |
 | Full screen, game or not | The island hides with the strip. Its privacy form stays at top centre while a capture runs: the shape shrunk to the marks. OSDs show briefly in the same place. Activities wait; other events are dropped, not held. A push at the top edge inside the island's zone brings the island back (over a game, a dwell, never while the game holds the pointer locked or confined; `gaming.md` Game Mode 5); outside the zone the menu bar comes with it (`menu-bar.md`). Over a game nothing transitions or is blurred (Game Mode 9). With no capture running the island contributes no render element (acceptance bar 13). |
 | Locked | The lock draws only the island's privacy form and OSDs, in the same place; the lock has its own clock. Events are dropped; activities resume at unlock; a prompt raised while locked waits (System prompts 7). |
 | Focus on | The Focus glyph. Focus governs banners and sounds, not live activity. |
@@ -216,9 +221,10 @@ window covers it. The on-demand menu bar comes down into it
 | Move through the top row (activity, clock, glyphs) | Left, Right |
 | Open Notification Centre | Return or Space on the clock |
 | Open a glyph's detail or notice | Return or Space on the glyph |
-| Move between sections and controls | Tab, Shift+Tab; arrows inside the module grid |
-| Act (Stop, Show, a toggle, play or pause) | Return or Space |
-| Open a module's detail or a tray item's menu page; back | Right or Return; Left or Escape |
+| Move between sections and controls | Tab, Shift+Tab |
+| Act on a row (Stop, Show, Cancel) | Return or Space |
+| In the module grid: move between modules; a module's switch or action; its page | Arrows; Space; Return (`control-centre.md`) |
+| Open a row's sub-page or a tray item's menu page; back | Right; Left or Escape |
 | Close | Escape at the top page; focus returns to the window that had it (shell runtime 11) |
 | Stop a recording | the capture sheet's chord (proposal: Cmd+Ctrl+Escape, as macOS) |
 | Media and volume | the media and volume keys, which raise OSDs |
@@ -292,7 +298,9 @@ up under shortcuts-inhibit.
   Spotlight and window content.** Control Centre, Notification Centre and
   the menu bar's menus are top-layer surfaces: one open per screen,
   opening one closes the other. Spotlight, Mission Control, the capture
-  tool and the session dialog close the panel (shell runtime 10). System
+  toolbar and the session dialog close the panel (shell runtime 10); the
+  freeze pick (Shift+Cmd+4) closes nothing, so a shot can include the
+  panel (`capture.md`). System
   prompts close nothing and take focus over it.
 - **OSDs.** The island, the only OSD (v1). macOS 26's capsule hangs under
   the Sound item, which no longer exists.
@@ -302,9 +310,11 @@ up under shortcuts-inhibit.
   may show at once, in their own places.
 - **Privacy indicators against Control Centre.** The marks in the pill are
   the indicator; Now names the apps; no second mark.
-- **Media against Control Centre's Now Playing module.** The Now row is
-  the live view while something plays; the module holds the player at any
-  time. Two views of one player, one set of state.
+- **Media against Control Centre's Now Playing module.** The module is
+  media's one place in the panel; Now carries a media row only when the
+  module has been removed from the grid (`control-centre.md`). The pill's
+  compact media face stays as above; it opens the module's page, as a
+  glyph opens its module's.
 - **Status state: glyphs against modules.** A glyph is a module's state
   shown at rest; its click opens that module. Toggles and sliders exist
   only in Control Centre (`shell.md` Control Centre, v1 D3).
@@ -314,6 +324,11 @@ up under shortcuts-inhibit.
   after either.
 - **Attention: the island against the switcher.** An attention request is
   an island event and a mark on the app's switcher card (revision 1).
+- **Attention against a banner from the same app.** The banner wins: the
+  app's non-urgent attention event is suppressed for the banner's lifetime,
+  as chat apps both notify and ask for attention for one message
+  (`notifications.md`). The switcher's mark still holds; an urgent request
+  still shows.
 - **Layering against other programs.** The island and its panel sit in the
   top layer (`compositor.md` Shell surface hosting); the privacy form is
   drawn above any client's layer-shell surface, so no other program can
@@ -343,7 +358,8 @@ up under shortcuts-inhibit.
    queued, since it answers a key being pressed now.
 8. **Other events queue** in arrival order, one at a time. One that has
    waited longer than its own duration is dropped; an urgent attention
-   request is not dropped while its app is unfocused.
+   request is not dropped while its app is unfocused. A non-urgent
+   attention event is suppressed while a banner from the same app shows.
 9. **Durations are by importance:** an OSD shortest, then a copy, then a
    mode change, attention, an activity start, an activity ending with a
    reason; a timer's end and an urgent attention request hold; activities
@@ -378,8 +394,9 @@ up under shortcuts-inhibit.
 - **Island, how an activity opens to its controls** (proposal: hover
   expands, click opens Control Centre's Now Playing or the prompt):
   **changed**. Hover opens Control Centre with every activity's row in Now
-  at the top; a click pins it; each row has its controls and a way to
-  where it belongs (`design-references.md` §2, "hover peeks, click
+  at the top, media's in the Now Playing module just under it
+  (`control-centre.md` For the user 2); a click pins it; each row has its
+  controls and a way to where it belongs (`design-references.md` §2, "hover peeks, click
   commits").
 - **Island, size-change motion** (proposal: a compositor morph):
   **adopted**, anchored at top centre, content fading with growth, radius
@@ -447,7 +464,7 @@ up under shortcuts-inhibit.
 | Recording row | "Recording", "Recording with audio"; Stop (accessible name "Stop recording") |
 | Sharing row | "Sharing your screen with {app}", "Sharing a window with {app}"; Stop (accessible name "Stop sharing with {app}") |
 | Privacy rows | "{app} is using the microphone", "{app} is using the camera" |
-| Prompt waiting | "{app} needs your password", "Wi-Fi password needed for {network}", "{device} wants to pair"; Show, Cancel |
+| Prompt waiting | "{app} needs your password", "“{network}” needs a password", "{device} wants to pair"; Show, Cancel |
 | Activity ended | "Recording stopped: the window closed", "Sharing stopped: the screen was disconnected" |
 | Copied | "Copied", "Colour copied", "Password copied" |
 | Mode events | "{Focus} on", "{Focus} off", "Do Not Disturb on", "Game Mode on", "Game Mode off" |
@@ -456,7 +473,7 @@ up under shortcuts-inhibit.
 | Timer end | "{label} done", or "Timer done" |
 | Glyphs (accessible names) | "Wi-Fi: {network}", "Not connected", "Bluetooth: {device}", "Sound muted", "VPN: {name}", "{Focus}", "Updating", "Restart to finish updating", "Battery {n}%", "{app} is receiving all keyboard shortcuts", "Configuration error" |
 | Shortcuts inhibited row | "{app} is receiving all keyboard shortcuts", the escape chord, "Take keys back" |
-| Configuration error row | `copy.md`'s rejected-edit string, then "Open in editor", "Show in Files" |
+| Configuration error row | `copy.md`'s rejected-edit string, then "Open in editor", "Show in Files"; after a safe start, `copy.md`'s safe-start string, then "Use my settings", "Report…" |
 | Restart reasons | "The kernel was updated", "The graphics driver was updated", "Isle was updated" |
 | Footer | "Edit controls", "Control Centre settings…" |
 | Tiers | "Always show", "Show when active", "Never show" |

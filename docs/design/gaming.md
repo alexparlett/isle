@@ -104,8 +104,8 @@ Open for its packet: whether a game whose Space is not visible is throttled, and
 
 The user gets: Game Mode is the Gaming Focus (B30). Like a Mac's Gaming Focus it comes on by itself when a game is in front, says so, and everything else steps back.
 
-1. Game Mode is on while a game window is in front, full screen or windowed (B30), or while the user has turned the Gaming Focus on from Control Centre or its shortcut; a manual on stays until turned off.
-2. Turning the Gaming Focus's automatic start off in Settings leaves only the manual toggle. Its allowed apps are set like any Focus's.
+1. Game Mode is on while a game window is in front, full screen or windowed (B30), or while the user has turned the Gaming Focus on from Control Centre or its shortcut; a manual on stays until turned off. It wins over any other Focus, one turned on by hand included, and gives that Focus back when it ends; turned off by hand over a game, it stays off for that game.
+2. Turning the Gaming Focus's automatic start off in Settings › Focus › Game Mode leaves only the manual toggle. Its allowed apps are set like any Focus's.
 3. On entering, Isle holds the performance power profile (power-profiles-daemon `HoldProfile`) and turns night light off; on leaving it releases the hold and restores night light.
 4. Leaving restores only what Game Mode changed; a change the user made during Game Mode stands.
 5. The island and the menu bar stay hidden over a game's Space; resting the pointer at the top edge reveals the island, or outside the island's zone the menu bar with it, never while the game holds the pointer locked or confined.
@@ -126,7 +126,7 @@ Open for its packet: whether games and Steam inhibit idle through `org.freedeskt
 The user gets: a game receives keys as pressed. Ctrl is crouch, not copy, and only a short escape set of Isle's shortcuts survives (B30).
 
 1. Isle translates no Cmd chord in a game window (B21), whether or not Game Mode is on.
-2. While a game window is in front, Isle's desktop shortcuts shrink to a fixed escape set: Cmd+Tab, Mission Control, lock and screenshot (B30). Every other chord, Force Quit and the Game Mode shortcut among them, and Super alone reach the game.
+2. While a game window is in front, Isle's desktop shortcuts shrink to a fixed escape set: Cmd+Tab, Mission Control, lock, and the screenshot chords Shift+Cmd+3, 4 and 5 (with or without Ctrl) and Cmd+Ctrl+Escape (B30; P1 `capture.md`). Every other chord, Force Quit and the Game Mode shortcut among them, and Super alone reach the game.
 3. Alt chords, Alt+Tab among them, reach the game: on a Mac-profile keyboard Alt is the Option key; on a PC-profile keyboard the Alt and Super swap is suspended in game windows, so Alt is the key labelled Alt (B30).
 4. Modifiers held when focus leaves a game are released to it first (B21).
 5. Keys Isle injects (the on-screen keyboard) are its own source and never translated (B21).
@@ -143,8 +143,8 @@ The user gets: a full-screen game reaches the screen untouched: its own buffer s
 
 1. A full-screen game in front with nothing of Isle's over it is scanned out from its own buffer; Isle composites nothing.
 2. Anything Isle shows over a game costs composition only while it is up; the game returns to scanout when it goes.
-3. VRR is set per output: Off, Full screen (the default) or Always. Full screen turns VRR on while any full-screen window is in front, game or not (B30).
-4. With "Allow tearing in games" on, a full-screen game in front that asks for async presentation through wp-tearing-control-v1 is flipped asynchronously; Xwayland forwards an X11 game's request (gaming §2.3).
+3. VRR is set per output in Settings › Displays: Off, Full screen (the default) or Always. Full screen turns VRR on while any full-screen window is in front, game or not (B30).
+4. With "Allow tearing in games" on (Settings › Displays, per output), a full-screen game in front that asks for async presentation through wp-tearing-control-v1 is flipped asynchronously; Xwayland forwards an X11 game's request (gaming §2.3).
 5. Only frames scanned out directly tear; a composited frame waits for vblank.
 6. Game buffers are synchronised through linux-drm-syncobj, Xwayland's included.
 7. Native Wayland games get wp-fifo-v1, wp-commit-timing-v1 and wp-presentation-time.
@@ -211,12 +211,12 @@ The user gets: Isle knows every pad: its name, connection, battery, and whether 
 1. A pad is an evdev device with `BTN_GAMEPAD` and an axis; a remapper's virtual keyboard is not.
 2. A pad under `/sys/devices/virtual` came through uinput and is named by its origin: Steam Input for Valve's id, otherwise the program holding `/dev/uinput`.
 3. Battery comes from UPower and is shown wherever the shell shows batteries.
-4. Isle reads pad input on the service worker only while the Controllers page is open; presence and battery come from device events and UPower.
+4. Isle reads pad input on the service worker only while the Game Controllers pane is open; presence and battery come from device events and UPower.
 5. A pad that connects or disconnects appears or goes within a second.
-6. Settings › Controllers draws each pad's live state; mapping and dead zones belong to the game and Steam Input, since Isle has no pad navigation of its own (B22).
+6. Settings › Game Controllers draws each pad's live state; mapping and dead zones belong to the game and Steam Input, since Isle has no pad navigation of its own (B22).
 7. The Steam Controller's Puck (28de:1304) has no kernel gamepad driver, so outside Steam it is a keyboard and mouse; with Steam running and a gamepad desktop layout, Steam Input presents it as an Xbox 360 pad, which Isle reads.
 
-Requires of `apps.md`: the Controllers page. Of `platform.md`: UPower batteries.
+Requires of `apps.md`: the Game Controllers pane. Of `platform.md`: UPower batteries.
 
 v1 lessons kept: D54 (a pad is named by where it comes from, and Isle sets only what it uses, now nothing); D9 (the Steam Controller is a keyboard and mouse outside Steam); inventory §7 Gamepad (reading only while needed).
 
@@ -227,23 +227,22 @@ Open for its packet: device access through logind uaccess on CachyOS (services O
 What this document leaves to P1, per feature; "proposal" is the answer it
 gave before.
 
-- **Games as apps**: how a game's art stands in for an icon in per-app
-  volume (proposal: its cover). In the switcher, Spotlight and Mission
-  Control it is answered in P1
-  (`docs/work/rust-desktop/p1/structure/switcher.md`, `dock.md`) and
-  recorded in DESIGN.md at gate 6.
+- **Games as apps**: Answered in P1
+  (`docs/work/rust-desktop/p1/structure/switcher.md`, `dock.md`,
+  `spotlight.md`, `control-centre.md`); recorded in DESIGN.md at gate 6.
 - **Full-screen Spaces**: how a game's Space is shown among the desktops
   (proposal: by name in Mission Control's Spaces bar).
-- **Game Mode**: how the top-edge reveal looks; the held-notification
-  summary's form and copy (proposal: one summary, "while you played",
-  leading to Notification Centre); where held banners would have shown
-  (proposal: top right, B24). Where its state is shown (the island's Focus
-  glyph), the reveal's structure and the shell beside a windowed game are
-  answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`,
-  `menu-bar.md`, `competition.md`) and recorded in DESIGN.md at gate 6.
-- **Controllers**: where pad batteries show (proposal: Control Centre and
-  the Devices widget); the names given to virtual pads (proposal: "Steam
-  Input", "Virtual pad from" the program).
+- **Game Mode**: how the top-edge reveal looks (stage 5). Where its state
+  is shown, the reveal's structure, the shell beside a windowed game, the
+  held-notification summary's form and copy and where held banners would
+  have shown are answered in P1
+  (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`,
+  `competition.md`, `notifications.md`, `focus.md`) and recorded in
+  DESIGN.md at gate 6.
+- **Controllers**: the names given to virtual pads (proposal: "Steam
+  Input", "Virtual pad from" the program). Where pad batteries show is
+  answered in P1 (`docs/work/rust-desktop/p1/structure/control-centre.md`)
+  and recorded in DESIGN.md at gate 6.
 
 ## Acceptance bars
 
@@ -270,7 +269,7 @@ Measured on the host (RTX 5070 Ti, the 3440×1440 48–144 Hz monitor) unless th
 |---|---|
 | Game detection by GameMode and by launcher app id (§3.8) | Games |
 | Automatic game mode setting (§3.8 `gameAuto`) | Game Mode (the Gaming Focus's automatic start, any detected game, B30) |
-| Game mode toggle: chord and panel tile (§10, §4) | Game Mode (the Gaming Focus in Control Centre, its shortcut) |
+| Game mode toggle: chord and panel tile (§10, §4) | Game Mode (a row of Control Centre's Focus page, its shortcut) |
 | Mode profile: animations, blur, gaps, borders off (§10) | Game Mode; full-screen Spaces |
 | Tearing allowed for the fullscreen game (§3.3, §10) | Presentation |
 | VRR on, direct scanout on (§3.1) | Presentation (VRR for any full-screen window, B30); compositor.md |
@@ -297,7 +296,7 @@ Measured on the host (RTX 5070 Ti, the 3440×1440 48–144 Hz monitor) unless th
 | Pad bridge for listed apps (§10) | Dropped (B22) |
 | `shortcuts.vdf` entries (§3.8) | Dropped (B22) |
 | Gamepad helper reading evdev (§7) | Controllers |
-| Controllers page, live state, virtual origin (§5, D54) | Controllers; apps.md |
+| Controllers page, live state, virtual origin (§5, D54) | Controllers; Settings › Game Controllers in apps.md |
 | Dead zone for Isle's pad navigation (§5) | Dropped (B22): no pad navigation |
 | Controller battery (v1 ARCHITECTURE) | Controllers |
 | Steam Controller handling (v1 ARCHITECTURE) | Controllers |

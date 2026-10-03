@@ -30,7 +30,7 @@ are in `shell.md`. Evidence: `docs/research/rust-desktop/` `isle-v1-inventory.md
 - **B19** · no Dock: badges and progress show on the switcher's cards.
 - **B20** · app-centric windows: Cmd+Q quits, Cmd+W closes, launching what is open raises it.
 - **B21** · Super is Cmd everywhere.
-- **B22** · no Big Picture of Isle's own: Settings loses its options, the Controllers page stays.
+- **B22** · no Big Picture of Isle's own: Settings loses its options, the Game Controllers pane stays.
 - **B25** · Isle's apps draw a unified toolbar with the traffic lights.
 - **B27** · app preferences are per-app sections of `settings.kdl`, written through the compositor.
 - **B28** · the Bluetooth pairing agent is a desktop role, like B12's.
@@ -56,7 +56,9 @@ Every Isle app follows these rules.
 5. Cmd+Q in an Isle app is the app's own Quit item, so an app with work in flight says what quitting
    stops and lets the user cancel.
 6. An app quit with windows open reopens them with the same content (pane, folder, tabs, view) on its
-   next launch. Where a window sits is the compositor's remembered place (B8, D91), never the app's.
+   next launch (D62). Settings › Desktop's "Close windows when quitting an app", macOS's switch, is off
+   by default; on, a relaunched app opens fresh. Where a window sits is the compositor's remembered
+   place (B8, D91), never the app's.
 7. A crash ends that app only. The session, the shell and the other apps carry on (B9), the app can be
    launched again at once, and its panic message goes to the session log.
 
@@ -88,7 +90,8 @@ Every Isle app follows these rules.
     through the compositor (`xdg_toplevel` close, set_minimized and set_maximized), so they behave as
     for any other app: minimise shrinks the window toward the island and zoom goes to B8's zones. A double click on the
     toolbar does what the user's system setting says.
-16. Every window resizes from every edge and has a minimum size at which nothing is clipped.
+16. Every window resizes from every edge and has a minimum size at which nothing is clipped. The
+    About window is the one exception: a small window of fixed size (P1, `conventions.md`).
 17. Translucency is asked of the compositor through `ext-background-effect-v1`; no app blurs behind
     itself (`ui-and-services.md` §2).
 18. A confirmation or other dialog is modal to its window, not to the app. Focus moves into it when it
@@ -170,7 +173,7 @@ forward.
    and Cmd translation so the pressed keys reach Settings; Escape or losing focus ends it (inventory
    §3.1 `isle-record`, §11; D58).
 10. Key symbols are named as the keyboard's own layout produces them, asked of XKB (D61).
-11. Provider panes (Passwords, VPN within Network, Snapshots, Phone) list the providers present, each
+11. Provider panes (VPN, Phone, and Passwords and Snapshots in General) list the providers present, each
     with a switch, and draw each provider's state sentence and actions without knowing the tool
     (inventory §8; D42, D44, D45, D51).
 12. Software Update runs a full upgrade only (D83) under pkexec, showing pacman's own per-package lines
@@ -178,15 +181,29 @@ forward.
     running and reopening shows where it is. A restart owed after kernel or NVIDIA module skew is
     stated until the restart (D46). Isle is a package built from git (B29), so its update is part of
    the same upgrade (inventory §7 IsleUpdate).
-13. Displays: arranging the displays relative to each other; mode, scale, rotation, VRR and enabled
-    per display; the last enabled display cannot be turned off; Redetect (inventory §3.7; D56).
+13. Displays: arranging the displays relative to each other; mode, scale, rotation, VRR, tearing and
+    enabled per display, VRR and tearing being display settings rather than Game Mode's; the last
+    enabled display cannot be turned off; Redetect (inventory §3.7; D56).
 14. Users & Groups: accounts through AccountsService; fingerprint enrolment beside the password and
     its PAM switches (D33, D34); automatic login for the greeter.
 15. Live panes sample only while shown: the pad drawing (D54), sound meters, SMART.
 16. Pairing prompts come from the desktop's Bluetooth agent (`org.bluez.Agent1`, B28; `platform.md`),
     so pairing from Control Centre works with Settings closed. Settings registers no agent.
-17. Focus modes are set here, with a Gaming Focus that turns on for any detected game in front (B30).
-    Game Mode has no Big Picture options; the controllers page stays (B22).
+17. Focus is a pane: Do Not Disturb, Game Mode (the Gaming Focus, which turns on for any detected game
+    in front, B30) and the user's modes, each a page with its allowed apps and people and its schedule.
+    Game Mode's settings fold into its page there; it has no pane of its own and no Big Picture
+    options. The Game Controllers pane stays (B22).
+18. The panes take macOS 26's names in its six groups: Wi-Fi, Bluetooth, Network, VPN, Phone, Energy
+    (Battery on a machine with one); General (About, Software Update, Storage, Passwords, Date & Time,
+    Language & Region, Login Items, Snapshots), Accessibility, Appearance, Apps, Control Centre,
+    Desktop, Displays, Spotlight, Wallpaper; Notifications, Sound, Focus; Lock Screen, Privacy &
+    Security, Login Password, Users & Groups; Calendars; Keyboard, Mouse, Trackpad, Game Controllers,
+    Printers. There is no Dock pane (B19): Desktop holds what macOS's Desktop & Dock does but the Dock,
+    Hot Corners… among it. Control Centre holds the island's glyphs, the modules and the tray. Phone and
+    Trackpad show only while there is one.
+19. View › Show changed settings, off by default, marks every row whose value differs from its default
+    and every pane holding one; Reset to default in a row's context menu works with the view on or
+    off.
 
 **v1 lessons kept.** D33, D34: fingerprint beside the password. D41: calendars are subscriptions. D42:
 providers render themselves; secrets per field. D46: a restart owed is said. D47, D81: updates without a
@@ -265,6 +282,8 @@ searches as places; Icons, List and Columns views; a preview; Quick Look; Get In
     (their listing) and folders (size and count). One Quick Look, in the Files process, serves Files
     windows and the chooser, and is a D-Bus service Spotlight calls, starting Files if it is not
     running (B26; `shell.md`; `macos-model.md` §3 Quick Look row).
+    Markup, Quick Look's markup mode, annotates any image it shows, screenshots included: pen,
+    highlighter, shapes, text, redaction and crop, with Done and Revert (`shell.md` Capture 4).
 
 **File chooser**
 
@@ -399,15 +418,12 @@ D89: rules as data, XDG cache first, root's share by its own tools. D90: own fil
 
 What this document leaves to P1, per app; "proposal" is the answer it gave before.
 
-- **Conventions**: the unified toolbar's look. The menu set and order, the toolbar's contents and how
-  a modal dialog is presented are answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`,
-  `window-chrome.md`) and recorded in DESIGN.md at gate 6.
-- **Settings**: the window's layout (proposal: a sidebar of panes, search at its top, the user's
-  account above the panes, each pane a list of grouped rows); the pane list, names, order and grouping
-  (proposal: each takes the name and place of the macOS pane that covers it, an Isle-only pane beside
-  its nearest macOS neighbour; the names in the Parity map); whether Focus is a pane of its own
-  (proposal: yes, as on macOS) and whether Game Mode's settings fold into Gaming Focus or keep a pane;
-  how a found row is marked; how the Displays arrangement is drawn (proposal: to scale, snapping on drop).
+- **Conventions**: the unified toolbar's look, which is stage 4's. The menu set and order, the
+  toolbar's contents and how a modal dialog is presented are answered in P1
+  (`docs/work/rust-desktop/p1/structure/conventions.md`, `menu-bar.md`, `window-chrome.md`) and
+  recorded in DESIGN.md at gate 6.
+- **Settings**: Answered in P1 (`docs/work/rust-desktop/p1/structure/settings.md`, `focus.md`);
+  recorded in DESIGN.md at gate 6.
 - **Files**: how places are laid out (proposal: a sidebar of Recents, Favourites, Locations and saved
   searches); where the preview sits (proposal: a pane beside the folder, the last column in Columns);
   the toolbar's contents; how a file job's question and progress are shown.
@@ -449,27 +465,27 @@ Measured on the host, not the VM (D13).
 ## Parity map
 
 Every v1 window capability (inventory §5, §4 File chooser, `main:docs/AUDIT.md` § Files) and where it
-lands. Pane names are proposals; P1 settles them (For the design process).
+lands. Pane names are P1's (`docs/work/rust-desktop/p1/structure/settings.md`).
 
 | v1 capability | Lands in |
 |---|---|
-| Settings › Network (Wi-Fi, VPN providers) | Wi-Fi and Network panes, VPN as providers (Settings 11); Wi-Fi passwords through the desktop's secret agent (B12) |
+| Settings › Network (Wi-Fi, VPN providers) | Wi-Fi, Network and VPN panes, VPN as providers (Settings 11); Wi-Fi passwords through the desktop's secret agent (B12) |
 | Settings › Bluetooth (pairing codes) | Bluetooth pane; pairing prompts from the desktop's agent (Settings 16; B28) |
-| Settings › Phone, Passwords, Snapshots | Panes of their own, each a provider list (Settings 11; D42, D45, D51) |
+| Settings › Phone, Passwords, Snapshots | Phone pane; Passwords and Snapshots in General; each a provider list (Settings 11; D42, D45, D51) |
 | Settings › Appearance (theme, auto by sun, accent, fonts, title bars, reduced motion) | Appearance pane, written through the compositor (B10); title bars are other apps' (B25) |
 | Settings › Wallpaper, Audio, Mouse, Printers, Date and time, Region, About | Wallpaper, Sound, Mouse and Trackpad, Printers, Date & Time, Language & Region, About |
 | Settings › Accessibility (magnifier, text scale, high contrast, on-screen keyboard) | Accessibility pane |
 | Settings › Notifications (do not disturb, quiet hours, per-app rules) | Notifications pane; do not disturb and quiet hours as Focus (Settings 17; B30) |
-| Settings › Modes (game auto, tearing) | Game Mode settings; game auto as Gaming Focus (Settings 17) |
+| Settings › Modes (game auto, tearing) | Focus › Game Mode, game auto as the Gaming Focus (Settings 17); tearing in Displays (Settings 13) |
 | Settings › Modes (pad home, Steam shortcuts, gamescope, Steam follows) | Dropped with Isle's Big Picture (B22; `gaming.md` parity map) |
-| Settings › Apps (session restore, keep running, autostart, user services, start commands, default apps) | Desktop (session restore), Apps (B20's keep-running policy, per app), Login Items, default apps |
+| Settings › Apps (session restore, keep running, autostart, user services, start commands, default apps) | Desktop (session restore), Apps (B20's keep-running policy per app, default apps), General › Login Items |
 | Settings › Keyboard (per-device profile, Detect, layouts, XKB options) and Shortcuts (chord recording) | Keyboard pane (Settings 9, 10); profiles applied by the compositor (B21) |
 | Settings › Displays (arrangement, mode, scale, VRR, redetect) | Displays pane (Settings 13) |
-| Settings › Controllers (live pad, dead zone) | Controllers page (D54; kept by B22) |
+| Settings › Controllers (live pad, dead zone) | Game Controllers pane (D54; kept by B22) |
 | Settings › Power (profiles, batteries, idle dim, lock, screens off) | Energy pane; idle timers in Lock Screen |
 | Settings › Storage (drives, SMART) and Devices (device tree) | Storage in General; About, as a system report |
 | Settings › Users (accounts, fingerprint, PAM switches, autologin) | Users & Groups (Settings 14) |
-| Settings › Calendars (subscriptions) | Internet Accounts or Calendars pane (D41) |
+| Settings › Calendars (subscriptions) | Calendars pane (D41) |
 | Settings › Updates (system, AUR, Isle, restart owed) | Software Update (Settings 12) |
 | Settings search, launcher entries, back and forward | Settings 3, 4, 8; the launcher in `shell.md` |
 | Files windows, tabs, sidebar, saved searches | Conventions 3; Files 10–13; the sidebar's layout is P1's |

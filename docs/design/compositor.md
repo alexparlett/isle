@@ -310,7 +310,7 @@ macos-model.md §2).
 4. A chord bound twice is refused with a message naming both actions; the last good set stays in force.
 5. The switcher opens on Cmd+Tab and commits when Cmd is released, whatever was pressed in between.
 6. Media, volume and brightness keys work while locked and while a game is in front, and volume and brightness repeat.
-7. While a game is in front, only the escape set of desktop chords is live: Cmd+Tab, Mission Control, lock and screenshot; every other chord goes to the game (B30).
+7. While a game is in front, only the escape set of desktop chords is live: Cmd+Tab, Mission Control, lock, and the screenshot chords (Shift+Cmd+3, 4 and 5, with or without Ctrl, and Cmd+Ctrl+Escape to stop a recording; P1 `capture.md`); every other chord goes to the game (B30).
 8. Escape closes an open shell overlay and is consumed only then.
 9. Bound actions run in the compositor; only app launches start a process.
 
@@ -329,7 +329,7 @@ Isle types on the user's behalf reach the right window untouched.
 
 **v1 lessons kept.** D37: v1 typed through `wtype`, a process per key; injection is in-process here.
 
-**Open for its packet.** The escape chord. Inhibitors are granted always, shown by the island's glyph and a notice in the window (P1, `window-chrome.md`). Whether libei is served for portal RemoteDesktop.
+**Open for its packet.** The escape chord, which must not be Cmd+Ctrl+Escape (stop a recording, P1 `capture.md`) or Cmd+Option+Esc (Force Quit). Inhibitors are granted always, shown by the island's glyph and a notice in the window (P1, `window-chrome.md`). Whether libei is served for portal RemoteDesktop.
 
 ### Gaming display path
 
@@ -359,11 +359,11 @@ with tearing where the user allows it (B6).
 6. A client's protocol error disconnects that client only.
 7. Session restore relaunches apps by app and Space on a new session only, re-hides those that were hidden, skips apps autostart starts, and moves their windows to their Spaces as they map.
 8. Log out asks every app to quit as Cmd+Q does, then ends the session.
-9. Started by greetd in greeter mode, the compositor lights the outputs, takes input with each keyboard's profile, and shows the lock screen's surface as the login prompt; it serves no app windows, Spaces, places or session restore, and exits once greetd starts the user's session (B26).
+9. Started by greetd in greeter mode, the compositor lights the outputs, takes input with each keyboard's profile, and shows the lock screen's surface as the login prompt, drawn with the shipped tokens and the choices the user's session published for it (the wallpaper, light or dark, the accent, the keyboard layouts and per-device profiles, the main screen), else shipped defaults, and never the user's token file (`platform.md` Session start 2); it serves no app windows, Spaces, places or session restore, and exits once greetd starts the user's session (B26).
 
 **v1 lessons kept.** D17: outside the logind session scope NetworkManager, udisks and logind refuse or demand admin. D15, D43: a dead locker stranded the session and the restart loop gave up; logs were lost in the runtime directory. D53: restore by app and Space; a shell restart replays nothing. D66: Rust-side faults land in something restartable, not the whole desktop.
 
-**Open for its packet.** What the watchdog does after a hang of seconds (backtrace, kill, both). GPU reset recovery, which killed Denial's session (smithay-and-gaming.md §4.5). Which output and keyboard settings the greeter reads before anyone has logged in.
+**Open for its packet.** What the watchdog does after a hang of seconds (backtrace, kill, both). GPU reset recovery, which killed Denial's session (smithay-and-gaming.md §4.5). Where the session publishes the greeter's choices so greetd's user can read them.
 
 ### Shell surface hosting
 

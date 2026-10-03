@@ -53,7 +53,7 @@ desktop with it.
 7. A surface redraws only when its state changes. A closed surface draws nothing and runs no timers; a service that samples (CPU, storage, sensors) samples only while a visible surface shows it (inventory §6 Polling).
 8. A surface never waits on a service. Data arrives over channels from the worker; a slow or dead service shows as stale or absent, never as a stalled frame (B9).
 9. A change to `tokens.kdl` re-renders every surface with the new tokens; a parse error keeps the last good tokens and is shown by the shell (B10). Text scale, high contrast and reduced motion are token overrides (D50); reduced motion and Game Mode set every shell transition to none.
-10. Spotlight, Mission Control, the capture tool and the session dialog close each other: one is open at a time, and Escape closes it. System prompts and Files' Open and Save panels close nothing (D67, B26).
+10. Spotlight, Mission Control, the capture tool, the session dialog and Force Quit close each other: one is open at a time, and Escape closes it. System prompts and Files' Open and Save panels close nothing (D67, B26).
 11. When a surface closes, keyboard focus returns to the window that had it before any action the surface started (raise, paste, type) is delivered to that window (D63).
 12. Every surface is fully usable from the keyboard; the focus ring shows for keyboard input only. No surface takes controller input (B22). Every surface exposes an accessibility tree through Freya's AccessKit integration.
 13. No client surface, layer-shell overlays included, stacks above the lock screen, a system prompt or the capture tool (B28).
@@ -70,7 +70,7 @@ Open for its packet
 - How `freya_core::Runner` is driven from calloop, and whether input and accessibility work without `freya-winit` (`ui-and-services.md` OPEN).
 - The Skia cache budget, and RSS over a long soak; the spike once ended at 178 MB after relayouts (`shell-ui-spike.md` Not covered).
 - Blur behind shell surfaces and multi-output drawing were not covered by the spike.
-- What the lock falls back to if its surface panics repeatedly.
+- How many panics bring in the minimal lock that P1 designed (`lock.md`).
 
 ### Menu bar
 
@@ -158,14 +158,15 @@ hover panel did (inventory §4 Island), laid out the macOS way: live activity fi
 controls, then other programs' tray items.
 
 1. Control Centre opens from the island (hover, a click, or Ctrl+F8), on the screen it was opened from.
-2. It gives quick control of Wi-Fi, Bluetooth, Focus, the output device and volume, brightness per monitor, night light, dark mode, now playing, Game Mode (the Gaming Focus), VPN, the power profile, batteries (the machine's and peripherals'), updates, keyboard layout, the phone (through its provider), zoom, the on-screen keyboard and screen capture.
-3. Each control leads to its detail (Wi-Fi networks, Bluetooth devices and pairing, outputs with per-app volumes and inputs, VPN providers, media players) and to its full page in the Settings app. A network that needs a password opens the Wi-Fi prompt (B12), never a field in the panel.
-4. The user adds, removes and reorders controls. Controls are not pinned to the island: the glyphs of Island 10 are the only status it carries, and each opens its control's detail.
+2. Its controls are modules in a grid, each small, medium, large or wide: Wi-Fi, Bluetooth, Now Playing, Focus, VPN, Sound (the output device and volume), Display (brightness per monitor), Night Light, Energy Mode (the power profile), Updates and Batteries (the machine's and peripherals') by default, and Dark Mode, Keyboard layout, Accessibility (zoom, the on-screen keyboard, contrast, motion and transparency), Screenshot and Phone (through its provider) from the gallery. Game Mode (the Gaming Focus) is not a module: it is a row of the Focus module's page, and the Focus module shows it while on (B30).
+3. Each module leads to its detail as a page in the panel (Wi-Fi networks, Bluetooth devices and pairing, outputs with per-app volumes and inputs, VPN providers, media players) and from there to its full page in the Settings app. A page's head is the module itself, its switch included, so one control is on screen for each thing. A network that needs a password opens the Wi-Fi prompt (B12), never a field in the panel.
+4. The user adds, removes, resizes and reorders modules. Controls are not pinned to the island: the glyphs of Island 10 are the only status it carries, and each opens its control's detail.
 5. Provider-backed controls (VPN, Phone) render the provider's state sentence and actions and know nothing of the tool behind them (inventory §8).
 6. Brightness over DDC shows the requested value at once and writes debounced, since one write takes about a second (inventory §3.7 Brightness).
 7. Focus works as on macOS: named modes, Do Not Disturb among them, each with its allowed apps and people and an optional schedule; v1's quiet hours become a schedule (B30).
-8. A Gaming Focus turns on by itself whenever a detected game is in front, windowed or full screen, and off when it leaves (B30).
+8. A Gaming Focus turns on by itself whenever a detected game is in front, windowed or full screen, and off when it leaves (B30). It takes over from a Focus turned on by hand and gives it back when the game leaves.
 9. Other programs' status items (StatusNotifierItem) sit in Control Centre as its tray, in the user's order, reordered by dragging with Cmd held. A tray item's click and menu behave as the item asks (activate, secondary activate, DBusMenu menu); its menu opens as a page in the panel.
+10. Media has one place in the panel, the Now Playing module; the panel's live-activity section shows a media row only when that module has been removed.
 
 v1 lessons kept
 - Inventory §3.7: DDC reads are cached and writes debounced.
@@ -210,8 +211,10 @@ clipboard history, with the Apps grid that replaced Launchpad. It carries every 
 7. Clipboard results include images and pins; a result can be pasted, pinned or deleted. Paste goes into the window focused before Spotlight opened, using that app's paste chord (terminals differ).
 8. Emoji are typed into the previous window through Isle's injected-key source, which Cmd translation never touches (B21). Ctrl+Cmd+Space opens Spotlight in emoji mode.
 9. A vault result copies the password on Return, the username with Shift and the one-time code with Ctrl; each secret is fetched for that keypress and never cached (D42).
-10. Space on a file result opens Quick Look, which Spotlight calls over D-Bus in the Files process (B26); Cmd+Return reveals it in Files.
+10. Cmd+Y on a file result opens Quick Look, which Spotlight calls over D-Bus in the Files process (B26); Space is typed into the field, which keeps focus. Cmd+Return reveals the file in Files.
 11. The Apps view lists every installed app, filterable by typing and by category, with a row of favourites at the top in the user's order, added from a tile's menu or by dragging a tile there. It opens from Cmd+1, a hot corner or the Launchpad key. A tile shows the app's badge, and its menu reaches the app's actions (No Dock 5).
+12. Clipboard history and the vault answer only in their own scopes (Cmd+4 or `:`, and `*`), never in the general search, so nothing copied and no vault title shows beside an app.
+13. There is no assistant: an unmatched query ends at the web search row.
 
 v1 lessons kept
 - D63: raise, not relaunch, and only after the focus handover.
@@ -220,7 +223,6 @@ v1 lessons kept
 
 Open for its packet
 - File search: no indexer was compared (localsearch, plocate, an own index); v1 searched on demand (`macos-model.md` OPEN).
-- Whether an assistant ("Search or ask") slot is wanted (`macos-model.md` §3 Spotlight).
 
 ### App switcher
 
@@ -278,12 +280,12 @@ macOS's Notification Centre: notifications that wait to be read later, with bann
 1. Notification Centre opens from the island's clock, a chord or a hot corner, on the screen it was opened from.
 2. Notifications are cleared singly, by app or all. Each keeps its actions, inline reply and image while the app's server object lives.
 3. Each arrival is also kept as a record; records that are no longer live stay readable, without actions, and survive restarts (D26).
-4. A new notification shows a banner on the main screen unless silenced. Silenced: the active Focus (Gaming Focus included, B30), a full-screen window, a screen share, the app muted. Critical notifications and allowed apps break through; low urgency never shows a banner.
+4. A new notification shows a banner at the top right of the main screen, under the island's strip, unless silenced. Silenced: the active Focus (Gaming Focus included, B30), a full-screen window (unless another screen is free of one, where the banner shows instead), a share or recording of a screen (not of one window), the user away (idle dim, sleep, lock), the app muted. Critical notifications and allowed apps break through, except that a screen capture holds even critical ones; low urgency never shows a banner.
 5. What was silenced is counted, and when silence lifts the count is summarised once with a way into the centre.
 6. A banner lasts what the app asks within bounds, pauses while hovered, takes keyboard focus only to reply, and may play a sound.
 7. Clicking a banner or entry runs its default action and brings the app forward with an activation token.
 8. The desktop's own events arrive as notifications with actions: a drive inserted (Mount, Eject), an AppImage installed, an update finished, a restart owed, a calendar event starting, a provider's sign-in needing attention.
-9. On the lock screen notifications show as none, a count or previews, by setting.
+9. On the lock screen notifications show as none, each app with a count, or previews, by setting; each app with a count by default.
 10. History starts empty: v1's notification records are not imported (B27).
 
 v1 lessons kept
@@ -348,7 +350,7 @@ macOS's lock screen, drawn by the compositor itself rather than a separate locke
 8. If the compositor restarts while locked, it comes back locked (D15, D43).
 9. Unlock unlocks the login keyring where PAM allows; when it cannot (a fingerprint unlock), the keyring prompt follows.
 10. The lock is Isle's alone: `ext-session-lock` is not served, so no other locker can take or end it (B28).
-11. At login the compositor runs in greeter mode under greetd and this screen is the greeter: the same password route and power actions, with a choice of user, starting the session instead of unlocking it (B26).
+11. At login the compositor runs in greeter mode under greetd and this screen is the greeter: the same password route and power actions, with a choice of user, starting the session instead of unlocking it (B26). It shows the user's wallpaper, appearance and accent as the session published them for it, never the token file.
 
 v1 lessons kept
 - D15, D43: a lock must survive the death of whatever draws it; the session restarts locked.
@@ -356,7 +358,7 @@ v1 lessons kept
 
 Open for its packet
 - The login keyring after a fingerprint unlock (`macos-model.md` §3 Touch ID, reasoning only).
-- What the lock falls back to if its surface keeps panicking.
+- How many panics bring in the minimal lock (`lock.md`).
 
 ### System prompts
 
@@ -367,8 +369,8 @@ Wi-Fi and VPN secrets, Bluetooth pairing, and the session and Force Quit dialogs
 2. The keyring prompter unlocks a keyring, or creates one with a confirmed password (`org.gnome.keyring.SystemPrompter`).
 3. The Wi-Fi prompt names the network and its security and takes the secret; VPN secrets use the same dialog.
 4. Bluetooth pairing, asked by Isle's `org.bluez.Agent1`, shows a passkey to confirm or takes a PIN (B28).
-5. A prompt takes keyboard focus when it appears and stays above every window; Escape cancels. One prompt shows at a time; others queue. Text from the requester is shown as plain text, never markup.
-6. A prompt waiting behind a full-screen window or game shows as live activity, from which the user brings it forward.
+5. A prompt takes keyboard focus when it appears and stays above every window; Escape cancels. Cmd+Tab sets it aside as a waiting prompt and switches; nothing else takes focus from it. One prompt shows at a time; others queue. Text from the requester is shown as plain text, never markup.
+6. A prompt waiting behind a full-screen window or game, or set aside, shows as live activity, from which the user brings it forward.
 7. A prompt raised while the session is locked waits until unlock.
 8. The session dialog (from a chord or the power key) offers Restart, Sleep, Shut Down, Log Out and Lock, each by its first letter; Restart and Shut Down count down before acting, and say which apps are still open.
 9. Force Quit (Cmd+Option+Escape) lists running apps, marks the ones not responding, and ends the chosen one.
@@ -388,7 +390,7 @@ the source picker for screen sharing (B13).
 1. Shift+Cmd+3 takes the screen; Shift+Cmd+4 picks a region, with Space switching to window mode; Shift+Cmd+5 opens the capture toolbar. Adding Ctrl sends the result to the clipboard instead of a file.
 2. The toolbar offers screen, window or region; shot or recording; a countdown; whether the pointer is included; whether audio is recorded; where to save.
 3. The screen is frozen before a region or window is picked, and the shot is that frozen frame, so the picker's own veil never reaches the image (inventory §16 Capture). The pointer is in a shot only when asked for (D27).
-4. For a short time after a shot, it can be opened for annotation or dragged out as a file; left alone, it saves.
+4. After a shot one thumbnail shows for a short time, the file already saved; a new shot replaces it. The thumbnail opens the shot in Quick Look, where Markup annotates it (apps.md, Files), or is dragged out as a file.
 5. A recording's timer and Stop are live activity; Stop ends and saves it.
 6. Colour pick reads the colour under the pointer from a frozen frame and copies it.
 7. The screencast source picker lets the user choose among screens and windows, each seen live, says which app is asking and whether it wants audio, and offers to share or cancel. Previews run only while the picker is open (D55). Screenshot portal requests that ask for interaction open the capture tool.
@@ -399,8 +401,7 @@ v1 lessons kept
 - D27: no pointer in shots by default.
 - D55: capture only what is on screen, only while wanted; a vanishing output must not take anything down.
 
-Open for its packet
-- Which annotator opens a shot: an Isle surface or an external tool, as v1's satty was.
+Open for its packet: none.
 
 ### Wallpaper and idle dimmer
 
@@ -439,21 +440,21 @@ Open for its packet
 What this document leaves to P1, per feature; "proposal" is the answer it gave before B24. Items
 P1 has answered point to the sheet that answers them.
 
-- **Shell runtime**: which of the other surfaces show only on the main screen (proposal: events, Spotlight and dialogs on the main one); open, close and morph choreography. Which screens carry the island, the menu bar and the wallpaper, and the UI copy rules, are answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`, `wallpaper.md`, `copy.md`) and recorded in DESIGN.md at gate 6.
+- **Shell runtime**: open, close and morph choreography. Which screens carry the island, the menu bar and the wallpaper, which other surfaces show only on the main screen, and the UI copy rules, are answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`, `menu-bar.md`, `wallpaper.md`, `notifications.md`, `spotlight.md`, `prompts.md`, `copy.md`) and recorded in DESIGN.md at gate 6.
 - **Menu bar**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`, `island.md`); recorded in DESIGN.md at gate 6.
 - **App menus**: Answered in P1 (`docs/work/rust-desktop/p1/structure/menu-bar.md`); recorded in DESIGN.md at gate 6.
 - **Island**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
-- **Control Centre**: how controls group into modules, their names, order and defaults (proposal: Wi-Fi, Bluetooth, Focus, Sound, Display, Now Playing, Game Mode, VPN, Power profile, Battery, Updates, Keyboard layout, Phone, Accessibility, Screen capture). Whether toggles and sliders appear anywhere else, and how a control's detail opens, are answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
+- **Control Centre**: Answered in P1 (`docs/work/rust-desktop/p1/structure/control-centre.md`, `focus.md`, `island.md`); recorded in DESIGN.md at gate 6.
 - **No Dock**: the Dock's arrangement, attention, badges and running apps are answered in P1 (`docs/work/rust-desktop/p1/structure/dock.md`, `switcher.md`) and recorded in DESIGN.md at gate 6.
-- **Spotlight**: result layout and grouping by source; how clipboard images and pins show (proposal: thumbnails); the Apps view's layout (proposal: a grid by category under the favourites row, B19).
+- **Spotlight**: Answered in P1 (`docs/work/rust-desktop/p1/structure/spotlight.md`); recorded in DESIGN.md at gate 6.
 - **App switcher**: Answered in P1 (`docs/work/rust-desktop/p1/structure/switcher.md`); recorded in DESIGN.md at gate 6.
 - **Mission Control**: how windows are arranged (proposal: spread without overlap, never larger than real, moving from and back to their real places, D19); how desktops show and are added (proposal: a Spaces bar along the top, live miniatures, an add button); how App Exposé sets minimised and hidden windows apart (proposal: below), and how Mission Control shows the desktop's minimised windows.
-- **Notification Centre**: its layout (proposal: notifications above, widgets below); grouping and order (proposal: by app, newest first); how past records show (proposal: under Earlier); where banners appear (proposal: top right of the main screen); summary copy (proposal: "while you were away", "while you played"). Its pointer route, the clock, is answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
+- **Notification Centre**: its layout (proposal: notifications above, widgets below); grouping and order (proposal: by app, newest first). Where banners appear, how past records show, the summary copy and its pointer route, the clock, are answered in P1 (`docs/work/rust-desktop/p1/structure/notifications.md`, `focus.md`, `island.md`) and recorded in DESIGN.md at gate 6.
 - **Widgets**: whether widgets also sit in Notification Centre's column; whether the Notifications widget is dashboard only (proposal: yes); the gallery's sections (proposal: Installed, Yours, Browse); whether v1's dashboard pages survive as several layouts. Where widgets live on the desktop and what the chord does (the dashboard on v1's chord, no widgets on the desktop) are answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`) and recorded in DESIGN.md at gate 6.
 - **OSDs**: Answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`); recorded in DESIGN.md at gate 6.
-- **Lock screen**: what it shows (proposal: time and date, the user, the password field); the greeter's face. Its backdrop is answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`) and recorded in DESIGN.md at gate 6.
-- **System prompts**: dialog layout and copy. Where a waiting prompt is announced is answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
-- **Capture**: the toolbar's layout; what follows a shot (proposal: a thumbnail in a corner, click to annotate, drag to drop, left to save); the picker's layout and button names (proposal: Share, Cancel). Where the recording timer shows is answered in P1 (`docs/work/rust-desktop/p1/structure/island.md`) and recorded in DESIGN.md at gate 6.
+- **Lock screen**: Answered in P1 (`docs/work/rust-desktop/p1/structure/lock.md`, `wallpaper.md`); recorded in DESIGN.md at gate 6.
+- **System prompts**: Answered in P1 (`docs/work/rust-desktop/p1/structure/prompts.md`, `island.md`); recorded in DESIGN.md at gate 6.
+- **Capture**: Answered in P1 (`docs/work/rust-desktop/p1/structure/capture.md`, `island.md`); recorded in DESIGN.md at gate 6.
 - **Wallpaper**: Answered in P1 (`docs/work/rust-desktop/p1/structure/wallpaper.md`); recorded in DESIGN.md at gate 6.
 - **On-screen keyboard**: its layout and where completions show (proposal: a strip).
 
@@ -490,7 +491,7 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 | Rest pill: desktop dots, which opened Mission Control | Capability kept in Mission Control (rule 3); the island shows no desktops |
 | Hover panel: opened by hover on the pill, with its guards | Control Centre from the island (Island 11) |
 | Hover panel: header of desktops as app icons | Mission Control's Spaces bar and the app switcher |
-| Hover panel: toggles (Wi-Fi, Bluetooth, night light, DND as a Focus, game mode, VPN), output picker, volume, brightness, per-app volumes, media, batteries, updates, power profile | Control Centre controls; their modules are P1's |
+| Hover panel: toggles (Wi-Fi, Bluetooth, night light, DND as a Focus, game mode, VPN), output picker, volume, brightness, per-app volumes, media, batteries, updates, power profile | Control Centre modules (Control Centre 2); game mode as a row of the Focus page |
 | Hover panel: Wi-Fi password and Bluetooth pairing drill-downs, VPN providers page | Control Centre drill-downs and the system prompts |
 | Hover panel: tray icons and tray menu page | Control Centre's tray (Control Centre 9) |
 | Hover panel: notifications page | Notification Centre |
@@ -519,7 +520,7 @@ Every v1 capability in this area (inventory §4, §6, the shell chords of §11) 
 | Mission Control: hidden-window tray | App Exposé's minimised set and Mission Control's minimised windows (Mission Control 5) |
 | Three-finger swipe up and down | Mission Control gestures |
 | Capture: region, window, screen, shot, record, countdown, cursor, audio, freeze before pick | Capture toolbar and Mac chords |
-| Capture: annotate, colour pick, recording timer with Stop | Capture (annotator open); the timer as live activity |
+| Capture: annotate, colour pick, recording timer with Stop | Capture; annotation as Markup in Quick Look (apps.md); the timer as live activity |
 | Lock: wallpaper, clock, password on typing, failure count, Caps Lock, fingerprint, login1 signals, relock after restart | Lock screen |
 | Greeter (inventory §12) | Lock screen in greeter mode (B26) |
 | Idle: dim, lock, screen off, inhibitors | Wallpaper and idle dimmer |

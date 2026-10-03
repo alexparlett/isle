@@ -146,7 +146,7 @@ cancel leaves it untouched.
 | Spotlight, Mission Control, the capture tool, the session dialog | Cmd+Tab closes the open one and switches (`shell.md` Shell runtime 10). Inside Mission Control it could instead move the highlight; closing is simpler and matches the one-at-a-time rule. |
 | The island's attention event | Both show: the island announces once, the card holds the mark until the app is activated. Activating the app clears both. |
 | A drag in progress | Cmd+Tab works during it and the drag survives the commit. |
-| A system prompt holding focus | The prompt wins; Cmd+Tab is not taken until it is answered or dismissed. For the prompts sheet to confirm. |
+| A system prompt holding focus | Cmd+Tab sets the prompt aside into the island as a waiting activity, lifting the scrim, and switches; Show brings it back (`prompts.md`). No other chord takes focus from it. |
 | Lock | The lock wins; no switcher. |
 | A full-screen game | Cmd+Tab wins: it is in the escape set (B30). |
 | Keyboard-shortcuts-inhibit (a VM or remote desktop) | Cmd+Tab goes to the inhibiting client; `compositor.md` § Keyboard-shortcuts-inhibit owns how inhibit is left. |

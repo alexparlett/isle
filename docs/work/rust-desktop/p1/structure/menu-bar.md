@@ -95,7 +95,7 @@ chord, and never removes an item on a guess.
 | 1 | Fill, Centre | Their zone chords (`compositor.md` Snapping 5) |
 | 1 | Move and resize ▸ | Halves, thirds, two-thirds, quarters, centred 60%, each with its chord; Return to previous size |
 | 1 | Full screen tile ▸ | Split View left and right (`compositor.md` Split View) |
-| 1 | Enter full screen | ⌃⌘F |
+| 1 | Enter Full Screen | ⌃⌘F |
 | 2 | Move to desktop ▸ | Each desktop of this screen, New desktop |
 | 2 | Move to <display> | Only with a second output |
 | 2 | Keep on top | Checked when on (`compositor.md` Stacking 9) |
@@ -323,7 +323,7 @@ Control Centre (`island.md`).
    **Adopted**, with the fallback's entry actions as its third group and
    the app's own items pointed at, not moved.
 4. **Window menu** (Minimise, Zoom, zones, Bring All to Front, windows).
-   **Changed**: adds Fill and Centre, Full screen tile, Enter full screen,
+   **Changed**: adds Fill and Centre, Full screen tile, Enter Full Screen,
    Move to desktop, Move to <display> and Keep on top, shared with the
    title bar's window menu, because apps that draw their own title bar have
    no other pointer route to them.
@@ -374,7 +374,7 @@ Control Centre (`island.md`).
 |---|---|
 | System menu | "About this computer", "System Settings…", "Updates…", "Restart to finish updating…", "Force Quit…", "Sleep", "Restart…", "Shut Down…", "Lock Screen", "Log Out <user>…" |
 | App menu | "About <App>", "Settings…", "Hide <App>", "Hide Others", "Show All", "Quit <App>" |
-| Window menu | "Minimise", "Zoom", "Fill", "Centre", "Move and resize", "Return to previous size", "Full screen tile", "Enter full screen", "Move to desktop", "New desktop", "Move to <display>", "Keep on top", "Bring All to Front" |
+| Window menu | "Minimise", "Zoom", "Fill", "Centre", "Move and resize", "Return to previous size", "Full screen tile", "Enter Full Screen", "Move to desktop", "New desktop", "Move to <display>", "Keep on top", "Bring All to Front" |
 | Fallback | "Close Window", "<App> Help", "<App> Website" |
 | Help | Search field placeholder: "Search" |
 | Isle's About panel | "Version <v>", "From <package>" |

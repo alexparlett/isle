@@ -1,0 +1,317 @@
+<title>Isle structure, batch 2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="harness/harness.css">
+<style>
+  .hb-intro { max-width: 75ch; color: var(--hb-fg-2); line-height: 1.5; margin: 0; }
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs h3 { font-size: 13px; margin: 14px 0 4px; color: var(--hb-fg); }
+  .hb-qs ol { margin: 0; padding-left: 20px; color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs li { margin-bottom: 6px; }
+  .hb-qs b { color: var(--hb-fg); font-weight: 600; }
+  .hb-qs em { color: var(--hb-accent); font-style: normal; }
+</style>
+<script src="harness/harness.js"></script>
+<script>
+(function () {
+  // Wireframe of batch 2 on the revision 1 desktop. Sizes are placeholders
+  // in points; stage 4 sets them.
+  const W = 3440, H = 1440, STRIP = 48, CX = W / 2;
+  const PILL_Y = 9, PILL_H = 30;
+  const { h } = Isle;
+
+  const box = (x, y, w, hh, cls, style, ...kids) => h("div", { class: "wf " + (cls || ""), style: Object.assign({ left: x + "px", top: y + "px", width: w + "px", height: hh === "auto" ? "auto" : hh + "px" }, style || {}) }, ...kids);
+  const text = (x, y, s, cls, style) => h("div", { class: "wf " + (cls || "wf-text"), style: Object.assign({ left: x + "px", top: y + "px" }, style || {}) }, s);
+  const callout = (x, y, s) => h("div", { class: "wf-callout", style: { left: x + "px", top: y + "px" } }, s);
+  const glyph = (size) => h("span", { class: "wf-icon", style: { width: (size || 14) + "px", height: (size || 14) + "px", background: "var(--wf-line)", borderRadius: "3px", flex: "none" } });
+  const dot = (c) => h("span", { class: "wf-dot", style: { background: c } });
+  const t = (s, style) => h("span", { style: Object.assign({ fontSize: "13px" }, style || {}) }, s);
+  const t2 = (s, style) => h("span", { style: Object.assign({ fontSize: "12px", color: "var(--wf-ink-2)" }, style || {}) }, s);
+  const row = (...kids) => h("div", { class: "wf-row" }, ...kids);
+  const col = (gap, ...kids) => h("div", { class: "wf-col", style: { gap: gap + "px" } }, ...kids);
+  const btn = (s, primary) => h("span", { style: { fontSize: "13px", padding: "5px 14px", borderRadius: "7px", border: "1px solid var(--wf-line)", background: primary ? "var(--wf-ink)" : "var(--wf-fill)", color: primary ? "var(--wf-wall)" : "var(--wf-ink)" } }, s);
+  const field = (s, w) => h("div", { class: "wf-box-2", style: { position: "static", height: "28px", width: w ? w + "px" : "100%", borderRadius: "7px", display: "flex", alignItems: "center", padding: "0 10px", fontSize: "13px", color: "var(--wf-ink-2)", boxSizing: "border-box" } }, s || "");
+  const sep = () => h("div", { style: { borderTop: "1px solid var(--wf-line)", margin: "4px 0" } });
+  const card = (style, ...kids) => h("div", { style: Object.assign({ background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)", borderRadius: "12px", padding: "10px 12px", boxSizing: "border-box" }, style || {}) }, ...kids);
+
+  function pill(s, o = {}) {
+    const kids = [];
+    if (o.event) kids.push(o.event);
+    else {
+      if (o.face) kids.push(o.face);
+      kids.push(h("span", { style: { fontVariantNumeric: "tabular-nums", fontSize: "13px", fontWeight: 600 } }, "14:32"));
+      for (let i = 0; i < (o.glyphs || 0); i++) kids.push(glyph());
+    }
+    if (o.privacy) kids.push(h("span", { style: { display: "flex", gap: "4px" } }, dot("#e8a33d"), dot("#5fbf6f")));
+    s.append(h("div", { class: "wf wf-box wf-pill", style: { left: CX + "px", top: PILL_Y + "px", height: PILL_H + "px", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px", padding: "0 14px", whiteSpace: "nowrap" } }, ...kids));
+  }
+  function win(s, x, y, w, hh, o = {}) {
+    const el = box(x, y, w, hh, "wf-box", { borderRadius: "12px", boxShadow: o.active ? "0 18px 48px rgba(0,0,0,.45)" : "0 8px 24px rgba(0,0,0,.3)", overflow: "hidden" });
+    const bar = box(0, 0, w, 32, "", { borderBottom: "1px solid var(--wf-line)" });
+    bar.append(h("div", { class: "wf-row", style: { position: "absolute", left: "14px", top: "10px", gap: "8px" } },
+      ...[0, 1, 2].map(() => h("span", { style: { width: "12px", height: "12px", borderRadius: "50%", border: "1px solid var(--wf-line)", background: o.active ? "var(--wf-ink-2)" : "transparent" } }))),
+      h("div", { class: "wf-text", style: { position: "absolute", left: 0, right: 0, top: "10px", textAlign: "center", opacity: o.active ? 1 : .6 } }, o.title || "Window"));
+    el.append(bar);
+    if (!o.empty) for (let i = 0; i < Math.min(12, (hh - 60) / 40); i++) el.append(box(24, 56 + i * 40, (w - 48) * (0.4 + ((i * 37) % 50) / 100), 10, "wf-bar"));
+    s.append(el);
+    return el;
+  }
+  function desktop(s, o = {}) {
+    win(s, 220, 140, 1180, 780, { title: "Terminal" });
+    win(s, 1480, 190, 1320, 860, { title: "Documents", active: !o.dim });
+    if (o.pill !== false) pill(s, o.pill || {});
+  }
+  const scrim = (s) => s.append(h("div", { class: "wf-scrim", style: { background: "rgba(0,0,0,.45)" } }));
+
+  // ---- Notifications ------------------------------------------------------
+  const BW = 380, BX = W - BW - 16;
+  function banner(y, o = {}) {
+    return box(BX, y, BW, "auto", "", { background: "var(--wf-fill)", border: "1px solid var(--wf-line)", borderRadius: "16px", padding: "12px 14px", boxShadow: "0 12px 32px rgba(0,0,0,.35)" },
+      col(6,
+        row(glyph(18), t2(o.app || "Mail"), h("span", { style: { flex: 1 } }), t2(o.time || "now")),
+        t(o.summary || "Alex Doe", { fontWeight: 600 }),
+        t2(o.body || "Are we still on for the build review at four?"),
+        o.actions ? row(...o.actions.map((a) => btn(a))) : null,
+        o.reply ? field("Reply…") : null,
+        o.more ? t2(o.more) : null));
+  }
+
+  // ---- Control Centre -------------------------------------------------------
+  function ccPanel(s, inner, o = {}) {
+    const w = 440, x = o.x || CX - w / 2;
+    const panel = box(x, PILL_Y, w, "auto", "wf-box", { borderRadius: "22px", padding: "0 0 14px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" });
+    panel.append(h("div", { style: { display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", height: PILL_H + "px" } },
+      h("span", { style: { fontVariantNumeric: "tabular-nums", fontSize: "13px", fontWeight: 600 } }, "14:32"), ...(o.glyphs ? [glyph(), glyph()] : [])), inner);
+    s.append(panel);
+    return panel;
+  }
+  function ccGrid(edit) {
+    const tile = (c, r, label, kids, style) => h("div", { style: Object.assign({ gridColumn: "span " + c, gridRow: "span " + r, background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)", borderRadius: "14px", padding: "10px", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px", position: "relative" }, style || {}) },
+      ...(label ? [row(glyph(16), h("span", {}, label))] : []), ...(kids || []), edit ? h("span", { style: { position: "absolute", top: "-6px", left: "-6px", width: "16px", height: "16px", borderRadius: "50%", background: "var(--wf-ink-2)", fontSize: "12px", lineHeight: "15px", textAlign: "center", color: "var(--wf-wall)" } }, "–") : null);
+    const slider = () => h("div", { style: { height: "8px", borderRadius: "4px", background: "var(--wf-fill)" } }, h("div", { style: { width: "60%", height: "100%", borderRadius: "4px", background: "var(--wf-ink-2)" } }));
+    const sub = (s) => h("span", { style: { color: "var(--wf-ink-2)", fontSize: "11px" } }, s);
+    return h("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "54px", gap: "8px", margin: "8px 14px 0" } },
+      tile(2, 1, "Wi-Fi", [sub("Home")]),
+      tile(2, 2, "Now Playing", [row(h("span", { class: "wf-icon", style: { width: "40px", height: "40px", background: "var(--wf-line)" } }), col(2, h("span", {}, "Song title"), sub("Artist"))), row(t("◂◂"), t("▶"), t("▸▸"))]),
+      tile(2, 1, "Bluetooth", [sub("2 devices")]),
+      tile(2, 1, "Focus", [sub("Off")]),
+      tile(2, 1, "VPN", [sub("Not connected")]),
+      tile(4, 1, "Sound", [slider()]),
+      tile(4, 1, "Display", [slider()]),
+      tile(1, 1, null, [glyph(18)], { alignItems: "center", justifyContent: "center" }),
+      tile(1, 1, null, [glyph(18)], { alignItems: "center", justifyContent: "center" }),
+      tile(2, 1, "Updates", [sub("3 available")]),
+      tile(2, 1, "Batteries", [sub("Controller 70%")]));
+  }
+  const ccFooter = () => h("div", {}, h("div", { style: { borderTop: "1px solid var(--wf-line)", margin: "14px 14px 8px" } }),
+    h("div", { style: { display: "flex", justifyContent: "space-between", margin: "0 18px", fontSize: "12px", color: "var(--wf-ink-2)" } }, h("span", {}, "Edit Controls"), h("span", {}, "Control Centre Settings…")));
+  function ccPage(title, rows) {
+    return h("div", { style: { margin: "8px 14px 0", display: "flex", flexDirection: "column", gap: "6px" } },
+      card({}, row(t("‹", { fontSize: "16px" }), glyph(16), t(title, { fontWeight: 600 }), h("span", { style: { flex: 1 } }), h("span", { style: { width: "34px", height: "20px", borderRadius: "10px", background: "var(--wf-ink-2)" } }))),
+      ...rows.map((r) => card({ padding: "8px 12px" }, r)));
+  }
+
+  // ---- Spotlight -------------------------------------------------------------
+  const SW = 760, SX = CX - SW / 2, SY = 300;
+  function spotlight(s, o = {}) {
+    const el = box(SX, SY, SW, "auto", "wf-box", { borderRadius: "18px", boxShadow: "0 18px 48px rgba(0,0,0,.45)", padding: "0 0 8px" });
+    el.append(h("div", { class: "wf-row", style: { height: "56px", padding: "0 18px", gap: "12px" } }, glyph(22),
+      o.scope ? h("span", { style: { fontSize: "13px", padding: "2px 8px", borderRadius: "6px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)" } }, o.scope) : null,
+      h("span", { style: { fontSize: "20px", flex: 1, color: o.query ? "var(--wf-ink)" : "var(--wf-ink-2)" } }, o.query || "Spotlight Search"),
+      ...(o.query || o.scope ? [] : ["Apps", "Files", "Actions", "Clipboard"].map((k) => h("span", { style: { fontSize: "11px", color: "var(--wf-ink-2)", border: "1px solid var(--wf-line)", borderRadius: "6px", padding: "2px 6px" } }, k)))));
+    if (o.body) { el.append(h("div", { style: { borderTop: "1px solid var(--wf-line)" } }), o.body); }
+    s.append(el);
+  }
+  const resultRow = (label, sub, sel, key) => h("div", { class: "wf-row", style: { padding: "6px 18px", gap: "12px", background: sel ? "var(--wf-fill-2)" : "transparent", borderRadius: "8px", margin: "0 6px" } }, glyph(24), t(label), sub ? t2(sub) : null, h("span", { style: { flex: 1 } }), key ? t2(key) : null);
+  const groupHead = (s) => h("div", { style: { fontSize: "11px", color: "var(--wf-ink-2)", padding: "8px 24px 2px" } }, s);
+
+  const C = (x, y, w, hh) => [x, y, w, hh];
+  const TOPRIGHT = C(W - 1300, 0, 1300, 560);
+  const CARD = C(CX - 560, 0, 1120, 900);
+
+  Isle.board({
+    title: "Isle structure, batch 2",
+    subtitle: "Notifications, Focus, Control Centre, lock, prompts, Spotlight, capture, Settings and app conventions, on revision 1's desktop. Grey wireframes; sizes are placeholders and the sheets are the source.",
+    tokens: null,
+    surfaces: [
+      { id: "notify", name: "Notifications", sheet: "p1/structure/notifications.md", states: [
+        { id: "banner", name: "Banner", crop: TOPRIGHT, note: "Top right of the main screen, its top on the island strip's lower edge. Icon, app and time, summary, two lines of body that expand on hover; a click is the default action.", render(s) { desktop(s); s.append(banner(STRIP + 8)); } },
+        { id: "actions", name: "Actions and reply", crop: TOPRIGHT, note: "Up to three actions (the rest under Options) and an inline reply field. Close shows on hover.", render(s) { desktop(s); s.append(banner(STRIP + 8, { actions: ["Reply", "Mark as Read", "Options"], reply: true })); } },
+        { id: "stack", name: "Several", crop: TOPRIGHT, note: "One banner per app with \"{n} new\"; at most three, newest at the anchor; then a row naming the rest.", render(s) {
+          desktop(s);
+          s.append(banner(STRIP + 8, { app: "Mail", summary: "3 new", body: "Alex Doe, Build bot, Calendar" }));
+          s.append(banner(STRIP + 146, { app: "Discord", summary: "#isle", body: "New release notes are up." }));
+          s.append(banner(STRIP + 284, { app: "Steam", summary: "Download complete", body: "Ready to play.", more: "2 more in Notification Centre" }));
+        } },
+        { id: "summary", name: "After a game", crop: TOPRIGHT, note: "Nothing shown while held; afterwards one held notification shows as itself, two or more as one summary opening Notification Centre.", render(s) { desktop(s); s.append(banner(STRIP + 8, { app: "Isle", summary: "While you played", body: "6 notifications from Mail, Discord and Steam" })); } },
+      ] },
+      { id: "cc", name: "Control Centre", sheet: "p1/structure/control-centre.md", states: [
+        { id: "grid", name: "Default grid", crop: CARD, note: "Four columns; a module takes one cell, two, a 2×2 block or a full row, packed in reading order so a missing module leaves no hole. Defaults: Wi-Fi, Now Playing, Bluetooth, Focus, VPN, Sound, Display, Night Light, Energy Mode, Updates, Batteries. Now sits above when something is live; the tray below.", render(s) {
+          desktop(s, { pill: false });
+          ccPanel(s, h("div", {}, ccGrid(), h("div", { style: { fontSize: "11px", color: "var(--wf-ink-2)", margin: "14px 18px 6px" } }, "Tray"), h("div", { style: { display: "flex", gap: "14px", margin: "0 18px" } }, glyph(), glyph(), glyph()), ccFooter()), { glyphs: true });
+        } },
+        { id: "page", name: "A module's page", crop: CARD, note: "A page grows out of its module: its head is the module with its switch, then rows that choose or act, then a link to Settings. A secured network raises the Wi-Fi prompt.", render(s) {
+          desktop(s, { pill: false });
+          ccPanel(s, h("div", {}, ccPage("Wi-Fi", [row(glyph(), t("Home"), h("span", { style: { flex: 1 } }), t2("✓")), row(glyph(), t("Office")), row(glyph(), t("Café guest")), row(t2("Other networks ›")), row(t2("Wi-Fi Settings…"))])));
+        } },
+        { id: "focus", name: "Focus page", crop: CARD, note: "Do Not Disturb, Game Mode and your own modes. Game Mode wins while a game is in front; it has no module of its own. The island's Focus glyph shows the current mode.", render(s) {
+          desktop(s, { pill: false });
+          ccPanel(s, h("div", {}, ccPage("Focus", [row(glyph(), t("Do Not Disturb"), h("span", { style: { flex: 1 } }), t2("Until tomorrow ›")), row(glyph(), t("Game Mode"), h("span", { style: { flex: 1 } }), t2("Automatic")), row(glyph(), t("Work"), h("span", { style: { flex: 1 } }), t2("9:00–17:00")), row(t2("Focus Settings…"))])), { glyphs: true });
+        } },
+        { id: "edit", name: "Edit Controls", crop: [CX - 760, 0, 1520, 900], note: "Edit mode: modules wiggle-free with a remove mark, sizes change from each module's menu, and the gallery sits beside the panel on its leading side.", render(s) {
+          desktop(s, { pill: false });
+          ccPanel(s, h("div", {}, ccGrid(true), ccFooter()), { x: CX - 220 });
+          const g = box(CX - 560, PILL_Y + 40, 320, "auto", "wf-box", { borderRadius: "18px", padding: "12px" });
+          g.append(col(8, t("Add controls", { fontWeight: 600 }), ...["Dark Mode", "Keyboard layout", "Accessibility", "Screenshot", "Phone"].map((m) => card({ padding: "8px 10px" }, row(glyph(16), t(m))))));
+          s.append(g);
+        } },
+      ] },
+      { id: "lock", name: "Lock", sheet: "p1/structure/lock.md", states: [
+        { id: "lock", name: "Lock screen", crop: C(CX - 1100, 0, 2200, H), note: "The softened wallpaper; date over a large time below the strip; Now Playing; notifications by app with a count; your picture, name and the password field with fingerprint beside it; Sleep, Restart, Shut Down at the foot. The island keeps only privacy marks and OSDs.", render(s) {
+          s.append(box(0, 0, W, H, "", { background: "var(--wf-fill-2)" }));
+          s.append(text(CX, 150, "Saturday 3 October", "wf-text", { transform: "translateX(-50%)", fontSize: "22px" }));
+          s.append(text(CX, 190, "14:32", "wf-text", { transform: "translateX(-50%)", fontSize: "120px", fontWeight: 600 }));
+          s.append(box(CX - 200, 360, 400, "auto", "", {}, card({}, row(glyph(36), col(2, t("Song title"), t2("Artist")), h("span", { style: { flex: 1 } }), t("▶")))));
+          s.append(box(CX - 200, 450, 400, "auto", "", {}, col(6, card({ padding: "8px 12px" }, row(glyph(), t("Mail"), h("span", { style: { flex: 1 } }), t2("3"))), card({ padding: "8px 12px" }, row(glyph(), t("Discord"), h("span", { style: { flex: 1 } }), t2("1"))))));
+          s.append(box(CX - 160, 1000, 320, "auto", "", {}, col(10, h("div", { style: { width: "72px", height: "72px", borderRadius: "50%", background: "var(--wf-line)", margin: "0 auto" } }), t("Alex", { textAlign: "center" }), row(field("Enter password"), glyph(22)), t2("Touch the sensor or type your password", { textAlign: "center" }))));
+          s.append(box(CX - 180, H - 70, 360, 30, "", { display: "flex", justifyContent: "space-between" }, t2("Sleep"), t2("Restart"), t2("Shut Down")));
+          s.append(h("div", { class: "wf wf-box wf-pill", style: { left: CX + "px", top: "6px", height: "22px", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "4px", padding: "0 10px" } }, dot("#e8a33d")));
+        } },
+        { id: "greeter", name: "Greeter", crop: C(CX - 1100, 0, 2200, H), note: "The lock's face before a session: no user list for one user, a session menu only while more than one session is installed. In your wallpaper and appearance, which the session publishes for it.", render(s) {
+          s.append(box(0, 0, W, H, "", { background: "var(--wf-fill-2)" }));
+          s.append(text(CX, 190, "14:32", "wf-text", { transform: "translateX(-50%)", fontSize: "120px", fontWeight: 600 }));
+          s.append(box(CX - 160, 1000, 320, "auto", "", {}, col(10, h("div", { style: { width: "72px", height: "72px", borderRadius: "50%", background: "var(--wf-line)", margin: "0 auto" } }), t("Alex", { textAlign: "center" }), row(field("Enter password"), glyph(22)))));
+          s.append(box(CX - 260, H - 70, 520, 30, "", { display: "flex", justifyContent: "space-between" }, t2("Session: Isle ▾"), t2("Sleep"), t2("Restart"), t2("Shut Down")));
+        } },
+      ] },
+      { id: "prompts", name: "Prompts", sheet: "p1/structure/prompts.md", states: [
+        { id: "polkit", name: "Authentication", crop: C(CX - 900, 200, 1800, 900), note: "One frame for every agent prompt: who asks, a title, the requester's message, fields, a status line, Details, Cancel and the default action. Centred, with a scrim over every screen; Return works only after a short armed moment.", render(s) {
+          desktop(s); scrim(s);
+          s.append(box(CX - 220, 460, 440, "auto", "wf-box", { borderRadius: "16px", padding: "20px" }, col(10, glyph(40), t("Software Update needs your password", { fontWeight: 600, fontSize: "15px" }), t2("Installing updates changes system files."), field("Password"), t2("Details ›"), row(h("span", { style: { flex: 1 } }), btn("Cancel"), btn("Allow", true)))));
+        } },
+        { id: "session", name: "Session chooser", crop: C(CX - 900, 200, 1800, 900), note: "From the power key or Ctrl+Cmd+Delete: five actions, open apps as icons, Reopen windows when logging back in, a countdown on Shut Down.", render(s) {
+          desktop(s); scrim(s);
+          s.append(box(CX - 300, 440, 600, "auto", "wf-box", { borderRadius: "16px", padding: "20px" }, col(12, t("Are you sure you want to shut down your computer now?", { fontWeight: 600 }), t2("Shutting down in 60 seconds."), row(glyph(28), glyph(28), glyph(28), glyph(28)), row(h("span", { style: { width: "14px", height: "14px", border: "1px solid var(--wf-line)", borderRadius: "3px" } }), t("Reopen windows when logging back in")), row(btn("Sleep"), btn("Restart"), btn("Log Out"), h("span", { style: { flex: 1 } }), btn("Cancel"), btn("Shut Down", true)))));
+        } },
+        { id: "forcequit", name: "Force Quit", crop: C(CX - 900, 200, 1800, 900), note: "Cmd+Option+Esc: macOS's panel, no scrim, background apps listed, several can be chosen, a confirmation before quitting.", render(s) {
+          desktop(s);
+          s.append(box(CX - 220, 380, 440, "auto", "wf-box", { borderRadius: "14px", padding: "16px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" }, col(8, t("Force Quit Applications", { fontWeight: 600 }), t2("If an app doesn't respond for a while, select its name and click Force Quit."), card({ padding: "6px" }, col(4, ...["Documents", "Firefox (not responding)", "Steam", "Discord"].map((a, i) => h("div", { class: "wf-row", style: { padding: "4px 6px", borderRadius: "6px", background: i === 1 ? "var(--wf-fill)" : "transparent" } }, glyph(18), t(a))))), row(h("span", { style: { flex: 1 } }), btn("Force Quit", true)))));
+        } },
+      ] },
+      { id: "spotlight", name: "Spotlight", sheet: "p1/structure/spotlight.md", states: [
+        { id: "empty", name: "Empty", crop: C(CX - 900, 160, 1800, 700), note: "Cmd+Space: one field, centred in the upper part of the screen. While empty it shows only the four quick keys; reopening brings the last query back selected.", render(s) { desktop(s); spotlight(s); } },
+        { id: "results", name: "Results", crop: C(CX - 900, 160, 1800, 820), note: "A fixed order: Top hit, Apps, Actions, Menu items, Settings, Windows, Files, then Search the web. Eight rows tall, scrolling past that; slow results only add rows below the selection.", render(s) {
+          desktop(s);
+          spotlight(s, { query: "term", body: h("div", { style: { padding: "6px 0" } },
+            groupHead("Top hit"), resultRow("Terminal", "App", true, "⏎"),
+            groupHead("Actions"), resultRow("New terminal window", "Terminal"),
+            groupHead("Menu items"), resultRow("Shell ▸ New Window", "Terminal", false, "⌘N"),
+            groupHead("Settings"), resultRow("Default terminal", "Apps"),
+            groupHead("Files"), resultRow("terminal-notes.md", "~/Documents"),
+            resultRow("Search the web for “term”")) });
+        } },
+        { id: "apps", name: "Apps view", crop: C(CX - 900, 160, 1800, 1000), note: "Cmd+1, the Launchpad key or the bottom-right hot corner. Favourites first in your order, then every app A to Z; no folders or pages; categories as a filter; badges on tiles; games by their cover.", render(s) {
+          desktop(s);
+          const tiles = (n, cover) => h("div", { style: { display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "14px", padding: "6px 22px" } },
+            ...Array.from({ length: n }, (_, i) => col(6, h("div", { style: { width: "56px", height: cover && i === 3 ? "76px" : "56px", margin: "0 auto", borderRadius: "12px", background: "var(--wf-fill-2)", border: "1px solid var(--wf-line)", position: "relative" } }, i === 1 ? h("span", { style: { position: "absolute", top: "-6px", right: "-8px", fontSize: "10px", padding: "1px 5px", borderRadius: "8px", background: "var(--wf-ink)", color: "var(--wf-wall)" } }, "12") : null), h("div", { class: "wf-bar", style: { width: "48px", margin: "0 auto" } }))));
+          spotlight(s, { scope: "Apps", body: h("div", { style: { padding: "6px 0 10px" } }, row(groupHead("Favourites"), h("span", { style: { flex: 1 } }), h("span", { style: { fontSize: "11px", color: "var(--wf-ink-2)", paddingRight: "22px" } }, "All categories ▾")), tiles(8, true), groupHead("All apps"), tiles(16), tiles(8)) });
+        } },
+      ] },
+      { id: "capture", name: "Capture", sheet: "p1/structure/capture.md", states: [
+        { id: "region", name: "Pick a region", note: "Shift+Cmd+4 freezes every screen; a light veil with the selection cut clear and its size. Space switches to window mode; adding Ctrl copies instead of saving.", render(s) {
+          desktop(s);
+          s.append(h("div", { class: "wf-scrim", style: { background: "rgba(0,0,0,.3)" } }));
+          s.append(box(1500, 260, 900, 520, "", { border: "1.5px solid var(--wf-ink)", background: "transparent", boxShadow: "0 0 0 9999px rgba(0,0,0,.0)" }));
+          s.append(text(2410, 790, "900 × 520", "wf-text"));
+        } },
+        { id: "toolbar", name: "Toolbar", crop: C(CX - 900, H - 300, 1800, 300), note: "Shift+Cmd+5, at bottom centre: close; capture screen, window, portion; record screen, window, portion; pick colour; Options; one button named for the mode.", render(s) {
+          desktop(s);
+          s.append(box(CX - 380, H - 120, 760, 52, "wf-box", { borderRadius: "14px", display: "flex", alignItems: "center", gap: "14px", padding: "0 14px", boxShadow: "0 12px 32px rgba(0,0,0,.4)" },
+            t("✕"), sep(), glyph(20), glyph(20), glyph(20), h("span", { style: { width: "1px", height: "26px", background: "var(--wf-line)" } }), glyph(20), glyph(20), glyph(20), h("span", { style: { width: "1px", height: "26px", background: "var(--wf-line)" } }), glyph(20), h("span", { style: { flex: 1 } }), t("Options ▾"), btn("Capture", true)));
+        } },
+        { id: "thumb", name: "After a shot", crop: C(W - 1300, H - 520, 1300, 520), note: "One thumbnail in the bottom-trailing corner; the file is already saved. Click opens Markup in Quick Look, drag carries the file, a flick or timeout dismisses it.", render(s) {
+          desktop(s);
+          s.append(box(W - 300, H - 220, 260, 170, "wf-box-2", { borderRadius: "10px", boxShadow: "0 12px 32px rgba(0,0,0,.4)" }));
+        } },
+        { id: "picker", name: "Share picker", crop: C(1400, 150, 1500, 900), note: "A sheet on the asking window: \"Choose what to share with {app}\", tabs for Screens, Windows and Portion of screen, live tiles, audio only when asked, Cancel and Share.", render(s) {
+          desktop(s);
+          s.append(box(1840, 222, 640, "auto", "wf-box", { borderRadius: "0 0 14px 14px", padding: "16px", boxShadow: "0 18px 48px rgba(0,0,0,.45)" },
+            col(12, t("Choose what to share with Firefox", { fontWeight: 600 }), row(btn("Screens"), btn("Windows"), btn("Portion of screen")),
+              h("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" } }, ...Array.from({ length: 6 }, (_, i) => h("div", { style: { aspectRatio: "16/10", borderRadius: "8px", background: "var(--wf-fill-2)", border: i === 0 ? "2px solid var(--wf-ink)" : "1px solid var(--wf-line)" } }))),
+              row(h("span", { style: { width: "14px", height: "14px", border: "1px solid var(--wf-line)", borderRadius: "3px" } }), t("Share audio"), h("span", { style: { flex: 1 } }), btn("Cancel"), btn("Share", true)))));
+        } },
+      ] },
+      { id: "apps", name: "Settings and apps", sheet: "p1/structure/settings.md", states: [
+        { id: "settings", name: "System Settings", crop: C(500, 100, 2440, 1240), note: "Search, the account row, then 28 panes in macOS's six groups. A pane opens with its name and one sentence, then grouped rows; the content column has a maximum width on the ultrawide.", render(s) {
+          const el = win(s, 700, 140, 2040, 1160, { title: "", active: true, empty: true });
+          const side = box(0, 0, 420, 1160, "", { background: "var(--wf-fill-2)", borderRight: "1px solid var(--wf-line)", padding: "48px 14px", boxSizing: "border-box" },
+            col(6, field("Search"), card({ marginTop: "6px" }, row(h("span", { style: { width: "36px", height: "36px", borderRadius: "50%", background: "var(--wf-line)" } }), col(2, t("Alex"), t2("Users & Groups")))),
+              ...[["Wi-Fi", "Bluetooth", "Network", "VPN", "Energy"], ["General", "Accessibility", "Appearance", "Apps", "Control Centre", "Desktop", "Displays", "Spotlight", "Wallpaper"], ["Notifications", "Sound", "Focus"], ["Lock Screen", "Privacy & Security", "Login Password"]].flatMap((g, gi) => [sep(), ...g.map((p) => h("div", { class: "wf-row", style: { padding: "3px 6px", borderRadius: "6px", background: p === "Desktop" ? "var(--wf-fill)" : "transparent" } }, glyph(18), t(p)))])));
+          const main = box(420, 0, 1620, 1160, "", { padding: "60px 0" },
+            h("div", { style: { width: "760px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "14px" } },
+              t("Desktop", { fontSize: "20px", fontWeight: 600 }), t2("How windows open, close and tile, and the screen's corners."),
+              card({}, col(10, row(t("Double-click a window's title bar to"), h("span", { style: { flex: 1 } }), t2("Fill ▾")), sep(), row(t("Close windows when quitting an app"), h("span", { style: { flex: 1 } }), h("span", { style: { width: "34px", height: "20px", borderRadius: "10px", background: "var(--wf-fill)", border: "1px solid var(--wf-line)" } })))),
+              card({}, col(10, row(t("Tiled windows have margins"), h("span", { style: { flex: 1 } }), h("span", { style: { width: "34px", height: "20px", borderRadius: "10px", background: "var(--wf-ink-2)" } })), sep(), row(t("Hot Corners…"), h("span", { style: { flex: 1 } }), btn("Hot Corners…"))))));
+          el.append(side, main);
+        } },
+        { id: "rejected", name: "Rejected hand edit", crop: C(500, 100, 2440, 700), note: "While settings.kdl does not parse, every pane shows a notice with the file, line and column, Open in editor and Show in Files; rows that write it are disabled at the values in force. The island's glyph and Control Centre's notice row come from the same error.", render(s) {
+          const el = win(s, 700, 140, 2040, 1160, { title: "", active: true, empty: true });
+          el.append(box(420, 0, 1620, 1160, "", { padding: "60px 0" }, h("div", { style: { width: "760px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "14px" } },
+            card({ borderWidth: "2px" }, col(8, t("settings.kdl has an error on line 12, column 8. Changes won't be saved until it's fixed.", { fontWeight: 600 }), row(btn("Open in editor"), btn("Show in Files")))),
+            t("Desktop", { fontSize: "20px", fontWeight: 600 }), card({ opacity: .5 }, row(t("Double-click a window's title bar to"), h("span", { style: { flex: 1 } }), t2("Fill ▾"))))));
+          pill(s, { glyphs: 1 });
+        } },
+        { id: "anatomy", name: "App window", crop: C(200, 100, 3040, 1200), note: "Every Isle app: one toolbar over sidebar, content and inspector. Leading: the lights, sidebar toggle, back and forward, title. Centre: controls that fold into » as the window narrows. Trailing: one primary action, More, the inspector toggle, search last (⌘F).", render(s) {
+          const el = win(s, 300, 160, 2840, 1080, { title: "", active: true, empty: true });
+          el.append(box(0, 0, 2840, 52, "", { borderBottom: "1px solid var(--wf-line)", display: "flex", alignItems: "center", gap: "14px", padding: "0 18px 0 96px" },
+            glyph(18), t("‹"), t("›"), t("Documents", { fontWeight: 600 }), h("span", { style: { flex: 1 } }), glyph(18), glyph(18), glyph(18), h("span", { style: { flex: 1 } }), btn("New Folder", true), t("⋯"), glyph(18), field("Search", 220)));
+          el.append(box(0, 52, 400, 1028, "", { background: "var(--wf-fill-2)", borderRight: "1px solid var(--wf-line)" }));
+          el.append(box(2440, 52, 400, 1028, "", { background: "var(--wf-fill-2)", borderLeft: "1px solid var(--wf-line)" }));
+          for (let i = 0; i < 14; i++) el.append(box(440, 90 + i * 40, 1200 + ((i * 97) % 600), 10, "wf-bar"));
+          s.append(callout(320, 230, "sidebar"), callout(2760, 230, "inspector"));
+        } },
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Questions for gate 2">
+  <h2>Gate 2, batch 2: questions</h2>
+  <p class="hb-intro">Each has a recommendation; the reasoning is in the sheets.</p>
+  <h3>Notifications and Focus</h3>
+  <ol>
+    <li><b>Where banners appear</b>: top right under the strip, or top centre under the island? <em>Top right: centre would cover the window you work in and fight the island's panels.</em></li>
+    <li><b>Lock screen</b>: nothing, each app with a count, or previews? <em>Each app with a count.</em></li>
+    <li><b>Game Mode over a Focus you turned on</b>: Game Mode takes over and gives it back after. <em>Takes over.</em></li>
+  </ol>
+  <h3>Control Centre</h3>
+  <ol start="4">
+    <li><b>A page's head carries its module's switch</b>, so a page opened from a glyph is complete (v1 put no switch on pages). <em>Head carries the switch.</em></li>
+    <li><b>Media in Control Centre</b>: only the Now Playing module, not repeated in Now (changes island.md). <em>Module only.</em></li>
+    <li><b>Game Mode</b>: no module, only its row on the Focus page. <em>No module.</em></li>
+    <li><b>Keys in the grid</b>: arrows move, Space acts, Return opens a page (changes island.md's "Right or Return"). <em>Yes.</em></li>
+  </ol>
+  <h3>Lock and prompts</h3>
+  <ol start="8">
+    <li><b>Greeter</b>: in your wallpaper, appearance and accent, published by your session (never your token file). <em>Yes.</em></li>
+    <li><b>Cmd+Tab with a prompt up</b>: sets the prompt aside into the island, Show brings it back, so you can look a password up first. <em>Set aside.</em></li>
+  </ol>
+  <h3>Spotlight</h3>
+  <ol start="10">
+    <li><b>An assistant</b> ("Ask")? <em>None for now; the web row stays last.</em></li>
+    <li><b>Empty field</b>: just the quick keys, last query back on reopening. <em>Yes.</em></li>
+    <li><b>Clipboard and passwords</b> only in their own scopes, not mixed into general search as v1 did. <em>Own scopes.</em></li>
+    <li><b>Quick Look in Spotlight</b> on Cmd+Y, since Space types into the field. <em>Cmd+Y.</em></li>
+  </ol>
+  <h3>Capture</h3>
+  <ol start="14">
+    <li><b>After a shot</b>: macOS's single thumbnail, or CleanShot's stack with OCR? <em>Single thumbnail; OCR later as Copy text in Quick Look.</em></li>
+    <li><b>Annotation</b>: Markup built into Quick Look, replacing satty. <em>Built in.</em></li>
+  </ol>
+  <h3>Settings and apps</h3>
+  <ol start="16">
+    <li><b>Reopening an app's windows</b> when it starts again (v1), with macOS's "Close windows when quitting an app" off by default. <em>Reopen.</em></li>
+    <li><b>Show changed settings</b> (KDE's highlight) under View, off by default, with Reset to default per row. <em>Yes.</em></li>
+    <li><b>Game Mode's settings</b> fold into Focus and Displays; no pane of its own. <em>Fold in.</em></li>
+  </ol>
+</section>

@@ -35,7 +35,12 @@
   `p1/structure-1.html`, published as a private Artifact) after revision 1:
   at rest only the wallpaper and v1's pill; menus on demand; no Dock. B18
   and B19 are revised and the intent docs, DESIGN and the roadmap follow.
-  Next: batch 2 (the rest of M1's surfaces: banners, OSDs, Control Centre,
-  Focus and Game Mode, lock, greeter, prompts, Spotlight with the Apps
-  grid, capture, Settings). P2 is
+- P1 stage 2, batch 2 passed gate 2 (board `p1/structure-2.html`):
+  notifications, Focus, Control Centre, lock and greeter, prompts,
+  Spotlight with the Apps grid, capture, app conventions and Settings.
+  Every recommendation accepted; the intent docs follow. Next: batch 3
+  (parity surfaces: Notification Centre and widgets, Mission Control and
+  the window model's rest, Files, Monitor, Keychain, Cleaner, the
+  dropdown terminal, PiP, the on-screen keyboard, clipboard and emoji),
+  which can run beside stage 3 (directions). P2 is
   planned by its own run; P3 waits for the Freya fork at rc.8.

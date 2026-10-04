@@ -59,6 +59,9 @@ pub struct Isle {
     pub next_window_id: u64,
     pub settings: Settings,
     pub shell: isle_shell::Shell,
+    /// The design tokens in force, and why the user's file is not, when it is not.
+    pub tokens: isle_tokens::Source,
+    pub tokens_error: Option<isle_tokens::TokenError>,
     #[cfg(feature = "test-hooks")]
     pub probe: std::rc::Rc<isle_shell::probe::Probe>,
     /// Keys whose press ran a bind; their release is not sent to clients.
@@ -104,6 +107,7 @@ impl ClientData for ClientState {
 }
 
 impl Isle {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         display: Display<State>,
         loop_handle: LoopHandle<'static, State>,
@@ -112,6 +116,7 @@ impl Isle {
         events: broadcast::Sender<Event>,
         settings: Settings,
         seat_name: String,
+        theme: std::rc::Rc<isle_tokens::Theme>,
     ) -> Self {
         let dh = display.handle();
         let clock = Clock::new();
@@ -174,7 +179,7 @@ impl Isle {
             })
             .expect("the shell's wake source");
         #[allow(unused_mut)]
-        let mut shell = isle_shell::Shell::new(ping, Vec::new());
+        let mut shell = isle_shell::Shell::new(ping, theme);
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -191,6 +196,8 @@ impl Isle {
             next_window_id: 1,
             settings,
             shell,
+            tokens: isle_tokens::Source::shipped(),
+            tokens_error: None,
             #[cfg(feature = "test-hooks")]
             probe,
             suppressed_keys: Default::default(),

@@ -9,8 +9,6 @@ use smithay::utils::{Logical, Rectangle, Size as SSize};
 use crate::{Action, Actions, Layer, Scope, SurfaceDef};
 
 pub const SIZE: (i32, i32) = (480, 360);
-/// The panel's fill, which tests look for.
-pub const FILL: (u8, u8, u8) = (28, 28, 34);
 /// The square in the panel's top-left corner, 8 points wide.
 pub const MARKER: (u8, u8, u8) = (255, 0, 0);
 
@@ -137,6 +135,9 @@ fn probe() -> impl IntoElement {
         }
     });
     let progress = bar.read().value();
+    let theme = isle_ui::use_theme();
+    let fill = isle_ui::colour(theme.tokens.colour_window_raised);
+    let text_colour = isle_ui::colour(theme.tokens.colour_text);
 
     let content = rect()
         .expanded()
@@ -203,8 +204,8 @@ fn probe() -> impl IntoElement {
     rect()
         .width(Size::px(SIZE.0 as f32))
         .height(Size::px(SIZE.1 as f32))
-        .background(FILL)
-        .color((235, 235, 240))
+        .background(fill)
+        .color(text_colour)
         .on_global_key_down(move |_| {
             if *switch.peek() == Some(Fault::Event) {
                 panic!("an event panic injected into the probe");

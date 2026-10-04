@@ -176,6 +176,8 @@ pub mod shell {
         /// False when no surface has that name.
         fn open(&self, name: &str) -> zbus::Result<bool>;
         fn close(&self, name: &str) -> zbus::Result<bool>;
+        /// Whether the user's tokens.kdl is in force, or where it went wrong.
+        fn tokens_status(&self) -> zbus::Result<SettingsStatus>;
         /// Turns a surface that panicked too often back on, closed.
         fn restart(&self, name: &str) -> zbus::Result<bool>;
         /// The surface's accessibility tree as JSON: each node's id, role, label, value,

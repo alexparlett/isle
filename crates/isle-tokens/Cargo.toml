@@ -7,4 +7,6 @@ publish.workspace = true
 
 [dependencies]
 kdl.workspace = true
-thiserror.workspace = true
+
+[build-dependencies]
+kdl.workspace = true

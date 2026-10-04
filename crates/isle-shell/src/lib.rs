@@ -106,12 +106,23 @@ pub struct Shell {
     next_id: u64,
     modifiers: freya::prelude::Modifiers,
     a11y: a11y::Requests,
+    theme: Rc<isle_tokens::Theme>,
 }
 
 impl Shell {
     /// `ping` wakes the compositor's loop, which then calls [`Shell::dispatch`].
-    pub fn new(ping: Ping, families: Vec<Cow<'static, str>>) -> Self {
+    pub fn new(ping: Ping, theme: Rc<isle_tokens::Theme>) -> Self {
+        // The tokens' families, then fallbacks for emoji and CJK the design leaves to the system.
+        let mut families: Vec<Cow<'static, str>> = theme
+            .tokens
+            .type_family
+            .split(',')
+            .map(|f| Cow::<str>::Owned(f.trim().to_string()))
+            .filter(|f| !f.is_empty())
+            .collect();
+        families.extend(["Noto Sans", "Noto Color Emoji", "Noto Sans CJK JP"].map(Cow::Borrowed));
         Self {
+            theme,
             a11y: a11y::Requests::new(ping.clone()),
             fonts: Fonts::new(families),
             gpu: None,
@@ -149,6 +160,35 @@ impl Shell {
         self.instances
             .iter()
             .any(|i| i.def.name() == name && i.open)
+    }
+
+    /// Puts `theme` in force in every tree.
+    pub fn set_theme(&mut self, theme: Rc<isle_tokens::Theme>) {
+        if *theme == *self.theme {
+            return;
+        }
+        self.theme = theme;
+        for instance in &mut self.instances {
+            let (Some(embedded), Some(state)) = (instance.embedded.as_mut(), instance.theme) else {
+                continue;
+            };
+            let theme = self.theme.clone();
+            let ran = boundary::guard(instance.def.name(), || {
+                embedded.with_root(|| {
+                    let mut state = state;
+                    state.set(theme);
+                })
+            });
+            if let Err(message) = ran {
+                instance.crash(&message);
+            }
+            std::task::Wake::wake_by_ref(&instance.wakeup);
+        }
+        self.recover();
+    }
+
+    pub fn theme(&self) -> &Rc<isle_tokens::Theme> {
+        &self.theme
     }
 
     /// The accessibility tree of `name`'s first instance, as JSON.
@@ -797,6 +837,7 @@ impl Shell {
             opening: false,
             held_keys: Vec::new(),
             adapter: None,
+            theme: None,
             origin: place.geometry.loc,
             disabled: false,
         };
@@ -816,6 +857,8 @@ impl Shell {
         let open = instance.open;
         let mut shown = None;
         let actions = Actions(instance.actions.clone());
+        let theme = self.theme.clone();
+        let mut theme_state = None;
         let fonts = &mut self.fonts;
         let built = boundary::guard(def.name(), || Embedded::new(
             EmbedConfig {
@@ -831,6 +874,11 @@ impl Shell {
             |runner| {
                 shown = Some(runner.provide_root_context(|| Shown(State::create(open))));
                 runner.provide_root_context(|| actions);
+                theme_state = Some(
+                    runner
+                        .provide_root_context(|| isle_ui::ThemeContext(State::create(theme)))
+                        .0,
+                );
                 def.provide(runner);
             },
         ));
@@ -851,6 +899,7 @@ impl Shell {
         }
         instance.embedded = Some(embedded);
         instance.shown = shown;
+        instance.theme = theme_state;
         instance.adapter = Some(self.a11y.adapter(instance.id));
         Self::set_bounds(instance);
     }

@@ -16,6 +16,7 @@ mod render;
 pub mod settings;
 pub mod state;
 pub mod state_writer;
+pub mod tokens;
 pub mod watchdog;
 mod windows;
 pub mod worker;
@@ -88,7 +89,15 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     let store = std::sync::Arc::new(tokio::sync::Mutex::new(store));
     worker::spawn(worker::ToLoop::new(jobs), events.clone(), store);
 
-    let isle = Isle::new(
+    let (token_source, token_error) = match tokens::load(&tokens::tokens_path()) {
+        Ok(source) => (source, None),
+        Err(err) => {
+            warn!("tokens.kdl rejected, the shipped tokens stand: {err}");
+            (isle_tokens::Source::shipped(), Some(err))
+        }
+    };
+    let theme = tokens::theme(&token_source, &initial);
+    let mut isle = Isle::new(
         display,
         event_loop.handle(),
         event_loop.get_signal(),
@@ -96,7 +105,10 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         events,
         initial.clone(),
         backend.seat_name(),
+        theme,
     );
+    isle.tokens = token_source;
+    isle.tokens_error = token_error;
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
     match (winit_events, session_events) {

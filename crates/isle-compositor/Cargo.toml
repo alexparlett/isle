@@ -25,6 +25,7 @@ humantime.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true
 isle-shell.workspace = true
+isle-tokens.workspace = true
 isle-state.workspace = true
 libc.workspace = true
 notify.workspace = true

@@ -157,6 +157,29 @@ impl Shell {
             .await?)
     }
 
+    /// Whether the user's tokens.kdl is in force, or where it went wrong.
+    async fn tokens_status(&self) -> fdo::Result<SettingsStatus> {
+        Ok(self
+            .to_loop
+            .call(|state| match &state.isle.tokens_error {
+                None => SettingsStatus {
+                    ok: true,
+                    file: crate::tokens::tokens_path().display().to_string(),
+                    line: 0,
+                    column: 0,
+                    message: String::new(),
+                },
+                Some(err) => SettingsStatus {
+                    ok: false,
+                    file: err.file.display().to_string(),
+                    line: err.line as u32,
+                    column: err.column as u32,
+                    message: err.message.clone(),
+                },
+            })
+            .await?)
+    }
+
     /// Turns a surface that panicked too often back on, closed.
     async fn restart(&self, name: String) -> fdo::Result<bool> {
         Ok(self

@@ -1983,6 +1983,7 @@ dependencies = [
  "isle-settings",
  "isle-shell",
  "isle-state",
+ "isle-tokens",
  "libc",
  "notify",
  "png 0.17.16",
@@ -2045,6 +2046,7 @@ dependencies = [
  "accesskit_unix",
  "freya",
  "freya-embed",
+ "isle-tokens",
  "isle-ui",
  "serde_json",
  "smithay",
@@ -2064,7 +2066,6 @@ name = "isle-tokens"
 version = "0.1.0"
 dependencies = [
  "kdl",
- "thiserror 2.0.21",
 ]
 
 [[package]]

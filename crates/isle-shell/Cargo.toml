@@ -12,6 +12,7 @@ serde_json.workspace = true
 freya.workspace = true
 freya-embed.workspace = true
 isle-ui.workspace = true
+isle-tokens.workspace = true
 smithay.workspace = true
 tracing.workspace = true
 

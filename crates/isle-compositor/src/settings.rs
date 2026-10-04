@@ -161,6 +161,9 @@ impl State {
         if touched("pointer[") {
             self.reapply_pointer_settings();
         }
+        if touched("appearance.") {
+            self.isle.refresh_theme();
+        }
         if touched("debug.") {
             self.isle
                 .heartbeat

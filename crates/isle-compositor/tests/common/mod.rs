@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use isle_ipc::{test::TestProxy, version::VersionProxy, windows::WindowsProxy};
+use isle_ipc::{test::TestProxy, windows::WindowsProxy};
 
 pub struct Isle {
     pub dir: PathBuf,
@@ -94,8 +94,10 @@ impl Isle {
         };
         let deadline = Instant::now() + Duration::from_secs(15);
         loop {
-            let ready = match VersionProxy::new(&isle.bus).await {
-                Ok(proxy) => proxy.commit().await.is_ok(),
+            // The bus answers from the worker before the loop has its Wayland socket; a call
+            // answered by the loop shows both are up.
+            let ready = match WindowsProxy::new(&isle.bus).await {
+                Ok(proxy) => proxy.list().await.is_ok(),
                 Err(_) => false,
             };
             if ready {

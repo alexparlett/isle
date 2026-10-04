@@ -17,6 +17,8 @@ pub struct Settings {
     #[setting(keyed)]
     pub pointer: BTreeMap<String, Pointer>,
     #[setting(section)]
+    pub appearance: Appearance,
+    #[setting(section)]
     pub binds: Binds,
     #[setting(section)]
     pub debug: Debug,
@@ -113,6 +115,36 @@ pub enum ScrollMethod {
     Edge,
     OnButtonDown,
     NoScroll,
+}
+
+/// The user's choices within the design tokens (`data/tokens/schema.md`).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Appearance {
+    #[setting(default = AppearanceMode::Dark)]
+    pub mode: AppearanceMode,
+    /// One of the accents `tokens.kdl` defines; its default when unknown.
+    #[setting(default = "blue".to_owned())]
+    pub accent: String,
+    /// The glass from clear, 0, to tinted, 1.
+    #[setting(default = 0.5, range = 0.0..=1.0)]
+    pub glass: f64,
+    /// Every text style multiplies by this, up to the tokens' `type.scale-max`.
+    #[setting(default = 1.0, range = 1.0..=2.0)]
+    pub text_scale: f64,
+    #[setting(default = false)]
+    pub increase_contrast: bool,
+    #[setting(default = false)]
+    pub reduce_motion: bool,
+    #[setting(default = false)]
+    pub reduce_transparency: bool,
+}
+
+/// Light or dark; `auto` follows the sun once Settings can tell where it is (P13), dark until.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum AppearanceMode {
+    Dark,
+    Light,
+    Auto,
 }
 
 /// Until P5's shortcut set: a chord per action, written as `Super+Return`.

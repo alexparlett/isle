@@ -95,7 +95,8 @@ const PRESS: (f64, f64) = (770.0, 426.0);
 const ANIMATE: (f64, f64) = (870.0, 426.0);
 
 const RED: [u8; 3] = [255, 0, 0];
-const FILL: [u8; 3] = [28, 28, 34];
+/// The probe's fill: `colour-window-raised` in the dark appearance.
+const FILL: [u8; 3] = [0x28, 0x29, 0x2e];
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_probe_draws_at_its_place_and_scale() {
@@ -344,4 +345,45 @@ async fn the_sixth_panic_in_a_minute_turns_the_probe_off_until_restarted() {
     shell.open("probe").await.unwrap();
     assert!(probe(&isle).await.open);
     assert_eq!(crash_records(&isle), 0);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_token_edit_reaches_the_probe_and_a_broken_file_keeps_the_last_good() {
+    let isle = Isle::start("shell-tokens").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    tap(&isle, 15).await;
+    settled(&isle).await;
+    assert_eq!(shot(&isle, "tokens-before").await.at(1195, 364), FILL);
+
+    let file = isle.dir.join("config/tokens.kdl");
+    fs::write(&file, "version 1\ncolour { dark { window-raised \"#102030\" } }\n").unwrap();
+    let started = std::time::Instant::now();
+    wait_until(|| async { shot(&isle, "tokens-after").await.at(1195, 364) == [0x10, 0x20, 0x30] })
+        .await;
+    assert!(started.elapsed() < Duration::from_secs(1), "{:?}", started.elapsed());
+    assert!(shell.tokens_status().await.unwrap().ok);
+
+    fs::write(&file, "version 1\ncolour { dark { window-raised \"#1020\n").unwrap();
+    wait_until(|| async { !shell.tokens_status().await.unwrap().ok }).await;
+    let status = shell.tokens_status().await.unwrap();
+    assert!(status.line >= 2, "{status:?}");
+    settled(&isle).await;
+    assert_eq!(shot(&isle, "tokens-broken").await.at(1195, 364), [0x10, 0x20, 0x30]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_appearance_setting_redraws_the_probe_in_light() {
+    let isle = Isle::start("shell-light").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    tap(&isle, 15).await;
+    settled(&isle).await;
+    SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("appearance.mode", &zvariant::Value::from("light"))
+        .await
+        .unwrap();
+    wait_until(|| async { shot(&isle, "light").await.at(1195, 364) == [0xff, 0xff, 0xff] }).await;
 }

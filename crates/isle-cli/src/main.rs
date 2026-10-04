@@ -91,6 +91,8 @@ enum Shell {
     Tree { name: String },
     /// Turn a surface back on after it panicked too often.
     Restart { name: String },
+    /// Whether tokens.kdl is in force, or why not.
+    Tokens,
 }
 
 #[derive(Subcommand)]
@@ -234,6 +236,20 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 Shell::Close { name } => surface_found(proxy.close(name).await?, name)?,
                 Shell::Tree { name } => println!("{}", proxy.tree(name).await?),
                 Shell::Restart { name } => surface_found(proxy.restart(name).await?, name)?,
+                Shell::Tokens => {
+                    let status = proxy.tokens_status().await?;
+                    if cli.json {
+                        print_json(&status);
+                    } else if status.ok {
+                        println!("in force: {}", status.file);
+                    } else {
+                        println!(
+                            "{}:{}:{}: {}",
+                            status.file, status.line, status.column, status.message
+                        );
+                        return Err(zbus::Error::Failure("tokens.kdl is not in force".into()));
+                    }
+                }
             }
         }
         Command::Test(command) => {

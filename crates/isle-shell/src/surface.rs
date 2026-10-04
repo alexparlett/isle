@@ -143,6 +143,7 @@ pub(crate) struct Instance {
     pub opening: bool,
     pub held_keys: Vec<freya_embed::PlatformEvent>,
     pub adapter: Option<accesskit_unix::Adapter>,
+    pub theme: Option<State<Rc<isle_tokens::Theme>>>,
     /// The output's origin in the global space, for the adapter's window bounds.
     pub origin: smithay::utils::Point<i32, Logical>,
     pub disabled: bool,

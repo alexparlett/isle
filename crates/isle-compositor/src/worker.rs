@@ -87,6 +87,10 @@ pub fn spawn(to_loop: ToLoop, events: broadcast::Sender<Event>, store: SharedSto
             runtime.spawn(supervise("settings-watch", move || {
                 crate::settings::watch(store_w.clone(), loop_w.clone(), events_w.clone())
             }));
+            let loop_t = to_loop.clone();
+            runtime.spawn(supervise("tokens-watch", move || {
+                crate::tokens::watch(loop_t.clone())
+            }));
             runtime.block_on(supervise("dbus", move || {
                 crate::dbus::serve(to_loop.clone(), events.clone(), store.clone())
             }));

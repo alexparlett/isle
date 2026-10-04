@@ -97,9 +97,10 @@ D86: a file replaced by rename defeats a watch on its inode. D58: anything
 rendered from settings is rendered again once settings and devices have both
 loaded.
 
-**Open for its packet.** `kdl` 6.7 against `knus` 3.4 (B10;
-`ui-and-services.md` §4). Whether `include` is supported. How v1's keys map
-onto the new schema.
+**Settled in P2.** `kdl` 6.7 parses; `knus` reads only KDL v1. A Set is
+written into the file's own text at its value's span, never by printing
+the document, which loses whitespace (B36). No `include`. How v1's keys map
+onto the new schema is P14's import.
 
 ### State
 
@@ -126,8 +127,9 @@ restarts without the user ever seeing a file.
 anything needed after a reboot is not kept in the runtime directory. D57: an
 off-screen place is never recorded (`compositor.md`).
 
-**Open for its packet.** The format (KDL, JSON or an embedded database) and
-the size caps per domain.
+**Settled in P2.** One JSON file per domain with a `version` field,
+written by temporary file, fsync and rename, debounced on the worker. Size
+caps come with each domain's packet.
 
 ### Design tokens
 
@@ -497,8 +499,9 @@ through one documented interface and one command.
 hook went through one CLI. D80: a handler must exist from start, not on
 first use.
 
-**Open for its packet.** The bus name, and whether one interface or several
-objects.
+**Settled in P2.** `io.github.alexparlett.Isle`, one object per
+interface family under `/io/github/alexparlett/Isle/`, each interface
+versioned (`…Isle.Settings1`) (B35).
 
 ### Session start and greeter
 

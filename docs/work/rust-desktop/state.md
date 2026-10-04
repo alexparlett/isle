@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B34 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B36 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -145,4 +145,9 @@
   grabs the Mac keyboard and sends Cmd+Return as Ctrl+Return. xremap.service
   is WantedBy graphical-session.target, so isle-session.target would start
   it in a real Isle session too: P5 retires xremap, and P14 must disable
-  v1's units before the host moves over. Next: 2.9, close.
+  v1's units before the host moves over.
+- P2 is done (2026-10-04): ARCHITECTURE has How the core runs, B35 and
+  B36 are recorded, the intent docs' open points P2 settled are answered,
+  and `p2-compositor.md` ends with its outcome. Next: P3, the shell
+  runtime, once the Freya fork is at rc.8; P4 (windows) and P5 (keyboard)
+  need only P2 and can start before it.

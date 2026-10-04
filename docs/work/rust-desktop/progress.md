@@ -2,6 +2,10 @@
 
 ## 2026-10-04
 
+- P2 done. ARCHITECTURE describes the core as built; B35 records its
+  shape and B36 how settings are written; the roadmap moves second-GPU
+  scan-out and v1's units to P14 and mode confirmation to P13.
+
 - P2 host smoke run: Isle lit the ultrawide on the 5070 Ti from tty8 and
   took input. Two findings: the pointer redrew only when something else
   did (fixed: motion queues a redraw whenever Isle draws the cursor), and

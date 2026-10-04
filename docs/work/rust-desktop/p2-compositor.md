@@ -1,6 +1,10 @@
 # P2 · Compositor core
 
-Planned 2026-10-03. The roadmap's brief: the Cargo workspace; the pinned
+Planned 2026-10-03; done 2026-10-04. The record is `docs/ARCHITECTURE.md`
+(How the core runs) with B35 and B36; what was found on the way is in
+`progress.md`.
+
+The roadmap's brief: the Cargo workspace; the pinned
 Smithay fork (B6); udev/DRM and winit backends; libinput; outputs with
 hotplug, scale and the KVM lessons; xdg-shell and layer-shell; the calloop
 loop, service worker, watchdog and session supervisor (B9); the settings
@@ -364,3 +368,24 @@ needs them.
 - **Settings write-back.** Keeping formatting through `kdl`'s document
   model while the schema is typed is the fiddliest code here; the
   round-trip tests in 2.0 and 2.3 are written before the writer.
+
+## Outcome
+
+Every phase passed its check, with these differences from the plan:
+
+- **The Smithay fork** waits: upstream master is pinned at `118e34f` until
+  a patch needs the fork (the user's call at 2.0).
+- **Settings writes** splice by span rather than printing `kdl`'s document,
+  which loses whitespace (B36).
+- **Moved out:** a second GPU's connectors (P14) and a mode change that
+  reverts unless confirmed (P13).
+- **Not checked:** Firefox, foot, a GTK 4 and a Qt 6 app (the host has
+  none; kitty, Chromium, VS Code, mpv and zathura ran); the NVIDIA profile's
+  effect, which needs the DRM path over a long session
+  (`docs/research/rust-desktop/p2-vram.md`); a real KVM switch (P14).
+- **Found on the host:** v1's xremap, started by `graphical-session.target`,
+  rewrites Cmd chords before Isle sees them (recorded in P14's brief).
+
+Tests: `cargo test --workspace --features isle-compositor/test-hooks`, 42
+across unit, settings, state, eleven headless compositor and four
+supervisor tests.

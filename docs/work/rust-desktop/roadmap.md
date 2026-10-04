@@ -46,7 +46,7 @@ Runs beside P2 and P3. Surfaces are built from P4 onwards against its
 output; a surface whose design is not done is built as structure only.
 Intent: shell.md, apps.md, compositor.md, gaming.md.
 
-**P2 · Compositor core.** Planned 2026-10-03 in `p2-compositor.md`. The Cargo workspace; the pinned Smithay fork (B6);
+**P2 · Compositor core.** Done 2026-10-04: `p2-compositor.md`, B35 and B36. The Cargo workspace; the pinned Smithay fork (B6);
 udev/DRM and winit backends; libinput; outputs with hotplug, scale and the
 KVM lessons; xdg-shell and layer-shell; the calloop loop, service worker,
 watchdog and session supervisor (B9); the settings store and its D-Bus
@@ -121,7 +121,8 @@ chords over a game (B30); Steam, its Big Picture as a full-screen game
 **P13 · Settings, core.** The Settings app on the app conventions: displays,
 sound, network, Bluetooth, keyboard and shortcuts, appearance, desktop and
 hot corners, Control Centre, Focus and Game Mode. Measures an app's memory on the GPU before
-B26's default is final. Intent: apps.md.
+B26's default is final. A display mode change reverts unless confirmed in
+the Displays pane (moved from P2). Intent: apps.md.
 
 ## Milestone M2: Isle replaces v1 on the host
 
@@ -131,7 +132,11 @@ greetd (B26) and session start, Login Items and autostart, crash logs, the
 update path, the dev loop that replaces `isle-dev-sync`; theming installed
 apps from tokens as P1's `system/theming.md` maps them, with Qt apps
 reaching Isle's file panels; the one-time import of v1's preferences, window places
-and launch counts (B27). Ends with the host booting into the new Isle.
+and launch counts (B27). Scan-out of a second GPU's connectors (moved from
+P2). v1's user units disabled before the host moves over: xremap.service is
+wanted by graphical-session.target, which isle-session.target binds, and
+would rewrite Cmd chords before Isle saw them. Ends with the host booting
+into the new Isle.
 Intent: platform.md, compositor.md.
 
 ## After M2: parity

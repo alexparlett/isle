@@ -45,6 +45,8 @@ is in `docs/DECISIONS.md`, the one authoritative copy. Index:
 - B32 · Attention, presented.
 - B33 · Glass, and where it may go.
 - B34 · Readings of the principles.
+- B35 · The compositor core's shape.
+- B36 · Settings are written into the file's own text.
 
 ## Open
 

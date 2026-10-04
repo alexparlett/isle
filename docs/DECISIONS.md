@@ -376,3 +376,32 @@ third-party app does not report; control edges and unfocused selections
 sit at the Mac's contrast by default and reach 3:1 under Increase
 Contrast, a deliberate departure from WCAG 1.4.11 (P1, P3); the text size
 goes to 1.5× and the compositor's Zoom serves beyond.
+
+**B35 · The compositor core's shape.** Built in P2 and kept by later
+packets. Three binaries: `isle-session` (the supervisor), `isle-compositor`
+(fifteen characters, so `pkill -x` and the NVIDIA application profile
+match it whole) and `isle` (the CLI). One bus name,
+`io.github.alexparlett.Isle`, with an object per interface family and
+versioned interfaces; Isle owns no domain, and a reverse-DNS name on the
+GitHub account is Flatpak's convention. The worker is a tokio runtime on its
+own thread; it reaches the loop only by jobs, which fail after a second,
+and services on it restart with a backoff. Frames are drawn only for
+change, in niri's per-output redraw states, with frame callbacks at the
+estimated vblank. The watchdog ends a dispatch stuck for ten seconds by
+aborting the main thread, so the core dump holds its stack and the
+supervisor starts a fresh session. State is one versioned JSON file per
+domain. The supervisor exports the session through `isle-session.target`,
+since `graphical-session.target` refuses a manual start. Clients draw their
+own frames until P4's title bars. Rejected: one multi-call `isle` binary
+(the CLI would link Smithay), `org.isle.Desktop` (a domain Isle does not
+own), logging a hang without ending it (a hung desktop is no use, and the
+abort keeps the evidence).
+
+**B36 · Settings are written into the file's own text.** A Set changes
+`settings.kdl` by splicing the new value's text at the old value's span,
+adding a missing node inside its block at the block's indent; `kdl` 6.7
+only parses. Its printer drops whitespace on a round trip (kdl-rs #178,
+#179, #193; found in P2), and `knus` reads only KDL v1, which `tokens.kdl`
+is not. Every byte not changed stays as the user typed it, and the result
+is parsed again before it is written. Rejected: printing the parsed
+document, a derive-based KDL crate.

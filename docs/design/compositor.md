@@ -234,7 +234,7 @@ leaving a screen dark.
 
 **v1 lessons kept.** D56: a KVM that holds EDID leaves a connector up with a CRTC and is never re-probed; releasing outputs recovers it, a renderer reload does not. D76: an output asleep is not released, so redetect wakes first; the stranded state must be read from what is lit, not a stale list; a KVM hands the screen back minutes later. D57: windows are never left off the outputs. smithay-and-gaming.md §0: the AMD iGPU enumerates first on the host, so "first render node" is wrong. Inventory §13: the `renderHWCursorBuffer` crash on layout change; cursor planes are reassigned safely on every output change.
 
-**Open for its packet.** Whether Smithay's connector scanner sees a KVM return without a hotplug event. Night light through `GAMMA_LUT` or a shader.
+**Settled in part by P2.** Whether the scanner sees a KVM return without a hotplug event no longer matters: while nothing is lit the connectors are probed every three seconds, and again on every session resume (checked headless and in the VM; the KVM itself is P14's to check). Open: night light through `GAMMA_LUT` or a shader.
 
 ### Idle, DPMS and sleep
 
@@ -364,7 +364,7 @@ with tearing where the user allows it (B6).
 
 **v1 lessons kept.** D17: outside the logind session scope NetworkManager, udisks and logind refuse or demand admin. D15, D43: a dead locker stranded the session and the restart loop gave up; logs were lost in the runtime directory. D53: restore by app and Space; a shell restart replays nothing. D66: Rust-side faults land in something restartable, not the whole desktop.
 
-**Open for its packet.** What the watchdog does after a hang of seconds (backtrace, kill, both). GPU reset recovery, which killed Denial's session (smithay-and-gaming.md §4.5). Where the session publishes the greeter's choices so greetd's user can read them.
+**Settled in P2.** A dispatch stuck for ten seconds writes a crash record and aborts the main thread, so its stack is in the core dump and the supervisor starts a fresh session; `debug { watchdog-abort #false }` turns that off (B35). **Open.** GPU reset recovery, which killed Denial's session (smithay-and-gaming.md §4.5). Where the session publishes the greeter's choices so greetd's user can read them.
 
 ### Shell surface hosting
 

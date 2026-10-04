@@ -88,6 +88,15 @@ impl Backend {
         }
     }
 
+    /// The renderer, while there is one: the udev backend has none while the session is away.
+    pub fn renderer_opt(&mut self) -> Option<&mut GlesRenderer> {
+        match self {
+            Backend::Udev(udev) => udev.renderer_opt(),
+            Backend::Winit(winit) => Some(winit.renderer()),
+            Backend::Headless(headless) => Some(&mut headless.renderer),
+        }
+    }
+
     fn renderer(&mut self) -> &mut GlesRenderer {
         match self {
             Backend::Udev(udev) => udev.renderer(),

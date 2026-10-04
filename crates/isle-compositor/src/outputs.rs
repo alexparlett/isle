@@ -62,6 +62,7 @@ impl Isle {
 
     fn output_set_changed(&mut self) {
         self.update_frame_budget();
+        self.sync_shell_outputs();
         self.queue_redraw_all();
         self.notify(Event::DisplaysChanged);
         self.notify(Event::WindowsChanged);

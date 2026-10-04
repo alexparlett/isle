@@ -159,6 +159,10 @@ impl Udev {
         self.renderer.as_mut().expect("the render GPU is open")
     }
 
+    pub fn renderer_opt(&mut self) -> Option<&mut GlesRenderer> {
+        self.renderer.as_mut()
+    }
+
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         self.renderer
             .as_mut()
@@ -512,7 +516,7 @@ impl State {
         let surface = match device
             .manager
             .lock()
-            .initialize_output::<_, IsleElement<GlesRenderer>>(
+            .initialize_output::<_, IsleElement>(
                 crtc,
                 drm_mode,
                 &[connector.handle()],
@@ -573,7 +577,7 @@ impl State {
         let _ = device
             .manager
             .lock()
-            .try_to_restore_modifiers::<_, IsleElement<GlesRenderer>>(
+            .try_to_restore_modifiers::<_, IsleElement>(
                 renderer,
                 &DrmOutputRenderElements::default(),
             );

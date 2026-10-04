@@ -8,6 +8,7 @@ publish.workspace = true
 [features]
 # The Test interface: input injection, forced stalls and panics. Never in a package.
 test-hooks = [
+    "isle-shell/probe",
     "dep:png",
     "dep:wayland-client",
     "dep:wayland-protocols",
@@ -23,6 +24,7 @@ required-features = ["test-hooks"]
 humantime.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true
+isle-shell.workspace = true
 isle-state.workspace = true
 libc.workspace = true
 notify.workspace = true

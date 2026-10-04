@@ -1893,6 +1893,7 @@ dependencies = [
  "humantime",
  "isle-ipc",
  "isle-settings",
+ "isle-shell",
  "isle-state",
  "libc",
  "notify",

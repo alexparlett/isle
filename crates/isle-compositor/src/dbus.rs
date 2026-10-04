@@ -3,8 +3,8 @@
 use std::error::Error;
 
 use isle_ipc::{
-    BUS_NAME, DISPLAYS_PATH, DisplayInfo, SESSION_PATH, SETTINGS_PATH, SettingKey, SettingsStatus,
-    VERSION_PATH, WINDOWS_PATH, WindowInfo,
+    BUS_NAME, DISPLAYS_PATH, DisplayInfo, SESSION_PATH, SETTINGS_PATH, SHELL_PATH, SettingKey,
+    SettingsStatus, SurfaceInfo, VERSION_PATH, WINDOWS_PATH, WindowInfo,
 };
 use isle_settings::{SetError, Value, schema_of};
 use tokio::sync::broadcast;
@@ -109,6 +109,53 @@ impl Windows {
 
     #[zbus(signal)]
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
+struct Shell {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Shell1")]
+impl Shell {
+    async fn list(&self) -> fdo::Result<Vec<SurfaceInfo>> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                state
+                    .isle
+                    .shell
+                    .surfaces()
+                    .into_iter()
+                    .map(|s| SurfaceInfo {
+                        name: s.name,
+                        output: s.output,
+                        open: s.open,
+                        x: s.geometry.loc.x,
+                        y: s.geometry.loc.y,
+                        width: s.geometry.size.w,
+                        height: s.geometry.size.h,
+                        panics: s.panics,
+                        disabled: s.disabled,
+                        wakes: s.wakes,
+                    })
+                    .collect()
+            })
+            .await?)
+    }
+
+    async fn open(&self, name: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.open_surface(&name))
+            .await?)
+    }
+
+    async fn close(&self, name: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.close_surface(&name))
+            .await?)
+    }
 }
 
 struct Displays {
@@ -252,7 +299,10 @@ impl Test {
                     .find(|o| o.name() == output)
                     .cloned();
                 match target {
-                    Some(target) => state.backend.screenshot(&state.isle, &target),
+                    Some(target) => {
+                        state.draw_shell(&target);
+                        state.backend.screenshot(&state.isle, &target)
+                    }
                     None => Err("no such output".into()),
                 }
             })
@@ -446,6 +496,12 @@ pub async fn serve(
         .serve_at(
             WINDOWS_PATH,
             Windows {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
+            SHELL_PATH,
+            Shell {
                 to_loop: to_loop.clone(),
             },
         )?

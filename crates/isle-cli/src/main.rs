@@ -7,8 +7,8 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use isle_ipc::{
-    displays::DisplaysProxy, session::SessionProxy, settings::SettingsProxy, test::TestProxy,
-    version::VersionProxy, windows::WindowsProxy,
+    displays::DisplaysProxy, session::SessionProxy, settings::SettingsProxy, shell::ShellProxy,
+    test::TestProxy, version::VersionProxy, windows::WindowsProxy,
 };
 use serde::Serialize;
 
@@ -37,6 +37,8 @@ enum Command {
     Displays(Displays),
     #[command(subcommand)]
     Settings(Settings),
+    #[command(subcommand)]
+    Shell(Shell),
     /// Hooks served only by test builds.
     #[command(subcommand, hide = true)]
     Test(Test),
@@ -75,6 +77,16 @@ enum Settings {
     Schema,
     /// Put settings.kdl in force after Isle started on the defaults.
     UseMine,
+}
+
+#[derive(Subcommand)]
+enum Shell {
+    /// Every shell surface, one line per output it is on.
+    List,
+    /// Open a surface by its name.
+    Open { name: String },
+    /// Close a surface by its name.
+    Close { name: String },
 }
 
 #[derive(Subcommand)]
@@ -191,6 +203,33 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Settings(command) => settings(cli, &bus, command).await?,
+        Command::Shell(command) => {
+            let proxy = ShellProxy::new(&bus).await?;
+            match command {
+                Shell::List => {
+                    let surfaces = proxy.list().await?;
+                    if cli.json {
+                        print_json(&surfaces);
+                    } else {
+                        for s in surfaces {
+                            let state = if s.disabled {
+                                "disabled"
+                            } else if s.open {
+                                "open"
+                            } else {
+                                "closed"
+                            };
+                            println!(
+                                "{}  {}  {state}  {}x{} at {},{}  panics {}",
+                                s.name, s.output, s.width, s.height, s.x, s.y, s.panics
+                            );
+                        }
+                    }
+                }
+                Shell::Open { name } => surface_found(proxy.open(name).await?, name)?,
+                Shell::Close { name } => surface_found(proxy.close(name).await?, name)?,
+            }
+        }
         Command::Test(command) => {
             let proxy = TestProxy::new(&bus).await?;
             match command {
@@ -296,6 +335,14 @@ fn found(found: bool, id: u64) -> zbus::Result<()> {
         Ok(())
     } else {
         Err(zbus::Error::Failure(format!("no window has id {id}")))
+    }
+}
+
+fn surface_found(found: bool, name: &str) -> zbus::Result<()> {
+    if found {
+        Ok(())
+    } else {
+        Err(zbus::Error::Failure(format!("no surface is called {name}")))
     }
 }
 

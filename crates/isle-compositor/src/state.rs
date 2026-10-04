@@ -58,6 +58,7 @@ pub struct Isle {
     pub events: broadcast::Sender<Event>,
     pub next_window_id: u64,
     pub settings: Settings,
+    pub shell: isle_shell::Shell,
     /// Keys whose press ran a bind; their release is not sent to clients.
     pub suppressed_keys: std::collections::HashSet<smithay::input::keyboard::Keycode>,
 
@@ -160,6 +161,19 @@ impl Isle {
             .expect("a keyboard with the default keymap");
         seat.add_pointer();
 
+        let (ping, ping_source) =
+            smithay::reexports::calloop::ping::make_ping().expect("the shell's wake source");
+        loop_handle
+            .insert_source(ping_source, |_, _, state| {
+                let _beat = state.isle.heartbeat.beat("shell");
+                state.isle.dispatch_shell();
+            })
+            .expect("the shell's wake source");
+        #[allow(unused_mut)]
+        let mut shell = isle_shell::Shell::new(ping, Vec::new());
+        #[cfg(feature = "test-hooks")]
+        shell.register(std::rc::Rc::new(isle_shell::probe::Probe::default()));
+
         Self {
             display_handle: dh,
             loop_handle,
@@ -170,6 +184,7 @@ impl Isle {
             events,
             next_window_id: 1,
             settings,
+            shell,
             suppressed_keys: Default::default(),
             space: Space::default(),
             unmapped: Vec::new(),
@@ -280,6 +295,30 @@ impl Isle {
         Some(window.toplevel()?.wl_surface().clone())
     }
 
+    /// Runs the shell surfaces whose wakers fired and redraws the outputs they changed.
+    pub fn dispatch_shell(&mut self) {
+        for output in self.shell.dispatch() {
+            self.queue_redraw(&output);
+        }
+    }
+
+    /// Tells the shell where the outputs are; the first is the main one.
+    pub fn sync_shell_outputs(&mut self) {
+        let places = self
+            .space
+            .outputs()
+            .filter_map(|output| {
+                Some(isle_shell::OutputPlace {
+                    output: output.clone(),
+                    geometry: self.space.output_geometry(output)?,
+                    scale: output.current_scale().fractional_scale(),
+                })
+            })
+            .collect();
+        self.shell.set_outputs(places);
+        self.dispatch_shell();
+    }
+
     pub fn queue_redraw_all(&mut self) {
         let outputs: Vec<_> = self.space.outputs().cloned().collect();
         for output in &outputs {
@@ -296,6 +335,19 @@ impl Isle {
 }
 
 impl State {
+    pub fn open_surface(&mut self, name: &str) -> bool {
+        let found = self.isle.shell.open(name);
+        self.isle.dispatch_shell();
+        found
+    }
+
+    pub fn close_surface(&mut self, name: &str) -> bool {
+        let found = self.isle.shell.close(name);
+        self.isle.dispatch_shell();
+        self.isle.queue_redraw_all();
+        found
+    }
+
     /// Gives `window` the keyboard, or clears it.
     pub fn set_focus(&mut self, window: Option<&Window>) {
         let surface = self.isle.focus_window(window);

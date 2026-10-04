@@ -11,6 +11,7 @@ pub const WINDOWS_PATH: &str = "/io/github/alexparlett/Isle/Windows";
 pub const DISPLAYS_PATH: &str = "/io/github/alexparlett/Isle/Displays";
 pub const TEST_PATH: &str = "/io/github/alexparlett/Isle/Test";
 pub const SETTINGS_PATH: &str = "/io/github/alexparlett/Isle/Settings";
+pub const SHELL_PATH: &str = "/io/github/alexparlett/Isle/Shell";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -60,6 +61,25 @@ pub struct DisplayInfo {
     pub scale: f64,
     pub x: i32,
     pub y: i32,
+}
+
+/// One instance of a shell surface.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct SurfaceInfo {
+    pub name: String,
+    pub output: String,
+    pub open: bool,
+    /// The surface's box relative to its output, in logical points.
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+    /// Panics in the last minute.
+    pub panics: u32,
+    /// Off after too many panics, until restarted.
+    pub disabled: bool,
+    /// Updates run because the surface's waker fired.
+    pub wakes: u64,
 }
 
 pub mod version {
@@ -140,6 +160,22 @@ pub mod windows {
         fn close(&self, id: u64) -> zbus::Result<bool>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
+    }
+}
+
+pub mod shell {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Shell1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Shell"
+    )]
+    pub trait Shell {
+        fn list(&self) -> zbus::Result<Vec<SurfaceInfo>>;
+        /// False when no surface has that name.
+        fn open(&self, name: &str) -> zbus::Result<bool>;
+        fn close(&self, name: &str) -> zbus::Result<bool>;
     }
 }
 

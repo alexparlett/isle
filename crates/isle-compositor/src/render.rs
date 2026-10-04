@@ -2,12 +2,13 @@
 
 use smithay::{
     backend::renderer::{
-        ImportAll, ImportMem, Renderer, Texture,
         element::{
             AsRenderElements, Kind,
             memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
             surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
+            texture::TextureRenderElement,
         },
+        gles::{GlesRenderer, GlesTexture},
     },
     desktop::{LayerMap, layer_map_for_output},
     input::pointer::{CursorImageAttributes, CursorImageStatus},
@@ -21,9 +22,10 @@ use std::sync::Mutex;
 use crate::state::Isle;
 
 render_elements! {
-    pub IsleElement<R> where R: ImportAll + ImportMem;
-    Surface = WaylandSurfaceRenderElement<R>,
-    Memory = MemoryRenderBufferRenderElement<R>,
+    pub IsleElement<=GlesRenderer>;
+    Surface = WaylandSurfaceRenderElement<GlesRenderer>,
+    Memory = MemoryRenderBufferRenderElement<GlesRenderer>,
+    Shell = TextureRenderElement<GlesTexture>,
 }
 
 /// A themed cursor image the backend draws itself, with its hotspot.
@@ -34,16 +36,15 @@ pub struct NamedCursor<'a> {
 
 impl Isle {
     /// `cursor` is the themed image for a named cursor, when the backend draws one.
-    pub fn render_elements<R>(
+    /// Front to back: the cursor, shell overlays, layer-shell overlay and top, shell surfaces
+    /// over windows, windows, layer-shell bottom and background, the shell's background.
+    pub fn render_elements(
         &self,
-        renderer: &mut R,
+        renderer: &mut GlesRenderer,
         output: &Output,
         cursor: Option<NamedCursor<'_>>,
-        push: &mut dyn FnMut(IsleElement<R>),
-    ) where
-        R: Renderer + ImportAll + ImportMem,
-        R::TextureId: Texture + Clone + Send + 'static,
-    {
+        push: &mut dyn FnMut(IsleElement),
+    ) {
         let Some(geometry) = self.space.output_geometry(output) else {
             return;
         };
@@ -94,16 +95,22 @@ impl Isle {
             _ => {}
         }
 
+        let shell = |layer, push: &mut dyn FnMut(IsleElement)| {
+            self.shell
+                .elements(output, layer, &mut |e| push(IsleElement::Shell(e)))
+        };
+        shell(isle_shell::Layer::Overlay, push);
         let layers = layer_map_for_output(output);
         push_layers(&layers, Layer::Overlay, renderer, scale, push);
         push_layers(&layers, Layer::Top, renderer, scale, push);
+        shell(isle_shell::Layer::Top, push);
 
         for window in self.space.elements_for_output(output).rev() {
             let Some(location) = self.space.element_location(window) else {
                 continue;
             };
             let location: Point<i32, _> = location - window.geometry().loc - geometry.loc;
-            for element in AsRenderElements::<R>::render_elements::<WaylandSurfaceRenderElement<R>>(
+            for element in AsRenderElements::<GlesRenderer>::render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
                 window,
                 renderer,
                 location.to_physical_precise_round(scale),
@@ -116,24 +123,22 @@ impl Isle {
 
         push_layers(&layers, Layer::Bottom, renderer, scale, push);
         push_layers(&layers, Layer::Background, renderer, scale, push);
+        shell(isle_shell::Layer::Background, push);
     }
 }
 
-fn push_layers<R>(
+fn push_layers(
     layers: &LayerMap,
     kind: Layer,
-    renderer: &mut R,
+    renderer: &mut GlesRenderer,
     scale: Scale<f64>,
-    push: &mut dyn FnMut(IsleElement<R>),
-) where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Texture + Clone + Send + 'static,
-{
+    push: &mut dyn FnMut(IsleElement),
+) {
     for layer in layers.layers_on(kind).rev() {
         let Some(at) = layers.layer_geometry(layer) else {
             continue;
         };
-        for element in AsRenderElements::<R>::render_elements::<WaylandSurfaceRenderElement<R>>(
+        for element in AsRenderElements::<GlesRenderer>::render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
             layer,
             renderer,
             at.loc.to_physical_precise_round(scale),

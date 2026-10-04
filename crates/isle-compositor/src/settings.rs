@@ -191,6 +191,7 @@ impl Isle {
         if let (Some(x), Some(y)) = (config.x, config.y) {
             self.space.map_output(output, (x, y));
         }
+        self.sync_shell_outputs();
         self.queue_redraw(output);
         self.notify(Event::DisplaysChanged);
     }

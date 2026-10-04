@@ -192,6 +192,7 @@ impl State {
 
     fn redraw(&mut self, output: &Output) {
         let _beat = self.isle.heartbeat.beat("redraw");
+        self.draw_shell(output);
         let rendered = match self.backend.render(&mut self.isle, output) {
             Ok(rendered) => rendered,
             Err(err) => {
@@ -255,6 +256,13 @@ impl State {
         OutputState::of(output).borrow_mut().redraw = RedrawState::WaitingForEstimatedVBlank(token);
     }
 
+    /// Draws the shell surfaces on `output` whose trees changed, before its frame.
+    pub fn draw_shell(&mut self, output: &Output) {
+        if let Some(renderer) = self.backend.renderer_opt() {
+            self.isle.shell.draw(renderer, output);
+        }
+    }
+
     /// The backend's vblank for `output`: the submitted frame is on screen.
     pub fn on_vblank(&mut self, output: &Output) {
         let feedback = {
@@ -277,6 +285,7 @@ impl State {
             }
             state.pending_feedback.take()
         };
+        self.isle.shell.presented(output);
         if let Some(mut feedback) = feedback {
             feedback.presented(
                 self.isle.clock.now(),

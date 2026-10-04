@@ -11,3 +11,7 @@ freya-embed.workspace = true
 isle-ui.workspace = true
 smithay.workspace = true
 tracing.workspace = true
+
+[features]
+# The probe surface, for tests and the preview.
+probe = []

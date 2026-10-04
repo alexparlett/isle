@@ -214,6 +214,11 @@ pub mod test {
         fn pointer_to(&self, x: f64, y: f64) -> zbus::Result<()>;
         /// A button by its evdev code: 272 is the left button.
         fn button(&self, button: u32, pressed: bool) -> zbus::Result<()>;
+        /// Scrolls as a mouse wheel does, in steps of 120 per notch; positive is down.
+        fn axis(&self, v120_x: i32, v120_y: i32) -> zbus::Result<()>;
+        /// The probe surface's model: the field's text, the presses counted, whether it
+        /// animates.
+        fn probe(&self) -> zbus::Result<(String, u32, bool)>;
         /// Adds a virtual display; headless only.
         #[allow(clippy::too_many_arguments)]
         fn add_output(

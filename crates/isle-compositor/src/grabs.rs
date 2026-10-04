@@ -29,7 +29,7 @@ macro_rules! forward_rest {
             &mut self,
             data: &mut State,
             handle: &mut PointerInnerHandle<'_, State>,
-            focus: Option<(WlSurface, Point<f64, Logical>)>,
+            focus: Option<(crate::focus::Focus, Point<f64, Logical>)>,
             event: &RelativeMotionEvent,
         ) {
             handle.relative_motion(data, focus, event);
@@ -127,7 +127,7 @@ impl PointerGrab<State> for MoveGrab {
         &mut self,
         data: &mut State,
         handle: &mut PointerInnerHandle<'_, State>,
-        _focus: Option<(WlSurface, Point<f64, Logical>)>,
+        _focus: Option<(crate::focus::Focus, Point<f64, Logical>)>,
         event: &MotionEvent,
     ) {
         handle.motion(data, None, event);
@@ -207,7 +207,7 @@ impl PointerGrab<State> for ResizeGrab {
         &mut self,
         data: &mut State,
         handle: &mut PointerInnerHandle<'_, State>,
-        _focus: Option<(WlSurface, Point<f64, Logical>)>,
+        _focus: Option<(crate::focus::Focus, Point<f64, Logical>)>,
         event: &MotionEvent,
     ) {
         handle.motion(data, None, event);

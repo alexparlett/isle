@@ -66,7 +66,7 @@ impl Isle {
                     app_id,
                     title,
                     output,
-                    focused: focus.as_ref() == Some(toplevel.wl_surface()),
+                    focused: focus.as_ref().and_then(|f| f.surface()) == Some(toplevel.wl_surface()),
                 })
             })
             .collect()

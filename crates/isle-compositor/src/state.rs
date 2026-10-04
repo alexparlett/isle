@@ -41,7 +41,7 @@ use tracing::{info, warn};
 use isle_settings::schema::Settings;
 use tokio::sync::broadcast;
 
-use crate::{backend::Backend, watchdog::Heartbeat, worker::Event};
+use crate::{backend::Backend, focus::Focus, watchdog::Heartbeat, worker::Event};
 
 pub struct State {
     pub backend: Backend,
@@ -59,8 +59,12 @@ pub struct Isle {
     pub next_window_id: u64,
     pub settings: Settings,
     pub shell: isle_shell::Shell,
+    #[cfg(feature = "test-hooks")]
+    pub probe: std::rc::Rc<isle_shell::probe::Probe>,
     /// Keys whose press ran a bind; their release is not sent to clients.
     pub suppressed_keys: std::collections::HashSet<smithay::input::keyboard::Keycode>,
+    /// The keyboard's focus before a shell surface took it, given back when it closes.
+    pub shell_keyboard_return: Vec<(isle_shell::ShellFocus, Option<Focus>)>,
 
     pub space: Space<Window>,
     /// Toplevels that have not committed a buffer yet; they are placed when they do.
@@ -166,13 +170,15 @@ impl Isle {
         loop_handle
             .insert_source(ping_source, |_, _, state| {
                 let _beat = state.isle.heartbeat.beat("shell");
-                state.isle.dispatch_shell();
+                state.dispatch_shell();
             })
             .expect("the shell's wake source");
         #[allow(unused_mut)]
         let mut shell = isle_shell::Shell::new(ping, Vec::new());
         #[cfg(feature = "test-hooks")]
-        shell.register(std::rc::Rc::new(isle_shell::probe::Probe::default()));
+        let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
+        #[cfg(feature = "test-hooks")]
+        shell.register(probe.clone());
 
         Self {
             display_handle: dh,
@@ -185,7 +191,10 @@ impl Isle {
             next_window_id: 1,
             settings,
             shell,
+            #[cfg(feature = "test-hooks")]
+            probe,
             suppressed_keys: Default::default(),
+            shell_keyboard_return: Vec::new(),
             space: Space::default(),
             unmapped: Vec::new(),
             popups: PopupManager::default(),
@@ -234,12 +243,38 @@ impl Isle {
 
     /// The surface under `pos` and its origin: overlay and top layers, then windows,
     /// then bottom and background layers.
-    pub fn surface_under(
-        &self,
-        pos: Point<f64, Logical>,
-    ) -> Option<(WlSurface, Point<f64, Logical>)> {
+    pub fn surface_under(&self, pos: Point<f64, Logical>) -> Option<(Focus, Point<f64, Logical>)> {
         let output = self.space.output_under(pos).next()?;
         let origin = self.space.output_geometry(output)?.loc;
+        let shell_at = |layer| {
+            self.shell
+                .focus_at(output, layer, pos - origin.to_f64())
+                .map(|(focus, at)| (Focus::Shell(focus), at + origin.to_f64()))
+        };
+        let surface_under = || self.client_surface_under(output, origin, pos);
+        shell_at(isle_shell::Layer::Overlay)
+            .or_else(|| {
+                let on_layer = {
+                    let map = layer_map_for_output(output);
+                    [Layer::Overlay, Layer::Top]
+                        .into_iter()
+                        .any(|layer| map.layer_under(layer, pos - origin.to_f64()).is_some())
+                };
+                on_layer.then(surface_under).flatten()
+            })
+            .or_else(|| shell_at(isle_shell::Layer::Top))
+            .or_else(surface_under)
+            .or_else(|| shell_at(isle_shell::Layer::Background))
+    }
+
+    /// The client surface under `pos`: overlay and top layers, then windows, then bottom
+    /// and background layers.
+    fn client_surface_under(
+        &self,
+        output: &Output,
+        origin: Point<i32, Logical>,
+        pos: Point<f64, Logical>,
+    ) -> Option<(Focus, Point<f64, Logical>)> {
         let map = layer_map_for_output(output);
         let layer_at = |layer: Layer| {
             let surface = map.layer_under(layer, pos - origin.to_f64())?;
@@ -262,6 +297,7 @@ impl Isle {
             })
             .or_else(|| layer_at(Layer::Bottom))
             .or_else(|| layer_at(Layer::Background))
+            .map(|(surface, at)| (Focus::Surface(surface), at))
     }
 
     /// The part of `output` layer surfaces leave free, in the global space.
@@ -283,7 +319,7 @@ impl Isle {
     }
 
     /// Raises `window`, activates it and gives it the keyboard; `None` clears focus.
-    pub fn focus_window(&mut self, window: Option<&Window>) -> Option<WlSurface> {
+    pub fn focus_window(&mut self, window: Option<&Window>) -> Option<Focus> {
         for w in self.space.elements() {
             let active = window == Some(w);
             if w.set_activated(active) {
@@ -292,13 +328,35 @@ impl Isle {
         }
         let window = window?;
         self.space.raise_element(window, true);
-        Some(window.toplevel()?.wl_surface().clone())
+        Some(window.toplevel()?.wl_surface().into())
     }
 
     /// Runs the shell surfaces whose wakers fired and redraws the outputs they changed.
-    pub fn dispatch_shell(&mut self) {
-        for output in self.shell.dispatch() {
+    pub fn dispatch_shell(&mut self) -> Vec<(String, isle_shell::Action)> {
+        let dispatched = self.shell.dispatch();
+        for output in dispatched.redraw {
             self.queue_redraw(&output);
+        }
+        let pointer_focus = self.seat.get_pointer().and_then(|p| p.current_focus());
+        for (focus, _) in dispatched.cursors {
+            if pointer_focus == Some(Focus::Shell(focus.clone())) {
+                self.set_shell_cursor(&focus);
+            }
+        }
+        dispatched
+            .actions
+            .into_iter()
+            .map(|(name, _, action)| (name, action))
+            .collect()
+    }
+
+    /// The pointer is over a shell surface, which names its cursor.
+    pub fn set_shell_cursor(&mut self, focus: &isle_shell::ShellFocus) {
+        let icon = self.shell.cursor(focus);
+        let status = CursorImageStatus::Named(icon);
+        if self.cursor_status != status {
+            self.cursor_status = status;
+            self.queue_redraw_all();
         }
     }
 
@@ -335,17 +393,68 @@ impl Isle {
 }
 
 impl State {
+    /// Opens a shell surface; one that takes keys takes the keyboard.
     pub fn open_surface(&mut self, name: &str) -> bool {
         let found = self.isle.shell.open(name);
-        self.isle.dispatch_shell();
+        if let Some(focus) = self.isle.shell.keyboard_taker(name) {
+            let keyboard = self.isle.seat.get_keyboard().unwrap();
+            let previous = keyboard.current_focus();
+            if previous != Some(Focus::Shell(focus.clone())) {
+                self.isle
+                    .shell_keyboard_return
+                    .push((focus.clone(), previous));
+                let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+                keyboard.set_focus(self, Some(Focus::Shell(focus)), serial);
+            }
+        }
+        self.dispatch_shell();
         found
     }
 
+    /// Closes a shell surface, giving the keyboard back to what had it before (shell.md
+    /// rule 11).
     pub fn close_surface(&mut self, name: &str) -> bool {
+        let taker = self.isle.shell.keyboard_taker(name);
         let found = self.isle.shell.close(name);
-        self.isle.dispatch_shell();
+        if let Some(focus) = taker
+            && let Some(index) = self
+                .isle
+                .shell_keyboard_return
+                .iter()
+                .position(|(f, _)| *f == focus)
+        {
+            let (_, previous) = self.isle.shell_keyboard_return.remove(index);
+            let keyboard = self.isle.seat.get_keyboard().unwrap();
+            if keyboard.current_focus() == Some(Focus::Shell(focus)) {
+                match previous.filter(smithay::utils::IsAlive::alive) {
+                    Some(previous) => {
+                        let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+                        keyboard.set_focus(self, Some(previous), serial);
+                    }
+                    None => self.focus_top(),
+                }
+            }
+        }
+        self.dispatch_shell();
         self.isle.queue_redraw_all();
         found
+    }
+
+    /// Runs the shell surfaces whose wakers fired, then what they asked for, in order.
+    pub fn dispatch_shell(&mut self) {
+        for (name, action) in self.isle.dispatch_shell() {
+            match action {
+                isle_shell::Action::Close => {
+                    self.close_surface(&name);
+                }
+                isle_shell::Action::Key(code) => {
+                    use smithay::backend::input::{InputTime, KeyState};
+                    let keycode = smithay::input::keyboard::Keycode::new(code + 8);
+                    self.on_key(keycode, KeyState::Pressed, InputTime::now());
+                    self.on_key(keycode, KeyState::Released, InputTime::now());
+                }
+            }
+        }
     }
 
     /// Gives `window` the keyboard, or clears it.

@@ -6,7 +6,7 @@ use freya::{animation::*, prelude::*};
 use freya_embed::{AppComponent, Runner};
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
-use crate::{Layer, Scope, SurfaceDef};
+use crate::{Action, Actions, Layer, Scope, SurfaceDef};
 
 pub const SIZE: (i32, i32) = (480, 360);
 /// The panel's fill, which tests look for.
@@ -75,6 +75,7 @@ impl App for ProbeApp {
 
 fn probe() -> impl IntoElement {
     let model = use_consume::<Model>().0;
+    let actions = Actions::get();
     let text = use_state({
         let model = model.clone();
         move || model.borrow().text.clone()
@@ -130,7 +131,17 @@ fn probe() -> impl IntoElement {
                         .child(if *animating.read() { "Stop" } else { "Animate" }),
                 ),
         )
-        .child(Input::new(text).placeholder("Type here").width(Size::fill()))
+        .child(
+            Input::new(text)
+                .placeholder("Type here")
+                .width(Size::fill())
+                .auto_focus(true)
+                .on_submit(move |_| {
+                    // Enter closes the probe and types an "a" into what has the keyboard next.
+                    actions.send(Action::Close);
+                    actions.send(Action::Key(30));
+                }),
+        )
         .child(
             rect()
                 .width(Size::fill())

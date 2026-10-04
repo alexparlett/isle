@@ -233,6 +233,39 @@ impl Test {
             .await?)
     }
 
+    /// Scrolls as a mouse wheel does, in steps of 120 per notch; positive is down.
+    async fn axis(&self, v120_x: i32, v120_y: i32) -> fdo::Result<()> {
+        use smithay::{
+            backend::input::{Axis, AxisSource, InputTime},
+            input::pointer::AxisFrame,
+        };
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let mut frame = AxisFrame::new(InputTime::now()).source(AxisSource::Wheel);
+                for (axis, v120) in [(Axis::Horizontal, v120_x), (Axis::Vertical, v120_y)] {
+                    if v120 != 0 {
+                        frame = frame
+                            .value(axis, v120 as f64 * 15.0 / 120.0)
+                            .v120(axis, v120);
+                    }
+                }
+                state.on_axis(frame);
+            })
+            .await?)
+    }
+
+    /// The probe surface's model: the field's text, the presses counted, whether it animates.
+    async fn probe(&self) -> fdo::Result<(String, u32, bool)> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                let model = state.isle.probe.model.borrow();
+                (model.text.clone(), model.presses, model.animating)
+            })
+            .await?)
+    }
+
     /// Adds a virtual display; headless only.
     #[allow(clippy::too_many_arguments)]
     async fn add_output(

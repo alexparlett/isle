@@ -49,7 +49,10 @@ impl XdgShellHandler for State {
         self.isle.space.unmap_elem(&window);
         self.isle.notify(crate::worker::Event::WindowsChanged);
         let keyboard = self.isle.seat.get_keyboard().unwrap();
-        if keyboard.current_focus().is_none_or(|f| f == *wl_surface) {
+        if keyboard
+            .current_focus()
+            .is_none_or(|f| f.surface() == Some(wl_surface))
+        {
             self.focus_top();
         }
     }
@@ -147,7 +150,7 @@ impl XdgShellHandler for State {
         let Ok(root) = find_popup_root_surface(&kind) else {
             return;
         };
-        let Ok(mut grab) = self.isle.popups.grab_popup(root, kind, &seat, serial) else {
+        let Ok(mut grab) = self.isle.popups.grab_popup(root.into(), kind, &seat, serial) else {
             return;
         };
         if let Some(keyboard) = seat.get_keyboard() {
@@ -187,7 +190,7 @@ fn check_grab(
     }
     let start_data = pointer.grab_start_data()?;
     let (focus, _) = start_data.focus.as_ref()?;
-    if !focus.id().same_client_as(&surface.id()) {
+    if !smithay::wayland::seat::WaylandFocus::same_client_as(focus, &surface.id()) {
         return None;
     }
     Some(start_data)

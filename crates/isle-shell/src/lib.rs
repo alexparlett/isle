@@ -1,6 +1,7 @@
 //! The shell surface host: Freya trees drawn on the compositor's GL context (B7).
 
 mod gl;
+mod keys;
 #[cfg(feature = "probe")]
 pub mod probe;
 mod surface;
@@ -17,17 +18,22 @@ use std::{
 
 use freya::prelude::{PreferredTheme, State, WritableUtils};
 pub use freya_embed;
-use freya_embed::{AppComponent, EmbedConfig, Embedded, Fonts, Gpu};
+use freya::prelude::{MouseButton, WheelSource};
+use freya_embed::{
+    AppComponent, EmbedConfig, Embedded, Fonts, Gpu, KeyboardEventName, MouseEventName,
+    PlatformEvent, WheelEventName,
+};
 use smithay::{
     backend::renderer::{
         element::{Kind, texture::TextureRenderElement},
         gles::{GlesRenderer, GlesTexture},
     },
+    input::keyboard::{ModifiersState, xkb::Keysym},
     output::Output,
     reexports::calloop::ping::Ping,
-    utils::{Logical, Rectangle},
+    utils::{Logical, Point, Rectangle},
 };
-pub use surface::{Layer, Scope, SurfaceDef};
+pub use surface::{Action, Actions, Layer, Scope, SurfaceDef};
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};
 
@@ -54,6 +60,35 @@ pub struct SurfaceInfo {
     pub wakes: u64,
 }
 
+/// A shell surface as the seat's pointer or keyboard focus.
+#[derive(Clone, Debug)]
+pub struct ShellFocus {
+    pub id: u64,
+    alive: Arc<AtomicBool>,
+}
+
+impl PartialEq for ShellFocus {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl ShellFocus {
+    pub fn alive(&self) -> bool {
+        self.alive.load(Ordering::Acquire)
+    }
+}
+
+/// What one [`Shell::dispatch`] found.
+#[derive(Default)]
+pub struct Dispatched {
+    pub redraw: Vec<Output>,
+    /// Each with the name of the surface that asked and its focus.
+    pub actions: Vec<(String, ShellFocus, Action)>,
+    /// Surfaces whose pointer icon changed.
+    pub cursors: Vec<(ShellFocus, freya::prelude::CursorIcon)>,
+}
+
 /// Every shell surface, and what they share: fonts and one Skia context.
 pub struct Shell {
     fonts: Fonts,
@@ -64,6 +99,8 @@ pub struct Shell {
     ping: Ping,
     /// GL objects of released targets, freed at the next draw with the context current.
     released: Vec<gl::GlSurface>,
+    next_id: u64,
+    modifiers: freya::prelude::Modifiers,
 }
 
 impl Shell {
@@ -77,6 +114,8 @@ impl Shell {
             outputs: Vec::new(),
             ping,
             released: Vec::new(),
+            next_id: 1,
+            modifiers: freya::prelude::Modifiers::empty(),
         }
     }
 
@@ -121,9 +160,9 @@ impl Shell {
             .collect()
     }
 
-    /// Runs the work of every surface whose waker fired; returns the outputs to redraw.
-    pub fn dispatch(&mut self) -> Vec<Output> {
-        let mut redraw = Vec::new();
+    /// Runs the work of every surface whose waker fired.
+    pub fn dispatch(&mut self) -> Dispatched {
+        let mut out = Dispatched::default();
         for instance in &mut self.instances {
             if !instance.wakeup.pending.swap(false, Ordering::AcqRel) {
                 continue;
@@ -132,12 +171,205 @@ impl Shell {
                 continue;
             };
             instance.wakes += 1;
-            let update = embedded.update(&mut self.fonts);
-            if update.redraw && instance.open && !redraw.contains(&instance.output) {
-                redraw.push(instance.output.clone());
+            let mut update = embedded.update(&mut self.fonts);
+            if instance.opening {
+                // The content is mounted now; the keys typed while it opened reach it in order.
+                instance.opening = false;
+                for event in instance.held_keys.drain(..) {
+                    embedded.event(event);
+                }
+                let more = embedded.update(&mut self.fonts);
+                update.redraw |= more.redraw;
+                update.cursor = more.cursor.or(update.cursor);
+            }
+            if update.redraw && instance.open && !out.redraw.contains(&instance.output) {
+                out.redraw.push(instance.output.clone());
+            }
+            let focus = ShellFocus {
+                id: instance.id,
+                alive: instance.alive.clone(),
+            };
+            if let Some(cursor) = update.cursor {
+                instance.cursor = cursor;
+                out.cursors.push((focus.clone(), cursor));
+            }
+            for action in instance.actions.borrow_mut().drain(..) {
+                out.actions
+                    .push((instance.def.name().to_string(), focus.clone(), action));
             }
         }
-        redraw
+        out
+    }
+
+    /// The open surface of `layer` under `at` on `output`, and its origin; both relative to the
+    /// output.
+    pub fn focus_at(
+        &self,
+        output: &Output,
+        layer: Layer,
+        at: Point<f64, Logical>,
+    ) -> Option<(ShellFocus, Point<f64, Logical>)> {
+        self.instances
+            .iter()
+            .rev()
+            .filter(|i| i.open && &i.output == output && i.def.layer() == layer)
+            .find(|i| i.geometry.to_f64().contains(at))
+            .map(|i| (Self::focus_of(i), i.geometry.loc.to_f64()))
+    }
+
+    /// The focus of `name`'s open instance that takes the keyboard.
+    pub fn keyboard_taker(&self, name: &str) -> Option<ShellFocus> {
+        self.instances
+            .iter()
+            .find(|i| i.def.name() == name && i.open && i.def.takes_keyboard())
+            .map(Self::focus_of)
+    }
+
+    pub fn name_of(&self, focus: &ShellFocus) -> Option<&'static str> {
+        self.instances
+            .iter()
+            .find(|i| i.id == focus.id)
+            .map(|i| i.def.name())
+    }
+
+    pub fn cursor(&self, focus: &ShellFocus) -> freya::prelude::CursorIcon {
+        self.instance(focus)
+            .map(|i| i.cursor)
+            .unwrap_or_default()
+    }
+
+    /// The pointer moved to `at`, relative to the surface.
+    pub fn pointer_motion(&mut self, focus: &ShellFocus, at: Point<f64, Logical>) {
+        self.feed(focus, |instance| {
+            let at = at.to_physical(instance.scale);
+            instance.pointer = (at.x, at.y);
+            vec![PlatformEvent::Mouse {
+                name: MouseEventName::MouseMove,
+                cursor: instance.pointer.into(),
+                button: None,
+            }]
+        });
+    }
+
+    /// A button by its evdev code.
+    pub fn pointer_button(&mut self, focus: &ShellFocus, button: u32, pressed: bool) {
+        let button = match button {
+            0x110 => MouseButton::Left,
+            0x111 => MouseButton::Right,
+            0x112 => MouseButton::Middle,
+            0x113 => MouseButton::Back,
+            0x114 => MouseButton::Forward,
+            other => MouseButton::Other(other as u16),
+        };
+        self.feed(focus, |instance| {
+            vec![PlatformEvent::Mouse {
+                name: if pressed {
+                    MouseEventName::MouseDown
+                } else {
+                    MouseEventName::MouseUp
+                },
+                cursor: instance.pointer.into(),
+                button: Some(button),
+            }]
+        });
+    }
+
+    /// Scrolling as Wayland measures it: positive is down and right. `discrete` is whether it
+    /// came in wheel steps, each `v120` of 120.
+    pub fn pointer_axis(&mut self, focus: &ShellFocus, x: f64, y: f64, discrete: Option<(f64, f64)>) {
+        let (scroll, source) = match discrete {
+            Some((sx, sy)) => (
+                (-sx / 120.0 * WheelSource::LINE_SIZE, -sy / 120.0 * WheelSource::LINE_SIZE),
+                WheelSource::Line,
+            ),
+            None => ((-x * 2.0, -y * 2.0), WheelSource::Pixel),
+        };
+        self.feed(focus, |instance| {
+            vec![PlatformEvent::Wheel {
+                name: WheelEventName::Wheel,
+                scroll: scroll.into(),
+                cursor: instance.pointer.into(),
+                source,
+                timestamp: std::time::Instant::now(),
+            }]
+        });
+    }
+
+    pub fn pointer_leave(&mut self, focus: &ShellFocus) {
+        self.feed(focus, |instance| {
+            vec![PlatformEvent::PointerExit {
+                cursor: instance.pointer.into(),
+            }]
+        });
+    }
+
+    pub fn keyboard_focus(&mut self, focus: &ShellFocus, focused: bool) {
+        if let Some(instance) = self.instances.iter_mut().find(|i| i.id == focus.id)
+            && let Some(embedded) = instance.embedded.as_mut()
+        {
+            embedded.set_focused(focused);
+            std::task::Wake::wake_by_ref(&instance.wakeup);
+        }
+    }
+
+    pub fn set_modifiers(&mut self, state: &ModifiersState) {
+        self.modifiers = keys::modifiers(state);
+    }
+
+    /// A key, with the text it types and its evdev code.
+    pub fn key(
+        &mut self,
+        focus: &ShellFocus,
+        keysym: Keysym,
+        text: Option<String>,
+        evdev: u32,
+        pressed: bool,
+    ) {
+        let event = PlatformEvent::Keyboard {
+            name: if pressed {
+                KeyboardEventName::KeyDown
+            } else {
+                KeyboardEventName::KeyUp
+            },
+            key: keys::key(keysym, text),
+            code: keys::code(evdev),
+            modifiers: self.modifiers,
+        };
+        let Some(instance) = self.instances.iter_mut().find(|i| i.id == focus.id) else {
+            return;
+        };
+        if instance.opening {
+            instance.held_keys.push(event);
+            return;
+        }
+        if let Some(embedded) = instance.embedded.as_mut() {
+            embedded.event(event);
+            std::task::Wake::wake_by_ref(&instance.wakeup);
+        }
+    }
+
+    fn feed(&mut self, focus: &ShellFocus, events: impl FnOnce(&mut Instance) -> Vec<PlatformEvent>) {
+        let Some(instance) = self.instances.iter_mut().find(|i| i.id == focus.id) else {
+            return;
+        };
+        let events = events(instance);
+        if let Some(embedded) = instance.embedded.as_mut() {
+            for event in events {
+                embedded.event(event);
+            }
+            std::task::Wake::wake_by_ref(&instance.wakeup);
+        }
+    }
+
+    fn instance(&self, focus: &ShellFocus) -> Option<&Instance> {
+        self.instances.iter().find(|i| i.id == focus.id)
+    }
+
+    fn focus_of(instance: &Instance) -> ShellFocus {
+        ShellFocus {
+            id: instance.id,
+            alive: instance.alive.clone(),
+        }
     }
 
     /// Draws every open surface on `output` whose tree changed, before the output's frame.
@@ -281,6 +513,8 @@ impl Shell {
                 continue;
             }
             instance.open = open;
+            instance.opening = open;
+            instance.held_keys.clear();
             if let (Some(embedded), Some(shown)) = (instance.embedded.as_mut(), instance.shown) {
                 embedded.with_root(|| {
                     let mut state = shown.0;
@@ -337,6 +571,7 @@ impl Shell {
                 }
                 None => {
                     debug!(surface = instance.def.name(), "instance removed");
+                    instance.alive.store(false, Ordering::Release);
                     if let Some(target) = instance.gl.take() {
                         self.released.push(target);
                     }
@@ -355,7 +590,12 @@ impl Shell {
             ping: self.ping.clone(),
         });
         let geometry = def.geometry(place.geometry.size);
+        let id = self.next_id;
+        self.next_id += 1;
         let mut instance = Instance {
+            id,
+            alive: Arc::new(AtomicBool::new(true)),
+            actions: Default::default(),
             def,
             output: place.output.clone(),
             embedded: None,
@@ -368,6 +608,10 @@ impl Shell {
             drew: false,
             panics: Default::default(),
             wakes: 0,
+            pointer: (0.0, 0.0),
+            cursor: Default::default(),
+            opening: false,
+            held_keys: Vec::new(),
             disabled: false,
         };
         self.build(&mut instance);
@@ -385,6 +629,7 @@ impl Shell {
         let def = instance.def.clone();
         let open = instance.open;
         let mut shown = None;
+        let actions = Actions(instance.actions.clone());
         let embedded = Embedded::new(
             EmbedConfig {
                 app: AppComponent::new(Root(def.app())),
@@ -398,6 +643,7 @@ impl Shell {
             &mut self.fonts,
             |runner| {
                 shown = Some(runner.provide_root_context(|| Shown(State::create(open))));
+                runner.provide_root_context(|| actions);
                 def.provide(runner);
             },
         );

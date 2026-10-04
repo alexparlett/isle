@@ -87,7 +87,11 @@ impl State {
                     .seat
                     .get_keyboard()
                     .and_then(|k| k.current_focus());
-                if let Some(window) = focus.and_then(|s| self.isle.window_for_surface(&s)) {
+                if let Some(window) = focus
+                    .as_ref()
+                    .and_then(|f| f.surface())
+                    .and_then(|s| self.isle.window_for_surface(s))
+                {
                     window.toplevel().unwrap().send_close();
                 }
             }

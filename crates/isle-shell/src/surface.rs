@@ -1,6 +1,7 @@
 //! What a shell surface is: its definition, and one instance of it on an output.
 
 use std::{
+    cell::RefCell,
     collections::VecDeque,
     rc::Rc,
     sync::{
@@ -54,6 +55,29 @@ pub trait SurfaceDef: 'static {
     fn provide(&self, runner: &mut Runner);
 }
 
+/// What a surface asks of the compositor, which acts on it after the surface's update.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Action {
+    /// Close this surface; keyboard focus goes back first.
+    Close,
+    /// Press and release a key, by evdev code, in whatever then has the keyboard.
+    Key(u32),
+}
+
+/// The tree's way to ask for an [`Action`].
+#[derive(Clone)]
+pub struct Actions(pub(crate) Rc<RefCell<Vec<Action>>>);
+
+impl Actions {
+    pub fn get() -> Self {
+        use_consume::<Actions>()
+    }
+
+    pub fn send(&self, action: Action) {
+        self.0.borrow_mut().push(action);
+    }
+}
+
 /// Whether the surface's content is mounted; a closed surface mounts none (shell.md rule 7).
 #[derive(Clone, Copy)]
 pub(crate) struct Shown(pub State<bool>);
@@ -91,6 +115,10 @@ impl Wake for Wakeup {
 }
 
 pub(crate) struct Instance {
+    pub id: u64,
+    /// Cleared when the instance goes, so a focus that names it is no longer alive.
+    pub alive: Arc<AtomicBool>,
+    pub actions: Rc<RefCell<Vec<Action>>>,
     pub def: Rc<dyn SurfaceDef>,
     pub output: Output,
     pub embedded: Option<Embedded>,
@@ -106,5 +134,11 @@ pub(crate) struct Instance {
     pub panics: VecDeque<Instant>,
     /// Updates run because its waker fired.
     pub wakes: u64,
+    /// The pointer's last place over the surface, in physical pixels from its origin.
+    pub pointer: (f64, f64),
+    pub cursor: freya::prelude::CursorIcon,
+    /// Opened but not yet updated: keys wait until the content is mounted.
+    pub opening: bool,
+    pub held_keys: Vec<freya_embed::PlatformEvent>,
     pub disabled: bool,
 }

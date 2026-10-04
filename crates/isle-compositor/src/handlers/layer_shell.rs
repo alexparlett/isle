@@ -54,7 +54,7 @@ impl WlrLayerShellHandler for State {
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         if keyboard
             .current_focus()
-            .is_none_or(|f| &f == surface.wl_surface())
+            .is_none_or(|f| f.surface() == Some(surface.wl_surface()))
         {
             self.focus_top();
         }
@@ -102,9 +102,9 @@ impl State {
         };
         if let Some(layer) = exclusive {
             let keyboard = self.isle.seat.get_keyboard().unwrap();
-            if keyboard.current_focus().as_ref() != Some(layer.wl_surface()) {
+            if keyboard.current_focus().as_ref().and_then(|f| f.surface()) != Some(layer.wl_surface()) {
                 let serial = smithay::utils::SERIAL_COUNTER.next_serial();
-                keyboard.set_focus(self, Some(layer.wl_surface().clone()), serial);
+                keyboard.set_focus(self, Some(layer.wl_surface().into()), serial);
             }
         }
         self.isle.queue_redraw(&output);

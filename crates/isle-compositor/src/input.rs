@@ -60,9 +60,7 @@ impl State {
                         frame = frame.stop(axis);
                     }
                 }
-                let pointer = self.isle.seat.get_pointer().unwrap();
-                pointer.axis(self, frame);
-                pointer.frame(self);
+                self.on_axis(frame);
             }
             _ => {}
         }
@@ -114,6 +112,12 @@ impl State {
         }
     }
 
+    pub fn on_axis(&mut self, frame: AxisFrame) {
+        let pointer = self.isle.seat.get_pointer().unwrap();
+        pointer.axis(self, frame);
+        pointer.frame(self);
+    }
+
     /// Moves the pointer to `location` in the global space.
     pub fn on_pointer_to(&mut self, location: Point<f64, Logical>, time: InputTime) {
         let under = self.isle.surface_under(location);
@@ -143,10 +147,12 @@ impl State {
         let serial = SERIAL_COUNTER.next_serial();
         if button_state == ButtonState::Pressed && !pointer.is_grabbed() {
             let location = pointer.current_location();
+            let on_shell = matches!(pointer.current_focus(), Some(crate::focus::Focus::Shell(_)));
             match self.isle.layer_taking_focus_at(location) {
+                _ if on_shell => {}
                 Some(surface) => {
                     let keyboard = self.isle.seat.get_keyboard().unwrap();
-                    keyboard.set_focus(self, Some(surface), serial);
+                    keyboard.set_focus(self, Some(surface.into()), serial);
                 }
                 None => {
                     let window = self

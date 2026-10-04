@@ -57,7 +57,12 @@ async fn probe(isle: &Isle) -> SurfaceInfo {
 async fn settled(isle: &Isle) -> u64 {
     let test = isle.test().await;
     let mut last = test.frames("HEADLESS-1").await.unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(8);
     loop {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the output never stopped presenting"
+        );
         // Longer than the scrollbar's fade after its timeout.
         tokio::time::sleep(Duration::from_millis(1000)).await;
         let now = test.frames("HEADLESS-1").await.unwrap();
@@ -68,6 +73,27 @@ async fn settled(isle: &Isle) -> u64 {
     }
 }
 
+async fn tap(isle: &Isle, code: u32) {
+    let test = isle.test().await;
+    test.key(code, true).await.unwrap();
+    test.key(code, false).await.unwrap();
+}
+
+async fn click(isle: &Isle, x: f64, y: f64) {
+    let test = isle.test().await;
+    test.pointer_to(x, y).await.unwrap();
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+}
+
+async fn model(isle: &Isle) -> (String, u32, bool) {
+    isle.test().await.probe().await.unwrap()
+}
+
+/// The probe's first button, "Pressed n", and its second, "Animate".
+const PRESS: (f64, f64) = (770.0, 426.0);
+const ANIMATE: (f64, f64) = (870.0, 426.0);
+
 const RED: [u8; 3] = [255, 0, 0];
 const FILL: [u8; 3] = [28, 28, 34];
 
@@ -77,6 +103,7 @@ async fn the_probe_draws_at_its_place_and_scale() {
     let shell = ShellProxy::new(&isle.bus).await.unwrap();
     assert!(!shell.open("nothing").await.unwrap());
     assert!(shell.open("probe").await.unwrap());
+    tap(&isle, 15).await;
     let info = probe(&isle).await;
     assert!(info.open);
     assert_eq!(
@@ -112,6 +139,8 @@ async fn an_open_still_probe_presents_nothing_and_a_closed_one_wakes_nothing() {
     let test = isle.test().await;
 
     shell.open("probe").await.unwrap();
+    // The field takes focus as the probe opens and its caret blinks; Tab moves focus on.
+    tap(&isle, 15).await;
     let frames = settled(&isle).await;
     let wakes = probe(&isle).await.wakes;
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -126,5 +155,74 @@ async fn an_open_still_probe_presents_nothing_and_a_closed_one_wakes_nothing() {
     let frames = test.frames("HEADLESS-1").await.unwrap();
     tokio::time::sleep(Duration::from_secs(2)).await;
     assert_eq!(probe(&isle).await.wakes, wakes);
+    assert_eq!(test.frames("HEADLESS-1").await.unwrap(), frames);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn clicks_keys_and_the_wheel_reach_the_probe() {
+    let isle = Isle::start("shell-input").await;
+    ShellProxy::new(&isle.bus).await.unwrap().open("probe").await.unwrap();
+    // Typed straight after the open: the field takes them once it is mounted.
+    for code in [30, 48, 46] {
+        tap(&isle, code).await;
+    }
+    wait_until(|| async { model(&isle).await.0 == "abc" }).await;
+
+    click(&isle, PRESS.0, PRESS.1).await;
+    wait_until(|| async { model(&isle).await.1 == 1 }).await;
+
+    settled(&isle).await;
+    let before = shot(&isle, "wheel-before").await;
+    let test = isle.test().await;
+    test.pointer_to(960.0, 640.0).await.unwrap();
+    test.axis(0, 360).await.unwrap();
+    settled(&isle).await;
+    let after = shot(&isle, "wheel-after").await;
+    let moved = (560..700).any(|y| (740..1180).any(|x| before.at(x, y) != after.at(x, y)));
+    assert!(moved, "the list scrolled");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn closing_the_probe_gives_the_keyboard_back_before_its_key_arrives() {
+    let mut isle = Isle::start("shell-focus").await;
+    let client = isle.client("isle.test.Focus", "336699");
+    isle.wait_for_window("isle.test.Focus").await;
+    client.wait_for("keyboard-enter").await;
+
+    ShellProxy::new(&isle.bus).await.unwrap().open("probe").await.unwrap();
+    client.wait_for("keyboard-leave").await;
+    tap(&isle, 45).await;
+    wait_until(|| async { model(&isle).await.0 == "x" }).await;
+
+    // Enter submits the field: the probe closes and sends an "a".
+    tap(&isle, 28).await;
+    wait_until(|| async { !probe(&isle).await.open }).await;
+    client.wait_for("key 30 pressed").await;
+    let lines = client.lines.lock().unwrap().clone();
+    assert!(!lines.iter().any(|l| l == "key 45 pressed"), "the x went to the probe");
+    let entered = lines.iter().rposition(|l| l == "keyboard-enter").unwrap();
+    let key = lines.iter().position(|l| l == "key 30 pressed").unwrap();
+    assert!(entered < key, "focus came back before the key: {lines:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_animating_probe_draws_every_frame_and_stops_with_it() {
+    let isle = Isle::start("shell-animate").await;
+    ShellProxy::new(&isle.bus).await.unwrap().open("probe").await.unwrap();
+    tap(&isle, 15).await;
+    settled(&isle).await;
+    click(&isle, ANIMATE.0, ANIMATE.1).await;
+    wait_until(|| async { model(&isle).await.2 }).await;
+
+    let test = isle.test().await;
+    let start = test.frames("HEADLESS-1").await.unwrap();
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let drawn = test.frames("HEADLESS-1").await.unwrap() - start;
+    assert!(drawn >= 50, "only {drawn} frames in a second while animating");
+
+    click(&isle, ANIMATE.0, ANIMATE.1).await;
+    wait_until(|| async { !model(&isle).await.2 }).await;
+    let frames = settled(&isle).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
     assert_eq!(test.frames("HEADLESS-1").await.unwrap(), frames);
 }

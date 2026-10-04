@@ -6,6 +6,7 @@ pub mod build_info;
 pub mod crash;
 mod cursor;
 mod dbus;
+mod focus;
 mod grabs;
 mod handlers;
 mod input;

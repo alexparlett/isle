@@ -2,6 +2,7 @@
 
 mod a11y;
 pub mod boundary;
+mod blur;
 mod element;
 mod gl;
 mod keys;
@@ -29,20 +30,34 @@ use freya_embed::{
 };
 use smithay::{
     backend::renderer::{
-        element::utils::RescaleRenderElement,
+        element::{RenderElement, utils::RescaleRenderElement},
         gles::GlesRenderer,
     },
     input::keyboard::{ModifiersState, xkb::Keysym},
     output::Output,
     reexports::calloop::ping::Ping,
-    utils::{Logical, Point, Rectangle},
+    utils::{Logical, Point, Rectangle, Size},
 };
 pub use surface::{Action, Actions, Layer, Scope, SurfaceDef};
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};
 
-/// A shell surface as the compositor draws it.
-pub type ShellElement = RescaleRenderElement<element::SurfaceElement>;
+smithay::backend::renderer::element::render_elements! {
+    /// A shell surface as the compositor draws it: its texture, or the glass behind it.
+    pub ShellElement<=GlesRenderer>;
+    Surface = RescaleRenderElement<element::SurfaceElement>,
+    Glass = RescaleRenderElement<blur::GlassElement>,
+}
+
+/// A glass shape of a visible surface, for the compositor to gather what lies behind it.
+#[derive(Clone, Debug)]
+pub struct GlassRegion {
+    instance: u64,
+    shape: u64,
+    pub layer: Layer,
+    /// Relative to the output.
+    rect: Rectangle<f64, Logical>,
+}
 
 /// What the compositor tells the shell about one output.
 #[derive(Clone)]
@@ -67,6 +82,10 @@ pub struct SurfaceInfo {
     pub wakes: u64,
     /// Times its tree was drawn into its texture.
     pub draws: u64,
+    /// Times its glass was blurred, over all its shapes.
+    pub glass_runs: u64,
+    /// The furthest its glass tint has moved toward tinted to hold the floor, 0 to 1.
+    pub glass_floor: f64,
 }
 
 /// A shell surface as the seat's pointer or keyboard focus.
@@ -117,6 +136,7 @@ pub struct Shell {
     /// Off: surfaces open and close without transitions (Game Mode, P12).
     animated: bool,
     clip: Option<smithay::backend::renderer::gles::GlesTexProgram>,
+    glass_programs: Option<blur::Programs>,
 }
 
 impl Shell {
@@ -135,6 +155,7 @@ impl Shell {
             theme,
             animated: true,
             clip: None,
+            glass_programs: None,
             a11y: a11y::Requests::new(ping.clone()),
             fonts: Fonts::new(families),
             gpu: None,
@@ -236,6 +257,12 @@ impl Shell {
                 disabled: i.disabled,
                 wakes: i.wakes,
                 draws: i.draws,
+                glass_runs: i.blurs.values().map(|b| b.runs).sum(),
+                glass_floor: i
+                    .blurs
+                    .values()
+                    .map(|b| b.floor as f64)
+                    .fold(0.0, f64::max),
             })
             .collect()
     }
@@ -758,11 +785,144 @@ impl Shell {
                 location.y + size.h * ay,
             ))
             .to_i32_round();
-            push(RescaleRenderElement::from_element(
-                element,
-                origin,
-                instance.transition.scale(),
-            ));
+            let scale = instance.transition.scale();
+            push(ShellElement::Surface(RescaleRenderElement::from_element(
+                element, origin, scale,
+            )));
+            let Some(program) = self.glass_programs.as_ref().map(|p| p.glass_program()) else {
+                continue;
+            };
+            let shapes = instance.glass.0.borrow();
+            for (id, shape) in shapes.iter() {
+                let Some(blur) = instance.blurs.get(id) else {
+                    continue;
+                };
+                let rect = Rectangle::<f64, Logical>::new(
+                    (
+                        instance.geometry.loc.x as f64 + shape.x as f64,
+                        instance.geometry.loc.y as f64 + shape.y as f64,
+                    )
+                        .into(),
+                    (shape.width as f64, shape.height as f64).into(),
+                );
+                let glass = blur::GlassElement::new(
+                    blur,
+                    blur::physical(rect, instance.scale),
+                    program.clone(),
+                    shape.radius * instance.scale as f32,
+                    &self.theme,
+                    instance.transition.opacity(),
+                );
+                push(ShellElement::Glass(RescaleRenderElement::from_element(
+                    glass, origin, scale,
+                )));
+            }
+        }
+    }
+
+    /// The glass shapes of the visible surfaces on `output`.
+    pub fn glass_regions(&self, output: &Output) -> Vec<GlassRegion> {
+        let mut regions = Vec::new();
+        for instance in &self.instances {
+            if !instance.visible() || &instance.output != output || instance.gl.is_none() {
+                continue;
+            }
+            for (id, shape) in instance.glass.0.borrow().iter() {
+                regions.push(GlassRegion {
+                    instance: instance.id,
+                    shape: *id,
+                    layer: instance.def.layer(),
+                    rect: Rectangle::new(
+                        (
+                            instance.geometry.loc.x as f64 + shape.x as f64,
+                            instance.geometry.loc.y as f64 + shape.y as f64,
+                        )
+                            .into(),
+                        (shape.width as f64, shape.height as f64).into(),
+                    ),
+                });
+            }
+        }
+        regions
+    }
+
+    /// Draws what lies behind `region`, `below` relative to the output, into its blur, and blurs
+    /// it again if that changed. `output_size` is the output's in physical pixels.
+    pub fn prepare_glass<E: RenderElement<GlesRenderer>>(
+        &mut self,
+        renderer: &mut GlesRenderer,
+        region: &GlassRegion,
+        output_size: Size<i32, smithay::utils::Physical>,
+        below: Vec<E>,
+    ) {
+        if self.glass_programs.is_none() {
+            match blur::Programs::compile(renderer) {
+                Ok(programs) => self.glass_programs = Some(programs),
+                Err(err) => {
+                    warn!("no glass shaders: {err}");
+                    return;
+                }
+            }
+        }
+        let programs = self.glass_programs.as_ref().unwrap();
+        let theme = self.theme.clone();
+        let Some(instance) = self.instances.iter_mut().find(|i| i.id == region.instance) else {
+            return;
+        };
+        // Twice the blur's reach, so the shape's edge samples what is really beside it.
+        let margin = theme.tokens.material_blur as f64 * 2.0;
+        let wanted = blur::physical(
+            Rectangle::new(
+                (region.rect.loc.x - margin, region.rect.loc.y - margin).into(),
+                (region.rect.size.w + 2.0 * margin, region.rect.size.h + 2.0 * margin).into(),
+            ),
+            instance.scale,
+        )
+        .intersection(Rectangle::from_size(output_size));
+        let Some(wanted) = wanted else {
+            return;
+        };
+        if instance
+            .blurs
+            .get(&region.shape)
+            .is_some_and(|b| b.region != wanted)
+        {
+            instance.blurs.remove(&region.shape);
+        }
+        if !instance.blurs.contains_key(&region.shape) {
+            let sigma = theme.tokens.material_blur as f64 * instance.scale;
+            match blur::Blur::new(renderer, wanted, instance.scale, sigma) {
+                Ok(blur) => {
+                    instance.blurs.insert(region.shape, blur);
+                }
+                Err(err) => {
+                    warn!(surface = instance.def.name(), "no glass target: {err}");
+                    return;
+                }
+            }
+        }
+        let blur = instance.blurs.get_mut(&region.shape).unwrap();
+        if let Err(err) = blur.update(renderer, programs, below, &theme) {
+            warn!(surface = instance.def.name(), "glass failed: {err}");
+        }
+    }
+
+    /// Starts a glass pass: blurs not prepared again before [`Shell::end_glass`] are dropped.
+    pub fn begin_glass(&mut self, output: &Output) {
+        for instance in &mut self.instances {
+            if &instance.output == output {
+                for blur in instance.blurs.values_mut() {
+                    blur.used = false;
+                }
+            }
+        }
+    }
+
+    pub fn end_glass(&mut self, output: &Output) {
+        for instance in &mut self.instances {
+            if &instance.output == output {
+                instance.blurs.retain(|_, blur| blur.used);
+            }
         }
     }
 
@@ -935,6 +1095,8 @@ impl Shell {
             held_keys: Vec::new(),
             adapter: None,
             theme: None,
+            glass: Default::default(),
+            blurs: Default::default(),
             origin: place.geometry.loc,
             disabled: false,
         };
@@ -956,6 +1118,9 @@ impl Shell {
         let actions = Actions(instance.actions.clone());
         let theme = self.theme.clone();
         let mut theme_state = None;
+        let glass = isle_ui::GlassShapes::default();
+        instance.glass = glass.clone();
+        instance.blurs.clear();
         let fonts = &mut self.fonts;
         let built = boundary::guard(def.name(), || Embedded::new(
             EmbedConfig {
@@ -971,6 +1136,7 @@ impl Shell {
             |runner| {
                 shown = Some(runner.provide_root_context(|| Shown(State::create(open))));
                 runner.provide_root_context(|| actions);
+                runner.provide_root_context(|| glass);
                 theme_state = Some(
                     runner
                         .provide_root_context(|| isle_ui::ThemeContext(State::create(theme)))

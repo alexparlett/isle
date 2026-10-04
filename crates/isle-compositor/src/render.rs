@@ -20,6 +20,16 @@ use std::sync::Mutex;
 
 use crate::state::Isle;
 
+/// Where in the stack front to back a collection starts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Stage {
+    Cursor,
+    ShellOverlay,
+    LayerOverlay,
+    ShellTop,
+    Windows,
+}
+
 render_elements! {
     pub IsleElement<=GlesRenderer>;
     Surface = WaylandSurfaceRenderElement<GlesRenderer>,
@@ -44,6 +54,33 @@ impl Isle {
         cursor: Option<NamedCursor<'_>>,
         push: &mut dyn FnMut(IsleElement),
     ) {
+        self.render_elements_from(renderer, output, cursor, Stage::Cursor, push);
+    }
+
+    /// What lies behind shell surfaces of `layer`, front to back, for their glass.
+    pub fn render_elements_below(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        layer: isle_shell::Layer,
+        push: &mut dyn FnMut(IsleElement),
+    ) {
+        let from = match layer {
+            isle_shell::Layer::Overlay => Stage::LayerOverlay,
+            isle_shell::Layer::Top => Stage::Windows,
+            isle_shell::Layer::Background => return,
+        };
+        self.render_elements_from(renderer, output, None, from, push);
+    }
+
+    fn render_elements_from(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        cursor: Option<NamedCursor<'_>>,
+        from: Stage,
+        push: &mut dyn FnMut(IsleElement),
+    ) {
         let Some(geometry) = self.space.output_geometry(output) else {
             return;
         };
@@ -54,7 +91,7 @@ impl Isle {
             .map(|p| p.current_location())
             .filter(|p| geometry.to_f64().contains(*p));
 
-        match (&self.cursor_status, pointer) {
+        match (&self.cursor_status, pointer.filter(|_| from <= Stage::Cursor)) {
             (CursorImageStatus::Surface(surface), Some(at)) => {
                 let hotspot = with_states(surface, |states| {
                     states
@@ -98,11 +135,17 @@ impl Isle {
             self.shell
                 .elements(output, layer, &mut |e| push(IsleElement::Shell(e)))
         };
-        shell(isle_shell::Layer::Overlay, push);
+        if from <= Stage::ShellOverlay {
+            shell(isle_shell::Layer::Overlay, push);
+        }
         let layers = layer_map_for_output(output);
-        push_layers(&layers, Layer::Overlay, renderer, scale, push);
-        push_layers(&layers, Layer::Top, renderer, scale, push);
-        shell(isle_shell::Layer::Top, push);
+        if from <= Stage::LayerOverlay {
+            push_layers(&layers, Layer::Overlay, renderer, scale, push);
+            push_layers(&layers, Layer::Top, renderer, scale, push);
+        }
+        if from <= Stage::ShellTop {
+            shell(isle_shell::Layer::Top, push);
+        }
 
         for window in self.space.elements_for_output(output).rev() {
             let Some(location) = self.space.element_location(window) else {

@@ -3,6 +3,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use freya::{animation::*, prelude::*};
+use isle_ui::Glass;
 use freya_embed::{AppComponent, Runner};
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
@@ -11,6 +12,8 @@ use crate::{Action, Actions, Layer, Scope, SurfaceDef};
 pub const SIZE: (i32, i32) = (480, 360);
 /// The square inside the panel's top-right corner, 8 points wide, 24 in from each edge.
 pub const MARKER: (u8, u8, u8) = (255, 0, 0);
+/// The glass strip along the bottom, in points.
+pub const GLASS_HEIGHT: i32 = 80;
 
 /// What outlives the tree: the field's text and the presses counted.
 #[derive(Default, Clone, Debug)]
@@ -212,10 +215,27 @@ fn probe() -> impl IntoElement {
             ),
         );
 
+    let panel = rect()
+        .width(Size::fill())
+        .height(Size::px((SIZE.1 - GLASS_HEIGHT) as f32))
+        .background(fill)
+        .child(
+            rect()
+                .position(Position::new_absolute().right(24.).top(24.))
+                .width(Size::px(8.))
+                .height(Size::px(8.))
+                .background(MARKER),
+        )
+        .child(content);
+    let strip = rect()
+        .width(Size::fill())
+        .height(Size::fill())
+        .child(Glass::new(0.))
+        .child(rect().padding(16.).child(label().text("Glass")));
+
     rect()
         .width(Size::px(SIZE.0 as f32))
         .height(Size::px(SIZE.1 as f32))
-        .background(fill)
         .color(text_colour)
         .on_global_key_down(move |_| {
             if *switch.peek() == Some(Fault::Event) {
@@ -232,12 +252,6 @@ fn probe() -> impl IntoElement {
             .width(Size::px(1.))
             .height(Size::px(1.)),
         )
-        .child(
-            rect()
-                .position(Position::new_absolute().right(24.).top(24.))
-                .width(Size::px(8.))
-                .height(Size::px(8.))
-                .background(MARKER),
-        )
-        .child(content)
+        .child(panel)
+        .child(strip)
 }

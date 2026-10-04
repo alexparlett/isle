@@ -262,9 +262,23 @@ impl State {
 
     /// Draws the shell surfaces on `output` whose trees changed, before its frame.
     pub fn draw_shell(&mut self, output: &Output) {
-        if let Some(renderer) = self.backend.renderer_opt() {
-            self.isle.shell.draw(renderer, output);
+        let Some(renderer) = self.backend.renderer_opt() else {
+            return;
+        };
+        self.isle.shell.draw(renderer, output);
+        let regions = self.isle.shell.glass_regions(output);
+        self.isle.shell.begin_glass(output);
+        let size = output
+            .current_mode()
+            .map(|m| m.size)
+            .unwrap_or_default();
+        for region in regions {
+            let mut below = Vec::new();
+            self.isle
+                .render_elements_below(renderer, output, region.layer, &mut |e| below.push(e));
+            self.isle.shell.prepare_glass(renderer, &region, size, below);
         }
+        self.isle.shell.end_glass(output);
     }
 
     /// The backend's vblank for `output`: the submitted frame is on screen.

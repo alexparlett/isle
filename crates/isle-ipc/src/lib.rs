@@ -82,6 +82,10 @@ pub struct SurfaceInfo {
     pub wakes: u64,
     /// Times its tree was drawn into its texture.
     pub draws: u64,
+    /// Times its glass was blurred, over all its shapes.
+    pub glass_runs: u64,
+    /// The furthest its glass tint has moved toward tinted to hold the floor, 0 to 1.
+    pub glass_floor: f64,
 }
 
 pub mod version {

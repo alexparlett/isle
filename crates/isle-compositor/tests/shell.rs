@@ -176,11 +176,11 @@ async fn clicks_keys_and_the_wheel_reach_the_probe() {
     settled(&isle).await;
     let before = shot(&isle, "wheel-before").await;
     let test = isle.test().await;
-    test.pointer_to(960.0, 640.0).await.unwrap();
+    test.pointer_to(960.0, 580.0).await.unwrap();
     test.axis(0, 360).await.unwrap();
     settled(&isle).await;
     let after = shot(&isle, "wheel-after").await;
-    let moved = (560..700).any(|y| (740..1180).any(|x| before.at(x, y) != after.at(x, y)));
+    let moved = (520..620).any(|y| (740..1180).any(|x| before.at(x, y) != after.at(x, y)));
     assert!(moved, "the list scrolled");
 }
 
@@ -437,4 +437,85 @@ async fn skia_cache_stays_under_its_cap_over_a_hundred_opens() {
     let first = first.unwrap();
     eprintln!("cache after the first close {first}, after the hundredth {after}, highest {highest}");
     assert!(after <= first + 1024 * 1024, "{after} grew from {first}");
+}
+
+/// Relative luminance of an sRGB colour, for a contrast ratio.
+fn luminance(c: [f64; 3]) -> f64 {
+    let linear = |v: f64| {
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * linear(c[0]) + 0.7152 * linear(c[1]) + 0.0722 * linear(c[2])
+}
+
+/// The contrast of text-2, rgba(242,243,245,0.64), drawn over `glass`.
+fn text_2_contrast(glass: [u8; 3]) -> f64 {
+    let g = glass.map(|c| c as f64 / 255.0);
+    let text = [242.0, 243.0, 245.0].map(|c: f64| c / 255.0);
+    let over = [0, 1, 2].map(|i| text[i] * 0.64 + g[i] * 0.36);
+    let (a, b) = (luminance(over), luminance(g));
+    (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+/// Inside the probe's glass strip, clear of its label.
+const GLASS: (usize, usize) = (1100, 700);
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_probe_s_glass_blurs_what_is_behind_it_and_holds_its_floor() {
+    let mut isle = Isle::start("shell-glass").await;
+    let _red = isle.client_with(&["--app-id", "isle.test.Red", "--colour", "ff0000", "--size", "1000x600"]);
+    isle.wait_for_window("isle.test.Red").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    tap(&isle, 15).await;
+    settled(&isle).await;
+
+    let image = shot(&isle, "glass-red").await;
+    let [r, g, b] = image.at(GLASS.0, GLASS.1);
+    assert!(r as i32 > g as i32 + 40 && r as i32 > b as i32 + 40, "red shows through: {r},{g},{b}");
+    assert_ne!([r, g, b], [255, 0, 0], "and is tinted");
+    assert!(text_2_contrast([r, g, b]) >= 4.4, "{}", text_2_contrast([r, g, b]));
+
+    // Nothing behind it changes, so it is not blurred again.
+    let runs = probe(&isle).await.glass_runs;
+    assert!(runs >= 1);
+    click(&isle, PRESS.0, PRESS.1).await;
+    settled(&isle).await;
+    assert_eq!(probe(&isle).await.glass_runs, runs, "the probe redrew, the backdrop did not");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn over_white_the_glass_tint_rises_to_hold_secondary_text() {
+    let mut isle = Isle::start("shell-glass-white").await;
+    let _white = isle.client_with(&["--app-id", "isle.test.White", "--colour", "ffffff", "--size", "1000x600"]);
+    isle.wait_for_window("isle.test.White").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    tap(&isle, 15).await;
+    wait_until(|| async { probe(&isle).await.glass_floor > 0.0 }).await;
+    settled(&isle).await;
+    let glass = shot(&isle, "glass-white").await.at(GLASS.0, GLASS.1);
+    let ratio = text_2_contrast(glass);
+    assert!(ratio >= 4.5, "text-2 at {ratio:.2} over {glass:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn glass_over_an_edge_is_blurred_the_right_way_up() {
+    let mut isle = Isle::start("shell-glass-edge").await;
+    // Centred, so its bottom edge crosses the glass strip at y 680.
+    let _red = isle.client_with(&["--app-id", "isle.test.Edge", "--colour", "ff0000", "--size", "1000x280"]);
+    isle.wait_for_window("isle.test.Edge").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    tap(&isle, 15).await;
+    settled(&isle).await;
+    let image = shot(&isle, "glass-edge").await;
+    let red = |y: usize| image.at(GLASS.0, y)[0] as i32 - image.at(GLASS.0, y)[2] as i32;
+    let (above, at, below) = (red(645), red(680), red(716));
+    assert!(above > at && at > below, "red fades across the edge: {above} {at} {below}");
+    // Blur 48 spreads the edge across the whole strip.
+    assert!(above - below < 60 && below > 5, "{above} {at} {below}");
 }

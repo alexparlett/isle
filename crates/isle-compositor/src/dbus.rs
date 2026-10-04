@@ -138,6 +138,8 @@ impl Shell {
                         disabled: s.disabled,
                         wakes: s.wakes,
                         draws: s.draws,
+                        glass_runs: s.glass_runs,
+                        glass_floor: s.glass_floor,
                     })
                     .collect()
             })

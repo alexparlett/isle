@@ -155,6 +155,9 @@ pub(crate) struct Instance {
     pub held_keys: Vec<freya_embed::PlatformEvent>,
     pub adapter: Option<accesskit_unix::Adapter>,
     pub theme: Option<State<Rc<isle_tokens::Theme>>>,
+    pub glass: isle_ui::GlassShapes,
+    /// Each glass shape's blur, by the shape's id.
+    pub blurs: std::collections::BTreeMap<u64, crate::blur::Blur>,
     /// The output's origin in the global space, for the adapter's window bounds.
     pub origin: smithay::utils::Point<i32, Logical>,
     pub disabled: bool,

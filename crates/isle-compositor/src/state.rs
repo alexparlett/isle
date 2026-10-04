@@ -64,6 +64,8 @@ pub struct Isle {
     pub tokens_error: Option<isle_tokens::TokenError>,
     #[cfg(feature = "test-hooks")]
     pub probe: std::rc::Rc<isle_shell::probe::Probe>,
+    #[cfg(feature = "test-hooks")]
+    pub probe_full: std::rc::Rc<isle_shell::probe::ProbeFull>,
     /// Keys whose press ran a bind; their release is not sent to clients.
     pub suppressed_keys: std::collections::HashSet<smithay::input::keyboard::Keycode>,
     /// The keyboard's focus before a shell surface took it, given back when it closes.
@@ -184,6 +186,10 @@ impl Isle {
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
         shell.register(probe.clone());
+        #[cfg(feature = "test-hooks")]
+        let probe_full = std::rc::Rc::new(isle_shell::probe::ProbeFull::default());
+        #[cfg(feature = "test-hooks")]
+        shell.register(probe_full.clone());
 
         Self {
             display_handle: dh,
@@ -200,6 +206,8 @@ impl Isle {
             tokens_error: None,
             #[cfg(feature = "test-hooks")]
             probe,
+            #[cfg(feature = "test-hooks")]
+            probe_full,
             suppressed_keys: Default::default(),
             shell_keyboard_return: Vec::new(),
             space: Space::default(),

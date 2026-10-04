@@ -255,3 +255,138 @@ fn probe(model: Rc<RefCell<ProbeModel>>, switch: State<Option<Fault>>) -> impl I
         .child(panel)
         .child(strip)
 }
+
+/// A full-output surface shaped like a launcher, for measuring a draw the size of the screen:
+/// a backdrop, a 1200 by 760 panel with a field and 24 tiles, and a fade on every tile that loops
+/// while it animates, the worst case for Skia's layers.
+#[derive(Default)]
+pub struct ProbeFull {
+    animate: Rc<RefCell<Option<State<bool>>>>,
+}
+
+impl ProbeFull {
+    /// Starts or stops the tiles' fade; call it in the tree's root scope.
+    pub fn set_animating(&self, on: bool) {
+        if let Some(mut animate) = *self.animate.borrow() {
+            animate.set(on);
+        }
+    }
+}
+
+impl SurfaceDef for ProbeFull {
+    fn name(&self) -> &'static str {
+        "probe-full"
+    }
+
+    fn layer(&self) -> Layer {
+        Layer::Top
+    }
+
+    fn scope(&self) -> Scope {
+        Scope::MainOutput
+    }
+
+    fn takes_keyboard(&self) -> bool {
+        true
+    }
+
+    fn geometry(&self, output: SSize<i32, Logical>) -> Rectangle<i32, Logical> {
+        Rectangle::from_size(output)
+    }
+
+    fn app(&self) -> AppComponent {
+        AppComponent::new(ProbeFullApp {
+            animate: self.animate.clone(),
+        })
+    }
+}
+
+struct ProbeFullApp {
+    animate: Rc<RefCell<Option<State<bool>>>>,
+}
+
+impl App for ProbeFullApp {
+    fn render(&self) -> impl IntoElement {
+        let animate = use_hook(|| {
+            let animate = State::create(false);
+            *self.animate.borrow_mut() = Some(animate);
+            animate
+        });
+        let text = use_state(String::new);
+        let mut fade = use_animation(|conf| {
+            conf.on_finish(OnFinish::reverse());
+            AnimNum::new(1., 0.4).time(300)
+        });
+        use_side_effect(move || {
+            if *animate.read() {
+                fade.start();
+            } else {
+                fade.reset();
+            }
+        });
+        let opacity = fade.read().value();
+        let theme = isle_ui::use_theme();
+        let tiles = (0..24).map(|i| {
+            let hue = i as f32 * 360. / 48.;
+            rect()
+                .width(Size::px(160.))
+                .height(Size::px(140.))
+                .center()
+                .spacing(8.)
+                .opacity(opacity)
+                .child(
+                    rect()
+                        .width(Size::px(64.))
+                        .height(Size::px(64.))
+                        .corner_radius(16.)
+                        .background(hsl(hue, 0.55, 0.55)),
+                )
+                .child(label().text(format!("App {i}")).font_size(14.))
+                .into_element()
+        });
+        rect()
+            .expanded()
+            .center()
+            .background((0, 0, 0, 0.45))
+            .color(isle_ui::colour(theme.tokens.colour_text))
+            .child(
+                rect()
+                    .width(Size::px(1200.))
+                    .height(Size::px(760.))
+                    .corner_radius(28.)
+                    .padding(32.)
+                    .spacing(24.)
+                    .background(isle_ui::colour(theme.tokens.colour_window_raised))
+                    .child(
+                        Input::new(text)
+                            .placeholder("Search apps")
+                            .width(Size::fill())
+                            .auto_focus(true),
+                    )
+                    .child(
+                        rect()
+                            .horizontal()
+                            .width(Size::fill())
+                            .spacing(16.)
+                            .content(Content::Wrap { wrap_spacing: Some(16.) })
+                            .children(tiles),
+                    ),
+            )
+    }
+}
+
+fn hsl(h: f32, s: f32, l: f32) -> Color {
+    let c = (1. - (2. * l - 1.).abs()) * s;
+    let x = c * (1. - ((h / 60.) % 2. - 1.).abs());
+    let m = l - c / 2.;
+    let (r, g, b) = match (h / 60.) as u32 {
+        0 => (c, x, 0.),
+        1 => (x, c, 0.),
+        2 => (0., c, x),
+        3 => (0., x, c),
+        4 => (x, 0., c),
+        _ => (c, 0., x),
+    };
+    let byte = |v: f32| ((v + m) * 255.).round() as u8;
+    Color::from_rgb(byte(r), byte(g), byte(b))
+}

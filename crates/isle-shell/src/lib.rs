@@ -87,6 +87,9 @@ pub struct SurfaceInfo {
     pub glass_runs: u64,
     /// The furthest its glass tint has moved toward tinted to hold the floor, 0 to 1.
     pub glass_floor: f64,
+    /// Draw times, CPU and GPU together, in microseconds: p50, p95 and the longest, over the
+    /// draws since measuring was turned on.
+    pub draw_times: (u64, u64, u64),
 }
 
 /// A shell surface as the seat's pointer or keyboard focus.
@@ -138,6 +141,8 @@ pub struct Shell {
     animated: bool,
     clip: Option<smithay::backend::renderer::gles::GlesTexProgram>,
     glass_programs: Option<blur::Programs>,
+    /// Waits for the GPU after each draw and times it; for measuring, never in use.
+    measure: bool,
 }
 
 impl Shell {
@@ -157,6 +162,7 @@ impl Shell {
             animated: true,
             clip: None,
             glass_programs: None,
+            measure: false,
             a11y: a11y::Requests::new(ping.clone()),
             fonts: Fonts::new(families),
             gpu: None,
@@ -264,6 +270,7 @@ impl Shell {
                     .values()
                     .map(|b| b.floor as f64)
                     .fold(0.0, f64::max),
+                draw_times: percentiles(&i.draw_times),
             })
             .collect()
     }
@@ -672,6 +679,8 @@ impl Shell {
             let target = instance.gl.as_mut().unwrap();
             let fonts = &mut self.fonts;
             let name = instance.def.name();
+            let measure = self.measure;
+            let started = std::time::Instant::now();
             let drawn = renderer.with_context(|gl| {
                 // Smithay has moved GL state since Skia last drew.
                 gpu.context().reset(None);
@@ -680,9 +689,15 @@ impl Shell {
                 });
                 // Whatever was recorded before a panic still reaches the target it was for.
                 gpu.context().flush_and_submit();
+                if measure {
+                    unsafe { gl.Finish() };
+                }
                 unsafe { gl::restore(gl) };
                 ran
             });
+            if measure {
+                instance.draw_times.push(started.elapsed().as_micros() as u64);
+            }
             match drawn {
                 Err(err) => {
                     warn!(surface = name, "drawing failed: {err}");
@@ -732,6 +747,14 @@ impl Shell {
         self.instances
             .iter()
             .any(|i| &i.output == output && i.transition.moving())
+    }
+
+    /// Times every draw, waiting for the GPU after each; for benches.
+    pub fn set_measure(&mut self, on: bool) {
+        self.measure = on;
+        for instance in &mut self.instances {
+            instance.draw_times.clear();
+        }
     }
 
     /// Turns transitions off or on; off, surfaces open and close at once.
@@ -1089,6 +1112,7 @@ impl Shell {
             crashed: false,
             wakes: 0,
             draws: 0,
+            draw_times: Vec::new(),
             transition: Default::default(),
             pointer: (0.0, 0.0),
             cursor: Default::default(),
@@ -1189,6 +1213,17 @@ impl Drop for Shell {
             gpu.abandon();
         }
     }
+}
+
+/// The 50th and 95th percentiles and the largest of `times`.
+fn percentiles(times: &[u64]) -> (u64, u64, u64) {
+    if times.is_empty() {
+        return (0, 0, 0);
+    }
+    let mut sorted = times.to_vec();
+    sorted.sort_unstable();
+    let at = |q: f64| sorted[((sorted.len() - 1) as f64 * q).round() as usize];
+    (at(0.5), at(0.95), *sorted.last().unwrap())
 }
 
 /// More panics than this within [`PANIC_WINDOW`] turn a surface off.

@@ -145,6 +145,8 @@ pub(crate) struct Instance {
     pub wakes: u64,
     /// Times its tree was drawn into its texture.
     pub draws: u64,
+    /// Draw times in microseconds while the shell measures.
+    pub draw_times: Vec<u64>,
     pub transition: crate::transition::Transition,
     /// The pointer's last place over the surface, in physical pixels from its origin.
     pub pointer: (f64, f64),

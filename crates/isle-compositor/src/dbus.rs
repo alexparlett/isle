@@ -140,6 +140,9 @@ impl Shell {
                         draws: s.draws,
                         glass_runs: s.glass_runs,
                         glass_floor: s.glass_floor,
+                        draw_p50: s.draw_times.0,
+                        draw_p95: s.draw_times.1,
+                        draw_max: s.draw_times.2,
                     })
                     .collect()
             })
@@ -310,6 +313,26 @@ impl Test {
                 }
                 state.on_axis(frame);
             })
+            .await?)
+    }
+
+    /// Starts or stops the full-output probe's tile fades.
+    async fn animate_probe_full(&self, on: bool) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let probe = state.isle.probe_full.clone();
+                state.isle.shell.with_root("probe-full", || probe.set_animating(on));
+                state.dispatch_shell();
+            })
+            .await?)
+    }
+
+    /// Times every surface draw, waiting for the GPU after each.
+    async fn measure(&self, on: bool) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.isle.shell.set_measure(on))
             .await?)
     }
 

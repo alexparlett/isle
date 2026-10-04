@@ -86,6 +86,10 @@ pub struct SurfaceInfo {
     pub glass_runs: u64,
     /// The furthest its glass tint has moved toward tinted to hold the floor, 0 to 1.
     pub glass_floor: f64,
+    /// Draw times while measuring, in microseconds: p50, p95, the longest.
+    pub draw_p50: u64,
+    pub draw_p95: u64,
+    pub draw_max: u64,
 }
 
 pub mod version {
@@ -231,6 +235,10 @@ pub mod test {
         fn button(&self, button: u32, pressed: bool) -> zbus::Result<()>;
         /// Scrolls as a mouse wheel does, in steps of 120 per notch; positive is down.
         fn axis(&self, v120_x: i32, v120_y: i32) -> zbus::Result<()>;
+        /// Starts or stops the full-output probe's tile fades.
+        fn animate_probe_full(&self, on: bool) -> zbus::Result<()>;
+        /// Times every surface draw, waiting for the GPU after each.
+        fn measure(&self, on: bool) -> zbus::Result<()>;
         /// Turns shell transitions off or on.
         fn transitions(&self, on: bool) -> zbus::Result<()>;
         /// Makes the probe panic when it next renders, handles a key, or draws: `render`,

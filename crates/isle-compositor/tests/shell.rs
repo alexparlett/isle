@@ -520,3 +520,23 @@ async fn glass_over_an_edge_is_blurred_the_right_way_up() {
     // Blur 48 spreads the edge across the whole strip.
     assert!(above - below < 60 && below > 5, "{above} {at} {below}");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn under_reduce_transparency_the_glass_is_solid_and_not_blurred() {
+    let mut isle = Isle::start("shell-glass-solid").await;
+    let _red = isle.client_with(&["--app-id", "isle.test.Solid", "--colour", "ff0000", "--size", "1000x600"]);
+    isle.wait_for_window("isle.test.Solid").await;
+    SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("appearance.reduce-transparency", &zvariant::Value::from(true))
+        .await
+        .unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    tap(&isle, 15).await;
+    settled(&isle).await;
+    // material-solid in the dark appearance.
+    assert_eq!(shot(&isle, "glass-solid").await.at(GLASS.0, GLASS.1), [0x25, 0x26, 0x2b]);
+    assert_eq!(probe(&isle).await.glass_runs, 0);
+}

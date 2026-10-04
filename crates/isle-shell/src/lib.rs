@@ -90,6 +90,8 @@ pub struct SurfaceInfo {
     /// Draw times, CPU and GPU together, in microseconds: p50, p95 and the longest, over the
     /// draws since measuring was turned on.
     pub draw_times: (u64, u64, u64),
+    /// The same for the glass passes that blurred.
+    pub glass_times: (u64, u64, u64),
 }
 
 /// A shell surface as the seat's pointer or keyboard focus.
@@ -271,6 +273,7 @@ impl Shell {
                     .map(|b| b.floor as f64)
                     .fold(0.0, f64::max),
                 draw_times: percentiles(&i.draw_times),
+                glass_times: percentiles(&i.glass_times),
             })
             .collect()
     }
@@ -754,6 +757,7 @@ impl Shell {
         self.measure = on;
         for instance in &mut self.instances {
             instance.draw_times.clear();
+            instance.glass_times.clear();
         }
     }
 
@@ -926,8 +930,21 @@ impl Shell {
             }
         }
         let blur = instance.blurs.get_mut(&region.shape).unwrap();
+        let finish = |renderer: &mut GlesRenderer| {
+            let _ = renderer.with_context(|gl| unsafe { gl.Finish() });
+        };
+        if self.measure {
+            finish(renderer);
+        }
+        let (runs, started) = (blur.runs, std::time::Instant::now());
         if let Err(err) = blur.update(renderer, programs, below, &theme) {
             warn!(surface = instance.def.name(), "glass failed: {err}");
+        }
+        if self.measure && blur.runs > runs {
+            finish(renderer);
+            instance
+                .glass_times
+                .push(started.elapsed().as_micros() as u64);
         }
     }
 
@@ -1113,6 +1130,7 @@ impl Shell {
             wakes: 0,
             draws: 0,
             draw_times: Vec::new(),
+            glass_times: Vec::new(),
             transition: Default::default(),
             pointer: (0.0, 0.0),
             cursor: Default::default(),

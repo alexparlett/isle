@@ -13,7 +13,8 @@ mod common;
 
 use common::{Isle, wait_until};
 
-/// RSS and PSS in MB, from `smaps_rollup`.
+/// Resident plus swapped, and PSS plus swapped, in MB, from `smaps_rollup`. Pages swapped out
+/// under the host's memory pressure count, so a busy host does not hide growth.
 fn memory(pid: u32) -> (f64, f64) {
     let text = fs::read_to_string(format!("/proc/{pid}/smaps_rollup")).unwrap_or_default();
     let field = |name: &str| {
@@ -24,7 +25,8 @@ fn memory(pid: u32) -> (f64, f64) {
             .unwrap_or(0.0)
             / 1024.0
     };
-    (field("Rss:"), field("Pss:"))
+    let swap = field("Swap:");
+    (field("Rss:") + swap, field("Pss:") + swap)
 }
 
 /// The process's memory on the GPU in MiB, from nvidia-smi's process table, which lists
@@ -134,6 +136,39 @@ async fn full_output_draw_and_memory() {
     assert!(typing.draw_p95 < 2000, "acceptance 5: p95 under 2 ms");
 }
 
+/// The probe's glass blurring again as a window behind it comes and goes, at 3440x1440.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn glass_blur_cost() {
+    let mut isle = Isle::start("bench-glass").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    let test = isle.test().await;
+    ultrawide(&isle).await;
+    let _base = isle.client_with(&["--app-id", "isle.test.Base", "--colour", "3366ff", "--size", "1600x900"]);
+    isle.wait_for_window("isle.test.Base").await;
+    shell.open("probe").await.unwrap();
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    test.measure(true).await.unwrap();
+    let windows = isle_ipc::windows::WindowsProxy::new(&isle.bus).await.unwrap();
+    for n in 0..20 {
+        let app = format!("isle.test.Flash{n}");
+        let _flash = isle.client_with(&["--app-id", &app, "--colour", "ff6600", "--size", "900x500"]);
+        let window = isle.wait_for_window(&app).await;
+        tokio::time::sleep(Duration::from_millis(80)).await;
+        windows.close(window.id).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(80)).await;
+    }
+    let s = surface(&isle, "probe").await;
+    eprintln!(
+        "glass 480x80 with its margin at 3440x1440: {} blurs, p50 {:.2} ms, p95 {:.2} ms, max {:.2} ms",
+        s.glass_runs,
+        s.glass_p50 as f64 / 1000.0,
+        s.glass_p95 as f64 / 1000.0,
+        s.glass_max as f64 / 1000.0
+    );
+    assert!(s.glass_p95 < 1000, "the plan's bar: under 1 ms");
+}
+
 /// Opens, types in, animates, relayouts and closes both probes for `ISLE_SOAK_SECS` (an hour by
 /// default), sampling memory each minute.
 #[tokio::test(flavor = "multi_thread")]
@@ -190,8 +225,21 @@ async fn soak() {
             next += Duration::from_secs(60);
         }
     }
-    let first = samples.get(1).or(samples.first()).unwrap();
+    // The baseline is the highest of the run's first quarter, once allocators have warmed up;
+    // the margin is shell.md acceptance 4's.
+    let quarter = samples.len().div_ceil(4).max(1);
+    let baseline = samples[..quarter]
+        .iter()
+        .map(|s| s.1)
+        .fold(0.0, f64::max);
     let last = samples.last().unwrap();
-    eprintln!("first minute RSS {:.1} MB, last {:.1} MB over {cycles} cycles", first.1, last.1);
-    assert!(last.1 < first.1 * 1.2 + 20.0, "RSS grew from {:.1} to {:.1} MB", first.1, last.1);
+    eprintln!(
+        "first quarter's highest RSS {baseline:.1} MB, last {:.1} MB over {cycles} cycles",
+        last.1
+    );
+    assert!(
+        last.1 <= (baseline * 1.1).max(baseline + 20.0),
+        "RSS grew from {baseline:.1} to {:.1} MB",
+        last.1
+    );
 }

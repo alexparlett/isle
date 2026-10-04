@@ -147,6 +147,8 @@ pub(crate) struct Instance {
     pub draws: u64,
     /// Draw times in microseconds while the shell measures.
     pub draw_times: Vec<u64>,
+    /// Glass passes that blurred, in microseconds, while the shell measures.
+    pub glass_times: Vec<u64>,
     pub transition: crate::transition::Transition,
     /// The pointer's last place over the surface, in physical pixels from its origin.
     pub pointer: (f64, f64),

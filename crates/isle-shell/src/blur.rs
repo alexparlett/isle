@@ -207,6 +207,15 @@ impl Blur {
         theme: &Theme,
     ) -> Result<(), GlesError> {
         self.used = true;
+        // Solid glass hides whatever is behind it, so there is nothing to blur.
+        if theme.appearance.reduce_transparency {
+            self.pending = None;
+            if self.floor != 0.0 {
+                self.floor = 0.0;
+                self.commit.increment();
+            }
+            return Ok(());
+        }
         if let Some(mapping) = self.pending.take() {
             match renderer.map_texture(&mapping) {
                 Ok(pixels) => {

@@ -143,6 +143,9 @@ impl Shell {
                         draw_p50: s.draw_times.0,
                         draw_p95: s.draw_times.1,
                         draw_max: s.draw_times.2,
+                        glass_p50: s.glass_times.0,
+                        glass_p95: s.glass_times.1,
+                        glass_max: s.glass_times.2,
                     })
                     .collect()
             })

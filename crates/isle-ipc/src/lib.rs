@@ -90,6 +90,10 @@ pub struct SurfaceInfo {
     pub draw_p50: u64,
     pub draw_p95: u64,
     pub draw_max: u64,
+    /// Glass passes that blurred while measuring, in microseconds: p50, p95, the longest.
+    pub glass_p50: u64,
+    pub glass_p95: u64,
+    pub glass_max: u64,
 }
 
 pub mod version {

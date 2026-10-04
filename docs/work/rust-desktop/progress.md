@@ -2,6 +2,26 @@
 
 ## 2026-10-04
 
+- P3 3.7: glass. The backdrop behind each glass shape is drawn again
+  through its own damage tracker and blurred with dual Kawase passes
+  sized from `material-blur`; the floor reads a 4×4 reduction back a
+  frame late and raises the tint until `text-2` holds 4.5:1.
+
+- P3 3.6: transitions and the cache. Open and close are compositor
+  springs on the texture with a rounded clip; a closing surface keeps its
+  last frame until the exit ends. Skia's cache over a hundred opens: 12.7
+  MB after the first close, 13.4 MB after the hundredth, under the 64 MiB
+  cap.
+
+- P3 3.5: tokens. `isle-tokens` types every shipped token from the file
+  at build time; the user's file lies over it by path; `appearance` in
+  settings. Found: with fonts loading the loop starts after the bus, so
+  the test harness waits for the loop.
+
+- P3 3.4: panic boundaries. Found in Freya: a panic in a component left
+  its reactive context on a thread-local stack, so the rebuilt surface
+  panicked again outside the boundary; the fork now pops it on unwind.
+
 - P3 3.3: accessibility. Each surface has an accesskit_unix adapter on
   its own D-Bus thread, answered from the loop; `isle shell tree` dumps
   the tree. On a private session with its own at-spi bus the probe's

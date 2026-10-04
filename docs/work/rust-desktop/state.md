@@ -159,5 +159,8 @@
 - P3 3.0–3.3 done (2026-10-04): `freya-embed` on the fork's
   `isle/freya-embed` branch (no pull request yet; Isle pins its head),
   `isle-shell` hosting surfaces with input, focus return and AT-SPI, the
-  probe surface in test builds, `Shell1` and `isle shell`. Next: 3.4,
-  panic boundaries.
+  probe surface in test builds, `Shell1` and `isle shell`.
+- P3 3.4–3.7 done (2026-10-04): panic boundaries with rebuild and the
+  five-a-minute guard, `isle-tokens` and the `appearance` settings live in
+  every surface, compositor transitions with a rounded clip, glass blur
+  and its contrast floor. Next: 3.8, the preview mode.

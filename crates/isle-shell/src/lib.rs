@@ -233,6 +233,15 @@ impl Shell {
         &self.theme
     }
 
+    /// The counts inside `name`'s first tree: Freya's scopes, tasks and nodes, its text cache.
+    pub fn debug(&mut self, name: &str) -> Option<String> {
+        let instance = self.instances.iter_mut().find(|i| i.def.name() == name)?;
+        let embedded = instance.embedded.as_mut()?;
+        let tree = format!("{:?}", embedded.tree());
+        let runner = format!("{:?}", embedded.runner());
+        Some(format!("{runner} {tree}").split_whitespace().collect::<Vec<_>>().join(" "))
+    }
+
     /// The accessibility tree of `name`'s first instance, as JSON.
     pub fn tree(&mut self, name: &str) -> Option<String> {
         let instance = self.instances.iter_mut().find(|i| i.def.name() == name)?;

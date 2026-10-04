@@ -13,8 +13,9 @@ mod common;
 
 use common::{Isle, wait_until};
 
-/// Resident plus swapped, and PSS plus swapped, in MB, from `smaps_rollup`. Pages swapped out
-/// under the host's memory pressure count, so a busy host does not hide growth.
+/// RSS, and the process's own memory (anonymous pages, resident or swapped), in MB, from
+/// `smaps_rollup`. RSS rises and falls as a busy host evicts and swaps pages; the second is what
+/// grows if the process leaks.
 fn memory(pid: u32) -> (f64, f64) {
     let text = fs::read_to_string(format!("/proc/{pid}/smaps_rollup")).unwrap_or_default();
     let field = |name: &str| {
@@ -25,8 +26,7 @@ fn memory(pid: u32) -> (f64, f64) {
             .unwrap_or(0.0)
             / 1024.0
     };
-    let swap = field("Swap:");
-    (field("Rss:") + swap, field("Pss:") + swap)
+    (field("Rss:"), field("Anonymous:") + field("Swap:"))
 }
 
 /// The process's memory on the GPU in MiB, from nvidia-smi's process table, which lists
@@ -99,8 +99,8 @@ async fn full_output_draw_and_memory() {
     let test = isle.test().await;
     ultrawide(&isle).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
-    let (rss, pss) = memory(pid);
-    eprintln!("at rest, nothing open: RSS {rss:.1} MB, PSS {pss:.1} MB, VRAM {:?} MiB", vram(pid));
+    let (rss, own) = memory(pid);
+    eprintln!("at rest, nothing open: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
 
     test.measure(true).await.unwrap();
     shell.open("probe-full").await.unwrap();
@@ -120,18 +120,18 @@ async fn full_output_draw_and_memory() {
     report("3440x1440, 24 tiles fading", &animating);
     let (used, limit) = shell.cache().await.unwrap();
     eprintln!("Skia cache {:.1} of {:.1} MB", used as f64 / 1e6, limit as f64 / 1e6);
-    let (rss, pss) = memory(pid);
-    eprintln!("probe-full open: RSS {rss:.1} MB, PSS {pss:.1} MB, VRAM {:?} MiB", vram(pid));
+    let (rss, own) = memory(pid);
+    eprintln!("probe-full open: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
 
     shell.close("probe-full").await.unwrap();
     shell.open("probe").await.unwrap();
     tokio::time::sleep(Duration::from_secs(1)).await;
-    let (rss, pss) = memory(pid);
-    eprintln!("probe open at rest: RSS {rss:.1} MB, PSS {pss:.1} MB, VRAM {:?} MiB", vram(pid));
+    let (rss, own) = memory(pid);
+    eprintln!("probe open at rest: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
     shell.close("probe").await.unwrap();
     tokio::time::sleep(Duration::from_secs(1)).await;
-    let (rss, pss) = memory(pid);
-    eprintln!("all closed again: RSS {rss:.1} MB, PSS {pss:.1} MB, VRAM {:?} MiB", vram(pid));
+    let (rss, own) = memory(pid);
+    eprintln!("all closed again: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
 
     assert!(typing.draw_p95 < 2000, "acceptance 5: p95 under 2 ms");
 }
@@ -187,9 +187,14 @@ async fn soak() {
     let mut samples: Vec<(u64, f64, f64, Option<u64>)> = Vec::new();
     let mut next = Instant::now();
     let mut cycles = 0u64;
+    // `probe` or `full` soaks one surface alone, to find which one grows.
+    let only = std::env::var("ISLE_SOAK_ONLY").unwrap_or_default();
     while started.elapsed() < Duration::from_secs(secs) {
+      if only != "full" {
         shell.open("probe").await.unwrap();
-        for code in [30, 48, 46] {
+        // Typed and deleted again: the probe keeps its field's text across opens, and a text
+        // that grew every cycle would grow Freya's paragraph cache with it.
+        for code in [30, 48, 46, 14, 14, 14] {
             tap(&isle, code).await;
         }
         // The probe's Animate button: the bar animating relayouts the probe every frame.
@@ -207,26 +212,33 @@ async fn soak() {
         test.button(272, true).await.unwrap();
         test.button(272, false).await.unwrap();
         shell.close("probe").await.unwrap();
+      }
+      if only != "probe" {
         shell.open("probe-full").await.unwrap();
         test.animate_probe_full(true).await.unwrap();
         tokio::time::sleep(Duration::from_millis(500)).await;
         test.animate_probe_full(false).await.unwrap();
         shell.close("probe-full").await.unwrap();
+      }
         tokio::time::sleep(Duration::from_millis(300)).await;
         cycles += 1;
         if Instant::now() >= next {
-            let (rss, pss) = memory(pid);
-            samples.push((started.elapsed().as_secs(), rss, pss, vram(pid)));
+            let (rss, own) = memory(pid);
+            samples.push((started.elapsed().as_secs(), own, rss, vram(pid)));
             eprintln!(
-                "{:>5} s, {cycles} cycles: RSS {rss:.1} MB, PSS {pss:.1} MB, VRAM {:?} MiB",
+                "{:>5} s, {cycles} cycles: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB",
                 started.elapsed().as_secs(),
                 vram(pid)
+            );
+            eprintln!(
+                "    allocated and not freed: {:.1} MB",
+                test.malloc_in_use().await.unwrap() as f64 / 1e6
             );
             next += Duration::from_secs(60);
         }
     }
-    // The baseline is the highest of the run's first quarter, once allocators have warmed up;
-    // the margin is shell.md acceptance 4's.
+    // Judged on the process's own memory. The baseline is the highest of the run's first
+    // quarter, once allocators have warmed up; the margin is shell.md acceptance 4's.
     let quarter = samples.len().div_ceil(4).max(1);
     let baseline = samples[..quarter]
         .iter()
@@ -234,12 +246,12 @@ async fn soak() {
         .fold(0.0, f64::max);
     let last = samples.last().unwrap();
     eprintln!(
-        "first quarter's highest RSS {baseline:.1} MB, last {:.1} MB over {cycles} cycles",
+        "own memory: first quarter's highest {baseline:.1} MB, last {:.1} MB over {cycles} cycles",
         last.1
     );
     assert!(
         last.1 <= (baseline * 1.1).max(baseline + 20.0),
-        "RSS grew from {baseline:.1} to {:.1} MB",
+        "own memory grew from {baseline:.1} to {:.1} MB",
         last.1
     );
 }

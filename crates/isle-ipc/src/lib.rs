@@ -245,6 +245,10 @@ pub mod test {
         fn measure(&self, on: bool) -> zbus::Result<()>;
         /// Turns shell transitions off or on.
         fn transitions(&self, on: bool) -> zbus::Result<()>;
+        /// Bytes the allocator has handed out and not had back, from glibc's `mallinfo2`.
+        fn malloc_in_use(&self) -> zbus::Result<u64>;
+        /// The counts inside a surface's tree, for finding what grows.
+        fn surface_debug(&self, name: &str) -> zbus::Result<String>;
         /// Makes the probe panic when it next renders, handles a key, or draws: `render`,
         /// `event` or `draw`.
         fn panic_probe(&self, fault: &str) -> zbus::Result<()>;

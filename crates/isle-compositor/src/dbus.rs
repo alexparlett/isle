@@ -347,6 +347,21 @@ impl Test {
             .await?)
     }
 
+    /// Bytes the allocator has handed out and not had back, from glibc's `mallinfo2`.
+    fn malloc_in_use(&self) -> u64 {
+        // Safety: mallinfo2 only reads the allocator's counters.
+        let info = unsafe { libc::mallinfo2() };
+        (info.uordblks + info.hblkhd) as u64
+    }
+
+    /// The counts inside a surface's tree, for finding what grows.
+    async fn surface_debug(&self, name: String) -> fdo::Result<String> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.isle.shell.debug(&name).unwrap_or_default())
+            .await?)
+    }
+
     /// Makes the probe panic when it next renders, handles a key, or draws: `render`, `event`
     /// or `draw`.
     async fn panic_probe(&self, fault: String) -> fdo::Result<()> {

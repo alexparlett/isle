@@ -1,0 +1,13 @@
+[package]
+name = "isle-shell"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+freya.workspace = true
+freya-embed.workspace = true
+isle-ui.workspace = true
+smithay.workspace = true
+tracing.workspace = true

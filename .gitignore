@@ -26,6 +26,9 @@ __pycache__/
 # The VM harness and other local-only tooling.
 dev/
 
+# A local patch of the Freya fork while working on it.
+.cargo/config.toml
+
 # The symlink install.sh makes from the served tree to the user widget directory (D14).
 shell/userwidgets
 

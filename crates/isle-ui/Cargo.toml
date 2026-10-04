@@ -1,0 +1,10 @@
+[package]
+name = "isle-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+freya.workspace = true
+isle-tokens.workspace = true

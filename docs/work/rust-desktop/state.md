@@ -156,3 +156,8 @@
   one Skia context, waking instead of ticking, panic boundaries, tokens
   generated from the shipped file, blur and the glass floor, AT-SPI, the
   preview under `dx`. The user took every recommendation. Phases 3.0–3.10.
+- P3 3.0–3.3 done (2026-10-04): `freya-embed` on the fork's
+  `isle/freya-embed` branch (no pull request yet; Isle pins its head),
+  `isle-shell` hosting surfaces with input, focus return and AT-SPI, the
+  probe surface in test builds, `Shell1` and `isle shell`. Next: 3.4,
+  panic boundaries.

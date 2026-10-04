@@ -2,6 +2,29 @@
 
 ## 2026-10-04
 
+- P3 3.3: accessibility. Each surface has an accesskit_unix adapter on
+  its own D-Bus thread, answered from the loop; `isle shell tree` dumps
+  the tree. On a private session with its own at-spi bus the probe's
+  window, buttons, field and rows are listed; the host's AT-SPI is off
+  and turning it on would persist, so it was not used.
+
+- P3 3.2: input and focus. The seat's focus is a client surface or a
+  shell surface; a key-taking surface takes the keyboard and gives it
+  back before its actions run. Found: `surface_under` held the layer map's
+  lock while asking for it again, which wedged the loop on the first
+  pointer motion over the probe.
+
+- P3 3.1: hosting. Surfaces draw through one Skia context into textures
+  on the compositor's context and stack against layer-shell. Found in
+  the fork: Freya's `Timeout` (every `Input` and `ScrollView`) woke the
+  app twice a second forever; it now sleeps until it is reset.
+
+- P3 3.0: `freya-embed` in the fork (branch `isle/freya-embed`), rebuilt
+  on `freya-web`'s frame step, with seven tests on Skia's CPU raster. One
+  race found: the runner's future can finish early on dirty scopes, so
+  `update` loops until it is pending and the waker is armed. bindgen 0.73
+  breaks when syn 2 and 3 meet; prettyplease is pinned to match.
+
 - P2 done. ARCHITECTURE describes the core as built; B35 records its
   shape and B36 how settings are written; the roadmap moves second-GPU
   scan-out and v1's units to P14 and mode confirmation to P13.

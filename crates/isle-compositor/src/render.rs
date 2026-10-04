@@ -6,9 +6,8 @@ use smithay::{
             AsRenderElements, Kind,
             memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
             surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
-            texture::TextureRenderElement,
         },
-        gles::{GlesRenderer, GlesTexture},
+        gles::GlesRenderer,
     },
     desktop::{LayerMap, layer_map_for_output},
     input::pointer::{CursorImageAttributes, CursorImageStatus},
@@ -25,7 +24,7 @@ render_elements! {
     pub IsleElement<=GlesRenderer>;
     Surface = WaylandSurfaceRenderElement<GlesRenderer>,
     Memory = MemoryRenderBufferRenderElement<GlesRenderer>,
-    Shell = TextureRenderElement<GlesTexture>,
+    Shell = isle_shell::ShellElement,
 }
 
 /// A themed cursor image the backend draws itself, with its hotspot.

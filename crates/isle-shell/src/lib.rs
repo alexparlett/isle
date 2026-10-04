@@ -2,11 +2,13 @@
 
 mod a11y;
 pub mod boundary;
+mod element;
 mod gl;
 mod keys;
 #[cfg(feature = "probe")]
 pub mod probe;
 mod surface;
+mod transition;
 
 use std::{
     borrow::Cow,
@@ -27,8 +29,8 @@ use freya_embed::{
 };
 use smithay::{
     backend::renderer::{
-        element::{Kind, texture::TextureRenderElement},
-        gles::{GlesRenderer, GlesTexture},
+        element::utils::RescaleRenderElement,
+        gles::GlesRenderer,
     },
     input::keyboard::{ModifiersState, xkb::Keysym},
     output::Output,
@@ -38,6 +40,9 @@ use smithay::{
 pub use surface::{Action, Actions, Layer, Scope, SurfaceDef};
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};
+
+/// A shell surface as the compositor draws it.
+pub type ShellElement = RescaleRenderElement<element::SurfaceElement>;
 
 /// What the compositor tells the shell about one output.
 #[derive(Clone)]
@@ -60,6 +65,8 @@ pub struct SurfaceInfo {
     pub disabled: bool,
     /// Updates run because the surface's waker fired.
     pub wakes: u64,
+    /// Times its tree was drawn into its texture.
+    pub draws: u64,
 }
 
 /// A shell surface as the seat's pointer or keyboard focus.
@@ -107,6 +114,9 @@ pub struct Shell {
     modifiers: freya::prelude::Modifiers,
     a11y: a11y::Requests,
     theme: Rc<isle_tokens::Theme>,
+    /// Off: surfaces open and close without transitions (Game Mode, P12).
+    animated: bool,
+    clip: Option<smithay::backend::renderer::gles::GlesTexProgram>,
 }
 
 impl Shell {
@@ -123,6 +133,8 @@ impl Shell {
         families.extend(["Noto Sans", "Noto Color Emoji", "Noto Sans CJK JP"].map(Cow::Borrowed));
         Self {
             theme,
+            animated: true,
+            clip: None,
             a11y: a11y::Requests::new(ping.clone()),
             fonts: Fonts::new(families),
             gpu: None,
@@ -223,6 +235,7 @@ impl Shell {
                 panics: i.panics.len() as u32,
                 disabled: i.disabled,
                 wakes: i.wakes,
+                draws: i.draws,
             })
             .collect()
     }
@@ -578,17 +591,25 @@ impl Shell {
         for released in self.released.drain(..) {
             released.release(renderer);
         }
+        self.step(output);
         if !self
             .instances
             .iter()
-            .any(|i| i.open && &i.output == output)
+            .any(|i| i.visible() && &i.output == output)
         {
             return;
+        }
+        if self.clip.is_none() {
+            match element::compile_clip(renderer) {
+                Ok(program) => self.clip = Some(program),
+                Err(err) => warn!("no corner clip for shell surfaces: {err}"),
+            }
         }
         let Some(gpu) = Self::gpu(&mut self.gpu, renderer) else {
             return;
         };
         for instance in &mut self.instances {
+            // A closing surface keeps the last frame it drew until its exit ends.
             if !instance.open || &instance.output != output {
                 continue;
             }
@@ -651,32 +672,96 @@ impl Shell {
                 .render()
                 .draw(|_| Ok::<_, std::convert::Infallible>(vec![full]));
             instance.drew = true;
+            instance.draws += 1;
         }
         self.recover();
     }
 
+    /// Moves every transition on `output` on to now, and finishes the closes that ended.
+    fn step(&mut self, output: &Output) {
+        let now = std::time::Instant::now();
+        let mut purge = false;
+        for instance in &mut self.instances {
+            if &instance.output != output || !instance.transition.moving() {
+                continue;
+            }
+            instance.transition.step(now);
+            if !instance.open && instance.transition.phase == transition::Phase::Closed {
+                Self::unmount(instance);
+                if let Some(target) = instance.gl.take() {
+                    self.released.push(target);
+                }
+                purge = true;
+            }
+        }
+        if purge && let Some(gpu) = self.gpu.as_mut() {
+            gpu.purge();
+        }
+    }
+
+    /// Whether a surface on `output` is still moving, so the output needs another frame.
+    pub fn animating(&self, output: &Output) -> bool {
+        self.instances
+            .iter()
+            .any(|i| &i.output == output && i.transition.moving())
+    }
+
+    /// Turns transitions off or on; off, surfaces open and close at once.
+    pub fn set_animated(&mut self, animated: bool) {
+        self.animated = animated;
+    }
+
+    /// Bytes in Skia's resource cache and its limit, once Skia has started.
+    pub fn cache_usage(&self) -> Option<(usize, usize)> {
+        self.gpu.as_ref().map(Gpu::cache_usage)
+    }
+
+    /// Unmounts a closed surface's content, which stops its timers (shell.md rule 7).
+    fn unmount(instance: &mut Instance) {
+        if let (Some(embedded), Some(shown)) = (instance.embedded.as_mut(), instance.shown) {
+            let ran = boundary::guard(instance.def.name(), || {
+                embedded.with_root(|| {
+                    let mut state = shown.0;
+                    state.set(false);
+                })
+            });
+            if let Err(message) = ran {
+                instance.crash(&message);
+            }
+            std::task::Wake::wake_by_ref(&instance.wakeup);
+        }
+    }
+
     /// The surfaces of `layer` on `output`, front to back, positioned relative to the output.
-    pub fn elements(
-        &self,
-        output: &Output,
-        layer: Layer,
-        push: &mut dyn FnMut(TextureRenderElement<GlesTexture>),
-    ) {
+    pub fn elements(&self, output: &Output, layer: Layer, push: &mut dyn FnMut(ShellElement)) {
         for instance in self.instances.iter().rev() {
-            if !instance.open || &instance.output != output || instance.def.layer() != layer {
+            if !instance.visible() || &instance.output != output || instance.def.layer() != layer {
                 continue;
             }
             let Some(target) = &instance.gl else {
                 continue;
             };
             let location = instance.geometry.loc.to_f64().to_physical(instance.scale);
-            push(TextureRenderElement::from_texture_render_buffer(
+            let radius = instance.def.corner_radius(&self.theme) as f64 * instance.scale;
+            let element = element::SurfaceElement::new(
                 location,
                 &target.buffer,
-                None,
-                None,
-                Some(instance.geometry.size),
-                Kind::Unspecified,
+                target.texture.clone(),
+                instance.geometry.size,
+                instance.transition.opacity(),
+                self.clip.clone().map(|p| (p, radius as f32)),
+            );
+            let (ax, ay) = instance.def.anchor();
+            let size = instance.geometry.size.to_f64().to_physical(instance.scale);
+            let origin = Point::<f64, smithay::utils::Physical>::from((
+                location.x + size.w * ax,
+                location.y + size.h * ay,
+            ))
+            .to_i32_round();
+            push(RescaleRenderElement::from_element(
+                element,
+                origin,
+                instance.transition.scale(),
             ));
         }
     }
@@ -729,20 +814,30 @@ impl Shell {
             instance.open = open;
             instance.opening = open;
             instance.held_keys.clear();
+            let style = transition::Style::new(&self.theme, self.animated);
+            if open {
+                instance.transition.open(&style);
+            } else {
+                instance.transition.close(&style);
+            }
             if let (Some(embedded), Some(shown)) = (instance.embedded.as_mut(), instance.shown) {
                 let takes_keyboard = instance.def.takes_keyboard();
                 let ran = boundary::guard(instance.def.name(), || {
-                    embedded.with_root(|| {
-                        let mut state = shown.0;
-                        state.set(open);
-                    });
+                    // Content mounts as it opens; on close it stays until the exit ends.
+                    if open {
+                        embedded.with_root(|| {
+                            let mut state = shown.0;
+                            state.set(true);
+                        });
+                    }
                     embedded.set_focused(open && takes_keyboard);
                 });
                 if let Err(message) = ran {
                     instance.crash(&message);
                 }
             }
-            if !open {
+            if !open && instance.transition.phase == transition::Phase::Closed {
+                Self::unmount(instance);
                 if let Some(target) = instance.gl.take() {
                     self.released.push(target);
                 }
@@ -832,6 +927,8 @@ impl Shell {
             panics: Default::default(),
             crashed: false,
             wakes: 0,
+            draws: 0,
+            transition: Default::default(),
             pointer: (0.0, 0.0),
             cursor: Default::default(),
             opening: false,
@@ -933,6 +1030,11 @@ const PANIC_LIMIT: usize = 5;
 const PANIC_WINDOW: std::time::Duration = std::time::Duration::from_secs(60);
 
 impl Instance {
+    /// Drawn: open, or closing with its last frame.
+    fn visible(&self) -> bool {
+        self.open || self.transition.moving()
+    }
+
     /// Drops a tree that panicked; [`Shell::recover`] rebuilds it.
     fn crash(&mut self, message: &str) {
         warn!(surface = self.def.name(), "panicked: {message}");

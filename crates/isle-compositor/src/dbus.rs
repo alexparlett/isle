@@ -137,6 +137,7 @@ impl Shell {
                         panics: s.panics,
                         disabled: s.disabled,
                         wakes: s.wakes,
+                        draws: s.draws,
                     })
                     .collect()
             })
@@ -154,6 +155,17 @@ impl Shell {
         Ok(self
             .to_loop
             .call(move |state| state.close_surface(&name))
+            .await?)
+    }
+
+    /// Bytes in Skia's resource cache and its limit; zero before any surface has drawn.
+    async fn cache(&self) -> fdo::Result<(u64, u64)> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                let (used, limit) = state.isle.shell.cache_usage().unwrap_or_default();
+                (used as u64, limit as u64)
+            })
             .await?)
     }
 
@@ -296,6 +308,14 @@ impl Test {
                 }
                 state.on_axis(frame);
             })
+            .await?)
+    }
+
+    /// Turns shell transitions off or on.
+    async fn transitions(&self, on: bool) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.isle.shell.set_animated(on))
             .await?)
     }
 

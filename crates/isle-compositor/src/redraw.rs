@@ -220,6 +220,10 @@ impl State {
                 "presented"
             );
             drop(state);
+            // A shell surface still moving needs the next frame too.
+            if self.isle.shell.animating(output) {
+                self.isle.queue_redraw(output);
+            }
             if self.backend.paces_by_timer() {
                 let target = output.clone();
                 let timer = Timer::from_duration(refresh_interval(output));

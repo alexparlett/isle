@@ -114,9 +114,10 @@ async fn the_probe_draws_at_its_place_and_scale() {
     settled(&isle).await;
 
     let image = shot(&isle, "scale1").await;
-    assert_eq!(image.at(727, 367), RED, "the marker's last pixel");
-    assert_eq!(image.at(728, 368), FILL, "the panel past the marker");
-    assert_eq!(image.at(1195, 364), FILL, "the panel's top-right padding");
+    assert_eq!(image.at(1175, 391), RED, "the marker's last pixel");
+    assert_eq!(image.at(1176, 392), FILL, "the panel past the marker");
+    assert_eq!(image.at(1100, 364), FILL, "the panel's top padding");
+    assert_eq!(image.at(720, 360), [28, 28, 31], "the corner is clipped round");
     assert_eq!(image.at(10, 10), [28, 28, 31], "the backdrop");
 
     SettingsProxy::new(&isle.bus)
@@ -129,8 +130,8 @@ async fn the_probe_draws_at_its_place_and_scale() {
     settled(&isle).await;
     let image = shot(&isle, "scale2").await;
     // Freya anti-aliases the marker's far edge at scale 2, so look one pixel in.
-    assert_eq!(image.at(494, 194), RED, "the marker is 16 pixels at scale 2");
-    assert_eq!(image.at(498, 198), FILL);
+    assert_eq!(image.at(1390, 242), RED, "the marker is 16 pixels at scale 2");
+    assert_eq!(image.at(1394, 246), FILL);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -151,7 +152,7 @@ async fn an_open_still_probe_presents_nothing_and_a_closed_one_wakes_nothing() {
     shell.close("probe").await.unwrap();
     settled(&isle).await;
     let image = shot(&isle, "closed").await;
-    assert_eq!(image.at(727, 367), [28, 28, 31], "nothing where the probe was");
+    assert_eq!(image.at(1175, 391), [28, 28, 31], "nothing where the probe was");
     let wakes = probe(&isle).await.wakes;
     let frames = test.frames("HEADLESS-1").await.unwrap();
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -311,7 +312,7 @@ async fn a_panic_anywhere_in_the_probe_rebuilds_it_with_its_model() {
         tap(&isle, 15).await;
         settled(&isle).await;
         let image = shot(&isle, &format!("after-{fault}")).await;
-        assert_eq!(image.at(727, 367), RED, "{fault}: the probe is drawn again");
+        assert_eq!(image.at(1175, 391), RED, "{fault}: the probe is drawn again");
         assert!(started.elapsed() < Duration::from_secs(3));
         assert_eq!(model(&isle).await.0, "keep", "{fault}: the model outlives the tree");
     }
@@ -354,12 +355,12 @@ async fn a_token_edit_reaches_the_probe_and_a_broken_file_keeps_the_last_good() 
     shell.open("probe").await.unwrap();
     tap(&isle, 15).await;
     settled(&isle).await;
-    assert_eq!(shot(&isle, "tokens-before").await.at(1195, 364), FILL);
+    assert_eq!(shot(&isle, "tokens-before").await.at(1100, 364), FILL);
 
     let file = isle.dir.join("config/tokens.kdl");
     fs::write(&file, "version 1\ncolour { dark { window-raised \"#102030\" } }\n").unwrap();
     let started = std::time::Instant::now();
-    wait_until(|| async { shot(&isle, "tokens-after").await.at(1195, 364) == [0x10, 0x20, 0x30] })
+    wait_until(|| async { shot(&isle, "tokens-after").await.at(1100, 364) == [0x10, 0x20, 0x30] })
         .await;
     assert!(started.elapsed() < Duration::from_secs(1), "{:?}", started.elapsed());
     assert!(shell.tokens_status().await.unwrap().ok);
@@ -369,7 +370,7 @@ async fn a_token_edit_reaches_the_probe_and_a_broken_file_keeps_the_last_good() 
     let status = shell.tokens_status().await.unwrap();
     assert!(status.line >= 2, "{status:?}");
     settled(&isle).await;
-    assert_eq!(shot(&isle, "tokens-broken").await.at(1195, 364), [0x10, 0x20, 0x30]);
+    assert_eq!(shot(&isle, "tokens-broken").await.at(1100, 364), [0x10, 0x20, 0x30]);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -385,5 +386,55 @@ async fn the_appearance_setting_redraws_the_probe_in_light() {
         .set("appearance.mode", &zvariant::Value::from("light"))
         .await
         .unwrap();
-    wait_until(|| async { shot(&isle, "light").await.at(1195, 364) == [0xff, 0xff, 0xff] }).await;
+    wait_until(|| async { shot(&isle, "light").await.at(1100, 364) == [0xff, 0xff, 0xff] }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_open_is_drawn_by_the_compositor_and_the_probe_draws_once() {
+    let isle = Isle::start("shell-transition").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    let test = isle.test().await;
+    let frames = test.frames("HEADLESS-1").await.unwrap();
+    shell.open("probe").await.unwrap();
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    let moved = test.frames("HEADLESS-1").await.unwrap() - frames;
+    let draws = probe(&isle).await.draws;
+    assert!(moved >= 10, "only {moved} frames in the open");
+    // The tree draws as it mounts and as its rows' fade runs, never for the open itself.
+    assert!(draws < moved, "{draws} draws for {moved} frames");
+
+    shell.close("probe").await.unwrap();
+    let draws = probe(&isle).await.draws;
+    let frames = test.frames("HEADLESS-1").await.unwrap();
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    assert!(test.frames("HEADLESS-1").await.unwrap() - frames >= 5, "the close moves");
+    assert_eq!(probe(&isle).await.draws, draws, "a closing surface keeps its last frame");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn skia_cache_stays_under_its_cap_over_a_hundred_opens() {
+    let isle = Isle::start("shell-cache").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    let test = isle.test().await;
+    test.transitions(false).await.unwrap();
+    let mut first = None;
+    let mut highest = 0;
+    for cycle in 0..100 {
+        let draws = probe(&isle).await.draws;
+        shell.open("probe").await.unwrap();
+        // Through the rows' fade, so its layers reach the cache.
+        wait_until(|| async { probe(&isle).await.draws > draws }).await;
+        tokio::time::sleep(Duration::from_millis(if cycle == 0 { 300 } else { 30 })).await;
+        let (used, limit) = shell.cache().await.unwrap();
+        assert!(used <= limit, "{used} over the cap {limit}");
+        highest = highest.max(used);
+        shell.close("probe").await.unwrap();
+        if cycle == 0 {
+            first = Some(shell.cache().await.unwrap().0);
+        }
+    }
+    let (after, _) = shell.cache().await.unwrap();
+    let first = first.unwrap();
+    eprintln!("cache after the first close {first}, after the hundredth {after}, highest {highest}");
+    assert!(after <= first + 1024 * 1024, "{after} grew from {first}");
 }

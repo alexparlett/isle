@@ -12,6 +12,7 @@ use smithay::{
 
 pub struct GlSurface {
     pub size: Size<i32, Physical>,
+    pub texture: GlesTexture,
     pub target: GlTarget,
     pub buffer: TextureRenderBuffer<GlesTexture>,
     fbo: u32,
@@ -97,9 +98,11 @@ impl GlSurface {
         // Safety: `tex` is a complete RGBA8 texture made above; the renderer owns it from here.
         let texture =
             unsafe { GlesTexture::from_raw(renderer, Some(ffi::RGBA8), false, tex, (size.w, size.h).into()) };
-        let buffer = TextureRenderBuffer::from_texture(renderer, texture, 1, Transform::Normal, None);
+        let buffer =
+            TextureRenderBuffer::from_texture(renderer, texture.clone(), 1, Transform::Normal, None);
         Ok(Self {
             size,
+            texture,
             target,
             buffer,
             fbo,

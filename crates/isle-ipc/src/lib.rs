@@ -80,6 +80,8 @@ pub struct SurfaceInfo {
     pub disabled: bool,
     /// Updates run because the surface's waker fired.
     pub wakes: u64,
+    /// Times its tree was drawn into its texture.
+    pub draws: u64,
 }
 
 pub mod version {
@@ -176,6 +178,8 @@ pub mod shell {
         /// False when no surface has that name.
         fn open(&self, name: &str) -> zbus::Result<bool>;
         fn close(&self, name: &str) -> zbus::Result<bool>;
+        /// Bytes in Skia's resource cache and its limit; zero before any surface has drawn.
+        fn cache(&self) -> zbus::Result<(u64, u64)>;
         /// Whether the user's tokens.kdl is in force, or where it went wrong.
         fn tokens_status(&self) -> zbus::Result<SettingsStatus>;
         /// Turns a surface that panicked too often back on, closed.
@@ -223,6 +227,8 @@ pub mod test {
         fn button(&self, button: u32, pressed: bool) -> zbus::Result<()>;
         /// Scrolls as a mouse wheel does, in steps of 120 per notch; positive is down.
         fn axis(&self, v120_x: i32, v120_y: i32) -> zbus::Result<()>;
+        /// Turns shell transitions off or on.
+        fn transitions(&self, on: bool) -> zbus::Result<()>;
         /// Makes the probe panic when it next renders, handles a key, or draws: `render`,
         /// `event` or `draw`.
         fn panic_probe(&self, fault: &str) -> zbus::Result<()>;

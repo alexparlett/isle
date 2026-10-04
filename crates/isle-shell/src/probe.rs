@@ -9,7 +9,7 @@ use smithay::utils::{Logical, Rectangle, Size as SSize};
 use crate::{Action, Actions, Layer, Scope, SurfaceDef};
 
 pub const SIZE: (i32, i32) = (480, 360);
-/// The square in the panel's top-left corner, 8 points wide.
+/// The square inside the panel's top-right corner, 8 points wide, 24 in from each edge.
 pub const MARKER: (u8, u8, u8) = (255, 0, 0);
 
 /// What outlives the tree: the field's text and the presses counted.
@@ -78,6 +78,10 @@ impl SurfaceDef for Probe {
         AppComponent::new(ProbeApp)
     }
 
+    fn corner_radius(&self, theme: &isle_tokens::Theme) -> f32 {
+        theme.tokens.radius_panel
+    }
+
     fn provide(&self, runner: &mut Runner) {
         let model = self.model.clone();
         runner.provide_root_context(move || Model(model));
@@ -135,6 +139,12 @@ fn probe() -> impl IntoElement {
         }
     });
     let progress = bar.read().value();
+    // A fade inside the tree, which Skia draws through a layer per element and caches.
+    let rows = use_animation(|conf| {
+        conf.on_creation(OnCreation::Run);
+        AnimNum::new(0., 1.).time(200)
+    });
+    let rows_opacity = rows.read().value();
     let theme = isle_ui::use_theme();
     let fill = isle_ui::colour(theme.tokens.colour_window_raised);
     let text_colour = isle_ui::colour(theme.tokens.colour_text);
@@ -190,6 +200,7 @@ fn probe() -> impl IntoElement {
                 rect()
                     .width(Size::fill())
                     .spacing(4.)
+                    .opacity(rows_opacity)
                     .children((1..=30).map(|n| {
                         rect()
                             .width(Size::fill())
@@ -223,7 +234,7 @@ fn probe() -> impl IntoElement {
         )
         .child(
             rect()
-                .position(Position::new_absolute().left(0.).top(0.))
+                .position(Position::new_absolute().right(24.).top(24.))
                 .width(Size::px(8.))
                 .height(Size::px(8.))
                 .background(MARKER),

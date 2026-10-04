@@ -53,6 +53,14 @@ pub trait SurfaceDef: 'static {
     fn app(&self) -> AppComponent;
     /// Root contexts the tree reads, provided before its first render.
     fn provide(&self, runner: &mut Runner);
+    /// The point it opens from and closes toward, as fractions of its box.
+    fn anchor(&self) -> (f64, f64) {
+        (0.5, 0.5)
+    }
+    /// Its corner radius in points; its texture is clipped to it.
+    fn corner_radius(&self, _theme: &isle_tokens::Theme) -> f32 {
+        0.0
+    }
 }
 
 /// What a surface asks of the compositor, which acts on it after the surface's update.
@@ -136,6 +144,9 @@ pub(crate) struct Instance {
     pub crashed: bool,
     /// Updates run because its waker fired.
     pub wakes: u64,
+    /// Times its tree was drawn into its texture.
+    pub draws: u64,
+    pub transition: crate::transition::Transition,
     /// The pointer's last place over the surface, in physical pixels from its origin.
     pub pointer: (f64, f64),
     pub cursor: freya::prelude::CursorIcon,

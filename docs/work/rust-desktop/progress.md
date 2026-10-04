@@ -1,5 +1,13 @@
 # Progress
 
+## 2026-10-04
+
+- P2 host smoke run: Isle lit the ultrawide on the 5070 Ti from tty8 and
+  took input. Two findings: the pointer redrew only when something else
+  did (fixed: motion queues a redraw whenever Isle draws the cursor), and
+  xremap from the Hyprland session rewrites Cmd chords before Isle sees
+  them, and would be started by isle-session.target too.
+
 ## 2026-10-03
 
 - P2 phase 2.7: the supervisor, tested over the headless compositor: a

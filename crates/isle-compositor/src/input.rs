@@ -14,6 +14,8 @@ use smithay::{
     utils::{Logical, Point, SERIAL_COUNTER},
 };
 
+use tracing::debug;
+
 use crate::{binds::Action, state::State};
 
 impl State {
@@ -77,6 +79,15 @@ impl State {
             serial,
             time,
             |state, modifiers, handle| {
+                debug!(
+                    key = ?handle.modified_sym(),
+                    pressed,
+                    logo = modifiers.logo,
+                    ctrl = modifiers.ctrl,
+                    alt = modifiers.alt,
+                    shift = modifiers.shift,
+                    "key"
+                );
                 if !pressed {
                     if state.isle.suppressed_keys.remove(&code) {
                         return FilterResult::Intercept(None);
@@ -117,7 +128,11 @@ impl State {
             },
         );
         pointer.frame(self);
-        if matches!(self.isle.cursor_status, CursorImageStatus::Surface(_)) {
+        // A nested backend's host draws named cursors; everywhere else the cursor is
+        // Isle's to draw, so it moves only with a redraw.
+        let host_draws = matches!(self.backend, crate::backend::Backend::Winit(_))
+            && !matches!(self.isle.cursor_status, CursorImageStatus::Surface(_));
+        if !host_draws {
             self.isle.queue_redraw_all();
         }
     }

@@ -693,6 +693,12 @@ impl State {
     fn libinput_event(&mut self, event: InputEvent<LibinputInputBackend>) {
         match &event {
             InputEvent::DeviceAdded { device } => {
+                info!(
+                    name = %device.name(),
+                    keyboard = device.has_capability(DeviceCapability::Keyboard),
+                    pointer = device.has_capability(DeviceCapability::Pointer),
+                    "input device"
+                );
                 if device.has_capability(DeviceCapability::Pointer) {
                     let mut device = device.clone();
                     self.apply_pointer_settings(&mut device);

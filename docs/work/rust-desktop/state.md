@@ -135,5 +135,14 @@
   (guest-side switch in `~/.bash_profile`; remove the file for Hyprland);
   `isle-session.target` and `graphical-session.target` come up, Super+Return
   opens kitty, typing works, `isle version` over ssh matches. Nested VRAM
-  recorded (`docs/research/rust-desktop/p2-vram.md`). Waiting on the host
-  smoke run on tty8, which needs the user (sudo). Then 2.9, close.
+  recorded (`docs/research/rust-desktop/p2-vram.md`).
+- P2 host smoke run done (2026-10-04, tty8, run by the user): Isle opened
+  the 5070 Ti (card2, overlay planes off), lit the AOC on DP-4 at
+  3440x1440 at its preferred 60 Hz, took the Keychron and the pointer, no
+  stalls or errors, about 6 MiB VRAM. The pointer jumped until pointer
+  motion queued a redraw for Isle's own cursor (fixed). Cmd+Return opened
+  nothing because v1's xremap, still running from the Hyprland session,
+  grabs the Mac keyboard and sends Cmd+Return as Ctrl+Return. xremap.service
+  is WantedBy graphical-session.target, so isle-session.target would start
+  it in a real Isle session too: P5 retires xremap, and P14 must disable
+  v1's units before the host moves over. Next: 2.9, close.

@@ -151,3 +151,8 @@
   and `p2-compositor.md` ends with its outcome. Next: P3, the shell
   runtime, once the Freya fork is at rc.8; P4 (windows) and P5 (keyboard)
   need only P2 and can start before it.
+- P3 planned in `p3-shell-runtime.md` (2026-10-04): `freya-embed` in the
+  fork, `isle-shell`, `isle-tokens`, `isle-ui` and `isle-preview` here;
+  one Skia context, waking instead of ticking, panic boundaries, tokens
+  generated from the shipped file, blur and the glass floor, AT-SPI, the
+  preview under `dx`. The user took every recommendation. Phases 3.0–3.10.

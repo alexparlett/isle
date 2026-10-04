@@ -334,6 +334,11 @@ impl Isle {
     /// Runs the shell surfaces whose wakers fired and redraws the outputs they changed.
     pub fn dispatch_shell(&mut self) -> Vec<(String, isle_shell::Action)> {
         let dispatched = self.shell.dispatch();
+        let mut actions: Vec<(String, isle_shell::Action)> = dispatched
+            .disabled
+            .into_iter()
+            .map(|name| (name, isle_shell::Action::Close))
+            .collect();
         for output in dispatched.redraw {
             self.queue_redraw(&output);
         }
@@ -343,11 +348,13 @@ impl Isle {
                 self.set_shell_cursor(&focus);
             }
         }
-        dispatched
-            .actions
-            .into_iter()
-            .map(|(name, _, action)| (name, action))
-            .collect()
+        actions.extend(
+            dispatched
+                .actions
+                .into_iter()
+                .map(|(name, _, action)| (name, action)),
+        );
+        actions
     }
 
     /// The pointer is over a shell surface, which names its cursor.

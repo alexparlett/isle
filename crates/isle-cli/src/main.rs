@@ -89,6 +89,8 @@ enum Shell {
     Close { name: String },
     /// A surface's accessibility tree, as JSON.
     Tree { name: String },
+    /// Turn a surface back on after it panicked too often.
+    Restart { name: String },
 }
 
 #[derive(Subcommand)]
@@ -231,6 +233,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 Shell::Open { name } => surface_found(proxy.open(name).await?, name)?,
                 Shell::Close { name } => surface_found(proxy.close(name).await?, name)?,
                 Shell::Tree { name } => println!("{}", proxy.tree(name).await?),
+                Shell::Restart { name } => surface_found(proxy.restart(name).await?, name)?,
             }
         }
         Command::Test(command) => {

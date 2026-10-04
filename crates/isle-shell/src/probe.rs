@@ -22,13 +22,34 @@ pub struct ProbeModel {
     pub animating: bool,
 }
 
+/// Where an armed probe panics: rendering, a key handler, or drawing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Fault {
+    Render,
+    Event,
+    Draw,
+}
+
 #[derive(Default)]
 pub struct Probe {
     pub model: Rc<RefCell<ProbeModel>>,
+    switch: RefCell<Option<State<Option<Fault>>>>,
+}
+
+impl Probe {
+    /// Makes the current tree panic at `fault`; call it in the tree's root scope.
+    pub fn arm(&self, fault: Fault) {
+        if let Some(mut switch) = *self.switch.borrow() {
+            switch.set(Some(fault));
+        }
+    }
 }
 
 #[derive(Clone)]
 struct Model(Rc<RefCell<ProbeModel>>);
+
+#[derive(Clone, Copy)]
+struct Switch(State<Option<Fault>>);
 
 impl SurfaceDef for Probe {
     fn name(&self) -> &'static str {
@@ -62,6 +83,8 @@ impl SurfaceDef for Probe {
     fn provide(&self, runner: &mut Runner) {
         let model = self.model.clone();
         runner.provide_root_context(move || Model(model));
+        let switch = runner.provide_root_context(|| Switch(State::create(None)));
+        *self.switch.borrow_mut() = Some(switch.0);
     }
 }
 
@@ -76,6 +99,10 @@ impl App for ProbeApp {
 fn probe() -> impl IntoElement {
     let model = use_consume::<Model>().0;
     let actions = Actions::get();
+    let switch = use_consume::<Switch>().0;
+    if *switch.read() == Some(Fault::Render) {
+        panic!("a render panic injected into the probe");
+    }
     let text = use_state({
         let model = model.clone();
         move || model.borrow().text.clone()
@@ -116,6 +143,7 @@ fn probe() -> impl IntoElement {
         .padding(16.)
         .spacing(10.)
         .child(label().text("Isle probe · 東京 🎧").font_size(18.))
+        .maybe_child((*switch.read()).map(|fault| label().text(format!("Armed: {fault:?}"))))
         .child(
             rect()
                 .horizontal()
@@ -177,6 +205,21 @@ fn probe() -> impl IntoElement {
         .height(Size::px(SIZE.1 as f32))
         .background(FILL)
         .color((235, 235, 240))
+        .on_global_key_down(move |_| {
+            if *switch.peek() == Some(Fault::Event) {
+                panic!("an event panic injected into the probe");
+            }
+        })
+        .child(
+            canvas(RenderCallback::new(move |_| {
+                if *switch.peek() == Some(Fault::Draw) {
+                    panic!("a draw panic injected into the probe");
+                }
+            }))
+            .position(Position::new_absolute())
+            .width(Size::px(1.))
+            .height(Size::px(1.)),
+        )
         .child(
             rect()
                 .position(Position::new_absolute().left(0.).top(0.))

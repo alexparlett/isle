@@ -176,6 +176,8 @@ pub mod shell {
         /// False when no surface has that name.
         fn open(&self, name: &str) -> zbus::Result<bool>;
         fn close(&self, name: &str) -> zbus::Result<bool>;
+        /// Turns a surface that panicked too often back on, closed.
+        fn restart(&self, name: &str) -> zbus::Result<bool>;
         /// The surface's accessibility tree as JSON: each node's id, role, label, value,
         /// children and focus.
         fn tree(&self, name: &str) -> zbus::Result<String>;
@@ -219,6 +221,9 @@ pub mod test {
         fn button(&self, button: u32, pressed: bool) -> zbus::Result<()>;
         /// Scrolls as a mouse wheel does, in steps of 120 per notch; positive is down.
         fn axis(&self, v120_x: i32, v120_y: i32) -> zbus::Result<()>;
+        /// Makes the probe panic when it next renders, handles a key, or draws: `render`,
+        /// `event` or `draw`.
+        fn panic_probe(&self, fault: &str) -> zbus::Result<()>;
         /// The probe surface's model: the field's text, the presses counted, whether it
         /// animates.
         fn probe(&self) -> zbus::Result<(String, u32, bool)>;

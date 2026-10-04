@@ -1,6 +1,7 @@
 //! The shell surface host: Freya trees drawn on the compositor's GL context (B7).
 
 mod a11y;
+pub mod boundary;
 mod gl;
 mod keys;
 #[cfg(feature = "probe")]
@@ -88,6 +89,8 @@ pub struct Dispatched {
     pub actions: Vec<(String, ShellFocus, Action)>,
     /// Surfaces whose pointer icon changed.
     pub cursors: Vec<(ShellFocus, freya::prelude::CursorIcon)>,
+    /// Surfaces turned off after panicking too often; the compositor closes them.
+    pub disabled: Vec<String>,
 }
 
 /// Every shell surface, and what they share: fonts and one Skia context.
@@ -152,7 +155,15 @@ impl Shell {
     pub fn tree(&mut self, name: &str) -> Option<String> {
         let instance = self.instances.iter_mut().find(|i| i.def.name() == name)?;
         let embedded = instance.embedded.as_mut()?;
-        let snapshot = embedded.accessibility_snapshot();
+        let snapshot = match boundary::guard(instance.def.name(), || embedded.accessibility_snapshot())
+        {
+            Ok(snapshot) => snapshot,
+            Err(message) => {
+                instance.crash(&message);
+                self.recover();
+                return None;
+            }
+        };
         // Taking a snapshot restarts the tree's diff, so an active adapter takes it whole too.
         if let Some(adapter) = instance.adapter.as_mut() {
             let whole = snapshot.clone();
@@ -188,7 +199,7 @@ impl Shell {
             else {
                 continue;
             };
-            match request {
+            let ran = boundary::guard(instance.def.name(), || match request {
                 a11y::Request::Activate => {
                     if let Some(tree) = embedded.set_screen_reader(true) {
                         adapter.update_if_active(|| tree);
@@ -197,10 +208,11 @@ impl Shell {
                 a11y::Request::Deactivate => {
                     embedded.set_screen_reader(false);
                 }
-                a11y::Request::Action(request) => {
-                    embedded.accessibility_action(request);
-                    std::task::Wake::wake_by_ref(&instance.wakeup);
-                }
+                a11y::Request::Action(request) => embedded.accessibility_action(request),
+            });
+            match ran {
+                Ok(()) => std::task::Wake::wake_by_ref(&instance.wakeup),
+                Err(message) => instance.crash(&message),
             }
         }
         for instance in &mut self.instances {
@@ -211,17 +223,30 @@ impl Shell {
                 continue;
             };
             instance.wakes += 1;
-            let mut update = embedded.update(&mut self.fonts);
-            if instance.opening {
-                // The content is mounted now; the keys typed while it opened reach it in order.
-                instance.opening = false;
-                for event in instance.held_keys.drain(..) {
-                    embedded.event(event);
+            let fonts = &mut self.fonts;
+            let opening = std::mem::take(&mut instance.opening);
+            let held = std::mem::take(&mut instance.held_keys);
+            let ran = boundary::guard(instance.def.name(), || {
+                let mut update = embedded.update(fonts);
+                if opening {
+                    // The content is mounted now; the keys typed while it opened reach it in
+                    // order.
+                    for event in held {
+                        embedded.event(event);
+                    }
+                    let more = embedded.update(fonts);
+                    update.redraw |= more.redraw;
+                    update.cursor = more.cursor.or(update.cursor);
                 }
-                let more = embedded.update(&mut self.fonts);
-                update.redraw |= more.redraw;
-                update.cursor = more.cursor.or(update.cursor);
-            }
+                update
+            });
+            let mut update = match ran {
+                Ok(update) => update,
+                Err(message) => {
+                    instance.crash(&message);
+                    continue;
+                }
+            };
             if let (Some(tree), Some(adapter)) = (update.accessibility.take(), instance.adapter.as_mut())
             {
                 adapter.update_if_active(|| tree);
@@ -242,7 +267,83 @@ impl Shell {
                     .push((instance.def.name().to_string(), focus.clone(), action));
             }
         }
+        out.disabled = self.recover();
         out
+    }
+
+    /// Rebuilds every instance that panicked from its definition, or turns it off after its
+    /// sixth panic in a minute. Returns the names turned off.
+    fn recover(&mut self) -> Vec<String> {
+        let mut disabled = Vec::new();
+        // A rebuild can panic too; each pass counts one more panic, so this ends.
+        while let Some(index) = self.instances.iter().position(|i| i.crashed && !i.disabled) {
+            let mut instance = self.instances.remove(index);
+            instance.crashed = false;
+            let now = std::time::Instant::now();
+            instance.panics.push_back(now);
+            while instance
+                .panics
+                .front()
+                .is_some_and(|t| now.duration_since(*t) > PANIC_WINDOW)
+            {
+                instance.panics.pop_front();
+            }
+            if let Some(target) = instance.gl.take() {
+                self.released.push(target);
+            }
+            if instance.panics.len() > PANIC_LIMIT {
+                warn!(
+                    surface = instance.def.name(),
+                    "panicked {} times in a minute; off until restarted",
+                    instance.panics.len()
+                );
+                instance.disabled = true;
+                disabled.push(instance.def.name().to_string());
+            } else {
+                self.build(&mut instance);
+                std::task::Wake::wake_by_ref(&instance.wakeup);
+            }
+            self.instances.insert(index, instance);
+        }
+        disabled
+    }
+
+    /// Turns a surface turned off by its panics back on, closed, with its count cleared.
+    pub fn restart(&mut self, name: &str) -> bool {
+        let mut found = false;
+        for index in 0..self.instances.len() {
+            if self.instances[index].def.name() != name {
+                continue;
+            }
+            found = true;
+            let mut instance = self.instances.remove(index);
+            instance.disabled = false;
+            instance.panics.clear();
+            instance.open = false;
+            if let Some(target) = instance.gl.take() {
+                self.released.push(target);
+            }
+            self.build(&mut instance);
+            self.instances.insert(index, instance);
+        }
+        self.recover();
+        found
+    }
+
+    /// Runs `f` in the root scope of `name`'s first instance, behind its boundary.
+    pub fn with_root(&mut self, name: &str, f: impl FnOnce()) -> bool {
+        let Some(instance) = self.instances.iter_mut().find(|i| i.def.name() == name) else {
+            return false;
+        };
+        let Some(embedded) = instance.embedded.as_mut() else {
+            return false;
+        };
+        if let Err(message) = boundary::guard(instance.def.name(), || embedded.with_root(f)) {
+            instance.crash(&message);
+        }
+        std::task::Wake::wake_by_ref(&instance.wakeup);
+        self.recover();
+        true
     }
 
     /// The open surface of `layer` under `at` on `output`, and its origin; both relative to the
@@ -351,7 +452,11 @@ impl Shell {
         if let Some(instance) = self.instances.iter_mut().find(|i| i.id == focus.id)
             && let Some(embedded) = instance.embedded.as_mut()
         {
-            embedded.set_focused(focused);
+            if let Err(message) =
+                boundary::guard(instance.def.name(), || embedded.set_focused(focused))
+            {
+                instance.crash(&message);
+            }
             if let Some(adapter) = instance.adapter.as_mut() {
                 adapter.update_window_focus_state(focused);
             }
@@ -390,9 +495,12 @@ impl Shell {
             return;
         }
         if let Some(embedded) = instance.embedded.as_mut() {
-            embedded.event(event);
+            if let Err(message) = boundary::guard(instance.def.name(), || embedded.event(event)) {
+                instance.crash(&message);
+            }
             std::task::Wake::wake_by_ref(&instance.wakeup);
         }
+        self.recover();
     }
 
     fn feed(&mut self, focus: &ShellFocus, events: impl FnOnce(&mut Instance) -> Vec<PlatformEvent>) {
@@ -401,11 +509,17 @@ impl Shell {
         };
         let events = events(instance);
         if let Some(embedded) = instance.embedded.as_mut() {
-            for event in events {
-                embedded.event(event);
+            let ran = boundary::guard(instance.def.name(), || {
+                for event in events {
+                    embedded.event(event);
+                }
+            });
+            if let Err(message) = ran {
+                instance.crash(&message);
             }
             std::task::Wake::wake_by_ref(&instance.wakeup);
         }
+        self.recover();
     }
 
     fn instance(&self, focus: &ShellFocus) -> Option<&Instance> {
@@ -468,16 +582,28 @@ impl Shell {
             }
             let target = instance.gl.as_mut().unwrap();
             let fonts = &mut self.fonts;
+            let name = instance.def.name();
             let drawn = renderer.with_context(|gl| {
                 // Smithay has moved GL state since Skia last drew.
                 gpu.context().reset(None);
-                embedded.render(fonts, target.target.surface().canvas());
+                let ran = boundary::guard(name, || {
+                    embedded.render(fonts, target.target.surface().canvas());
+                });
+                // Whatever was recorded before a panic still reaches the target it was for.
                 gpu.context().flush_and_submit();
                 unsafe { gl::restore(gl) };
+                ran
             });
-            if let Err(err) = drawn {
-                warn!(surface = instance.def.name(), "drawing failed: {err}");
-                continue;
+            match drawn {
+                Err(err) => {
+                    warn!(surface = name, "drawing failed: {err}");
+                    continue;
+                }
+                Ok(Err(message)) => {
+                    instance.crash(&message);
+                    continue;
+                }
+                Ok(Ok(())) => {}
             }
             let full = smithay::utils::Rectangle::from_size((size.w, size.h).into());
             let _ = target
@@ -486,6 +612,7 @@ impl Shell {
                 .draw(|_| Ok::<_, std::convert::Infallible>(vec![full]));
             instance.drew = true;
         }
+        self.recover();
     }
 
     /// The surfaces of `layer` on `output`, front to back, positioned relative to the output.
@@ -552,7 +679,7 @@ impl Shell {
     fn set_open(&mut self, name: &str, open: bool) -> bool {
         let mut found = false;
         for instance in &mut self.instances {
-            if instance.def.name() != name || instance.disabled {
+            if instance.def.name() != name || (open && instance.disabled) {
                 continue;
             }
             found = true;
@@ -563,11 +690,17 @@ impl Shell {
             instance.opening = open;
             instance.held_keys.clear();
             if let (Some(embedded), Some(shown)) = (instance.embedded.as_mut(), instance.shown) {
-                embedded.with_root(|| {
-                    let mut state = shown.0;
-                    state.set(open);
+                let takes_keyboard = instance.def.takes_keyboard();
+                let ran = boundary::guard(instance.def.name(), || {
+                    embedded.with_root(|| {
+                        let mut state = shown.0;
+                        state.set(open);
+                    });
+                    embedded.set_focused(open && takes_keyboard);
                 });
-                embedded.set_focused(open && instance.def.takes_keyboard());
+                if let Err(message) = ran {
+                    instance.crash(&message);
+                }
             }
             if !open {
                 if let Some(target) = instance.gl.take() {
@@ -579,6 +712,7 @@ impl Shell {
             }
             std::task::Wake::wake_by_ref(&instance.wakeup);
         }
+        self.recover();
         found
     }
 
@@ -656,6 +790,7 @@ impl Shell {
             gl: None,
             drew: false,
             panics: Default::default(),
+            crashed: false,
             wakes: 0,
             pointer: (0.0, 0.0),
             cursor: Default::default(),
@@ -681,7 +816,8 @@ impl Shell {
         let open = instance.open;
         let mut shown = None;
         let actions = Actions(instance.actions.clone());
-        let embedded = Embedded::new(
+        let fonts = &mut self.fonts;
+        let built = boundary::guard(def.name(), || Embedded::new(
             EmbedConfig {
                 app: AppComponent::new(Root(def.app())),
                 size: (size.w as f32, size.h as f32).into(),
@@ -691,13 +827,28 @@ impl Shell {
                 preferred_theme: PreferredTheme::Dark,
                 clipboard: None,
             },
-            &mut self.fonts,
+            fonts,
             |runner| {
                 shown = Some(runner.provide_root_context(|| Shown(State::create(open))));
                 runner.provide_root_context(|| actions);
                 def.provide(runner);
             },
-        );
+        ));
+        let mut embedded = match built {
+            Ok(embedded) => embedded,
+            Err(message) => {
+                instance.crash(&message);
+                return;
+            }
+        };
+        if open
+            && let Err(message) = boundary::guard(def.name(), || {
+                embedded.set_focused(def.takes_keyboard());
+            })
+        {
+            instance.crash(&message);
+            return;
+        }
         instance.embedded = Some(embedded);
         instance.shown = shown;
         instance.adapter = Some(self.a11y.adapter(instance.id));
@@ -724,6 +875,26 @@ impl Drop for Shell {
         // The renderer and its context may already be gone; Skia must not touch them.
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.abandon();
+        }
+    }
+}
+
+/// More panics than this within [`PANIC_WINDOW`] turn a surface off.
+const PANIC_LIMIT: usize = 5;
+const PANIC_WINDOW: std::time::Duration = std::time::Duration::from_secs(60);
+
+impl Instance {
+    /// Drops a tree that panicked; [`Shell::recover`] rebuilds it.
+    fn crash(&mut self, message: &str) {
+        warn!(surface = self.def.name(), "panicked: {message}");
+        self.crashed = true;
+        self.shown = None;
+        self.adapter = None;
+        self.opening = false;
+        self.held_keys.clear();
+        if let Some(embedded) = self.embedded.take() {
+            // A tree that panicked can panic again as it is dropped; whatever is left leaks.
+            let _ = boundary::guard(self.def.name(), move || drop(embedded));
         }
     }
 }

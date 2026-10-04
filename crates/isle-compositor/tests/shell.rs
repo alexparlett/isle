@@ -278,3 +278,70 @@ async fn the_probe_names_its_controls_and_tab_walks_them() {
         );
     }
 }
+
+fn crash_records(isle: &Isle) -> usize {
+    fs::read_dir(isle.dir.join("state/isle/crashes"))
+        .map(|d| d.count())
+        .unwrap_or(0)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_panic_anywhere_in_the_probe_rebuilds_it_with_its_model() {
+    let mut isle = Isle::start("shell-panic").await;
+    let client = isle.client("isle.test.Panic", "445566");
+    isle.wait_for_window("isle.test.Panic").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    for code in [37, 18, 18, 25] {
+        tap(&isle, code).await;
+    }
+    wait_until(|| async { model(&isle).await.0 == "keep" }).await;
+
+    for (n, fault) in ["render", "event", "draw"].into_iter().enumerate() {
+        isle.test().await.panic_probe(fault).await.unwrap();
+        if fault == "event" {
+            tap(&isle, 57).await;
+        }
+        let started = std::time::Instant::now();
+        wait_until(|| async { probe(&isle).await.panics == n as u32 + 1 }).await;
+        let info = probe(&isle).await;
+        assert!(info.open && !info.disabled, "{fault}: {info:?}");
+        // The rebuilt field takes focus again and blinks; Tab moves focus on.
+        tap(&isle, 15).await;
+        settled(&isle).await;
+        let image = shot(&isle, &format!("after-{fault}")).await;
+        assert_eq!(image.at(727, 367), RED, "{fault}: the probe is drawn again");
+        assert!(started.elapsed() < Duration::from_secs(3));
+        assert_eq!(model(&isle).await.0, "keep", "{fault}: the model outlives the tree");
+    }
+    assert_eq!(crash_records(&isle), 0, "a surface's panic is not a crash");
+    // The window and the compositor carry on.
+    assert!(isle.windows().await.iter().any(|w| w.app_id == "isle.test.Panic"));
+    shell.close("probe").await.unwrap();
+    client.wait_for("keyboard-enter").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_sixth_panic_in_a_minute_turns_the_probe_off_until_restarted() {
+    let isle = Isle::start("shell-panic-limit").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    for n in 1..=6u32 {
+        isle.test().await.panic_probe("render").await.unwrap();
+        wait_until(|| async {
+            let info = probe(&isle).await;
+            info.panics == n || info.disabled
+        })
+        .await;
+    }
+    let info = probe(&isle).await;
+    assert!(info.disabled && !info.open, "{info:?}");
+    assert!(!shell.open("probe").await.unwrap() || !probe(&isle).await.open);
+
+    assert!(shell.restart("probe").await.unwrap());
+    let info = probe(&isle).await;
+    assert!(!info.disabled && info.panics == 0, "{info:?}");
+    shell.open("probe").await.unwrap();
+    assert!(probe(&isle).await.open);
+    assert_eq!(crash_records(&isle), 0);
+}

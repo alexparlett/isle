@@ -132,6 +132,8 @@ pub(crate) struct Instance {
     /// Drawn since the output last presented, so its animations wait on that present.
     pub drew: bool,
     pub panics: VecDeque<Instant>,
+    /// Panicked since the shell last recovered its instances.
+    pub crashed: bool,
     /// Updates run because its waker fired.
     pub wakes: u64,
     /// The pointer's last place over the surface, in physical pixels from its origin.

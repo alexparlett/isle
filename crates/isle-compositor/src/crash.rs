@@ -82,6 +82,15 @@ pub fn install_panic_hook(heartbeat: Heartbeat) {
             default(info);
             return;
         }
+        // A shell surface's panic is caught at its boundary and the surface rebuilt.
+        if let Some(surface) = isle_shell::boundary::panicking_surface() {
+            tracing::error!(
+                surface,
+                "surface panicked: {info}\n{}",
+                Backtrace::force_capture()
+            );
+            return;
+        }
         let message = match info.payload().downcast_ref::<&str>() {
             Some(s) => (*s).to_owned(),
             None => info

@@ -157,6 +157,18 @@ impl Shell {
             .await?)
     }
 
+    /// Turns a surface that panicked too often back on, closed.
+    async fn restart(&self, name: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let found = state.isle.shell.restart(&name);
+                state.dispatch_shell();
+                found
+            })
+            .await?)
+    }
+
     /// The surface's accessibility tree as JSON: each node's id, role, label, value,
     /// children and focus.
     async fn tree(&self, name: String) -> fdo::Result<String> {
@@ -260,6 +272,26 @@ impl Test {
                     }
                 }
                 state.on_axis(frame);
+            })
+            .await?)
+    }
+
+    /// Makes the probe panic when it next renders, handles a key, or draws: `render`, `event`
+    /// or `draw`.
+    async fn panic_probe(&self, fault: String) -> fdo::Result<()> {
+        use isle_shell::probe::Fault;
+        let fault = match fault.as_str() {
+            "render" => Fault::Render,
+            "event" => Fault::Event,
+            "draw" => Fault::Draw,
+            other => return Err(fdo::Error::InvalidArgs(format!("no fault {other}"))),
+        };
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let probe = state.isle.probe.clone();
+                state.isle.shell.with_root("probe", || probe.arm(fault));
+                state.dispatch_shell();
             })
             .await?)
     }

@@ -1,5 +1,6 @@
 //! The shell surface host: Freya trees drawn on the compositor's GL context (B7).
 
+mod a11y;
 mod gl;
 mod keys;
 #[cfg(feature = "probe")]
@@ -101,12 +102,14 @@ pub struct Shell {
     released: Vec<gl::GlSurface>,
     next_id: u64,
     modifiers: freya::prelude::Modifiers,
+    a11y: a11y::Requests,
 }
 
 impl Shell {
     /// `ping` wakes the compositor's loop, which then calls [`Shell::dispatch`].
     pub fn new(ping: Ping, families: Vec<Cow<'static, str>>) -> Self {
         Self {
+            a11y: a11y::Requests::new(ping.clone()),
             fonts: Fonts::new(families),
             gpu: None,
             defs: Vec::new(),
@@ -145,6 +148,19 @@ impl Shell {
             .any(|i| i.def.name() == name && i.open)
     }
 
+    /// The accessibility tree of `name`'s first instance, as JSON.
+    pub fn tree(&mut self, name: &str) -> Option<String> {
+        let instance = self.instances.iter_mut().find(|i| i.def.name() == name)?;
+        let embedded = instance.embedded.as_mut()?;
+        let snapshot = embedded.accessibility_snapshot();
+        // Taking a snapshot restarts the tree's diff, so an active adapter takes it whole too.
+        if let Some(adapter) = instance.adapter.as_mut() {
+            let whole = snapshot.clone();
+            adapter.update_if_active(|| whole);
+        }
+        Some(a11y::to_json(&snapshot))
+    }
+
     pub fn surfaces(&self) -> Vec<SurfaceInfo> {
         self.instances
             .iter()
@@ -163,6 +179,30 @@ impl Shell {
     /// Runs the work of every surface whose waker fired.
     pub fn dispatch(&mut self) -> Dispatched {
         let mut out = Dispatched::default();
+        for (id, request) in self.a11y.take() {
+            let Some(instance) = self.instances.iter_mut().find(|i| i.id == id) else {
+                continue;
+            };
+            let (Some(embedded), Some(adapter)) =
+                (instance.embedded.as_mut(), instance.adapter.as_mut())
+            else {
+                continue;
+            };
+            match request {
+                a11y::Request::Activate => {
+                    if let Some(tree) = embedded.set_screen_reader(true) {
+                        adapter.update_if_active(|| tree);
+                    }
+                }
+                a11y::Request::Deactivate => {
+                    embedded.set_screen_reader(false);
+                }
+                a11y::Request::Action(request) => {
+                    embedded.accessibility_action(request);
+                    std::task::Wake::wake_by_ref(&instance.wakeup);
+                }
+            }
+        }
         for instance in &mut self.instances {
             if !instance.wakeup.pending.swap(false, Ordering::AcqRel) {
                 continue;
@@ -181,6 +221,10 @@ impl Shell {
                 let more = embedded.update(&mut self.fonts);
                 update.redraw |= more.redraw;
                 update.cursor = more.cursor.or(update.cursor);
+            }
+            if let (Some(tree), Some(adapter)) = (update.accessibility.take(), instance.adapter.as_mut())
+            {
+                adapter.update_if_active(|| tree);
             }
             if update.redraw && instance.open && !out.redraw.contains(&instance.output) {
                 out.redraw.push(instance.output.clone());
@@ -308,6 +352,9 @@ impl Shell {
             && let Some(embedded) = instance.embedded.as_mut()
         {
             embedded.set_focused(focused);
+            if let Some(adapter) = instance.adapter.as_mut() {
+                adapter.update_window_focus_state(focused);
+            }
             std::task::Wake::wake_by_ref(&instance.wakeup);
         }
     }
@@ -566,6 +613,8 @@ impl Shell {
                     instance.output = place.output.clone();
                     instance.geometry = instance.def.geometry(place.geometry.size);
                     instance.scale = place.scale;
+                    instance.origin = place.geometry.loc;
+                    Self::set_bounds(&mut instance);
                     std::task::Wake::wake_by_ref(&instance.wakeup);
                     kept.push(instance);
                 }
@@ -612,6 +661,8 @@ impl Shell {
             cursor: Default::default(),
             opening: false,
             held_keys: Vec::new(),
+            adapter: None,
+            origin: place.geometry.loc,
             disabled: false,
         };
         self.build(&mut instance);
@@ -649,6 +700,22 @@ impl Shell {
         );
         instance.embedded = Some(embedded);
         instance.shown = shown;
+        instance.adapter = Some(self.a11y.adapter(instance.id));
+        Self::set_bounds(instance);
+    }
+
+    fn set_bounds(instance: &mut Instance) {
+        let Some(adapter) = instance.adapter.as_mut() else {
+            return;
+        };
+        let at = instance.geometry.loc + instance.origin;
+        let rect = accesskit::Rect {
+            x0: at.x as f64,
+            y0: at.y as f64,
+            x1: (at.x + instance.geometry.size.w) as f64,
+            y1: (at.y + instance.geometry.size.h) as f64,
+        };
+        adapter.set_root_window_bounds(rect, rect);
     }
 }
 

@@ -226,3 +226,55 @@ async fn an_animating_probe_draws_every_frame_and_stops_with_it() {
     tokio::time::sleep(Duration::from_secs(1)).await;
     assert_eq!(test.frames("HEADLESS-1").await.unwrap(), frames);
 }
+
+/// The focused node's role and label in a surface's tree.
+async fn focused(shell: &ShellProxy<'_>) -> (String, String) {
+    let tree: serde_json::Value =
+        serde_json::from_str(&shell.tree("probe").await.unwrap()).unwrap();
+    let node = tree["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["focused"] == true)
+        .expect("a focused node")
+        .clone();
+    (
+        node["role"].as_str().unwrap().to_string(),
+        node["label"].as_str().unwrap_or("").to_string(),
+    )
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_probe_names_its_controls_and_tab_walks_them() {
+    let isle = Isle::start("shell-a11y").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.open("probe").await.unwrap();
+    wait_until(|| async { focused(&shell).await.0 == "TextInput" }).await;
+
+    let tree: serde_json::Value =
+        serde_json::from_str(&shell.tree("probe").await.unwrap()).unwrap();
+    let has = |role: &str, label: &str| {
+        tree["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["role"] == role && n["label"] == label)
+    };
+    assert!(has("Window", "probe"));
+    assert!(has("Button", "Pressed 0"));
+    assert!(has("Button", "Animate"));
+    assert!(has("TextInput", "Type here"));
+
+    let mut seen = Vec::new();
+    for _ in 0..6 {
+        tap(&isle, 15).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        seen.push(focused(&shell).await);
+    }
+    for wanted in [("Button", "Pressed 0"), ("Button", "Animate"), ("TextInput", "Type here")] {
+        assert!(
+            seen.iter().any(|(r, l)| r == wanted.0 && l == wanted.1),
+            "Tab never reached {wanted:?}: {seen:?}"
+        );
+    }
+}

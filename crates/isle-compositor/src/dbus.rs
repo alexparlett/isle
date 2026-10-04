@@ -156,6 +156,15 @@ impl Shell {
             .call(move |state| state.close_surface(&name))
             .await?)
     }
+
+    /// The surface's accessibility tree as JSON: each node's id, role, label, value,
+    /// children and focus.
+    async fn tree(&self, name: String) -> fdo::Result<String> {
+        self.to_loop
+            .call(move |state| state.isle.shell.tree(&name))
+            .await?
+            .ok_or_else(|| fdo::Error::InvalidArgs("no such surface".into()))
+    }
 }
 
 struct Displays {

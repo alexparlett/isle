@@ -176,6 +176,9 @@ pub mod shell {
         /// False when no surface has that name.
         fn open(&self, name: &str) -> zbus::Result<bool>;
         fn close(&self, name: &str) -> zbus::Result<bool>;
+        /// The surface's accessibility tree as JSON: each node's id, role, label, value,
+        /// children and focus.
+        fn tree(&self, name: &str) -> zbus::Result<String>;
     }
 }
 

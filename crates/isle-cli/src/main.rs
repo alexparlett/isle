@@ -87,6 +87,8 @@ enum Shell {
     Open { name: String },
     /// Close a surface by its name.
     Close { name: String },
+    /// A surface's accessibility tree, as JSON.
+    Tree { name: String },
 }
 
 #[derive(Subcommand)]
@@ -228,6 +230,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 }
                 Shell::Open { name } => surface_found(proxy.open(name).await?, name)?,
                 Shell::Close { name } => surface_found(proxy.close(name).await?, name)?,
+                Shell::Tree { name } => println!("{}", proxy.tree(name).await?),
             }
         }
         Command::Test(command) => {

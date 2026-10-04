@@ -22,6 +22,7 @@ isle-ui = { path = "crates/isle-ui" }
 freya = { git = "https://github.com/alexparlett/freya", rev = "7784d42c27bcc8badff9dab557d45d2436a2327d", default-features = false }
 freya-embed = { git = "https://github.com/alexparlett/freya", rev = "7784d42c27bcc8badff9dab557d45d2436a2327d" }
 accesskit = "0.24"
+accesskit_unix = "0.22"
 
 # Upstream master until alexparlett/smithay exists; moving changes only the URL (B6).
 smithay = { git = "https://github.com/Smithay/smithay", rev = "118e34ffc9b99854a2230c4805e1f37dc9029edb", default-features = false, features = [

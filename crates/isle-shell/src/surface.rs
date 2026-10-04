@@ -140,5 +140,8 @@ pub(crate) struct Instance {
     /// Opened but not yet updated: keys wait until the content is mounted.
     pub opening: bool,
     pub held_keys: Vec<freya_embed::PlatformEvent>,
+    pub adapter: Option<accesskit_unix::Adapter>,
+    /// The output's origin in the global space, for the adapter's window bounds.
+    pub origin: smithay::utils::Point<i32, Logical>,
     pub disabled: bool,
 }

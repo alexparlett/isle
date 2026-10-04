@@ -42,6 +42,7 @@ zbus.workspace = true
 zvariant.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 isle-ipc.workspace = true
 png.workspace = true
 tokio.workspace = true

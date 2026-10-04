@@ -405,3 +405,46 @@ only parses. Its printer drops whitespace on a round trip (kdl-rs #178,
 is not. Every byte not changed stays as the user typed it, and the result
 is parsed again before it is written. Rejected: printing the parsed
 document, a derive-based KDL crate.
+
+**B37 · A shell surface is a definition hosted by the compositor.** Built
+in P3 and kept by every surface after it. A surface is a `SurfaceDef` in
+`isle-shell`: a name, a layer (below windows; over windows and
+layer-shell's top layer; over everything a client can show), a scope (one
+instance per output, or one on the main screen), whether it takes the
+keyboard, its box for an output, and a tree that holds the state which
+must outlive it. Each instance is a Freya tree driven through the fork's
+`freya-embed`, drawn by one shared Skia context into a texture on the
+compositor's context; its waker pings the loop, so nothing runs on a
+timer. A closed surface mounts no content and holds no texture. Open and
+close are compositor springs on the texture, and a closing surface keeps
+its last frame until its exit ends. A surface that takes keys takes the
+keyboard and gives it back before its actions run. Every call into a
+tree sits behind a panic boundary that rebuilds it with the same id; the
+sixth panic in a minute turns it off until `isle shell restart`. Rejected:
+shell surfaces as layer-shell clients (B7), a Runner kept across a panic
+(Freya's cells may be left borrowed), surfaces ticked on a timer (the
+spike's 50 ms poll broke idle).
+
+**B38 · Tokens are typed from the shipped file.** `isle-tokens`' build
+script types every token of `data/tokens/tokens.kdl` as a field, by the
+units rules in `schema.md`, so no token is declared twice and a shipped
+token cannot be missing. The user's `tokens.kdl` lies over the shipped file
+by path; a token the shipped file lacks is ignored with a warning, and a
+file that does not parse, has a value of the wrong kind or a newer version
+is refused with its place while the last good tokens stay. The loop
+resolves a theme for the `appearance` settings and hands it to every tree
+as context; Isle's apps read the same crate. Rejected: a hand-written token
+struct (written twice, drifting from the file), tokens looked up by string
+(errors only when drawn).
+
+**B39 · Glass is the compositor's.** A surface draws no glass: `isle-ui`'s
+`Glass` reports its box and the compositor draws behind it what lies
+behind the surface's layer again, through a damage tracker of its own so
+the blur runs only when that changed; dual Kawase passes as wide as
+`material-blur`, saturation, the tint and the rounded clip, in one shader.
+The glass floor reads a reduction of the blur back a frame late and moves
+the tint toward `glass-tinted` until `text-2` holds 4.5:1. The preview,
+with no compositor, draws the plain tint. Rejected: reading the frame
+being drawn back behind the glass (it ties glass to the damage of the
+frame), blurring in Skia per surface (each surface would draw the desktop
+behind it).

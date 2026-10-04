@@ -136,9 +136,10 @@ caps come with each domain's packet.
 The look is data. Editing a token changes every shell surface and the
 installed apps live, which is how the design is tuned.
 
-1. `/usr/share/isle/tokens.kdl` is the full shipped set: colour (dark and
-   light), radius, spacing, type, motion, blur, icons.
-   `~/.config/isle/tokens.kdl` overrides only what it names.
+1. The full shipped set, `data/tokens/tokens.kdl`, is built into Isle and
+   typed field by field (B38): colour (dark and light), radius, spacing,
+   type, motion, blur, icons. `~/.config/isle/tokens.kdl` overrides only
+   what it names.
 2. Isle never writes `tokens.kdl`. It is watched and rejected on error
    exactly as settings are (rules 5 and 6 of Settings), and applied as state
    so every Freya surface re-renders (B10).

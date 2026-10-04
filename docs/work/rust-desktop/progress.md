@@ -2,6 +2,22 @@
 
 ## 2026-10-04
 
+- P3 done. ARCHITECTURE describes how the shell runs; B37–B39 record the
+  surface model, typed tokens and compositor glass; `shell.md`'s budgets
+  are set.
+
+- P3 3.9: the VM and the host. The probe draws in the guest session on
+  llvmpipe and takes QEMU's keyboard and tablet. On the 5070 Ti at
+  3440×1440 a full-output draw is p95 0.57 ms, 1.28 ms with 24 elements
+  fading in layers; glass blurs in p95 0.75 ms. A one-hour soak held VRAM at
+  105 MiB; RSS is unreadable under the host's swap, and the process's own
+  memory keeps a few KB a cycle, not yet explained.
+
+- P3 3.8: the preview. `isle-preview <surface>` with live tokens. dx
+  0.7.10's hot patch fails on an edit to `isle-shell` (it replays the
+  compositor, which the preview does not build); `--watch` rebuilds and
+  restarts in 2.7 s.
+
 - P3 3.7: glass. The backdrop behind each glass shape is drawn again
   through its own damage tracker and blurred with dual Kawase passes
   sized from `material-blur`; the floor reads a 4×4 reduction back a

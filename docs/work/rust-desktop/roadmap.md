@@ -12,9 +12,8 @@ desktop on `main` until milestone M2.
 
 ## Before the first packet
 
-- **The Freya fork at rc.8.** The user merges upstream v0.5.0-rc.8 into
-  `alexparlett/freya` (the fork is at rc.4; the spike's code needs nine
-  API changes from rc.8). Blocks P3 and everything drawn.
+- **The Freya fork at rc.8.** Done 2026-10-04: the user merged upstream
+  v0.5.0-rc.8 into `alexparlett/freya`.
 
 ## Milestone M1: a desktop that runs in the VM
 
@@ -55,7 +54,7 @@ while it does not parse (B27), and the state store; the `isle` CLI and the
 test interface; the NVIDIA VRAM profile. Ends booting in the VM with a
 terminal open. Intent: compositor.md, platform.md.
 
-**P3 · Shell runtime.** The Freya embedding from the spike, moved into the
+**P3 · Shell runtime.** Done 2026-10-04: `p3-shell-runtime.md`, B37–B39. The Freya embedding from the spike, moved into the
 fork as a crate: surface hosting on the compositor's GL context, input,
 the accessibility tree, panic boundaries per surface, compositor-driven
 transitions, the Skia cache cap, live `tokens.kdl`; and a preview mode that

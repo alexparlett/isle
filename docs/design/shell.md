@@ -66,11 +66,13 @@ v1 lessons kept
 - D62: a surface open before a restart comes back; here, after a rebuild.
 - D63: an action after a surface closes waits for the focus handover, or the handover undoes it.
 
+Answered in P3 (`docs/research/rust-desktop/p3-runtime.md`)
+- The Runner is driven from calloop through the fork's `freya-embed`: a waker pings the loop, which runs the tree's update; input reaches it through the seat, keyboard focus and Tab through Freya's accessibility tree, and the tree is on AT-SPI through an accesskit adapter, all without `freya-winit` (B37).
+- Skia's cache is capped at 64 MiB and purged as a surface closes; a full-output surface with every tile fading in its own layer used 31 MB of it. Over a one-hour soak that opened, typed in, relayouted and closed surfaces VRAM held at 105 MiB; the process's own memory grew by a few KB a cycle, slowing, which is open until a heap profiler explains it before the 24-hour soak; the spike's 178 MB relayout run did not recur.
+- Glass is blurred by the compositor (B39). Each output has its own instance of an every-screen surface; the island in P6 is the first to draw on several.
+
 Open for its packet
-- How `freya_core::Runner` is driven from calloop, and whether input and accessibility work without `freya-winit` (`ui-and-services.md` OPEN).
-- The Skia cache budget, and RSS over a long soak; the spike once ended at 178 MB after relayouts (`shell-ui-spike.md` Not covered).
-- Blur behind shell surfaces and multi-output drawing were not covered by the spike.
-- How many panics bring in the minimal lock that P1 designed (`lock.md`).
+- How many panics bring in the minimal lock that P1 designed (`lock.md`): P9's.
 
 ### Menu bar
 
@@ -465,8 +467,8 @@ Measured on the host (RTX 5070 Ti, 3440×1440 up to 144 Hz) unless stated.
 
 1. Every row of the parity map exists as stated or is reshaped as stated.
 2. At rest, with no surface open and a minutes clock, the shell causes at most one frame a minute; with a seconds clock, one a second. A closed surface fires no timers (checked by tracing).
-3. The compositor process with every always-on surface at rest uses less RSS than v1's Quickshell process alone (458 MB, `ui-and-services.md` §1.4). The exact budget is set by the shell runtime packet.
-4. After a 24-hour soak that opens and closes every surface, RSS and VRAM return to within the packet's stated margin of their first-hour values.
+3. The compositor process with every always-on surface at rest uses less RSS than v1's Quickshell process alone (458 MB, `ui-and-services.md` §1.4). The budget, set in P3: under 250 MB RSS and 200 MiB of VRAM on the host. P3 measured 101 MB and 68 MiB with no surface open on a 3440×1440 output, and 126 MB with its probes drawn (`p3-runtime.md`).
+4. After a 24-hour soak that opens and closes every surface, RSS and VRAM return to within 10% or 20 MB, whichever is larger, of their first-hour values (the margin P3 set; the 24-hour run waits for real surfaces, at the end of M1).
 5. No shell surface's content draw exceeds 2 ms at p95 at full output size (the spike measured 1.2 ms for a full-screen launcher, `shell-ui-spike.md`). Shell transitions drop no frames at 144 Hz.
 6. Spotlight: keys typed from the moment Cmd+Space is pressed are never lost; apps, actions, settings and windows answer within 50 ms of a keystroke; the selected row never changes under the user as slower results arrive.
 7. App switcher: a quick Cmd+Tab switches without drawing the switcher; 1,000 scripted switches, some with focus changing mid-chord, commit on release every time and leave no modifier stuck.

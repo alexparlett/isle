@@ -1,7 +1,7 @@
 # Architecture
 
-How Isle is put together. The compositor core is built (P2); the rest is
-the planned architecture of the rust-desktop program, each part settled in
+How Isle is put together. The compositor core (P2) and the shell runtime
+(P3) are built; the rest is the planned architecture of the rust-desktop program, each part settled in
 detail by the build packet that makes it (`docs/work/rust-desktop/
 roadmap.md`). What each capability does is in `docs/design/`; why it is
 built this way is in `docs/DECISIONS.md`.
@@ -89,6 +89,49 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   --features isle-compositor/test-hooks` runs the compositor headless on a
   private bus with a small Wayland test client.
 
+## How the shell runs
+
+- **Surfaces are definitions the compositor hosts.** `isle-shell` keeps a
+  `SurfaceDef` per kind of surface (B37) and an instance per output or on
+  the main screen. Each instance is a Freya tree driven through
+  `freya-embed`, the fork's crate for hosts that own their loop, GL context
+  and input. One Skia context on the compositor's EGL context and one font
+  collection serve every surface; each surface owns a texture and an FBO
+  with a stencil buffer, drawn before the output's frame and placed as a
+  render element: shell overlays over layer-shell's overlays, the top
+  layer over windows and layer-shell's top, the background under all.
+- **Waking, not ticking.** A tree's waker pings a calloop source; the loop
+  then runs that tree's update and queues a redraw of its output if it
+  changed. Freya's animations advance on the output's vblank, so they stop
+  when it does. A closed surface has no content mounted and no texture.
+- **Input through the seat.** The seat's focus is a client surface or a
+  shell surface, so pointer, wheel and keys reach surfaces through the
+  same handlers as windows; Freya's accessibility tree carries keyboard
+  focus and Tab, and each surface's tree is on AT-SPI through an
+  accesskit adapter on its own D-Bus thread. A surface that takes keys
+  takes the keyboard on open and gives it back on close before its
+  actions (close, a key) run.
+- **Transitions and glass are drawn by the compositor.** Open and close
+  are springs from the motion tokens on the texture, clipped to the
+  surface's corner radius (B7). Behind each glass shape the compositor
+  draws the desktop again into a texture through its own damage tracker,
+  blurs it with dual Kawase passes, and draws it tinted under the surface;
+  the tint rises to hold `text-2` at 4.5:1 (B39).
+- **Panic boundaries.** Every call into a tree is caught; the compositor's
+  panic hook knows a surface's panic from the core's by a thread-local,
+  logs it and writes no crash record. The tree is rebuilt from its
+  definition with the same id; the sixth panic in a minute turns the
+  surface off.
+- **Tokens as context.** The worker watches `~/.config/isle/tokens.kdl`;
+  the loop lays it over the built-in shipped tokens, resolves a theme for
+  the `appearance` settings and hands it to every tree through `isle-ui`'s
+  `ThemeContext` (B38).
+- **Tests and the preview.** `Shell1` lists, opens, closes, restarts and
+  dumps surfaces, and reports tokens and Skia's cache; `Test1` arms the
+  probe surface's panics and measures draws. `isle-preview <surface>` runs a
+  surface in its own window with the same contexts and live tokens;
+  `--watch` rebuilds and restarts it on a saved change.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -117,7 +160,7 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 | Store | Where | What | Written by | Watched |
 |---|---|---|---|---|
 | `settings.kdl` | `~/.config/isle/` | the user's choices, apps' preferences included | the compositor, into the file's own text (B36), or the user by hand | yes |
-| `tokens.kdl` | `/usr/share/isle/`, `~/.config/isle/` | design tokens | the user by hand; Isle never writes it | yes |
+| `tokens.kdl` | built into Isle; `~/.config/isle/` over it | design tokens | the user by hand; Isle never writes it | the user's file |
 | state | `~/.local/state/isle/<domain>.json` | window places, launch counts, session restore, crash history | the compositor and the supervisor | no |
 | crash records | `~/.local/state/isle/crashes/` | the last ten | the compositor's panic hook and watchdog, then the supervisor | no |
 | session log | `~/.local/state/isle/session.log`, `.old` | this session's and the last | the supervisor | no |
@@ -135,9 +178,11 @@ paru and updated through pacman (B29).
 - **Smithay**, pinned by revision to upstream master (`118e34f`) until a
   patch needs the fork `alexparlett/smithay`, which will carry the async
   page flip (B6, P12 at the latest).
-- **Freya**, through `alexparlett/freya` (B7), which also carries the
-  compositor embedding crate made from the spike's glue. The fork must be
-  at upstream v0.5.0-rc.8 or later.
+- **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
+  `isle/freya-embed` branch, which carries `freya-embed` (the embedding
+  crate made from the spike's glue), an idle `Timeout` that sleeps, and
+  thread-local contexts popped on unwind. A git-ignored
+  `.cargo/config.toml` may patch it to a local checkout.
 
 ## Repository
 
@@ -145,7 +190,8 @@ Built on `feature/rust-desktop` in this repository (B16), beside Isle v1,
 which stays the daily desktop on `main` until the new one replaces it
 (roadmap milestone M2) and is removed at cut-over. The Cargo workspace
 is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
-(the `isle` command), `isle-ipc`, `isle-settings` with its derive and
-`isle-state`; `data/` holds the shipped tokens with their schema and
+(the `isle` command), `isle-ipc`, `isle-settings` with its derive,
+`isle-state`, `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
+Freya side shared with Isle's apps) and `isle-preview`; `data/` holds the shipped tokens with their schema and
 contrast check, and the Phosphor subset. `spikes/shell-ui/`
 is the throwaway code behind B7 and is not built on.

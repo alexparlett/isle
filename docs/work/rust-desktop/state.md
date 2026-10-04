@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B36 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B39 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -163,4 +163,15 @@
 - P3 3.4–3.7 done (2026-10-04): panic boundaries with rebuild and the
   five-a-minute guard, `isle-tokens` and the `appearance` settings live in
   every surface, compositor transitions with a rounded clip, glass blur
-  and its contrast floor. Next: 3.8, the preview mode.
+  and its contrast floor.
+- P3 is done (2026-10-04): ARCHITECTURE has How the shell runs; B37 (the
+  surface model), B38 (tokens typed from the shipped file) and B39 (glass
+  is the compositor's) are recorded; `shell.md`'s open points answered and
+  its budgets set (250 MB RSS, 200 MiB VRAM; a soak margin of 10% or 20
+  MB); measurements in `docs/research/rust-desktop/p3-runtime.md`. The
+  preview is `isle-preview <surface>`, with `--watch` in place of dx's hot
+  patch, which fails across workspace crates. Open: the soak keeps 2 to 5
+  KB a cycle on the loop's thread (VRAM flat); a heap profiler settles it
+  before the 24-hour soak. The fork's `isle/freya-embed` branch has no pull
+  request yet; Isle pins its head. Next: P4 (windows), P5 (keyboard) or P6
+  (island and menus), all now unblocked.

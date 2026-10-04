@@ -91,8 +91,8 @@ without Increase Contrast:
   compositor samples the blurred backdrop under a text-bearing glass
   surface and moves its tint toward `glass-tinted` until secondary text
   holds 4.5:1, so the setting changes how much colour shows through, never
-  whether text can be read. Until P3 can sample cheaply, dark glass sits at
-  0.76.
+  whether text can be read. The compositor reads a reduction of the blur
+  back a frame late to do it, over the worst of sixteen cells (B39).
 - **On fills on glass** only `text` is used on a `fill-strong` plate;
   tertiary text is never on a fill. The find highlight is never drawn on
   glass: Spotlight marks a match by weight.

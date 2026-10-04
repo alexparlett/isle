@@ -1,6 +1,8 @@
 # P3 · Shell runtime
 
-Planned 2026-10-04.
+Planned and done 2026-10-04. The record is `docs/ARCHITECTURE.md` (How the
+shell runs) with B37–B39; the measurements are in
+`docs/research/rust-desktop/p3-runtime.md`.
 
 The roadmap's brief: the Freya embedding from the spike, moved into the
 fork as a crate: surface hosting on the compositor's GL context, input,
@@ -371,3 +373,35 @@ input method in shell fields.
   floor tint fixed until it can be.
 - **Build time.** Skia's prebuilt archive is downloaded at build time,
   which the PKGBUILD (P14) must allow for.
+
+## Outcome
+
+Every phase passed its check, with these differences from the plan:
+
+- **The fork** carries three changes on `isle/freya-embed`, which Isle pins
+  by revision: `freya-embed`; an idle `Timeout` (every `Input` and
+  `ScrollView`) that sleeps until reset instead of waking twice a second;
+  Freya's thread-local contexts popped on unwind, without which a rebuilt
+  surface panicked again outside its boundary. No pull request yet.
+- **A surface's tree holds its own state** from its definition, so the
+  compositor and the preview host it alike; `SurfaceDef::provide` went.
+- **AT-SPI** runs on `accesskit_unix`'s own D-Bus thread, not the worker's
+  runtime; requests come back to the loop through the shell's ping.
+  Checked on a private session with its own at-spi bus, since turning the
+  host's on would persist.
+- **Host measurements** ran on the headless backend on the 5070 Ti, the
+  same GL path as DRM, rather than nested, so nothing was drawn on the
+  daily desktop.
+- **Hot patching** fails across workspace crates (dx 0.7.10 replays every
+  crate that depends on the edited one); `isle-preview --watch` rebuilds and
+  restarts in about 2.7 s instead.
+- **Moved out:** the island (P6) is the first surface drawn on several
+  outputs.
+- **Open:** the soak keeps 2 to 5 KB a cycle on the loop's thread, slowing;
+  VRAM is flat. Possibly Skia's caches filling; a heap profiler settles it
+  before the 24-hour soak (`p3-runtime.md`).
+
+Tests: `cargo test --workspace --features isle-compositor/test-hooks`, now
+with seven `freya-embed` tests in the fork, five token tests, two
+transition tests and fifteen headless shell tests; the bench and soak in
+`tests/bench.rs` run by hand.

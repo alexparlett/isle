@@ -1,0 +1,19 @@
+[package]
+name = "isle-preview"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+# Code changes patched in while it runs, under `dx serve --hotpatch`.
+hotreload = ["freya/hotreload"]
+
+[dependencies]
+freya = { workspace = true, features = ["winit", "gpu"] }
+futures-channel = "0.3"
+isle-shell = { workspace = true, features = ["probe"] }
+isle-tokens.workspace = true
+notify.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

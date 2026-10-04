@@ -13,7 +13,7 @@ use std::{
 };
 
 use freya::prelude::*;
-use freya_embed::{AppComponent, Embedded, Runner};
+use freya_embed::{AppComponent, Embedded};
 use smithay::{
     output::Output,
     reexports::calloop::ping::Ping,
@@ -41,7 +41,7 @@ pub enum Scope {
 }
 
 /// A kind of shell surface. The definition outlives every tree drawn from it, so state that
-/// must survive a rebuild (shell.md rule 3) lives here and reaches the tree through `provide`.
+/// must survive a rebuild (shell.md rule 3) lives here and the tree it makes holds it.
 pub trait SurfaceDef: 'static {
     fn name(&self) -> &'static str;
     fn layer(&self) -> Layer;
@@ -50,9 +50,8 @@ pub trait SurfaceDef: 'static {
     fn takes_keyboard(&self) -> bool;
     /// The surface's box on an output of `output` logical size, relative to the output.
     fn geometry(&self, output: Size<i32, Logical>) -> Rectangle<i32, Logical>;
+    /// The tree. State that must survive a rebuild is captured in it from the definition.
     fn app(&self) -> AppComponent;
-    /// Root contexts the tree reads, provided before its first render.
-    fn provide(&self, runner: &mut Runner);
     /// The point it opens from and closes toward, as fractions of its box.
     fn anchor(&self) -> (f64, f64) {
         (0.5, 0.5)

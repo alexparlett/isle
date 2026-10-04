@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use freya::{animation::*, prelude::*};
 use isle_ui::Glass;
-use freya_embed::{AppComponent, Runner};
+use freya_embed::AppComponent;
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
 use crate::{Action, Actions, Layer, Scope, SurfaceDef};
@@ -34,7 +34,7 @@ pub enum Fault {
 #[derive(Default)]
 pub struct Probe {
     pub model: Rc<RefCell<ProbeModel>>,
-    switch: RefCell<Option<State<Option<Fault>>>>,
+    switch: Rc<RefCell<Option<State<Option<Fault>>>>>,
 }
 
 impl Probe {
@@ -46,11 +46,7 @@ impl Probe {
     }
 }
 
-#[derive(Clone)]
-struct Model(Rc<RefCell<ProbeModel>>);
 
-#[derive(Clone, Copy)]
-struct Switch(State<Option<Fault>>);
 
 impl SurfaceDef for Probe {
     fn name(&self) -> &'static str {
@@ -78,33 +74,37 @@ impl SurfaceDef for Probe {
     }
 
     fn app(&self) -> AppComponent {
-        AppComponent::new(ProbeApp)
+        AppComponent::new(ProbeApp {
+            model: self.model.clone(),
+            switch: self.switch.clone(),
+        })
     }
 
     fn corner_radius(&self, theme: &isle_tokens::Theme) -> f32 {
         theme.tokens.radius_panel
     }
 
-    fn provide(&self, runner: &mut Runner) {
-        let model = self.model.clone();
-        runner.provide_root_context(move || Model(model));
-        let switch = runner.provide_root_context(|| Switch(State::create(None)));
-        *self.switch.borrow_mut() = Some(switch.0);
-    }
 }
 
-struct ProbeApp;
+/// The tree; it holds the model, so it reads it back however it is hosted and rebuilt.
+struct ProbeApp {
+    model: Rc<RefCell<ProbeModel>>,
+    switch: Rc<RefCell<Option<State<Option<Fault>>>>>,
+}
 
 impl App for ProbeApp {
     fn render(&self) -> impl IntoElement {
-        probe()
+        let switch = use_hook(|| {
+            let switch = State::create(None);
+            *self.switch.borrow_mut() = Some(switch);
+            switch
+        });
+        probe(self.model.clone(), switch)
     }
 }
 
-fn probe() -> impl IntoElement {
-    let model = use_consume::<Model>().0;
+fn probe(model: Rc<RefCell<ProbeModel>>, switch: State<Option<Fault>>) -> impl IntoElement {
     let actions = Actions::get();
-    let switch = use_consume::<Switch>().0;
     if *switch.read() == Some(Fault::Render) {
         panic!("a render panic injected into the probe");
     }

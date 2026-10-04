@@ -10,6 +10,7 @@ mod keys;
 pub mod probe;
 mod surface;
 mod transition;
+pub mod preview;
 
 use std::{
     borrow::Cow,
@@ -792,7 +793,7 @@ impl Shell {
             let Some(program) = self.glass_programs.as_ref().map(|p| p.glass_program()) else {
                 continue;
             };
-            let shapes = instance.glass.0.borrow();
+            let shapes = instance.glass.shapes.borrow();
             for (id, shape) in shapes.iter() {
                 let Some(blur) = instance.blurs.get(id) else {
                     continue;
@@ -827,7 +828,7 @@ impl Shell {
             if !instance.visible() || &instance.output != output || instance.gl.is_none() {
                 continue;
             }
-            for (id, shape) in instance.glass.0.borrow().iter() {
+            for (id, shape) in instance.glass.shapes.borrow().iter() {
                 regions.push(GlassRegion {
                     instance: instance.id,
                     shape: *id,
@@ -1142,7 +1143,6 @@ impl Shell {
                         .provide_root_context(|| isle_ui::ThemeContext(State::create(theme)))
                         .0,
                 );
-                def.provide(runner);
             },
         ));
         let mut embedded = match built {

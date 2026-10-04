@@ -32,7 +32,11 @@ pub struct GlassShape {
 
 /// The glass shapes of one tree, by the id of the [`Glass`] that reported each.
 #[derive(Clone, Default)]
-pub struct GlassShapes(pub Rc<std::cell::RefCell<std::collections::BTreeMap<u64, GlassShape>>>);
+pub struct GlassShapes {
+    pub shapes: Rc<std::cell::RefCell<std::collections::BTreeMap<u64, GlassShape>>>,
+    /// With no compositor to blur behind it, glass draws its tint itself.
+    pub draw_tint: bool,
+}
 
 /// Glass behind its parent's content: it fills the parent, draws nothing itself, and reports
 /// its box so the compositor blurs what lies behind it and tints it (DESIGN.md, Materials).
@@ -55,16 +59,24 @@ impl Component for Glass {
         use_drop({
             let shapes = shapes.clone();
             move || {
-                shapes.0.borrow_mut().remove(&id);
+                shapes.shapes.borrow_mut().remove(&id);
             }
         });
         let radius = self.radius;
+        let theme = use_theme();
+        let tint = if shapes.draw_tint {
+            colour(theme.tokens.material_glass)
+        } else {
+            Color::TRANSPARENT
+        };
         rect()
+            .background(tint)
+            .corner_radius(radius)
             .position(Position::new_absolute())
             .width(Size::fill())
             .height(Size::fill())
             .on_sized(move |e: Event<SizedEventData>| {
-                shapes.0.borrow_mut().insert(
+                shapes.shapes.borrow_mut().insert(
                     id,
                     GlassShape {
                         x: e.area.min_x(),

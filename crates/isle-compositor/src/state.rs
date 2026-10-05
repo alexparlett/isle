@@ -77,6 +77,11 @@ pub struct Isle {
     /// The window the keys were taken back from, until focus moves.
     pub keys_taken_back: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     pub recording: Option<crate::keyboard::inject::Recording>,
+    /// Slow Keys: keys pressed and not yet held long enough, and keys that were.
+    pub slow_pending: std::collections::HashMap<(String, u32), smithay::reexports::calloop::RegistrationToken>,
+    pub slow_accepted: std::collections::HashSet<(String, u32)>,
+    /// The settings store, for the few settings the keyboard writes itself.
+    pub settings_store: Option<crate::settings::SharedStore>,
     /// Keys a recording took, whose releases go nowhere either.
     pub swallowed: std::collections::HashSet<(String, u32)>,
     pub xwayland_grab_state: smithay::wayland::xwayland_keyboard_grab::XWaylandKeyboardGrabState,
@@ -290,6 +295,9 @@ impl Isle {
             x11_grabs: Default::default(),
             keys_taken_back: None,
             recording: None,
+            slow_pending: Default::default(),
+            slow_accepted: Default::default(),
+            settings_store: None,
             swallowed: Default::default(),
             xwayland_grab_state,
             virtual_keyboard_state,

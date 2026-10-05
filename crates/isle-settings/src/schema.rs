@@ -49,6 +49,13 @@ pub struct Keyboard {
     pub repeat_delay: i32,
     #[setting(default = true)]
     pub numlock: bool,
+    /// A modifier tapped applies to the next key, tapped twice stays until tapped again;
+    /// Shift pressed five times turns this on or off.
+    #[setting(default = false)]
+    pub sticky_keys: bool,
+    /// Milliseconds a key must be held to count; 0 turns Slow Keys off.
+    #[setting(default = 0, range = 0..=2000)]
+    pub slow_keys: i32,
     /// Cmd shortcuts are sent as each app's own (B21).
     #[setting(default = true)]
     pub translate: bool,

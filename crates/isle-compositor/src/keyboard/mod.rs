@@ -249,6 +249,10 @@ impl State {
             });
         self.isle.keyboards.active = None;
         self.set_seat_keymap(&spec);
+        self.isle
+            .keyboards
+            .engine
+            .set_sticky(self.isle.settings.keyboard.sticky_keys);
         let keyboard = &self.isle.settings.keyboard;
         self.isle
             .seat
@@ -298,7 +302,57 @@ impl State {
 
     /// A key from a keyboard by its backend id: the swap, the seat's keymap following the
     /// keyboard, then the key.
+    /// A key from a keyboard, through Slow Keys first: with a delay set, a key counts only
+    /// once held that long.
     pub fn on_device_key(
+        &mut self,
+        id: &str,
+        name: &str,
+        code: u32,
+        key_state: KeyState,
+        time: InputTime,
+    ) {
+        use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
+        let delay = self.isle.settings.keyboard.slow_keys;
+        let key = (id.to_owned(), code);
+        match key_state {
+            KeyState::Pressed if delay > 0 => {
+                let (id_owned, name_owned) = (id.to_owned(), name.to_owned());
+                let timer = Timer::from_duration(std::time::Duration::from_millis(delay as u64));
+                let token = self
+                    .isle
+                    .loop_handle
+                    .insert_source(timer, move |_, _, state| {
+                        let key = (id_owned.clone(), code);
+                        state.isle.slow_pending.remove(&key);
+                        state.isle.slow_accepted.insert(key);
+                        state.key_from_device(
+                            &id_owned,
+                            &name_owned,
+                            code,
+                            KeyState::Pressed,
+                            InputTime::now(),
+                        );
+                        TimeoutAction::Drop
+                    });
+                if let Ok(token) = token {
+                    self.isle.slow_pending.insert(key, token);
+                }
+                return;
+            }
+            KeyState::Released => {
+                if let Some(token) = self.isle.slow_pending.remove(&key) {
+                    self.isle.loop_handle.remove(token);
+                    return;
+                }
+                self.isle.slow_accepted.remove(&key);
+            }
+            KeyState::Pressed => {}
+        }
+        self.key_from_device(id, name, code, key_state, time);
+    }
+
+    fn key_from_device(
         &mut self,
         id: &str,
         name: &str,
@@ -394,6 +448,7 @@ impl State {
                         }
                         if shortcut.holds {
                             self.isle.held_chord = Some((shortcut.id, bound.mods));
+                            self.isle.keyboards.engine.keep_latched();
                         }
                     }
                 }
@@ -412,8 +467,37 @@ impl State {
         self.emit(outs, time);
         if key_state == KeyState::Released {
             self.check_held_chord();
+            if self.isle.keyboards.engine.take_sticky_toggle() {
+                self.toggle_sticky_keys();
+            }
         }
         self.update_bar_option();
+    }
+
+    /// Shift pressed five times: Sticky Keys on or off, written to the settings.
+    fn toggle_sticky_keys(&mut self) {
+        let on = !self.isle.settings.keyboard.sticky_keys;
+        info!(on, "Sticky Keys from Shift pressed five times");
+        let (Some(worker), Some(store), Some(to_loop)) = (
+            self.isle.worker.clone(),
+            self.isle.settings_store.clone(),
+            self.isle.to_loop.clone(),
+        ) else {
+            return;
+        };
+        let events = self.isle.events.clone();
+        worker.spawn(async move {
+            let mut store = store.lock().await;
+            match store.set("keyboard.sticky-keys", isle_settings::Value::Bool(on)) {
+                Ok(keys) => {
+                    crate::settings::publish(&to_loop, &events, store.current().clone(), keys)
+                }
+                Err(err) => warn!(
+                    "could not turn Sticky Keys {}: {err}",
+                    if on { "on" } else { "off" }
+                ),
+            }
+        });
     }
 
     /// A held chord whose modifiers are let go is told so: the switcher commits then.

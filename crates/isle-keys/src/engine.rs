@@ -160,22 +160,68 @@ pub struct Engine {
     sent: Vec<u32>,
     /// A pointer button is down, so withheld Cmd and Option are sent as Ctrl and Alt.
     button: bool,
+    /// Sticky Keys: a modifier tapped applies to the next key, tapped twice stays.
+    sticky: bool,
+    latched: Vec<Latch>,
+    /// Modifier keys held that a key was pressed with, so their release is no tap.
+    used: Vec<u32>,
+    shift_taps: u8,
+    sticky_toggled: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Latch {
+    role: Role,
+    locked: bool,
+    /// A held chord keeps it until its modifier is tapped again.
+    kept: bool,
+    /// The key that used it, which ends it when released.
+    used_by: Option<u32>,
 }
 
 impl Engine {
-    /// The modifiers physically held, as chords name them.
+    /// The modifiers held or latched, as chords name them.
     pub fn mods(&self) -> Mods {
         let mut mods = Mods::default();
-        for (_, held) in &self.held {
-            match held {
-                Held::Mod(Role::Cmd) => mods.cmd = true,
-                Held::Mod(Role::Option) => mods.option = true,
-                Held::Mod(Role::Ctrl) => mods.ctrl = true,
-                Held::Mod(Role::Shift) => mods.shift = true,
+        let roles = self
+            .held
+            .iter()
+            .filter_map(|(_, h)| match h {
+                Held::Mod(role) => Some(*role),
+                _ => None,
+            })
+            .chain(self.latched.iter().map(|l| l.role));
+        for role in roles {
+            match role {
+                Role::Cmd => mods.cmd = true,
+                Role::Option => mods.option = true,
+                Role::Ctrl => mods.ctrl = true,
+                Role::Shift => mods.shift = true,
                 _ => {}
             }
         }
         mods
+    }
+
+    /// Turns Sticky Keys on or off; off lets go of every latched modifier.
+    pub fn set_sticky(&mut self, on: bool) {
+        self.sticky = on;
+        if !on {
+            self.latched.clear();
+        }
+    }
+
+    /// Whether Shift was tapped five times since last asked, which toggles Sticky Keys.
+    pub fn take_sticky_toggle(&mut self) -> bool {
+        std::mem::take(&mut self.sticky_toggled)
+    }
+
+    /// A held chord keeps the latched modifiers it was pressed with until they are tapped.
+    pub fn keep_latched(&mut self) {
+        for latch in &mut self.latched {
+            latch.kept = true;
+            latch.used_by = None;
+        }
     }
 
     /// Whether a physical key is held.
@@ -186,18 +232,73 @@ impl Engine {
     /// The modifiers the client should hold with no translated key down.
     fn base(&self, ctx: &Ctx) -> Sent {
         let mut sent = Sent::default();
-        for (_, held) in &self.held {
-            if let Held::Mod(role) = held {
-                match role {
-                    Role::Cmd if !ctx.translate => sent.super_ = true,
-                    Role::Cmd if self.button => sent.ctrl = true,
-                    Role::Option if !ctx.translate || self.button => sent.alt = true,
-                    Role::Cmd | Role::Option => {}
-                    role => sent.set(*role),
-                }
+        let roles = self
+            .held
+            .iter()
+            .filter_map(|(_, h)| match h {
+                Held::Mod(role) => Some(*role),
+                _ => None,
+            })
+            .chain(self.latched.iter().map(|l| l.role));
+        for role in roles {
+            match role {
+                Role::Cmd if !ctx.translate => sent.super_ = true,
+                Role::Cmd if self.button => sent.ctrl = true,
+                Role::Option if !ctx.translate || self.button => sent.alt = true,
+                Role::Cmd | Role::Option => {}
+                role => sent.set(role),
             }
         }
         sent
+    }
+
+    /// A modifier tapped alone: Shift's fifth tap toggles Sticky Keys, and with Sticky Keys
+    /// on the tap moves the modifier from free to latched to locked and back to free.
+    fn tapped(&mut self, role: Role) {
+        if role == Role::Shift {
+            self.shift_taps += 1;
+            if self.shift_taps == 5 {
+                self.shift_taps = 0;
+                self.sticky_toggled = true;
+            }
+        } else {
+            self.shift_taps = 0;
+        }
+        if !self.sticky || role == Role::Level3 {
+            return;
+        }
+        match self.latched.iter().position(|l| l.role == role) {
+            None => self.latched.push(Latch {
+                role,
+                locked: false,
+                kept: false,
+                used_by: None,
+            }),
+            Some(i) if !self.latched[i].locked && !self.latched[i].kept => {
+                self.latched[i].locked = true;
+                self.latched[i].used_by = None;
+            }
+            Some(i) => {
+                self.latched.remove(i);
+            }
+        }
+    }
+
+    /// A key was pressed: the modifiers held are no taps, and latched ones end with it.
+    fn key_pressed(&mut self, code: u32) {
+        self.shift_taps = 0;
+        let mods: Vec<u32> = self
+            .held
+            .iter()
+            .filter(|(_, h)| matches!(h, Held::Mod(_)))
+            .map(|(c, _)| *c)
+            .collect();
+        self.used.extend(mods);
+        for latch in &mut self.latched {
+            if !latch.locked && !latch.kept && latch.used_by.is_none() {
+                latch.used_by = Some(code);
+            }
+        }
     }
 
     fn desired(&self, ctx: &Ctx) -> Sent {
@@ -300,6 +401,7 @@ impl Engine {
         }
         let role = ctx.keys.role(code);
         if role != Role::Key {
+            self.used.retain(|c| *c != code);
             self.held.push((code, Held::Mod(role)));
             let withheld = ctx.translate && matches!(role, Role::Cmd | Role::Option);
             if !withheld {
@@ -311,6 +413,7 @@ impl Engine {
             return out;
         }
         let mods = self.mods();
+        self.key_pressed(code);
         if let Some(sym) = ctx.keys.sym(code)
             && let Some(action) = bind(Chord::new(mods, sym))
         {
@@ -368,19 +471,28 @@ impl Engine {
             return out;
         };
         let (_, held) = self.held.remove(i);
+        let before = self.latched.len();
+        self.latched.retain(|l| l.used_by != Some(code));
+        let unlatched = self.latched.len() != before;
         match held {
-            Held::Mod(_) => {
+            Held::Mod(role) => {
                 self.send_release(code, &mut out);
+                match self.used.iter().position(|c| *c == code) {
+                    Some(i) => {
+                        self.used.remove(i);
+                    }
+                    None => self.tapped(role),
+                }
                 let want = self.desired(ctx);
                 self.sync(want, ctx, &mut out);
             }
             Held::Passed(sent) => self.send_release(sent, &mut out),
-            Held::Translated(sent, _) => {
-                self.send_release(sent, &mut out);
-                let want = self.desired(ctx);
-                self.sync(want, ctx, &mut out);
-            }
+            Held::Translated(sent, _) => self.send_release(sent, &mut out),
             Held::Spent => {}
+        }
+        if !matches!(held, Held::Mod(_) | Held::Passed(_)) || unlatched {
+            let want = self.desired(ctx);
+            self.sync(want, ctx, &mut out);
         }
         out
     }
@@ -614,6 +726,66 @@ mod tests {
         assert_eq!(f.up(CMD), vec![]);
         assert_eq!(f.up(SHIFT), vec![Release(SHIFT)]);
         assert!(f.engine.sent().is_empty());
+    }
+
+    #[test]
+    fn sticky_cmd_latches_for_one_key_and_locks_when_tapped_twice() {
+        let mut f = Fixture::new();
+        f.engine.set_sticky(true);
+        f.down(CMD);
+        f.up(CMD);
+        assert_eq!(f.down(C), vec![Press(CTRL), Press(C)]);
+        assert_eq!(f.up(C), vec![Release(C), Release(CTRL)]);
+        assert_eq!(f.down(C), vec![Press(C)], "the latch ended with the key");
+        f.up(C);
+
+        for _ in 0..2 {
+            f.down(CMD);
+            f.up(CMD);
+        }
+        for _ in 0..2 {
+            assert_eq!(f.down(C), vec![Press(CTRL), Press(C)], "locked");
+            f.up(C);
+        }
+        f.down(CMD);
+        f.up(CMD);
+        assert_eq!(f.down(C), vec![Press(C)], "a third tap frees it");
+        f.up(C);
+    }
+
+    #[test]
+    fn sticky_shift_is_sent_while_latched_and_five_taps_toggle_sticky_keys() {
+        let mut f = Fixture::new();
+        f.engine.set_sticky(true);
+        f.down(SHIFT);
+        assert_eq!(
+            f.up(SHIFT),
+            vec![Release(SHIFT), Press(SHIFT)],
+            "latched Shift stays sent"
+        );
+        f.down(C);
+        assert_eq!(f.up(C), vec![Release(C), Release(SHIFT)]);
+        assert!(!f.engine.take_sticky_toggle());
+        for _ in 0..5 {
+            f.down(SHIFT);
+            f.up(SHIFT);
+        }
+        assert!(f.engine.take_sticky_toggle());
+    }
+
+    #[test]
+    fn a_held_chord_keeps_its_latch_until_the_modifier_is_tapped() {
+        let mut f = Fixture::new();
+        f.engine.set_sticky(true);
+        f.down(CMD);
+        f.up(CMD);
+        assert_eq!(f.down(TAB), vec![Action("switcher")]);
+        f.engine.keep_latched();
+        f.up(TAB);
+        assert!(f.engine.mods().cmd, "still latched for the switcher");
+        f.down(CMD);
+        f.up(CMD);
+        assert!(!f.engine.mods().cmd, "the next tap lets it go");
     }
 
     #[test]

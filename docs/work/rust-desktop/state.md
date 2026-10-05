@@ -157,7 +157,7 @@
   generated from the shipped file, blur and the glass floor, AT-SPI, the
   preview under `dx`. The user took every recommendation. Phases 3.0–3.10.
 - P3 3.0–3.3 done (2026-10-04): `freya-embed` on the fork's
-  `isle/freya-embed` branch (no pull request yet; Isle pins its head),
+  `isle/freya-embed` branch,
   `isle-shell` hosting surfaces with input, focus return and AT-SPI, the
   probe surface in test builds, `Shell1` and `isle shell`.
 - P3 3.4–3.7 done (2026-10-04): panic boundaries with rebuild and the
@@ -172,6 +172,7 @@
   preview is `isle-preview <surface>`, with `--watch` in place of dx's hot
   patch, which fails across workspace crates. Open: the soak keeps 2 to 5
   KB a cycle on the loop's thread (VRAM flat); a heap profiler settles it
-  before the 24-hour soak. The fork's `isle/freya-embed` branch has no pull
-  request yet; Isle pins its head. Next: P4 (windows), P5 (keyboard) or P6
+  before the 24-hour soak. The fork's changes merged as
+  alexparlett/freya#10 (2026-10-05) and Isle pins that merge on the fork's
+  `main`. Next: P4 (windows), P5 (keyboard) or P6
   (island and menus), all now unblocked.

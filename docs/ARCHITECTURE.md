@@ -179,10 +179,11 @@ paru and updated through pacman (B29).
   patch needs the fork `alexparlett/smithay`, which will carry the async
   page flip (B6, P12 at the latest).
 - **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
-  `isle/freya-embed` branch, which carries `freya-embed` (the embedding
-  crate made from the spike's glue), an idle `Timeout` that sleeps, and
-  thread-local contexts popped on unwind. A git-ignored
-  `.cargo/config.toml` may patch it to a local checkout.
+  `main`, which carries `freya-embed` (the embedding crate made from the
+  spike's glue), an idle `Timeout` that sleeps, and thread-local contexts
+  restored on unwind (alexparlett/freya#10). A git-ignored
+  `.cargo/config.toml` may patch it to a local checkout while working on
+  the fork.
 
 ## Repository
 

@@ -378,11 +378,11 @@ input method in shell fields.
 
 Every phase passed its check, with these differences from the plan:
 
-- **The fork** carries three changes on `isle/freya-embed`, which Isle pins
-  by revision: `freya-embed`; an idle `Timeout` (every `Input` and
+- **The fork** carries three changes, merged into its `main` as
+  alexparlett/freya#10 and pinned there by revision: `freya-embed`; an idle `Timeout` (every `Input` and
   `ScrollView`) that sleeps until reset instead of waking twice a second;
   Freya's thread-local contexts popped on unwind, without which a rebuilt
-  surface panicked again outside its boundary. No pull request yet.
+  surface panicked again outside its boundary.
 - **A surface's tree holds its own state** from its definition, so the
   compositor and the preview host it alike; `SurfaceDef::provide` went.
 - **AT-SPI** runs on `accesskit_unix`'s own D-Bus thread, not the worker's

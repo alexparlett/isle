@@ -517,8 +517,10 @@ set, clashes, held chords, every shipped table rule typed into an app it
 applies to, games, inhibitors, injection, recording, Sticky and Slow Keys.
 Findings in `docs/research/rust-desktop/p5-keyboard.md`.
 
-Left for the user's host run on tty8: both keyboards (the Keychron and the PC
-keyboard behind the KVM) typing the same password and £ € #; Cmd+C, Cmd+V,
-Cmd+W and Cmd+Q in Chromium, kitty, VS Code, a GTK 4 and a Qt 6 app; a game
-with Ctrl as crouch; xremap stopped by the session.
-
+The host run (2026-10-05, tty8, by the user, on the 5070 Ti): both
+Keychron receivers took `gb(mac)` with no swap; £, # and € typed; Cmd
+chords behaved in kitty, Chromium, VS Code, GTK 4 and Qt 6 apps; a game
+kept Ctrl as Ctrl. On the host `isle-session.target` is not installed yet
+(P14), so the run stops xremap itself (`~/.local/bin/isle-try`, host-only).
+Found there and fixed: the US layout by default, and dead input after a
+start on a console not in front.

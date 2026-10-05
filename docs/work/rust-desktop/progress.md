@@ -2,6 +2,10 @@
 
 ## 2026-10-05
 
+- P5 host run by the user on tty8: both keyboards and the apps behaved.
+  Found and fixed: the US layout by default, and no input after a start on
+  a console not in front.
+
 - P5 closed but for the user's host run. ARCHITECTURE describes how keys are
   read; B44–B46 record the seat fed only Isle's keys, the tables as a data
   file, and the game flag.

@@ -67,7 +67,7 @@ quitting keep-running apps (B20, B30); minimise, maximise, full-screen
 Spaces, window places; server-side title bars drawn in Freya (B25); the
 Xwayland window manager with v1's X11 lessons (B5). Intent: compositor.md.
 
-**P5 · Keyboard.** Done 2026-10-05 but for the host run: `p5-keyboard.md`, B44–B46. Per-device profiles and the Mac preset in the
+**P5 · Keyboard.** Done 2026-10-05: `p5-keyboard.md`, B44–B46. Per-device profiles and the Mac preset in the
 compositor, with the Alt and Super swap on PC keyboards on by default
 (B30); Cmd translation with per-app exceptions, off in games and under
 shortcuts-inhibit (B21); the default shortcut set. Retires xremap. Intent:

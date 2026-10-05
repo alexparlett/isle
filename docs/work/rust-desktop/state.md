@@ -219,9 +219,13 @@
   held chords; `data/keys/translation.kdl`; games, inhibitors with
   Cmd+Escape, Isle's own keys, recording; Sticky and Slow Keys; xremap
   conflicted away. Checked headless and in the VM (wev, xev, kitty, GTK 4).
-- P5 closed but for the user's host run (2026-10-05): ARCHITECTURE has How
+- P5 is done (2026-10-05), its host run on tty8 passed by the user: ARCHITECTURE has How
   keys are read, B44–B46 are recorded, `compositor.md`'s and `gaming.md`'s
   open points answered, `p5-keyboard.md` ends with its outcome. Steam's
   `STEAM_GAME` X11 label is read through alexparlett/smithay#2, merged, and
   Isle pins that merge (`764ad1b`). Next: P6 (island and menus).
+- P5 host run (2026-10-05): both Keychron receivers type `gb(mac)`, Cmd
+  chords behave in kitty, Chromium, VS Code, GTK 4 and Qt 6, a game keeps
+  Ctrl. Fixed on the way: the layout defaults to the system's, and input is
+  opened when a session started on another console comes to the front.
 

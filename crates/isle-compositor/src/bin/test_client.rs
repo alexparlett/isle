@@ -7,7 +7,8 @@
 //! `size W H` (draw at that size), `geometry X Y W H` (the window's geometry within a larger
 //! buffer), `decoration client|server|unset`, `move-on-press`, `resize-on-press EDGE`,
 //! `window` (another toplevel), `dialog` and `modal` (a toplevel whose parent is this one),
-//! `destroy`, `pings ignore|answer` (answering those ignored so far), `linger` (a close of the
+//! `destroy`, `unmap` (a null buffer), `remap` (a commit that asks to be configured again),
+//! `pings ignore|answer` (answering those ignored so far), `linger` (a close of the
 //! first window destroys it but leaves the process running), `quit`. A close of any other
 //! window destroys it.
 
@@ -241,6 +242,14 @@ impl Client {
                 win.surface.destroy();
                 win.gone = true;
                 say(index, "destroyed".into());
+            }
+            ("unmap", _) => {
+                self.wins[index].surface.attach(None, 0, 0);
+            }
+            // An unmapped toplevel has lost its app id and title with the rest of its state.
+            ("remap", Some(t)) => {
+                t.set_app_id(self.app_id.clone());
+                t.set_title(format!("remapped {index}"));
             }
             ("pings", _) => {
                 self.ignore_pings = rest.first() == Some(&"ignore");

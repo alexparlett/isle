@@ -217,8 +217,12 @@ impl State {
         if row.current == index {
             return true;
         }
+        let step = if index > row.current { 1 } else { -1 };
+        self.slide_out(output, step);
+        let row = self.isle.desktops.ensure_row(&identity);
         row.current = index;
         self.after_switch(output);
+        self.slide_in(output, step);
         true
     }
 
@@ -449,6 +453,9 @@ impl State {
         if !borderless {
             self.send_full_screen(id, true);
             let area = self.isle.space.output_geometry(&output).unwrap_or_default();
+            if mapped {
+                self.begin_morph(id, area);
+            }
             if let Some(record) = self.isle.wm.get(id) {
                 record.configure_size(area.size);
             }

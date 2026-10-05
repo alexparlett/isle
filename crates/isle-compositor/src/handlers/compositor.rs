@@ -37,6 +37,12 @@ impl CompositorHandler for State {
             }
             match self.isle.wm.for_surface(&root).map(|r| (r.id, r.mapped)) {
                 Some((id, false)) => self.commit_unmapped(id, &root),
+                Some((id, true))
+                    if !with_renderer_surface_state(&root, |s| s.buffer().is_some())
+                        .unwrap_or(false) =>
+                {
+                    self.unmap_window(id);
+                }
                 Some((id, true)) => {
                     let window = self.isle.window_by_id(id).unwrap();
                     window.on_commit();
@@ -102,6 +108,9 @@ impl State {
             self.enter_full_screen(id, false);
         } else {
             self.check_borderless(id);
+        }
+        if matches!(self.isle.wm.get(id).map(|r| &r.mode), Some(crate::wm::Mode::Floating | crate::wm::Mode::Tiled { .. } | crate::wm::Mode::Filled { .. })) {
+            self.animate_arriving(id, None);
         }
     }
 }

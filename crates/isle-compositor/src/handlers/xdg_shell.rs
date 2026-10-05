@@ -32,6 +32,32 @@ impl XdgShellHandler for State {
     }
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
+        // A null buffer unmaps the window; its last frame is taken before it goes.
+        smithay::wayland::compositor::add_pre_commit_hook::<State, _>(
+            surface.wl_surface(),
+            |state, _, surface| {
+                let removing = smithay::wayland::compositor::with_states(surface, |states| {
+                    matches!(
+                        states
+                            .cached_state
+                            .get::<smithay::wayland::compositor::SurfaceAttributes>()
+                            .pending()
+                            .buffer,
+                        Some(smithay::wayland::compositor::BufferAssignment::Removed)
+                    )
+                });
+                if removing
+                    && let Some(id) = state
+                        .isle
+                        .wm
+                        .for_surface(surface)
+                        .filter(|r| r.mapped)
+                        .map(|r| r.id)
+                {
+                    state.animate_leaving(id, None);
+                }
+            },
+        );
         self.isle.add_window(Window::new_wayland_window(surface));
     }
 

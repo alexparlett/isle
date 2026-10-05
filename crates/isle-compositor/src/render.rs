@@ -13,7 +13,7 @@ use smithay::{
     input::pointer::{CursorImageAttributes, CursorImageStatus},
     output::Output,
     render_elements,
-    utils::{Logical, Point, Scale},
+    utils::{Logical, Point, Rectangle, Scale},
     wayland::{compositor::with_states, shell::wlr_layer::Layer},
 };
 use std::sync::Mutex;
@@ -35,6 +35,7 @@ render_elements! {
     Surface = WaylandSurfaceRenderElement<GlesRenderer>,
     Memory = MemoryRenderBufferRenderElement<GlesRenderer>,
     Solid = smithay::backend::renderer::element::solid::SolidColorRenderElement,
+    Window = crate::wm::draw::Placed,
     Shell = isle_shell::ShellElement,
 }
 
@@ -149,19 +150,51 @@ impl Isle {
         }
 
         let preview = self.zone_preview.as_ref().filter(|p| &p.output == output);
+        let output_scale = scale.x;
+        for leaving in self.leaving.iter().filter(|l| &l.output == output) {
+            let snapshot = &leaving.snapshot;
+            let from = Rectangle::new(snapshot.frame.loc - geometry.loc, snapshot.frame.size);
+            let mut to = leaving.motion.apply(snapshot.frame);
+            to.loc -= geometry.loc.to_f64();
+            push(IsleElement::Window(crate::wm::draw::place(
+                snapshot_piece(renderer, snapshot, geometry.loc, output_scale, leaving.motion.opacity()),
+                from,
+                to,
+                output_scale,
+            )));
+        }
         for window in self.space.elements_for_output(output).rev() {
-            let Some(location) = self.space.element_location(window) else {
+            let id = crate::wm::window_id(window);
+            let Some(frame) = self.frame(id) else {
                 continue;
             };
-            let location: Point<i32, _> = location - window.geometry().loc - geometry.loc;
-            for element in AsRenderElements::<GlesRenderer>::render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
-                window,
-                renderer,
-                location.to_physical_precise_round(scale),
-                scale,
-                1.0,
-            ) {
-                push(IsleElement::Surface(element));
+            let record = self.wm.get(id);
+            let motion = record.and_then(|r| r.motion);
+            let morph = record.and_then(|r| r.morph.as_ref());
+            let (mut to, alpha) = match (morph, motion) {
+                (Some(morph), _) => (morph.frame(frame), morph.crossfade.value() as f32),
+                (None, Some(motion)) => (motion.apply(frame), motion.opacity()),
+                (None, None) => (frame.to_f64(), 1.0),
+            };
+            to.loc -= geometry.loc.to_f64();
+            let from = Rectangle::new(frame.loc - geometry.loc, frame.size);
+            let mut pieces = Vec::new();
+            self.window_pieces(renderer, id, geometry.loc, output_scale, true, alpha, &mut |p| {
+                pieces.push(p)
+            });
+            for piece in pieces {
+                push(IsleElement::Window(crate::wm::draw::place(piece, from, to, output_scale)));
+            }
+            if let Some(morph) = morph {
+                let snapshot = &morph.snapshot;
+                let held = Rectangle::new(snapshot.frame.loc - geometry.loc, snapshot.frame.size);
+                let fade = 1.0 - morph.crossfade.value() as f32;
+                push(IsleElement::Window(crate::wm::draw::place(
+                    snapshot_piece(renderer, snapshot, geometry.loc, output_scale, fade),
+                    held,
+                    to,
+                    output_scale,
+                )));
             }
             if let Some(preview) = preview.filter(|p| p.under == crate::wm::window_id(window)) {
                 let at = (preview.rect.loc - geometry.loc).to_physical_precise_round(scale);
@@ -204,4 +237,26 @@ fn push_layers(
             push(IsleElement::Surface(element));
         }
     }
+}
+
+/// A window's last frame as a piece, at its frame relative to `origin`.
+fn snapshot_piece(
+    renderer: &mut GlesRenderer,
+    snapshot: &crate::wm::motion::Snapshot,
+    origin: Point<i32, Logical>,
+    scale: f64,
+    alpha: f32,
+) -> crate::wm::draw::WindowPiece {
+    let _ = renderer;
+    let at = (snapshot.frame.loc - origin).to_f64().to_physical(scale);
+    crate::wm::draw::WindowPiece::Snapshot(
+        smithay::backend::renderer::element::texture::TextureRenderElement::from_texture_buffer(
+            at,
+            &snapshot.buffer,
+            Some(alpha),
+            None,
+            Some(snapshot.frame.size),
+            Kind::Unspecified,
+        ),
+    )
 }

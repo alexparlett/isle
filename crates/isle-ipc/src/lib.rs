@@ -330,6 +330,8 @@ pub mod test {
         fn measure(&self, on: bool) -> zbus::Result<()>;
         /// Turns shell transitions off or on.
         fn transitions(&self, on: bool) -> zbus::Result<()>;
+        /// Turns window motion off or on, apart from the shell's transitions.
+        fn window_motion(&self, on: bool) -> zbus::Result<()>;
         /// Bytes the allocator has handed out and not had back, from glibc's `mallinfo2`.
         fn malloc_in_use(&self) -> zbus::Result<u64>;
         /// The counts inside a surface's tree, for finding what grows.

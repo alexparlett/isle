@@ -100,6 +100,20 @@ impl Theme {
         }
     }
 
+    pub fn spring_move(&self) -> Spring {
+        Spring {
+            stiffness: self.tokens.motion_move_stiffness,
+            damping: self.tokens.motion_move_damping,
+        }
+    }
+
+    pub fn spring_switch(&self) -> Spring {
+        Spring {
+            stiffness: self.tokens.motion_switch_stiffness,
+            damping: self.tokens.motion_switch_damping,
+        }
+    }
+
     pub fn spring_morph(&self) -> Spring {
         Spring {
             stiffness: self.tokens.motion_morph_stiffness,

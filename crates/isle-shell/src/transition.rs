@@ -6,7 +6,7 @@ use isle_tokens::{Spring, Theme};
 
 /// A value moving toward its target on a spring, or as a fade of fixed length.
 #[derive(Clone, Copy, Debug)]
-struct Motion {
+pub struct Motion {
     value: f64,
     velocity: f64,
     target: f64,
@@ -25,7 +25,7 @@ enum Drive {
 }
 
 impl Motion {
-    fn at(value: f64) -> Self {
+    pub fn at(value: f64) -> Self {
         Self {
             value,
             velocity: 0.0,
@@ -37,11 +37,36 @@ impl Motion {
         }
     }
 
-    fn settled(&self) -> bool {
+    /// Moves toward `target` on `spring` from where it is, keeping its velocity.
+    pub fn spring_to(&mut self, target: f64, spring: Spring) {
+        self.target = target;
+        self.drive = Drive::Spring(spring);
+    }
+
+    /// Moves toward `target` in a straight line over `length`.
+    pub fn fade_to(&mut self, target: f64, length: Duration) {
+        self.target = target;
+        self.drive = Drive::Fade {
+            from: self.value,
+            start: Instant::now(),
+            length,
+        };
+    }
+
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+
+    pub fn target(&self) -> f64 {
+        self.target
+    }
+
+    pub fn settled(&self) -> bool {
         (self.value - self.target).abs() < 1e-3 && self.velocity.abs() < 1e-2
     }
 
-    fn step(&mut self, now: Instant, dt: f64) {
+    /// Advances by `dt` seconds, ending at `now` for a fade.
+    pub fn step(&mut self, now: Instant, dt: f64) {
         match self.drive {
             Drive::Spring(spring) => {
                 // Semi-implicit Euler in small steps stays stable at these stiffnesses.

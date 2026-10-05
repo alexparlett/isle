@@ -453,6 +453,14 @@ impl Test {
             .await?)
     }
 
+    /// Turns window motion off or on, apart from the shell's transitions.
+    async fn window_motion(&self, on: bool) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.isle.window_motion = on)
+            .await?)
+    }
+
     /// Bytes the allocator has handed out and not had back, from glibc's `mallinfo2`.
     fn malloc_in_use(&self) -> u64 {
         // Safety: mallinfo2 only reads the allocator's counters.

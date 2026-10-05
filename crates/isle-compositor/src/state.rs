@@ -74,6 +74,19 @@ pub struct Isle {
     pub wm: crate::wm::Wm,
     pub places: isle_state::domains::Places,
     pub desktops: crate::wm::desktops::Desktops,
+    pub window_programs: Option<crate::wm::draw::Programs>,
+    /// Each window's shadow layers, kept so their ids hold still across frames.
+    pub shadow_cache: std::cell::RefCell<
+        std::collections::HashMap<(u64, usize), (crate::wm::draw::ShadowShape, crate::wm::draw::ShadowElement)>,
+    >,
+    /// The dim over windows that have a modal dialog attached, by window.
+    pub scrims: std::cell::RefCell<
+        std::collections::HashMap<u64, smithay::backend::renderer::element::solid::SolidColorBuffer>,
+    >,
+    /// Windows drawn from their last frame while they go.
+    pub leaving: Vec<crate::wm::motion::Leaving>,
+    /// Windows move; the Test interface turns it off so screenshots need not wait.
+    pub window_motion: bool,
     /// The desktop entries, which name apps.
     pub apps: std::sync::Arc<isle_apps::Index>,
     /// Apps being quit, with the processes that get the polite signal once their windows go.
@@ -227,6 +240,11 @@ impl Isle {
             wm: Default::default(),
             places: Default::default(),
             desktops: Default::default(),
+            window_programs: None,
+            shadow_cache: Default::default(),
+            leaving: Vec::new(),
+            scrims: Default::default(),
+            window_motion: true,
             apps: Default::default(),
             quitting: Vec::new(),
             pings: Vec::new(),

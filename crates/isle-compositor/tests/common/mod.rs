@@ -146,6 +146,8 @@ impl Isle {
             );
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
+        // Screenshots taken as a window maps see it whole; the motion tests turn it back on.
+        isle.test().await.window_motion(false).await.unwrap();
         isle
     }
 

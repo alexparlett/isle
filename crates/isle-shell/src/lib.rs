@@ -9,7 +9,7 @@ mod keys;
 #[cfg(feature = "probe")]
 pub mod probe;
 mod surface;
-mod transition;
+pub mod transition;
 pub mod preview;
 
 use std::{
@@ -768,6 +768,11 @@ impl Shell {
             instance.draw_times.clear();
             instance.glass_times.clear();
         }
+    }
+
+    /// Whether surfaces and windows move; off, they open, close and move at once.
+    pub fn animated(&self) -> bool {
+        self.animated
     }
 
     /// Turns transitions off or on; off, surfaces open and close at once.

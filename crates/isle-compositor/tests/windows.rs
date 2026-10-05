@@ -221,6 +221,12 @@ async fn dialogs_open_over_their_parent_and_modal_ones_hold_its_focus() {
         "under the parent's top"
     );
     assert!(modal.focused);
+    let below = (parent.x as usize + 20, parent.y as usize + 560);
+    let dimmed = isle.shot("HEADLESS-1", "scrim").await.at(below.0, below.1);
+    assert!(
+        darker(dimmed, [0xff, 0x33, 0x66]),
+        "the parent is dimmed: {dimmed:?}"
+    );
 
     // A click on the parent leaves the keys with its modal dialog.
     let test = isle.test().await;
@@ -787,4 +793,93 @@ async fn windows_keep_their_desktop_when_their_output_goes_and_comes_back() {
         now.output == "HEADLESS-3" && now.desktop == 2
     })
     .await;
+}
+
+const BACKDROP: [u8; 3] = [28, 28, 31];
+
+fn darker(a: [u8; 3], b: [u8; 3]) -> bool {
+    a.iter().map(|c| *c as u32).sum::<u32>() < b.iter().map(|c| *c as u32).sum::<u32>()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn windows_have_round_corners_and_a_shadow_deeper_while_active() {
+    let mut isle = Isle::start("chrome").await;
+    let _red = isle.client("isle.test.Corners", "ff0000");
+    let w = isle.wait_for_window("isle.test.Corners").await;
+    assert_eq!((w.x, w.y), (760, 414));
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let shot = isle.shot("HEADLESS-1", "corners").await;
+    assert_ne!(shot.at(760, 414), RED, "the corner is cut");
+    assert!(
+        shot.at(765, 419)[0] > 200,
+        "inside the curve: {:?}",
+        shot.at(765, 419)
+    );
+    assert_eq!(shot.at(771, 414), RED, "past the curve");
+    let active = shot.at(960, 730);
+    assert!(darker(active, BACKDROP), "a shadow under it: {active:?}");
+
+    // Another window takes focus: the first one's shadow lightens.
+    let _blue = isle.client_with(&[
+        "--app-id",
+        "isle.test.Other",
+        "--colour",
+        "0000ff",
+        "--size",
+        "100x100",
+    ]);
+    isle.wait_for_window("isle.test.Other").await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let inactive = isle.shot("HEADLESS-1", "inactive").await.at(960, 730);
+    assert!(
+        darker(active, inactive) && darker(inactive, BACKDROP),
+        "{active:?} {inactive:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_closing_window_fades_from_its_last_frame_then_costs_nothing() {
+    let mut isle = Isle::start("closing").await;
+    let test = isle.test().await;
+    test.window_motion(true).await.unwrap();
+    let client = isle.client("isle.test.Closing", "ff0000");
+    isle.wait_for_window("isle.test.Closing").await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let before = test.frames("HEADLESS-1").await.unwrap();
+
+    client.send("destroy");
+    client.wait_for("destroyed").await;
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    let during = isle.shot("HEADLESS-1", "closing").await.at(960, 564);
+    assert!(
+        during[0] > during[1] + 40,
+        "still drawn, fading: {during:?}"
+    );
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let after = test.frames("HEADLESS-1").await.unwrap();
+    assert!(after > before + 3, "the exit drew frames: {before} {after}");
+    assert_eq!(
+        isle.shot("HEADLESS-1", "closed").await.at(960, 564),
+        BACKDROP
+    );
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(
+        test.frames("HEADLESS-1").await.unwrap(),
+        after,
+        "nothing after it ends"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_null_buffer_unmaps_and_a_new_commit_maps_again() {
+    let mut isle = Isle::start("unmap").await;
+    let client = isle.client("isle.test.Unmap", "ff0000");
+    let w = isle.wait_for_window("isle.test.Unmap").await;
+    client.send("unmap");
+    wait_until(|| async { isle.windows().await.is_empty() }).await;
+    client.clear();
+    client.send("remap");
+    client.wait_for("configured 400 300").await;
+    let again = isle.wait_for_window("isle.test.Unmap").await;
+    assert_eq!(again.id, w.id);
 }

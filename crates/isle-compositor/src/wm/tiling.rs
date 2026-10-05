@@ -13,6 +13,22 @@ use super::{
 use crate::state::{Isle, State};
 
 impl Isle {
+    /// Where a minimised window shrinks to: a small box of its shape under the strip, at the
+    /// top centre of its output.
+    pub fn minimise_target(&self, id: u64) -> Option<Rect> {
+        let frame = self.frame(id)?;
+        let output = self.output_of(id)?;
+        let screen = self.space.output_geometry(&output)?;
+        let tokens = &self.shell.theme().tokens;
+        let w = tokens.size_minimise_target.round() as i32;
+        let h = (w as f64 * frame.size.h as f64 / frame.size.w.max(1) as f64).round() as i32;
+        let y = screen.loc.y + self.strip() + tokens.space_s.round() as i32;
+        Some(Rectangle::new(
+            (screen.loc.x + (screen.size.w - w) / 2, y).into(),
+            (w, h.max(1)).into(),
+        ))
+    }
+
     /// The height of the title bar the compositor draws over `id`, or 0.
     pub fn bar_height(&self, _id: u64) -> i32 {
         0
@@ -78,6 +94,7 @@ impl Isle {
 impl State {
     /// Configures `id` to fill `frame` less its bar, and moves it there.
     pub fn set_frame(&mut self, id: u64, frame: Rect) {
+        self.begin_morph(id, frame);
         let bar = self.isle.bar_height(id);
         let Some(record) = self.isle.wm.get(id) else {
             return;

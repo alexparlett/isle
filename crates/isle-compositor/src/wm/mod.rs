@@ -3,6 +3,8 @@
 
 mod apps;
 pub mod desktops;
+pub mod draw;
+pub mod motion;
 pub mod geometry;
 mod places;
 mod tiling;
@@ -85,6 +87,10 @@ pub struct Record {
     pub attention: bool,
     /// Its client missed a ping and has not answered since.
     pub not_responding: bool,
+    /// Drawn away from its box while it opens, comes back or slides in.
+    pub motion: Option<motion::WindowMotion>,
+    /// Its frame moving to a new box.
+    pub morph: Option<motion::Morph>,
     /// Its box in the global space: where it is while shown, where it returns to while not.
     pub rect: Rectangle<i32, Logical>,
     suspended: bool,
@@ -279,6 +285,8 @@ impl Isle {
             mapped: false,
             attention: false,
             not_responding: false,
+            motion: None,
+            morph: None,
             rect: Rectangle::default(),
             suspended: false,
         });
@@ -452,12 +460,15 @@ impl State {
     }
 
     pub fn minimise(&mut self, id: u64) -> bool {
-        let Some(record) = self.isle.wm.get_mut(id) else {
+        let Some(record) = self.isle.wm.get(id) else {
             return false;
         };
         if matches!(record.mode, Mode::FullScreen { .. }) {
             return false;
         }
+        let target = self.isle.minimise_target(id);
+        self.animate_leaving(id, target);
+        let record = self.isle.wm.get_mut(id).unwrap();
         record.minimised = true;
         self.after_parking(id);
         true
@@ -467,7 +478,10 @@ impl State {
         if !self.isle.wm.get(id).is_some_and(|r| r.minimised) {
             return self.isle.wm.get(id).is_some();
         }
-        self.activate(id)
+        let target = self.isle.minimise_target(id);
+        let done = self.activate(id);
+        self.animate_arriving(id, target);
+        done
     }
 
     /// Hides or shows every window of `app`; false when it has none.
@@ -480,8 +494,29 @@ impl State {
             .filter(|r| r.app == app)
             .map(|r| r.id)
             .collect();
+        if hidden {
+            for id in &ids {
+                self.animate_leaving(*id, None);
+            }
+        }
+        let was_shown: Vec<u64> = ids
+            .iter()
+            .copied()
+            .filter(|id| self.isle.wm.is_shown(*id))
+            .collect();
         for id in &ids {
             self.isle.wm.get_mut(*id).unwrap().hidden = hidden;
+        }
+        if !hidden {
+            self.isle.sync_space();
+            let appearing: Vec<u64> = ids
+                .iter()
+                .copied()
+                .filter(|id| !was_shown.contains(id) && self.isle.wm.is_shown(*id))
+                .collect();
+            for id in appearing {
+                self.animate_showing(id);
+            }
         }
         match (hidden, ids.first()) {
             (_, None) => return false,
@@ -523,9 +558,15 @@ impl State {
 
     /// A toplevel went: it leaves the registry, and focus moves on if it had it.
     pub fn remove_window(&mut self, surface: &WlSurface) {
-        let Some(record) = self.isle.wm.for_surface(surface) else {
+        let Some(id) = self.isle.wm.for_surface(surface).map(|r| r.id) else {
             return;
         };
+        if self.isle.wm.get(id).is_some_and(|r| r.mapped) {
+            self.animate_leaving(id, None);
+        }
+        self.isle.shadow_cache.borrow_mut().retain(|(w, _), _| *w != id);
+        self.isle.scrims.borrow_mut().remove(&id);
+        let record = self.isle.wm.get(id).unwrap();
         let id = record.id;
         let window = record.window.clone();
         let full_screen = match &record.mode {
@@ -552,6 +593,32 @@ impl State {
             .current_focus()
             .is_none_or(|f| f.surface() == Some(surface) || !f.alive())
         {
+            self.focus_next();
+        }
+    }
+
+    /// A window whose client attached a null buffer: it leaves the screen and waits to be
+    /// configured again, keeping its record.
+    pub fn unmap_window(&mut self, id: u64) {
+        let Some(record) = self.isle.wm.get_mut(id) else {
+            return;
+        };
+        let full_screen = match &record.mode {
+            Mode::FullScreen { origin, .. } => Some((record.desktop, *origin)),
+            _ => None,
+        };
+        record.mapped = false;
+        record.mode = Mode::Floating;
+        record.motion = None;
+        record.morph = None;
+        let window = record.window.clone();
+        self.isle.queue_redraw_for_window(&window);
+        self.isle.space.unmap_elem(&window);
+        if let Some((desktop, origin)) = full_screen {
+            self.full_screen_window_gone(desktop, origin);
+        }
+        self.isle.notify(Event::WindowsChanged);
+        if self.focused_window().is_none_or(|f| f == id) {
             self.focus_next();
         }
     }

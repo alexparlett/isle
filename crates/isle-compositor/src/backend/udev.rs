@@ -670,6 +670,12 @@ impl State {
                         error!("could not open the render GPU: {err}");
                         self.isle.loop_signal.stop();
                     }
+                    // Input devices could not be opened while the session was inactive.
+                    let udev = self.udev();
+                    udev.libinput.suspend();
+                    if udev.libinput.resume().is_err() {
+                        error!("libinput did not resume");
+                    }
                     return;
                 }
                 let udev = self.udev();

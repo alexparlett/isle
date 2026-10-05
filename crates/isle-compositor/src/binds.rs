@@ -147,7 +147,7 @@ pub struct Bindings {
 
 impl Bindings {
     /// The settings' chords; ones the settings check refused never get here.
-    pub fn new(settings: &isle_settings::schema::Settings) -> Self {
+    pub fn new(settings: &isle_settings::schema::Settings, layouts: usize) -> Self {
         let shortcuts = &settings.shortcuts;
         let mut chords = HashMap::new();
         for (id, texts) in shortcuts.chords() {
@@ -165,7 +165,7 @@ impl Bindings {
             chords,
             jump: Mods::parse(&shortcuts.desktop_jump).unwrap_or_default(),
             drag: Mods::parse(&shortcuts.window_drag).unwrap_or_default(),
-            layouts: settings.keyboard.layouts.len(),
+            layouts,
         }
     }
 

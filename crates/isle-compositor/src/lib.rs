@@ -120,6 +120,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.tokens = token_source;
     isle.tokens_error = token_error;
     isle.keyboards.set_tables(keyboard::load_tables(&keyboard::tables_path()));
+    isle.keyboards.system = isle_keys::keymap::Layouts::system();
     isle.worker = Some(runtime.clone());
     isle.to_loop = Some(to_loop.clone());
     isle.settings_store = Some(store);

@@ -67,7 +67,7 @@ fn a_broken_hand_edit_keeps_the_last_good_settings_and_refuses_sets() {
     };
     assert_eq!(err.line, 1);
     assert_eq!(store.current().keyboard.repeat_rate, 30);
-    assert_eq!(store.current().keyboard.layouts, vec!["us".to_owned()]);
+    assert!(store.current().keyboard.layouts.is_empty(), "the system's layout stands");
 
     assert!(matches!(
         store.set("keyboard.repeat-rate", Value::Int(50)),

@@ -110,6 +110,8 @@ impl Isle {
             .env("XDG_STATE_HOME", dir.join("state"))
             .env("XDG_DATA_HOME", dir.join("data"))
             .env("XDG_DATA_DIRS", dir.join("data-system"))
+            // The host's own layout must not reach the tests.
+            .env("XKB_DEFAULT_LAYOUT", "us")
             .env("DBUS_SESSION_BUS_ADDRESS", &bus_address)
             .env(
                 "RUST_LOG",

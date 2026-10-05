@@ -65,6 +65,8 @@ pub struct Keyboards {
     /// Keys held, by device and evdev code, with the code after the swap.
     held: HashMap<(String, u32), u32>,
     pub engine: Engine,
+    /// The system's layout, read once at start.
+    pub system: Layouts,
     /// The shipped translation tables with the user's over them.
     tables: Option<Tables>,
     /// Why the user's tables are not in force, when they are not.
@@ -146,8 +148,12 @@ impl Keyboards {
 }
 
 impl State {
-    fn layouts(&self) -> Layouts {
+    /// The settings' layouts, or the system's when they name none.
+    pub fn layouts(&self) -> Layouts {
         let k = &self.isle.settings.keyboard;
+        if k.layouts.is_empty() {
+            return self.isle.keyboards.system.clone();
+        }
         Layouts {
             layouts: k.layouts.clone(),
             variants: k.variants.clone(),

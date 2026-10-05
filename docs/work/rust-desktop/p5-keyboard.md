@@ -499,6 +499,13 @@ differences from the plan:
 - **Devices with no letter keys** (the power button) are kept but left out
   of the keyboard list. The list is empty after start until the first
   input event, since libinput's added devices are dispatched with it.
+- **The layout**, unset, is the system's as `localectl` sets it
+  (`XKB_DEFAULT_*`, then `/etc/vconsole.conf`, then Xorg's keyboard class),
+  not US English: the first host try typed a UK keyboard as American.
+- **Input after an inactive start.** A session started on a console that
+  was not in front opened the GPU when it came to the front but never
+  opened input, so keyboard and mouse were dead (found on the host, a P2
+  bug); libinput is now suspended and resumed then. Checked in the VM.
 - **The X11 map test** read a window's focus from before Xwayland's focus
   arrived; it now waits, as the extra worker thread at map moved the
   timing.

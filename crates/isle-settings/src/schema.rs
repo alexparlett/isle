@@ -34,8 +34,7 @@ pub struct Settings {
 
 #[derive(Clone, Debug, PartialEq, Section)]
 pub struct Keyboard {
-    /// XKB layouts, the first the default.
-    #[setting(default = vec!["us".to_owned()])]
+    /// XKB layouts, the first the default; empty takes the system's, as `localectl` sets it.
     pub layouts: Vec<String>,
     /// XKB variants, one per layout; empty for the plain one.
     pub variants: Vec<String>,

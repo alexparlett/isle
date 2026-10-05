@@ -139,7 +139,8 @@ impl State {
             self.isle.refresh_games();
         }
         if touched("keyboard.layouts") || touched("shortcuts") {
-            self.isle.bindings = crate::binds::Bindings::new(&self.isle.settings);
+            let layouts = self.layouts().layouts.len();
+            self.isle.bindings = crate::binds::Bindings::new(&self.isle.settings, layouts);
         }
         if touched("output[") {
             let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();

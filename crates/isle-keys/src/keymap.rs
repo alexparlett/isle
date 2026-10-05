@@ -24,6 +24,74 @@ pub struct Layouts {
     pub options: Vec<String>,
 }
 
+impl Layouts {
+    /// The system's layout, as `localectl` sets it: `XKB_DEFAULT_*` in the environment
+    /// first, then `XKB*` in `/etc/vconsole.conf`, then Xorg's `00-keyboard.conf`; US
+    /// English when none says.
+    pub fn system() -> Self {
+        let split = |v: &str| -> Vec<String> {
+            v.split(',').map(|s| s.trim().to_owned()).collect::<Vec<_>>()
+        };
+        let from = |layout: String, variant: String, options: String| Layouts {
+            layouts: split(&layout),
+            variants: if variant.is_empty() { Vec::new() } else { split(&variant) },
+            options: if options.is_empty() { Vec::new() } else { split(&options) },
+        };
+        if let Ok(layout) = std::env::var("XKB_DEFAULT_LAYOUT")
+            && !layout.is_empty()
+        {
+            let var = |k: &str| std::env::var(k).unwrap_or_default();
+            return from(layout, var("XKB_DEFAULT_VARIANT"), var("XKB_DEFAULT_OPTIONS"));
+        }
+        let read = |path: &str| std::fs::read_to_string(path).unwrap_or_default();
+        if let Some(found) = Self::from_vconsole(&read("/etc/vconsole.conf"))
+            .or_else(|| Self::from_xorg(&read("/etc/X11/xorg.conf.d/00-keyboard.conf")))
+        {
+            return found;
+        }
+        from("us".into(), String::new(), String::new())
+    }
+
+    /// `XKBLAYOUT=gb` and its siblings, as systemd-localed writes them.
+    pub fn from_vconsole(text: &str) -> Option<Self> {
+        let get = |key: &str| {
+            text.lines()
+                .filter_map(|l| l.trim().strip_prefix(key)?.strip_prefix('='))
+                .map(|v| v.trim().trim_matches('"').to_owned())
+                .next()
+                .unwrap_or_default()
+        };
+        Self::from_parts(get("XKBLAYOUT"), get("XKBVARIANT"), get("XKBOPTIONS"))
+    }
+
+    /// `Option "XkbLayout" "gb"` lines in Xorg's keyboard class.
+    pub fn from_xorg(text: &str) -> Option<Self> {
+        let get = |key: &str| {
+            text.lines()
+                .filter_map(|l| {
+                    let mut words = l.split('"').map(str::trim);
+                    (words.next() == Some("Option") && words.next() == Some(key))
+                        .then(|| words.nth(1).unwrap_or_default().to_owned())
+                })
+                .next()
+                .unwrap_or_default()
+        };
+        Self::from_parts(get("XkbLayout"), get("XkbVariant"), get("XkbOptions"))
+    }
+
+    fn from_parts(layout: String, variant: String, options: String) -> Option<Self> {
+        if layout.is_empty() {
+            return None;
+        }
+        let split = |v: &str| v.split(',').map(|s| s.trim().to_owned()).collect::<Vec<_>>();
+        Some(Layouts {
+            layouts: split(&layout),
+            variants: if variant.is_empty() { Vec::new() } else { split(&variant) },
+            options: if options.is_empty() { Vec::new() } else { split(&options) },
+        })
+    }
+}
+
 /// The layouts XKB has a `mac` variant of, from the rules' list.
 #[derive(Clone, Debug, Default)]
 pub struct MacVariants(HashSet<String>);
@@ -161,6 +229,17 @@ mod tests {
             layouts: names.iter().map(|s| s.to_string()).collect(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn the_system_layout_reads_as_localectl_writes_it() {
+        let vconsole = "KEYMAP=uk\nXKBLAYOUT=gb,us\nXKBVARIANT=,dvorak\n";
+        let l = Layouts::from_vconsole(vconsole).unwrap();
+        assert_eq!(l.layouts, vec!["gb", "us"]);
+        assert_eq!(l.variants, vec!["", "dvorak"]);
+        assert!(Layouts::from_vconsole("KEYMAP=uk\n").is_none());
+        let xorg = "Section \"InputClass\"\n        Option \"XkbLayout\" \"gb\"\nEndSection\n";
+        assert_eq!(Layouts::from_xorg(xorg).unwrap().layouts, vec!["gb"]);
     }
 
     #[test]

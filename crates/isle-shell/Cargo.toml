@@ -11,7 +11,7 @@ accesskit_unix.workspace = true
 serde_json.workspace = true
 futures-channel = "0.3"
 futures-util = "0.3"
-freya.workspace = true
+freya = { workspace = true, features = ["engine"] }
 freya-embed.workspace = true
 isle-ui.workspace = true
 isle-tokens.workspace = true

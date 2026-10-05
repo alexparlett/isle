@@ -155,6 +155,7 @@ impl XdgShellHandler for State {
 
     fn title_changed(&mut self, surface: ToplevelSurface) {
         if self.isle.wm.for_surface(surface.wl_surface()).is_some() {
+            self.isle.sync_bars();
             self.isle.notify(crate::worker::Event::WindowsChanged);
         }
     }

@@ -13,17 +13,21 @@ use smithay::{
     utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size, Transform},
 };
 
-/// Clips a texture to a rounded rectangle the size of the texture.
+/// Clips a texture to a rectangle the size of the texture whose corners are rounded by
+/// `radii`: top left, top right, bottom right, bottom left.
 const CLIP: &str = r#"
 precision highp float;
 uniform sampler2D tex;
 uniform float alpha;
 uniform vec2 size;
-uniform float radius;
+uniform vec4 radii;
 varying vec2 v_coords;
 
 void main() {
     vec2 p = v_coords * size;
+    bool left = p.x < size.x * 0.5;
+    bool top = p.y < size.y * 0.5;
+    float radius = top ? (left ? radii.x : radii.y) : (left ? radii.w : radii.z);
     vec2 q = abs(p - size * 0.5) - (size * 0.5 - vec2(radius));
     float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
     float inside = clamp(0.5 - d, 0.0, 1.0);
@@ -36,7 +40,7 @@ pub fn compile_clip(renderer: &mut GlesRenderer) -> Result<GlesTexProgram, GlesE
         CLIP,
         &[
             UniformName::new("size", UniformType::_2f),
-            UniformName::new("radius", UniformType::_1f),
+            UniformName::new("radii", UniformType::_4f),
         ],
     )
 }
@@ -47,18 +51,18 @@ pub fn compile_clip(renderer: &mut GlesRenderer) -> Result<GlesTexProgram, GlesE
 pub struct SurfaceElement {
     inner: TextureRenderElement<GlesTexture>,
     texture: GlesTexture,
-    clip: Option<(GlesTexProgram, f32)>,
+    clip: Option<(GlesTexProgram, [f32; 4])>,
 }
 
 impl SurfaceElement {
-    /// `radius` is in physical pixels; with no program the corners stay square.
+    /// The radii are in physical pixels; with no program the corners stay square.
     pub fn new(
         location: Point<f64, Physical>,
         buffer: &TextureRenderBuffer<GlesTexture>,
         texture: GlesTexture,
         size: Size<i32, Logical>,
         alpha: f32,
-        clip: Option<(GlesTexProgram, f32)>,
+        clip: Option<(GlesTexProgram, [f32; 4])>,
     ) -> Self {
         let inner = TextureRenderElement::from_texture_render_buffer(
             location,
@@ -71,7 +75,7 @@ impl SurfaceElement {
         Self {
             inner,
             texture,
-            clip: clip.filter(|(_, radius)| *radius > 0.0),
+            clip: clip.filter(|(_, radii)| radii.iter().any(|r| *r > 0.0)),
         }
     }
 }
@@ -128,7 +132,7 @@ impl RenderElement<GlesRenderer> for SurfaceElement {
         opaque_regions: &[Rectangle<i32, Physical>],
         cache: Option<&smithay::utils::user_data::UserDataMap>,
     ) -> Result<(), GlesError> {
-        let Some((program, radius)) = &self.clip else {
+        let Some((program, radii)) = &self.clip else {
             return RenderElement::<GlesRenderer>::draw(
                 &self.inner,
                 frame,
@@ -151,7 +155,7 @@ impl RenderElement<GlesRenderer> for SurfaceElement {
             Some(program),
             &[
                 Uniform::new("size", (size.w as f32, size.h as f32)),
-                Uniform::new("radius", *radius),
+                Uniform::new("radii", *radii),
             ],
         )
     }

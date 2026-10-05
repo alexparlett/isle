@@ -30,8 +30,12 @@ impl Isle {
     }
 
     /// The height of the title bar the compositor draws over `id`, or 0.
-    pub fn bar_height(&self, _id: u64) -> i32 {
-        0
+    pub fn bar_height(&self, id: u64) -> i32 {
+        if self.wants_bar(id) {
+            isle_shell::chrome::bar_height(self.shell.theme())
+        } else {
+            0
+        }
     }
 
     /// The window's frame: its box and the bar over it.

@@ -39,7 +39,8 @@ use smithay::{
     reexports::calloop::ping::Ping,
     utils::{Logical, Point, Rectangle, Size},
 };
-pub use surface::{Action, Actions, Layer, Scope, SurfaceDef};
+pub use surface::{Action, Actions, Layer, Scope, SurfaceDef, WindowAction};
+pub mod chrome;
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};
 
@@ -457,7 +458,7 @@ impl Shell {
         self.instances
             .iter()
             .rev()
-            .filter(|i| i.open && &i.output == output && i.def.layer() == layer)
+            .filter(|i| i.open && i.attached.is_none() && &i.output == output && i.def.layer() == layer)
             .find(|i| i.geometry.to_f64().contains(at))
             .map(|i| (Self::focus_of(i), i.geometry.loc.to_f64()))
     }
@@ -804,21 +805,28 @@ impl Shell {
     /// The surfaces of `layer` on `output`, front to back, positioned relative to the output.
     pub fn elements(&self, output: &Output, layer: Layer, push: &mut dyn FnMut(ShellElement)) {
         for instance in self.instances.iter().rev() {
-            if !instance.visible() || &instance.output != output || instance.def.layer() != layer {
+            if !instance.visible()
+                || instance.attached.is_some()
+                || &instance.output != output
+                || instance.def.layer() != layer
+            {
                 continue;
             }
             let Some(target) = &instance.gl else {
                 continue;
             };
             let location = instance.geometry.loc.to_f64().to_physical(instance.scale);
-            let radius = instance.def.corner_radius(&self.theme) as f64 * instance.scale;
+            let radii = instance
+                .def
+                .corners(&self.theme)
+                .map(|r| (r as f64 * instance.scale) as f32);
             let element = element::SurfaceElement::new(
                 location,
                 &target.buffer,
                 target.texture.clone(),
                 instance.geometry.size,
                 instance.transition.opacity(),
-                self.clip.clone().map(|p| (p, radius as f32)),
+                self.clip.clone().map(|p| (p, radii)),
             );
             let (ax, ay) = instance.def.anchor();
             let size = instance.geometry.size.to_f64().to_physical(instance.scale);
@@ -1019,7 +1027,10 @@ impl Shell {
     fn set_open(&mut self, name: &str, open: bool) -> bool {
         let mut found = false;
         for instance in &mut self.instances {
-            if instance.def.name() != name || (open && instance.disabled) {
+            if instance.def.name() != name
+                || instance.attached.is_some()
+                || (open && instance.disabled)
+            {
                 continue;
             }
             found = true;
@@ -1066,12 +1077,144 @@ impl Shell {
         found
     }
 
+    /// Makes an attached instance of `def` for the compositor's `key`, at `geometry` on the
+    /// output of `place`, relative to it. It is open from the start, with no transition of
+    /// its own: it moves with what it is attached to.
+    pub fn attach(
+        &mut self,
+        def: Rc<dyn SurfaceDef>,
+        key: u64,
+        place: &OutputPlace,
+        geometry: Rectangle<i32, Logical>,
+    ) {
+        if self.instances.iter().any(|i| i.attached == Some(key) && i.def.name() == def.name()) {
+            return;
+        }
+        let mut instance = self.instantiate(def, place);
+        instance.attached = Some(key);
+        instance.geometry = geometry;
+        instance.open = true;
+        instance.transition.open(&transition::Style::new(&self.theme, false));
+        if let (Some(embedded), Some(shown)) = (instance.embedded.as_mut(), instance.shown) {
+            let ran = boundary::guard(instance.def.name(), || {
+                embedded.with_root(|| {
+                    let mut state = shown.0;
+                    state.set(true);
+                })
+            });
+            if let Err(message) = ran {
+                instance.crash(&message);
+            }
+        }
+        Self::set_bounds(&mut instance);
+        std::task::Wake::wake_by_ref(&instance.wakeup);
+        self.instances.push(instance);
+        self.recover();
+    }
+
+    /// Removes the attached instances of `key`.
+    pub fn detach(&mut self, key: u64) {
+        let mut purge = false;
+        self.instances.retain_mut(|instance| {
+            if instance.attached != Some(key) {
+                return true;
+            }
+            instance.alive.store(false, Ordering::Release);
+            if let Some(target) = instance.gl.take() {
+                self.released.push(target);
+                purge = true;
+            }
+            false
+        });
+        if purge && let Some(gpu) = self.gpu.as_mut() {
+            gpu.purge();
+        }
+    }
+
+    /// Moves `key`'s attached instance to `geometry` on the output of `place`.
+    pub fn place_attached(&mut self, key: u64, place: &OutputPlace, geometry: Rectangle<i32, Logical>) {
+        for instance in &mut self.instances {
+            if instance.attached != Some(key) {
+                continue;
+            }
+            let resized = instance.geometry.size != geometry.size
+                || instance.scale != place.scale
+                || instance.output != place.output;
+            instance.output = place.output.clone();
+            instance.scale = place.scale;
+            instance.origin = place.geometry.loc;
+            instance.geometry = geometry;
+            Self::set_bounds(instance);
+            if resized {
+                std::task::Wake::wake_by_ref(&instance.wakeup);
+            }
+        }
+    }
+
+    pub fn attached_focus(&self, key: u64) -> Option<ShellFocus> {
+        self.instances
+            .iter()
+            .find(|i| i.attached == Some(key) && i.embedded.is_some())
+            .map(Self::focus_of)
+    }
+
+    pub fn attached_key(&self, focus: &ShellFocus) -> Option<u64> {
+        self.instance(focus).and_then(|i| i.attached)
+    }
+
+    /// Runs `f` in the root scope of `key`'s attached instance, behind its boundary.
+    pub fn with_attached(&mut self, key: u64, f: impl FnOnce()) -> bool {
+        let Some(instance) = self.instances.iter_mut().find(|i| i.attached == Some(key)) else {
+            return false;
+        };
+        let Some(embedded) = instance.embedded.as_mut() else {
+            return false;
+        };
+        if let Err(message) = boundary::guard(instance.def.name(), || embedded.with_root(f)) {
+            instance.crash(&message);
+        }
+        std::task::Wake::wake_by_ref(&instance.wakeup);
+        self.recover();
+        true
+    }
+
+    /// `key`'s attached instance as drawn last, with its origin at `location`, physical on
+    /// the output being drawn.
+    pub fn attached_element(
+        &self,
+        key: u64,
+        location: Point<f64, smithay::utils::Physical>,
+        alpha: f32,
+    ) -> Option<ShellElement> {
+        let instance = self.instances.iter().find(|i| i.attached == Some(key))?;
+        let target = instance.gl.as_ref()?;
+        // The clip works in the texture's pixels, drawn at the instance's own scale.
+        let radii = instance
+            .def
+            .corners(&self.theme)
+            .map(|r| (r as f64 * instance.scale) as f32);
+        let element = element::SurfaceElement::new(
+            location,
+            &target.buffer,
+            target.texture.clone(),
+            instance.geometry.size,
+            alpha,
+            self.clip.clone().map(|p| (p, radii)),
+        );
+        Some(ShellElement::Surface(RescaleRenderElement::from_element(
+            element,
+            location.to_i32_round(),
+            1.0,
+        )))
+    }
+
     /// Makes the set of instances match the definitions and outputs.
     fn reconcile(&mut self) {
         let main = self.outputs.first().cloned();
         let mut wanted: Vec<(Rc<dyn SurfaceDef>, OutputPlace)> = Vec::new();
         for def in &self.defs {
             match def.scope() {
+                Scope::Attached => {}
                 Scope::EveryOutput => {
                     for place in &self.outputs {
                         wanted.push((def.clone(), place.clone()));
@@ -1087,6 +1230,10 @@ impl Shell {
 
         let mut kept = Vec::new();
         for mut instance in std::mem::take(&mut self.instances) {
+            if instance.attached.is_some() {
+                kept.push(instance);
+                continue;
+            }
             let index = wanted.iter().position(|(def, place)| {
                 Rc::ptr_eq(def, &instance.def)
                     && (def.scope() == Scope::MainOutput || place.output == instance.output)
@@ -1156,6 +1303,7 @@ impl Shell {
             blurs: Default::default(),
             origin: place.geometry.loc,
             disabled: false,
+            attached: None,
         };
         self.build(&mut instance);
         instance

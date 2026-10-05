@@ -137,28 +137,74 @@ impl DmabufHandler for State {
     }
 }
 
-/// Clients draw their own frames until P4's title bars exist (choice 8).
+/// Server side is preferred; a client that asks for its own frame gets it.
 impl XdgDecorationHandler for State {
     fn new_decoration(&mut self, toplevel: ToplevelSurface) {
-        toplevel
-            .with_pending_state(|state| state.decoration_mode = Some(DecorationMode::ClientSide));
+        self.set_decoration(&toplevel, DecorationMode::ServerSide);
     }
 
-    fn request_mode(&mut self, toplevel: ToplevelSurface, _mode: DecorationMode) {
-        XdgDecorationHandler::new_decoration(self, toplevel.clone());
-        if toplevel.is_initial_configure_sent() {
-            toplevel.send_pending_configure();
-        }
+    fn request_mode(&mut self, toplevel: ToplevelSurface, mode: DecorationMode) {
+        self.set_decoration(&toplevel, mode);
     }
 
     fn unset_mode(&mut self, toplevel: ToplevelSurface) {
-        XdgDecorationHandler::request_mode(self, toplevel, DecorationMode::ClientSide);
+        self.set_decoration(&toplevel, DecorationMode::ServerSide);
+    }
+}
+
+impl State {
+    fn set_decoration(&mut self, toplevel: &ToplevelSurface, mode: DecorationMode) {
+        toplevel.with_pending_state(|state| state.decoration_mode = Some(mode));
+        if toplevel.is_initial_configure_sent() {
+            toplevel.send_pending_configure();
+        }
+        self.set_server_side(toplevel.wl_surface(), mode == DecorationMode::ServerSide);
+    }
+
+    fn set_server_side(&mut self, surface: &WlSurface, on: bool) {
+        let Some(record) = self
+            .isle
+            .wm
+            .records
+            .iter_mut()
+            .find(|r| r.surface() == Some(surface))
+        else {
+            return;
+        };
+        if record.server_side != on {
+            record.server_side = on;
+            self.isle.sync_bars();
+            self.isle.queue_redraw_all();
+        }
     }
 }
 
 impl KdeDecorationHandler for State {
     fn kde_decoration_state(&self) -> &KdeDecorationState {
         &self.isle.kde_decoration_state
+    }
+
+    fn new_decoration(
+        &mut self,
+        surface: &WlSurface,
+        _decoration: &smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration::OrgKdeKwinServerDecoration,
+    ) {
+        self.set_server_side(surface, true);
+    }
+
+    fn request_mode(
+        &mut self,
+        surface: &WlSurface,
+        decoration: &smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration::OrgKdeKwinServerDecoration,
+        mode: smithay::reexports::wayland_server::WEnum<
+            smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration::Mode,
+        >,
+    ) {
+        use smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration::Mode;
+        if let smithay::reexports::wayland_server::WEnum::Value(mode) = mode {
+            decoration.mode(mode);
+            self.set_server_side(surface, mode == Mode::Server);
+        }
     }
 }
 

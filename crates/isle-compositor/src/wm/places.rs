@@ -122,10 +122,9 @@ impl Isle {
         if record.mode != super::Mode::Floating {
             return;
         }
-        let rect = self
-            .space
-            .element_geometry(&record.window)
-            .unwrap_or(record.rect);
+        let Some(rect) = self.frame(id) else {
+            return;
+        };
         let Some(output) = self.output_holding(rect) else {
             debug!(id, ?rect, "not on one output; its place is not recorded");
             return;
@@ -178,10 +177,16 @@ impl State {
         let Some(place) = isle.place_for(&app, &output) else {
             return;
         };
+        // The place is the frame's; the client is asked for the part under its bar.
+        let bar = isle.bar_height(id);
+        let client = Rectangle::new(
+            (place.loc.x, place.loc.y + bar).into(),
+            (place.size.w, (place.size.h - bar).max(1)).into(),
+        );
         let record = isle.wm.get_mut(id).unwrap();
-        record.planned = Some(place);
+        record.planned = Some(client);
         if let Some(toplevel) = record.window.toplevel() {
-            toplevel.with_pending_state(|state| state.size = Some(place.size));
+            toplevel.with_pending_state(|state| state.size = Some(client.size));
         }
     }
 
@@ -270,43 +275,45 @@ impl State {
     /// At map: the window's place, over its parent, or centred on the output with focus.
     pub fn place_new_window(&mut self, id: u64) -> Option<Point<i32, smithay::utils::Logical>> {
         let isle = &self.isle;
+        let bar = isle.bar_height(id);
+        let under_bar = |frame: Point<i32, smithay::utils::Logical>| frame + Point::from((0, bar));
         let record = isle.wm.get(id)?;
-        let size = record.window.geometry().size;
+        let client = record.window.geometry().size;
+        // Placement works on frames: the client and the bar over it.
+        let size: smithay::utils::Size<i32, smithay::utils::Logical> = (client.w, client.h + bar).into();
         if let Some(planned) = record.planned {
             let output = isle
                 .output_holding(planned)
                 .or_else(|| isle.output_with_focus())?;
-            let rect = Rectangle::new(planned.loc, size);
-            return Some(geometry::clamp_whole(rect, isle.work_area(&output)).loc);
+            let rect = Rectangle::new((planned.loc.x, planned.loc.y - bar).into(), size);
+            return Some(under_bar(geometry::clamp_whole(rect, isle.work_area(&output)).loc));
         }
         let parent = record
             .parent
             .and_then(|p| isle.wm.get(p))
             .filter(|p| isle.wm.is_shown(p.id));
         if let Some(parent) = parent {
-            let frame = isle
-                .space
-                .element_geometry(&parent.window)
-                .unwrap_or(parent.rect);
+            let frame = isle.frame(parent.id)?;
             let output = isle
                 .output_holding(frame)
                 .or_else(|| isle.output_with_focus())?;
             let area = isle.work_area(&output);
-            if record.modal && size.w < frame.size.w && size.h < frame.size.h {
-                return Some(geometry::under_bar(frame, 0, size));
+            let parent_bar = isle.bar_height(parent.id);
+            if record.modal && size.w < frame.size.w && size.h < frame.size.h - parent_bar {
+                return Some(under_bar(geometry::under_bar(frame, parent_bar, size)));
             }
-            return Some(geometry::over_parent(frame, size, area));
+            return Some(under_bar(geometry::over_parent(frame, size, area)));
         }
         let output = isle.output_with_focus()?;
         let screen = isle.space.output_geometry(&output)?;
-        if size == screen.size {
+        if client == screen.size {
             // Sized to its output by itself: a borderless full-screen window (D48).
             return Some(screen.loc);
         }
         let area = isle.work_area(&output);
         let size = if size.w > area.size.w || size.h > area.size.h {
             let fitted = geometry::default_size(area);
-            record.configure_size(fitted);
+            record.configure_size((fitted.w, fitted.h - bar).into());
             fitted
         } else {
             size
@@ -316,16 +323,16 @@ impl State {
             .records
             .iter()
             .filter(|r| r.id != id && isle.wm.is_shown(r.id) && r.app == record.app)
-            .filter_map(|r| isle.space.element_location(&r.window))
+            .filter_map(|r| isle.frame(r.id).map(|f| f.loc))
             .collect();
         let step = isle.shell.theme().tokens.size_titlebar.round() as i32;
-        Some(geometry::cascade(
+        Some(under_bar(geometry::cascade(
             geometry::centred(area, size),
             &taken,
             step,
             area,
             size,
-        ))
+        )))
     }
 
     /// Moves `id` to `loc`, its modal dialogs with it.
@@ -352,6 +359,7 @@ impl Isle {
             self.space.map_element(window.clone(), loc, false);
             self.queue_redraw_for_window(&window);
         }
+        self.place_bar(id);
         if delta == Point::from((0, 0)) {
             return;
         }

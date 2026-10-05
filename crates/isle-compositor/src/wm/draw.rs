@@ -472,6 +472,7 @@ smithay::backend::renderer::element::render_elements! {
     Surface = WaylandSurfaceRenderElement<GlesRenderer>,
     Shadow = ShadowElement,
     Solid = smithay::backend::renderer::element::solid::SolidColorRenderElement,
+    Bar = isle_shell::ShellElement,
     Snapshot = smithay::backend::renderer::element::texture::TextureRenderElement<smithay::backend::renderer::gles::GlesTexture>,
 }
 
@@ -567,12 +568,11 @@ impl crate::state::Isle {
                 c.b as f32 / 255.0 * c.a,
                 c.a,
             ];
-            let bar = self.bar_height(id);
             let size: smithay::utils::Size<i32, Logical> = rect.size;
             let mut scrims = self.scrims.borrow_mut();
             let buffer = scrims.entry(id).or_default();
             buffer.update(size, colour);
-            let at = (rect.loc - origin + Point::from((0, bar))).to_physical_precise_round(scale);
+            let at = (rect.loc - origin).to_physical_precise_round(scale);
             push(WindowPiece::Solid(
                 smithay::backend::renderer::element::solid::SolidColorRenderElement::from_buffer(
                     buffer,
@@ -582,6 +582,17 @@ impl crate::state::Isle {
                     Kind::Unspecified,
                 ),
             ));
+        }
+
+        let frame = self.frame(id).unwrap_or(rect);
+        if record.bar.is_some()
+            && let Some(bar) = self.shell.attached_element(
+                id,
+                (frame.loc - origin).to_f64().to_physical(scale),
+                alpha,
+            )
+        {
+            push(WindowPiece::Bar(bar));
         }
 
         let style = self.window_style(id);
@@ -622,8 +633,8 @@ impl crate::state::Isle {
         let mut cache = self.shadow_cache.borrow_mut();
         for (layer, spec) in style.shadows.iter().enumerate() {
             let shape = ShadowShape {
-                size: rect.size,
-                radius: style.corners[0],
+                size: frame.size,
+                radius: style.corners[2],
                 layer: *spec,
             };
             let entry = cache.entry((id, layer)).or_insert_with(|| {
@@ -637,7 +648,7 @@ impl crate::state::Isle {
                 entry.0 = shape.clone();
             }
             push(WindowPiece::Shadow(entry.1.at(
-                rect.loc - origin,
+                frame.loc - origin,
                 shape.area().loc,
                 alpha,
             )));
@@ -682,9 +693,15 @@ impl crate::state::Isle {
             .and_then(|k| k.current_focus())
             .and_then(|f| f.surface().cloned())
             .is_some_and(|s| record.surface() == Some(&s));
+        // Under Isle's bar the client's top corners are square; the bar rounds the frame's.
+        let corners = if record.bar.is_some() {
+            [0.0, 0.0, radius, radius]
+        } else {
+            [radius; 4]
+        };
         WindowStyle {
             clip: true,
-            corners: [radius; 4],
+            corners,
             shadows: if active {
                 tokens.shadow_window.clone()
             } else {

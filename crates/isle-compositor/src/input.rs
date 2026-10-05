@@ -110,6 +110,7 @@ impl State {
         if let Some(Some(action)) = action {
             self.run_action(action);
         }
+        self.update_bar_option();
     }
 
     pub fn on_axis(&mut self, frame: AxisFrame) {
@@ -133,6 +134,7 @@ impl State {
         );
         pointer.frame(self);
         self.refresh_pointer_cursor();
+        self.update_bar_option();
         // A nested backend's host draws named cursors; everywhere else the cursor is
         // Isle's to draw, so it moves only with a redraw.
         let host_draws = matches!(self.backend, crate::backend::Backend::Winit(_))
@@ -146,10 +148,23 @@ impl State {
     pub fn on_button(&mut self, button: u32, button_state: ButtonState, time: InputTime) {
         let pointer = self.isle.seat.get_pointer().unwrap();
         let serial = SERIAL_COUNTER.next_serial();
+        match button_state {
+            ButtonState::Pressed => self.isle.buttons_down.insert(button),
+            ButtonState::Released => self.isle.buttons_down.remove(&button),
+        };
         if button_state == ButtonState::Pressed
             && !pointer.is_grabbed()
             && self.modifier_drag(button, serial, time)
         {
+            return;
+        }
+        if button_state == ButtonState::Pressed
+            && !pointer.is_grabbed()
+            && let Some(crate::focus::Focus::Edge { window, edges }) = pointer.current_focus()
+        {
+            let target = self.isle.window_by_id(window);
+            self.set_focus(target.as_ref());
+            self.begin_edge_resize(window, edges, button);
             return;
         }
         if button_state == ButtonState::Pressed && !pointer.is_grabbed() {

@@ -883,3 +883,165 @@ async fn a_null_buffer_unmaps_and_a_new_commit_maps_again() {
     let again = isle.wait_for_window("isle.test.Unmap").await;
     assert_eq!(again.id, w.id);
 }
+
+/// A 400×300 client that asks for Isle's bar; its frame is 400×332, centred under the strip.
+const FRAME: (i32, i32) = (760, 398);
+const TITLEBAR: [u8; 3] = [0x25, 0x26, 0x2b];
+
+async fn click(isle: &Isle, x: f64, y: f64) {
+    let test = isle.test().await;
+    test.pointer_to(x, y).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    test.button(272, true).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    test.button(272, false).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+}
+
+async fn barred(isle: &mut Isle, app: &str) -> (common::Client, isle_ipc::WindowInfo) {
+    let client = isle.client_with(&[
+        "--app-id",
+        app,
+        "--colour",
+        "ff0000",
+        "--do",
+        "decoration server",
+    ]);
+    let w = isle.wait_for_window(app).await;
+    client.wait_for("decoration server").await;
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    (client, w)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_server_side_window_wears_isles_bar_and_a_client_side_one_does_not() {
+    let mut isle = Isle::start("bar").await;
+    let (client, w) = barred(&mut isle, "isle.test.Bar").await;
+    assert_eq!(
+        (w.x, w.y, w.width, w.height),
+        (FRAME.0, FRAME.1 + 32, 400, 300)
+    );
+    let shot = isle.shot("HEADLESS-1", "bar").await;
+    assert_eq!(shot.at(960, FRAME.1 as usize + 16), TITLEBAR, "the bar");
+    assert_eq!(
+        shot.at(960, FRAME.1 as usize + 100),
+        RED,
+        "the client under it"
+    );
+    assert_ne!(
+        shot.at(FRAME.0 as usize + 22, FRAME.1 as usize + 16),
+        TITLEBAR,
+        "the close light"
+    );
+
+    // Hovering the group shows the glyphs: the close cross darkens the light's centre.
+    let test = isle.test().await;
+    test.pointer_to(FRAME.0 as f64 + 42.0, FRAME.1 as f64 + 16.0)
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let hover = isle.shot("HEADLESS-1", "hover").await;
+    let cross = hover.at(FRAME.0 as usize + 22, FRAME.1 as usize + 16);
+    assert!(cross[0] < 0xc0, "the cross: {cross:?}");
+    test.pointer_to(960.0, 700.0).await.unwrap();
+
+    let tree = isle_ipc::shell::ShellProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .tree("titlebar")
+        .await
+        .unwrap();
+    for name in ["Close", "Minimise", "Enter Full Screen"] {
+        assert!(tree.contains(name), "{name} in {tree}");
+    }
+
+    client.send("decoration client");
+    client.wait_for("decoration client").await;
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let shot = isle.shot("HEADLESS-1", "nobar").await;
+    // The backdrop, darkened a little by the window's shadow.
+    let above = shot.at(960, FRAME.1 as usize + 16);
+    assert!(above[0] <= BACKDROP[0], "no bar: {above:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_lights_close_minimise_and_zoom() {
+    let mut isle = Isle::start("lights").await;
+    let (_client, w) = barred(&mut isle, "isle.test.Lights").await;
+    let (fx, fy) = (FRAME.0 as f64, FRAME.1 as f64);
+
+    click(&isle, fx + 62.0, fy + 16.0).await;
+    wait_until(|| async { isle.window(w.id).await.mode == "fullscreen" }).await;
+    isle.windows_proxy().await.focus(w.id).await.unwrap();
+    isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set_full_screen(w.id, false)
+        .await
+        .unwrap();
+    wait_until(|| async { isle.window(w.id).await.mode == "floating" }).await;
+
+    // Option-click on zoom fills.
+    let test = isle.test().await;
+    test.key(keys::ALT, true).await.unwrap();
+    click(&isle, fx + 62.0, fy + 16.0).await;
+    test.key(keys::ALT, false).await.unwrap();
+    wait_until(|| async { isle.window(w.id).await.mode == "filled" }).await;
+    isle.windows_proxy().await.restore(w.id).await.unwrap();
+    wait_until(|| async { isle.window(w.id).await.y == FRAME.1 + 32 }).await;
+
+    click(&isle, fx + 42.0, fy + 16.0).await;
+    wait_until(|| async { isle.window(w.id).await.minimised }).await;
+    isle.windows_proxy().await.unminimise(w.id).await.unwrap();
+
+    click(&isle, fx + 22.0, fy + 16.0).await;
+    _client.wait_for("closed").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_bar_moves_tiles_and_double_clicks_to_fill() {
+    let mut isle = Isle::start("bardrag").await;
+    let (_client, w) = barred(&mut isle, "isle.test.BarDrag").await;
+    let test = isle.test().await;
+    let (fx, fy) = (FRAME.0 as f64, FRAME.1 as f64);
+
+    test.pointer_to(fx + 200.0, fy + 16.0).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    test.button(272, true).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    for step in 1..=4 {
+        let f = step as f64 / 4.0;
+        test.pointer_to(
+            fx + 200.0 + (2.0 - fx - 200.0) * f,
+            fy + 16.0 + (540.0 - fy - 16.0) * f,
+        )
+        .await
+        .unwrap();
+    }
+    test.button(272, false).await.unwrap();
+    // The left half's frame, with the client under its bar.
+    settles(&isle, w.id, "tiled:left-half", (12, 92, 942, 976)).await;
+
+    isle.windows_proxy().await.restore(w.id).await.unwrap();
+    wait_until(|| async { isle.window(w.id).await.mode == "floating" }).await;
+    let now = isle.window(w.id).await;
+    let (bx, by) = (now.x as f64 + 200.0, now.y as f64 - 16.0);
+    click(&isle, bx, by).await;
+    click(&isle, bx, by).await;
+    settles(&isle, w.id, "filled", (12, 92, 1896, 976)).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_barred_window_resizes_from_the_band_around_its_frame() {
+    let mut isle = Isle::start("band").await;
+    let (_client, w) = barred(&mut isle, "isle.test.Band").await;
+    let test = isle.test().await;
+    let x = (FRAME.0 + 400) as f64 + 2.0;
+    let y = (FRAME.1 + 200) as f64;
+    test.pointer_to(x, y).await.unwrap();
+    test.button(272, true).await.unwrap();
+    test.pointer_to(x + 60.0, y).await.unwrap();
+    test.pointer_to(x + 100.0, y).await.unwrap();
+    test.button(272, false).await.unwrap();
+    settles(&isle, w.id, "floating", (w.x, w.y, 500, 300)).await;
+}

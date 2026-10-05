@@ -38,6 +38,9 @@ pub enum Layer {
 pub enum Scope {
     EveryOutput,
     MainOutput,
+    /// Made, placed and removed by the compositor for something it owns, such as a window's
+    /// title bar, and drawn with it rather than in a layer.
+    Attached,
 }
 
 /// A kind of shell surface. The definition outlives every tree drawn from it, so state that
@@ -60,6 +63,10 @@ pub trait SurfaceDef: 'static {
     fn corner_radius(&self, _theme: &isle_tokens::Theme) -> f32 {
         0.0
     }
+    /// Each corner's radius in points: top left, top right, bottom right, bottom left.
+    fn corners(&self, theme: &isle_tokens::Theme) -> [f32; 4] {
+        [self.corner_radius(theme); 4]
+    }
 }
 
 /// What a surface asks of the compositor, which acts on it after the surface's update.
@@ -69,6 +76,29 @@ pub enum Action {
     Close,
     /// Press and release a key, by evdev code, in whatever then has the keyboard.
     Key(u32),
+    /// For the window an attached surface belongs to.
+    Window(WindowAction),
+}
+
+/// What a title bar asks of its window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WindowAction {
+    Close,
+    /// Option-click on close: every window of the app.
+    CloseApp,
+    Minimise,
+    /// Option-click on minimise: every window of the app.
+    MinimiseApp,
+    /// Full screen, or out of it.
+    Zoom,
+    /// Option-click on zoom: fill, or back.
+    Fill,
+    /// The double-click action from settings.
+    TitlebarAction,
+    /// A press on the bar that may become a drag; `raise` is false with Cmd held.
+    Move { raise: bool },
+    /// Secondary click: the window menu.
+    Menu,
 }
 
 /// The tree's way to ask for an [`Action`].
@@ -164,4 +194,6 @@ pub(crate) struct Instance {
     /// The output's origin in the global space, for the adapter's window bounds.
     pub origin: smithay::utils::Point<i32, Logical>,
     pub disabled: bool,
+    /// The compositor's key for an attached instance.
+    pub attached: Option<u64>,
 }

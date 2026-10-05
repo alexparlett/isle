@@ -2,6 +2,7 @@
 //! `Space` holds only the ones shown now; the rest keep their record here.
 
 mod apps;
+mod bars;
 pub mod desktops;
 pub mod draw;
 pub mod motion;
@@ -91,6 +92,10 @@ pub struct Record {
     pub motion: Option<motion::WindowMotion>,
     /// Its frame moving to a new box.
     pub morph: Option<motion::Morph>,
+    /// It asked the compositor to draw its decorations.
+    pub server_side: bool,
+    /// Isle's bar over it.
+    pub bar: Option<bars::Bar>,
     /// Its box in the global space: where it is while shown, where it returns to while not.
     pub rect: Rectangle<i32, Logical>,
     suspended: bool,
@@ -287,6 +292,8 @@ impl Isle {
             not_responding: false,
             motion: None,
             morph: None,
+            server_side: false,
+            bar: None,
             rect: Rectangle::default(),
             suspended: false,
         });
@@ -351,6 +358,7 @@ impl Isle {
             }
             changed = true;
         }
+        self.sync_bars();
         if changed {
             self.queue_redraw_all();
             self.notify(Event::WindowsChanged);
@@ -565,6 +573,7 @@ impl State {
             self.animate_leaving(id, None);
         }
         self.isle.shadow_cache.borrow_mut().retain(|(w, _), _| *w != id);
+        self.isle.shell.detach(id);
         self.isle.scrims.borrow_mut().remove(&id);
         let record = self.isle.wm.get(id).unwrap();
         let id = record.id;
@@ -609,9 +618,11 @@ impl State {
         };
         record.mapped = false;
         record.mode = Mode::Floating;
+        record.bar = None;
         record.motion = None;
         record.morph = None;
         let window = record.window.clone();
+        self.isle.shell.detach(id);
         self.isle.queue_redraw_for_window(&window);
         self.isle.space.unmap_elem(&window);
         if let Some((desktop, origin)) = full_screen {

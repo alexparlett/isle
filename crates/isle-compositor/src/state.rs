@@ -72,6 +72,10 @@ pub struct Isle {
     /// The windows shown now; `wm` keeps every window.
     pub space: Space<Window>,
     pub wm: crate::wm::Wm,
+    /// The window whose bar shows Option's glyphs.
+    pub bar_option: Option<u64>,
+    /// Pointer buttons held now, by evdev code.
+    pub buttons_down: std::collections::HashSet<u32>,
     pub places: isle_state::domains::Places,
     pub desktops: crate::wm::desktops::Desktops,
     pub window_programs: Option<crate::wm::draw::Programs>,
@@ -181,7 +185,7 @@ impl Isle {
         let xdg_decoration_state = XdgDecorationState::new::<State>(&dh);
         let xdg_dialog_state =
             smithay::wayland::shell::xdg::dialog::XdgDialogState::new::<State>(&dh);
-        let kde_decoration_state = KdeDecorationState::new::<State>(&dh, KdeMode::Client);
+        let kde_decoration_state = KdeDecorationState::new::<State>(&dh, KdeMode::Server);
         let xdg_activation_state = XdgActivationState::new::<State>(&dh);
         let shm_state = ShmState::new::<State>(&dh, vec![]);
         let output_manager_state = OutputManagerState::new_with_xdg_output::<State>(&dh);
@@ -238,6 +242,8 @@ impl Isle {
             shell_keyboard_return: Vec::new(),
             space: Space::default(),
             wm: Default::default(),
+            bar_option: None,
+            buttons_down: Default::default(),
             places: Default::default(),
             desktops: Default::default(),
             window_programs: None,
@@ -329,22 +335,43 @@ impl Isle {
             let location = origin + geometry.loc;
             surface
                 .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
-                .map(|(s, p)| (s, (p + location).to_f64()))
+                .map(|(s, p)| (Focus::Surface(s), (p + location).to_f64()))
         };
         layer_at(Layer::Overlay)
             .or_else(|| layer_at(Layer::Top))
-            .or_else(|| {
-                self.space
-                    .element_under(pos)
-                    .and_then(|(window, location)| {
-                        window
-                            .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
-                            .map(|(s, p)| (s, (p + location).to_f64()))
-                    })
-            })
+            .or_else(|| self.window_part_under(pos))
             .or_else(|| layer_at(Layer::Bottom))
             .or_else(|| layer_at(Layer::Background))
-            .map(|(surface, at)| (Focus::Surface(surface), at))
+    }
+
+    /// The front window's part under `pos`: its popups and surfaces, its bar, or the band
+    /// around its frame.
+    fn window_part_under(&self, pos: Point<f64, Logical>) -> Option<(Focus, Point<f64, Logical>)> {
+        for window in self.space.elements().rev() {
+            let id = crate::wm::window_id(window);
+            let Some(location) = self.space.element_location(window) else {
+                continue;
+            };
+            let surface_at = location - window.geometry().loc;
+            if let Some((s, p)) =
+                window.surface_under(pos - surface_at.to_f64(), WindowSurfaceType::POPUP)
+            {
+                return Some((Focus::Surface(s), (p + surface_at).to_f64()));
+            }
+            if let Some(part) = self.bar_or_edge_at(id, pos) {
+                let at = match &part {
+                    Focus::Shell(_) => self.frame(id).map(|f| f.loc.to_f64()).unwrap_or_default(),
+                    _ => pos,
+                };
+                return Some((part, at));
+            }
+            if let Some((s, p)) =
+                window.surface_under(pos - surface_at.to_f64(), WindowSurfaceType::TOPLEVEL | WindowSurfaceType::SUBSURFACE)
+            {
+                return Some((Focus::Surface(s), (p + surface_at).to_f64()));
+            }
+        }
+        None
     }
 
     /// The output under the pointer, else the first.
@@ -377,12 +404,12 @@ impl Isle {
     }
 
     /// Runs the shell surfaces whose wakers fired and redraws the outputs they changed.
-    pub fn dispatch_shell(&mut self) -> Vec<(String, isle_shell::Action)> {
+    pub fn dispatch_shell(&mut self) -> Vec<(String, Option<isle_shell::ShellFocus>, isle_shell::Action)> {
         let dispatched = self.shell.dispatch();
-        let mut actions: Vec<(String, isle_shell::Action)> = dispatched
+        let mut actions: Vec<(String, Option<isle_shell::ShellFocus>, isle_shell::Action)> = dispatched
             .disabled
             .into_iter()
-            .map(|name| (name, isle_shell::Action::Close))
+            .map(|name| (name, None, isle_shell::Action::Close))
             .collect();
         for output in dispatched.redraw {
             self.queue_redraw(&output);
@@ -397,7 +424,7 @@ impl Isle {
             dispatched
                 .actions
                 .into_iter()
-                .map(|(name, _, action)| (name, action)),
+                .map(|(name, focus, action)| (name, Some(focus), action)),
         );
         actions
     }
@@ -494,8 +521,13 @@ impl State {
 
     /// Runs the shell surfaces whose wakers fired, then what they asked for, in order.
     pub fn dispatch_shell(&mut self) {
-        for (name, action) in self.isle.dispatch_shell() {
+        for (name, focus, action) in self.isle.dispatch_shell() {
             match action {
+                isle_shell::Action::Window(action) => {
+                    if let Some(id) = focus.and_then(|f| self.isle.shell.attached_key(&f)) {
+                        self.bar_action(id, action);
+                    }
+                }
                 isle_shell::Action::Close => {
                     self.close_surface(&name);
                 }
@@ -523,6 +555,7 @@ impl State {
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         keyboard.set_focus(self, surface, serial);
+        self.isle.sync_bars();
         self.isle.queue_redraw_all();
         self.isle.notify(Event::WindowsChanged);
     }

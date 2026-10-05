@@ -94,13 +94,21 @@ fn report(what: &str, s: &SurfaceInfo) {
 #[ignore]
 async fn full_output_draw_and_memory() {
     let isle = Isle::start("bench").await;
-    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let pid = VersionProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .pid()
+        .await
+        .unwrap();
     let shell = ShellProxy::new(&isle.bus).await.unwrap();
     let test = isle.test().await;
     ultrawide(&isle).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let (rss, own) = memory(pid);
-    eprintln!("at rest, nothing open: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
+    eprintln!(
+        "at rest, nothing open: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB",
+        vram(pid)
+    );
 
     test.measure(true).await.unwrap();
     shell.open("probe-full").await.unwrap();
@@ -119,19 +127,32 @@ async fn full_output_draw_and_memory() {
     test.animate_probe_full(false).await.unwrap();
     report("3440x1440, 24 tiles fading", &animating);
     let (used, limit) = shell.cache().await.unwrap();
-    eprintln!("Skia cache {:.1} of {:.1} MB", used as f64 / 1e6, limit as f64 / 1e6);
+    eprintln!(
+        "Skia cache {:.1} of {:.1} MB",
+        used as f64 / 1e6,
+        limit as f64 / 1e6
+    );
     let (rss, own) = memory(pid);
-    eprintln!("probe-full open: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
+    eprintln!(
+        "probe-full open: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB",
+        vram(pid)
+    );
 
     shell.close("probe-full").await.unwrap();
     shell.open("probe").await.unwrap();
     tokio::time::sleep(Duration::from_secs(1)).await;
     let (rss, own) = memory(pid);
-    eprintln!("probe open at rest: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
+    eprintln!(
+        "probe open at rest: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB",
+        vram(pid)
+    );
     shell.close("probe").await.unwrap();
     tokio::time::sleep(Duration::from_secs(1)).await;
     let (rss, own) = memory(pid);
-    eprintln!("all closed again: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB", vram(pid));
+    eprintln!(
+        "all closed again: RSS {rss:.1} MB, own {own:.1} MB, VRAM {:?} MiB",
+        vram(pid)
+    );
 
     assert!(typing.draw_p95 < 2000, "acceptance 5: p95 under 2 ms");
 }
@@ -144,15 +165,25 @@ async fn glass_blur_cost() {
     let shell = ShellProxy::new(&isle.bus).await.unwrap();
     let test = isle.test().await;
     ultrawide(&isle).await;
-    let _base = isle.client_with(&["--app-id", "isle.test.Base", "--colour", "3366ff", "--size", "1600x900"]);
+    let _base = isle.client_with(&[
+        "--app-id",
+        "isle.test.Base",
+        "--colour",
+        "3366ff",
+        "--size",
+        "1600x900",
+    ]);
     isle.wait_for_window("isle.test.Base").await;
     shell.open("probe").await.unwrap();
     tokio::time::sleep(Duration::from_millis(600)).await;
     test.measure(true).await.unwrap();
-    let windows = isle_ipc::windows::WindowsProxy::new(&isle.bus).await.unwrap();
+    let windows = isle_ipc::windows::WindowsProxy::new(&isle.bus)
+        .await
+        .unwrap();
     for n in 0..20 {
         let app = format!("isle.test.Flash{n}");
-        let _flash = isle.client_with(&["--app-id", &app, "--colour", "ff6600", "--size", "900x500"]);
+        let _flash =
+            isle.client_with(&["--app-id", &app, "--colour", "ff6600", "--size", "900x500"]);
         let window = isle.wait_for_window(&app).await;
         tokio::time::sleep(Duration::from_millis(80)).await;
         windows.close(window.id).await.unwrap();
@@ -179,7 +210,12 @@ async fn soak() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(3600);
     let isle = Isle::start("soak").await;
-    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let pid = VersionProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .pid()
+        .await
+        .unwrap();
     let shell = ShellProxy::new(&isle.bus).await.unwrap();
     let test = isle.test().await;
     let (ox, oy) = ultrawide(&isle).await;
@@ -190,36 +226,36 @@ async fn soak() {
     // `probe` or `full` soaks one surface alone, to find which one grows.
     let only = std::env::var("ISLE_SOAK_ONLY").unwrap_or_default();
     while started.elapsed() < Duration::from_secs(secs) {
-      if only != "full" {
-        shell.open("probe").await.unwrap();
-        // Typed and deleted again: the probe keeps its field's text across opens, and a text
-        // that grew every cycle would grow Freya's paragraph cache with it.
-        for code in [30, 48, 46, 14, 14, 14] {
-            tap(&isle, code).await;
+        if only != "full" {
+            shell.open("probe").await.unwrap();
+            // Typed and deleted again: the probe keeps its field's text across opens, and a text
+            // that grew every cycle would grow Freya's paragraph cache with it.
+            for code in [30, 48, 46, 14, 14, 14] {
+                tap(&isle, code).await;
+            }
+            // The probe's Animate button: the bar animating relayouts the probe every frame.
+            let (x, y) = (
+                ox + (3440.0 - 480.0) / 2.0 + 150.0,
+                oy + (1440.0 - 360.0) / 2.0 + 66.0,
+            );
+            test.pointer_to(x, y).await.unwrap();
+            test.button(272, true).await.unwrap();
+            test.button(272, false).await.unwrap();
+            if cycles == 0 {
+                wait_until(|| async { isle.test().await.probe().await.unwrap().2 }).await;
+            }
+            tokio::time::sleep(Duration::from_millis(700)).await;
+            test.button(272, true).await.unwrap();
+            test.button(272, false).await.unwrap();
+            shell.close("probe").await.unwrap();
         }
-        // The probe's Animate button: the bar animating relayouts the probe every frame.
-        let (x, y) = (
-            ox + (3440.0 - 480.0) / 2.0 + 150.0,
-            oy + (1440.0 - 360.0) / 2.0 + 66.0,
-        );
-        test.pointer_to(x, y).await.unwrap();
-        test.button(272, true).await.unwrap();
-        test.button(272, false).await.unwrap();
-        if cycles == 0 {
-            wait_until(|| async { isle.test().await.probe().await.unwrap().2 }).await;
+        if only != "probe" {
+            shell.open("probe-full").await.unwrap();
+            test.animate_probe_full(true).await.unwrap();
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            test.animate_probe_full(false).await.unwrap();
+            shell.close("probe-full").await.unwrap();
         }
-        tokio::time::sleep(Duration::from_millis(700)).await;
-        test.button(272, true).await.unwrap();
-        test.button(272, false).await.unwrap();
-        shell.close("probe").await.unwrap();
-      }
-      if only != "probe" {
-        shell.open("probe-full").await.unwrap();
-        test.animate_probe_full(true).await.unwrap();
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        test.animate_probe_full(false).await.unwrap();
-        shell.close("probe-full").await.unwrap();
-      }
         tokio::time::sleep(Duration::from_millis(300)).await;
         cycles += 1;
         if Instant::now() >= next {
@@ -240,10 +276,7 @@ async fn soak() {
     // Judged on the process's own memory. The baseline is the highest of the run's first
     // quarter, once allocators have warmed up; the margin is shell.md acceptance 4's.
     let quarter = samples.len().div_ceil(4).max(1);
-    let baseline = samples[..quarter]
-        .iter()
-        .map(|s| s.1)
-        .fold(0.0, f64::max);
+    let baseline = samples[..quarter].iter().map(|s| s.1).fold(0.0, f64::max);
     let last = samples.last().unwrap();
     eprintln!(
         "own memory: first quarter's highest {baseline:.1} MB, last {:.1} MB over {cycles} cycles",
@@ -254,4 +287,51 @@ async fn soak() {
         "own memory grew from {baseline:.1} to {:.1} MB",
         last.1
     );
+}
+
+/// What a title bar per window costs: the compositor's memory and VRAM with thirty barred
+/// windows against thirty without.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn title_bar_cost() {
+    async fn open(isle: &mut Isle, bars: bool, n: usize) {
+        for i in 0..n {
+            let app = format!("isle.test.Cost{bars}{i}");
+            let mut args = vec!["--app-id", app.as_str(), "--size", "600x400"];
+            if bars {
+                args.extend(["--do", "decoration server"]);
+            }
+            isle.client_with(&args);
+            isle.wait_for_window(&app).await;
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+    for bars in [false, true] {
+        let mut isle = Isle::start(if bars { "cost-bars" } else { "cost-plain" }).await;
+        let pid = VersionProxy::new(&isle.bus)
+            .await
+            .unwrap()
+            .pid()
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let test = isle.test().await;
+        let (rss0, own0) = memory(pid);
+        let heap0 = test.malloc_in_use().await.unwrap();
+        open(&mut isle, bars, 30).await;
+        let (rss, own) = memory(pid);
+        let heap = test.malloc_in_use().await.unwrap();
+        let cache = ShellProxy::new(&isle.bus)
+            .await
+            .unwrap()
+            .cache()
+            .await
+            .unwrap();
+        println!(
+            "bars {bars}: RSS {rss0:.1} -> {rss:.1} MB, own {own0:.1} -> {own:.1} MB, heap +{:.1} MB, skia {:.1} MB, VRAM {:?} MiB",
+            (heap - heap0) as f64 / 1e6,
+            cache.0 as f64 / 1e6,
+            vram(pid)
+        );
+    }
 }

@@ -47,6 +47,7 @@ impl CompositorHandler for State {
                     let window = self.isle.window_by_id(id).unwrap();
                     window.on_commit();
                     self.isle.queue_redraw_for_window(&window);
+                    self.isle.place_bar(id);
                     let record = self.isle.wm.get_mut(id).unwrap();
                     if record.record_at_size == Some(window.geometry().size) {
                         record.record_at_size = None;

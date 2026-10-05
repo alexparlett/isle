@@ -203,3 +203,78 @@ async fn xwayland_killed_comes_back_on_the_same_display() {
     let _after = isle.x11_client(&["--class", "isle.test.After"]).await;
     window(&isle, "isle.test.After").await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_shaped_window_wears_no_bar_and_no_shadow() {
+    let mut isle = Isle::start("x11shape").await;
+    let client = isle
+        .x11_client(&[
+            "--class",
+            "isle.test.Shaped",
+            "--shaped",
+            "--argb",
+            "--colour",
+            "ff0000",
+        ])
+        .await;
+    let w = window(&isle, "isle.test.Shaped").await;
+    client.wait_for("focus-in").await;
+    // Centred with no bar: 414 is the top of a 300-tall window in the work area.
+    assert_eq!((w.x, w.y), (760, 414));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let shot = isle.shot("HEADLESS-1", "shaped").await;
+    assert_eq!(
+        shot.at((w.x + 100) as usize, (w.y + 150) as usize),
+        RED,
+        "its left half"
+    );
+    // What lies outside the shape is whatever Xwayland's buffer holds there; xeyes clears it
+    // and shows through in the VM. Isle adds nothing around it.
+    assert_eq!(
+        shot.at((w.x + 100) as usize, (w.y - 16) as usize),
+        [28, 28, 31],
+        "no bar"
+    );
+    assert_eq!(
+        shot.at((w.x + 100) as usize, (w.y - 16) as usize),
+        [28, 28, 31],
+        "no bar"
+    );
+    assert_eq!(
+        shot.at((w.x + 300) as usize, (w.y + 300 + 20) as usize),
+        [28, 28, 31],
+        "no shadow"
+    );
+}
+
+/// Whether the window `w` wears Isle's bar, from the pixel at its bar's middle right.
+async fn barred(isle: &Isle, w: &isle_ipc::WindowInfo, name: &str) -> bool {
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let shot = isle.shot("HEADLESS-1", name).await;
+    shot.at((w.x + w.width - 40) as usize, (w.y - 16) as usize) == TITLEBAR
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn x11_windows_are_decorated_by_their_type_motif_hints_and_frame() {
+    let mut isle = Isle::start("x11rules").await;
+    let cases: &[(&str, &[&str], bool)] = &[
+        ("isle.test.Utility", &["--type", "UTILITY"], true),
+        ("isle.test.Splash", &["--type", "SPLASH"], false),
+        ("isle.test.Dock", &["--type", "DOCK"], false),
+        // Title and border asked for, then the border alone.
+        ("isle.test.Titled", &["--motif", "10"], true),
+        ("isle.test.Border", &["--motif", "2"], false),
+        // ALL less TITLE.
+        ("isle.test.AllButTitle", &["--motif", "9"], false),
+        ("isle.test.Gtk", &["--gtk-frame-extents", "20"], false),
+    ];
+    for (class, extra, wanted) in cases {
+        let mut args = vec!["--class", class, "--colour", "ff0000"];
+        args.extend_from_slice(extra);
+        let client = isle.x11_client(&args).await;
+        let w = window(&isle, class).await;
+        assert_eq!(barred(&isle, &w, class).await, *wanted, "{class}");
+        client.send("quit");
+        wait_until(|| async { isle.windows().await.is_empty() }).await;
+    }
+}

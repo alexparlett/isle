@@ -25,8 +25,8 @@ freya-embed = { git = "https://github.com/alexparlett/freya", rev = "dd26d176bb0
 accesskit = "0.24"
 accesskit_unix = "0.22"
 
-# Upstream master until alexparlett/smithay exists; moving changes only the URL (B6).
-smithay = { git = "https://github.com/Smithay/smithay", rev = "118e34ffc9b99854a2230c4805e1f37dc9029edb", default-features = false, features = [
+# The fork (B6): its `isle` branch, upstream at 118e34f with Isle's patches.
+smithay = { git = "https://github.com/alexparlett/smithay", rev = "45578d1b5869c83feb46dbcb632358612631c86b", default-features = false, features = [
     "backend_drm",
     "backend_egl",
     "backend_gbm",
@@ -41,12 +41,12 @@ smithay = { git = "https://github.com/Smithay/smithay", rev = "118e34ffc9b99854a
 ] }
 libc = "0.2"
 png = "0.17"
-smithay-drm-extras = { git = "https://github.com/Smithay/smithay", rev = "118e34ffc9b99854a2230c4805e1f37dc9029edb" }
+smithay-drm-extras = { git = "https://github.com/alexparlett/smithay", rev = "45578d1b5869c83feb46dbcb632358612631c86b" }
 xcursor = "0.3"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
-x11rb = { version = "0.13", default-features = false }
+x11rb = { version = "0.13", default-features = false, features = ["shape"] }
 humantime = "2.3"
 kdl = { version = "6.7", features = ["span"] }
 miette = { version = "7", default-features = false }

@@ -201,7 +201,7 @@ toolbar with the same traffic lights. Its look and arrangement are P1's.
 3. Close takes the same path as Cmd+W (keep-running included); minimise and zoom act as in this document; zoom also offers the zones, full screen and Split View.
 4. Dragging the bar moves the window with snapping; double-clicking runs the title-bar action; right-click opens the window menu (move to Space or display, keep on top, close).
 5. Every decorated window resizes from its edges.
-6. Title bars can be turned off; windows then rely on the modifier drag and chords.
+6. Title bars can be turned off; clients that negotiate decorations are then told to draw their own, and X11 windows get none.
 
 **v1 lessons kept.** Inventory §3.5, D48: a client that turns borderless loses its bar on the next state change, or a game wore a title bar.
 

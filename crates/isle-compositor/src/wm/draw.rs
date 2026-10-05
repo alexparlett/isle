@@ -171,6 +171,7 @@ pub struct ClippedSurface {
     placed: Rectangle<i32, Physical>,
     /// Corner radii in physical pixels: top left, top right, bottom right, bottom left.
     corners: [f32; 4],
+    translucent: bool,
 }
 
 impl ClippedSurface {
@@ -182,6 +183,7 @@ impl ClippedSurface {
         geometry: Rectangle<f64, Physical>,
         corners: [f32; 4],
         scale: f64,
+        translucent: bool,
     ) -> WindowPiece {
         if inner.transform() != Transform::Normal {
             return WindowPiece::Surface(inner);
@@ -193,6 +195,7 @@ impl ClippedSurface {
             geometry,
             placed,
             corners,
+            translucent,
         })
     }
 }
@@ -228,7 +231,7 @@ impl Element for ClippedSurface {
 
     fn opaque_regions(&self, scale: Scale<f64>) -> OpaqueRegions<i32, Physical> {
         // Rounded corners let what is behind show through.
-        if self.corners.iter().any(|r| *r > 0.0) {
+        if self.translucent || self.corners.iter().any(|r| *r > 0.0) {
             OpaqueRegions::default()
         } else {
             self.inner.opaque_regions(scale)
@@ -619,6 +622,7 @@ impl crate::state::Isle {
                     geo_px,
                     corners,
                     scale,
+                    style.translucent,
                 )),
                 None => push(WindowPiece::Surface(element)),
             }
@@ -662,6 +666,8 @@ pub struct WindowStyle {
     /// Radii in logical points: top left, top right, bottom right, bottom left.
     pub corners: [f32; 4],
     pub shadows: Vec<isle_tokens::Shadow>,
+    /// Drawn blended whatever the surface says of its opaque region.
+    pub translucent: bool,
 }
 
 impl crate::state::Isle {
@@ -672,10 +678,21 @@ impl crate::state::Isle {
             clip: false,
             corners: [0.0; 4],
             shadows: Vec::new(),
+            translucent: false,
         };
         let Some(record) = self.wm.get(id) else {
             return bare;
         };
+        // A shaped X11 window is only its shape: Xwayland leaves the rest of its buffer
+        // transparent, which must blend, though the surface says it is opaque.
+        if record.x11().is_some_and(|x| x.is_shaped()) {
+            return WindowStyle {
+                clip: true,
+                corners: [0.0; 4],
+                shadows: Vec::new(),
+                translucent: true,
+            };
+        }
         if matches!(record.mode, super::Mode::FullScreen { .. }) {
             return bare;
         }
@@ -701,6 +718,7 @@ impl crate::state::Isle {
         };
         WindowStyle {
             clip: true,
+            translucent: false,
             corners,
             shadows: if active {
                 tokens.shadow_window.clone()

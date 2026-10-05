@@ -1125,3 +1125,38 @@ async fn option_in_a_drag_brings_the_zones_to_the_pointer() {
     settles(&isle, w.id, "tiled:left-half", (12, 92, 942, 976)).await;
     wait_until(|| async { !surface_open(&isle, "zone-panel").await }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn with_title_bars_off_clients_are_told_to_draw_their_own() {
+    let mut isle = Isle::start("barsoff").await;
+    let (client, w) = barred(&mut isle, "isle.test.BarsOff").await;
+    let settings = isle_ipc::settings::SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    settings
+        .set("windows.title-bars", &zvariant::Value::from(false))
+        .await
+        .unwrap();
+    client.wait_for("decoration client").await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let w = isle.window(w.id).await;
+    let above = isle
+        .shot("HEADLESS-1", "off")
+        .await
+        .at((w.x + 300) as usize, (w.y - 16) as usize);
+    assert_ne!(above, TITLEBAR, "no bar");
+
+    client.clear();
+    settings
+        .set("windows.title-bars", &zvariant::Value::from(true))
+        .await
+        .unwrap();
+    client.wait_for("decoration server").await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let w = isle.window(w.id).await;
+    let above = isle
+        .shot("HEADLESS-1", "on")
+        .await
+        .at((w.x + 300) as usize, (w.y - 16) as usize);
+    assert_eq!(above, TITLEBAR, "the bar again");
+}

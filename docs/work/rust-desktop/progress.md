@@ -2,6 +2,10 @@
 
 ## 2026-10-05
 
+- P4 follow-up: decorations by each protocol's rules, the Smithay fork with
+  SHAPE in its X11 window manager, shaped windows bare and blended. xeyes in
+  the VM had worn a bar over a see-through body.
+
 - P4 done but for the user's host run. ARCHITECTURE describes how windows
   are kept; B40–B42 record the registry, attached and placed surfaces, and
   the X11 policy.

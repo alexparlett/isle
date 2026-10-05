@@ -3,7 +3,11 @@
 //! commands on standard input. Lines about any window but the first start with `wN `.
 //!
 //! Arguments: `--class C`, `--title T` (none with `--untitled`), `--size WxH`, `--pos X,Y`,
-//! `--colour RRGGBB`, `--override-redirect`, `--no-decorations` (Motif hints).
+//! `--colour RRGGBB`, `--override-redirect`, `--no-decorations` (Motif hints), `--motif N`
+//! (Motif decorations as a number), `--type T` (`_NET_WM_WINDOW_TYPE_T`, such as `SPLASH`),
+//! `--gtk-frame-extents N` (a frame of N on every side), `--shaped` (a bounding shape: the
+//! window's left half), `--argb` (a 32-bit visual, transparent but for its left half, which
+//! is painted in the colour).
 //! Commands: `fullscreen`, `unfullscreen`, `maximize`, `unmaximize`, `minimize`,
 //! `dialog` (a window transient for the first), `move-on-press`, `quit`.
 
@@ -94,10 +98,32 @@ fn main() {
         moveresize: atom(&conn, "_NET_WM_MOVERESIZE"),
     };
 
+    // With `--argb`, a 32-bit visual with its own colormap, as xeyes and many launchers use.
+    let (depth, visual, colormap, pixel) = if flag("--argb") {
+        let (depth, visual) = screen
+            .allowed_depths
+            .iter()
+            .filter(|d| d.depth == 32)
+            .find_map(|d| d.visuals.first().map(|v| (d.depth, v.visual_id)))
+            .expect("a 32-bit visual");
+        let colormap = conn.generate_id().unwrap();
+        conn.create_colormap(
+            x11rb::protocol::xproto::ColormapAlloc::NONE,
+            colormap,
+            root,
+            visual,
+        )
+        .unwrap();
+        (depth, visual, Some(colormap), 0)
+    } else {
+        (screen.root_depth, screen.root_visual, None, colour)
+    };
     let make = |transient_for: Option<u32>, override_redirect: bool, title: Option<&str>| {
         let win = conn.generate_id().unwrap();
         let aux = CreateWindowAux::new()
-            .background_pixel(colour)
+            .background_pixel(pixel)
+            .border_pixel(0)
+            .colormap(colormap)
             .override_redirect(override_redirect as u32)
             .event_mask(
                 EventMask::STRUCTURE_NOTIFY
@@ -107,7 +133,7 @@ fn main() {
                     | EventMask::EXPOSURE,
             );
         conn.create_window(
-            screen.root_depth,
+            depth,
             win,
             root,
             x,
@@ -116,7 +142,7 @@ fn main() {
             h,
             0,
             WindowClass::INPUT_OUTPUT,
-            screen.root_visual,
+            visual,
             &aux,
         )
         .unwrap();
@@ -166,14 +192,67 @@ fn main() {
             &[],
         )
         .ok();
-        if flag("--no-decorations") {
-            // flags: decorations; decorations: none.
+        let motif = if flag("--no-decorations") {
+            Some(0)
+        } else {
+            args.iter()
+                .position(|a| a == "--motif")
+                .and_then(|i| args.get(i + 1))
+                .map(|v| v.parse::<u32>().unwrap())
+        };
+        if let Some(decorations) = motif {
+            // flags: decorations.
             conn.change_property32(
                 PropMode::REPLACE,
                 win,
                 atoms.motif,
                 atoms.motif,
-                &[2, 0, 0, 0, 0],
+                &[2, 0, decorations, 0, 0],
+            )
+            .unwrap();
+        }
+        if let Some(kind) = args
+            .iter()
+            .position(|a| a == "--type")
+            .and_then(|i| args.get(i + 1))
+        {
+            let type_atom = atom(&conn, "_NET_WM_WINDOW_TYPE");
+            let value = atom(&conn, &format!("_NET_WM_WINDOW_TYPE_{kind}"));
+            conn.change_property32(PropMode::REPLACE, win, type_atom, AtomEnum::ATOM, &[value])
+                .unwrap();
+        }
+        if let Some(n) = args
+            .iter()
+            .position(|a| a == "--gtk-frame-extents")
+            .and_then(|i| args.get(i + 1))
+            .map(|v| v.parse::<u32>().unwrap())
+        {
+            let extents = atom(&conn, "_GTK_FRAME_EXTENTS");
+            conn.change_property32(
+                PropMode::REPLACE,
+                win,
+                extents,
+                AtomEnum::CARDINAL,
+                &[n, n, n, n],
+            )
+            .unwrap();
+        }
+        if flag("--shaped") {
+            use x11rb::protocol::shape::{ConnectionExt as _, SK, SO};
+            let half = x11rb::protocol::xproto::Rectangle {
+                x: 0,
+                y: 0,
+                width: w / 2,
+                height: h,
+            };
+            conn.shape_rectangles(
+                SO::SET,
+                SK::BOUNDING,
+                x11rb::protocol::xproto::ClipOrdering::UNSORTED,
+                win,
+                0,
+                0,
+                &[half],
             )
             .unwrap();
         }
@@ -227,6 +306,25 @@ fn main() {
                     index(e.window),
                     format!("configured {} {} at {} {}", e.width, e.height, e.x, e.y),
                 ),
+                Event::Expose(e) if flag("--argb") => {
+                    let gc = conn.generate_id().unwrap();
+                    conn.create_gc(
+                        gc,
+                        e.window,
+                        &x11rb::protocol::xproto::CreateGCAux::new()
+                            .foreground(colour | 0xff00_0000),
+                    )
+                    .unwrap();
+                    let half = x11rb::protocol::xproto::Rectangle {
+                        x: 0,
+                        y: 0,
+                        width: w / 2,
+                        height: h,
+                    };
+                    conn.poly_fill_rectangle(e.window, gc, &[half]).unwrap();
+                    conn.free_gc(gc).unwrap();
+                    conn.flush().unwrap();
+                }
                 Event::FocusIn(e) => say(index(e.event), "focus-in".into()),
                 Event::FocusOut(e) => say(index(e.event), "focus-out".into()),
                 Event::KeyPress(e) => say(index(e.event), format!("key {} pressed", e.detail)),

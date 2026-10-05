@@ -208,9 +208,12 @@ paru and updated through pacman (B29).
 
 ## Dependencies held as forks
 
-- **Smithay**, pinned by revision to upstream master (`118e34f`) until a
-  patch needs the fork `alexparlett/smithay`, which will carry the async
-  page flip (B6, P12 at the latest).
+- **Smithay**, through `alexparlett/smithay` (B6), pinned by revision on
+  its `isle` branch: upstream master at `118e34f` with Isle's patches, each
+  merged by pull request in the fork, none offered upstream (B43). So far one:
+  the X11 window manager tracks windows' bounding shape (SHAPE). The async
+  page flip joins it by P12. Its `master` follows upstream; moving Isle to a
+  newer upstream is a rebase of `isle` and a revision bump.
 - **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
   `main`, which carries `freya-embed` (the embedding crate made from the
   spike's glue), an idle `Timeout` that sleeps, and thread-local contexts

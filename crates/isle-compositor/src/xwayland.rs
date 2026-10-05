@@ -114,7 +114,41 @@ fn unmanaged(window: &X11Surface) -> bool {
     window.is_override_redirect() || window.title().is_empty()
 }
 
+/// Whether an X11 window wears Isle's bar, by the rules a window manager answers to: its
+/// type is a normal, dialog or utility window (EWMH); its Motif hints ask for a title; it
+/// draws no frame of its own (`_GTK_FRAME_EXTENTS`); it is its rectangle (no SHAPE); and it
+/// is not full screen.
+fn wants_bar(window: &X11Surface) -> bool {
+    use smithay::xwayland::xwm::{MwmDecorationsHint as D, WmWindowType as T};
+    let typed = matches!(
+        window.window_type(),
+        None | Some(T::Normal | T::Dialog | T::Utility)
+    );
+    // ALL means every part except the ones also listed.
+    let titled = window.motif_hints().decorations.is_none_or(|d| {
+        if d.contains(D::ALL) {
+            !d.contains(D::TITLE)
+        } else {
+            d.contains(D::TITLE)
+        }
+    });
+    let own_frame = window.frame_extents() != Default::default();
+    typed && titled && !own_frame && !window.is_shaped() && !window.is_fullscreen()
+}
+
 impl State {
+    /// Motif hints or the shape changed: the bar follows.
+    fn x11_bar_changed(&mut self, id: u64, window: &X11Surface) {
+        let server_side = wants_bar(window);
+        if let Some(record) = self.isle.wm.get_mut(id)
+            && record.server_side != server_side
+        {
+            record.server_side = server_side;
+            self.isle.sync_bars();
+        }
+        self.isle.queue_redraw_all();
+    }
+
     fn x11_record(&self, window: &X11Surface) -> Option<u64> {
         self.isle
             .wm
@@ -190,8 +224,7 @@ impl XwmHandler for State {
         };
         let record = self.isle.wm.get_mut(id).unwrap();
         record.pid = window.pid().map(|p| p as i32);
-        // Motif hints asking for no decorations mean the client draws its own.
-        record.server_side = !window.is_decorated() && !window.is_fullscreen();
+        record.server_side = wants_bar(&window);
         record.rect = window.geometry();
         let _ = window.set_mapped(true);
         if window.is_fullscreen() {
@@ -306,17 +339,14 @@ impl XwmHandler for State {
                 self.isle.sync_bars();
                 self.isle.notify(crate::worker::Event::WindowsChanged);
             }
-            P::MotifHints => {
-                let server_side = !window.is_decorated();
-                if let Some(record) = self.isle.wm.get_mut(id)
-                    && record.server_side != server_side
-                {
-                    record.server_side = server_side;
-                    self.isle.sync_bars();
-                    self.isle.queue_redraw_all();
-                }
-            }
+            P::MotifHints | P::WindowType | P::FrameExtents => self.x11_bar_changed(id, &window),
             _ => {}
+        }
+    }
+
+    fn shape_changed(&mut self, _xwm: XwmId, window: X11Surface) {
+        if let Some(id) = self.x11_record(&window) {
+            self.x11_bar_changed(id, &window);
         }
     }
 

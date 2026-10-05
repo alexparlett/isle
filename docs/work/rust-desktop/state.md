@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B42 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B43 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -192,4 +192,11 @@
   B40–B42 are recorded, `compositor.md`'s open points are answered and
   `p4-windows.md` ends with its outcome. Next: P5 (keyboard) or P6 (island
   and menus).
+- Smithay fork made (2026-10-05): `alexparlett/smithay`, its `isle` branch
+  at upstream `118e34f`; Isle pins the SHAPE patch (`45578d1`) on
+  `xwayland-shape`, open as a pull request into `isle`. Isle's patches stay
+  in the fork, not upstream (B43). Decorations now follow each protocol
+  (B43): xdg- and KDE decoration negotiation honoured, clients told to draw
+  their own with bars off, X11 by window type, Motif title bit,
+  `_GTK_FRAME_EXTENTS` and SHAPE. xeyes in the VM draws as its eyes alone.
 

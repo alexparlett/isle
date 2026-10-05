@@ -492,3 +492,21 @@ otherwise marks attention. X11 clients draw at scale 1. Rejected: the
 untitled rule only for override-redirect windows (Steam's menus are
 untitled normal windows), granting every activation request (games steal
 focus).
+
+**B43 · Who draws a window's frame follows each protocol.** Built in P4.
+On Wayland a client that negotiates (xdg-decoration, KDE server-decoration)
+gets what it asks for, server side when it asks for nothing, while Isle
+draws bars; with bars off every such client is told to draw its own, and a
+client that never negotiates draws its own, as the protocol says. An X11
+window wears Isle's bar when its EWMH type is normal, dialog or utility,
+its Motif hints ask for a title (ALL means all but the bits listed), it sets
+no `_GTK_FRAME_EXTENTS`, it has no bounding shape and it is not full screen.
+A shaped window gets no bar, shadow or corner clip and is drawn blended,
+since Xwayland leaves its buffer transparent outside the shape while the
+surface claims to be opaque. Smithay's window manager had no SHAPE support;
+Isle's Smithay fork adds it and keeps it, and Isle's patches are not offered
+upstream, whose contribution policy does not accept this work. Rejected: a
+second X connection beside Smithay's to ask about shapes (it races the
+window manager on window lifetimes), telling clients server side with bars
+off (they and Isle would both draw nothing).
+

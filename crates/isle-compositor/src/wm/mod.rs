@@ -96,6 +96,8 @@ pub struct Record {
     pub morph: Option<motion::Morph>,
     /// It asked the compositor to draw its decorations.
     pub server_side: bool,
+    /// How it negotiates decorations, for when title bars are turned on or off.
+    pub decoration: Option<Decoration>,
     /// Isle's bar over it.
     pub bar: Option<bars::Bar>,
     /// Its box in the global space: where it is while shown, where it returns to while not.
@@ -182,6 +184,16 @@ impl Record {
             }
         }
     }
+}
+
+/// A Wayland window's decoration protocol and what the client asked for.
+#[derive(Clone, Debug)]
+pub enum Decoration {
+    Xdg(Option<smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode>),
+    Kde {
+        object: smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration::OrgKdeKwinServerDecoration,
+        requested: smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration::Mode,
+    },
 }
 
 /// A window's id, stable for its life and never reused.
@@ -311,6 +323,7 @@ impl Isle {
             motion: None,
             morph: None,
             server_side: false,
+            decoration: None,
             bar: None,
             rect: Rectangle::default(),
             suspended: false,

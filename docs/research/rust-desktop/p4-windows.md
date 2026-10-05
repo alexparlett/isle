@@ -32,3 +32,15 @@ xterm and xeyes started from the session's environment:
 Found there, not headless: the supervisor waited forever for the ready pipe to close,
 because Xwayland, started before the report, inherited its write end. The compositor now
 marks that fd close-on-exec as it starts, so no child holds it.
+
+## Shaped X11 windows (2026-10-05)
+
+xeyes wore Isle's bar and shadow over a body that was mostly see-through: it
+sets a bounding shape (SHAPE), which Smithay's window manager did not track.
+With the fork's patch it wears neither. It then showed black outside the
+eyes: Xwayland's buffer is transparent there, but the surface was drawn as
+opaque, so nothing behind it was drawn. Isle now draws shaped windows
+blended. What lies outside the shape is the client's buffer: xeyes clears
+it, the headless test client's stays black, so the headless test checks only
+that Isle adds no bar or shadow and the VM shows the see-through.
+

@@ -161,6 +161,10 @@ impl State {
         if touched("pointer[") {
             self.reapply_pointer_settings();
         }
+        if touched("windows.title-bars") && changed.is_some() {
+            self.renegotiate_decorations();
+            self.isle.sync_bars();
+        }
         if touched("appearance.") {
             self.isle.refresh_theme();
         }

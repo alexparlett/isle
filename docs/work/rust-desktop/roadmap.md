@@ -61,7 +61,7 @@ transitions, the Skia cache cap, live `tokens.kdl`; and a preview mode that
 runs a surface in `freya-winit` with hot reload, to win back design
 iteration (B7's condition). Depends on the fork at rc.8. Intent: shell.md.
 
-**P4 · Windows.** Done 2026-10-05 but for the host run: `p4-windows.md`, B40–B42. Stacking with snapping and the ultrawide zones (B8);
+**P4 · Windows.** Done 2026-10-05: `p4-windows.md`, B40–B43. Stacking with snapping and the ultrawide zones (B8);
 app-centric switching mechanics and hide-on-last-close policy, with Cmd+Q
 quitting keep-running apps (B20, B30); minimise, maximise, full-screen
 Spaces, window places; server-side title bars drawn in Freya (B25); the
@@ -134,7 +134,10 @@ reaching Isle's file panels; the one-time import of v1's preferences, window pla
 and launch counts (B27). Scan-out of a second GPU's connectors (moved from
 P2). v1's user units disabled before the host moves over: xremap.service is
 wanted by graphical-session.target, which isle-session.target binds, and
-would rewrite Cmd chords before Isle saw them. Ends with the host booting
+would rewrite Cmd chords before Isle saw them. The supervisor stops clearing
+the user manager's session variables on exit when another session owns them,
+and v1's and Isle's session logs stop sharing a path (both found in P4's
+host run). Ends with the host booting
 into the new Isle.
 Intent: platform.md, compositor.md.
 

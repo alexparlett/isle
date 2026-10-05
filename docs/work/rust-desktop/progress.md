@@ -2,6 +2,11 @@
 
 ## 2026-10-05
 
+- P4 host run by the user on tty8: Chromium on Wayland and X11, VS Code,
+  Steam and a full-screen game behaved. Isle no longer draws while its
+  console is in the background. For P14: the supervisor's exit clears the
+  shared session variables; v1 and Isle share a session log path.
+
 - P4 follow-up: decorations by each protocol's rules, the Smithay fork with
   SHAPE in its X11 window manager, shaped windows bare and blended. xeyes in
   the VM had worn a bar over a see-through body.

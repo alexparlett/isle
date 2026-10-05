@@ -68,6 +68,14 @@ impl Backend {
         }
     }
 
+    /// Whether frames can be drawn now: not while another session has the console.
+    pub fn can_draw(&self) -> bool {
+        match self {
+            Backend::Udev(udev) => smithay::backend::session::Session::is_active(&udev.session),
+            Backend::Winit(_) | Backend::Headless(_) => true,
+        }
+    }
+
     /// Whether a timer stands in for vblank: nothing scans the frames out.
     pub fn paces_by_timer(&self) -> bool {
         matches!(self, Backend::Headless(_))

@@ -195,6 +195,11 @@ impl State {
 
     fn redraw(&mut self, output: &Output) {
         let _beat = self.isle.heartbeat.beat("redraw");
+        // Away from the console, nothing is drawn; taking it back redraws every output.
+        if !self.backend.can_draw() {
+            OutputState::of(output).borrow_mut().redraw = RedrawState::Idle;
+            return;
+        }
         self.isle.step_windows(std::time::Instant::now());
         self.draw_shell(output);
         let rendered = match self.backend.render(&mut self.isle, output) {

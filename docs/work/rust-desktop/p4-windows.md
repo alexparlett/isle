@@ -1,6 +1,6 @@
 # P4 · Windows
 
-Planned and done 2026-10-05, but for the user's host run. The record is
+Planned and done 2026-10-05. The record is
 `docs/ARCHITECTURE.md` (How windows are kept) with B40–B42; the
 measurements are in `docs/research/rust-desktop/p4-windows.md`.
 
@@ -492,9 +492,17 @@ differences from the plan:
   entries in the zoom menu (P16); closing the hover-opened zoom menu when the
   pointer leaves it (it closes on a choice, Escape or a click elsewhere);
   the bar's crossfade when entering full screen.
-- **Waiting on the user:** the host run on tty8 (Firefox, Chromium, VS Code,
-  Steam's client and its menus, X11 Chromium moving by its own controls, a
-  full-screen game on its own desktop).
+- **The host run** (2026-10-05, tty8, by the user, on the 5070 Ti at
+  3440×1440): Chromium on Wayland and X11, VS Code and Steam's client and
+  menus behaved; tiling, the zoom menu, desktops and a full-screen game
+  passed by the user's eye. Firefox is not installed there. Found: Isle kept
+  drawing while its console was in the background, logging a failure per
+  frame; it now draws nothing until the console comes back (checked in the
+  VM). For P14: the supervisor's exit clears `WAYLAND_DISPLAY`, `DISPLAY`
+  and the desktop variables from the user manager, which broke the
+  Hyprland session running beside it until they were put back; and v1's
+  `isle-session` and the new one both write `~/.local/state/isle/
+  session.log`. The island and the tray are P6's and P8's.
 
 Tests: `cargo test --workspace --features isle-compositor/test-hooks`, 118
 in all, with 32 headless window tests and 6 X11 tests on Xwayland; the bar's

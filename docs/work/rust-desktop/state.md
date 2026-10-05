@@ -186,9 +186,8 @@
   bars as attached surfaces, the zoom menu and pointer panel, Xwayland.
   Checked by the workspace's 118 tests, 38 of them headless window and X11 tests, and in the VM with kitty, GTK 4, Qt 6,
   xterm and xeyes, where the ready pipe held open by Xwayland was found
-  and fixed. Waiting on the user: the host run on tty8 (Firefox, Chromium,
-  VS Code, Steam's client and menus, a full-screen game).
-- P4 is done but for that host run: ARCHITECTURE has How windows are kept,
+  and fixed.
+- P4 is done (2026-10-05), its host run on tty8 passed by the user: ARCHITECTURE has How windows are kept,
   B40–B42 are recorded, `compositor.md`'s open points are answered and
   `p4-windows.md` ends with its outcome. Next: P5 (keyboard) or P6 (island
   and menus).
@@ -199,4 +198,9 @@
   (B43): xdg- and KDE decoration negotiation honoured, clients told to draw
   their own with bars off, X11 by window type, Motif title bit,
   `_GTK_FRAME_EXTENTS` and SHAPE. xeyes in the VM draws as its eyes alone.
+- P4 host run (2026-10-05): Chromium (Wayland and X11), VS Code, Steam and a
+  full-screen game behaved on the 5070 Ti. Fixed: Isle drew while its console
+  was in the background. Left for P14: the supervisor's exit clears the
+  session variables from the user manager, which a session running beside it
+  shares, and v1 and Isle share `~/.local/state/isle/session.log`.
 

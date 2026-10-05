@@ -1,5 +1,40 @@
 # Progress
 
+## 2026-10-05
+
+- P4 done but for the user's host run. ARCHITECTURE describes how windows
+  are kept; B40–B42 record the registry, attached and placed surfaces, and
+  the X11 policy.
+
+- P4 4.9: the VM. kitty, Qt 6 Designer, xterm and xeyes wear Isle's bar,
+  GTK 4 keeps its own; tiling, minimising and dialogs behave. The
+  supervisor never exported the session until the ready pipe was made
+  close-on-exec: Xwayland held it open.
+
+- P4 4.8: Xwayland under Smithay's window manager, restarted on its
+  display; X11 windows are records, override-redirect and untitled ones are
+  left where they ask.
+
+- P4 4.7: the zoom menu from a dwell or Ctrl+Option+Z, and the pointer
+  panel with Option in a drag.
+
+- P4 4.6: title bars as attached Freya surfaces, with the lights, the
+  title's layout, the resize band; 0.27 MB and 0.47 MiB a bar.
+
+- P4 4.5: rounded corners and shadows from shaders; open, close, hide,
+  minimise, tile and desktop motion, close and morph drawn from snapshots.
+
+- P4 4.4: desktops per output and full-screen desktops.
+
+- P4 4.3: `isle-apps`, the close path with keep-running, Cmd+Q, Cmd+H,
+  Cmd+M, Cmd+`, pings.
+
+- P4 4.2: zones, edge regions, snapping, tiling chords.
+
+- P4 4.1: placement, places, dialogs.
+
+- P4 4.0: the window registry.
+
 ## 2026-10-04
 
 - P3 done. ARCHITECTURE describes how the shell runs; B37–B39 record the

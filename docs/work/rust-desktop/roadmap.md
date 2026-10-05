@@ -5,7 +5,7 @@ packet's brief: what it delivers, what it depends on, and the decisions and
 intent documents it answers to. A packet is planned in detail, with its own
 PRD and phases, by its own run of feature-plan when it starts, against the
 code as it is then. Intent: `docs/design/` (compositor, shell, gaming,
-apps, platform). Decisions: `docs/DECISIONS.md` (B1–B30).
+apps, platform). Decisions: `docs/DECISIONS.md` (B1–B42).
 
 Everything happens on `feature/rust-desktop` (B16); v1 stays the daily
 desktop on `main` until milestone M2.
@@ -61,7 +61,7 @@ transitions, the Skia cache cap, live `tokens.kdl`; and a preview mode that
 runs a surface in `freya-winit` with hot reload, to win back design
 iteration (B7's condition). Depends on the fork at rc.8. Intent: shell.md.
 
-**P4 · Windows.** Stacking with snapping and the ultrawide zones (B8);
+**P4 · Windows.** Done 2026-10-05 but for the host run: `p4-windows.md`, B40–B42. Stacking with snapping and the ultrawide zones (B8);
 app-centric switching mechanics and hide-on-last-close policy, with Cmd+Q
 quitting keep-running apps (B20, B30); minimise, maximise, full-screen
 Spaces, window places; server-side title bars drawn in Freya (B25); the

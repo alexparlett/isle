@@ -448,3 +448,47 @@ with no compositor, draws the plain tint. Rejected: reading the frame
 being drawn back behind the glass (it ties glass to the damage of the
 frame), blurring in Skia per surface (each surface would draw the desktop
 behind it).
+
+**B40 · One window registry; Smithay's `Space` is its view.** Built in P4
+and kept by every packet that reads windows. `isle-compositor`'s `wm`
+keeps a record for every toplevel, Wayland or X11, from creation to
+destruction: its id, app (resolved from desktop entries by `isle-apps`),
+PID, parent, desktop, mode and boxes. A mode is floating, tiled (a zone
+and the box it came from), filled (maximised) or full screen (on a desktop
+of its own, with its origin); minimised and hidden are two flags beside it,
+so a window minimised inside a hidden app comes back minimised. The
+`Space` holds only what is shown now, in the registry's stacking order;
+everything that places a window works on its frame, the bar included.
+Each output has a row of desktops by its identity. A main window's frame
+is remembered per app and output identity and applied in its first
+configure. Rejected: Smithay's `Space` as the model (it forgets what is
+not mapped), one parked state for minimise and hide (a hidden app's
+minimised windows would come back), places keyed by output set (an
+ultrawide alone and with a second screen would keep two places for one
+habit).
+
+**B41 · Title bars and menus by windows are shell surfaces.** Built in
+P4. B37 gains two scopes: attached, an instance the compositor makes,
+places and removes for a window and draws in that window's place in the
+stack (the title bar, a Freya tree per decorated window, 0.27 MB and 0.47
+MiB each); and placed, one instance opened at a box the compositor gives,
+in its layer (the zoom menu, the pointer panel). A layout both draw from
+and hit-test with is a plain function, so the compositor reads the zone
+grid during a drag, when the pointer is grabbed and the tree sees nothing.
+Rejected: one tree drawing every bar into an atlas (the cost of a tree
+per bar was measured and is small), bars drawn by a shader (text and
+accessibility are Freya's).
+
+**B42 · Isle's X11 policy.** Built in P4 on Smithay's window manager (B5).
+Xwayland starts with the compositor, its display reported with
+`WAYLAND_DISPLAY` and kept across restarts, each after a doubling pause.
+Override-redirect and untitled X11 windows are left alone: drawn where
+they ask, over windows, never placed, focused, decorated, shadowed or
+animated (D40). Every other X11 window is a record like a Wayland one;
+Motif hints decide its bar, its state requests act as their Wayland twins
+(a minimise request is only ever a minimise), `_NET_WM_MOVERESIZE` starts
+Isle's own grabs, `_NET_ACTIVE_WINDOW` is granted to the app in front and
+otherwise marks attention. X11 clients draw at scale 1. Rejected: the
+untitled rule only for override-redirect windows (Steam's menus are
+untitled normal windows), granting every activation request (games steal
+focus).

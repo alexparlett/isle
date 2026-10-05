@@ -1,7 +1,7 @@
 # Architecture
 
-How Isle is put together. The compositor core (P2) and the shell runtime
-(P3) are built; the rest is the planned architecture of the rust-desktop program, each part settled in
+How Isle is put together. The compositor core (P2), the shell runtime
+(P3) and windows (P4) are built; the rest is the planned architecture of the rust-desktop program, each part settled in
 detail by the build packet that makes it (`docs/work/rust-desktop/
 roadmap.md`). What each capability does is in `docs/design/`; why it is
 built this way is in `docs/DECISIONS.md`.
@@ -132,6 +132,39 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   surface in its own window with the same contexts and live tokens;
   `--watch` rebuilds and restarts it on a saved change.
 
+## How windows are kept
+
+- **A registry, and the `Space` as its view.** `wm` holds a record for
+  every toplevel, Wayland or X11, from its creation to its destruction: id,
+  app, PID, parent, desktop, mode (floating, tiled, filled, full screen)
+  and the minimised and hidden flags (B40). Smithay's `Space` holds only
+  the windows shown now, in the registry's stacking order; a window that
+  leaves it is sent `suspended` and gets no frame callbacks. Everything the
+  switcher, Mission Control and the CLI read comes from the registry.
+- **Frames.** A window's frame is its geometry and, when it wears one,
+  Isle's bar. Placement, places, zones, snapping and shadows work on
+  frames; the client is configured with the frame less the bar. Geometry
+  that does not touch Smithay (zones, regions, snapping, cascade) is plain
+  functions in `wm::geometry`, unit-tested at 3440×1440 and 1920×1080.
+- **Apps.** `isle-apps` reads desktop entries on the worker and hands the
+  loop an index; a window's app id or X11 class resolves to an entry or
+  stays its own app. The close path, quit and hide act on apps.
+- **Desktops.** Each output has a row by its identity; a full-screen window
+  gets a desktop right of its origin. Windows on an output that goes join
+  the current desktop of the one they move to and return to their own.
+- **Drawing and motion.** Each window's surfaces are drawn through a texture
+  program that clips them to the frame's corners, over a shadow drawn by a
+  pixel shader per token layer. Motion is drawn by the compositor on the
+  window's elements; what outlives a window's buffers or its place (a close,
+  a hide, a minimise, a tile's held content, the desktop slide) is drawn
+  from a snapshot taken into a texture as it begins.
+- **Bars and menus.** A decorated window's bar is an attached shell surface
+  (B41), a Freya tree per window drawn in the window's place in the stack;
+  the zoom menu and the pointer panel are placed surfaces opened at a box.
+- **Xwayland.** Smithay's window manager runs Isle's X11 policy (B42); the
+  X server starts with the compositor and again if it dies, on the same
+  display.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -161,7 +194,7 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 |---|---|---|---|---|
 | `settings.kdl` | `~/.config/isle/` | the user's choices, apps' preferences included | the compositor, into the file's own text (B36), or the user by hand | yes |
 | `tokens.kdl` | built into Isle; `~/.config/isle/` over it | design tokens | the user by hand; Isle never writes it | the user's file |
-| state | `~/.local/state/isle/<domain>.json` | window places, launch counts, session restore, crash history | the compositor and the supervisor | no |
+| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), launch counts, session restore, crash history | the compositor and the supervisor | no |
 | crash records | `~/.local/state/isle/crashes/` | the last ten | the compositor's panic hook and watchdog, then the supervisor | no |
 | session log | `~/.local/state/isle/session.log`, `.old` | this session's and the last | the supervisor | no |
 
@@ -192,7 +225,7 @@ which stays the daily desktop on `main` until the new one replaces it
 (roadmap milestone M2) and is removed at cut-over. The Cargo workspace
 is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
 (the `isle` command), `isle-ipc`, `isle-settings` with its derive,
-`isle-state`, `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
+`isle-state`, `isle-apps` (desktop entries and app resolution), `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
 Freya side shared with Isle's apps) and `isle-preview`; `data/` holds the shipped tokens with their schema and
 contrast check, and the Phosphor subset. `spikes/shell-ui/`
 is the throwaway code behind B7 and is not built on.

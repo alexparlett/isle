@@ -1,6 +1,8 @@
 # P4 · Windows
 
-Planned 2026-10-05.
+Planned and done 2026-10-05, but for the user's host run. The record is
+`docs/ARCHITECTURE.md` (How windows are kept) with B40–B42; the
+measurements are in `docs/research/rust-desktop/p4-windows.md`.
 
 The roadmap's brief: stacking with snapping and the ultrawide zones (B8);
 app-centric switching mechanics and hide-on-last-close policy, with Cmd+Q
@@ -465,3 +467,36 @@ xdg-toplevel-icon and -tag, and the global menu's X11 properties (P6).
 - **Chords before P5.** Desktop chords on Super intercept the keys apps
   would get as Ctrl after P5's translation; until then Cmd+W, Cmd+Q and
   the rest are the desktop's, which is their meaning anyway.
+
+## Outcome
+
+Phases 4.0 to 4.9 passed their checks headless and in the VM, with these
+differences from the plan:
+
+- **Chords until P5** are a field each in `binds`, not a keyed table: the
+  settings derive already types, validates and introspects fields, and P5
+  replaces them anyway. Ctrl+1…9 is one field naming the modifiers.
+- **The modifier drag** is Ctrl+Cmd, macOS's own drag gesture, not Cmd:
+  a Cmd+click is a link opened in a new tab once P5 translates it.
+- **The bar's cost** is small (0.27 MB and 0.47 MiB a bar), so the atlas
+  is not needed; the budget is in `shell.md`.
+- **The zone grid** hit-tests from its own layout function in the tree as
+  well as in the compositor; Freya sent no enter to absolutely placed slots.
+- **The ready pipe**: Xwayland, started before the compositor reported its
+  socket, inherited the pipe's write end, so the supervisor never exported
+  the session. The fd is close-on-exec from the start. Headless tests do not
+  use the pipe; the VM found it.
+- **Not built, for later packets:** the window menu and keyboard move and
+  resize (P6, with `show_window_menu` and `gtk_shell1`); X11 pings and
+  `_NET_WM_SYNC_REQUEST` pacing; reading `_GTK_FRAME_EXTENTS`; Split View's
+  entries in the zoom menu (P16); closing the hover-opened zoom menu when the
+  pointer leaves it (it closes on a choice, Escape or a click elsewhere);
+  the bar's crossfade when entering full screen.
+- **Waiting on the user:** the host run on tty8 (Firefox, Chromium, VS Code,
+  Steam's client and its menus, X11 Chromium moving by its own controls, a
+  full-screen game on its own desktop).
+
+Tests: `cargo test --workspace --features isle-compositor/test-hooks`, 118
+in all, with 32 headless window tests and 6 X11 tests on Xwayland; the bar's
+cost in `tests/bench.rs` by hand.
+

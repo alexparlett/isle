@@ -59,6 +59,8 @@ Space, keeping their order.
 
 **Open for its packet.** How places are keyed when an app has several titled windows (xdg-toplevel-tag where clients send it). Whether places are keyed per output set (ultrawide alone versus with a second screen). Default size proportion and cascade rule.
 
+**Settled in P4.** Places are kept per app and output identity, for the app's only titled window with no parent; a place for an absent output uses the app's latest, clamped onto the output with focus; xdg-toplevel-tag waits for Smithay. A window with no place opens at its own size, or at 50% of the work area's width by 70% of its height when it asks for more than the area, centred; a second window of the app cascades by the bar's height.
+
 ### Snapping and ultrawide zones
 
 Drag a window to an edge or press a chord and it fills a zone, as macOS
@@ -76,6 +78,8 @@ tiling does, with zones designed for 3440×1440 and a preview while dragging.
 **v1 lessons kept.** Inventory §3.4, D91: the drop hook catches every drag regardless of how it began; tiling missed client-initiated drags until it did. macos-model.md §3: Fn is invisible on most keyboards, so tiling chords avoid it.
 
 **Open for its packet.** Region sizes at the edges and corners. Which zones the "beside an existing window" rule offers when several windows border the gap. Multi-window arrangements (macOS's Shift and Option variants).
+
+**Settled in P4.** Edge regions are 8 points in from an output's edge, corners 64 along each edge; an edge shared with another output gives no zone. Beside is the widest gap across the work area between the other windows, at least 200 points. Arrangements of several windows are not built.
 
 ### Apps, hide, quit and the keep-running policy
 
@@ -99,6 +103,8 @@ app's windows, Cmd+H hides an app, Cmd+Q quits it, Cmd+W closes a window
 
 **Open for its packet.** The app-resolution heuristic for apps whose app id matches no entry, multi-process apps and Flatpak ids. The quit timeout before an app is shown as holding up log out. Whether hidden and other-Space windows are sent xdg-shell's `suspended` state or only throttled frame callbacks.
 
+**Settled in P4.** An app id resolves by desktop id, `StartupWMClass`, case and last dotted part, either way round; an id nothing claims is its own app, and grouping is by app, never by PID. Parked and other-desktop windows get no frame callbacks and are sent `suspended`. Quit sends a close to every window and the polite signal to the app's PIDs once they are gone; log out's timeout is P14's. Pings are sent when the user acts on a window, not on a timer; X11's `_NET_WM_PING` waits.
+
 ### Minimise and maximise
 
 Minimise shrinks a window toward the island; maximise fills the work area.
@@ -113,6 +119,8 @@ Both are real states, including when an X11 client asks for them.
 **v1 lessons kept.** Inventory §3.4: Hyprland answered an X11 minimise request with a sticky maximise toggle; the request is consumed and handled as minimise.
 
 **Open for its packet.** Whether minimise and hide share one parked state with two presentations, as v1's `special:hidden` did.
+
+**Settled in P4.** Two flags, not one parked state (B40), so a window minimised inside a hidden app comes back minimised.
 
 ### Spaces and full-screen Spaces
 
@@ -131,6 +139,8 @@ own beside the one it came from, as on macOS.
 **v1 lessons kept.** D48: a fullscreen window on a shared Space covered windows that alt-tab then "focused"; borderless fullscreen is detected by size and not forced into fullscreen, which would make the client's resize back to windowed be ignored. Inventory §3.6: v1's special workspaces (`hidden`, `terminal`, `steam`) become states of the model: hidden, the dropdown, and a full-screen Space.
 
 **Open for its packet.** Whether Space count is fixed (1…9) or dynamic with chords for the first nine. What a removed output's Spaces become.
+
+**Settled in P4.** Dynamic, up to sixteen per output; Ctrl+1…9 past the end adds desktops up to the number until Mission Control (P16) adds them. A removed output's windows join the current desktop of the output they move to and return to their own; its row is kept for its return.
 
 ### Split View
 
@@ -197,6 +207,8 @@ toolbar with the same traffic lights. Its look and arrangement are P1's.
 
 **Open for its packet.** Which `gtk_shell1` version to serve, and whether GTK 4 then hands title-bar clicks to the compositor (`titlebar_gesture`, macos-model.md OPEN).
 
+**Settled in P4, in part.** Server side is preferred over both protocols; a bar is a Freya tree per window (B41). `gtk_shell1` is not served yet; the window menu it would carry is P6's.
+
 ### Xwayland window manager
 
 Steam, most games and some apps are X11 clients. Isle runs Xwayland under
@@ -216,6 +228,8 @@ Smithay's in-tree X11 WM and owns every X11 policy (B5).
 **v1 lessons kept.** D40: Steam's menus are X11 popups of the client's class; placing or noting them misrendered Steam for a month. Inventory §3.3 `x11-popup`, `x11-untitled`, `fix-xwayland-drags`, `x11-no-blur`: each rule is now WM policy. Inventory §3.4: without the `_NET_WM_MOVERESIZE` handler, X11 Chromium and GTK windows cannot be moved by their controls. smithay-and-gaming.md §1.4: Steam context menus closing at once under xwayland-satellite is the failure B5 avoids; it is a test.
 
 **Open for its packet.** X11 apps on fractional-scale outputs (scaled and blurry, or native and small). Whether Xwayland starts at session start or on first connection with `DISPLAY` reserved.
+
+**Settled in P4.** X11 clients draw at scale 1 and are scaled on a fractional output. Xwayland starts with the compositor, its display reported to the supervisor and kept across restarts (B42). Untitled windows are left alone like override-redirect ones.
 
 ### Outputs
 

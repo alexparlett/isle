@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B39 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B42 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -180,3 +180,16 @@
   Smithay's `Space` as its shown part, desktops per output, places, zones,
   hide and quit, title bars as attached Freya surfaces, the zoom menu,
   Xwayland. The user took every recommendation. Phases 4.0–4.10.
+- P4 4.0–4.9 done (2026-10-05): the window registry, placement and
+  places, zones and tiling, apps with hide, close and quit, desktops and
+  full-screen desktops, rounded corners, shadows and window motion, title
+  bars as attached surfaces, the zoom menu and pointer panel, Xwayland.
+  Checked by the workspace's 118 tests, 38 of them headless window and X11 tests, and in the VM with kitty, GTK 4, Qt 6,
+  xterm and xeyes, where the ready pipe held open by Xwayland was found
+  and fixed. Waiting on the user: the host run on tty8 (Firefox, Chromium,
+  VS Code, Steam's client and menus, a full-screen game).
+- P4 is done but for that host run: ARCHITECTURE has How windows are kept,
+  B40–B42 are recorded, `compositor.md`'s open points are answered and
+  `p4-windows.md` ends with its outcome. Next: P5 (keyboard) or P6 (island
+  and menus).
+

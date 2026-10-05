@@ -145,6 +145,12 @@ impl State {
     pub fn on_button(&mut self, button: u32, button_state: ButtonState, time: InputTime) {
         let pointer = self.isle.seat.get_pointer().unwrap();
         let serial = SERIAL_COUNTER.next_serial();
+        if button_state == ButtonState::Pressed
+            && !pointer.is_grabbed()
+            && self.modifier_drag(button, serial, time)
+        {
+            return;
+        }
         if button_state == ButtonState::Pressed && !pointer.is_grabbed() {
             let location = pointer.current_location();
             let on_shell = matches!(pointer.current_focus(), Some(crate::focus::Focus::Shell(_)));
@@ -174,5 +180,53 @@ impl State {
             },
         );
         pointer.frame(self);
+    }
+}
+
+impl State {
+    /// Ctrl+Cmd and a press anywhere on a window: the left button moves it, the right resizes
+    /// it from the nearest corner, without raising it (macOS's drag gesture).
+    fn modifier_drag(&mut self, button: u32, serial: smithay::utils::Serial, time: InputTime) -> bool {
+        const LEFT: u32 = 0x110;
+        const RIGHT: u32 = 0x111;
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        let mods = keyboard.modifier_state();
+        if !(mods.logo && mods.ctrl) || (button != LEFT && button != RIGHT) {
+            return false;
+        }
+        let pointer = self.isle.seat.get_pointer().unwrap();
+        let location = pointer.current_location();
+        if matches!(pointer.current_focus(), Some(crate::focus::Focus::Shell(_))) {
+            return false;
+        }
+        let Some((window, _)) = self.isle.space.element_under(location).map(|(w, p)| (w.clone(), p))
+        else {
+            return false;
+        };
+        let start_data = smithay::input::pointer::GrabStartData {
+            focus: None,
+            button,
+            location,
+        };
+        let _ = time;
+        if button == LEFT {
+            let Some(grab) = crate::grabs::MoveGrab::new(self, start_data, window) else {
+                return false;
+            };
+            pointer.set_grab(self, grab, serial, smithay::input::pointer::Focus::Clear);
+        } else {
+            let id = crate::wm::window_id(&window);
+            let Some(rect) = self.isle.space.element_geometry(&window) else {
+                return false;
+            };
+            use crate::grabs::Edges;
+            let centre = rect.loc.to_f64() + rect.size.to_f64().downscale(2.0).to_point();
+            let x = if location.x < centre.x { Edges::LEFT } else { Edges::RIGHT };
+            let y = if location.y < centre.y { Edges::TOP } else { Edges::BOTTOM };
+            self.float(id);
+            let grab = crate::grabs::ResizeGrab::start(start_data, window, Edges::new(x | y), rect);
+            pointer.set_grab(self, grab, serial, smithay::input::pointer::Focus::Clear);
+        }
+        true
     }
 }

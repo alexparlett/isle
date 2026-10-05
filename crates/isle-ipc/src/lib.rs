@@ -185,6 +185,11 @@ pub mod windows {
         fn unminimise(&self, id: u64) -> zbus::Result<bool>;
         /// Hides or shows every window of an app; false when it has none.
         fn set_app_hidden(&self, app: &str, hidden: bool) -> zbus::Result<bool>;
+        /// Tiles a window to a zone by name (`left-half`, `fill`, ...); false when the window
+        /// or the zone is unknown, or the zone has no room.
+        fn tile(&self, id: u64, zone: &str) -> zbus::Result<bool>;
+        /// Returns a tiled or filled window to its box before; false when it was neither.
+        fn restore(&self, id: u64) -> zbus::Result<bool>;
         /// Moves and sizes a window, in the global space's logical points.
         fn set_box(&self, id: u64, x: i32, y: i32, width: i32, height: i32) -> zbus::Result<bool>;
         #[zbus(signal)]

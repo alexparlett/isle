@@ -73,6 +73,8 @@ pub struct Isle {
     pub space: Space<Window>,
     pub wm: crate::wm::Wm,
     pub places: isle_state::domains::Places,
+    /// The zone a window being dragged would tile to.
+    pub zone_preview: Option<crate::wm::ZonePreview>,
     pub places_saver: Option<crate::state_writer::Saver<isle_state::domains::Places>>,
     pub popups: PopupManager,
     pub cursor_status: CursorImageStatus,
@@ -215,6 +217,7 @@ impl Isle {
             space: Space::default(),
             wm: Default::default(),
             places: Default::default(),
+            zone_preview: None,
             places_saver: None,
             popups: PopupManager::default(),
             cursor_status: CursorImageStatus::default_named(),

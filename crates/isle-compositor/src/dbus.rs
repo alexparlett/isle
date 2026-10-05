@@ -113,6 +113,17 @@ impl Windows {
             .await?)
     }
 
+    async fn tile(&self, id: u64, zone: String) -> fdo::Result<bool> {
+        let Some(zone) = crate::wm::geometry::Zone::from_name(&zone) else {
+            return Ok(false);
+        };
+        Ok(self.to_loop.call(move |state| state.tile(id, zone)).await?)
+    }
+
+    async fn restore(&self, id: u64) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.restore_box(id)).await?)
+    }
+
     async fn set_box(&self, id: u64, x: i32, y: i32, width: i32, height: i32) -> fdo::Result<bool> {
         if width < 1 || height < 1 {
             return Err(fdo::Error::InvalidArgs("a box is at least 1 by 1".into()));

@@ -285,3 +285,179 @@ async fn a_box_partly_off_its_output_is_never_recorded() {
     client.wait_for("configured 400 300").await;
     assert!(places(&isle).await.is_none());
 }
+
+use common::keys;
+
+/// The window `id` once its mode and box are as given.
+async fn settles(isle: &Isle, id: u64, mode: &str, rect: (i32, i32, i32, i32)) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        let w = isle.window(id).await;
+        if w.mode == mode && (w.x, w.y, w.width, w.height) == rect {
+            return;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "wanted {mode} {rect:?}, have {} {:?}",
+            w.mode,
+            (w.x, w.y, w.width, w.height)
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+/// With the default margins of 12 on the 1920×1080 output, whose work area starts at 48.
+const LEFT_HALF: (i32, i32, i32, i32) = (12, 60, 942, 1008);
+const RIGHT_HALF: (i32, i32, i32, i32) = (966, 60, 942, 1008);
+const TOP_LEFT: (i32, i32, i32, i32) = (12, 60, 942, 498);
+const FILL: (i32, i32, i32, i32) = (12, 60, 1896, 1008);
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_drag_to_an_edge_tiles_and_the_bottom_edge_does_not() {
+    let mut isle = Isle::start("edges").await;
+    let client = isle.client("isle.test.Edges", "ff0000");
+    let w = isle.wait_for_window("isle.test.Edges").await;
+    let centre = |w: &isle_ipc::WindowInfo| (w.x as f64 + w.width as f64 / 2.0, w.y as f64 + 20.0);
+
+    client.send("move-on-press");
+    isle.drag(&client, centre(&w), (2.0, 540.0)).await;
+    settles(&isle, w.id, "tiled:left-half", LEFT_HALF).await;
+    client
+        .wait_for("states activated,tiled-left,tiled-right,tiled-top,tiled-bottom")
+        .await;
+
+    // Dragged away, it takes its old size back under the pointer.
+    client.send("move-on-press");
+    isle.drag(&client, (400.0, 80.0), (900.0, 400.0)).await;
+    wait_until(|| async {
+        let now = isle.window(w.id).await;
+        now.mode == "floating" && (now.width, now.height) == (400, 300)
+    })
+    .await;
+
+    let w = isle.window(w.id).await;
+    client.send("move-on-press");
+    isle.drag(&client, centre(&w), (30.0, 1.0)).await;
+    settles(&isle, w.id, "tiled:top-left", TOP_LEFT).await;
+
+    let w = isle.window(w.id).await;
+    client.send("move-on-press");
+    isle.drag(&client, centre(&w), (960.0, 1.0)).await;
+    settles(&isle, w.id, "filled", FILL).await;
+    client
+        .wait_for("states activated,maximized,tiled-left,tiled-right,tiled-top,tiled-bottom")
+        .await;
+
+    let w = isle.window(w.id).await;
+    client.send("move-on-press");
+    isle.drag(&client, centre(&w), (960.0, 1079.0)).await;
+    wait_until(|| async { isle.window(w.id).await.mode == "floating" }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn tiling_chords_give_their_zones_and_cycle() {
+    let mut isle = Isle::start("chords").await;
+    let client = isle.client("isle.test.Chords", "ff0000");
+    let w = isle.wait_for_window("isle.test.Chords").await;
+    client.wait_for("keyboard-enter").await;
+    let before = (w.x, w.y, w.width, w.height);
+
+    isle.chord(&[keys::CTRL, keys::ALT, keys::LEFT]).await;
+    settles(&isle, w.id, "tiled:left-half", LEFT_HALF).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::LEFT]).await;
+    settles(&isle, w.id, "tiled:left-two-thirds", (12, 60, 1260, 1008)).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::LEFT]).await;
+    settles(&isle, w.id, "tiled:left-third", (12, 60, 624, 1008)).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::RIGHT]).await;
+    settles(&isle, w.id, "tiled:right-half", RIGHT_HALF).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::C]).await;
+    settles(&isle, w.id, "tiled:centre", (391, 60, 1138, 1008)).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::C]).await;
+    settles(&isle, w.id, "tiled:centre-third", (648, 60, 624, 1008)).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::U]).await;
+    settles(&isle, w.id, "tiled:top-left", TOP_LEFT).await;
+
+    isle.chord(&[keys::CTRL, keys::ALT, keys::R]).await;
+    settles(&isle, w.id, "floating", before).await;
+    client.wait_for("states activated").await;
+
+    isle.chord(&[keys::CTRL, keys::ALT, keys::F]).await;
+    settles(&isle, w.id, "filled", FILL).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::F]).await;
+    settles(&isle, w.id, "floating", before).await;
+    // The bound keys never reach the window; their modifiers do.
+    for key in [keys::LEFT, keys::RIGHT, keys::C, keys::F, keys::R, keys::U] {
+        assert!(!client.printed(&format!("key {key} pressed")), "key {key}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_client_maximises_and_resizes_from_its_left_edge() {
+    let mut isle = Isle::start("resize").await;
+    let client = isle.client("isle.test.Resize", "ff0000");
+    let w = isle.wait_for_window("isle.test.Resize").await;
+    let before = (w.x, w.y, w.width, w.height);
+
+    client.send("maximize");
+    settles(&isle, w.id, "filled", FILL).await;
+    client.send("unmaximize");
+    settles(&isle, w.id, "floating", before).await;
+
+    client.send("resize-on-press left");
+    let at = (w.x as f64 + 5.0, w.y as f64 + 150.0);
+    isle.drag(&client, at, (at.0 - 100.0, at.1)).await;
+    settles(
+        &isle,
+        w.id,
+        "floating",
+        (w.x - 100, w.y, w.width + 100, w.height),
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_asking_to_be_maximised_opens_filled() {
+    let mut isle = Isle::start("maxopen").await;
+    let client = isle.client_with(&["--app-id", "isle.test.MaxOpen", "--do", "maximize"]);
+    let w = isle.wait_for_window("isle.test.MaxOpen").await;
+    assert_eq!(
+        (w.mode.as_str(), w.x, w.y, w.width, w.height),
+        ("filled", 12, 60, 1896, 1008)
+    );
+    let first = client
+        .lines
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|l| l.starts_with("configured"))
+        .cloned();
+    assert_eq!(first.as_deref(), Some("configured 1896 1008"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ctrl_cmd_drag_moves_a_window_without_reaching_it() {
+    let mut isle = Isle::start("ctrlcmd").await;
+    let client = isle.client("isle.test.CtrlCmd", "ff0000");
+    let w = isle.wait_for_window("isle.test.CtrlCmd").await;
+    let test = isle.test().await;
+    test.key(keys::CTRL, true).await.unwrap();
+    test.key(keys::SUPER, true).await.unwrap();
+    test.pointer_to(w.x as f64 + 200.0, w.y as f64 + 150.0)
+        .await
+        .unwrap();
+    test.button(272, true).await.unwrap();
+    test.pointer_to(w.x as f64 + 150.0, w.y as f64 + 250.0)
+        .await
+        .unwrap();
+    test.button(272, false).await.unwrap();
+    test.key(keys::SUPER, false).await.unwrap();
+    test.key(keys::CTRL, false).await.unwrap();
+    settles(
+        &isle,
+        w.id,
+        "floating",
+        (w.x - 50, w.y + 100, w.width, w.height),
+    )
+    .await;
+    assert!(!client.printed("button 272 pressed"));
+}

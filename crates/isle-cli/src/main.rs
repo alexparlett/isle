@@ -58,6 +58,12 @@ enum Windows {
     Hide { app: String },
     /// Show a hidden app's windows again.
     Unhide { app: String },
+    /// Tile a window to a zone: left-half, right-half, left-third, centre-third, right-third,
+    /// left-two-thirds, right-two-thirds, top-left, top-right, bottom-left, bottom-right,
+    /// centre, fill, beside.
+    Tile { id: u64, zone: String },
+    /// Return a tiled or filled window to its box before.
+    Restore { id: u64 },
     /// Move and size a window, in logical points.
     SetBox {
         id: u64,
@@ -208,6 +214,20 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 Windows::Unminimise { id } => found(proxy.unminimise(*id).await?, *id)?,
                 Windows::Hide { app } => app_found(proxy.set_app_hidden(app, true).await?, app)?,
                 Windows::Unhide { app } => app_found(proxy.set_app_hidden(app, false).await?, app)?,
+                Windows::Tile { id, zone } => {
+                    if !proxy.tile(*id, zone).await? {
+                        return Err(zbus::Error::Failure(format!(
+                            "window {id} could not tile to {zone}"
+                        )));
+                    }
+                }
+                Windows::Restore { id } => {
+                    if !proxy.restore(*id).await? {
+                        return Err(zbus::Error::Failure(format!(
+                            "window {id} is neither tiled nor filled"
+                        )));
+                    }
+                }
                 Windows::SetBox {
                     id,
                     x,

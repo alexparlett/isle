@@ -57,6 +57,8 @@ struct Client {
     pointer_on: Option<usize>,
     quit: bool,
     app_id: String,
+    /// The first window has made its first commit.
+    started: bool,
 }
 
 fn say(index: usize, line: String) {
@@ -128,7 +130,6 @@ impl Client {
         if let Some(parent) = parent.and_then(|p| self.wins[p].xdg.as_ref()) {
             toplevel.set_parent(Some(&parent.1));
         }
-        surface.commit();
         self.wins.push(Win {
             surface,
             xdg: Some((xdg_surface, toplevel)),
@@ -224,6 +225,7 @@ impl Client {
                     let dialog = dialogs.get_xdg_dialog(t, qh, ());
                     dialog.set_modal();
                 }
+                self.wins[new].surface.commit();
                 say(new, "created".into());
             }
             ("destroy", _) => {
@@ -242,6 +244,7 @@ impl Client {
         }
         if let Some(win) = self.wins.get(index)
             && !win.gone
+            && self.started
         {
             win.surface.commit();
         }
@@ -590,6 +593,7 @@ fn main() {
         pointer_on: None,
         quit: false,
         app_id: app_id.clone(),
+        started: false,
     };
     queue.roundtrip(&mut client).unwrap();
 
@@ -631,6 +635,7 @@ fn main() {
             gone: false,
         });
     } else {
+        // The commands given as arguments come before the first commit.
         client.add_toplevel(&qh, &app_id, &title, size, colour, None);
         for command in args
             .iter()
@@ -640,7 +645,9 @@ fn main() {
         {
             client.command(command, &qh);
         }
+        client.wins[0].surface.commit();
     }
+    client.started = true;
 
     let stdin = std::io::stdin();
     let mut stdin_open = true;

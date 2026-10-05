@@ -34,6 +34,7 @@ render_elements! {
     pub IsleElement<=GlesRenderer>;
     Surface = WaylandSurfaceRenderElement<GlesRenderer>,
     Memory = MemoryRenderBufferRenderElement<GlesRenderer>,
+    Solid = smithay::backend::renderer::element::solid::SolidColorRenderElement,
     Shell = isle_shell::ShellElement,
 }
 
@@ -147,6 +148,7 @@ impl Isle {
             shell(isle_shell::Layer::Top, push);
         }
 
+        let preview = self.zone_preview.as_ref().filter(|p| &p.output == output);
         for window in self.space.elements_for_output(output).rev() {
             let Some(location) = self.space.element_location(window) else {
                 continue;
@@ -160,6 +162,18 @@ impl Isle {
                 1.0,
             ) {
                 push(IsleElement::Surface(element));
+            }
+            if let Some(preview) = preview.filter(|p| p.under == crate::wm::window_id(window)) {
+                let at = (preview.rect.loc - geometry.loc).to_physical_precise_round(scale);
+                push(IsleElement::Solid(
+                    smithay::backend::renderer::element::solid::SolidColorRenderElement::from_buffer(
+                        &preview.buffer,
+                        at,
+                        scale,
+                        1.0,
+                        Kind::Unspecified,
+                    ),
+                ));
             }
         }
 

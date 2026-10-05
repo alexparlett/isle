@@ -3,13 +3,19 @@
 use smithay::input::keyboard::{Keysym, ModifiersState, keysyms, xkb};
 use tracing::{info, warn};
 
-use crate::state::State;
+use crate::{state::State, wm::geometry::Zone};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
     Terminal,
     CloseWindow,
     Quit,
+    /// A zone for the focused window; a repeat moves along the zone's cycle.
+    Tile(Zone),
+    Fill,
+    Restore,
+    /// The next display (1) or the previous (-1).
+    Display(i32),
     /// The kernel's VT keys, Ctrl+Alt+F1 to F12, which XKB turns into these keysyms.
     SwitchVt(i32),
 }
@@ -71,6 +77,18 @@ impl State {
             (&binds.terminal, Action::Terminal),
             (&binds.close_window, Action::CloseWindow),
             (&binds.quit, Action::Quit),
+            (&binds.tile_left, Action::Tile(Zone::LeftHalf)),
+            (&binds.tile_right, Action::Tile(Zone::RightHalf)),
+            (&binds.tile_centre, Action::Tile(Zone::Centre)),
+            (&binds.fill, Action::Fill),
+            (&binds.restore, Action::Restore),
+            (&binds.tile_top_left, Action::Tile(Zone::TopLeft)),
+            (&binds.tile_top_right, Action::Tile(Zone::TopRight)),
+            (&binds.tile_bottom_left, Action::Tile(Zone::BottomLeft)),
+            (&binds.tile_bottom_right, Action::Tile(Zone::BottomRight)),
+            (&binds.tile_beside, Action::Tile(Zone::Beside)),
+            (&binds.next_display, Action::Display(1)),
+            (&binds.previous_display, Action::Display(-1)),
         ]
         .into_iter()
         .find(|(text, _)| parse(text) == Some(pressed))
@@ -96,6 +114,18 @@ impl State {
                 }
             }
             Action::Quit => self.isle.loop_signal.stop(),
+            Action::Tile(zone) => self.tile_by_chord(zone),
+            Action::Fill => {
+                if let Some(id) = self.focused_window() {
+                    self.toggle_fill(id);
+                }
+            }
+            Action::Restore => {
+                if let Some(id) = self.focused_window() {
+                    self.restore_box(id);
+                }
+            }
+            Action::Display(step) => self.move_to_display(step),
             Action::SwitchVt(vt) => self.switch_vt(vt),
         }
     }

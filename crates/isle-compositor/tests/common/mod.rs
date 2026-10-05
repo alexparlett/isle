@@ -282,3 +282,48 @@ impl Isle {
         WindowsProxy::new(&self.bus).await.unwrap()
     }
 }
+
+/// evdev codes.
+pub mod keys {
+    pub const CTRL: u32 = 29;
+    pub const ALT: u32 = 56;
+    pub const SUPER: u32 = 125;
+    pub const SHIFT: u32 = 42;
+    pub const LEFT: u32 = 105;
+    pub const RIGHT: u32 = 106;
+    pub const C: u32 = 46;
+    pub const F: u32 = 33;
+    pub const R: u32 = 19;
+    pub const U: u32 = 22;
+    pub const B: u32 = 48;
+}
+
+impl Isle {
+    /// Presses `keys` in order and releases them in reverse.
+    pub async fn chord(&self, keys: &[u32]) {
+        let test = self.test().await;
+        for key in keys {
+            test.key(*key, true).await.unwrap();
+        }
+        for key in keys.iter().rev() {
+            test.key(*key, false).await.unwrap();
+        }
+    }
+
+    /// Presses at `from`, which the client turns into its own move or resize, moves to `to`
+    /// in steps, and releases.
+    pub async fn drag(&self, client: &Client, from: (f64, f64), to: (f64, f64)) {
+        let test = self.test().await;
+        test.pointer_to(from.0, from.1).await.unwrap();
+        test.button(272, true).await.unwrap();
+        client.wait_for("button 272 pressed").await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        for step in 1..=4 {
+            let f = step as f64 / 4.0;
+            test.pointer_to(from.0 + (to.0 - from.0) * f, from.1 + (to.1 - from.1) * f)
+                .await
+                .unwrap();
+        }
+        test.button(272, false).await.unwrap();
+    }
+}

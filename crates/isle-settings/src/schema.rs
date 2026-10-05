@@ -19,6 +19,8 @@ pub struct Settings {
     #[setting(section)]
     pub appearance: Appearance,
     #[setting(section)]
+    pub windows: Windows,
+    #[setting(section)]
     pub binds: Binds,
     #[setting(section)]
     pub debug: Debug,
@@ -147,7 +149,15 @@ pub enum AppearanceMode {
     Auto,
 }
 
-/// Until P5's shortcut set: a chord per action, written as `Super+Return`.
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Windows {
+    /// Tiled and filled windows keep a margin around and between them.
+    #[setting(default = true)]
+    pub tile_margins: bool,
+}
+
+/// Until P5's shortcut set: a chord per action, written as `Super+Return`; empty turns one
+/// off. Super is Cmd, Alt is Option.
 #[derive(Clone, Debug, PartialEq, Section)]
 pub struct Binds {
     #[setting(default = "Super+Return".to_owned())]
@@ -156,6 +166,34 @@ pub struct Binds {
     pub close_window: String,
     #[setting(default = "Super+Shift+Escape".to_owned())]
     pub quit: String,
+    /// Left half; again, two-thirds, then a third.
+    #[setting(default = "Ctrl+Alt+Left".to_owned())]
+    pub tile_left: String,
+    #[setting(default = "Ctrl+Alt+Right".to_owned())]
+    pub tile_right: String,
+    /// The centred 60%; again, the centre third.
+    #[setting(default = "Ctrl+Alt+C".to_owned())]
+    pub tile_centre: String,
+    #[setting(default = "Ctrl+Alt+F".to_owned())]
+    pub fill: String,
+    /// Back to the box before a tile or fill.
+    #[setting(default = "Ctrl+Alt+R".to_owned())]
+    pub restore: String,
+    #[setting(default = "Ctrl+Alt+U".to_owned())]
+    pub tile_top_left: String,
+    #[setting(default = "Ctrl+Alt+I".to_owned())]
+    pub tile_top_right: String,
+    #[setting(default = "Ctrl+Alt+J".to_owned())]
+    pub tile_bottom_left: String,
+    #[setting(default = "Ctrl+Alt+K".to_owned())]
+    pub tile_bottom_right: String,
+    /// The widest gap beside the other windows.
+    #[setting(default = "Ctrl+Alt+B".to_owned())]
+    pub tile_beside: String,
+    #[setting(default = "Ctrl+Alt+Super+Right".to_owned())]
+    pub next_display: String,
+    #[setting(default = "Ctrl+Alt+Super+Left".to_owned())]
+    pub previous_display: String,
     /// The terminal the bind starts.
     #[setting(default = "kitty".to_owned())]
     pub terminal_command: String,

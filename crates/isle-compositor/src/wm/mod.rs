@@ -3,6 +3,9 @@
 
 pub mod geometry;
 mod places;
+mod tiling;
+
+pub use tiling::ZonePreview;
 
 use isle_ipc::WindowInfo;
 use smithay::{
@@ -20,16 +23,24 @@ use crate::{
     worker::Event,
 };
 
-/// What a window does with its box.
+/// What a window does with its box. A tile and a fill keep the frame they came from.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Mode {
     Floating,
+    Tiled {
+        zone: geometry::Zone,
+        restore: Rectangle<i32, Logical>,
+    },
+    /// Maximised: the work area.
+    Filled { restore: Rectangle<i32, Logical> },
 }
 
 impl Mode {
     pub fn name(&self) -> String {
         match self {
             Mode::Floating => "floating".into(),
+            Mode::Tiled { zone, .. } => format!("tiled:{}", zone.name()),
+            Mode::Filled { .. } => "filled".into(),
         }
     }
 }

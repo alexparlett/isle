@@ -75,13 +75,8 @@ impl XdgShellHandler for State {
         let Some(window) = self.isle.window_for_surface(wl_surface) else {
             return;
         };
-        let Some(initial) = self.isle.space.element_location(&window) else {
+        let Some(grab) = MoveGrab::new(self, start_data, window) else {
             return;
-        };
-        let grab = MoveGrab {
-            start_data,
-            window,
-            initial,
         };
         seat.get_pointer()
             .unwrap()
@@ -109,10 +104,7 @@ impl XdgShellHandler for State {
             return;
         };
         let size = window.geometry().size;
-        surface.with_pending_state(|state| {
-            state.states.set(xdg_toplevel::State::Resizing);
-        });
-        surface.send_pending_configure();
+        self.float(crate::wm::window_id(&window));
         let grab = ResizeGrab::start(
             start_data,
             window,
@@ -122,6 +114,36 @@ impl XdgShellHandler for State {
         seat.get_pointer()
             .unwrap()
             .set_grab(self, grab, serial, Focus::Clear);
+    }
+
+    fn maximize_request(&mut self, surface: ToplevelSurface) {
+        match self.isle.wm.for_surface(surface.wl_surface()).map(|r| (r.id, r.mapped)) {
+            Some((id, true)) => {
+                self.tile(id, crate::wm::geometry::Zone::Fill);
+            }
+            Some((id, false)) => {
+                self.isle.wm.get_mut(id).unwrap().mode = crate::wm::Mode::Filled {
+                    restore: Default::default(),
+                };
+                if surface.is_initial_configure_sent() {
+                    self.plan_fill(id);
+                    surface.send_pending_configure();
+                }
+            }
+            None => {}
+        }
+    }
+
+    fn unmaximize_request(&mut self, surface: ToplevelSurface) {
+        if let Some(id) = self.isle.wm.for_surface(surface.wl_surface()).map(|r| r.id) {
+            self.restore_box(id);
+        }
+    }
+
+    fn minimize_request(&mut self, surface: ToplevelSurface) {
+        if let Some(id) = self.isle.wm.for_surface(surface.wl_surface()).map(|r| r.id) {
+            self.minimise(id);
+        }
     }
 
     fn grab(&mut self, surface: PopupSurface, seat: wl_seat::WlSeat, serial: Serial) {

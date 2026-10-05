@@ -1,4 +1,5 @@
-//! Moving and resizing a window by its own controls. P4 replaces these with snapping.
+//! Moving and resizing a window, by any route: Isle's bar, the client's own controls, X11's
+//! `_NET_WM_MOVERESIZE` and the modifier drag.
 
 use std::cell::RefCell;
 
@@ -21,6 +22,7 @@ use smithay::{
 use crate::state::State;
 
 const BTN_LEFT: u32 = 0x110;
+const BTN_RIGHT: u32 = 0x111;
 
 /// Forwards the pointer events a grab does not change.
 macro_rules! forward_rest {
@@ -119,8 +121,33 @@ macro_rules! forward_rest {
 pub struct MoveGrab {
     pub start_data: GrabStartData<State>,
     pub window: Window,
+    /// The frame's place when the pointer was at the grab's start.
     pub initial: Point<i32, Logical>,
+    /// The box a tiled or filled window returns to once the drag gets going.
+    pub unsnap: Option<Rectangle<i32, Logical>>,
 }
+
+impl MoveGrab {
+    pub fn new(data: &State, start_data: GrabStartData<State>, window: Window) -> Option<Self> {
+        let id = crate::wm::window_id(&window);
+        let initial = data.isle.frame(id)?.loc;
+        let unsnap = match data.isle.wm.get(id)?.mode {
+            crate::wm::Mode::Tiled { restore, .. } | crate::wm::Mode::Filled { restore } => {
+                Some(restore)
+            }
+            crate::wm::Mode::Floating => None,
+        };
+        Some(Self {
+            start_data,
+            window,
+            initial,
+            unsnap,
+        })
+    }
+}
+
+/// How far the pointer moves before a drag unsnaps a tiled window.
+const UNSNAP_DISTANCE: f64 = 4.0;
 
 impl PointerGrab<State> for MoveGrab {
     fn motion(
@@ -131,8 +158,32 @@ impl PointerGrab<State> for MoveGrab {
         event: &MotionEvent,
     ) {
         handle.motion(data, None, event);
-        let location = self.initial.to_f64() + (event.location - self.start_data.location);
-        data.move_window(crate::wm::window_id(&self.window), location.to_i32_round());
+        let id = crate::wm::window_id(&self.window);
+        let delta = event.location - self.start_data.location;
+        if let Some(restore) = self.unsnap
+            && (delta.x.abs() > UNSNAP_DISTANCE || delta.y.abs() > UNSNAP_DISTANCE)
+        {
+            self.unsnap = None;
+            let Some(frame) = data.isle.frame(id) else {
+                return;
+            };
+            let at = crate::wm::geometry::unsnapped(frame, restore.size, event.location);
+            self.initial = at - delta.to_i32_round();
+            data.float(id);
+            data.set_frame(id, Rectangle::new(at, restore.size));
+            return;
+        }
+        if self.unsnap.is_some() {
+            return;
+        }
+        let Some(frame) = data.isle.frame(id) else {
+            return;
+        };
+        let wanted = Rectangle::new(self.initial + delta.to_i32_round(), frame.size);
+        let at = data.isle.snapped(id, wanted, event.location);
+        let bar = data.isle.bar_height(id);
+        data.move_window(id, Point::from((at.x, at.y + bar)));
+        data.isle.update_zone_preview(id, event.location);
     }
 
     fn button(
@@ -142,9 +193,19 @@ impl PointerGrab<State> for MoveGrab {
         event: &ButtonEvent,
     ) {
         handle.button(data, event);
-        if !handle.current_pressed().contains(&BTN_LEFT) {
-            handle.unset_grab(self, data, event.serial, event.time, true);
-            data.isle.record_place(crate::wm::window_id(&self.window));
+        if handle.current_pressed().contains(&BTN_LEFT)
+            || handle.current_pressed().contains(&BTN_RIGHT)
+        {
+            return;
+        }
+        handle.unset_grab(self, data, event.serial, event.time, true);
+        let id = crate::wm::window_id(&self.window);
+        match data.isle.zone_preview.take() {
+            Some(preview) => {
+                data.isle.queue_redraw(&preview.output);
+                data.tile_on(id, preview.zone, &preview.output);
+            }
+            None => data.isle.record_place(id),
         }
     }
 
@@ -155,10 +216,14 @@ impl PointerGrab<State> for MoveGrab {
 pub struct Edges(u32);
 
 impl Edges {
-    const TOP: u32 = 1;
-    const BOTTOM: u32 = 2;
-    const LEFT: u32 = 4;
-    const RIGHT: u32 = 8;
+    pub const TOP: u32 = 1;
+    pub const BOTTOM: u32 = 2;
+    pub const LEFT: u32 = 4;
+    pub const RIGHT: u32 = 8;
+
+    pub fn new(edges: u32) -> Self {
+        Edges(edges)
+    }
 
     fn has(self, edge: u32) -> bool {
         self.0 & edge != 0
@@ -186,6 +251,12 @@ impl ResizeGrab {
         edges: Edges,
         initial: Rectangle<i32, Logical>,
     ) -> Self {
+        if let Some(toplevel) = window.toplevel() {
+            toplevel.with_pending_state(|state| {
+                state.states.set(xdg_toplevel::State::Resizing);
+            });
+            toplevel.send_pending_configure();
+        }
         ResizeState::with(window.toplevel().unwrap().wl_surface(), |state| {
             *state = ResizeState::Resizing { edges, initial };
         });
@@ -248,7 +319,9 @@ impl PointerGrab<State> for ResizeGrab {
         event: &ButtonEvent,
     ) {
         handle.button(data, event);
-        if handle.current_pressed().contains(&BTN_LEFT) {
+        if handle.current_pressed().contains(&BTN_LEFT)
+            || handle.current_pressed().contains(&BTN_RIGHT)
+        {
             return;
         }
         handle.unset_grab(self, data, event.serial, event.time, true);
@@ -257,11 +330,12 @@ impl PointerGrab<State> for ResizeGrab {
             state.states.unset(xdg_toplevel::State::Resizing);
             state.size = Some(self.last_size);
         });
-        toplevel.send_pending_configure();
+        let serial = toplevel.send_configure();
         ResizeState::with(toplevel.wl_surface(), |state| {
             *state = ResizeState::WaitingForLastCommit {
                 edges: self.edges,
                 initial: self.initial,
+                serial,
             };
         });
     }
@@ -278,9 +352,11 @@ enum ResizeState {
         edges: Edges,
         initial: Rectangle<i32, Logical>,
     },
+    /// The release's configure, whose commit ends the resize.
     WaitingForLastCommit {
         edges: Edges,
         initial: Rectangle<i32, Logical>,
+        serial: smithay::utils::Serial,
     },
 }
 
@@ -292,13 +368,23 @@ impl ResizeState {
         })
     }
 
-    /// The resize under way, and whether this commit ends it.
-    fn commit(&mut self) -> Option<(Edges, Rectangle<i32, Logical>, bool)> {
+    /// The resize under way, and whether this commit, of the configure `acked`, ends it.
+    fn commit(
+        &mut self,
+        acked: Option<smithay::utils::Serial>,
+    ) -> Option<(Edges, Rectangle<i32, Logical>, bool)> {
         match *self {
             Self::Resizing { edges, initial } => Some((edges, initial, false)),
-            Self::WaitingForLastCommit { edges, initial } => {
-                *self = Self::Idle;
-                Some((edges, initial, true))
+            Self::WaitingForLastCommit {
+                edges,
+                initial,
+                serial,
+            } => {
+                let done = acked.is_some_and(|a| a.is_no_older_than(&serial));
+                if done {
+                    *self = Self::Idle;
+                }
+                Some((edges, initial, done))
             }
             Self::Idle => None,
         }
@@ -316,7 +402,16 @@ impl State {
             return;
         };
         let size = window.geometry().size;
-        let Some((edges, initial, done)) = ResizeState::with(surface, |state| state.commit())
+        let acked = compositor::with_states(surface, |states| {
+            states
+                .cached_state
+                .get::<smithay::wayland::shell::xdg::ToplevelCachedState>()
+                .current()
+                .last_acked
+                .as_ref()
+                .map(|c| c.serial)
+        });
+        let Some((edges, initial, done)) = ResizeState::with(surface, |state| state.commit(acked))
         else {
             return;
         };

@@ -155,8 +155,12 @@ impl Isle {
 impl State {
     /// Before a toplevel's first configure: a main window with a place is asked for its size.
     pub fn plan_window(&mut self, id: u64) {
+        self.isle.refresh_identity(id);
+        if matches!(self.isle.wm.get(id).map(|r| &r.mode), Some(super::Mode::Filled { .. })) {
+            self.plan_fill(id);
+            return;
+        }
         let isle = &mut self.isle;
-        isle.refresh_identity(id);
         if !isle.is_main(id) {
             return;
         }
@@ -172,6 +176,33 @@ impl State {
         if let Some(toplevel) = record.window.toplevel() {
             toplevel.with_pending_state(|state| state.size = Some(place.size));
         }
+    }
+
+    /// A window that asked to be maximised before it mapped opens filling the work area of
+    /// the output with focus, returning to the default size centred there.
+    pub fn plan_fill(&mut self, id: u64) {
+        let Some(output) = self.isle.output_with_focus() else {
+            return;
+        };
+        let area = self.isle.work_area(&output);
+        let size = geometry::default_size(area);
+        let restore = Rectangle::new(geometry::centred(area, size), size);
+        let Some(rect) = self.isle.zone_rect(id, geometry::Zone::Fill, &output) else {
+            return;
+        };
+        let bar = self.isle.bar_height(id);
+        let record = self.isle.wm.get_mut(id).unwrap();
+        record.mode = super::Mode::Filled { restore };
+        record.planned = Some(Rectangle::new(
+            (rect.loc.x, rect.loc.y + bar).into(),
+            (rect.size.w, rect.size.h - bar).into(),
+        ));
+        if let Some(toplevel) = record.window.toplevel() {
+            toplevel.with_pending_state(|state| {
+                state.size = Some((rect.size.w, rect.size.h - bar).into())
+            });
+        }
+        self.send_mode_states(id);
     }
 
     /// At map: the window's place, over its parent, or centred on the output with focus.

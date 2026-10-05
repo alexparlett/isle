@@ -27,7 +27,7 @@ accesskit = "0.24"
 accesskit_unix = "0.22"
 
 # The fork (B6): its `isle` branch, upstream at 118e34f with Isle's patches.
-smithay = { git = "https://github.com/alexparlett/smithay", rev = "03d4920fdd7972d666351085b0131c90a6e0b7bf", default-features = false, features = [
+smithay = { git = "https://github.com/alexparlett/smithay", rev = "764ad1b1093925d86ff9e2ca0d66097f9b19021d", default-features = false, features = [
     "backend_drm",
     "backend_egl",
     "backend_gbm",
@@ -42,7 +42,7 @@ smithay = { git = "https://github.com/alexparlett/smithay", rev = "03d4920fdd797
 ] }
 libc = "0.2"
 png = "0.17"
-smithay-drm-extras = { git = "https://github.com/alexparlett/smithay", rev = "03d4920fdd7972d666351085b0131c90a6e0b7bf" }
+smithay-drm-extras = { git = "https://github.com/alexparlett/smithay", rev = "764ad1b1093925d86ff9e2ca0d66097f9b19021d" }
 xcursor = "0.3"
 xkbcommon = "0.9"
 wayland-client = "0.31"

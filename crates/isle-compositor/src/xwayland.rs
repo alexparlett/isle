@@ -340,6 +340,7 @@ impl XwmHandler for State {
                 self.isle.notify(crate::worker::Event::WindowsChanged);
             }
             P::MotifHints | P::WindowType | P::FrameExtents => self.x11_bar_changed(id, &window),
+            P::SteamGame => self.isle.refresh_game(id),
             _ => {}
         }
     }

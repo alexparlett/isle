@@ -221,7 +221,7 @@
   conflicted away. Checked headless and in the VM (wev, xev, kitty, GTK 4).
 - P5 closed but for the user's host run (2026-10-05): ARCHITECTURE has How
   keys are read, B44–B46 are recorded, `compositor.md`'s and `gaming.md`'s
-  open points answered, `p5-keyboard.md` ends with its outcome. The
-  STEAM_GAME read waits for alexparlett/smithay#2 to merge and Isle to pin
-  it. Next: P6 (island and menus).
+  open points answered, `p5-keyboard.md` ends with its outcome. Steam's
+  `STEAM_GAME` X11 label is read through alexparlett/smithay#2, merged, and
+  Isle pins that merge (`764ad1b`). Next: P6 (island and menus).
 

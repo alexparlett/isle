@@ -317,3 +317,13 @@ async fn a_recording_returns_the_chord_and_who_holds_it() {
     assert_eq!(info.keyboard, "AT Translated Set 2 keyboard");
     assert!(info.iso);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_x11_window_steam_labels_is_a_game() {
+    let mut isle = Isle::start("games-x11").await;
+    let game = isle
+        .x11_client(&["--class", "isle.test.SteamX11", "--steam-game", "440"])
+        .await;
+    game.wait_for("focus-in").await;
+    game_window(&isle, "isle.test.SteamX11").await;
+}

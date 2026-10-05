@@ -7,7 +7,7 @@
 //! (Motif decorations as a number), `--type T` (`_NET_WM_WINDOW_TYPE_T`, such as `SPLASH`),
 //! `--gtk-frame-extents N` (a frame of N on every side), `--shaped` (a bounding shape: the
 //! window's left half), `--argb` (a 32-bit visual, transparent but for its left half, which
-//! is painted in the colour).
+//! is painted in the colour), `--steam-game ID` (Steam's `STEAM_GAME` label).
 //! Commands: `fullscreen`, `unfullscreen`, `maximize`, `unmaximize`, `minimize`,
 //! `dialog` (a window transient for the first), `move-on-press`, `quit`.
 
@@ -236,6 +236,16 @@ fn main() {
                 &[n, n, n, n],
             )
             .unwrap();
+        }
+        if let Some(id) = args
+            .iter()
+            .position(|a| a == "--steam-game")
+            .and_then(|i| args.get(i + 1))
+            .map(|v| v.parse::<u32>().unwrap())
+        {
+            let steam_game = atom(&conn, "STEAM_GAME");
+            conn.change_property32(PropMode::REPLACE, win, steam_game, AtomEnum::CARDINAL, &[id])
+                .unwrap();
         }
         if flag("--shaped") {
             use x11rb::protocol::shape::{ConnectionExt as _, SK, SO};

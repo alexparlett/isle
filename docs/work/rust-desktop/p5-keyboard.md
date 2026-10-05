@@ -495,7 +495,7 @@ differences from the plan:
 - **GameMode** is session-activated, so asking it for games started it (the
   test bus found this); Isle asks only while the name has an owner.
 - **`STEAM_GAME`** needed the Smithay fork to read it:
-  alexparlett/smithay#2.
+  alexparlett/smithay#2, merged; Isle pins `764ad1b`.
 - **Devices with no letter keys** (the power button) are kept but left out
   of the keyboard list. The list is empty after start until the first
   input event, since libinput's added devices are dispatched with it.
@@ -504,7 +504,7 @@ differences from the plan:
   timing.
 
 Tests: `cargo test --workspace --features isle-compositor/test-hooks`, with
-`isle-keys`' 25 unit tests (engine, chords, keymaps, tables) and 23 headless
+`isle-keys`' 25 unit tests (engine, chords, keymaps, tables) and 24 headless
 tests for P5: keyboards and keymaps, the engine end to end, every chord of the
 set, clashes, held chords, every shipped table rule typed into an app it
 applies to, games, inhibitors, injection, recording, Sticky and Slow Keys.

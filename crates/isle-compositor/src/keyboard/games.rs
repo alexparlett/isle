@@ -41,8 +41,14 @@ impl Isle {
             .x11()
             .is_some_and(|x| x.class().to_lowercase().ends_with(".exe"));
         let registered = record.pid.is_some_and(|pid| gamemode.contains(&pid));
+        let steam_window = record.x11().and_then(|x| x.steam_game()).is_some();
         let game = !matches(&windows.not_games)
-            && (matches(&windows.games) || labelled || wine || record.steam || registered);
+            && (matches(&windows.games)
+                || labelled
+                || steam_window
+                || wine
+                || record.steam
+                || registered);
         if record.game != game {
             info!(id, app = record.app, game, "game");
             record.game = game;

@@ -50,5 +50,6 @@ ananicy-cpp's 15,000 "Game" process names only set priorities. Steam labels its 
 session-activated, so asking it for its games starts it; Isle asks only while the name has
 an owner.
 
-`STEAM_GAME` needs Smithay's window manager to read the property: the patch is on the
-fork's `xwayland-steam-game` branch, waiting to be pushed and merged before Isle pins it.
+`STEAM_GAME` needs Smithay's window manager to read the property: the fork's
+window manager reads it (alexparlett/smithay#2) and reports a change, and Isle
+works the game flag out again then.

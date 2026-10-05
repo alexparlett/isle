@@ -116,6 +116,23 @@ impl XdgShellHandler for State {
             .set_grab(self, grab, serial, Focus::Clear);
     }
 
+    fn client_pong(&mut self, client: smithay::wayland::shell::xdg::ShellClient) {
+        self.pong(client);
+    }
+
+    fn app_id_changed(&mut self, surface: ToplevelSurface) {
+        if let Some(id) = self.isle.wm.for_surface(surface.wl_surface()).map(|r| r.id) {
+            self.isle.refresh_identity(id);
+            self.isle.notify(crate::worker::Event::WindowsChanged);
+        }
+    }
+
+    fn title_changed(&mut self, surface: ToplevelSurface) {
+        if self.isle.wm.for_surface(surface.wl_surface()).is_some() {
+            self.isle.notify(crate::worker::Event::WindowsChanged);
+        }
+    }
+
     fn maximize_request(&mut self, surface: ToplevelSurface) {
         match self.isle.wm.for_surface(surface.wl_surface()).map(|r| (r.id, r.mapped)) {
             Some((id, true)) => {

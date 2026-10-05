@@ -16,6 +16,13 @@ pub enum Action {
     Restore,
     /// The next display (1) or the previous (-1).
     Display(i32),
+    Hide,
+    HideOthers,
+    Minimise,
+    MinimiseApp,
+    QuitApp,
+    /// The front app's next window, or its previous.
+    CycleWindows(bool),
     /// The kernel's VT keys, Ctrl+Alt+F1 to F12, which XKB turns into these keysyms.
     SwitchVt(i32),
 }
@@ -89,6 +96,13 @@ impl State {
             (&binds.tile_beside, Action::Tile(Zone::Beside)),
             (&binds.next_display, Action::Display(1)),
             (&binds.previous_display, Action::Display(-1)),
+            (&binds.hide, Action::Hide),
+            (&binds.hide_others, Action::HideOthers),
+            (&binds.minimise, Action::Minimise),
+            (&binds.minimise_app, Action::MinimiseApp),
+            (&binds.quit_app, Action::QuitApp),
+            (&binds.next_window, Action::CycleWindows(true)),
+            (&binds.previous_window, Action::CycleWindows(false)),
         ]
         .into_iter()
         .find(|(text, _)| parse(text) == Some(pressed))
@@ -100,17 +114,8 @@ impl State {
         match action {
             Action::Terminal => spawn(&self.isle.settings.binds.terminal_command),
             Action::CloseWindow => {
-                let focus = self
-                    .isle
-                    .seat
-                    .get_keyboard()
-                    .and_then(|k| k.current_focus());
-                if let Some(window) = focus
-                    .as_ref()
-                    .and_then(|f| f.surface())
-                    .and_then(|s| self.isle.window_for_surface(s))
-                {
-                    window.toplevel().unwrap().send_close();
+                if let Some(id) = self.focused_window() {
+                    self.close_window(id);
                 }
             }
             Action::Quit => self.isle.loop_signal.stop(),
@@ -126,6 +131,20 @@ impl State {
                 }
             }
             Action::Display(step) => self.move_to_display(step),
+            Action::Hide => {
+                if let Some(app) = self.isle.front_app() {
+                    self.set_app_hidden(&app, true);
+                }
+            }
+            Action::HideOthers => self.hide_others(),
+            Action::Minimise => self.minimise_focused(),
+            Action::MinimiseApp => self.minimise_app(),
+            Action::QuitApp => {
+                if let Some(app) = self.isle.front_app() {
+                    self.quit_app(&app);
+                }
+            }
+            Action::CycleWindows(forward) => self.cycle_app_windows(forward),
             Action::SwitchVt(vt) => self.switch_vt(vt),
         }
     }

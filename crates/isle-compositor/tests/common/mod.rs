@@ -16,13 +16,14 @@ pub struct Isle {
     pub dir: PathBuf,
     bus_pid: i32,
     compositor: Child,
-    clients: Vec<Child>,
+    clients: Vec<Arc<Mutex<Child>>>,
     pub bus: zbus::Connection,
 }
 
 pub struct Client {
     pub lines: Arc<Mutex<Vec<String>>>,
     stdin: Mutex<std::process::ChildStdin>,
+    child: Arc<Mutex<Child>>,
 }
 
 impl Client {
@@ -32,6 +33,11 @@ impl Client {
         let mut stdin = self.stdin.lock().unwrap();
         writeln!(stdin, "{command}").unwrap();
         stdin.flush().unwrap();
+    }
+
+    /// Whether the client's process has ended.
+    pub fn exited(&self) -> bool {
+        matches!(self.child.lock().unwrap().try_wait(), Ok(Some(_)))
     }
 
     pub fn printed(&self, line: &str) -> bool {
@@ -62,7 +68,13 @@ impl Isle {
     pub async fn start(name: &str) -> Self {
         let dir = std::env::temp_dir().join(format!("isle-headless-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
-        for sub in ["runtime", "config", "state"] {
+        for sub in [
+            "runtime",
+            "config",
+            "state",
+            "data/applications",
+            "data-system",
+        ] {
             fs::create_dir_all(dir.join(sub)).unwrap();
         }
         use std::os::unix::fs::PermissionsExt;
@@ -91,6 +103,8 @@ impl Isle {
             .env("XDG_RUNTIME_DIR", dir.join("runtime"))
             .env("ISLE_CONFIG_DIR", dir.join("config"))
             .env("XDG_STATE_HOME", dir.join("state"))
+            .env("XDG_DATA_HOME", dir.join("data"))
+            .env("XDG_DATA_DIRS", dir.join("data-system"))
             .env("DBUS_SESSION_BUS_ADDRESS", &bus_address)
             .env(
                 "RUST_LOG",
@@ -170,8 +184,13 @@ impl Isle {
                 sink.lock().unwrap().push(line);
             }
         });
-        self.clients.push(child);
-        Client { lines, stdin }
+        let child = Arc::new(Mutex::new(child));
+        self.clients.push(child.clone());
+        Client {
+            lines,
+            stdin,
+            child,
+        }
     }
 
     pub async fn windows(&self) -> Vec<isle_ipc::WindowInfo> {
@@ -210,14 +229,13 @@ impl Isle {
 
 impl Drop for Isle {
     fn drop(&mut self) {
-        for child in self
-            .clients
-            .iter_mut()
-            .chain(std::iter::once(&mut self.compositor))
-        {
+        for child in &self.clients {
+            let mut child = child.lock().unwrap();
             let _ = child.kill();
             let _ = child.wait();
         }
+        let _ = self.compositor.kill();
+        let _ = self.compositor.wait();
         let _ = Command::new("kill").arg(self.bus_pid.to_string()).status();
         if std::env::var_os("ISLE_TEST_KEEP").is_none() {
             let _ = fs::remove_dir_all(&self.dir);

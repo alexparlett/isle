@@ -28,7 +28,7 @@ impl Isle {
             .and_then(|p| self.wm.for_surface(&p))
             .map(|r| r.id);
         if let Some(record) = self.wm.get_mut(id) {
-            record.app = record.names().0;
+            record.app = self.apps.resolve(&record.names().0);
             record.parent = parent;
         }
     }

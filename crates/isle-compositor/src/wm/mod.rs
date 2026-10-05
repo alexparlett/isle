@@ -1,10 +1,12 @@
 //! Every toplevel the compositor manages, from its creation to its destruction. Smithay's
 //! `Space` holds only the ones shown now; the rest keep their record here.
 
+mod apps;
 pub mod geometry;
 mod places;
 mod tiling;
 
+pub use apps::watch as watch_apps;
 pub use tiling::ZonePreview;
 
 use isle_ipc::WindowInfo;
@@ -63,6 +65,10 @@ pub struct Record {
     pub hidden: bool,
     /// Placed after its first buffer; until then it is not shown.
     pub mapped: bool,
+    /// It asked for focus without a fresh activation token.
+    pub attention: bool,
+    /// Its client missed a ping and has not answered since.
+    pub not_responding: bool,
     /// Its box in the global space: where it is while shown, where it returns to while not.
     pub rect: Rectangle<i32, Logical>,
     suspended: bool,
@@ -197,13 +203,21 @@ impl Wm {
         Some(self.modal_of(child.id).unwrap_or(child.id))
     }
 
+    /// Shown, and its parent too: a dialog goes with its parent.
+    pub fn is_shown(&self, id: u64) -> bool {
+        let Some(record) = self.get(id) else {
+            return false;
+        };
+        record.shown() && record.parent.is_none_or(|p| self.is_shown(p))
+    }
+
     /// The most recently focused window still shown.
     pub fn most_recent_shown(&self) -> Option<&Record> {
         self.recent
             .iter()
             .filter_map(|id| self.get(*id))
-            .find(|r| r.shown())
-            .or_else(|| self.records.iter().rev().find(|r| r.shown()))
+            .find(|r| self.is_shown(r.id))
+            .or_else(|| self.records.iter().rev().find(|r| self.is_shown(r.id)))
     }
 }
 
@@ -239,6 +253,8 @@ impl Isle {
             minimised: false,
             hidden: false,
             mapped: false,
+            attention: false,
+            not_responding: false,
             rect: Rectangle::default(),
             suspended: false,
         });
@@ -261,8 +277,15 @@ impl Isle {
             }
         }
         let mut changed = false;
+        let parked: Vec<u64> = self
+            .wm
+            .records
+            .iter()
+            .filter(|r| !self.wm.is_shown(r.id))
+            .map(|r| r.id)
+            .collect();
         for record in &mut self.wm.records {
-            let shown = record.shown() && record.window.alive();
+            let shown = !parked.contains(&record.id) && record.window.alive();
             let mapped = self.space.element_location(&record.window).is_some();
             if shown && !mapped {
                 self.space
@@ -334,6 +357,8 @@ impl Isle {
                     minimised: record.minimised,
                     hidden: record.hidden,
                     parent: record.parent.unwrap_or(0),
+                    attention: record.attention,
+                    not_responding: record.not_responding,
                 }
             })
             .collect()
@@ -469,6 +494,8 @@ impl State {
             }
         }
         self.isle.notify(Event::WindowsChanged);
+        self.isle.pings.retain(|(_, i)| *i != id);
+        self.finish_quits();
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         if keyboard
             .current_focus()

@@ -73,6 +73,14 @@ pub struct Isle {
     pub space: Space<Window>,
     pub wm: crate::wm::Wm,
     pub places: isle_state::domains::Places,
+    /// The desktop entries, which name apps.
+    pub apps: std::sync::Arc<isle_apps::Index>,
+    /// Apps being quit, with the processes that get the polite signal once their windows go.
+    pub quitting: Vec<(String, Vec<i32>)>,
+    /// Pings awaiting their pong, by client and the window that prompted them.
+    pub pings: Vec<(smithay::wayland::shell::xdg::ShellClient, u64)>,
+    /// The pointer's image before the busy one replaced it over a window not responding.
+    pub cursor_before_busy: Option<CursorImageStatus>,
     /// The zone a window being dragged would tile to.
     pub zone_preview: Option<crate::wm::ZonePreview>,
     pub places_saver: Option<crate::state_writer::Saver<isle_state::domains::Places>>,
@@ -217,6 +225,10 @@ impl Isle {
             space: Space::default(),
             wm: Default::default(),
             places: Default::default(),
+            apps: Default::default(),
+            quitting: Vec::new(),
+            pings: Vec::new(),
+            cursor_before_busy: None,
             zone_preview: None,
             places_saver: None,
             popups: PopupManager::default(),
@@ -484,6 +496,9 @@ impl State {
             .and_then(|w| self.isle.wm.modal_of(crate::wm::window_id(w)))
             .and_then(|id| self.isle.window_by_id(id));
         let window = modal.as_ref().or(window);
+        if let Some(record) = window.and_then(|w| self.isle.wm.get_mut(crate::wm::window_id(w))) {
+            record.attention = false;
+        }
         let surface = self.isle.focus_window(window);
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();

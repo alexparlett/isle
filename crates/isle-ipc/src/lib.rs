@@ -55,6 +55,21 @@ pub struct WindowInfo {
     pub hidden: bool,
     /// The window it is a dialog of, or 0.
     pub parent: u64,
+    /// It asked for focus without a fresh activation token.
+    pub attention: bool,
+    pub not_responding: bool,
+}
+
+/// An app with windows, as the switcher sees it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct AppInfo {
+    /// Its desktop id, or its windows' app id when no entry claims it.
+    pub app: String,
+    pub name: String,
+    pub hidden: bool,
+    pub windows: u32,
+    pub attention: bool,
+    pub not_responding: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -183,6 +198,12 @@ pub mod windows {
         fn close(&self, id: u64) -> zbus::Result<bool>;
         fn minimise(&self, id: u64) -> zbus::Result<bool>;
         fn unminimise(&self, id: u64) -> zbus::Result<bool>;
+        /// Apps with windows, most recently used first.
+        fn apps(&self) -> zbus::Result<Vec<AppInfo>>;
+        /// Shows an app's windows and focuses its most recent; false when it has none.
+        fn activate_app(&self, app: &str) -> zbus::Result<bool>;
+        /// Closes every window of an app, then signals its processes; false when it has none.
+        fn quit_app(&self, app: &str) -> zbus::Result<bool>;
         /// Hides or shows every window of an app; false when it has none.
         fn set_app_hidden(&self, app: &str, hidden: bool) -> zbus::Result<bool>;
         /// Tiles a window to a zone by name (`left-half`, `fill`, ...); false when the window

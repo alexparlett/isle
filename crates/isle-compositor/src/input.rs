@@ -132,6 +132,7 @@ impl State {
             },
         );
         pointer.frame(self);
+        self.refresh_pointer_cursor();
         // A nested backend's host draws named cursors; everywhere else the cursor is
         // Isle's to draw, so it moves only with a redraw.
         let host_draws = matches!(self.backend, crate::backend::Backend::Winit(_))
@@ -167,6 +168,9 @@ impl State {
                         .element_under(location)
                         .map(|(w, _)| w.clone());
                     self.set_focus(window.as_ref());
+                    if let Some(window) = window {
+                        self.ping(crate::wm::window_id(&window));
+                    }
                 }
             }
         }

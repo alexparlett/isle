@@ -34,6 +34,8 @@ enum Command {
     #[command(subcommand)]
     Windows(Windows),
     #[command(subcommand)]
+    Apps(Apps),
+    #[command(subcommand)]
     Displays(Displays),
     #[command(subcommand)]
     Settings(Settings),
@@ -72,6 +74,16 @@ enum Windows {
         width: i32,
         height: i32,
     },
+}
+
+#[derive(Subcommand)]
+enum Apps {
+    /// Apps with windows, most recently used first.
+    List,
+    /// Show an app's windows and focus its most recent.
+    Activate { app: String },
+    /// Close an app's windows, then end its processes.
+    Quit { app: String },
 }
 
 #[derive(Subcommand)]
@@ -235,6 +247,39 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     width,
                     height,
                 } => found(proxy.set_box(*id, *x, *y, *width, *height).await?, *id)?,
+            }
+        }
+        Command::Apps(command) => {
+            let proxy = WindowsProxy::new(&bus).await?;
+            match command {
+                Apps::List => {
+                    let apps = proxy.apps().await?;
+                    if cli.json {
+                        print_json(&apps);
+                    } else {
+                        for a in apps {
+                            let mut marks = Vec::new();
+                            if a.hidden {
+                                marks.push("hidden");
+                            }
+                            if a.attention {
+                                marks.push("attention");
+                            }
+                            if a.not_responding {
+                                marks.push("not responding");
+                            }
+                            println!(
+                                "{:<32} {:<24} {} window(s) {}",
+                                a.app,
+                                a.name,
+                                a.windows,
+                                marks.join(", ")
+                            );
+                        }
+                    }
+                }
+                Apps::Activate { app } => app_found(proxy.activate_app(app).await?, app)?,
+                Apps::Quit { app } => app_found(proxy.quit_app(app).await?, app)?,
             }
         }
         Command::Displays(Displays::Redetect) => DisplaysProxy::new(&bus).await?.redetect().await?,

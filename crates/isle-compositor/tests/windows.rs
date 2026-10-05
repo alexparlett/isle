@@ -461,3 +461,191 @@ async fn ctrl_cmd_drag_moves_a_window_without_reaching_it() {
     .await;
     assert!(!client.printed("button 272 pressed"));
 }
+
+async fn keep_running(isle: &Isle, apps: &[&str]) {
+    let settings = isle_ipc::settings::SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    let list: Vec<String> = apps.iter().map(|a| a.to_string()).collect();
+    settings
+        .set("windows.keep-running", &zvariant::Value::from(list))
+        .await
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn closing_a_keep_running_apps_last_window_hides_it_and_quit_ends_it() {
+    let mut isle = Isle::start("keep").await;
+    keep_running(&isle, &["isle.test.Keep"]).await;
+    let _other = isle.client("isle.test.Other", "0000ff");
+    isle.wait_for_window("isle.test.Other").await;
+    let keep = isle.client_with(&["--app-id", "isle.test.Keep", "--do", "linger"]);
+    let main = isle.wait_for_window("isle.test.Keep").await;
+    keep.send("window");
+    keep.wait_for("w1 configured 300 200").await;
+    wait_until(|| async { isle.windows().await.len() == 3 }).await;
+    let second = isle
+        .windows()
+        .await
+        .into_iter()
+        .find(|w| w.app == "isle.test.Keep" && w.id != main.id)
+        .unwrap();
+
+    let windows = isle.windows_proxy().await;
+    // Not the last: it closes.
+    assert!(windows.close(second.id).await.unwrap());
+    keep.wait_for("w1 closed").await;
+    wait_until(|| async { isle.windows().await.len() == 2 }).await;
+    // The last: the app hides instead.
+    assert!(windows.close(main.id).await.unwrap());
+    wait_until(|| async { isle.window(main.id).await.hidden }).await;
+    assert!(!keep.printed("closed"));
+
+    // Quit closes it even so, and ends the process its windows left running.
+    assert!(windows.quit_app("isle.test.Keep").await.unwrap());
+    keep.wait_for("closed").await;
+    wait_until(|| async { keep.exited() }).await;
+    assert!(
+        windows
+            .apps()
+            .await
+            .unwrap()
+            .iter()
+            .all(|a| a.app != "isle.test.Keep")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn hide_then_activate_brings_an_app_back_in_its_order() {
+    let mut isle = Isle::start("hideapp").await;
+    let _other = isle.client("isle.test.Other", "0000ff");
+    isle.wait_for_window("isle.test.Other").await;
+    let app = isle.client("isle.test.Front", "ff0000");
+    let main = isle.wait_for_window("isle.test.Front").await;
+    app.send("window");
+    app.wait_for("w1 keyboard-enter").await;
+
+    isle.chord(&[keys::SUPER, 35]).await; // Cmd+H
+    wait_until(|| async {
+        isle.windows()
+            .await
+            .iter()
+            .filter(|w| w.app == "isle.test.Front")
+            .all(|w| w.hidden)
+    })
+    .await;
+    assert!(
+        isle.windows()
+            .await
+            .iter()
+            .any(|w| w.app == "isle.test.Other" && w.focused)
+    );
+    let apps = isle.windows_proxy().await.apps().await.unwrap();
+    assert_eq!(apps[0].app, "isle.test.Other", "most recent first");
+    assert!(
+        apps.iter()
+            .any(|a| a.app == "isle.test.Front" && a.hidden && a.windows == 2)
+    );
+
+    assert!(
+        isle.windows_proxy()
+            .await
+            .activate_app("isle.test.Front")
+            .await
+            .unwrap()
+    );
+    let listed = isle.windows().await;
+    let front: Vec<&isle_ipc::WindowInfo> = listed.iter().take(2).collect();
+    assert!(
+        front
+            .iter()
+            .all(|w| w.app == "isle.test.Front" && !w.hidden)
+    );
+    assert!(
+        front[0].focused && front[0].id != main.id,
+        "the most recent in front, focused"
+    );
+
+    isle.chord(&[keys::SUPER, keys::ALT, 35]).await; // Cmd+Option+H
+    wait_until(|| async {
+        isle.windows()
+            .await
+            .iter()
+            .any(|w| w.app == "isle.test.Other" && w.hidden)
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cmd_backtick_walks_the_front_apps_windows_in_a_stable_order() {
+    let mut isle = Isle::start("cycle").await;
+    let app = isle.client("isle.test.Cycle", "ff0000");
+    let main = isle.wait_for_window("isle.test.Cycle").await;
+    app.send("window");
+    app.wait_for("w1 keyboard-enter").await;
+    app.send("window");
+    app.wait_for("w2 keyboard-enter").await;
+    let ids: Vec<u64> = {
+        let mut ids: Vec<u64> = isle.windows().await.iter().map(|w| w.id).collect();
+        ids.sort();
+        ids
+    };
+    assert_eq!(ids[0], main.id);
+    let focused = || async {
+        isle.windows()
+            .await
+            .into_iter()
+            .find(|w| w.focused)
+            .unwrap()
+            .id
+    };
+    assert_eq!(focused().await, ids[2]);
+    for want in [ids[0], ids[1], ids[2], ids[0]] {
+        isle.chord(&[keys::SUPER, 41]).await; // Cmd+`
+        wait_until(|| async { focused().await == want }).await;
+    }
+    isle.chord(&[keys::SUPER, keys::SHIFT, 41]).await;
+    wait_until(|| async { focused().await == ids[2] }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_that_misses_a_ping_is_marked_until_it_answers() {
+    let mut isle = Isle::start("ping").await;
+    let client = isle.client("isle.test.Hung", "ff0000");
+    let w = isle.wait_for_window("isle.test.Hung").await;
+    client.send("pings ignore");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let test = isle.test().await;
+    test.pointer_to(w.x as f64 + 50.0, w.y as f64 + 50.0)
+        .await
+        .unwrap();
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    client.wait_for("ping ignored").await;
+    assert!(!isle.window(w.id).await.not_responding);
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while !isle.window(w.id).await.not_responding {
+        assert!(std::time::Instant::now() < deadline, "never marked");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    client.send("pings answer");
+    wait_until(|| async { !isle.window(w.id).await.not_responding }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_belongs_to_the_app_whose_entry_claims_it() {
+    let mut isle = Isle::start("entries").await;
+    let _client = isle.client("isle.test.claimed", "ff0000");
+    isle.wait_for_window("isle.test.claimed").await;
+    std::fs::write(
+        isle.dir.join("data/applications/isle-fixture.desktop"),
+        "[Desktop Entry]\nType=Application\nName=Fixture\nStartupWMClass=isle.test.Claimed\n",
+    )
+    .unwrap();
+    wait_until(|| async {
+        let apps = isle.windows_proxy().await.apps().await.unwrap();
+        apps.iter()
+            .any(|a| a.app == "isle-fixture" && a.name == "Fixture")
+    })
+    .await;
+}

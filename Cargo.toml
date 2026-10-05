@@ -10,6 +10,7 @@ rust-version = "1.97"
 publish = false
 
 [workspace.dependencies]
+isle-apps = { path = "crates/isle-apps" }
 isle-ipc = { path = "crates/isle-ipc" }
 isle-settings = { path = "crates/isle-settings" }
 isle-settings-derive = { path = "crates/isle-settings-derive" }

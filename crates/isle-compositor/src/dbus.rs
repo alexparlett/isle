@@ -86,16 +86,19 @@ impl Windows {
     }
 
     async fn close(&self, id: u64) -> fdo::Result<bool> {
-        Ok(self
-            .to_loop
-            .call(move |state| match state.isle.wm.get(id) {
-                Some(record) => {
-                    record.send_close();
-                    true
-                }
-                None => false,
-            })
-            .await?)
+        Ok(self.to_loop.call(move |state| state.close_window(id)).await?)
+    }
+
+    async fn apps(&self) -> fdo::Result<Vec<isle_ipc::AppInfo>> {
+        Ok(self.to_loop.call(|state| state.isle.app_infos()).await?)
+    }
+
+    async fn activate_app(&self, app: String) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.activate_app(&app)).await?)
+    }
+
+    async fn quit_app(&self, app: String) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.quit_app(&app)).await?)
     }
 
     async fn minimise(&self, id: u64) -> fdo::Result<bool> {

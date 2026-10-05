@@ -97,6 +97,10 @@ pub fn spawn(
             runtime.spawn(supervise("tokens-watch", move || {
                 crate::tokens::watch(loop_t.clone())
             }));
+            let loop_a = to_loop.clone();
+            runtime.spawn(supervise("apps-watch", move || {
+                crate::wm::watch_apps(loop_a.clone())
+            }));
             runtime.block_on(supervise("dbus", move || {
                 crate::dbus::serve(to_loop.clone(), events.clone(), store.clone())
             }));

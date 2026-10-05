@@ -7,7 +7,9 @@
 //! `size W H` (draw at that size), `geometry X Y W H` (the window's geometry within a larger
 //! buffer), `decoration client|server|unset`, `move-on-press`, `resize-on-press EDGE`,
 //! `window` (another toplevel), `dialog` and `modal` (a toplevel whose parent is this one),
-//! `destroy`, `pings ignore|answer`, `quit`.
+//! `destroy`, `pings ignore|answer` (answering those ignored so far), `linger` (a close of the
+//! first window destroys it but leaves the process running), `quit`. A close of any other
+//! window destroys it.
 
 use std::{
     io::{BufRead, Write},
@@ -51,6 +53,8 @@ struct Client {
     dialogs: Option<xdg_wm_dialog_v1::XdgWmDialogV1>,
     wins: Vec<Win>,
     ignore_pings: bool,
+    ignored_pings: Vec<u32>,
+    linger: bool,
     /// The next button press starts a move, or a resize from this edge.
     on_press: Option<Option<xdg_toplevel::ResizeEdge>>,
     /// The window the pointer is over, by index.
@@ -238,7 +242,17 @@ impl Client {
                 win.gone = true;
                 say(index, "destroyed".into());
             }
-            ("pings", _) => self.ignore_pings = rest.first() == Some(&"ignore"),
+            ("pings", _) => {
+                self.ignore_pings = rest.first() == Some(&"ignore");
+                if !self.ignore_pings
+                    && let Some(base) = &self.wm_base
+                {
+                    for serial in self.ignored_pings.drain(..) {
+                        base.pong(serial);
+                    }
+                }
+            }
+            ("linger", _) => self.linger = true,
             ("quit", _) => self.quit = true,
             _ => say(index, format!("unknown command {verb}")),
         }
@@ -292,6 +306,7 @@ impl Dispatch<xdg_wm_base::XdgWmBase, ()> for Client {
         if let xdg_wm_base::Event::Ping { serial } = event {
             if state.ignore_pings {
                 say(0, "ping ignored".into());
+                state.ignored_pings.push(serial);
             } else {
                 base.pong(serial);
             }
@@ -355,8 +370,16 @@ impl Dispatch<xdg_toplevel::XdgToplevel, usize> for Client {
             }
             xdg_toplevel::Event::Close => {
                 say(*index, "closed".into());
-                if *index == 0 {
+                if *index == 0 && !state.linger {
                     state.quit = true;
+                } else {
+                    let win = &mut state.wins[*index];
+                    if let Some((surface, toplevel)) = win.xdg.take() {
+                        toplevel.destroy();
+                        surface.destroy();
+                    }
+                    win.surface.destroy();
+                    win.gone = true;
                 }
             }
             _ => {}
@@ -589,6 +612,8 @@ fn main() {
         dialogs: None,
         wins: Vec::new(),
         ignore_pings: false,
+        ignored_pings: Vec::new(),
+        linger: false,
         on_press: None,
         pointer_on: None,
         quit: false,

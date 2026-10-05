@@ -154,6 +154,21 @@ pub struct Windows {
     /// Tiled and filled windows keep a margin around and between them.
     #[setting(default = true)]
     pub tile_margins: bool,
+    /// Apps, by desktop id, that closing their last window hides rather than closes.
+    pub keep_running: Vec<String>,
+    /// What double-clicking a title bar does.
+    #[setting(default = TitlebarAction::Fill)]
+    pub titlebar_action: TitlebarAction,
+    /// Isle draws title bars on windows that let it.
+    #[setting(default = true)]
+    pub title_bars: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum TitlebarAction {
+    Fill,
+    Minimise,
+    None,
 }
 
 /// Until P5's shortcut set: a chord per action, written as `Super+Return`; empty turns one
@@ -194,6 +209,21 @@ pub struct Binds {
     pub next_display: String,
     #[setting(default = "Ctrl+Alt+Super+Left".to_owned())]
     pub previous_display: String,
+    #[setting(default = "Super+H".to_owned())]
+    pub hide: String,
+    #[setting(default = "Super+Alt+H".to_owned())]
+    pub hide_others: String,
+    #[setting(default = "Super+M".to_owned())]
+    pub minimise: String,
+    #[setting(default = "Super+Alt+M".to_owned())]
+    pub minimise_app: String,
+    #[setting(default = "Super+Q".to_owned())]
+    pub quit_app: String,
+    /// The front app's next window.
+    #[setting(default = "Super+grave".to_owned())]
+    pub next_window: String,
+    #[setting(default = "Super+Shift+grave".to_owned())]
+    pub previous_window: String,
     /// The terminal the bind starts.
     #[setting(default = "kitty".to_owned())]
     pub terminal_command: String,

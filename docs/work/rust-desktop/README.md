@@ -16,4 +16,5 @@ one at a time.
 - `p3-shell-runtime.md`: P3, the shell runtime.
 - `p4-windows.md`: P4, windows.
 - `p5-keyboard.md`: P5, keyboard.
+- `p6-island-and-menus.md`: P6, the island, menus and wallpaper.
 - Evidence: `docs/research/rust-desktop/`.

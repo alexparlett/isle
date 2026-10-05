@@ -2,6 +2,9 @@
 
 ## 2026-10-05
 
+- P6 planned: island, menus and wallpaper. Reviewed; every
+  recommendation taken, kept as one packet.
+
 - P5 host run by the user on tty8: both keyboards and the apps behaved.
   Found and fixed: the US layout by default, and no input after a start on
   a console not in front.

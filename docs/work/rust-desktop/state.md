@@ -229,3 +229,13 @@
   Ctrl. Fixed on the way: the layout defaults to the system's, and input is
   opened when a session started on another console comes to the front.
 
+- P6 planned in `p6-island-and-menus.md` (2026-10-05), reviewed: the user
+  took every recommendation and kept it one packet. It covers
+  the wallpaper as a compositor element, the island as one shape the
+  compositor springs over a tree fed the spring's progress, one queue model
+  sources post to, the top edge decided in one place, Control Centre's frame
+  with Dark Mode and Keyboard layout, `isle-ui`'s first components, the bar
+  as one surface per output, `isle-menus` with the registrar before the
+  first client, `org_kde_kwin_appmenu`, `gtk_shell1` v5 with title-bar
+  gestures, the fallback from labelled table rules, search, the window
+  menu, a launch path. Research in `global-menu-2026.md`. Phases 6.0–6.8.

@@ -477,3 +477,41 @@ focus by direction (P20).
   and 5.6 checks a native and a Proton game on the host.
 - **Alt in Electron and Chromium.** Withholding Option is meant to stop
   menus opening; VS Code's Option chords are checked on the host.
+
+## Outcome
+
+Phases 5.0 to 5.6 passed their checks headless and in the VM, with these
+differences from the plan:
+
+- **Text injection** goes through a keymap made for the characters
+  (Smithay's `inject_text_keysyms`), not text-input-v3: serving it with the
+  compositor as the input method makes GTK 4 hand composition to it, which
+  would take dead keys from every GTK app. text-input-v3 is not served.
+- **Dialog rules by title** are not needed: the close and quit chords of
+  an app's table apply to main windows only, and dialogs are closed by the
+  compositor.
+- **An old `binds` block** is ignored silently; the settings derive gained
+  retired names and a cross-field check for the clash refusal.
+- **GameMode** is session-activated, so asking it for games started it (the
+  test bus found this); Isle asks only while the name has an owner.
+- **`STEAM_GAME`** needed the Smithay fork to read it:
+  alexparlett/smithay#2.
+- **Devices with no letter keys** (the power button) are kept but left out
+  of the keyboard list. The list is empty after start until the first
+  input event, since libinput's added devices are dispatched with it.
+- **The X11 map test** read a window's focus from before Xwayland's focus
+  arrived; it now waits, as the extra worker thread at map moved the
+  timing.
+
+Tests: `cargo test --workspace --features isle-compositor/test-hooks`, with
+`isle-keys`' 25 unit tests (engine, chords, keymaps, tables) and 23 headless
+tests for P5: keyboards and keymaps, the engine end to end, every chord of the
+set, clashes, held chords, every shipped table rule typed into an app it
+applies to, games, inhibitors, injection, recording, Sticky and Slow Keys.
+Findings in `docs/research/rust-desktop/p5-keyboard.md`.
+
+Left for the user's host run on tty8: both keyboards (the Keychron and the PC
+keyboard behind the KVM) typing the same password and £ € #; Cmd+C, Cmd+V,
+Cmd+W and Cmd+Q in Chromium, kitty, VS Code, a GTK 4 and a Qt 6 app; a game
+with Ctrl as crouch; xremap stopped by the session.
+

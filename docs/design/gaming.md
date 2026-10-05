@@ -57,6 +57,8 @@ v1 lessons kept: inventory §3.8 (GameMode or launcher class, both needed: not e
 
 Open for its packet: whether `*.exe` matching catches Wine installers and launchers that are not games; process mapping for Flatpak Steam (macos OPEN on Flatpak PIDs).
 
+Built in part by P5 (B46): the flag on the window's record, set from Steam's `STEAM_GAME` X11 label, `steam_app_` and gamescope classes, `SteamGameId` in the process environment, GameMode registrations, `.exe` classes, and `windows.games` and `windows.not-games` for rule 2. P12 adds the launcher ancestry of rule 1 and rule 6.
+
 ### Games as apps
 
 The user gets: the switcher, Spotlight, Mission Control and per-app volume show a game's name and cover, never `steam_app_1245620`.
@@ -136,6 +138,8 @@ Requires of `compositor.md`: the escape set in the keyboard filter.
 v1 lessons kept: macos §2.4 (Ctrl must reach games as Ctrl); macos §2.5 (games read keys from the compositor, so translating nothing is the whole guarantee).
 
 Open for its packet: whether the escape set survives a game's keyboard-shortcuts-inhibit or Xwayland keyboard grab, so a hung game cannot trap the session.
+
+Settled in P5: it does. A game's inhibitor or grab is granted, but the escape set still acts over a game (B46).
 
 ### Presentation: direct scanout, VRR, tearing
 

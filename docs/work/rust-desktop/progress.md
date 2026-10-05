@@ -2,6 +2,29 @@
 
 ## 2026-10-05
 
+- P5 closed but for the user's host run. ARCHITECTURE describes how keys are
+  read; B44–B46 record the seat fed only Isle's keys, the tables as a data
+  file, and the game flag.
+
+- P5 5.6: the VM. Cmd chords reach wev and xev with modifiers that agree
+  with the keys; Option types # through Xwayland on a Mac profile; GTK 4
+  pastes with Cmd+V. xremap stops when the Isle session starts.
+
+- P5 5.5: Sticky Keys and Slow Keys.
+
+- P5 5.4: games from Steam's labels and GameMode, inhibitors and Cmd+Escape,
+  Isle's own keys, recording. GameMode is session-activated, so Isle asks it
+  only while it runs.
+
+- P5 5.3: the translation tables; every shipped rule typed into an app.
+
+- P5 5.2: the shortcut set, with clashes refused.
+
+- P5 5.1: the engine. Num Lock had reached Freya as a held modifier and
+  stopped Tab moving focus in shell surfaces.
+
+- P5 5.0: keyboards, profiles and keymaps.
+
 - P5 planned: keyboard. Reviewed; v1's chords revisited, games read from
   Steam's labels.
 

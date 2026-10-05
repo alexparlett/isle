@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B43 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B46 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -211,3 +211,17 @@
   Sticky and Slow Keys, xremap retired. The user took every
   recommendation, with v1's chords revisited rather than carried and the
   game flag read from Steam's own labels. Phases 5.0–5.7.
+- P5 5.0–5.6 done (2026-10-05): `isle-keys` (profiles, keymaps, chords,
+  the shortcut table, translation tables, the engine); keyboards by name
+  with Mac and PC profiles, the seat's keymap following the typing
+  keyboard; Cmd and Option withheld and translated, one focus path; the
+  `shortcuts` section with clash refusal, reserved chords, media keys,
+  held chords; `data/keys/translation.kdl`; games, inhibitors with
+  Cmd+Escape, Isle's own keys, recording; Sticky and Slow Keys; xremap
+  conflicted away. Checked headless and in the VM (wev, xev, kitty, GTK 4).
+- P5 closed but for the user's host run (2026-10-05): ARCHITECTURE has How
+  keys are read, B44–B46 are recorded, `compositor.md`'s and `gaming.md`'s
+  open points answered, `p5-keyboard.md` ends with its outcome. The
+  STEAM_GAME read waits for alexparlett/smithay#2 to merge and Isle to pin
+  it. Next: P6 (island and menus).
+

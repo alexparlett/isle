@@ -35,6 +35,9 @@ whose open questions are listed under For the design process.
 - B26: the greeter is the compositor in a greeter mode under greetd, reusing the lock screen.
 - B28: ext-session-lock is not served (the lock is Isle's); layer-shell is.
 - B30: Cmd+Q quits keep-running apps too; Alt and Super swap on PC keyboards by default; the game escape set; VRR while a full-screen app is in front.
+- B44: the seat sees only the keys Isle sends; Cmd and Option are withheld until the next key decides them; focus moves through one path.
+- B45: the translation tables are a shipped data file with the user's over it.
+- B46: a game is a flag on the window's record, from Steam's labels, GameMode and the user's lists.
 
 ## Features
 
@@ -296,6 +299,8 @@ every gesture also has a key and a mouse route, since the host is a desktop.
 
 **Open for its packet.** Smithay keeps one XKB state per seat; how keyboards with different keymaps share a seat without sending a new keymap on every device switch.
 
+**Settled in P5.** Keyboards with the same configuration share a compiled keymap, and the seat takes the typing keyboard's keymap at its first key, only while no key is held, so a switch happens when the other keyboard types, not per key. The PC swap is of the left Alt and Super only; right Alt stays AltGr. Option types a Mac keyboard's third-level symbol from either side, and is Alt for a key without one.
+
 ### Cmd translation
 
 Super acts as Cmd everywhere: Cmd+C copies in every app, translated in the
@@ -317,6 +322,8 @@ macos-model.md §2).
 
 **Open for its packet.** Whether synthetic modifier key events are needed for Xwayland beyond the `modifiers` event. text-input-v3 as a "text field focused" signal, so Cmd+← is Home in a field and Back elsewhere. kitty's Shift+Insert. All three are macos-model.md OPEN.
 
+**Settled in P5.** The seat is fed only the keys Isle sends, modifier keys included, and X11 state agrees with them (`xev` in the VM), so nothing synthetic is added (B44). text-input-v3 is not used: Cmd+← is Home everywhere and Cmd+[ and ] are Back and Forward in browsers. Terminals paste with Ctrl+Shift+V, so kitty's Shift+Insert is not needed; VS Code copies and pastes with the Insert chords, which work in its terminal too. The tables are `data/keys/translation.kdl` (B45).
+
 ### Shortcuts and keybinds
 
 1. The shortcut set is data: each action has an id, a label and a default Mac chord; overrides live in `settings.kdl` and apply live.
@@ -329,9 +336,9 @@ macos-model.md §2).
 8. Escape closes an open shell overlay and is consumed only then.
 9. Bound actions run in the compositor; only app launches start a process.
 
-**v1 lessons kept.** Inventory §16: a plain release bind was suppressed after Super+Tab, so commit needed a transparent non-consuming bind; the compositor sees releases directly. Inventory §11: every v1 action keeps a chord (focus by direction, pin, capture, record, colour pick, dashboard, settings, monitor, power, lock, do not disturb, game mode, keyboard, zoom, redetect, log out); v1's Big Picture chord goes with Isle's console mode (B22).
+**v1 lessons kept.** Inventory §16: a plain release bind was suppressed after Super+Tab, so commit needed a transparent non-consuming bind; the compositor sees releases directly. Inventory §11: every v1 action keeps its capability; its chord is kept where macOS has one or nothing else reaches the action (P5 review), so redetect keeps Ctrl+Option+Cmd+R and Settings, Monitor, Files, a terminal, pin and focus by direction have none by default; v1's Big Picture chord goes with Isle's console mode (B22).
 
-**Open for its packet.** Chords for v1 actions with no Mac counterpart.
+**Settled in P5.** The set is the `shortcuts` section, a field per action; actions later packets build are reserved, so their chords never reach apps. The layout chord is Ctrl+Space, live only with two or more layouts. Zoom's chords are macOS's, off by default. A held chord is told when its modifiers are released, which the switcher commits on.
 
 ### Keyboard-shortcuts-inhibit and injected input
 
@@ -345,6 +352,8 @@ Isle types on the user's behalf reach the right window untouched.
 **v1 lessons kept.** D37: v1 typed through `wtype`, a process per key; injection is in-process here.
 
 **Open for its packet.** The escape chord, which must not be Cmd+Ctrl+Escape (stop a recording, P1 `capture.md`) or Cmd+Option+Esc (Force Quit). Inhibitors are granted always, shown by the island's glyph and a notice in the window (P1, `window-chrome.md`). Whether libei is served for portal RemoteDesktop.
+
+**Settled in P5.** The escape chord is Cmd+Escape: it takes the keys back and gives them back; focus leaving takes them back until the window returns. Xwayland's keyboard grabs count as inhibitors. Over a game the escape set survives its inhibitor (B46). Isle's own keys are aimed at a window by id; text goes through a keymap made for it, since text-input-v3 with the compositor as input method would take dead keys from GTK. libei is P11's.
 
 ### Gaming display path
 

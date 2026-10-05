@@ -165,6 +165,35 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   X server starts with the compositor and again if it dies, on the same
   display.
 
+## How keys are read
+
+- **From device to client.** A key arrives with its keyboard. The keyboard's
+  profile (Mac or PC, guessed from its name or set in `keyboard-device`)
+  gives its keymap, its layouts with XKB's `mac` variant on a Mac keyboard,
+  and on a PC keyboard trades left Alt and left Super so Cmd sits beside
+  the space bar. The seat has one keymap, the last typing keyboard's,
+  switched only while no key is held.
+- **The engine.** `isle-keys` takes the physical keys and decides what the
+  focused client is sent (B44): Cmd and Option are withheld until the next
+  key or click decides them, a desktop chord from the shortcut set runs its
+  action, a translation rule or the general rule (Cmd as Ctrl, Option as a
+  Mac keyboard's third level or as Alt) is sent with exactly its modifiers,
+  which are put back as the held keys imply when it ends. The seat is fed
+  only these keys, so the modifiers a client sees always agree with the
+  keys it was sent, Xwayland included.
+- **Context.** Translation, withholding and the swap are off for a game
+  (B46), for a window holding the keys (keyboard-shortcuts-inhibit or an
+  Xwayland grab, until Cmd+Escape) and for an untranslated app; over a game
+  only the escape set acts, over a window holding the keys only Cmd+Escape.
+- **Focus.** Every change of keyboard focus goes through one function that
+  releases what the old focus holds and sends the new one the modifiers
+  still meant, so no modifier sticks across Cmd+Tab, Cmd+W or a dialog.
+- **The shortcut set and the tables.** The set is the `shortcuts` section,
+  a field per action, refused whole when a chord is bound twice. The
+  translation tables are a shipped data file with the user's over it
+  (B45). Isle's own keys (paste, emoji) are aimed at a window by id and
+  sent as that app's own chord or typed through a keymap made for them.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -194,6 +223,7 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 |---|---|---|---|---|
 | `settings.kdl` | `~/.config/isle/` | the user's choices, apps' preferences included | the compositor, into the file's own text (B36), or the user by hand | yes |
 | `tokens.kdl` | built into Isle; `~/.config/isle/` over it | design tokens | the user by hand; Isle never writes it | the user's file |
+| `translation.kdl` | built into Isle; `~/.config/isle/` over it | Cmd translation tables (B45) | the user by hand; Isle never writes it | the user's file |
 | state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), launch counts, session restore, crash history | the compositor and the supervisor | no |
 | crash records | `~/.local/state/isle/crashes/` | the last ten | the compositor's panic hook and watchdog, then the supervisor | no |
 | session log | `~/.local/state/isle/session.log`, `.old` | this session's and the last | the supervisor | no |
@@ -210,8 +240,9 @@ paru and updated through pacman (B29).
 
 - **Smithay**, through `alexparlett/smithay` (B6), pinned by revision on
   its `isle` branch: upstream master at `118e34f` with Isle's patches, each
-  merged by pull request in the fork, none offered upstream (B43). So far one:
-  the X11 window manager tracks windows' bounding shape (SHAPE). The async
+  merged by pull request in the fork, none offered upstream (B43). So far two:
+  the X11 window manager tracks windows' bounding shape (SHAPE) and reads
+  Steam's `STEAM_GAME` label (alexparlett/smithay#2). The async
   page flip joins it by P12. Its `master` follows upstream; moving Isle to a
   newer upstream is a rebase of `isle` and a revision bump.
 - **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
@@ -228,7 +259,9 @@ which stays the daily desktop on `main` until the new one replaces it
 (roadmap milestone M2) and is removed at cut-over. The Cargo workspace
 is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
 (the `isle` command), `isle-ipc`, `isle-settings` with its derive,
-`isle-state`, `isle-apps` (desktop entries and app resolution), `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
+`isle-state`, `isle-apps` (desktop entries and app resolution), `isle-keys` (keyboard
+profiles, chords, the shortcut set's table, translation tables and the engine),
+`isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
 Freya side shared with Isle's apps) and `isle-preview`; `data/` holds the shipped tokens with their schema and
-contrast check, and the Phosphor subset. `spikes/shell-ui/`
+contrast check, the translation tables, and the Phosphor subset. `spikes/shell-ui/`
 is the throwaway code behind B7 and is not built on.

@@ -510,3 +510,42 @@ second X connection beside Smithay's to ask about shapes (it races the
 window manager on window lifetimes), telling clients server side with bars
 off (they and Isle would both draw nothing).
 
+**B44 · The seat sees only what Isle sends.** Built in P5 and kept by every
+packet that touches keys. Physical keys go to `isle-keys`' engine, which
+decides what the focused client is sent; only those keys are fed to
+Smithay's keyboard, so its modifier state, and every client's, is built
+from them. Cmd and Option are withheld until the next key or click decides
+them; a lone tap sends nothing. A desktop chord matches the physical keys
+before anything is sent. A translated chord is sent with exactly its
+modifiers and the held ones are put back after. Keyboard focus moves only
+through one function, which releases what the old focus holds first.
+Checked with `xev`: X11 state agrees with the keys sent, so no synthetic
+modifier events are needed. Rejected: Smithay's filter forwarding the
+physical keys with a rewritten modifier mask (Xwayland derives state from
+key events), a uinput remapper below the compositor (xremap's wrong-device
+and stuck-modifier failures, v1 D58).
+
+**B45 · Translation tables are a shipped data file.** Built in P5.
+`data/keys/translation.kdl` holds shared rule sets, groups of apps and
+single apps, each a Mac chord and what is sent instead, and the app's own
+chord for the desktop's close and quit, which Cmd+W and Cmd+Q send to a
+main window in its place. The user's file lies over it by scope and chord,
+read live, refused with its place while the last good tables stay, as
+`tokens.kdl` is (B38). `settings.kdl` keeps only whether to translate and
+which apps not to. The tables are written for Isle; Toshy and Kinto (GPL)
+are a record of what apps need, not a source. Rejected: tables in
+`settings.kdl` (nested rule lists the settings derive is not shaped for),
+copying Toshy's config.
+
+**B46 · A game is a flag on the window's record.** Built in P5, refined by
+P12. A window is a game when Steam labels it (`STEAM_GAME` on X11 windows,
+read by the fork's window manager; a `steam_app_` or gamescope class;
+`SteamGameId` in its process), Feral GameMode has registered its process,
+its X11 class is a Windows `.exe`, or `windows.games` names it, unless
+`windows.not-games` does. Over a game keys go raw, unswapped, and only the
+escape set acts, through any inhibitor the game holds. GameMode is asked
+only while it runs, since asking would start it. Neither KWin nor CachyOS
+detects games for the desktop. Rejected: full screen as a sign (a video is
+not a game; B30 follows games windowed or not), ananicy's process-name list
+for now (distro data, names only; P12 may use it as a fallback).
+

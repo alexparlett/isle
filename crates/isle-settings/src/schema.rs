@@ -49,6 +49,19 @@ pub struct Keyboard {
     pub repeat_delay: i32,
     #[setting(default = true)]
     pub numlock: bool,
+    /// Cmd shortcuts are sent as each app's own (B21).
+    #[setting(default = true)]
+    pub translate: bool,
+    /// Apps that get every key untranslated, by desktop id, app id or X11 class; a trailing
+    /// `*` matches the rest. Remote desktops and virtual machines by default.
+    #[setting(default = [
+        "org.remmina.Remmina", "remmina", "virt-manager", "org.virt-manager.virt-manager",
+        "org.gnome.Boxes", "VirtualBox Machine", "VirtualBox Manager", "anydesk", "AnyDesk",
+        "xfreerdp", "wlfreerdp", "sdl-freerdp", "org.kde.krdc", "remote-viewer",
+        "virt-viewer", "qemu*", "looking-glass-client", "com.moonlight_stream.Moonlight",
+        "moonlight", "spicy",
+    ].map(String::from).to_vec())]
+    pub untranslated_apps: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]

@@ -344,6 +344,11 @@ pub mod keyboard {
         fn set_profile(&self, name: &str, profile: &str) -> zbus::Result<()>;
         /// Every action of the shortcut set with its chords.
         fn shortcuts(&self) -> zbus::Result<Vec<ShortcutInfo>>;
+        /// Whether the user's translation.kdl is in force, and where it is wrong if not.
+        fn tables_status(&self) -> zbus::Result<SettingsStatus>;
+        /// The Mac chord that sends an app `chord`, for a menu item it declares by it; empty
+        /// when none does.
+        fn mac_chord(&self, app: &str, chord: &str) -> zbus::Result<String>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

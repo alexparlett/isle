@@ -8,3 +8,4 @@ publish.workspace = true
 [dependencies]
 tracing.workspace = true
 xkbcommon.workspace = true
+kdl.workspace = true

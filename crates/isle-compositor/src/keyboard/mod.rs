@@ -4,7 +4,8 @@
 use std::collections::HashMap;
 
 use isle_keys::{
-    engine::{Ctx, Engine, Out, Rules},
+    engine::{Ctx, Engine, Out, Stroke},
+    tables::{TableError, Tables},
     keyinfo::KeyInfo,
     keymap::{Iso, KeymapSpec, Layouts, MacVariants},
     profile::Profile,
@@ -58,8 +59,10 @@ pub struct Keyboards {
     /// Keys held, by device and evdev code, with the code after the swap.
     held: HashMap<(String, u32), u32>,
     pub engine: Engine,
-    /// The rules every translated app shares.
-    text: Option<Rules>,
+    /// The shipped translation tables with the user's over them.
+    tables: Option<Tables>,
+    /// Why the user's tables are not in force, when they are not.
+    pub tables_error: Option<TableError>,
 }
 
 impl Keyboards {
@@ -86,15 +89,38 @@ impl Keyboards {
             .as_ref()
     }
 
-    /// Runs `f` with the engine and a context over the seat's keymap.
-    pub fn with_engine<R>(&mut self, translate: bool, f: impl FnOnce(&mut Engine, &Ctx) -> R) -> R {
+    pub fn set_tables(&mut self, loaded: Result<Tables, TableError>) {
+        match loaded {
+            Ok(tables) => {
+                self.tables = Some(tables);
+                self.tables_error = None;
+            }
+            Err(err) => {
+                warn!("translation.kdl rejected, the last good tables stay: {err}");
+                self.tables_error = Some(err);
+            }
+        }
+    }
+
+    pub fn tables(&mut self) -> &Tables {
+        self.tables.get_or_insert_with(Tables::shipped)
+    }
+
+    /// Runs `f` with the engine and a context over the seat's keymap and the rules of the
+    /// app known by `names`.
+    pub fn with_engine<R>(
+        &mut self,
+        translate: bool,
+        names: &[&str],
+        f: impl FnOnce(&mut Engine, &Ctx) -> R,
+    ) -> R {
         static EMPTY: std::sync::OnceLock<KeyInfo> = std::sync::OnceLock::new();
         let option_level3 = self
             .last
             .as_ref()
             .and_then(|id| self.devices.iter().find(|d| &d.id == id))
             .is_some_and(|d| d.profile == Profile::Mac);
-        let text = self.text.get_or_insert_with(isle_keys::tables::text);
+        let tables = self.tables.get_or_insert_with(Tables::shipped);
         let keys = self
             .active
             .as_ref()
@@ -102,12 +128,12 @@ impl Keyboards {
             .and_then(|c| c.as_ref())
             .map(|(_, info)| info)
             .unwrap_or_else(|| EMPTY.get_or_init(KeyInfo::default));
-        let rules = [&*text];
+        let app = tables.for_app(names);
         let ctx = Ctx {
             keys,
             translate,
             option_level3,
-            rules: &rules,
+            rules: &app.rules,
         };
         f(&mut self.engine, &ctx)
     }
@@ -308,11 +334,13 @@ impl State {
                 .unwrap_or(code),
         };
         let translate = self.translating();
+        let names = self.focus_names();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let bindings = &self.isle.bindings;
         let outs = self
             .isle
             .keyboards
-            .with_engine(translate, |engine, ctx| match key_state {
+            .with_engine(translate, &names, |engine, ctx| match key_state {
                 KeyState::Pressed => engine.press(sent, ctx, |chord| bindings.lookup(chord)),
                 KeyState::Released => engine.release(sent, ctx),
             });
@@ -393,9 +421,63 @@ impl State {
         self.isle.notify(Event::KeyboardsChanged);
     }
 
+    /// The names the focused window's app is known by: its desktop id and its app id or X11
+    /// class.
+    pub fn focus_names(&self) -> Vec<String> {
+        let Some(focus) = self.isle.seat.get_keyboard().and_then(|k| k.current_focus()) else {
+            return Vec::new();
+        };
+        let Some(record) = focus.surface().and_then(|s| self.isle.wm.for_surface(s)) else {
+            return Vec::new();
+        };
+        let (app_id, _) = record.names();
+        vec![record.app.clone(), app_id]
+    }
+
     /// Whether keys are translated for what has focus now.
     pub fn translating(&self) -> bool {
-        true
+        let keyboard = &self.isle.settings.keyboard;
+        if !keyboard.translate {
+            return false;
+        }
+        let names = self.focus_names();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        !keyboard
+            .untranslated_apps
+            .iter()
+            .any(|p| isle_keys::tables::matches(p, &names))
+    }
+
+    /// Sends the focused app strokes once, as its own chord for an action.
+    pub fn send_strokes(&mut self, strokes: &[Stroke]) {
+        let translate = self.translating();
+        let names = self.focus_names();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        let outs = self
+            .isle
+            .keyboards
+            .with_engine(translate, &names, |engine, ctx| engine.send(strokes, ctx));
+        self.emit(outs, InputTime::now());
+    }
+
+    /// The focused main window's app's own chord for the desktop's close or quit; dialogs
+    /// are closed by the desktop.
+    pub fn delegate(&mut self, quit: bool) -> Option<Vec<Stroke>> {
+        let id = self.focused_window()?;
+        if self.isle.wm.get(id)?.parent.is_some() {
+            return None;
+        }
+        let names = self.focus_names();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        let app = self.isle.keyboards.tables().for_app(&names);
+        let strokes = if quit { app.quit } else { app.close };
+        strokes.map(<[Stroke]>::to_vec)
+    }
+
+    pub fn apply_tables(&mut self, loaded: Result<Tables, TableError>) {
+        self.isle.keyboards.set_tables(loaded);
+        info!("translation tables reloaded");
+        self.isle.notify(Event::KeyboardsChanged);
     }
 
     /// Sends the engine's keys to the seat, then runs its actions.
@@ -437,20 +519,24 @@ impl State {
         self.emit(released, InputTime::now());
         keyboard.set_focus(self, target, serial);
         let translate = self.translating();
+        let names = self.focus_names();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let pressed = self
             .isle
             .keyboards
-            .with_engine(translate, |engine, ctx| engine.resync(ctx));
+            .with_engine(translate, &names, |engine, ctx| engine.resync(ctx));
         self.emit(pressed, InputTime::now());
     }
 
     /// A pointer button pressed with none down before, or the last one released.
     pub fn keyboard_buttons(&mut self, down: bool) {
         let translate = self.translating();
+        let names = self.focus_names();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let outs = self
             .isle
             .keyboards
-            .with_engine(translate, |engine, ctx| engine.buttons(down, ctx));
+            .with_engine(translate, &names, |engine, ctx| engine.buttons(down, ctx));
         self.emit(outs, InputTime::now());
     }
 
@@ -490,6 +576,30 @@ impl State {
             })
             .collect()
     }
+}
+
+pub fn tables_path() -> std::path::PathBuf {
+    crate::settings::config_dir().join("translation.kdl")
+}
+
+/// The shipped tables with the user's file over them, if it has one that reads.
+pub fn load_tables(path: &std::path::Path) -> Result<Tables, TableError> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Tables::shipped().over(Tables::parse(&text)?)),
+        Err(_) => Ok(Tables::shipped()),
+    }
+}
+
+/// Watches the user's tables and reloads them.
+pub async fn watch_tables(
+    to_loop: crate::worker::ToLoop,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let path = tables_path();
+    crate::tokens::watch_file(path.clone(), move || {
+        let loaded = load_tables(&path);
+        to_loop.post(move |state| state.apply_tables(loaded));
+    })
+    .await
 }
 
 /// Left Alt and left Super traded.

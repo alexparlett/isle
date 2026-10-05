@@ -417,6 +417,23 @@ impl Engine {
         out
     }
 
+    /// Sends strokes once each, then the modifiers the held keys imply: an app's own close
+    /// or quit chord, or Isle's own keys.
+    pub fn send<A>(&mut self, strokes: &[Stroke], ctx: &Ctx) -> Vec<Out<A>> {
+        let mut out = Vec::new();
+        for stroke in strokes {
+            let Some(sent) = self.resolve(stroke.key, ctx) else {
+                continue;
+            };
+            self.sync(stroke.mods, ctx, &mut out);
+            self.send_press(sent, &mut out);
+            self.send_release(sent, &mut out);
+        }
+        let want = self.desired(ctx);
+        self.sync(want, ctx, &mut out);
+        out
+    }
+
     /// Codes the client holds down now.
     pub fn sent(&self) -> &[u32] {
         &self.sent
@@ -426,7 +443,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{keyinfo::info_for, tables};
+    use crate::keyinfo::info_for;
 
     const CMD: u32 = 125;
     const OPTION: u32 = 56;
@@ -459,7 +476,10 @@ mod tests {
         fn new() -> Self {
             Fixture {
                 keys: info_for("gb", "mac"),
-                text: tables::text(),
+                text: Rules::from_pairs(&[
+                    ("Cmd+Left", "Home"),
+                    ("Cmd+Backspace", "Shift+Home, Backspace"),
+                ]),
                 engine: Engine::default(),
                 translate: true,
             }

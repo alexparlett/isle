@@ -99,6 +99,10 @@ pub fn spawn(
             runtime.spawn(supervise("tokens-watch", move || {
                 crate::tokens::watch(loop_t.clone())
             }));
+            let loop_k = to_loop.clone();
+            runtime.spawn(supervise("translation-watch", move || {
+                crate::keyboard::watch_tables(loop_k.clone())
+            }));
             let loop_a = to_loop.clone();
             runtime.spawn(supervise("apps-watch", move || {
                 crate::wm::watch_apps(loop_a.clone())

@@ -2389,6 +2389,7 @@ dependencies = [
 name = "isle-keys"
 version = "0.1.0"
 dependencies = [
+ "kdl",
  "tracing",
  "xkbcommon",
 ]

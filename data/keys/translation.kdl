@@ -1,0 +1,156 @@
+// Isle's Cmd translation tables (B21), written for Isle from v1's Mac profile and the
+// record Toshy and Kinto keep of what apps need. Cmd+key is Ctrl+key everywhere unless a
+// rule here says otherwise; a user's ~/.config/isle/translation.kdl lies over this file.
+//
+// `shared` sets apply to every translated app that does not skip them; a `group` applies to
+// its `apps`, an `app` to itself. Apps match by desktop id, app id or X11 class, ignoring
+// case, with a trailing `*`. A rule is a Mac chord and what is sent instead, one chord or a
+// sequence. `close` and `quit` are the app's own chords for Cmd+W and Cmd+Q; without them
+// the desktop closes the window and quits the app.
+version 1
+
+// Line and document motion on Cmd, word motion on Option, as text fields on a Mac.
+shared "text" {
+    "Cmd+Left" "Home"
+    "Cmd+Right" "End"
+    "Cmd+Up" "Ctrl+Home"
+    "Cmd+Down" "Ctrl+End"
+    "Shift+Cmd+Left" "Shift+Home"
+    "Shift+Cmd+Right" "Shift+End"
+    "Shift+Cmd+Up" "Ctrl+Shift+Home"
+    "Shift+Cmd+Down" "Ctrl+Shift+End"
+    "Option+Left" "Ctrl+Left"
+    "Option+Right" "Ctrl+Right"
+    "Shift+Option+Left" "Ctrl+Shift+Left"
+    "Shift+Option+Right" "Ctrl+Shift+Right"
+    "Option+Backspace" "Ctrl+Backspace"
+    "Option+Delete" "Ctrl+Delete"
+    "Cmd+Backspace" "Shift+Home" "Backspace"
+    "Cmd+Delete" "Shift+End" "Delete"
+    "Shift+Cmd+[" "Ctrl+Page_Up"
+    "Shift+Cmd+]" "Ctrl+Page_Down"
+    "Cmd+." "Escape"
+}
+
+// The emacs keys macOS text fields honour, on Ctrl.
+shared "emacs" {
+    "Ctrl+A" "Home"
+    "Ctrl+E" "End"
+    "Ctrl+B" "Left"
+    "Ctrl+F" "Right"
+    "Ctrl+P" "Up"
+    "Ctrl+N" "Down"
+    "Ctrl+D" "Delete"
+    "Ctrl+H" "Backspace"
+    "Ctrl+K" "Shift+End" "Delete"
+}
+
+group "terminals" {
+    apps "kitty" "foot" "footclient" "Alacritty" "com.mitchellh.ghostty" "org.wezfurlong.wezterm" "org.gnome.Console" "org.gnome.Terminal" "gnome-terminal-server" "org.gnome.Ptyxis" "org.kde.konsole" "konsole" "xterm" "XTerm" "URxvt" "com.gexperts.Tilix" "terminator" "xfce4-terminal" "Warp" "dev.warp.Warp" "tabby" "contour" "com.system76.CosmicTerm"
+    // Ctrl is the shell's, and a terminal's motion keys are readline's.
+    skip "text" "emacs"
+    close "Ctrl+Shift+W"
+    "Cmd+C" "Ctrl+Shift+C"
+    "Cmd+V" "Ctrl+Shift+V"
+    "Cmd+X" "Ctrl+Shift+X"
+    "Cmd+A" "Ctrl+Shift+A"
+    "Cmd+T" "Ctrl+Shift+T"
+    "Cmd+N" "Ctrl+Shift+N"
+    "Cmd+F" "Ctrl+Shift+F"
+    "Cmd+=" "Ctrl+Shift+="
+    "Cmd+-" "Ctrl+Shift+-"
+    "Cmd+." "Ctrl+C"
+    "Cmd+Left" "Home"
+    "Cmd+Right" "End"
+    "Cmd+Backspace" "Ctrl+U"
+    "Cmd+Delete" "Ctrl+K"
+    "Option+Left" "Alt+B"
+    "Option+Right" "Alt+F"
+    "Option+Backspace" "Ctrl+W"
+    "Option+Delete" "Alt+D"
+    "Shift+Cmd+[" "Ctrl+Page_Up"
+    "Shift+Cmd+]" "Ctrl+Page_Down"
+}
+
+app "kitty" {
+    "Shift+Cmd+[" "Ctrl+Shift+Left"
+    "Shift+Cmd+]" "Ctrl+Shift+Right"
+    "Cmd+0" "Ctrl+Shift+Backspace"
+}
+
+group "chromium" {
+    apps "chromium" "Chromium" "chromium-browser" "google-chrome" "Google-chrome" "com.google.Chrome" "brave-browser" "Brave-browser" "com.brave.Browser" "microsoft-edge" "vivaldi-stable" "Vivaldi-stable"
+    close "Ctrl+W"
+    "Cmd+[" "Alt+Left"
+    "Cmd+]" "Alt+Right"
+    "Option+Cmd+Left" "Ctrl+Page_Up"
+    "Option+Cmd+Right" "Ctrl+Page_Down"
+    "Option+Cmd+I" "Ctrl+Shift+I"
+    "Option+Cmd+J" "Ctrl+Shift+J"
+    "Cmd+Y" "Ctrl+H"
+    "Option+Cmd+B" "Ctrl+Shift+O"
+}
+
+group "firefox" {
+    apps "firefox" "org.mozilla.firefox" "firefox-esr" "librewolf" "LibreWolf" "io.gitlab.librewolf-community" "zen" "zen-browser" "app.zen_browser.zen" "floorp" "one.ablaze.floorp" "waterfox"
+    close "Ctrl+W"
+    quit "Ctrl+Q"
+    "Cmd+[" "Alt+Left"
+    "Cmd+]" "Alt+Right"
+    "Option+Cmd+Left" "Ctrl+Page_Up"
+    "Option+Cmd+Right" "Ctrl+Page_Down"
+    "Option+Cmd+I" "Ctrl+Shift+I"
+    "Shift+Cmd+N" "Ctrl+Shift+P"
+    "Cmd+Y" "Ctrl+H"
+    "Cmd+1" "Alt+1"
+    "Cmd+2" "Alt+2"
+    "Cmd+3" "Alt+3"
+    "Cmd+4" "Alt+4"
+    "Cmd+5" "Alt+5"
+    "Cmd+6" "Alt+6"
+    "Cmd+7" "Alt+7"
+    "Cmd+8" "Alt+8"
+    "Cmd+9" "Alt+9"
+}
+
+group "vscode" {
+    apps "code" "Code" "code-oss" "code-url-handler" "codium" "VSCodium" "com.visualstudio.code" "cursor" "Cursor"
+    close "Ctrl+W"
+    quit "Ctrl+Q"
+    // Insert copies and pastes in the editor and in its terminal alike.
+    "Cmd+C" "Ctrl+Insert"
+    "Cmd+V" "Shift+Insert"
+    "Cmd+G" "F3"
+    "Shift+Cmd+G" "Shift+F3"
+    "Option+Cmd+F" "Ctrl+H"
+}
+
+group "jetbrains" {
+    apps "jetbrains-*"
+    close "Ctrl+F4"
+    "Cmd+," "Ctrl+Alt+S"
+    "Cmd+G" "F3"
+    "Shift+Cmd+G" "Shift+F3"
+    "Cmd+0" "Alt+0"
+    "Cmd+1" "Alt+1"
+    "Cmd+2" "Alt+2"
+    "Cmd+3" "Alt+3"
+    "Cmd+4" "Alt+4"
+    "Cmd+5" "Alt+5"
+    "Cmd+6" "Alt+6"
+    "Cmd+7" "Alt+7"
+    "Cmd+8" "Alt+8"
+    "Cmd+9" "Alt+9"
+}
+
+group "files" {
+    apps "org.gnome.Nautilus" "nautilus" "org.kde.dolphin" "dolphin" "thunar" "Thunar" "nemo" "Nemo" "pcmanfm" "pcmanfm-qt" "com.system76.CosmicFiles"
+    close "Ctrl+W"
+    "Cmd+I" "Alt+Return"
+    "Shift+Cmd+." "Ctrl+H"
+    "Cmd+[" "Alt+Left"
+    "Cmd+]" "Alt+Right"
+    "Cmd+Up" "Alt+Up"
+    "Cmd+Down" "Return"
+    "Cmd+Backspace" "Delete"
+}

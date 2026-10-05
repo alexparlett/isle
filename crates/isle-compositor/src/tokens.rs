@@ -66,9 +66,22 @@ pub fn theme(source: &Source, settings: &Settings) -> Rc<Theme> {
     Rc::new(theme)
 }
 
-/// Watches the user's file through its directory and a symlink's target, as settings are.
+/// Watches the user's file and reloads it.
 pub async fn watch(to_loop: ToLoop) -> Result<(), Box<dyn Error + Send + Sync>> {
     let path = tokens_path();
+    watch_file(path.clone(), move || {
+        let loaded = load(&path);
+        to_loop.post(move |state| state.apply_tokens(loaded));
+    })
+    .await
+}
+
+/// Watches a file through its directory and a symlink's target, as settings are, calling
+/// `changed` once an edit's writes settle.
+pub async fn watch_file(
+    path: PathBuf,
+    mut changed: impl FnMut() + Send,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let dir = path.parent().unwrap_or(Path::new("/")).to_owned();
     std::fs::create_dir_all(&dir)?;
     let (tx, mut rx) = mpsc::unbounded_channel();
@@ -100,8 +113,7 @@ pub async fn watch(to_loop: ToLoop) -> Result<(), Box<dyn Error + Send + Sync>> 
             watcher.watch(&target_dir, RecursiveMode::NonRecursive)?;
             watched.push(target_dir);
         }
-        let loaded = load(&path);
-        to_loop.post(move |state| state.apply_tokens(loaded));
+        changed();
     }
     Ok(())
 }

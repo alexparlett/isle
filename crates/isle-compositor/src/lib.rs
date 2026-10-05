@@ -118,6 +118,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     );
     isle.tokens = token_source;
     isle.tokens_error = token_error;
+    isle.keyboards.set_tables(keyboard::load_tables(&keyboard::tables_path()));
     isle.load_places(&runtime);
     isle.load_desktops(&runtime);
     let mut state = State { backend, isle };

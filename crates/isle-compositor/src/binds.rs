@@ -200,11 +200,14 @@ impl State {
         info!(?action, "bind");
         match action {
             Action::Terminal => spawn(&self.isle.settings.shortcuts.terminal_command),
-            Action::CloseWindow => {
-                if let Some(id) = self.focused_window() {
-                    self.close_window(id);
+            Action::CloseWindow => match self.delegate(false) {
+                Some(strokes) => self.send_strokes(&strokes),
+                None => {
+                    if let Some(id) = self.focused_window() {
+                        self.close_window(id);
+                    }
                 }
-            }
+            },
             Action::Quit => self.isle.loop_signal.stop(),
             Action::Tile(zone) => self.tile_by_chord(zone),
             Action::Fill => {
@@ -226,11 +229,14 @@ impl State {
             Action::HideOthers => self.hide_others(),
             Action::Minimise => self.minimise_focused(),
             Action::MinimiseApp => self.minimise_app(),
-            Action::QuitApp => {
-                if let Some(app) = self.isle.front_app() {
-                    self.quit_app(&app);
+            Action::QuitApp => match self.delegate(true) {
+                Some(strokes) => self.send_strokes(&strokes),
+                None => {
+                    if let Some(app) = self.isle.front_app() {
+                        self.quit_app(&app);
+                    }
                 }
-            }
+            },
             Action::CycleWindows(forward) => self.cycle_app_windows(forward),
             Action::FullScreen => {
                 if let Some(id) = self.focused_window() {

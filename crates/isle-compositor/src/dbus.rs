@@ -390,6 +390,51 @@ impl Keyboard {
         Ok(())
     }
 
+    /// Whether the user's translation.kdl is in force, and where it is wrong if not.
+    async fn tables_status(&self) -> fdo::Result<SettingsStatus> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                let file = crate::keyboard::tables_path().display().to_string();
+                match &state.isle.keyboards.tables_error {
+                    None => SettingsStatus {
+                        ok: true,
+                        file,
+                        line: 0,
+                        column: 0,
+                        message: String::new(),
+                    },
+                    Some(err) => SettingsStatus {
+                        ok: false,
+                        file,
+                        line: err.line as u32,
+                        column: err.column as u32,
+                        message: err.message.clone(),
+                    },
+                }
+            })
+            .await?)
+    }
+
+    /// The Mac chord that sends an app `chord`, for a menu item it declares by it; empty
+    /// when none does.
+    async fn mac_chord(&self, app: String, chord: String) -> fdo::Result<String> {
+        let sent = isle_keys::engine::Stroke::parse(&chord)
+            .ok_or_else(|| fdo::Error::InvalidArgs(format!("`{chord}` is not a chord")))?;
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                state
+                    .isle
+                    .keyboards
+                    .tables()
+                    .mac_chord(&[app.as_str()], &sent)
+                    .map(|c| c.words())
+                    .unwrap_or_default()
+            })
+            .await?)
+    }
+
     /// Every action of the shortcut set with its chords.
     async fn shortcuts(&self) -> Vec<isle_ipc::ShortcutInfo> {
         let schema = schema_of::<isle_settings::schema::Settings>();

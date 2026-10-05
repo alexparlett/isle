@@ -135,6 +135,7 @@ impl State {
         pointer.frame(self);
         self.refresh_pointer_cursor();
         self.update_bar_option();
+        self.check_zoom_dwell();
         // A nested backend's host draws named cursors; everywhere else the cursor is
         // Isle's to draw, so it moves only with a redraw.
         let host_draws = matches!(self.backend, crate::backend::Backend::Winit(_))
@@ -157,6 +158,15 @@ impl State {
             && self.modifier_drag(button, serial, time)
         {
             return;
+        }
+        if button_state == ButtonState::Pressed
+            && self.isle.zoom.menu_for.is_some()
+            && !matches!(
+                pointer.current_focus(),
+                Some(crate::focus::Focus::Shell(f)) if self.isle.shell.name_of(&f) == Some("zoom-menu")
+            )
+        {
+            self.close_zoom_menu();
         }
         if button_state == ButtonState::Pressed
             && !pointer.is_grabbed()

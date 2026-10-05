@@ -41,6 +41,7 @@ use smithay::{
 };
 pub use surface::{Action, Actions, Layer, Scope, SurfaceDef, WindowAction};
 pub mod chrome;
+pub mod zones;
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};
 
@@ -1112,6 +1113,36 @@ impl Shell {
         self.recover();
     }
 
+    /// Opens the placed surface `name` on the output of `place` at `geometry`, relative to it;
+    /// false if no surface has that name.
+    pub fn open_placed(&mut self, name: &str, place: &OutputPlace, geometry: Rectangle<i32, Logical>) -> bool {
+        let Some(def) = self.defs.iter().find(|d| d.name() == name).cloned() else {
+            return false;
+        };
+        match self.instances.iter_mut().find(|i| i.def.name() == name) {
+            Some(instance) => {
+                let resized = instance.output != place.output
+                    || instance.scale != place.scale
+                    || instance.geometry.size != geometry.size;
+                instance.output = place.output.clone();
+                instance.scale = place.scale;
+                instance.origin = place.geometry.loc;
+                instance.geometry = geometry;
+                Self::set_bounds(instance);
+                if resized && let Some(target) = instance.gl.take() {
+                    self.released.push(target);
+                }
+            }
+            None => {
+                let mut instance = self.instantiate(def, place);
+                instance.geometry = geometry;
+                Self::set_bounds(&mut instance);
+                self.instances.push(instance);
+            }
+        }
+        self.set_open(name, true)
+    }
+
     /// Removes the attached instances of `key`.
     pub fn detach(&mut self, key: u64) {
         let mut purge = false;
@@ -1214,7 +1245,7 @@ impl Shell {
         let mut wanted: Vec<(Rc<dyn SurfaceDef>, OutputPlace)> = Vec::new();
         for def in &self.defs {
             match def.scope() {
-                Scope::Attached => {}
+                Scope::Attached | Scope::Placed => {}
                 Scope::EveryOutput => {
                     for place in &self.outputs {
                         wanted.push((def.clone(), place.clone()));
@@ -1230,7 +1261,7 @@ impl Shell {
 
         let mut kept = Vec::new();
         for mut instance in std::mem::take(&mut self.instances) {
-            if instance.attached.is_some() {
+            if instance.attached.is_some() || instance.def.scope() == Scope::Placed {
                 kept.push(instance);
                 continue;
             }

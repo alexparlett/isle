@@ -1045,3 +1045,83 @@ async fn a_barred_window_resizes_from_the_band_around_its_frame() {
     test.button(272, false).await.unwrap();
     settles(&isle, w.id, "floating", (w.x, w.y, 500, 300)).await;
 }
+
+async fn surface_open(isle: &Isle, name: &str) -> bool {
+    isle_ipc::shell::ShellProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .list()
+        .await
+        .unwrap()
+        .iter()
+        .any(|s| s.name == name && s.open)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_dwell_on_zoom_opens_its_menu_and_a_slot_tiles_there() {
+    let mut isle = Isle::start("zoommenu").await;
+    let (_client, w) = barred(&mut isle, "isle.test.Zoom").await;
+    let test = isle.test().await;
+    let (fx, fy) = (FRAME.0 as f64, FRAME.1 as f64);
+
+    // Passing over the light opens nothing.
+    test.pointer_to(fx + 62.0, fy + 16.0).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    test.pointer_to(fx + 200.0, fy + 16.0).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(700)).await;
+    assert!(!surface_open(&isle, "zoom-menu").await);
+
+    test.pointer_to(fx + 62.0, fy + 16.0).await.unwrap();
+    wait_until(|| async { surface_open(&isle, "zoom-menu").await }).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    isle.shot("HEADLESS-1", "menu").await;
+
+    // The menu opens under the zoom light; the right half is the first thumbnail's second slot.
+    let (mx, my) = (fx + 56.0, fy + 36.0);
+    let (sx, sy) = (mx + 12.0 + 58.0, my + 12.0 + 14.0 + 4.0 + 22.0);
+    test.pointer_to(sx - 4.0, sy).await.unwrap();
+    test.pointer_to(sx, sy).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    settles(&isle, w.id, "tiled:right-half", (966, 92, 942, 976)).await;
+    wait_until(|| async { !surface_open(&isle, "zoom-menu").await }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_zoom_menu_by_its_chord_is_worked_by_keys_and_gives_focus_back() {
+    let mut isle = Isle::start("zoomkeys").await;
+    let (client, w) = barred(&mut isle, "isle.test.ZoomKeys").await;
+    client.wait_for("keyboard-enter").await;
+    isle.chord(&[keys::CTRL, keys::ALT, 44]).await; // Ctrl+Option+Z
+    wait_until(|| async { surface_open(&isle, "zoom-menu").await }).await;
+    client.wait_for("keyboard-leave").await;
+    client.clear();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    isle.chord(&[keys::RIGHT]).await;
+    isle.chord(&[28]).await; // Return
+    settles(&isle, w.id, "tiled:left-half", (12, 92, 942, 976)).await;
+    client.wait_for("keyboard-enter").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn option_in_a_drag_brings_the_zones_to_the_pointer() {
+    let mut isle = Isle::start("panel").await;
+    let (_client, w) = barred(&mut isle, "isle.test.Panel").await;
+    let test = isle.test().await;
+    let (fx, fy) = (FRAME.0 as f64, FRAME.1 as f64);
+    test.pointer_to(fx + 200.0, fy + 16.0).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    test.button(272, true).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    test.pointer_to(fx + 220.0, fy + 30.0).await.unwrap();
+    test.key(keys::ALT, true).await.unwrap();
+    test.pointer_to(960.0, 540.0).await.unwrap();
+    wait_until(|| async { surface_open(&isle, "zone-panel").await }).await;
+    // The panel's grid starts 12 in from its corner at (984, 480); the left half's slot.
+    test.pointer_to(1015.0, 514.0).await.unwrap();
+    test.button(272, false).await.unwrap();
+    test.key(keys::ALT, false).await.unwrap();
+    settles(&isle, w.id, "tiled:left-half", (12, 92, 942, 976)).await;
+    wait_until(|| async { !surface_open(&isle, "zone-panel").await }).await;
+}

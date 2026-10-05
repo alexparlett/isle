@@ -184,7 +184,9 @@ impl PointerGrab<State> for MoveGrab {
         let at = data.isle.snapped(id, wanted, event.location);
         let bar = data.isle.bar_height(id);
         data.move_window(id, Point::from((at.x, at.y + bar)));
-        data.isle.update_zone_preview(id, event.location);
+        if !data.drag_panel(id, event.location) {
+            data.isle.update_zone_preview(id, event.location);
+        }
     }
 
     fn button(
@@ -201,6 +203,7 @@ impl PointerGrab<State> for MoveGrab {
         }
         handle.unset_grab(self, data, event.serial, event.time, true);
         let id = crate::wm::window_id(&self.window);
+        data.close_zone_panel();
         match data.isle.zone_preview.take() {
             Some(preview) => {
                 data.isle.queue_redraw(&preview.output);

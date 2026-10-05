@@ -74,6 +74,9 @@ pub struct Isle {
     pub wm: crate::wm::Wm,
     /// The window whose bar shows Option's glyphs.
     pub bar_option: Option<u64>,
+    pub zoom: crate::wm::ZoomState,
+    pub zoom_menu: std::rc::Rc<isle_shell::zones::ZoneSurface>,
+    pub zone_panel: std::rc::Rc<isle_shell::zones::ZoneSurface>,
     /// Pointer buttons held now, by evdev code.
     pub buttons_down: std::collections::HashSet<u32>,
     pub places: isle_state::domains::Places,
@@ -211,8 +214,11 @@ impl Isle {
                 state.dispatch_shell();
             })
             .expect("the shell's wake source");
-        #[allow(unused_mut)]
         let mut shell = isle_shell::Shell::new(ping, theme);
+        let zoom_menu = isle_shell::zones::ZoneSurface::menu();
+        shell.register(zoom_menu.clone());
+        let zone_panel = isle_shell::zones::ZoneSurface::panel();
+        shell.register(zone_panel.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -243,6 +249,9 @@ impl Isle {
             space: Space::default(),
             wm: Default::default(),
             bar_option: None,
+            zoom: Default::default(),
+            zoom_menu,
+            zone_panel,
             buttons_down: Default::default(),
             places: Default::default(),
             desktops: Default::default(),
@@ -528,9 +537,11 @@ impl State {
                         self.bar_action(id, action);
                     }
                 }
+                isle_shell::Action::Close if name == "zoom-menu" => self.close_zoom_menu(),
                 isle_shell::Action::Close => {
                     self.close_surface(&name);
                 }
+                isle_shell::Action::Zone(action) => self.zone_action(action),
                 isle_shell::Action::Key(code) => {
                     use smithay::backend::input::{InputTime, KeyState};
                     let keycode = smithay::input::keyboard::Keycode::new(code + 8);

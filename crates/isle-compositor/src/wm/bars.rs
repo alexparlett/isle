@@ -222,8 +222,14 @@ impl State {
                 self.set_focus(window.as_ref());
                 self.minimise_app();
             }
-            A::Zoom => self.toggle_full_screen(id),
-            A::Fill => self.toggle_fill(id),
+            A::Zoom => {
+                self.disarm_zoom_dwell(id);
+                self.toggle_full_screen(id);
+            }
+            A::Fill => {
+                self.disarm_zoom_dwell(id);
+                self.toggle_fill(id);
+            }
             A::TitlebarAction => {
                 use isle_settings::schema::TitlebarAction;
                 match self.isle.settings.windows.titlebar_action {

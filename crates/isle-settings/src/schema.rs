@@ -226,6 +226,9 @@ pub struct Binds {
     pub previous_window: String,
     #[setting(default = "Ctrl+Super+F".to_owned())]
     pub full_screen: String,
+    /// The zoom menu for the focused window.
+    #[setting(default = "Ctrl+Alt+Z".to_owned())]
+    pub zoom_menu: String,
     #[setting(default = "Ctrl+Left".to_owned())]
     pub desktop_left: String,
     #[setting(default = "Ctrl+Right".to_owned())]

@@ -362,6 +362,11 @@ impl Isle {
                 let rect = self.zone_rect(id, zone, &output)?;
                 Some((output, zone, rect))
             });
+        self.set_zone_preview(id, target);
+    }
+
+    /// Shows `target`'s zone under window `id`, or clears the preview.
+    pub fn set_zone_preview(&mut self, id: u64, target: Option<(Output, Zone, Rect)>) {
         let changed = match (&self.zone_preview, &target) {
             (None, None) => false,
             (Some(p), Some((o, z, r))) => p.output != *o || p.zone != *z || p.rect != *r,

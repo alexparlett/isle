@@ -24,6 +24,7 @@ pub enum Action {
     /// The front app's next window, or its previous.
     CycleWindows(bool),
     FullScreen,
+    ZoomMenu,
     /// Along the row of desktops by a step.
     Desktop(i32),
     /// To a desktop by its place, from 0.
@@ -110,6 +111,7 @@ impl State {
             (&binds.next_window, Action::CycleWindows(true)),
             (&binds.previous_window, Action::CycleWindows(false)),
             (&binds.full_screen, Action::FullScreen),
+            (&binds.zoom_menu, Action::ZoomMenu),
             (&binds.desktop_left, Action::Desktop(-1)),
             (&binds.desktop_right, Action::Desktop(1)),
             (&binds.carry_left, Action::CarryWindow(-1)),
@@ -167,6 +169,7 @@ impl State {
                     self.toggle_full_screen(id);
                 }
             }
+            Action::ZoomMenu => self.zoom_menu_by_key(),
             Action::Desktop(step) => self.step_desktop(step),
             Action::JumpDesktop(index) => self.jump_desktop(index),
             Action::CarryWindow(step) => self.carry_window(step),

@@ -9,9 +9,11 @@ pub mod motion;
 pub mod geometry;
 mod places;
 mod tiling;
+mod zoom;
 
 pub use apps::watch as watch_apps;
 pub use tiling::ZonePreview;
+pub use zoom::ZoomState;
 
 use isle_ipc::WindowInfo;
 use smithay::{

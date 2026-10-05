@@ -41,6 +41,9 @@ pub enum Scope {
     /// Made, placed and removed by the compositor for something it owns, such as a window's
     /// title bar, and drawn with it rather than in a layer.
     Attached,
+    /// One instance, in its layer, opened by the compositor on the output and at the box it
+    /// gives: a menu by a window.
+    Placed,
 }
 
 /// A kind of shell surface. The definition outlives every tree drawn from it, so state that
@@ -78,6 +81,8 @@ pub enum Action {
     Key(u32),
     /// For the window an attached surface belongs to.
     Window(WindowAction),
+    /// From the zoom menu, for the window it was opened on.
+    Zone(crate::zones::ZoneAction),
 }
 
 /// What a title bar asks of its window.

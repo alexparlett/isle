@@ -251,11 +251,7 @@ impl State {
     /// the pointer, and a zone under the pointer in it is the one the drop tiles to.
     /// Returns whether the panel decides the preview.
     pub fn drag_panel(&mut self, id: u64, at: Point<f64, Logical>) -> bool {
-        let alt = self
-            .isle
-            .seat
-            .get_keyboard()
-            .is_some_and(|k| k.modifier_state().alt);
+        let alt = self.held_mods().option;
         if !alt {
             self.close_zone_panel();
             return false;

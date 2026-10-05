@@ -1,6 +1,7 @@
 //! The bind table until P5's shortcut set: a few chords from `binds` in `settings.kdl`.
 
-use smithay::input::keyboard::{Keysym, ModifiersState, keysyms, xkb};
+use isle_keys::chord::Chord;
+use smithay::input::keyboard::keysyms;
 use tracing::{info, warn};
 
 use crate::{state::State, wm::geometry::Zone};
@@ -34,100 +35,56 @@ pub enum Action {
     SwitchVt(i32),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Chord {
-    logo: bool,
-    ctrl: bool,
-    alt: bool,
-    shift: bool,
-    key: Keysym,
-}
-
-/// Reads `Super+Shift+Escape`; `None` when it names no key.
-fn parse(text: &str) -> Option<Chord> {
-    let mut chord = Chord {
-        logo: false,
-        ctrl: false,
-        alt: false,
-        shift: false,
-        key: Keysym::from(keysyms::KEY_NoSymbol),
-    };
-    let mut parts: Vec<&str> = text.split('+').map(str::trim).collect();
-    let key = parts.pop()?;
-    for part in parts {
-        match part.to_ascii_lowercase().as_str() {
-            "super" | "cmd" | "logo" => chord.logo = true,
-            "ctrl" | "control" => chord.ctrl = true,
-            "alt" | "option" => chord.alt = true,
-            "shift" => chord.shift = true,
-            _ => return None,
-        }
+/// The action bound to a physical chord, if any. The kernel's VT keys are Ctrl+Option+F1 to
+/// F12.
+pub fn bound_action(settings: &isle_settings::schema::Settings, chord: Chord) -> Option<Action> {
+    let raw = chord.sym.raw();
+    if chord.mods.ctrl && chord.mods.option && (keysyms::KEY_F1..=keysyms::KEY_F12).contains(&raw) {
+        return Some(Action::SwitchVt((raw - keysyms::KEY_F1 + 1) as i32));
     }
-    chord.key = xkb::keysym_from_name(key, xkb::KEYSYM_CASE_INSENSITIVE);
-    (chord.key.raw() != keysyms::KEY_NoSymbol).then_some(chord)
+    let binds = &settings.binds;
+    [
+        (&binds.terminal, Action::Terminal),
+        (&binds.close_window, Action::CloseWindow),
+        (&binds.quit, Action::Quit),
+        (&binds.tile_left, Action::Tile(Zone::LeftHalf)),
+        (&binds.tile_right, Action::Tile(Zone::RightHalf)),
+        (&binds.tile_centre, Action::Tile(Zone::Centre)),
+        (&binds.fill, Action::Fill),
+        (&binds.restore, Action::Restore),
+        (&binds.tile_top_left, Action::Tile(Zone::TopLeft)),
+        (&binds.tile_top_right, Action::Tile(Zone::TopRight)),
+        (&binds.tile_bottom_left, Action::Tile(Zone::BottomLeft)),
+        (&binds.tile_bottom_right, Action::Tile(Zone::BottomRight)),
+        (&binds.tile_beside, Action::Tile(Zone::Beside)),
+        (&binds.next_display, Action::Display(1)),
+        (&binds.previous_display, Action::Display(-1)),
+        (&binds.hide, Action::Hide),
+        (&binds.hide_others, Action::HideOthers),
+        (&binds.minimise, Action::Minimise),
+        (&binds.minimise_app, Action::MinimiseApp),
+        (&binds.quit_app, Action::QuitApp),
+        (&binds.next_window, Action::CycleWindows(true)),
+        (&binds.previous_window, Action::CycleWindows(false)),
+        (&binds.full_screen, Action::FullScreen),
+        (&binds.zoom_menu, Action::ZoomMenu),
+        (&binds.desktop_left, Action::Desktop(-1)),
+        (&binds.desktop_right, Action::Desktop(1)),
+        (&binds.carry_left, Action::CarryWindow(-1)),
+        (&binds.carry_right, Action::CarryWindow(1)),
+    ]
+    .into_iter()
+    .find(|(text, _)| Chord::parse(text) == Some(chord))
+    .map(|(_, action)| action)
+    .or_else(|| {
+        (1..=9).find_map(|n| {
+            let bound = Chord::parse(&format!("{}+{n}", binds.desktop_jump))?;
+            (bound == chord).then_some(Action::JumpDesktop(n - 1))
+        })
+    })
 }
 
 impl State {
-    /// The VT a key switches to, from its symbol with modifiers applied.
-    pub fn vt_for(sym: Keysym) -> Option<Action> {
-        let raw = sym.raw();
-        (keysyms::KEY_XF86Switch_VT_1..=keysyms::KEY_XF86Switch_VT_12)
-            .contains(&raw)
-            .then(|| Action::SwitchVt((raw - keysyms::KEY_XF86Switch_VT_1 + 1) as i32))
-    }
-
-    /// The action bound to `sym` with `modifiers`, if any. `sym` is the key's unshifted
-    /// symbol, which is what a case-insensitive name resolves to.
-    pub fn bound_action(&self, modifiers: &ModifiersState, sym: Keysym) -> Option<Action> {
-        let binds = &self.isle.settings.binds;
-        let pressed = Chord {
-            logo: modifiers.logo,
-            ctrl: modifiers.ctrl,
-            alt: modifiers.alt,
-            shift: modifiers.shift,
-            key: sym,
-        };
-        [
-            (&binds.terminal, Action::Terminal),
-            (&binds.close_window, Action::CloseWindow),
-            (&binds.quit, Action::Quit),
-            (&binds.tile_left, Action::Tile(Zone::LeftHalf)),
-            (&binds.tile_right, Action::Tile(Zone::RightHalf)),
-            (&binds.tile_centre, Action::Tile(Zone::Centre)),
-            (&binds.fill, Action::Fill),
-            (&binds.restore, Action::Restore),
-            (&binds.tile_top_left, Action::Tile(Zone::TopLeft)),
-            (&binds.tile_top_right, Action::Tile(Zone::TopRight)),
-            (&binds.tile_bottom_left, Action::Tile(Zone::BottomLeft)),
-            (&binds.tile_bottom_right, Action::Tile(Zone::BottomRight)),
-            (&binds.tile_beside, Action::Tile(Zone::Beside)),
-            (&binds.next_display, Action::Display(1)),
-            (&binds.previous_display, Action::Display(-1)),
-            (&binds.hide, Action::Hide),
-            (&binds.hide_others, Action::HideOthers),
-            (&binds.minimise, Action::Minimise),
-            (&binds.minimise_app, Action::MinimiseApp),
-            (&binds.quit_app, Action::QuitApp),
-            (&binds.next_window, Action::CycleWindows(true)),
-            (&binds.previous_window, Action::CycleWindows(false)),
-            (&binds.full_screen, Action::FullScreen),
-            (&binds.zoom_menu, Action::ZoomMenu),
-            (&binds.desktop_left, Action::Desktop(-1)),
-            (&binds.desktop_right, Action::Desktop(1)),
-            (&binds.carry_left, Action::CarryWindow(-1)),
-            (&binds.carry_right, Action::CarryWindow(1)),
-        ]
-        .into_iter()
-        .find(|(text, _)| parse(text) == Some(pressed))
-        .map(|(_, action)| action)
-        .or_else(|| {
-            (1..=9).find_map(|n| {
-                let chord = parse(&format!("{}+{n}", binds.desktop_jump))?;
-                (chord == pressed).then_some(Action::JumpDesktop(n - 1))
-            })
-        })
-    }
-
     pub fn run_action(&mut self, action: Action) {
         info!(?action, "bind");
         match action {
@@ -197,24 +154,5 @@ pub fn spawn(command: &str) {
         });
     if let Err(err) = result {
         warn!("could not start a spawn thread: {err}");
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn chords_parse_with_any_case_and_order_of_modifiers() {
-        let c = parse("Super+Shift+Escape").unwrap();
-        assert!(c.logo && c.shift && !c.ctrl && !c.alt);
-        assert_eq!(c.key.raw(), keysyms::KEY_Escape);
-        assert_eq!(parse("shift+super+escape"), Some(c));
-        assert_eq!(
-            parse("Super+Return").unwrap().key.raw(),
-            keysyms::KEY_Return
-        );
-        assert!(parse("Hyper+Q").is_none());
-        assert!(parse("Super+Nonsense").is_none());
     }
 }

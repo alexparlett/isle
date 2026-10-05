@@ -64,8 +64,6 @@ pub struct Isle {
     pub probe: std::rc::Rc<isle_shell::probe::Probe>,
     #[cfg(feature = "test-hooks")]
     pub probe_full: std::rc::Rc<isle_shell::probe::ProbeFull>,
-    /// Keys whose press ran a bind; their release is not sent to clients.
-    pub suppressed_keys: std::collections::HashSet<smithay::input::keyboard::Keycode>,
     /// The keyboard's focus before a shell surface took it, given back when it closes.
     pub shell_keyboard_return: Vec<(isle_shell::ShellFocus, Option<Focus>)>,
     pub keyboards: crate::keyboard::Keyboards,
@@ -255,7 +253,6 @@ impl Isle {
             probe,
             #[cfg(feature = "test-hooks")]
             probe_full,
-            suppressed_keys: Default::default(),
             shell_keyboard_return: Vec::new(),
             keyboards: Default::default(),
             space: Space::default(),
@@ -527,7 +524,7 @@ impl State {
                     .shell_keyboard_return
                     .push((focus.clone(), previous));
                 let serial = smithay::utils::SERIAL_COUNTER.next_serial();
-                keyboard.set_focus(self, Some(Focus::Shell(focus)), serial);
+                self.focus_keyboard(Some(Focus::Shell(focus)), serial);
             }
         }
         self.dispatch_shell();
@@ -552,7 +549,7 @@ impl State {
                 match previous.filter(smithay::utils::IsAlive::alive) {
                     Some(previous) => {
                         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
-                        keyboard.set_focus(self, Some(previous), serial);
+                        self.focus_keyboard(Some(previous), serial);
                     }
                     None => self.focus_next(),
                 }
@@ -610,9 +607,8 @@ impl State {
             record.attention = false;
         }
         let surface = self.isle.focus_window(window);
-        let keyboard = self.isle.seat.get_keyboard().unwrap();
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
-        keyboard.set_focus(self, surface, serial);
+        self.focus_keyboard(surface, serial);
         self.isle.sync_bars();
         self.isle.queue_redraw_all();
         self.isle.notify(Event::WindowsChanged);

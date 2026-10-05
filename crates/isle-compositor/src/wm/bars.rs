@@ -171,11 +171,7 @@ impl Isle {
 impl State {
     /// Option pressed or let go: the bar under the pointer shows zoom's plus.
     pub fn update_bar_option(&mut self) {
-        let alt = self
-            .isle
-            .seat
-            .get_keyboard()
-            .is_some_and(|k| k.modifier_state().alt);
+        let alt = self.held_mods().option;
         let under = self
             .isle
             .seat

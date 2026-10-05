@@ -104,7 +104,7 @@ impl State {
             let keyboard = self.isle.seat.get_keyboard().unwrap();
             if keyboard.current_focus().as_ref().and_then(|f| f.surface()) != Some(layer.wl_surface()) {
                 let serial = smithay::utils::SERIAL_COUNTER.next_serial();
-                keyboard.set_focus(self, Some(layer.wl_surface().into()), serial);
+                self.focus_keyboard(Some(layer.wl_surface().into()), serial);
             }
         }
         self.isle.queue_redraw(&output);

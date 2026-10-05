@@ -4,19 +4,14 @@
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
-        InputTime, KeyState, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
+        InputTime, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
         PointerMotionEvent,
     },
-    input::{
-        keyboard::{FilterResult, Keycode},
-        pointer::{AxisFrame, ButtonEvent, CursorImageStatus, MotionEvent},
-    },
+    input::pointer::{AxisFrame, ButtonEvent, CursorImageStatus, MotionEvent},
     utils::{Logical, Point, SERIAL_COUNTER},
 };
 
-use tracing::debug;
-
-use crate::{binds::Action, state::State};
+use crate::state::State;
 
 impl State {
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
@@ -73,53 +68,6 @@ impl State {
             }
             _ => {}
         }
-    }
-
-    pub fn on_key(&mut self, code: Keycode, key_state: KeyState, time: InputTime) {
-        let serial = SERIAL_COUNTER.next_serial();
-        let keyboard = self.isle.seat.get_keyboard().unwrap();
-        let pressed = key_state == KeyState::Pressed;
-        let action = keyboard.input::<Option<Action>, _>(
-            self,
-            code,
-            key_state,
-            serial,
-            time,
-            |state, modifiers, handle| {
-                debug!(
-                    key = ?handle.modified_sym(),
-                    pressed,
-                    logo = modifiers.logo,
-                    ctrl = modifiers.ctrl,
-                    alt = modifiers.alt,
-                    shift = modifiers.shift,
-                    "key"
-                );
-                if !pressed {
-                    if state.isle.suppressed_keys.remove(&code) {
-                        return FilterResult::Intercept(None);
-                    }
-                    return FilterResult::Forward;
-                }
-                let action = State::vt_for(handle.modified_sym()).or_else(|| {
-                    handle
-                        .raw_syms()
-                        .iter()
-                        .find_map(|sym| state.bound_action(modifiers, *sym))
-                });
-                match action {
-                    Some(action) => {
-                        state.isle.suppressed_keys.insert(code);
-                        FilterResult::Intercept(Some(action))
-                    }
-                    None => FilterResult::Forward,
-                }
-            },
-        );
-        if let Some(Some(action)) = action {
-            self.run_action(action);
-        }
-        self.update_bar_option();
     }
 
     pub fn on_axis(&mut self, frame: AxisFrame) {
@@ -191,10 +139,7 @@ impl State {
             let on_shell = matches!(pointer.current_focus(), Some(crate::focus::Focus::Shell(_)));
             match self.isle.layer_taking_focus_at(location) {
                 _ if on_shell => {}
-                Some(surface) => {
-                    let keyboard = self.isle.seat.get_keyboard().unwrap();
-                    keyboard.set_focus(self, Some(surface.into()), serial);
-                }
+                Some(surface) => self.focus_keyboard(Some(surface.into()), serial),
                 None => {
                     let window = self
                         .isle
@@ -208,6 +153,11 @@ impl State {
                 }
             }
         }
+        // Withheld Cmd and Option go with a click, as Ctrl and Alt, after focus has moved.
+        let first = button_state == ButtonState::Pressed && self.isle.buttons_down.len() == 1;
+        if first {
+            self.keyboard_buttons(true);
+        }
         pointer.button(
             self,
             &ButtonEvent {
@@ -218,6 +168,9 @@ impl State {
             },
         );
         pointer.frame(self);
+        if button_state == ButtonState::Released && self.isle.buttons_down.is_empty() {
+            self.keyboard_buttons(false);
+        }
     }
 }
 
@@ -227,9 +180,8 @@ impl State {
     fn modifier_drag(&mut self, button: u32, serial: smithay::utils::Serial, time: InputTime) -> bool {
         const LEFT: u32 = 0x110;
         const RIGHT: u32 = 0x111;
-        let keyboard = self.isle.seat.get_keyboard().unwrap();
-        let mods = keyboard.modifier_state();
-        if !(mods.logo && mods.ctrl) || (button != LEFT && button != RIGHT) {
+        let mods = self.held_mods();
+        if !(mods.cmd && mods.ctrl) || (button != LEFT && button != RIGHT) {
             return false;
         }
         let pointer = self.isle.seat.get_pointer().unwrap();

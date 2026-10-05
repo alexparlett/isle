@@ -4,17 +4,20 @@
 use std::collections::HashMap;
 
 use isle_keys::{
+    engine::{Ctx, Engine, Out, Rules},
+    keyinfo::KeyInfo,
     keymap::{Iso, KeymapSpec, Layouts, MacVariants},
     profile::Profile,
 };
 use isle_settings::schema::{KeyboardModel, KeyboardProfile};
 use smithay::{
     backend::input::{InputTime, KeyState},
-    input::keyboard::Keycode,
+    input::keyboard::{FilterResult, Keycode},
+    utils::{SERIAL_COUNTER, Serial},
 };
 use tracing::{info, warn};
 
-use crate::{state::State, worker::Event};
+use crate::{binds::Action, focus::Focus, state::State, worker::Event};
 
 const KEY_LEFTALT: u32 = 56;
 const KEY_LEFTMETA: u32 = 125;
@@ -38,16 +41,20 @@ pub struct Device {
 pub struct Keyboards {
     pub devices: Vec<Device>,
     mac: Option<MacVariants>,
-    /// Compiled keymaps as text, by spec; `None` for a spec XKB refused.
-    keymaps: HashMap<KeymapSpec, Option<String>>,
+    /// Compiled keymaps as text with what they say of each key, by spec; `None` for a spec
+    /// XKB refused.
+    keymaps: HashMap<KeymapSpec, Option<(String, KeyInfo)>>,
     /// The spec the seat's keymap was made from.
     pub active: Option<KeymapSpec>,
     /// Whether the seat has had a keymap of Isle's, so Num Lock starts from the settings once.
     started: bool,
     /// The keyboard that typed last.
     last: Option<String>,
-    /// Keys held, by device and evdev code, with the code the seat was sent.
+    /// Keys held, by device and evdev code, with the code after the swap.
     held: HashMap<(String, u32), u32>,
+    pub engine: Engine,
+    /// The rules every translated app shares.
+    text: Option<Rules>,
 }
 
 impl Keyboards {
@@ -59,17 +66,45 @@ impl Keyboards {
         self.devices.iter().find(|d| d.id == id)
     }
 
-    fn keymap_text(&mut self, spec: &KeymapSpec) -> Option<String> {
+    fn compiled(&mut self, spec: &KeymapSpec) -> Option<&(String, KeyInfo)> {
         self.keymaps
             .entry(spec.clone())
             .or_insert_with(|| {
-                let text = spec.compile_text();
-                if text.is_none() {
+                let context = isle_keys::xkb::Context::new(isle_keys::xkb::CONTEXT_NO_FLAGS);
+                let Some(keymap) = spec.compile(&context) else {
                     warn!(keymap = spec.describe(), "XKB does not know this keymap");
-                }
-                text
+                    return None;
+                };
+                let text = keymap.get_as_string(isle_keys::xkb::KEYMAP_FORMAT_TEXT_V1);
+                Some((text, KeyInfo::new(&keymap)))
             })
-            .clone()
+            .as_ref()
+    }
+
+    /// Runs `f` with the engine and a context over the seat's keymap.
+    pub fn with_engine<R>(&mut self, translate: bool, f: impl FnOnce(&mut Engine, &Ctx) -> R) -> R {
+        static EMPTY: std::sync::OnceLock<KeyInfo> = std::sync::OnceLock::new();
+        let option_level3 = self
+            .last
+            .as_ref()
+            .and_then(|id| self.devices.iter().find(|d| &d.id == id))
+            .is_some_and(|d| d.profile == Profile::Mac);
+        let text = self.text.get_or_insert_with(isle_keys::tables::text);
+        let keys = self
+            .active
+            .as_ref()
+            .and_then(|spec| self.keymaps.get(spec))
+            .and_then(|c| c.as_ref())
+            .map(|(_, info)| info)
+            .unwrap_or_else(|| EMPTY.get_or_init(KeyInfo::default));
+        let rules = [&*text];
+        let ctx = Ctx {
+            keys,
+            translate,
+            option_level3,
+            rules: &rules,
+        };
+        f(&mut self.engine, &ctx)
     }
 }
 
@@ -129,7 +164,7 @@ impl State {
             "keyboard"
         );
         // Compiled now, so the first key does not wait for XKB.
-        self.isle.keyboards.keymap_text(&spec);
+        self.isle.keyboards.compiled(&spec);
         self.isle.keyboards.devices.push(Device {
             id: id.to_owned(),
             name: name.to_owned(),
@@ -194,7 +229,12 @@ impl State {
         if self.isle.keyboards.active.as_ref() == Some(spec) {
             return true;
         }
-        let Some(text) = self.isle.keyboards.keymap_text(spec) else {
+        let Some(text) = self
+            .isle
+            .keyboards
+            .compiled(spec)
+            .map(|(text, _)| text.clone())
+        else {
             return false;
         };
         let keyboard = self.isle.seat.get_keyboard().unwrap();
@@ -262,7 +302,85 @@ impl State {
                 .remove(&(id.to_owned(), code))
                 .unwrap_or(code),
         };
-        self.on_key(Keycode::new(sent + 8), key_state, time);
+        let translate = self.translating();
+        let settings = &self.isle.settings;
+        let outs = self
+            .isle
+            .keyboards
+            .with_engine(translate, |engine, ctx| match key_state {
+                KeyState::Pressed => engine.press(sent, ctx, |chord| {
+                    crate::binds::bound_action(settings, chord)
+                }),
+                KeyState::Released => engine.release(sent, ctx),
+            });
+        self.emit(outs, time);
+        self.update_bar_option();
+    }
+
+    /// Whether keys are translated for what has focus now.
+    pub fn translating(&self) -> bool {
+        true
+    }
+
+    /// Sends the engine's keys to the seat, then runs its actions.
+    pub fn emit(&mut self, outs: Vec<Out<Action>>, time: InputTime) {
+        let mut actions = Vec::new();
+        for out in outs {
+            match out {
+                Out::Press(code) => self.send_key(code, KeyState::Pressed, time),
+                Out::Release(code) => self.send_key(code, KeyState::Released, time),
+                Out::Action(action) => actions.push(action),
+            }
+        }
+        for action in actions {
+            self.run_action(action);
+        }
+    }
+
+    /// One key to the focus, as Isle decided it.
+    fn send_key(&mut self, code: u32, key_state: KeyState, time: InputTime) {
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        keyboard.input::<(), _>(
+            self,
+            Keycode::new(code + 8),
+            key_state,
+            SERIAL_COUNTER.next_serial(),
+            time,
+            |_, _, _| FilterResult::Forward,
+        );
+    }
+
+    /// Moves keyboard focus. The old focus is sent a release for every key it holds first,
+    /// and the new one the modifiers its context implies (B21).
+    pub fn focus_keyboard(&mut self, target: Option<Focus>, serial: Serial) {
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        if keyboard.current_focus() == target {
+            return;
+        }
+        let released: Vec<Out<Action>> = self.isle.keyboards.engine.unwind();
+        self.emit(released, InputTime::now());
+        keyboard.set_focus(self, target, serial);
+        let translate = self.translating();
+        let pressed = self
+            .isle
+            .keyboards
+            .with_engine(translate, |engine, ctx| engine.resync(ctx));
+        self.emit(pressed, InputTime::now());
+    }
+
+    /// A pointer button pressed with none down before, or the last one released.
+    pub fn keyboard_buttons(&mut self, down: bool) {
+        let translate = self.translating();
+        let outs = self
+            .isle
+            .keyboards
+            .with_engine(translate, |engine, ctx| engine.buttons(down, ctx));
+        self.emit(outs, InputTime::now());
+    }
+
+    /// The modifiers physically held, Cmd and Option included.
+    pub fn held_mods(&self) -> isle_keys::chord::Mods {
+        self.isle.keyboards.engine.mods()
     }
 
     /// The seat's active layout by XKB's name, and Caps Lock and Num Lock.

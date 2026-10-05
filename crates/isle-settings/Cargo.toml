@@ -6,6 +6,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+isle-keys.workspace = true
 isle-settings-derive.workspace = true
 kdl.workspace = true
 miette.workspace = true

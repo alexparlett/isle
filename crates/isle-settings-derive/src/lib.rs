@@ -30,7 +30,9 @@ struct FieldSpec {
     doc: String,
 }
 
-/// A block of settings. Field attributes: `#[setting(default = expr)]`,
+/// A block of settings. Struct attributes: `#[setting(retired = "name")]` ignores a node
+/// that is no longer a setting, `#[setting(check = path)]` names a cross-field check run
+/// after parsing and before a write. Field attributes: `#[setting(default = expr)]`,
 /// `#[setting(range = a..=b)]`, `#[setting(section)]`, `#[setting(keyed)]`,
 /// `#[setting(app = "id")]`, `#[setting(name = "kdl-name")]`. Doc comments document the key.
 #[proc_macro_derive(Section, attributes(setting))]
@@ -143,6 +145,29 @@ fn section(input: &DeriveInput) -> syn::Result<Tokens> {
         .map(field_spec)
         .collect::<syn::Result<Vec<_>>>()?;
     let krate = quote!(::isle_settings);
+
+    let mut retired: Vec<String> = Vec::new();
+    let mut check: Option<syn::Path> = None;
+    for attr in input.attrs.iter().filter(|a| a.path().is_ident("setting")) {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("retired") {
+                let lit: syn::LitStr = meta.value()?.parse()?;
+                retired.push(lit.value());
+            } else if meta.path.is_ident("check") {
+                check = Some(meta.value()?.parse()?);
+            } else {
+                return Err(meta.error("unknown section attribute"));
+            }
+            Ok(())
+        })?;
+    }
+    let check_fn = check.map(|path| {
+        quote! {
+            fn check(&self) -> ::core::result::Result<(), #krate::CheckError> {
+                #path(self)
+            }
+        }
+    });
 
     let defaults = specs.iter().map(|f| {
         let ident = &f.ident;
@@ -399,11 +424,14 @@ fn section(input: &DeriveInput) -> syn::Result<Tokens> {
                     match name {
                         #(#parse_arms)*
                         #app_arm
+                        #(#retired => {})*
                         other => ctx.error(node.name().span(), format!("`{}` is not a setting here", other)),
                     }
                 }
                 out
             }
+
+            #check_fn
 
             fn flatten(&self, prefix: &str, out: &mut ::std::collections::BTreeMap<String, #krate::Value>) {
                 #(#flattens)*

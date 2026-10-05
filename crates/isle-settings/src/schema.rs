@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use crate::{Choice, Section};
 
 #[derive(Clone, Debug, PartialEq, Section)]
+#[setting(retired = "binds", check = crate::shortcuts::check)]
 pub struct Settings {
     /// The DRM render node to draw with; the boot GPU when unset.
     pub render_device: Option<String>,
@@ -24,7 +25,7 @@ pub struct Settings {
     #[setting(section)]
     pub windows: Windows,
     #[setting(section)]
-    pub binds: Binds,
+    pub shortcuts: Shortcuts,
     #[setting(section)]
     pub debug: Debug,
     #[setting(app = "io.github.alexparlett.Isle.Example")]
@@ -202,79 +203,340 @@ pub enum TitlebarAction {
     None,
 }
 
-/// Until P5's shortcut set: a chord per action, written as `Super+Return`; empty turns one
-/// off. Super is Cmd, Alt is Option.
+/// The desktop's chords: each action's chords in Mac names (`Shift+Cmd+K`) or symbols
+/// (`⇧⌘K`); an empty list turns an action off. A chord bound twice is refused.
 #[derive(Clone, Debug, PartialEq, Section)]
-pub struct Binds {
-    #[setting(default = "Super+Return".to_owned())]
-    pub terminal: String,
-    #[setting(default = "Super+W".to_owned())]
-    pub close_window: String,
-    #[setting(default = "Super+Shift+Escape".to_owned())]
-    pub quit: String,
+pub struct Shortcuts {
+    /// Close the front window; a keep-running app's last window hides it.
+    #[setting(default = vec!["Cmd+W".to_owned()])]
+    pub close_window: Vec<String>,
+    /// Minimise the front window.
+    #[setting(default = vec!["Cmd+M".to_owned()])]
+    pub minimise: Vec<String>,
+    /// Minimise every window of the front app.
+    #[setting(default = vec!["Option+Cmd+M".to_owned()])]
+    pub minimise_app: Vec<String>,
+    /// Hide the front app.
+    #[setting(default = vec!["Cmd+H".to_owned()])]
+    pub hide: Vec<String>,
+    /// Hide every app but the front one.
+    #[setting(default = vec!["Option+Cmd+H".to_owned()])]
+    pub hide_others: Vec<String>,
+    /// Quit the front app, keep-running apps included.
+    #[setting(default = vec!["Cmd+Q".to_owned()])]
+    pub quit_app: Vec<String>,
+    /// Enter or leave full screen.
+    #[setting(default = vec!["Ctrl+Cmd+F".to_owned()])]
+    pub full_screen: Vec<String>,
     /// Left half; again, two-thirds, then a third.
-    #[setting(default = "Ctrl+Alt+Left".to_owned())]
-    pub tile_left: String,
-    #[setting(default = "Ctrl+Alt+Right".to_owned())]
-    pub tile_right: String,
+    #[setting(default = vec!["Ctrl+Option+Left".to_owned()])]
+    pub tile_left: Vec<String>,
+    /// Right half; again, two-thirds, then a third.
+    #[setting(default = vec!["Ctrl+Option+Right".to_owned()])]
+    pub tile_right: Vec<String>,
     /// The centred 60%; again, the centre third.
-    #[setting(default = "Ctrl+Alt+C".to_owned())]
-    pub tile_centre: String,
-    #[setting(default = "Ctrl+Alt+F".to_owned())]
-    pub fill: String,
-    /// Back to the box before a tile or fill.
-    #[setting(default = "Ctrl+Alt+R".to_owned())]
-    pub restore: String,
-    #[setting(default = "Ctrl+Alt+U".to_owned())]
-    pub tile_top_left: String,
-    #[setting(default = "Ctrl+Alt+I".to_owned())]
-    pub tile_top_right: String,
-    #[setting(default = "Ctrl+Alt+J".to_owned())]
-    pub tile_bottom_left: String,
-    #[setting(default = "Ctrl+Alt+K".to_owned())]
-    pub tile_bottom_right: String,
-    /// The widest gap beside the other windows.
-    #[setting(default = "Ctrl+Alt+B".to_owned())]
-    pub tile_beside: String,
-    #[setting(default = "Ctrl+Alt+Super+Right".to_owned())]
-    pub next_display: String,
-    #[setting(default = "Ctrl+Alt+Super+Left".to_owned())]
-    pub previous_display: String,
-    #[setting(default = "Super+H".to_owned())]
-    pub hide: String,
-    #[setting(default = "Super+Alt+H".to_owned())]
-    pub hide_others: String,
-    #[setting(default = "Super+M".to_owned())]
-    pub minimise: String,
-    #[setting(default = "Super+Alt+M".to_owned())]
-    pub minimise_app: String,
-    #[setting(default = "Super+Q".to_owned())]
-    pub quit_app: String,
+    #[setting(default = vec!["Ctrl+Option+C".to_owned()])]
+    pub tile_centre: Vec<String>,
+    /// Fill the screen.
+    #[setting(default = vec!["Ctrl+Option+F".to_owned()])]
+    pub fill: Vec<String>,
+    /// Return to the size before a tile or fill.
+    #[setting(default = vec!["Ctrl+Option+R".to_owned()])]
+    pub restore: Vec<String>,
+    /// Top-left quarter.
+    #[setting(default = vec!["Ctrl+Option+U".to_owned()])]
+    pub tile_top_left: Vec<String>,
+    /// Top-right quarter.
+    #[setting(default = vec!["Ctrl+Option+I".to_owned()])]
+    pub tile_top_right: Vec<String>,
+    /// Bottom-left quarter.
+    #[setting(default = vec!["Ctrl+Option+J".to_owned()])]
+    pub tile_bottom_left: Vec<String>,
+    /// Bottom-right quarter.
+    #[setting(default = vec!["Ctrl+Option+K".to_owned()])]
+    pub tile_bottom_right: Vec<String>,
+    /// Fill the widest space beside the other windows.
+    #[setting(default = vec!["Ctrl+Option+B".to_owned()])]
+    pub tile_beside: Vec<String>,
+    /// Move the window to the next display.
+    #[setting(default = vec!["Ctrl+Option+Cmd+Right".to_owned()])]
+    pub next_display: Vec<String>,
+    /// Move the window to the previous display.
+    #[setting(default = vec!["Ctrl+Option+Cmd+Left".to_owned()])]
+    pub previous_display: Vec<String>,
+    /// Open the zoom menu for the front window.
+    #[setting(default = vec!["Ctrl+Option+Z".to_owned()])]
+    pub zoom_menu: Vec<String>,
+    /// Open the window menu.
+    #[setting(default = vec!["Ctrl+Option+Space".to_owned()])]
+    pub window_menu: Vec<String>,
     /// The front app's next window.
-    #[setting(default = "Super+grave".to_owned())]
-    pub next_window: String,
-    #[setting(default = "Super+Shift+grave".to_owned())]
-    pub previous_window: String,
-    #[setting(default = "Ctrl+Super+F".to_owned())]
-    pub full_screen: String,
-    /// The zoom menu for the focused window.
-    #[setting(default = "Ctrl+Alt+Z".to_owned())]
-    pub zoom_menu: String,
-    #[setting(default = "Ctrl+Left".to_owned())]
-    pub desktop_left: String,
-    #[setting(default = "Ctrl+Right".to_owned())]
-    pub desktop_right: String,
+    #[setting(default = vec!["Cmd+`".to_owned()])]
+    pub next_window: Vec<String>,
+    /// The front app's previous window.
+    #[setting(default = vec!["Shift+Cmd+`".to_owned()])]
+    pub previous_window: Vec<String>,
+    /// Keep the front window on top.
+    pub pin: Vec<String>,
+    /// Focus the window to the left.
+    pub focus_left: Vec<String>,
+    /// Focus the window to the right.
+    pub focus_right: Vec<String>,
+    /// Focus the window above.
+    pub focus_up: Vec<String>,
+    /// Focus the window below.
+    pub focus_down: Vec<String>,
+    /// The desktop to the left.
+    #[setting(default = vec!["Ctrl+Left".to_owned()])]
+    pub desktop_left: Vec<String>,
+    /// The desktop to the right.
+    #[setting(default = vec!["Ctrl+Right".to_owned()])]
+    pub desktop_right: Vec<String>,
+    /// Carry the front window one desktop left.
+    #[setting(default = vec!["Ctrl+Shift+Cmd+Left".to_owned()])]
+    pub carry_left: Vec<String>,
+    /// Carry the front window one desktop right.
+    #[setting(default = vec!["Ctrl+Shift+Cmd+Right".to_owned()])]
+    pub carry_right: Vec<String>,
+    /// Mission Control.
+    #[setting(default = vec!["Ctrl+Up".to_owned(), "XF86LaunchA".to_owned()])]
+    pub mission_control: Vec<String>,
+    /// The front app's windows, spread out.
+    #[setting(default = vec!["Ctrl+Down".to_owned()])]
+    pub app_expose: Vec<String>,
+    /// Show the desktop.
+    #[setting(default = vec!["Cmd+F3".to_owned()])]
+    pub show_desktop: Vec<String>,
+    /// The app switcher; it commits when Cmd is released.
+    #[setting(default = vec!["Cmd+Tab".to_owned()])]
+    pub switcher: Vec<String>,
+    /// The app switcher, from the end.
+    #[setting(default = vec!["Shift+Cmd+Tab".to_owned()])]
+    pub switcher_back: Vec<String>,
+    /// Spotlight.
+    #[setting(default = vec!["Cmd+Space".to_owned()])]
+    pub spotlight: Vec<String>,
+    /// Spotlight's Apps view.
+    #[setting(default = vec!["XF86LaunchB".to_owned()])]
+    pub apps: Vec<String>,
+    /// Spotlight in Emoji.
+    #[setting(default = vec!["Ctrl+Cmd+Space".to_owned()])]
+    pub emoji: Vec<String>,
+    /// Force Quit.
+    #[setting(default = vec!["Option+Cmd+Escape".to_owned()])]
+    pub force_quit: Vec<String>,
+    /// Open a terminal.
+    pub terminal: Vec<String>,
+    /// Open Settings.
+    pub settings: Vec<String>,
+    /// Open Monitor.
+    pub monitor: Vec<String>,
+    /// Open a Files window.
+    pub files: Vec<String>,
+    /// The menu bar, with focus on its first menu.
+    #[setting(default = vec!["Ctrl+F2".to_owned()])]
+    pub menu_bar: Vec<String>,
+    /// The menu bar, searching the front app's menus.
+    #[setting(default = vec!["Shift+Cmd+/".to_owned()])]
+    pub help_search: Vec<String>,
+    /// Control Centre.
+    #[setting(default = vec!["Ctrl+F8".to_owned()])]
+    pub control_centre: Vec<String>,
+    /// Notification Centre.
+    #[setting(default = vec!["Ctrl+Option+Cmd+N".to_owned()])]
+    pub notification_centre: Vec<String>,
+    /// The widgets dashboard.
+    #[setting(default = vec!["Ctrl+Option+Cmd+W".to_owned()])]
+    pub dashboard: Vec<String>,
+    /// Show or hide the dropdown terminal.
+    #[setting(default = vec!["Ctrl+Option+`".to_owned()])]
+    pub dropdown_terminal: Vec<String>,
+    /// Show or hide the on-screen keyboard.
+    #[setting(default = vec!["Option+Cmd+F5".to_owned()])]
+    pub on_screen_keyboard: Vec<String>,
+    /// Screenshot the screen.
+    #[setting(default = vec!["Shift+Cmd+3".to_owned(), "Shift+Print".to_owned()])]
+    pub screenshot_screen: Vec<String>,
+    /// Screenshot a portion or a window.
+    #[setting(default = vec!["Shift+Cmd+4".to_owned(), "Print".to_owned()])]
+    pub screenshot_pick: Vec<String>,
+    /// The capture toolbar.
+    #[setting(default = vec!["Shift+Cmd+5".to_owned()])]
+    pub capture_toolbar: Vec<String>,
+    /// Copy a screenshot of the screen.
+    #[setting(default = vec!["Ctrl+Shift+Cmd+3".to_owned(), "Ctrl+Shift+Print".to_owned()])]
+    pub screenshot_screen_copy: Vec<String>,
+    /// Copy a screenshot of a portion or a window.
+    #[setting(default = vec!["Ctrl+Shift+Cmd+4".to_owned(), "Ctrl+Print".to_owned()])]
+    pub screenshot_pick_copy: Vec<String>,
+    /// The capture toolbar, copying.
+    #[setting(default = vec!["Ctrl+Shift+Cmd+5".to_owned()])]
+    pub capture_toolbar_copy: Vec<String>,
+    /// Pick a colour from the screen.
+    #[setting(default = vec!["Shift+Cmd+6".to_owned()])]
+    pub colour_pick: Vec<String>,
+    /// Stop a recording.
+    #[setting(default = vec!["Ctrl+Cmd+Escape".to_owned()])]
+    pub stop_recording: Vec<String>,
+    /// Lock the screen.
+    #[setting(default = vec!["Ctrl+Cmd+Q".to_owned()])]
+    pub lock: Vec<String>,
+    /// Log out, after asking.
+    #[setting(default = vec!["Shift+Cmd+Q".to_owned()])]
+    pub log_out: Vec<String>,
+    /// Log out now.
+    #[setting(default = vec!["Option+Shift+Cmd+Q".to_owned()])]
+    pub log_out_now: Vec<String>,
+    /// Restart, sleep or shut down.
+    #[setting(default = vec!["Ctrl+Cmd+BackSpace".to_owned()])]
+    pub session_chooser: Vec<String>,
+    /// Turn Do Not Disturb on or off.
+    #[setting(default = vec!["Ctrl+Option+Cmd+D".to_owned()])]
+    pub do_not_disturb: Vec<String>,
+    /// Turn Game Mode on or off.
+    #[setting(default = vec!["Ctrl+Option+Cmd+G".to_owned()])]
+    pub game_mode: Vec<String>,
+    /// Detect the displays again.
+    #[setting(default = vec!["Ctrl+Option+Cmd+R".to_owned()])]
+    pub redetect_displays: Vec<String>,
+    /// The next keyboard layout; only while two or more are set.
+    #[setting(default = vec!["Ctrl+Space".to_owned()])]
+    pub next_layout: Vec<String>,
+    /// Take the keys back from a window holding them, or give them back.
+    #[setting(default = vec!["Cmd+Escape".to_owned()])]
+    pub take_keys_back: Vec<String>,
+    /// Turn Zoom on or off; macOS uses Option+Cmd+8.
+    pub zoom: Vec<String>,
+    /// Zoom in; macOS uses Option+Cmd+=.
+    pub zoom_in: Vec<String>,
+    /// Zoom out; macOS uses Option+Cmd+-.
+    pub zoom_out: Vec<String>,
+    /// Volume up.
+    #[setting(default = vec!["XF86AudioRaiseVolume".to_owned()])]
+    pub volume_up: Vec<String>,
+    /// Volume down.
+    #[setting(default = vec!["XF86AudioLowerVolume".to_owned()])]
+    pub volume_down: Vec<String>,
+    /// Mute or unmute the output.
+    #[setting(default = vec!["XF86AudioMute".to_owned()])]
+    pub mute: Vec<String>,
+    /// Mute or unmute the microphone.
+    #[setting(default = vec!["XF86AudioMicMute".to_owned()])]
+    pub mic_mute: Vec<String>,
+    /// Brightness up.
+    #[setting(default = vec!["XF86MonBrightnessUp".to_owned()])]
+    pub brightness_up: Vec<String>,
+    /// Brightness down.
+    #[setting(default = vec!["XF86MonBrightnessDown".to_owned()])]
+    pub brightness_down: Vec<String>,
+    /// Play or pause.
+    #[setting(default = vec!["XF86AudioPlay".to_owned(), "XF86AudioPause".to_owned()])]
+    pub play_pause: Vec<String>,
+    /// The next track.
+    #[setting(default = vec!["XF86AudioNext".to_owned()])]
+    pub next_track: Vec<String>,
+    /// The previous track.
+    #[setting(default = vec!["XF86AudioPrev".to_owned()])]
+    pub previous_track: Vec<String>,
     /// The modifiers that with 1 to 9 jump to a desktop.
     #[setting(default = "Ctrl".to_owned())]
     pub desktop_jump: String,
-    /// The focused window one desktop along, the view following.
-    #[setting(default = "Ctrl+Shift+Super+Left".to_owned())]
-    pub carry_left: String,
-    #[setting(default = "Ctrl+Shift+Super+Right".to_owned())]
-    pub carry_right: String,
-    /// The terminal the bind starts.
+    /// The modifiers that with a press anywhere on a window move it, or with the right
+    /// button resize it.
+    #[setting(default = "Ctrl+Cmd".to_owned())]
+    pub window_drag: String,
+    /// What the terminal shortcut starts.
     #[setting(default = "kitty".to_owned())]
     pub terminal_command: String,
+}
+
+impl Shortcuts {
+    /// Every action's chords, by the action's id.
+    pub fn chords(&self) -> Vec<(&'static str, &[String])> {
+        vec![
+            ("close-window", &self.close_window),
+            ("minimise", &self.minimise),
+            ("minimise-app", &self.minimise_app),
+            ("hide", &self.hide),
+            ("hide-others", &self.hide_others),
+            ("quit-app", &self.quit_app),
+            ("full-screen", &self.full_screen),
+            ("tile-left", &self.tile_left),
+            ("tile-right", &self.tile_right),
+            ("tile-centre", &self.tile_centre),
+            ("fill", &self.fill),
+            ("restore", &self.restore),
+            ("tile-top-left", &self.tile_top_left),
+            ("tile-top-right", &self.tile_top_right),
+            ("tile-bottom-left", &self.tile_bottom_left),
+            ("tile-bottom-right", &self.tile_bottom_right),
+            ("tile-beside", &self.tile_beside),
+            ("next-display", &self.next_display),
+            ("previous-display", &self.previous_display),
+            ("zoom-menu", &self.zoom_menu),
+            ("window-menu", &self.window_menu),
+            ("next-window", &self.next_window),
+            ("previous-window", &self.previous_window),
+            ("pin", &self.pin),
+            ("focus-left", &self.focus_left),
+            ("focus-right", &self.focus_right),
+            ("focus-up", &self.focus_up),
+            ("focus-down", &self.focus_down),
+            ("desktop-left", &self.desktop_left),
+            ("desktop-right", &self.desktop_right),
+            ("carry-left", &self.carry_left),
+            ("carry-right", &self.carry_right),
+            ("mission-control", &self.mission_control),
+            ("app-expose", &self.app_expose),
+            ("show-desktop", &self.show_desktop),
+            ("switcher", &self.switcher),
+            ("switcher-back", &self.switcher_back),
+            ("spotlight", &self.spotlight),
+            ("apps", &self.apps),
+            ("emoji", &self.emoji),
+            ("force-quit", &self.force_quit),
+            ("terminal", &self.terminal),
+            ("settings", &self.settings),
+            ("monitor", &self.monitor),
+            ("files", &self.files),
+            ("menu-bar", &self.menu_bar),
+            ("help-search", &self.help_search),
+            ("control-centre", &self.control_centre),
+            ("notification-centre", &self.notification_centre),
+            ("dashboard", &self.dashboard),
+            ("dropdown-terminal", &self.dropdown_terminal),
+            ("on-screen-keyboard", &self.on_screen_keyboard),
+            ("screenshot-screen", &self.screenshot_screen),
+            ("screenshot-pick", &self.screenshot_pick),
+            ("capture-toolbar", &self.capture_toolbar),
+            ("screenshot-screen-copy", &self.screenshot_screen_copy),
+            ("screenshot-pick-copy", &self.screenshot_pick_copy),
+            ("capture-toolbar-copy", &self.capture_toolbar_copy),
+            ("colour-pick", &self.colour_pick),
+            ("stop-recording", &self.stop_recording),
+            ("lock", &self.lock),
+            ("log-out", &self.log_out),
+            ("log-out-now", &self.log_out_now),
+            ("session-chooser", &self.session_chooser),
+            ("do-not-disturb", &self.do_not_disturb),
+            ("game-mode", &self.game_mode),
+            ("redetect-displays", &self.redetect_displays),
+            ("next-layout", &self.next_layout),
+            ("take-keys-back", &self.take_keys_back),
+            ("zoom", &self.zoom),
+            ("zoom-in", &self.zoom_in),
+            ("zoom-out", &self.zoom_out),
+            ("volume-up", &self.volume_up),
+            ("volume-down", &self.volume_down),
+            ("mute", &self.mute),
+            ("mic-mute", &self.mic_mute),
+            ("brightness-up", &self.brightness_up),
+            ("brightness-down", &self.brightness_down),
+            ("play-pause", &self.play_pause),
+            ("next-track", &self.next_track),
+            ("previous-track", &self.previous_track),
+        ]
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]

@@ -1,6 +1,12 @@
-//! The bind table until P5's shortcut set: a few chords from `binds` in `settings.kdl`.
+//! The shortcut set: each action's chords from `shortcuts` in `settings.kdl`, matched against
+//! the physical keys, and the actions they run.
 
-use isle_keys::chord::Chord;
+use std::collections::HashMap;
+
+use isle_keys::{
+    chord::{Chord, Mods},
+    shortcuts::Shortcut,
+};
 use smithay::input::keyboard::keysyms;
 use tracing::{info, warn};
 
@@ -31,64 +37,169 @@ pub enum Action {
     /// To a desktop by its place, from 0.
     JumpDesktop(usize),
     CarryWindow(i32),
-    /// The kernel's VT keys, Ctrl+Alt+F1 to F12, which XKB turns into these keysyms.
+    /// The kernel's VT keys: Ctrl+Option+F1 to F12.
     SwitchVt(i32),
+    NextLayout,
+    Redetect,
+    Media(Media),
+    TakeKeysBack,
+    /// An action a later packet builds; its chord is the desktop's already.
+    Reserved(&'static str),
 }
 
-/// The action bound to a physical chord, if any. The kernel's VT keys are Ctrl+Option+F1 to
-/// F12.
-pub fn bound_action(settings: &isle_settings::schema::Settings, chord: Chord) -> Option<Action> {
-    let raw = chord.sym.raw();
-    if chord.mods.ctrl && chord.mods.option && (keysyms::KEY_F1..=keysyms::KEY_F12).contains(&raw) {
-        return Some(Action::SwitchVt((raw - keysyms::KEY_F1 + 1) as i32));
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Media {
+    VolumeUp,
+    VolumeDown,
+    Mute,
+    MicMute,
+    BrightnessUp,
+    BrightnessDown,
+    PlayPause,
+    Next,
+    Previous,
+}
+
+impl Media {
+    /// v1's commands, until P8's services take the keys.
+    fn command(self) -> &'static str {
+        match self {
+            Media::VolumeUp => "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+",
+            Media::VolumeDown => "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
+            Media::Mute => "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+            Media::MicMute => "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
+            Media::BrightnessUp => "brightnessctl -q -c backlight set 5%+",
+            Media::BrightnessDown => "brightnessctl -q -c backlight set 5%-",
+            Media::PlayPause => "playerctl play-pause",
+            Media::Next => "playerctl next",
+            Media::Previous => "playerctl previous",
+        }
     }
-    let binds = &settings.binds;
-    [
-        (&binds.terminal, Action::Terminal),
-        (&binds.close_window, Action::CloseWindow),
-        (&binds.quit, Action::Quit),
-        (&binds.tile_left, Action::Tile(Zone::LeftHalf)),
-        (&binds.tile_right, Action::Tile(Zone::RightHalf)),
-        (&binds.tile_centre, Action::Tile(Zone::Centre)),
-        (&binds.fill, Action::Fill),
-        (&binds.restore, Action::Restore),
-        (&binds.tile_top_left, Action::Tile(Zone::TopLeft)),
-        (&binds.tile_top_right, Action::Tile(Zone::TopRight)),
-        (&binds.tile_bottom_left, Action::Tile(Zone::BottomLeft)),
-        (&binds.tile_bottom_right, Action::Tile(Zone::BottomRight)),
-        (&binds.tile_beside, Action::Tile(Zone::Beside)),
-        (&binds.next_display, Action::Display(1)),
-        (&binds.previous_display, Action::Display(-1)),
-        (&binds.hide, Action::Hide),
-        (&binds.hide_others, Action::HideOthers),
-        (&binds.minimise, Action::Minimise),
-        (&binds.minimise_app, Action::MinimiseApp),
-        (&binds.quit_app, Action::QuitApp),
-        (&binds.next_window, Action::CycleWindows(true)),
-        (&binds.previous_window, Action::CycleWindows(false)),
-        (&binds.full_screen, Action::FullScreen),
-        (&binds.zoom_menu, Action::ZoomMenu),
-        (&binds.desktop_left, Action::Desktop(-1)),
-        (&binds.desktop_right, Action::Desktop(1)),
-        (&binds.carry_left, Action::CarryWindow(-1)),
-        (&binds.carry_right, Action::CarryWindow(1)),
-    ]
-    .into_iter()
-    .find(|(text, _)| Chord::parse(text) == Some(chord))
-    .map(|(_, action)| action)
-    .or_else(|| {
-        (1..=9).find_map(|n| {
-            let bound = Chord::parse(&format!("{}+{n}", binds.desktop_jump))?;
-            (bound == chord).then_some(Action::JumpDesktop(n - 1))
-        })
-    })
+}
+
+/// The action a shortcut id runs.
+fn action_for(id: &'static str) -> Action {
+    match id {
+        "close-window" => Action::CloseWindow,
+        "minimise" => Action::Minimise,
+        "minimise-app" => Action::MinimiseApp,
+        "hide" => Action::Hide,
+        "hide-others" => Action::HideOthers,
+        "quit-app" => Action::QuitApp,
+        "full-screen" => Action::FullScreen,
+        "tile-left" => Action::Tile(Zone::LeftHalf),
+        "tile-right" => Action::Tile(Zone::RightHalf),
+        "tile-centre" => Action::Tile(Zone::Centre),
+        "fill" => Action::Fill,
+        "restore" => Action::Restore,
+        "tile-top-left" => Action::Tile(Zone::TopLeft),
+        "tile-top-right" => Action::Tile(Zone::TopRight),
+        "tile-bottom-left" => Action::Tile(Zone::BottomLeft),
+        "tile-bottom-right" => Action::Tile(Zone::BottomRight),
+        "tile-beside" => Action::Tile(Zone::Beside),
+        "next-display" => Action::Display(1),
+        "previous-display" => Action::Display(-1),
+        "zoom-menu" => Action::ZoomMenu,
+        "next-window" => Action::CycleWindows(true),
+        "previous-window" => Action::CycleWindows(false),
+        "desktop-left" => Action::Desktop(-1),
+        "desktop-right" => Action::Desktop(1),
+        "carry-left" => Action::CarryWindow(-1),
+        "carry-right" => Action::CarryWindow(1),
+        "terminal" => Action::Terminal,
+        "log-out-now" => Action::Quit,
+        "redetect-displays" => Action::Redetect,
+        "next-layout" => Action::NextLayout,
+        "take-keys-back" => Action::TakeKeysBack,
+        "volume-up" => Action::Media(Media::VolumeUp),
+        "volume-down" => Action::Media(Media::VolumeDown),
+        "mute" => Action::Media(Media::Mute),
+        "mic-mute" => Action::Media(Media::MicMute),
+        "brightness-up" => Action::Media(Media::BrightnessUp),
+        "brightness-down" => Action::Media(Media::BrightnessDown),
+        "play-pause" => Action::Media(Media::PlayPause),
+        "next-track" => Action::Media(Media::Next),
+        "previous-track" => Action::Media(Media::Previous),
+        other => Action::Reserved(other),
+    }
+}
+
+/// What a chord bound: the action, its shortcut, and the modifiers it was pressed with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Bound {
+    pub action: Action,
+    pub shortcut: Option<&'static Shortcut>,
+    pub mods: Mods,
+}
+
+/// The shortcut set as the keyboard reads it, built when the settings change.
+#[derive(Default)]
+pub struct Bindings {
+    chords: HashMap<Chord, &'static Shortcut>,
+    /// The modifiers that with 1 to 9 jump to a desktop.
+    jump: Mods,
+    /// The modifiers that make a press a window drag.
+    pub drag: Mods,
+    layouts: usize,
+}
+
+impl Bindings {
+    /// The settings' chords; ones the settings check refused never get here.
+    pub fn new(settings: &isle_settings::schema::Settings) -> Self {
+        let shortcuts = &settings.shortcuts;
+        let mut chords = HashMap::new();
+        for (id, texts) in shortcuts.chords() {
+            let Some(shortcut) = isle_keys::shortcuts::find(id) else {
+                warn!(id, "a shortcut with no action");
+                continue;
+            };
+            for text in texts {
+                if let Some(chord) = Chord::parse(text) {
+                    chords.insert(chord, shortcut);
+                }
+            }
+        }
+        Bindings {
+            chords,
+            jump: Mods::parse(&shortcuts.desktop_jump).unwrap_or_default(),
+            drag: Mods::parse(&shortcuts.window_drag).unwrap_or_default(),
+            layouts: settings.keyboard.layouts.len(),
+        }
+    }
+
+    /// The action bound to a physical chord, if any.
+    pub fn lookup(&self, chord: Chord) -> Option<Bound> {
+        let raw = chord.sym.raw();
+        let bound = |action, shortcut| Bound {
+            action,
+            shortcut,
+            mods: chord.mods,
+        };
+        if chord.mods.ctrl && chord.mods.option && (keysyms::KEY_F1..=keysyms::KEY_F12).contains(&raw) {
+            return Some(bound(Action::SwitchVt((raw - keysyms::KEY_F1 + 1) as i32), None));
+        }
+        if let Some(shortcut) = self.chords.get(&chord) {
+            // With one layout Ctrl+Space stays the app's (`competition.md`).
+            if shortcut.id == "next-layout" && self.layouts < 2 {
+                return None;
+            }
+            return Some(bound(action_for(shortcut.id), Some(shortcut)));
+        }
+        if !self.jump.is_empty() && chord.mods == self.jump {
+            let digit = (keysyms::KEY_1..=keysyms::KEY_9).contains(&raw);
+            if digit {
+                return Some(bound(Action::JumpDesktop((raw - keysyms::KEY_1) as usize), None));
+            }
+        }
+        None
+    }
 }
 
 impl State {
     pub fn run_action(&mut self, action: Action) {
         info!(?action, "bind");
         match action {
-            Action::Terminal => spawn(&self.isle.settings.binds.terminal_command),
+            Action::Terminal => spawn(&self.isle.settings.shortcuts.terminal_command),
             Action::CloseWindow => {
                 if let Some(id) = self.focused_window() {
                     self.close_window(id);
@@ -131,6 +242,14 @@ impl State {
             Action::JumpDesktop(index) => self.jump_desktop(index),
             Action::CarryWindow(step) => self.carry_window(step),
             Action::SwitchVt(vt) => self.switch_vt(vt),
+            Action::NextLayout => self.next_layout(),
+            Action::Redetect => self.redetect(),
+            Action::Media(media) => spawn(media.command()),
+            Action::TakeKeysBack => {}
+            Action::Reserved(id) => {
+                let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);
+                info!(id, packet, "a shortcut whose action is not built yet");
+            }
         }
     }
 }

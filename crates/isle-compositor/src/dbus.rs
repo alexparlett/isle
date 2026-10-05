@@ -390,6 +390,31 @@ impl Keyboard {
         Ok(())
     }
 
+    /// Every action of the shortcut set with its chords.
+    async fn shortcuts(&self) -> Vec<isle_ipc::ShortcutInfo> {
+        let schema = schema_of::<isle_settings::schema::Settings>();
+        let store = self.store.lock().await;
+        store
+            .current()
+            .shortcuts
+            .chords()
+            .into_iter()
+            .map(|(id, chords)| isle_ipc::ShortcutInfo {
+                id: id.to_owned(),
+                label: schema
+                    .iter()
+                    .find(|k| k.key == format!("shortcuts.{id}"))
+                    .map(|k| k.doc.clone())
+                    .unwrap_or_default(),
+                chords: chords.to_vec(),
+                packet: isle_keys::shortcuts::find(id)
+                    .and_then(|s| s.packet)
+                    .unwrap_or_default()
+                    .to_owned(),
+            })
+            .collect()
+    }
+
     #[zbus(signal)]
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
@@ -455,6 +480,11 @@ impl Test {
             .to_loop
             .call(move |state| state.keyboard_removed(&id))
             .await?)
+    }
+
+    /// Held chords told of their release so far.
+    async fn held_releases(&self) -> fdo::Result<u32> {
+        Ok(self.to_loop.call(|state| state.isle.held_releases).await?)
     }
 
     /// A key from a keyboard `add_keyboard` made.

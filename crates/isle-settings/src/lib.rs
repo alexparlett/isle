@@ -5,6 +5,7 @@ extern crate self as isle_settings;
 
 mod path;
 pub mod schema;
+mod shortcuts;
 mod store;
 mod text;
 mod value;
@@ -69,6 +70,18 @@ pub trait Section: Sized + Clone + PartialEq + Default {
     fn set(&mut self, path: &[Seg], value: Value) -> Result<(), String>;
     /// The KDL text of the arguments of the leaf at `path`.
     fn kdl_args(&self, path: &[Seg]) -> Option<String>;
+    /// Rules across keys, run after parsing and before a write.
+    fn check(&self) -> Result<(), CheckError> {
+        Ok(())
+    }
+}
+
+/// A cross-field rule broken, at the key that breaks it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CheckError {
+    pub message: String,
+    /// The key's path, `shortcuts.hide`, for the place in the file.
+    pub key: String,
 }
 
 /// Joins a path prefix and a node name.

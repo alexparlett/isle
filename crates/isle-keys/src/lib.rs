@@ -5,6 +5,7 @@ pub mod engine;
 pub mod keyinfo;
 pub mod keymap;
 pub mod profile;
+pub mod shortcuts;
 pub mod tables;
 
 pub use xkbcommon::xkb;

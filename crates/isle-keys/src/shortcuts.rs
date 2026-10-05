@@ -1,0 +1,106 @@
+//! The desktop's actions as the shortcut set knows them: which packet builds each, and how
+//! each behaves over a game, while locked, held down and released.
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Shortcut {
+    /// The `shortcuts` key that holds its chords.
+    pub id: &'static str,
+    /// The packet that builds it; `None` once built.
+    pub packet: Option<&'static str>,
+    /// Acts over a game in front (B30).
+    pub escape: bool,
+    /// Acts while the screen is locked.
+    pub locked: bool,
+    /// Runs again while held, at the keyboard's repeat.
+    pub repeats: bool,
+    /// Keeps its chord until the chord's modifiers are released, and is told then.
+    pub holds: bool,
+}
+
+#[rustfmt::skip]
+pub const SHORTCUTS: &[Shortcut] = &[
+    Shortcut { id: "close-window", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "minimise", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "minimise-app", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "hide", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "hide-others", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "quit-app", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "full-screen", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-left", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-right", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-centre", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "fill", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "restore", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-top-left", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-top-right", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-bottom-left", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-bottom-right", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "tile-beside", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "next-display", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "previous-display", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "zoom-menu", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "window-menu", packet: Some("P6"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "next-window", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "previous-window", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "pin", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "focus-left", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "focus-right", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "focus-up", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "focus-down", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "desktop-left", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "desktop-right", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "carry-left", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "carry-right", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "mission-control", packet: Some("P16"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "app-expose", packet: Some("P16"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "show-desktop", packet: Some("P16"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "switcher", packet: Some("P7"), escape: true, locked: false, repeats: false, holds: true },
+    Shortcut { id: "switcher-back", packet: Some("P7"), escape: true, locked: false, repeats: false, holds: true },
+    Shortcut { id: "spotlight", packet: Some("P10"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "apps", packet: Some("P10"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "emoji", packet: Some("P10"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "force-quit", packet: Some("P9"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "terminal", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "settings", packet: Some("P13"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "monitor", packet: Some("P19"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "files", packet: Some("P15"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "menu-bar", packet: Some("P6"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "help-search", packet: Some("P6"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "control-centre", packet: Some("P6"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "notification-centre", packet: Some("P17"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "dashboard", packet: Some("P17"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "dropdown-terminal", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "on-screen-keyboard", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "screenshot-screen", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "screenshot-pick", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "capture-toolbar", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "screenshot-screen-copy", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "screenshot-pick-copy", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "capture-toolbar-copy", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "colour-pick", packet: Some("P11"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "stop-recording", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "lock", packet: Some("P9"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "log-out", packet: Some("P9"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "log-out-now", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "session-chooser", packet: Some("P9"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "do-not-disturb", packet: Some("P8"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "game-mode", packet: Some("P12"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "redetect-displays", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "next-layout", packet: None, escape: false, locked: true, repeats: false, holds: false },
+    Shortcut { id: "take-keys-back", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "zoom", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "zoom-in", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "zoom-out", packet: Some("P20"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "volume-up", packet: None, escape: false, locked: true, repeats: true, holds: false },
+    Shortcut { id: "volume-down", packet: None, escape: false, locked: true, repeats: true, holds: false },
+    Shortcut { id: "mute", packet: None, escape: false, locked: true, repeats: false, holds: false },
+    Shortcut { id: "mic-mute", packet: None, escape: false, locked: true, repeats: false, holds: false },
+    Shortcut { id: "brightness-up", packet: None, escape: false, locked: true, repeats: true, holds: false },
+    Shortcut { id: "brightness-down", packet: None, escape: false, locked: true, repeats: true, holds: false },
+    Shortcut { id: "play-pause", packet: None, escape: false, locked: true, repeats: false, holds: false },
+    Shortcut { id: "next-track", packet: None, escape: false, locked: true, repeats: false, holds: false },
+    Shortcut { id: "previous-track", packet: None, escape: false, locked: true, repeats: false, holds: false },];
+
+pub fn find(id: &str) -> Option<&'static Shortcut> {
+    SHORTCUTS.iter().find(|s| s.id == id)
+}

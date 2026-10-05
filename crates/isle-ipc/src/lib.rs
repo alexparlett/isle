@@ -112,6 +112,16 @@ pub struct KeyboardInfo {
     pub active: bool,
 }
 
+/// One action of the shortcut set.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct ShortcutInfo {
+    pub id: String,
+    pub label: String,
+    pub chords: Vec<String>,
+    /// The packet that builds the action; empty once built.
+    pub packet: String,
+}
+
 /// The seat's keyboard state.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct KeyboardStatus {
@@ -332,6 +342,8 @@ pub mod keyboard {
         fn status(&self) -> zbus::Result<KeyboardStatus>;
         /// Sets a keyboard's profile by its name: `mac`, `pc` or `auto`; writes the settings.
         fn set_profile(&self, name: &str, profile: &str) -> zbus::Result<()>;
+        /// Every action of the shortcut set with its chords.
+        fn shortcuts(&self) -> zbus::Result<Vec<ShortcutInfo>>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }
@@ -373,6 +385,8 @@ pub mod test {
         fn remove_keyboard(&self, id: &str) -> zbus::Result<()>;
         /// A key from a keyboard `add_keyboard` made.
         fn key_on(&self, id: &str, code: u32, pressed: bool) -> zbus::Result<()>;
+        /// Held chords told of their release so far.
+        fn held_releases(&self) -> zbus::Result<u32>;
         /// Moves the pointer to a point in the global space.
         fn pointer_to(&self, x: f64, y: f64) -> zbus::Result<()>;
         /// A button by its evdev code: 272 is the left button.

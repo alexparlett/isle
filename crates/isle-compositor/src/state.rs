@@ -67,6 +67,13 @@ pub struct Isle {
     /// The keyboard's focus before a shell surface took it, given back when it closes.
     pub shell_keyboard_return: Vec<(isle_shell::ShellFocus, Option<Focus>)>,
     pub keyboards: crate::keyboard::Keyboards,
+    pub bindings: crate::binds::Bindings,
+    /// A repeating shortcut's key and its timer.
+    pub repeat: Option<(u32, smithay::reexports::calloop::RegistrationToken)>,
+    /// A shortcut holding its chord until these modifiers are let go.
+    pub held_chord: Option<(&'static str, isle_keys::chord::Mods)>,
+    #[cfg(feature = "test-hooks")]
+    pub held_releases: u32,
 
     /// The windows shown now; `wm` keeps every window.
     pub space: Space<Window>,
@@ -255,6 +262,11 @@ impl Isle {
             probe_full,
             shell_keyboard_return: Vec::new(),
             keyboards: Default::default(),
+            bindings: Default::default(),
+            repeat: None,
+            held_chord: None,
+            #[cfg(feature = "test-hooks")]
+            held_releases: 0,
             space: Space::default(),
             wm: Default::default(),
             xwm: None,

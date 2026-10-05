@@ -171,6 +171,7 @@ impl<S: Section> Store<S> {
         let mut new = self.current.clone();
         new.set(&path, value)
             .map_err(|e| SetError::Invalid(format!("{key}: {e}")))?;
+        new.check().map_err(|e| SetError::Invalid(e.message))?;
         let args = new
             .kdl_args(&path)
             .ok_or_else(|| SetError::Invalid(format!("`{key}` is not a setting")))?;
@@ -215,7 +216,10 @@ impl<S: Section> Store<S> {
         let mut ctx = Ctx::new(text);
         let parsed = S::parse(&doc, &mut ctx);
         match ctx.errors.first() {
-            None => Ok(parsed),
+            None => match parsed.check() {
+                Ok(()) => Ok(parsed),
+                Err(err) => Err(at(offset_of(&doc, &err.key), err.message)),
+            },
             Some(first) => {
                 let more = ctx.errors.len() - 1;
                 let message = match more {
@@ -227,6 +231,31 @@ impl<S: Section> Store<S> {
             }
         }
     }
+}
+
+/// Where the node a key path names starts, or the file's start when it is not written.
+fn offset_of(doc: &kdl::KdlDocument, key: &str) -> usize {
+    let Ok(path) = parse_path(key) else {
+        return 0;
+    };
+    let mut nodes = doc.nodes();
+    let mut offset = 0;
+    for seg in &path {
+        let found = nodes.iter().find(|n| {
+            n.name().value() == seg.name
+                && seg.key.as_ref().is_none_or(|k| {
+                    n.entries().first().and_then(|e| e.value().as_string()) == Some(k.as_str())
+                })
+        });
+        match found {
+            Some(node) => {
+                offset = node.span().offset();
+                nodes = node.children().map_or(&[], |c| c.nodes());
+            }
+            None => break,
+        }
+    }
+    offset
 }
 
 fn read(path: &Path) -> Option<String> {

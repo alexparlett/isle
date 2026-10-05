@@ -17,7 +17,12 @@ use smithay::{
 };
 use tracing::{info, warn};
 
-use crate::{binds::Action, focus::Focus, state::State, worker::Event};
+use crate::{
+    binds::{Action, Bound},
+    focus::Focus,
+    state::State,
+    worker::Event,
+};
 
 const KEY_LEFTALT: u32 = 56;
 const KEY_LEFTMETA: u32 = 125;
@@ -303,18 +308,89 @@ impl State {
                 .unwrap_or(code),
         };
         let translate = self.translating();
-        let settings = &self.isle.settings;
+        let bindings = &self.isle.bindings;
         let outs = self
             .isle
             .keyboards
             .with_engine(translate, |engine, ctx| match key_state {
-                KeyState::Pressed => engine.press(sent, ctx, |chord| {
-                    crate::binds::bound_action(settings, chord)
-                }),
+                KeyState::Pressed => engine.press(sent, ctx, |chord| bindings.lookup(chord)),
                 KeyState::Released => engine.release(sent, ctx),
             });
+        match key_state {
+            KeyState::Pressed => {
+                for out in &outs {
+                    if let Out::Action(bound) = out
+                        && let Some(shortcut) = bound.shortcut
+                    {
+                        if shortcut.repeats {
+                            self.start_repeat(sent, bound.action);
+                        }
+                        if shortcut.holds {
+                            self.isle.held_chord = Some((shortcut.id, bound.mods));
+                        }
+                    }
+                }
+            }
+            KeyState::Released => {
+                if self.isle.repeat.as_ref().is_some_and(|(code, _)| *code == sent) {
+                    self.stop_repeat();
+                }
+            }
+        }
         self.emit(outs, time);
+        if key_state == KeyState::Released {
+            self.check_held_chord();
+        }
         self.update_bar_option();
+    }
+
+    /// A held chord whose modifiers are let go is told so: the switcher commits then.
+    fn check_held_chord(&mut self) {
+        let Some((id, mods)) = self.isle.held_chord else {
+            return;
+        };
+        if self.held_mods().contains(mods) {
+            return;
+        }
+        self.isle.held_chord = None;
+        info!(id, "a held chord was released");
+        #[cfg(feature = "test-hooks")]
+        {
+            self.isle.held_releases += 1;
+        }
+    }
+
+    /// Runs `action` again while `code` is held, after the keyboard's delay and at its rate.
+    fn start_repeat(&mut self, code: u32, action: Action) {
+        use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
+        self.stop_repeat();
+        let keyboard = &self.isle.settings.keyboard;
+        let delay = std::time::Duration::from_millis(keyboard.repeat_delay as u64);
+        let every = std::time::Duration::from_secs_f64(1.0 / keyboard.repeat_rate.max(1) as f64);
+        let token = self
+            .isle
+            .loop_handle
+            .insert_source(Timer::from_duration(delay), move |_, _, state| {
+                state.run_action(action);
+                TimeoutAction::ToDuration(every)
+            });
+        match token {
+            Ok(token) => self.isle.repeat = Some((code, token)),
+            Err(err) => warn!("could not repeat a shortcut: {err}"),
+        }
+    }
+
+    fn stop_repeat(&mut self) {
+        if let Some((_, token)) = self.isle.repeat.take() {
+            self.isle.loop_handle.remove(token);
+        }
+    }
+
+    /// The seat's next layout, from the layout chord.
+    pub fn next_layout(&mut self) {
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        keyboard.with_xkb_state(self, |mut context| context.cycle_next_layout());
+        self.isle.notify(Event::KeyboardsChanged);
     }
 
     /// Whether keys are translated for what has focus now.
@@ -323,13 +399,13 @@ impl State {
     }
 
     /// Sends the engine's keys to the seat, then runs its actions.
-    pub fn emit(&mut self, outs: Vec<Out<Action>>, time: InputTime) {
+    pub fn emit(&mut self, outs: Vec<Out<Bound>>, time: InputTime) {
         let mut actions = Vec::new();
         for out in outs {
             match out {
                 Out::Press(code) => self.send_key(code, KeyState::Pressed, time),
                 Out::Release(code) => self.send_key(code, KeyState::Released, time),
-                Out::Action(action) => actions.push(action),
+                Out::Action(bound) => actions.push(bound.action),
             }
         }
         for action in actions {
@@ -357,7 +433,7 @@ impl State {
         if keyboard.current_focus() == target {
             return;
         }
-        let released: Vec<Out<Action>> = self.isle.keyboards.engine.unwind();
+        let released: Vec<Out<Bound>> = self.isle.keyboards.engine.unwind();
         self.emit(released, InputTime::now());
         keyboard.set_focus(self, target, serial);
         let translate = self.translating();

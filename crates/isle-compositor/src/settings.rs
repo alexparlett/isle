@@ -135,6 +135,9 @@ impl State {
         if touched("keyboard") {
             self.apply_keyboard_settings();
         }
+        if touched("keyboard.layouts") || touched("shortcuts") {
+            self.isle.bindings = crate::binds::Bindings::new(&self.isle.settings);
+        }
         if touched("output[") {
             let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
             for output in &outputs {

@@ -42,6 +42,8 @@ enum Command {
     #[command(subcommand)]
     Keyboard(Keyboard),
     #[command(subcommand)]
+    Shortcuts(Shortcuts),
+    #[command(subcommand)]
     Settings(Settings),
     #[command(subcommand)]
     Shell(Shell),
@@ -78,6 +80,12 @@ enum Windows {
         width: i32,
         height: i32,
     },
+}
+
+#[derive(Subcommand)]
+enum Shortcuts {
+    /// Every action with its chords, and the packet that builds those not built yet.
+    List,
 }
 
 #[derive(Subcommand)]
@@ -293,6 +301,27 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     width,
                     height,
                 } => found(proxy.set_box(*id, *x, *y, *width, *height).await?, *id)?,
+            }
+        }
+        Command::Shortcuts(Shortcuts::List) => {
+            let proxy = isle_ipc::keyboard::KeyboardProxy::new(&bus).await?;
+            let shortcuts = proxy.shortcuts().await?;
+            if cli.json {
+                print_json(&shortcuts);
+            } else {
+                for s in shortcuts {
+                    let chords = if s.chords.is_empty() {
+                        "-".to_owned()
+                    } else {
+                        s.chords.join(", ")
+                    };
+                    let packet = if s.packet.is_empty() {
+                        String::new()
+                    } else {
+                        format!("  ({})", s.packet)
+                    };
+                    println!("{:<24} {:<34} {}{packet}", s.id, chords, s.label);
+                }
             }
         }
         Command::Keyboard(command) => {

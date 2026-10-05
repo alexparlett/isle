@@ -175,13 +175,14 @@ impl State {
 }
 
 impl State {
-    /// Ctrl+Cmd and a press anywhere on a window: the left button moves it, the right resizes
-    /// it from the nearest corner, without raising it (macOS's drag gesture).
+    /// The drag modifiers, Ctrl+Cmd, and a press anywhere on a window: the left button moves
+    /// it, the right resizes it from the nearest corner, without raising it (macOS's drag
+    /// gesture).
     fn modifier_drag(&mut self, button: u32, serial: smithay::utils::Serial, time: InputTime) -> bool {
         const LEFT: u32 = 0x110;
         const RIGHT: u32 = 0x111;
-        let mods = self.held_mods();
-        if !(mods.cmd && mods.ctrl) || (button != LEFT && button != RIGHT) {
+        let drag = self.isle.bindings.drag;
+        if drag.is_empty() || !self.held_mods().contains(drag) || (button != LEFT && button != RIGHT) {
             return false;
         }
         let pointer = self.isle.seat.get_pointer().unwrap();

@@ -23,6 +23,29 @@ impl Mods {
     pub fn is_empty(self) -> bool {
         self == Mods::NONE
     }
+
+    /// Modifiers alone, `Ctrl+Cmd`; `None` when a part is not a modifier.
+    pub fn parse(text: &str) -> Option<Mods> {
+        let mut mods = Mods::default();
+        for part in text.split('+').map(str::trim).filter(|p| !p.is_empty()) {
+            match part.to_ascii_lowercase().as_str() {
+                "cmd" | "command" | "super" | "logo" | "⌘" => mods.cmd = true,
+                "option" | "opt" | "alt" | "⌥" => mods.option = true,
+                "ctrl" | "control" | "⌃" => mods.ctrl = true,
+                "shift" | "⇧" => mods.shift = true,
+                _ => return None,
+            }
+        }
+        Some(mods)
+    }
+
+    /// Whether every modifier of `other` is held in these.
+    pub fn contains(self, other: Mods) -> bool {
+        (!other.ctrl || self.ctrl)
+            && (!other.option || self.option)
+            && (!other.shift || self.shift)
+            && (!other.cmd || self.cmd)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

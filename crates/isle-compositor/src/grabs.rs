@@ -136,6 +136,7 @@ impl MoveGrab {
                 Some(restore)
             }
             crate::wm::Mode::Floating => None,
+            crate::wm::Mode::FullScreen { .. } => return None,
         };
         Some(Self {
             start_data,

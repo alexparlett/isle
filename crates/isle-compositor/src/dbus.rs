@@ -143,6 +143,80 @@ impl Windows {
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
+struct Desktops {
+    to_loop: ToLoop,
+}
+
+/// The output named, or the one with focus for an empty name.
+fn output_named(state: &crate::state::State, name: &str) -> Option<smithay::output::Output> {
+    if name.is_empty() {
+        state.isle.output_with_focus()
+    } else {
+        state.isle.space.outputs().find(|o| o.name() == name).cloned()
+    }
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Desktops1")]
+impl Desktops {
+    async fn list(&self) -> fdo::Result<Vec<isle_ipc::DesktopInfo>> {
+        Ok(self.to_loop.call(|state| state.isle.desktop_infos()).await?)
+    }
+
+    async fn switch(&self, output: String, index: u32) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| match output_named(state, &output) {
+                Some(o) if index > 0 => state.switch_desktop(&o, index as usize - 1),
+                _ => false,
+            })
+            .await?)
+    }
+
+    async fn add(&self, output: String) -> fdo::Result<u32> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                output_named(state, &output)
+                    .and_then(|o| state.add_desktop(&o))
+                    .map_or(0, |i| i as u32 + 1)
+            })
+            .await?)
+    }
+
+    async fn remove(&self, output: String, index: u32) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| match output_named(state, &output) {
+                Some(o) if index > 0 => state.remove_desktop(&o, index as usize - 1),
+                _ => false,
+            })
+            .await?)
+    }
+
+    async fn move_window(&self, id: u64, index: u32) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| index > 0 && state.move_to_desktop(id, index as usize - 1))
+            .await?)
+    }
+
+    async fn set_full_screen(&self, id: u64, on: bool) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                if on {
+                    state.enter_full_screen(id, false)
+                } else {
+                    state.leave_full_screen(id)
+                }
+            })
+            .await?)
+    }
+
+    #[zbus(signal)]
+    async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
 struct Shell {
     to_loop: ToLoop,
 }
@@ -702,6 +776,12 @@ pub async fn serve(
             Displays {
                 to_loop: to_loop.clone(),
             },
+        )?
+        .serve_at(
+            isle_ipc::DESKTOPS_PATH,
+            Desktops {
+                to_loop: to_loop.clone(),
+            },
         )?;
     #[cfg(feature = "test-hooks")]
     let builder = builder.serve_at(
@@ -727,6 +807,12 @@ pub async fn serve(
             Ok(Event::SettingsStatus) => {
                 let iface = server.interface::<_, Settings>(SETTINGS_PATH).await?;
                 Settings::status_changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::DesktopsChanged) => {
+                let iface = server
+                    .interface::<_, Desktops>(isle_ipc::DESKTOPS_PATH)
+                    .await?;
+                Desktops::changed(iface.signal_emitter()).await?;
             }
             Ok(Event::DisplaysChanged) => {
                 let iface = server.interface::<_, Displays>(DISPLAYS_PATH).await?;

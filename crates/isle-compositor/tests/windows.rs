@@ -649,3 +649,142 @@ async fn a_window_belongs_to_the_app_whose_entry_claims_it() {
     })
     .await;
 }
+
+async fn desktops(isle: &Isle) -> Vec<isle_ipc::DesktopInfo> {
+    isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .list()
+        .await
+        .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ctrl_arrows_move_between_desktops_and_ctrl_numbers_add_them() {
+    let mut isle = Isle::start("desktops").await;
+    let first = isle.client("isle.test.First", "ff0000");
+    let a = isle.wait_for_window("isle.test.First").await;
+    assert_eq!(a.desktop, 1);
+    assert_eq!(desktops(&isle).await.len(), 1);
+
+    isle.chord(&[keys::CTRL, 3]).await; // Ctrl+2
+    wait_until(|| async { desktops(&isle).await.len() == 2 }).await;
+    first.wait_for("states suspended").await;
+    let second = isle.client("isle.test.Second", "00ff00");
+    let b = isle.wait_for_window("isle.test.Second").await;
+    assert_eq!(b.desktop, 2);
+    assert_eq!(isle.shot("HEADLESS-1", "two").await.at(960, 540), GREEN);
+
+    isle.chord(&[keys::CTRL, keys::LEFT]).await;
+    second.wait_for("states suspended").await;
+    wait_until(|| async { isle.window(a.id).await.focused }).await;
+    assert_eq!(isle.shot("HEADLESS-1", "one").await.at(960, 540), RED);
+    // No wrap past the first.
+    isle.chord(&[keys::CTRL, keys::LEFT]).await;
+    assert!(desktops(&isle).await[0].current);
+
+    isle.chord(&[keys::CTRL, keys::RIGHT]).await;
+    wait_until(|| async { isle.window(b.id).await.focused }).await;
+    tokio::time::sleep(Duration::from_millis(900)).await;
+    let saved = std::fs::read_to_string(isle.dir.join("state/isle/desktops.json")).unwrap();
+    assert!(saved.contains("\"Isle Headless 1\": 2"), "{saved}");
+
+    // Moved to the first desktop, the window and the view go there.
+    let proxy = isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    assert!(proxy.move_window(b.id, 1).await.unwrap());
+    wait_until(|| async { isle.window(b.id).await.desktop == 1 }).await;
+    assert!(desktops(&isle).await[0].current);
+    assert!(proxy.remove("", 2).await.unwrap());
+    assert!(
+        !proxy.remove("", 1).await.unwrap(),
+        "the last desktop stays"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn full_screen_gets_a_desktop_of_its_own_and_gives_it_back() {
+    let mut isle = Isle::start("fullscreen").await;
+    let client = isle.client("isle.test.Full", "ff0000");
+    let w = isle.wait_for_window("isle.test.Full").await;
+    let before = (w.x, w.y, w.width, w.height);
+
+    client.send("fullscreen");
+    settles(&isle, w.id, "fullscreen", (0, 0, 1920, 1080)).await;
+    client.wait_for("states activated,fullscreen").await;
+    let rows = desktops(&isle).await;
+    assert_eq!(rows.len(), 2);
+    assert_eq!(
+        (rows[1].kind.as_str(), rows[1].window, rows[1].current),
+        ("full-screen", w.id, true)
+    );
+    assert!(
+        !isle.windows_proxy().await.minimise(w.id).await.unwrap()
+            || !isle.window(w.id).await.minimised
+    );
+
+    client.send("unfullscreen");
+    settles(&isle, w.id, "floating", before).await;
+    let rows = desktops(&isle).await;
+    assert_eq!(rows.len(), 1);
+    assert!(rows[0].current);
+
+    // Closing it in full screen takes its desktop away too.
+    client.send("fullscreen");
+    wait_until(|| async { desktops(&isle).await.len() == 2 }).await;
+    client.send("quit");
+    wait_until(|| async { desktops(&isle).await.len() == 1 }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_borderless_window_the_size_of_its_output_is_given_a_desktop_but_not_told() {
+    let mut isle = Isle::start("borderless").await;
+    let client = isle.client_with(&["--app-id", "isle.test.Game", "--size", "1920x1080"]);
+    let w = isle.wait_for_window("isle.test.Game").await;
+    wait_until(|| async { isle.window(w.id).await.mode == "fullscreen" }).await;
+    assert_eq!(desktops(&isle).await.len(), 2);
+    assert!(
+        !client
+            .lines
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|l| l.contains("fullscreen"))
+    );
+
+    client.send("size 800 600");
+    wait_until(|| async { isle.window(w.id).await.mode == "floating" }).await;
+    assert_eq!(desktops(&isle).await.len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn windows_keep_their_desktop_when_their_output_goes_and_comes_back() {
+    let mut isle = Isle::start("deskout").await;
+    let test = isle.test().await;
+    test.add_output("HEADLESS-2", "AOC", "U34G2G4R3", "7", 1280, 720)
+        .await
+        .unwrap();
+    test.pointer_to(1920.0 + 640.0, 360.0).await.unwrap();
+    let proxy = isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    assert_eq!(proxy.add("HEADLESS-2").await.unwrap(), 2);
+    assert!(proxy.switch("HEADLESS-2", 2).await.unwrap());
+    let _client = isle.client("isle.test.Away", "ff0000");
+    let w = isle.wait_for_window("isle.test.Away").await;
+    assert_eq!((w.output.as_str(), w.desktop), ("HEADLESS-2", 2));
+
+    assert!(test.remove_output("HEADLESS-2").await.unwrap());
+    wait_until(|| async { isle.window(w.id).await.output == "HEADLESS-1" }).await;
+    assert_eq!(isle.window(w.id).await.desktop, 1);
+
+    test.add_output("HEADLESS-3", "AOC", "U34G2G4R3", "7", 1280, 720)
+        .await
+        .unwrap();
+    wait_until(|| async {
+        let now = isle.window(w.id).await;
+        now.output == "HEADLESS-3" && now.desktop == 2
+    })
+    .await;
+}

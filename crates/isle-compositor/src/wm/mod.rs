@@ -2,6 +2,7 @@
 //! `Space` holds only the ones shown now; the rest keep their record here.
 
 mod apps;
+pub mod desktops;
 pub mod geometry;
 mod places;
 mod tiling;
@@ -16,7 +17,7 @@ use smithay::{
         wayland_protocols::xdg::shell::server::xdg_toplevel,
         wayland_server::{Resource, protocol::wl_surface::WlSurface},
     },
-    utils::{IsAlive, Logical, Rectangle},
+    utils::{IsAlive, Logical, Point, Rectangle},
     wayland::{compositor::with_states, shell::xdg::XdgToplevelSurfaceData},
 };
 
@@ -35,6 +36,14 @@ pub enum Mode {
     },
     /// Maximised: the work area.
     Filled { restore: Rectangle<i32, Logical> },
+    /// On a desktop of its own; it returns to `origin` with `previous` and `restore`.
+    FullScreen {
+        origin: u64,
+        restore: Rectangle<i32, Logical>,
+        previous: Box<Mode>,
+        /// It covers its output by itself and was never told it is full screen.
+        borderless: bool,
+    },
 }
 
 impl Mode {
@@ -43,6 +52,7 @@ impl Mode {
             Mode::Floating => "floating".into(),
             Mode::Tiled { zone, .. } => format!("tiled:{}", zone.name()),
             Mode::Filled { .. } => "filled".into(),
+            Mode::FullScreen { .. } => "fullscreen".into(),
         }
     }
 }
@@ -63,6 +73,12 @@ pub struct Record {
     pub minimised: bool,
     /// Its app is hidden.
     pub hidden: bool,
+    /// The desktop it is on; 0 until it maps.
+    pub desktop: u64,
+    /// It asked to be full screen before it mapped.
+    pub wants_full_screen: bool,
+    /// The output identity and desktop it left when its output went.
+    pub home: Option<(String, u64, Point<i32, Logical>)>,
     /// Placed after its first buffer; until then it is not shown.
     pub mapped: bool,
     /// It asked for focus without a fresh activation token.
@@ -150,6 +166,8 @@ pub struct Wm {
     /// Ids, most recently focused first.
     pub recent: Vec<u64>,
     next_id: u64,
+    /// The desktops shown now, one per output.
+    pub current: std::collections::HashSet<u64>,
 }
 
 impl Wm {
@@ -199,16 +217,19 @@ impl Wm {
             .records
             .iter()
             .rev()
-            .find(|r| r.parent == Some(id) && r.modal && r.shown())?;
+            .find(|r| r.parent == Some(id) && r.modal && self.is_shown(r.id))?;
         Some(self.modal_of(child.id).unwrap_or(child.id))
     }
 
-    /// Shown, and its parent too: a dialog goes with its parent.
+    /// On screen: mapped, neither minimised nor hidden, on a desktop shown now, and its
+    /// parent too, since a dialog goes with its parent.
     pub fn is_shown(&self, id: u64) -> bool {
         let Some(record) = self.get(id) else {
             return false;
         };
-        record.shown() && record.parent.is_none_or(|p| self.is_shown(p))
+        record.shown()
+            && (record.desktop == 0 || self.current.contains(&record.desktop))
+            && record.parent.is_none_or(|p| self.is_shown(p))
     }
 
     /// The most recently focused window still shown.
@@ -252,6 +273,9 @@ impl Isle {
             mode: Mode::Floating,
             minimised: false,
             hidden: false,
+            desktop: 0,
+            wants_full_screen: false,
+            home: None,
             mapped: false,
             attention: false,
             not_responding: false,
@@ -271,6 +295,14 @@ impl Isle {
 
     /// Makes the `Space` show what the registry says is shown, in its stacking order.
     pub fn sync_space(&mut self) {
+        let present: Vec<String> = self.space.outputs().map(Self::output_identity).collect();
+        self.wm.current = self
+            .desktops
+            .rows
+            .iter()
+            .filter(|(identity, _)| present.contains(identity))
+            .filter_map(|(_, row)| row.desktops.get(row.current).map(|d| d.id))
+            .collect();
         for record in &mut self.wm.records {
             if let Some(loc) = self.space.element_location(&record.window) {
                 record.rect = Rectangle::new(loc, record.window.geometry().size);
@@ -359,6 +391,7 @@ impl Isle {
                     parent: record.parent.unwrap_or(0),
                     attention: record.attention,
                     not_responding: record.not_responding,
+                    desktop: self.desktop_index(record.id),
                 }
             })
             .collect()
@@ -393,11 +426,19 @@ impl Isle {
 }
 
 impl State {
-    /// Shows `id`, un-minimising it and showing its app, then focuses it.
+    /// Shows `id`, un-minimising it, showing its app and moving its output's view to its
+    /// desktop, then focuses it.
     pub fn activate(&mut self, id: u64) -> bool {
-        let Some(app) = self.isle.wm.get(id).map(|r| r.app.clone()) else {
+        let Some((app, desktop)) = self.isle.wm.get(id).map(|r| (r.app.clone(), r.desktop)) else {
             return false;
         };
+        if let Some((identity, index)) = self.isle.desktops.locate(desktop)
+            && self.isle.desktops.rows[identity].current != index
+        {
+            let identity = identity.to_owned();
+            self.isle.desktops.rows.get_mut(&identity).unwrap().current = index;
+            self.isle.notify(Event::DesktopsChanged);
+        }
         if self.isle.wm.get(id).is_some_and(|r| r.hidden) {
             self.set_app_hidden(&app, false);
         }
@@ -414,6 +455,9 @@ impl State {
         let Some(record) = self.isle.wm.get_mut(id) else {
             return false;
         };
+        if matches!(record.mode, Mode::FullScreen { .. }) {
+            return false;
+        }
         record.minimised = true;
         self.after_parking(id);
         true
@@ -464,7 +508,7 @@ impl State {
             || self
                 .focused_window()
                 .and_then(|f| self.isle.wm.get(f))
-                .is_some_and(|r| !r.shown());
+                .is_some_and(|r| !self.isle.wm.is_shown(r.id));
         self.isle.sync_space();
         if had_focus {
             self.focus_next();
@@ -484,6 +528,10 @@ impl State {
         };
         let id = record.id;
         let window = record.window.clone();
+        let full_screen = match &record.mode {
+            Mode::FullScreen { origin, .. } => Some((record.desktop, *origin)),
+            _ => None,
+        };
         self.isle.queue_redraw_for_window(&window);
         self.isle.space.unmap_elem(&window);
         self.isle.wm.records.retain(|r| r.id != id);
@@ -496,6 +544,9 @@ impl State {
         self.isle.notify(Event::WindowsChanged);
         self.isle.pings.retain(|(_, i)| *i != id);
         self.finish_quits();
+        if let Some((desktop, origin)) = full_screen {
+            self.full_screen_window_gone(desktop, origin);
+        }
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         if keyboard
             .current_focus()

@@ -46,6 +46,7 @@ impl CompositorHandler for State {
                         record.record_at_size = None;
                         self.isle.record_place(id);
                     }
+                    self.check_borderless(id);
                 }
                 None => {}
             }
@@ -92,9 +93,16 @@ impl State {
         record.mapped = true;
         record.planned = None;
         record.rect = smithay::utils::Rectangle::new(location, size);
+        let full_screen = std::mem::take(&mut record.wants_full_screen);
         info!(id, app_id, title, ?location, size = ?size, "mapped");
+        self.assign_desktop(id);
         self.isle.sync_space();
         self.set_focus(Some(&window));
+        if full_screen {
+            self.enter_full_screen(id, false);
+        } else {
+            self.check_borderless(id);
+        }
     }
 }
 

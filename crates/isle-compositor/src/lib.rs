@@ -110,6 +110,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.tokens = token_source;
     isle.tokens_error = token_error;
     isle.load_places(&runtime);
+    isle.load_desktops(&runtime);
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
     match (winit_events, session_events) {

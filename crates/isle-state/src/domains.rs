@@ -48,6 +48,17 @@ pub struct Place {
     pub at: u64,
 }
 
+/// How many desktops each output's row has, by the output's identity.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Desktops {
+    pub counts: BTreeMap<String, u32>,
+}
+
+impl Domain for Desktops {
+    const NAME: &'static str = "desktops";
+    const VERSION: u32 = 1;
+}
+
 impl Domain for Places {
     const NAME: &'static str = "places";
     const VERSION: u32 = 1;

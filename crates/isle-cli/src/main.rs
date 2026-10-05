@@ -36,6 +36,8 @@ enum Command {
     #[command(subcommand)]
     Apps(Apps),
     #[command(subcommand)]
+    Desktops(Desktops),
+    #[command(subcommand)]
     Displays(Displays),
     #[command(subcommand)]
     Settings(Settings),
@@ -73,6 +75,38 @@ enum Windows {
         y: i32,
         width: i32,
         height: i32,
+    },
+}
+
+/// `--output` names a display; the one with focus when left out.
+#[derive(Subcommand)]
+enum Desktops {
+    /// Every display's desktops.
+    List,
+    /// Show a desktop, by its place from 1.
+    Switch {
+        index: u32,
+        #[arg(long, default_value = "")]
+        output: String,
+    },
+    /// Add a desktop at the end of the row.
+    Add {
+        #[arg(long, default_value = "")]
+        output: String,
+    },
+    /// Remove a desktop; its windows join the one before.
+    Remove {
+        index: u32,
+        #[arg(long, default_value = "")]
+        output: String,
+    },
+    /// Move a window to a desktop of its display.
+    Move { id: u64, index: u32 },
+    /// Put a window into full screen, or take it out with --off.
+    FullScreen {
+        id: u64,
+        #[arg(long)]
+        off: bool,
     },
 }
 
@@ -247,6 +281,52 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     width,
                     height,
                 } => found(proxy.set_box(*id, *x, *y, *width, *height).await?, *id)?,
+            }
+        }
+        Command::Desktops(command) => {
+            let proxy = isle_ipc::desktops::DesktopsProxy::new(&bus).await?;
+            let refused = |what: &str| Err(zbus::Error::Failure(what.to_owned()));
+            match command {
+                Desktops::List => {
+                    let desktops = proxy.list().await?;
+                    if cli.json {
+                        print_json(&desktops);
+                    } else {
+                        for d in desktops {
+                            let mark = if d.current { "*" } else { " " };
+                            let what = if d.window > 0 {
+                                format!("full screen: window {}", d.window)
+                            } else {
+                                format!("{} window(s)", d.windows)
+                            };
+                            println!("{mark} {:<12} {:>2}  {what}", d.output, d.index);
+                        }
+                    }
+                }
+                Desktops::Switch { index, output } => {
+                    if !proxy.switch(output, *index).await? {
+                        return refused("no such desktop");
+                    }
+                }
+                Desktops::Add { output } => match proxy.add(output).await? {
+                    0 => return refused("the row is full"),
+                    n => println!("{n}"),
+                },
+                Desktops::Remove { index, output } => {
+                    if !proxy.remove(output, *index).await? {
+                        return refused("that desktop cannot be removed");
+                    }
+                }
+                Desktops::Move { id, index } => {
+                    if !proxy.move_window(*id, *index).await? {
+                        return refused("the window could not move there");
+                    }
+                }
+                Desktops::FullScreen { id, off } => {
+                    if !proxy.set_full_screen(*id, !off).await? {
+                        return refused("no change");
+                    }
+                }
             }
         }
         Command::Apps(command) => {

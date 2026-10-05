@@ -230,7 +230,7 @@ impl State {
             .wm
             .records
             .iter()
-            .filter(|r| r.app == app && r.parent.is_none() && r.shown())
+            .filter(|r| r.app == app && r.parent.is_none() && self.isle.wm.is_shown(r.id))
             .map(|r| r.id)
             .collect();
         for id in ids {
@@ -294,7 +294,7 @@ impl State {
             .wm
             .records
             .iter()
-            .filter(|r| r.app == app && r.shown() && r.parent.is_none())
+            .filter(|r| r.app == app && self.isle.wm.is_shown(r.id) && r.parent.is_none())
             .map(|r| r.id)
             .collect();
         ids.sort_unstable();

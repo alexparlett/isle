@@ -224,6 +224,20 @@ pub struct Binds {
     pub next_window: String,
     #[setting(default = "Super+Shift+grave".to_owned())]
     pub previous_window: String,
+    #[setting(default = "Ctrl+Super+F".to_owned())]
+    pub full_screen: String,
+    #[setting(default = "Ctrl+Left".to_owned())]
+    pub desktop_left: String,
+    #[setting(default = "Ctrl+Right".to_owned())]
+    pub desktop_right: String,
+    /// The modifiers that with 1 to 9 jump to a desktop.
+    #[setting(default = "Ctrl".to_owned())]
+    pub desktop_jump: String,
+    /// The focused window one desktop along, the view following.
+    #[setting(default = "Ctrl+Shift+Super+Left".to_owned())]
+    pub carry_left: String,
+    #[setting(default = "Ctrl+Shift+Super+Right".to_owned())]
+    pub carry_right: String,
     /// The terminal the bind starts.
     #[setting(default = "kitty".to_owned())]
     pub terminal_command: String,

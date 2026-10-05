@@ -12,6 +12,7 @@ pub const DISPLAYS_PATH: &str = "/io/github/alexparlett/Isle/Displays";
 pub const TEST_PATH: &str = "/io/github/alexparlett/Isle/Test";
 pub const SETTINGS_PATH: &str = "/io/github/alexparlett/Isle/Settings";
 pub const SHELL_PATH: &str = "/io/github/alexparlett/Isle/Shell";
+pub const DESKTOPS_PATH: &str = "/io/github/alexparlett/Isle/Desktops";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -58,6 +59,22 @@ pub struct WindowInfo {
     /// It asked for focus without a fresh activation token.
     pub attention: bool,
     pub not_responding: bool,
+    /// Its desktop's place in its output's row, from 1.
+    pub desktop: u32,
+}
+
+/// One desktop of an output's row.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct DesktopInfo {
+    pub output: String,
+    /// Its place in the row, from 1.
+    pub index: u32,
+    pub current: bool,
+    /// `desktop`, or `full-screen` for a window's own.
+    pub kind: String,
+    /// The full-screen window's id, or 0.
+    pub window: u64,
+    pub windows: u32,
 }
 
 /// An app with windows, as the switcher sees it.
@@ -240,6 +257,33 @@ pub mod shell {
         /// The surface's accessibility tree as JSON: each node's id, role, label, value,
         /// children and focus.
         fn tree(&self, name: &str) -> zbus::Result<String>;
+    }
+}
+
+pub mod desktops {
+    use super::*;
+
+    /// An empty output name means the output with focus.
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Desktops1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Desktops"
+    )]
+    pub trait Desktops {
+        fn list(&self) -> zbus::Result<Vec<DesktopInfo>>;
+        /// Shows a desktop, by its place from 1; false when there is none.
+        fn switch(&self, output: &str, index: u32) -> zbus::Result<bool>;
+        /// Adds a desktop at the end of the row; its place, or 0 at the limit.
+        fn add(&self, output: &str) -> zbus::Result<u32>;
+        /// Removes a desktop, its windows joining the one before; false for the last one or
+        /// a full-screen one.
+        fn remove(&self, output: &str, index: u32) -> zbus::Result<bool>;
+        /// Moves a window to a desktop of its output, by place, and shows it there.
+        fn move_window(&self, id: u64, index: u32) -> zbus::Result<bool>;
+        /// Puts a window into full screen on a desktop of its own, or back.
+        fn set_full_screen(&self, id: u64, on: bool) -> zbus::Result<bool>;
+        #[zbus(signal)]
+        fn changed(&self) -> zbus::Result<()>;
     }
 }
 

@@ -62,7 +62,7 @@ impl Isle {
         self.wm
             .records
             .iter()
-            .filter(|r| r.id != id && r.shown())
+            .filter(|r| r.id != id && self.wm.is_shown(r.id))
             .filter_map(|r| self.frame(r.id))
             .filter(|f| f.overlaps(area))
             .collect()
@@ -107,6 +107,7 @@ impl State {
         let restore = match &record.mode {
             Mode::Floating => frame,
             Mode::Tiled { restore, .. } | Mode::Filled { restore } => *restore,
+            Mode::FullScreen { .. } => return false,
         };
         record.mode = if zone == Zone::Fill {
             Mode::Filled { restore }
@@ -162,7 +163,7 @@ impl State {
         };
         let restore = match record.mode {
             Mode::Tiled { restore, .. } | Mode::Filled { restore } => restore,
-            Mode::Floating => return false,
+            Mode::Floating | Mode::FullScreen { .. } => return false,
         };
         record.mode = Mode::Floating;
         self.send_mode_states(id);
@@ -174,7 +175,7 @@ impl State {
     /// Leaves a tile or fill without moving: a resize, or a drag that unsnaps.
     pub fn float(&mut self, id: u64) {
         if let Some(record) = self.isle.wm.get_mut(id)
-            && record.mode != Mode::Floating
+            && matches!(record.mode, Mode::Tiled { .. } | Mode::Filled { .. })
         {
             record.mode = Mode::Floating;
             self.send_mode_states(id);
@@ -192,7 +193,7 @@ impl State {
         let (filled, tiled) = match record.mode {
             Mode::Filled { .. } => (true, false),
             Mode::Tiled { .. } => (false, true),
-            Mode::Floating => (false, false),
+            Mode::Floating | Mode::FullScreen { .. } => (false, false),
         };
         toplevel.with_pending_state(|state| {
             let mut set = |s, on| {
@@ -241,6 +242,7 @@ impl State {
             Some(Mode::Filled { .. }) => {
                 self.tile_on(id, Zone::Fill, &to);
             }
+            Some(Mode::FullScreen { .. }) | None => {}
             _ => {
                 let (Some(frame), a, b) = (
                     self.isle.frame(id),

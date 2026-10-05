@@ -23,6 +23,12 @@ pub enum Action {
     QuitApp,
     /// The front app's next window, or its previous.
     CycleWindows(bool),
+    FullScreen,
+    /// Along the row of desktops by a step.
+    Desktop(i32),
+    /// To a desktop by its place, from 0.
+    JumpDesktop(usize),
+    CarryWindow(i32),
     /// The kernel's VT keys, Ctrl+Alt+F1 to F12, which XKB turns into these keysyms.
     SwitchVt(i32),
 }
@@ -103,10 +109,21 @@ impl State {
             (&binds.quit_app, Action::QuitApp),
             (&binds.next_window, Action::CycleWindows(true)),
             (&binds.previous_window, Action::CycleWindows(false)),
+            (&binds.full_screen, Action::FullScreen),
+            (&binds.desktop_left, Action::Desktop(-1)),
+            (&binds.desktop_right, Action::Desktop(1)),
+            (&binds.carry_left, Action::CarryWindow(-1)),
+            (&binds.carry_right, Action::CarryWindow(1)),
         ]
         .into_iter()
         .find(|(text, _)| parse(text) == Some(pressed))
         .map(|(_, action)| action)
+        .or_else(|| {
+            (1..=9).find_map(|n| {
+                let chord = parse(&format!("{}+{n}", binds.desktop_jump))?;
+                (chord == pressed).then_some(Action::JumpDesktop(n - 1))
+            })
+        })
     }
 
     pub fn run_action(&mut self, action: Action) {
@@ -145,6 +162,14 @@ impl State {
                 }
             }
             Action::CycleWindows(forward) => self.cycle_app_windows(forward),
+            Action::FullScreen => {
+                if let Some(id) = self.focused_window() {
+                    self.toggle_full_screen(id);
+                }
+            }
+            Action::Desktop(step) => self.step_desktop(step),
+            Action::JumpDesktop(index) => self.jump_desktop(index),
+            Action::CarryWindow(step) => self.carry_window(step),
             Action::SwitchVt(vt) => self.switch_vt(vt),
         }
     }

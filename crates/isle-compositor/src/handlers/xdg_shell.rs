@@ -151,6 +151,34 @@ impl XdgShellHandler for State {
         }
     }
 
+    fn fullscreen_request(
+        &mut self,
+        surface: ToplevelSurface,
+        _output: Option<smithay::reexports::wayland_server::protocol::wl_output::WlOutput>,
+    ) {
+        match self.isle.wm.for_surface(surface.wl_surface()).map(|r| (r.id, r.mapped)) {
+            Some((id, true)) => {
+                if !self.enter_full_screen(id, false) {
+                    surface.send_configure();
+                }
+            }
+            Some((id, false)) => {
+                self.isle.wm.get_mut(id).unwrap().wants_full_screen = true;
+                if surface.is_initial_configure_sent() {
+                    self.plan_full_screen(id);
+                    surface.send_pending_configure();
+                }
+            }
+            None => {}
+        }
+    }
+
+    fn unfullscreen_request(&mut self, surface: ToplevelSurface) {
+        if let Some(id) = self.isle.wm.for_surface(surface.wl_surface()).map(|r| r.id) {
+            self.leave_full_screen(id);
+        }
+    }
+
     fn unmaximize_request(&mut self, surface: ToplevelSurface) {
         if let Some(id) = self.isle.wm.for_surface(surface.wl_surface()).map(|r| r.id) {
             self.restore_box(id);

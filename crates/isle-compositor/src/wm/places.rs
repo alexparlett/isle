@@ -156,8 +156,15 @@ impl State {
     /// Before a toplevel's first configure: a main window with a place is asked for its size.
     pub fn plan_window(&mut self, id: u64) {
         self.isle.refresh_identity(id);
-        if matches!(self.isle.wm.get(id).map(|r| &r.mode), Some(super::Mode::Filled { .. })) {
+        if matches!(
+            self.isle.wm.get(id).map(|r| &r.mode),
+            Some(super::Mode::Filled { .. })
+        ) {
             self.plan_fill(id);
+            return;
+        }
+        if self.isle.wm.get(id).is_some_and(|r| r.wants_full_screen) {
+            self.plan_full_screen(id);
             return;
         }
         let isle = &mut self.isle;
@@ -205,6 +212,61 @@ impl State {
         self.send_mode_states(id);
     }
 
+    /// A window that asked for full screen before it mapped is configured to its output.
+    pub fn plan_full_screen(&mut self, id: u64) {
+        let Some(output) = self.isle.output_with_focus() else {
+            return;
+        };
+        let area = self.isle.space.output_geometry(&output).unwrap_or_default();
+        let record = self.isle.wm.get_mut(id).unwrap();
+        record.planned = Some(area);
+        if let Some(toplevel) = record.window.toplevel() {
+            toplevel.with_pending_state(|state| {
+                state.size = Some(area.size);
+                state.states.set(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Fullscreen);
+            });
+        }
+    }
+
+    /// At map, once placed: the desktop the window opens on. A dialog opens on its parent's;
+    /// any other window on the current desktop of its output, or the one a full-screen
+    /// desktop came from.
+    pub fn assign_desktop(&mut self, id: u64) {
+        let Some(record) = self.isle.wm.get(id) else {
+            return;
+        };
+        if let Some(parent) = record.parent.and_then(|p| self.isle.wm.get(p)) {
+            let desktop = parent.desktop;
+            self.isle.wm.get_mut(id).unwrap().desktop = desktop;
+            return;
+        }
+        let Some(output) = self.isle.output_of(id) else {
+            return;
+        };
+        let current = self.isle.current_desktop(&output);
+        let identity = Isle::output_identity(&output);
+        let row = &self.isle.desktops.rows[&identity];
+        let full_screen =
+            row.desktops
+                .iter()
+                .find(|d| d.id == current)
+                .and_then(|d| match d.kind {
+                    super::desktops::Kind::FullScreen { window } => Some(window),
+                    _ => None,
+                });
+        let desktop = match full_screen.and_then(|w| self.isle.wm.get(w)) {
+            Some(window) => match &window.mode {
+                super::Mode::FullScreen { origin, .. } => *origin,
+                _ => current,
+            },
+            None => current,
+        };
+        self.isle.wm.get_mut(id).unwrap().desktop = desktop;
+        if let Some((_, index)) = self.isle.desktops.locate(desktop) {
+            self.isle.desktops.rows.get_mut(&identity).unwrap().current = index;
+        }
+    }
+
     /// At map: the window's place, over its parent, or centred on the output with focus.
     pub fn place_new_window(&mut self, id: u64) -> Option<Point<i32, smithay::utils::Logical>> {
         let isle = &self.isle;
@@ -220,7 +282,7 @@ impl State {
         let parent = record
             .parent
             .and_then(|p| isle.wm.get(p))
-            .filter(|p| p.shown());
+            .filter(|p| isle.wm.is_shown(p.id));
         if let Some(parent) = parent {
             let frame = isle
                 .space
@@ -236,6 +298,11 @@ impl State {
             return Some(geometry::over_parent(frame, size, area));
         }
         let output = isle.output_with_focus()?;
+        let screen = isle.space.output_geometry(&output)?;
+        if size == screen.size {
+            // Sized to its output by itself: a borderless full-screen window (D48).
+            return Some(screen.loc);
+        }
         let area = isle.work_area(&output);
         let size = if size.w > area.size.w || size.h > area.size.h {
             let fitted = geometry::default_size(area);
@@ -248,7 +315,7 @@ impl State {
             .wm
             .records
             .iter()
-            .filter(|r| r.id != id && r.shown() && r.app == record.app)
+            .filter(|r| r.id != id && isle.wm.is_shown(r.id) && r.app == record.app)
             .filter_map(|r| isle.space.element_location(&r.window))
             .collect();
         let step = isle.shell.theme().tokens.size_titlebar.round() as i32;
@@ -263,37 +330,38 @@ impl State {
 
     /// Moves `id` to `loc`, its modal dialogs with it.
     pub fn move_window(&mut self, id: u64, loc: Point<i32, smithay::utils::Logical>) {
-        let Some(record) = self.isle.wm.get_mut(id) else {
+        self.isle.move_window(id, loc);
+    }
+}
+
+impl Isle {
+    /// Moves `id` to `loc`, its modal dialogs with it.
+    pub fn move_window(&mut self, id: u64, loc: Point<i32, smithay::utils::Logical>) {
+        let Some(record) = self.wm.get_mut(id) else {
             return;
         };
         let from = self
-            .isle
             .space
             .element_location(&record.window)
             .unwrap_or(record.rect.loc);
         let delta = loc - from;
         record.rect.loc = loc;
         let window = record.window.clone();
-        if self.isle.space.element_location(&window).is_some() {
-            self.isle.queue_redraw_for_window(&window);
-            self.isle.space.map_element(window.clone(), loc, false);
-            self.isle.queue_redraw_for_window(&window);
+        if self.space.element_location(&window).is_some() {
+            self.queue_redraw_for_window(&window);
+            self.space.map_element(window.clone(), loc, false);
+            self.queue_redraw_for_window(&window);
         }
         if delta == Point::from((0, 0)) {
             return;
         }
         let children: Vec<(u64, Point<i32, smithay::utils::Logical>)> = self
-            .isle
             .wm
             .records
             .iter()
             .filter(|r| r.parent == Some(id) && r.modal && r.mapped)
             .map(|r| {
-                let at = self
-                    .isle
-                    .space
-                    .element_location(&r.window)
-                    .unwrap_or(r.rect.loc);
+                let at = self.space.element_location(&r.window).unwrap_or(r.rect.loc);
                 (r.id, at + delta)
             })
             .collect();

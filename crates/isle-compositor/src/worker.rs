@@ -19,6 +19,7 @@ pub type Job = Box<dyn FnOnce(&mut State) + Send>;
 pub enum Event {
     WindowsChanged,
     DisplaysChanged,
+    DesktopsChanged,
     /// The keys whose values changed.
     SettingsChanged(Vec<String>),
     /// A hand edit was rejected, or a rejected one was fixed.

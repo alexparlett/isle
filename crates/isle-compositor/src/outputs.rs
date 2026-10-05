@@ -2,7 +2,6 @@
 //! returns, and never left where no output shows them (`compositor.md`, Outputs 4).
 
 use smithay::{
-    desktop::Window,
     output::Output,
     utils::{Logical, Point, Rectangle},
 };
@@ -10,51 +9,74 @@ use tracing::info;
 
 use crate::{state::Isle, worker::Event};
 
-/// Where a window was before its output went: the output's identity and the window's
-/// place relative to that output.
-struct Home {
-    output: String,
-    offset: Point<i32, Logical>,
-}
-
 impl Isle {
     pub fn add_output(&mut self, output: &Output, location: Point<i32, Logical>) {
         output
             .user_data()
             .insert_if_missing(crate::redraw::OutputState::cell);
         self.space.map_output(output, location);
+        self.desktops.ensure_row(&Self::output_identity(output));
         self.apply_output_settings(output);
         self.return_windows_home(output);
+        self.adopt_strays(output);
         self.rescue_windows();
         self.output_set_changed();
     }
 
+    /// Every window on the output's desktops moves whole onto the nearest output, joining
+    /// its current desktop, and remembers where it was to go back.
     pub fn remove_output(&mut self, output: &Output) {
         let Some(area) = self.space.output_geometry(output) else {
             return;
         };
         let identity = Self::output_identity(output);
-        let leaving: Vec<(Window, Rectangle<i32, Logical>)> = self
-            .space
-            .elements()
-            .filter(|w| self.space.outputs_for_element(w).first() == Some(output))
-            .filter_map(|w| Some((w.clone(), self.space.element_geometry(w)?)))
+        let leaving: Vec<(u64, Rectangle<i32, Logical>)> = self
+            .wm
+            .records
+            .iter()
+            .filter(|r| r.mapped)
+            .filter(|r| match self.desktops.locate(r.desktop) {
+                Some((row, _)) => row == identity,
+                None => self.output_of(r.id).as_ref() == Some(output),
+            })
+            .filter_map(|r| Some((r.id, self.frame(r.id)?)))
             .collect();
         self.space.unmap_output(output);
-        for (window, geometry) in leaving {
-            window
-                .user_data()
-                .insert_if_missing(|| std::cell::RefCell::new(None::<Home>));
-            *window
-                .user_data()
-                .get::<std::cell::RefCell<Option<Home>>>()
-                .unwrap()
-                .borrow_mut() = Some(Home {
-                output: identity.clone(),
-                offset: geometry.loc - area.loc,
-            });
-            if let Some(target) = self.nearest_output(geometry) {
-                self.place_whole(&window, geometry, &target, geometry.loc - area.loc);
+        if let Some(row) = self.desktops.rows.get_mut(&identity) {
+            row.desktops
+                .retain(|d| d.kind == crate::wm::desktops::Kind::Normal);
+            row.current = row.current.min(row.desktops.len().saturating_sub(1));
+        }
+        for (id, frame) in leaving {
+            let mut frame = frame;
+            let record = self.wm.get_mut(id).unwrap();
+            let mut desktop = record.desktop;
+            if let crate::wm::Mode::FullScreen {
+                origin,
+                restore,
+                previous,
+                ..
+            } = record.mode.clone()
+            {
+                record.mode = *previous;
+                desktop = origin;
+                frame = restore;
+                record.configure_size(restore.size);
+                if let Some(toplevel) = record.window.toplevel() {
+                    toplevel.with_pending_state(|state| {
+                        state.states.unset(
+                            smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Fullscreen,
+                        );
+                    });
+                    toplevel.send_pending_configure();
+                }
+            }
+            let offset = frame.loc - area.loc;
+            self.wm.get_mut(id).unwrap().home = Some((identity.clone(), desktop, offset));
+            if let Some(target) = self.nearest_output(frame) {
+                let current = self.current_desktop(&target);
+                self.wm.get_mut(id).unwrap().desktop = current;
+                self.place_whole(id, frame, &target, offset);
             }
         }
         self.output_set_changed();
@@ -63,44 +85,92 @@ impl Isle {
     fn output_set_changed(&mut self) {
         self.update_frame_budget();
         self.sync_shell_outputs();
+        self.sync_space();
         self.queue_redraw_all();
         self.notify(Event::DisplaysChanged);
+        self.notify(Event::DesktopsChanged);
         self.notify(Event::WindowsChanged);
     }
 
-    /// Windows that left this output's identity go back to their place on it.
+    /// Windows that left this output's identity go back to their place and desktop on it.
     fn return_windows_home(&mut self, output: &Output) {
         let identity = Self::output_identity(output);
-        let windows: Vec<Window> = self.space.elements().cloned().collect();
-        for window in windows {
-            let Some(home) = window.user_data().get::<std::cell::RefCell<Option<Home>>>() else {
-                continue;
-            };
-            let offset = match &*home.borrow() {
-                Some(home) if home.output == identity => home.offset,
-                _ => continue,
-            };
-            home.borrow_mut().take();
-            if let Some(geometry) = self.space.element_geometry(&window) {
-                self.place_whole(&window, geometry, output, offset);
+        let returning: Vec<(u64, u64, Point<i32, Logical>)> = self
+            .wm
+            .records
+            .iter()
+            .filter_map(|r| match &r.home {
+                Some((home, desktop, offset)) if *home == identity => {
+                    Some((r.id, *desktop, *offset))
+                }
+                _ => None,
+            })
+            .collect();
+        for (id, desktop, offset) in returning {
+            let current = self.current_desktop(output);
+            let exists = self
+                .desktops
+                .locate(desktop)
+                .is_some_and(|(row, _)| row == identity);
+            let record = self.wm.get_mut(id).unwrap();
+            record.home = None;
+            record.desktop = if exists { desktop } else { current };
+            if let Some(frame) = self.frame(id) {
+                self.place_whole(id, frame, output, offset);
                 info!(output = output.name(), "a window went back to its output");
+            }
+        }
+    }
+
+    /// Windows whose output went while no other was lit come whole onto `output`, joining
+    /// its current desktop.
+    fn adopt_strays(&mut self, output: &Output) {
+        let present: Vec<String> = self.space.outputs().map(Self::output_identity).collect();
+        let strays: Vec<(u64, Point<i32, Logical>)> = self
+            .wm
+            .records
+            .iter()
+            .filter(|r| r.mapped)
+            .filter(|r| {
+                self.desktops
+                    .locate(r.desktop)
+                    .is_some_and(|(row, _)| !present.iter().any(|p| p == row))
+            })
+            .map(|r| (r.id, r.home.as_ref().map(|h| h.2).unwrap_or_default()))
+            .collect();
+        for (id, offset) in strays {
+            let current = self.current_desktop(output);
+            self.wm.get_mut(id).unwrap().desktop = current;
+            if let Some(frame) = self.frame(id) {
+                self.place_whole(id, frame, output, offset);
             }
         }
     }
 
     /// Moves any window that no output shows onto the one nearest it.
     pub fn rescue_windows(&mut self) {
-        let windows: Vec<Window> = self.space.elements().cloned().collect();
-        for window in windows {
-            if !self.space.outputs_for_element(&window).is_empty() {
-                continue;
-            }
-            let Some(geometry) = self.space.element_geometry(&window) else {
+        let ids: Vec<u64> = self
+            .wm
+            .records
+            .iter()
+            .filter(|r| r.mapped)
+            .map(|r| r.id)
+            .collect();
+        for id in ids {
+            let Some(frame) = self.frame(id) else {
                 continue;
             };
-            if let Some(target) = self.nearest_output(geometry) {
+            if self.space.outputs().any(|o| {
+                self.space
+                    .output_geometry(o)
+                    .is_some_and(|g| g.overlaps(frame))
+            }) {
+                continue;
+            }
+            if let Some(target) = self.nearest_output(frame) {
                 let area = self.space.output_geometry(&target).unwrap();
-                self.place_whole(&window, geometry, &target, geometry.loc - area.loc);
+                self.place_whole(id, frame, &target, frame.loc - area.loc);
+                self.follow_output(id);
             }
         }
     }
@@ -144,18 +214,18 @@ impl Isle {
             .map(|(o, _)| o)
     }
 
-    /// Puts `window` at `offset` on `output`, moved so it is whole on it.
+    /// Puts the window at `offset` on `output`, moved so its frame is whole on it.
     fn place_whole(
         &mut self,
-        window: &Window,
-        geometry: Rectangle<i32, Logical>,
+        id: u64,
+        frame: Rectangle<i32, Logical>,
         output: &Output,
         offset: Point<i32, Logical>,
     ) {
         let Some(area) = self.space.output_geometry(output) else {
             return;
         };
-        let size = geometry.size;
+        let size = frame.size;
         let x = (area.loc.x + offset.x).clamp(
             area.loc.x,
             (area.loc.x + area.size.w - size.w).max(area.loc.x),
@@ -164,8 +234,7 @@ impl Isle {
             area.loc.y,
             (area.loc.y + area.size.h - size.h).max(area.loc.y),
         );
-        let element_offset = self.space.element_location(window).unwrap_or_default() - geometry.loc;
-        self.space
-            .map_element(window.clone(), Point::from((x, y)) + element_offset, false);
+        let bar = self.bar_height(id);
+        self.move_window(id, Point::from((x, y + bar)));
     }
 }

@@ -73,6 +73,7 @@ pub struct Isle {
     pub space: Space<Window>,
     pub wm: crate::wm::Wm,
     pub places: isle_state::domains::Places,
+    pub desktops: crate::wm::desktops::Desktops,
     /// The desktop entries, which name apps.
     pub apps: std::sync::Arc<isle_apps::Index>,
     /// Apps being quit, with the processes that get the polite signal once their windows go.
@@ -225,6 +226,7 @@ impl Isle {
             space: Space::default(),
             wm: Default::default(),
             places: Default::default(),
+            desktops: Default::default(),
             apps: Default::default(),
             quitting: Vec::new(),
             pings: Vec::new(),

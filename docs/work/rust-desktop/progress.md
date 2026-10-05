@@ -2,6 +2,11 @@
 
 ## 2026-10-05
 
+- P6 6.0: the wallpaper. Frost drawn by a shader, pictures decoded and fitted
+  on the worker, per screen or for all, folders, the crossfade and its cut,
+  nothing drawn under a full-screen window. A 5K PNG takes about 3 s to
+  decode and scale in a debug build.
+
 - P6 planned: island, menus and wallpaper. Reviewed; every
   recommendation taken, kept as one packet.
 

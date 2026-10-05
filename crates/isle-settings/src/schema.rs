@@ -25,6 +25,11 @@ pub struct Settings {
     #[setting(section)]
     pub windows: Windows,
     #[setting(section)]
+    pub wallpaper: Wallpaper,
+    /// A screen's own wallpaper, by make, model and serial, in place of `wallpaper`.
+    #[setting(keyed)]
+    pub wallpaper_output: BTreeMap<String, Wallpaper>,
+    #[setting(section)]
     pub shortcuts: Shortcuts,
     #[setting(section)]
     pub debug: Debug,
@@ -560,6 +565,45 @@ impl Shortcuts {
             ("previous-track", &self.previous_track),
         ]
     }
+}
+
+/// The picture behind the windows (`p1/structure/wallpaper.md`).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Wallpaper {
+    /// `frost` for Isle's drawn backdrop, a colour as `#rrggbb`, or the path of a picture
+    /// or of a folder of pictures.
+    #[setting(default = "frost".to_owned())]
+    pub source: String,
+    /// What shows in the dark appearance instead, when set.
+    pub dark_source: Option<String>,
+    #[setting(default = Fit::Fill)]
+    pub fit: Fit,
+    /// `#rrggbb` around a fitted or centred picture; the picture's mean colour when unset.
+    pub colour: Option<String>,
+    /// When a folder moves on to its next picture.
+    #[setting(default = Change::Daily)]
+    pub change: Change,
+    /// A folder's pictures in random order rather than by name.
+    #[setting(default = false)]
+    pub shuffle: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum Fit {
+    /// Scaled to cover the screen, cropped about the centre.
+    Fill,
+    /// Scaled to fit whole, on the colour.
+    Fit,
+    /// One picture pixel to one screen pixel, on the colour.
+    Centre,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum Change {
+    Never,
+    Hourly,
+    Daily,
+    Login,
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]

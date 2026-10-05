@@ -21,7 +21,8 @@ use smithay::{
 
 use crate::state::Isle;
 
-/// What shows where nothing is drawn, until P6's wallpaper.
+/// What shows where nothing is drawn: under a full-screen window that does not cover its
+/// output, the wallpaper adding nothing there.
 pub const CLEAR: [f32; 4] = [0.11, 0.11, 0.12, 1.0];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

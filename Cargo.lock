@@ -2352,6 +2352,7 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "humantime",
+ "image",
  "isle-apps",
  "isle-ipc",
  "isle-keys",

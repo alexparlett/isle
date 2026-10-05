@@ -114,6 +114,7 @@ pub struct Isle {
     pub buttons_down: std::collections::HashSet<u32>,
     pub places: isle_state::domains::Places,
     pub desktops: crate::wm::desktops::Desktops,
+    pub wallpapers: crate::wallpaper::Wallpapers,
     pub window_programs: Option<crate::wm::draw::Programs>,
     /// Each window's shadow layers, kept so their ids hold still across frames.
     pub shadow_cache: std::cell::RefCell<
@@ -321,6 +322,7 @@ impl Isle {
             buttons_down: Default::default(),
             places: Default::default(),
             desktops: Default::default(),
+            wallpapers: Default::default(),
             window_programs: None,
             shadow_cache: Default::default(),
             leaving: Vec::new(),

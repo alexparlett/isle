@@ -28,6 +28,7 @@ required-features = ["test-hooks"]
 
 [dependencies]
 humantime.workspace = true
+image.workspace = true
 isle-apps.workspace = true
 isle-keys.workspace = true
 isle-ipc.workspace = true

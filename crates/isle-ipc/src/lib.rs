@@ -14,6 +14,7 @@ pub const SETTINGS_PATH: &str = "/io/github/alexparlett/Isle/Settings";
 pub const SHELL_PATH: &str = "/io/github/alexparlett/Isle/Shell";
 pub const DESKTOPS_PATH: &str = "/io/github/alexparlett/Isle/Desktops";
 pub const KEYBOARD_PATH: &str = "/io/github/alexparlett/Isle/Keyboard";
+pub const WALLPAPER_PATH: &str = "/io/github/alexparlett/Isle/Wallpaper";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -23,6 +24,18 @@ pub struct SettingKey {
     pub default: String,
     pub constraint: String,
     pub doc: String,
+}
+
+/// What one screen's wallpaper shows.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct WallpaperInfo {
+    pub output: String,
+    /// The `source` setting in force for the screen, for the appearance.
+    pub source: String,
+    /// The picture shown, or empty for the drawn backdrop or a colour.
+    pub file: String,
+    /// Why the source is not shown, or empty.
+    pub problem: String,
 }
 
 /// Whether `settings.kdl` is in force, or the rejected hand edit that is not.
@@ -468,5 +481,19 @@ pub mod test {
         fn panic_service(&self) -> zbus::Result<()>;
         /// Panics on the main loop.
         fn panic_core(&self) -> zbus::Result<()>;
+    }
+}
+
+pub mod wallpaper {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Wallpaper1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Wallpaper"
+    )]
+    pub trait Wallpaper {
+        /// Every screen's wallpaper; a source that cannot be shown names its problem.
+        fn status(&self) -> zbus::Result<Vec<WallpaperInfo>>;
     }
 }

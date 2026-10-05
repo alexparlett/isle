@@ -158,6 +158,9 @@ impl State {
         if touched("appearance.") {
             self.isle.refresh_theme();
         }
+        if touched("appearance.mode") || touched("wallpaper") {
+            self.isle.queue_redraw_all();
+        }
         if touched("debug.") {
             self.isle
                 .heartbeat

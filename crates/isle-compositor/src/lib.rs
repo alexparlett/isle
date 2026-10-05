@@ -18,6 +18,7 @@ pub mod settings;
 pub mod state;
 pub mod state_writer;
 pub mod tokens;
+mod wallpaper;
 pub mod watchdog;
 pub mod worker;
 mod wm;
@@ -126,6 +127,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.settings_store = Some(store);
     isle.load_places(&runtime);
     isle.load_desktops(&runtime);
+    isle.wallpapers.load(&runtime);
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
     match (winit_events, session_events) {

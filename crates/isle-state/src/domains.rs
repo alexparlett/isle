@@ -63,3 +63,27 @@ impl Domain for Places {
     const NAME: &'static str = "places";
     const VERSION: u32 = 1;
 }
+
+/// Each screen's wallpaper as last shown, by the output's identity, so the next session's
+/// first frame is the picture's mean colour and a folder carries on where it was.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Wallpapers {
+    pub screens: BTreeMap<String, WallpaperScreen>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct WallpaperScreen {
+    /// The `source` setting this was shown for.
+    pub source: String,
+    /// The picture shown: the source itself, or the folder's current one.
+    pub file: Option<String>,
+    /// The picture's mean colour, sRGB.
+    pub mean: Option<[u8; 3]>,
+    /// Unix seconds when a folder last moved on.
+    pub changed_at: u64,
+}
+
+impl Domain for Wallpapers {
+    const NAME: &'static str = "wallpapers";
+    const VERSION: u32 = 1;
+}

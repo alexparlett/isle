@@ -147,6 +147,39 @@ struct Desktops {
     to_loop: ToLoop,
 }
 
+struct Wallpaper {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Wallpaper1")]
+impl Wallpaper {
+    async fn status(&self) -> fdo::Result<Vec<isle_ipc::WallpaperInfo>> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                let outputs: Vec<(String, String)> = state
+                    .isle
+                    .space
+                    .outputs()
+                    .map(|o| (o.name(), crate::state::Isle::output_identity(o)))
+                    .collect();
+                state
+                    .isle
+                    .wallpapers
+                    .status(&outputs)
+                    .into_iter()
+                    .map(|s| isle_ipc::WallpaperInfo {
+                        output: s.output,
+                        source: s.source,
+                        file: s.file.map(|f| f.display().to_string()).unwrap_or_default(),
+                        problem: s.problem.unwrap_or_default(),
+                    })
+                    .collect()
+            })
+            .await?)
+    }
+}
+
 /// The output named, or the one with focus for an empty name.
 fn output_named(state: &crate::state::State, name: &str) -> Option<smithay::output::Output> {
     if name.is_empty() {
@@ -1032,6 +1065,12 @@ pub async fn serve(
         .serve_at(
             isle_ipc::DESKTOPS_PATH,
             Desktops {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
+            isle_ipc::WALLPAPER_PATH,
+            Wallpaper {
                 to_loop: to_loop.clone(),
             },
         )?

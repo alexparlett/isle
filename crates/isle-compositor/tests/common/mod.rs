@@ -70,7 +70,13 @@ impl Client {
 }
 
 impl Isle {
+    /// A compositor on the plain backdrop the older tests sample, `#1c1c1f`.
     pub async fn start(name: &str) -> Self {
+        Self::start_with(name, "wallpaper {\n    source \"#1c1c1f\"\n}\n").await
+    }
+
+    /// A compositor started with `settings` as its settings.kdl.
+    pub async fn start_with(name: &str, settings: &str) -> Self {
         let dir = std::env::temp_dir().join(format!("isle-headless-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         for sub in [
@@ -84,6 +90,9 @@ impl Isle {
         }
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(dir.join("runtime"), fs::Permissions::from_mode(0o700)).unwrap();
+        if !settings.is_empty() {
+            fs::write(dir.join("config/settings.kdl"), settings).unwrap();
+        }
 
         let out = Command::new("dbus-daemon")
             .args([

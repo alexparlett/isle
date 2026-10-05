@@ -201,6 +201,9 @@ impl State {
             return;
         }
         self.isle.step_windows(std::time::Instant::now());
+        if let Some(renderer) = self.backend.renderer_opt() {
+            self.isle.prepare_wallpaper(renderer, output);
+        }
         self.draw_shell(output);
         let rendered = match self.backend.render(&mut self.isle, output) {
             Ok(rendered) => rendered,
@@ -229,8 +232,11 @@ impl State {
                 "presented"
             );
             drop(state);
-            // A shell surface or a window still moving needs the next frame too.
-            if self.isle.shell.animating(output) || self.isle.windows_moving(output) {
+            // A shell surface, a window or a wallpaper still moving needs the next frame too.
+            if self.isle.shell.animating(output)
+                || self.isle.windows_moving(output)
+                || self.isle.wallpapers.fading(&Isle::output_identity(output))
+            {
                 self.isle.queue_redraw(output);
             }
             if self.backend.paces_by_timer() {

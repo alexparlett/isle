@@ -37,6 +37,7 @@ render_elements! {
     Solid = smithay::backend::renderer::element::solid::SolidColorRenderElement,
     Window = crate::wm::draw::Placed,
     Shell = isle_shell::ShellElement,
+    Wallpaper = crate::wallpaper::WallpaperElement,
 }
 
 /// A themed cursor image the backend draws itself, with its hotspot.
@@ -48,7 +49,8 @@ pub struct NamedCursor<'a> {
 impl Isle {
     /// `cursor` is the themed image for a named cursor, when the backend draws one.
     /// Front to back: the cursor, shell overlays, layer-shell overlay and top, shell surfaces
-    /// over windows, windows, layer-shell bottom and background, the shell's background.
+    /// over windows, windows, layer-shell bottom and background, the shell's background, the
+    /// wallpaper.
     pub fn render_elements(
         &self,
         renderer: &mut GlesRenderer,
@@ -233,6 +235,7 @@ impl Isle {
         push_layers(&layers, Layer::Bottom, renderer, scale, push);
         push_layers(&layers, Layer::Background, renderer, scale, push);
         shell(isle_shell::Layer::Background, push);
+        self.wallpaper_elements(output, &mut |e| push(IsleElement::Wallpaper(e)));
     }
 }
 

@@ -30,6 +30,7 @@ impl Isle {
             return;
         };
         let identity = Self::output_identity(output);
+        self.wallpapers.forget(&identity);
         let leaving: Vec<(u64, Rectangle<i32, Logical>)> = self
             .wm
             .records

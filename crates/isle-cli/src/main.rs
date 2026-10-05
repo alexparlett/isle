@@ -42,6 +42,8 @@ enum Command {
     #[command(subcommand)]
     Keyboard(Keyboard),
     #[command(subcommand)]
+    Wallpaper(Wallpaper),
+    #[command(subcommand)]
     Shortcuts(Shortcuts),
     #[command(subcommand)]
     Settings(Settings),
@@ -145,6 +147,22 @@ enum Displays {
     List,
     /// Release every display and probe the connectors again, as after a KVM switch.
     Redetect,
+}
+
+#[derive(Subcommand)]
+enum Wallpaper {
+    /// What each screen shows, and why a choice is not shown.
+    Status,
+    /// Show a picture, a folder of pictures, a colour as #rrggbb, or `frost`.
+    Set {
+        source: String,
+        /// One screen's own, by its output name; every screen without one when left out.
+        #[arg(long)]
+        output: Option<String>,
+        /// Only in the dark appearance.
+        #[arg(long)]
+        dark: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -473,6 +491,49 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Settings(command) => settings(cli, &bus, command).await?,
+        Command::Wallpaper(Wallpaper::Status) => {
+            let screens = isle_ipc::wallpaper::WallpaperProxy::new(&bus).await?.status().await?;
+            if cli.json {
+                print_json(&screens);
+            } else {
+                for s in screens {
+                    let shown = if s.file.is_empty() { &s.source } else { &s.file };
+                    println!("{}  {}", s.output, shown);
+                    if !s.problem.is_empty() {
+                        println!("    {}", s.problem);
+                    }
+                }
+            }
+        }
+        Command::Wallpaper(Wallpaper::Set {
+            source,
+            output,
+            dark,
+        }) => {
+            let section = match output {
+                Some(name) => {
+                    let displays = DisplaysProxy::new(&bus).await?.list().await?;
+                    let Some(d) = displays.iter().find(|d| &d.name == name) else {
+                        return Err(zbus::Error::Failure(format!("no output is named {name}")));
+                    };
+                    format!("wallpaper-output[{} {} {}]", d.make, d.model, d.serial)
+                }
+                None => "wallpaper".to_owned(),
+            };
+            let key = format!("{section}.{}", if *dark { "dark-source" } else { "source" });
+            // A path is kept whole, so a relative one names the same file for the compositor.
+            let source = match std::path::Path::new(source).canonicalize() {
+                Ok(path) if !source.starts_with('#') => path.display().to_string(),
+                _ => source.clone(),
+            };
+            let changed = SettingsProxy::new(&bus)
+                .await?
+                .set(&key, &zvariant::Value::from(source))
+                .await?;
+            if cli.json {
+                print_json(&changed);
+            }
+        }
         Command::Shell(command) => {
             let proxy = ShellProxy::new(&bus).await?;
             match command {

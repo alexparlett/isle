@@ -23,6 +23,10 @@ pub enum IslandAction {
     Glyph(GlyphKind),
     /// A click on an event: an urgent one acknowledged, attention's app raised.
     Event,
+    /// From Control Centre.
+    Panel(super::panel::PanelAction),
+    /// Escape: back from a page, or Control Centre closed.
+    Close,
 }
 
 /// One frame of an output's island: what it shows, what it is leaving, how far between
@@ -40,6 +44,10 @@ pub struct Frame {
     pub clock_width: f32,
     /// Game Mode or Reduce Transparency: no glass.
     pub solid: bool,
+    /// Control Centre, open under the pill's row.
+    pub panel: Option<super::panel::PanelFrame>,
+    /// Whether the panel was open before this morph, so its body fades with the growth.
+    pub panel_before: bool,
 }
 
 impl Default for Frame {
@@ -53,6 +61,8 @@ impl Default for Frame {
             clock: String::new(),
             clock_width: 0.0,
             solid: false,
+            panel: None,
+            panel_before: false,
         }
     }
 }
@@ -84,7 +94,27 @@ fn well_width(theme: &Theme, marks: usize) -> f32 {
 }
 
 /// The shape's size for `shown`: the size the compositor springs toward.
-pub fn target_size(shown: &Shown, theme: &Theme, clock_width: f32) -> (f32, f32) {
+pub fn target_size(
+    shown: &Shown,
+    panel: Option<&super::panel::PanelFrame>,
+    theme: &Theme,
+    clock_width: f32,
+    room: f32,
+) -> (f32, f32) {
+    let pill = pill_size(shown, theme, clock_width);
+    match panel {
+        Some(panel) => super::panel::panel_size(
+            theme,
+            panel,
+            pill.1.max(theme.tokens.size_island_height),
+            pill.0,
+            room,
+        ),
+        None => pill,
+    }
+}
+
+fn pill_size(shown: &Shown, theme: &Theme, clock_width: f32) -> (f32, f32) {
     let t = &theme.tokens;
     let pill = t.size_island_height * theme.appearance.text_scale.min(t.type_scale_max).max(1.0);
     let pill = pill.max(t.size_island_height);
@@ -273,17 +303,25 @@ impl Component for Island {
         let radius = (frame.height / 2.0).min(t.radius_panel);
         let privacy_form = matches!(frame.shown, Shown::Privacy(_));
         let solid = frame.solid || privacy_form;
+        // Opening to the panel the pill's fill gives way to the glass by the growth.
+        let to_panel = match (frame.panel_before, frame.panel.is_some()) {
+            (false, true) => frame.p,
+            (true, false) => 1.0 - frame.p,
+            (true, true) => 1.0,
+            (false, false) => 0.0,
+        };
         let fill = if solid {
             colour(t.material_solid)
         } else {
-            colour(t.colour_island)
+            let c = colour(t.colour_island);
+            c.with_a(((1.0 - to_panel) * c.a() as f32).round() as u8)
         };
         let top = if privacy_form {
             t.size_island_top + (t.size_island_height - t.size_island_well) / 2.0
         } else {
             t.size_island_top
         };
-        let (outgoing, incoming) = if frame.before.is_some() {
+        let (outgoing, incoming) = if frame.before.is_some() && frame.panel.is_none() && !frame.panel_before {
             (
                 (1.0 - 2.0 * frame.p).max(0.0),
                 (2.0 * frame.p - 1.0).max(0.0),
@@ -309,13 +347,42 @@ impl Component for Island {
                 |el, before| el.child(layer(content(&theme, &before, &frame, &actions), outgoing)),
             )
             .maybe(incoming > 0.0, |el| {
-                el.child(layer(
-                    content(&theme, &frame.shown, &frame, &actions),
-                    incoming,
-                ))
+                let pill = t.size_island_height;
+                let opened = frame.panel.is_some() || frame.panel_before;
+                let body = if frame.panel_before { 1.0 } else { (2.0 * frame.p - 1.0).max(0.0) };
+                el.child(
+                    rect()
+                        .position(Position::new_absolute())
+                        .width(Size::fill())
+                        .height(Size::fill())
+                        .opacity(incoming)
+                        .child(
+                            rect()
+                                .width(Size::fill())
+                                .height(Size::px(if opened { pill } else { frame.height }))
+                                .child(content(&theme, &frame.shown, &frame, &actions)),
+                        )
+                        .map(frame.panel.clone().filter(|_| body > 0.0), |el, panel| {
+                            el.child(
+                                rect()
+                                    .width(Size::fill())
+                                    .opacity(body)
+                                    .child(super::panel::PanelBody { panel }),
+                            )
+                        }),
+                )
             });
+        let pinned = frame.panel.as_ref().is_some_and(|p| p.pinned);
+        let escape = actions.clone();
         rect()
             .expanded()
+            .maybe(pinned, |el| {
+                el.on_global_key_down(move |e: Event<KeyboardEventData>| {
+                    if e.key == Key::Named(NamedKey::Escape) {
+                        escape.send(Action::Island(IslandAction::Close));
+                    }
+                })
+            })
             .padding((top, 0., 0., 0.))
             .cross_align(Alignment::Center)
             .child(shape)

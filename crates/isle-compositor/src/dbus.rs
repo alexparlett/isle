@@ -697,6 +697,15 @@ impl Test {
             .await?)
     }
 
+    /// Moves the pointer by a relative amount, as a mouse does, held to the outputs.
+    async fn pointer_by(&self, dx: f64, dy: f64) -> fdo::Result<()> {
+        use smithay::backend::input::InputTime;
+        Ok(self
+            .to_loop
+            .call(move |state| state.on_pointer_by((dx, dy).into(), InputTime::now()))
+            .await?)
+    }
+
     /// A button by its evdev code: 272 is the left button.
     async fn button(&self, button: u32, pressed: bool) -> fdo::Result<()> {
         use smithay::backend::input::{ButtonState, InputTime};
@@ -1016,7 +1025,7 @@ impl Settings {
                 );
                 self.to_loop.post(|state| {
                     state.isle.safe_start = false;
-                    state.island_settings_status(false);
+                    state.island_settings_status(None);
                 });
                 let _ = self.events.send(Event::SettingsStatus);
                 Ok(keys)
@@ -1024,7 +1033,7 @@ impl Settings {
             isle_settings::Reload::Unchanged => {
                 self.to_loop.post(|state| {
                     state.isle.safe_start = false;
-                    state.island_settings_status(false);
+                    state.island_settings_status(None);
                 });
                 let _ = self.events.send(Event::SettingsStatus);
                 Ok(Vec::new())

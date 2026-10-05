@@ -376,6 +376,10 @@ impl State {
         }
         let key = (id.to_owned(), code);
         match key_state {
+            KeyState::Pressed if code == 1 && self.top_edge_escape() => {
+                self.isle.swallowed.insert(key);
+                return;
+            }
             KeyState::Pressed if self.record_keyboard(name, code) => {
                 self.isle.swallowed.insert(key);
                 return;

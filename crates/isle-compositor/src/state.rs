@@ -116,8 +116,9 @@ pub struct Isle {
     pub desktops: crate::wm::desktops::Desktops,
     pub wallpapers: crate::wallpaper::Wallpapers,
     pub island: crate::island::IslandState,
-    /// The settings file holds a rejected hand edit.
-    pub settings_rejected: bool,
+    pub top_edge: crate::top_edge::TopEdge,
+    /// The settings file holds a rejected hand edit: its file, line, column and message.
+    pub settings_error: Option<(String, u32, u32, String)>,
     /// Started on the defaults after repeated crashes, until `isle settings use-mine`.
     pub safe_start: bool,
     pub window_programs: Option<crate::wm::draw::Programs>,
@@ -269,6 +270,7 @@ impl Isle {
         shell.register(zone_panel.clone());
         let island = crate::island::IslandState::new(shell.theme());
         shell.register(island.surface.clone());
+        shell.register(island.notice.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -333,7 +335,8 @@ impl Isle {
             desktops: Default::default(),
             wallpapers: Default::default(),
             island,
-            settings_rejected: false,
+            top_edge: Default::default(),
+            settings_error: None,
             safe_start: false,
             window_programs: None,
             shadow_cache: Default::default(),

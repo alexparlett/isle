@@ -445,6 +445,8 @@ pub mod test {
         fn held_releases(&self) -> zbus::Result<u32>;
         /// Moves the pointer to a point in the global space.
         fn pointer_to(&self, x: f64, y: f64) -> zbus::Result<()>;
+        /// Moves the pointer by a relative amount, as a mouse does, held to the outputs.
+        fn pointer_by(&self, dx: f64, dy: f64) -> zbus::Result<()>;
         /// A button by its evdev code: 272 is the left button.
         fn button(&self, button: u32, pressed: bool) -> zbus::Result<()>;
         /// Scrolls as a mouse wheel does, in steps of 120 per notch; positive is down.

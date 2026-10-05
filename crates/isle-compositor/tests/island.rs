@@ -52,6 +52,19 @@ async fn settled(isle: &Isle, output: &str) -> Value {
     }
 }
 
+/// Waits for the island's status to satisfy `f`, naming the last one seen if it never does.
+async fn until(isle: &Isle, label: &str, f: impl Fn(&Value) -> bool) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        let s = status(isle).await;
+        if f(&s) {
+            return;
+        }
+        assert!(std::time::Instant::now() < deadline, "{label}: {s}");
+        tokio::time::sleep(Duration::from_millis(30)).await;
+    }
+}
+
 async fn post(isle: &Isle, json: &str) {
     isle.test().await.island(json).await.unwrap();
 }
@@ -125,30 +138,21 @@ async fn privacy_shows_on_every_screen_and_over_full_screen_alone() {
         .await
         .unwrap();
     post(&isle, r#"{"privacy": {"mark": "microphone", "on": true}}"#).await;
-    wait_until(|| async {
-        let s = status(&isle).await;
-        s["outputs"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|o| o["privacy"] == 1)
+    let outputs = |s: &Value| s["outputs"].as_array().unwrap().clone();
+    until(&isle, "privacy on both", |s| {
+        outputs(s).len() == 2 && outputs(s).iter().all(|o| o["privacy"] == 1)
     })
     .await;
 
+    // A timer's end holds until acknowledged, so a loaded machine cannot miss it.
     post(
         &isle,
-        r#"{"event": {"kind": "copied", "symbol": "check", "text": "Copied"}}"#,
+        r#"{"event": {"kind": "timer-done", "symbol": "timer", "text": "Tea done"}}"#,
     )
     .await;
-    wait_until(|| async {
-        let s = status(&isle).await;
-        let outputs = s["outputs"].as_array().unwrap();
-        outputs
-            .iter()
-            .any(|o| o["main"] == true && o["form"] == "event")
-            && outputs
-                .iter()
-                .any(|o| o["main"] == false && o["form"] == "pill")
+    until(&isle, "the event on the main screen alone", |s| {
+        outputs(s).iter().any(|o| o["main"] == true && o["form"] == "event")
+            && outputs(s).iter().any(|o| o["main"] == false && o["form"] == "pill")
     })
     .await;
 
@@ -160,23 +164,16 @@ async fn privacy_shows_on_every_screen_and_over_full_screen_alone() {
         .set_full_screen(window.id, true)
         .await
         .unwrap();
+    wait_until(|| async { isle.window(window.id).await.mode == "fullscreen" }).await;
     let output = isle.window(window.id).await.output;
-    wait_until(|| async {
-        let s = status(&isle).await;
-        s["outputs"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|o| o["output"] == output && o["form"] == "privacy")
+    until(&isle, "the privacy form over full screen", |s| {
+        outputs(s).iter().any(|o| o["output"] == output && o["form"] == "privacy")
     })
     .await;
 
     post(&isle, r#"{"privacy": {"mark": "microphone", "on": false}}"#).await;
-    wait_until(|| async {
-        let s = status(&isle).await;
-        s["outputs"]
-            .as_array()
-            .unwrap()
+    until(&isle, "nothing over full screen", |s| {
+        outputs(s)
             .iter()
             .any(|o| o["output"] == output && o["form"] == "nothing" && o["open"] == false)
     })
@@ -190,6 +187,12 @@ async fn the_island_shows_who_holds_the_keys_and_a_rejected_edit() {
     vm.wait_for("keyboard-enter").await;
     vm.send("inhibit");
     vm.wait_for("inhibitor active").await;
+    // A notice inside the window names the chord that takes the keys back.
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    wait_until(|| async {
+        shell.list().await.unwrap().iter().any(|s| s.name == "inhibit-notice" && s.open)
+    })
+    .await;
     wait_until(|| async {
         status(&isle).await["outputs"][0]["glyphs"]
             .as_array()

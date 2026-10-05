@@ -31,6 +31,8 @@ pub struct Settings {
     #[setting(section)]
     pub shell: Shell,
     #[setting(section)]
+    pub control_centre: ControlCentre,
+    #[setting(section)]
     pub wallpaper: Wallpaper,
     /// A screen's own wallpaper, by make, model and serial, in place of `wallpaper`.
     #[setting(keyed)]
@@ -618,6 +620,19 @@ pub enum GlyphTier {
     Always,
     WhenActive,
     Never,
+}
+
+/// Control Centre's grid.
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct ControlCentre {
+    /// The modules in order, each `id:size` with size `s`, `m`, `l` or `w`; a module that
+    /// has nothing to control here closes up.
+    #[setting(default = [
+        "wifi:m", "now-playing:l", "bluetooth:m", "focus:m", "vpn:m", "sound:w", "display:w",
+        "night-light:s", "energy-mode:s", "updates:m", "batteries:m", "dark-mode:s",
+        "keyboard-layout:m",
+    ].map(String::from).to_vec())]
+    pub modules: Vec<String>,
 }
 
 /// The shell's screens.

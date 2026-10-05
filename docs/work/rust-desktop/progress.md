@@ -2,6 +2,16 @@
 
 ## 2026-10-05
 
+- P6 6.3: Control Centre and the top edge. The panel unfolds from the pill
+  with its notices (a rejected configuration, the safe start, shortcuts
+  inhibited), activity rows, the packed grid and pages; Dark Mode and Keyboard
+  layout are its first modules. Hover peeks without the keyboard, a click or
+  Ctrl+F8 pins with it, Escape over a peek is not passed on, a push at the
+  edge brings the island back over full screen. A window that takes the keys
+  shows a notice inside its top edge. Found: a moving island that drew nothing
+  visible stopped the loop's redraws, and a glass shape measured before its
+  surface was sized was negative.
+
 - P6 6.2: the island. One queue model sources post to (glyph tiers, privacy,
   ranked activities, events with replacement, OSD pre-emption, waiting and
   dropping), a surface on every output whose shape the compositor springs and

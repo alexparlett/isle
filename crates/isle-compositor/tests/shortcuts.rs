@@ -62,6 +62,9 @@ async fn press(isle: &Isle, mods: &[u32], key: u32) {
 /// Shortcuts whose actions close, hide or move the window under test, or end the session;
 /// P4's tests drive those by their chords.
 const DISRUPTIVE: &[&str] = &[
+    "control-centre",
+    "menu-bar",
+    "help-search",
     "close-window",
     "quit-app",
     "hide",

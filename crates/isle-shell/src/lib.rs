@@ -474,6 +474,19 @@ impl Shell {
         self.set_open_where(name, Some(output), open)
     }
 
+    /// The focus of `name`'s instance on `output`, to give it the keyboard.
+    pub fn instance_focus(&self, name: &str, output: &Output) -> Option<ShellFocus> {
+        self.instances
+            .iter()
+            .find(|i| i.def.name() == name && &i.output == output)
+            .map(Self::focus_of)
+    }
+
+    /// The output an instance is on.
+    pub fn output_of(&self, focus: &ShellFocus) -> Option<Output> {
+        self.instance(focus).map(|i| i.output.clone())
+    }
+
     /// Whether `name`'s instance on `output` is open.
     pub fn is_open_on(&self, name: &str, output: &Output) -> bool {
         self.instances
@@ -917,7 +930,14 @@ impl Shell {
             if !instance.visible() || &instance.output != output || instance.gl.is_none() {
                 continue;
             }
-            for (id, shape) in instance.glass.shapes.borrow().iter() {
+            // A shape measured while its surface was still unsized has no area.
+            for (id, shape) in instance
+                .glass
+                .shapes
+                .borrow()
+                .iter()
+                .filter(|(_, s)| s.width > 0.0 && s.height > 0.0)
+            {
                 regions.push(GlassRegion {
                     instance: instance.id,
                     shape: *id,

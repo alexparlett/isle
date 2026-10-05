@@ -142,7 +142,8 @@ impl Component for Button {
             })
             .on_pointer_down(move |_| pressed.set_if_modified(enabled))
             .on_mouse_up(move |_| pressed.set_if_modified(false))
-            .on_press(move |_| {
+            .on_press(move |e: Event<PressEventData>| {
+                e.stop_propagation();
                 if enabled && let Some(f) = &on_press {
                     f.call(());
                 }

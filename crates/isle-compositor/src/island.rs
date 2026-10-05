@@ -30,6 +30,9 @@ use crate::state::{Isle, State};
 struct Morph {
     shown: Shown,
     before: Option<Shown>,
+    panel: Option<isle_shell::island::panel::PanelFrame>,
+    /// The panel was open when this morph began.
+    panel_before: bool,
     width: Motion,
     height: Motion,
     /// The size the spring started from, for the share done.
@@ -66,6 +69,8 @@ impl Morph {
 pub struct IslandState {
     pub model: Island,
     pub surface: Rc<IslandSurface>,
+    pub notice: Rc<isle_shell::island::notice::InhibitNotice>,
+    notice_timer: Option<RegistrationToken>,
     morphs: HashMap<String, Morph>,
     clock: String,
     clock_width: f32,
@@ -76,6 +81,12 @@ pub struct IslandState {
     pub revealed: Vec<String>,
     /// The sources as last taken in, by [`State::watch_island`].
     seen: Option<Seen>,
+    /// Control Centre, open on one output.
+    pub panel: Option<crate::control_centre::PanelState>,
+    /// The app holding the keys, by id.
+    pub inhibiting: Option<String>,
+    /// The seat keymap's layouts by name, and the one in use.
+    pub layouts: (Vec<String>, usize),
 }
 
 type Seen = (Option<String>, Vec<bool>, String, bool, Option<String>);
@@ -85,6 +96,8 @@ impl IslandState {
         Self {
             model: Island::new(Timings::of(theme), theme.tokens.limit_island_marks as usize),
             surface: IslandSurface::new(),
+            notice: isle_shell::island::notice::InhibitNotice::new(),
+            notice_timer: None,
             morphs: HashMap::new(),
             clock: String::new(),
             clock_width: 0.0,
@@ -92,6 +105,9 @@ impl IslandState {
             main: None,
             revealed: Vec::new(),
             seen: None,
+            panel: None,
+            inhibiting: None,
+            layouts: (Vec::new(), 0),
         }
     }
 }
@@ -211,16 +227,29 @@ impl Isle {
             .iter()
             .find(|o| Some(o.name()) == main)
             .is_some_and(|o| self.island_covered(o));
-        self.island.model.set_main(false, main_covered, now);
+        let panel = self.island.panel.clone();
+        let main_panel = panel.as_ref().is_some_and(|p| Some(&p.output) == main.as_ref());
+        self.island.model.set_main(main_panel, main_covered, now);
         for output in &outputs {
             let name = output.name();
+            let open = panel.as_ref().filter(|p| p.output == name);
             let place = Place {
                 main: Some(&name) == main.as_ref(),
-                covered: self.island_covered(output),
-                panel: false,
+                covered: self.island_covered(output) && open.is_none(),
+                panel: open.is_some(),
             };
             let shown = self.island.model.view(&name, place);
-            let target = target_size(&shown, &theme, self.island.clock_width);
+            let panel_frame = open.map(|p| self.panel_frame(p));
+            let room = self.space.output_geometry(output).map_or(800.0, |g| {
+                g.size.h as f32 - theme.tokens.size_strip - theme.tokens.space_xxxl
+            });
+            let target = target_size(
+                &shown,
+                panel_frame.as_ref(),
+                &theme,
+                self.island.clock_width,
+                room,
+            );
             let morph = self
                 .island
                 .morphs
@@ -232,8 +261,19 @@ impl Isle {
                     height: Motion::at(0.0),
                     from: (0.0, 0.0),
                     last: now,
+                    panel: None,
+                    panel_before: false,
                 });
-            if morph.shown != shown || morph.target() != target {
+            let panel_changed = morph.panel.is_some() != panel_frame.is_some();
+            if panel_changed {
+                morph.panel_before = morph.panel.is_some();
+            }
+            let content_changed = morph.panel != panel_frame;
+            morph.panel = panel_frame;
+            if content_changed && !panel_changed {
+                morph.last = now;
+            }
+            if morph.shown != shown || morph.target() != target || panel_changed {
                 let same_form = std::mem::discriminant(&morph.shown)
                     == std::mem::discriminant(&shown)
                     && matches!(shown, Shown::Pill { .. } | Shown::Privacy(_));
@@ -345,6 +385,8 @@ impl Isle {
                     clock: self.island.clock.clone(),
                     clock_width: self.island.clock_width,
                     solid,
+                    panel: morph.panel.clone(),
+                    panel_before: morph.panel_before && !morph.settled(),
                 },
             );
         }
@@ -421,8 +463,15 @@ impl Isle {
 impl State {
     /// The glyphs whose state the compositor itself knows: shortcuts inhibited, a rejected
     /// configuration, and the Gaming Focus standing in while a game is in front.
-    pub fn island_sources(&mut self, settings_rejected: Option<bool>) {
+    pub fn island_sources(&mut self, settings_error: Option<Option<(String, u32, u32, String)>>) {
         let app = self.inhibiting_app();
+        self.isle.island.inhibiting = (!app.is_empty()).then(|| app.clone());
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        self.isle.island.layouts = keyboard.with_xkb_state(self, |context| {
+            let xkb = context.xkb().lock().unwrap();
+            let names = xkb.layouts().map(|l| xkb.layout_name(l).to_owned()).collect();
+            (names, xkb.active_layout().0 as usize)
+        });
         let inhibited = (!app.is_empty()).then(|| self.isle.apps.name(&app));
         self.isle.island.model.set_glyph(
             GlyphKind::Inhibited,
@@ -433,11 +482,12 @@ impl State {
                 ..Default::default()
             }),
         );
-        if let Some(rejected) = settings_rejected {
-            self.isle.settings_rejected = rejected;
+        if let Some(error) = settings_error {
+            self.isle.settings_error = error;
         }
-        let error =
-            self.isle.settings_rejected || self.isle.tokens_error.is_some() || self.isle.safe_start;
+        let error = self.isle.settings_error.is_some()
+            || self.isle.tokens_error.is_some()
+            || self.isle.safe_start;
         self.isle.island.model.set_glyph(
             GlyphKind::ConfigError,
             error.then(|| Glyph {
@@ -486,6 +536,7 @@ impl State {
 
     /// The layout changed by its chord: an OSD with its name.
     pub fn island_layout(&mut self) {
+        self.island_sources(None);
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         let name = keyboard.with_xkb_state(self, |context| {
             let xkb = context.xkb().lock().unwrap();
@@ -523,6 +574,13 @@ impl State {
             self.focus_is_game(),
             self.isle.focused_app_name(),
         );
+        let gained = !seen.2.is_empty()
+            && self.isle.island.seen.as_ref().is_none_or(|s| s.2 != seen.2);
+        if gained {
+            self.show_inhibit_notice(&seen.2);
+        } else if seen.2.is_empty() && self.isle.shell.is_open("inhibit-notice") {
+            self.close_surface("inhibit-notice");
+        }
         if self.isle.island.seen.as_ref() != Some(&seen) {
             self.isle.island.model.set_focused_app(seen.4.clone());
             self.isle.island.seen = Some(seen);
@@ -531,14 +589,93 @@ impl State {
         }
     }
 
+    /// Once each time a window gains the keys: a notice inside its top edge naming the chord
+    /// that takes them back.
+    fn show_inhibit_notice(&mut self, app: &str) {
+        let Some(id) = self.focused_window() else {
+            return;
+        };
+        let (Some(frame), Some(output)) = (self.isle.frame(id), self.isle.output_of(id)) else {
+            return;
+        };
+        let Some(screen) = self.isle.space.output_geometry(&output) else {
+            return;
+        };
+        let theme = self.isle.shell.theme().clone();
+        let name = self.isle.apps.name(app);
+        let chord = "⌘⎋".to_owned();
+        let size = isle_shell::island::notice::InhibitNotice::size(&theme, &name, &chord);
+        let full_screen = matches!(
+            self.isle.wm.get(id).map(|r| &r.mode),
+            Some(crate::wm::Mode::FullScreen { .. })
+        );
+        let top = if full_screen {
+            screen.loc.y + theme.tokens.size_strip as i32
+        } else {
+            frame.loc.y + self.isle.bar_height(id) + theme.tokens.space_m as i32
+        };
+        let x = frame.loc.x + (frame.size.w - size.w) / 2;
+        let place = isle_shell::OutputPlace {
+            output: output.clone(),
+            geometry: screen,
+            scale: output.current_scale().fractional_scale(),
+        };
+        let notice = self.isle.island.notice.clone();
+        self.isle.shell.with_root("inhibit-notice", || notice.set(name.clone(), chord.clone()));
+        notice.set(name, chord);
+        self.isle.shell.open_placed(
+            "inhibit-notice",
+            &place,
+            smithay::utils::Rectangle::new((x - screen.loc.x, top - screen.loc.y).into(), size),
+        );
+        if let Some(token) = self.isle.island.notice_timer.take() {
+            self.isle.loop_handle.remove(token);
+        }
+        let hold = Duration::from_millis(theme.tokens.timing_event_ms.into());
+        self.isle.island.notice_timer = self
+            .isle
+            .loop_handle
+            .insert_source(Timer::from_duration(hold), |_, _, state| {
+                state.isle.island.notice_timer = None;
+                state.close_surface("inhibit-notice");
+                TimeoutAction::Drop
+            })
+            .ok();
+        self.dispatch_shell();
+    }
+
     /// What a click on an output's island asked for.
     pub fn island_action(
         &mut self,
-        _focus: Option<isle_shell::ShellFocus>,
+        focus: Option<isle_shell::ShellFocus>,
         action: isle_shell::island::IslandAction,
     ) {
         use isle_shell::island::IslandAction;
         match action {
+            IslandAction::Pin | IslandAction::Clock => {
+                if let Some(output) = focus.as_ref().and_then(|f| self.isle.shell.output_of(f)) {
+                    self.open_control_centre(&output, true, None);
+                }
+            }
+            IslandAction::Glyph(kind) => {
+                if let Some(output) = focus.as_ref().and_then(|f| self.isle.shell.output_of(f)) {
+                    let page = match kind {
+                        isle_shell::island::model::GlyphKind::Inhibited
+                        | isle_shell::island::model::GlyphKind::ConfigError => None,
+                        other => Some(other.name().to_owned()),
+                    };
+                    self.open_control_centre(&output, true, page);
+                }
+            }
+            IslandAction::Panel(action) => self.panel_action(action),
+            IslandAction::Close => {
+                let on_page = self.isle.island.panel.as_ref().is_some_and(|p| p.page.is_some());
+                if on_page {
+                    self.panel_action(isle_shell::island::panel::PanelAction::Page(None));
+                } else {
+                    self.close_control_centre();
+                }
+            }
             IslandAction::Event => {
                 // Attention's app comes forward; a held event is acknowledged.
                 let app = self.isle.island.model.showing().and_then(|e| e.app.clone());
@@ -548,7 +685,6 @@ impl State {
                 }
                 self.isle.refresh_island();
             }
-            other => tracing::debug!(?other, "island action"),
         }
     }
 
@@ -560,8 +696,8 @@ impl State {
     }
 
     /// The configuration was rejected, or a rejected one fixed.
-    pub fn island_settings_status(&mut self, rejected: bool) {
-        self.island_sources(Some(rejected));
+    pub fn island_settings_status(&mut self, error: Option<(String, u32, u32, String)>) {
+        self.island_sources(Some(error));
         self.isle.refresh_island();
     }
 
@@ -692,6 +828,9 @@ impl Isle {
                     "height": morph.map_or(0.0, |m| m.height.value()),
                     "target": morph.map(|m| m.target()),
                     "open": self.shell.is_open_on("island", o),
+                    "panel": self.island.panel.as_ref().filter(|p| p.output == name).map(|p| {
+                        serde_json::json!({ "pinned": p.pinned, "page": p.page })
+                    }),
                 })
             })
             .collect();

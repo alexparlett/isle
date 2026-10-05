@@ -36,13 +36,7 @@ impl State {
                 let location = event.position_transformed(geometry.size) + geometry.loc.to_f64();
                 self.on_pointer_to(location, event.time());
             }
-            InputEvent::PointerMotion { event } => {
-                let pointer = self.isle.seat.get_pointer().unwrap();
-                let target = self
-                    .isle
-                    .clamp_to_outputs(pointer.current_location() + event.delta());
-                self.on_pointer_to(target, event.time());
-            }
+            InputEvent::PointerMotion { event } => self.on_pointer_by(event.delta(), event.time()),
             InputEvent::PointerButton { event } => {
                 self.on_button(event.button_code(), event.state(), event.time())
             }
@@ -76,8 +70,23 @@ impl State {
         pointer.frame(self);
     }
 
+    /// Moves the pointer by `delta`, held to the outputs; the top edge sees the travel the
+    /// edge stopped.
+    pub fn on_pointer_by(&mut self, delta: Point<f64, Logical>, time: InputTime) {
+        let pointer = self.isle.seat.get_pointer().unwrap();
+        let target = self.isle.clamp_to_outputs(pointer.current_location() + delta);
+        self.move_pointer(target, time);
+        self.top_edge_motion(delta);
+    }
+
     /// Moves the pointer to `location` in the global space.
     pub fn on_pointer_to(&mut self, location: Point<f64, Logical>, time: InputTime) {
+        let from = self.isle.seat.get_pointer().unwrap().current_location();
+        self.move_pointer(location, time);
+        self.top_edge_motion(location - from);
+    }
+
+    fn move_pointer(&mut self, location: Point<f64, Logical>, time: InputTime) {
         let under = self.isle.surface_under(location);
         let pointer = self.isle.seat.get_pointer().unwrap();
         pointer.motion(
@@ -110,6 +119,9 @@ impl State {
             ButtonState::Pressed => self.isle.buttons_down.insert(button),
             ButtonState::Released => self.isle.buttons_down.remove(&button),
         };
+        if button_state == ButtonState::Pressed {
+            self.top_edge_press();
+        }
         if button_state == ButtonState::Pressed
             && !pointer.is_grabbed()
             && self.modifier_drag(button, serial, time)

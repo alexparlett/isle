@@ -103,12 +103,15 @@ pub async fn watch(
             Reload::Unchanged => {}
             Reload::Applied(keys) => {
                 publish(&to_loop, &events, store.current().clone(), keys);
-                to_loop.post(|state| state.island_settings_status(false));
+                to_loop.post(|state| state.island_settings_status(None));
                 let _ = events.send(Event::SettingsStatus);
             }
             Reload::Rejected(err) => {
                 warn!("settings.kdl rejected, the last good settings stay: {err}");
-                to_loop.post(|state| state.island_settings_status(true));
+                let error = store.error().map(|e| {
+                    (e.file.display().to_string(), e.line as u32, e.column as u32, e.message.clone())
+                });
+                to_loop.post(move |state| state.island_settings_status(error));
                 let _ = events.send(Event::SettingsStatus);
             }
         }

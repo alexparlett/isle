@@ -277,6 +277,14 @@ impl State {
             })
             .expect("the estimated vblank timer");
         OutputState::of(output).borrow_mut().redraw = RedrawState::WaitingForEstimatedVBlank(token);
+        // Something still moving that drew nothing visible this frame goes on at the next.
+        if self.isle.shell.animating(output)
+            || self.isle.windows_moving(output)
+            || self.isle.wallpapers.fading(&Isle::output_identity(output))
+            || self.isle.island_moving(output)
+        {
+            self.isle.queue_redraw(output);
+        }
     }
 
     /// Draws the shell surfaces on `output` whose trees changed, before its frame.

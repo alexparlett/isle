@@ -140,6 +140,15 @@ enum Apps {
     Activate { app: String },
     /// Close an app's windows, then end its processes.
     Quit { app: String },
+    /// Start an app by desktop id, or one of its entry's actions.
+    Launch {
+        app: String,
+        #[arg(long)]
+        action: Option<String>,
+        uris: Vec<String>,
+    },
+    /// Open a link or file in the app that handles it.
+    Open { target: String },
 }
 
 #[derive(Subcommand)]
@@ -465,6 +474,12 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 }
                 Apps::Activate { app } => app_found(proxy.activate_app(app).await?, app)?,
                 Apps::Quit { app } => app_found(proxy.quit_app(app).await?, app)?,
+                Apps::Launch { app, action, uris } => {
+                    let uris: Vec<&str> = uris.iter().map(String::as_str).collect();
+                    let action = action.as_deref().unwrap_or("");
+                    app_found(proxy.launch(app, action, &uris).await?, app)?
+                }
+                Apps::Open { target } => app_found(proxy.open(target).await?, target)?,
             }
         }
         Command::Displays(Displays::Redetect) => DisplaysProxy::new(&bus).await?.redetect().await?,

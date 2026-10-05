@@ -270,6 +270,8 @@ impl Isle {
         let probe_full = std::rc::Rc::new(isle_shell::probe::ProbeFull::default());
         #[cfg(feature = "test-hooks")]
         shell.register(probe_full.clone());
+        #[cfg(feature = "test-hooks")]
+        shell.register(std::rc::Rc::new(isle_shell::gallery::Gallery));
 
         Self {
             display_handle: dh,

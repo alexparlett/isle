@@ -2,6 +2,14 @@
 
 ## 2026-10-05
 
+- P6 6.1: `isle-ui`'s first components (glyphs with Phosphor and Isle's own
+  four, text styles, buttons, the level bar, the menu with its keyboard), a
+  gallery surface in test builds and the preview, and in `isle-apps` entry
+  actions, Exec field codes, icon theme lookup and AppStream links. Apps start
+  in a systemd scope with an activation token (`isle apps launch|open`). A
+  menu's width is estimated from its text: Freya cannot size a row with a
+  spring in it to its content.
+
 - P6 6.0: the wallpaper. Frost drawn by a shader, pictures decoded and fitted
   on the worker, per screen or for all, folders, the crossfade and its cut,
   nothing drawn under a full-screen window. A 5K PNG takes about 3 s to

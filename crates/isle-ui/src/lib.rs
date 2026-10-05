@@ -1,10 +1,19 @@
 //! The Freya side shared by the shell and Isle's apps: tokens as context, and primitives.
 
+pub mod button;
+mod glyph;
+pub mod menu;
+pub mod text;
+
 use std::rc::Rc;
 
 use freya::prelude::*;
 pub use isle_tokens;
 use isle_tokens::{Colour, Theme};
+
+pub use button::{Button, LevelBar};
+pub use glyph::{Glyph, LevelGlyph, glyph_svg};
+pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
 
 /// The theme every tree reads; a change re-renders whoever read it.
 #[derive(Clone, Copy)]
@@ -18,6 +27,29 @@ pub fn use_theme() -> Rc<Theme> {
 /// A token colour as Freya draws it.
 pub fn colour(c: Colour) -> Color {
     Color::from_argb((c.a * 255.0).round() as u8, c.r, c.g, c.b)
+}
+
+/// A list of token shadows as Freya draws them.
+pub fn shadows(list: &[isle_tokens::Shadow]) -> Vec<freya::prelude::Shadow> {
+    list.iter()
+        .map(|s| {
+            let shadow = freya::prelude::Shadow::new()
+                .x(s.x)
+                .y(s.y)
+                .blur(s.blur)
+                .spread(s.spread)
+                .color(colour(s.colour));
+            if s.inset { shadow.inset() } else { shadow }
+        })
+        .collect()
+}
+
+/// The keyboard focus ring: the accent, outside the shape (DESIGN.md, Components).
+pub fn focus_ring(theme: &Theme) -> Border {
+    Border::new()
+        .fill(colour(theme.tokens.colour_accent))
+        .width(theme.tokens.stroke_focus_ring)
+        .alignment(BorderAlignment::Outer)
 }
 
 /// Where a surface's glass lies, in points from its origin, for the compositor to blur behind.

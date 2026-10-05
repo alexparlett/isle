@@ -30,6 +30,7 @@ use wayland_client::{
     },
 };
 use wayland_protocols::xdg::{
+    activation::v1::client::xdg_activation_v1,
     decoration::zv1::client::{zxdg_decoration_manager_v1, zxdg_toplevel_decoration_v1},
     dialog::v1::client::{xdg_dialog_v1, xdg_wm_dialog_v1},
     shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base},
@@ -61,6 +62,7 @@ struct Client {
     decorations: Option<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1>,
     dialogs: Option<xdg_wm_dialog_v1::XdgWmDialogV1>,
     inhibits: Option<zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1>,
+    activation: Option<xdg_activation_v1::XdgActivationV1>,
     wins: Vec<Win>,
     ignore_pings: bool,
     ignored_pings: Vec<u32>,
@@ -315,6 +317,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "zwp_keyboard_shortcuts_inhibit_manager_v1" => {
                     state.inhibits = Some(registry.bind(name, 1, qh, ()))
                 }
+                "xdg_activation_v1" => state.activation = Some(registry.bind(name, 1, qh, ())),
                 _ => {}
             }
         }
@@ -709,6 +712,7 @@ fn main() {
         decorations: None,
         dialogs: None,
         inhibits: None,
+        activation: None,
         wins: Vec::new(),
         ignore_pings: false,
         ignored_pings: Vec::new(),
@@ -771,6 +775,13 @@ fn main() {
             client.command(command, &qh);
         }
         client.wins[0].surface.commit();
+        // Started by a launcher, the window asks for focus with the token it was given.
+        if let (Ok(token), Some(activation)) =
+            (std::env::var("XDG_ACTIVATION_TOKEN"), client.activation.as_ref())
+        {
+            activation.activate(token.clone(), &client.wins[0].surface);
+            say(0, format!("activated with {token}"));
+        }
     }
     client.started = true;
 
@@ -819,5 +830,17 @@ fn main() {
                 Ok(_) => client.command(line.trim(), &qh),
             }
         }
+    }
+}
+
+impl Dispatch<xdg_activation_v1::XdgActivationV1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &xdg_activation_v1::XdgActivationV1,
+        _: xdg_activation_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
     }
 }

@@ -7,6 +7,8 @@ mod element;
 mod gl;
 mod keys;
 #[cfg(feature = "probe")]
+pub mod gallery;
+#[cfg(feature = "probe")]
 pub mod probe;
 mod surface;
 pub mod transition;

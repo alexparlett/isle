@@ -1,6 +1,10 @@
 //! Desktop entries and the apps they name: an index read off the main loop, and the
 //! resolution of a window's app id to the app it belongs to (`compositor.md` Apps 1).
 
+pub mod exec;
+pub mod icons;
+pub mod metainfo;
+
 use std::{
     collections::HashMap,
     fs,
@@ -18,6 +22,21 @@ pub struct Entry {
     pub startup_wm_class: Option<String>,
     /// Launchers do not list it; it still names its windows' app.
     pub no_display: bool,
+    pub comment: Option<String>,
+    /// Runs in a terminal.
+    pub terminal: bool,
+    /// The entry's extra actions: New Window, New Private Window and the like.
+    pub actions: Vec<EntryAction>,
+    /// The file it was read from.
+    pub path: PathBuf,
+}
+
+/// A `[Desktop Action]` group.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct EntryAction {
+    pub id: String,
+    pub name: String,
+    pub exec: Option<String>,
 }
 
 /// Every application entry on the data path, the first found winning, as the spec says.
@@ -61,7 +80,8 @@ impl Index {
                 let Ok(text) = fs::read_to_string(&path) else {
                     continue;
                 };
-                if let Some(entry) = parse(&id, &text) {
+                if let Some(mut entry) = parse(&id, &text) {
+                    entry.path = path.clone();
                     index.insert(entry);
                 } else {
                     // A hidden or non-application entry still shadows the same id later on.
@@ -162,32 +182,72 @@ pub fn parse(id: &str, text: &str) -> Option<Entry> {
         id: id.to_owned(),
         ..Default::default()
     };
-    let mut in_group = false;
+    // Which group the lines belong to: the entry, an action by its id, or another.
+    enum Group {
+        Entry,
+        Action(String),
+        Other,
+    }
+    let mut group = Group::Other;
     let mut kind = None;
+    let mut listed: Vec<String> = Vec::new();
+    let mut actions: HashMap<String, EntryAction> = HashMap::new();
     for line in text.lines() {
         let line = line.trim();
         if line.starts_with('[') {
-            in_group = line == "[Desktop Entry]";
+            group = match line.strip_prefix("[Desktop Action ").and_then(|l| l.strip_suffix(']')) {
+                Some(action) => Group::Action(action.to_owned()),
+                None if line == "[Desktop Entry]" => Group::Entry,
+                None => Group::Other,
+            };
             continue;
         }
-        if !in_group || line.starts_with('#') {
+        if line.starts_with('#') {
             continue;
         }
         let Some((key, value)) = line.split_once('=') else {
             continue;
         };
         let (key, value) = (key.trim(), value.trim().to_owned());
-        match key {
-            "Type" => kind = Some(value),
-            "Name" => entry.name = value,
-            "Exec" => entry.exec = Some(value),
-            "Icon" => entry.icon = Some(value),
-            "StartupWMClass" => entry.startup_wm_class = Some(value),
-            "NoDisplay" => entry.no_display = value == "true",
-            "Hidden" if value == "true" => return None,
-            _ => {}
+        match &group {
+            Group::Entry => match key {
+                "Type" => kind = Some(value),
+                "Name" => entry.name = value,
+                "Exec" => entry.exec = Some(value),
+                "Icon" => entry.icon = Some(value),
+                "StartupWMClass" => entry.startup_wm_class = Some(value),
+                "NoDisplay" => entry.no_display = value == "true",
+                "Comment" => entry.comment = Some(value),
+                "Terminal" => entry.terminal = value == "true",
+                "Actions" => {
+                    listed = value
+                        .split(';')
+                        .filter(|a| !a.is_empty())
+                        .map(str::to_owned)
+                        .collect()
+                }
+                "Hidden" if value == "true" => return None,
+                _ => {}
+            },
+            Group::Action(id) => {
+                let action = actions.entry(id.clone()).or_insert_with(|| EntryAction {
+                    id: id.clone(),
+                    ..Default::default()
+                });
+                match key {
+                    "Name" => action.name = value,
+                    "Exec" => action.exec = Some(value),
+                    _ => {}
+                }
+            }
+            Group::Other => {}
         }
     }
+    entry.actions = listed
+        .iter()
+        .filter_map(|id| actions.remove(id))
+        .filter(|a| !a.name.is_empty())
+        .collect();
     (kind.as_deref() == Some("Application") && !entry.name.is_empty()).then_some(entry)
 }
 
@@ -275,5 +335,15 @@ mod tests {
         assert_eq!(index.get("kde-dolphin").unwrap().name, "Dolphin");
         assert!(index.get("gone").is_none());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn actions_are_read_in_the_order_the_entry_lists_them() {
+        let text = "[Desktop Entry]\nType=Application\nName=Files\nComment=Browse\nActions=window;private;\n\n[Desktop Action private]\nName=New Private Window\nExec=files --private\n\n[Desktop Action window]\nName=New Window\nExec=files --new-window\n\n[Desktop Action unlisted]\nName=X\n";
+        let entry = parse("files", text).unwrap();
+        assert_eq!(entry.comment.as_deref(), Some("Browse"));
+        let names: Vec<&str> = entry.actions.iter().map(|a| a.name.as_str()).collect();
+        assert_eq!(names, ["New Window", "New Private Window"]);
+        assert_eq!(entry.actions[0].exec.as_deref(), Some("files --new-window"));
     }
 }

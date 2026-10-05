@@ -22,7 +22,17 @@ pub fn surfaces() -> Vec<Rc<dyn SurfaceDef>> {
             None
         }
     };
-    probe.into_iter().collect()
+    let gallery: Option<Rc<dyn SurfaceDef>> = {
+        #[cfg(feature = "probe")]
+        {
+            Some(Rc::new(crate::gallery::Gallery))
+        }
+        #[cfg(not(feature = "probe"))]
+        {
+            None
+        }
+    };
+    probe.into_iter().chain(gallery).collect()
 }
 
 /// A surface's tree with what the shell gives it: shown, the tokens of each source that arrives

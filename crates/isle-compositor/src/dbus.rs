@@ -101,6 +101,28 @@ impl Windows {
         Ok(self.to_loop.call(move |state| state.quit_app(&app)).await?)
     }
 
+    /// Starts an app by desktop id, or one of its entry's actions by id when not empty.
+    async fn launch(&self, app: String, action: String, uris: Vec<String>) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                state.launch(crate::launch::Launch::App {
+                    app,
+                    action: (!action.is_empty()).then_some(action),
+                    uris,
+                })
+            })
+            .await?)
+    }
+
+    /// Opens a link or file in the app that handles it.
+    async fn open(&self, target: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.launch(crate::launch::Launch::Open(target)))
+            .await?)
+    }
+
     async fn minimise(&self, id: u64) -> fdo::Result<bool> {
         Ok(self.to_loop.call(move |state| state.minimise(id)).await?)
     }

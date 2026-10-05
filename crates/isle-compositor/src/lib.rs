@@ -11,6 +11,7 @@ mod grabs;
 mod handlers;
 mod input;
 mod keyboard;
+mod launch;
 mod outputs;
 pub mod redraw;
 mod render;

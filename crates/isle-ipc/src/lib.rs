@@ -295,6 +295,11 @@ pub mod windows {
         fn activate_app(&self, app: &str) -> zbus::Result<bool>;
         /// Closes every window of an app, then signals its processes; false when it has none.
         fn quit_app(&self, app: &str) -> zbus::Result<bool>;
+        /// Starts an app by desktop id, or one of its entry's actions; false when it has
+        /// nothing to run.
+        fn launch(&self, app: &str, action: &str, uris: &[&str]) -> zbus::Result<bool>;
+        /// Opens a link or file in the app that handles it.
+        fn open(&self, target: &str) -> zbus::Result<bool>;
         /// Hides or shows every window of an app; false when it has none.
         fn set_app_hidden(&self, app: &str, hidden: bool) -> zbus::Result<bool>;
         /// Tiles a window to a zone by name (`left-half`, `fill`, ...); false when the window

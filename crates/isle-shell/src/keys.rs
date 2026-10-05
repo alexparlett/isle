@@ -48,14 +48,14 @@ pub fn key(keysym: Keysym, text: Option<String>) -> Key {
     Key::Named(named)
 }
 
+/// The held modifiers only, as winit reports them: Freya reads a lock as a held key, and Tab
+/// with Num Lock on would not move focus.
 pub fn modifiers(state: &ModifiersState) -> Modifiers {
     let mut modifiers = Modifiers::empty();
     modifiers.set(Modifiers::SHIFT, state.shift);
     modifiers.set(Modifiers::CONTROL, state.ctrl);
     modifiers.set(Modifiers::ALT, state.alt);
     modifiers.set(Modifiers::META, state.logo);
-    modifiers.set(Modifiers::CAPS_LOCK, state.caps_lock);
-    modifiers.set(Modifiers::NUM_LOCK, state.num_lock);
     modifiers
 }
 

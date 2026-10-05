@@ -12,6 +12,7 @@ publish = false
 [workspace.dependencies]
 isle-apps = { path = "crates/isle-apps" }
 isle-ipc = { path = "crates/isle-ipc" }
+isle-keys = { path = "crates/isle-keys" }
 isle-settings = { path = "crates/isle-settings" }
 isle-settings-derive = { path = "crates/isle-settings-derive" }
 isle-state = { path = "crates/isle-state" }
@@ -43,6 +44,7 @@ libc = "0.2"
 png = "0.17"
 smithay-drm-extras = { git = "https://github.com/alexparlett/smithay", rev = "03d4920fdd7972d666351085b0131c90a6e0b7bf" }
 xcursor = "0.3"
+xkbcommon = "0.9"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }

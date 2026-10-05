@@ -10,6 +10,9 @@ pub struct Settings {
     pub render_device: Option<String>,
     #[setting(section)]
     pub keyboard: Keyboard,
+    /// Keyboards, by name.
+    #[setting(keyed)]
+    pub keyboard_device: BTreeMap<String, KeyboardDevice>,
     /// Displays, by make, model and serial.
     #[setting(keyed)]
     pub output: BTreeMap<String, Output>,
@@ -45,6 +48,34 @@ pub struct Keyboard {
     pub repeat_delay: i32,
     #[setting(default = true)]
     pub numlock: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct KeyboardDevice {
+    /// Mac or PC; `auto` guesses from the keyboard's name.
+    #[setting(default = KeyboardProfile::Auto)]
+    pub profile: KeyboardProfile,
+    /// On a PC keyboard, left Alt and left Super trade places, so Cmd sits beside the
+    /// space bar (B30).
+    #[setting(default = true)]
+    pub swap_alt_super: bool,
+    /// Whether the keyboard has the key left of Z; `auto` guesses from the first layout.
+    #[setting(default = KeyboardModel::Auto)]
+    pub model: KeyboardModel,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum KeyboardProfile {
+    Auto,
+    Mac,
+    Pc,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum KeyboardModel {
+    Auto,
+    Iso,
+    Ansi,
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]

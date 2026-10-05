@@ -13,6 +13,7 @@ pub const TEST_PATH: &str = "/io/github/alexparlett/Isle/Test";
 pub const SETTINGS_PATH: &str = "/io/github/alexparlett/Isle/Settings";
 pub const SHELL_PATH: &str = "/io/github/alexparlett/Isle/Shell";
 pub const DESKTOPS_PATH: &str = "/io/github/alexparlett/Isle/Desktops";
+pub const KEYBOARD_PATH: &str = "/io/github/alexparlett/Isle/Keyboard";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -87,6 +88,37 @@ pub struct AppInfo {
     pub windows: u32,
     pub attention: bool,
     pub not_responding: bool,
+}
+
+/// A keyboard as Isle reads it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct KeyboardInfo {
+    /// The backend's id for it, which changes when it is plugged again.
+    pub id: String,
+    /// What its settings are kept under.
+    pub name: String,
+    /// `mac` or `pc`.
+    pub profile: String,
+    /// Whether the profile was guessed from the name rather than set.
+    pub guessed: bool,
+    /// Left Alt and left Super traded.
+    pub swap: bool,
+    /// Its layouts as XKB names them: `gb(mac)`.
+    pub layouts: String,
+    pub model: String,
+    /// v1's xremap, whose virtual keyboard rewrites keys before Isle sees them.
+    pub remapper: bool,
+    /// Whether the seat has its keymap now.
+    pub active: bool,
+}
+
+/// The seat's keyboard state.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct KeyboardStatus {
+    /// The active layout, by XKB's name for it.
+    pub layout: String,
+    pub caps_lock: bool,
+    pub num_lock: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -287,6 +319,24 @@ pub mod desktops {
     }
 }
 
+pub mod keyboard {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Keyboard1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Keyboard"
+    )]
+    pub trait Keyboard {
+        fn list(&self) -> zbus::Result<Vec<KeyboardInfo>>;
+        fn status(&self) -> zbus::Result<KeyboardStatus>;
+        /// Sets a keyboard's profile by its name: `mac`, `pc` or `auto`; writes the settings.
+        fn set_profile(&self, name: &str, profile: &str) -> zbus::Result<()>;
+        #[zbus(signal)]
+        fn changed(&self) -> zbus::Result<()>;
+    }
+}
+
 pub mod displays {
     use super::*;
 
@@ -316,8 +366,13 @@ pub mod test {
     pub trait Test {
         /// Holds the main loop for `millis`, from its next dispatch.
         fn stall(&self, millis: u32) -> zbus::Result<()>;
-        /// A key by its evdev code, as a keyboard sends it.
+        /// A key by its evdev code, from a test keyboard with the Mac profile.
         fn key(&self, code: u32, pressed: bool) -> zbus::Result<()>;
+        /// Adds a keyboard by name, as if plugged in; its id for `key_on`.
+        fn add_keyboard(&self, name: &str) -> zbus::Result<String>;
+        fn remove_keyboard(&self, id: &str) -> zbus::Result<()>;
+        /// A key from a keyboard `add_keyboard` made.
+        fn key_on(&self, id: &str, code: u32, pressed: bool) -> zbus::Result<()>;
         /// Moves the pointer to a point in the global space.
         fn pointer_to(&self, x: f64, y: f64) -> zbus::Result<()>;
         /// A button by its evdev code: 272 is the left button.

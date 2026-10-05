@@ -10,6 +10,7 @@ mod focus;
 mod grabs;
 mod handlers;
 mod input;
+mod keyboard;
 mod outputs;
 pub mod redraw;
 mod render;

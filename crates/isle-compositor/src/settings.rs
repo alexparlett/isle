@@ -9,10 +9,7 @@ use std::{
 
 use isle_settings::{Reload, Store, schema::Settings};
 use notify::{EventKind, RecursiveMode, Watcher};
-use smithay::{
-    input::keyboard::XkbConfig,
-    output::{Output, Scale},
-};
+use smithay::output::{Output, Scale};
 use tokio::sync::{Mutex, broadcast, mpsc};
 use tracing::{info, warn};
 
@@ -135,22 +132,8 @@ impl State {
             |prefix: &str| changed.is_none_or(|keys| keys.iter().any(|k| k.starts_with(prefix)));
         self.isle.settings = settings;
 
-        if touched("keyboard.") {
-            let keyboard = self.isle.settings.keyboard.clone();
-            let config = XkbConfig {
-                layout: &keyboard.layouts.join(","),
-                variant: &keyboard.variants.join(","),
-                options: (!keyboard.options.is_empty()).then(|| keyboard.options.join(",")),
-                ..XkbConfig::default()
-            };
-            let handle = self.isle.seat.get_keyboard().unwrap();
-            if let Err(err) = handle.set_xkb_config(self, config) {
-                warn!(
-                    ?err,
-                    "the keyboard settings name a layout XKB does not know"
-                );
-            }
-            handle.change_repeat_info(keyboard.repeat_rate, keyboard.repeat_delay);
+        if touched("keyboard") {
+            self.apply_keyboard_settings();
         }
         if touched("output[") {
             let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();

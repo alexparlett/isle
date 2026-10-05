@@ -68,6 +68,7 @@ pub struct Isle {
     pub suppressed_keys: std::collections::HashSet<smithay::input::keyboard::Keycode>,
     /// The keyboard's focus before a shell surface took it, given back when it closes.
     pub shell_keyboard_return: Vec<(isle_shell::ShellFocus, Option<Focus>)>,
+    pub keyboards: crate::keyboard::Keyboards,
 
     /// The windows shown now; `wm` keeps every window.
     pub space: Space<Window>,
@@ -256,6 +257,7 @@ impl Isle {
             probe_full,
             suppressed_keys: Default::default(),
             shell_keyboard_return: Vec::new(),
+            keyboards: Default::default(),
             space: Space::default(),
             wm: Default::default(),
             xwm: None,
@@ -576,10 +578,22 @@ impl State {
                 }
                 isle_shell::Action::Zone(action) => self.zone_action(action),
                 isle_shell::Action::Key(code) => {
+                    use crate::keyboard::ISLE_DEVICE;
                     use smithay::backend::input::{InputTime, KeyState};
-                    let keycode = smithay::input::keyboard::Keycode::new(code + 8);
-                    self.on_key(keycode, KeyState::Pressed, InputTime::now());
-                    self.on_key(keycode, KeyState::Released, InputTime::now());
+                    self.on_device_key(
+                        ISLE_DEVICE,
+                        "Isle",
+                        code,
+                        KeyState::Pressed,
+                        InputTime::now(),
+                    );
+                    self.on_device_key(
+                        ISLE_DEVICE,
+                        "Isle",
+                        code,
+                        KeyState::Released,
+                        InputTime::now(),
+                    );
                 }
             }
         }

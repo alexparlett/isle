@@ -40,6 +40,8 @@ enum Command {
     #[command(subcommand)]
     Displays(Displays),
     #[command(subcommand)]
+    Keyboard(Keyboard),
+    #[command(subcommand)]
     Settings(Settings),
     #[command(subcommand)]
     Shell(Shell),
@@ -76,6 +78,16 @@ enum Windows {
         width: i32,
         height: i32,
     },
+}
+
+#[derive(Subcommand)]
+enum Keyboard {
+    /// Every keyboard, with its profile and layouts; `*` marks the one the seat follows.
+    List,
+    /// The active layout, Caps Lock and Num Lock.
+    Status,
+    /// Set a keyboard's profile by its name: mac, pc or auto.
+    Profile { name: String, profile: String },
 }
 
 /// `--output` names a display; the one with focus when left out.
@@ -281,6 +293,52 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     width,
                     height,
                 } => found(proxy.set_box(*id, *x, *y, *width, *height).await?, *id)?,
+            }
+        }
+        Command::Keyboard(command) => {
+            let proxy = isle_ipc::keyboard::KeyboardProxy::new(&bus).await?;
+            match command {
+                Keyboard::List => {
+                    let keyboards = proxy.list().await?;
+                    if cli.json {
+                        print_json(&keyboards);
+                    } else {
+                        for k in keyboards {
+                            let mark = if k.active { "*" } else { " " };
+                            let profile = if k.guessed {
+                                format!("{} (guessed)", k.profile)
+                            } else {
+                                k.profile.clone()
+                            };
+                            let mut notes = Vec::new();
+                            if k.swap {
+                                notes.push("Alt and Super swapped");
+                            }
+                            if k.remapper {
+                                notes.push("v1's xremap");
+                            }
+                            println!(
+                                "{mark} {:<40} {:<14} {:<10} {}",
+                                k.name,
+                                profile,
+                                k.layouts,
+                                notes.join(", ")
+                            );
+                        }
+                    }
+                }
+                Keyboard::Status => {
+                    let status = proxy.status().await?;
+                    if cli.json {
+                        print_json(&status);
+                    } else {
+                        let on = |b: bool| if b { "on" } else { "off" };
+                        println!("layout     {}", status.layout);
+                        println!("caps lock  {}", on(status.caps_lock));
+                        println!("num lock   {}", on(status.num_lock));
+                    }
+                }
+                Keyboard::Profile { name, profile } => proxy.set_profile(name, profile).await?,
             }
         }
         Command::Desktops(command) => {

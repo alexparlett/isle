@@ -11,6 +11,10 @@
 //! `pings ignore|answer` (answering those ignored so far), `linger` (a close of the
 //! first window destroys it but leaves the process running), `quit`. A close of any other
 //! window destroys it.
+//!
+//! Keys print as `key CODE pressed`, then `sym NAME pressed` from the keymap the client was
+//! sent; `keymap LAYOUT` names a keymap's first layout and `mods Control+Mod4` the
+//! modifiers in force after each `modifiers` event.
 
 use std::{
     io::{BufRead, Write},
@@ -64,6 +68,7 @@ struct Client {
     app_id: String,
     /// The first window has made its first commit.
     started: bool,
+    xkb: Option<isle_keys::xkb::State>,
 }
 
 fn say(index: usize, line: String) {
@@ -459,21 +464,74 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Client {
                 state.index_of_surface(&surface).unwrap_or(0),
                 "keyboard-leave".into(),
             ),
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                use isle_keys::xkb;
+                if format != WEnum::Value(wl_keyboard::KeymapFormat::XkbV1) {
+                    return;
+                }
+                let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+                // Safety: the compositor shares the keymap read-only at this size.
+                let keymap = unsafe {
+                    xkb::Keymap::new_from_fd(
+                        &context,
+                        fd,
+                        size as usize,
+                        xkb::KEYMAP_FORMAT_TEXT_V1,
+                        xkb::KEYMAP_COMPILE_NO_FLAGS,
+                    )
+                };
+                if let Ok(Some(keymap)) = keymap {
+                    say(0, format!("keymap {}", keymap.layout_get_name(0)));
+                    state.xkb = Some(xkb::State::new(&keymap));
+                }
+            }
+            wl_keyboard::Event::Modifiers {
+                mods_depressed,
+                mods_latched,
+                mods_locked,
+                group,
+                ..
+            } => {
+                use isle_keys::xkb;
+                if let Some(xkb_state) = state.xkb.as_mut() {
+                    xkb_state.update_mask(mods_depressed, mods_latched, mods_locked, 0, 0, group);
+                    let names: Vec<&str> =
+                        ["Shift", "Lock", "Control", "Mod1", "Mod2", "Mod4", "Mod5"]
+                            .into_iter()
+                            .filter(|m| xkb_state.mod_name_is_active(m, xkb::STATE_MODS_EFFECTIVE))
+                            .collect();
+                    say(
+                        0,
+                        format!(
+                            "mods {}",
+                            if names.is_empty() {
+                                "none".into()
+                            } else {
+                                names.join("+")
+                            }
+                        ),
+                    );
+                }
+            }
             wl_keyboard::Event::Key {
                 key,
                 state: WEnum::Value(s),
                 ..
-            } => say(
-                0,
-                format!(
-                    "key {key} {}",
-                    if s == wl_keyboard::KeyState::Pressed {
-                        "pressed"
-                    } else {
-                        "released"
-                    }
-                ),
-            ),
+            } => {
+                let pressed = if s == wl_keyboard::KeyState::Pressed {
+                    "pressed"
+                } else {
+                    "released"
+                };
+                say(0, format!("key {key} {pressed}"));
+                if let Some(xkb_state) = state.xkb.as_ref() {
+                    let sym = xkb_state.key_get_one_sym((key + 8).into());
+                    say(
+                        0,
+                        format!("sym {} {pressed}", isle_keys::xkb::keysym_get_name(sym)),
+                    );
+                }
+            }
             _ => {}
         }
     }
@@ -628,6 +686,7 @@ fn main() {
         quit: false,
         app_id: app_id.clone(),
         started: false,
+        xkb: None,
     };
     queue.roundtrip(&mut client).unwrap();
 

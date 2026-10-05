@@ -350,6 +350,50 @@ impl Displays {
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
+struct Keyboard {
+    to_loop: ToLoop,
+    store: SharedStore,
+    events: broadcast::Sender<Event>,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Keyboard1")]
+impl Keyboard {
+    async fn list(&self) -> fdo::Result<Vec<isle_ipc::KeyboardInfo>> {
+        Ok(self.to_loop.call(|state| state.keyboard_infos()).await?)
+    }
+
+    async fn status(&self) -> fdo::Result<isle_ipc::KeyboardStatus> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                let (layout, caps_lock, num_lock) = state.keyboard_status();
+                isle_ipc::KeyboardStatus {
+                    layout,
+                    caps_lock,
+                    num_lock,
+                }
+            })
+            .await?)
+    }
+
+    /// Sets a keyboard's profile by its name: `mac`, `pc` or `auto`; writes the settings.
+    async fn set_profile(&self, name: String, profile: String) -> fdo::Result<()> {
+        let mut store = self.store.lock().await;
+        let key = format!("keyboard-device[{name}].profile");
+        let keys = store
+            .set(&key, Value::Str(profile))
+            .map_err(|err| match err {
+                SetError::Invalid(message) => fdo::Error::InvalidArgs(message),
+                other => fdo::Error::Failed(other.to_string()),
+            })?;
+        crate::settings::publish(&self.to_loop, &self.events, store.current().clone(), keys);
+        Ok(())
+    }
+
+    #[zbus(signal)]
+    async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
 #[cfg(feature = "test-hooks")]
 struct Test {
     to_loop: ToLoop,
@@ -365,7 +409,7 @@ impl Test {
         });
     }
 
-    /// A key by its evdev code, as a keyboard sends it.
+    /// A key by its evdev code, from a test keyboard with the Mac profile.
     async fn key(&self, code: u32, pressed: bool) -> fdo::Result<()> {
         use smithay::backend::input::{InputTime, KeyState};
         let key_state = if pressed {
@@ -373,11 +417,63 @@ impl Test {
         } else {
             KeyState::Released
         };
-        let keycode = smithay::input::keyboard::Keycode::new(code + 8);
         Ok(self
             .to_loop
-            .call(move |state| state.on_key(keycode, key_state, InputTime::now()))
+            .call(move |state| {
+                if state.isle.keyboards.get("test").is_none() {
+                    state.keyboard_added(
+                        "test",
+                        "Isle test keyboard",
+                        Some(isle_keys::profile::Profile::Mac),
+                    );
+                }
+                state.on_device_key(
+                    "test",
+                    "Isle test keyboard",
+                    code,
+                    key_state,
+                    InputTime::now(),
+                )
+            })
             .await?)
+    }
+
+    /// Adds a keyboard by name, as if plugged in; its id for `key_on`.
+    async fn add_keyboard(&self, name: String) -> fdo::Result<String> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let id = format!("test:{}", state.isle.keyboards.devices.len());
+                state.keyboard_added(&id, &name, None);
+                id
+            })
+            .await?)
+    }
+
+    async fn remove_keyboard(&self, id: String) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.keyboard_removed(&id))
+            .await?)
+    }
+
+    /// A key from a keyboard `add_keyboard` made.
+    async fn key_on(&self, id: String, code: u32, pressed: bool) -> fdo::Result<()> {
+        use smithay::backend::input::{InputTime, KeyState};
+        let key_state = if pressed {
+            KeyState::Pressed
+        } else {
+            KeyState::Released
+        };
+        self.to_loop
+            .call(move |state| {
+                let Some(name) = state.isle.keyboards.get(&id).map(|d| d.name.clone()) else {
+                    return Err(fdo::Error::InvalidArgs(format!("no keyboard {id}")));
+                };
+                state.on_device_key(&id, &name, code, key_state, InputTime::now());
+                Ok(())
+            })
+            .await?
     }
 
     /// Moves the pointer to a point in the global space.
@@ -766,9 +862,9 @@ pub async fn serve(
         .serve_at(
             SETTINGS_PATH,
             Settings {
-                store,
+                store: store.clone(),
                 to_loop: to_loop.clone(),
-                events,
+                events: events.clone(),
             },
         )?
         .serve_at(VERSION_PATH, Version)?
@@ -801,6 +897,14 @@ pub async fn serve(
             Desktops {
                 to_loop: to_loop.clone(),
             },
+        )?
+        .serve_at(
+            isle_ipc::KEYBOARD_PATH,
+            Keyboard {
+                to_loop: to_loop.clone(),
+                store: store.clone(),
+                events: events.clone(),
+            },
         )?;
     #[cfg(feature = "test-hooks")]
     let builder = builder.serve_at(
@@ -832,6 +936,12 @@ pub async fn serve(
                     .interface::<_, Desktops>(isle_ipc::DESKTOPS_PATH)
                     .await?;
                 Desktops::changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::KeyboardsChanged) => {
+                let iface = server
+                    .interface::<_, Keyboard>(isle_ipc::KEYBOARD_PATH)
+                    .await?;
+                Keyboard::changed(iface.signal_emitter()).await?;
             }
             Ok(Event::DisplaysChanged) => {
                 let iface = server.interface::<_, Displays>(DISPLAYS_PATH).await?;

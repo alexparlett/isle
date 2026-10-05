@@ -703,6 +703,10 @@ impl State {
                     pointer = device.has_capability(DeviceCapability::Pointer),
                     "input device"
                 );
+                if device.has_capability(DeviceCapability::Keyboard) {
+                    use smithay::backend::input::Device as _;
+                    self.keyboard_added(&device.id(), &device.name(), None);
+                }
                 if device.has_capability(DeviceCapability::Pointer) {
                     let mut device = device.clone();
                     self.apply_pointer_settings(&mut device);
@@ -710,6 +714,8 @@ impl State {
                 }
             }
             InputEvent::DeviceRemoved { device } => {
+                use smithay::backend::input::Device as _;
+                self.keyboard_removed(&device.id());
                 self.udev().pointers.retain(|d| d != device);
             }
             _ => {}

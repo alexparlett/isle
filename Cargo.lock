@@ -2353,6 +2353,7 @@ dependencies = [
  "humantime",
  "isle-apps",
  "isle-ipc",
+ "isle-keys",
  "isle-settings",
  "isle-shell",
  "isle-state",
@@ -2382,6 +2383,14 @@ dependencies = [
  "serde",
  "zbus",
  "zvariant",
+]
+
+[[package]]
+name = "isle-keys"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "xkbcommon",
 ]
 
 [[package]]

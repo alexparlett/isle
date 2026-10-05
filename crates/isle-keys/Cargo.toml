@@ -1,0 +1,10 @@
+[package]
+name = "isle-keys"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+tracing.workspace = true
+xkbcommon.workspace = true

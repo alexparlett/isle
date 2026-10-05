@@ -22,7 +22,16 @@ impl State {
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
         match event {
             InputEvent::Keyboard { event } => {
-                self.on_key(event.key_code(), event.state(), Event::time(&event))
+                use smithay::backend::input::Device;
+                let device = event.device();
+                let code = event.key_code().raw() - 8;
+                self.on_device_key(
+                    &device.id(),
+                    &device.name(),
+                    code,
+                    event.state(),
+                    Event::time(&event),
+                )
             }
             InputEvent::PointerMotionAbsolute { event } => {
                 let Some(output) = self.isle.space.outputs().next().cloned() else {

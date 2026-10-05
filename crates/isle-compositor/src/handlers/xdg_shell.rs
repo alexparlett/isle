@@ -32,29 +32,11 @@ impl XdgShellHandler for State {
     }
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
-        let window = Window::new_wayland_window(surface);
-        self.isle.assign_window_id(&window);
-        self.isle.unmapped.push(window);
+        self.isle.add_window(Window::new_wayland_window(surface));
     }
 
     fn toplevel_destroyed(&mut self, surface: ToplevelSurface) {
-        let wl_surface = surface.wl_surface();
-        self.isle
-            .unmapped
-            .retain(|w| w.toplevel().is_some_and(|t| t.wl_surface() != wl_surface));
-        let Some(window) = self.isle.window_for_surface(wl_surface) else {
-            return;
-        };
-        self.isle.queue_redraw_for_window(&window);
-        self.isle.space.unmap_elem(&window);
-        self.isle.notify(crate::worker::Event::WindowsChanged);
-        let keyboard = self.isle.seat.get_keyboard().unwrap();
-        if keyboard
-            .current_focus()
-            .is_none_or(|f| f.surface() == Some(wl_surface))
-        {
-            self.focus_top();
-        }
+        self.remove_window(surface.wl_surface());
     }
 
     fn new_popup(&mut self, surface: PopupSurface, _positioner: PositionerState) {

@@ -52,6 +52,20 @@ enum Windows {
     Focus { id: u64 },
     /// Ask a window to close, by its id.
     Close { id: u64 },
+    Minimise { id: u64 },
+    Unminimise { id: u64 },
+    /// Hide every window of an app.
+    Hide { app: String },
+    /// Show a hidden app's windows again.
+    Unhide { app: String },
+    /// Move and size a window, in logical points.
+    SetBox {
+        id: u64,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+    },
 }
 
 #[derive(Subcommand)]
@@ -174,15 +188,33 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     } else {
                         for w in windows {
                             let mark = if w.focused { "*" } else { " " };
+                            let mut state = w.mode.clone();
+                            if w.minimised {
+                                state.push_str(", minimised");
+                            }
+                            if w.hidden {
+                                state.push_str(", hidden");
+                            }
                             println!(
-                                "{mark} {:>4}  {:<24} {}  [{}]",
-                                w.id, w.app_id, w.title, w.output
+                                "{mark} {:>4}  {:<24} {}  [{}] {state}",
+                                w.id, w.app, w.title, w.output
                             );
                         }
                     }
                 }
                 Windows::Focus { id } => found(proxy.focus(*id).await?, *id)?,
                 Windows::Close { id } => found(proxy.close(*id).await?, *id)?,
+                Windows::Minimise { id } => found(proxy.minimise(*id).await?, *id)?,
+                Windows::Unminimise { id } => found(proxy.unminimise(*id).await?, *id)?,
+                Windows::Hide { app } => app_found(proxy.set_app_hidden(app, true).await?, app)?,
+                Windows::Unhide { app } => app_found(proxy.set_app_hidden(app, false).await?, app)?,
+                Windows::SetBox {
+                    id,
+                    x,
+                    y,
+                    width,
+                    height,
+                } => found(proxy.set_box(*id, *x, *y, *width, *height).await?, *id)?,
             }
         }
         Command::Displays(Displays::Redetect) => DisplaysProxy::new(&bus).await?.redetect().await?,
@@ -350,6 +382,14 @@ async fn settings(cli: &Cli, bus: &zbus::Connection, command: &Settings) -> zbus
         }
     }
     Ok(())
+}
+
+fn app_found(found: bool, app: &str) -> zbus::Result<()> {
+    if found {
+        Ok(())
+    } else {
+        Err(zbus::Error::Failure(format!("no window belongs to {app}")))
+    }
 }
 
 fn found(found: bool, id: u64) -> zbus::Result<()> {

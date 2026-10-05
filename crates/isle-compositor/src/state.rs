@@ -11,7 +11,6 @@ use smithay::{
         wayland_server::{
             Display, DisplayHandle,
             backend::{ClientData, ClientId, DisconnectReason},
-            protocol::wl_surface::WlSurface,
         },
     },
     utils::{Clock, Logical, Monotonic, Point},
@@ -56,7 +55,6 @@ pub struct Isle {
     pub socket_name: OsString,
     pub heartbeat: Heartbeat,
     pub events: broadcast::Sender<Event>,
-    pub next_window_id: u64,
     pub settings: Settings,
     pub shell: isle_shell::Shell,
     /// The design tokens in force, and why the user's file is not, when it is not.
@@ -71,9 +69,9 @@ pub struct Isle {
     /// The keyboard's focus before a shell surface took it, given back when it closes.
     pub shell_keyboard_return: Vec<(isle_shell::ShellFocus, Option<Focus>)>,
 
+    /// The windows shown now; `wm` keeps every window.
     pub space: Space<Window>,
-    /// Toplevels that have not committed a buffer yet; they are placed when they do.
-    pub unmapped: Vec<Window>,
+    pub wm: crate::wm::Wm,
     pub popups: PopupManager,
     pub cursor_status: CursorImageStatus,
 
@@ -199,7 +197,6 @@ impl Isle {
             socket_name,
             heartbeat,
             events,
-            next_window_id: 1,
             settings,
             shell,
             tokens: isle_tokens::Source::shipped(),
@@ -211,7 +208,7 @@ impl Isle {
             suppressed_keys: Default::default(),
             shell_keyboard_return: Vec::new(),
             space: Space::default(),
-            unmapped: Vec::new(),
+            wm: Default::default(),
             popups: PopupManager::default(),
             cursor_status: CursorImageStatus::default_named(),
             compositor_state,
@@ -246,14 +243,6 @@ impl Isle {
             .unwrap_or(60_000);
         self.heartbeat
             .set_budget(Duration::from_secs_f64(1000.0 / fastest as f64));
-    }
-
-    pub fn window_for_surface(&self, surface: &WlSurface) -> Option<Window> {
-        self.space
-            .elements()
-            .chain(self.unmapped.iter())
-            .find(|w| w.toplevel().is_some_and(|t| t.wl_surface() == surface))
-            .cloned()
     }
 
     /// The surface under `pos` and its origin: overlay and top layers, then windows,
@@ -335,14 +324,20 @@ impl Isle {
 
     /// Raises `window`, activates it and gives it the keyboard; `None` clears focus.
     pub fn focus_window(&mut self, window: Option<&Window>) -> Option<Focus> {
-        for w in self.space.elements() {
-            let active = window == Some(w);
-            if w.set_activated(active) {
-                w.toplevel().unwrap().send_pending_configure();
+        for record in &self.wm.records {
+            let active = window == Some(&record.window);
+            if record.window.set_activated(active)
+                && let Some(toplevel) = record.window.toplevel()
+                && toplevel.is_initial_configure_sent()
+            {
+                toplevel.send_pending_configure();
             }
         }
         let window = window?;
-        self.space.raise_element(window, true);
+        let id = crate::wm::window_id(window);
+        self.wm.raise(id);
+        self.wm.touch(id);
+        self.sync_space();
         Some(window.toplevel()?.wl_surface().into())
     }
 
@@ -453,7 +448,7 @@ impl State {
                         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
                         keyboard.set_focus(self, Some(previous), serial);
                     }
-                    None => self.focus_top(),
+                    None => self.focus_next(),
                 }
             }
         }
@@ -487,11 +482,5 @@ impl State {
         keyboard.set_focus(self, surface, serial);
         self.isle.queue_redraw_all();
         self.isle.notify(Event::WindowsChanged);
-    }
-
-    /// Focuses the topmost window, after the focused one went away.
-    pub fn focus_top(&mut self) {
-        let top = self.isle.space.elements().last().cloned();
-        self.set_focus(top.as_ref());
     }
 }

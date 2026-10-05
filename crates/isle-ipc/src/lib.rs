@@ -37,6 +37,8 @@ pub struct SettingsStatus {
 pub struct WindowInfo {
     pub id: u64,
     pub app_id: String,
+    /// The app the window belongs to, which groups it for hide, quit and the switcher.
+    pub app: String,
     pub title: String,
     /// The output the window is on, or empty while it is on none.
     pub output: String,
@@ -46,6 +48,13 @@ pub struct WindowInfo {
     pub y: i32,
     pub width: i32,
     pub height: i32,
+    /// `floating`, `tiled:<zone>`, `filled` or `fullscreen`.
+    pub mode: String,
+    pub minimised: bool,
+    /// Its app is hidden.
+    pub hidden: bool,
+    /// The window it is a dialog of, or 0.
+    pub parent: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -172,6 +181,12 @@ pub mod windows {
         fn focus(&self, id: u64) -> zbus::Result<bool>;
         /// Asks the window to close; false when no window has that id.
         fn close(&self, id: u64) -> zbus::Result<bool>;
+        fn minimise(&self, id: u64) -> zbus::Result<bool>;
+        fn unminimise(&self, id: u64) -> zbus::Result<bool>;
+        /// Hides or shows every window of an app; false when it has none.
+        fn set_app_hidden(&self, app: &str, hidden: bool) -> zbus::Result<bool>;
+        /// Moves and sizes a window, in the global space's logical points.
+        fn set_box(&self, id: u64, x: i32, y: i32, width: i32, height: i32) -> zbus::Result<bool>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

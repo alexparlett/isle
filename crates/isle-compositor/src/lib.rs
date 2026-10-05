@@ -18,8 +18,8 @@ pub mod state;
 pub mod state_writer;
 pub mod tokens;
 pub mod watchdog;
-mod windows;
 pub mod worker;
+mod wm;
 
 use std::time::Duration;
 

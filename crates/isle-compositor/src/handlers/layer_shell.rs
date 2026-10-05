@@ -56,7 +56,7 @@ impl WlrLayerShellHandler for State {
             .current_focus()
             .is_none_or(|f| f.surface() == Some(surface.wl_surface()))
         {
-            self.focus_top();
+            self.focus_next();
         }
     }
 }

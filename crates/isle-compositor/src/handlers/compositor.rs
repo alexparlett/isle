@@ -8,9 +8,8 @@ use smithay::{
         buffer::BufferHandler,
         compositor::{
             CompositorClientState, CompositorHandler, CompositorState, get_parent,
-            is_sync_subsurface, with_states,
+            is_sync_subsurface,
         },
-        shell::xdg::XdgToplevelSurfaceData,
         shm::{ShmHandler, ShmState},
     },
 };
@@ -36,16 +35,14 @@ impl CompositorHandler for State {
             while let Some(parent) = get_parent(&root) {
                 root = parent;
             }
-            if let Some(index) = self
-                .isle
-                .unmapped
-                .iter()
-                .position(|w| w.toplevel().is_some_and(|t| t.wl_surface() == &root))
-            {
-                self.commit_unmapped(index, &root);
-            } else if let Some(window) = self.isle.window_for_surface(&root) {
-                window.on_commit();
-                self.isle.queue_redraw_for_window(&window);
+            match self.isle.wm.for_surface(&root).map(|r| (r.id, r.mapped)) {
+                Some((id, false)) => self.commit_unmapped(id, &root),
+                Some((id, true)) => {
+                    let window = self.isle.window_by_id(id).unwrap();
+                    window.on_commit();
+                    self.isle.queue_redraw_for_window(&window);
+                }
+                None => {}
             }
         }
 
@@ -66,8 +63,8 @@ impl CompositorHandler for State {
 impl State {
     /// A toplevel's first commit gets its initial configure; its first buffer maps it,
     /// centred on the active output and focused.
-    fn commit_unmapped(&mut self, index: usize, surface: &WlSurface) {
-        let window = self.isle.unmapped[index].clone();
+    fn commit_unmapped(&mut self, id: u64, surface: &WlSurface) {
+        let window = self.isle.window_by_id(id).unwrap();
         let toplevel = window.toplevel().unwrap();
         if !toplevel.is_initial_configure_sent() {
             toplevel.send_configure();
@@ -79,7 +76,6 @@ impl State {
         if !has_buffer {
             return;
         }
-        self.isle.unmapped.remove(index);
         let Some(output) = self.isle.active_output() else {
             return;
         };
@@ -89,21 +85,19 @@ impl State {
             area.loc.x + ((area.size.w - size.w) / 2).max(0),
             area.loc.y + ((area.size.h - size.h) / 2).max(0),
         );
-        self.isle.space.map_element(window.clone(), location, false);
-        let (app_id, title) = with_states(surface, |states| {
-            let data = states
-                .data_map
-                .get::<XdgToplevelSurfaceData>()
-                .unwrap()
-                .lock()
-                .unwrap();
-            (
-                data.app_id.clone().unwrap_or_default(),
-                data.title.clone().unwrap_or_default(),
-            )
-        });
-        info!(app_id, title, ?location, size = ?size, "mapped");
-        self.isle.notify(crate::worker::Event::WindowsChanged);
+        let parent = window
+            .toplevel()
+            .and_then(|t| t.parent())
+            .and_then(|p| self.isle.wm.for_surface(&p))
+            .map(|r| r.id);
+        let record = self.isle.wm.get_mut(id).unwrap();
+        let (app_id, title) = record.names();
+        record.app = app_id.clone();
+        record.parent = parent;
+        record.mapped = true;
+        record.rect = smithay::utils::Rectangle::new(location.into(), size);
+        info!(id, app_id, title, ?location, size = ?size, "mapped");
+        self.isle.sync_space();
         self.set_focus(Some(&window));
     }
 }

@@ -185,13 +185,11 @@ impl XdgActivationHandler for State {
         data: XdgActivationTokenData,
         surface: WlSurface,
     ) {
-        let Some(window) = self.isle.window_for_surface(&surface) else {
+        let Some(id) = self.isle.wm.for_surface(&surface).filter(|r| r.mapped).map(|r| r.id) else {
             return;
         };
-        if data.timestamp.elapsed().as_secs() < 10
-            && self.isle.space.elements().any(|w| *w == window)
-        {
-            self.set_focus(Some(&window));
+        if data.timestamp.elapsed().as_secs() < 10 {
+            self.activate(id);
         } else {
             debug!("activation without a fresh token: the window wants attention");
         }

@@ -22,9 +22,27 @@ pub struct Isle {
 
 pub struct Client {
     pub lines: Arc<Mutex<Vec<String>>>,
+    stdin: Mutex<std::process::ChildStdin>,
 }
 
 impl Client {
+    /// Sends the client a command (`src/bin/test_client.rs` lists them).
+    pub fn send(&self, command: &str) {
+        use std::io::Write;
+        let mut stdin = self.stdin.lock().unwrap();
+        writeln!(stdin, "{command}").unwrap();
+        stdin.flush().unwrap();
+    }
+
+    pub fn printed(&self, line: &str) -> bool {
+        self.lines.lock().unwrap().iter().any(|l| l == line)
+    }
+
+    /// Forgets what the client printed so far, so a later wait sees only what follows.
+    pub fn clear(&self) {
+        self.lines.lock().unwrap().clear();
+    }
+
     pub async fn wait_for(&self, wanted: &str) {
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {
@@ -74,7 +92,11 @@ impl Isle {
             .env("ISLE_CONFIG_DIR", dir.join("config"))
             .env("XDG_STATE_HOME", dir.join("state"))
             .env("DBUS_SESSION_BUS_ADDRESS", &bus_address)
-            .env("RUST_LOG", std::env::var("ISLE_TEST_LOG").unwrap_or_else(|_| "warn,isle_compositor=info".into()))
+            .env(
+                "RUST_LOG",
+                std::env::var("ISLE_TEST_LOG")
+                    .unwrap_or_else(|_| "warn,isle_compositor=info".into()),
+            )
             .stdout(log.try_clone().unwrap())
             .stderr(log)
             .spawn()
@@ -136,9 +158,11 @@ impl Isle {
             .env("XDG_RUNTIME_DIR", self.dir.join("runtime"))
             .env("WAYLAND_DISPLAY", self.socket())
             .stdout(Stdio::piped())
+            .stdin(Stdio::piped())
             .spawn()
             .expect("isle-test-client");
         let stdout = child.stdout.take().unwrap();
+        let stdin = Mutex::new(child.stdin.take().unwrap());
         let lines = Arc::new(Mutex::new(Vec::new()));
         let sink = lines.clone();
         std::thread::spawn(move || {
@@ -147,7 +171,7 @@ impl Isle {
             }
         });
         self.clients.push(child);
-        Client { lines }
+        Client { lines, stdin }
     }
 
     pub async fn windows(&self) -> Vec<isle_ipc::WindowInfo> {
@@ -213,3 +237,48 @@ where
     }
 }
 
+/// A screenshot of one output, read back.
+pub struct Shot {
+    pub width: usize,
+    pub height: usize,
+    buf: Vec<u8>,
+}
+
+impl Shot {
+    pub fn at(&self, x: usize, y: usize) -> [u8; 3] {
+        let i = (y * self.width + x) * 4;
+        [self.buf[i], self.buf[i + 1], self.buf[i + 2]]
+    }
+}
+
+impl Isle {
+    pub async fn shot(&self, output: &str, name: &str) -> Shot {
+        let path = self.dir.join(format!("{name}.png"));
+        self.test()
+            .await
+            .screenshot(output, path.to_str().unwrap())
+            .await
+            .unwrap();
+        let decoder = png::Decoder::new(std::io::BufReader::new(fs::File::open(&path).unwrap()));
+        let mut reader = decoder.read_info().unwrap();
+        let mut buf = vec![0; reader.output_buffer_size()];
+        let info = reader.next_frame(&mut buf).unwrap();
+        Shot {
+            width: info.width as usize,
+            height: info.height as usize,
+            buf,
+        }
+    }
+
+    pub async fn window(&self, id: u64) -> isle_ipc::WindowInfo {
+        self.windows()
+            .await
+            .into_iter()
+            .find(|w| w.id == id)
+            .unwrap_or_else(|| panic!("no window {id}"))
+    }
+
+    pub async fn windows_proxy(&self) -> WindowsProxy<'static> {
+        WindowsProxy::new(&self.bus).await.unwrap()
+    }
+}

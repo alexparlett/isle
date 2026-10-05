@@ -1,0 +1,458 @@
+//! Every toplevel the compositor manages, from its creation to its destruction. Smithay's
+//! `Space` holds only the ones shown now; the rest keep their record here.
+
+use isle_ipc::WindowInfo;
+use smithay::{
+    desktop::Window,
+    reexports::{
+        wayland_protocols::xdg::shell::server::xdg_toplevel,
+        wayland_server::{Resource, protocol::wl_surface::WlSurface},
+    },
+    utils::{IsAlive, Logical, Rectangle},
+    wayland::{compositor::with_states, shell::xdg::XdgToplevelSurfaceData},
+};
+
+use crate::{
+    state::{Isle, State},
+    worker::Event,
+};
+
+/// What a window does with its box.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Mode {
+    Floating,
+}
+
+impl Mode {
+    pub fn name(&self) -> String {
+        match self {
+            Mode::Floating => "floating".into(),
+        }
+    }
+}
+
+pub struct Record {
+    pub id: u64,
+    pub window: Window,
+    pub app: String,
+    pub pid: Option<i32>,
+    pub parent: Option<u64>,
+    pub mode: Mode,
+    pub minimised: bool,
+    /// Its app is hidden.
+    pub hidden: bool,
+    /// Placed after its first buffer; until then it is not shown.
+    pub mapped: bool,
+    /// Its box in the global space: where it is while shown, where it returns to while not.
+    pub rect: Rectangle<i32, Logical>,
+    suspended: bool,
+}
+
+impl Record {
+    pub fn shown(&self) -> bool {
+        self.mapped && !self.minimised && !self.hidden
+    }
+
+    pub fn surface(&self) -> Option<&WlSurface> {
+        self.window.toplevel().map(|t| t.wl_surface())
+    }
+
+    /// The toplevel's app id and title.
+    pub fn names(&self) -> (String, String) {
+        let Some(surface) = self.surface() else {
+            return Default::default();
+        };
+        with_states(surface, |states| {
+            states
+                .data_map
+                .get::<XdgToplevelSurfaceData>()
+                .and_then(|d| d.lock().ok())
+                .map(|d| {
+                    (
+                        d.app_id.clone().unwrap_or_default(),
+                        d.title.clone().unwrap_or_default(),
+                    )
+                })
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn send_close(&self) {
+        if let Some(toplevel) = self.window.toplevel() {
+            toplevel.send_close();
+        }
+    }
+
+    /// Asks the client to draw at `size`.
+    pub fn configure_size(&self, size: smithay::utils::Size<i32, Logical>) {
+        if let Some(toplevel) = self.window.toplevel() {
+            toplevel.with_pending_state(|state| state.size = Some(size));
+            if toplevel.is_initial_configure_sent() {
+                toplevel.send_pending_configure();
+            }
+        }
+    }
+
+    fn set_suspended(&mut self, suspended: bool) {
+        if self.suspended == suspended {
+            return;
+        }
+        self.suspended = suspended;
+        if let Some(toplevel) = self.window.toplevel() {
+            toplevel.with_pending_state(|state| {
+                if suspended {
+                    state.states.set(xdg_toplevel::State::Suspended);
+                } else {
+                    state.states.unset(xdg_toplevel::State::Suspended);
+                }
+            });
+            if toplevel.is_initial_configure_sent() {
+                toplevel.send_pending_configure();
+            }
+        }
+    }
+}
+
+/// A window's id, stable for its life and never reused.
+struct WindowId(u64);
+
+#[derive(Default)]
+pub struct Wm {
+    /// Bottom to top, windows not shown among them, so each comes back at its place in the
+    /// stack.
+    pub records: Vec<Record>,
+    /// Ids, most recently focused first.
+    pub recent: Vec<u64>,
+    next_id: u64,
+}
+
+impl Wm {
+    pub fn get(&self, id: u64) -> Option<&Record> {
+        self.records.iter().find(|r| r.id == id)
+    }
+
+    pub fn get_mut(&mut self, id: u64) -> Option<&mut Record> {
+        self.records.iter_mut().find(|r| r.id == id)
+    }
+
+    pub fn of(&self, window: &Window) -> Option<&Record> {
+        self.get(window_id(window))
+    }
+
+    pub fn for_surface(&self, surface: &WlSurface) -> Option<&Record> {
+        self.records.iter().find(|r| r.surface() == Some(surface))
+    }
+
+    /// Moves `id` and the windows it is the parent of to the top of the stack.
+    pub fn raise(&mut self, id: u64) {
+        let mut moved = Vec::new();
+        let mut take = vec![id];
+        while let Some(next) = take.pop() {
+            if let Some(index) = self.records.iter().position(|r| r.id == next) {
+                let record = self.records.remove(index);
+                take.extend(
+                    self.records
+                        .iter()
+                        .filter(|r| r.parent == Some(next))
+                        .map(|r| r.id),
+                );
+                moved.push(record);
+            }
+        }
+        self.records.extend(moved);
+    }
+
+    pub fn touch(&mut self, id: u64) {
+        self.recent.retain(|r| *r != id);
+        self.recent.insert(0, id);
+    }
+
+    /// The most recently focused window still shown.
+    pub fn most_recent_shown(&self) -> Option<&Record> {
+        self.recent
+            .iter()
+            .filter_map(|id| self.get(*id))
+            .find(|r| r.shown())
+            .or_else(|| self.records.iter().rev().find(|r| r.shown()))
+    }
+}
+
+pub fn window_id(window: &Window) -> u64 {
+    window.user_data().get::<WindowId>().map_or(0, |id| id.0)
+}
+
+impl Isle {
+    pub fn notify(&self, event: Event) {
+        let _ = self.events.send(event);
+    }
+
+    /// Takes a new toplevel into the registry; it is shown once it has a buffer and a place.
+    pub fn add_window(&mut self, window: Window) -> u64 {
+        self.wm.next_id += 1;
+        let id = self.wm.next_id;
+        window.user_data().insert_if_missing(|| WindowId(id));
+        let pid = window
+            .toplevel()
+            .and_then(|t| self.display_handle.get_client(t.wl_surface().id()).ok())
+            .and_then(|c| c.get_credentials(&self.display_handle).ok())
+            .map(|c| c.pid);
+        self.wm.records.push(Record {
+            id,
+            window,
+            app: String::new(),
+            pid,
+            parent: None,
+            mode: Mode::Floating,
+            minimised: false,
+            hidden: false,
+            mapped: false,
+            rect: Rectangle::default(),
+            suspended: false,
+        });
+        id
+    }
+
+    pub fn window_by_id(&self, id: u64) -> Option<Window> {
+        self.wm.get(id).map(|r| r.window.clone())
+    }
+
+    pub fn window_for_surface(&self, surface: &WlSurface) -> Option<Window> {
+        self.wm.for_surface(surface).map(|r| r.window.clone())
+    }
+
+    /// Makes the `Space` show what the registry says is shown, in its stacking order.
+    pub fn sync_space(&mut self) {
+        for record in &mut self.wm.records {
+            if let Some(loc) = self.space.element_location(&record.window) {
+                record.rect = Rectangle::new(loc, record.window.geometry().size);
+            }
+        }
+        let mut changed = false;
+        for record in &mut self.wm.records {
+            let shown = record.shown() && record.window.alive();
+            let mapped = self.space.element_location(&record.window).is_some();
+            if shown && !mapped {
+                self.space
+                    .map_element(record.window.clone(), record.rect.loc, false);
+                changed = true;
+            } else if !shown && mapped {
+                self.space.unmap_elem(&record.window);
+                changed = true;
+            }
+            record.set_suspended(record.mapped && !shown);
+        }
+        let in_space: Vec<Window> = self.space.elements().cloned().collect();
+        let order: Vec<Window> = self
+            .wm
+            .records
+            .iter()
+            .filter(|r| in_space.contains(&r.window))
+            .map(|r| r.window.clone())
+            .collect();
+        if order != in_space {
+            for window in &order {
+                self.space.raise_element(window, false);
+            }
+            changed = true;
+        }
+        if changed {
+            self.queue_redraw_all();
+            self.notify(Event::WindowsChanged);
+        }
+    }
+
+    /// Front first.
+    pub fn window_infos(&self) -> Vec<WindowInfo> {
+        let focus = self.seat.get_keyboard().and_then(|k| k.current_focus());
+        let focused = focus.as_ref().and_then(|f| f.surface());
+        self.wm
+            .records
+            .iter()
+            .rev()
+            .filter(|r| r.mapped)
+            .map(|record| {
+                let (app_id, title) = record.names();
+                let rect = self
+                    .space
+                    .element_geometry(&record.window)
+                    .unwrap_or(record.rect);
+                let output = self
+                    .space
+                    .outputs()
+                    .find(|o| {
+                        self.space
+                            .output_geometry(o)
+                            .is_some_and(|g| g.overlaps(rect))
+                    })
+                    .map(|o| o.name())
+                    .unwrap_or_default();
+                WindowInfo {
+                    id: record.id,
+                    app_id,
+                    app: record.app.clone(),
+                    title,
+                    output,
+                    focused: focused.is_some() && focused == record.surface(),
+                    x: rect.loc.x,
+                    y: rect.loc.y,
+                    width: rect.size.w,
+                    height: rect.size.h,
+                    mode: record.mode.name(),
+                    minimised: record.minimised,
+                    hidden: record.hidden,
+                    parent: record.parent.unwrap_or(0),
+                }
+            })
+            .collect()
+    }
+
+    pub fn display_infos(&self) -> Vec<isle_ipc::DisplayInfo> {
+        self.space
+            .outputs()
+            .map(|output| {
+                let properties = output.physical_properties();
+                let mode = output.current_mode();
+                let location = self
+                    .space
+                    .output_geometry(output)
+                    .map(|g| g.loc)
+                    .unwrap_or_default();
+                isle_ipc::DisplayInfo {
+                    name: output.name(),
+                    make: properties.make,
+                    model: properties.model,
+                    serial: properties.serial_number,
+                    width: mode.map_or(0, |m| m.size.w),
+                    height: mode.map_or(0, |m| m.size.h),
+                    refresh: mode.map_or(0, |m| m.refresh),
+                    scale: output.current_scale().fractional_scale(),
+                    x: location.x,
+                    y: location.y,
+                }
+            })
+            .collect()
+    }
+}
+
+impl State {
+    /// Shows `id`, un-minimising it and showing its app, then focuses it.
+    pub fn activate(&mut self, id: u64) -> bool {
+        let Some(app) = self.isle.wm.get(id).map(|r| r.app.clone()) else {
+            return false;
+        };
+        if self.isle.wm.get(id).is_some_and(|r| r.hidden) {
+            self.set_app_hidden(&app, false);
+        }
+        if let Some(record) = self.isle.wm.get_mut(id) {
+            record.minimised = false;
+        }
+        self.isle.sync_space();
+        let window = self.isle.window_by_id(id);
+        self.set_focus(window.as_ref());
+        true
+    }
+
+    pub fn minimise(&mut self, id: u64) -> bool {
+        let Some(record) = self.isle.wm.get_mut(id) else {
+            return false;
+        };
+        record.minimised = true;
+        self.after_parking(id);
+        true
+    }
+
+    pub fn unminimise(&mut self, id: u64) -> bool {
+        if !self.isle.wm.get(id).is_some_and(|r| r.minimised) {
+            return self.isle.wm.get(id).is_some();
+        }
+        self.activate(id)
+    }
+
+    /// Hides or shows every window of `app`; false when it has none.
+    pub fn set_app_hidden(&mut self, app: &str, hidden: bool) -> bool {
+        let ids: Vec<u64> = self
+            .isle
+            .wm
+            .records
+            .iter()
+            .filter(|r| r.app == app)
+            .map(|r| r.id)
+            .collect();
+        for id in &ids {
+            self.isle.wm.get_mut(*id).unwrap().hidden = hidden;
+        }
+        match (hidden, ids.first()) {
+            (_, None) => return false,
+            (true, Some(id)) => self.after_parking(*id),
+            (false, Some(_)) => self.isle.sync_space(),
+        }
+        true
+    }
+
+    /// Moves and sizes `id` to `rect` in the global space.
+    pub fn set_box(&mut self, id: u64, rect: Rectangle<i32, Logical>) -> bool {
+        let Some(record) = self.isle.wm.get_mut(id) else {
+            return false;
+        };
+        record.rect.loc = rect.loc;
+        record.configure_size(rect.size);
+        if self.isle.space.element_location(&record.window).is_some() {
+            let window = record.window.clone();
+            self.isle.queue_redraw_for_window(&window);
+            self.isle.space.map_element(window.clone(), rect.loc, false);
+            self.isle.queue_redraw_for_window(&window);
+        }
+        true
+    }
+
+    /// After `id` left the screen: the `Space` follows, and focus moves on if it was there.
+    fn after_parking(&mut self, id: u64) {
+        let had_focus = self.focused_window() == Some(id)
+            || self
+                .focused_window()
+                .and_then(|f| self.isle.wm.get(f))
+                .is_some_and(|r| !r.shown());
+        self.isle.sync_space();
+        if had_focus {
+            self.focus_next();
+        }
+    }
+
+    /// The window that has the keyboard, by id.
+    pub fn focused_window(&self) -> Option<u64> {
+        let focus = self.isle.seat.get_keyboard()?.current_focus()?;
+        self.isle.wm.for_surface(focus.surface()?).map(|r| r.id)
+    }
+
+    /// A toplevel went: it leaves the registry, and focus moves on if it had it.
+    pub fn remove_window(&mut self, surface: &WlSurface) {
+        let Some(record) = self.isle.wm.for_surface(surface) else {
+            return;
+        };
+        let id = record.id;
+        let window = record.window.clone();
+        self.isle.queue_redraw_for_window(&window);
+        self.isle.space.unmap_elem(&window);
+        self.isle.wm.records.retain(|r| r.id != id);
+        self.isle.wm.recent.retain(|r| *r != id);
+        for record in &mut self.isle.wm.records {
+            if record.parent == Some(id) {
+                record.parent = None;
+            }
+        }
+        self.isle.notify(Event::WindowsChanged);
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        if keyboard
+            .current_focus()
+            .is_none_or(|f| f.surface() == Some(surface) || !f.alive())
+        {
+            self.focus_next();
+        }
+    }
+
+    /// Focuses the most recently focused window still shown, after the focused one went.
+    pub fn focus_next(&mut self) {
+        let next = self.isle.wm.most_recent_shown().map(|r| r.window.clone());
+        self.set_focus(next.as_ref());
+    }
+}

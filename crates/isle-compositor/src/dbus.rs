@@ -82,11 +82,15 @@ impl Windows {
     }
 
     async fn focus(&self, id: u64) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.activate(id)).await?)
+    }
+
+    async fn close(&self, id: u64) -> fdo::Result<bool> {
         Ok(self
             .to_loop
-            .call(move |state| match state.isle.window_by_id(id) {
-                Some(window) => {
-                    state.set_focus(Some(&window));
+            .call(move |state| match state.isle.wm.get(id) {
+                Some(record) => {
+                    record.send_close();
                     true
                 }
                 None => false,
@@ -94,15 +98,29 @@ impl Windows {
             .await?)
     }
 
-    async fn close(&self, id: u64) -> fdo::Result<bool> {
+    async fn minimise(&self, id: u64) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.minimise(id)).await?)
+    }
+
+    async fn unminimise(&self, id: u64) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.unminimise(id)).await?)
+    }
+
+    async fn set_app_hidden(&self, app: String, hidden: bool) -> fdo::Result<bool> {
         Ok(self
             .to_loop
-            .call(move |state| match state.isle.window_by_id(id) {
-                Some(window) => {
-                    window.toplevel().unwrap().send_close();
-                    true
-                }
-                None => false,
+            .call(move |state| state.set_app_hidden(&app, hidden))
+            .await?)
+    }
+
+    async fn set_box(&self, id: u64, x: i32, y: i32, width: i32, height: i32) -> fdo::Result<bool> {
+        if width < 1 || height < 1 {
+            return Err(fdo::Error::InvalidArgs("a box is at least 1 by 1".into()));
+        }
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                state.set_box(id, smithay::utils::Rectangle::new((x, y).into(), (width, height).into()))
             })
             .await?)
     }

@@ -159,6 +159,27 @@ impl XdgShellHandler for State {
     }
 }
 
+impl smithay::wayland::shell::xdg::dialog::XdgDialogHandler for State {
+    fn dialog_hint_changed(
+        &mut self,
+        toplevel: ToplevelSurface,
+        hint: smithay::wayland::shell::xdg::dialog::ToplevelDialogHint,
+    ) {
+        let modal = hint == smithay::wayland::shell::xdg::dialog::ToplevelDialogHint::Modal;
+        let Some(id) = self.isle.wm.for_surface(toplevel.wl_surface()).map(|r| r.id) else {
+            return;
+        };
+        self.isle.wm.get_mut(id).unwrap().modal = modal;
+        let parent_focused = self.isle.wm.get(id).and_then(|r| r.parent).is_some_and(|p| {
+            self.focused_window() == Some(p)
+        });
+        if modal && parent_focused {
+            let window = self.isle.window_by_id(id);
+            self.set_focus(window.as_ref());
+        }
+    }
+}
+
 /// The grab start data for a client's move or resize, if the client holds the
 /// pointer's implicit grab from a press on that surface.
 fn check_grab(

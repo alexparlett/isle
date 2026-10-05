@@ -72,8 +72,13 @@ impl ToLoop {
 }
 
 /// Starts the worker thread, which serves D-Bus and watches the settings until the
-/// process ends.
-pub fn spawn(to_loop: ToLoop, events: broadcast::Sender<Event>, store: SharedStore) {
+/// process ends. Returns its runtime, for state writes from the loop.
+pub fn spawn(
+    to_loop: ToLoop,
+    events: broadcast::Sender<Event>,
+    store: SharedStore,
+) -> tokio::runtime::Handle {
+    let (handle_tx, handle_rx) = std::sync::mpsc::channel();
     thread::Builder::new()
         .name("worker".into())
         .spawn(move || {
@@ -83,6 +88,7 @@ pub fn spawn(to_loop: ToLoop, events: broadcast::Sender<Event>, store: SharedSto
                 .enable_all()
                 .build()
                 .expect("the worker's runtime");
+            let _ = handle_tx.send(runtime.handle().clone());
             let (loop_w, events_w, store_w) = (to_loop.clone(), events.clone(), store.clone());
             runtime.spawn(supervise("settings-watch", move || {
                 crate::settings::watch(store_w.clone(), loop_w.clone(), events_w.clone())
@@ -96,6 +102,7 @@ pub fn spawn(to_loop: ToLoop, events: broadcast::Sender<Event>, store: SharedSto
             }));
         })
         .expect("the worker thread");
+    handle_rx.recv().expect("the worker's runtime handle")
 }
 
 /// Runs a service, restarting it with a backoff when it fails or panics.

@@ -87,7 +87,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|e| e.error)?;
     let (events, _) = broadcast::channel(64);
     let store = std::sync::Arc::new(tokio::sync::Mutex::new(store));
-    worker::spawn(worker::ToLoop::new(jobs), events.clone(), store);
+    let runtime = worker::spawn(worker::ToLoop::new(jobs), events.clone(), store);
 
     let (token_source, token_error) = match tokens::load(&tokens::tokens_path()) {
         Ok(source) => (source, None),
@@ -109,6 +109,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     );
     isle.tokens = token_source;
     isle.tokens_error = token_error;
+    isle.load_places(&runtime);
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
     match (winit_events, session_events) {

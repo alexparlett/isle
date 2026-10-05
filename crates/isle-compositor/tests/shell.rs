@@ -506,9 +506,12 @@ async fn over_white_the_glass_tint_rises_to_hold_secondary_text() {
 #[tokio::test(flavor = "multi_thread")]
 async fn glass_over_an_edge_is_blurred_the_right_way_up() {
     let mut isle = Isle::start("shell-glass-edge").await;
-    // Centred, so its bottom edge crosses the glass strip at y 680.
-    let _red = isle.client_with(&["--app-id", "isle.test.Edge", "--colour", "ff0000", "--size", "1000x280"]);
-    isle.wait_for_window("isle.test.Edge").await;
+    // Its bottom edge crosses the glass strip at y 680.
+    let red = isle.client_with(&["--app-id", "isle.test.Edge", "--colour", "ff0000", "--size", "1000x280"]);
+    let window = isle.wait_for_window("isle.test.Edge").await;
+    isle.windows_proxy().await.set_box(window.id, 460, 400, 1000, 280).await.unwrap();
+    red.wait_for("configured 1000 280").await;
+    common::wait_until(|| async { isle.window(window.id).await.y == 400 }).await;
     let shell = ShellProxy::new(&isle.bus).await.unwrap();
     shell.open("probe").await.unwrap();
     tap(&isle, 15).await;

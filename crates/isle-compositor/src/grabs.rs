@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 
 use smithay::{
-    desktop::{Space, Window},
+    desktop::Window,
     input::pointer::{
         AxisFrame, ButtonEvent, GestureHoldBeginEvent, GestureHoldEndEvent, GesturePinchBeginEvent,
         GesturePinchEndEvent, GesturePinchUpdateEvent, GestureSwipeBeginEvent,
@@ -132,11 +132,7 @@ impl PointerGrab<State> for MoveGrab {
     ) {
         handle.motion(data, None, event);
         let location = self.initial.to_f64() + (event.location - self.start_data.location);
-        data.isle.queue_redraw_for_window(&self.window);
-        data.isle
-            .space
-            .map_element(self.window.clone(), location.to_i32_round(), true);
-        data.isle.queue_redraw_for_window(&self.window);
+        data.move_window(crate::wm::window_id(&self.window), location.to_i32_round());
     }
 
     fn button(
@@ -148,6 +144,7 @@ impl PointerGrab<State> for MoveGrab {
         handle.button(data, event);
         if !handle.current_pressed().contains(&BTN_LEFT) {
             handle.unset_grab(self, data, event.serial, event.time, true);
+            data.isle.record_place(crate::wm::window_id(&self.window));
         }
     }
 
@@ -295,44 +292,44 @@ impl ResizeState {
         })
     }
 
-    fn commit(&mut self) -> Option<(Edges, Rectangle<i32, Logical>)> {
+    /// The resize under way, and whether this commit ends it.
+    fn commit(&mut self) -> Option<(Edges, Rectangle<i32, Logical>, bool)> {
         match *self {
-            Self::Resizing { edges, initial } => Some((edges, initial)),
+            Self::Resizing { edges, initial } => Some((edges, initial, false)),
             Self::WaitingForLastCommit { edges, initial } => {
                 *self = Self::Idle;
-                Some((edges, initial))
+                Some((edges, initial, true))
             }
             Self::Idle => None,
         }
     }
 }
 
-/// A window resized from its top or left edge keeps its opposite edge still.
-pub fn handle_resize_commit(space: &mut Space<Window>, surface: &WlSurface) {
-    let Some(window) = space
-        .elements()
-        .find(|w| w.toplevel().is_some_and(|t| t.wl_surface() == surface))
-        .cloned()
-    else {
-        return;
-    };
-    let Some(mut location) = space.element_location(&window) else {
-        return;
-    };
-    let size = window.geometry().size;
-    let Some((edges, initial)) = ResizeState::with(surface, |state| state.commit()) else {
-        return;
-    };
-    let mut moved = false;
-    if edges.has(Edges::LEFT) {
-        location.x = initial.loc.x + (initial.size.w - size.w);
-        moved = true;
-    }
-    if edges.has(Edges::TOP) {
-        location.y = initial.loc.y + (initial.size.h - size.h);
-        moved = true;
-    }
-    if moved {
-        space.map_element(window, location, false);
+impl State {
+    /// A window resized from its top or left edge keeps its opposite edge still; the
+    /// resize's last commit records its place.
+    pub fn handle_resize_commit(&mut self, surface: &WlSurface) {
+        let Some(window) = self.isle.window_for_surface(surface) else {
+            return;
+        };
+        let Some(mut location) = self.isle.space.element_location(&window) else {
+            return;
+        };
+        let size = window.geometry().size;
+        let Some((edges, initial, done)) = ResizeState::with(surface, |state| state.commit())
+        else {
+            return;
+        };
+        if edges.has(Edges::LEFT) {
+            location.x = initial.loc.x + (initial.size.w - size.w);
+        }
+        if edges.has(Edges::TOP) {
+            location.y = initial.loc.y + (initial.size.h - size.h);
+        }
+        let id = crate::wm::window_id(&window);
+        self.move_window(id, location);
+        if done {
+            self.isle.record_place(id);
+        }
     }
 }

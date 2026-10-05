@@ -1,6 +1,9 @@
 //! Every toplevel the compositor manages, from its creation to its destruction. Smithay's
 //! `Space` holds only the ones shown now; the rest keep their record here.
 
+pub mod geometry;
+mod places;
+
 use isle_ipc::WindowInfo;
 use smithay::{
     desktop::Window,
@@ -37,6 +40,12 @@ pub struct Record {
     pub app: String,
     pub pid: Option<i32>,
     pub parent: Option<u64>,
+    /// A modal dialog of its parent (xdg-dialog), which keeps the parent from taking focus.
+    pub modal: bool,
+    /// The remembered box it was asked to open at, applied at map.
+    pub planned: Option<Rectangle<i32, Logical>>,
+    /// Its place is recorded once it commits at this size.
+    pub record_at_size: Option<smithay::utils::Size<i32, Logical>>,
     pub mode: Mode,
     pub minimised: bool,
     /// Its app is hidden.
@@ -167,6 +176,16 @@ impl Wm {
         self.recent.insert(0, id);
     }
 
+    /// The shown modal dialog of `id` that takes its focus, deepest first.
+    pub fn modal_of(&self, id: u64) -> Option<u64> {
+        let child = self
+            .records
+            .iter()
+            .rev()
+            .find(|r| r.parent == Some(id) && r.modal && r.shown())?;
+        Some(self.modal_of(child.id).unwrap_or(child.id))
+    }
+
     /// The most recently focused window still shown.
     pub fn most_recent_shown(&self) -> Option<&Record> {
         self.recent
@@ -202,6 +221,9 @@ impl Isle {
             app: String::new(),
             pid,
             parent: None,
+            modal: false,
+            planned: None,
+            record_at_size: None,
             mode: Mode::Floating,
             minimised: false,
             hidden: false,
@@ -394,14 +416,9 @@ impl State {
         let Some(record) = self.isle.wm.get_mut(id) else {
             return false;
         };
-        record.rect.loc = rect.loc;
         record.configure_size(rect.size);
-        if self.isle.space.element_location(&record.window).is_some() {
-            let window = record.window.clone();
-            self.isle.queue_redraw_for_window(&window);
-            self.isle.space.map_element(window.clone(), rect.loc, false);
-            self.isle.queue_redraw_for_window(&window);
-        }
+        record.record_at_size = Some(rect.size);
+        self.move_window(id, rect.loc);
         true
     }
 

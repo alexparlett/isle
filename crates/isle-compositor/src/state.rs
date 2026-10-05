@@ -72,6 +72,8 @@ pub struct Isle {
     /// The windows shown now; `wm` keeps every window.
     pub space: Space<Window>,
     pub wm: crate::wm::Wm,
+    pub places: isle_state::domains::Places,
+    pub places_saver: Option<crate::state_writer::Saver<isle_state::domains::Places>>,
     pub popups: PopupManager,
     pub cursor_status: CursorImageStatus,
 
@@ -79,6 +81,7 @@ pub struct Isle {
     pub xdg_shell_state: XdgShellState,
     pub layer_shell_state: WlrLayerShellState,
     pub xdg_decoration_state: XdgDecorationState,
+    pub xdg_dialog_state: smithay::wayland::shell::xdg::dialog::XdgDialogState,
     pub kde_decoration_state: KdeDecorationState,
     pub xdg_activation_state: XdgActivationState,
     pub shm_state: ShmState,
@@ -152,6 +155,8 @@ impl Isle {
         let xdg_shell_state = XdgShellState::new::<State>(&dh);
         let layer_shell_state = WlrLayerShellState::new::<State>(&dh);
         let xdg_decoration_state = XdgDecorationState::new::<State>(&dh);
+        let xdg_dialog_state =
+            smithay::wayland::shell::xdg::dialog::XdgDialogState::new::<State>(&dh);
         let kde_decoration_state = KdeDecorationState::new::<State>(&dh, KdeMode::Client);
         let xdg_activation_state = XdgActivationState::new::<State>(&dh);
         let shm_state = ShmState::new::<State>(&dh, vec![]);
@@ -209,12 +214,15 @@ impl Isle {
             shell_keyboard_return: Vec::new(),
             space: Space::default(),
             wm: Default::default(),
+            places: Default::default(),
+            places_saver: None,
             popups: PopupManager::default(),
             cursor_status: CursorImageStatus::default_named(),
             compositor_state,
             xdg_shell_state,
             layer_shell_state,
             xdg_decoration_state,
+            xdg_dialog_state,
             kde_decoration_state,
             xdg_activation_state,
             shm_state,
@@ -304,15 +312,7 @@ impl Isle {
             .map(|(surface, at)| (Focus::Surface(surface), at))
     }
 
-    /// The part of `output` layer surfaces leave free, in the global space.
-    pub fn work_area(&self, output: &Output) -> smithay::utils::Rectangle<i32, Logical> {
-        let origin = self.space.output_geometry(output).unwrap_or_default().loc;
-        let mut zone = layer_map_for_output(output).non_exclusive_zone();
-        zone.loc += origin;
-        zone
-    }
-
-    /// The output new windows open on: the one under the pointer.
+    /// The output under the pointer, else the first.
     pub fn active_output(&self) -> Option<Output> {
         let pointer = self.seat.get_pointer()?.current_location();
         self.space
@@ -474,8 +474,13 @@ impl State {
         }
     }
 
-    /// Gives `window` the keyboard, or clears it.
+    /// Gives `window` the keyboard, or clears it; a window with a modal dialog gives it to
+    /// the dialog.
     pub fn set_focus(&mut self, window: Option<&Window>) {
+        let modal = window
+            .and_then(|w| self.isle.wm.modal_of(crate::wm::window_id(w)))
+            .and_then(|id| self.isle.window_by_id(id));
+        let window = modal.as_ref().or(window);
         let surface = self.isle.focus_window(window);
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();

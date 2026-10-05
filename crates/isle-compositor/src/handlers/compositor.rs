@@ -41,6 +41,11 @@ impl CompositorHandler for State {
                     let window = self.isle.window_by_id(id).unwrap();
                     window.on_commit();
                     self.isle.queue_redraw_for_window(&window);
+                    let record = self.isle.wm.get_mut(id).unwrap();
+                    if record.record_at_size == Some(window.geometry().size) {
+                        record.record_at_size = None;
+                        self.isle.record_place(id);
+                    }
                 }
                 None => {}
             }
@@ -50,7 +55,7 @@ impl CompositorHandler for State {
             return;
         }
         self.commit_popup(surface);
-        crate::grabs::handle_resize_commit(&mut self.isle.space, surface);
+        self.handle_resize_commit(surface);
         if let smithay::input::pointer::CursorImageStatus::Surface(cursor) =
             &self.isle.cursor_status
             && cursor == surface
@@ -67,6 +72,7 @@ impl State {
         let window = self.isle.window_by_id(id).unwrap();
         let toplevel = window.toplevel().unwrap();
         if !toplevel.is_initial_configure_sent() {
+            self.plan_window(id);
             toplevel.send_configure();
             return;
         }
@@ -76,26 +82,16 @@ impl State {
         if !has_buffer {
             return;
         }
-        let Some(output) = self.isle.active_output() else {
+        let size = window.geometry().size;
+        self.isle.refresh_identity(id);
+        let Some(location) = self.place_new_window(id) else {
             return;
         };
-        let area = self.isle.work_area(&output);
-        let size = window.geometry().size;
-        let location = (
-            area.loc.x + ((area.size.w - size.w) / 2).max(0),
-            area.loc.y + ((area.size.h - size.h) / 2).max(0),
-        );
-        let parent = window
-            .toplevel()
-            .and_then(|t| t.parent())
-            .and_then(|p| self.isle.wm.for_surface(&p))
-            .map(|r| r.id);
         let record = self.isle.wm.get_mut(id).unwrap();
         let (app_id, title) = record.names();
-        record.app = app_id.clone();
-        record.parent = parent;
         record.mapped = true;
-        record.rect = smithay::utils::Rectangle::new(location.into(), size);
+        record.planned = None;
+        record.rect = smithay::utils::Rectangle::new(location, size);
         info!(id, app_id, title, ?location, size = ?size, "mapped");
         self.isle.sync_space();
         self.set_focus(Some(&window));

@@ -192,8 +192,8 @@
   `p4-windows.md` ends with its outcome. Next: P5 (keyboard) or P6 (island
   and menus).
 - Smithay fork made (2026-10-05): `alexparlett/smithay`, its `isle` branch
-  at upstream `118e34f`; Isle pins the SHAPE patch (`45578d1`) on
-  `xwayland-shape`, open as a pull request into `isle`. Isle's patches stay
+  at upstream `118e34f`; the SHAPE patch merged into it as
+  alexparlett/smithay#1 and Isle pins that merge (`03d4920`). Isle's patches stay
   in the fork, not upstream (B43). Decorations now follow each protocol
   (B43): xdg- and KDE decoration negotiation honoured, clients told to draw
   their own with bars off, X11 by window type, Motif title bit,

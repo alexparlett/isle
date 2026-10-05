@@ -14,6 +14,7 @@ mod keyboard;
 mod island;
 mod control_centre;
 mod launch;
+mod menubar;
 mod top_edge;
 mod outputs;
 pub mod redraw;

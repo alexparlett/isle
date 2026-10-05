@@ -11,10 +11,13 @@ use smithay::utils::{Logical, Rectangle, Size as SSize};
 
 use crate::{Layer, Scope, SurfaceDef};
 
+/// The app holding the keys, and the chord that takes them back.
+type Text = (String, String);
+
 #[derive(Default)]
 pub struct InhibitNotice {
-    text: Rc<RefCell<(String, String)>>,
-    state: Rc<RefCell<Option<State<(String, String)>>>>,
+    text: Rc<RefCell<Text>>,
+    state: Rc<RefCell<Option<State<Text>>>>,
 }
 
 impl InhibitNotice {
@@ -81,8 +84,8 @@ impl SurfaceDef for InhibitNotice {
 
 #[derive(Clone)]
 struct NoticeApp {
-    text: Rc<RefCell<(String, String)>>,
-    state: Rc<RefCell<Option<State<(String, String)>>>>,
+    text: Rc<RefCell<Text>>,
+    state: Rc<RefCell<Option<State<Text>>>>,
 }
 
 impl App for NoticeApp {

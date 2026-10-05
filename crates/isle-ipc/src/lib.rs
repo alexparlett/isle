@@ -16,6 +16,7 @@ pub const DESKTOPS_PATH: &str = "/io/github/alexparlett/Isle/Desktops";
 pub const KEYBOARD_PATH: &str = "/io/github/alexparlett/Isle/Keyboard";
 pub const WALLPAPER_PATH: &str = "/io/github/alexparlett/Isle/Wallpaper";
 pub const ISLAND_PATH: &str = "/io/github/alexparlett/Isle/Island";
+pub const MENUS_PATH: &str = "/io/github/alexparlett/Isle/Menus";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -519,5 +520,23 @@ pub mod island {
     pub trait Island {
         /// Each output's island as JSON: what it shows and its shape's size.
         fn status(&self) -> zbus::Result<String>;
+    }
+}
+
+pub mod menus {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Menus1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Menus"
+    )]
+    pub trait Menus {
+        /// The front app's menu bar as JSON: titles, items, hints and marks.
+        fn bar(&self) -> zbus::Result<String>;
+        /// Chooses the item at a path of labels, a title first; false when there is none.
+        fn activate(&self, path: &[&str]) -> zbus::Result<bool>;
+        /// Reveals the menu bar with a title's menu open.
+        fn reveal(&self, title: &str) -> zbus::Result<bool>;
     }
 }

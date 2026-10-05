@@ -243,7 +243,10 @@ impl State {
                 }
                 self.begin_bar_move(id);
             }
-            A::Menu => {}
+            A::Menu => {
+                let at = self.isle.seat.get_pointer().map(|p| p.current_location().to_i32_round());
+                self.open_window_menu(id, at, false);
+            }
         }
     }
 

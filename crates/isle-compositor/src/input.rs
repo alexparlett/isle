@@ -119,8 +119,13 @@ impl State {
             ButtonState::Pressed => self.isle.buttons_down.insert(button),
             ButtonState::Released => self.isle.buttons_down.remove(&button),
         };
-        if button_state == ButtonState::Pressed {
-            self.top_edge_press();
+        // A press taken to close a menu is kept from the window, and so is its release.
+        if button_state == ButtonState::Pressed && self.top_edge_press() {
+            self.isle.taken_buttons.insert(button);
+            return;
+        }
+        if button_state == ButtonState::Released && self.isle.taken_buttons.remove(&button) {
+            return;
         }
         if button_state == ButtonState::Pressed
             && !pointer.is_grabbed()

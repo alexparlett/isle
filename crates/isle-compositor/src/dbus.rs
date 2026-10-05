@@ -177,6 +177,47 @@ struct IslandIface {
     to_loop: ToLoop,
 }
 
+struct MenusIface {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Menus1")]
+impl MenusIface {
+    /// The front app's menu bar as JSON.
+    async fn bar(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.bar_json()).await?)
+    }
+
+    /// Chooses the item at a path of labels, a title first; false when there is none.
+    async fn activate(&self, path: Vec<String>) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let path: Vec<&str> = path.iter().map(String::as_str).collect();
+                state.bar_activate(&path)
+            })
+            .await?)
+    }
+
+    /// Reveals the menu bar on the focused screen, a title's menu open from the keyboard.
+    async fn reveal(&self, title: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let Some(output) = state.isle.output_with_focus().or_else(|| state.isle.active_output()) else {
+                    return false;
+                };
+                state.reveal_bar(&output, true, None);
+                let index = state.isle.bar.titles.iter().position(|t| t.label == title);
+                if let Some(index) = index {
+                    state.menu_bar_action(isle_shell::menubar::BarAction::Title(index));
+                }
+                true
+            })
+            .await?)
+    }
+}
+
 #[interface(name = "io.github.alexparlett.Isle.Island1")]
 impl IslandIface {
     /// Each output's island as JSON.
@@ -1124,6 +1165,12 @@ pub async fn serve(
         .serve_at(
             isle_ipc::DESKTOPS_PATH,
             Desktops {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
+            isle_ipc::MENUS_PATH,
+            MenusIface {
                 to_loop: to_loop.clone(),
             },
         )?

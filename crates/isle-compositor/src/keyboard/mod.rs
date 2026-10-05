@@ -110,6 +110,14 @@ impl Keyboards {
         }
     }
 
+    /// The profile of the keyboard that typed last; Mac before any has.
+    pub fn last_profile(&self) -> Profile {
+        self.last
+            .as_ref()
+            .and_then(|id| self.get(id))
+            .map_or(Profile::Mac, |d| d.profile)
+    }
+
     pub fn tables(&mut self) -> &Tables {
         self.tables.get_or_insert_with(Tables::shipped)
     }
@@ -376,6 +384,10 @@ impl State {
         }
         let key = (id.to_owned(), code);
         match key_state {
+            KeyState::Pressed if self.isle.bar.keyboard_move.is_some() && self.keyboard_move_key(code) => {
+                self.isle.swallowed.insert(key);
+                return;
+            }
             KeyState::Pressed if code == 1 && self.top_edge_escape() => {
                 self.isle.swallowed.insert(key);
                 return;

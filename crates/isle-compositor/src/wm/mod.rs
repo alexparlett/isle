@@ -88,6 +88,8 @@ pub struct Record {
     pub mapped: bool,
     /// It asked for focus without a fresh activation token.
     pub attention: bool,
+    /// Stacks above the windows that are not, from the Window menu.
+    pub keep_on_top: bool,
     /// Its client missed a ping and has not answered since.
     pub not_responding: bool,
     /// Drawn away from its box while it opens, comes back or slides in.
@@ -323,6 +325,7 @@ impl Isle {
             home: None,
             mapped: false,
             attention: false,
+            keep_on_top: false,
             not_responding: false,
             motion: None,
             morph: None,
@@ -382,13 +385,15 @@ impl Isle {
             record.set_suspended(record.mapped && !shown);
         }
         let in_space: Vec<Window> = self.space.elements().cloned().collect();
-        let order: Vec<Window> = self
+        // Records run back to front; windows kept on top go after the rest.
+        let mut records: Vec<&Record> = self
             .wm
             .records
             .iter()
             .filter(|r| in_space.contains(&r.window))
-            .map(|r| r.window.clone())
             .collect();
+        records.sort_by_key(|r| r.keep_on_top);
+        let order: Vec<Window> = records.into_iter().map(|r| r.window.clone()).collect();
         if order != in_space {
             for window in &order {
                 self.space.raise_element(window, false);

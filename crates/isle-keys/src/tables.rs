@@ -34,6 +34,15 @@ struct Scope {
     rules: Rules,
     close: Option<Vec<Stroke>>,
     quit: Option<Vec<Stroke>>,
+    commands: Vec<Command>,
+}
+
+/// A rule that names itself for the fallback menus: the app's command under a menu.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Command {
+    pub menu: String,
+    pub label: String,
+    pub chord: Chord,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -122,10 +131,19 @@ impl Tables {
             }
             for child in node.children().map_or(&[][..], |c| c.nodes()) {
                 let key = child.name().value();
+                let property = |name: &str| {
+                    child
+                        .entries()
+                        .iter()
+                        .find(|e| e.name().is_some_and(|n| n.value() == name))
+                        .and_then(|e| e.value().as_string())
+                        .map(str::to_owned)
+                };
                 let strings = || -> Result<Vec<String>, TableError> {
                     child
                         .entries()
                         .iter()
+                        .filter(|e| e.name().is_none())
                         .map(|e| {
                             e.value().as_string().map(str::to_owned).ok_or_else(|| {
                                 at(e.span().offset(), format!("`{key}` takes strings"))
@@ -156,7 +174,18 @@ impl Tables {
                         let parsed = Chord::parse(chord).ok_or_else(|| {
                             at(child.span().offset(), format!("`{chord}` is not a chord"))
                         })?;
-                        scope.rules.push(parsed, strokes()?);
+                        let named = property("menu").zip(property("label"));
+                        // A command with nothing to send goes by the general rule.
+                        if named.is_none() || !strings()?.is_empty() {
+                            scope.rules.push(parsed, strokes()?);
+                        }
+                        if let Some((menu, label)) = named {
+                            scope.commands.push(Command {
+                                menu,
+                                label,
+                                chord: parsed,
+                            });
+                        }
                     }
                 }
             }
@@ -195,6 +224,10 @@ impl Tables {
                         if scope.quit.is_some() {
                             existing.quit = scope.quit;
                         }
+                        for command in scope.commands {
+                            existing.commands.retain(|c| c.chord != command.chord);
+                            existing.commands.push(command);
+                        }
                         for (chord, strokes) in scope.rules.iter() {
                             existing.rules.push(*chord, strokes.to_vec());
                         }
@@ -230,6 +263,25 @@ impl Tables {
             close: scopes.iter().find_map(|s| s.close.as_deref()),
             quit: scopes.iter().find_map(|s| s.quit.as_deref()),
         }
+    }
+
+    /// The commands an app's tables name for the fallback menus, most specific first, one
+    /// per chord.
+    pub fn commands(&self, names: &[&str]) -> Vec<Command> {
+        let mut out: Vec<Command> = Vec::new();
+        for scope in self
+            .apps
+            .iter()
+            .chain(&self.groups)
+            .filter(|s| s.apps.iter().any(|p| matches(p, names)))
+        {
+            for command in &scope.commands {
+                if !out.iter().any(|c| c.chord == command.chord) {
+                    out.push(command.clone());
+                }
+            }
+        }
+        out
     }
 
     /// The Mac chord that sends an app `sent`, for a menu item the app declares by it: a
@@ -309,6 +361,27 @@ mod tests {
 
     fn chord(text: &str) -> Chord {
         Chord::parse(text).unwrap()
+    }
+
+    #[test]
+    fn named_rules_are_commands_and_one_with_nothing_to_send_takes_the_general_rule() {
+        let tables = Tables::parse(
+            "group \"browsers\" {\n    apps \"chromium\"\n    \"Cmd+T\" menu=\"File\" label=\"New Tab\"\n    \"Cmd+[\" \"Alt+Left\" menu=\"History\" label=\"Back\"\n}\n",
+        )
+        .unwrap();
+        let commands = tables.commands(&["chromium"]);
+        assert_eq!(commands.len(), 2);
+        assert_eq!((commands[0].menu.as_str(), commands[0].label.as_str()), ("File", "New Tab"));
+        assert_eq!(
+            tables.strokes_for(&["chromium"], &chord("Cmd+T")),
+            [Stroke::parse("Ctrl+T").unwrap()]
+        );
+        assert_eq!(
+            tables.strokes_for(&["chromium"], &chord("Cmd+[")),
+            [Stroke::parse("Alt+Left").unwrap()]
+        );
+        assert!(tables.commands(&["kitty"]).is_empty());
+        assert!(!Tables::shipped().commands(&["code"]).is_empty());
     }
 
     #[test]

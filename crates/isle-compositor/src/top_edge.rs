@@ -73,6 +73,7 @@ impl State {
         let name = output.name();
         let t = self.isle.shell.theme().tokens.clone();
 
+        self.bar_edge(&output, at, delta, inside, dragging);
         if !inside {
             self.isle.top_edge.push = 0.0;
             self.isle.top_edge.need_move = false;
@@ -203,10 +204,102 @@ impl State {
         self.isle.top_edge.grace = token.ok();
     }
 
-    /// A press anywhere: one outside a pinned Control Centre closes it.
-    pub fn top_edge_press(&mut self) {
-        let Some(panel) = self.isle.island.panel.clone() else {
+    /// The menu bar's part of the edge: a push outside the island's zone reveals it, a
+    /// dwell over a game; off it with no menu open, it leaves after a grace.
+    fn bar_edge(&mut self, output: &Output, at: Point<f64, Logical>, delta: Point<f64, Logical>, in_zone: bool, dragging: bool) {
+        let t = self.isle.shell.theme().tokens.clone();
+        let name = output.name();
+        let revealed = self.isle.bar.output.as_ref() == Some(&name);
+        let on_bar = matches!(
+            self.isle.seat.get_pointer().and_then(|p| p.current_focus()),
+            Some(crate::focus::Focus::Shell(f)) if self.isle.shell.name_of(&f) == Some("menu-bar")
+        ) || (revealed && at.y < t.size_bar_height as f64);
+        if revealed {
+            if on_bar || in_zone || self.isle.bar.open.is_some() {
+                if let Some(token) = self.isle.bar.leave.take() {
+                    self.isle.loop_handle.remove(token);
+                }
+            } else if self.isle.bar.leave.is_none() && !self.isle.bar.by_key {
+                let timer = Timer::from_duration(Duration::from_millis(t.timing_hover_grace_ms.into()));
+                self.isle.bar.leave = self
+                    .isle
+                    .loop_handle
+                    .insert_source(timer, |_, _, state| {
+                        state.isle.bar.leave = None;
+                        if state.isle.bar.open.is_none() {
+                            state.hide_bar();
+                        }
+                        TimeoutAction::Drop
+                    })
+                    .ok();
+            }
             return;
+        }
+        if in_zone || dragging || at.y > 0.5 {
+            self.isle.bar.push = 0.0;
+            if let Some(token) = self.isle.bar.dwell.take() {
+                self.isle.loop_handle.remove(token);
+            }
+            return;
+        }
+        if self.focus_is_game() {
+            if self.isle.bar.dwell.is_none() {
+                let timer = Timer::from_duration(Duration::from_millis(t.timing_edge_dwell_ms.into()));
+                let output = output.clone();
+                self.isle.bar.dwell = self
+                    .isle
+                    .loop_handle
+                    .insert_source(timer, move |_, _, state| {
+                        state.isle.bar.dwell = None;
+                        if state.isle.pointer_on().is_some_and(|(o, at)| o == output && at.y <= 0.5) {
+                            state.reveal_bar(&output, false, None);
+                            state.isle.top_edge.need_move = true;
+                        }
+                        TimeoutAction::Drop
+                    })
+                    .ok();
+            }
+            return;
+        }
+        if delta.y < 0.0 {
+            self.isle.bar.push += -delta.y;
+        }
+        if self.isle.bar.push >= t.size_edge_push as f64 {
+            self.isle.bar.push = 0.0;
+            self.reveal_bar(output, false, None);
+            self.isle.top_edge.need_move = true;
+        }
+    }
+
+    /// A press anywhere: one outside a pinned Control Centre closes it; one outside the menu
+    /// bar's open menu closes it and is kept from the window, as on macOS. True when the press
+    /// was taken.
+    pub fn top_edge_press(&mut self) -> bool {
+        let focus_name = self
+            .isle
+            .seat
+            .get_pointer()
+            .and_then(|p| p.current_focus())
+            .and_then(|f| match f {
+                crate::focus::Focus::Shell(f) => self.isle.shell.name_of(&f),
+                _ => None,
+            });
+        if self.isle.bar.output.is_some() && focus_name != Some("menu-bar") {
+            let open = self.isle.bar.open.is_some();
+            self.hide_bar();
+            if open {
+                return true;
+            }
+        }
+        if self.isle.shell.is_open("window-menu") && focus_name != Some("window-menu") {
+            self.close_surface("window-menu");
+            return true;
+        }
+        if self.isle.shell.is_open("about") && focus_name != Some("about") {
+            self.close_surface("about");
+        }
+        let Some(panel) = self.isle.island.panel.clone() else {
+            return false;
         };
         let on_island = matches!(
             self.isle.seat.get_pointer().and_then(|p| p.current_focus()),
@@ -218,6 +311,7 @@ impl State {
                 self.isle.top_edge.disarmed = true;
             }
         }
+        false
     }
 
     /// Escape while a peek is open and the pointer rests in the zone closes the peek and is

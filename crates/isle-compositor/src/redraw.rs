@@ -206,6 +206,7 @@ impl State {
         }
         self.watch_island();
         self.isle.step_island(std::time::Instant::now());
+        self.step_bar();
         self.dispatch_shell();
         self.draw_shell(output);
         let rendered = match self.backend.render(&mut self.isle, output) {
@@ -240,6 +241,7 @@ impl State {
                 || self.isle.windows_moving(output)
                 || self.isle.wallpapers.fading(&Isle::output_identity(output))
                 || self.isle.island_moving(output)
+                || self.bar_moving()
             {
                 self.isle.queue_redraw(output);
             }
@@ -282,6 +284,7 @@ impl State {
             || self.isle.windows_moving(output)
             || self.isle.wallpapers.fading(&Isle::output_identity(output))
             || self.isle.island_moving(output)
+            || self.bar_moving()
         {
             self.isle.queue_redraw(output);
         }

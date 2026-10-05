@@ -2,6 +2,16 @@
 
 ## 2026-10-05
 
+- P6 6.4: the menu bar and the fallback. A push at the top edge outside the
+  island's zone, Ctrl+F2 or Shift+Cmd+/ brings the bar down on that screen with
+  the system menu, the app menu, File, Edit, View and the rest from labelled
+  rules in the translation tables, Window and Help; titles that reach the
+  island's reserve fold into ». The window menu opens from a title bar, a
+  client's own and its chord, with keyboard move and resize and Keep on top.
+  Isle's About panel. Menus1 and `isle menus bar|activate`. Found: Freya sizes
+  an absolutely placed fill against the room an auto-sized parent had, so a
+  menu's glass reached the bottom of the screen; menus now set their height.
+
 - P6 6.3: Control Centre and the top edge. The panel unfolds from the pill
   with its notices (a rejected configuration, the safe start, shortcuts
   inhibited), activity rows, the packed grid and pages; Dark Mode and Keyboard

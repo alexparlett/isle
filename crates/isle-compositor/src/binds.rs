@@ -44,6 +44,9 @@ pub enum Action {
     Media(Media),
     TakeKeysBack,
     ControlCentre,
+    MenuBar,
+    HelpSearch,
+    WindowMenu,
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
     /// The chord the recording grab took.
@@ -115,6 +118,9 @@ fn action_for(id: &'static str) -> Action {
         "next-layout" => Action::NextLayout,
         "take-keys-back" => Action::TakeKeysBack,
         "control-centre" => Action::ControlCentre,
+        "menu-bar" => Action::MenuBar,
+        "help-search" => Action::HelpSearch,
+        "window-menu" => Action::WindowMenu,
         "volume-up" => Action::Media(Media::VolumeUp),
         "volume-down" => Action::Media(Media::VolumeDown),
         "mute" => Action::Media(Media::Mute),
@@ -266,6 +272,13 @@ impl State {
             Action::Media(media) => spawn(media.command()),
             Action::TakeKeysBack => self.toggle_keys_back(),
             Action::ControlCentre => self.control_centre_chord(),
+            Action::MenuBar => self.menu_bar_chord(),
+            Action::HelpSearch => self.help_chord(),
+            Action::WindowMenu => {
+                if let Some(id) = self.focused_window() {
+                    self.open_window_menu(id, None, true);
+                }
+            }
             Action::Recorded(chord) => self.finish_recording(chord),
             Action::Reserved(id) => {
                 let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);

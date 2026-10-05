@@ -212,6 +212,21 @@ impl XdgShellHandler for State {
         }
     }
 
+    /// The client's own title bar asked for the window menu, at `location` in its window.
+    fn show_window_menu(
+        &mut self,
+        surface: ToplevelSurface,
+        _seat: wl_seat::WlSeat,
+        _serial: Serial,
+        location: smithay::utils::Point<i32, smithay::utils::Logical>,
+    ) {
+        if let Some(id) = self.isle.wm.for_surface(surface.wl_surface()).map(|r| r.id)
+            && let Some(frame) = self.isle.frame(id)
+        {
+            self.open_window_menu(id, Some(frame.loc + location), false);
+        }
+    }
+
     fn minimize_request(&mut self, surface: ToplevelSurface) {
         if let Some(id) = self.isle.wm.for_surface(surface.wl_surface()).map(|r| r.id) {
             self.minimise(id);

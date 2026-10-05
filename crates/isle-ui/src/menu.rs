@@ -540,8 +540,18 @@ impl Component for Menu {
                     }
                 }
             });
+            // An auto height would let the glass behind, filling it, take the room below.
+            let height: f32 = entries
+                .iter()
+                .map(|e| match e {
+                    MenuEntry::Separator => 9.0,
+                    _ => row_height,
+                })
+                .sum::<f32>()
+                + 2.0 * pad;
             rect()
                 .width(Size::px(panel_width(&theme, entries, pad)))
+                .height(Size::px(height))
                 .padding(pad)
                 .corner_radius(t.radius_card)
                 .background(fill)

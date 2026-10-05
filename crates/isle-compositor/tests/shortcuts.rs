@@ -65,6 +65,7 @@ const DISRUPTIVE: &[&str] = &[
     "control-centre",
     "menu-bar",
     "help-search",
+    "window-menu",
     "close-window",
     "quit-app",
     "hide",

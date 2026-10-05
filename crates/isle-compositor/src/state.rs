@@ -112,11 +112,14 @@ pub struct Isle {
     pub zone_panel: std::rc::Rc<isle_shell::zones::ZoneSurface>,
     /// Pointer buttons held now, by evdev code.
     pub buttons_down: std::collections::HashSet<u32>,
+    /// Presses the desktop took to close a menu, whose releases it takes too.
+    pub taken_buttons: std::collections::HashSet<u32>,
     pub places: isle_state::domains::Places,
     pub desktops: crate::wm::desktops::Desktops,
     pub wallpapers: crate::wallpaper::Wallpapers,
     pub island: crate::island::IslandState,
     pub top_edge: crate::top_edge::TopEdge,
+    pub bar: crate::menubar::BarState,
     /// The settings file holds a rejected hand edit: its file, line, column and message.
     pub settings_error: Option<(String, u32, u32, String)>,
     /// Started on the defaults after repeated crashes, until `isle settings use-mine`.
@@ -271,6 +274,10 @@ impl Isle {
         let island = crate::island::IslandState::new(shell.theme());
         shell.register(island.surface.clone());
         shell.register(island.notice.clone());
+        let bar = crate::menubar::BarState::new();
+        shell.register(bar.surface.clone());
+        shell.register(bar.window_menu.clone());
+        shell.register(bar.about.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -331,11 +338,13 @@ impl Isle {
             zoom_menu,
             zone_panel,
             buttons_down: Default::default(),
+            taken_buttons: Default::default(),
             places: Default::default(),
             desktops: Default::default(),
             wallpapers: Default::default(),
             island,
             top_edge: Default::default(),
+            bar,
             settings_error: None,
             safe_start: false,
             window_programs: None,
@@ -644,6 +653,8 @@ impl State {
                 }
                 isle_shell::Action::Zone(action) => self.zone_action(action),
                 isle_shell::Action::Island(action) => self.island_action(focus, action),
+                isle_shell::Action::MenuBar(action) => self.menu_bar_action(action),
+                isle_shell::Action::Menu(event) => self.window_menu_event(event),
                 isle_shell::Action::Key(code) => {
                     use crate::keyboard::ISLE_DEVICE;
                     use smithay::backend::input::{InputTime, KeyState};

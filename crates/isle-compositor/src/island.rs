@@ -582,6 +582,9 @@ impl State {
             self.close_surface("inhibit-notice");
         }
         if self.isle.island.seen.as_ref() != Some(&seen) {
+            if self.isle.island.seen.as_ref().is_some_and(|s| s.4 != seen.4) {
+                self.refresh_bar();
+            }
             self.isle.island.model.set_focused_app(seen.4.clone());
             self.isle.island.seen = Some(seen);
             self.island_sources(None);

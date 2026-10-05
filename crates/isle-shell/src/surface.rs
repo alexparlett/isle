@@ -98,6 +98,10 @@ pub enum Action {
     Zone(crate::zones::ZoneAction),
     /// From the island on an output.
     Island(crate::island::IslandAction),
+    /// From the menu bar on an output.
+    MenuBar(crate::menubar::BarAction),
+    /// From a menu in a placed surface: the window menu.
+    Menu(isle_ui::MenuEvent),
 }
 
 /// What a title bar asks of its window.

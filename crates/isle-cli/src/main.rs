@@ -46,6 +46,8 @@ enum Command {
     #[command(subcommand)]
     Island(Island),
     #[command(subcommand)]
+    Menus(Menus),
+    #[command(subcommand)]
     Shortcuts(Shortcuts),
     #[command(subcommand)]
     Settings(Settings),
@@ -158,6 +160,14 @@ enum Displays {
     List,
     /// Release every display and probe the connectors again, as after a KVM switch.
     Redetect,
+}
+
+#[derive(Subcommand)]
+enum Menus {
+    /// The front app's menu bar, as JSON.
+    Bar,
+    /// Choose an item by its path: a title, then labels down its menus.
+    Activate { path: Vec<String> },
 }
 
 #[derive(Subcommand)]
@@ -514,6 +524,14 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Settings(command) => settings(cli, &bus, command).await?,
+        Command::Menus(Menus::Bar) => {
+            println!("{}", isle_ipc::menus::MenusProxy::new(&bus).await?.bar().await?);
+        }
+        Command::Menus(Menus::Activate { path }) => {
+            let path: Vec<&str> = path.iter().map(String::as_str).collect();
+            let found = isle_ipc::menus::MenusProxy::new(&bus).await?.activate(&path).await?;
+            app_found(found, &path.join(" › "))?;
+        }
         Command::Island(Island::Status) => {
             println!("{}", isle_ipc::island::IslandProxy::new(&bus).await?.status().await?);
         }

@@ -44,6 +44,8 @@ use smithay::{
 pub use surface::{Action, Actions, Here, Layer, Scope, SurfaceDef, WindowAction};
 pub mod chrome;
 pub mod island;
+pub mod menubar;
+pub mod placed_menu;
 pub mod zones;
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};

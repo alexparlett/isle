@@ -692,7 +692,7 @@ impl crate::state::Isle {
             .get_keyboard()
             .and_then(|k| k.current_focus())
             .and_then(|f| f.surface().cloned())
-            .is_some_and(|s| record.surface() == Some(&s));
+            .is_some_and(|s| record.surface().as_ref() == Some(&s));
         // Under Isle's bar the client's top corners are square; the bar rounds the frame's.
         let corners = if record.bar.is_some() {
             [0.0, 0.0, radius, radius]

@@ -167,7 +167,7 @@ impl State {
             .wm
             .records
             .iter_mut()
-            .find(|r| r.surface() == Some(surface))
+            .find(|r| r.surface().as_ref() == Some(surface))
         else {
             return;
         };

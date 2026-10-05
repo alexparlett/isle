@@ -72,6 +72,14 @@ pub struct Isle {
     /// The windows shown now; `wm` keeps every window.
     pub space: Space<Window>,
     pub wm: crate::wm::Wm,
+    pub xwm: Option<smithay::xwayland::X11Wm>,
+    /// The X display Xwayland serves, kept across its restarts.
+    pub xdisplay: Option<u32>,
+    pub xwayland_deaths: u32,
+    pub xwayland_source: Option<smithay::reexports::calloop::RegistrationToken>,
+    pub xwayland_shell_state: smithay::wayland::xwayland_shell::XWaylandShellState,
+    /// X11 windows left alone: override-redirect and untitled ones, front last.
+    pub unmanaged: Vec<Window>,
     /// The window whose bar shows Option's glyphs.
     pub bar_option: Option<u64>,
     pub zoom: crate::wm::ZoomState,
@@ -186,6 +194,8 @@ impl Isle {
         let xdg_shell_state = XdgShellState::new::<State>(&dh);
         let layer_shell_state = WlrLayerShellState::new::<State>(&dh);
         let xdg_decoration_state = XdgDecorationState::new::<State>(&dh);
+        let xwayland_shell_state =
+            smithay::wayland::xwayland_shell::XWaylandShellState::new::<State>(&dh);
         let xdg_dialog_state =
             smithay::wayland::shell::xdg::dialog::XdgDialogState::new::<State>(&dh);
         let kde_decoration_state = KdeDecorationState::new::<State>(&dh, KdeMode::Server);
@@ -248,6 +258,12 @@ impl Isle {
             shell_keyboard_return: Vec::new(),
             space: Space::default(),
             wm: Default::default(),
+            xwm: None,
+            xdisplay: None,
+            xwayland_deaths: 0,
+            xwayland_source: None,
+            xwayland_shell_state,
+            unmanaged: Vec::new(),
             bar_option: None,
             zoom: Default::default(),
             zoom_menu,
@@ -356,6 +372,15 @@ impl Isle {
     /// The front window's part under `pos`: its popups and surfaces, its bar, or the band
     /// around its frame.
     fn window_part_under(&self, pos: Point<f64, Logical>) -> Option<(Focus, Point<f64, Logical>)> {
+        for window in self.unmanaged.iter().rev() {
+            let Some(x11) = window.x11_surface() else {
+                continue;
+            };
+            let at = x11.last_configure().loc;
+            if let Some((s, p)) = window.surface_under(pos - at.to_f64(), WindowSurfaceType::ALL) {
+                return Some((Focus::Surface(s), (p + at).to_f64()));
+            }
+        }
         for window in self.space.elements().rev() {
             let id = crate::wm::window_id(window);
             let Some(location) = self.space.element_location(window) else {
@@ -409,7 +434,15 @@ impl Isle {
         self.wm.raise(id);
         self.wm.touch(id);
         self.sync_space();
-        Some(window.toplevel()?.wl_surface().into())
+        use smithay::wayland::seat::WaylandFocus;
+        let surface = window.wl_surface()?.into_owned();
+        Some(match window.x11_surface() {
+            Some(x11) => Focus::X11 {
+                window: Box::new(x11.clone()),
+                surface,
+            },
+            None => Focus::Surface(surface),
+        })
     }
 
     /// Runs the shell surfaces whose wakers fired and redraws the outputs they changed.

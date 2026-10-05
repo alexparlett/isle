@@ -562,6 +562,10 @@ impl State {
     }
 
     fn send_full_screen(&self, id: u64, on: bool) {
+        if let Some(x11) = self.isle.wm.get(id).and_then(|r| r.x11()) {
+            let _ = x11.set_fullscreen(on);
+            return;
+        }
         let Some(toplevel) = self.isle.wm.get(id).and_then(|r| r.window.toplevel()) else {
             return;
         };

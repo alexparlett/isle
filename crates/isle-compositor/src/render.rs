@@ -149,6 +149,26 @@ impl Isle {
             shell(isle_shell::Layer::Top, push);
         }
 
+        // X11 windows left alone, front last, at the place they ask for, over windows.
+        for window in self.unmanaged.iter().rev() {
+            let (Some(x11), Some(surface)) = (window.x11_surface(), {
+                use smithay::wayland::seat::WaylandFocus;
+                window.wl_surface().map(|s| s.into_owned())
+            }) else {
+                continue;
+            };
+            let at = (x11.last_configure().loc - geometry.loc).to_physical_precise_round(scale);
+            for element in render_elements_from_surface_tree(
+                renderer,
+                &surface,
+                at,
+                scale,
+                1.0,
+                Kind::Unspecified,
+            ) {
+                push(IsleElement::Surface(element));
+            }
+        }
         let preview = self.zone_preview.as_ref().filter(|p| &p.output == output);
         let output_scale = scale.x;
         for leaving in self.leaving.iter().filter(|l| &l.output == output) {

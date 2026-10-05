@@ -208,6 +208,10 @@ impl State {
         let Some(record) = self.isle.wm.get(id) else {
             return;
         };
+        if let Some(x11) = record.x11() {
+            let _ = x11.set_maximized(matches!(record.mode, Mode::Filled { .. }));
+            return;
+        }
         let Some(toplevel) = record.window.toplevel() else {
             return;
         };

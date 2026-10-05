@@ -96,6 +96,9 @@ impl Isle {
                 window.send_frame(output, time, throttle, surface_primary_scanout_output);
             }
         }
+        for window in &self.unmanaged {
+            window.send_frame(output, time, throttle, |_, _| Some(output.clone()));
+        }
         for layer in layer_map_for_output(output).layers() {
             layer.send_frame(output, time, throttle, surface_primary_scanout_output);
         }

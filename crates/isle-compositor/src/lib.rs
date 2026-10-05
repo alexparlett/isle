@@ -20,6 +20,7 @@ pub mod tokens;
 pub mod watchdog;
 pub mod worker;
 mod wm;
+mod xwayland;
 
 use std::time::Duration;
 
@@ -121,7 +122,12 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };
-    report_ready(&state.isle.socket_name);
+    let display = xwayland::start(&mut state, None);
+    state.isle.xdisplay = display;
+    if let Some(display) = display {
+        unsafe { std::env::set_var("DISPLAY", format!(":{display}")) };
+    }
+    report_ready(&state.isle.socket_name, display);
 
     event_loop.run(None, &mut state, |state| {
         // The space learns which outputs each window overlaps in its refresh, and a
@@ -136,7 +142,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Tells the supervisor the socket is up, on the fd it named in `ISLE_READY_FD`.
-fn report_ready(socket: &std::ffi::OsStr) {
+fn report_ready(socket: &std::ffi::OsStr, display: Option<u32>) {
     use std::{io::Write, os::fd::FromRawFd};
     let Some(fd) = std::env::var("ISLE_READY_FD")
         .ok()
@@ -148,4 +154,7 @@ fn report_ready(socket: &std::ffi::OsStr) {
     // Safety: the supervisor opened this fd for us alone; it is closed here.
     let mut pipe = unsafe { std::fs::File::from_raw_fd(fd) };
     let _ = writeln!(pipe, "WAYLAND_DISPLAY={}", socket.to_string_lossy());
+    if let Some(display) = display {
+        let _ = writeln!(pipe, "DISPLAY=:{display}");
+    }
 }

@@ -14,7 +14,6 @@ use smithay::{
     },
 };
 
-use tracing::info;
 
 use crate::state::{ClientState, State};
 
@@ -24,6 +23,9 @@ impl CompositorHandler for State {
     }
 
     fn client_compositor_state<'a>(&self, client: &'a Client) -> &'a CompositorClientState {
+        if let Some(xwayland) = client.get_data::<smithay::xwayland::XWaylandClientData>() {
+            return &xwayland.compositor_state;
+        }
         &client.get_data::<ClientState>().unwrap().compositor_state
     }
 
@@ -38,8 +40,9 @@ impl CompositorHandler for State {
             match self.isle.wm.for_surface(&root).map(|r| (r.id, r.mapped)) {
                 Some((id, false)) => self.commit_unmapped(id, &root),
                 Some((id, true))
-                    if !with_renderer_surface_state(&root, |s| s.buffer().is_some())
-                        .unwrap_or(false) =>
+                    if self.isle.wm.get(id).is_some_and(|r| r.window.toplevel().is_some())
+                        && !with_renderer_surface_state(&root, |s| s.buffer().is_some())
+                            .unwrap_or(false) =>
                 {
                     self.unmap_window(id);
                 }
@@ -55,7 +58,14 @@ impl CompositorHandler for State {
                     }
                     self.check_borderless(id);
                 }
-                None => {}
+                None => {
+                    if self.isle.unmanaged.iter().any(|w| {
+                        use smithay::wayland::seat::WaylandFocus;
+                        w.wl_surface().is_some_and(|s| *s == root)
+                    }) {
+                        self.isle.queue_redraw_all();
+                    }
+                }
             }
         }
 
@@ -78,7 +88,10 @@ impl State {
     /// centred on the active output and focused.
     fn commit_unmapped(&mut self, id: u64, surface: &WlSurface) {
         let window = self.isle.window_by_id(id).unwrap();
-        let toplevel = window.toplevel().unwrap();
+        // An X11 window maps by its window manager's request, not by a commit.
+        let Some(toplevel) = window.toplevel() else {
+            return;
+        };
         if !toplevel.is_initial_configure_sent() {
             self.plan_window(id);
             toplevel.send_configure();
@@ -90,29 +103,7 @@ impl State {
         if !has_buffer {
             return;
         }
-        let size = window.geometry().size;
-        self.isle.refresh_identity(id);
-        let Some(location) = self.place_new_window(id) else {
-            return;
-        };
-        let record = self.isle.wm.get_mut(id).unwrap();
-        let (app_id, title) = record.names();
-        record.mapped = true;
-        record.planned = None;
-        record.rect = smithay::utils::Rectangle::new(location, size);
-        let full_screen = std::mem::take(&mut record.wants_full_screen);
-        info!(id, app_id, title, ?location, size = ?size, "mapped");
-        self.assign_desktop(id);
-        self.isle.sync_space();
-        self.set_focus(Some(&window));
-        if full_screen {
-            self.enter_full_screen(id, false);
-        } else {
-            self.check_borderless(id);
-        }
-        if matches!(self.isle.wm.get(id).map(|r| &r.mode), Some(crate::wm::Mode::Floating | crate::wm::Mode::Tiled { .. } | crate::wm::Mode::Filled { .. })) {
-            self.animate_arriving(id, None);
-        }
+        self.map_window(id);
     }
 }
 

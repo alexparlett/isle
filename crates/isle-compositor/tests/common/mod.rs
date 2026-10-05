@@ -168,11 +168,43 @@ impl Isle {
         self.client_with(&["--app-id", app_id, "--colour", colour])
     }
 
+    /// An X11 client on Xwayland, once its window manager runs.
+    pub async fn x11_client(&mut self, args: &[&str]) -> Client {
+        let test = self.test().await;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let display = loop {
+            let display = test.x_display().await.unwrap();
+            if display >= 0 {
+                break display;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "Xwayland never came up: {}",
+                self.log()
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        };
+        self.spawn(
+            env!("CARGO_BIN_EXE_isle-test-x11-client"),
+            args,
+            &[("DISPLAY", format!(":{display}"))],
+        )
+    }
+
     pub fn client_with(&mut self, args: &[&str]) -> Client {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_isle-test-client"))
+        let socket = self.socket();
+        self.spawn(
+            env!("CARGO_BIN_EXE_isle-test-client"),
+            args,
+            &[("WAYLAND_DISPLAY", socket)],
+        )
+    }
+
+    fn spawn(&mut self, program: &str, args: &[&str], envs: &[(&str, String)]) -> Client {
+        let mut child = Command::new(program)
             .args(args)
             .env("XDG_RUNTIME_DIR", self.dir.join("runtime"))
-            .env("WAYLAND_DISPLAY", self.socket())
+            .envs(envs.iter().map(|(k, v)| (*k, v.as_str())))
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())
             .spawn()

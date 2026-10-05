@@ -30,7 +30,16 @@ pub enum Focus {
     Surface(WlSurface),
     Shell(ShellFocus),
     /// The resize band around a decorated window's frame; pointer only.
-    Edge { window: u64, edges: u32 },
+    Edge {
+        window: u64,
+        edges: u32,
+    },
+    /// An X11 window, which takes the keyboard through its window manager; the pointer
+    /// reaches its surface.
+    X11 {
+        window: Box<smithay::xwayland::X11Surface>,
+        surface: WlSurface,
+    },
 }
 
 impl From<WlSurface> for Focus {
@@ -51,6 +60,7 @@ impl IsAlive for Focus {
             Focus::Surface(s) => s.alive(),
             Focus::Shell(s) => s.alive(),
             Focus::Edge { .. } => true,
+            Focus::X11 { window, .. } => window.alive(),
         }
     }
 }
@@ -58,14 +68,14 @@ impl IsAlive for Focus {
 impl WaylandFocus for Focus {
     fn wl_surface(&self) -> Option<Cow<'_, WlSurface>> {
         match self {
-            Focus::Surface(s) => Some(Cow::Borrowed(s)),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => Some(Cow::Borrowed(s)),
             Focus::Shell(_) | Focus::Edge { .. } => None,
         }
     }
 
     fn same_client_as(&self, object_id: &ObjectId) -> bool {
         match self {
-            Focus::Surface(s) => s.id().same_client_as(object_id),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => s.id().same_client_as(object_id),
             Focus::Shell(_) | Focus::Edge { .. } => false,
         }
     }
@@ -74,7 +84,7 @@ impl WaylandFocus for Focus {
 impl Focus {
     pub fn surface(&self) -> Option<&WlSurface> {
         match self {
-            Focus::Surface(s) => Some(s),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => Some(s),
             Focus::Shell(_) | Focus::Edge { .. } => None,
         }
     }
@@ -83,7 +93,7 @@ impl Focus {
 macro_rules! gesture {
     ($name:ident, $event:ty) => {
         fn $name(&self, seat: &Seat<State>, data: &mut State, event: &$event) {
-            if let Focus::Surface(s) = self {
+            if let Focus::Surface(s) | Focus::X11 { surface: s, .. } = self {
                 PointerTarget::$name(s, seat, data, event);
             }
         }
@@ -93,7 +103,9 @@ macro_rules! gesture {
 impl PointerTarget<State> for Focus {
     fn enter(&self, seat: &Seat<State>, data: &mut State, event: &MotionEvent) {
         match self {
-            Focus::Surface(s) => PointerTarget::enter(s, seat, data, event),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => {
+                PointerTarget::enter(s, seat, data, event)
+            }
             Focus::Shell(f) => {
                 data.isle.shell.pointer_motion(f, event.location);
                 data.isle.set_shell_cursor(f);
@@ -109,21 +121,25 @@ impl PointerTarget<State> for Focus {
 
     fn motion(&self, seat: &Seat<State>, data: &mut State, event: &MotionEvent) {
         match self {
-            Focus::Surface(s) => PointerTarget::motion(s, seat, data, event),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => {
+                PointerTarget::motion(s, seat, data, event)
+            }
             Focus::Shell(f) => data.isle.shell.pointer_motion(f, event.location),
             Focus::Edge { .. } => {}
         }
     }
 
     fn relative_motion(&self, seat: &Seat<State>, data: &mut State, event: &RelativeMotionEvent) {
-        if let Focus::Surface(s) = self {
+        if let Focus::Surface(s) | Focus::X11 { surface: s, .. } = self {
             PointerTarget::relative_motion(s, seat, data, event);
         }
     }
 
     fn button(&self, seat: &Seat<State>, data: &mut State, event: &ButtonEvent) {
         match self {
-            Focus::Surface(s) => PointerTarget::button(s, seat, data, event),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => {
+                PointerTarget::button(s, seat, data, event)
+            }
             Focus::Shell(f) => data.isle.shell.pointer_button(
                 f,
                 event.button,
@@ -135,7 +151,9 @@ impl PointerTarget<State> for Focus {
 
     fn axis(&self, seat: &Seat<State>, data: &mut State, frame: AxisFrame) {
         match self {
-            Focus::Surface(s) => PointerTarget::axis(s, seat, data, frame),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => {
+                PointerTarget::axis(s, seat, data, frame)
+            }
             Focus::Shell(f) => {
                 let discrete = (frame.v120.is_some()).then(|| {
                     let (x, y) = frame.v120.unwrap_or_default();
@@ -157,7 +175,7 @@ impl PointerTarget<State> for Focus {
     }
 
     fn frame(&self, seat: &Seat<State>, data: &mut State) {
-        if let Focus::Surface(s) = self {
+        if let Focus::Surface(s) | Focus::X11 { surface: s, .. } = self {
             PointerTarget::frame(s, seat, data);
         }
     }
@@ -179,10 +197,13 @@ impl PointerTarget<State> for Focus {
         time: smithay::backend::input::InputTime,
     ) {
         match self {
-            Focus::Surface(s) => PointerTarget::leave(s, seat, data, serial, time),
+            Focus::Surface(s) | Focus::X11 { surface: s, .. } => {
+                PointerTarget::leave(s, seat, data, serial, time)
+            }
             Focus::Shell(f) => data.isle.shell.pointer_leave(f),
             Focus::Edge { .. } => {
-                data.isle.cursor_status = smithay::input::pointer::CursorImageStatus::default_named();
+                data.isle.cursor_status =
+                    smithay::input::pointer::CursorImageStatus::default_named();
                 data.backend.update_cursor(&data.isle);
             }
         }
@@ -199,6 +220,7 @@ impl KeyboardTarget<State> for Focus {
     ) {
         match self {
             Focus::Surface(s) => KeyboardTarget::enter(s, seat, data, keys, serial),
+            Focus::X11 { window, .. } => KeyboardTarget::enter(&**window, seat, data, keys, serial),
             Focus::Shell(f) => data.isle.shell.keyboard_focus(f, true),
             Focus::Edge { .. } => {}
         }
@@ -207,6 +229,7 @@ impl KeyboardTarget<State> for Focus {
     fn leave(&self, seat: &Seat<State>, data: &mut State, serial: Serial) {
         match self {
             Focus::Surface(s) => KeyboardTarget::leave(s, seat, data, serial),
+            Focus::X11 { window, .. } => KeyboardTarget::leave(&**window, seat, data, serial),
             Focus::Shell(f) => data.isle.shell.keyboard_focus(f, false),
             Focus::Edge { .. } => {}
         }
@@ -223,6 +246,9 @@ impl KeyboardTarget<State> for Focus {
     ) {
         match self {
             Focus::Surface(s) => KeyboardTarget::key(s, seat, data, key, state, serial, time),
+            Focus::X11 { window, .. } => {
+                KeyboardTarget::key(&**window, seat, data, key, state, serial, time)
+            }
             Focus::Shell(f) => {
                 let keysym = key.modified_sym();
                 let text = keysym.key_char().map(String::from);
@@ -244,6 +270,9 @@ impl KeyboardTarget<State> for Focus {
     ) {
         match self {
             Focus::Surface(s) => KeyboardTarget::modifiers(s, seat, data, modifiers, serial),
+            Focus::X11 { window, .. } => {
+                KeyboardTarget::modifiers(&**window, seat, data, modifiers, serial)
+            }
             Focus::Shell(_) => data.isle.shell.set_modifiers(&modifiers),
             Focus::Edge { .. } => {}
         }

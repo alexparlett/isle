@@ -20,13 +20,21 @@ use crate::{
 impl Isle {
     /// Reads the window's app and parent from its toplevel again.
     pub fn refresh_identity(&mut self, id: u64) {
-        let parent = self
-            .wm
-            .get(id)
+        let record = self.wm.get(id);
+        let wayland_parent = record
             .and_then(|r| r.window.toplevel())
             .and_then(|t| t.parent())
-            .and_then(|p| self.wm.for_surface(&p))
-            .map(|r| r.id);
+            .and_then(|p| self.wm.for_surface(&p));
+        let x11_parent = record
+            .and_then(|r| r.x11())
+            .and_then(|x| x.is_transient_for())
+            .and_then(|parent| {
+                self.wm
+                    .records
+                    .iter()
+                    .find(|r| r.x11().is_some_and(|x| x.window_id() == parent))
+            });
+        let parent = wayland_parent.or(x11_parent).map(|r| r.id);
         if let Some(record) = self.wm.get_mut(id) {
             record.app = self.apps.resolve(&record.names().0);
             record.parent = parent;
@@ -359,6 +367,10 @@ impl Isle {
             self.space.map_element(window.clone(), loc, false);
             self.queue_redraw_for_window(&window);
         }
+        // An X11 client knows where it is on the root window.
+        if let Some(x11) = window.x11_surface() {
+            let _ = x11.configure(Rectangle::new(loc, x11.last_configure().size));
+        }
         self.place_bar(id);
         if delta == Point::from((0, 0)) {
             return;
@@ -375,6 +387,45 @@ impl Isle {
             .collect();
         for (child, at) in children {
             self.move_window(child, at);
+        }
+    }
+}
+
+impl State {
+    /// Puts a window that has its first frame on the screen: at its place, on its desktop,
+    /// focused, opening.
+    pub fn map_window(&mut self, id: u64) {
+        let Some(window) = self.isle.window_by_id(id) else {
+            return;
+        };
+        let size = window.geometry().size;
+        self.isle.refresh_identity(id);
+        let Some(location) = self.place_new_window(id) else {
+            return;
+        };
+        let record = self.isle.wm.get_mut(id).unwrap();
+        let (app_id, title) = record.names();
+        record.mapped = true;
+        record.planned = None;
+        record.rect = Rectangle::new(location, size);
+        let full_screen = std::mem::take(&mut record.wants_full_screen);
+        if let Some(x11) = record.x11() {
+            let _ = x11.configure(Rectangle::new(location, size));
+        }
+        tracing::info!(id, app_id, title, ?location, size = ?size, "mapped");
+        self.assign_desktop(id);
+        self.isle.sync_space();
+        self.set_focus(Some(&window));
+        if full_screen {
+            self.enter_full_screen(id, false);
+        } else {
+            self.check_borderless(id);
+        }
+        if matches!(
+            self.isle.wm.get(id).map(|r| &r.mode),
+            Some(super::Mode::Floating | super::Mode::Tiled { .. } | super::Mode::Filled { .. })
+        ) {
+            self.animate_arriving(id, None);
         }
     }
 }

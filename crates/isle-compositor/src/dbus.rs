@@ -453,6 +453,17 @@ impl Test {
             .await?)
     }
 
+    /// The X display once Xwayland's window manager runs, else -1.
+    async fn x_display(&self) -> fdo::Result<i32> {
+        Ok(self
+            .to_loop
+            .call(|state| match (&state.isle.xwm, state.isle.xdisplay) {
+                (Some(_), Some(display)) => display as i32,
+                _ => -1,
+            })
+            .await?)
+    }
+
     /// Turns window motion off or on, apart from the shell's transitions.
     async fn window_motion(&self, on: bool) -> fdo::Result<()> {
         Ok(self

@@ -108,16 +108,25 @@ impl Record {
         self.mapped && !self.minimised && !self.hidden
     }
 
-    pub fn surface(&self) -> Option<&WlSurface> {
-        self.window.toplevel().map(|t| t.wl_surface())
+    /// Its Wayland surface; an X11 window has one once Xwayland has associated it.
+    pub fn surface(&self) -> Option<WlSurface> {
+        use smithay::wayland::seat::WaylandFocus;
+        self.window.wl_surface().map(|s| s.into_owned())
     }
 
-    /// The toplevel's app id and title.
+    pub fn x11(&self) -> Option<&smithay::xwayland::X11Surface> {
+        self.window.x11_surface()
+    }
+
+    /// The toplevel's app id and title; an X11 window's class and title.
     pub fn names(&self) -> (String, String) {
+        if let Some(x11) = self.x11() {
+            return (x11.class(), x11.title());
+        }
         let Some(surface) = self.surface() else {
             return Default::default();
         };
-        with_states(surface, |states| {
+        with_states(&surface, |states| {
             states
                 .data_map
                 .get::<XdgToplevelSurfaceData>()
@@ -136,10 +145,17 @@ impl Record {
         if let Some(toplevel) = self.window.toplevel() {
             toplevel.send_close();
         }
+        if let Some(x11) = self.x11() {
+            let _ = x11.close();
+        }
     }
 
-    /// Asks the client to draw at `size`.
+    /// Asks the client to draw at `size`. An X11 window is told its place too, from its
+    /// record, which the move that follows corrects.
     pub fn configure_size(&self, size: smithay::utils::Size<i32, Logical>) {
+        if let Some(x11) = self.x11() {
+            let _ = x11.configure(Rectangle::new(self.rect.loc, size));
+        }
         if let Some(toplevel) = self.window.toplevel() {
             toplevel.with_pending_state(|state| state.size = Some(size));
             if toplevel.is_initial_configure_sent() {
@@ -197,7 +213,7 @@ impl Wm {
     }
 
     pub fn for_surface(&self, surface: &WlSurface) -> Option<&Record> {
-        self.records.iter().find(|r| r.surface() == Some(surface))
+        self.records.iter().find(|r| r.surface().as_ref() == Some(surface))
     }
 
     /// Moves `id` and the windows it is the parent of to the top of the stack.
@@ -358,6 +374,7 @@ impl Isle {
             for window in &order {
                 self.space.raise_element(window, false);
             }
+            self.restack_x11();
             changed = true;
         }
         self.sync_bars();
@@ -398,7 +415,7 @@ impl Isle {
                     app: record.app.clone(),
                     title,
                     output,
-                    focused: focused.is_some() && focused == record.surface(),
+                    focused: focused.is_some() && focused == record.surface().as_ref(),
                     x: rect.loc.x,
                     y: rect.loc.y,
                     width: rect.size.w,

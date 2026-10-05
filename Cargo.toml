@@ -37,6 +37,7 @@ smithay = { git = "https://github.com/Smithay/smithay", rev = "118e34ffc9b99854a
     "desktop",
     "renderer_gl",
     "wayland_frontend",
+    "xwayland",
 ] }
 libc = "0.2"
 png = "0.17"
@@ -45,6 +46,7 @@ xcursor = "0.3"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+x11rb = { version = "0.13", default-features = false }
 humantime = "2.3"
 kdl = { version = "6.7", features = ["span"] }
 miette = { version = "7", default-features = false }

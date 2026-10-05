@@ -31,7 +31,7 @@ impl Isle {
         let (min, max) = record
             .surface()
             .map(|s| {
-                with_states(s, |states| {
+                with_states(&s, |states| {
                     let mut cached = states.cached_state.get::<SurfaceCachedState>();
                     let current = cached.current();
                     (current.min_size, current.max_size)
@@ -44,7 +44,7 @@ impl Isle {
             .get_keyboard()
             .and_then(|k| k.current_focus())
             .and_then(|f| f.surface().cloned())
-            .is_some_and(|s| record.surface() == Some(&s));
+            .is_some_and(|s| record.surface().as_ref() == Some(&s));
         Some(BarModel {
             title: record.names().1,
             active,

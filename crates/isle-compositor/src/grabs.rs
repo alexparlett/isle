@@ -261,9 +261,11 @@ impl ResizeGrab {
             });
             toplevel.send_pending_configure();
         }
-        ResizeState::with(window.toplevel().unwrap().wl_surface(), |state| {
-            *state = ResizeState::Resizing { edges, initial };
-        });
+        if let Some(toplevel) = window.toplevel() {
+            ResizeState::with(toplevel.wl_surface(), |state| {
+                *state = ResizeState::Resizing { edges, initial };
+            });
+        }
         Self {
             start_data,
             window,
@@ -297,6 +299,27 @@ impl PointerGrab<State> for ResizeGrab {
             }
             size.h = (self.initial.size.h as f64 + delta.y) as i32;
         }
+        // An X11 window is resized by configuring its box, the opposite edge held here.
+        if let Some(x11) = self.window.x11_surface() {
+            let (min, max) = (x11.min_size(), x11.max_size());
+            let clamp = |v: i32, lo: Option<i32>, hi: Option<i32>| {
+                v.clamp(lo.unwrap_or(1).max(1), hi.filter(|h| *h > 0).unwrap_or(i32::MAX))
+            };
+            self.last_size = Size::from((
+                clamp(size.w, min.map(|m| m.w), max.map(|m| m.w)),
+                clamp(size.h, min.map(|m| m.h), max.map(|m| m.h)),
+            ));
+            let mut loc = self.initial.loc;
+            if self.edges.has(Edges::LEFT) {
+                loc.x += self.initial.size.w - self.last_size.w;
+            }
+            if self.edges.has(Edges::TOP) {
+                loc.y += self.initial.size.h - self.last_size.h;
+            }
+            let _ = x11.configure(Rectangle::new(loc, self.last_size));
+            data.move_window(crate::wm::window_id(&self.window), loc);
+            return;
+        }
         let toplevel = self.window.toplevel().unwrap();
         let (min, max) = compositor::with_states(toplevel.wl_surface(), |states| {
             let mut cached = states.cached_state.get::<SurfaceCachedState>();
@@ -329,7 +352,10 @@ impl PointerGrab<State> for ResizeGrab {
             return;
         }
         handle.unset_grab(self, data, event.serial, event.time, true);
-        let toplevel = self.window.toplevel().unwrap();
+        let Some(toplevel) = self.window.toplevel() else {
+            data.isle.record_place(crate::wm::window_id(&self.window));
+            return;
+        };
         toplevel.with_pending_state(|state| {
             state.states.unset(xdg_toplevel::State::Resizing);
             state.size = Some(self.last_size);

@@ -11,6 +11,7 @@ mod grabs;
 mod handlers;
 mod input;
 mod keyboard;
+mod island;
 mod launch;
 mod outputs;
 pub mod redraw;
@@ -129,6 +130,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.load_places(&runtime);
     isle.load_desktops(&runtime);
     isle.wallpapers.load(&runtime);
+    isle.safe_start = safe_start;
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
     match (winit_events, session_events) {
@@ -136,6 +138,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         (_, Some(notifier)) => backend::udev::setup(&mut state, notifier)?,
         _ => backend::headless::setup(&mut state)?,
     }
+    state.sync_island();
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };

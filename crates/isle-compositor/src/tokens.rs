@@ -146,10 +146,12 @@ impl State {
                 self.isle.tokens = source;
                 self.isle.tokens_error = None;
                 self.isle.refresh_theme();
+                self.sync_island();
             }
             Err(err) => {
                 warn!("tokens.kdl rejected, the last good tokens stay: {err}");
                 self.isle.tokens_error = Some(err);
+                self.sync_island();
             }
         }
     }

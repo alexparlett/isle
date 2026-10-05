@@ -460,6 +460,7 @@ impl XwmHandler for State {
         } else if let Some(record) = self.isle.wm.get_mut(id) {
             record.attention = true;
             self.isle.notify(crate::worker::Event::WindowsChanged);
+            self.island_attention(id);
         }
     }
 

@@ -260,7 +260,8 @@ async fn a_layer_with_an_exclusive_zone_keeps_new_windows_clear_and_takes_clicks
     let mut reader = decoder.read_info().unwrap();
     let mut buf = vec![0; reader.output_buffer_size()];
     reader.next_frame(&mut buf).unwrap();
-    let i = (50 * 1920 + 960) * 4;
+    // Clear of the island, which stands in front at the top centre.
+    let i = (50 * 1920 + 400) * 4;
     assert_eq!(&buf[i..i + 3], &[255, 255, 255], "the bar across the top");
 
     test.pointer_to(960.0, 50.0).await.unwrap();

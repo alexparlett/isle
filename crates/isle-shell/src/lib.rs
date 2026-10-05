@@ -41,8 +41,9 @@ use smithay::{
     reexports::calloop::ping::Ping,
     utils::{Logical, Point, Rectangle, Size},
 };
-pub use surface::{Action, Actions, Layer, Scope, SurfaceDef, WindowAction};
+pub use surface::{Action, Actions, Here, Layer, Scope, SurfaceDef, WindowAction};
 pub mod chrome;
+pub mod island;
 pub mod zones;
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};
@@ -450,6 +451,36 @@ impl Shell {
         true
     }
 
+    /// Runs `f` in the root scope of each of `name`'s instances, with its output.
+    pub fn with_roots(&mut self, name: &str, mut f: impl FnMut(&Output)) -> bool {
+        let mut found = false;
+        for instance in self.instances.iter_mut().filter(|i| i.def.name() == name) {
+            let Some(embedded) = instance.embedded.as_mut() else {
+                continue;
+            };
+            found = true;
+            let output = instance.output.clone();
+            if let Err(message) = boundary::guard(instance.def.name(), || embedded.with_root(|| f(&output))) {
+                instance.crash(&message);
+            }
+            std::task::Wake::wake_by_ref(&instance.wakeup);
+        }
+        self.recover();
+        found
+    }
+
+    /// Opens or closes `name`'s instance on `output` alone.
+    pub fn set_open_on(&mut self, name: &str, output: &Output, open: bool) -> bool {
+        self.set_open_where(name, Some(output), open)
+    }
+
+    /// Whether `name`'s instance on `output` is open.
+    pub fn is_open_on(&self, name: &str, output: &Output) -> bool {
+        self.instances
+            .iter()
+            .any(|i| i.def.name() == name && &i.output == output && i.open)
+    }
+
     /// The open surface of `layer` under `at` on `output`, and its origin; both relative to the
     /// output.
     pub fn focus_at(
@@ -462,7 +493,13 @@ impl Shell {
             .iter()
             .rev()
             .filter(|i| i.open && i.attached.is_none() && &i.output == output && i.def.layer() == layer)
-            .find(|i| i.geometry.to_f64().contains(at))
+            .find(|i| {
+                i.geometry.to_f64().contains(at)
+                    && (!i.def.hit_shapes() || {
+                        let local = at - i.geometry.loc.to_f64();
+                        i.hits.contains(local.x as f32, local.y as f32)
+                    })
+            })
             .map(|i| (Self::focus_of(i), i.geometry.loc.to_f64()))
     }
 
@@ -1028,11 +1065,16 @@ impl Shell {
     }
 
     fn set_open(&mut self, name: &str, open: bool) -> bool {
+        self.set_open_where(name, None, open)
+    }
+
+    fn set_open_where(&mut self, name: &str, on: Option<&Output>, open: bool) -> bool {
         let mut found = false;
         for instance in &mut self.instances {
             if instance.def.name() != name
                 || instance.attached.is_some()
                 || (open && instance.disabled)
+                || on.is_some_and(|o| o != &instance.output)
             {
                 continue;
             }
@@ -1043,7 +1085,7 @@ impl Shell {
             instance.open = open;
             instance.opening = open;
             instance.held_keys.clear();
-            let style = transition::Style::new(&self.theme, self.animated);
+            let style = transition::Style::new(&self.theme, self.animated && instance.def.transitions());
             if open {
                 instance.transition.open(&style);
             } else {
@@ -1333,6 +1375,7 @@ impl Shell {
             adapter: None,
             theme: None,
             glass: Default::default(),
+            hits: Default::default(),
             blurs: Default::default(),
             origin: place.geometry.loc,
             disabled: false,
@@ -1358,6 +1401,9 @@ impl Shell {
         let mut theme_state = None;
         let glass = isle_ui::GlassShapes::default();
         instance.glass = glass.clone();
+        let hits = isle_ui::HitShapes::default();
+        instance.hits = hits.clone();
+        let here = surface::Here(instance.output.name());
         instance.blurs.clear();
         let fonts = &mut self.fonts;
         let built = boundary::guard(def.name(), || Embedded::new(
@@ -1375,6 +1421,8 @@ impl Shell {
                 shown = Some(runner.provide_root_context(|| Shown(State::create(open))));
                 runner.provide_root_context(|| actions);
                 runner.provide_root_context(|| glass);
+                runner.provide_root_context(|| hits);
+                runner.provide_root_context(|| here);
                 theme_state = Some(
                     runner
                         .provide_root_context(|| isle_ui::ThemeContext(State::create(theme)))

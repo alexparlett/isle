@@ -556,6 +556,7 @@ impl State {
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         keyboard.with_xkb_state(self, |mut context| context.cycle_next_layout());
         self.isle.notify(Event::KeyboardsChanged);
+        self.island_layout();
     }
 
     /// The names the focused window's app is known by: its desktop id and its app id or X11

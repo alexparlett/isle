@@ -44,6 +44,8 @@ enum Command {
     #[command(subcommand)]
     Wallpaper(Wallpaper),
     #[command(subcommand)]
+    Island(Island),
+    #[command(subcommand)]
     Shortcuts(Shortcuts),
     #[command(subcommand)]
     Settings(Settings),
@@ -156,6 +158,12 @@ enum Displays {
     List,
     /// Release every display and probe the connectors again, as after a KVM switch.
     Redetect,
+}
+
+#[derive(Subcommand)]
+enum Island {
+    /// What each screen's island shows, as JSON.
+    Status,
 }
 
 #[derive(Subcommand)]
@@ -506,6 +514,9 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Settings(command) => settings(cli, &bus, command).await?,
+        Command::Island(Island::Status) => {
+            println!("{}", isle_ipc::island::IslandProxy::new(&bus).await?.status().await?);
+        }
         Command::Wallpaper(Wallpaper::Status) => {
             let screens = isle_ipc::wallpaper::WallpaperProxy::new(&bus).await?.status().await?;
             if cli.json {

@@ -58,12 +58,13 @@ async fn first_change(isle: &Isle, from: [u8; 3]) -> [u8; 3] {
 #[tokio::test(flavor = "multi_thread")]
 async fn frost_is_drawn_in_the_dark_and_the_light() {
     let isle = Isle::start_with("frost", "").await;
-    // The light from above the island, and the darker corners (`surfaces/wallpaper.md`).
+    // The light from above the island, beside it, and the darker corners
+    // (`surfaces/wallpaper.md`).
     let dark = isle.shot("HEADLESS-1", "dark").await;
     assert!(
-        near(dark.at(960, 2), [0x27, 0x28, 0x2d], 4),
+        near(dark.at(850, 2), [0x27, 0x28, 0x2d], 4),
         "top centre {:?}",
-        dark.at(960, 2)
+        dark.at(850, 2)
     );
     assert!(
         near(dark.at(1, 1), [0x0f, 0x10, 0x12], 4),
@@ -72,13 +73,13 @@ async fn frost_is_drawn_in_the_dark_and_the_light() {
     );
 
     set(&isle, "appearance.mode", "light").await;
-    wait_until(|| async { isle.shot("HEADLESS-1", "light").await.at(960, 2)[0] > 0xf0 }).await;
+    wait_until(|| async { isle.shot("HEADLESS-1", "light").await.at(850, 2)[0] > 0xf0 }).await;
     tokio::time::sleep(Duration::from_millis(800)).await;
     let light = isle.shot("HEADLESS-1", "light").await;
     assert!(
-        near(light.at(960, 2), [0xff, 0xff, 0xff], 4),
+        near(light.at(850, 2), [0xff, 0xff, 0xff], 4),
         "top centre {:?}",
-        light.at(960, 2)
+        light.at(850, 2)
     );
     assert!(
         near(light.at(1, 1), [0xd9, 0xd9, 0xdb], 4),

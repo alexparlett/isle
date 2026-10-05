@@ -29,6 +29,8 @@ required-features = ["test-hooks"]
 [dependencies]
 humantime.workspace = true
 image.workspace = true
+jiff.workspace = true
+serde_json.workspace = true
 isle-apps.workspace = true
 isle-keys.workspace = true
 isle-ipc.workspace = true

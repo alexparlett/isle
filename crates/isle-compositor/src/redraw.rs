@@ -204,6 +204,9 @@ impl State {
         if let Some(renderer) = self.backend.renderer_opt() {
             self.isle.prepare_wallpaper(renderer, output);
         }
+        self.watch_island();
+        self.isle.step_island(std::time::Instant::now());
+        self.dispatch_shell();
         self.draw_shell(output);
         let rendered = match self.backend.render(&mut self.isle, output) {
             Ok(rendered) => rendered,
@@ -236,6 +239,7 @@ impl State {
             if self.isle.shell.animating(output)
                 || self.isle.windows_moving(output)
                 || self.isle.wallpapers.fading(&Isle::output_identity(output))
+                || self.isle.island_moving(output)
             {
                 self.isle.queue_redraw(output);
             }

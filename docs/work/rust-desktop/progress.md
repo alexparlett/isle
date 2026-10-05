@@ -2,6 +2,15 @@
 
 ## 2026-10-05
 
+- P6 6.2: the island. One queue model sources post to (glyph tiers, privacy,
+  ranked activities, events with replacement, OSD pre-emption, waiting and
+  dropping), a surface on every output whose shape the compositor springs and
+  feeds to the tree with the morph's progress, the clock waking once a minute,
+  the main screen following focus. Real sources so far: shortcuts inhibited,
+  a rejected configuration or safe start, the layout chord, attention, a game
+  in front. The island sits in the overlay layer, so its privacy form stays
+  above other programs' overlays. Minimise shrinks into it.
+
 - P6 6.1: `isle-ui`'s first components (glyphs with Phosphor and Isle's own
   four, text styles, buttons, the level bar, the menu with its keyboard), a
   gallery surface in test builds and the preview, and in `isle-apps` entry

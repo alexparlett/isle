@@ -70,6 +70,61 @@ pub struct GlassShapes {
     pub draw_tint: bool,
 }
 
+/// Where a surface takes the pointer, for one whose box is larger than what it draws: the
+/// rest of its box passes the pointer to what lies below.
+#[derive(Clone, Default)]
+pub struct HitShapes {
+    pub shapes: Rc<std::cell::RefCell<std::collections::BTreeMap<u64, GlassShape>>>,
+}
+
+impl HitShapes {
+    /// Whether `(x, y)`, in points from the surface's origin, falls in a shape.
+    pub fn contains(&self, x: f32, y: f32) -> bool {
+        self.shapes
+            .borrow()
+            .values()
+            .any(|s| x >= s.x && x < s.x + s.width && y >= s.y && y < s.y + s.height)
+    }
+}
+
+/// Marks its parent's box as taking the pointer, for a surface that reports hit shapes.
+#[derive(Clone, PartialEq)]
+pub struct Hit;
+
+impl Component for Hit {
+    fn render(&self) -> impl IntoElement {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let shapes = use_try_consume::<HitShapes>();
+        let id = use_hook(|| NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+        use_drop({
+            let shapes = shapes.clone();
+            move || {
+                if let Some(shapes) = &shapes {
+                    shapes.shapes.borrow_mut().remove(&id);
+                }
+            }
+        });
+        rect()
+            .position(Position::new_absolute())
+            .width(Size::fill())
+            .height(Size::fill())
+            .on_sized(move |e: Event<SizedEventData>| {
+                if let Some(shapes) = &shapes {
+                    shapes.shapes.borrow_mut().insert(
+                        id,
+                        GlassShape {
+                            x: e.area.min_x(),
+                            y: e.area.min_y(),
+                            width: e.area.width(),
+                            height: e.area.height(),
+                            radius: 0.0,
+                        },
+                    );
+                }
+            })
+    }
+}
+
 /// Glass behind its parent's content: it fills the parent, draws nothing itself, and reports
 /// its box so the compositor blurs what lies behind it and tints it (DESIGN.md, Materials).
 #[derive(Clone, PartialEq)]

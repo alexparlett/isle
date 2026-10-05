@@ -25,6 +25,12 @@ pub struct Settings {
     #[setting(section)]
     pub windows: Windows,
     #[setting(section)]
+    pub island: Island,
+    #[setting(section)]
+    pub island_glyphs: IslandGlyphs,
+    #[setting(section)]
+    pub shell: Shell,
+    #[setting(section)]
     pub wallpaper: Wallpaper,
     /// A screen's own wallpaper, by make, model and serial, in place of `wallpaper`.
     #[setting(keyed)]
@@ -565,6 +571,61 @@ impl Shortcuts {
             ("previous-track", &self.previous_track),
         ]
     }
+}
+
+/// The island's clock (`p1/structure/island.md`).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Island {
+    /// 24-hour time; `auto` follows the locale's time format.
+    #[setting(default = ClockHours::Auto)]
+    pub clock_24_hour: ClockHours,
+    #[setting(default = false)]
+    pub clock_weekday: bool,
+    #[setting(default = false)]
+    pub clock_date: bool,
+    #[setting(default = false)]
+    pub clock_seconds: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum ClockHours {
+    Auto,
+    On,
+    Off,
+}
+
+/// When each status glyph shows in the island; the normal state shows nothing.
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct IslandGlyphs {
+    #[setting(default = GlyphTier::WhenActive)]
+    pub wifi: GlyphTier,
+    #[setting(default = GlyphTier::WhenActive)]
+    pub bluetooth: GlyphTier,
+    #[setting(default = GlyphTier::WhenActive)]
+    pub sound: GlyphTier,
+    #[setting(default = GlyphTier::WhenActive)]
+    pub vpn: GlyphTier,
+    #[setting(default = GlyphTier::WhenActive)]
+    pub focus: GlyphTier,
+    #[setting(default = GlyphTier::WhenActive)]
+    pub updates: GlyphTier,
+    #[setting(default = GlyphTier::WhenActive)]
+    pub battery: GlyphTier,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum GlyphTier {
+    Always,
+    WhenActive,
+    Never,
+}
+
+/// The shell's screens.
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Shell {
+    /// The screen events and Spotlight show on, by make, model and serial; unset follows
+    /// focus.
+    pub main_screen: Option<String>,
 }
 
 /// The picture behind the windows (`p1/structure/wallpaper.md`).

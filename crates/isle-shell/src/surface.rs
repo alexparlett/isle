@@ -70,7 +70,20 @@ pub trait SurfaceDef: 'static {
     fn corners(&self, theme: &isle_tokens::Theme) -> [f32; 4] {
         [self.corner_radius(theme); 4]
     }
+    /// The pointer reaches it only within the shapes its tree marks with `isle_ui::Hit`.
+    fn hit_shapes(&self) -> bool {
+        false
+    }
+    /// It opens and closes with the compositor's transitions; one that moves by its own
+    /// springs appears and goes at once.
+    fn transitions(&self) -> bool {
+        true
+    }
 }
+
+/// The output a surface's instance is on, by name, for a tree drawn on every output.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Here(pub String);
 
 /// What a surface asks of the compositor, which acts on it after the surface's update.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -83,6 +96,8 @@ pub enum Action {
     Window(WindowAction),
     /// From the zoom menu, for the window it was opened on.
     Zone(crate::zones::ZoneAction),
+    /// From the island on an output.
+    Island(crate::island::IslandAction),
 }
 
 /// What a title bar asks of its window.
@@ -194,6 +209,7 @@ pub(crate) struct Instance {
     pub adapter: Option<accesskit_unix::Adapter>,
     pub theme: Option<State<Rc<isle_tokens::Theme>>>,
     pub glass: isle_ui::GlassShapes,
+    pub hits: isle_ui::HitShapes,
     /// Each glass shape's blur, by the shape's id.
     pub blurs: std::collections::BTreeMap<u64, crate::blur::Blur>,
     /// The output's origin in the global space, for the adapter's window bounds.

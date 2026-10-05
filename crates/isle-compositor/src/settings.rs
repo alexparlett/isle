@@ -103,10 +103,12 @@ pub async fn watch(
             Reload::Unchanged => {}
             Reload::Applied(keys) => {
                 publish(&to_loop, &events, store.current().clone(), keys);
+                to_loop.post(|state| state.island_settings_status(false));
                 let _ = events.send(Event::SettingsStatus);
             }
             Reload::Rejected(err) => {
                 warn!("settings.kdl rejected, the last good settings stay: {err}");
+                to_loop.post(|state| state.island_settings_status(true));
                 let _ = events.send(Event::SettingsStatus);
             }
         }
@@ -160,6 +162,9 @@ impl State {
         }
         if touched("appearance.mode") || touched("wallpaper") {
             self.isle.queue_redraw_all();
+        }
+        if touched("island") || touched("shell.") || touched("appearance.") {
+            self.sync_island();
         }
         if touched("debug.") {
             self.isle

@@ -13,16 +13,20 @@ use super::{
 use crate::state::{Isle, State};
 
 impl Isle {
-    /// Where a minimised window shrinks to: a small box of its shape under the strip, at the
-    /// top centre of its output.
+    /// Where a minimised window shrinks to: a small box of its shape into the island on its
+    /// output, or under the strip at the top centre while the island shows nothing.
     pub fn minimise_target(&self, id: u64) -> Option<Rect> {
         let frame = self.frame(id)?;
         let output = self.output_of(id)?;
         let screen = self.space.output_geometry(&output)?;
         let tokens = &self.shell.theme().tokens;
-        let w = tokens.size_minimise_target.round() as i32;
+        let island = self.island_size(&output).filter(|(w, _)| *w >= 1.0);
+        let w = island.map_or(tokens.size_minimise_target, |(w, _)| w.min(tokens.size_minimise_target)).round() as i32;
         let h = (w as f64 * frame.size.h as f64 / frame.size.w.max(1) as f64).round() as i32;
-        let y = screen.loc.y + self.strip() + tokens.space_s.round() as i32;
+        let y = match island {
+            Some((_, ih)) => screen.loc.y + (tokens.size_island_top + ih / 2.0).round() as i32 - h / 2,
+            None => screen.loc.y + self.strip() + tokens.space_s.round() as i32,
+        };
         Some(Rectangle::new(
             (screen.loc.x + (screen.size.w - w) / 2, y).into(),
             (w, h.max(1)).into(),

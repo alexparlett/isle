@@ -15,6 +15,7 @@ pub const SHELL_PATH: &str = "/io/github/alexparlett/Isle/Shell";
 pub const DESKTOPS_PATH: &str = "/io/github/alexparlett/Isle/Desktops";
 pub const KEYBOARD_PATH: &str = "/io/github/alexparlett/Isle/Keyboard";
 pub const WALLPAPER_PATH: &str = "/io/github/alexparlett/Isle/Wallpaper";
+pub const ISLAND_PATH: &str = "/io/github/alexparlett/Isle/Island";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -429,6 +430,8 @@ pub mod test {
         default_path = "/io/github/alexparlett/Isle/Test"
     )]
     pub trait Test {
+        /// Posts to the island as a service would, from JSON.
+        fn island(&self, json: &str) -> zbus::Result<()>;
         /// Holds the main loop for `millis`, from its next dispatch.
         fn stall(&self, millis: u32) -> zbus::Result<()>;
         /// A key by its evdev code, from a test keyboard with the Mac profile.
@@ -500,5 +503,19 @@ pub mod wallpaper {
     pub trait Wallpaper {
         /// Every screen's wallpaper; a source that cannot be shown names its problem.
         fn status(&self) -> zbus::Result<Vec<WallpaperInfo>>;
+    }
+}
+
+pub mod island {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Island1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Island"
+    )]
+    pub trait Island {
+        /// Each output's island as JSON: what it shows and its shape's size.
+        fn status(&self) -> zbus::Result<String>;
     }
 }

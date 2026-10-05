@@ -50,6 +50,7 @@ wayland-protocols = { version = "0.32", features = ["client", "staging", "unstab
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 x11rb = { version = "0.13", default-features = false, features = ["shape"] }
 humantime = "2.3"
+jiff = "0.2"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 kdl = { version = "6.7", features = ["span"] }
 miette = { version = "7", default-features = false }

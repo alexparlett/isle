@@ -173,6 +173,18 @@ struct Wallpaper {
     to_loop: ToLoop,
 }
 
+struct IslandIface {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Island1")]
+impl IslandIface {
+    /// Each output's island as JSON.
+    async fn status(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.island_status()).await?)
+    }
+}
+
 #[interface(name = "io.github.alexparlett.Isle.Wallpaper1")]
 impl Wallpaper {
     async fn status(&self) -> fdo::Result<Vec<isle_ipc::WallpaperInfo>> {
@@ -589,6 +601,14 @@ struct Test {
 #[cfg(feature = "test-hooks")]
 #[interface(name = "io.github.alexparlett.Isle.Test1")]
 impl Test {
+    /// Posts to the island as a service would; the message names what was wrong.
+    async fn island(&self, json: String) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| state.island_post(&json))
+            .await?
+            .map_err(fdo::Error::InvalidArgs)
+    }
+
     fn stall(&self, millis: u32) {
         self.to_loop.post(move |state| {
             let _beat = state.isle.heartbeat.beat("test-stall");
@@ -994,10 +1014,18 @@ impl Settings {
                     store.current().clone(),
                     keys.clone(),
                 );
+                self.to_loop.post(|state| {
+                    state.isle.safe_start = false;
+                    state.island_settings_status(false);
+                });
                 let _ = self.events.send(Event::SettingsStatus);
                 Ok(keys)
             }
             isle_settings::Reload::Unchanged => {
+                self.to_loop.post(|state| {
+                    state.isle.safe_start = false;
+                    state.island_settings_status(false);
+                });
                 let _ = self.events.send(Event::SettingsStatus);
                 Ok(Vec::new())
             }
@@ -1087,6 +1115,12 @@ pub async fn serve(
         .serve_at(
             isle_ipc::DESKTOPS_PATH,
             Desktops {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
+            isle_ipc::ISLAND_PATH,
+            IslandIface {
                 to_loop: to_loop.clone(),
             },
         )?

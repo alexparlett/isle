@@ -115,6 +115,11 @@ pub struct Isle {
     pub places: isle_state::domains::Places,
     pub desktops: crate::wm::desktops::Desktops,
     pub wallpapers: crate::wallpaper::Wallpapers,
+    pub island: crate::island::IslandState,
+    /// The settings file holds a rejected hand edit.
+    pub settings_rejected: bool,
+    /// Started on the defaults after repeated crashes, until `isle settings use-mine`.
+    pub safe_start: bool,
     pub window_programs: Option<crate::wm::draw::Programs>,
     /// Each window's shadow layers, kept so their ids hold still across frames.
     pub shadow_cache: std::cell::RefCell<
@@ -262,6 +267,8 @@ impl Isle {
         shell.register(zoom_menu.clone());
         let zone_panel = isle_shell::zones::ZoneSurface::panel();
         shell.register(zone_panel.clone());
+        let island = crate::island::IslandState::new(shell.theme());
+        shell.register(island.surface.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -325,6 +332,9 @@ impl Isle {
             places: Default::default(),
             desktops: Default::default(),
             wallpapers: Default::default(),
+            island,
+            settings_rejected: false,
+            safe_start: false,
             window_programs: None,
             shadow_cache: Default::default(),
             leaving: Vec::new(),
@@ -550,6 +560,7 @@ impl Isle {
             .collect();
         self.shell.set_outputs(places);
         self.dispatch_shell();
+        self.refresh_island();
     }
 
     pub fn queue_redraw_all(&mut self) {
@@ -629,6 +640,7 @@ impl State {
                     self.close_surface(&name);
                 }
                 isle_shell::Action::Zone(action) => self.zone_action(action),
+                isle_shell::Action::Island(action) => self.island_action(focus, action),
                 isle_shell::Action::Key(code) => {
                     use crate::keyboard::ISLE_DEVICE;
                     use smithay::backend::input::{InputTime, KeyState};

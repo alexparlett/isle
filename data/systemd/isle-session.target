@@ -4,3 +4,5 @@ Documentation=https://github.com/alexparlett/hyprland
 BindsTo=graphical-session.target
 Wants=graphical-session-pre.target
 After=graphical-session-pre.target
+# v1's remapper grabs the keyboards and rewrites Cmd chords before Isle sees them.
+Conflicts=xremap.service

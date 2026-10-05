@@ -706,6 +706,13 @@ impl State {
                 if device.has_capability(DeviceCapability::Keyboard) {
                     use smithay::backend::input::Device as _;
                     self.keyboard_added(&device.id(), &device.name(), None);
+                    const KEY_A: u32 = 30;
+                    if !device.keyboard_has_key(KEY_A).unwrap_or(true)
+                        && let Some(k) =
+                            self.isle.keyboards.devices.iter_mut().find(|k| k.id == device.id())
+                    {
+                        k.typing = false;
+                    }
                 }
                 if device.has_capability(DeviceCapability::Pointer) {
                     let mut device = device.clone();

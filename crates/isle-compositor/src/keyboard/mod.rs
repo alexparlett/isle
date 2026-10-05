@@ -45,6 +45,8 @@ pub struct Device {
     pub guessed: bool,
     pub swap: bool,
     pub spec: KeymapSpec,
+    /// Has letter keys: power buttons and the like report as keyboards too.
+    pub typing: bool,
 }
 
 #[derive(Default)]
@@ -208,6 +210,7 @@ impl State {
             guessed,
             swap,
             spec,
+            typing: true,
         });
         self.isle.notify(Event::KeyboardsChanged);
     }
@@ -700,7 +703,7 @@ impl State {
             .keyboards
             .devices
             .iter()
-            .filter(|d| d.id != ISLE_DEVICE)
+            .filter(|d| d.id != ISLE_DEVICE && d.typing)
             .map(|d| isle_ipc::KeyboardInfo {
                 id: d.id.clone(),
                 name: d.name.clone(),

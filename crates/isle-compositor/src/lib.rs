@@ -41,6 +41,13 @@ use crate::{
 const HANG_LIMIT: Duration = Duration::from_secs(10);
 
 pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
+    // The supervisor reads the ready pipe to its end; no child may hold it open.
+    if let Some(fd) = std::env::var("ISLE_READY_FD")
+        .ok()
+        .and_then(|fd| fd.parse::<i32>().ok())
+    {
+        unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) };
+    }
     let heartbeat = Heartbeat::new();
     crash::install_panic_hook(heartbeat.clone());
     info!("isle-compositor {}", build_info::describe());

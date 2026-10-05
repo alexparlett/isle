@@ -62,6 +62,8 @@ pub struct WindowInfo {
     pub not_responding: bool,
     /// Its desktop's place in its output's row, from 1.
     pub desktop: u32,
+    /// It is a game: its keys go raw and only the escape set acts over it.
+    pub game: bool,
 }
 
 /// One desktop of an output's row.
@@ -129,6 +131,23 @@ pub struct KeyboardStatus {
     pub layout: String,
     pub caps_lock: bool,
     pub num_lock: bool,
+    /// The app whose window holds the keys now; empty when none does.
+    pub inhibited_by: String,
+    /// The keys were taken back from the window with focus, until it is given them again.
+    pub taken_back: bool,
+}
+
+/// A chord the recording grab took, or the keyboard it detected.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct RecordInfo {
+    /// The chord in Mac words; empty when cleared or cancelled.
+    pub chord: String,
+    /// The shortcut that already holds the chord; empty when none does.
+    pub holder: String,
+    pub cancelled: bool,
+    /// The keyboard a detect heard from, and whether it has the key left of Z.
+    pub keyboard: String,
+    pub iso: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -349,6 +368,17 @@ pub mod keyboard {
         /// The Mac chord that sends an app `chord`, for a menu item it declares by it; empty
         /// when none does.
         fn mac_chord(&self, app: &str, chord: &str) -> zbus::Result<String>;
+        /// Suspends desktop chords and translation and returns the next chord; Escape
+        /// cancels, Delete clears, focus moving ends it. Gives up after a minute.
+        fn record(&self) -> zbus::Result<RecordInfo>;
+        /// Returns the keyboard the next key comes from.
+        fn detect(&self) -> zbus::Result<RecordInfo>;
+        /// Types text into a window, focusing it, untranslated; false when it is gone.
+        fn type_text(&self, window: u64, text: &str) -> zbus::Result<bool>;
+        /// Sends a window a Mac chord as its own (Cmd+V is a terminal's Ctrl+Shift+V).
+        fn send_chord(&self, window: u64, chord: &str) -> zbus::Result<bool>;
+        /// Takes the keys back from the window holding them, or gives them back.
+        fn take_keys_back(&self) -> zbus::Result<()>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

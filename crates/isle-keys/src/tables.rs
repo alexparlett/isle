@@ -262,6 +262,25 @@ impl Tables {
         (!taken).then_some(chord)
     }
 
+    /// What a Mac chord sends an app: its rule, else Cmd as Ctrl and Option as Alt.
+    pub fn strokes_for(&self, names: &[&str], chord: &Chord) -> Vec<Stroke> {
+        let app = self.for_app(names);
+        if let Some(strokes) = app.rules.iter().find_map(|r| r.lookup(chord)) {
+            return strokes.to_vec();
+        }
+        let m = chord.mods;
+        vec![Stroke {
+            mods: crate::engine::Sent {
+                ctrl: m.cmd || m.ctrl,
+                shift: m.shift,
+                alt: m.option,
+                super_: false,
+                level3: false,
+            },
+            key: crate::engine::StrokeKey::Sym(chord.sym),
+        }]
+    }
+
     /// Every rule with an app it applies to; shared rules name none.
     pub fn list(&self) -> Vec<Listed<'_>> {
         let mut out = Vec::new();

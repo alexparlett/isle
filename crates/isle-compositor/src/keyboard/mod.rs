@@ -1,14 +1,18 @@
 //! Keyboards: each by its name with its profile and keymap, the seat's keymap following the
 //! keyboard that types, and the PC swap of Alt and Super.
 
+pub mod games;
+pub mod inhibit;
+pub mod inject;
+
 use std::collections::HashMap;
 
 use isle_keys::{
     engine::{Ctx, Engine, Out, Stroke},
-    tables::{TableError, Tables},
     keyinfo::KeyInfo,
     keymap::{Iso, KeymapSpec, Layouts, MacVariants},
     profile::Profile,
+    tables::{TableError, Tables},
 };
 use isle_settings::schema::{KeyboardModel, KeyboardProfile};
 use smithay::{
@@ -307,9 +311,20 @@ impl State {
                 matches!(self.backend, crate::backend::Backend::Winit(_)).then_some(Profile::Mac);
             self.keyboard_added(id, name, hint);
         }
+        let key = (id.to_owned(), code);
+        match key_state {
+            KeyState::Pressed if self.record_keyboard(name, code) => {
+                self.isle.swallowed.insert(key);
+                return;
+            }
+            KeyState::Released if self.isle.swallowed.remove(&key) => return,
+            _ => {}
+        }
+        let game = self.focus_is_game();
         let (swap, spec) = {
             let device = self.isle.keyboards.get(id).unwrap();
-            (device.swap, device.spec.clone())
+            // A game gets the keys as labelled (B30).
+            (device.swap && !game, device.spec.clone())
         };
         let sent = match key_state {
             KeyState::Pressed => {
@@ -337,13 +352,37 @@ impl State {
         let names = self.focus_names();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let bindings = &self.isle.bindings;
-        let outs = self
-            .isle
-            .keyboards
-            .with_engine(translate, &names, |engine, ctx| match key_state {
-                KeyState::Pressed => engine.press(sent, ctx, |chord| bindings.lookup(chord)),
-                KeyState::Released => engine.release(sent, ctx),
-            });
+        let recording = matches!(self.isle.recording, Some(inject::Recording::Chord(_)));
+        let inhibited = self.inhibited();
+        let bind = |chord| {
+            if recording {
+                return Some(Bound {
+                    action: Action::Recorded(chord),
+                    shortcut: None,
+                    mods: chord.mods,
+                });
+            }
+            let bound = bindings.lookup(chord)?;
+            let Some(shortcut) = bound.shortcut else {
+                // The VT keys and the desktop numbers: the kernel's keys always act.
+                return (!inhibited && !game || matches!(bound.action, Action::SwitchVt(_)))
+                    .then_some(bound);
+            };
+            let escape = shortcut.id == "take-keys-back";
+            match (inhibited, game) {
+                (false, false) => Some(bound),
+                // Over a game only the escape set acts, inhibitor or not (B30).
+                (_, true) => (shortcut.escape || (escape && inhibited)).then_some(bound),
+                (true, false) => escape.then_some(bound),
+            }
+        };
+        let outs =
+            self.isle
+                .keyboards
+                .with_engine(translate, &names, |engine, ctx| match key_state {
+                    KeyState::Pressed => engine.press(sent, ctx, bind),
+                    KeyState::Released => engine.release(sent, ctx),
+                });
         match key_state {
             KeyState::Pressed => {
                 for out in &outs {
@@ -360,7 +399,12 @@ impl State {
                 }
             }
             KeyState::Released => {
-                if self.isle.repeat.as_ref().is_some_and(|(code, _)| *code == sent) {
+                if self
+                    .isle
+                    .repeat
+                    .as_ref()
+                    .is_some_and(|(code, _)| *code == sent)
+                {
                     self.stop_repeat();
                 }
             }
@@ -395,13 +439,13 @@ impl State {
         let keyboard = &self.isle.settings.keyboard;
         let delay = std::time::Duration::from_millis(keyboard.repeat_delay as u64);
         let every = std::time::Duration::from_secs_f64(1.0 / keyboard.repeat_rate.max(1) as f64);
-        let token = self
-            .isle
-            .loop_handle
-            .insert_source(Timer::from_duration(delay), move |_, _, state| {
-                state.run_action(action);
-                TimeoutAction::ToDuration(every)
-            });
+        let token =
+            self.isle
+                .loop_handle
+                .insert_source(Timer::from_duration(delay), move |_, _, state| {
+                    state.run_action(action);
+                    TimeoutAction::ToDuration(every)
+                });
         match token {
             Ok(token) => self.isle.repeat = Some((code, token)),
             Err(err) => warn!("could not repeat a shortcut: {err}"),
@@ -424,7 +468,12 @@ impl State {
     /// The names the focused window's app is known by: its desktop id and its app id or X11
     /// class.
     pub fn focus_names(&self) -> Vec<String> {
-        let Some(focus) = self.isle.seat.get_keyboard().and_then(|k| k.current_focus()) else {
+        let Some(focus) = self
+            .isle
+            .seat
+            .get_keyboard()
+            .and_then(|k| k.current_focus())
+        else {
             return Vec::new();
         };
         let Some(record) = focus.surface().and_then(|s| self.isle.wm.for_surface(s)) else {
@@ -434,10 +483,11 @@ impl State {
         vec![record.app.clone(), app_id]
     }
 
-    /// Whether keys are translated for what has focus now.
+    /// Whether keys are translated for what has focus now: not in a game, not for a window
+    /// holding the keys, not for an untranslated app.
     pub fn translating(&self) -> bool {
         let keyboard = &self.isle.settings.keyboard;
-        if !keyboard.translate {
+        if !keyboard.translate || self.focus_is_game() || self.inhibited() {
             return false;
         }
         let names = self.focus_names();
@@ -518,6 +568,10 @@ impl State {
         let released: Vec<Out<Bound>> = self.isle.keyboards.engine.unwind();
         self.emit(released, InputTime::now());
         keyboard.set_focus(self, target, serial);
+        self.keys_back_on_focus();
+        if matches!(self.isle.recording, Some(inject::Recording::Chord(_))) {
+            self.cancel_recording();
+        }
         let translate = self.translating();
         let names = self.focus_names();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();

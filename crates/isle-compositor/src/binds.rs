@@ -45,6 +45,8 @@ pub enum Action {
     TakeKeysBack,
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
+    /// The chord the recording grab took.
+    Recorded(Chord),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -167,6 +169,15 @@ impl Bindings {
         }
     }
 
+    /// The shortcut that holds a chord, for the recorder.
+    pub fn holder(&self, chord: Chord) -> Option<&'static str> {
+        if let Some(shortcut) = self.chords.get(&chord) {
+            return Some(shortcut.id);
+        }
+        let digit = (keysyms::KEY_1..=keysyms::KEY_9).contains(&chord.sym.raw());
+        (!self.jump.is_empty() && chord.mods == self.jump && digit).then_some("desktop-jump")
+    }
+
     /// The action bound to a physical chord, if any.
     pub fn lookup(&self, chord: Chord) -> Option<Bound> {
         let raw = chord.sym.raw();
@@ -251,7 +262,8 @@ impl State {
             Action::NextLayout => self.next_layout(),
             Action::Redetect => self.redetect(),
             Action::Media(media) => spawn(media.command()),
-            Action::TakeKeysBack => {}
+            Action::TakeKeysBack => self.toggle_keys_back(),
+            Action::Recorded(chord) => self.finish_recording(chord),
             Action::Reserved(id) => {
                 let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);
                 info!(id, packet, "a shortcut whose action is not built yet");

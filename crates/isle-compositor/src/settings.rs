@@ -135,6 +135,9 @@ impl State {
         if touched("keyboard") {
             self.apply_keyboard_settings();
         }
+        if touched("windows.games") || touched("windows.not-games") {
+            self.isle.refresh_games();
+        }
         if touched("keyboard.layouts") || touched("shortcuts") {
             self.isle.bindings = crate::binds::Bindings::new(&self.isle.settings);
         }

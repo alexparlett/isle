@@ -67,6 +67,20 @@ pub struct Isle {
     /// The keyboard's focus before a shell surface took it, given back when it closes.
     pub shell_keyboard_return: Vec<(isle_shell::ShellFocus, Option<Focus>)>,
     pub keyboards: crate::keyboard::Keyboards,
+    /// The worker, for blocking reads off the loop, and its way back.
+    pub worker: Option<tokio::runtime::Handle>,
+    pub to_loop: Option<crate::worker::ToLoop>,
+    /// Processes Feral GameMode has registered as games.
+    pub gamemode_pids: std::collections::HashSet<i32>,
+    pub inhibit_state: smithay::wayland::keyboard_shortcuts_inhibit::KeyboardShortcutsInhibitState,
+    pub x11_grabs: crate::keyboard::inhibit::X11Grabs,
+    /// The window the keys were taken back from, until focus moves.
+    pub keys_taken_back: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
+    pub recording: Option<crate::keyboard::inject::Recording>,
+    /// Keys a recording took, whose releases go nowhere either.
+    pub swallowed: std::collections::HashSet<(String, u32)>,
+    pub xwayland_grab_state: smithay::wayland::xwayland_keyboard_grab::XWaylandKeyboardGrabState,
+    pub virtual_keyboard_state: smithay::wayland::virtual_keyboard::VirtualKeyboardManagerState,
     pub bindings: crate::binds::Bindings,
     /// A repeating shortcut's key and its timer.
     pub repeat: Option<(u32, smithay::reexports::calloop::RegistrationToken)>,
@@ -215,6 +229,13 @@ impl Isle {
         let presentation_state = PresentationState::new::<State>(&dh, clock.id() as u32);
         let single_pixel_buffer_state = SinglePixelBufferState::new::<State>(&dh);
         let cursor_shape_state = CursorShapeManagerState::new::<State>(&dh);
+        let inhibit_state =
+            smithay::wayland::keyboard_shortcuts_inhibit::KeyboardShortcutsInhibitState::new::<State>(&dh);
+        let xwayland_grab_state =
+            smithay::wayland::xwayland_keyboard_grab::XWaylandKeyboardGrabState::new::<State>(&dh);
+        // Its keys are a client's own, sent with its own keymap and never translated.
+        let virtual_keyboard_state =
+            smithay::wayland::virtual_keyboard::VirtualKeyboardManagerState::new::<State, _>(&dh, |_| true);
 
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&dh, seat_name);
@@ -262,6 +283,16 @@ impl Isle {
             probe_full,
             shell_keyboard_return: Vec::new(),
             keyboards: Default::default(),
+            worker: None,
+            to_loop: None,
+            gamemode_pids: Default::default(),
+            inhibit_state,
+            x11_grabs: Default::default(),
+            keys_taken_back: None,
+            recording: None,
+            swallowed: Default::default(),
+            xwayland_grab_state,
+            virtual_keyboard_state,
             bindings: Default::default(),
             repeat: None,
             held_chord: None,

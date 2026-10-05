@@ -103,6 +103,10 @@ pub fn spawn(
             runtime.spawn(supervise("translation-watch", move || {
                 crate::keyboard::watch_tables(loop_k.clone())
             }));
+            let loop_g = to_loop.clone();
+            runtime.spawn(supervise("gamemode-watch", move || {
+                crate::keyboard::games::watch_gamemode(loop_g.clone())
+            }));
             let loop_a = to_loop.clone();
             runtime.spawn(supervise("apps-watch", move || {
                 crate::wm::watch_apps(loop_a.clone())

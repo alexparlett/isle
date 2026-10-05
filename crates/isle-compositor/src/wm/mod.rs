@@ -103,6 +103,10 @@ pub struct Record {
     /// Its box in the global space: where it is while shown, where it returns to while not.
     pub rect: Rectangle<i32, Logical>,
     suspended: bool,
+    /// It is a game: translation, the swap and all but the escape set are off over it.
+    pub game: bool,
+    /// Its process carries Steam's game label.
+    pub steam: bool,
 }
 
 impl Record {
@@ -327,6 +331,8 @@ impl Isle {
             bar: None,
             rect: Rectangle::default(),
             suspended: false,
+            game: false,
+            steam: false,
         });
         id
     }
@@ -440,6 +446,7 @@ impl Isle {
                     attention: record.attention,
                     not_responding: record.not_responding,
                     desktop: self.desktop_index(record.id),
+                    game: record.game,
                 }
             })
             .collect()

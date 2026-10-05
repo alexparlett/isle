@@ -23,7 +23,8 @@ async fn an_x11_window_maps_wears_isles_bar_and_takes_keys() {
         .await;
     let w = window(&isle, "isle.test.X11").await;
     client.wait_for("focus-in").await;
-    assert!(w.focused);
+    // An X11 window takes focus through its window manager a moment after it maps.
+    wait_until(|| async { isle.window(w.id).await.focused }).await;
     assert_eq!((w.width, w.height), (400, 300));
     tokio::time::sleep(Duration::from_millis(300)).await;
     let shot = isle.shot("HEADLESS-1", "x11").await;

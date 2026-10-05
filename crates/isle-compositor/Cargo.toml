@@ -48,6 +48,7 @@ xcursor.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 tracing-subscriber.workspace = true
+futures-util.workspace = true
 zbus.workspace = true
 zvariant.workspace = true
 

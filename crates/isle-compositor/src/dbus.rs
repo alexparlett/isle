@@ -356,6 +356,38 @@ struct Keyboard {
     events: broadcast::Sender<Event>,
 }
 
+impl Keyboard {
+    /// Installs a recording on the loop and waits for its key, a minute at most.
+    async fn recording(&self, detect: bool) -> fdo::Result<isle_ipc::RecordInfo> {
+        use crate::keyboard::inject::Recording;
+        let (reply, answer) = tokio::sync::oneshot::channel();
+        self.to_loop
+            .call(move |state| {
+                state.cancel_recording();
+                state.isle.recording = Some(if detect {
+                    Recording::Keyboard(reply)
+                } else {
+                    Recording::Chord(reply)
+                });
+            })
+            .await?;
+        let recorded = match tokio::time::timeout(std::time::Duration::from_secs(60), answer).await {
+            Ok(Ok(recorded)) => recorded,
+            _ => {
+                let _ = self.to_loop.call(|state| state.cancel_recording()).await;
+                return Err(fdo::Error::TimedOut("no key came".into()));
+            }
+        };
+        Ok(isle_ipc::RecordInfo {
+            chord: recorded.chord,
+            holder: recorded.holder,
+            cancelled: recorded.cancelled,
+            keyboard: recorded.keyboard,
+            iso: recorded.iso,
+        })
+    }
+}
+
 #[interface(name = "io.github.alexparlett.Isle.Keyboard1")]
 impl Keyboard {
     async fn list(&self) -> fdo::Result<Vec<isle_ipc::KeyboardInfo>> {
@@ -371,6 +403,8 @@ impl Keyboard {
                     layout,
                     caps_lock,
                     num_lock,
+                    inhibited_by: state.inhibiting_app(),
+                    taken_back: state.isle.keys_taken_back.is_some(),
                 }
             })
             .await?)
@@ -433,6 +467,34 @@ impl Keyboard {
                     .unwrap_or_default()
             })
             .await?)
+    }
+
+    /// Suspends desktop chords and translation and returns the next chord; Escape cancels,
+    /// Delete clears, focus moving ends it. Gives up after a minute.
+    async fn record(&self) -> fdo::Result<isle_ipc::RecordInfo> {
+        self.recording(false).await
+    }
+
+    /// Returns the keyboard the next key comes from.
+    async fn detect(&self) -> fdo::Result<isle_ipc::RecordInfo> {
+        self.recording(true).await
+    }
+
+    /// Types text into a window, focusing it, untranslated; false when it is gone.
+    async fn type_text(&self, window: u64, text: String) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.type_into(window, &text)).await?)
+    }
+
+    /// Sends a window a Mac chord as its own (Cmd+V is a terminal's Ctrl+Shift+V).
+    async fn send_chord(&self, window: u64, chord: String) -> fdo::Result<bool> {
+        let chord = isle_keys::chord::Chord::parse(&chord)
+            .ok_or_else(|| fdo::Error::InvalidArgs(format!("`{chord}` is not a chord")))?;
+        Ok(self.to_loop.call(move |state| state.send_chord_to(window, chord)).await?)
+    }
+
+    /// Takes the keys back from the window holding them, or gives them back.
+    async fn take_keys_back(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.toggle_keys_back()).await?)
     }
 
     /// Every action of the shortcut set with its chords.

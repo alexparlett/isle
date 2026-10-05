@@ -2350,6 +2350,7 @@ dependencies = [
 name = "isle-compositor"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "humantime",
  "isle-apps",
  "isle-ipc",

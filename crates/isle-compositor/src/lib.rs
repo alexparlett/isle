@@ -96,7 +96,8 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|e| e.error)?;
     let (events, _) = broadcast::channel(64);
     let store = std::sync::Arc::new(tokio::sync::Mutex::new(store));
-    let runtime = worker::spawn(worker::ToLoop::new(jobs), events.clone(), store);
+    let to_loop = worker::ToLoop::new(jobs);
+    let runtime = worker::spawn(to_loop.clone(), events.clone(), store);
 
     let (token_source, token_error) = match tokens::load(&tokens::tokens_path()) {
         Ok(source) => (source, None),
@@ -119,6 +120,8 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.tokens = token_source;
     isle.tokens_error = token_error;
     isle.keyboards.set_tables(keyboard::load_tables(&keyboard::tables_path()));
+    isle.worker = Some(runtime.clone());
+    isle.to_loop = Some(to_loop.clone());
     isle.load_places(&runtime);
     isle.load_desktops(&runtime);
     let mut state = State { backend, isle };

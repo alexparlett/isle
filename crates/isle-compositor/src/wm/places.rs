@@ -39,6 +39,7 @@ impl Isle {
             record.app = self.apps.resolve(&record.names().0);
             record.parent = parent;
         }
+        self.refresh_game(id);
     }
 
     pub fn load_places(&mut self, runtime: &tokio::runtime::Handle) {
@@ -413,6 +414,8 @@ impl State {
             let _ = x11.configure(Rectangle::new(location, size));
         }
         tracing::info!(id, app_id, title, ?location, size = ?size, "mapped");
+        self.isle.refresh_game(id);
+        self.read_steam_env(id);
         self.assign_desktop(id);
         self.isle.sync_space();
         self.set_focus(Some(&window));

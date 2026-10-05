@@ -207,6 +207,10 @@ pub struct Windows {
     /// Isle draws title bars on windows that let it.
     #[setting(default = true)]
     pub title_bars: bool,
+    /// Apps that are games though nothing says so, by desktop id, app id or X11 class.
+    pub games: Vec<String>,
+    /// Apps that are not games though they look like one.
+    pub not_games: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

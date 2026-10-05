@@ -14,6 +14,7 @@ use isle_ipc::{test::TestProxy, windows::WindowsProxy};
 
 pub struct Isle {
     pub dir: PathBuf,
+    bus_address: String,
     bus_pid: i32,
     compositor: Child,
     clients: Vec<Arc<Mutex<Child>>>,
@@ -33,6 +34,10 @@ impl Client {
         let mut stdin = self.stdin.lock().unwrap();
         writeln!(stdin, "{command}").unwrap();
         stdin.flush().unwrap();
+    }
+
+    pub fn pid(&self) -> i32 {
+        self.child.lock().unwrap().id() as i32
     }
 
     /// Whether the client's process has ended.
@@ -123,6 +128,7 @@ impl Isle {
             .unwrap();
         let isle = Self {
             dir,
+            bus_address: bus_address.clone(),
             bus_pid,
             compositor,
             clients: Vec::new(),
@@ -149,6 +155,10 @@ impl Isle {
         // Screenshots taken as a window maps see it whole; the motion tests turn it back on.
         isle.test().await.window_motion(false).await.unwrap();
         isle
+    }
+
+    pub fn bus_address(&self) -> String {
+        self.bus_address.clone()
     }
 
     pub fn log(&self) -> String {
@@ -197,6 +207,18 @@ impl Isle {
             env!("CARGO_BIN_EXE_isle-test-client"),
             args,
             &[("WAYLAND_DISPLAY", socket)],
+        )
+    }
+
+    /// A Wayland test client with more in its environment.
+    pub fn client_env(&mut self, app_id: &str, env: &[(&str, &str)]) -> Client {
+        let socket = self.socket();
+        let mut envs = vec![("WAYLAND_DISPLAY", socket)];
+        envs.extend(env.iter().map(|(k, v)| (*k, v.to_string())));
+        self.spawn(
+            env!("CARGO_BIN_EXE_isle-test-client"),
+            &["--app-id", app_id, "--colour", "3366ff"],
+            &envs,
         )
     }
 

@@ -8,7 +8,8 @@
 //! buffer), `decoration client|server|unset`, `move-on-press`, `resize-on-press EDGE`,
 //! `window` (another toplevel), `dialog` and `modal` (a toplevel whose parent is this one),
 //! `destroy`, `unmap` (a null buffer), `remap` (a commit that asks to be configured again),
-//! `pings ignore|answer` (answering those ignored so far), `linger` (a close of the
+//! `pings ignore|answer` (answering those ignored so far), `inhibit` (hold a keyboard
+//! shortcuts inhibitor, printing `inhibitor active|inactive`), `linger` (a close of the
 //! first window destroys it but leaves the process running), `quit`. A close of any other
 //! window destroys it.
 //!
@@ -33,6 +34,9 @@ use wayland_protocols::xdg::{
     dialog::v1::client::{xdg_dialog_v1, xdg_wm_dialog_v1},
     shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base},
 };
+use wayland_protocols::wp::keyboard_shortcuts_inhibit::zv1::client::{
+    zwp_keyboard_shortcuts_inhibit_manager_v1, zwp_keyboard_shortcuts_inhibitor_v1,
+};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 
 struct Win {
@@ -56,6 +60,7 @@ struct Client {
     layer_shell: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
     decorations: Option<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1>,
     dialogs: Option<xdg_wm_dialog_v1::XdgWmDialogV1>,
+    inhibits: Option<zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1>,
     wins: Vec<Win>,
     ignore_pings: bool,
     ignored_pings: Vec<u32>,
@@ -267,6 +272,11 @@ impl Client {
                 }
             }
             ("linger", _) => self.linger = true,
+            ("inhibit", _) => {
+                if let (Some(manager), Some(seat)) = (&self.inhibits, &self.seat) {
+                    manager.inhibit_shortcuts(&self.wins[index].surface, seat, qh, ());
+                }
+            }
             ("quit", _) => self.quit = true,
             _ => say(index, format!("unknown command {verb}")),
         }
@@ -302,6 +312,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                     state.decorations = Some(registry.bind(name, 1, qh, ()))
                 }
                 "xdg_wm_dialog_v1" => state.dialogs = Some(registry.bind(name, 1, qh, ())),
+                "zwp_keyboard_shortcuts_inhibit_manager_v1" => {
+                    state.inhibits = Some(registry.bind(name, 1, qh, ()))
+                }
                 _ => {}
             }
         }
@@ -593,6 +606,23 @@ impl Dispatch<wl_pointer::WlPointer, ()> for Client {
     }
 }
 
+impl Dispatch<zwp_keyboard_shortcuts_inhibitor_v1::ZwpKeyboardShortcutsInhibitorV1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &zwp_keyboard_shortcuts_inhibitor_v1::ZwpKeyboardShortcutsInhibitorV1,
+        event: zwp_keyboard_shortcuts_inhibitor_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            zwp_keyboard_shortcuts_inhibitor_v1::Event::Active => say(0, "inhibitor active".into()),
+            zwp_keyboard_shortcuts_inhibitor_v1::Event::Inactive => say(0, "inhibitor inactive".into()),
+            _ => {}
+        }
+    }
+}
+
 macro_rules! ignore {
     ($($t:ty),*) => {$(
         impl Dispatch<$t, ()> for Client {
@@ -641,6 +671,7 @@ ignore!(
     zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
     xdg_wm_dialog_v1::XdgWmDialogV1,
     xdg_dialog_v1::XdgDialogV1,
+    zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1,
     wl_compositor::WlCompositor,
     wl_shm::WlShm,
     wl_shm_pool::WlShmPool,
@@ -677,6 +708,7 @@ fn main() {
         layer_shell: None,
         decorations: None,
         dialogs: None,
+        inhibits: None,
         wins: Vec::new(),
         ignore_pings: false,
         ignored_pings: Vec::new(),

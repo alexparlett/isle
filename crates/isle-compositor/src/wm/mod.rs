@@ -613,6 +613,11 @@ impl State {
         let Some(id) = self.isle.wm.for_surface(surface).map(|r| r.id) else {
             return;
         };
+        self.isle.menus.trees.remove(&id);
+        self.isle
+            .menus
+            .addresses
+            .remove(&smithay::reexports::wayland_server::Resource::id(surface));
         if self.isle.wm.get(id).is_some_and(|r| r.mapped) {
             self.animate_leaving(id, None);
         }

@@ -120,6 +120,7 @@ pub struct Isle {
     pub island: crate::island::IslandState,
     pub top_edge: crate::top_edge::TopEdge,
     pub bar: crate::menubar::BarState,
+    pub menus: crate::menus::MenuState,
     /// The settings file holds a rejected hand edit: its file, line, column and message.
     pub settings_error: Option<(String, u32, u32, String)>,
     /// Started on the defaults after repeated crashes, until `isle settings use-mine`.
@@ -235,6 +236,7 @@ impl Isle {
             smithay::wayland::shell::xdg::dialog::XdgDialogState::new::<State>(&dh);
         let kde_decoration_state = KdeDecorationState::new::<State>(&dh, KdeMode::Server);
         let xdg_activation_state = XdgActivationState::new::<State>(&dh);
+        crate::menus::protocols::create_globals(&dh);
         let shm_state = ShmState::new::<State>(&dh, vec![]);
         let output_manager_state = OutputManagerState::new_with_xdg_output::<State>(&dh);
         let data_device_state = DataDeviceState::new::<State>(&dh);
@@ -345,6 +347,7 @@ impl Isle {
             island,
             top_edge: Default::default(),
             bar,
+            menus: Default::default(),
             settings_error: None,
             safe_start: false,
             window_programs: None,

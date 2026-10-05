@@ -38,7 +38,23 @@ use wayland_protocols::xdg::{
 use wayland_protocols::wp::keyboard_shortcuts_inhibit::zv1::client::{
     zwp_keyboard_shortcuts_inhibit_manager_v1, zwp_keyboard_shortcuts_inhibitor_v1,
 };
+use wayland_protocols_plasma::appmenu::client::{org_kde_kwin_appmenu, org_kde_kwin_appmenu_manager};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
+
+#[allow(missing_docs, clippy::all, non_upper_case_globals, non_camel_case_types, unused_imports)]
+mod gtk_shell {
+    use wayland_client;
+    use wayland_client::protocol::*;
+
+    pub mod __interfaces {
+        use wayland_client::protocol::__interfaces::*;
+        wayland_scanner::generate_interfaces!("../../data/protocols/gtk-shell.xml");
+    }
+    use self::__interfaces::*;
+
+    wayland_scanner::generate_client_code!("../../data/protocols/gtk-shell.xml");
+}
+use gtk_shell::{gtk_shell1, gtk_surface1};
 
 struct Win {
     surface: wl_surface::WlSurface,
@@ -63,6 +79,8 @@ struct Client {
     dialogs: Option<xdg_wm_dialog_v1::XdgWmDialogV1>,
     inhibits: Option<zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1>,
     activation: Option<xdg_activation_v1::XdgActivationV1>,
+    appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
+    gtk_shell: Option<gtk_shell1::GtkShell1>,
     wins: Vec<Win>,
     ignore_pings: bool,
     ignored_pings: Vec<u32>,
@@ -318,6 +336,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                     state.inhibits = Some(registry.bind(name, 1, qh, ()))
                 }
                 "xdg_activation_v1" => state.activation = Some(registry.bind(name, 1, qh, ())),
+                "org_kde_kwin_appmenu_manager" => state.appmenus = Some(registry.bind(name, 2, qh, ())),
+                "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
                 _ => {}
             }
         }
@@ -713,6 +733,8 @@ fn main() {
         dialogs: None,
         inhibits: None,
         activation: None,
+        appmenus: None,
+        gtk_shell: None,
         wins: Vec::new(),
         ignore_pings: false,
         ignored_pings: Vec::new(),
@@ -775,6 +797,9 @@ fn main() {
             client.command(command, &qh);
         }
         client.wins[0].surface.commit();
+        // Menus exported as an app would, announced the way the flags say.
+        let menus = menus(&args, &client, &qh);
+        std::mem::forget(menus);
         // Started by a launcher, the window asks for focus with the token it was given.
         if let (Ok(token), Some(activation)) =
             (std::env::var("XDG_ACTIVATION_TOKEN"), client.activation.as_ref())
@@ -838,6 +863,125 @@ impl Dispatch<xdg_activation_v1::XdgActivationV1, ()> for Client {
         _: &mut Self,
         _: &xdg_activation_v1::XdgActivationV1,
         _: xdg_activation_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+/// Exports menus for `--appmenu` (DBusMenu through the KDE protocol), `--gtk-menu`
+/// (GMenuModel through gtk_shell1) and `--register ID` (DBusMenu through the registrar by
+/// a window id nothing matches); each item chosen prints `menu activated LABEL`.
+fn menus(args: &[String], client: &Client, qh: &QueueHandle<Client>) -> Option<(tokio::runtime::Runtime, zbus::Connection)> {
+    let wanted = |f: &str| args.iter().any(|a| a == f);
+    let register = args
+        .iter()
+        .position(|a| a == "--register")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|v| v.parse::<u32>().ok());
+    if !wanted("--appmenu") && !wanted("--gtk-menu") && register.is_none() {
+        return None;
+    }
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let on_activate: isle_menus::exporter::OnActivate = std::sync::Arc::new(|label| say(0, format!("menu activated {label}")));
+    let conn = runtime.block_on(async {
+        let conn = zbus::Connection::session().await.unwrap();
+        let server = conn.object_server();
+        server
+            .at("/MenuBar/1", isle_menus::exporter::DBusMenuExport::new(on_activate.clone()))
+            .await
+            .unwrap();
+        server.at("/org/test/menus/menubar", isle_menus::exporter::GMenuExport).await.unwrap();
+        server
+            .at("/org/test", isle_menus::exporter::ActionsExport::app(on_activate.clone()))
+            .await
+            .unwrap();
+        server
+            .at("/org/test/window/1", isle_menus::exporter::ActionsExport::window(on_activate))
+            .await
+            .unwrap();
+        if let Some(id) = register {
+            conn.call_method(
+                Some("com.canonical.AppMenu.Registrar"),
+                "/com/canonical/AppMenu/Registrar",
+                Some("com.canonical.AppMenu.Registrar"),
+                "RegisterWindow",
+                &(id, zvariant::ObjectPath::try_from("/MenuBar/1").unwrap()),
+            )
+            .await
+            .unwrap();
+        }
+        conn
+    });
+    let unique = conn.unique_name().unwrap().to_string();
+    let surface = &client.wins[0].surface;
+    if wanted("--appmenu") {
+        let appmenu = client.appmenus.as_ref().expect("org_kde_kwin_appmenu_manager").create(surface, qh, ());
+        appmenu.set_address(unique.clone(), "/MenuBar/1".into());
+    }
+    if wanted("--gtk-menu") {
+        let gtk = client.gtk_shell.as_ref().expect("gtk_shell1").get_gtk_surface(surface, qh, ());
+        gtk.set_dbus_properties(
+            Some(client.app_id.clone()),
+            None,
+            Some("/org/test/menus/menubar".into()),
+            Some("/org/test/window/1".into()),
+            Some("/org/test".into()),
+            Some(unique),
+        );
+    }
+    say(0, "menus exported".into());
+    Some((runtime, conn))
+}
+
+impl Dispatch<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager,
+        _: org_kde_kwin_appmenu_manager::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<org_kde_kwin_appmenu::OrgKdeKwinAppmenu, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &org_kde_kwin_appmenu::OrgKdeKwinAppmenu,
+        _: org_kde_kwin_appmenu::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<gtk_shell1::GtkShell1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &gtk_shell1::GtkShell1,
+        event: gtk_shell1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        let gtk_shell1::Event::Capabilities { capabilities } = event;
+        say(0, format!("gtk capabilities {capabilities}"));
+    }
+}
+
+impl Dispatch<gtk_surface1::GtkSurface1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &gtk_surface1::GtkSurface1,
+        _: gtk_surface1::Event,
         _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,

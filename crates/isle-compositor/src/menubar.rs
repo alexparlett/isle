@@ -37,6 +37,10 @@ pub enum Command {
     EntryAction(String),
     Link(String),
     Window(u64, WindowCommand),
+    /// An item of the app's own menus, by window and label path.
+    Remote(u64, Vec<String>),
+    /// A submenu of the app's own menus to fill as it opens.
+    Fill(u64, Vec<String>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -236,6 +240,51 @@ impl Builder<'_> {
         *self.next += 1;
         MenuEntry::Item(MenuItem::new(id, label).submenu(entries))
     }
+
+    /// The app's own menu nodes, each item running itself by its path.
+    fn remote(
+        &mut self,
+        window: u64,
+        nodes: &[isle_menus::Node],
+        path: &mut Vec<String>,
+        hints: &HashMap<Vec<String>, Chord>,
+    ) -> Vec<MenuEntry> {
+        let mut out = Vec::new();
+        for node in nodes {
+            match node {
+                isle_menus::Node::Separator => out.push(MenuEntry::Separator),
+                isle_menus::Node::Section(label) => out.push(MenuEntry::Section(label.clone())),
+                isle_menus::Node::Item(item) => {
+                    path.push(item.label.clone());
+                    let mark = match item.toggle {
+                        isle_menus::Toggle::Check(Some(true)) | isle_menus::Toggle::Radio(true) => Mark::Check,
+                        isle_menus::Toggle::Check(None) => Mark::Mixed,
+                        _ => Mark::None,
+                    };
+                    let entry = match &item.children {
+                        Some(children) => {
+                            let kids = self.remote(window, children, path, hints);
+                            let id = *self.next;
+                            *self.next += 1;
+                            self.commands.insert(id, Command::Fill(window, path.clone()));
+                            MenuEntry::Item(MenuItem::new(id, item.label.clone()).enabled(item.enabled).submenu(kids))
+                        }
+                        None => match self.item(
+                            item.label.clone(),
+                            item.enabled.then(|| Command::Remote(window, path.clone())),
+                            hints.get(path.as_slice()).copied(),
+                        ) {
+                            MenuEntry::Item(i) => MenuEntry::Item(i.mark(mark)),
+                            other => other,
+                        },
+                    };
+                    out.push(entry);
+                    path.pop();
+                }
+            }
+        }
+        out
+    }
 }
 
 impl Isle {
@@ -325,6 +374,46 @@ impl State {
         );
         let entry = self.isle.apps.get(&app).cloned();
         let focused = self.focused_window();
+        if let Some(id) = focused {
+            self.find_menus(id);
+        }
+        let real: Option<isle_menus::Tree> = focused.and_then(|id| match self.isle.menus.trees.get(&id) {
+            Some(crate::menus::Found::Menus(_, tree)) => Some(tree.clone()),
+            _ => None,
+        });
+        // Each shortcut the app declares, as the Mac chord the user presses for it.
+        let mut hints: HashMap<Vec<String>, Chord> = HashMap::new();
+        if let Some(tree) = &real
+            && !game
+        {
+            for (path, item) in tree.walk() {
+                let Some(words) = item.shortcut.as_ref().and_then(crate::menus::stroke_words) else {
+                    continue;
+                };
+                let Some(stroke) = Stroke::parse(&words) else {
+                    continue;
+                };
+                let chord = self
+                    .isle
+                    .keyboards
+                    .tables()
+                    .mac_chord(&refs, &stroke)
+                    .or_else(|| Chord::parse(&words));
+                if let Some(chord) = chord {
+                    hints.insert(path, chord);
+                }
+            }
+        }
+        let strokes = if real.is_some() { Vec::new() } else { strokes };
+        let find_real = |labels: &[&str]| -> Option<Vec<String>> {
+            let tree = real.as_ref()?;
+            tree.walk()
+                .into_iter()
+                .find(|(_, item)| labels.iter().any(|l| item.label.starts_with(l)) && item.children.is_none())
+                .map(|(path, _)| path)
+        };
+        let real_about = find_real(&["About"]);
+        let real_settings = find_real(&["Settings", "Preferences"]);
         if !self.isle.bar.links.contains_key(&app) && !app.is_empty() {
             self.fetch_links(&app);
         }
@@ -370,8 +459,16 @@ impl State {
             .iter()
             .find(|(c, _)| c.chord == Chord::parse("Cmd+,").unwrap())
             .map(|(_, s)| Command::Strokes(s.clone()));
+        let about = match (focused, real_about) {
+            (Some(id), Some(path)) => Command::Remote(id, path),
+            _ => Command::About,
+        };
+        let settings = match (focused, real_settings) {
+            (Some(id), Some(path)) => Some(Command::Remote(id, path)),
+            _ => settings,
+        };
         let mut app_menu = vec![
-            b.item(format!("About {name}"), Some(Command::About), None),
+            b.item(format!("About {name}"), Some(about), None),
             MenuEntry::Separator,
             b.item("Settings…", settings, Chord::parse("Cmd+,")),
             MenuEntry::Separator,
@@ -437,8 +534,35 @@ impl State {
             });
         }
 
+        // The app's own menus, but Window and Help, which join Isle's.
+        let mut real_window = Vec::new();
+        let mut real_help = Vec::new();
+        if let (Some(tree), Some(id)) = (&real, focused) {
+            for menu in &tree.menus {
+                let mut path = vec![menu.label.clone()];
+                let entries = b.remote(id, menu.children.as_deref().unwrap_or(&[]), &mut path, &hints);
+                match menu.label.as_str() {
+                    "Window" => real_window = entries,
+                    "Help" => real_help = entries,
+                    _ => titles.push(Title {
+                        label: menu.label.clone(),
+                        kind: TitleKind::Menu,
+                        enabled: menu.enabled,
+                        menu: Rc::new(entries),
+                    }),
+                }
+            }
+        }
+
         let window = match window_entries {
-            Some(rows) => b.rows(rows),
+            Some(rows) => {
+                let mut entries = b.rows(rows);
+                if !real_window.is_empty() {
+                    entries.push(MenuEntry::Separator);
+                    entries.extend(real_window);
+                }
+                entries
+            }
             None => vec![
                 b.item("Minimise", None, minimise),
                 b.item("Zoom", None, None),
@@ -452,14 +576,14 @@ impl State {
             menu: Rc::new(window),
         });
 
-        let help = vec![
-            b.item(format!("{name} Help"), links.help.map(Command::Link), None),
-            b.item(
-                format!("{name} Website"),
-                links.homepage.map(Command::Link),
-                None,
-            ),
-        ];
+        let help = if real_help.is_empty() {
+            vec![
+                b.item(format!("{name} Help"), links.help.map(Command::Link), None),
+                b.item(format!("{name} Website"), links.homepage.map(Command::Link), None),
+            ]
+        } else {
+            real_help
+        };
         titles.push(Title {
             label: "Help".into(),
             kind: TitleKind::Menu,
@@ -699,6 +823,11 @@ impl State {
             self.focus_bar(output);
         }
         self.push_bar_frame();
+    }
+
+    /// The bar's menus again with a menu kept open, as the app filled one of its submenus.
+    pub fn refresh_bar_keeping_open(&mut self) {
+        self.refresh_bar();
     }
 
     /// The bar's menus again, as the front app changed or its links arrived.
@@ -977,7 +1106,11 @@ impl State {
                 }
                 return;
             }
-            BarAction::Menu(MenuEvent::Opening(_)) => {}
+            BarAction::Menu(MenuEvent::Opening(id)) => {
+                if let Some(Command::Fill(window, path)) = self.isle.bar.commands.get(&id).cloned() {
+                    self.fill_remote(window, path);
+                }
+            }
             BarAction::Menu(MenuEvent::Back) => {
                 if self.isle.bar.by_key {
                     // Left at the top level moves to the neighbour; Escape closes the menu.
@@ -1048,6 +1181,8 @@ impl State {
                 self.launch(crate::launch::Launch::Open(url));
             }
             Command::Window(id, command) => self.window_command(id, command),
+            Command::Remote(id, path) => self.activate_remote(id, &path),
+            Command::Fill(..) => {}
         }
     }
 

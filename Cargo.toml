@@ -13,6 +13,7 @@ publish = false
 isle-apps = { path = "crates/isle-apps" }
 isle-ipc = { path = "crates/isle-ipc" }
 isle-keys = { path = "crates/isle-keys" }
+isle-menus = { path = "crates/isle-menus" }
 isle-settings = { path = "crates/isle-settings" }
 isle-settings-derive = { path = "crates/isle-settings-derive" }
 isle-state = { path = "crates/isle-state" }
@@ -46,6 +47,10 @@ smithay-drm-extras = { git = "https://github.com/alexparlett/smithay", rev = "76
 xcursor = "0.3"
 xkbcommon = "0.9"
 wayland-client = "0.31"
+wayland-server = "0.31"
+wayland-backend = "0.3"
+wayland-scanner = "0.31"
+wayland-protocols-plasma = "0.3"
 wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 x11rb = { version = "0.13", default-features = false, features = ["shape"] }

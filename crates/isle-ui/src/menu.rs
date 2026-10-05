@@ -268,11 +268,8 @@ impl Component for Menu {
     fn render(&self) -> impl IntoElement {
         let theme = use_theme();
         let t = &theme.tokens;
-        let root = use_memo({
-            let entries = self.entries.clone();
-            move || Rc::new(tidy(&entries))
-        });
-        let root = root.read().clone();
+        // Entries can change while the menu is open, a submenu the app filled for one.
+        let root = Rc::new(tidy(&self.entries));
         let first = self.first_selected;
         let mut levels = use_state({
             let root = root.clone();

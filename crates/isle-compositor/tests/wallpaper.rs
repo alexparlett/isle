@@ -95,7 +95,8 @@ async fn frost_at_rest_presents_no_frames() {
     let test = isle.test().await;
     let before = test.frames("HEADLESS-1").await.unwrap();
     tokio::time::sleep(Duration::from_secs(2)).await;
-    assert_eq!(test.frames("HEADLESS-1").await.unwrap(), before);
+    // The island's clock may turn a minute in the window: one frame a minute at rest.
+    assert!(test.frames("HEADLESS-1").await.unwrap() - before <= 1);
 }
 
 #[tokio::test(flavor = "multi_thread")]

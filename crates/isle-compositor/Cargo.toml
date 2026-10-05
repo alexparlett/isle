@@ -9,11 +9,12 @@ publish.workspace = true
 # The Test interface: input injection, forced stalls and panics. Never in a package.
 test-hooks = [
     "isle-shell/probe",
+    "isle-menus/exporter",
+    "wayland-protocols-plasma/client",
     "dep:png",
     "dep:wayland-client",
     "dep:wayland-protocols",
     "dep:wayland-protocols-wlr",
-    "dep:x11rb",
 ]
 
 [[bin]]
@@ -45,8 +46,13 @@ png = { workspace = true, optional = true }
 wayland-client = { workspace = true, optional = true }
 wayland-protocols = { workspace = true, optional = true }
 wayland-protocols-wlr = { workspace = true, optional = true }
-x11rb = { workspace = true, optional = true }
+x11rb.workspace = true
 smithay.workspace = true
+isle-menus.workspace = true
+wayland-server.workspace = true
+wayland-backend.workspace = true
+wayland-scanner.workspace = true
+wayland-protocols-plasma = { workspace = true, features = ["server"] }
 smithay-drm-extras.workspace = true
 xcursor.workspace = true
 tracing.workspace = true

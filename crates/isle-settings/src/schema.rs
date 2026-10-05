@@ -687,6 +687,9 @@ pub struct Debug {
     /// Whether a main loop stuck for ten seconds ends the process (P2 choice 7).
     #[setting(default = true)]
     pub watchdog_abort: bool,
+    /// GTK apps are told the desktop shows their menubar, and hide their own.
+    #[setting(default = true)]
+    pub gtk_global_menu: bool,
 }
 
 /// An app's preferences, to show how one is kept (B27); the first real app replaces it.

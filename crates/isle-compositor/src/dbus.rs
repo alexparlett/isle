@@ -199,6 +199,12 @@ impl MenusIface {
             .await?)
     }
 
+    /// A window's own menus as JSON, and where they came from: `dbusmenu`, `gmenu`, `none`
+    /// for the fallback, or `looking` while Isle asks.
+    async fn show(&self, id: u64) -> fdo::Result<String> {
+        Ok(self.to_loop.call(move |state| state.menus_json(id)).await?)
+    }
+
     /// Reveals the menu bar on the focused screen, a title's menu open from the keyboard.
     async fn reveal(&self, title: String) -> fdo::Result<bool> {
         Ok(self

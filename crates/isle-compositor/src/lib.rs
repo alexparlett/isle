@@ -15,6 +15,7 @@ mod island;
 mod control_centre;
 mod launch;
 mod menubar;
+mod menus;
 mod top_edge;
 mod outputs;
 pub mod redraw;
@@ -149,6 +150,24 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     state.isle.xdisplay = display;
     if let Some(display) = display {
         unsafe { std::env::set_var("DISPLAY", format!(":{display}")) };
+    }
+    // Qt asks once per process whether the registrar has an owner, so Isle owns it before
+    // any app can start.
+    let owned = runtime.block_on(async {
+        let conn = zbus::Connection::session().await?;
+        let owned = isle_menus::registrar::own(&conn).await?;
+        zbus::Result::Ok((conn, owned))
+    });
+    match owned {
+        Ok((conn, Ok(registrations))) => {
+            state.isle.menus.conn = Some(conn);
+            state.isle.menus.registrations = Some(registrations);
+        }
+        Ok((conn, Err(isle_menus::registrar::Taken(owner)))) => {
+            state.isle.menus.conn = Some(conn);
+            state.isle.menus.taken = Some(owner);
+        }
+        Err(err) => warn!("no menu registrar: {err}"),
     }
     report_ready(&state.isle.socket_name, display);
 

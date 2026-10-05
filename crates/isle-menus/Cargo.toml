@@ -1,0 +1,21 @@
+[package]
+name = "isle-menus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+# Menus exported over D-Bus as apps do, for the test client.
+exporter = []
+
+[dependencies]
+futures-util.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zbus.workspace = true
+zvariant.workspace = true
+
+[dev-dependencies]
+isle-menus = { workspace = true, features = ["exporter"] }
+tokio.workspace = true

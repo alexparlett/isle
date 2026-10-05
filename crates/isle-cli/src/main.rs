@@ -168,6 +168,8 @@ enum Menus {
     Bar,
     /// Choose an item by its path: a title, then labels down its menus.
     Activate { path: Vec<String> },
+    /// A window's own menus and where they came from, by window id.
+    Show { id: u64 },
 }
 
 #[derive(Subcommand)]
@@ -524,6 +526,9 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Settings(command) => settings(cli, &bus, command).await?,
+        Command::Menus(Menus::Show { id }) => {
+            println!("{}", isle_ipc::menus::MenusProxy::new(&bus).await?.show(*id).await?);
+        }
         Command::Menus(Menus::Bar) => {
             println!("{}", isle_ipc::menus::MenusProxy::new(&bus).await?.bar().await?);
         }

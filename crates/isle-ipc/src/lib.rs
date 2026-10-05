@@ -538,5 +538,7 @@ pub mod menus {
         fn activate(&self, path: &[&str]) -> zbus::Result<bool>;
         /// Reveals the menu bar with a title's menu open.
         fn reveal(&self, title: &str) -> zbus::Result<bool>;
+        /// A window's own menus as JSON, and where they came from.
+        fn show(&self, id: u64) -> zbus::Result<String>;
     }
 }

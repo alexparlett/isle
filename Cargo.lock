@@ -2387,10 +2387,12 @@ dependencies = [
  "isle-apps",
  "isle-ipc",
  "isle-keys",
+ "isle-menus",
  "isle-settings",
  "isle-shell",
  "isle-state",
  "isle-tokens",
+ "isle-ui",
  "jiff",
  "libc",
  "notify",
@@ -2401,9 +2403,13 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "wayland-backend",
  "wayland-client",
  "wayland-protocols",
+ "wayland-protocols-plasma",
  "wayland-protocols-wlr",
+ "wayland-scanner",
+ "wayland-server",
  "x11rb",
  "xcursor",
  "zbus",
@@ -2426,6 +2432,18 @@ dependencies = [
  "kdl",
  "tracing",
  "xkbcommon",
+]
+
+[[package]]
+name = "isle-menus"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "isle-menus",
+ "tokio",
+ "tracing",
+ "zbus",
+ "zvariant",
 ]
 
 [[package]]
@@ -5513,6 +5531,7 @@ dependencies = [
  "wayland-client",
  "wayland-protocols",
  "wayland-scanner",
+ "wayland-server",
 ]
 
 [[package]]

@@ -2,6 +2,14 @@
 
 ## 2026-10-05
 
+- P6 6.5: the menu sources. `isle-menus` reads DBusMenu and GMenuModel into
+  one tree and serves the registrar, owned before the socket is announced; the
+  compositor serves `org_kde_kwin_appmenu` v2 and `gtk_shell1` v5 with its
+  title-bar gestures, reads X11 windows' menu properties over a connection of
+  its own (no fork patch needed), and finds an Electron-style registration by
+  the app's process. Real menus replace the table fallback, hints map back to
+  the Mac chord, the app's Window and Help items join Isle's.
+
 - P6 6.4: the menu bar and the fallback. A push at the top edge outside the
   island's zone, Ctrl+F2 or Shift+Cmd+/ brings the bar down on that screen with
   the system menu, the app menu, File, Edit, View and the rest from labelled

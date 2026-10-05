@@ -237,6 +237,7 @@ impl Isle {
         let mut child = Command::new(program)
             .args(args)
             .env("XDG_RUNTIME_DIR", self.dir.join("runtime"))
+            .env("DBUS_SESSION_BUS_ADDRESS", &self.bus_address)
             .envs(envs.iter().map(|(k, v)| (*k, v.as_str())))
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())

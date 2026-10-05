@@ -2,6 +2,9 @@
 
 ## 2026-10-05
 
+- P5 planned: keyboard. Reviewed; v1's chords revisited, games read from
+  Steam's labels.
+
 - P4 host run by the user on tty8: Chromium on Wayland and X11, VS Code,
   Steam and a full-screen game behaved. Isle no longer draws while its
   console is in the background. For P14: the supervisor's exit clears the

@@ -204,3 +204,10 @@
   session variables from the user manager, which a session running beside it
   shares, and v1 and Isle share `~/.local/state/isle/session.log`.
 
+- P5 planned in `p5-keyboard.md` (2026-10-05): `isle-keys` as the engine,
+  the seat fed only what Isle emits, per-keyboard profiles and keymaps,
+  withheld Cmd and Option, the shortcut set replacing `binds`, translation
+  tables as a shipped data file, games, inhibitors, injection, recording,
+  Sticky and Slow Keys, xremap retired. The user took every
+  recommendation, with v1's chords revisited rather than carried and the
+  game flag read from Steam's own labels. Phases 5.0–5.7.

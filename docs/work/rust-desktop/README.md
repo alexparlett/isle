@@ -15,4 +15,5 @@ one at a time.
 - `p2-compositor.md`: P2, the compositor core.
 - `p3-shell-runtime.md`: P3, the shell runtime.
 - `p4-windows.md`: P4, windows.
+- `p5-keyboard.md`: P5, keyboard.
 - Evidence: `docs/research/rust-desktop/`.

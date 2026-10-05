@@ -176,3 +176,7 @@
   alexparlett/freya#10 (2026-10-05) and Isle pins that merge on the fork's
   `main`. Next: P4 (windows), P5 (keyboard) or P6
   (island and menus), all now unblocked.
+- P4 planned in `p4-windows.md` (2026-10-05): one window registry with
+  Smithay's `Space` as its shown part, desktops per output, places, zones,
+  hide and quit, title bars as attached Freya surfaces, the zoom menu,
+  Xwayland. The user took every recommendation. Phases 4.0–4.10.

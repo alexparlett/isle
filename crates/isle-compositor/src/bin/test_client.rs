@@ -872,7 +872,9 @@ impl Dispatch<xdg_activation_v1::XdgActivationV1, ()> for Client {
 
 /// Exports menus for `--appmenu` (DBusMenu through the KDE protocol), `--gtk-menu`
 /// (GMenuModel through gtk_shell1) and `--register ID` (DBusMenu through the registrar by
-/// a window id nothing matches); each item chosen prints `menu activated LABEL`.
+/// a window id nothing matches; with `--register-late` a second and a half after start, as
+/// an app that registers after its window maps); each item chosen prints `menu activated
+/// LABEL`.
 fn menus(args: &[String], client: &Client, qh: &QueueHandle<Client>) -> Option<(tokio::runtime::Runtime, zbus::Connection)> {
     let wanted = |f: &str| args.iter().any(|a| a == f);
     let register = args
@@ -906,15 +908,27 @@ fn menus(args: &[String], client: &Client, qh: &QueueHandle<Client>) -> Option<(
             .await
             .unwrap();
         if let Some(id) = register {
-            conn.call_method(
-                Some("com.canonical.AppMenu.Registrar"),
-                "/com/canonical/AppMenu/Registrar",
-                Some("com.canonical.AppMenu.Registrar"),
-                "RegisterWindow",
-                &(id, zvariant::ObjectPath::try_from("/MenuBar/1").unwrap()),
-            )
-            .await
-            .unwrap();
+            let conn = conn.clone();
+            let late = wanted("--register-late");
+            let registered = async move {
+                if late {
+                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                }
+                conn.call_method(
+                    Some("com.canonical.AppMenu.Registrar"),
+                    "/com/canonical/AppMenu/Registrar",
+                    Some("com.canonical.AppMenu.Registrar"),
+                    "RegisterWindow",
+                    &(id, zvariant::ObjectPath::try_from("/MenuBar/1").unwrap()),
+                )
+                .await
+                .unwrap();
+            };
+            if late {
+                tokio::spawn(registered);
+            } else {
+                registered.await;
+            }
         }
         conn
     });

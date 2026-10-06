@@ -333,6 +333,7 @@ impl Shell {
             let fonts = &mut self.fonts;
             let opening = std::mem::take(&mut instance.opening);
             let held = std::mem::take(&mut instance.held_keys);
+            let glass_before = instance.glass.shapes.borrow().clone();
             let ran = boundary::guard(instance.def.name(), || {
                 let mut update = embedded.update(fonts);
                 if opening {
@@ -358,7 +359,12 @@ impl Shell {
             {
                 adapter.update_if_active(|| tree);
             }
-            if update.redraw && instance.open && !out.redraw.contains(&instance.output) {
+            // A shape measured after the last frame's glass pass needs a frame to be blurred.
+            let glass_moved = *instance.glass.shapes.borrow() != glass_before;
+            if (update.redraw || glass_moved)
+                && instance.open
+                && !out.redraw.contains(&instance.output)
+            {
                 out.redraw.push(instance.output.clone());
             }
             let focus = ShellFocus {

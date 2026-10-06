@@ -693,6 +693,10 @@ impl State {
         let surface = self.isle.focus_window(window);
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         self.focus_keyboard(surface, serial);
+        // Its menus are looked up as it takes focus, so the bar has them when revealed.
+        if let Some(window) = window {
+            self.menus_window(crate::wm::window_id(window));
+        }
         self.isle.sync_bars();
         self.isle.queue_redraw_all();
         self.isle.notify(Event::WindowsChanged);

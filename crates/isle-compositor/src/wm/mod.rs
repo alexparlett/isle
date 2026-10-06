@@ -613,7 +613,12 @@ impl State {
         let Some(id) = self.isle.wm.for_surface(surface).map(|r| r.id) else {
             return;
         };
-        self.isle.menus.trees.remove(&id);
+        self.isle.menus.forget(id);
+        // The bar speaks for the window it was revealed over; with that gone, it goes.
+        if self.isle.bar.window == Some(id) && self.isle.bar.output.is_some() {
+            self.hide_bar();
+            self.isle.bar.window = None;
+        }
         self.isle
             .menus
             .addresses

@@ -161,6 +161,14 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     match owned {
         Ok((conn, Ok(registrations))) => {
             state.isle.menus.conn = Some(conn);
+            let watched = registrations.clone();
+            let loop_ = to_loop.clone();
+            runtime.spawn(async move {
+                loop {
+                    watched.registered().await;
+                    loop_.post(|state| state.menus_registered());
+                }
+            });
             state.isle.menus.registrations = Some(registrations);
         }
         Ok((conn, Err(isle_menus::registrar::Taken(owner)))) => {

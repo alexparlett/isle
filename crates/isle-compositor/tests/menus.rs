@@ -137,6 +137,24 @@ async fn a_registration_no_window_matches_is_found_by_the_app_s_process() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn an_app_that_registers_after_its_window_maps_gets_its_menus() {
+    let mut isle = Isle::start("menus-late").await;
+    let _client = isle.client_with(&[
+        "--app-id",
+        "isle.test.Late",
+        "--colour",
+        "3366ff",
+        "--register",
+        "4243",
+        "--register-late",
+    ]);
+    let w = isle.wait_for_window("isle.test.Late").await;
+    wait_until(|| async { show(&isle, w.id).await["source"] == "none" }).await;
+    wait_until(|| async { show(&isle, w.id).await["source"] == "dbusmenu" }).await;
+    assert!(titles(&bar(&isle).await).contains(&"Edit".to_owned()));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn an_app_that_exports_nothing_keeps_the_fallback() {
     let mut isle = Isle::start("menus-none").await;
     let _client = isle.client("chromium", "3366ff");
@@ -169,4 +187,18 @@ async fn search_finds_items_in_submenus_the_app_fills_once_help_opens() {
         found[0]["path"] == serde_json::json!(["File", "Open Recent"])
     })
     .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_dialog_with_no_menus_of_its_own_keeps_its_app_s() {
+    let mut isle = Isle::start("menus-dialog").await;
+    let client = isle.client_with(&["--app-id", "isle.test.Qt", "--colour", "3366ff", "--appmenu"]);
+    client.wait_for("menus exported").await;
+    let w = isle.wait_for_window("isle.test.Qt").await;
+    wait_until(|| async { show(&isle, w.id).await["source"] == "dbusmenu" }).await;
+    client.send("dialog");
+    wait_until(|| async { isle.windows().await.iter().any(|d| d.parent == w.id && d.focused) }).await;
+    wait_until(|| async { titles(&bar(&isle).await).contains(&"Edit".to_owned()) }).await;
+    assert!(activate(&isle, &["Edit", "Copy"]).await);
+    client.wait_for("menu activated Copy").await;
 }

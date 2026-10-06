@@ -226,3 +226,14 @@ async fn on_a_narrow_screen_the_app_s_menus_fold_and_window_and_help_stay() {
         .collect();
     assert_eq!(&labels[labels.len() - 2..], ["Window", "Help"]);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_bar_goes_with_the_window_it_was_revealed_for() {
+    let mut isle = Isle::start("bar-window-gone").await;
+    let client = isle.client("isle.test.Typing", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    isle.chord(&[CTRL, F2]).await;
+    wait_until(|| async { !bar(&isle).await["output"].is_null() }).await;
+    client.send("destroy");
+    wait_until(|| async { bar(&isle).await["output"].is_null() }).await;
+}

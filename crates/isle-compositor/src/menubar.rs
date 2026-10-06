@@ -390,10 +390,8 @@ impl State {
         );
         let entry = self.isle.apps.get(&app).cloned();
         let focused = self.bar_window();
-        if let Some(id) = focused {
-            self.find_menus(id);
-        }
-        let real: Option<isle_menus::Tree> = focused.and_then(|id| match self.isle.menus.trees.get(&id) {
+        let menus_of = focused.map(|id| self.menus_window(id));
+        let real: Option<isle_menus::Tree> = menus_of.and_then(|id| match self.isle.menus.trees.get(&id) {
             Some(crate::menus::Found::Menus(_, tree)) => Some(tree.clone()),
             _ => None,
         });
@@ -475,11 +473,11 @@ impl State {
             .iter()
             .find(|(c, _)| c.chord == Chord::parse("Cmd+,").unwrap())
             .map(|(_, s)| Command::Strokes(s.clone()));
-        let about = match (focused, real_about) {
+        let about = match (menus_of, real_about) {
             (Some(id), Some(path)) => Command::Remote(id, path),
             _ => Command::About,
         };
-        let settings = match (focused, real_settings) {
+        let settings = match (menus_of, real_settings) {
             (Some(id), Some(path)) => Some(Command::Remote(id, path)),
             _ => settings,
         };
@@ -553,7 +551,7 @@ impl State {
         // The app's own menus, but Window and Help, which join Isle's.
         let mut real_window = Vec::new();
         let mut real_help = Vec::new();
-        if let (Some(tree), Some(id)) = (&real, focused) {
+        if let (Some(tree), Some(id)) = (&real, menus_of) {
             for menu in &tree.menus {
                 let mut path = vec![menu.label.clone()];
                 let entries = b.remote(id, menu.children.as_deref().unwrap_or(&[]), &mut path, &hints);
@@ -1069,7 +1067,7 @@ impl State {
     /// Help's search is opening: the submenus the app fills only when asked are asked for,
     /// a few levels down and at most fifty, so search finds what is in them.
     fn crawl_menus(&mut self) {
-        let Some(id) = self.bar_window() else {
+        let Some(id) = self.bar_window().map(|id| self.menus_window(id)) else {
             return;
         };
         let Some(crate::menus::Found::Menus(_, tree)) = self.isle.menus.trees.get(&id) else {

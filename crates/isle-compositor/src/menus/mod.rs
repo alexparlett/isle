@@ -41,6 +41,11 @@ pub struct MenuState {
     pub trees: HashMap<u64, Found>,
     /// Sources whose changes are watched.
     watching: HashSet<Source>,
+    /// Windows still being looked up when a registration came, to look up again if missed.
+    again: HashSet<u64>,
+    /// Each window's latest lookup; an earlier one that finishes after it is dropped.
+    lookups: HashMap<u64, u64>,
+    next_lookup: u64,
 }
 
 /// A shortcut as a stroke's words, for the tables' inverse: `[["Control","c"]]` or Qt's
@@ -102,6 +107,15 @@ impl Isle {
     }
 }
 
+impl MenuState {
+    /// A window went: its menus and any lookup still running for it.
+    pub fn forget(&mut self, id: u64) {
+        self.trees.remove(&id);
+        self.lookups.remove(&id);
+        self.again.remove(&id);
+    }
+}
+
 impl State {
     /// A toplevel told Isle where its menus are.
     pub fn set_menu_address(&mut self, surface: &WlSurface, source: Source) {
@@ -111,6 +125,32 @@ impl State {
             self.isle.menus.trees.remove(&id);
             self.find_menus(id);
         }
+    }
+
+    /// The window whose menus the bar shows for `id`: its own, else its parent's up the
+    /// chain, else those of its app's most recently focused window that has some, so a
+    /// dialog keeps its app's menus. `id` itself when none has.
+    pub fn menus_window(&mut self, id: u64) -> u64 {
+        let has = |state: &Self, w: u64| matches!(state.isle.menus.trees.get(&w), Some(Found::Menus(..)));
+        let mut at = Some(id);
+        for _ in 0..8 {
+            let Some(w) = at else { break };
+            self.find_menus(w);
+            if has(self, w) {
+                return w;
+            }
+            at = self.isle.wm.get(w).and_then(|r| r.parent);
+        }
+        let Some(app) = self.isle.wm.get(id).map(|r| r.app.clone()) else {
+            return id;
+        };
+        let wm = &self.isle.wm;
+        wm.recent
+            .iter()
+            .copied()
+            .chain(wm.records.iter().map(|r| r.id))
+            .find(|w| wm.get(*w).is_some_and(|r| r.app == app) && has(self, *w))
+            .unwrap_or(id)
     }
 
     /// Looks for window `id`'s menus once: its own address, then for X11 the registrar's
@@ -130,6 +170,9 @@ impl State {
             return;
         };
         self.isle.menus.trees.insert(id, Found::Looking);
+        self.isle.menus.next_lookup += 1;
+        let lookup = self.isle.menus.next_lookup;
+        self.isle.menus.lookups.insert(id, lookup);
         let declared = self.isle.declared(id);
         let xid = record.window.x11_surface().map(|x| x.window_id());
         let display = self.isle.xdisplay;
@@ -182,11 +225,39 @@ impl State {
                 },
                 None => Found::None,
             };
-            to_loop.post(move |state| state.menus_found(id, found));
+            to_loop.post(move |state| state.menus_found(id, lookup, found));
         });
     }
 
-    fn menus_found(&mut self, id: u64, found: Found) {
+    /// A window registered its menus: the windows found to have none, or still being looked
+    /// up, are looked up again, since the app may register after its window maps.
+    pub fn menus_registered(&mut self) {
+        let mut none = Vec::new();
+        for (id, found) in &self.isle.menus.trees {
+            match found {
+                Found::None => none.push(*id),
+                Found::Looking => {
+                    self.isle.menus.again.insert(*id);
+                }
+                Found::Menus(..) => {}
+            }
+        }
+        for id in none {
+            self.isle.menus.trees.remove(&id);
+            self.find_menus(id);
+        }
+    }
+
+    fn menus_found(&mut self, id: u64, lookup: u64, found: Found) {
+        if self.isle.menus.lookups.get(&id) != Some(&lookup) {
+            return;
+        }
+        self.isle.menus.lookups.remove(&id);
+        if self.isle.menus.again.remove(&id) && matches!(found, Found::None) {
+            self.isle.menus.trees.remove(&id);
+            self.find_menus(id);
+            return;
+        }
         if let Found::Menus(source, tree) = &found {
             info!(id, menus = tree.menus.len(), "the app's menus");
             if self.isle.menus.watching.insert(source.clone()) {
@@ -194,7 +265,9 @@ impl State {
             }
         }
         self.isle.menus.trees.insert(id, found);
-        if self.focused_window() == Some(id) {
+        // A dialog shows its app's menus, so any of the front app's windows counts.
+        let app = |w: u64| self.isle.wm.get(w).map(|r| r.app.clone());
+        if self.focused_window().is_some_and(|f| f == id || app(f) == app(id)) {
             self.refresh_bar();
         }
     }

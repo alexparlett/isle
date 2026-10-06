@@ -27,9 +27,14 @@ pub struct Registration {
 
 /// The registrations, shared with whoever reads them.
 #[derive(Clone, Default)]
-pub struct Registrations(Arc<Mutex<Vec<Registration>>>);
+pub struct Registrations(Arc<Mutex<Vec<Registration>>>, Arc<tokio::sync::Notify>);
 
 impl Registrations {
+    /// Returns once a window has registered since the last return.
+    pub async fn registered(&self) {
+        self.1.notified().await;
+    }
+
     pub fn all(&self) -> Vec<Registration> {
         self.0.lock().unwrap().clone()
     }
@@ -47,6 +52,7 @@ impl Registrations {
         let mut all = self.0.lock().unwrap();
         all.retain(|r| r.window != registration.window);
         all.push(registration);
+        self.1.notify_one();
     }
 
     fn drop_sender(&self, sender: &str) {

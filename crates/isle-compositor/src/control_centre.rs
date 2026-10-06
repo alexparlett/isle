@@ -138,6 +138,10 @@ impl State {
         {
             self.close_control_centre();
         }
+        // Pinned, it is the screen's one panel; a peek leaves the bar down.
+        if pinned {
+            self.hide_bar();
+        }
         let was_pinned = self.isle.island.panel.as_ref().is_some_and(|p| p.pinned);
         // Pinning a panel already open keeps the page it shows.
         let page = page.or_else(|| self.isle.island.panel.as_ref().and_then(|p| p.page.clone()));

@@ -5,12 +5,15 @@ mod common;
 use std::time::Duration;
 
 use common::{Isle, wait_until};
-use isle_ipc::{desktops::DesktopsProxy, island::IslandProxy, settings::SettingsProxy};
+use isle_ipc::{
+    desktops::DesktopsProxy, island::IslandProxy, menus::MenusProxy, settings::SettingsProxy,
+};
 use serde_json::Value;
 
 const ESC: u32 = 1;
 const CTRL: u32 = 29;
 const F8: u32 = 66;
+const F2: u32 = 60;
 const LEFT: u32 = 272;
 
 async fn island(isle: &Isle) -> Value {
@@ -91,6 +94,15 @@ async fn a_click_pins_with_the_keyboard_and_escape_gives_it_back() {
     wait_until(|| async { island(&isle).await["panel"]["pinned"] == true }).await;
     isle.chord(&[CTRL, F8]).await;
     wait_until(|| async { island(&isle).await["panel"].is_null() }).await;
+
+    // Pinned, it is the screen's one panel: the bar goes.
+    let menus = MenusProxy::new(&isle.bus).await.unwrap();
+    let bar = || async { serde_json::from_str::<Value>(&menus.bar().await.unwrap()).unwrap() };
+    isle.chord(&[CTRL, F2]).await;
+    wait_until(|| async { !bar().await["output"].is_null() }).await;
+    isle.chord(&[CTRL, F8]).await;
+    wait_until(|| async { island(&isle).await["panel"]["pinned"] == true }).await;
+    wait_until(|| async { bar().await["output"].is_null() }).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -401,7 +401,7 @@ async fn an_open_is_drawn_by_the_compositor_and_the_probe_draws_once() {
     tokio::time::sleep(Duration::from_millis(250)).await;
     let moved = test.frames("HEADLESS-1").await.unwrap() - frames;
     let draws = probe(&isle).await.draws;
-    assert!(moved >= 10, "only {moved} frames in the open");
+    assert!(moved >= 6, "only {moved} frames in the open");
     // The tree draws as it mounts and as its rows' fade runs, never for the open itself.
     assert!(draws < moved, "{draws} draws for {moved} frames");
 

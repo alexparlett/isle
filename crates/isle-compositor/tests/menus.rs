@@ -144,3 +144,29 @@ async fn an_app_that_exports_nothing_keeps_the_fallback() {
     wait_until(|| async { show(&isle, w.id).await["source"] == "none" }).await;
     assert!(item(&bar(&isle).await, "File", "New Tab").is_some());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn search_finds_items_in_submenus_the_app_fills_once_help_opens() {
+    const SHIFT: u32 = 42;
+    const CMD: u32 = 125;
+    const SLASH: u32 = 53;
+    let mut isle = Isle::start("menus-search").await;
+    let client = isle.client_with(&["--app-id", "isle.test.Qt", "--colour", "3366ff", "--appmenu"]);
+    client.wait_for("menus exported").await;
+    let w = isle.wait_for_window("isle.test.Qt").await;
+    wait_until(|| async { show(&isle, w.id).await["source"] == "dbusmenu" }).await;
+    let menus = MenusProxy::new(&isle.bus).await.unwrap();
+    let found: Value = serde_json::from_str(&menus.search("wrap").await.unwrap()).unwrap();
+    assert_eq!(found[0]["label"], "Word Wrap");
+    assert_eq!(found[0]["path"], serde_json::json!(["Edit"]));
+    let empty: Value = serde_json::from_str(&menus.search("recent one").await.unwrap()).unwrap();
+    assert!(empty.as_array().unwrap().is_empty(), "Open Recent is not filled yet");
+
+    // Shift+Cmd+/ opens Help with its search, and asks the app to fill its submenus.
+    isle.chord(&[SHIFT, CMD, SLASH]).await;
+    wait_until(|| async {
+        let found: Value = serde_json::from_str(&menus.search("recent one").await.unwrap()).unwrap();
+        found[0]["path"] == serde_json::json!(["File", "Open Recent"])
+    })
+    .await;
+}

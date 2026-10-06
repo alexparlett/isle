@@ -8,7 +8,7 @@ use freya::prelude::*;
 use freya_embed::AppComponent;
 use isle_tokens::Theme;
 use isle_ui::{
-    Glass, Glyph, Hit, Menu, MenuEntry, MenuEvent, colour, focus_ring, menu::Material, shadows,
+    Glass, Glyph, Hit, Menu, MenuEntry, MenuEvent, SearchField, colour, focus_ring, menu::Material, shadows,
     text, use_theme,
 };
 use smithay::utils::{Logical, Rectangle, Size as SSize};
@@ -178,6 +178,13 @@ struct BarApp {
 impl App for BarApp {
     fn render(&self) -> impl IntoElement {
         let here = use_consume::<Here>().0;
+        // A closed surface's tree goes; the compositor must not write to its state after.
+        use_drop({
+            let (states, here) = (self.states.clone(), here.clone());
+            move || {
+                states.borrow_mut().remove(&here);
+            }
+        });
         let state = use_hook(|| {
             let frame = self.frames.borrow().get(&here).cloned().unwrap_or_default();
             let state = State::create(frame);
@@ -288,22 +295,29 @@ impl Component for Bar {
             let title = frame.titles.get(i)?;
             let (x, _) = cells.get(i)?;
             let on_menu = actions.clone();
+            let material = if frame.solid {
+                Material::Solid
+            } else {
+                Material::Glass
+            };
+            let help = title.kind == TitleKind::Menu && title.label == "Help" && i + 1 == frame.titles.len();
             Some(
                 rect()
                     .position(Position::new_absolute().left(*x).top(height + t.space_xs))
                     .key(frame.generation)
                     .child(Hit)
-                    .child(
-                        Menu::new(title.menu.clone(), move |e| {
-                            send(&on_menu, BarAction::Menu(e))
-                        })
-                        .material(if frame.solid {
-                            Material::Solid
-                        } else {
-                            Material::Glass
-                        })
-                        .first_selected(frame.by_key),
-                    ),
+                    .child(if help {
+                        HelpMenu {
+                            titles: frame.titles.clone(),
+                            material,
+                        }
+                        .into_element()
+                    } else {
+                        Menu::new(title.menu.clone(), move |e| send(&on_menu, BarAction::Menu(e)))
+                            .material(material)
+                            .first_selected(frame.by_key)
+                            .into_element()
+                    }),
             )
         });
 
@@ -347,5 +361,71 @@ impl Component for Bar {
                     .children(title_cells),
             )
             .maybe_child(menu)
+    }
+}
+
+/// Help with menu search: a field over the menu; as a query stands, the items of the app's
+/// menus whose labels hold it, each with its path, then Help's own items.
+#[derive(PartialEq)]
+struct HelpMenu {
+    titles: Vec<Title>,
+    material: Material,
+}
+
+impl Component for HelpMenu {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let actions = Actions::get();
+        let query = use_state(String::new);
+        let q = query.read().clone();
+        let Some(help) = self.titles.last() else {
+            return rect().into_element();
+        };
+        // The app's menus, folded ones included; not the system menu, not Help itself.
+        let last = self.titles.len().saturating_sub(1);
+        let menus: Vec<(String, Rc<Vec<MenuEntry>>)> = self
+            .titles
+            .iter()
+            .enumerate()
+            .filter(|(i, title)| *i != last && title.kind != TitleKind::System)
+            .map(|(_, title)| (title.label.clone(), title.menu.clone()))
+            .collect();
+        let mut entries: Vec<MenuEntry> = Vec::new();
+        if !q.trim().is_empty() {
+            let found = isle_ui::menu::search(&menus, &q);
+            if found.is_empty() {
+                entries.push(MenuEntry::Section(format!("No results for “{}”", q.trim())));
+            }
+            for (path, item) in found {
+                let mut item = item;
+                item.label = format!("{} › {}", path.join(" › "), item.label);
+                entries.push(MenuEntry::Item(item));
+            }
+            entries.push(MenuEntry::Separator);
+        }
+        entries.extend(help.menu.iter().cloned());
+        let width = if q.trim().is_empty() {
+            t.size_menu_min
+        } else {
+            t.size_menu_search
+        };
+        rect()
+            .corner_radius(t.radius_card)
+            .spacing(t.space_xs)
+            .child(SearchField {
+                value: query.into_writable(),
+                placeholder: "Search".into(),
+                width,
+            })
+            .child(
+                rect().key(q.clone()).child(
+                    Menu::new(Rc::new(entries), move |e| send(&actions, BarAction::Menu(e)))
+                        .material(self.material)
+                        .type_select(false)
+                        .first_selected(!q.trim().is_empty()),
+                ),
+            )
+            .into_element()
     }
 }

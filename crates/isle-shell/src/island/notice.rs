@@ -90,6 +90,12 @@ struct NoticeApp {
 
 impl App for NoticeApp {
     fn render(&self) -> impl IntoElement {
+        use_drop({
+            let slot = self.state.clone();
+            move || {
+                *slot.borrow_mut() = None;
+            }
+        });
         let state = use_hook(|| {
             let state = State::create(self.text.borrow().clone());
             *self.state.borrow_mut() = Some(state);

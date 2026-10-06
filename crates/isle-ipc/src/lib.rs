@@ -540,5 +540,7 @@ pub mod menus {
         fn reveal(&self, title: &str) -> zbus::Result<bool>;
         /// A window's own menus as JSON, and where they came from.
         fn show(&self, id: u64) -> zbus::Result<String>;
+        /// The front app's menu items whose labels hold `query`, with their paths, as JSON.
+        fn search(&self, query: &str) -> zbus::Result<String>;
     }
 }

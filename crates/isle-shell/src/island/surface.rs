@@ -276,6 +276,13 @@ struct IslandApp {
 impl App for IslandApp {
     fn render(&self) -> impl IntoElement {
         let here = use_consume::<Here>().0;
+        // A closed surface's tree goes; the compositor must not write to its state after.
+        use_drop({
+            let (states, here) = (self.states.clone(), here.clone());
+            move || {
+                states.borrow_mut().remove(&here);
+            }
+        });
         let state = use_hook(|| {
             let frame = self.frames.borrow().get(&here).cloned().unwrap_or_default();
             let state = State::create(frame);

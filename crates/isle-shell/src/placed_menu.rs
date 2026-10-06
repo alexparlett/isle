@@ -94,6 +94,12 @@ struct WindowMenuApp {
 
 impl App for WindowMenuApp {
     fn render(&self) -> impl IntoElement {
+        use_drop({
+            let slot = self.state.clone();
+            move || {
+                *slot.borrow_mut() = None;
+            }
+        });
         let state = use_hook(|| {
             let state = State::create(self.model.borrow().clone());
             *self.state.borrow_mut() = Some(state);
@@ -199,6 +205,12 @@ struct AboutApp {
 
 impl App for AboutApp {
     fn render(&self) -> impl IntoElement {
+        use_drop({
+            let slot = self.state.clone();
+            move || {
+                *slot.borrow_mut() = None;
+            }
+        });
         let state = use_hook(|| {
             let state = State::create(self.model.borrow().clone());
             *self.state.borrow_mut() = Some(state);

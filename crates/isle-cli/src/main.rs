@@ -170,6 +170,8 @@ enum Menus {
     Activate { path: Vec<String> },
     /// A window's own menus and where they came from, by window id.
     Show { id: u64 },
+    /// The front app's menu items that match, with their paths.
+    Search { query: String },
 }
 
 #[derive(Subcommand)]
@@ -526,6 +528,9 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Settings(command) => settings(cli, &bus, command).await?,
+        Command::Menus(Menus::Search { query }) => {
+            println!("{}", isle_ipc::menus::MenusProxy::new(&bus).await?.search(query).await?);
+        }
         Command::Menus(Menus::Show { id }) => {
             println!("{}", isle_ipc::menus::MenusProxy::new(&bus).await?.show(*id).await?);
         }

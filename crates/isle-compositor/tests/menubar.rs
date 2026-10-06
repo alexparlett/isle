@@ -73,6 +73,11 @@ async fn ctrl_f2_opens_the_system_menu_and_escape_gives_the_keys_back() {
     isle.chord(&[ESC]).await;
     wait_until(|| async { bar(&isle).await["output"].is_null() }).await;
     client.wait_for("keyboard-enter").await;
+
+    // Revealed again after it closed: its tree was rebuilt cleanly, never through a panic.
+    isle.chord(&[CTRL, F2]).await;
+    wait_until(|| async { bar(&isle).await["open"] == 0 }).await;
+    assert!(!isle.log().contains("surface panicked"), "{}", isle.log());
 }
 
 #[tokio::test(flavor = "multi_thread")]

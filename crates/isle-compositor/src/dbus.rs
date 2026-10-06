@@ -199,6 +199,11 @@ impl MenusIface {
             .await?)
     }
 
+    /// The front app's menu items whose labels hold `query`, with their paths, as JSON.
+    async fn search(&self, query: String) -> fdo::Result<String> {
+        Ok(self.to_loop.call(move |state| state.menu_search(&query)).await?)
+    }
+
     /// A window's own menus as JSON, and where they came from: `dbusmenu`, `gmenu`, `none`
     /// for the fallback, or `looking` while Isle asks.
     async fn show(&self, id: u64) -> fdo::Result<String> {

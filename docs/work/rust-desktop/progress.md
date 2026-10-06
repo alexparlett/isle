@@ -1,5 +1,16 @@
 # Progress
 
+## 2026-10-06
+
+- P6 6.6: menu search and the measure. Help holds a search field over the
+  app's menus, folded titles included, each result with its path; opening it
+  asks the app to fill its submenus. `isle menus search`. At 3440×1440 in a
+  release build the island and the bar draw at 0.8–1.1 and 0.5 ms p95 and
+  the process sits at 163 MB and 92 MiB at most (`p6-island-and-menus.md` in
+  research). Found and fixed: a closed tree's state written after it
+  unmounted panicked on every reveal, unseen, and the backtraces took RSS to
+  500 MB.
+
 ## 2026-10-05
 
 - P6 6.5: the menu sources. `isle-menus` reads DBusMenu and GMenuModel into

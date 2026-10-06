@@ -87,6 +87,8 @@ pub struct BarState {
     pub keyboard_move: Option<(u64, bool, Rectangle<i32, smithay::utils::Logical>)>,
     /// Help and website links by app, read on the worker.
     links: HashMap<String, isle_apps::metainfo::Links>,
+    /// The window the revealed bar speaks for: the one focused before the bar took the keys.
+    pub window: Option<u64>,
     /// The output the bar is sliding away from.
     pub leaving_on: Option<Output>,
 }
@@ -114,6 +116,7 @@ impl BarState {
             window_commands: HashMap::new(),
             keyboard_move: None,
             links: HashMap::new(),
+            window: None,
             leaving_on: None,
         }
     }
@@ -308,9 +311,13 @@ impl Isle {
         chords.first().and_then(|c| Chord::parse(c))
     }
 
-    /// The app the bar speaks for: the focused window's, else Files.
+    /// The app the bar speaks for: the window it speaks for's, else Files.
     pub fn bar_app(&self) -> (String, String) {
-        if let Some(app) = self.front_app() {
+        let app = match self.bar.window {
+            Some(id) if self.bar.output.is_some() => self.wm.get(id).map(|r| r.app.clone()),
+            _ => self.front_app(),
+        };
+        if let Some(app) = app {
             return (app.clone(), self.apps.name(&app));
         }
         let files = [
@@ -328,6 +335,15 @@ impl Isle {
 }
 
 impl State {
+    /// The window the bar speaks for: while it is down, the one focused before it.
+    fn bar_window(&self) -> Option<u64> {
+        if self.isle.bar.output.is_some() {
+            self.isle.bar.window
+        } else {
+            self.focused_window()
+        }
+    }
+
     fn typing_pc(&self) -> bool {
         self.isle.keyboards.last_profile() == Profile::Pc
     }
@@ -373,7 +389,7 @@ impl State {
             chord("close-window"),
         );
         let entry = self.isle.apps.get(&app).cloned();
-        let focused = self.focused_window();
+        let focused = self.bar_window();
         if let Some(id) = focused {
             self.find_menus(id);
         }
@@ -795,6 +811,9 @@ impl State {
         if self.isle.bar.output.as_ref().is_some_and(|o| o != &name) {
             self.hide_bar();
         }
+        if self.isle.bar.output.is_none() {
+            self.isle.bar.window = self.focused_window();
+        }
         if let Some(leaving) = self.isle.bar.leaving_on.take()
             && leaving.name() != name
         {
@@ -1047,8 +1066,30 @@ impl State {
         }
     }
 
+    /// Help's search is opening: the submenus the app fills only when asked are asked for,
+    /// a few levels down and at most fifty, so search finds what is in them.
+    fn crawl_menus(&mut self) {
+        let Some(id) = self.bar_window() else {
+            return;
+        };
+        let Some(crate::menus::Found::Menus(_, tree)) = self.isle.menus.trees.get(&id) else {
+            return;
+        };
+        let fills: Vec<Vec<String>> = tree
+            .walk()
+            .into_iter()
+            .filter(|(path, item)| item.fill.is_some() && path.len() <= 4)
+            .map(|(path, _)| path)
+            .take(50)
+            .collect();
+        for path in fills {
+            self.fill_remote(id, path);
+        }
+    }
+
     /// Shift+Cmd+/: the bar with Help open.
     pub fn help_chord(&mut self) {
+        self.crawl_menus();
         if let Some(output) = self
             .isle
             .output_with_focus()
@@ -1072,6 +1113,9 @@ impl State {
                 } else {
                     Some(i)
                 };
+                if open.is_some() && i + 1 == count {
+                    self.crawl_menus();
+                }
                 self.isle.bar.open = open;
                 self.isle.bar.focused = Some(i);
                 self.isle.bar.by_key = false;
@@ -1501,6 +1545,36 @@ fn find_item(entries: &[MenuEntry], path: &[&str]) -> Option<MenuItem> {
 }
 
 impl State {
+    /// The front app's menu items whose labels hold `query`, with their paths and hints, as
+    /// JSON: Help's search and Spotlight's menu-item source read the same index.
+    pub fn menu_search(&mut self, query: &str) -> String {
+        if self.isle.bar.output.is_none() {
+            self.isle.bar.titles = self.build_bar();
+        }
+        let last = self.isle.bar.titles.len().saturating_sub(1);
+        let menus: Vec<(String, Rc<Vec<MenuEntry>>)> = self
+            .isle
+            .bar
+            .titles
+            .iter()
+            .enumerate()
+            .filter(|(i, t)| *i != last && t.kind != TitleKind::System)
+            .map(|(_, t)| (t.label.clone(), t.menu.clone()))
+            .collect();
+        let found: Vec<serde_json::Value> = isle_ui::menu::search(&menus, query)
+            .into_iter()
+            .map(|(path, item)| {
+                serde_json::json!({
+                    "path": path,
+                    "label": item.label,
+                    "enabled": item.enabled,
+                    "hint": item.hint.map(|h| format!("{}{}", h.modifiers, h.key)),
+                })
+            })
+            .collect();
+        serde_json::Value::Array(found).to_string()
+    }
+
     /// The front app's bar as JSON: its titles and their menus, built afresh.
     pub fn bar_json(&mut self) -> String {
         let titles = match self.bar_output() {

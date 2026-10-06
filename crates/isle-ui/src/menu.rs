@@ -134,6 +134,40 @@ pub fn type_select(entries: &[MenuEntry], from: Option<usize>, typed: &str) -> O
     })
 }
 
+/// The items under `menus` whose labels hold `query`, ignoring case, each with the labels of
+/// the menus above it; labels that start with it first, then by depth. Submenus themselves
+/// are not results, only what they hold.
+pub fn search(menus: &[(String, Rc<Vec<MenuEntry>>)], query: &str) -> Vec<(Vec<String>, MenuItem)> {
+    fn walk(entries: &[MenuEntry], path: &mut Vec<String>, out: &mut Vec<(Vec<String>, MenuItem)>) {
+        for item in entries.iter().filter_map(MenuEntry::item) {
+            match &item.submenu {
+                Some(children) => {
+                    path.push(item.label.clone());
+                    walk(children, path, out);
+                    path.pop();
+                }
+                None => out.push((path.clone(), item.clone())),
+            }
+        }
+    }
+    let query = query.trim().to_lowercase();
+    if query.is_empty() {
+        return Vec::new();
+    }
+    let mut all = Vec::new();
+    for (title, entries) in menus {
+        let mut path = vec![title.clone()];
+        walk(entries, &mut path, &mut all);
+    }
+    let mut found: Vec<(Vec<String>, MenuItem)> = all
+        .into_iter()
+        .filter(|(_, item)| item.label.to_lowercase().contains(&query))
+        .collect();
+    found.sort_by_key(|(path, item)| (!item.label.to_lowercase().starts_with(&query), path.len()));
+    found.truncate(20);
+    found
+}
+
 /// What a menu tells its owner.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MenuEvent {
@@ -164,6 +198,8 @@ pub struct Menu {
     on_event: EventHandler<MenuEvent>,
     /// The row to select when it opens, as from the keyboard.
     first_selected: bool,
+    /// Typing selects the item it starts; off while a search field takes the typing.
+    type_select: bool,
 }
 
 impl Menu {
@@ -173,7 +209,15 @@ impl Menu {
             material: Material::Glass,
             on_event: on_event.into(),
             first_selected: false,
+            type_select: true,
         }
+    }
+
+    /// Typing selects the item it starts, and the menu takes focus as it opens; off while
+    /// a search field above it takes the typing and keeps the focus.
+    pub fn type_select(mut self, on: bool) -> Self {
+        self.type_select = on;
+        self
     }
 
     pub fn material(mut self, material: Material) -> Self {
@@ -286,6 +330,7 @@ impl Component for Menu {
         let menus = levels_of(&root, &levels.read());
         let depth = menus.len() - 1;
 
+        let typing = self.type_select;
         let on_key = {
             let menus = menus.clone();
             let on_event = on_event.clone();
@@ -335,6 +380,7 @@ impl Component for Menu {
                     Key::Named(NamedKey::Enter) | Key::Character(_)
                         if matches!(&e.key, Key::Named(NamedKey::Enter))
                             || (matches!(&e.key, Key::Character(c) if c == " ")
+                                && typing
                                 && typed.peek().is_empty()) =>
                     {
                         if let Some(item) = selected.and_then(|i| entries[i].item()) {
@@ -347,6 +393,7 @@ impl Component for Menu {
                             }
                         }
                     }
+                    Key::Character(_) if !typing => {}
                     Key::Character(c) => {
                         let now = std::time::Instant::now();
                         let fresh =
@@ -563,8 +610,8 @@ impl Component for Menu {
 
         rect()
             .horizontal()
-            .a11y_focusable(true)
-            .a11y_auto_focus(true)
+            .a11y_focusable(typing)
+            .a11y_auto_focus(typing)
             .on_global_key_down(on_key)
             .children(panels)
     }
@@ -623,6 +670,27 @@ mod tests {
         let tidied = tidy(&menu);
         assert_eq!(tidied.len(), 3);
         assert!(matches!(tidied[1], MenuEntry::Separator));
+    }
+
+    #[test]
+    fn search_finds_items_under_their_menus_starts_first() {
+        let edit = vec![
+            MenuEntry::Item(MenuItem::new(1, "Copy")),
+            MenuEntry::Item(MenuItem::new(2, "Find").submenu(vec![
+                MenuEntry::Item(MenuItem::new(3, "Find and Replace")),
+                MenuEntry::Item(MenuItem::new(4, "Use Selection to Find").enabled(false)),
+            ])),
+        ];
+        let menus = vec![("Edit".to_string(), Rc::new(edit))];
+        let found = search(&menus, "find");
+        let paths: Vec<String> = found
+            .iter()
+            .map(|(p, i)| format!("{} › {}", p.join(" › "), i.label))
+            .collect();
+        assert_eq!(paths, ["Edit › Find › Find and Replace", "Edit › Find › Use Selection to Find"]);
+        assert!(!found[1].1.enabled, "disabled results are kept, marked");
+        assert!(search(&menus, "zzz").is_empty());
+        assert!(search(&menus, "  ").is_empty());
     }
 
     #[test]

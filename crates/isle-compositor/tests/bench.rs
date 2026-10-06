@@ -335,3 +335,57 @@ async fn title_bar_cost() {
         );
     }
 }
+
+/// P6: the island at rest, Control Centre open and the menu bar down with a menu open, on
+/// a 3440 by 1440 output: draw times and what each adds to memory and the GPU.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn island_and_menu_bar_cost() {
+    const CTRL: u32 = 29;
+    const F8: u32 = 66;
+    const F2: u32 = 60;
+    const ESC: u32 = 1;
+    let mut isle = Isle::start("cost-island").await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let test = isle.test().await;
+    test.add_output("BIG", "Isle", "Bench", "1", 3440, 1440).await.unwrap();
+    test.remove_output("HEADLESS-1").await.unwrap();
+    let _client = isle.client_with(&["--app-id", "isle.test.Qt", "--size", "1600x900", "--appmenu"]);
+    isle.wait_for_window("isle.test.Qt").await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    test.measure(true).await.unwrap();
+    let chord = |keys: &'static [u32]| {
+        let isle = &isle;
+        async move {
+            isle.chord(keys).await;
+            tokio::time::sleep(Duration::from_millis(800)).await;
+        }
+    };
+    let snap = |what: &str| {
+        let (rss, own) = memory(pid);
+        println!("{what}: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    };
+    snap("rest");
+    for _ in 0..20 {
+        chord(&[CTRL, F8]).await;
+        chord(&[ESC]).await;
+    }
+    report("island with Control Centre, 20 opens", &surface(&isle, "island").await);
+    chord(&[CTRL, F8]).await;
+    snap("Control Centre open");
+    chord(&[ESC]).await;
+    for _ in 0..10 {
+        chord(&[CTRL, F2]).await;
+        chord(&[ESC]).await;
+        chord(&[ESC]).await;
+    }
+    snap("after 10 reveals");
+    report("menu bar, 10 reveals", &surface(&isle, "menu-bar").await);
+    chord(&[CTRL, F2]).await;
+    snap("menu bar down, system menu open");
+    chord(&[ESC]).await;
+    chord(&[ESC]).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    snap("rest again");
+    assert!(!isle.log().contains("panicked"), "a surface panicked");
+}

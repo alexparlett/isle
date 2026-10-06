@@ -51,6 +51,8 @@ pub async fn fetch_submenu(
     let _ = event(&proxy, id, "opened").await;
     let (_, layout): (u32, Layout) =
         limited(proxy.call("GetLayout", &(id, -1i32, Vec::<String>::new()))).await?;
+    // Isle shows its own copy: the app may let its submenu go again.
+    let _ = event(&proxy, id, "closed").await;
     Ok(children(&layout.2))
 }
 

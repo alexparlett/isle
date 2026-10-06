@@ -3,6 +3,7 @@
 pub mod button;
 mod glyph;
 pub mod menu;
+pub mod search;
 pub mod text;
 
 use std::rc::Rc;
@@ -14,6 +15,7 @@ use isle_tokens::{Colour, Theme};
 pub use button::{Button, LevelBar};
 pub use glyph::{Glyph, LevelGlyph, glyph_svg};
 pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
+pub use search::SearchField;
 
 /// The theme every tree reads; a change re-renders whoever read it.
 #[derive(Clone, Copy)]

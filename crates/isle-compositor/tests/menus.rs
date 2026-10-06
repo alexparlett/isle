@@ -117,6 +117,10 @@ async fn gtk_s_menus_arrive_through_gtk_shell_and_their_actions_run() {
     client.clear();
     assert!(activate(&isle, &["Edit", "Copy"]).await);
     client.wait_for("menu activated copy").await;
+
+    // The window's action group says its state changed; the mark follows.
+    assert!(activate(&isle, &["Edit", "Word Wrap"]).await);
+    wait_until(|| async { item(&bar(&isle).await, "Edit", "Word Wrap").unwrap()["mark"] == "none" }).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

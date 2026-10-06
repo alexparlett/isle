@@ -250,15 +250,29 @@ pub async fn changes(
     source: &Source,
 ) -> zbus::Result<impl Stream<Item = ()> + 'static> {
     let Source::GMenu {
-        service, menubar, ..
+        service,
+        menubar,
+        application,
+        window,
+        unity,
     } = source
     else {
         return Err(zbus::Error::Failure("not a GMenu source".into()));
     };
     let menus = zbus::Proxy::new(conn, service.clone(), menubar.clone(), "org.gtk.Menus").await?;
-    let actions =
-        zbus::Proxy::new(conn, service.clone(), menubar.clone(), "org.gtk.Actions").await?;
-    let a = menus.receive_signal("Changed").await?;
-    let b = actions.receive_signal("Changed").await?;
-    Ok(futures_util::stream::select(a.map(|_| ()), b.map(|_| ())))
+    type Changes = std::pin::Pin<Box<dyn Stream<Item = ()> + Send>>;
+    let mut all: Changes = Box::pin(menus.receive_signal("Changed").await?.map(|_| ()));
+    // An action's state changes where its group lives: the app's, the window's or the menubar's.
+    let mut paths: Vec<&String> = [Some(menubar), application.as_ref(), window.as_ref(), unity.as_ref()]
+        .into_iter()
+        .flatten()
+        .collect();
+    paths.dedup();
+    for path in paths {
+        let actions =
+            zbus::Proxy::new(conn, service.clone(), path.clone(), "org.gtk.Actions").await?;
+        let changed = actions.receive_signal("Changed").await?.map(|_| ());
+        all = Box::pin(futures_util::stream::select(all, changed));
+    }
+    Ok(all)
 }

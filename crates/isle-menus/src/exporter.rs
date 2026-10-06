@@ -340,14 +340,44 @@ impl ActionsExport {
             .collect()
     }
 
+    /// A stateful action flips its state, as GTK's do, and says so.
     async fn activate(
         &self,
         name: String,
         _parameter: Vec<OwnedValue>,
         _platform: HashMap<String, OwnedValue>,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
     ) {
+        let initial = self.actions.iter().find(|(n, _)| *n == name).and_then(|(_, s)| *s);
+        let flipped = initial.map(|initial| {
+            let mut state = self.state.lock().unwrap();
+            let now = !state.get(&name).copied().unwrap_or(initial);
+            state.insert(name.clone(), now);
+            now
+        });
+        if let Some(now) = flipped {
+            let changes: HashMap<String, OwnedValue> =
+                HashMap::from([(name.clone(), OwnedValue::from(now))]);
+            let _ = Self::changed(
+                &emitter,
+                Vec::new(),
+                HashMap::new(),
+                changes,
+                HashMap::new(),
+            )
+            .await;
+        }
         (self.on_activate)(name);
     }
+
+    #[zbus(signal)]
+    async fn changed(
+        emitter: &SignalEmitter<'_>,
+        removals: Vec<String>,
+        enable_changes: HashMap<String, bool>,
+        state_changes: HashMap<String, OwnedValue>,
+        additions: HashMap<String, (bool, zvariant::Signature, Vec<OwnedValue>)>,
+    ) -> zbus::Result<()>;
 
     async fn set_state(
         &self,

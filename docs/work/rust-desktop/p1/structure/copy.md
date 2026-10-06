@@ -60,7 +60,8 @@ follows, and the strings that recur.
     "Playing", not "Connection established".
 11. **Keyboard shortcuts** are shown with macOS's symbols (⌘ ⌥ ⌃ ⇧) on a
     Mac-layout keyboard and as words (Super, Alt, Ctrl, Shift) on a PC
-    one, from the focused device's profile (B30).
+    one, from the focused device's profile (B30). The words name the keys
+    pressed: with the PC swap on, Cmd is shown as Alt and Option as Super.
 12. **Typographic punctuation.** Quotes and apostrophes are curly in the
     UI (“ ” ’), as is the ellipsis (…), and × in sizes, spaced ("1920 ×
     1080"). The sheets write the apostrophe straight; the build renders

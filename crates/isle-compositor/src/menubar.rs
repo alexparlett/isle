@@ -122,13 +122,24 @@ impl BarState {
     }
 }
 
-/// A chord as the menu shows it: macOS's symbols and the key, or words on a PC keyboard.
-pub fn hint(chord: &Chord, pc: bool) -> Hint {
-    if pc {
-        let words = chord
-            .words()
-            .replace("Cmd", "Super")
-            .replace("Option", "Alt");
+/// How the typing keyboard's modifier keys are labelled.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Labels {
+    Mac,
+    Pc,
+    /// A PC keyboard with Alt and Super swapped: Cmd is the key labelled Alt.
+    PcSwapped,
+}
+
+/// A chord as the menu shows it: macOS's symbols and the key, or a PC keyboard's words for
+/// the keys the user presses.
+pub fn hint(chord: &Chord, labels: Labels) -> Hint {
+    if labels != Labels::Mac {
+        let (cmd, option) = match labels {
+            Labels::PcSwapped => ("Alt", "Super"),
+            _ => ("Super", "Alt"),
+        };
+        let words = chord.words().replace("Cmd", cmd).replace("Option", option);
         return Hint {
             modifiers: String::new(),
             key: words,
@@ -199,7 +210,7 @@ impl Row {
 struct Builder<'a> {
     commands: &'a mut HashMap<u64, Command>,
     next: &'a mut u64,
-    pc: bool,
+    labels: Labels,
 }
 
 impl Builder<'_> {
@@ -218,7 +229,7 @@ impl Builder<'_> {
         MenuEntry::Item(
             MenuItem::new(id, label)
                 .enabled(enabled)
-                .hint(chord.map(|c| hint(&c, self.pc))),
+                .hint(chord.map(|c| hint(&c, self.labels))),
         )
     }
 
@@ -344,14 +355,18 @@ impl State {
         }
     }
 
-    fn typing_pc(&self) -> bool {
-        self.isle.keyboards.last_profile() == Profile::Pc
+    fn labels(&self) -> Labels {
+        match self.isle.keyboards.last_device() {
+            Some(d) if d.profile == Profile::Pc && d.swap => Labels::PcSwapped,
+            Some(d) if d.profile == Profile::Pc => Labels::Pc,
+            _ => Labels::Mac,
+        }
     }
 
     /// The front app's titles and their menus, with every item's command.
     fn build_bar(&mut self) -> Vec<Title> {
         let (app, name) = self.isle.bar_app();
-        let pc = self.typing_pc();
+        let labels = self.labels();
         let game = self.focus_is_game();
         let names: Vec<String> = {
             let mut n = self.focus_names();
@@ -439,7 +454,7 @@ impl State {
         let mut b = Builder {
             commands: &mut bar.commands,
             next: &mut bar.next_id,
-            pc,
+            labels,
         };
         let mut titles = Vec::new();
 
@@ -1299,14 +1314,14 @@ impl State {
         let Some(screen) = self.isle.space.output_geometry(&output) else {
             return;
         };
-        let pc = self.typing_pc();
+        let labels = self.labels();
         let items = self.window_entries(id, false);
         let bar = &mut self.isle.bar;
         bar.window_commands.clear();
         let mut b = Builder {
             commands: &mut bar.window_commands,
             next: &mut bar.next_id,
-            pc,
+            labels,
         };
         let entries = b.rows(items);
         bar.window_menu_for = Some(id);
@@ -1635,5 +1650,18 @@ impl State {
         self.hide_bar();
         self.run_command(command);
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hints_name_the_keys_the_user_presses() {
+        let chord = Chord::parse("Option+Cmd+Escape").unwrap();
+        assert_eq!(hint(&chord, Labels::Mac).modifiers, "⌥⌘");
+        assert_eq!(hint(&chord, Labels::Pc).key, "Alt+Super+Esc");
+        assert_eq!(hint(&chord, Labels::PcSwapped).key, "Super+Alt+Esc");
     }
 }

@@ -110,6 +110,11 @@ impl Keyboards {
         }
     }
 
+    /// The keyboard that typed last.
+    pub fn last_device(&self) -> Option<&Device> {
+        self.last.as_ref().and_then(|id| self.get(id))
+    }
+
     /// The profile of the keyboard that typed last; Mac before any has.
     pub fn last_profile(&self) -> Profile {
         self.last

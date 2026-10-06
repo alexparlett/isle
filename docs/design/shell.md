@@ -124,6 +124,11 @@ Open for its packet
 - Qt 5 and Qt before 6.9 through the KDE platform theme; JetBrains under WLToolkit; whether Steam exports anything.
 - Whether to load appmenu-gtk-module per launch for plain GtkMenuBar apps, with an exclusion list for the reported crash.
 
+Settled in P6
+- The lookup order and the PID match are built (B50). No Electron release carries PR #54629 yet; until one does, the PID match finds an app that registers, and with several windows each shows the first registration's menus.
+- GTK 4 and libadwaita apps export a model only when they call `gtk_application_set_menubar`, which few do; the rest keep the fallback (`global-menu-2026.md`). `titlebar_gesture` obliges the compositor to act on header-bar clicks, which it does (compositor.md, Title bars).
+- appmenu-gtk-module per launch waits for Spotlight's launching (P10). Flatpak's PIDs and Qt 5, JetBrains and Steam wait for the host run.
+
 ### Island
 
 B18 makes the island, v1's pill at top centre, the one thing on screen at rest besides the

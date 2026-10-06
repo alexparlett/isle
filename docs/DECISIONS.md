@@ -549,3 +549,73 @@ detects games for the desktop. Rejected: full screen as a sign (a video is
 not a game; B30 follows games windowed or not), ananicy's process-name list
 for now (distro data, names only; P12 may use it as a fallback).
 
+**B47 · The island's model is the one place sources post.** Built in P6
+and kept by every packet that shows something on the island (P8, P9, P11,
+P17). `isle-shell`'s `island::model` is pure: glyph states with their
+tiers, privacy marks, live activities ranked one per kind, and events with
+their forms, durations, replacement and pre-emption by OSDs, waiting while
+a panel is open and dropped past their time. It takes a clock and answers
+what each output's island shows and when that next changes; the loop arms
+one timer for that. A source never draws on the island or holds a timer
+of its own. Rejected: each source owning a piece of the pill (two sources
+would race for the space), a tick to re-evaluate the queue (acceptance
+bar 2).
+
+**B48 · The island's shape is the compositor's.** Built in P6. The
+compositor springs the island's width and height, draws its fill, shadow
+and glass and clips the tree to it; the tree draws content only and reads
+the morph's progress, fading the outgoing form by 1 − 2p and the incoming
+by 2p − 1, so the pill's row, in both, stays put. The texture is the larger
+form's size while a spring runs. Measured at about eighty draws an open and
+close, inside 2 ms at p95. Rejected: a crossfade of snapshots (the shared
+row would vanish at the midpoint), springing the shape inside the tree
+(every frame would lay out the panel at a new size).
+
+**B49 · One top-layer panel at a time.** Built in P6. Control Centre is the
+island grown into a panel on one output, and the bar's menus are in the
+bar's surface. Revealing the bar closes Control Centre and pinning Control
+Centre hides the bar; a peek leaves a revealed bar alone. Opening either on
+another output closes it where it was. The island's events wait while its
+panel is open. The bar's surface covers
+its output while revealed, about 40 MiB of VRAM at 3440×1440, given back on
+hiding. Rejected: a placed surface per menu (Help's search and moving
+between titles need one layout), Control Centre as a surface of its own
+(the morph from the pill is one shape).
+
+**B50 · Menus are one tree from four sources, the registrar owned first.**
+Built in P6. `isle-menus` reads DBusMenu (Qt, Chromium, Electron) and
+GMenuModel (GTK) into one tree on the worker, with a 2 s limit on every
+call. A window's menu is found by its surface's own address
+(`org_kde_kwin_appmenu` v2, `gtk_shell1` v5), then for X11 the registrar's
+entry by window id and the window's KDE and GTK properties, then a
+registration from the window's process (Electron on Wayland), else the
+fallback built from the desktop entry and the translation tables' labels;
+the app id never selects a menu. A window is looked up as it takes focus
+and again when a registration arrives after it maps; a dialog with no
+menus shows its parent's, else its app's. A source is watched while the
+app's menus are empty, as LibreOffice's are until its document is up, and
+a GMenu watch keeps its subscription, since GTK signals only subscribers.
+Items are found again by label path, since Electron renumbers its tree. Isle owns
+`com.canonical.AppMenu.Registrar` without queueing before it announces
+its socket, because Qt asks once per process whether it has an owner.
+`gtk_shell1`'s title-bar gesture is served with the capability, so a
+libadwaita header bar's double click and right click keep working.
+Rejected: `system-tray`'s DBusMenu proxy (it replaces the whole tree on a
+submenu's update and stops watching after a timeout), version 4 of
+`gtk_shell1` (no window menu from header bars), `xdg_dbus_annotation_v1`
+(unmerged, no exporter).
+
+**B51 · The main screen follows focus.** Built in P6. Events, faces and
+Isle's panels show on the focused window's output, else the pointer's;
+`shell.main-screen` pins it to an output by identity. Every output's island
+keeps its clock, glyphs and privacy marks. Rejected: the primary output
+(Isle has none; the ultrawide and a laptop panel trade places).
+
+**B52 · One launch path.** Built in P6 and used by Spotlight (P10) and
+every later packet that starts something. `launch` takes an entry, an
+entry action or a link (the default handler from `mimeapps.list`), expands
+`Exec`'s field codes, and starts it in a transient systemd user scope named
+by the xdg convention with an xdg-activation token, so the new window takes
+focus and the app is its own unit; without systemd it spawns directly.
+Rejected: spawning as a child of the compositor (an app would die with it
+and share its cgroup), `gtk-launch` (no token, no scope).

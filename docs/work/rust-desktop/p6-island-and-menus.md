@@ -609,3 +609,45 @@ top's chord (P20); menus for apps that export none beyond the fallback.
 - **The bar's texture.** A full-output surface while revealed costs about
   20 MB of VRAM on the ultrawide; if 6.6 finds it too much the menus move
   to placed surfaces of their own and the band shrinks to its height.
+
+## Outcome
+
+Phases 6.0 to 6.7 passed their checks headless and in the VM, with these
+differences from the plan:
+
+- **The morph's fallback** was not needed: the island's tree drawn on
+  every frame of a spring stays inside 2 ms at p95 (B48).
+- **One panel at a time**, not one per screen: Control Centre and the bar
+  close each other on whichever output, and a peek leaves a revealed bar
+  alone (B49).
+- **The bar's texture** costs about 40 MiB while revealed at 3440×1440,
+  not 20, and is given back on hiding; inside the budget, so the menus
+  stay in the bar's surface.
+- **X11 menu properties** are read over a connection of Isle's own to
+  Xwayland on the worker, so the Smithay fork needed no patch for them.
+- **Help's search** fills the app's lazy submenus when Help opens and
+  activates a result by its path; a found item's path is not opened as
+  the pointer moves onto it.
+- **What the VM found** (`p6-island-and-menus.md` in research): menus
+  are looked up as a window takes focus and again on a later
+  registration, a dialog shows its parent's menus, an app's empty menus
+  are watched until it fills them with a GMenu subscription held, GTK
+  toggles are watched in their own groups, the bar goes with its window,
+  a late glass shape queues a frame, a window with no app id is named by
+  its process, and a swapped PC keyboard's hints name the keys pressed.
+- **A surface's state after unmount.** Trees that register state with
+  the compositor drop it in `use_drop`; writing to it after a close
+  panicked on every reveal, unseen behind the boundary.
+
+Tests: `cargo test --workspace --features isle-compositor/test-hooks`,
+with 35 headless tests for P6 (the island, Control Centre and the top
+edge, the wallpaper, launching, the menu bar, every menu source), the
+`isle-menus` clients against its exporters, and unit tests for the
+island's queue, the grid, the menu's keyboard and search, glyphs, Exec
+field codes, icons and AppStream. Measurements and findings in
+`docs/research/rust-desktop/p6-island-and-menus.md`.
+
+The host run (tty8, the user's) is still to come: the wallpaper on the
+ultrawide, the island at rest for an hour with frames traced, Control
+Centre's peek and pin, Chromium's menus, VS Code's and Steam's
+fallbacks, and a game with the dwell.

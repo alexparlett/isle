@@ -90,3 +90,43 @@ late. Frost needs no decode and stands in until a picture is ready.
   is found through the PID of its bus connection, taking the first registration from
   that process, so with several windows each shows the same window's menus until
   Electron's fix gives them their own ids.
+
+## The VM (2026-10-06)
+
+The guest's session on llvmpipe at 2560×1080, a test-hooks debug build, apps started over
+ssh or through `isle apps launch`:
+
+| App | Path | Result |
+|---|---|---|
+| Qt Widgets Designer 6.11, Wayland | `org_kde_kwin_appmenu` | real menus, hints, activations |
+| Qt Widgets Designer 6.11, X11 | registrar by window id | real menus within 100 ms of mapping |
+| Chromium 153, Wayland | `org_kde_kwin_appmenu` | real menus; File › New window opens one |
+| LibreOffice 26.8 Writer, GTK 3 | `gtk_shell1` | real menus and submenus, once it fills them |
+| GtkApplication menubar, GTK 4 and GTK 3 | `gtk_shell1` | real menus, toggles follow, actions run |
+| GtkApplication menubar, GTK 3 on X11 | `_GTK_*` properties | real menus |
+| kitty, zenity, xterm | none | the fallback; kitty's from its table |
+
+Found and fixed on the way:
+
+- A dialog has no menus of its own (Designer's New Form, LibreOffice's welcome); the bar
+  now shows its parent's, else its app's most recent window's.
+- Lookups ran only when the bar was built, so a revealed bar opened on the fallback; they
+  now run as a window takes focus, again when a registration arrives after the window
+  maps (Qt on X11 registers a moment after mapping), and a lookup overtaken by a newer one
+  is dropped.
+- LibreOffice names its menubar before filling it; the first read was empty and nothing
+  watched an empty one. GTK's exporter sends `Changed` only to connections subscribed to
+  the group, and Isle ended its subscription after each read; the watch now holds one.
+- A GTK action's state lives in the app's or the window's group, not the menubar's;
+  watching only the menubar's path left check marks stale.
+- A menu opened from the keyboard measured its glass after that frame's glass pass and
+  nothing drew another frame, so it showed unblurred; a changed glass shape now queues one.
+- The bar stayed down speaking for a window that had closed; it now goes with it.
+- On a PC keyboard with the swap on, hints read "Super+N" for the key labelled Alt; they
+  now name the keys pressed.
+
+Left as they are: GTK keeps accelerators out of the exported model, so a GtkApplication's
+items show no hint unless the model sets `accel`; GTK 3 on X11 keeps its own menubar as
+well, since only XSETTINGS tells it a desktop shows one. Two outputs were checked headless
+only; the guest has one display. Chromium's first-run terms dialog was closed, not
+answered, and Chromium run with `--no-first-run`.

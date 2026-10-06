@@ -2,6 +2,20 @@
 
 ## 2026-10-06
 
+- P6 6.8: closed. ARCHITECTURE has How the top of the screen works,
+  B47–B52 are recorded, the open points of `shell.md`, `platform.md` and
+  `compositor.md` answered, the plan ends with its outcome. The host run
+  is the user's.
+
+- P6 6.7: the VM. Qt 6 (Wayland and X11), Chromium 153, LibreOffice 26.8
+  on GTK 3 and GtkApplication menubars on GTK 3 and 4 show their real
+  menus and take activations; kitty, zenity and xterm fall back. Found and
+  fixed: lookups only when the bar was built, a dialog without the app's
+  menus, LibreOffice's late-filled menubar (GTK signals only subscribers),
+  GTK toggles watched in the wrong group, an unblurred menu opened from
+  the keyboard, the bar outliving its window, a blank name for a window
+  with no app id, and swapped PC keyboards' hints naming the wrong key.
+
 - P6 6.6: menu search and the measure. Help holds a search field over the
   app's menus, folded titles included, each result with its path; opening it
   asks the app to fill its submenus. `isle menus search`. At 3440×1440 in a

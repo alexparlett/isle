@@ -73,7 +73,8 @@ compositor, with the Alt and Super swap on PC keyboards on by default
 shortcuts-inhibit (B21); the default shortcut set. Retires xremap. Intent:
 compositor.md.
 
-**P6 · Island and menus.** The island on every screen (B18): the clock,
+**P6 · Island and menus.** Built 2026-10-06, host run pending:
+`p6-island-and-menus.md`, B47–B52. The island on every screen (B18): the clock,
 the status glyphs, live activity as P1 designs it (B24), and Control
 Centre's panel opening from it, whose modules and tray fill in with P8.
 The menu bar on demand from the top edge and Ctrl+F2, with the three menu

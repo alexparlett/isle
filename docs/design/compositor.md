@@ -212,6 +212,8 @@ toolbar with the same traffic lights. Its look and arrangement are P1's.
 
 **Settled in P4, in part.** Server side is preferred over both protocols; a bar is a Freya tree per window (B41). `gtk_shell1` is not served yet; the window menu it would carry is P6's.
 
+**Settled in P6.** `gtk_shell1` is served at version 5 with `titlebar_gesture`: GTK 4 hands its header bar's double, right and middle clicks to Isle, which runs the title-bar action, opens the window menu and lowers the window (B50).
+
 ### Xwayland window manager
 
 Steam, most games and some apps are X11 clients. Isle runs Xwayland under

@@ -269,6 +269,9 @@ D17. D73.
 **Open for its packet.** Launching each app in its own transient systemd
 scope, which helps accounting but must first be measured against D17.
 
+**Settled in P6.** Isle launches into a transient user scope with an
+activation token, spawning directly when systemd is not there (B52).
+
 ### Notifications and badges
 
 Apps' notifications arrive, wait in the centre, carry actions and replies,
@@ -331,6 +334,11 @@ collection are `compositor.md`.
 **Open for its packet.** Loading appmenu-gtk-module per launch through
 `GTK_MODULES`, with exclusions (`macos-model.md` §1.2). Whether Isle offers
 to set Firefox's two prefs. PID matching for Flatpak apps.
+
+**Settled in P6, in part.** The registrar is owned before the socket is
+announced, and a taken name is logged and the fallback shown (B50).
+Firefox's prefs are not offered; appmenu-gtk-module waits for P10's
+launching; Flatpak's PIDs for the host run.
 
 ### Polkit agent
 

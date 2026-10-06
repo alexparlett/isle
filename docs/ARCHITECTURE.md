@@ -194,6 +194,52 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   (B45). Isle's own keys (paste, emoji) are aimed at a window by id and
   sent as that app's own chord or typed through a keymap made for them.
 
+## How the top of the screen works
+
+- **The wallpaper is a render element.** Each output draws its background
+  first: Frost as a shader from the tokens, a colour, or a picture decoded
+  and fitted on the worker and uploaded once, crossfaded on a change. It is
+  no shell surface, and nothing is drawn under a full-screen window.
+- **The island's model is one queue** (B47). `isle-shell`'s `island::model`
+  holds glyph states, privacy marks, activities and events and answers what
+  each output's island shows and when that next changes, from a clock its
+  caller gives; the loop arms one timer for that change. Sources post to it
+  on the loop (`island_post`, `Island1`, `Test1.Island`); the clock wakes it
+  once a minute.
+- **The island's shape is the compositor's** (B48). `island` is an overlay
+  surface on every output. The compositor springs its width and height,
+  draws its fill, shadow and glass, and hands the tree the morph's progress,
+  by which the tree fades the outgoing form and brings in the incoming one;
+  the tree draws content only. Control Centre is the island grown into a
+  panel on one output; the bar and a pinned panel never show together (B49).
+- **The top edge is decided in one place.** `top_edge` owns the island's zone
+  (its shape, the strip above it and a guard each side), the hover dwell and
+  grace, the push that reveals the bar outside the zone or the island over a
+  full-screen window, and the dwell that replaces the push over a game.
+- **The bar is one surface per output, opened on one.** `menu-bar` covers its
+  output while revealed so the band, its open menus and Help's search are
+  laid out together; its hit shapes say where it takes the pointer, and a
+  press outside an open menu closes it and goes no further. The compositor
+  builds the titles from the front app's tree and Isle's own parts, keeps a
+  command per item id, and runs the chosen one.
+- **Menus are one tree from four sources** (B50). `isle-menus` reads DBusMenu
+  and GMenuModel into one tree on the worker and owns the registrar before
+  the socket is announced. A window's menu is found by its surface's own
+  address (`org_kde_kwin_appmenu`, `gtk_shell1`), then for X11 the
+  registrar by window id and the window's properties, then a registration
+  from the window's process, else the fallback from the desktop entry and
+  the translation tables' labels. The lookup runs as a window takes focus
+  and again when a registration arrives; a dialog with none shows its
+  parent's. A source is watched for changes, an empty one too, until the
+  app fills it. Items are found again by label path; hints are the Mac
+  chord P5's tables map the app's shortcut back to.
+- **The main screen follows focus** (B51): the focused window's output, else
+  the pointer's, unless `shell.main-screen` names one. Events and Isle's
+  About panel show there; every output keeps its clock and glyphs.
+- **Launching** (B52). `launch` starts an entry, an entry action or a link in
+  a transient systemd scope with an activation token, so the new window
+  takes focus; it falls back to a direct spawn without systemd.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -261,7 +307,9 @@ is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
 (the `isle` command), `isle-ipc`, `isle-settings` with its derive,
 `isle-state`, `isle-apps` (desktop entries and app resolution), `isle-keys` (keyboard
 profiles, chords, the shortcut set's table, translation tables and the engine),
+`isle-menus` (the menu tree, its DBusMenu and GMenuModel clients and the registrar),
 `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
 Freya side shared with Isle's apps) and `isle-preview`; `data/` holds the shipped tokens with their schema and
-contrast check, the translation tables, and the Phosphor subset. `spikes/shell-ui/`
+contrast check, the translation tables, the Phosphor subset with Isle's own glyphs, and
+the vendored `gtk-shell.xml`. `spikes/shell-ui/`
 is the throwaway code behind B7 and is not built on.

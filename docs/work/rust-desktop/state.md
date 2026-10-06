@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B46 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B52 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -239,3 +239,13 @@
   first client, `org_kde_kwin_appmenu`, `gtk_shell1` v5 with title-bar
   gestures, the fallback from labelled table rules, search, the window
   menu, a launch path. Research in `global-menu-2026.md`. Phases 6.0–6.8.
+- P6 6.0–6.7 done (2026-10-06): the wallpaper, `isle-ui`'s first
+  components and the launch path, the island and its queue, Control
+  Centre and the top edge, the menu bar and its fallback, the four menu
+  sources with the registrar, Help's search, the measures (release:
+  island and bar under 2 ms p95, 163 MB and 92 MiB at most). Checked in
+  the VM with Qt 6, Chromium, LibreOffice and GTK 3 and 4 apps.
+- P6 is closed (2026-10-06) but for the host run on tty8, the user's:
+  ARCHITECTURE has How the top of the screen works, B47–B52 are recorded,
+  the intent docs' open points answered, `p6-island-and-menus.md` ends
+  with its outcome. Next: P6's host run, then P7 (switcher).

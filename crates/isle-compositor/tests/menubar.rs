@@ -237,3 +237,12 @@ async fn the_bar_goes_with_the_window_it_was_revealed_for() {
     client.send("destroy");
     wait_until(|| async { bar(&isle).await["output"].is_null() }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_with_no_app_id_is_named_by_its_process() {
+    let mut isle = Isle::start("bar-no-app-id").await;
+    let client = isle.client_with(&["--app-id", "", "--colour", "3366ff"]);
+    client.wait_for("keyboard-enter").await;
+    // The kernel keeps fifteen characters of a process's name.
+    wait_until(|| async { bar(&isle).await["app"] == "isle-test-clien" }).await;
+}

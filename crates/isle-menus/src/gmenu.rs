@@ -45,26 +45,7 @@ pub async fn fetch(conn: &zbus::Connection, source: &Source) -> zbus::Result<Tre
         return Err(zbus::Error::Failure("not a GMenu source".into()));
     };
     let menus = zbus::Proxy::new(conn, service.clone(), menubar.clone(), "org.gtk.Menus").await?;
-    let mut groups: BTreeSet<u32> = BTreeSet::new();
-    let mut wanted = vec![0u32];
-    let mut content: HashMap<(u32, u32), Vec<HashMap<String, OwnedValue>>> = HashMap::new();
-    while !wanted.is_empty() {
-        let ask: Vec<u32> = wanted.drain(..).filter(|g| groups.insert(*g)).collect();
-        if ask.is_empty() {
-            break;
-        }
-        let entries: Vec<Entry> = limited(menus.call("Start", &(ask.clone(),))).await?;
-        for (group, menu, items) in entries {
-            for item in &items {
-                for link in [":submenu", ":section"] {
-                    if let Some((g, _)) = item.get(link).and_then(pair) {
-                        wanted.push(g);
-                    }
-                }
-            }
-            content.insert((group, menu), items);
-        }
-    }
+    let (groups, content) = start(&menus).await?;
     let _ =
         limited(menus.call::<_, _, ()>("End", &(groups.iter().copied().collect::<Vec<u32>>(),)))
             .await;
@@ -98,6 +79,34 @@ pub async fn fetch(conn: &zbus::Connection, source: &Source) -> zbus::Result<Tre
         })
         .collect();
     Ok(Tree { menus })
+}
+
+type Content = HashMap<(u32, u32), Vec<HashMap<String, OwnedValue>>>;
+
+/// Subscribes to every group reachable from the root and reads them: the groups, to end
+/// the subscription with, and their menus.
+async fn start(menus: &zbus::Proxy<'_>) -> zbus::Result<(BTreeSet<u32>, Content)> {
+    let mut groups: BTreeSet<u32> = BTreeSet::new();
+    let mut wanted = vec![0u32];
+    let mut content: Content = HashMap::new();
+    while !wanted.is_empty() {
+        let ask: Vec<u32> = wanted.drain(..).filter(|g| groups.insert(*g)).collect();
+        if ask.is_empty() {
+            break;
+        }
+        let entries: Vec<Entry> = limited(menus.call("Start", &(ask.clone(),))).await?;
+        for (group, menu, items) in entries {
+            for item in &items {
+                for link in [":submenu", ":section"] {
+                    if let Some((g, _)) = item.get(link).and_then(pair) {
+                        wanted.push(g);
+                    }
+                }
+            }
+            content.insert((group, menu), items);
+        }
+    }
+    Ok((groups, content))
 }
 
 fn pair(value: &OwnedValue) -> Option<(u32, u32)> {
@@ -262,6 +271,9 @@ pub async fn changes(
     let menus = zbus::Proxy::new(conn, service.clone(), menubar.clone(), "org.gtk.Menus").await?;
     type Changes = std::pin::Pin<Box<dyn Stream<Item = ()> + Send>>;
     let mut all: Changes = Box::pin(menus.receive_signal("Changed").await?.map(|_| ()));
+    // GTK signals a group's changes only to connections subscribed to it, so the watch holds
+    // a subscription for as long as it runs.
+    let _ = start(&menus).await;
     // An action's state changes where its group lives: the app's, the window's or the menubar's.
     let mut paths: Vec<&String> = [Some(menubar), application.as_ref(), window.as_ref(), unity.as_ref()]
         .into_iter()

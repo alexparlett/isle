@@ -25,6 +25,9 @@ pub enum Found {
     Looking,
     /// The app exports none: the fallback stands.
     None,
+    /// The app named its menus but has nothing in them yet, as LibreOffice before its
+    /// document is up: the fallback stands and the menus are watched until they fill.
+    Waiting(Source),
     Menus(Source, Tree),
 }
 
@@ -217,7 +220,7 @@ impl State {
             let found = match &source {
                 Some(source) => match fetch(&conn, source).await {
                     Ok(tree) if !tree.menus.is_empty() => Found::Menus(source.clone(), tree),
-                    Ok(_) => Found::None,
+                    Ok(_) => Found::Waiting(source.clone()),
                     Err(err) => {
                         warn!(?source, "the app's menus could not be read: {err}");
                         Found::None
@@ -239,7 +242,7 @@ impl State {
                 Found::Looking => {
                     self.isle.menus.again.insert(*id);
                 }
-                Found::Menus(..) => {}
+                Found::Menus(..) | Found::Waiting(_) => {}
             }
         }
         for id in none {
@@ -258,8 +261,10 @@ impl State {
             self.find_menus(id);
             return;
         }
-        if let Found::Menus(source, tree) = &found {
-            info!(id, menus = tree.menus.len(), "the app's menus");
+        if let Found::Menus(source, _) | Found::Waiting(source) = &found {
+            if let Found::Menus(_, tree) = &found {
+                info!(id, menus = tree.menus.len(), "the app's menus");
+            }
             if self.isle.menus.watching.insert(source.clone()) {
                 self.watch_menus(source.clone());
             }
@@ -311,15 +316,18 @@ impl State {
                         .menus
                         .trees
                         .iter()
-                        .filter(|(_, f)| matches!(f, Found::Menus(s, _) if *s == source))
+                        .filter(|(_, f)| {
+                            matches!(f, Found::Menus(s, _) | Found::Waiting(s) if *s == source)
+                        })
                         .map(|(id, _)| *id)
                         .collect();
                     for id in ids {
-                        state
-                            .isle
-                            .menus
-                            .trees
-                            .insert(id, Found::Menus(source.clone(), tree.clone()));
+                        let found = if tree.menus.is_empty() {
+                            Found::Waiting(source.clone())
+                        } else {
+                            Found::Menus(source.clone(), tree.clone())
+                        };
+                        state.isle.menus.trees.insert(id, found);
                     }
                     state.refresh_bar();
                 });
@@ -424,6 +432,7 @@ impl State {
             Some(Found::Menus(Source::DBusMenu { .. }, tree)) => ("dbusmenu", Some(tree)),
             Some(Found::Menus(Source::GMenu { .. }, tree)) => ("gmenu", Some(tree)),
             Some(Found::Looking) => ("looking", None),
+            Some(Found::Waiting(_)) => ("waiting", None),
             Some(Found::None) => ("none", None),
             None => {
                 self.find_menus(id);

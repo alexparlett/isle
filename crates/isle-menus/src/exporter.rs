@@ -215,8 +215,35 @@ impl DBusMenuExport {
     ) -> zbus::Result<()>;
 }
 
-/// GTK's menus: File (New), Edit (Copy, a View section with Word Wrap).
-pub struct GMenuExport;
+/// One change to a menu as `org.gtk.Menus` reports it: group, menu, position, items
+/// removed and items added.
+type Change = (u32, u32, u32, u32, Vec<HashMap<String, OwnedValue>>);
+
+/// GTK's menus: File (New), Edit (Copy, a View section with Word Wrap); empty until
+/// `filled` is set, for an app that fills its menubar after its window shows.
+pub struct GMenuExport {
+    pub filled: Arc<AtomicBool>,
+}
+
+impl GMenuExport {
+    pub fn new() -> Self {
+        Self {
+            filled: Arc::new(AtomicBool::new(true)),
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            filled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl Default for GMenuExport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 fn link(group: u32, menu: u32) -> OwnedValue {
     OwnedValue::try_from(Value::Structure(
@@ -241,6 +268,9 @@ fn s(text: &str) -> OwnedValue {
 impl GMenuExport {
     async fn start(&self, groups: Vec<u32>) -> Vec<(u32, u32, Vec<HashMap<String, OwnedValue>>)> {
         let mut out = Vec::new();
+        if !self.filled.load(Ordering::Acquire) {
+            return groups.into_iter().map(|g| (g, 0, Vec::new())).collect();
+        }
         for group in groups {
             match group {
                 0 => out.push((
@@ -289,6 +319,12 @@ impl GMenuExport {
     }
 
     async fn end(&self, _groups: Vec<u32>) {}
+
+    #[zbus(signal)]
+    pub async fn changed(
+        emitter: &SignalEmitter<'_>,
+        changes: Vec<Change>,
+    ) -> zbus::Result<()>;
 }
 
 /// An action group: its actions' names with a boolean state for those that toggle.

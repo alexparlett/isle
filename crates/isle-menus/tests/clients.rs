@@ -139,7 +139,7 @@ async fn a_gmenu_model_reads_with_its_sections_and_actions_by_prefix() {
     let app = bus.connect().await;
     let (seen, on_activate) = recorder();
     app.object_server()
-        .at("/org/test/menus/menubar", GMenuExport)
+        .at("/org/test/menus/menubar", GMenuExport::new())
         .await
         .unwrap();
     app.object_server()

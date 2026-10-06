@@ -323,13 +323,33 @@ impl Isle {
     }
 
     /// The app the bar speaks for: the window it speaks for's, else Files.
+    /// The record of the window the bar speaks for.
+    fn bar_record(&self) -> Option<&crate::wm::Record> {
+        match self.bar.window {
+            Some(id) if self.bar.output.is_some() => self.wm.get(id),
+            _ => {
+                let focus = self.seat.get_keyboard()?.current_focus()?;
+                self.wm.for_surface(focus.surface()?)
+            }
+        }
+    }
+
     pub fn bar_app(&self) -> (String, String) {
         let app = match self.bar.window {
             Some(id) if self.bar.output.is_some() => self.wm.get(id).map(|r| r.app.clone()),
             _ => self.front_app(),
         };
         if let Some(app) = app {
-            return (app.clone(), self.apps.name(&app));
+            let mut name = self.apps.name(&app);
+            // A window with no app id is named by its process, as a Mac app by its binary.
+            if name.is_empty()
+                && let Some(pid) = self.bar_record().and_then(|r| r.pid)
+            {
+                name = std::fs::read_to_string(format!("/proc/{pid}/comm"))
+                    .map(|c| c.trim().to_owned())
+                    .unwrap_or_default();
+            }
+            return (app.clone(), name);
         }
         let files = [
             "org.gnome.Nautilus",

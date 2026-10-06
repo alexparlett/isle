@@ -206,3 +206,20 @@ async fn a_dialog_with_no_menus_of_its_own_keeps_its_app_s() {
     assert!(activate(&isle, &["Edit", "Copy"]).await);
     client.wait_for("menu activated Copy").await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn menus_an_app_fills_after_its_window_shows_arrive_when_it_does() {
+    let mut isle = Isle::start("menus-gtk-late").await;
+    let _client = isle.client_with(&[
+        "--app-id",
+        "isle.test.Office",
+        "--colour",
+        "3366ff",
+        "--gtk-menu",
+        "--gtk-menu-late",
+    ]);
+    let w = isle.wait_for_window("isle.test.Office").await;
+    wait_until(|| async { show(&isle, w.id).await["source"] == "waiting" }).await;
+    wait_until(|| async { show(&isle, w.id).await["source"] == "gmenu" }).await;
+    assert!(item(&bar(&isle).await, "Edit", "Copy").is_some());
+}

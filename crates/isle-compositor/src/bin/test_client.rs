@@ -872,7 +872,8 @@ impl Dispatch<xdg_activation_v1::XdgActivationV1, ()> for Client {
 
 /// Exports menus for `--appmenu` (DBusMenu through the KDE protocol), `--gtk-menu`
 /// (GMenuModel through gtk_shell1) and `--register ID` (DBusMenu through the registrar by
-/// a window id nothing matches; with `--register-late` a second and a half after start, as
+/// a window id nothing matches; `--gtk-menu-late` leaves the menubar empty for a second
+/// and a half, then fills it and says so; with `--register-late` a second and a half after start, as
 /// an app that registers after its window maps); each item chosen prints `menu activated
 /// LABEL`.
 fn menus(args: &[String], client: &Client, qh: &QueueHandle<Client>) -> Option<(tokio::runtime::Runtime, zbus::Connection)> {
@@ -898,7 +899,24 @@ fn menus(args: &[String], client: &Client, qh: &QueueHandle<Client>) -> Option<(
             .at("/MenuBar/1", isle_menus::exporter::DBusMenuExport::new(on_activate.clone()))
             .await
             .unwrap();
-        server.at("/org/test/menus/menubar", isle_menus::exporter::GMenuExport).await.unwrap();
+        let gmenu = if wanted("--gtk-menu-late") {
+            isle_menus::exporter::GMenuExport::empty()
+        } else {
+            isle_menus::exporter::GMenuExport::new()
+        };
+        let filled = gmenu.filled.clone();
+        server.at("/org/test/menus/menubar", gmenu).await.unwrap();
+        if wanted("--gtk-menu-late") {
+            let conn = conn.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                filled.store(true, std::sync::atomic::Ordering::Release);
+                let emitter = zbus::object_server::SignalEmitter::new(&conn, "/org/test/menus/menubar").unwrap();
+                isle_menus::exporter::GMenuExport::changed(&emitter, vec![(0, 0, 0, 0, Vec::new())])
+                    .await
+                    .unwrap();
+            });
+        }
         server
             .at("/org/test", isle_menus::exporter::ActionsExport::app(on_activate.clone()))
             .await

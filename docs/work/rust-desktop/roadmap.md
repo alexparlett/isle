@@ -5,7 +5,7 @@ packet's brief: what it delivers, what it depends on, and the decisions and
 intent documents it answers to. A packet is planned in detail, with its own
 PRD and phases, by its own run of feature-plan when it starts, against the
 code as it is then. Intent: `docs/design/` (compositor, shell, gaming,
-apps, platform). Decisions: `docs/DECISIONS.md` (B1–B46).
+apps, platform). Decisions: `docs/DECISIONS.md` (B1–B57).
 
 Everything happens on `feature/rust-desktop` (B16); v1 stays the daily
 desktop on `main` until milestone M2.
@@ -82,7 +82,7 @@ sources and the registrar owned from session start, the fallback app menu
 and menu search. The wallpaper. Intent: shell.md, platform.md,
 compositor.md.
 
-**P7 · Switcher and launching.** Planned: `p7-switcher.md`. Cmd+Tab and Cmd+` (B20), the switcher's
+**P7 · Switcher and launching.** Done 2026-10-07: `p7-switcher.md`, B53–B57. Cmd+Tab and Cmd+` (B20), the switcher's
 cards carrying what a Dock would (B19): badges, progress, attention, and
 hidden, minimised and background marks. Launching from Spotlight's Apps
 grid with its favourites row is built with Spotlight in P10. Intent:
@@ -103,7 +103,10 @@ Intent: shell.md, platform.md, compositor.md.
 
 **P10 · Spotlight.** Launcher with apps, the Apps grid with its favourites
 (B19), windows, settings, the front app's menu items (B18), actions and
-v1's prefixes and sources. Intent: shell.md.
+v1's prefixes and sources. Games: the rest of `gaming.md`'s Game library on
+P7's `isle-games` (Heroic, Lutris, gamescope's game, launching through the
+launchers, B56), and badges on the Apps grid's tiles from `Windows1.Apps`.
+Intent: shell.md, gaming.md.
 
 **P11 · Capture and portals.** `xdg-desktop-portal-isle` (B13), a bus name
 on the compositor's service worker (B26): ScreenCast and Screenshot with

@@ -72,7 +72,9 @@ The user gets: the switcher, Spotlight, Mission Control and per-app volume show 
 
 v1 lessons kept: inventory §3.6 Apps (`steam_app_<id>` named from the library, gamescope from its title); D59 (the switcher lists apps, so the app's name is what the user reads).
 
-Open for its packet: where current Steam keeps library art and in what form; how to find the game under a gamescope window that Isle did not start (B22).
+Open for its packet: how to find the game under a gamescope window that Isle did not start (B22).
+
+Settled in P7: Steam keeps a 300 by 450 portrait cover at `appcache/librarycache/<id>/<hash>/library_600x900.jpg` (or `library_capsule.jpg`) since 2024, and `<id>_library_600x900.jpg` before; names come from each library folder's `appmanifest_<id>.acf` (B56).
 
 ### Game library
 

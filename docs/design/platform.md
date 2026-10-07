@@ -298,6 +298,10 @@ and survive a restart as history.
 **v1 lessons kept.** D26. A phone's notifications arrive through KDE Connect
 like any other (D51).
 
+**Settled in P7.** LauncherEntry's Update is matched on the session bus by
+interface and member from any sender; partial updates merge, and an app's
+values go when its sender leaves the bus. `urgent` marks urgent attention.
+
 ### Tray and global menu registrar
 
 Other programs' status items sit in Control Centre's tray with their menus,

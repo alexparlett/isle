@@ -240,6 +240,40 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   a transient systemd scope with an activation token, so the new window
   takes focus; it falls back to a direct spawn without systemd.
 
+## How switching works
+
+- **The switcher never takes the seat's focus** (B53). Cmd+Tab opens
+  `isle-shell`'s `switcher::model` over the apps as they are; while Cmd is
+  held, `key_from_device` reads Tab, the arrows, `, Q, H, W, Return and
+  Escape ahead of the engine and eats every other key, so the window in front
+  keeps the keyboard, its game state and its pointer lock. Letting Cmd go
+  commits once, through the paths every other activation takes; Shift alone
+  does not end the hold; a console switch or the typing keyboard's removal
+  cancels it. Nothing moves before the commit, and a release before
+  `timing-switcher-delay-ms` commits with nothing drawn.
+- **The model is pure.** Entries, the selection that follows its app as apps
+  come and go, the window row, keys to effects, and the layout (shrinking to
+  the floor, rows of equal count, the background group) are unit-tested with
+  a fake clock; the loop arms one timer for the delay.
+- **Previews are the compositor's drawing** (B54). The panel is a placed
+  overlay surface on the focused window's output. For each card the
+  compositor draws the window's pieces at card size into a texture and Skia
+  copies it on the GPU into an image it owns, which the tree draws among its
+  own layers. A window that commits while held is drawn again, a few at a
+  time, ten times a second; a parked window shows its last buffer and is not
+  woken. Everything goes when the surface closes.
+- **Apps are known by their processes too** (B55). Each pid a window has had
+  is watched by a pidfd, and each app Isle launched by its scope's cgroup; an
+  app that has had a window, has none now and still runs is a background
+  app, listed last and stopped by Q.
+- **Badges, progress and urgency** come from LauncherEntry's Update signals,
+  kept per app and dropped when the sender leaves the bus. Attention is
+  urgent from the X11 urgency hint or LauncherEntry, normal from a stale
+  activation, `_NET_ACTIVE_WINDOW`, demands-attention or `gtk_surface1`.
+- **Games are named from their launcher's library** (B56): `isle-games` reads
+  Steam's library folders, manifests and covers on the worker.
+- **Centre surfaces close the menu-bar surfaces** (B57).
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -305,7 +339,8 @@ which stays the daily desktop on `main` until the new one replaces it
 (roadmap milestone M2) and is removed at cut-over. The Cargo workspace
 is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
 (the `isle` command), `isle-ipc`, `isle-settings` with its derive,
-`isle-state`, `isle-apps` (desktop entries and app resolution), `isle-keys` (keyboard
+`isle-state`, `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
+badges), `isle-games` (launchers' libraries: names and covers), `isle-keys` (keyboard
 profiles, chords, the shortcut set's table, translation tables and the engine),
 `isle-menus` (the menu tree, its DBusMenu and GMenuModel clients and the registrar),
 `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the

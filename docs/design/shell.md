@@ -252,6 +252,8 @@ v1 lessons kept
 
 Open for its packet: none beyond B21's mid-chord focus rules, which compositor.md owns.
 
+Settled in P7: the switcher takes no focus and commits on release (B53); previews are compositor drawings (B54); background apps by their processes (B55). The ` key is the one that types it, as Cmd+` is (P5), not the key above Tab.
+
 ### Mission Control, hot corners and gestures
 
 macOS's Mission Control (every window of the current desktop spread out, the desktops along the top,

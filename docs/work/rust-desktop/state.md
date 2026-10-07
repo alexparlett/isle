@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B52 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B57 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -256,3 +256,13 @@
   Skia context, background apps by their processes, exclusive surface
   groups, attention levels, LauncherEntry, Steam names and covers in
   `isle-games`. The user took every recommendation. Phases 7.0–7.7.
+- P7 is done (2026-10-07): the switcher takes no focus and commits on
+  release, its model is pure, previews are compositor drawings copied into
+  Skia images, background apps are known by their processes, LauncherEntry
+  gives badges, progress and urgency, `isle-games` names Steam's games, and
+  the switcher closes the menu-bar surfaces. ARCHITECTURE has How switching
+  works, B53–B57 are recorded, the intent docs' open points answered,
+  `p7-switcher.md` ends with its outcome; measures in
+  `docs/research/rust-desktop/p7-switcher.md`. Checked headless and in the VM;
+  no host run (the user's choice). Next: P8 (services, notifications and
+  Control Centre).

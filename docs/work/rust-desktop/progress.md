@@ -2,6 +2,26 @@
 
 ## 2026-10-07
 
+- P7 closed. ARCHITECTURE has How switching works, B53–B57 are recorded,
+  the intent docs' open points answered, the plan ends with its outcome.
+
+- P7 7.6: the measure and the VM. Over twenty apps at 3440×1440 the panel
+  draws at 0.5 ms p50, 1.4 ms p95; a preview from an uploaded texture costs
+  0.25 ms, and changed windows are drawn again four at a time, ten times a
+  second. The VM's kitty, xterm, Chromium, Qt Designer, a hidden GTK 4 app
+  and a background app read as the board. Found and fixed: the test client
+  never let go of its buffers.
+
+- P7 7.5: the drag's icon is drawn, and a drag carries through Cmd+Tab.
+
+- P7 7.4: the panel and its live previews.
+
+- P7 7.3: the hold. A thousand scripted switches commit on release with no
+  modifier left held. Found: letting Shift go ended a Shift+Cmd+Tab hold.
+
+- P7 7.2: the model. 7.1: LauncherEntry and Steam's names and covers. 7.0:
+  attention levels, background apps, one window order.
+
 - P7 planned: the switcher. Reviewed; every recommendation taken. P6's
   host run waived.
 

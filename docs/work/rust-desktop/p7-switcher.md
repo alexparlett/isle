@@ -386,3 +386,41 @@ which no protocol Isle serves yet asks for.
 - **Steam's cache layout.** Steam moved its library cache to per-app folders
   in 2024 and may move it again; the reader takes both layouts and falls
   back to the app's icon, never failing the card.
+
+## Outcome
+
+Phases 7.0 to 7.6 passed their checks headless and in the VM, with these
+differences from the plan:
+
+- **X11 urgency** came from Smithay's own `WM_HINTS` and demands-attention
+  requests, not the worker's Xwayland connection.
+- **Previews are copied, not borrowed.** The compositor's texture is copied
+  on the GPU into an image Skia owns, so it can be freed at once (the plan's
+  fallback, taken first). Windows that draw while held are drawn again at most
+  four at a time, ten times a second: twenty shm clients redrawing at once
+  made a pass of 45 to 68 ms, nearly all of it uploading their buffers.
+- **Exclusive groups are compositor functions** (B57), not `Shell` groups,
+  and P6's own pairings stay: Control Centre and the bar are states of
+  surfaces that never close.
+- **Shift alone does not end a hold**; the held chord's Shift is ignored at
+  release.
+- **The window row opens in place** with no spring; the panel fades in place
+  with its own fade-only transition, still in Game Mode.
+- **The quitting mark** is Phosphor's `circle-notch`, still: Isle has no
+  spinner component yet.
+- **The ` key** is the one that types it, as P5 made Cmd+`, not the key above
+  Tab the surface sheet named.
+
+Tests: `cargo test --workspace --features isle-compositor/test-hooks`, with
+fifteen headless tests for P7, and one screenshot by eye (`apps.rs`, `switcher.rs`: attention and
+urgency, background apps, LauncherEntry, Steam names, the quick tap, the
+hold and its keys, the window row, a thousand switches, unplugging, Control
+Centre, a full-screen game, the panel's previews and their updates, a drag),
+unit tests for the model, LauncherEntry, the VDF reader and the Steam
+library, and the bench `switcher_cost`. Measures and the VM in
+`docs/research/rust-desktop/p7-switcher.md`.
+
+Left open: the shell test `a_panic_anywhere_in_the_probe_rebuilds_it_with_its_model`
+takes about 2.1 s of its 3 s limit, before P7 as after, and fails now and
+then when the workspace runs at once.
+

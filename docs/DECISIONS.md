@@ -619,3 +619,47 @@ by the xdg convention with an xdg-activation token, so the new window takes
 focus and the app is its own unit; without systemd it spawns directly.
 Rejected: spawning as a child of the compositor (an app would die with it
 and share its cgroup), `gtk-launch` (no token, no scope).
+
+**B53 · The switcher reads keys; it never takes focus.** Built in P7. While
+Cmd+Tab's chord is held the compositor takes the switcher's keys before the
+keyboard engine and eats the rest, and the window in front keeps the seat's
+keyboard until the commit on release. A game keeps its pointer lock and its
+solid, still Game Mode; none of the bound Cmd chords or Cmd's translation
+for a focused shell surface stand in the way; focus moves once per press.
+Shift only picks the direction. Rejected: a shell surface with the keyboard,
+which needs each of those undone.
+
+**B54 · Previews are compositor drawings that trees draw.** Built in P7, and
+the path Mission Control (P16) takes. The compositor draws a window's pieces
+into a texture at the size the tree shows it, and the shell copies it on the
+GPU into an image Skia owns, so a tree can put marks and icons over it and
+the image outlives the texture. Previews exist only while a surface shows
+them (v1 D55); parked windows show their last buffer and are not woken;
+windows that draw while shown are drawn again a few at a time. Rejected:
+drawing previews over the tree's texture (over its marks), borrowing the
+compositor's texture into Skia (it could be freed under a draw).
+
+**B55 · Background apps are known by their processes.** Built in P7. The
+compositor watches every pid a window has had with a pidfd, and the cgroup of
+every scope it launched an app in; an app that has had a window, has none
+now and still runs is running in the background, listed last in the
+switcher, where Q sends the polite signal. A pid is its last window's app's.
+An app started elsewhere is known only once it has had a window. Rejected:
+the tray as the only sign (macOS's answer, `switcher.md` For the user 3).
+
+**B56 · Games are named from their launchers' libraries in one crate.**
+Built in P7 for Steam: `isle-games` reads `libraryfolders.vdf`, the app
+manifests' names and the library cache's portrait cover in both of Steam's
+layouts, on the worker, again when the manifests change, and writes none of
+it. A `steam_app_<id>` window takes the game's name and cover wherever an app
+is named. Heroic, Lutris, gamescope and launching through the launchers join
+it in P10.
+
+**B57 · Centre surfaces close the menu-bar surfaces.** Built in P7. Opening
+the switcher, and later Spotlight, Mission Control, the capture tool, the
+session dialog, Force Quit and the dashboard, closes the bar and its menus,
+Control Centre, the window menu, About and the zoom menu, and the other centre
+surface. The rule is a compositor function, not the shell's: Control Centre
+and the bar are states of surfaces that never close. Rejected: exclusive
+groups in `Shell`, which would need those states to become surfaces.
+

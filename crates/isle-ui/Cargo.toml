@@ -7,6 +7,7 @@ publish.workspace = true
 build = "build.rs"
 
 [dependencies]
+accesskit.workspace = true
 bytes = "1"
 freya.workspace = true
 isle-tokens.workspace = true

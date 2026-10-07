@@ -22,6 +22,7 @@ mod switcher;
 mod top_edge;
 mod outputs;
 mod processes;
+mod services;
 pub mod redraw;
 mod render;
 pub mod settings;

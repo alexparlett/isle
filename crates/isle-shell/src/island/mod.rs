@@ -6,6 +6,7 @@ pub mod grid;
 pub mod model;
 pub mod notice;
 pub mod panel;
+pub mod rows;
 pub mod surface;
 
 pub use surface::{Frame, IslandAction, IslandSurface};

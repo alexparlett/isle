@@ -275,3 +275,7 @@
   edit mode, fake daemons on a private system bus. The user took every
   recommendation: Notification Centre's notifications moved in from P17,
   night light to P12, one packet. Phases 8.0–8.15.
+- P8 8.0 done (2026-10-07): `isle-bus`, the harness's system bus and
+  `isle-fakes`, snapshots coalesced onto the loop, the resume clock, typed
+  page rows with scrolling, and the slider, scrubber, switch, spinner and
+  scroll area. Next: 8.1 (power).

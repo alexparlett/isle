@@ -1,9 +1,11 @@
 //! The Freya side shared by the shell and Isle's apps: tokens as context, and primitives.
 
 pub mod button;
+mod controls;
 mod glyph;
 pub mod menu;
 pub mod search;
+pub mod slider;
 pub mod text;
 
 use std::rc::Rc;
@@ -13,9 +15,11 @@ pub use isle_tokens;
 use isle_tokens::{Colour, Theme};
 
 pub use button::{Button, LevelBar};
+pub use controls::{Spinner, Switch, scroll_area};
 pub use glyph::{AppIcon, Glyph, LevelGlyph, glyph_svg};
 pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
 pub use search::SearchField;
+pub use slider::Slider;
 
 /// The theme every tree reads; a change re-renders whoever read it.
 #[derive(Clone, Copy)]

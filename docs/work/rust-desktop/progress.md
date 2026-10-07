@@ -2,6 +2,17 @@
 
 ## 2026-10-07
 
+- P8 8.0: foundations. `isle-bus` (the buses, a daemon's name followed,
+  snapshots, listeners); a private system bus in the test harness with
+  `isle-fakes`' logind; services reach the loop as snapshots, a burst's last
+  value once a frame (`isle services`, `Services1`); logind's
+  `PrepareForSleep` re-reads the island's clock on resume. Control Centre's
+  pages hold rows by kind (choices, devices, sliders, switches, headings,
+  folded groups, status lines, sub-pages) and scroll past the room they have;
+  the body is laid out at the shape's settled height, so a growing panel
+  shows no scroll bar. `isle-ui` gains the slider, scrubber, switch, spinner
+  and scroll area, drawn in the gallery.
+
 - P8 planned: services, notifications and Control Centre. Reviewed; every
   recommendation taken: Notification Centre's notifications in P8, night
   light to P12, one packet. Research in `services-2026.md`.

@@ -87,6 +87,8 @@ pub struct IslandState {
     pub inhibiting: Option<String>,
     /// The seat keymap's layouts by name, and the one in use.
     pub layouts: (Vec<String>, usize),
+    /// Resumes from sleep that re-read the clock.
+    resumes: u64,
 }
 
 type Seen = (Option<String>, Vec<bool>, String, bool, Option<String>);
@@ -108,6 +110,7 @@ impl IslandState {
             panel: None,
             inhibiting: None,
             layouts: (Vec::new(), 0),
+            resumes: 0,
         }
     }
 }
@@ -190,6 +193,13 @@ impl Isle {
     }
 
     /// The clock's text now, and the settings' tiers, into the model.
+    /// After sleep: the clock read again and its timer armed from now.
+    pub fn island_resumed(&mut self) {
+        self.island.resumes += 1;
+        self.island_settings();
+        self.refresh_island();
+    }
+
     pub fn island_settings(&mut self) {
         let (format, widest) = clock_format(&self.settings.island);
         let now = jiff::Zoned::now();
@@ -239,7 +249,7 @@ impl Isle {
                 panel: open.is_some(),
             };
             let shown = self.island.model.view(&name, place);
-            let panel_frame = open.map(|p| self.panel_frame(p));
+            let mut panel_frame = open.map(|p| self.panel_frame(p));
             let room = self.space.output_geometry(output).map_or(800.0, |g| {
                 g.size.h as f32 - theme.tokens.size_strip - theme.tokens.space_xxxl
             });
@@ -250,6 +260,9 @@ impl Isle {
                 self.island.clock_width,
                 room,
             );
+            if let Some(frame) = panel_frame.as_mut() {
+                frame.body = target.1 - theme.tokens.size_island_height;
+            }
             let morph = self
                 .island
                 .morphs
@@ -681,9 +694,10 @@ impl State {
             }
             IslandAction::Panel(action) => self.panel_action(action),
             IslandAction::Close => {
-                let on_page = self.isle.island.panel.as_ref().is_some_and(|p| p.page.is_some());
-                if on_page {
-                    self.panel_action(isle_shell::island::panel::PanelAction::Page(None));
+                let page = self.isle.island.panel.as_ref().and_then(|p| p.page.clone());
+                if let Some(page) = page {
+                    let parent = isle_shell::island::panel::parent_page(&page);
+                    self.panel_action(isle_shell::island::panel::PanelAction::Page(parent));
                 } else {
                     self.close_control_centre();
                 }
@@ -846,6 +860,11 @@ impl Isle {
                 })
             })
             .collect();
-        serde_json::json!({ "clock": self.island.clock, "outputs": outputs }).to_string()
+        serde_json::json!({
+            "clock": self.island.clock,
+            "resumes": self.island.resumes,
+            "outputs": outputs,
+        })
+        .to_string()
     }
 }

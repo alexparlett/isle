@@ -5,7 +5,8 @@
 use isle_shell::island::{
     grid::TileSize,
     model::Privacy,
-    panel::{Module, Notice, PageRow, PanelAction, PanelFrame},
+    panel::{Module, Notice, PanelAction, PanelFrame},
+    rows::{Choice, PageRow},
 };
 use smithay::output::Output;
 use tracing::{info, warn};
@@ -50,6 +51,7 @@ impl Isle {
                     on: dark,
                     toggles: true,
                     page: None,
+                    page_title: None,
                     pane: "Appearance".into(),
                 })
             }
@@ -67,13 +69,18 @@ impl Isle {
                         layouts
                             .iter()
                             .enumerate()
-                            .map(|(i, name)| PageRow {
-                                id: i.to_string(),
-                                label: name.clone(),
-                                checked: i == active,
+                            .map(|(i, name)| {
+                                PageRow::Choice(Choice {
+                                    id: i.to_string(),
+                                    label: name.clone(),
+                                    checked: i == active,
+                                    enabled: true,
+                                    ..Default::default()
+                                })
                             })
                             .collect(),
                     ),
+                    page_title: None,
                     pane: "Keyboard".into(),
                 })
             }
@@ -125,6 +132,7 @@ impl Isle {
             activities,
             privacy,
             modules: self.modules(),
+            body: 0.0,
         }
     }
 }

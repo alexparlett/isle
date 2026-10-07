@@ -11,6 +11,8 @@ publish = false
 
 [workspace.dependencies]
 isle-apps = { path = "crates/isle-apps" }
+isle-bus = { path = "crates/isle-bus" }
+isle-fakes = { path = "crates/isle-fakes" }
 isle-games = { path = "crates/isle-games" }
 isle-ipc = { path = "crates/isle-ipc" }
 isle-keys = { path = "crates/isle-keys" }

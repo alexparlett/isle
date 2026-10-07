@@ -31,8 +31,10 @@ required-features = ["test-hooks"]
 humantime.workspace = true
 image.workspace = true
 jiff.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 isle-apps.workspace = true
+isle-bus.workspace = true
 isle-games.workspace = true
 isle-keys.workspace = true
 isle-ipc.workspace = true
@@ -64,6 +66,7 @@ zbus.workspace = true
 zvariant.workspace = true
 
 [dev-dependencies]
+isle-fakes.workspace = true
 serde_json.workspace = true
 isle-ipc.workspace = true
 png.workspace = true

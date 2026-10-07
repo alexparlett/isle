@@ -13,7 +13,7 @@ use super::model::{Activity, ActivityKind, Event as IslandEvent, Form, GlyphKind
 use crate::{Action, Actions, Here, Layer, Scope, SurfaceDef};
 
 /// What the island asks of the compositor.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum IslandAction {
     /// A click on the pill: Control Centre, pinned.
     Pin,

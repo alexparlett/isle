@@ -90,7 +90,7 @@ pub trait SurfaceDef: 'static {
 pub struct Here(pub String);
 
 /// What a surface asks of the compositor, which acts on it after the surface's update.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Action {
     /// Close this surface; keyboard focus goes back first.
     Close,

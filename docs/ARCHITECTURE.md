@@ -340,7 +340,8 @@ which stays the daily desktop on `main` until the new one replaces it
 (roadmap milestone M2) and is removed at cut-over. The Cargo workspace
 is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
 (the `isle` command), `isle-ipc`, `isle-settings` with its derive,
-`isle-state`, `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
+`isle-state`, `isle-bus` (what the service crates share: the buses, a daemon's name
+followed, snapshots and listeners), `isle-fakes` (fake system daemons for the tests), `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
 badges), `isle-games` (launchers' libraries: names and covers), `isle-keys` (keyboard
 profiles, chords, the shortcut set's table, translation tables and the engine),
 `isle-menus` (the menu tree, its DBusMenu and GMenuModel clients and the registrar),

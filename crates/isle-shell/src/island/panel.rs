@@ -3,12 +3,13 @@
 
 use freya::prelude::*;
 use isle_tokens::Theme;
-use isle_ui::{Button, Glyph, button::Kind, colour, focus_ring, text, use_theme};
+use isle_ui::{Button, Glyph, Switch, button::Kind, colour, focus_ring, scroll_area, text, use_theme};
 
 use super::{
     IslandAction,
     grid::{self, TileSize},
     model::{Activity, Privacy},
+    rows::{PageRow, RowEvent, Rows, rows_height},
 };
 use crate::{Action, Actions};
 
@@ -27,14 +28,6 @@ pub enum Notice {
     Inhibited { app: String, chord: String },
 }
 
-/// A row on a module's page.
-#[derive(Clone, Debug, PartialEq)]
-pub struct PageRow {
-    pub id: String,
-    pub label: String,
-    pub checked: bool,
-}
-
 /// A module as the grid shows it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Module {
@@ -46,7 +39,10 @@ pub struct Module {
     pub on: bool,
     /// Its glyph is a switch; else a click opens its page.
     pub toggles: bool,
+    /// The rows of its page open now: its own, or a sub-page's.
     pub page: Option<Vec<PageRow>>,
+    /// The sub-page's title, while one is open.
+    pub page_title: Option<String>,
     /// The Settings pane its page's foot opens.
     pub pane: String,
 }
@@ -56,23 +52,33 @@ pub struct Module {
 pub struct PanelFrame {
     /// Opened by a click or Ctrl+F8, with the keyboard; a peek has neither.
     pub pinned: bool,
-    /// The page open, by module id.
+    /// The page open: a module's id, or `module/row` for a row's sub-page.
     pub page: Option<String>,
     pub notices: Vec<Notice>,
     pub activities: Vec<Activity>,
     pub privacy: Vec<(Privacy, String)>,
     pub modules: Vec<Module>,
+    /// The height the body is laid out at under the pill's row: the shape's settled height,
+    /// not the spring's, so the body does not reflow or scroll while the shape grows. Zero
+    /// fills what there is.
+    pub body: f32,
 }
 
 /// What the panel asks of the compositor.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PanelAction {
     /// A module's switch.
     Toggle(String),
     /// A module's page, or back from it.
     Page(Option<String>),
-    /// A row on a module's page.
+    /// A row on a module's page chosen or acted on.
     Choose { module: String, row: String },
+    /// A slider row moved.
+    Slide { module: String, row: String, value: f32 },
+    /// A switch row turned on or off.
+    Switch { module: String, row: String, on: bool },
+    /// A folded group of rows opened or closed.
+    Expand { module: String, row: String },
     /// A notice's button: `editor`, `files`, `use-mine`, `take-back`.
     Notice(String),
     /// An activity's button.
@@ -108,25 +114,25 @@ fn now_height(panel: &PanelFrame) -> f32 {
     notices + rows
 }
 
-/// The panel's size under the pill's row of height `pill`, at least `pill_width` wide.
-pub fn panel_size(
-    theme: &Theme,
-    panel: &PanelFrame,
-    pill: f32,
-    pill_width: f32,
-    room: f32,
-) -> (f32, f32) {
+/// The module whose page is open.
+fn page_module(panel: &PanelFrame) -> Option<&Module> {
+    let id = panel.page.as_deref()?.split('/').next()?;
+    panel.modules.iter().find(|m| m.id == id)
+}
+
+/// The page a page's back control leads to: a sub-page's module, a module's the grid.
+pub fn parent_page(page: &str) -> Option<String> {
+    page.rsplit_once('/').map(|(parent, _)| parent.to_owned())
+}
+
+/// The height of the panel's body below the pill's row, all of it, scrolled or not.
+pub fn body_height(theme: &Theme, panel: &PanelFrame) -> f32 {
     let t = &theme.tokens;
-    let width = t.size_panel.max(pill_width);
     let pad = t.space_s;
-    let body = match panel
-        .page
-        .as_ref()
-        .and_then(|id| panel.modules.iter().find(|m| &m.id == id))
-    {
+    match page_module(panel) {
         Some(module) => {
-            let rows = module.page.as_ref().map_or(0, |r| r.len()) as f32;
-            t.size_module_cell_height + pad + rows * t.size_row + 2.0 * pad + t.size_row
+            let rows = rows_height(theme, module.page.as_deref().unwrap_or(&[]));
+            t.size_module_cell_height + pad + rows + 2.0 * pad + t.size_row
         }
         None => {
             let now = now_height(panel);
@@ -140,9 +146,37 @@ pub fn panel_size(
             }
             h + t.size_row
         }
-    };
-    let height = (pill + pad + body + pad).min(room);
+    }
+}
+
+/// The panel's size under the pill's row of height `pill`, at least `pill_width` wide, no
+/// taller than `room`; past it the body scrolls.
+pub fn panel_size(
+    theme: &Theme,
+    panel: &PanelFrame,
+    pill: f32,
+    pill_width: f32,
+    room: f32,
+) -> (f32, f32) {
+    let t = &theme.tokens;
+    let width = t.size_panel.max(pill_width);
+    let pad = t.space_s;
+    let height = (pill + pad + body_height(theme, panel) + pad).min(room);
     (width.ceil(), height.ceil())
+}
+
+/// Whether the body is taller than the room it has and scrolls.
+pub fn scrolls(theme: &Theme, panel: &PanelFrame, pill: f32, room: f32) -> bool {
+    let pad = theme.tokens.space_s;
+    pill + pad + body_height(theme, panel) + pad > room
+}
+
+fn body_size(panel: &PanelFrame) -> Size {
+    if panel.body > 0.0 {
+        Size::px(panel.body)
+    } else {
+        Size::fill()
+    }
 }
 
 /// The panel's body below the pill's row.
@@ -167,62 +201,90 @@ impl Component for PanelBody {
                 .corner_radius(t.radius_card)
                 .background(colour(t.colour_fill))
         };
-        let page = panel
-            .page
-            .as_ref()
-            .and_then(|id| panel.modules.iter().find(|m| &m.id == id));
-        if let Some(module) = page {
+        if let Some(module) = page_module(panel) {
             let back = actions.clone();
             let settings = actions.clone();
+            let toggle = actions.clone();
             let pane = module.pane.clone();
             let rows = module.page.clone().unwrap_or_default();
-            return rect()
-                .width(Size::fill())
-                .padding(t.space_s)
+            let page = panel.page.clone().unwrap_or_default();
+            let sub = module.page_title.clone();
+            let (id, on) = (module.id.clone(), module.on);
+            let on_event = {
+                let actions = actions.clone();
+                let page = page.clone();
+                let module = module.id.clone();
+                move |event: RowEvent| {
+                    let (module, action) = (module.clone(), &actions);
+                    send(
+                        action,
+                        match event {
+                            RowEvent::Choose(row) => PanelAction::Choose { module, row },
+                            RowEvent::Open(row) => PanelAction::Page(Some(format!("{page}/{row}"))),
+                            RowEvent::Slide(row, value) => PanelAction::Slide { module, row, value },
+                            RowEvent::Switch(row, on) => PanelAction::Switch { module, row, on },
+                            RowEvent::Expand(row) => PanelAction::Expand { module, row },
+                        },
+                    )
+                }
+            };
+            let head = card()
+                .height(Size::px(t.size_module_cell_height))
+                .padding((0., t.space_l))
+                .horizontal()
+                .content(Content::flex())
+                .cross_align(Alignment::Center)
                 .spacing(t.space_s)
                 .child(
-                    card()
-                        .height(Size::px(t.size_module_cell_height))
-                        .padding((0., t.space_l))
-                        .horizontal()
-                        .cross_align(Alignment::Center)
-                        .spacing(t.space_s)
-                        .child(
-                            Button::icon("caret-left", "Back")
-                                .kind(Kind::Plain)
-                                .on_press(move |_| send(&back, PanelAction::Page(None))),
-                        )
-                        .child(module_circle(&theme, module))
+                    Button::icon(
+                        "caret-left",
+                        if sub.is_some() {
+                            format!("Back to {}", module.name)
+                        } else {
+                            "Back to Control Centre".to_owned()
+                        },
+                    )
+                    .kind(Kind::Plain)
+                    .on_press(move |_| send(&back, PanelAction::Page(parent_page(&page)))),
+                )
+                .maybe(sub.is_none(), |el| el.child(module_circle(&theme, module)))
+                .child(
+                    rect()
+                        .width(Size::flex(1.))
                         .child(text::line(
                             &theme,
                             text::Style::Headline,
                             colour(t.colour_text),
-                            module.name.clone(),
-                        )),
+                            sub.clone().unwrap_or_else(|| module.name.clone()),
+                        ))
+                        .maybe(sub.is_none() && !module.state.is_empty(), |el| {
+                            el.child(text::line(
+                                &theme,
+                                text::Style::Subheadline,
+                                colour(t.colour_text_2),
+                                module.state.clone(),
+                            ))
+                        }),
                 )
+                .maybe(sub.is_none() && module.toggles, |el| {
+                    el.child(Switch::new(on, module.name.clone(), move |_| {
+                        send(&toggle, PanelAction::Toggle(id.clone()))
+                    }))
+                });
+            return rect()
+                .width(Size::fill())
+                .height(body_size(panel))
+                .padding(t.space_s)
+                .spacing(t.space_s)
+                .content(Content::flex())
+                .child(head)
                 .child(
-                    card()
-                        .padding((t.space_xs, 0.))
-                        .children(rows.into_iter().map(|row| {
-                            let actions = actions.clone();
-                            let module = module.id.clone();
-                            let id = row.id.clone();
-                            Row {
-                                label: row.label,
-                                checked: row.checked,
-                                on_press: (move |_| {
-                                    send(
-                                        &actions,
-                                        PanelAction::Choose {
-                                            module: module.clone(),
-                                            row: id.clone(),
-                                        },
-                                    )
-                                })
-                                .into(),
-                            }
-                            .into_element()
-                        })),
+                    scroll_area(&theme).height(Size::flex(1.)).child(
+                        card().padding((t.space_xs, 0.)).child(Rows {
+                            rows,
+                            on_event: on_event.into(),
+                        }),
+                    ),
                 )
                 .child(
                     rect().height(Size::px(t.size_row)).horizontal().child(
@@ -286,9 +348,8 @@ impl Component for PanelBody {
                 .into_element()
             });
 
-        rect()
+        let sections = rect()
             .width(Size::fill())
-            .padding(t.space_s)
             .spacing(t.space_s)
             .maybe(has_now, |el| {
                 el.child(
@@ -305,7 +366,14 @@ impl Component for PanelBody {
                         .height(Size::px(grid_height(&theme, &panel.modules)))
                         .children(tiles),
                 )
-            })
+            });
+        rect()
+            .width(Size::fill())
+            .height(body_size(panel))
+            .padding(t.space_s)
+            .spacing(t.space_s)
+            .content(Content::flex())
+            .child(scroll_area(&theme).height(Size::flex(1.)).child(sections))
             .child(
                 rect()
                     .width(Size::fill())
@@ -427,59 +495,6 @@ impl Component for Tile {
                             module.state.clone(),
                         )),
                 )
-            })
-    }
-}
-
-#[derive(PartialEq)]
-struct Row {
-    label: String,
-    checked: bool,
-    on_press: EventHandler<()>,
-}
-
-impl Component for Row {
-    fn render(&self) -> impl IntoElement {
-        let theme = use_theme();
-        let t = &theme.tokens;
-        let a11y = use_a11y();
-        let focus = use_focus(a11y);
-        let mut hover = use_state(|| false);
-        let on_press = self.on_press.clone();
-        rect()
-            .width(Size::fill())
-            .height(Size::px(t.size_row))
-            .padding((0., t.space_m))
-            .corner_radius(t.radius_row)
-            .background(if *hover.read() {
-                colour(t.colour_fill_strong)
-            } else {
-                Color::TRANSPARENT
-            })
-            .a11y_id(a11y)
-            .a11y_focusable(true)
-            .a11y_role(AccessibilityRole::MenuItemRadio)
-            .a11y_alt(self.label.clone())
-            .maybe(focus() == Focus::Keyboard, |el| {
-                el.border(focus_ring(&theme))
-            })
-            .on_pointer_enter(move |_| hover.set_if_modified(true))
-            .on_pointer_leave(move |_| hover.set_if_modified(false))
-            .on_press(move |e: Event<PressEventData>| {
-                e.stop_propagation();
-                on_press.call(())
-            })
-            .horizontal()
-            .content(Content::flex())
-            .cross_align(Alignment::Center)
-            .child(rect().width(Size::flex(1.)).child(text::line(
-                &theme,
-                text::Style::Body,
-                colour(t.colour_text),
-                self.label.clone(),
-            )))
-            .maybe(self.checked, |el| {
-                el.child(Glyph::new("check", t.size_glyph_small, colour(t.colour_text)))
             })
     }
 }
@@ -634,4 +649,70 @@ fn activity_row(theme: &Theme, activity: &Activity, actions: &Actions) -> Elemen
                 .into_element()
         }))
         .into_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::island::rows::Choice;
+
+    fn theme() -> Theme {
+        isle_tokens::Source::shipped()
+            .theme(&isle_tokens::Appearance::default())
+            .unwrap()
+    }
+
+    fn panel(rows: usize) -> PanelFrame {
+        PanelFrame {
+            page: Some("wifi".into()),
+            modules: vec![Module {
+                id: "wifi".into(),
+                size: TileSize::Medium,
+                name: "Wi-Fi".into(),
+                state: String::new(),
+                glyph: "wifi-high".into(),
+                on: true,
+                toggles: true,
+                page: Some(
+                    (0..rows)
+                        .map(|i| {
+                            PageRow::Choice(Choice {
+                                id: i.to_string(),
+                                label: format!("Network {i}"),
+                                ..Default::default()
+                            })
+                        })
+                        .collect(),
+                ),
+                page_title: None,
+                pane: "Wi-Fi".into(),
+            }],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_page_is_as_tall_as_its_rows_until_the_room_runs_out() {
+        let theme = theme();
+        let t = &theme.tokens;
+        let pill = t.size_island_height;
+        let short = panel(4);
+        let (_, h) = panel_size(&theme, &short, pill, 0.0, 1000.0);
+        assert_eq!(h, (pill + t.space_s + body_height(&theme, &short) + t.space_s).ceil());
+        assert!(!scrolls(&theme, &short, pill, 1000.0));
+
+        let long = panel(60);
+        let (_, h) = panel_size(&theme, &long, pill, 0.0, 600.0);
+        assert_eq!(h, 600.0);
+        assert!(scrolls(&theme, &long, pill, 600.0));
+    }
+
+    #[test]
+    fn a_sub_page_belongs_to_its_module_and_backs_out_to_it() {
+        let mut frame = panel(2);
+        frame.page = Some("wifi/known".into());
+        assert_eq!(page_module(&frame).map(|m| m.id.as_str()), Some("wifi"));
+        assert_eq!(parent_page("wifi/known").as_deref(), Some("wifi"));
+        assert_eq!(parent_page("wifi"), None);
+    }
 }

@@ -182,6 +182,10 @@ struct IslandIface {
     to_loop: ToLoop,
 }
 
+struct ServicesIface {
+    to_loop: ToLoop,
+}
+
 struct MenusIface {
     to_loop: ToLoop,
 }
@@ -239,6 +243,13 @@ impl IslandIface {
     /// Each output's island as JSON.
     async fn status(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.isle.island_status()).await?)
+    }
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Services1")]
+impl ServicesIface {
+    async fn status(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.services.status()).await?)
     }
 }
 
@@ -1211,6 +1222,12 @@ pub async fn serve(
         .serve_at(
             isle_ipc::ISLAND_PATH,
             IslandIface {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
+            isle_ipc::SERVICES_PATH,
+            ServicesIface {
                 to_loop: to_loop.clone(),
             },
         )?

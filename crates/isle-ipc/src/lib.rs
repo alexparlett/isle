@@ -17,6 +17,7 @@ pub const KEYBOARD_PATH: &str = "/io/github/alexparlett/Isle/Keyboard";
 pub const WALLPAPER_PATH: &str = "/io/github/alexparlett/Isle/Wallpaper";
 pub const ISLAND_PATH: &str = "/io/github/alexparlett/Isle/Island";
 pub const MENUS_PATH: &str = "/io/github/alexparlett/Isle/Menus";
+pub const SERVICES_PATH: &str = "/io/github/alexparlett/Isle/Services";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -564,5 +565,19 @@ pub mod menus {
         fn show(&self, id: u64) -> zbus::Result<String>;
         /// The front app's menu items whose labels hold `query`, with their paths, as JSON.
         fn search(&self, query: &str) -> zbus::Result<String>;
+    }
+}
+
+pub mod services {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Services1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Services"
+    )]
+    pub trait Services {
+        /// Each system service as JSON: whether its daemon answers, and its state.
+        fn status(&self) -> zbus::Result<String>;
     }
 }

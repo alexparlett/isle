@@ -2363,6 +2363,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-bus"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "serde",
+ "tokio",
+ "zbus",
+]
+
+[[package]]
 name = "isle-cli"
 version = "0.1.0"
 dependencies = [
@@ -2385,6 +2395,8 @@ dependencies = [
  "humantime",
  "image",
  "isle-apps",
+ "isle-bus",
+ "isle-fakes",
  "isle-games",
  "isle-ipc",
  "isle-keys",
@@ -2398,6 +2410,7 @@ dependencies = [
  "libc",
  "notify",
  "png 0.17.16",
+ "serde",
  "serde_json",
  "smithay",
  "smithay-drm-extras",
@@ -2413,6 +2426,14 @@ dependencies = [
  "wayland-server",
  "x11rb",
  "xcursor",
+ "zbus",
+ "zvariant",
+]
+
+[[package]]
+name = "isle-fakes"
+version = "0.1.0"
+dependencies = [
  "zbus",
  "zvariant",
 ]
@@ -2533,6 +2554,7 @@ dependencies = [
 name = "isle-ui"
 version = "0.1.0"
 dependencies = [
+ "accesskit",
  "bytes",
  "freya",
  "isle-tokens",

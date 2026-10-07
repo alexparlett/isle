@@ -16,6 +16,8 @@ pub struct Isle {
     pub dir: PathBuf,
     bus_address: String,
     bus_pid: i32,
+    system_address: String,
+    system_pid: i32,
     compositor: Child,
     clients: Vec<Arc<Mutex<Child>>>,
     pub bus: zbus::Connection,
@@ -104,20 +106,9 @@ impl Isle {
         }
         prepare(&dir);
 
-        let out = Command::new("dbus-daemon")
-            .args([
-                "--session",
-                "--fork",
-                "--nopidfile",
-                "--print-address=1",
-                "--print-pid=1",
-            ])
-            .output()
-            .expect("dbus-daemon");
-        let text = String::from_utf8(out.stdout).unwrap();
-        let mut lines = text.lines();
-        let bus_address = lines.next().unwrap().to_owned();
-        let bus_pid = lines.next().unwrap().trim().parse().unwrap();
+        let (bus_address, bus_pid) = private_bus();
+        // A second private bus stands in for the system bus, where the fake daemons live.
+        let (system_address, system_pid) = private_bus();
 
         let log = fs::File::create(dir.join("compositor.log")).unwrap();
         let compositor = Command::new(env!("CARGO_BIN_EXE_isle-compositor"))
@@ -132,6 +123,7 @@ impl Isle {
             // The host's own layout must not reach the tests.
             .env("XKB_DEFAULT_LAYOUT", "us")
             .env("DBUS_SESSION_BUS_ADDRESS", &bus_address)
+            .env("DBUS_SYSTEM_BUS_ADDRESS", &system_address)
             .env(
                 "RUST_LOG",
                 std::env::var("ISLE_TEST_LOG")
@@ -151,6 +143,8 @@ impl Isle {
             dir,
             bus_address: bus_address.clone(),
             bus_pid,
+            system_address,
+            system_pid,
             compositor,
             clients: Vec::new(),
             bus,
@@ -180,6 +174,11 @@ impl Isle {
 
     pub fn bus_address(&self) -> String {
         self.bus_address.clone()
+    }
+
+    /// The private bus the compositor takes for the system bus.
+    pub fn system_address(&self) -> String {
+        self.system_address.clone()
     }
 
     pub fn log(&self) -> String {
@@ -248,6 +247,7 @@ impl Isle {
             .args(args)
             .env("XDG_RUNTIME_DIR", self.dir.join("runtime"))
             .env("DBUS_SESSION_BUS_ADDRESS", &self.bus_address)
+            .env("DBUS_SYSTEM_BUS_ADDRESS", &self.system_address)
             .envs(envs.iter().map(|(k, v)| (*k, v.as_str())))
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())
@@ -314,11 +314,32 @@ impl Drop for Isle {
         }
         let _ = self.compositor.kill();
         let _ = self.compositor.wait();
-        let _ = Command::new("kill").arg(self.bus_pid.to_string()).status();
+        for pid in [self.bus_pid, self.system_pid] {
+            let _ = Command::new("kill").arg(pid.to_string()).status();
+        }
         if std::env::var_os("ISLE_TEST_KEEP").is_none() {
             let _ = fs::remove_dir_all(&self.dir);
         }
     }
+}
+
+/// A private message bus, as its address and the daemon's pid.
+fn private_bus() -> (String, i32) {
+    let out = Command::new("dbus-daemon")
+        .args([
+            "--session",
+            "--fork",
+            "--nopidfile",
+            "--print-address=1",
+            "--print-pid=1",
+        ])
+        .output()
+        .expect("dbus-daemon");
+    let text = String::from_utf8(out.stdout).unwrap();
+    let mut lines = text.lines();
+    let address = lines.next().unwrap().to_owned();
+    let pid = lines.next().unwrap().trim().parse().unwrap();
+    (address, pid)
 }
 
 pub async fn wait_until<F, Fut>(mut check: F)

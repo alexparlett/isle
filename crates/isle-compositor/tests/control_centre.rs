@@ -129,6 +129,11 @@ async fn dark_mode_switches_the_appearance_and_keyboard_lists_its_layouts() {
     click(&isle, left + 92.0 + 88.0, row).await;
 
     wait_until(|| async { island(&isle).await["panel"]["page"] == "keyboard-layout" }).await;
+    panel_settled(&isle).await;
+    isle.shot("HEADLESS-1", "keyboard-page").await;
+    if let Ok(dir) = std::env::var("ISLE_SHOT_DIR") {
+        std::fs::copy(isle.dir.join("keyboard-page.png"), format!("{dir}/keyboard-page.png")).unwrap();
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

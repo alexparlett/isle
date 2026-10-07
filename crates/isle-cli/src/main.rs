@@ -47,6 +47,8 @@ enum Command {
     Island(Island),
     #[command(subcommand)]
     Menus(Menus),
+    /// The system services: whether each daemon answers, and what Isle knows of it.
+    Services,
     #[command(subcommand)]
     Shortcuts(Shortcuts),
     #[command(subcommand)]
@@ -558,6 +560,23 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             let path: Vec<&str> = path.iter().map(String::as_str).collect();
             let found = isle_ipc::menus::MenusProxy::new(&bus).await?.activate(&path).await?;
             app_found(found, &path.join(" › "))?;
+        }
+        Command::Services => {
+            let status = isle_ipc::services::ServicesProxy::new(&bus).await?.status().await?;
+            let status: serde_json::Value = serde_json::from_str(&status)
+                .map_err(|e| zbus::Error::Failure(e.to_string()))?;
+            if cli.json {
+                println!("{status}");
+            } else if let Some(services) = status.as_object() {
+                for (name, service) in services {
+                    let available = service["available"].as_bool().unwrap_or(false);
+                    println!(
+                        "{name}: {} {}",
+                        if available { "available" } else { "not available" },
+                        service["state"]
+                    );
+                }
+            }
         }
         Command::Island(Island::Status) => {
             println!("{}", isle_ipc::island::IslandProxy::new(&bus).await?.status().await?);

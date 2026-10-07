@@ -6,7 +6,7 @@ use std::rc::Rc;
 use freya::prelude::*;
 use freya_embed::AppComponent;
 use isle_ui::{
-    Button, Glyph, LevelBar, LevelGlyph, Menu, MenuEntry, MenuItem,
+    Button, Glyph, LevelBar, LevelGlyph, Menu, MenuEntry, MenuItem, Slider, Spinner, Switch,
     button::Kind,
     colour,
     menu::{Hint, Mark, Material},
@@ -15,7 +15,10 @@ use isle_ui::{
 };
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
-use crate::{Layer, Scope, SurfaceDef};
+use crate::{
+    Layer, Scope, SurfaceDef,
+    island::rows::{Choice, Lead, PageRow, Rows, SliderRow},
+};
 
 #[derive(Default)]
 pub struct Gallery;
@@ -91,6 +94,59 @@ fn sample_menu() -> Rc<Vec<MenuEntry>> {
     ])
 }
 
+fn sample_rows() -> Vec<PageRow> {
+    let choice = |id: &str, label: &str| Choice {
+        id: id.into(),
+        label: label.into(),
+        enabled: true,
+        ..Default::default()
+    };
+    vec![
+        PageRow::Heading("Known networks".into()),
+        PageRow::Choice(Choice {
+            checked: true,
+            trailing: Some("wifi-high".into()),
+            lead: Lead::Glyph("lock-simple".into()),
+            ..choice("home", "Home")
+        }),
+        PageRow::Choice(Choice {
+            busy: true,
+            detail: Some("Connecting".into()),
+            ..choice("cafe", "Café")
+        }),
+        PageRow::Choice(Choice {
+            error: Some("Couldn't connect to “Office”. Check the password and try again.".into()),
+            ..choice("office", "Office")
+        }),
+        PageRow::Choice(Choice {
+            battery: Some(64),
+            detail: Some("Connected".into()),
+            sub_page: true,
+            ..choice("mouse", "MX Master 3S")
+        }),
+        PageRow::Group {
+            id: "other".into(),
+            label: "Other networks".into(),
+            open: false,
+            rows: vec![],
+        },
+        PageRow::Slider(SliderRow {
+            id: "firefox".into(),
+            label: "Firefox".into(),
+            value: 0.7,
+            enabled: true,
+            ..Default::default()
+        }),
+        PageRow::Switch {
+            id: "contrast".into(),
+            label: "Increase contrast".into(),
+            on: false,
+            enabled: true,
+        },
+        PageRow::Status("No apps playing sound".into()),
+    ]
+}
+
 #[derive(PartialEq)]
 struct Components;
 
@@ -113,6 +169,8 @@ impl Component for Components {
             "isle-equaliser",
         ];
         let menu = use_hook(sample_menu);
+        let mut level = use_state(|| 0.6_f32);
+        let mut toggled = use_state(|| true);
         rect()
             .expanded()
             .padding(t.space_xl)
@@ -157,6 +215,47 @@ impl Component for Components {
                 track: colour(t.colour_fill_strong),
                 fill: colour(t.colour_text),
             }))
+            .child(
+                rect()
+                    .horizontal()
+                    .spacing(t.space_l)
+                    .cross_align(Alignment::Center)
+                    .child(rect().width(Size::px(200.)).child(Slider::new(
+                        *level.read(),
+                        "Volume",
+                        move |v| level.set(v),
+                    )))
+                    .child(
+                        rect()
+                            .width(Size::px(200.))
+                            .child(Slider::new(0.4, "Brightness", |_| {}).glass(true)),
+                    )
+                    .child(
+                        rect()
+                            .width(Size::px(200.))
+                            .child(Slider::new(0.4, "Muted", |_| {}).glass(true).muted(true)),
+                    )
+                    .child(
+                        rect()
+                            .width(Size::px(200.))
+                            .child(Slider::new(0.3, "Position", |_| {}).glass(true).scrubber()),
+                    )
+                    .child(Switch::new(*toggled.read(), "Wi-Fi", move |on| toggled.set(on)))
+                    .child(Switch::new(false, "Off", |_| {}))
+                    .child(Switch::new(true, "Disabled", |_| {}).enabled(false))
+                    .child(Spinner::new(t.size_glyph, "Working")),
+            )
+            .child(
+                rect()
+                    .width(Size::px(t.size_panel))
+                    .corner_radius(t.radius_card)
+                    .background(colour(t.colour_fill))
+                    .padding((t.space_xs, 0.))
+                    .child(Rows {
+                        rows: sample_rows(),
+                        on_event: (|e| tracing::info!(?e, "row")).into(),
+                    }),
+            )
             .child(
                 rect()
                     .horizontal()

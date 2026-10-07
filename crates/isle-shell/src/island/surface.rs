@@ -582,9 +582,15 @@ fn face(theme: &Theme, activity: &Activity) -> Element {
                     .width(Size::px(t.size_island_well))
                     .height(Size::px(t.size_island_well))
                     .corner_radius(t.size_island_well / 2.0)
+                    .overflow(Overflow::Clip)
                     .background(colour(t.colour_fill_strong))
                     .center()
-                    .child(Glyph::new("music-note", t.size_glyph_small, ink)),
+                    .map(activity.art.clone(), |el, art| {
+                        el.child(isle_ui::AppIcon::new(art, t.size_island_well))
+                    })
+                    .maybe(activity.art.is_none(), |el| {
+                        el.child(Glyph::new("music-note", t.size_glyph_small, ink))
+                    }),
             )
             .child(Glyph::new("isle-equaliser", t.size_glyph_small, ink))
             .into_element(),

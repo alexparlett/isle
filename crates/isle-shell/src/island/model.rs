@@ -135,6 +135,8 @@ pub struct Activity {
     /// Its row's buttons, by id and label.
     pub actions: Vec<(String, String)>,
     pub app: Option<String>,
+    /// A picture for its face and row: media's art.
+    pub art: Option<std::path::PathBuf>,
     pub started: Instant,
 }
 
@@ -635,6 +637,7 @@ mod tests {
             detail: String::new(),
             actions: Vec::new(),
             app: None,
+            art: None,
             started,
         }
     }

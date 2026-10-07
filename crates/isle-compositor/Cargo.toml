@@ -55,6 +55,7 @@ wayland-protocols = { workspace = true, optional = true }
 wayland-protocols-wlr = { workspace = true, optional = true }
 x11rb.workspace = true
 smithay.workspace = true
+isle-media.workspace = true
 isle-menus.workspace = true
 isle-network.workspace = true
 wayland-server.workspace = true

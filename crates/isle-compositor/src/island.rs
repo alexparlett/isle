@@ -766,6 +766,7 @@ impl State {
                     detail: text(a, "detail"),
                     actions: Vec::new(),
                     app: a.get("app").and_then(|x| x.as_str()).map(str::to_owned),
+                    art: None,
                     started: now,
                 },
                 now,

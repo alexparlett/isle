@@ -2,6 +2,17 @@
 
 ## 2026-10-07
 
+- P8 8.6: media. `isle-media` follows every MPRIS player, the most recently
+  playing first, its position run on from when it was read, and fetches a
+  track's art (`file://`, `data:`, HTTPS capped at 2 MB and 5 s) into the
+  cache. The island's media face with the art, the Now Playing module (Large:
+  art, track, transport) and its page (the player in full with its scrubber,
+  shuffle and repeat, then the other players), the play, next and previous
+  keys through MPRIS; every media key now goes through a service, and v1's
+  `wpctl`, `brightnessctl` and `playerctl` commands are gone. Media leaves
+  Now while the module is in the grid; a page whose rows hold the control
+  has a plain head.
+
 - P8 8.5: Bluetooth. `isle-bluetooth` reads BlueZ's object tree in one call
   after any of its signals: the adapter, devices paired and nearby with
   their batteries. The Bluetooth glyph while a device is connected, the

@@ -49,6 +49,10 @@ pub struct Module {
     pub slider: Option<f32>,
     /// The slider's level is not in force, as a muted output's.
     pub muted: bool,
+    /// A player, which its Large and Wide forms show with their transport.
+    pub media: Option<super::rows::MediaCard>,
+    /// Its page's rows hold its control, so the page's head carries name and state only.
+    pub plain_head: bool,
 }
 
 /// Control Centre as one output's island shows it.
@@ -291,11 +295,14 @@ impl Component for PanelBody {
                             },
                         ),
                 )
-                .maybe(sub.is_none() && module.toggles && module.slider.is_none(), |el| {
-                    el.child(Switch::new(on, module.name.clone(), move |_| {
-                        send(&toggle, PanelAction::Toggle(id.clone()))
-                    }))
-                });
+                .maybe(
+                    sub.is_none() && module.toggles && module.slider.is_none() && !module.plain_head,
+                    |el| {
+                        el.child(Switch::new(on, module.name.clone(), move |_| {
+                            send(&toggle, PanelAction::Toggle(id.clone()))
+                        }))
+                    },
+                );
             return rect()
                 .width(Size::fill())
                 .height(body_size(panel))
@@ -488,6 +495,24 @@ impl Component for Tile {
         let slider = module.slider.filter(|_| {
             matches!(module.size, TileSize::Wide | TileSize::Large)
         });
+        let card = module
+            .media
+            .clone()
+            .filter(|_| matches!(module.size, TileSize::Wide | TileSize::Large));
+        let transport = {
+            let (actions, id) = (actions.clone(), id.clone());
+            move |event: super::rows::RowEvent| {
+                if let super::rows::RowEvent::Choose(row) = event {
+                    send(
+                        &actions,
+                        PanelAction::Choose {
+                            module: id.clone(),
+                            row,
+                        },
+                    )
+                }
+            }
+        };
         let slide = {
             let (actions, id) = (actions.clone(), id.clone());
             move |value: f32| {
@@ -530,11 +555,69 @@ impl Component for Tile {
             .maybe(small, |el| el.main_align(Alignment::Center))
             .padding(if small { 0.0 } else { t.space_l })
             .spacing(t.space_s + 4.0)
-            .child(
-                module_circle(&theme, module)
-                    .maybe(toggles && !small && open_page, |el| el.on_press(glyph_press)),
-            )
-            .maybe(!small, |el| {
+            .map(card.clone(), |el, card| {
+                el.main_align(Alignment::Start)
+                    .cross_align(Alignment::Start)
+                    .vertical()
+                    .content(Content::flex())
+                    .spacing(t.space_s)
+                    .child(
+                        rect()
+                            .horizontal()
+                            .cross_align(Alignment::Center)
+                            .spacing(t.space_s)
+                            .child(
+                                rect()
+                                    .width(Size::px(t.size_module_glyph))
+                                    .height(Size::px(t.size_module_glyph))
+                                    .corner_radius(t.radius_control)
+                                    .overflow(Overflow::Clip)
+                                    .background(colour(t.colour_fill_strong))
+                                    .center()
+                                    .map(card.art.clone(), |el, art| {
+                                        el.child(isle_ui::AppIcon::new(art, t.size_module_glyph))
+                                    })
+                                    .maybe(card.art.is_none(), |el| {
+                                        el.child(Glyph::new(
+                                            "music-note",
+                                            t.size_glyph,
+                                            colour(t.colour_text_2),
+                                        ))
+                                    }),
+                            )
+                            .child(
+                                rect()
+                                    .width(Size::flex(1.))
+                                    .child(text::line(
+                                        &theme,
+                                        text::Style::Headline,
+                                        colour(t.colour_text),
+                                        card.title.clone(),
+                                    ))
+                                    .child(text::line(
+                                        &theme,
+                                        text::Style::Subheadline,
+                                        colour(t.colour_text_2),
+                                        card.artist.clone(),
+                                    )),
+                            ),
+                    )
+                    .child(rect().width(Size::fill()).height(Size::flex(1.)))
+                    .child(
+                        rect()
+                            .width(Size::fill())
+                            .main_align(Alignment::Center)
+                            .horizontal()
+                            .child(super::rows::transport(&card, &transport.clone().into())),
+                    )
+            })
+            .maybe(card.is_none(), |el| {
+                el.child(
+                    module_circle(&theme, module)
+                        .maybe(toggles && !small && open_page, |el| el.on_press(glyph_press)),
+                )
+            })
+            .maybe(!small && card.is_none(), |el| {
                 el.child(
                     rect()
                         .width(Size::fill())

@@ -6,6 +6,7 @@ pub mod audio;
 pub mod bluetooth;
 pub mod brightness;
 pub mod login;
+pub mod media;
 pub mod network;
 pub mod power;
 
@@ -23,7 +24,6 @@ use crate::{
 /// The least time between two snapshots of one service reaching the loop, about a frame.
 const FRAME: Duration = Duration::from_millis(8);
 
-#[derive(Default)]
 pub struct Services {
     pub login: Snapshot<login::Login>,
     pub power: Snapshot<isle_power::Power>,
@@ -34,6 +34,14 @@ pub struct Services {
     pub input_level: f32,
     pub meter: Option<tokio::task::JoinHandle<()>>,
     pub screens: brightness::Screens,
+    pub media: Snapshot<isle_media::Media>,
+    /// When the media snapshot was taken in, from which a playing track's position runs on.
+    pub media_read: std::time::Instant,
+    /// Art by its URL: a local file, or none yet or none to be had.
+    pub art: std::collections::HashMap<String, Option<std::path::PathBuf>>,
+    /// A player chosen on Now Playing's page, by bus name.
+    pub chosen_player: Option<String>,
+    pub media_clock: Option<tokio::task::JoinHandle<()>>,
     pub bluetooth: Snapshot<isle_bluetooth::Bluetooth>,
     /// Devices being connected or paired, by path.
     pub connecting: std::collections::HashSet<String>,
@@ -70,6 +78,7 @@ impl Services {
             "cameras": entry(&self.cameras, applied("cameras")),
             "network": entry(&self.network, applied("network")),
             "bluetooth": entry(&self.bluetooth, applied("bluetooth")),
+            "media": entry(&self.media, applied("media")),
         })
         .to_string()
     }
@@ -164,5 +173,37 @@ impl State {
         self.follow_meter();
         self.follow_scan();
         self.follow_discovery();
+        self.follow_media_clock();
+    }
+}
+
+impl Default for Services {
+    fn default() -> Self {
+        Self {
+            login: Default::default(),
+            power: Default::default(),
+            profiles: Default::default(),
+            errors: Default::default(),
+            audio: Default::default(),
+            cameras: Default::default(),
+            input_level: 0.0,
+            meter: None,
+            own_change: None,
+            screens: Default::default(),
+            media: Default::default(),
+            media_read: std::time::Instant::now(),
+            art: Default::default(),
+            chosen_player: None,
+            media_clock: None,
+            bluetooth: Default::default(),
+            connecting: Default::default(),
+            discovering: false,
+            network: Default::default(),
+            joining: None,
+            scan: None,
+            last_vpn: None,
+            expanded: Default::default(),
+            applied: Default::default(),
+        }
     }
 }

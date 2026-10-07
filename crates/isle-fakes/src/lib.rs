@@ -3,6 +3,7 @@
 
 pub mod bluez;
 pub mod logind;
+pub mod mpris;
 pub mod network;
 pub mod upower;
 

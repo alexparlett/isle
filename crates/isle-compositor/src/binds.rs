@@ -68,22 +68,6 @@ pub enum Media {
     Previous,
 }
 
-impl Media {
-    /// v1's commands, until P8's services take the keys.
-    fn command(self) -> &'static str {
-        match self {
-            Media::VolumeUp => "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+",
-            Media::VolumeDown => "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
-            Media::Mute => "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-            Media::MicMute => "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
-            Media::BrightnessUp => "brightnessctl -q -c backlight set 5%+",
-            Media::BrightnessDown => "brightnessctl -q -c backlight set 5%-",
-            Media::PlayPause => "playerctl play-pause",
-            Media::Next => "playerctl next",
-            Media::Previous => "playerctl previous",
-        }
-    }
-}
 
 /// The action a shortcut id runs.
 fn action_for(id: &'static str) -> Action {
@@ -279,7 +263,9 @@ impl State {
             ) => self.audio_key(media),
             Action::Media(Media::BrightnessUp) => self.brightness_key(true),
             Action::Media(Media::BrightnessDown) => self.brightness_key(false),
-            Action::Media(media) => spawn(media.command()),
+            Action::Media(media @ (Media::PlayPause | Media::Next | Media::Previous)) => {
+                self.media_key(media)
+            }
             Action::TakeKeysBack => self.toggle_keys_back(),
             Action::ControlCentre => self.control_centre_chord(),
             Action::MenuBar => self.menu_bar_chord(),

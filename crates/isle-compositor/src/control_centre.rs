@@ -93,6 +93,7 @@ impl Isle {
             "wifi" => self.wifi_module(size),
             "vpn" => self.vpn_module(size),
             "bluetooth" => self.bluetooth_module(size),
+            "now-playing" => self.now_playing_module(size),
             _ => None,
         }
     }
@@ -105,6 +106,10 @@ impl Isle {
                 .map(|row| match row {
                     PageRow::Heading(label) => serde_json::json!({ "heading": label }),
                     PageRow::Status(line) => serde_json::json!({ "status": line }),
+                    PageRow::Media(card) => serde_json::json!({
+                        "media": card.title, "artist": card.artist, "playing": card.playing,
+                        "position": card.position,
+                    }),
                     PageRow::Meter { label, level } => {
                         serde_json::json!({ "meter": label, "level": level })
                     }
@@ -179,7 +184,16 @@ impl Isle {
                 chord: "⌘⎋".into(),
             });
         }
-        let activities = self.island.model.activities().cloned().collect();
+        let modules = self.modules();
+        // Media's one place in the panel is Now Playing, while it is in the grid.
+        let playing_module = modules.iter().any(|m| m.id == "now-playing");
+        let activities = self
+            .island
+            .model
+            .activities()
+            .filter(|a| !(playing_module && a.kind == isle_shell::island::model::ActivityKind::Media))
+            .cloned()
+            .collect();
         let privacy: Vec<(Privacy, String)> = self.privacy_rows();
         PanelFrame {
             pinned: state.pinned,
@@ -187,7 +201,7 @@ impl Isle {
             notices,
             activities,
             privacy,
-            modules: self.modules(),
+            modules,
             body: 0.0,
         }
     }
@@ -320,6 +334,13 @@ impl State {
                 if m == "wifi" =>
             {
                 self.wifi_action(action)
+            }
+            PanelAction::Toggle(ref m)
+            | PanelAction::Choose { module: ref m, .. }
+            | PanelAction::Slide { module: ref m, .. }
+                if m == "now-playing" =>
+            {
+                self.media_action(action)
             }
             PanelAction::Toggle(ref m) | PanelAction::Choose { module: ref m, .. }
                 if m == "bluetooth" =>

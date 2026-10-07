@@ -27,6 +27,8 @@ pub enum PageRow {
     Status(String),
     /// A level read live, as an input's: a bar, not a control.
     Meter { label: String, level: f32 },
+    /// A player in full: art, track, scrubber and transport.
+    Media(MediaCard),
     /// Rows folded under a name until opened: "Other networks".
     Group {
         id: String,
@@ -66,6 +68,25 @@ pub struct Choice {
     pub enabled: bool,
 }
 
+/// What a player shows and offers.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MediaCard {
+    pub player: String,
+    pub title: String,
+    pub artist: String,
+    pub art: Option<PathBuf>,
+    pub playing: bool,
+    pub can_previous: bool,
+    pub can_next: bool,
+    /// Where in the track, 0 to 1, when it can seek.
+    pub position: Option<f32>,
+    pub elapsed: String,
+    pub remaining: String,
+    pub shuffle: Option<bool>,
+    /// `None`, `Track` or `Playlist`.
+    pub repeat: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SliderRow {
     pub id: String,
@@ -97,10 +118,17 @@ pub fn row_height(theme: &Theme, row: &PageRow) -> f32 {
         PageRow::Choice(c) if c.detail.is_some() || c.error.is_some() => t.size_row_large,
         PageRow::Choice(_) => t.size_row,
         PageRow::Slider(_) => t.size_row_large,
+        PageRow::Media(_) => media_height(theme),
         PageRow::Group { open, rows, .. } => {
             t.size_row + if *open { rows_height(theme, rows) } else { 0.0 }
         }
     }
+}
+
+/// A player card's height: its art beside the track, the scrubber, the transport.
+pub fn media_height(theme: &Theme) -> f32 {
+    let t = &theme.tokens;
+    t.space_m + t.size_media_art + t.space_s + t.size_control + t.size_control_large + t.space_m
 }
 
 /// The height of `rows` laid one under another.
@@ -130,6 +158,11 @@ fn row_element(row: &PageRow, on_event: &EventHandler<RowEvent>) -> Element {
         }
         .into_element(),
         PageRow::Status(line) => Status { line: line.clone() }.into_element(),
+        PageRow::Media(card) => MediaView {
+            card: card.clone(),
+            on_event: on_event.clone(),
+        }
+        .into_element(),
         PageRow::Meter { label, level } => Meter {
             label: label.clone(),
             level: *level,
@@ -253,6 +286,191 @@ impl Component for Status {
                 colour(t.colour_text_2),
                 self.line.clone(),
             ))
+    }
+}
+
+/// The transport's buttons, which a row's events name: `previous`, `play-pause`, `next`.
+pub fn transport(card: &MediaCard, on_event: &EventHandler<RowEvent>) -> Element {
+    let button = |glyph: &str, alt: &str, id: &'static str, enabled: bool| {
+        let on_event = on_event.clone();
+        isle_ui::Button::icon(glyph, alt)
+            .kind(isle_ui::button::Kind::Plain)
+            .enabled(enabled)
+            .on_press(move |_| on_event.call(RowEvent::Choose(id.into())))
+            .into_element()
+    };
+    rect()
+        .horizontal()
+        .cross_align(Alignment::Center)
+        .spacing(4.)
+        .child(button("skip-back", "Previous track", "previous", card.can_previous))
+        .child(if card.playing {
+            button("pause", "Pause", "play-pause", true)
+        } else {
+            button("play", "Play", "play-pause", true)
+        })
+        .child(button("skip-forward", "Next track", "next", card.can_next))
+        .into_element()
+}
+
+#[derive(PartialEq)]
+struct MediaView {
+    card: MediaCard,
+    on_event: EventHandler<RowEvent>,
+}
+
+impl Component for MediaView {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let c = &self.card;
+        let on_event = self.on_event.clone();
+        let raise = on_event.clone();
+        let toggle = |id: &'static str, glyph: &str, alt: &str, on: bool| {
+            let on_event = on_event.clone();
+            isle_ui::Button::icon(glyph, alt)
+                .kind(isle_ui::button::Kind::Plain)
+                .on_press(move |_| on_event.call(RowEvent::Choose(id.into())))
+                .into_element()
+                .maybe_with(on, t)
+        };
+        rect()
+            .width(Size::fill())
+            .height(Size::px(media_height(&theme)))
+            .padding(t.space_m)
+            .spacing(t.space_s)
+            .child(
+                rect()
+                    .horizontal()
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_m)
+                    .child(
+                        rect()
+                            .width(Size::px(t.size_media_art))
+                            .height(Size::px(t.size_media_art))
+                            .corner_radius(t.radius_control)
+                            .overflow(Overflow::Clip)
+                            .background(colour(t.colour_fill_strong))
+                            .center()
+                            .map(c.art.clone(), |el, art| {
+                                el.child(AppIcon::new(art, t.size_media_art))
+                            })
+                            .maybe(c.art.is_none(), |el| {
+                                el.child(Glyph::new(
+                                    "music-note",
+                                    t.size_glyph_large,
+                                    colour(t.colour_text_2),
+                                ))
+                            }),
+                    )
+                    .child(
+                        rect()
+                            .width(Size::flex(1.))
+                            .child(text::line(
+                                &theme,
+                                text::Style::Headline,
+                                colour(t.colour_text),
+                                c.title.clone(),
+                            ))
+                            .child(text::line(
+                                &theme,
+                                text::Style::Body,
+                                colour(t.colour_text_2),
+                                c.artist.clone(),
+                            ))
+                            .child(
+                                rect()
+                                    .on_press(move |_| raise.call(RowEvent::Choose("raise".into())))
+                                    .a11y_role(AccessibilityRole::Link)
+                                    .a11y_focusable(true)
+                                    .child(text::line(
+                                        &theme,
+                                        text::Style::Subheadline,
+                                        colour(t.colour_text_2),
+                                        c.player.clone(),
+                                    )),
+                            ),
+                    ),
+            )
+            .child(
+                rect()
+                    .horizontal()
+                    .content(Content::flex())
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_s)
+                    .child(text::line(
+                        &theme,
+                        text::Style::Footnote,
+                        colour(t.colour_text_2),
+                        c.elapsed.clone(),
+                    ))
+                    .child(rect().width(Size::flex(1.)).map(c.position, |el, position| {
+                        let on_event = on_event.clone();
+                        el.child(
+                            Slider::new(position, "Position", move |v| {
+                                on_event.call(RowEvent::Slide("position".into(), v))
+                            })
+                            .glass(true)
+                            .scrubber(),
+                        )
+                    }))
+                    .child(text::line(
+                        &theme,
+                        text::Style::Footnote,
+                        colour(t.colour_text_2),
+                        c.remaining.clone(),
+                    )),
+            )
+            .child(
+                rect()
+                    .horizontal()
+                    .width(Size::fill())
+                    .content(Content::flex())
+                    .cross_align(Alignment::Center)
+                    .maybe(c.shuffle.is_some(), |el| {
+                        el.child(toggle(
+                            "shuffle",
+                            "shuffle",
+                            if c.shuffle == Some(true) { "Shuffle, on" } else { "Shuffle, off" },
+                            c.shuffle == Some(true),
+                        ))
+                    })
+                    .child(rect().width(Size::flex(1.)))
+                    .child(transport(c, &self.on_event))
+                    .child(rect().width(Size::flex(1.)))
+                    .maybe(c.repeat.is_some(), |el| {
+                        let mode = c.repeat.clone().unwrap_or_default();
+                        el.child(toggle(
+                            "repeat",
+                            if mode == "Track" { "repeat-once" } else { "repeat" },
+                            match mode.as_str() {
+                                "Track" => "Repeat, one",
+                                "Playlist" => "Repeat, all",
+                                _ => "Repeat, off",
+                            },
+                            mode != "None",
+                        ))
+                    }),
+            )
+    }
+}
+
+trait Toggled {
+    fn maybe_with(self, on: bool, t: &isle_tokens::Tokens) -> Element;
+}
+
+impl Toggled for Element {
+    /// A toggle that is on sits in a filled well.
+    fn maybe_with(self, on: bool, t: &isle_tokens::Tokens) -> Element {
+        rect()
+            .corner_radius(t.radius_control)
+            .background(if on {
+                colour(t.colour_fill_strong)
+            } else {
+                Color::TRANSPARENT
+            })
+            .child(self)
+            .into_element()
     }
 }
 

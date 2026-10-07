@@ -414,6 +414,8 @@ impl State {
             let _ = x11.configure(Rectangle::new(location, size));
         }
         tracing::info!(id, app_id, title, ?location, size = ?size, "mapped");
+        let (app, pid) = (record.app.clone(), record.pid);
+        self.track_process(&app, pid);
         self.isle.refresh_game(id);
         self.read_steam_env(id);
         self.assign_desktop(id);

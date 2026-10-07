@@ -1415,11 +1415,7 @@ impl State {
             return;
         };
         let entry = self.isle.apps.get(app).cloned();
-        let dark = self.isle.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
-        let icon = entry
-            .as_ref()
-            .and_then(|e| e.icon.clone())
-            .and_then(|i| isle_apps::icons::Icons::papirus(dark).lookup(&i, 64));
+        let icon = self.isle.app_icon(app, 64);
         let about = About {
             name: self.isle.apps.name(app),
             icon,

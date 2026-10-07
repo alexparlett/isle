@@ -142,6 +142,11 @@ pub struct Isle {
     pub apps: std::sync::Arc<isle_apps::Index>,
     /// Apps being quit, with the processes that get the polite signal once their windows go.
     pub quitting: Vec<(String, Vec<i32>)>,
+    pub processes: crate::processes::Processes,
+    /// LauncherEntry's badges and progress by desktop id.
+    pub badges: std::collections::HashMap<String, isle_apps::badges::LauncherEntry>,
+    /// App icon lookups, kept for the appearance they were made in.
+    pub icons: std::cell::RefCell<Option<(bool, isle_apps::icons::Icons)>>,
     /// Pings awaiting their pong, by client and the window that prompted them.
     pub pings: Vec<(smithay::wayland::shell::xdg::ShellClient, u64)>,
     /// The pointer's image before the busy one replaced it over a window not responding.
@@ -357,6 +362,9 @@ impl Isle {
             window_motion: true,
             apps: Default::default(),
             quitting: Vec::new(),
+            processes: Default::default(),
+            badges: Default::default(),
+            icons: Default::default(),
             pings: Vec::new(),
             cursor_before_busy: None,
             zone_preview: None,
@@ -687,8 +695,13 @@ impl State {
             .and_then(|w| self.isle.wm.modal_of(crate::wm::window_id(w)))
             .and_then(|id| self.isle.window_by_id(id));
         let window = modal.as_ref().or(window);
-        if let Some(record) = window.and_then(|w| self.isle.wm.get_mut(crate::wm::window_id(w))) {
+        // Activating an app answers every window of it that asked for attention.
+        let app = window
+            .and_then(|w| self.isle.wm.get(crate::wm::window_id(w)))
+            .map(|r| r.app.clone());
+        for record in self.isle.wm.records.iter_mut().filter(|r| Some(&r.app) == app.as_ref()) {
             record.attention = false;
+            record.urgent = false;
         }
         let surface = self.isle.focus_window(window);
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();

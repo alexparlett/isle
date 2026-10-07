@@ -511,14 +511,15 @@ async fn closing_a_keep_running_apps_last_window_hides_it_and_quit_ends_it() {
     assert!(windows.quit_app("isle.test.Keep").await.unwrap());
     keep.wait_for("closed").await;
     wait_until(|| async { keep.exited() }).await;
-    assert!(
+    wait_until(|| async {
         windows
             .apps()
             .await
             .unwrap()
             .iter()
             .all(|a| a.app != "isle.test.Keep")
-    );
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

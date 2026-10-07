@@ -79,6 +79,8 @@ impl State {
         let Some(runtime) = self.isle.worker.clone() else {
             return false;
         };
+        let to_loop = self.isle.to_loop.clone();
+        let scope_app = matches!(what, Launch::App { .. }).then(|| name.clone());
         let unit = format!(
             "app-isle-{}-{:08x}.scope",
             unit_part(&name),
@@ -109,13 +111,26 @@ impl State {
             let failed = match scoped {
                 Err(err) => Some(err.to_string()),
                 Ok(mut child) => {
+                    let pid = child.id();
                     match tokio::time::timeout(std::time::Duration::from_millis(300), child.wait())
                         .await
                     {
                         Ok(Ok(status)) if !status.success() => {
                             Some(format!("it exited with {status}"))
                         }
-                        _ => None,
+                        _ => {
+                            // The scope is the app's from here, whatever it forks or execs.
+                            let dir = pid.and_then(crate::processes::cgroup_of);
+                            if let (Some(dir), Some(app), Some(to_loop)) = (dir, scope_app, to_loop)
+                            {
+                                if dir.ends_with(&unit) {
+                                    let watch = dir.clone();
+                                    to_loop.post(move |state| state.track_scope(app, dir));
+                                    tokio::spawn(crate::processes::watch_scope(to_loop, watch));
+                                }
+                            }
+                            None
+                        }
                     }
                 }
             };

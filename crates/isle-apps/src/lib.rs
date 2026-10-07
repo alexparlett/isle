@@ -1,6 +1,7 @@
 //! Desktop entries and the apps they name: an index read off the main loop, and the
 //! resolution of a window's app id to the app it belongs to (`compositor.md` Apps 1).
 
+pub mod badges;
 pub mod exec;
 pub mod icons;
 pub mod metainfo;

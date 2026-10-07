@@ -74,6 +74,8 @@ pub struct WindowInfo {
     pub parent: u64,
     /// It asked for focus without a fresh activation token.
     pub attention: bool,
+    /// Its attention is urgent.
+    pub urgent: bool,
     pub not_responding: bool,
     /// Its desktop's place in its output's row, from 1.
     pub desktop: u32,
@@ -95,16 +97,29 @@ pub struct DesktopInfo {
     pub windows: u32,
 }
 
-/// An app with windows, as the switcher sees it.
+/// An app with windows, or running in the background, as the switcher sees it; most
+/// recently used first, background apps last.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct AppInfo {
     /// Its desktop id, or its windows' app id when no entry claims it.
     pub app: String,
     pub name: String,
     pub hidden: bool,
+    /// Its toplevels, dialogs aside, on every desktop, minimised and hidden ones included.
     pub windows: u32,
     pub attention: bool,
+    pub urgent: bool,
     pub not_responding: bool,
+    /// Every window it has is minimised.
+    pub minimised: bool,
+    /// It has no window and a process still running.
+    pub background: bool,
+    /// LauncherEntry's count, or -1 for none.
+    pub badge: i64,
+    /// LauncherEntry's progress from 0 to 1, or -1 for none.
+    pub progress: f64,
+    /// Its icon's file, or empty.
+    pub icon: String,
 }
 
 /// A keyboard as Isle reads it.
@@ -297,6 +312,7 @@ pub mod windows {
         fn activate_app(&self, app: &str) -> zbus::Result<bool>;
         /// Closes every window of an app, then signals its processes; false when it has none.
         fn quit_app(&self, app: &str) -> zbus::Result<bool>;
+        fn stop_app(&self, app: &str) -> zbus::Result<bool>;
         /// Starts an app by desktop id, or one of its entry's actions; false when it has
         /// nothing to run.
         fn launch(&self, app: &str, action: &str, uris: &[&str]) -> zbus::Result<bool>;

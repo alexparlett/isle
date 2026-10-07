@@ -88,6 +88,8 @@ pub struct Record {
     pub mapped: bool,
     /// It asked for focus without a fresh activation token.
     pub attention: bool,
+    /// Its attention is urgent: the X11 urgency hint.
+    pub urgent: bool,
     /// Stacks above the windows that are not, from the Window menu.
     pub keep_on_top: bool,
     /// Its client missed a ping and has not answered since.
@@ -325,6 +327,7 @@ impl Isle {
             home: None,
             mapped: false,
             attention: false,
+            urgent: false,
             keep_on_top: false,
             not_responding: false,
             motion: None,
@@ -449,6 +452,7 @@ impl Isle {
                     hidden: record.hidden,
                     parent: record.parent.unwrap_or(0),
                     attention: record.attention,
+                    urgent: record.urgent,
                     not_responding: record.not_responding,
                     desktop: self.desktop_index(record.id),
                     game: record.game,
@@ -636,9 +640,13 @@ impl State {
             Mode::FullScreen { origin, .. } => Some((record.desktop, *origin)),
             _ => None,
         };
+        let app = record.app.clone();
         self.isle.queue_redraw_for_window(&window);
         self.isle.space.unmap_elem(&window);
         self.isle.wm.records.retain(|r| r.id != id);
+        if !self.isle.wm.records.iter().any(|r| r.app == app && r.mapped) {
+            self.app_windowless(&app);
+        }
         self.isle.wm.recent.retain(|r| *r != id);
         for record in &mut self.isle.wm.records {
             if record.parent == Some(id) {

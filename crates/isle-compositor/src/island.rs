@@ -511,11 +511,20 @@ impl State {
         );
     }
 
-    /// A window asked for focus it could not take: its app wants attention.
-    pub fn island_attention(&mut self, id: u64) {
-        let Some(app) = self.isle.wm.get(id).map(|r| r.app.clone()) else {
+    /// A window asked for focus it could not take: its record is marked and the island told.
+    pub fn want_attention(&mut self, id: u64, urgent: bool) {
+        let Some(record) = self.isle.wm.get_mut(id) else {
             return;
         };
+        record.attention = true;
+        record.urgent |= urgent;
+        let app = record.app.clone();
+        self.isle.notify(crate::worker::Event::WindowsChanged);
+        self.island_attention(app, urgent);
+    }
+
+    /// An app wants attention: the island's event naming it.
+    pub fn island_attention(&mut self, app: String, urgent: bool) {
         let name = self.isle.apps.name(&app);
         self.isle.island.model.post(
             isle_shell::island::model::Event {
@@ -527,7 +536,7 @@ impl State {
                 },
                 output: None,
                 app: Some(app),
-                urgent: false,
+                urgent,
             },
             Instant::now(),
         );

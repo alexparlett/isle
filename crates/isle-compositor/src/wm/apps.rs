@@ -78,22 +78,72 @@ impl Isle {
         apps
     }
 
+    /// `app`'s icon at `size` points, in Papirus for the appearance in force.
+    pub fn app_icon(&self, app: &str, size: u32) -> Option<std::path::PathBuf> {
+        let name = self.apps.get(app)?.icon.clone()?;
+        let dark = self.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
+        let mut icons = self.icons.borrow_mut();
+        if icons.as_ref().is_none_or(|(d, _)| *d != dark) {
+            *icons = Some((dark, isle_apps::icons::Icons::papirus(dark)));
+        }
+        icons.as_mut().unwrap().1.lookup(&name, size)
+    }
+
+    /// Apps with no window whose process still runs, most recently windowless first.
+    pub fn background_apps(&self) -> Vec<String> {
+        self.processes
+            .seen()
+            .filter(|app| !self.wm.records.iter().any(|r| r.mapped && &r.app == *app))
+            .cloned()
+            .collect()
+    }
+
+    /// An app's toplevels in the one order Cmd+` and the switcher's window row share: the
+    /// order they opened, dialogs aside.
+    pub fn app_windows(&self, app: &str) -> Vec<u64> {
+        let mut ids: Vec<u64> = self
+            .wm
+            .records
+            .iter()
+            .filter(|r| r.mapped && r.app == app && r.parent.is_none())
+            .map(|r| r.id)
+            .collect();
+        ids.sort_unstable();
+        ids
+    }
+
     pub fn app_infos(&self) -> Vec<isle_ipc::AppInfo> {
-        self.apps_by_recency()
-            .into_iter()
-            .map(|app| {
+        let background = self.background_apps();
+        let apps = self.apps_by_recency();
+        apps.into_iter()
+            .map(|app| (app, false))
+            .chain(background.into_iter().map(|app| (app, true)))
+            .map(|(app, background)| {
                 let windows: Vec<&super::Record> = self
                     .wm
                     .records
                     .iter()
                     .filter(|r| r.mapped && r.app == app)
                     .collect();
+                let toplevels = windows.iter().filter(|r| r.parent.is_none());
+                let entry = self.badges.get(&app);
                 isle_ipc::AppInfo {
                     name: self.apps.name(&app),
                     hidden: windows.iter().any(|r| r.hidden),
-                    windows: windows.len() as u32,
-                    attention: windows.iter().any(|r| r.attention),
+                    windows: toplevels.clone().count() as u32,
+                    attention: windows.iter().any(|r| r.attention)
+                        || entry.is_some_and(|e| e.urgent),
+                    urgent: windows.iter().any(|r| r.urgent) || entry.is_some_and(|e| e.urgent),
                     not_responding: windows.iter().any(|r| r.not_responding),
+                    minimised: toplevels.clone().next().is_some()
+                        && toplevels.clone().all(|r| r.minimised),
+                    background,
+                    badge: entry.and_then(|e| e.badge()).unwrap_or(-1),
+                    progress: entry.and_then(|e| e.progress()).unwrap_or(-1.0),
+                    icon: self
+                        .app_icon(&app, 48)
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .unwrap_or_default(),
                     app,
                 }
             })
@@ -289,15 +339,12 @@ impl State {
             return;
         };
         let focused = self.focused_window();
-        let mut ids: Vec<u64> = self
+        let ids: Vec<u64> = self
             .isle
-            .wm
-            .records
-            .iter()
-            .filter(|r| r.app == app && self.isle.wm.is_shown(r.id) && r.parent.is_none())
-            .map(|r| r.id)
+            .app_windows(&app)
+            .into_iter()
+            .filter(|id| self.isle.wm.is_shown(*id))
             .collect();
-        ids.sort_unstable();
         if ids.len() < 2 {
             return;
         }

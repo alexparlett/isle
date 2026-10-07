@@ -9,7 +9,9 @@
 //! window's left half), `--argb` (a 32-bit visual, transparent but for its left half, which
 //! is painted in the colour), `--steam-game ID` (Steam's `STEAM_GAME` label).
 //! Commands: `fullscreen`, `unfullscreen`, `maximize`, `unmaximize`, `minimize`,
-//! `dialog` (a window transient for the first), `move-on-press`, `quit`.
+//! `dialog` (a window transient for the first), `move-on-press`, `urgent` and `calm` (the
+//! `WM_HINTS` urgency bit), `demand` (`_NET_WM_STATE_DEMANDS_ATTENTION`), `activate`
+//! (`_NET_ACTIVE_WINDOW` as an application), `quit`.
 
 use std::{
     io::{BufRead, Write},
@@ -50,6 +52,8 @@ struct Atoms {
     max_v: u32,
     wm_change_state: u32,
     moveresize: u32,
+    demands: u32,
+    active: u32,
 }
 
 fn atom(conn: &impl Connection, name: &str) -> u32 {
@@ -96,6 +100,8 @@ fn main() {
         max_v: atom(&conn, "_NET_WM_STATE_MAXIMIZED_VERT"),
         wm_change_state: atom(&conn, "WM_CHANGE_STATE"),
         moveresize: atom(&conn, "_NET_WM_MOVERESIZE"),
+        demands: atom(&conn, "_NET_WM_STATE_DEMANDS_ATTENTION"),
+        active: atom(&conn, "_NET_ACTIVE_WINDOW"),
     };
 
     // With `--argb`, a 32-bit visual with its own colormap, as xeyes and many launchers use.
@@ -423,6 +429,24 @@ fn main() {
                             say(wins.len() - 1, "created".into());
                         }
                         "move-on-press" => move_on_press = true,
+                        "urgent" | "calm" => {
+                            let mut hints = x11rb::properties::WmHints::new();
+                            hints.urgent = line.trim() == "urgent";
+                            hints.set(&conn, win).unwrap();
+                            conn.flush().unwrap();
+                        }
+                        "demand" => state_message(win, 1, atoms.demands, 0),
+                        "activate" => {
+                            let msg = ClientMessageEvent::new(32, win, atoms.active, [1, 0, 0, 0, 0]);
+                            conn.send_event(
+                                false,
+                                root,
+                                EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY,
+                                msg,
+                            )
+                            .unwrap();
+                            conn.flush().unwrap();
+                        }
                         "quit" => return,
                         other => say(0, format!("unknown command {other}")),
                     }

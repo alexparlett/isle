@@ -301,9 +301,7 @@ impl XdgActivationHandler for State {
             self.activate(id);
         } else {
             debug!("activation without a fresh token: the window wants attention");
-            self.isle.wm.get_mut(id).unwrap().attention = true;
-            self.isle.notify(crate::worker::Event::WindowsChanged);
-            self.island_attention(id);
+            self.want_attention(id, false);
         }
     }
 }

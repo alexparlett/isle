@@ -341,6 +341,16 @@ impl XwmHandler for State {
             }
             P::MotifHints | P::WindowType | P::FrameExtents => self.x11_bar_changed(id, &window),
             P::SteamGame => self.isle.refresh_game(id),
+            P::Hints => {
+                let urgent = window.hints().is_some_and(|h| h.urgent);
+                let was = self.isle.wm.get(id).is_some_and(|r| r.urgent);
+                if urgent && !was {
+                    self.want_attention(id, true);
+                } else if !urgent && was {
+                    self.isle.wm.get_mut(id).unwrap().urgent = false;
+                    self.isle.notify(crate::worker::Event::WindowsChanged);
+                }
+            }
             _ => {}
         }
     }
@@ -457,10 +467,24 @@ impl XwmHandler for State {
         let app = self.isle.wm.get(id).map(|r| r.app.clone());
         if app.is_some() && app == self.isle.front_app() {
             self.activate(id);
-        } else if let Some(record) = self.isle.wm.get_mut(id) {
-            record.attention = true;
+        } else {
+            self.want_attention(id, false);
+        }
+    }
+
+    fn demands_attention_request(&mut self, _xwm: XwmId, window: X11Surface) {
+        if let Some(id) = self.x11_record(&window) {
+            let front = self.isle.wm.get(id).map(|r| r.app.clone()) == self.isle.front_app();
+            if !front {
+                self.want_attention(id, false);
+            }
+        }
+    }
+
+    fn undemands_attention_request(&mut self, _xwm: XwmId, window: X11Surface) {
+        if let Some(record) = self.x11_record(&window).and_then(|id| self.isle.wm.get_mut(id)) {
+            record.attention = false;
             self.isle.notify(crate::worker::Event::WindowsChanged);
-            self.island_attention(id);
         }
     }
 

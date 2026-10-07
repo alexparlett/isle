@@ -193,8 +193,11 @@ impl Dispatch<GtkSurface1, WlSurface> for State {
                 }
             }
             gtk_surface1::Request::Present { .. } | gtk_surface1::Request::RequestFocus { .. } => {
-                if let Some(id) = state.isle.wm.for_surface(surface).map(|r| r.id) {
-                    state.island_attention(id);
+                let id = state.isle.wm.for_surface(surface).map(|r| r.id);
+                if let Some(id) = id.filter(|id| {
+                    state.isle.wm.get(*id).map(|r| r.app.clone()) != state.isle.front_app()
+                }) {
+                    state.want_attention(id, false);
                 }
             }
             _ => {}

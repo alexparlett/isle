@@ -138,12 +138,14 @@ enum Desktops {
 
 #[derive(Subcommand)]
 enum Apps {
-    /// Apps with windows, most recently used first.
+    /// Apps with windows, most recently used first, then apps running in the background.
     List,
     /// Show an app's windows and focus its most recent.
     Activate { app: String },
     /// Close an app's windows, then end its processes.
     Quit { app: String },
+    /// End an app running in the background with no window.
+    Stop { app: String },
     /// Start an app by desktop id, or one of its entry's actions.
     Launch {
         app: String,
@@ -475,14 +477,28 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     } else {
                         for a in apps {
                             let mut marks = Vec::new();
-                            if a.hidden {
-                                marks.push("hidden");
+                            if a.background {
+                                marks.push("running in background".to_owned());
                             }
-                            if a.attention {
-                                marks.push("attention");
+                            if a.hidden {
+                                marks.push("hidden".to_owned());
+                            }
+                            if a.minimised {
+                                marks.push("minimised".to_owned());
+                            }
+                            if a.urgent {
+                                marks.push("urgent".to_owned());
+                            } else if a.attention {
+                                marks.push("attention".to_owned());
                             }
                             if a.not_responding {
-                                marks.push("not responding");
+                                marks.push("not responding".to_owned());
+                            }
+                            if a.badge >= 0 {
+                                marks.push(format!("badge {}", a.badge));
+                            }
+                            if a.progress >= 0.0 {
+                                marks.push(format!("{:.0}% done", a.progress * 100.0));
                             }
                             println!(
                                 "{:<32} {:<24} {} window(s) {}",
@@ -496,6 +512,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 }
                 Apps::Activate { app } => app_found(proxy.activate_app(app).await?, app)?,
                 Apps::Quit { app } => app_found(proxy.quit_app(app).await?, app)?,
+                Apps::Stop { app } => app_found(proxy.stop_app(app).await?, app)?,
                 Apps::Launch { app, action, uris } => {
                     let uris: Vec<&str> = uris.iter().map(String::as_str).collect();
                     let action = action.as_deref().unwrap_or("");

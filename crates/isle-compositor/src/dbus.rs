@@ -101,6 +101,11 @@ impl Windows {
         Ok(self.to_loop.call(move |state| state.quit_app(&app)).await?)
     }
 
+    /// Sends the polite signal to an app running in the background with no window.
+    async fn stop_app(&self, app: String) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.stop_app(&app)).await?)
+    }
+
     /// Starts an app by desktop id, or one of its entry's actions by id when not empty.
     async fn launch(&self, app: String, action: String, uris: Vec<String>) -> fdo::Result<bool> {
         Ok(self

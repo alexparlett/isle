@@ -18,6 +18,7 @@ mod menubar;
 mod menus;
 mod top_edge;
 mod outputs;
+mod processes;
 pub mod redraw;
 mod render;
 pub mod settings;

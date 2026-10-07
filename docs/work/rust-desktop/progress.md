@@ -2,6 +2,11 @@
 
 ## 2026-10-07
 
+- B58 widened: the Glass setting's default is the clear end, so the island's
+  panels, menus and Control Centre are clear where the backdrop allows and
+  the floor darkens them only as their text needs. The island's pill no
+  longer stacks the glass tint under its own fill.
+
 - B58: glass with no text on it is clear and never raised by the floor; the
   switcher's panel is clear and its name sits on a strip of the default
   glass. Chosen by the user from three renders.

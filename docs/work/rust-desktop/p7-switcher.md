@@ -419,8 +419,10 @@ differences from the plan:
   brought to the board.
 - **Clear glass** (B58). The panel read as an opaque slab: the floor raised
   its whole shape to about 0.82 over light windows for its one line of text.
-  The panel is now `glass-clear` and never raised, and the name sits on a
-  capsule of the default glass the floor still governs.
+  The panel is now clear and never raised, and the name sits on a capsule of
+  glass the floor still governs. At the user's next word this widened to
+  every glass surface: the Glass setting now defaults to its clear end, and
+  the island's pill stopped stacking two tints.
 - **An app with no id** is named by its process in the switcher as in the
   menu bar (Chromium's first-run dialog had no name).
 - **The ` key** is the one that types it, as P5 made Cmd+`, not the key above

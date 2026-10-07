@@ -346,7 +346,8 @@ impl Component for Island {
                 list.into_iter().fold(el, |el, s| el.shadow(s))
             })
             .overflow(Overflow::Clip)
-            .maybe(!solid, |el| el.child(Glass::new(radius)))
+            // The pill is its own fill over the blur; the glass's tint comes in as it opens.
+            .maybe(!solid, |el| el.child(Glass::new(radius).faded(1.0 - to_panel)))
             .child(Hit)
             .on_press(move |_| shape_actions.send(Action::Island(IslandAction::Pin)))
             .map(

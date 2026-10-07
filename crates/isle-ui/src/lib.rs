@@ -71,8 +71,11 @@ pub struct GlassShape {
     pub width: f32,
     pub height: f32,
     pub radius: f32,
-    /// Glass with no text on it: the clear end, never raised by the contrast floor (B58).
+    /// Glass with no text on it, never raised by the contrast floor (B58).
     pub clear: bool,
+    /// How much of the glass's tint is left out, 0 to 1, for a surface that draws its own
+    /// fill over the blur, as the island's pill does.
+    pub faded: f32,
     /// Drawn over the surface's other glass, as a strip behind text on clear glass is.
     pub front: bool,
 }
@@ -149,6 +152,7 @@ pub struct Glass {
     pub radius: f32,
     pub clear: bool,
     pub front: bool,
+    pub faded: f32,
 }
 
 impl Glass {
@@ -157,10 +161,17 @@ impl Glass {
             radius,
             clear: false,
             front: false,
+            faded: 0.0,
         }
     }
 
-    /// Glass that carries no text: the clear end of the material, never darkened for contrast.
+    /// Leaves out `share` of the tint, for a fill drawn over the blur instead.
+    pub fn faded(mut self, share: f32) -> Self {
+        self.faded = share.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Glass that carries no text, never darkened for contrast.
     pub fn clear(mut self) -> Self {
         self.clear = true;
         self
@@ -184,14 +195,15 @@ impl Component for Glass {
                 shapes.shapes.borrow_mut().remove(&id);
             }
         });
-        let (radius, clear, front) = (self.radius, self.clear, self.front);
+        let (radius, clear, front, faded) = (self.radius, self.clear, self.front, self.faded);
+        // The tint changes without the box changing size, which `on_sized` would not report.
+        if let Some(shape) = shapes.shapes.borrow_mut().get_mut(&id) {
+            shape.faded = faded;
+        }
         let theme = use_theme();
         let tint = if shapes.draw_tint {
-            colour(if clear {
-                theme.tokens.material_glass_clear
-            } else {
-                theme.tokens.material_glass
-            })
+            let c = colour(theme.tokens.material_glass);
+            c.with_a((c.a() as f32 * (1.0 - faded)).round() as u8)
         } else {
             Color::TRANSPARENT
         };
@@ -212,6 +224,7 @@ impl Component for Glass {
                         radius,
                         clear,
                         front,
+                        faded,
                     },
                 );
             })

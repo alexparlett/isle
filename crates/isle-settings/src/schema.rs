@@ -191,8 +191,9 @@ pub struct Appearance {
     /// One of the accents `tokens.kdl` defines; its default when unknown.
     #[setting(default = "blue".to_owned())]
     pub accent: String,
-    /// The glass from clear, 0, to tinted, 1.
-    #[setting(default = 0.5, range = 0.0..=1.0)]
+    /// The glass from clear, 0, to tinted, 1; the floor darkens glass under text only as far
+    /// as the text needs (B58).
+    #[setting(default = 0.0, range = 0.0..=1.0)]
     pub glass: f64,
     /// Every text style multiplies by this, up to the tokens' `type.scale-max`.
     #[setting(default = 1.0, range = 1.0..=2.0)]

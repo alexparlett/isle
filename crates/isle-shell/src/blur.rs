@@ -424,15 +424,19 @@ impl GlassElement {
         theme: &Theme,
         alpha: f32,
         clear: bool,
+        faded: f32,
     ) -> Self {
         let t = &theme.tokens;
-        let a = &theme.appearance;
-        // Clear glass carries no text, so the floor never raises it; Increase Contrast and
-        // Reduce Transparency still take it to their forms.
-        let tint = if clear && !a.increase_contrast && !a.reduce_transparency {
-            t.material_glass_clear
+        // Glass without text keeps the Glass setting's tint; the floor raises the rest only as
+        // far as its text needs (B58).
+        let tint = if clear {
+            t.material_glass
         } else {
             t.material_glass.mix(t.material_glass_tinted, blur.floor)
+        };
+        let tint = isle_tokens::Colour {
+            a: tint.a * (1.0 - faded),
+            ..tint
         };
         let local = Rectangle::<f64, Buffer>::new(
             (

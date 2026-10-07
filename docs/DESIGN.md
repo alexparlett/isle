@@ -93,9 +93,10 @@ without Increase Contrast:
   holds 4.5:1, so the setting changes how much colour shows through, never
   whether text can be read. The compositor reads a reduction of the blur
   back a frame late to do it, over the worst of sixteen cells (B39).
-- **Clear glass.** Glass with no text on it, such as the switcher's panel
-  round its cards, is `glass-clear` and is never raised; text on it sits
-  on a strip of the default glass that the floor governs (B58).
+- **Clear glass.** The Glass setting starts at `glass-clear`. Glass with no
+  text on it, such as the switcher's panel round its cards, is never
+  raised; text on it sits on a strip of glass that the floor governs. The
+  island's pill is `colour-island` over the blur alone (B58).
 - **On fills on glass** only `text` is used on a `fill-strong` plate;
   tertiary text is never on a fill. The find highlight is never drawn on
   glass: Spotlight marks a match by weight.
@@ -111,7 +112,8 @@ without Increase Contrast:
 ## Materials
 
 The shell's glass, from clear to tinted along the user's Glass setting,
-default in the middle; blur 48, saturation 1.8. Glass is only on the
+default at the clear end, darkened under text only as far as the text needs
+(B58); blur 48, saturation 1.8. Glass is only on the
 shell's floating surfaces (the island's panels, the revealed bar and the
 shell's menus, banners, Spotlight); windows are opaque. Menus and
 popovers inside an app's window are the window's raised surface with the

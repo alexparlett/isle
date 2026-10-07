@@ -990,6 +990,7 @@ impl Shell {
                     &self.theme,
                     instance.transition.opacity(),
                     shape.clear,
+                    shape.faded,
                 );
                 push(ShellElement::Glass(RescaleRenderElement::from_element(
                     glass, origin, scale,

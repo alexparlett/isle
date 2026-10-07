@@ -62,7 +62,7 @@ impl Default for Appearance {
         Self {
             mode: Mode::Dark,
             accent: String::new(),
-            glass: 0.5,
+            glass: 0.0,
             text_scale: 1.0,
             increase_contrast: false,
             reduce_motion: false,

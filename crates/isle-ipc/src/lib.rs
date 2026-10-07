@@ -452,6 +452,8 @@ pub mod test {
         fn island(&self, json: &str) -> zbus::Result<()>;
         /// Acts on Control Centre as its controls would.
         fn panel(&self, json: &str) -> zbus::Result<()>;
+        /// Gives an output a backlight named `test`, set through logind.
+        fn fake_screen(&self, connector: &str, current: u32, max: u32) -> zbus::Result<()>;
         /// Holds the main loop for `millis`, from its next dispatch.
         fn stall(&self, millis: u32) -> zbus::Result<()>;
         /// A key by its evdev code, from a test keyboard with the Mac profile.

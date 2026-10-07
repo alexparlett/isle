@@ -42,7 +42,16 @@ fn time_left(seconds: u64) -> String {
 
 impl State {
     pub fn power_changed(&mut self, snapshot: Snapshot<Power>) {
+        let before = self.isle.services.power.state.keyboard;
+        let was = self.isle.services.power.available;
         self.isle.services.power = snapshot;
+        let now = self.isle.services.power.state.keyboard;
+        if was && let (Some(_), Some((level, max))) = (before, now)
+            && before != now
+        {
+            self.isle
+                .osd_level("keyboard", "Keyboard", level as f32 / max as f32, false, None);
+        }
         self.isle.services_changed();
     }
 

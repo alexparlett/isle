@@ -2464,6 +2464,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-brightness"
+version = "0.1.0"
+dependencies = [
+ "isle-bus",
+ "libc",
+ "tracing",
+ "zbus",
+]
+
+[[package]]
 name = "isle-bus"
 version = "0.1.0"
 dependencies = [
@@ -2497,6 +2507,7 @@ dependencies = [
  "image",
  "isle-apps",
  "isle-audio",
+ "isle-brightness",
  "isle-bus",
  "isle-fakes",
  "isle-games",

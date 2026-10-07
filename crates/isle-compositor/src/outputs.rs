@@ -89,6 +89,7 @@ impl Isle {
         self.sync_space();
         self.queue_redraw_all();
         self.notify(Event::DisplaysChanged);
+        self.discover_brightness();
         self.notify(Event::DesktopsChanged);
         self.notify(Event::WindowsChanged);
     }

@@ -3,6 +3,7 @@
 //! (`p8-services.md` choice 2).
 
 pub mod audio;
+pub mod brightness;
 pub mod login;
 pub mod power;
 
@@ -30,6 +31,7 @@ pub struct Services {
     /// The default input's level while Sound's page measures it.
     pub input_level: f32,
     pub meter: Option<tokio::task::JoinHandle<()>>,
+    pub screens: brightness::Screens,
     /// When Control Centre last changed a level itself.
     pub own_change: Option<std::time::Instant>,
     /// The last failed action of a module or row, by `module` or `module/row`, shown in its

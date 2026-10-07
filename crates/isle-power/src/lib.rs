@@ -75,6 +75,8 @@ pub struct Power {
     pub on_battery: bool,
     /// The machine's batteries first, then the rest by kind and name.
     pub batteries: Vec<Battery>,
+    /// The keyboard backlight's level and most, when there is one.
+    pub keyboard: Option<(u32, u32)>,
 }
 
 impl Power {
@@ -153,6 +155,7 @@ async fn read_power(conn: &Connection) -> Result<Power, Error> {
     Ok(Power {
         on_battery: manager.bool("OnBattery").unwrap_or(false),
         batteries,
+        keyboard: read_keyboard(conn).await,
     })
 }
 
@@ -266,9 +269,7 @@ pub async fn release_profile(cookie: u32) -> Result<(), Error> {
     Ok(())
 }
 
-/// The keyboard backlight's level and its maximum, when there is one.
-pub async fn keyboard_backlight() -> Result<Option<(u32, u32)>, Error> {
-    let conn = isle_bus::system().await?;
+async fn read_keyboard(conn: &Connection) -> Option<(u32, u32)> {
     let call = |method: &'static str| {
         let conn = conn.clone();
         async move {
@@ -278,8 +279,8 @@ pub async fn keyboard_backlight() -> Result<Option<(u32, u32)>, Error> {
         }
     };
     match (call("GetMaxBrightness").await, call("GetBrightness").await) {
-        (Ok(max), Ok(level)) if max > 0 => Ok(Some((level.max(0) as u32, max as u32))),
-        _ => Ok(None),
+        (Ok(max), Ok(level)) if max > 0 => Some((level.max(0) as u32, max as u32)),
+        _ => None,
     }
 }
 

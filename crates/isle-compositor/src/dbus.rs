@@ -687,6 +687,14 @@ impl Test {
             .map_err(fdo::Error::InvalidArgs)
     }
 
+    /// Gives an output a backlight named `test` at `current` of `max`, set through logind.
+    async fn fake_screen(&self, connector: String, current: u32, max: u32) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.isle.fake_screen(connector, current, max))
+            .await?)
+    }
+
     fn stall(&self, millis: u32) {
         self.to_loop.post(move |state| {
             let _beat = state.isle.heartbeat.beat("test-stall");

@@ -30,6 +30,7 @@ impl Manager {
 struct Session {
     locked_hint: bool,
     idle_hint: bool,
+    brightness: Vec<(String, String, u32)>,
 }
 
 #[zbus::interface(name = "org.freedesktop.login1.Session")]
@@ -47,6 +48,10 @@ impl Session {
     #[zbus(property)]
     fn active(&self) -> bool {
         true
+    }
+
+    fn set_brightness(&mut self, subsystem: String, name: String, value: u32) {
+        self.brightness.push((subsystem, name, value));
     }
 }
 
@@ -90,6 +95,7 @@ impl Logind {
                 Session {
                     locked_hint: v.locked_hint,
                     idle_hint: v.idle_hint,
+                    brightness: Vec::new(),
                 },
             )?
             .name("org.freedesktop.login1")?
@@ -116,6 +122,17 @@ impl Logind {
             .await
             .locked_hint_changed(iface.signal_emitter())
             .await
+    }
+
+    /// Every SetBrightness asked of the session: subsystem, device, value.
+    pub async fn brightness(&self) -> Vec<(String, String, u32)> {
+        let iface = self
+            .conn()
+            .object_server()
+            .interface::<_, Session>(SESSION)
+            .await
+            .unwrap();
+        iface.get().await.brightness.clone()
     }
 
     /// The manager's announcement before sleep (`true`) and after resume (`false`).

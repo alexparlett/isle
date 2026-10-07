@@ -89,6 +89,7 @@ impl Isle {
             "energy-mode" => self.energy_module(size),
             "batteries" => self.batteries_module(size),
             "sound" => self.sound_module(size),
+            "display" => self.display_module(size),
             _ => None,
         }
     }
@@ -306,6 +307,9 @@ impl State {
             }
             PanelAction::Choose { module, row } if module == "energy-mode" => {
                 self.energy_choose(row)
+            }
+            PanelAction::Slide { module, row, value } if module == "display" => {
+                self.display_action(&row, value)
             }
             PanelAction::Toggle(ref m)
             | PanelAction::Choose { module: ref m, .. }

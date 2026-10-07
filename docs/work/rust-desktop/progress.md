@@ -2,6 +2,15 @@
 
 ## 2026-10-07
 
+- P8 8.3: brightness. `isle-brightness` speaks DDC/CI's brightness itself
+  and finds each monitor's bus by its EDID, since the NVIDIA connectors have
+  no `ddc` link; on the host it read the AOC on `/dev/i2c-4` at 92 of 100,
+  as ddcutil does. Laptop panels go through logind's `SetBrightness`. The
+  Display module and page (one slider per screen, the panel's first), the
+  brightness keys on the main screen with their OSD there, values shown at
+  once and written behind, at most one write per 200 ms; the keyboard
+  backlight's OSD from UPower.
+
 - P8 8.2: audio. `isle-audio` speaks the Pulse protocol to pipewire-pulse
   over its own async connection on the worker (the `pulseaudio` crate's
   high-level client has no subscribe or volume, so Isle drives its protocol

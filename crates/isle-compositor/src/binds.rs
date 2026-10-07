@@ -277,6 +277,8 @@ impl State {
             Action::Media(
                 media @ (Media::VolumeUp | Media::VolumeDown | Media::Mute | Media::MicMute),
             ) => self.audio_key(media),
+            Action::Media(Media::BrightnessUp) => self.brightness_key(true),
+            Action::Media(Media::BrightnessDown) => self.brightness_key(false),
             Action::Media(media) => spawn(media.command()),
             Action::TakeKeysBack => self.toggle_keys_back(),
             Action::ControlCentre => self.control_centre_chord(),

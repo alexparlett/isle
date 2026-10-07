@@ -54,6 +54,25 @@ impl Manager {
     -> zbus::Result<()>;
 }
 
+struct Keyboard {
+    level: i32,
+}
+
+#[zbus::interface(name = "org.freedesktop.UPower.KbdBacklight")]
+impl Keyboard {
+    fn get_brightness(&self) -> i32 {
+        self.level
+    }
+    fn get_max_brightness(&self) -> i32 {
+        3
+    }
+    fn set_brightness(&mut self, level: i32) {
+        self.level = level;
+    }
+    #[zbus(signal)]
+    async fn brightness_changed(emitter: &SignalEmitter<'_>, level: i32) -> zbus::Result<()>;
+}
+
 struct DeviceIface(Device);
 
 #[zbus::interface(name = "org.freedesktop.UPower.Device")]
@@ -97,6 +116,8 @@ pub struct UPower {
     address: String,
     on_battery: bool,
     devices: Vec<Device>,
+    /// A keyboard backlight, from 0 to 3, when the fake has one.
+    keyboard: Option<i32>,
     conn: Option<Connection>,
 }
 
@@ -106,6 +127,7 @@ impl UPower {
             address: address.to_owned(),
             on_battery: false,
             devices,
+            keyboard: None,
             conn: None,
         };
         fake.restore().await?;
@@ -128,6 +150,9 @@ impl UPower {
         )?;
         for device in &self.devices {
             builder = builder.serve_at(device.path(), DeviceIface(device.clone()))?;
+        }
+        if let Some(level) = self.keyboard {
+            builder = builder.serve_at(format!("{PATH}/KbdBacklight"), Keyboard { level })?;
         }
         self.conn = Some(builder.name("org.freedesktop.UPower")?.build().await?);
         Ok(())
@@ -171,6 +196,22 @@ impl UPower {
             .await
             .percentage_changed(iface.signal_emitter())
             .await
+    }
+
+    /// Gives the fake a keyboard backlight at `level` of 3, or moves it there.
+    pub async fn set_keyboard(&mut self, level: i32) -> zbus::Result<()> {
+        let path = format!("{PATH}/KbdBacklight");
+        if self.keyboard.is_none() {
+            self.conn().object_server().at(path.as_str(), Keyboard { level }).await?;
+        }
+        self.keyboard = Some(level);
+        let iface = self
+            .conn()
+            .object_server()
+            .interface::<_, Keyboard>(path.as_str())
+            .await?;
+        iface.get_mut().await.level = level;
+        Keyboard::brightness_changed(iface.signal_emitter(), level).await
     }
 
     pub async fn add(&mut self, device: Device) -> zbus::Result<()> {

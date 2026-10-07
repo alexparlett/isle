@@ -14,7 +14,7 @@ use isle_ui::{
     MenuEntry, MenuEvent, MenuItem,
     menu::{Hint, Mark},
 };
-use smithay::{output::Output, reexports::calloop::RegistrationToken, utils::Rectangle};
+use smithay::{output::Output, reexports::calloop::RegistrationToken, utils::{Logical, Point, Rectangle, Size}};
 use tracing::{info, warn};
 
 use crate::{
@@ -1377,10 +1377,15 @@ impl State {
             geometry: screen,
             scale: output.current_scale().fractional_scale(),
         };
+        // The surface leaves room round the menu for its shadow.
+        let m = isle_shell::placed_menu::menu_margin(&theme);
         self.isle.shell.open_placed(
             "window-menu",
             &place,
-            Rectangle::new(rect.loc - screen.loc, rect.size),
+            Rectangle::new(
+                rect.loc - screen.loc - Point::<i32, Logical>::from((m, m)),
+                rect.size + Size::<i32, Logical>::from((2 * m, 2 * m)),
+            ),
         );
         self.open_surface("window-menu");
     }
@@ -1433,12 +1438,13 @@ impl State {
             geometry: screen,
             scale: output.current_scale().fractional_scale(),
         };
+        let m = isle_shell::placed_menu::about_margin(self.isle.shell.theme());
         self.isle.shell.open_placed(
             "about",
             &place,
             Rectangle::new(
-                ((screen.size.w - size.w) / 2, (screen.size.h - size.h) / 3).into(),
-                size,
+                ((screen.size.w - size.w) / 2 - m, (screen.size.h - size.h) / 3 - m).into(),
+                size + Size::<i32, Logical>::from((2 * m, 2 * m)),
             ),
         );
         self.open_surface("about");

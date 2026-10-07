@@ -46,6 +46,15 @@ pub fn shadows(list: &[isle_tokens::Shadow]) -> Vec<freya::prelude::Shadow> {
         .collect()
 }
 
+/// How far a shadow list reaches past its shape, in points. A surface sized to a shadowed
+/// shape cuts the shadow off at its edge, so it leaves this much room round the shape.
+pub fn shadow_reach(list: &[isle_tokens::Shadow]) -> f32 {
+    list.iter()
+        .filter(|s| !s.inset)
+        .map(|s| s.blur + s.spread + s.x.abs().max(s.y.abs()))
+        .fold(0.0, f32::max)
+}
+
 /// The keyboard focus ring: the accent, outside the shape (DESIGN.md, Components).
 pub fn focus_ring(theme: &Theme) -> Border {
     Border::new()

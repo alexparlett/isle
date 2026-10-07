@@ -107,7 +107,8 @@ impl App for WindowMenuApp {
         });
         let model = state.read().clone();
         let actions = Actions::get();
-        rect().expanded().child(
+        let theme = use_theme();
+        rect().expanded().padding(menu_margin(&theme) as f32).child(
             rect().key(model.generation).child(isle_ui::Hit).child(
                 Menu::new(model.entries, move |e| actions.send(Action::Menu(e)))
                     .material(Material::Glass)
@@ -117,7 +118,17 @@ impl App for WindowMenuApp {
     }
 }
 
-/// The size a window menu's surface needs: the menu and one submenu beside it.
+/// The room a placed menu's surface leaves round the menu for its shadow.
+pub fn menu_margin(theme: &Theme) -> i32 {
+    isle_ui::shadow_reach(&theme.tokens.shadow_menu).ceil() as i32
+}
+
+/// The room the About panel's surface leaves round the panel for its shadow.
+pub fn about_margin(theme: &Theme) -> i32 {
+    isle_ui::shadow_reach(&theme.tokens.shadow_panel).ceil() as i32
+}
+
+/// The size a window menu needs: the menu and one submenu beside it, without the margin.
 pub fn window_menu_size(theme: &Theme, rows: usize) -> SSize<i32, Logical> {
     let t = &theme.tokens;
     let row = (text::metrics(theme, text::Style::Body).1 + 6.0).max(t.size_menu_row);
@@ -192,8 +203,8 @@ impl SurfaceDef for AboutPanel {
         })
     }
 
-    fn corner_radius(&self, theme: &Theme) -> f32 {
-        theme.tokens.radius_panel
+    fn hit_shapes(&self) -> bool {
+        true
     }
 }
 
@@ -234,7 +245,7 @@ impl Component for AboutView {
         let close = actions.clone();
         let ink = colour(t.colour_text);
         let ink2 = colour(t.colour_text_2);
-        rect()
+        let panel = rect()
             .expanded()
             .corner_radius(t.radius_panel)
             .background(colour(t.material_solid))
@@ -285,5 +296,10 @@ impl Component for AboutView {
                     .kind(Kind::Default)
                     .on_press(move |_| close.send(Action::Close)),
             )
+            .child(isle_ui::Hit);
+        rect()
+            .expanded()
+            .padding(about_margin(&theme) as f32)
+            .child(panel)
     }
 }

@@ -15,6 +15,7 @@ mod handlers;
 mod input;
 mod keyboard;
 mod island;
+mod centre;
 mod control_centre;
 mod launch;
 mod menubar;

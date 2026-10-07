@@ -66,6 +66,8 @@ pub struct PanelFrame {
     pub activities: Vec<Activity>,
     pub privacy: Vec<(Privacy, String)>,
     pub modules: Vec<Module>,
+    /// Notification Centre, in Control Centre's place.
+    pub centre: Option<super::centre::CentreFrame>,
     /// The height the body is laid out at under the pill's row: the shape's settled height,
     /// not the spring's, so the body does not reflow or scroll while the shape grows. Zero
     /// fills what there is.
@@ -137,6 +139,9 @@ pub fn parent_page(page: &str) -> Option<String> {
 pub fn body_height(theme: &Theme, panel: &PanelFrame) -> f32 {
     let t = &theme.tokens;
     let pad = t.space_s;
+    if let Some(centre) = &panel.centre {
+        return super::centre::centre_height(theme, centre);
+    }
     match page_module(panel) {
         Some(module) => {
             let rows = rows_height(theme, module.page.as_deref().unwrap_or(&[]));
@@ -209,6 +214,19 @@ impl Component for PanelBody {
                 .corner_radius(t.radius_card)
                 .background(colour(t.colour_fill))
         };
+        if let Some(centre) = panel.centre.clone() {
+            return rect()
+                .width(Size::fill())
+                .height(body_size(panel))
+                .padding(t.space_s)
+                .content(Content::flex())
+                .child(
+                    scroll_area(&theme)
+                        .height(Size::flex(1.))
+                        .child(super::centre::CentreBody { centre }),
+                )
+                .into_element();
+        }
         if let Some(module) = page_module(panel) {
             let back = actions.clone();
             let settings = actions.clone();

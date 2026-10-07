@@ -22,6 +22,8 @@ pub struct PanelState {
     pub output: String,
     pub pinned: bool,
     pub page: Option<String>,
+    /// Notification Centre, in Control Centre's place.
+    pub centre: bool,
 }
 
 impl Isle {
@@ -135,6 +137,18 @@ impl Isle {
         serde_json::json!({
             "pinned": state.pinned,
             "page": state.page,
+            "centre": state.centre.then(|| {
+                let c = self.centre_frame();
+                serde_json::json!({
+                    "groups": c.groups.iter().map(|g| serde_json::json!({
+                        "app": g.app, "count": g.cards.len(), "open": g.open,
+                        "ids": g.cards.iter().map(|c| c.id).collect::<Vec<_>>(),
+                    })).collect::<Vec<_>>(),
+                    "earlier": c.earlier.iter().map(|g| g.cards.len()).sum::<usize>(),
+                    "clear_armed": c.clear_armed,
+                    "month": c.month.title,
+                })
+            }),
             "privacy": frame.privacy.iter().map(|(mark, app)| serde_json::json!({
                 "mark": format!("{mark:?}").to_lowercase(), "app": app,
             })).collect::<Vec<_>>(),
@@ -152,6 +166,13 @@ impl Isle {
 
     /// Control Centre's content for its output.
     pub fn panel_frame(&self, state: &PanelState) -> PanelFrame {
+        if state.centre {
+            return PanelFrame {
+                pinned: state.pinned,
+                centre: Some(self.centre_frame()),
+                ..Default::default()
+            };
+        }
         let mut notices = Vec::new();
         if self.safe_start {
             notices.push(Notice::ConfigError {
@@ -202,6 +223,7 @@ impl Isle {
             activities,
             privacy,
             modules,
+            centre: None,
             body: 0.0,
         }
     }
@@ -227,6 +249,7 @@ impl State {
             output: name,
             pinned: pinned || was_pinned,
             page,
+            centre: false,
         });
         if pinned && !was_pinned {
             self.focus_island(output);
@@ -322,6 +345,7 @@ impl State {
                     self.island_layout();
                 }
             }
+            PanelAction::Choose { module, row } if module == "centre" => self.centre_action(&row),
             PanelAction::Choose { module, row } if module == "energy-mode" => {
                 self.energy_choose(row)
             }

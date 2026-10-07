@@ -119,6 +119,10 @@ pub struct NotificationsState {
     pub saver: Option<Saver<Saved>>,
     /// Arrivals held since silence began, for the summary.
     pub held: Vec<u32>,
+    /// Apps whose stack is open in the centre.
+    pub expanded: std::collections::HashSet<String>,
+    /// Clear All asked once.
+    pub clear_armed: bool,
 }
 
 impl Isle {

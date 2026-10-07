@@ -680,9 +680,14 @@ impl State {
     ) {
         use isle_shell::island::IslandAction;
         match action {
-            IslandAction::Pin | IslandAction::Clock => {
+            IslandAction::Pin => {
                 if let Some(output) = focus.as_ref().and_then(|f| self.isle.shell.output_of(f)) {
                     self.open_control_centre(&output, true, None);
+                }
+            }
+            IslandAction::Clock => {
+                if let Some(output) = focus.as_ref().and_then(|f| self.isle.shell.output_of(f)) {
+                    self.open_centre_on(&output);
                 }
             }
             IslandAction::Glyph(kind) => {

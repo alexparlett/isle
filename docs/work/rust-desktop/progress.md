@@ -2,6 +2,15 @@
 
 ## 2026-10-07
 
+- P8 8.9: Notification Centre, moved in from P17. The island's second panel:
+  the clock, Ctrl+Option+Cmd+N and the banners' overflow open it, a click on
+  the pill turns it into Control Centre in one morph, and no peek replaces
+  it. The date, a fixed six-week month from Monday with today in the accent,
+  then live notifications stacked by app with layered edges (Show All, a
+  clear per app), Earlier for records, and Clear All in two steps. While it
+  is open no banner shows anywhere and arrivals go into it. The agenda waits
+  for calendars.
+
 - P8 8.8: banners. `isle-shell`'s `banners::model` is pure: one card per app
   with its count, three at most newest first, the oldest temporary one
   leaving for a fourth, the overflow row, lives from the tokens' banner

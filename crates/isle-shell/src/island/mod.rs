@@ -2,6 +2,7 @@
 //! glyphs that are not normal, live activity and the shell's brief acknowledgements
 //! (`p1/structure/island.md`, `p1/surfaces/island.md`).
 
+pub mod centre;
 pub mod grid;
 pub mod model;
 pub mod notice;

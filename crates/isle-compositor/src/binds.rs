@@ -46,6 +46,7 @@ pub enum Action {
     Media(Media),
     TakeKeysBack,
     ControlCentre,
+    NotificationCentre,
     MenuBar,
     HelpSearch,
     WindowMenu,
@@ -106,6 +107,7 @@ fn action_for(id: &'static str) -> Action {
         "next-layout" => Action::NextLayout,
         "take-keys-back" => Action::TakeKeysBack,
         "control-centre" => Action::ControlCentre,
+        "notification-centre" => Action::NotificationCentre,
         "menu-bar" => Action::MenuBar,
         "help-search" => Action::HelpSearch,
         "window-menu" => Action::WindowMenu,
@@ -268,6 +270,7 @@ impl State {
             }
             Action::TakeKeysBack => self.toggle_keys_back(),
             Action::ControlCentre => self.control_centre_chord(),
+            Action::NotificationCentre => self.open_notification_centre(None),
             Action::MenuBar => self.menu_bar_chord(),
             Action::HelpSearch => self.help_chord(),
             Action::WindowMenu => {

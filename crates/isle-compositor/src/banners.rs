@@ -250,7 +250,8 @@ pub fn strip_markup(body: &str) -> String {
 impl State {
     /// An arrival decided: its banner and sound, when it is one.
     pub fn banner_for(&mut self, id: u32, fate: Fate) {
-        if !matches!(fate, Fate::Banner | Fate::Transient) {
+        // With the centre open, arrivals appear in it and no banner shows.
+        if !matches!(fate, Fate::Banner | Fate::Transient) || self.isle.centre_open() {
             return;
         }
         let Some(entry) = self
@@ -348,9 +349,6 @@ impl State {
             _ => self.focus_next(),
         }
     }
-
-    /// Notification Centre, which P8 9 builds; until then the stack's overflow opens nothing.
-    pub fn open_notification_centre(&mut self, _focused: Option<u32>) {}
 
     #[cfg(feature = "test-hooks")]
     pub fn banner_test_action(&mut self, json: &str) -> Result<(), String> {

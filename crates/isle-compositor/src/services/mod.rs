@@ -2,6 +2,7 @@
 //! the loop, where the island's glyphs, Control Centre and the OSDs read them
 //! (`p8-services.md` choice 2).
 
+pub mod audio;
 pub mod login;
 pub mod power;
 
@@ -24,6 +25,13 @@ pub struct Services {
     pub login: Snapshot<login::Login>,
     pub power: Snapshot<isle_power::Power>,
     pub profiles: Snapshot<isle_power::Profiles>,
+    pub audio: Snapshot<isle_audio::Audio>,
+    pub cameras: Snapshot<isle_audio::camera::Cameras>,
+    /// The default input's level while Sound's page measures it.
+    pub input_level: f32,
+    pub meter: Option<tokio::task::JoinHandle<()>>,
+    /// When Control Centre last changed a level itself.
+    pub own_change: Option<std::time::Instant>,
     /// The last failed action of a module or row, by `module` or `module/row`, shown in its
     /// place until the next action there.
     pub errors: std::collections::HashMap<String, String>,
@@ -42,6 +50,8 @@ impl Services {
             "login": entry(&self.login, applied("login")),
             "power": entry(&self.power, applied("power")),
             "profiles": entry(&self.profiles, applied("profiles")),
+            "audio": entry(&self.audio, applied("audio")),
+            "cameras": entry(&self.cameras, applied("cameras")),
         })
         .to_string()
     }
@@ -117,6 +127,9 @@ impl Isle {
         use isle_shell::island::model::GlyphKind;
         let battery = self.battery_glyph();
         self.island.model.set_glyph(GlyphKind::Battery, battery);
+        let sound = self.sound_glyph();
+        self.island.model.set_glyph(GlyphKind::Sound, sound);
+        self.audio_privacy();
         self.refresh_island();
     }
 }

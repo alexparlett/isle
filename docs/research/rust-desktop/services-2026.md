@@ -24,6 +24,11 @@ the default `client.conf` loads `libpipewire-module-rt`, which does; its
 condition is `module.rt = !false`, so the context property `module.rt =
 "false"` should keep it out (untested).
 
+In P8 8.2 the client context also needed `support.dbus = false`, and the
+compositor turned out to carry libdbus already: the NVIDIA EGL driver dlopens
+it when EGL starts (seen with `LD_DEBUG=libs`, headless on the 5070 Ti). So
+the rule holds for what Isle links and loads itself, not for the GPU driver.
+
 Routes to audio without libdbus:
 
 | Route | State | Notes |

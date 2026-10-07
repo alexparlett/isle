@@ -274,6 +274,9 @@ impl State {
             Action::SwitchVt(vt) => self.switch_vt(vt),
             Action::NextLayout => self.next_layout(),
             Action::Redetect => self.redetect(),
+            Action::Media(
+                media @ (Media::VolumeUp | Media::VolumeDown | Media::Mute | Media::MicMute),
+            ) => self.audio_key(media),
             Action::Media(media) => spawn(media.command()),
             Action::TakeKeysBack => self.toggle_keys_back(),
             Action::ControlCentre => self.control_centre_chord(),

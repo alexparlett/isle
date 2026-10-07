@@ -25,6 +25,8 @@ pub enum PageRow {
     },
     /// A line of text: an empty list's, or why something is missing.
     Status(String),
+    /// A level read live, as an input's: a bar, not a control.
+    Meter { label: String, level: f32 },
     /// Rows folded under a name until opened: "Other networks".
     Group {
         id: String,
@@ -88,7 +90,10 @@ pub enum RowEvent {
 pub fn row_height(theme: &Theme, row: &PageRow) -> f32 {
     let t = &theme.tokens;
     match row {
-        PageRow::Heading(_) | PageRow::Switch { .. } | PageRow::Status(_) => t.size_row,
+        PageRow::Heading(_)
+        | PageRow::Switch { .. }
+        | PageRow::Status(_)
+        | PageRow::Meter { .. } => t.size_row,
         PageRow::Choice(c) if c.detail.is_some() || c.error.is_some() => t.size_row_large,
         PageRow::Choice(_) => t.size_row,
         PageRow::Slider(_) => t.size_row_large,
@@ -125,6 +130,11 @@ fn row_element(row: &PageRow, on_event: &EventHandler<RowEvent>) -> Element {
         }
         .into_element(),
         PageRow::Status(line) => Status { line: line.clone() }.into_element(),
+        PageRow::Meter { label, level } => Meter {
+            label: label.clone(),
+            level: *level,
+        }
+        .into_element(),
         PageRow::Choice(choice) => ChoiceRow {
             choice: choice.clone(),
             on_event: on_event.clone(),
@@ -242,6 +252,40 @@ impl Component for Status {
                 text::Style::Body,
                 colour(t.colour_text_2),
                 self.line.clone(),
+            ))
+    }
+}
+
+#[derive(PartialEq)]
+struct Meter {
+    label: String,
+    level: f32,
+}
+
+impl Component for Meter {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        rect()
+            .width(Size::fill())
+            .height(Size::px(t.size_row))
+            .padding((0., t.space_m))
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .spacing(t.space_s)
+            .child(rect().width(Size::px(t.size_slider_label)).child(text::line(
+                &theme,
+                text::Style::Body,
+                colour(t.colour_text_2),
+                self.label.clone(),
+            )))
+            .child(rect().width(Size::flex(1.)).a11y_alt(self.label.clone()).child(
+                isle_ui::LevelBar {
+                    level: self.level,
+                    track: colour(t.colour_fill_strong),
+                    fill: colour(t.colour_text),
+                },
             ))
     }
 }

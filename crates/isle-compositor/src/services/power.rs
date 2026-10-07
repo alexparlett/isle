@@ -139,6 +139,7 @@ impl Isle {
             page: Some(rows),
             page_title: None,
             pane: "Energy".into(),
+            ..Default::default()
         })
     }
 
@@ -200,6 +201,7 @@ impl Isle {
             page: Some(rows),
             page_title: None,
             pane: "Battery".into(),
+            ..Default::default()
         })
     }
 }

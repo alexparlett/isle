@@ -53,6 +53,7 @@ impl Isle {
                     page: None,
                     page_title: None,
                     pane: "Appearance".into(),
+                    ..Default::default()
                 })
             }
             "keyboard-layout" => {
@@ -82,10 +83,12 @@ impl Isle {
                     ),
                     page_title: None,
                     pane: "Keyboard".into(),
+                    ..Default::default()
                 })
             }
             "energy-mode" => self.energy_module(size),
             "batteries" => self.batteries_module(size),
+            "sound" => self.sound_module(size),
             _ => None,
         }
     }
@@ -98,6 +101,9 @@ impl Isle {
                 .map(|row| match row {
                     PageRow::Heading(label) => serde_json::json!({ "heading": label }),
                     PageRow::Status(line) => serde_json::json!({ "status": line }),
+                    PageRow::Meter { label, level } => {
+                        serde_json::json!({ "meter": label, "level": level })
+                    }
                     PageRow::Choice(c) => serde_json::json!({
                         "id": c.id, "label": c.label, "detail": c.detail, "checked": c.checked,
                         "busy": c.busy, "error": c.error, "battery": c.battery,
@@ -120,6 +126,9 @@ impl Isle {
         serde_json::json!({
             "pinned": state.pinned,
             "page": state.page,
+            "privacy": frame.privacy.iter().map(|(mark, app)| serde_json::json!({
+                "mark": format!("{mark:?}").to_lowercase(), "app": app,
+            })).collect::<Vec<_>>(),
             "modules": frame.modules.iter().map(|m| serde_json::json!({
                 "id": m.id, "name": m.name, "state": m.state, "on": m.on, "glyph": m.glyph,
             })).collect::<Vec<_>>(),
@@ -167,7 +176,7 @@ impl Isle {
             });
         }
         let activities = self.island.model.activities().cloned().collect();
-        let privacy: Vec<(Privacy, String)> = Vec::new();
+        let privacy: Vec<(Privacy, String)> = self.privacy_rows();
         PanelFrame {
             pinned: state.pinned,
             page: state.page.clone(),
@@ -212,6 +221,7 @@ impl State {
             if panel.pinned {
                 self.unfocus_island();
             }
+            self.follow_meter();
             self.isle.refresh_island();
         }
     }
@@ -297,9 +307,18 @@ impl State {
             PanelAction::Choose { module, row } if module == "energy-mode" => {
                 self.energy_choose(row)
             }
+            PanelAction::Toggle(ref m)
+            | PanelAction::Choose { module: ref m, .. }
+            | PanelAction::Slide { module: ref m, .. }
+            | PanelAction::Switch { module: ref m, .. }
+                if m == "sound" =>
+            {
+                self.sound_action(action)
+            }
             PanelAction::Notice(id) => self.notice_action(&id),
             other => info!(?other, "not built yet"),
         }
+        self.follow_meter();
         self.isle.refresh_island();
     }
 

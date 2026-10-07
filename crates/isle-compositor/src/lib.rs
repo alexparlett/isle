@@ -20,6 +20,7 @@ mod menubar;
 mod menus;
 mod switcher;
 mod top_edge;
+mod osd;
 mod outputs;
 mod processes;
 mod services;

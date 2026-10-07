@@ -2,6 +2,19 @@
 
 ## 2026-10-07
 
+- P8 8.2: audio. `isle-audio` speaks the Pulse protocol to pipewire-pulse
+  over its own async connection on the worker (the `pulseaudio` crate's
+  high-level client has no subscribe or volume, so Isle drives its protocol
+  layer): devices, defaults, volumes, per-app streams, recordings, an input
+  meter that runs only while Sound's page shows; and watches PipeWire's graph
+  for a camera node linked to an app. The Sound glyph, the microphone and
+  camera marks with their apps in Now, volume and microphone OSDs raised by
+  any change but Control Centre's own, the volume and mute keys through the
+  service, the Sound module (Wide, with its slider) and its page. Tiles now
+  switch on their glyph and open their page from the rest. Tests run a
+  private PipeWire with null devices. Found: the NVIDIA EGL driver dlopens
+  libdbus itself, so the rule is checked against Isle's own audio modules.
+
 - P8 8.1: power. `isle-power` reads UPower's batteries (the machine's and
   peripherals' by kind, coarse levels included) and power-profiles-daemon's
   profiles and holds; `isle-bus` gains whole-object property reads and a

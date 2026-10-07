@@ -20,6 +20,8 @@ pub struct Isle {
     system_pid: i32,
     compositor: Child,
     clients: Vec<Arc<Mutex<Child>>>,
+    /// The private PipeWire's processes, when a test started it.
+    audio: Vec<Arc<Mutex<Child>>>,
     pub bus: zbus::Connection,
 }
 
@@ -147,6 +149,7 @@ impl Isle {
             system_pid,
             compositor,
             clients: Vec::new(),
+            audio: Vec::new(),
             bus,
         };
         let deadline = Instant::now() + Duration::from_secs(15);
@@ -514,5 +517,117 @@ impl Isle {
             .unwrap();
         let status: serde_json::Value = serde_json::from_str(&text).unwrap();
         status["power"]["available"] == true
+    }
+}
+
+/// A private PipeWire with pipewire-pulse in the test's runtime directory: null speakers,
+/// a microphone, a camera and a call to link it to, with no session manager.
+impl Isle {
+    /// Starts it; false where PipeWire is not installed, for the test to skip.
+    pub async fn start_audio(&mut self) -> bool {
+        if Command::new("pipewire").arg("--version").output().is_err() {
+            return false;
+        }
+        let conf = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/pipewire.conf");
+        let runtime = self.dir.join("runtime");
+        for (program, args) in [("pipewire", vec!["-c", conf]), ("pipewire-pulse", vec![])] {
+            let log = fs::File::create(self.dir.join(format!("{program}.log"))).unwrap();
+            let child = Command::new(program)
+                .args(&args)
+                .env("XDG_RUNTIME_DIR", &runtime)
+                .env("DBUS_SESSION_BUS_ADDRESS", "disabled:")
+                .env_remove("PULSE_SERVER")
+                .stdout(log.try_clone().unwrap())
+                .stderr(log)
+                .spawn()
+                .expect(program);
+            let child = Arc::new(Mutex::new(child));
+            self.clients.push(child.clone());
+            self.audio.push(child);
+            if program == "pipewire" {
+                let socket = runtime.join("pipewire-0");
+                wait_until(|| async { socket.exists() }).await;
+            }
+        }
+        let pulse = runtime.join("pulse/native");
+        wait_until(|| async { pulse.exists() }).await;
+        true
+    }
+
+    /// Stops PipeWire and pipewire-pulse, as a crash or restart would.
+    pub fn stop_audio(&mut self) {
+        for child in self.audio.drain(..) {
+            let mut child = child.lock().unwrap();
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        let _ = fs::remove_file(self.dir.join("runtime/pulse/native"));
+        let _ = fs::remove_file(self.dir.join("runtime/pipewire-0"));
+    }
+
+    /// A PipeWire or Pulse tool run against the private server.
+    pub fn audio_tool(&self, program: &str, args: &[&str]) -> std::process::Output {
+        Command::new(program)
+            .args(args)
+            .env("XDG_RUNTIME_DIR", self.dir.join("runtime"))
+            .env_remove("PULSE_SERVER")
+            .output()
+            .expect(program)
+    }
+
+    /// A tool left running against the private server, killed with the test.
+    pub fn audio_process(&mut self, program: &str, args: &[&str]) -> Arc<Mutex<Child>> {
+        let child = Command::new(program)
+            .args(args)
+            .env("XDG_RUNTIME_DIR", self.dir.join("runtime"))
+            .env_remove("PULSE_SERVER")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect(program);
+        let child = Arc::new(Mutex::new(child));
+        self.clients.push(child.clone());
+        child
+    }
+
+    pub async fn services(&self) -> serde_json::Value {
+        let text = isle_ipc::services::ServicesProxy::new(&self.bus)
+            .await
+            .unwrap()
+            .status()
+            .await
+            .unwrap();
+        serde_json::from_str(&text).unwrap()
+    }
+}
+
+impl Isle {
+    /// A screenshot of the first output, kept in `ISLE_SHOT_DIR` when it is set, for looking at.
+    pub async fn keep_shot(&self, name: &str) -> Shot {
+        let shot = self.shot("HEADLESS-1", name).await;
+        if let Ok(dir) = std::env::var("ISLE_SHOT_DIR") {
+            let _ = fs::copy(
+                self.dir.join(format!("{name}.png")),
+                format!("{dir}/{name}.png"),
+            );
+        }
+        shot
+    }
+
+    /// Waits for Control Centre's shape to settle.
+    pub async fn panel_settled(&self) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let i = self.island_output().await;
+            let t = &i["target"];
+            if !i["panel"].is_null()
+                && (i["height"].as_f64().unwrap() - t[1].as_f64().unwrap()).abs() < 0.5
+            {
+                return;
+            }
+            assert!(Instant::now() < deadline, "never settled: {i}");
+            tokio::time::sleep(Duration::from_millis(30)).await;
+        }
     }
 }

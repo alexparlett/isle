@@ -37,6 +37,11 @@ impl Processes {
         self.seen.iter().filter(|a| self.running(a))
     }
 
+    /// The app whose window last had `pid`.
+    pub fn app_of(&self, pid: i32) -> Option<String> {
+        self.pids.get(&pid).map(|(app, _)| app.clone())
+    }
+
     pub fn pids(&self, app: &str) -> Vec<i32> {
         let mut pids: Vec<i32> = self
             .pids

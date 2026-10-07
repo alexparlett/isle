@@ -1,9 +1,10 @@
 //! Control Centre's grid: four columns, modules of one, two, two by two or four cells,
 //! packed in reading order each into the first place it fits (`structure/control-centre.md`).
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum TileSize {
     Small,
+    #[default]
     Medium,
     Large,
     Wide,

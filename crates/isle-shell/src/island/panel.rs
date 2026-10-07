@@ -29,7 +29,7 @@ pub enum Notice {
 }
 
 /// A module as the grid shows it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Module {
     pub id: String,
     pub size: TileSize,
@@ -45,6 +45,10 @@ pub struct Module {
     pub page_title: Option<String>,
     /// The Settings pane its page's foot opens.
     pub pane: String,
+    /// A level its Wide and Large forms set with a slider: sound's volume, brightness.
+    pub slider: Option<f32>,
+    /// The slider's level is not in force, as a muted output's.
+    pub muted: bool,
 }
 
 /// Control Centre as one output's island shows it.
@@ -257,16 +261,37 @@ impl Component for PanelBody {
                             colour(t.colour_text),
                             sub.clone().unwrap_or_else(|| module.name.clone()),
                         ))
-                        .maybe(sub.is_none() && !module.state.is_empty(), |el| {
-                            el.child(text::line(
-                                &theme,
-                                text::Style::Subheadline,
-                                colour(t.colour_text_2),
-                                module.state.clone(),
-                            ))
-                        }),
+                        .map(module.slider.filter(|_| sub.is_none()), |el, level| {
+                            let actions = actions.clone();
+                            let id = module.id.clone();
+                            el.child(
+                                isle_ui::Slider::new(level, module.name.clone(), move |value| {
+                                    send(
+                                        &actions,
+                                        PanelAction::Slide {
+                                            module: id.clone(),
+                                            row: String::new(),
+                                            value,
+                                        },
+                                    )
+                                })
+                                .glass(true)
+                                .muted(module.muted),
+                            )
+                        })
+                        .maybe(
+                            sub.is_none() && module.slider.is_none() && !module.state.is_empty(),
+                            |el| {
+                                el.child(text::line(
+                                    &theme,
+                                    text::Style::Subheadline,
+                                    colour(t.colour_text_2),
+                                    module.state.clone(),
+                                ))
+                            },
+                        ),
                 )
-                .maybe(sub.is_none() && module.toggles, |el| {
+                .maybe(sub.is_none() && module.toggles && module.slider.is_none(), |el| {
                     el.child(Switch::new(on, module.name.clone(), move |_| {
                         send(&toggle, PanelAction::Toggle(id.clone()))
                     }))
@@ -437,16 +462,44 @@ impl Component for Tile {
         let toggles = module.toggles;
         let small = module.size == TileSize::Small;
         let open_page = module.page.is_some();
-        let press = move |e: Event<PressEventData>| {
-            e.stop_propagation();
-            let action = if toggles {
-                PanelAction::Toggle(id.clone())
-            } else if open_page {
-                PanelAction::Page(Some(id.clone()))
-            } else {
-                return;
-            };
-            send(&actions, action);
+        // At Small the whole tile is the glyph's switch; larger, the glyph switches and the
+        // rest opens the page.
+        let press = {
+            let (actions, id) = (actions.clone(), id.clone());
+            move |e: Event<PressEventData>| {
+                e.stop_propagation();
+                let action = if toggles && (small || !open_page) {
+                    PanelAction::Toggle(id.clone())
+                } else if open_page {
+                    PanelAction::Page(Some(id.clone()))
+                } else {
+                    return;
+                };
+                send(&actions, action);
+            }
+        };
+        let glyph_press = {
+            let (actions, id) = (actions.clone(), id.clone());
+            move |e: Event<PressEventData>| {
+                e.stop_propagation();
+                send(&actions, PanelAction::Toggle(id.clone()));
+            }
+        };
+        let slider = module.slider.filter(|_| {
+            matches!(module.size, TileSize::Wide | TileSize::Large)
+        });
+        let slide = {
+            let (actions, id) = (actions.clone(), id.clone());
+            move |value: f32| {
+                send(
+                    &actions,
+                    PanelAction::Slide {
+                        module: id.clone(),
+                        row: String::new(),
+                        value,
+                    },
+                )
+            }
         };
         rect()
             .position(Position::new_absolute().left(self.x).top(self.y))
@@ -477,7 +530,10 @@ impl Component for Tile {
             .maybe(small, |el| el.main_align(Alignment::Center))
             .padding(if small { 0.0 } else { t.space_l })
             .spacing(t.space_s + 4.0)
-            .child(module_circle(&theme, module))
+            .child(
+                module_circle(&theme, module)
+                    .maybe(toggles && !small && open_page, |el| el.on_press(glyph_press)),
+            )
             .maybe(!small, |el| {
                 el.child(
                     rect()
@@ -488,12 +544,21 @@ impl Component for Tile {
                             colour(t.colour_text),
                             module.name.clone(),
                         ))
-                        .child(text::line(
-                            &theme,
-                            text::Style::Subheadline,
-                            colour(t.colour_text_2),
-                            module.state.clone(),
-                        )),
+                        .map(slider, |el, level| {
+                            el.child(
+                                isle_ui::Slider::new(level, module.name.clone(), slide)
+                                    .glass(true)
+                                    .muted(module.muted),
+                            )
+                        })
+                        .maybe(slider.is_none(), |el| {
+                            el.child(text::line(
+                                &theme,
+                                text::Style::Subheadline,
+                                colour(t.colour_text_2),
+                                module.state.clone(),
+                            ))
+                        }),
                 )
             })
     }
@@ -686,6 +751,7 @@ mod tests {
                 ),
                 page_title: None,
                 pane: "Wi-Fi".into(),
+                ..Default::default()
             }],
             ..Default::default()
         }

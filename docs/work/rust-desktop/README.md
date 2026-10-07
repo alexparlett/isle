@@ -17,4 +17,5 @@ one at a time.
 - `p4-windows.md`: P4, windows.
 - `p5-keyboard.md`: P5, keyboard.
 - `p6-island-and-menus.md`: P6, the island, menus and wallpaper.
+- `p7-switcher.md`: P7, the app switcher.
 - Evidence: `docs/research/rust-desktop/`.

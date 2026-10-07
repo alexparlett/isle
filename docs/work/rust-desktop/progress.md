@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+- P7 planned: the switcher. Reviewed; every recommendation taken. P6's
+  host run waived.
+
 - P6 screenshots in the VM, and what they showed: menus and the inhibit
   notice drew their glass inside their padding, leaving a ring; the About
   panel could not draw SVG icons and clipped its button; a dialog with its

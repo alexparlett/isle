@@ -82,7 +82,7 @@ sources and the registrar owned from session start, the fallback app menu
 and menu search. The wallpaper. Intent: shell.md, platform.md,
 compositor.md.
 
-**P7 · Switcher and launching.** Cmd+Tab and Cmd+` (B20), the switcher's
+**P7 · Switcher and launching.** Planned: `p7-switcher.md`. Cmd+Tab and Cmd+` (B20), the switcher's
 cards carrying what a Dock would (B19): badges, progress, attention, and
 hidden, minimised and background marks. Launching from Spotlight's Apps
 grid with its favourites row is built with Spotlight in P10. Intent:

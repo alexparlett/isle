@@ -249,3 +249,10 @@
   ARCHITECTURE has How the top of the screen works, B47–B52 are recorded,
   the intent docs' open points answered, `p6-island-and-menus.md` ends
   with its outcome. Next: P6's host run, then P7 (switcher).
+- The user waived P6's host run (2026-10-07).
+- P7 planned in `p7-switcher.md` (2026-10-07): the switcher takes no seat
+  focus and reads keys while Cmd is held, commits only on release, one pure
+  model, previews as compositor textures the tree draws through the shared
+  Skia context, background apps by their processes, exclusive surface
+  groups, attention levels, LauncherEntry, Steam names and covers in
+  `isle-games`. The user took every recommendation. Phases 7.0–7.7.

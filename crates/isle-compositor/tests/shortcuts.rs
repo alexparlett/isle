@@ -63,6 +63,7 @@ async fn press(isle: &Isle, mods: &[u32], key: u32) {
 /// P4's tests drive those by their chords.
 const DISRUPTIVE: &[&str] = &[
     "control-centre",
+    "notification-centre",
     "menu-bar",
     "help-search",
     "window-menu",

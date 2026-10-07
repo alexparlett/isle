@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B59 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B65 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -279,3 +279,15 @@
   `isle-fakes`, snapshots coalesced onto the loop, the resume clock, typed
   page rows with scrolling, and the slider, scrubber, switch, spinner and
   scroll area. Next: 8.1 (power).
+- P8 is done (2026-10-07): the service crates publish whole snapshots that
+  reach the loop once a frame (B60); audio over the Pulse protocol in Rust,
+  the camera from PipeWire's graph (B11 revised); DDC/CI written by Isle
+  (B65); OSDs from changes (B62); Isle the notification server with one
+  decision per arrival, a pure banner model and Notification Centre as the
+  island's second panel (B63); Focus as one pure function with Game Mode a
+  Focus (B64); the tray Isle's own watcher and host (B61); Control Centre's
+  modules, pages, edit mode, gallery and keyboard. ARCHITECTURE has How
+  services reach the shell, How notifications are decided and shown and How
+  Focus decides; `p8-services.md` ends with its outcome; measures and the
+  VM in `docs/research/rust-desktop/p8-services.md`. No host run. Next: P9
+  (lock and prompts).

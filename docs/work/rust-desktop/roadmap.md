@@ -88,8 +88,8 @@ hidden, minimised and background marks. Launching from Spotlight's Apps
 grid with its favourites row is built with Spotlight in P10. Intent:
 shell.md.
 
-**P8 · Services, notifications and Control Centre.** Planned 2026-10-07:
-`p8-services.md`. The zbus service
+**P8 · Services, notifications and Control Centre.** Done 2026-10-07:
+`p8-services.md`, B60–B65, B11 revised. The zbus service
 crates (B11): network, Bluetooth, power, audio through pipewire-pulse,
 media, disks; the notification server and tray (B12); notification
 banners, OSDs and Control Centre as P1 designs them (B24); Focus modes
@@ -101,7 +101,9 @@ platform.md, shell.md.
 **P9 · Lock and prompts.** The compositor's own lock with PAM off-thread
 and v1's locker lessons, with no ext-session-lock served (B28); the
 polkit agent, keyring prompter and NetworkManager secret agent (B12) and
-the Bluetooth pairing agent (B28) with their dialogs; idle, dim and DPMS.
+the Bluetooth pairing agent (B28) with their dialogs, behind the Wi-Fi and
+Bluetooth rows that fail in P8 for want of them; idle, dim and DPMS, with
+idle and the lock among the holds on banners.
 Intent: shell.md, platform.md, compositor.md.
 
 **P10 · Spotlight.** Launcher with apps, the Apps grid with its favourites
@@ -122,14 +124,16 @@ control tested on the RTX 5070 Ti (B6); VRR on while a full-screen app is
 in front, with its setting (B30), and direct scanout for games; game
 detection, Game Mode as the automatic Gaming Focus and the escape set of
 chords over a game (B30); Steam, its Big Picture as a full-screen game
-(B22), and nested gamescope. Night light, the colour transform on each
+(B22), and nested gamescope. Game Mode as the Gaming Focus came in P8
+(B64); P12 refines game detection. Night light, the colour transform on each
 output (GAMMA_LUT or a shader), with Control Centre's Night Light module
 and Game Mode turning it off (given here at P8's review). Intent:
 gaming.md, compositor.md.
 
 **P13 · Settings, core.** The Settings app on the app conventions: displays,
 sound, network, Bluetooth, keyboard and shortcuts, appearance, desktop and
-hot corners, Control Centre, Focus and Game Mode. Measures an app's memory on the GPU before
+hot corners, notifications, Control Centre, Focus and Game Mode, over the
+settings P8 added; the modules' "Settings…" links open them. Measures an app's memory on the GPU before
 B26's default is final. A display mode change reverts unless confirmed in
 the Displays pane (moved from P2). Intent: apps.md.
 

@@ -1,7 +1,8 @@
 # Architecture
 
 How Isle is put together. The compositor core (P2), the shell runtime
-(P3) and windows (P4) are built; the rest is the planned architecture of the rust-desktop program, each part settled in
+(P3), windows (P4), keys (P5), the top of the screen (P6), switching (P7)
+and services with notifications and Control Centre (P8) are built; the rest is the planned architecture of the rust-desktop program, each part settled in
 detail by the build packet that makes it (`docs/work/rust-desktop/
 roadmap.md`). What each capability does is in `docs/design/`; why it is
 built this way is in `docs/DECISIONS.md`.
@@ -275,6 +276,70 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   Steam's library folders, manifests and covers on the worker.
 - **Centre surfaces close the menu-bar surfaces** (B57).
 
+## How services reach the shell
+
+- **A service is a crate that publishes snapshots** (B11, B60). Each of
+  `isle-power`, `isle-audio`, `isle-brightness`, `isle-network`,
+  `isle-bluetooth`, `isle-media`, `isle-disks` and `isle-tray` has a
+  `watch` that reads its daemon whole into one state value and publishes it
+  through `isle-bus`'s `Publisher` as a `Snapshot { available, state }`;
+  after any signal under the daemon's paths it reads again, a burst read
+  once. Commands are plain async functions on the crate. The same crates
+  serve Isle's apps, which talk to the daemons themselves.
+- **On the worker, under the supervisor.** `services::start` runs each
+  watch under `worker::supervise` and carries its snapshots to the loop at
+  most once a frame; `State::*_changed` takes each in, and the island's
+  glyphs and privacy marks, Control Centre's modules and pages and the OSDs
+  read the last one. A daemon that goes makes its snapshot unavailable; its
+  name coming back starts the read again.
+- **Commands go out and their results come back on the loop.**
+  `Isle::run_service` runs a command on the worker and calls back on the
+  loop, where a failure is shown in the row it came from until the next
+  action there.
+- **Work that only a page needs runs while it shows.** The input level
+  meter, the Wi-Fi scan, Bluetooth discovery and the media clock start when
+  their page opens and stop when it closes (`follow_pages`).
+- **OSDs come from changes, not from keys** (B62). A level's change from
+  anywhere raises one OSD; a change Control Centre made itself is marked
+  for a moment beforehand and raises none.
+- **Sound, brightness and the tray have Isle's own clients.** Audio speaks
+  the Pulse protocol to pipewire-pulse in pure Rust on the worker, and
+  reads the camera's users from PipeWire's graph (B11). Brightness is
+  DDC/CI written by Isle over `i2c-dev`, matched to outputs by EDID, and
+  the backlight through logind (B65). The tray's watcher is owned before the
+  socket is announced, and items' menus go through `isle-menus`' DBusMenu
+  client as panel pages (B61).
+
+## How notifications are decided and shown
+
+- **Isle is the notification server** (B63). `isle-notifications` owns
+  `org.freedesktop.Notifications` before the socket is announced and hands
+  each arrival to the loop. There `decide` gives it one fate against the
+  holds in force (a Focus with its allowed apps, a game or full-screen
+  window in front, the user away, the screen being shared) and the app's
+  settings: a banner, held for the summary, quiet into Notification Centre,
+  or a transient one shown or dropped. Records live in the `notifications`
+  state domain; ids are never reused across restarts, and the desktop's own
+  notifications take ids from `0x8000_0000`.
+- **Banners are a pure model and one placed surface** (B63). `isle-shell`'s
+  `banners::model` keeps one card per app with its count, three at most,
+  their lives from the tokens' timings, paused under the pointer; the
+  `banners` surface draws it at the top right of the main screen.
+  Notification Centre is the island's second panel, beside Control Centre.
+
+## How Focus decides
+
+- **One pure function** (B64). `isle-focus` evaluates, from the settings,
+  the memory of what the user turned on or off, the app in front and the
+  time, which Focus is in force: Game Mode while a detected game is in
+  front unless turned off for it, then one turned on by hand until it is
+  turned off or ends, then the latest automatic start. The loop evaluates
+  on each change of those and arms one timer for the next schedule edge.
+- **Game Mode is a Focus.** While it holds, banners wait, the performance
+  profile is held through power-profiles-daemon, and the shell draws solid
+  and still. When the last silencer ends, what waited is summarised in one
+  banner.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -305,7 +370,8 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 | `settings.kdl` | `~/.config/isle/` | the user's choices, apps' preferences included | the compositor, into the file's own text (B36), or the user by hand | yes |
 | `tokens.kdl` | built into Isle; `~/.config/isle/` over it | design tokens | the user by hand; Isle never writes it | the user's file |
 | `translation.kdl` | built into Isle; `~/.config/isle/` over it | Cmd translation tables (B45) | the user by hand; Isle never writes it | the user's file |
-| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), launch counts, session restore, crash history | the compositor and the supervisor | no |
+| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), notifications and their records (`notifications`), what the user turned on or off in Focus (`focus`), launch counts, session restore, crash history | the compositor and the supervisor | no |
+| caches | `~/.cache/isle/` | media art (`art`), notifications' images (`notifications`), tray items' pixmaps (`tray`) | the worker | no |
 | crash records | `~/.local/state/isle/crashes/` | the last ten | the compositor's panic hook and watchdog, then the supervisor | no |
 | session log | `~/.local/state/isle/session.log`, `.old` | this session's and the last | the supervisor | no |
 
@@ -341,7 +407,10 @@ which stays the daily desktop on `main` until the new one replaces it
 is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
 (the `isle` command), `isle-ipc`, `isle-settings` with its derive,
 `isle-state`, `isle-bus` (what the service crates share: the buses, a daemon's name
-followed, snapshots and listeners), `isle-fakes` (fake system daemons for the tests), `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
+followed, snapshots and listeners), the service crates `isle-power`, `isle-audio`,
+`isle-brightness`, `isle-network`, `isle-bluetooth`, `isle-media`, `isle-disks` and
+`isle-tray`, `isle-notifications` (the notification server), `isle-focus` (which Focus
+is in force), `isle-fakes` (fake system daemons for the tests), `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
 badges), `isle-games` (launchers' libraries: names and covers), `isle-keys` (keyboard
 profiles, chords, the shortcut set's table, translation tables and the engine),
 `isle-menus` (the menu tree, its DBusMenu and GMenuModel clients and the registrar),

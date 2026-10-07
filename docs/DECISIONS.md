@@ -117,20 +117,27 @@ preserving comments (`kdl` 6.7 is KDL v2 and format-preserving; `knus`
 watcher race and echo), TOML (sound, but KDL suits the nesting), RON
 (unpleasant to hand-edit).
 
-**B11 · Services are shared crates on zbus; audio through pipewire-pulse.**
-Service logic (NetworkManager, BlueZ, UPower, logind, MPRIS, UDisks2,
-power profiles, GameMode, audio) is a set of library crates used by the
-compositor's service worker (B9) and by the separate apps, which talk to
-the system daemons directly. What only the desktop knows (settings,
-window places, mode) comes from the compositor's D-Bus interface. One
-D-Bus stack, zbus 5: proxies generated with `zbus_xmlgen` or taken from
-COSMIC's `dbus-settings-bindings` where its licence allows; `bluer` and
-`mpris` are out (libdbus). Volume, mute and default devices go through
-`libpulse-binding` over pipewire-pulse (COSMIC's and wayle's route);
-`pipewire-rs` only for what Pulse cannot do, such as screencast streams.
-Evidence: `ui-and-services.md` §3. Rejected: a separate desktop daemon
-owning all services (one more process and protocol between apps and the
-system).
+**B11 · Services are shared crates on zbus; audio through pipewire-pulse
+(revised).** Service logic (NetworkManager, BlueZ, UPower, logind, MPRIS,
+UDisks2, power profiles, GameMode, audio) is a set of library crates used
+by the compositor's service worker (B9) and by the separate apps, which
+talk to the system daemons directly. What only the desktop knows
+(settings, window places, mode) comes from the compositor's D-Bus
+interface. One D-Bus stack, zbus 5: proxies written for what Isle calls,
+COSMIC's `dbus-settings-bindings` read as a reference; `bluer` and `mpris`
+are out (libdbus). Volume, mute, default devices, streams and sounds go
+over the Pulse native protocol to pipewire-pulse, spoken in Rust on the
+worker through the `pulseaudio` crate's protocol layer, so volumes follow
+WirePlumber's routes as pavucontrol's do; `pipewire-rs` reads the camera's
+users from PipeWire's graph, with `module.rt` and `support.dbus` off. Built
+in P8. This replaces `libpulse-binding`, the first answer, after Arch's
+libpulse was found to link libdbus; it stays the fallback, on a thread of
+its own. Isle links and loads no libdbus itself; the NVIDIA EGL driver
+dlopens it, which the rule cannot cover (`services-2026.md`). Evidence:
+`ui-and-services.md` §3. Rejected: a separate desktop daemon owning all
+services (one more process and protocol between apps and the system),
+PipeWire for volumes (a node's `channelVolumes` is not what WirePlumber's
+routes do).
 
 **B12 · The desktop takes the system's prompt and tray roles, and locks
 itself.** On the service worker, with every dialog drawn by the shell: the
@@ -688,3 +695,81 @@ app's windows apart. Previews at card size showed little an icon did not,
 covered most of the panel's glass, and cost a render on every Cmd+Tab.
 Rejected: icons in the window row too (it loses the pictures where they help).
 
+**B60 · A service is a crate that publishes whole snapshots.** Built in P8.
+Each daemon family is its own crate (`isle-power`, `isle-audio`,
+`isle-brightness`, `isle-network`, `isle-bluetooth`, `isle-media`,
+`isle-disks`, `isle-tray`) with one shape: a `watch` that reads the daemon
+whole into one state value and publishes it as a snapshot with an
+`available` flag, reading again after any signal under its paths with a
+burst read once, and async commands that return the daemon's error.
+`isle-bus` holds what they share. On the worker each runs under the
+supervisor and reaches the loop at most once a frame; the island's glyphs,
+Control Centre and the OSDs are derived from the last snapshot in one
+place, so a glyph and its module never disagree. Work only a page needs
+(the input meter, a Wi-Fi scan, Bluetooth discovery) runs while it shows.
+Rejected: one `isle-services` crate with features (PipeWire's FFI in every
+build of it), applying each signal as a delta (a missed or reordered signal
+leaves the state wrong until restart), proxies from COSMIC as a git
+dependency.
+
+**B61 · The tray is Isle's own watcher and host.** Built in P8.
+`isle-tray` owns `org.kde.StatusNotifierWatcher` before the socket is
+announced, keeps items registered by path or by well-known name until
+their owner leaves the bus, and owns the name again when its connection is
+lost, so items register again. Icons are found by name in the item's theme
+folder and then the icon theme's status and panel icons, else its pixmaps
+are written to the cache as PNG. Items sit in Control Centre in the user's
+order (`control-centre.tray`, written by Cmd+drag); their menus are
+`isle-menus`' DBusMenu client (B50), drawn as panel pages. XEmbed-only
+programs show nothing. Rejected: `system-tray` as host (the DBusMenu proxy
+B50 rejected, and the watcher on its terms).
+
+**B62 · OSDs come from the change, not the key.** Built in P8. A level
+OSD is raised when the default output's or input's volume or mute, a
+screen's brightness or the keyboard backlight changes, whoever changed it:
+the keys, an app, `pactl`, a headset. A change Control Centre made itself
+is marked beforehand and raises none; the first snapshot and a change of
+the default device raise none. Rejected: OSDs raised by the keys (a change
+from anywhere else would go unseen, and a key with no effect would still
+show one).
+
+**B63 · Isle is the notification server; banners are one pure model.**
+Built in P8. `isle-notifications` owns `org.freedesktop.Notifications`
+before the socket is announced, as the registrar is (B50), and hands the
+loop each arrival with its picture already decoded into the cache. On the
+loop each is decided once, against the holds in force (a Focus, a game or
+full-screen window, the user away, a screen shared) and the app's
+settings: a banner, held for the summary, quiet into Notification Centre,
+or a transient one shown or dropped. Records are a state domain, ids never
+reused across restarts. `isle-shell`'s `banners::model` is pure and takes
+a clock, as the island's model does (B47): one card per app with its
+count, three at most, lives from the tokens, paused under the pointer; the
+`banners` surface draws it at the top right of the main screen.
+Notification Centre is the island's second panel (B49). Rejected: a
+notification daemon of Isle's own (a process and a protocol between the
+server and the shell), deciding in the server (Focus, full screen and the
+panels are known on the loop).
+
+**B64 · Focus is one pure function, and Game Mode is a Focus.** Built in
+P8. `isle-focus` answers from the settings, what the user turned on or
+off, the app in front and a zoned clock which Focus is in force, why,
+until when, and when that next changes: Game Mode while a detected game is
+in front unless turned off for that game, then one turned on by hand until
+off or its end, then the latest automatic start; a scheduled one turned off
+stays off until its next start. Game Mode, however it came on, holds
+banners, holds the performance profile through power-profiles-daemon
+until the user picks another, and draws the shell solid and still; when the
+last silencer ends what waited is summarised in one banner. This replaces
+P6's game-in-front stand-in. Rejected: Game Mode as a separate switch
+beside Focus (two switches for one thing, `structure/focus.md`).
+
+**B65 · Brightness over DDC/CI is written by Isle.** Built in P8. The
+host's monitors have no backlight. `isle-brightness` speaks DDC/CI's
+brightness feature over `/dev/i2c-N` itself, with ddcutil's retries and
+sleeps as reference: each output is matched to its bus by the connector's
+`ddc` link, else by its EDID read at 0x50; reads are cached, writes
+debounced and serialised per bus, and the slider shows the requested value
+at once. A laptop panel goes through logind's `SetBrightness`, a keyboard
+backlight through UPower. Access is ddcutil's `uaccess` rule until Isle's
+package ships its own. Rejected: `ddcutil-service` (a daemon Isle would
+start), `ddc-hi` (unmaintained since 2021).

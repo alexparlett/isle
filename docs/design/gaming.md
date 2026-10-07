@@ -123,6 +123,8 @@ Requires of `shell.md`: the Gaming Focus among the Focus modes, a visible Game M
 
 v1 lessons kept: inventory §10 (the mode's profile and the summary on leaving); inventory §4 Hot zone (a peek at the top edge); inventory §10 (leaving reloaded the whole compositor profile from files instead of undoing what the mode changed).
 
+Settled in P8: Game Mode is a Focus decided by `isle-focus` (B64); rules 1, 2, 4, 6, 9 and 10 are built, and 3's profile hold. Night light's part in rule 3 comes with night light (P12), rule 8 with idle (P9).
+
 Open for its packet: whether games and Steam inhibit idle through `org.freedesktop.ScreenSaver` (served by Isle, `platform.md`) or rely on rule 8 alone.
 
 ### Keys and pointer in games

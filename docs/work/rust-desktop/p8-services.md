@@ -631,3 +631,62 @@ The user took every recommendation on 2026-10-07: Notification Centre's
 notifications in P8 (choice 22, phase 8.9); B11's audio route revised as
 choice 3, with `libpulse-binding` on its own thread as the recorded
 fallback; night light to P12 (choice 19); one packet.
+
+## Outcome
+
+Phases 8.0 to 8.14 passed their checks headless and in the VM, with these
+differences from the plan:
+
+- **Notification Centre was built here** (choice 22, phase 8.9), added at
+  the review; its agenda waits for calendars (P20).
+- **The summary was built with Focus** (8.10), not with the banners: it is
+  the end of a silencer, which only Focus's model knows.
+- **The libdbus rule holds for what Isle links and loads**, not for the GPU
+  driver: NVIDIA's EGL dlopens libdbus itself (B11). The camera's PipeWire
+  context needed `support.dbus = false` as well as `module.rt = false`.
+- **Daemons started on demand are started.** The VM found UPower, UDisks2
+  and power-profiles-daemon never came up, since Isle only waited for their
+  names; `isle-bus` now asks the bus to start a name it can activate. A
+  Pulse handshake that gets no answer is given up after five seconds.
+- **Banners and the pointer.** Found in the VM: the stack's pointer-enter
+  never fired, so a hovered banner went on expiring, and moving onto a
+  card's button counted as leaving the card, so the click was lost. Each
+  card now tracks the pointer over it and its buttons, and an empty stack
+  is never hovered. The action buttons are equal regular buttons across the
+  text column, as the sheet draws them; the first build put each at the left
+  of its own column, which the user saw.
+- **Control Centre's keyboard is roving.** One tile of the grid and one
+  tray item take the keyboard at a time, so Tab passes each as one stop and
+  the arrows move by place; Freya's focus groups could not do this (Tab
+  from a member goes to the first node). The tray's Right moves to the next
+  item; its menu is the menu key or Shift+F10, where the sheet gave Right to
+  both.
+- **Edit mode's gallery is below the grid**, inside the panel, not beside
+  it; it has no search field, and a drag shows no live outline. A module's
+  own secondary-click menu outside edit mode is not built.
+- **Now Playing at Wide is one row** (art, track, transport); it spilled its
+  transport under the tile before.
+- **A grid that fits shows no scrollbar.** Freya measures the absolutely
+  placed tiles a hair past the grid, so whether it scrolls is the panel's
+  own measure, and scroll areas take whole-pixel heights.
+- **Shift's fine volume step** (1%) is not built; the keys step by 5%.
+- **Chromium's and Firefox's notifications** were sent in the VM as
+  notify-send under their desktop entries; the browsers' own web
+  notifications were not driven, as they need a page granted permission.
+
+Tests: `cargo test --workspace --features isle-compositor/test-hooks`, with
+headless tests for every service against its fake and audio against a
+private PipeWire (`services.rs`, `power.rs`, `audio.rs`, `brightness.rs`,
+`network.rs`, `bluetooth.rs`, `media.rs`), the server, banners and
+Notification Centre (`notifications.rs`, `banners.rs`, `centre.rs`), Focus
+(`focus.rs`), the desktop's notifications (`desktop_notes.rs`), the tray
+(`tray.rs`), Control Centre's edit mode, Accessibility, keyboard walk and
+every page (`edit_controls.rs`), unit tests for the pure models, and the
+bench `services_cost`. Measures and the VM in
+`docs/research/rust-desktop/p8-services.md`.
+
+Left open: the notification server's own kill-and-return (acceptance bar 5
+for it) is not tested; the tray's watcher's is. A click on the tray item
+twice closed Control Centre in the VM and did not happen again (the
+research note). The host run, where DDC/CI and Bluetooth are real, was not
+made.

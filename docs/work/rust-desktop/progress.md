@@ -2,6 +2,12 @@
 
 ## 2026-10-07
 
+- P8 closed. ARCHITECTURE has How services reach the shell, How
+  notifications are decided and shown and How Focus decides; B60–B65 are
+  recorded and B11 revised; the intent docs' open points answered; the
+  roadmap's P8, P9, P12 and P13 entries follow; `p8-services.md` ends with
+  its outcome.
+
 - P8 8.14: the measure and the VM (`docs/research/rust-desktop/p8-services.md`).
   At 3440×1440 with every service live, Control Centre draws at 1.35 ms p95
   over every page and banners at 0.95 ms; a banner reaches the stack 2.6 ms

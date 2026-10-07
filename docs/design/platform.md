@@ -237,11 +237,14 @@ through one shared set of crates.
 scope. D72: one failing part never takes the others with it. Inventory §6:
 polling counts its listeners.
 
-**Open for its packet.** Generated proxies against COSMIC's
-`dbus-settings-bindings` where the licence allows (`ui-and-services.md` §3).
-DDC/CI from a library or `ddcutil`. A CUPS client for Printers. `libalpm`
-bindings or pacman's CLIs. Volume through WirePlumber semantics
-(`ui-and-services.md` OPEN).
+**Settled in P8.** Proxies are written for what Isle calls, COSMIC's
+`dbus-settings-bindings` read as a reference (B60). DDC/CI is written by
+Isle (B65). Volume goes over the Pulse protocol to pipewire-pulse, through
+WirePlumber's routes (B11). A daemon started on demand (UPower, UDisks2,
+power-profiles-daemon) is asked for by name before Isle waits for it.
+
+**Open for its packet.** A CUPS client for Printers. `libalpm` bindings or
+pacman's CLIs.
 
 ### App index and launching
 
@@ -301,6 +304,9 @@ like any other (D51).
 **Settled in P7.** LauncherEntry's Update is matched on the session bus by
 interface and member from any sender; partial updates merge, and an app's
 values go when its sender leaves the bus. `urgent` marks urgent attention.
+
+**Settled in P8.** The server is owned before the socket is announced; each
+arrival is decided once on the loop, and banners are one pure model (B63).
 
 ### Tray and global menu registrar
 
@@ -798,9 +804,9 @@ schedule or by situation.
 silencing and per-app lists; §10: the summary after a game. Inventory §2: a
 focus mode was documented and never built.
 
-**Open for its packet.** Which of a scheduled and a manual Focus wins when
-they overlap; P1 proposes the manual one, then the latest automatic start
-(`docs/work/rust-desktop/p1/structure/focus.md`).
+**Settled in P8.** Game Mode while a detected game is in front wins, then
+a Focus turned on by hand, then the latest automatic start; a scheduled one
+turned off by hand stays off until its next start (B64).
 
 ### Test hooks and VM workflow
 

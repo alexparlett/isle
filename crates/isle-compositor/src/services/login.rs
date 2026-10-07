@@ -118,6 +118,8 @@ impl State {
     pub fn login_changed(&mut self, snapshot: Snapshot<Login>) {
         let resumed = snapshot.state.resumes > self.isle.services.login.state.resumes;
         self.isle.services.login = snapshot;
+        // Sleep is one of the holds on banners.
+        self.silence_check();
         if resumed {
             info!("resumed from sleep");
             // The clock's timer runs on the monotonic clock, which stood still in sleep.

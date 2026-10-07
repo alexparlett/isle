@@ -49,6 +49,9 @@ enum Command {
     Menus(Menus),
     /// The system services: whether each daemon answers, and what Isle knows of it.
     Services,
+    /// Focus: what is in force, a mode on for a while or until turned off, or off.
+    #[command(subcommand)]
+    Focus(FocusCommand),
     /// Notifications Isle holds: list them, close one, or clear them all.
     #[command(subcommand)]
     Notify(Notify),
@@ -179,6 +182,20 @@ enum Menus {
     Show { id: u64 },
     /// The front app's menu items that match, with their paths.
     Search { query: String },
+}
+
+#[derive(Subcommand)]
+enum FocusCommand {
+    /// The Focus in force and why.
+    Status,
+    /// Turns a mode on, for `--for` minutes or until turned off.
+    On {
+        mode: String,
+        #[arg(long = "for")]
+        minutes: Option<u32>,
+    },
+    /// Turns the Focus in force off.
+    Off,
 }
 
 #[derive(Subcommand)]
@@ -589,6 +606,22 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                         service["state"]
                     );
                 }
+            }
+        }
+        Command::Focus(command) => {
+            let proxy = isle_ipc::focus::FocusProxy::new(&bus).await?;
+            match command {
+                FocusCommand::Status => {
+                    let status: serde_json::Value = serde_json::from_str(&proxy.status().await?)
+                        .map_err(|e| zbus::Error::Failure(e.to_string()))?;
+                    if cli.json {
+                        println!("{status}");
+                    } else {
+                        println!("{}", status["active"].as_str().unwrap_or("Off"));
+                    }
+                }
+                FocusCommand::On { mode, minutes } => proxy.set(mode, minutes.unwrap_or(0)).await?,
+                FocusCommand::Off => proxy.off().await?,
             }
         }
         Command::Notify(command) => {

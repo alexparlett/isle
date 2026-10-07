@@ -291,6 +291,11 @@ impl State {
             BannerAction::Hover(on) => {
                 self.isle.banners.model.set_hovered(on, now);
             }
+            // The summary's click and Show open the centre.
+            BannerAction::Open(0) | BannerAction::Action(0, _) => {
+                self.isle.banners.model.remove(0);
+                self.open_notification_centre(None);
+            }
             BannerAction::Open(id) => {
                 self.notification_invoke(id, "default");
             }

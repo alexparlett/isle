@@ -187,11 +187,11 @@ impl Isle {
 
     /// The Focus that holds banners, its allowed apps and whether time-sensitive ones pass.
     pub fn focus_hold(&self) -> Option<(String, Vec<String>, bool)> {
-        None
+        self.focus_hold_now()
     }
 
     pub fn game_mode_on(&self) -> bool {
-        self.island_game_mode()
+        self.game_mode_active()
     }
 
     /// An app's rules: muted, and whether it shows over full screen.

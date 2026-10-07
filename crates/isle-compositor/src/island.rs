@@ -428,17 +428,9 @@ impl Isle {
         }
     }
 
-    /// Game Mode: over a game in front, solid and still.
+    /// Game Mode, which draws the shell solid and still (`focus.md`, Game Mode's effects).
     pub fn island_game_mode(&self) -> bool {
-        self.seat
-            .get_keyboard()
-            .and_then(|k| k.current_focus())
-            .and_then(|f| {
-                f.surface()
-                    .and_then(|s| self.wm.for_surface(s))
-                    .map(|r| r.game)
-            })
-            .unwrap_or(false)
+        self.game_mode_active()
     }
 
     /// One timer for the island's next change by itself: an event's end or the clock's next
@@ -478,7 +470,7 @@ impl Isle {
 
 impl State {
     /// The glyphs whose state the compositor itself knows: shortcuts inhibited, a rejected
-    /// configuration, and the Gaming Focus standing in while a game is in front.
+    /// configuration.
     pub fn island_sources(&mut self, settings_error: Option<Option<(String, u32, u32, String)>>) {
         let app = self.inhibiting_app();
         self.isle.island.inhibiting = (!app.is_empty()).then(|| app.clone());
@@ -514,17 +506,7 @@ impl State {
                 ..Default::default()
             }),
         );
-        let game = self.focus_is_game();
-        self.isle.island.model.set_glyph(
-            GlyphKind::Focus,
-            game.then(|| Glyph {
-                active: true,
-                symbol: "game-controller".into(),
-                fill: true,
-                alt: "Game Mode".into(),
-                ..Default::default()
-            }),
-        );
+
     }
 
     /// A window asked for focus it could not take: its record is marked and the island told.
@@ -613,6 +595,7 @@ impl State {
             self.isle.island.model.set_focused_app(seen.4.clone());
             self.isle.island.seen = Some(seen);
             self.island_sources(None);
+            self.focus_evaluate(crate::focus_modes::Origin::Auto);
             self.isle.refresh_island();
         }
     }

@@ -38,6 +38,11 @@ pub struct Settings {
     #[setting(keyed)]
     pub wallpaper_output: BTreeMap<String, Wallpaper>,
     #[setting(section)]
+    pub focus: Focus,
+    /// A Focus mode's rules, by its name; Do Not Disturb and Game Mode are always there.
+    #[setting(keyed)]
+    pub focus_mode: BTreeMap<String, FocusMode>,
+    #[setting(section)]
     pub notifications: Notifications,
     /// An app's notification rules, by its desktop id.
     #[setting(keyed)]
@@ -668,6 +673,31 @@ pub struct Wallpaper {
     /// A folder's pictures in random order rather than by name.
     #[setting(default = false)]
     pub shuffle: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Focus {
+    /// Game Mode turns on by itself while a detected game is in front.
+    #[setting(default = true)]
+    pub game_mode_auto: bool,
+    /// Games Game Mode stays off for, by app id.
+    pub games_off: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct FocusMode {
+    /// Its symbol, a Phosphor glyph's name.
+    pub symbol: Option<String>,
+    /// Apps whose banners and sounds still come through.
+    pub allow_apps: Vec<String>,
+    /// Time-sensitive (critical) notifications come through.
+    #[setting(default = true)]
+    pub allow_critical: bool,
+    /// When it turns itself on: `HH:MM-HH:MM` and `every-day`, `weekdays`, `weekends` or
+    /// days such as `mon,wed`.
+    pub schedules: Vec<String>,
+    /// Apps whose being in front turns it on.
+    pub while_apps: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]

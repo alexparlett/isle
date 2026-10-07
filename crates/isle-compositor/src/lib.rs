@@ -9,6 +9,7 @@ pub mod crash;
 mod cursor;
 mod dbus;
 mod focus;
+mod focus_modes;
 mod games;
 mod grabs;
 mod handlers;
@@ -187,6 +188,8 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         Err(err) => warn!("no menu registrar: {err}"),
     }
     // Apps that notify at start find a server, as they find the registrar.
+    state.isle.load_focus(&runtime);
+    state.focus_evaluate(focus_modes::Origin::Auto);
     let first_id = state.isle.load_notifications(&runtime);
     let served = runtime.block_on(async {
         let conn = zbus::Connection::session().await?;

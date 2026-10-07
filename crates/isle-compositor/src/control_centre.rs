@@ -96,6 +96,7 @@ impl Isle {
             "vpn" => self.vpn_module(size),
             "bluetooth" => self.bluetooth_module(size),
             "now-playing" => self.now_playing_module(size),
+            "focus" => self.focus_module(size),
             _ => None,
         }
     }
@@ -365,6 +366,11 @@ impl State {
                 if m == "now-playing" =>
             {
                 self.media_action(action)
+            }
+            PanelAction::Toggle(ref m) | PanelAction::Choose { module: ref m, .. }
+                if m == "focus" =>
+            {
+                self.focus_action(action)
             }
             PanelAction::Toggle(ref m) | PanelAction::Choose { module: ref m, .. }
                 if m == "bluetooth" =>

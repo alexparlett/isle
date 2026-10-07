@@ -17,6 +17,7 @@ isle-brightness = { path = "crates/isle-brightness" }
 isle-bus = { path = "crates/isle-bus" }
 isle-fakes = { path = "crates/isle-fakes" }
 isle-power = { path = "crates/isle-power" }
+isle-focus = { path = "crates/isle-focus" }
 isle-games = { path = "crates/isle-games" }
 isle-ipc = { path = "crates/isle-ipc" }
 isle-keys = { path = "crates/isle-keys" }

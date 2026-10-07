@@ -121,6 +121,7 @@ pub struct Isle {
     pub services: crate::services::Services,
     pub notifications: crate::notifications::NotificationsState,
     pub banners: crate::banners::BannersState,
+    pub focus: crate::focus_modes::FocusState,
     /// The apps whose banners show, whose attention events wait.
     pub banners_apps: Vec<String>,
     pub top_edge: crate::top_edge::TopEdge,
@@ -403,6 +404,7 @@ impl Isle {
             notifications: Default::default(),
             banners,
             banners_apps: Vec::new(),
+            focus: Default::default(),
             icons: Default::default(),
             pings: Vec::new(),
             cursor_before_busy: None,

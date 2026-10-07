@@ -190,6 +190,37 @@ struct NotificationsIface {
     to_loop: ToLoop,
 }
 
+struct FocusIface {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Focus1")]
+impl FocusIface {
+    async fn status(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.focus_status()).await?)
+    }
+
+    async fn set(&self, mode: String, minutes: u32) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let minutes = (minutes > 0).then_some(i64::from(minutes));
+                state.focus_set(Some(&mode), minutes, crate::focus_modes::Origin::Control)
+            })
+            .await?)
+    }
+
+    async fn off(&self) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(|state| state.focus_set(None, None, crate::focus_modes::Origin::Control))
+            .await?)
+    }
+
+    #[zbus(signal)]
+    async fn changed(emitter: &zbus::object_server::SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
 #[interface(name = "io.github.alexparlett.Isle.Notifications1")]
 impl NotificationsIface {
     async fn list(&self) -> fdo::Result<String> {
@@ -1294,6 +1325,12 @@ pub async fn serve(
             },
         )?
         .serve_at(
+            isle_ipc::FOCUS_PATH,
+            FocusIface {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
             isle_ipc::NOTIFICATIONS_PATH,
             NotificationsIface {
                 to_loop: to_loop.clone(),
@@ -1355,6 +1392,10 @@ pub async fn serve(
                     .interface::<_, Keyboard>(isle_ipc::KEYBOARD_PATH)
                     .await?;
                 Keyboard::changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::FocusChanged) => {
+                let iface = server.interface::<_, FocusIface>(isle_ipc::FOCUS_PATH).await?;
+                FocusIface::changed(iface.signal_emitter()).await?;
             }
             Ok(Event::NotificationsChanged) => {
                 let iface = server

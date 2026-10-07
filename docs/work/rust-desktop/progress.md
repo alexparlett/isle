@@ -2,6 +2,20 @@
 
 ## 2026-10-07
 
+- P8 8.10: Focus. `isle-focus` is a pure model of `structure/focus.md`'s
+  order: Game Mode while a detected game is in front unless turned off for
+  it, then a mode turned on by hand until off or its end, then the latest
+  automatic start (schedules across midnight, an app in front); a scheduled
+  mode turned off stays off until its next start. Do Not Disturb and Game
+  Mode are built in, the user's modes are `focus-mode` blocks. On the loop:
+  one timer for the next edge, the Focus glyph, "{mode} on/off" events for
+  automatic and chord changes, banners held with allowed apps and
+  time-sensitive ones passing, Game Mode holding the performance profile and
+  releasing it, Game Mode drawing the shell solid and still in place of P6's
+  game-in-front stand-in, the summary once the last silencer ends ("While you
+  played", or the one held shown again). The Do Not Disturb and Game Mode
+  chords, the Focus module and page with durations, `Focus1` and `isle focus`.
+
 - P8 8.9: Notification Centre, moved in from P17. The island's second panel:
   the clock, Ctrl+Option+Cmd+N and the banners' overflow open it, a click on
   the pill turns it into Control Centre in one morph, and no peek replaces

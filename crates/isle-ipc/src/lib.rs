@@ -19,6 +19,7 @@ pub const ISLAND_PATH: &str = "/io/github/alexparlett/Isle/Island";
 pub const MENUS_PATH: &str = "/io/github/alexparlett/Isle/Menus";
 pub const SERVICES_PATH: &str = "/io/github/alexparlett/Isle/Services";
 pub const NOTIFICATIONS_PATH: &str = "/io/github/alexparlett/Isle/Notifications";
+pub const FOCUS_PATH: &str = "/io/github/alexparlett/Isle/Focus";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -608,6 +609,26 @@ pub mod notifications {
         fn invoke(&self, id: u32, key: &str) -> zbus::Result<bool>;
         fn reply(&self, id: u32, text: &str) -> zbus::Result<bool>;
         fn clear(&self) -> zbus::Result<()>;
+        #[zbus(signal)]
+        fn changed(&self) -> zbus::Result<()>;
+    }
+}
+
+pub mod focus {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Focus1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Focus"
+    )]
+    pub trait Focus {
+        /// The Focus in force, why, and the modes, as JSON.
+        fn status(&self) -> zbus::Result<String>;
+        /// Turns a mode on by hand for `minutes`, or until turned off with 0.
+        fn set(&self, mode: &str, minutes: u32) -> zbus::Result<()>;
+        /// Turns the Focus in force off.
+        fn off(&self) -> zbus::Result<()>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

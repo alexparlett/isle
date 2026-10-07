@@ -861,7 +861,7 @@ impl State {
         };
         self.isle.bar.generation += 1;
         let theme = self.isle.shell.theme().clone();
-        let instant = !self.isle.shell.animated() || self.focus_is_game();
+        let instant = !self.isle.shell.animated() || self.isle.island_game_mode();
         if instant || theme.appearance.reduce_motion {
             self.isle.bar.shown = Motion::at(1.0);
         } else {
@@ -901,7 +901,7 @@ impl State {
         self.unfocus_bar();
         let theme = self.isle.shell.theme().clone();
         let instant =
-            !self.isle.shell.animated() || self.focus_is_game() || theme.appearance.reduce_motion;
+            !self.isle.shell.animated() || self.isle.island_game_mode() || theme.appearance.reduce_motion;
         if instant {
             self.isle.bar.shown = Motion::at(0.0);
         } else {
@@ -959,7 +959,7 @@ impl State {
     fn push_bar_frame(&mut self) {
         let theme = self.isle.shell.theme().clone();
         let t = &theme.tokens;
-        let solid = theme.appearance.reduce_transparency || self.focus_is_game();
+        let solid = theme.appearance.reduce_transparency || self.isle.island_game_mode();
         let Some(name) = self.isle.bar.output.clone() else {
             return;
         };

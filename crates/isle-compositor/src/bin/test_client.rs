@@ -15,6 +15,10 @@
 //! key=value...` (summary, body, icon, actions=key:Label,..., urgency, transient,
 //! resident, desktop-entry, image, replaces, timeout; underscores read as spaces),
 //! `close-notification ID`, `use-token TOKEN` (an activation with a token it was sent),
+//! `tray [--name] [--item-is-menu] [--id ID]` (a status item with a pixmap icon and the test menu,
+//! registered by path or by a well-known name and again whenever the watcher comes back,
+//! printing `tray registered`, `tray activated`, `tray secondary`, `tray scroll N` and
+//! `menu activated LABEL`), `tray-attention` (it asks for attention),
 //! `drag-on-press` (the next press starts a drag of text with a magenta icon; drags print
 //! `dnd enter`, `dnd drop`, and to the source `dnd finished` or `dnd cancelled`), `quit`. A
 //! close of any other window destroys it.
@@ -108,6 +112,145 @@ struct Client {
     launcher: Option<(tokio::runtime::Runtime, zbus::Connection)>,
     /// The server's signals are being printed.
     listening: bool,
+    /// The status item's bus, kept so the item stays until the client exits.
+    tray: Option<(tokio::runtime::Runtime, zbus::Connection)>,
+}
+
+/// A status item for the tray's tests.
+struct TrayItem {
+    id: String,
+    item_is_menu: bool,
+    status: std::sync::Mutex<String>,
+}
+
+#[zbus::interface(name = "org.kde.StatusNotifierItem")]
+impl TrayItem {
+    fn activate(&self, _x: i32, _y: i32) {
+        say(0, "tray activated".into());
+    }
+
+    fn secondary_activate(&self, _x: i32, _y: i32) {
+        say(0, "tray secondary".into());
+    }
+
+    fn scroll(&self, delta: i32, _orientation: String) {
+        say(0, format!("tray scroll {delta}"));
+    }
+
+    #[zbus(property)]
+    fn id(&self) -> String {
+        self.id.clone()
+    }
+
+    #[zbus(property)]
+    fn title(&self) -> String {
+        "Test Tray".into()
+    }
+
+    #[zbus(property)]
+    fn category(&self) -> String {
+        "ApplicationStatus".into()
+    }
+
+    #[zbus(property)]
+    fn status(&self) -> String {
+        self.status.lock().unwrap().clone()
+    }
+
+    #[zbus(property)]
+    fn icon_pixmap(&self) -> Vec<(i32, i32, Vec<u8>)> {
+        // Opaque magenta, ARGB in network order.
+        vec![(16, 16, [0xff, 0xff, 0x00, 0xff].repeat(16 * 16))]
+    }
+
+    #[zbus(property)]
+    fn item_is_menu(&self) -> bool {
+        self.item_is_menu
+    }
+
+    #[zbus(property)]
+    fn menu(&self) -> zvariant::OwnedObjectPath {
+        zvariant::OwnedObjectPath::try_from("/MenuBar/1").unwrap()
+    }
+
+    #[zbus(signal)]
+    async fn new_status(emitter: &zbus::object_server::SignalEmitter<'_>, status: &str) -> zbus::Result<()>;
+}
+
+/// Serves the test status item and registers it, again whenever the watcher comes back.
+fn tray(args: &[&str]) -> (tokio::runtime::Runtime, zbus::Connection) {
+    let by_name = args.contains(&"--name");
+    let item_is_menu = args.contains(&"--item-is-menu");
+    let id = args
+        .iter()
+        .position(|a| *a == "--id")
+        .and_then(|i| args.get(i + 1))
+        .map_or("test-tray", |v| v)
+        .to_owned();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let conn = runtime.block_on(async {
+        let conn = zbus::Connection::session().await.unwrap();
+        let on_activate: isle_menus::exporter::OnActivate =
+            std::sync::Arc::new(|label| say(0, format!("menu activated {label}")));
+        let server = conn.object_server();
+        server
+            .at("/MenuBar/1", isle_menus::exporter::DBusMenuExport::new(on_activate))
+            .await
+            .unwrap();
+        server
+            .at(
+                "/StatusNotifierItem",
+                TrayItem {
+                    id,
+                    item_is_menu,
+                    status: std::sync::Mutex::new("Active".into()),
+                },
+            )
+            .await
+            .unwrap();
+        let service = if by_name {
+            let name = format!("org.kde.StatusNotifierItem-{}-1", std::process::id());
+            conn.request_name(name.as_str()).await.unwrap();
+            name
+        } else {
+            "/StatusNotifierItem".to_owned()
+        };
+        let watched = conn.clone();
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            let dbus = zbus::fdo::DBusProxy::new(&watched).await.unwrap();
+            let mut owners = dbus
+                .receive_name_owner_changed_with_args(&[(0, "org.kde.StatusNotifierWatcher")])
+                .await
+                .unwrap();
+            let register = || async {
+                let registered = watched
+                    .call_method(
+                        Some("org.kde.StatusNotifierWatcher"),
+                        "/StatusNotifierWatcher",
+                        Some("org.kde.StatusNotifierWatcher"),
+                        "RegisterStatusNotifierItem",
+                        &(service.as_str(),),
+                    )
+                    .await;
+                if registered.is_ok() {
+                    say(0, "tray registered".into());
+                }
+            };
+            register().await;
+            while let Some(change) = owners.next().await {
+                if change.args().is_ok_and(|a| a.new_owner().is_some()) {
+                    register().await;
+                }
+            }
+        });
+        conn
+    });
+    (runtime, conn)
 }
 
 fn say(index: usize, line: String) {
@@ -506,6 +649,22 @@ impl Client {
             ("linger", _) => self.linger = true,
             ("badge", _) => self.badge(&rest),
             ("notify", _) => self.notify(&rest),
+            ("tray", _) => self.tray = Some(tray(&rest)),
+            ("tray-attention", _) => {
+                if let Some((runtime, conn)) = &self.tray {
+                    runtime.block_on(async {
+                        let iface = conn
+                            .object_server()
+                            .interface::<_, TrayItem>("/StatusNotifierItem")
+                            .await
+                            .unwrap();
+                        *iface.get().await.status.lock().unwrap() = "NeedsAttention".into();
+                        TrayItem::new_status(iface.signal_emitter(), "NeedsAttention")
+                            .await
+                            .unwrap();
+                    });
+                }
+            }
             ("close-notification", _) => {
                 let id: u32 = rest[0].parse().unwrap();
                 let (runtime, conn) = self.bus();
@@ -1048,6 +1207,7 @@ fn main() {
         data_device: None,
         drag_on_press: false,
         launcher: None,
+        tray: None,
         listening: false,
         app_id: app_id.clone(),
         started: false,

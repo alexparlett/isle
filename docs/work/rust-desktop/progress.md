@@ -2,6 +2,19 @@
 
 ## 2026-10-07
 
+- P8 8.12: the tray. `isle-tray` owns `org.kde.StatusNotifierWatcher`
+  before the socket is announced and is the host: items by path on their
+  sender or by well-known name, gone when their owner leaves, read again on
+  their signals. Icons by name through the item's theme folder then
+  Papirus's status and panel icons as well as apps', else their pixmaps
+  written to PNG in the cache. Control Centre shows them in a card under
+  the grid, a dot for attention; a click activates or opens the menu as the
+  item asks, a secondary click opens the menu, middle is SecondaryActivate,
+  the wheel scrolls; menus are `isle-menus`' DBusMenu client as pages, a
+  submenu filled on asking when opened. Cmd+drag writes
+  `control-centre.tray`. A dropped watcher owns its name again within a
+  quarter second and items register again. Passive items are not shown.
+
 - P8 8.11: disks and the desktop's notifications. `isle-disks` reads
   UDisks2's filesystems on removable drives and the user's loop images, and
   mounts, unmounts and ejects; nothing mounts by itself. The desktop posts

@@ -45,6 +45,8 @@ pub struct Icons {
     theme: String,
     themes: HashMap<String, Option<Theme>>,
     found: HashMap<(String, u32), Option<PathBuf>>,
+    /// Status and panel icons as well as apps', as tray items name them.
+    status: bool,
 }
 
 impl Icons {
@@ -54,6 +56,15 @@ impl Icons {
             theme: theme.into(),
             themes: HashMap::new(),
             found: HashMap::new(),
+            status: false,
+        }
+    }
+
+    /// Papirus for tray items, whose icons are status and panel icons as often as apps'.
+    pub fn status(dark: bool) -> Self {
+        Self {
+            status: true,
+            ..Self::papirus(dark)
         }
     }
 
@@ -107,7 +118,7 @@ impl Icons {
                 .iter()
                 .map(|b| b.join(name).join("index.theme"))
                 .find_map(|p| fs::read_to_string(p).ok())
-                .map(|text| parse_index(&text));
+                .map(|text| parse_index(&text, self.status));
             self.themes.insert(name.to_owned(), theme);
         }
         self.themes.get(name).and_then(Option::as_ref)
@@ -152,7 +163,7 @@ impl Icons {
 }
 
 /// The app directories of an `index.theme`, and what it inherits.
-fn parse_index(text: &str) -> Theme {
+fn parse_index(text: &str, status: bool) -> Theme {
     let mut theme = Theme::default();
     let mut group = String::new();
     let mut dirs: Vec<String> = Vec::new();
@@ -195,7 +206,12 @@ fn parse_index(text: &str) -> Theme {
         let Some((size, scaled, context)) = sizes.get(&dir) else {
             continue;
         };
-        if *scaled || (context != "Applications" && !dir.ends_with("/apps")) {
+        let app = context == "Applications" || dir.ends_with("/apps");
+        let status_dir = context == "Status"
+            || context == "Panel"
+            || dir.ends_with("/status")
+            || dir.ends_with("/panel");
+        if *scaled || !(app || (status && status_dir)) {
             continue;
         }
         let nominal = if dir.starts_with("scalable") {

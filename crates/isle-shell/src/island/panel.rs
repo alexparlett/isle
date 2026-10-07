@@ -55,6 +55,25 @@ pub struct Module {
     pub plain_head: bool,
 }
 
+/// Another program's status item in Control Centre's tray.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TrayIcon {
+    pub key: String,
+    pub title: String,
+    pub icon: Option<std::path::PathBuf>,
+    pub attention: bool,
+}
+
+/// How a tray item was pressed.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum TrayPress {
+    Primary,
+    Secondary,
+    Middle,
+    /// Wheel steps, down positive.
+    Scroll(i32),
+}
+
 /// Control Centre as one output's island shows it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PanelFrame {
@@ -66,6 +85,9 @@ pub struct PanelFrame {
     pub activities: Vec<Activity>,
     pub privacy: Vec<(Privacy, String)>,
     pub modules: Vec<Module>,
+    pub tray: Vec<TrayIcon>,
+    /// The page of a tray item's menu while one is open, at page `tray/<key>`.
+    pub tray_menu: Option<Module>,
     /// Notification Centre, in Control Centre's place.
     pub centre: Option<super::centre::CentreFrame>,
     /// The height the body is laid out at under the pill's row: the shape's settled height,
@@ -95,11 +117,31 @@ pub enum PanelAction {
     Activity { kind: String, action: String },
     /// The page's foot: the module's Settings pane.
     Settings(String),
+    /// A tray item pressed.
+    Tray { key: String, press: TrayPress },
+    /// A tray item dragged onto another's place, which counts only with Cmd held.
+    TrayMove { key: String, to: usize },
 }
 
 const LEADER_ROW: f32 = 56.0;
 const NOTICE_ROW: f32 = 64.0;
 const INHIBIT_ROW: f32 = 56.0;
+const TRAY_CELL: f32 = 36.0;
+const TRAY_ICON: f32 = 20.0;
+
+/// Tray items to a row, in the card's width.
+fn tray_columns(theme: &Theme) -> usize {
+    let t = &theme.tokens;
+    ((t.size_panel - 4.0 * t.space_s) / TRAY_CELL).floor().max(1.0) as usize
+}
+
+fn tray_height(theme: &Theme, tray: &[TrayIcon]) -> f32 {
+    if tray.is_empty() {
+        return 0.0;
+    }
+    let rows = tray.len().div_ceil(tray_columns(theme));
+    rows as f32 * TRAY_CELL + 2.0 * theme.tokens.space_s
+}
 
 fn grid_height(theme: &Theme, modules: &[Module]) -> f32 {
     let t = &theme.tokens;
@@ -127,6 +169,9 @@ fn now_height(panel: &PanelFrame) -> f32 {
 /// The module whose page is open.
 fn page_module(panel: &PanelFrame) -> Option<&Module> {
     let id = panel.page.as_deref()?.split('/').next()?;
+    if id == "tray" {
+        return panel.tray_menu.as_ref();
+    }
     panel.modules.iter().find(|m| m.id == id)
 }
 
@@ -145,7 +190,8 @@ pub fn body_height(theme: &Theme, panel: &PanelFrame) -> f32 {
     match page_module(panel) {
         Some(module) => {
             let rows = rows_height(theme, module.page.as_deref().unwrap_or(&[]));
-            t.size_module_cell_height + pad + rows + 2.0 * pad + t.size_row
+            let foot = if module.pane.is_empty() { 0.0 } else { pad + t.size_row };
+            t.size_module_cell_height + pad + rows + pad + foot
         }
         None => {
             let now = now_height(panel);
@@ -156,6 +202,10 @@ pub fn body_height(theme: &Theme, panel: &PanelFrame) -> f32 {
             }
             if grid > 0.0 {
                 h += grid + pad;
+            }
+            let tray = tray_height(theme, &panel.tray);
+            if tray > 0.0 {
+                h += tray + pad;
             }
             h + t.size_row
         }
@@ -336,16 +386,18 @@ impl Component for PanelBody {
                         }),
                     ),
                 )
-                .child(
-                    rect().height(Size::px(t.size_row)).horizontal().child(
-                        Button::new(format!("{pane} Settings…"))
-                            .kind(Kind::Plain)
-                            .small()
-                            .on_press(move |_| {
-                                send(&settings, PanelAction::Settings(pane.clone()))
-                            }),
-                    ),
-                )
+                .maybe(!pane.is_empty(), |el| {
+                    el.child(
+                        rect().height(Size::px(t.size_row)).horizontal().child(
+                            Button::new(format!("{pane} Settings…"))
+                                .kind(Kind::Plain)
+                                .small()
+                                .on_press(move |_| {
+                                    send(&settings, PanelAction::Settings(pane.clone()))
+                                }),
+                        ),
+                    )
+                })
                 .into_element();
         }
 
@@ -416,6 +468,11 @@ impl Component for PanelBody {
                         .height(Size::px(grid_height(&theme, &panel.modules)))
                         .children(tiles),
                 )
+            })
+            .maybe(!panel.tray.is_empty(), |el| {
+                el.child(TrayRow {
+                    icons: panel.tray.clone(),
+                })
             });
         rect()
             .width(Size::fill())
@@ -446,6 +503,150 @@ impl Component for PanelBody {
                     ),
             )
             .into_element()
+    }
+}
+
+/// The tray: other programs' items in the user's order, a press passed to the item and a
+/// drag onto another item's place reordering them.
+#[derive(PartialEq)]
+struct TrayRow {
+    icons: Vec<TrayIcon>,
+}
+
+impl Component for TrayRow {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let dragging = use_state(|| None::<String>);
+        let columns = tray_columns(&theme);
+        let rows = self.icons.chunks(columns).enumerate().map(|(r, chunk)| {
+            rect()
+                .height(Size::px(TRAY_CELL))
+                .horizontal()
+                .children(chunk.iter().enumerate().map(|(c, icon)| {
+                    TrayCell {
+                        icon: icon.clone(),
+                        index: r * columns + c,
+                        dragging,
+                    }
+                    .into_element()
+                }))
+                .into_element()
+        });
+        rect()
+            .width(Size::fill())
+            .padding(t.space_s)
+            .corner_radius(t.radius_card)
+            .background(colour(t.colour_fill))
+            .children(rows)
+    }
+}
+
+#[derive(PartialEq)]
+struct TrayCell {
+    icon: TrayIcon,
+    index: usize,
+    dragging: State<Option<String>>,
+}
+
+impl Component for TrayCell {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let actions = Actions::get();
+        let a11y = use_a11y();
+        let focus = use_focus(a11y);
+        let mut hover = use_state(|| false);
+        let mut dragging = self.dragging;
+        let key = self.icon.key.clone();
+        let index = self.index;
+        let press = {
+            let (actions, key) = (actions.clone(), key.clone());
+            move |press: TrayPress| {
+                send(
+                    &actions,
+                    PanelAction::Tray {
+                        key: key.clone(),
+                        press,
+                    },
+                )
+            }
+        };
+        let (down, up, wheel, keyed) = (press.clone(), press.clone(), press.clone(), press);
+        let mut moved = {
+            let actions = actions.clone();
+            move || {
+                let from = dragging.peek().clone();
+                dragging.set(None);
+                match from {
+                    Some(from) if from != key => {
+                        send(&actions, PanelAction::TrayMove { key: from, to: index });
+                        true
+                    }
+                    _ => false,
+                }
+            }
+        };
+        let drag_key = self.icon.key.clone();
+        rect()
+            .width(Size::px(TRAY_CELL))
+            .height(Size::px(TRAY_CELL))
+            .corner_radius(t.radius_control)
+            .background(colour(if *hover.read() {
+                t.colour_fill_strong
+            } else {
+                t.colour_fill
+            }))
+            .center()
+            .a11y_id(a11y)
+            .a11y_focusable(true)
+            .a11y_role(AccessibilityRole::Button)
+            .a11y_alt(self.icon.title.clone())
+            .on_pointer_enter(move |_| hover.set(true))
+            .on_pointer_leave(move |_| hover.set(false))
+            .on_mouse_down(move |e: Event<MouseEventData>| {
+                e.stop_propagation();
+                match e.button {
+                    Some(MouseButton::Left) => dragging.set(Some(drag_key.clone())),
+                    Some(MouseButton::Right) => down(TrayPress::Secondary),
+                    Some(MouseButton::Middle) => down(TrayPress::Middle),
+                    _ => {}
+                }
+            })
+            .on_mouse_up(move |e: Event<MouseEventData>| {
+                if e.button == Some(MouseButton::Left) && !moved() {
+                    up(TrayPress::Primary);
+                }
+            })
+            .on_wheel(move |e: Event<WheelEventData>| {
+                let steps = e.delta_y.signum() as i32;
+                if steps != 0 {
+                    wheel(TrayPress::Scroll(-steps));
+                }
+            })
+            .on_key_down(move |e: Event<KeyboardEventData>| match &e.key {
+                Key::Named(NamedKey::Enter) => keyed(TrayPress::Primary),
+                Key::Character(c) if c == " " => keyed(TrayPress::Primary),
+                Key::Named(NamedKey::ContextMenu) => keyed(TrayPress::Secondary),
+                _ => {}
+            })
+            .maybe(focus() == Focus::Keyboard, |el| {
+                el.border(focus_ring(&theme))
+            })
+            .child(match &self.icon.icon {
+                Some(path) => isle_ui::AppIcon::new(path.clone(), TRAY_ICON).into_element(),
+                None => Glyph::new("app-window", TRAY_ICON, colour(t.colour_text)).into_element(),
+            })
+            .maybe(self.icon.attention, |el| {
+                el.child(
+                    rect()
+                        .position(Position::new_absolute().right(5.).top(5.))
+                        .width(Size::px(7.))
+                        .height(Size::px(7.))
+                        .corner_radius(3.5)
+                        .background(colour(t.colour_accent)),
+                )
+            })
     }
 }
 

@@ -156,9 +156,13 @@ impl Isle {
             "modules": frame.modules.iter().map(|m| serde_json::json!({
                 "id": m.id, "name": m.name, "state": m.state, "on": m.on, "glyph": m.glyph,
             })).collect::<Vec<_>>(),
+            "tray": frame.tray.iter().map(|t| serde_json::json!({
+                "key": t.key, "title": t.title, "icon": t.icon, "attention": t.attention,
+            })).collect::<Vec<_>>(),
             "rows": frame
                 .modules
                 .iter()
+                .chain(frame.tray_menu.as_ref())
                 .find(|m| Some(m.id.as_str()) == page)
                 .and_then(|m| m.page.as_deref())
                 .map(rows),
@@ -224,6 +228,8 @@ impl Isle {
             activities,
             privacy,
             modules,
+            tray: self.tray_icons(),
+            tray_menu: state.page.as_deref().and_then(|p| self.tray_menu_module(p)),
             centre: None,
             body: 0.0,
         }
@@ -335,8 +341,12 @@ impl State {
                 );
             }
             PanelAction::Page(page) => {
+                // Back from an item's menu is the grid; the tray has no page of its own.
+                let page = page.filter(|p| p != "tray");
                 self.isle.island.panel = Some(crate::control_centre::PanelState { page, ..panel });
             }
+            PanelAction::Tray { .. } | PanelAction::TrayMove { .. } => self.tray_action(action),
+            PanelAction::Choose { ref module, .. } if module == "tray" => self.tray_action(action),
             PanelAction::Choose { module, row } if module == "keyboard-layout" => {
                 if let Ok(index) = row.parse::<u32>() {
                     let keyboard = self.isle.seat.get_keyboard().unwrap();
@@ -416,6 +426,21 @@ impl State {
                 row: s(1),
                 value: args[2].as_f64().ok_or("a value")? as f32,
             },
+            "tray" => PanelAction::Tray {
+                key: s(0),
+                press: match s(1).as_str() {
+                    "primary" => isle_shell::island::panel::TrayPress::Primary,
+                    "secondary" => isle_shell::island::panel::TrayPress::Secondary,
+                    "middle" => isle_shell::island::panel::TrayPress::Middle,
+                    _ => isle_shell::island::panel::TrayPress::Scroll(
+                        args[2].as_i64().unwrap_or(1) as i32,
+                    ),
+                },
+            },
+            "tray-move" => {
+                self.tray_reorder(&s(0), args[1].as_u64().ok_or("a place")? as usize);
+                return Ok(());
+            }
             "switch" => PanelAction::Switch {
                 module: s(0),
                 row: s(1),

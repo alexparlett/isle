@@ -31,6 +31,7 @@ isle-settings-derive = { path = "crates/isle-settings-derive" }
 isle-state = { path = "crates/isle-state" }
 isle-shell = { path = "crates/isle-shell" }
 isle-tokens = { path = "crates/isle-tokens" }
+isle-tray = { path = "crates/isle-tray" }
 isle-ui = { path = "crates/isle-ui" }
 
 # The fork (B7); `.cargo/config.toml`, git-ignored, may patch it to a local checkout.

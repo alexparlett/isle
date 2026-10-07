@@ -460,6 +460,9 @@ pub mod test {
         fn banner(&self, json: &str) -> zbus::Result<()>;
         /// Gives an output a backlight named `test`, set through logind.
         fn fake_screen(&self, connector: &str, current: u32, max: u32) -> zbus::Result<()>;
+
+        /// Drops the tray's watcher as a crash would.
+        fn tray_kill(&self) -> zbus::Result<()>;
         /// Holds the main loop for `millis`, from its next dispatch.
         fn stall(&self, millis: u32) -> zbus::Result<()>;
         /// A key by its evdev code, from a test keyboard with the Mac profile.

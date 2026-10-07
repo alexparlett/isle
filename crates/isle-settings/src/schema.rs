@@ -644,6 +644,8 @@ pub struct ControlCentre {
         "keyboard-layout:m",
     ].map(String::from).to_vec())]
     pub modules: Vec<String>,
+    /// Tray items in order by their id; items not named follow in the order they came.
+    pub tray: Vec<String>,
 }
 
 /// The shell's screens.

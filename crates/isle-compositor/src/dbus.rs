@@ -768,6 +768,18 @@ impl Test {
         Ok(self.to_loop.call(|state| state.banners_status()).await?)
     }
 
+    /// Drops the tray's watcher as a crash would; it owns its name again by itself.
+    async fn tray_kill(&self) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                if let Some(kill) = &state.isle.services.tray_kill {
+                    kill.notify_one();
+                }
+            })
+            .await?)
+    }
+
     /// Gives an output a backlight named `test` at `current` of `max`, set through logind.
     async fn fake_screen(&self, connector: String, current: u32, max: u32) -> fdo::Result<()> {
         Ok(self

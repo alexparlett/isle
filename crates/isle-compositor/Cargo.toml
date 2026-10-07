@@ -46,6 +46,7 @@ isle-keys.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true
 isle-shell.workspace = true
+isle-tray.workspace = true
 isle-tokens.workspace = true
 isle-ui.workspace = true
 isle-state.workspace = true

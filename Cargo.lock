@@ -2644,6 +2644,7 @@ dependencies = [
  "isle-shell",
  "isle-state",
  "isle-tokens",
+ "isle-tray",
  "isle-ui",
  "jiff",
  "libc",
@@ -2850,6 +2851,19 @@ name = "isle-tokens"
 version = "0.1.0"
 dependencies = [
  "kdl",
+]
+
+[[package]]
+name = "isle-tray"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "isle-bus",
+ "png 0.17.16",
+ "serde",
+ "tokio",
+ "tracing",
+ "zbus",
 ]
 
 [[package]]

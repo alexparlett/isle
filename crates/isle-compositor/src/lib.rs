@@ -212,6 +212,17 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(err) => warn!("no notification server: {err}"),
     }
+    // Apps look for the watcher once at start, as for the registrar.
+    let tray = runtime.block_on(async {
+        let conn = zbus::Connection::session().await?;
+        let owned = isle_tray::own(&conn).await?;
+        Ok::<_, isle_bus::Error>(owned.ok().map(|host| (conn, host)))
+    });
+    let tray = tray.unwrap_or_else(|err| {
+        warn!("no tray watcher: {err}");
+        None
+    });
+    state.isle.services.tray_kill = Some(services::tray::start(&runtime, &to_loop, tray));
     report_ready(&state.isle.socket_name, display);
 
     event_loop.run(None, &mut state, |state| {

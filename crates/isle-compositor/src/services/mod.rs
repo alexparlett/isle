@@ -9,6 +9,7 @@ pub mod login;
 pub mod media;
 pub mod network;
 pub mod power;
+pub mod tray;
 
 use std::{collections::BTreeMap, error::Error, time::Duration};
 
@@ -60,6 +61,11 @@ pub struct Services {
     /// The last failed action of a module or row, by `module` or `module/row`, shown in its
     /// place until the next action there.
     pub errors: std::collections::HashMap<String, String>,
+    pub tray: Snapshot<isle_tray::Tray>,
+    pub tray_menu: Option<tray::TrayMenu>,
+    pub tray_icons: std::cell::RefCell<Option<(bool, isle_apps::icons::Icons)>>,
+    /// Drops the tray's watcher as a crash would.
+    pub tray_kill: Option<std::sync::Arc<tokio::sync::Notify>>,
     /// Snapshots taken in, by service.
     pub applied: BTreeMap<&'static str, u64>,
 }
@@ -81,6 +87,7 @@ impl Services {
             "bluetooth": entry(&self.bluetooth, applied("bluetooth")),
             "media": entry(&self.media, applied("media")),
             "disks": entry(&self.disks, applied("disks")),
+            "tray": entry(&self.tray, applied("tray")),
         })
         .to_string()
     }
@@ -176,6 +183,7 @@ impl State {
         self.follow_scan();
         self.follow_discovery();
         self.follow_media_clock();
+        self.follow_tray_menu();
     }
 }
 
@@ -206,6 +214,10 @@ impl Default for Services {
             scan: None,
             last_vpn: None,
             expanded: Default::default(),
+            tray: Default::default(),
+            tray_menu: None,
+            tray_icons: Default::default(),
+            tray_kill: None,
             applied: Default::default(),
         }
     }

@@ -35,6 +35,7 @@ serde.workspace = true
 serde_json.workspace = true
 isle-apps.workspace = true
 isle-bus.workspace = true
+isle-power.workspace = true
 isle-games.workspace = true
 isle-keys.workspace = true
 isle-ipc.workspace = true

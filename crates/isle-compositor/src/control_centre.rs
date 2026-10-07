@@ -84,9 +84,52 @@ impl Isle {
                     pane: "Keyboard".into(),
                 })
             }
-            // The rest come with their services (P8).
+            "energy-mode" => self.energy_module(size),
+            "batteries" => self.batteries_module(size),
             _ => None,
         }
+    }
+
+    /// Control Centre as JSON: how it is open, its modules' states and the open page's rows.
+    pub fn panel_status(&self, state: &PanelState) -> serde_json::Value {
+        use isle_shell::island::rows::PageRow;
+        fn rows(list: &[PageRow]) -> Vec<serde_json::Value> {
+            list.iter()
+                .map(|row| match row {
+                    PageRow::Heading(label) => serde_json::json!({ "heading": label }),
+                    PageRow::Status(line) => serde_json::json!({ "status": line }),
+                    PageRow::Choice(c) => serde_json::json!({
+                        "id": c.id, "label": c.label, "detail": c.detail, "checked": c.checked,
+                        "busy": c.busy, "error": c.error, "battery": c.battery,
+                        "enabled": c.enabled,
+                    }),
+                    PageRow::Slider(r) => serde_json::json!({
+                        "id": r.id, "label": r.label, "value": r.value, "muted": r.muted,
+                    }),
+                    PageRow::Switch { id, label, on, .. } => {
+                        serde_json::json!({ "id": id, "label": label, "on": on })
+                    }
+                    PageRow::Group { id, label, open, rows: inner } => serde_json::json!({
+                        "id": id, "label": label, "open": open, "rows": rows(inner),
+                    }),
+                })
+                .collect()
+        }
+        let frame = self.panel_frame(state);
+        let page = state.page.as_deref().and_then(|p| p.split('/').next());
+        serde_json::json!({
+            "pinned": state.pinned,
+            "page": state.page,
+            "modules": frame.modules.iter().map(|m| serde_json::json!({
+                "id": m.id, "name": m.name, "state": m.state, "on": m.on, "glyph": m.glyph,
+            })).collect::<Vec<_>>(),
+            "rows": frame
+                .modules
+                .iter()
+                .find(|m| Some(m.id.as_str()) == page)
+                .and_then(|m| m.page.as_deref())
+                .map(rows),
+        })
     }
 
     /// Control Centre's content for its output.
@@ -251,10 +294,43 @@ impl State {
                     self.island_layout();
                 }
             }
+            PanelAction::Choose { module, row } if module == "energy-mode" => {
+                self.energy_choose(row)
+            }
             PanelAction::Notice(id) => self.notice_action(&id),
             other => info!(?other, "not built yet"),
         }
         self.isle.refresh_island();
+    }
+
+    /// A Control Centre action from the Test interface's JSON.
+    #[cfg(feature = "test-hooks")]
+    pub fn panel_test_action(&mut self, json: &str) -> Result<(), String> {
+        let value: serde_json::Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
+        let (key, args) = value
+            .as_object()
+            .and_then(|o| o.iter().next())
+            .ok_or("one key")?;
+        let s = |i: usize| args[i].as_str().unwrap_or_default().to_owned();
+        let action = match key.as_str() {
+            "page" => PanelAction::Page(args.as_str().map(str::to_owned)),
+            "toggle" => PanelAction::Toggle(args.as_str().unwrap_or_default().into()),
+            "choose" => PanelAction::Choose { module: s(0), row: s(1) },
+            "expand" => PanelAction::Expand { module: s(0), row: s(1) },
+            "slide" => PanelAction::Slide {
+                module: s(0),
+                row: s(1),
+                value: args[2].as_f64().ok_or("a value")? as f32,
+            },
+            "switch" => PanelAction::Switch {
+                module: s(0),
+                row: s(1),
+                on: args[2].as_bool().ok_or("on or off")?,
+            },
+            other => return Err(format!("no action {other}")),
+        };
+        self.panel_action(action);
+        Ok(())
     }
 
     fn notice_action(&mut self, id: &str) {

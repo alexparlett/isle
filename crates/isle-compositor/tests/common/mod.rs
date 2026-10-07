@@ -444,3 +444,75 @@ impl Isle {
         test.button(272, false).await.unwrap();
     }
 }
+
+/// Control Centre, read and driven through the island's status and `Test1.Panel`.
+impl Isle {
+    /// The first output's island as `Island1.Status` gives it.
+    pub async fn island_output(&self) -> serde_json::Value {
+        let text = isle_ipc::island::IslandProxy::new(&self.bus)
+            .await
+            .unwrap()
+            .status()
+            .await
+            .unwrap();
+        serde_json::from_str::<serde_json::Value>(&text).unwrap()["outputs"][0].clone()
+    }
+
+    /// Opens Control Centre pinned, at `page` when given.
+    pub async fn open_panel(&self, page: Option<&str>) {
+        if self.island_output().await["panel"].is_null() {
+            self.chord(&[29, 66]).await;
+            wait_until(|| async { !self.island_output().await["panel"].is_null() }).await;
+        }
+        if let Some(page) = page {
+            self.panel(serde_json::json!({ "page": page })).await;
+            wait_until(|| async { self.island_output().await["panel"]["page"] == page }).await;
+        }
+    }
+
+    pub async fn panel(&self, action: serde_json::Value) {
+        self.test().await.panel(&action.to_string()).await.unwrap();
+    }
+
+    /// A module of the open panel, or Null when it is not in the grid.
+    pub async fn module(&self, id: &str) -> serde_json::Value {
+        self.island_output().await["panel"]["modules"]
+            .as_array()
+            .and_then(|m| m.iter().find(|m| m["id"] == id).cloned())
+            .unwrap_or_default()
+    }
+
+    /// The open page's rows.
+    pub async fn rows(&self) -> Vec<serde_json::Value> {
+        self.island_output().await["panel"]["rows"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// The glyphs the first output's pill shows, by name.
+    pub async fn glyphs(&self) -> Vec<String> {
+        self.island_output().await["glyphs"]
+            .as_array()
+            .map(|g| {
+                g.iter()
+                    .filter_map(|g| g.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
+
+impl Isle {
+    /// The power service has reported once.
+    pub async fn module_state_ready(&self) -> bool {
+        let text = isle_ipc::services::ServicesProxy::new(&self.bus)
+            .await
+            .unwrap()
+            .status()
+            .await
+            .unwrap();
+        let status: serde_json::Value = serde_json::from_str(&text).unwrap();
+        status["power"]["available"] == true
+    }
+}

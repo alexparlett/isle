@@ -2,6 +2,15 @@
 
 ## 2026-10-07
 
+- P8 8.1: power. `isle-power` reads UPower's batteries (the machine's and
+  peripherals' by kind, coarse levels included) and power-profiles-daemon's
+  profiles and holds; `isle-bus` gains whole-object property reads and a
+  follow loop that re-reads a small daemon after any of its signals. The
+  Battery glyph shows on battery or when any battery is low; Energy Mode and
+  Batteries modules with their pages; a user's choice of profile ends a
+  hold. `Test1.Panel` drives Control Centre, and the island's status lists
+  its modules and the open page's rows.
+
 - P8 8.0: foundations. `isle-bus` (the buses, a daemon's name followed,
   snapshots, listeners); a private system bus in the test harness with
   `isle-fakes`' logind; services reach the loop as snapshots, a burst's last

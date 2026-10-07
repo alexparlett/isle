@@ -450,6 +450,8 @@ pub mod test {
     pub trait Test {
         /// Posts to the island as a service would, from JSON.
         fn island(&self, json: &str) -> zbus::Result<()>;
+        /// Acts on Control Centre as its controls would.
+        fn panel(&self, json: &str) -> zbus::Result<()>;
         /// Holds the main loop for `millis`, from its next dispatch.
         fn stall(&self, millis: u32) -> zbus::Result<()>;
         /// A key by its evdev code, from a test keyboard with the Mac profile.

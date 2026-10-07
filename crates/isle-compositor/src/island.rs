@@ -687,6 +687,7 @@ impl State {
                     let page = match kind {
                         isle_shell::island::model::GlyphKind::Inhibited
                         | isle_shell::island::model::GlyphKind::ConfigError => None,
+                        isle_shell::island::model::GlyphKind::Battery => Some("batteries".into()),
                         other => Some(other.name().to_owned()),
                     };
                     self.open_control_centre(&output, true, page);
@@ -855,7 +856,7 @@ impl Isle {
                     "target": morph.map(|m| m.target()),
                     "open": self.shell.is_open_on("island", o),
                     "panel": self.island.panel.as_ref().filter(|p| p.output == name).map(|p| {
-                        serde_json::json!({ "pinned": p.pinned, "page": p.page })
+                        self.panel_status(p)
                     }),
                 })
             })

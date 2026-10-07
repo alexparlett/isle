@@ -677,6 +677,16 @@ impl Test {
             .map_err(fdo::Error::InvalidArgs)
     }
 
+    /// Acts on Control Centre as its controls would: `{"page": "id"}`, `{"toggle": "id"}`,
+    /// `{"choose": [module, row]}`, `{"slide": [module, row, value]}`,
+    /// `{"switch": [module, row, on]}`, `{"expand": [module, row]}`.
+    async fn panel(&self, json: String) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| state.panel_test_action(&json))
+            .await?
+            .map_err(fdo::Error::InvalidArgs)
+    }
+
     fn stall(&self, millis: u32) {
         self.to_loop.post(move |state| {
             let _beat = state.isle.heartbeat.beat("test-stall");

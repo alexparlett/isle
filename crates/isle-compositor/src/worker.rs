@@ -119,19 +119,10 @@ pub fn spawn(
             runtime.spawn(supervise("apps-watch", move || {
                 crate::wm::watch_apps(loop_a.clone())
             }));
-            let (login, logins) = isle_bus::snapshot();
-            runtime.spawn(supervise("login", move || {
-                crate::services::login::watch(login.clone())
-            }));
-            let loop_l = to_loop.clone();
-            runtime.spawn(supervise("login-forward", move || {
-                crate::services::forward(
-                    "login",
-                    logins.clone(),
-                    loop_l.clone(),
-                    State::login_changed,
-                )
-            }));
+            use crate::services::start;
+            start(&runtime, &to_loop, "login", crate::services::login::watch, State::login_changed);
+            start(&runtime, &to_loop, "power", isle_power::watch_batteries, State::power_changed);
+            start(&runtime, &to_loop, "profiles", isle_power::watch_profiles, State::profiles_changed);
             runtime.block_on(supervise("dbus", move || {
                 crate::dbus::serve(to_loop.clone(), events.clone(), store.clone())
             }));
@@ -141,7 +132,7 @@ pub fn spawn(
 }
 
 /// Runs a service, restarting it with a backoff when it fails or panics.
-async fn supervise<F, Fut>(name: &'static str, mut start: F)
+pub async fn supervise<F, Fut>(name: &'static str, mut start: F)
 where
     F: FnMut() -> Fut,
     Fut: Future<Output = Result<(), Box<dyn Error + Send + Sync>>> + Send + 'static,

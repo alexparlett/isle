@@ -129,18 +129,24 @@ impl Component for Notice {
                         list.into_iter().fold(el, |el, s| el.shadow(s))
                     })
                     .child(Glass::new(radius))
-                    .padding((0., t.space_m))
-                    .horizontal()
-                    .cross_align(Alignment::Center)
-                    .spacing(t.space_s)
                     .a11y_role(AccessibilityRole::Alert)
-                    .child(Glyph::new("isle-keyboard-slash", t.size_glyph, ink))
-                    .child(text::line(
-                        &theme,
-                        text::Style::Callout,
-                        ink,
-                        format!("{app} is receiving all keyboard shortcuts. Press {chord} to take them back."),
-                    )),
+                    // Padded inside, so the glass fills the whole capsule.
+                    .child(
+                        rect()
+                            .width(Size::fill())
+                            .height(Size::fill())
+                            .padding((0., t.space_m))
+                            .horizontal()
+                            .cross_align(Alignment::Center)
+                            .spacing(t.space_s)
+                            .child(Glyph::new("isle-keyboard-slash", t.size_glyph, ink))
+                            .child(text::line(
+                                &theme,
+                                text::Style::Callout,
+                                ink,
+                                format!("{app} is receiving all keyboard shortcuts. Press {chord} to take them back."),
+                            )),
+                    ),
             )
     }
 }

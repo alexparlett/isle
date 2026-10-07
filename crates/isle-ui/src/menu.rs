@@ -596,7 +596,6 @@ impl Component for Menu {
             rect()
                 .width(Size::px(panel_width(&theme, entries, pad)))
                 .height(Size::px(height))
-                .padding(pad)
                 .corner_radius(t.radius_card)
                 .background(fill)
                 .map(Some(shadows(&t.shadow_menu)), |el, list| {
@@ -604,7 +603,14 @@ impl Component for Menu {
                 })
                 .maybe(!solid, |el| el.child(crate::Glass::new(t.radius_card)))
                 .a11y_role(AccessibilityRole::Menu)
-                .children(rows)
+                // Padded inside, so the glass fills the whole panel.
+                .child(
+                    rect()
+                        .width(Size::fill())
+                        .height(Size::fill())
+                        .padding(pad)
+                        .children(rows),
+                )
                 .into_element()
         });
 

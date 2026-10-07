@@ -129,6 +129,7 @@ impl Component for Hit {
 
 /// Glass behind its parent's content: it fills the parent, draws nothing itself, and reports
 /// its box so the compositor blurs what lies behind it and tints it (DESIGN.md, Materials).
+/// It fills the parent inside its padding, so a padded shape pads a child instead.
 #[derive(Clone, PartialEq)]
 pub struct Glass {
     pub radius: f32,

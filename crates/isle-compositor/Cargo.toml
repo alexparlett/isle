@@ -58,6 +58,7 @@ smithay.workspace = true
 isle-media.workspace = true
 isle-menus.workspace = true
 isle-network.workspace = true
+isle-notifications.workspace = true
 wayland-server.workspace = true
 wayland-backend.workspace = true
 wayland-scanner.workspace = true

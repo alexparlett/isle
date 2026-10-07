@@ -18,6 +18,7 @@ pub const WALLPAPER_PATH: &str = "/io/github/alexparlett/Isle/Wallpaper";
 pub const ISLAND_PATH: &str = "/io/github/alexparlett/Isle/Island";
 pub const MENUS_PATH: &str = "/io/github/alexparlett/Isle/Menus";
 pub const SERVICES_PATH: &str = "/io/github/alexparlett/Isle/Services";
+pub const NOTIFICATIONS_PATH: &str = "/io/github/alexparlett/Isle/Notifications";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -583,5 +584,27 @@ pub mod services {
     pub trait Services {
         /// Each system service as JSON: whether its daemon answers, and its state.
         fn status(&self) -> zbus::Result<String>;
+    }
+}
+
+pub mod notifications {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Notifications1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Notifications"
+    )]
+    pub trait Notifications {
+        /// Every notification Isle holds, live and recorded, as JSON.
+        fn list(&self) -> zbus::Result<String>;
+        /// Closes one, as its close control does; false when there is none.
+        fn close(&self, id: u32) -> zbus::Result<bool>;
+        /// Runs one's action, `default` being its click.
+        fn invoke(&self, id: u32, key: &str) -> zbus::Result<bool>;
+        fn reply(&self, id: u32, text: &str) -> zbus::Result<bool>;
+        fn clear(&self) -> zbus::Result<()>;
+        #[zbus(signal)]
+        fn changed(&self) -> zbus::Result<()>;
     }
 }

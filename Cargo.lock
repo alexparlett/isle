@@ -2635,6 +2635,7 @@ dependencies = [
  "isle-media",
  "isle-menus",
  "isle-network",
+ "isle-notifications",
  "isle-power",
  "isle-settings",
  "isle-shell",
@@ -2730,6 +2731,19 @@ dependencies = [
  "isle-bus",
  "serde",
  "tokio",
+ "zbus",
+]
+
+[[package]]
+name = "isle-notifications"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "isle-bus",
+ "png 0.17.16",
+ "serde",
+ "tokio",
+ "tracing",
  "zbus",
 ]
 

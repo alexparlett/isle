@@ -21,6 +21,7 @@ pub enum Event {
     DisplaysChanged,
     DesktopsChanged,
     KeyboardsChanged,
+    NotificationsChanged,
     /// The keys whose values changed.
     SettingsChanged(Vec<String>),
     /// A hand edit was rejected, or a rejected one was fixed.

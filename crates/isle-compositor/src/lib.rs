@@ -18,6 +18,7 @@ mod control_centre;
 mod launch;
 mod menubar;
 mod menus;
+mod notifications;
 mod switcher;
 mod top_edge;
 mod osd;
@@ -182,6 +183,27 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
             state.isle.menus.taken = Some(owner);
         }
         Err(err) => warn!("no menu registrar: {err}"),
+    }
+    // Apps that notify at start find a server, as they find the registrar.
+    let first_id = state.isle.load_notifications(&runtime);
+    let served = runtime.block_on(async {
+        let conn = zbus::Connection::session().await?;
+        let loop_n = to_loop.clone();
+        let served = isle_notifications::serve(&conn, first_id, move |incoming| {
+            loop_n.post(move |state| state.notification_incoming(incoming));
+        })
+        .await?;
+        Ok::<_, isle_bus::Error>((conn, served))
+    });
+    match served {
+        Ok((conn, Ok(handle))) => {
+            state.isle.notifications.server = Some(handle);
+            std::mem::forget(conn);
+        }
+        Ok((_, Err(isle_notifications::Taken))) => {
+            warn!("another program serves notifications; Isle's banners will be empty")
+        }
+        Err(err) => warn!("no notification server: {err}"),
     }
     report_ready(&state.isle.socket_name, display);
 

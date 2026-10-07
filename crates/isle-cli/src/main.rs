@@ -49,6 +49,9 @@ enum Command {
     Menus(Menus),
     /// The system services: whether each daemon answers, and what Isle knows of it.
     Services,
+    /// Notifications Isle holds: list them, close one, or clear them all.
+    #[command(subcommand)]
+    Notify(Notify),
     #[command(subcommand)]
     Shortcuts(Shortcuts),
     #[command(subcommand)]
@@ -176,6 +179,16 @@ enum Menus {
     Show { id: u64 },
     /// The front app's menu items that match, with their paths.
     Search { query: String },
+}
+
+#[derive(Subcommand)]
+enum Notify {
+    /// Every notification, live and recorded.
+    List,
+    /// Closes one by its id.
+    Close { id: u32 },
+    /// Clears every one.
+    Clear,
 }
 
 #[derive(Subcommand)]
@@ -576,6 +589,34 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                         service["state"]
                     );
                 }
+            }
+        }
+        Command::Notify(command) => {
+            let proxy = isle_ipc::notifications::NotificationsProxy::new(&bus).await?;
+            match command {
+                Notify::List => {
+                    let list: serde_json::Value = serde_json::from_str(&proxy.list().await?)
+                        .map_err(|e| zbus::Error::Failure(e.to_string()))?;
+                    if cli.json {
+                        println!("{list}");
+                    } else {
+                        for e in list["entries"].as_array().into_iter().flatten() {
+                            println!(
+                                "{:>5} {:<8} {}: {}",
+                                e["id"],
+                                if e["live"] == true { "live" } else { "record" },
+                                e["app"].as_str().unwrap_or_default(),
+                                e["summary"].as_str().unwrap_or_default()
+                            );
+                        }
+                    }
+                }
+                Notify::Close { id } => {
+                    if !proxy.close(*id).await? {
+                        return Err(zbus::Error::Failure(format!("no notification {id}")));
+                    }
+                }
+                Notify::Clear => proxy.clear().await?,
             }
         }
         Command::Island(Island::Status) => {

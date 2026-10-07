@@ -2,6 +2,19 @@
 
 ## 2026-10-07
 
+- P8 8.7: the notification server. `isle-notifications` serves
+  `org.freedesktop.Notifications` (spec 1.3 with `inline-reply`,
+  `NotificationReplied`, `ActivationToken` and `Inhibited`), owned before the
+  compositor announces its socket; hints read leniently, pictures sent as
+  pixels written out as PNGs and files copied into the cache at arrival.
+  Each arrival is decided once on the loop (transient, muted, low, held, else
+  a banner) against what holds banners; a replacement keeps its id; an app's
+  close or its leaving the bus makes a record, the user's close or action
+  removes it; actions send an activation token first, which brings the app
+  forward. Records persist in the `notifications` state domain, 300 kept,
+  transient ones never. `Notifications1` and `isle notify list|close|clear`;
+  the test client notifies and prints the server's signals.
+
 - P8 8.6: media. `isle-media` follows every MPRIS player, the most recently
   playing first, its position run on from when it was read, and fetches a
   track's art (`file://`, `data:`, HTTPS capped at 2 MB and 5 s) into the

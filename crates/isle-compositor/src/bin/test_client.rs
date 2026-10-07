@@ -11,7 +11,10 @@
 //! `pings ignore|answer` (answering those ignored so far), `inhibit` (hold a keyboard
 //! shortcuts inhibitor, printing `inhibitor active|inactive`), `linger` (a close of the
 //! first window destroys it but leaves the process running), `badge count=N progress=F
-//! urgent=B` (a LauncherEntry Update for the app id's entry; any of the three),
+//! urgent=B` (a LauncherEntry Update for the app id's entry; any of the three), `notify
+//! key=value...` (summary, body, icon, actions=key:Label,..., urgency, transient,
+//! resident, desktop-entry, image, replaces, timeout; underscores read as spaces),
+//! `close-notification ID`, `use-token TOKEN` (an activation with a token it was sent),
 //! `drag-on-press` (the next press starts a drag of text with a magenta icon; drags print
 //! `dnd enter`, `dnd drop`, and to the source `dnd finished` or `dnd cancelled`), `quit`. A
 //! close of any other window destroys it.
@@ -103,6 +106,8 @@ struct Client {
     drag_on_press: bool,
     /// The bus `badge` sends on, kept so the sender stays until the client exits.
     launcher: Option<(tokio::runtime::Runtime, zbus::Connection)>,
+    /// The server's signals are being printed.
+    listening: bool,
 }
 
 fn say(index: usize, line: String) {
@@ -252,6 +257,131 @@ impl Client {
         say(0, "badge sent".into());
     }
 
+    /// The session bus on a runtime of the client's own, made on first use.
+    fn bus(&mut self) -> &(tokio::runtime::Runtime, zbus::Connection) {
+        self.launcher.get_or_insert_with(|| {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            let conn = runtime.block_on(zbus::Connection::session()).unwrap();
+            (runtime, conn)
+        })
+    }
+
+    /// Sends a notification from `key=value` words, printing `notified ID`; the first also
+    /// starts printing the server's signals: `closed ID REASON`, `action ID KEY`,
+    /// `token ID TOKEN`, `replied ID TEXT`.
+    fn notify(&mut self, rest: &[&str]) {
+        if !self.listening {
+            self.listening = true;
+            std::thread::spawn(|| {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+                runtime.block_on(async {
+                    use futures_util::StreamExt;
+                    let conn = zbus::Connection::session().await.unwrap();
+                    let rule = zbus::MatchRule::builder()
+                        .msg_type(zbus::message::Type::Signal)
+                        .interface("org.freedesktop.Notifications")
+                        .unwrap()
+                        .build();
+                    let mut signals = zbus::MessageStream::for_match_rule(rule, &conn, None)
+                        .await
+                        .unwrap();
+                    while let Some(Ok(message)) = signals.next().await {
+                        let header = message.header();
+                        let member = header.member().map(|m| m.to_string()).unwrap_or_default();
+                        let body = message.body();
+                        let line = match member.as_str() {
+                            "NotificationClosed" => body
+                                .deserialize::<(u32, u32)>()
+                                .map(|(id, r)| format!("closed {id} {r}")),
+                            "ActionInvoked" => body
+                                .deserialize::<(u32, String)>()
+                                .map(|(id, k)| format!("action {id} {k}")),
+                            "ActivationToken" => body
+                                .deserialize::<(u32, String)>()
+                                .map(|(id, t)| format!("token {id} {t}")),
+                            "NotificationReplied" => body
+                                .deserialize::<(u32, String)>()
+                                .map(|(id, t)| format!("replied {id} {t}")),
+                            _ => continue,
+                        };
+                        if let Ok(line) = line {
+                            say(0, line);
+                        }
+                    }
+                });
+            });
+            // The match is in place before the first notification goes.
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+        let mut summary = "Test".to_owned();
+        let mut body = String::new();
+        let mut actions: Vec<String> = Vec::new();
+        let mut hints: std::collections::HashMap<&str, zvariant::Value> = Default::default();
+        let mut replaces = 0u32;
+        let mut timeout = -1i32;
+        let mut icon = String::new();
+        for word in rest {
+            let (key, value) = word.split_once('=').unwrap_or((word, ""));
+            let value = value.replace('_', " ");
+            match key {
+                "summary" => summary = value,
+                "body" => body = value,
+                "icon" => icon = value,
+                "actions" => {
+                    for pair in value.split(',') {
+                        let (k, l) = pair.split_once(':').unwrap_or((pair, pair));
+                        actions.extend([k.to_owned(), l.to_owned()]);
+                    }
+                }
+                "urgency" => {
+                    hints.insert("urgency", zvariant::Value::U8(value.parse().unwrap()));
+                }
+                "transient" => {
+                    hints.insert("transient", zvariant::Value::Bool(true));
+                }
+                "resident" => {
+                    hints.insert("resident", zvariant::Value::Bool(true));
+                }
+                "desktop-entry" => {
+                    hints.insert("desktop-entry", zvariant::Value::from(value));
+                }
+                "image" => {
+                    hints.insert("image-path", zvariant::Value::from(value));
+                }
+                "replaces" => replaces = value.parse().unwrap(),
+                "timeout" => timeout = value.parse().unwrap(),
+                _ => {}
+            }
+        }
+        let (runtime, conn) = self.bus();
+        let reply = runtime.block_on(conn.call_method(
+            Some("org.freedesktop.Notifications"),
+            "/org/freedesktop/Notifications",
+            Some("org.freedesktop.Notifications"),
+            "Notify",
+            &(
+                "Test Client",
+                replaces,
+                icon,
+                summary,
+                body,
+                actions,
+                hints,
+                timeout,
+            ),
+        ));
+        match reply.and_then(|m| m.body().deserialize::<u32>()) {
+            Ok(id) => say(0, format!("notified {id}")),
+            Err(err) => say(0, format!("notify failed {err}")),
+        }
+    }
+
     fn command(&mut self, line: &str, qh: &QueueHandle<Self>) {
         let (index, line) = match line.strip_prefix('w').and_then(|l| l.split_once(' ')) {
             Some((n, rest)) if n.parse::<usize>().is_ok() => (n.parse().unwrap(), rest),
@@ -375,6 +505,24 @@ impl Client {
             }
             ("linger", _) => self.linger = true,
             ("badge", _) => self.badge(&rest),
+            ("notify", _) => self.notify(&rest),
+            ("close-notification", _) => {
+                let id: u32 = rest[0].parse().unwrap();
+                let (runtime, conn) = self.bus();
+                let _ = runtime.block_on(conn.call_method(
+                    Some("org.freedesktop.Notifications"),
+                    "/org/freedesktop/Notifications",
+                    Some("org.freedesktop.Notifications"),
+                    "CloseNotification",
+                    &(id,),
+                ));
+            }
+            ("use-token", _) => {
+                if let Some(activation) = &self.activation {
+                    activation.activate(rest[0].to_owned(), &self.wins[index].surface);
+                    say(index, "used token".into());
+                }
+            }
             ("inhibit", _) => {
                 if let (Some(manager), Some(seat)) = (&self.inhibits, &self.seat) {
                     manager.inhibit_shortcuts(&self.wins[index].surface, seat, qh, ());
@@ -900,6 +1048,7 @@ fn main() {
         data_device: None,
         drag_on_press: false,
         launcher: None,
+        listening: false,
         app_id: app_id.clone(),
         started: false,
         xkb: None,

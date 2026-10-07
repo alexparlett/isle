@@ -186,6 +186,42 @@ struct ServicesIface {
     to_loop: ToLoop,
 }
 
+struct NotificationsIface {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Notifications1")]
+impl NotificationsIface {
+    async fn list(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.notifications_status()).await?)
+    }
+
+    async fn close(&self, id: u32) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.notification_close(id)).await?)
+    }
+
+    async fn invoke(&self, id: u32, key: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.notification_invoke(id, &key))
+            .await?)
+    }
+
+    async fn reply(&self, id: u32, text: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.notification_reply(id, &text))
+            .await?)
+    }
+
+    async fn clear(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.notifications_clear()).await?)
+    }
+
+    #[zbus(signal)]
+    async fn changed(emitter: &zbus::object_server::SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
 struct MenusIface {
     to_loop: ToLoop,
 }
@@ -1244,6 +1280,12 @@ pub async fn serve(
             },
         )?
         .serve_at(
+            isle_ipc::NOTIFICATIONS_PATH,
+            NotificationsIface {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
             isle_ipc::SERVICES_PATH,
             ServicesIface {
                 to_loop: to_loop.clone(),
@@ -1299,6 +1341,12 @@ pub async fn serve(
                     .interface::<_, Keyboard>(isle_ipc::KEYBOARD_PATH)
                     .await?;
                 Keyboard::changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::NotificationsChanged) => {
+                let iface = server
+                    .interface::<_, NotificationsIface>(isle_ipc::NOTIFICATIONS_PATH)
+                    .await?;
+                NotificationsIface::changed(iface.signal_emitter()).await?;
             }
             Ok(Event::DisplaysChanged) => {
                 let iface = server.interface::<_, Displays>(DISPLAYS_PATH).await?;

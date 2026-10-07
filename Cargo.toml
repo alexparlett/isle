@@ -23,6 +23,7 @@ isle-keys = { path = "crates/isle-keys" }
 isle-media = { path = "crates/isle-media" }
 isle-menus = { path = "crates/isle-menus" }
 isle-network = { path = "crates/isle-network" }
+isle-notifications = { path = "crates/isle-notifications" }
 isle-settings = { path = "crates/isle-settings" }
 isle-settings-derive = { path = "crates/isle-settings-derive" }
 isle-state = { path = "crates/isle-state" }

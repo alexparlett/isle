@@ -1,12 +1,14 @@
 //! The compositor: one calloop loop, its backends, outputs, input and shells (B9).
 
 pub mod backend;
+mod badges;
 mod binds;
 pub mod build_info;
 pub mod crash;
 mod cursor;
 mod dbus;
 mod focus;
+mod games;
 mod grabs;
 mod handlers;
 mod input;

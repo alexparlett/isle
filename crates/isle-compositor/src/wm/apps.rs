@@ -78,8 +78,11 @@ impl Isle {
         apps
     }
 
-    /// `app`'s icon at `size` points, in Papirus for the appearance in force.
+    /// `app`'s icon at `size` points, in Papirus for the appearance in force; a game's cover.
     pub fn app_icon(&self, app: &str, size: u32) -> Option<std::path::PathBuf> {
+        if let Some(cover) = self.games.for_app(app).and_then(|g| g.cover.clone()) {
+            return Some(cover);
+        }
         let name = self.apps.get(app)?.icon.clone()?;
         let dark = self.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
         let mut icons = self.icons.borrow_mut();
@@ -128,7 +131,7 @@ impl Isle {
                 let toplevels = windows.iter().filter(|r| r.parent.is_none());
                 let entry = self.badges.get(&app);
                 isle_ipc::AppInfo {
-                    name: self.apps.name(&app),
+                    name: self.app_name(&app),
                     hidden: windows.iter().any(|r| r.hidden),
                     windows: toplevels.clone().count() as u32,
                     attention: windows.iter().any(|r| r.attention)

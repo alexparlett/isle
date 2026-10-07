@@ -143,6 +143,7 @@ pub struct Isle {
     /// Apps being quit, with the processes that get the polite signal once their windows go.
     pub quitting: Vec<(String, Vec<i32>)>,
     pub processes: crate::processes::Processes,
+    pub games: std::sync::Arc<isle_games::Library>,
     /// LauncherEntry's badges and progress by desktop id.
     pub badges: std::collections::HashMap<String, isle_apps::badges::LauncherEntry>,
     /// App icon lookups, kept for the appearance they were made in.
@@ -363,6 +364,7 @@ impl Isle {
             apps: Default::default(),
             quitting: Vec::new(),
             processes: Default::default(),
+            games: Default::default(),
             badges: Default::default(),
             icons: Default::default(),
             pings: Vec::new(),
@@ -702,6 +704,9 @@ impl State {
         for record in self.isle.wm.records.iter_mut().filter(|r| Some(&r.app) == app.as_ref()) {
             record.attention = false;
             record.urgent = false;
+        }
+        if let Some(app) = &app {
+            crate::badges::calm(&mut self.isle.badges, app);
         }
         let surface = self.isle.focus_window(window);
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();

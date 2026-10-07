@@ -472,7 +472,7 @@ impl State {
             let names = xkb.layouts().map(|l| xkb.layout_name(l).to_owned()).collect();
             (names, xkb.active_layout().0 as usize)
         });
-        let inhibited = (!app.is_empty()).then(|| self.isle.apps.name(&app));
+        let inhibited = (!app.is_empty()).then(|| self.isle.app_name(&app));
         self.isle.island.model.set_glyph(
             GlyphKind::Inhibited,
             inhibited.map(|app| Glyph {
@@ -525,7 +525,7 @@ impl State {
 
     /// An app wants attention: the island's event naming it.
     pub fn island_attention(&mut self, app: String, urgent: bool) {
-        let name = self.isle.apps.name(&app);
+        let name = self.isle.app_name(&app);
         self.isle.island.model.post(
             isle_shell::island::model::Event {
                 kind: isle_shell::island::model::EventKind::Attention,
@@ -614,7 +614,7 @@ impl State {
             return;
         };
         let theme = self.isle.shell.theme().clone();
-        let name = self.isle.apps.name(app);
+        let name = self.isle.app_name(app);
         let chord = "⌘⎋".to_owned();
         let size = isle_shell::island::notice::InhibitNotice::size(&theme, &name, &chord);
         let full_screen = matches!(

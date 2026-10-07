@@ -1,0 +1,40 @@
+"AppState"
+{
+	"appid"		"1466060"
+	"universe"		"1"
+	"name"		"Tainted Grail: The Fall of Avalon"
+	"StateFlags"		"4"
+	"installdir"		"Tainted Grail FoA"
+	"LastUpdated"		"1790915914"
+	"LastPlayed"		"0"
+	"SizeOnDisk"		"42345593861"
+	"StagingSize"		"0"
+	"buildid"		"25593237"
+	"LastOwner"		"0"
+	"DownloadType"		"3"
+	"UpdateResult"		"0"
+	"BytesToDownload"		"480289056"
+	"BytesDownloaded"		"480289056"
+	"BytesToStage"		"493000806"
+	"BytesStaged"		"493000806"
+	"TargetBuildID"		"0"
+	"AutoUpdateBehavior"		"0"
+	"AllowOtherDownloadsWhileRunning"		"0"
+	"ScheduledAutoUpdate"		"0"
+	"InstalledDepots"
+	{
+		"1466062"
+		{
+			"manifest"		"7686894573739917562"
+			"size"		"42345593861"
+		}
+	}
+	"UserConfig"
+	{
+		"language"		"english"
+	}
+	"MountedConfig"
+	{
+		"language"		"english"
+	}
+}

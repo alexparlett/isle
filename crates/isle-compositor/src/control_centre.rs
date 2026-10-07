@@ -112,7 +112,7 @@ impl Isle {
         }
         if let Some(app) = &self.island.inhibiting {
             notices.push(Notice::Inhibited {
-                app: self.apps.name(app),
+                app: self.app_name(app),
                 chord: "⌘⎋".into(),
             });
         }

@@ -2385,6 +2385,7 @@ dependencies = [
  "humantime",
  "image",
  "isle-apps",
+ "isle-games",
  "isle-ipc",
  "isle-keys",
  "isle-menus",
@@ -2414,6 +2415,13 @@ dependencies = [
  "xcursor",
  "zbus",
  "zvariant",
+]
+
+[[package]]
+name = "isle-games"
+version = "0.1.0"
+dependencies = [
+ "tracing",
 ]
 
 [[package]]

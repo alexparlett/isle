@@ -33,6 +33,7 @@ image.workspace = true
 jiff.workspace = true
 serde_json.workspace = true
 isle-apps.workspace = true
+isle-games.workspace = true
 isle-keys.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true

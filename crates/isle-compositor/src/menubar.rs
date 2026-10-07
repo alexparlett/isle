@@ -347,7 +347,7 @@ impl Isle {
     pub fn bar_app(&self) -> (String, String) {
         if let Some(record) = self.bar_record() {
             let app = record.app.clone();
-            let mut name = self.apps.name(&app);
+            let mut name = self.app_name(&app);
             // A window with no app id is named by its process, as a Mac app by its binary.
             if name.is_empty()
                 && let Some(pid) = record.pid
@@ -1417,7 +1417,7 @@ impl State {
         let entry = self.isle.apps.get(app).cloned();
         let icon = self.isle.app_icon(app, 64);
         let about = About {
-            name: self.isle.apps.name(app),
+            name: self.isle.app_name(app),
             icon,
             version: None,
             package: None,

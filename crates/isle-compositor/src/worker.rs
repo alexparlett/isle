@@ -107,6 +107,14 @@ pub fn spawn(
             runtime.spawn(supervise("gamemode-watch", move || {
                 crate::keyboard::games::watch_gamemode(loop_g.clone())
             }));
+            let loop_b = to_loop.clone();
+            runtime.spawn(supervise("launcher-entry", move || {
+                crate::badges::watch(loop_b.clone())
+            }));
+            let loop_s = to_loop.clone();
+            runtime.spawn(supervise("games-watch", move || {
+                crate::games::watch(loop_s.clone())
+            }));
             let loop_a = to_loop.clone();
             runtime.spawn(supervise("apps-watch", move || {
                 crate::wm::watch_apps(loop_a.clone())

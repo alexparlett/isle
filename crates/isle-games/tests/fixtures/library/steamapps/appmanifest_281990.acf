@@ -1,0 +1,255 @@
+"AppState"
+{
+	"appid"		"281990"
+	"universe"		"1"
+	"name"		"Stellaris"
+	"StateFlags"		"6"
+	"installdir"		"Stellaris"
+	"LastUpdated"		"1790953887"
+	"LastPlayed"		"1782193349"
+	"SizeOnDisk"		"31425701443"
+	"StagingSize"		"0"
+	"buildid"		"25505771"
+	"LastOwner"		"0"
+	"DownloadType"		"4"
+	"UpdateResult"		"0"
+	"BytesToDownload"		"26907536"
+	"BytesDownloaded"		"0"
+	"BytesToStage"		"0"
+	"BytesStaged"		"0"
+	"TargetBuildID"		"25664273"
+	"AutoUpdateBehavior"		"0"
+	"AllowOtherDownloadsWhileRunning"		"0"
+	"ScheduledAutoUpdate"		"1792215435"
+	"InstalledDepots"
+	{
+		"281991"
+		{
+			"manifest"		"4474190844677920248"
+			"size"		"29747879563"
+		}
+		"281994"
+		{
+			"manifest"		"6500770057213784155"
+			"size"		"343662972"
+		}
+		"447682"
+		{
+			"manifest"		"8126759959369925319"
+			"size"		"119359244"
+			"dlcappid"		"447682"
+		}
+		"447683"
+		{
+			"manifest"		"6115058309987442461"
+			"size"		"77003"
+			"dlcappid"		"447683"
+		}
+		"447684"
+		{
+			"manifest"		"4984318181401498898"
+			"size"		"1161285479"
+			"dlcappid"		"447684"
+		}
+		"447685"
+		{
+			"manifest"		"5616497098841117414"
+			"size"		"5084430"
+			"dlcappid"		"447685"
+		}
+		"447686"
+		{
+			"manifest"		"380104706699965241"
+			"size"		"2398034"
+			"dlcappid"		"447686"
+		}
+		"498870"
+		{
+			"manifest"		"5289062830139194176"
+			"size"		"97319"
+			"dlcappid"		"498870"
+		}
+		"518910"
+		{
+			"manifest"		"2771826165032019499"
+			"size"		"59068563"
+			"dlcappid"		"518910"
+		}
+		"553280"
+		{
+			"manifest"		"94231584423973538"
+			"size"		"76047634"
+			"dlcappid"		"553280"
+		}
+		"554350"
+		{
+			"manifest"		"6329361971126473517"
+			"size"		"76984"
+			"dlcappid"		"554350"
+		}
+		"642750"
+		{
+			"manifest"		"8487770189849309225"
+			"size"		"48642898"
+			"dlcappid"		"642750"
+		}
+		"716670"
+		{
+			"manifest"		"2874777228579213431"
+			"size"		"38026555"
+			"dlcappid"		"716670"
+		}
+		"756010"
+		{
+			"manifest"		"7057785433501895820"
+			"size"		"85948196"
+			"dlcappid"		"756010"
+		}
+		"844810"
+		{
+			"manifest"		"265938213461916546"
+			"size"		"20572316"
+			"dlcappid"		"844810"
+		}
+		"944290"
+		{
+			"manifest"		"5027959061154273567"
+			"size"		"91814524"
+			"dlcappid"		"944290"
+		}
+		"1045980"
+		{
+			"manifest"		"6196140321844137812"
+			"size"		"32765539"
+			"dlcappid"		"1045980"
+		}
+		"1140000"
+		{
+			"manifest"		"1707277670014098752"
+			"size"		"25466841"
+			"dlcappid"		"1140000"
+		}
+		"1140001"
+		{
+			"manifest"		"6552287492865536968"
+			"size"		"14019696"
+			"dlcappid"		"1140001"
+		}
+		"1341520"
+		{
+			"manifest"		"3322127761481394644"
+			"size"		"24718985"
+			"dlcappid"		"1341520"
+		}
+		"1522090"
+		{
+			"manifest"		"1464825983963181123"
+			"size"		"38704237"
+			"dlcappid"		"1522090"
+		}
+		"1749080"
+		{
+			"manifest"		"2352410094773288579"
+			"size"		"29840672"
+			"dlcappid"		"1749080"
+		}
+		"1889490"
+		{
+			"manifest"		"1949988533210430480"
+			"size"		"101497613"
+			"dlcappid"		"1889490"
+		}
+		"2115770"
+		{
+			"manifest"		"1045801664911037736"
+			"size"		"21759586"
+			"dlcappid"		"2115770"
+		}
+		"2277860"
+		{
+			"manifest"		"4930317276946265521"
+			"size"		"92233"
+			"dlcappid"		"2277860"
+		}
+		"2380030"
+		{
+			"manifest"		"6939619431392031129"
+			"size"		"92043"
+			"dlcappid"		"2380030"
+		}
+		"2534090"
+		{
+			"manifest"		"3656631936342514829"
+			"size"		"47152449"
+			"dlcappid"		"2534090"
+		}
+		"2863180"
+		{
+			"manifest"		"9052823765448867156"
+			"size"		"78011"
+			"dlcappid"		"2863180"
+		}
+		"2840100"
+		{
+			"manifest"		"5013502338098449837"
+			"size"		"102039534"
+			"dlcappid"		"2840100"
+		}
+		"2863060"
+		{
+			"manifest"		"8797712741214948916"
+			"size"		"89148"
+			"dlcappid"		"2863060"
+		}
+		"2863080"
+		{
+			"manifest"		"8947542081300706521"
+			"size"		"32768318"
+			"dlcappid"		"2863080"
+		}
+		"3417860"
+		{
+			"manifest"		"3240748767659651608"
+			"size"		"54472"
+			"dlcappid"		"3417860"
+		}
+		"3417840"
+		{
+			"manifest"		"8331750570302919154"
+			"size"		"89871310"
+			"dlcappid"		"3417840"
+		}
+		"3417850"
+		{
+			"manifest"		"8092327340853379843"
+			"size"		"75555373"
+			"dlcappid"		"3417850"
+		}
+		"3283220"
+		{
+			"manifest"		"4373441752470778623"
+			"size"		"39485478"
+			"dlcappid"		"3283220"
+		}
+		"4241410"
+		{
+			"manifest"		"8704462531518179024"
+			"size"		"85917"
+			"dlcappid"		"4241410"
+		}
+		"4241420"
+		{
+			"manifest"		"4308526494459266879"
+			"size"		"110807753"
+			"dlcappid"		"4241420"
+		}
+	}
+	"UserConfig"
+	{
+		"language"		"english"
+	}
+	"MountedConfig"
+	{
+		"language"		"english"
+	}
+}

@@ -77,6 +77,15 @@ impl Isle {
 
     /// A compositor started with `settings` as its settings.kdl.
     pub async fn start_with(name: &str, settings: &str) -> Self {
+        Self::start_prepared(name, settings, |_| {}).await
+    }
+
+    /// As `start_with`, with `prepare` writing into the test's directory before it starts.
+    pub async fn start_prepared(
+        name: &str,
+        settings: &str,
+        prepare: impl FnOnce(&std::path::Path),
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!("isle-headless-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         for sub in [
@@ -93,6 +102,7 @@ impl Isle {
         if !settings.is_empty() {
             fs::write(dir.join("config/settings.kdl"), settings).unwrap();
         }
+        prepare(&dir);
 
         let out = Command::new("dbus-daemon")
             .args([

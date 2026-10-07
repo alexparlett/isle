@@ -105,3 +105,95 @@ async fn x11_attention_and_urgency_mark_the_app_until_it_is_activated() {
     asks.send("demand");
     wait_until(|| async { asking().await == (true, false) }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn launcher_entry_badges_progress_and_urgency_follow_their_sender() {
+    let mut isle = Isle::start("badges").await;
+    let _other = isle.client("isle.test.Other", "0000ff");
+    isle.wait_for_window("isle.test.Other").await;
+    let badged = isle.client("isle.test.Badged", "ff0000");
+    isle.wait_for_window("isle.test.Badged").await;
+    let windows = isle.windows_proxy().await;
+    let app = || {
+        let windows = windows.clone();
+        async move {
+            windows
+                .apps()
+                .await
+                .unwrap()
+                .into_iter()
+                .find(|a| a.app == "isle.test.Badged")
+                .unwrap()
+        }
+    };
+    assert_eq!(app().await.badge, -1);
+
+    badged.send("badge count=4");
+    badged.wait_for("badge sent").await;
+    wait_until(|| async { app().await.badge == 4 }).await;
+    badged.clear();
+    badged.send("badge progress=0.4");
+    badged.wait_for("badge sent").await;
+    wait_until(|| async { (app().await.progress - 0.4).abs() < 1e-9 }).await;
+    assert_eq!(app().await.badge, 4, "a partial update keeps the count");
+
+    assert!(windows.activate_app("isle.test.Other").await.unwrap());
+    badged.clear();
+    badged.send("badge urgent=true");
+    badged.wait_for("badge sent").await;
+    wait_until(|| async { app().await.urgent }).await;
+    assert!(windows.activate_app("isle.test.Badged").await.unwrap());
+    wait_until(|| async { !app().await.urgent }).await;
+
+    badged.send("quit");
+    wait_until(|| async { badged.exited() }).await;
+    wait_until(|| async { windows.apps().await.unwrap().iter().all(|a| a.badge == -1) }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_steam_game_takes_its_name_and_cover_from_the_library() {
+    let mut isle = Isle::start_prepared("steamnames", "", |dir| {
+        let root = dir.join("data/Steam");
+        let apps = root.join("steamapps");
+        std::fs::create_dir_all(&apps).unwrap();
+        std::fs::write(
+            apps.join("libraryfolders.vdf"),
+            format!(
+                "\"libraryfolders\"\n{{\n\t\"0\"\n\t{{\n\t\t\"path\"\t\t\"{}\"\n\t}}\n}}\n",
+                root.display()
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            apps.join("appmanifest_4183110.acf"),
+            "\"AppState\"\n{\n\t\"appid\"\t\t\"4183110\"\n\t\"name\"\t\t\"A Test Game\"\n}\n",
+        )
+        .unwrap();
+        let cache = root.join("appcache/librarycache/4183110/abc");
+        std::fs::create_dir_all(&cache).unwrap();
+        std::fs::write(cache.join("library_600x900.jpg"), b"").unwrap();
+    })
+    .await;
+    let _game = isle.client("steam_app_4183110", "ff0000");
+    isle.wait_for_window("steam_app_4183110").await;
+    let windows = isle.windows_proxy().await;
+    let game = || {
+        let windows = windows.clone();
+        async move {
+            windows
+                .apps()
+                .await
+                .unwrap()
+                .into_iter()
+                .find(|a| a.app == "steam_app_4183110")
+                .unwrap()
+        }
+    };
+    wait_until(|| async { game().await.name == "A Test Game" }).await;
+    let game = game().await;
+    assert!(
+        game.icon.ends_with("4183110/abc/library_600x900.jpg"),
+        "{}",
+        game.icon
+    );
+}

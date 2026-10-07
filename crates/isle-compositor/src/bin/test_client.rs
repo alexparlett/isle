@@ -10,8 +10,9 @@
 //! `destroy`, `unmap` (a null buffer), `remap` (a commit that asks to be configured again),
 //! `pings ignore|answer` (answering those ignored so far), `inhibit` (hold a keyboard
 //! shortcuts inhibitor, printing `inhibitor active|inactive`), `linger` (a close of the
-//! first window destroys it but leaves the process running), `quit`. A close of any other
-//! window destroys it.
+//! first window destroys it but leaves the process running), `badge count=N progress=F
+//! urgent=B` (a LauncherEntry Update for the app id's entry; any of the three), `quit`. A
+//! close of any other window destroys it.
 //!
 //! Keys print as `key CODE pressed`, then `sym NAME pressed` from the keymap the client was
 //! sent; `keymap LAYOUT` names a keymap's first layout and `mods Control+Mod4` the
@@ -94,6 +95,8 @@ struct Client {
     /// The first window has made its first commit.
     started: bool,
     xkb: Option<isle_keys::xkb::State>,
+    /// The bus `badge` sends on, kept so the sender stays until the client exits.
+    launcher: Option<(tokio::runtime::Runtime, zbus::Connection)>,
 }
 
 fn say(index: usize, line: String) {
@@ -175,6 +178,45 @@ impl Client {
             gone: false,
         });
         index
+    }
+
+    fn badge(&mut self, rest: &[&str]) {
+        let (runtime, conn) = self.launcher.get_or_insert_with(|| {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            let conn = runtime.block_on(zbus::Connection::session()).unwrap();
+            (runtime, conn)
+        });
+        let mut properties: std::collections::HashMap<&str, zvariant::Value> = Default::default();
+        for word in rest {
+            match word.split_once('=') {
+                Some(("count", n)) => {
+                    properties.insert("count", zvariant::Value::I64(n.parse().unwrap()));
+                    properties.insert("count-visible", zvariant::Value::Bool(true));
+                }
+                Some(("progress", p)) => {
+                    properties.insert("progress", zvariant::Value::F64(p.parse().unwrap()));
+                    properties.insert("progress-visible", zvariant::Value::Bool(true));
+                }
+                Some(("urgent", b)) => {
+                    properties.insert("urgent", zvariant::Value::Bool(b == "true"));
+                }
+                _ => {}
+            }
+        }
+        let uri = format!("application://{}.desktop", self.app_id);
+        runtime
+            .block_on(conn.emit_signal(
+                None::<()>,
+                "/isle/test/launcher",
+                "com.canonical.Unity.LauncherEntry",
+                "Update",
+                &(uri, properties),
+            ))
+            .unwrap();
+        say(0, "badge sent".into());
     }
 
     fn command(&mut self, line: &str, qh: &QueueHandle<Self>) {
@@ -292,6 +334,7 @@ impl Client {
                 }
             }
             ("linger", _) => self.linger = true,
+            ("badge", _) => self.badge(&rest),
             ("inhibit", _) => {
                 if let (Some(manager), Some(seat)) = (&self.inhibits, &self.seat) {
                     manager.inhibit_shortcuts(&self.wins[index].surface, seat, qh, ());
@@ -742,6 +785,7 @@ fn main() {
         on_press: None,
         pointer_on: None,
         quit: false,
+        launcher: None,
         app_id: app_id.clone(),
         started: false,
         xkb: None,

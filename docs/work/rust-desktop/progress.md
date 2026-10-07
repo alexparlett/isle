@@ -2,6 +2,18 @@
 
 ## 2026-10-07
 
+- P8 8.14: the measure and the VM (`docs/research/rust-desktop/p8-services.md`).
+  At 3440×1440 with every service live, Control Centre draws at 1.35 ms p95
+  over every page and banners at 0.95 ms; a banner reaches the stack 2.6 ms
+  after Notify; RSS 156–165 MB and VRAM at most 96 MiB; at rest nothing
+  draws or samples and Xwayland is Isle's only child. The VM found four
+  bugs, fixed: D-Bus-activated daemons (UPower, UDisks2, power profiles)
+  were never started; a Pulse handshake could wait forever on a
+  socket-activated pipewire-pulse; the pointer neither held a banner nor
+  reached its buttons; and the banner's buttons were laid out each at the
+  left of its own column (the user saw it), now equal across the text
+  column. A tray page's head shows the item's icon.
+
 - P8 8.13: Control Centre completed. The `control-centre` default is the
   design's arrangement again (Dark Mode and Keyboard layout move to the
   gallery). A catalogue holds every module with its sizes, group, Settings

@@ -226,6 +226,10 @@ impl Banners {
     /// left the screen, which stay in the centre.
     pub fn tick(&mut self, now: Instant) -> Vec<u32> {
         let mut gone = Vec::new();
+        // The card under the pointer went, by its action or its close, with no leave.
+        if self.shown.is_empty() {
+            self.hovered = false;
+        }
         if !self.hovered {
             self.shown.retain(|s| {
                 let expired = s.until.is_some_and(|u| u <= now);
@@ -338,6 +342,20 @@ mod tests {
         assert_eq!(t.life(500), Duration::from_secs(3));
         assert_eq!(t.life(60_000), Duration::from_secs(15));
         assert_eq!(t.life(8_000), Duration::from_secs(8));
+    }
+
+    #[test]
+    fn an_empty_stack_is_not_hovered_so_arrivals_show() {
+        let t = Instant::now();
+        let mut b = Banners::default();
+        b.arrive(card(1, "mail"), FIVE, t);
+        b.set_hovered(true, t);
+        b.remove(1);
+        b.tick(t);
+        assert!(!b.hovered());
+        b.arrive(card(2, "chat"), FIVE, t);
+        b.tick(t);
+        assert_eq!(b.cards().len(), 1);
     }
 
     #[test]

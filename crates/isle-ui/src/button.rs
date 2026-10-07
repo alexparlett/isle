@@ -21,6 +21,8 @@ pub struct Button {
     alt: Option<String>,
     kind: Kind,
     small: bool,
+    /// Fills the width it is given, its label centred.
+    wide: bool,
     enabled: bool,
     on_press: Option<EventHandler<()>>,
 }
@@ -33,6 +35,7 @@ impl Button {
             alt: None,
             kind: Kind::Regular,
             small: false,
+            wide: false,
             enabled: true,
             on_press: None,
         }
@@ -55,6 +58,11 @@ impl Button {
 
     pub fn small(mut self) -> Self {
         self.small = true;
+        self
+    }
+
+    pub fn wide(mut self) -> Self {
+        self.wide = true;
         self
     }
 
@@ -122,6 +130,7 @@ impl Component for Button {
             .min_height(Size::px(height))
             .height(Size::px(height))
             .maybe(self.glyph.is_some(), |el| el.width(Size::px(height)))
+            .maybe(self.wide, |el| el.width(Size::fill()))
             .maybe(self.label.is_some(), |el| el.padding((0., pad)))
             .horizontal()
             .center()

@@ -246,8 +246,6 @@ impl Component for Stack {
         let actions = Actions::get();
         let frame = self.frame.read().clone();
         let margin = BannersSurface::margin(&theme);
-        let enter = actions.clone();
-        let leave = actions.clone();
         let overflow = actions.clone();
         rect()
             .expanded()
@@ -257,8 +255,6 @@ impl Component for Stack {
                 rect()
                     .width(Size::px(t.size_panel - 2.0 * t.space_s))
                     .spacing(t.space_s)
-                    .on_pointer_enter(move |_| send(&enter, BannerAction::Hover(true)))
-                    .on_pointer_leave(move |_| send(&leave, BannerAction::Hover(false)))
                     .children(frame.cards.iter().map(|card| {
                         rect()
                             .width(Size::fill())
@@ -308,6 +304,15 @@ impl Component for Banner {
         let t = &theme.tokens;
         let actions = Actions::get();
         let mut hover = use_state(|| false);
+        // A card that goes from under the pointer sends no leave.
+        use_drop({
+            let actions = actions.clone();
+            move || {
+                if *hover.peek() {
+                    send(&actions, BannerAction::Hover(false));
+                }
+            }
+        });
         let reply = use_state(String::new);
         let still = self.still;
         // Arrives from the trailing edge, short and damped; still in Game Mode.
@@ -327,6 +332,7 @@ impl Component for Banner {
         let hovered = *hover.read();
         let id = c.id;
         let open = actions.clone();
+        let (enter, leave) = (actions.clone(), actions.clone());
         let height = card_height(&theme, c, hovered, self.replying);
         let lines = if hovered {
             t.limit_banner_lines_expanded as usize
@@ -399,7 +405,7 @@ impl Component for Banner {
                 .width(Size::flex(1.))
                 .child(
                     Button::new(label.clone())
-                        .small()
+                        .wide()
                         .on_press(move |_| send(&actions, BannerAction::Action(id, key.clone()))),
                 )
                 .into_element()
@@ -407,7 +413,7 @@ impl Component for Banner {
         let reply_button = {
             let actions = actions.clone();
             Button::new("Reply")
-                .small()
+                .wide()
                 .on_press(move |_| send(&actions, BannerAction::StartReply(id)))
         };
         let field = {
@@ -562,8 +568,19 @@ impl Component for Banner {
             .child(Hit)
             .a11y_role(AccessibilityRole::Alert)
             .a11y_alt(format!("{}: {}. {}", c.app_name, c.summary, c.body))
-            .on_pointer_enter(move |_| hover.set_if_modified(true))
-            .on_pointer_leave(move |_| hover.set_if_modified(false))
+            // Over and out count the card's buttons as the card, where enter and leave do
+            // not. The card tells the stack's model too, whose grace covers the gap between
+            // cards and the out-then-over of moving onto a button.
+            .on_pointer_over(move |_| {
+                if !*hover.peek() {
+                    hover.set(true);
+                    send(&enter, BannerAction::Hover(true));
+                }
+            })
+            .on_pointer_out(move |_| {
+                hover.set_if_modified(false);
+                send(&leave, BannerAction::Hover(false));
+            })
             .on_press(move |_| send(&open, BannerAction::Open(id)))
             .child(content)
             .maybe(hovered || c.persistent, |el| el.child(close))

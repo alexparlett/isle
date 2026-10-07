@@ -451,3 +451,169 @@ async fn switcher_cost() {
     snap("rest again");
     assert!(!isle.log().contains("panicked"), "a surface panicked");
 }
+
+/// Isle's own child processes, by name: an idle session should have none but Xwayland.
+fn children(pid: u32) -> Vec<String> {
+    let Ok(dir) = fs::read_dir("/proc") else {
+        return Vec::new();
+    };
+    dir.flatten()
+        .filter_map(|e| {
+            let stat = fs::read_to_string(e.path().join("stat")).ok()?;
+            let (name, rest) = stat.split_once(") ")?;
+            let ppid: u32 = rest.split_whitespace().nth(1)?.parse().ok()?;
+            (ppid == pid).then(|| name.split_once(" (").map_or(name, |(_, n)| n).to_owned())
+        })
+        .collect()
+}
+
+/// P8's measure on a 3440 by 1440 output with every service live: Control Centre's draw on
+/// every page, banners' draw and their latency from Notify, memory, and what runs and draws
+/// at rest.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn services_cost() {
+    use isle_fakes::{bluez, logind::Logind, mpris::Mpris, network, upower};
+    let mut isle = Isle::start("cost-services").await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let system = isle.system_address();
+    let _nm = network::NetworkManager::start(
+        &system,
+        vec![
+            network::Ap { ssid: "Home".into(), strength: 80, secured: true },
+            network::Ap { ssid: "Cafe".into(), strength: 50, secured: false },
+        ],
+        vec![network::Saved::Wifi("Home".into()), network::Saved::Vpn("Work".into())],
+    )
+    .await
+    .unwrap();
+    let _bluez = bluez::BlueZ::start(
+        &system,
+        vec![bluez::Device {
+            id: "00_11_22_33_44_55".into(),
+            name: "WH-1000XM6".into(),
+            icon: "audio-headset".into(),
+            paired: true,
+            connected: true,
+            battery: Some(70),
+        }],
+    )
+    .await
+    .unwrap();
+    let _upower = upower::UPower::start(
+        &system,
+        vec![upower::Device {
+            id: "mouse".into(),
+            kind: 5,
+            power_supply: false,
+            model: "MX Master 3S".into(),
+            percentage: 64.0,
+            state: 2,
+        }],
+    )
+    .await
+    .unwrap();
+    let _profiles = upower::PowerProfiles::start(&system).await.unwrap();
+    let _logind = Logind::start(&system).await.unwrap();
+    let _player = Mpris::start(&isle.bus_address(), "bench", true).await.unwrap();
+    let audio = isle.start_audio().await;
+    let test = isle.test().await;
+    test.add_output("BIG", "Isle", "Bench", "1", 3440, 1440).await.unwrap();
+    test.remove_output("HEADLESS-1").await.unwrap();
+    test.fake_screen("BIG", 60, 100).await.unwrap();
+    let app = isle.client_with(&["--app-id", "isle.test.Chat", "--size", "1600x900"]);
+    app.wait_for("keyboard-enter").await;
+    app.send("tray");
+    app.wait_for("tray registered").await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let snap = |what: &str| {
+        let (rss, own) = memory(pid);
+        println!("{what}: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    };
+    println!("PipeWire: {audio}");
+    snap("rest, every service live");
+
+    test.measure(true).await.unwrap();
+    isle.chord(&[29, 66]).await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let modules: Vec<String> = isle.island_output().await["panel"]["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["id"].as_str().unwrap().to_owned())
+        .collect();
+    println!("modules: {modules:?}");
+    snap("Control Centre open");
+    for _ in 0..3 {
+        for page in &modules {
+            isle.panel(serde_json::json!({ "page": page })).await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            isle.panel(serde_json::json!({ "page": null })).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+        }
+    }
+    snap("after every page three times");
+    report("island with Control Centre, every page", &surface(&isle, "island").await);
+    isle.chord(&[1]).await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+
+    test.measure(false).await.unwrap();
+    test.measure(true).await.unwrap();
+    // The test client opens its bus on its first notification; that is not Isle's time.
+    app.send("notify summary=Warm transient=true");
+    app.wait_for("notified 1").await;
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    let mut latencies = Vec::new();
+    for i in 0..10 {
+        // One card per app, so an arrival shows as its summary on the card.
+        let shown = |text: &str| {
+            serde_json::from_str::<serde_json::Value>(text).unwrap()["cards"]
+                .as_array()
+                .is_some_and(|c| c.iter().any(|c| c["summary"] == format!("Message {i}")))
+        };
+        let sent = Instant::now();
+        app.send(&format!("notify summary=Message_{i} body=Hello transient=true"));
+        loop {
+            let now = isle.test().await.banners().await.unwrap();
+            if shown(&now) || sent.elapsed() > Duration::from_secs(2) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+        latencies.push(sent.elapsed().as_secs_f64() * 1000.0);
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+    }
+    println!("banner latencies in order, ms: {latencies:.1?}");
+    latencies.sort_by(f64::total_cmp);
+    println!(
+        "banner latency from the client's Notify to the stack: p50 {:.1} ms, max {:.1} ms",
+        latencies[latencies.len() / 2],
+        latencies[latencies.len() - 1]
+    );
+    tokio::time::sleep(Duration::from_secs(8)).await;
+    report("banners, ten arrivals", &surface(&isle, "banners").await);
+    snap("after the banners");
+
+    // At rest: nothing drawn, no helper running.
+    test.measure(false).await.unwrap();
+    let before: Vec<(String, u64)> = ShellProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .list()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|s| (s.name, s.draws))
+        .collect();
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    let after = ShellProxy::new(&isle.bus).await.unwrap().list().await.unwrap();
+    for s in after {
+        let was = before.iter().find(|(n, _)| *n == s.name).map_or(0, |(_, d)| *d);
+        if s.draws != was {
+            println!("at rest, {} drew {} times in 10 s", s.name, s.draws - was);
+        }
+    }
+    println!("children at rest: {:?}", children(pid));
+    snap("rest again");
+    assert!(!isle.log().contains("panicked"), "a surface panicked");
+}

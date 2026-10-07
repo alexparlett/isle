@@ -133,3 +133,89 @@ async fn a_click_runs_the_default_action_and_a_reply_reaches_the_app() {
     app.wait_for(&format!("action {again} default")).await;
     wait_until(|| async { cards(&isle).await.is_empty() }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_pointer_on_a_card_holds_it_and_a_click_runs_its_default() {
+    let mut isle = Isle::start("banners-pointer").await;
+    let chat = isle.client("isle.test.Chat", "3366ff");
+    chat.wait_for("keyboard-enter").await;
+    chat.send("notify summary=Hello actions=default:Open,later:Later");
+    let id = notified(&chat).await;
+    wait_until(|| async { banners(&isle).await["open"] == true }).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let surface = isle_ipc::shell::ShellProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .list()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|s| s.name == "banners")
+        .unwrap();
+    let test = isle.test().await;
+    // The card's middle: the surface's margin above it, then about half a card.
+    test.pointer_to(
+        (surface.x + surface.width / 2) as f64,
+        (surface.y + 90) as f64,
+    )
+    .await
+    .unwrap();
+    wait_until(|| async { banners(&isle).await["hovered"] == true }).await;
+    // Held past a temporary banner's life while the pointer rests on it.
+    tokio::time::sleep(Duration::from_secs(7)).await;
+    assert_eq!(
+        cards(&isle).await.len(),
+        1,
+        "the card waits under the pointer"
+    );
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    chat.wait_for(&format!("action {id} default")).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cards_button_takes_the_click_and_leaving_the_card_lets_it_go() {
+    let mut isle = Isle::start("banners-button").await;
+    let chat = isle.client("isle.test.Chat", "3366ff");
+    chat.wait_for("keyboard-enter").await;
+    chat.send("notify summary=Hello actions=open:Open,later:Later");
+    let id = notified(&chat).await;
+    wait_until(|| async { banners(&isle).await["open"] == true }).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let s = isle_ipc::shell::ShellProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .list()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|s| s.name == "banners")
+        .unwrap();
+    let test = isle.test().await;
+    test.pointer_to((s.x + s.width / 2) as f64, (s.y + 90) as f64)
+        .await
+        .unwrap();
+    wait_until(|| async { banners(&isle).await["hovered"] == true }).await;
+    // Onto Open, the first button under the card's text: still on the card.
+    test.pointer_to((s.x + 148) as f64, (s.y + 132) as f64)
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(banners(&isle).await["hovered"], true);
+    isle.keep_shot("banner-actions").await;
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    chat.wait_for(&format!("action {id} open")).await;
+
+    // An arrival waits while the pointer is on the stack.
+    test.pointer_to(400.0, 600.0).await.unwrap();
+    chat.send("notify summary=Again");
+    notified(&chat).await;
+    wait_until(|| async { cards(&isle).await.len() == 1 }).await;
+    test.pointer_to((s.x + s.width / 2) as f64, (s.y + 90) as f64)
+        .await
+        .unwrap();
+    wait_until(|| async { banners(&isle).await["hovered"] == true }).await;
+    test.pointer_to(400.0, 600.0).await.unwrap();
+    wait_until(|| async { banners(&isle).await["hovered"] == false }).await;
+}

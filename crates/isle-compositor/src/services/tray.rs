@@ -260,6 +260,7 @@ impl Isle {
             id: "tray".into(),
             name,
             glyph: "app-window".into(),
+            icon: item.icon.as_ref().and_then(|i| self.tray_icon_path(i)),
             page: Some(rows),
             page_title: menu.and_then(|m| m.tree.as_ref()).and_then(title),
             plain_head: true,

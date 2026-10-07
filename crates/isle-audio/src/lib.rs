@@ -213,9 +213,12 @@ fn shared() -> Result<Arc<Conn>, Error> {
 /// Follows the sound server, connecting again when it goes and returns.
 pub async fn watch(publisher: Publisher<Audio>) -> Result<(), Error> {
     loop {
-        let (conn, mut events) = match Conn::connect("Isle").await {
-            Ok(connected) => connected,
-            Err(_) => {
+        // A server that accepts and never answers, as a socket-activated one can while it
+        // starts, is asked again.
+        let connected = tokio::time::timeout(Duration::from_secs(5), Conn::connect("Isle")).await;
+        let (conn, mut events) = match connected {
+            Ok(Ok(connected)) => connected,
+            _ => {
                 publisher.unavailable();
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;

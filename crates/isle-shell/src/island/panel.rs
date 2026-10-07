@@ -57,6 +57,8 @@ pub struct Module {
     pub plain_head: bool,
     /// The sizes it comes in, which edit mode offers.
     pub sizes: Vec<TileSize>,
+    /// An icon in its glyph's place: a tray item's.
+    pub icon: Option<std::path::PathBuf>,
 }
 
 /// A module the gallery offers, or lists as unable to show here.
@@ -1029,7 +1031,12 @@ fn module_circle(theme: &Theme, module: &Module) -> Rect {
         .corner_radius(t.size_module_glyph / 2.0)
         .background(fill)
         .center()
-        .child(Glyph::new(module.glyph.clone(), t.size_glyph_large, ink).fill(module.on))
+        .map(module.icon.clone(), |el, icon| {
+            el.child(isle_ui::AppIcon::new(icon, t.size_glyph_large))
+        })
+        .maybe(module.icon.is_none(), |el| {
+            el.child(Glyph::new(module.glyph.clone(), t.size_glyph_large, ink).fill(module.on))
+        })
 }
 
 #[derive(PartialEq)]

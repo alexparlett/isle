@@ -30,6 +30,7 @@ pub struct NameWatch {
     name: String,
     owned: bool,
     changes: zbus::fdo::NameOwnerChangedStream,
+    dbus: DBusProxy<'static>,
 }
 
 impl NameWatch {
@@ -47,6 +48,7 @@ impl NameWatch {
             name: name.to_owned(),
             owned,
             changes,
+            dbus,
         })
     }
 
@@ -58,8 +60,17 @@ impl NameWatch {
         self.owned
     }
 
-    /// Waits until the name has an owner. Errors when the bus connection ends.
+    /// Waits until the name has an owner, starting its daemon first where the bus can:
+    /// UPower, UDisks2 and the like run only once something asks for them. Errors when
+    /// the bus connection ends.
     pub async fn appeared(&mut self) -> zbus::Result<()> {
+        if !self.owned
+            && let Ok(names) = self.dbus.list_activatable_names().await
+            && names.iter().any(|n| n.as_str() == self.name)
+            && let Ok(name) = zbus::names::WellKnownName::try_from(self.name.as_str())
+        {
+            let _ = self.dbus.start_service_by_name(name, 0).await;
+        }
         while !self.owned {
             self.next().await?;
         }

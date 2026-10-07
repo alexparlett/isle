@@ -132,6 +132,7 @@ pub struct Style {
     exit: Spring,
     from_scale: f64,
     fade: Option<Duration>,
+    exit_fade: Option<Duration>,
     animated: bool,
 }
 
@@ -145,7 +146,20 @@ impl Style {
                 .appearance
                 .reduce_motion
                 .then(|| Theme::millis(theme.tokens.motion_reduced_fade_ms)),
+            exit_fade: None,
             animated,
+        }
+    }
+
+    /// A fade in place both ways, quicker going than coming, for a surface that never scales.
+    pub fn fading(theme: &Theme, animated: bool) -> Self {
+        let reduced = theme.appearance.reduce_motion;
+        let length = |ms| Some(Theme::millis(if reduced { theme.tokens.motion_reduced_fade_ms } else { ms }));
+        Self {
+            from_scale: 1.0,
+            fade: length(theme.tokens.motion_fade_ms),
+            exit_fade: length(theme.tokens.motion_exit_fade_ms),
+            ..Self::new(theme, animated)
         }
     }
 }
@@ -162,7 +176,11 @@ impl Transition {
 
     pub fn close(&mut self, style: &Style) {
         self.phase = Phase::Closing;
-        self.aim(style, 0.0, style.from_scale, style.exit);
+        let style = Style {
+            fade: style.exit_fade.or(style.fade),
+            ..*style
+        };
+        self.aim(&style, 0.0, style.from_scale, style.exit);
     }
 
     fn aim(&mut self, style: &Style, opacity: f64, scale: f64, spring: Spring) {

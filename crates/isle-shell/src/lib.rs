@@ -824,6 +824,61 @@ impl Shell {
             .any(|i| &i.output == output && i.transition.moving())
     }
 
+    /// A copy of `texture`, which the compositor drew, as an image a tree can draw: copied on
+    /// the GPU into a texture Skia owns, so it outlives the compositor's.
+    pub fn image_of(
+        &mut self,
+        renderer: &mut GlesRenderer,
+        texture: &smithay::backend::renderer::gles::GlesTexture,
+    ) -> Option<freya::elements::image::ImageHandle> {
+        use freya::engine::prelude::{AlphaType, ColorType, ImageInfo, gpu};
+        use smithay::backend::renderer::{Texture, gles::ffi};
+        let gpu_slot = Self::gpu(&mut self.gpu, renderer)?;
+        let size = texture.size();
+        let (w, h) = (size.w.max(1), size.h.max(1));
+        let id = texture.tex_id();
+        let image = renderer
+            .with_context(|gl| {
+                gpu_slot.context().reset(None);
+                let info = gpu::gl::TextureInfo {
+                    target: ffi::TEXTURE_2D,
+                    id,
+                    format: ffi::RGBA8,
+                    protected: gpu::Protected::No,
+                };
+                // Safety: `id` names a live RGBA8 texture of this size on the current context.
+                let backend =
+                    unsafe { gpu::backend_textures::make_gl((w, h), gpu::Mipmapped::No, info, "") };
+                let image = (|| {
+                    let borrowed = gpu::images::borrow_texture_from(
+                        gpu_slot.context(),
+                        &backend,
+                        gpu::SurfaceOrigin::TopLeft,
+                        ColorType::RGBA8888,
+                        AlphaType::Premul,
+                        None,
+                    )?;
+                    let mut surface = gpu::surfaces::render_target(
+                        gpu_slot.context(),
+                        gpu::Budgeted::Yes,
+                        &ImageInfo::new((w, h), ColorType::RGBA8888, AlphaType::Premul, None),
+                        None,
+                        gpu::SurfaceOrigin::TopLeft,
+                        None,
+                        false,
+                        None,
+                    )?;
+                    surface.canvas().draw_image(&borrowed, (0, 0), None);
+                    Some(surface.image_snapshot())
+                })();
+                gpu_slot.context().flush_and_submit();
+                unsafe { gl::restore(gl) };
+                image
+            })
+            .ok()??;
+        Some(freya::elements::image::ImageHandle::new(image, bytes::Bytes::new()))
+    }
+
     /// Times every draw, waiting for the GPU after each; for benches.
     pub fn set_measure(&mut self, on: bool) {
         self.measure = on;
@@ -1114,7 +1169,12 @@ impl Shell {
             instance.open = open;
             instance.opening = open;
             instance.held_keys.clear();
-            let style = transition::Style::new(&self.theme, self.animated && instance.def.transitions());
+            let animated = self.animated && instance.def.transitions();
+            let style = if instance.def.fades() {
+                transition::Style::fading(&self.theme, animated)
+            } else {
+                transition::Style::new(&self.theme, animated)
+            };
             if open {
                 instance.transition.open(&style);
             } else {

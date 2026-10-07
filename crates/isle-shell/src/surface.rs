@@ -79,6 +79,10 @@ pub trait SurfaceDef: 'static {
     fn transitions(&self) -> bool {
         true
     }
+    /// Its transitions are fades in place, with no scale.
+    fn fades(&self) -> bool {
+        false
+    }
 }
 
 /// The output a surface's instance is on, by name, for a tree drawn on every output.
@@ -102,6 +106,8 @@ pub enum Action {
     MenuBar(crate::menubar::BarAction),
     /// From a menu in a placed surface: the window menu.
     Menu(isle_ui::MenuEvent),
+    /// From the switcher's panel.
+    Switcher(crate::switcher::SwitcherAction),
 }
 
 /// What a title bar asks of its window.

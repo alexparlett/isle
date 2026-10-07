@@ -2,3 +2,6 @@
 //! `p1/surfaces/switcher.md`).
 
 pub mod model;
+pub mod surface;
+
+pub use surface::{Frame, SwitcherAction, SwitcherSurface};

@@ -413,7 +413,7 @@ impl Isle {
     }
 
     /// Game Mode: over a game in front, solid and still.
-    fn island_game_mode(&self) -> bool {
+    pub fn island_game_mode(&self) -> bool {
         self.seat
             .get_keyboard()
             .and_then(|k| k.current_focus())

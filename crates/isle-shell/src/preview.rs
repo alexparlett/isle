@@ -32,7 +32,8 @@ pub fn surfaces() -> Vec<Rc<dyn SurfaceDef>> {
             None
         }
     };
-    probe.into_iter().chain(gallery).collect()
+    let switcher: Rc<dyn SurfaceDef> = crate::switcher::SwitcherSurface::sample();
+    probe.into_iter().chain(gallery).chain([switcher]).collect()
 }
 
 /// A surface's tree with what the shell gives it: shown, the tokens of each source that arrives

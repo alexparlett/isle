@@ -364,3 +364,70 @@ async fn cmd_tab_leaves_a_full_screen_game_and_escape_gives_it_back_its_keys() {
         "the game keeps its own desktop"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_panel_shows_each_apps_live_preview_and_goes_on_release() {
+    let mut isle = Isle::start("switchpanel").await;
+    let clients = three(&mut isle).await;
+    press(&isle, CMD).await;
+    tap(&isle, TAB).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    // Three plates of 272 in a panel 840 wide, centred on 1920 by 1080; the cards' centres.
+    let (y, xs) = (507, [684, 960, 1236]);
+    let shot = isle.shot("HEADLESS-1", "held").await;
+    assert_eq!(shot.at(xs[0], y), [0, 0, 255], "C, in front, first");
+    assert_eq!(shot.at(xs[1], y), [0, 255, 0], "B selected");
+    assert_eq!(shot.at(xs[2], y), [255, 0, 0], "A last");
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    let tree = shell.tree("switcher").await.unwrap();
+    assert!(
+        tree.contains("App switcher") && tree.contains("isle.test.B"),
+        "{tree}"
+    );
+
+    // A window that draws while held is drawn again in its card.
+    clients[1].send("colour ffff00");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let shot = isle.shot("HEADLESS-1", "recoloured").await;
+    assert_eq!(shot.at(xs[1], y), [255, 255, 0]);
+
+    release(&isle, CMD).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let shot = isle.shot("HEADLESS-1", "released").await;
+    assert_ne!(shot.at(xs[2], y), [255, 0, 0], "the panel has gone");
+    let open = shell.list().await.unwrap();
+    assert!(open.iter().all(|s| s.name != "switcher" || !s.open));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "a screenshot to look at: ISLE_TEST_KEEP=1"]
+async fn marks_by_eye() {
+    let mut isle = Isle::start("switchmarks").await;
+    let bg = isle.client_with(&[
+        "--app-id",
+        "isle.test.Background",
+        "--colour",
+        "888888",
+        "--do",
+        "linger",
+    ]);
+    let bgw = isle.wait_for_window("isle.test.Background").await;
+    let windows = isle.windows_proxy().await;
+    windows.close(bgw.id).await.unwrap();
+    bg.wait_for("closed").await;
+    let clients = three(&mut isle).await;
+    clients[1].send("window");
+    clients[1].wait_for("w1 configured 300 200").await;
+    clients[1].send("badge count=4 progress=0.4");
+    clients[1].wait_for("badge sent").await;
+    windows.set_app_hidden("isle.test.A", true).await.unwrap();
+    windows.activate_app("isle.test.C").await.unwrap();
+    press(&isle, CMD).await;
+    tap(&isle, TAB).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    isle.shot("HEADLESS-1", "marks").await;
+    tap(&isle, DOWN).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    isle.shot("HEADLESS-1", "row").await;
+    release(&isle, CMD).await;
+}

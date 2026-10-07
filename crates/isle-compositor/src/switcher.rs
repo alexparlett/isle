@@ -1,9 +1,16 @@
 //! Cmd+Tab: the hold, the keys read while it lasts, and the commit (`p7-switcher.md`
 //! choices 1 to 6). The switcher never takes the seat's focus.
 
-use std::time::{Duration, Instant};
+use std::{
+    collections::{HashMap, HashSet},
+    time::{Duration, Instant},
+};
 
-use isle_shell::switcher::model::{Effect, Entry, Key, Switcher, Window};
+use isle_shell::switcher::{
+    Frame, SwitcherAction, SwitcherSurface,
+    model::{self, Effect, Entry, Key, Metrics, Switcher, Window},
+    surface::PreviewImage,
+};
 use smithay::{
     input::keyboard::{Keysym, keysyms},
     output::Output,
@@ -11,6 +18,7 @@ use smithay::{
         RegistrationToken,
         timer::{TimeoutAction, Timer},
     },
+    utils::{Logical, Point, Rectangle},
 };
 use tracing::{debug, info};
 
@@ -22,6 +30,13 @@ pub struct SwitcherState {
     /// The output it opened on: the focused window's, else the pointer's.
     pub output: Option<Output>,
     timer: Option<RegistrationToken>,
+    /// The panel's top edge on its output once drawn: the window row grows it downward.
+    top: Option<i32>,
+    /// Each previewed window's image, and the windows that committed since it was made.
+    previews: HashMap<u64, PreviewImage>,
+    pub stale: HashSet<u64>,
+    /// Where the pointer was when the panel appeared; hover waits for it to move.
+    pointer_at: Option<Point<f64, Logical>>,
 }
 
 impl SwitcherState {
@@ -137,6 +152,10 @@ impl State {
             model,
             output,
             timer: None,
+            top: None,
+            previews: HashMap::new(),
+            stale: HashSet::new(),
+            pointer_at: None,
         });
         self.arm_switcher();
     }
@@ -274,17 +293,217 @@ impl State {
     pub fn switcher_after_dispatch(&mut self) {
         if self.isle.switcher_dirty.take() {
             self.refresh_switcher();
+        } else if self
+            .isle
+            .switcher
+            .as_ref()
+            .is_some_and(|s| s.drawn() && !s.stale.is_empty())
+        {
+            self.switcher_changed();
         }
     }
 
-    /// Something the switcher shows changed.
+    /// Something the switcher shows changed: the panel is drawn again from the model.
     fn switcher_changed(&mut self) {
+        let Some(switcher) = &self.isle.switcher else {
+            return;
+        };
+        if !switcher.drawn() {
+            return;
+        }
         #[cfg(feature = "test-hooks")]
-        if let Some(switcher) = &self.isle.switcher
-            && switcher.drawn()
         {
             self.isle.switcher_drawn_count += u32::from(!self.isle.switcher_was_drawn);
             self.isle.switcher_was_drawn = true;
+        }
+        let Some(output) = switcher.output.clone() else {
+            return;
+        };
+        let Some(screen) = self.isle.space.output_geometry(&output) else {
+            return;
+        };
+        let theme = self.isle.shell.theme().clone();
+        let t = &theme.tokens;
+        let metrics = Metrics {
+            card_width: t.size_switcher_card_width,
+            card_height: t.size_switcher_card_height,
+            card_min_width: t.size_switcher_card_min_width,
+            background_width: t.size_switcher_background_width,
+            space_xs: t.space_xs,
+            space_s: t.space_s,
+            space_l: t.space_l,
+            space_xxl: t.space_xxl,
+            band: t
+                .size_row
+                .max(isle_ui::text::metrics(&theme, isle_ui::text::Style::Headline).1 + t.space_m),
+            icon_overhang: t.size_app_icon_medium / 2.0,
+            progress: 6.0,
+        };
+        let model = &switcher.model;
+        let row_of = model.row().map(|_| model.selected_index());
+        let windows = model.selected().map_or(0, |e| e.windows.len());
+        let layout = model::layout(
+            model.entries(),
+            screen.size.w as f32,
+            &metrics,
+            row_of,
+            if row_of.is_some() { windows } else { 0 },
+        );
+        self.update_previews(&layout);
+        let game = self.isle.island_game_mode();
+        let pointer = self.isle.seat.get_pointer().map(|p| p.current_location());
+        let Some(switcher) = &mut self.isle.switcher else {
+            return;
+        };
+        let model = &switcher.model;
+        let frame = Frame {
+            entries: model.entries().to_vec(),
+            selected: model.selected_index(),
+            row: model.row(),
+            quitting: model
+                .entries()
+                .iter()
+                .filter(|e| model.quitting(&e.app))
+                .map(|e| e.app.clone())
+                .collect(),
+            previews: switcher
+                .previews
+                .iter()
+                .map(|(id, p)| (*id, p.clone()))
+                .collect(),
+            solid: theme.appearance.reduce_transparency || game,
+            layout: layout.clone(),
+        };
+        let size = SwitcherSurface::size_for(&layout, &theme);
+        let margin = SwitcherSurface::margin(&theme) as i32;
+        if switcher.top.is_none() {
+            switcher.pointer_at = pointer;
+        }
+        // Centred on the screen as it appears; then its top stays and it grows downward.
+        let top = *switcher
+            .top
+            .get_or_insert_with(|| (screen.size.h - layout.rows_height.ceil() as i32) / 2 - margin);
+        let geometry = Rectangle::new(((screen.size.w - size.w) / 2, top).into(), size);
+
+        let surface = self.isle.switcher_surface.clone();
+        surface.set_size(size);
+        surface.set_still(game);
+        surface.set_model(frame.clone());
+        self.isle
+            .shell
+            .with_root("switcher", || surface.set(frame.clone()));
+        let place = isle_shell::OutputPlace {
+            output: output.clone(),
+            geometry: screen,
+            scale: output.current_scale().fractional_scale(),
+        };
+        if !self.isle.shell.is_open("switcher") {
+            self.close_menu_bar_group();
+        }
+        self.isle.shell.open_placed("switcher", &place, geometry);
+        self.dispatch_shell();
+        self.isle.queue_redraw(&output);
+    }
+
+    /// Renders a preview for each plate's window that has none or has committed since, at
+    /// its card's size: the card's window for each app, and the window row's.
+    fn update_previews(&mut self, layout: &model::Layout) {
+        let Some(switcher) = &self.isle.switcher else {
+            return;
+        };
+        let Some(output) = switcher.output.clone() else {
+            return;
+        };
+        let scale = output.current_scale().fractional_scale();
+        let mut wanted: Vec<u64> = switcher
+            .model
+            .entries()
+            .iter()
+            .filter(|e| !e.background)
+            .filter_map(|e| e.recent)
+            .collect();
+        if switcher.model.row().is_some()
+            && let Some(entry) = switcher.model.selected()
+        {
+            wanted.extend(entry.windows.iter().map(|w| w.id));
+        }
+        let todo: Vec<u64> = wanted
+            .iter()
+            .copied()
+            .filter(|id| !switcher.previews.contains_key(id) || switcher.stale.contains(id))
+            .collect();
+        let (w, h) = (layout.card_width as f64, layout.card_height as f64);
+        for id in todo {
+            if let Some(image) = self.render_preview(id, w, h, scale) {
+                let switcher = self.isle.switcher.as_mut().unwrap();
+                switcher.previews.insert(id, PreviewImage(image));
+            }
+        }
+        let switcher = self.isle.switcher.as_mut().unwrap();
+        switcher.stale.clear();
+        switcher.previews.retain(|id, _| wanted.contains(id));
+    }
+
+    /// Window `id` drawn into a texture fitted inside `w` by `h` points, as an image the
+    /// switcher's tree draws. A window not on screen gives its last buffer.
+    fn render_preview(
+        &mut self,
+        id: u64,
+        w: f64,
+        h: f64,
+        scale: f64,
+    ) -> Option<isle_shell::switcher::surface::ImageHandle> {
+        let frame = self.isle.frame(id)?;
+        let fit = (w / frame.size.w.max(1) as f64).min(h / frame.size.h.max(1) as f64);
+        let (pw, ph) = (
+            (frame.size.w as f64 * fit).round().max(1.0),
+            (frame.size.h as f64 * fit).round().max(1.0),
+        );
+        let renderer = self.backend.renderer_opt()?;
+        let mut pieces = Vec::new();
+        self.isle
+            .window_pieces(renderer, id, frame.loc, scale, false, 1.0, &mut |e| {
+                pieces.push(e)
+            });
+        if pieces.is_empty() {
+            return None;
+        }
+        let from = Rectangle::from_size(frame.size);
+        let to = Rectangle::<f64, Logical>::from_size((pw, ph).into());
+        let placed: Vec<_> = pieces
+            .into_iter()
+            .map(|p| crate::wm::draw::place(p, from, to, scale))
+            .collect();
+        let size = ((pw * scale).round() as i32, (ph * scale).round() as i32).into();
+        let texture = match crate::wm::motion::render_to_texture(renderer, size, scale, &placed) {
+            Ok(texture) => texture,
+            Err(err) => {
+                debug!(id, "no preview: {err}");
+                return None;
+            }
+        };
+        self.isle.shell.image_of(renderer, &texture)
+    }
+
+    /// The pointer in the panel: hover selects once it has moved, a click commits.
+    pub fn switcher_pointer(&mut self, action: SwitcherAction) {
+        let Some(switcher) = self.isle.switcher.as_mut() else {
+            return;
+        };
+        match action {
+            SwitcherAction::Hover { index, window } => {
+                let now = self.isle.seat.get_pointer().map(|p| p.current_location());
+                if switcher.pointer_at.is_some() && switcher.pointer_at == now {
+                    return;
+                }
+                switcher.pointer_at = None;
+                switcher.model.hover(index, window);
+                self.switcher_changed();
+            }
+            SwitcherAction::Click { index, window } => {
+                let effects = switcher.model.click(index, window);
+                self.switcher_effects(effects);
+            }
         }
     }
 
@@ -292,6 +511,11 @@ impl State {
         #[cfg(feature = "test-hooks")]
         {
             self.isle.switcher_was_drawn = false;
+        }
+        if self.isle.shell.is_open("switcher") {
+            self.isle.shell.close("switcher");
+            self.dispatch_shell();
+            self.isle.queue_redraw_all();
         }
     }
 

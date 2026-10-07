@@ -458,7 +458,7 @@ impl State {
 }
 
 /// Draws `elements`, placed relative to the texture's origin, into a new texture.
-fn render_to_texture<E>(
+pub fn render_to_texture<E>(
     renderer: &mut GlesRenderer,
     size: Size<i32, smithay::utils::Physical>,
     scale: f64,

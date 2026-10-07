@@ -4,7 +4,7 @@
 //!
 //! Commands, to the first window unless they start with `wN `: `title T`, `app-id A`,
 //! `fullscreen`, `unfullscreen`, `maximize`, `unmaximize`, `minimize`, `min W H`, `max W H`,
-//! `size W H` (draw at that size), `geometry X Y W H` (the window's geometry within a larger
+//! `size W H` (draw at that size), `colour RRGGBB` (draw in it), `geometry X Y W H` (the window's geometry within a larger
 //! buffer), `decoration client|server|unset`, `move-on-press`, `resize-on-press EDGE`,
 //! `window` (another toplevel), `dialog` and `modal` (a toplevel whose parent is this one),
 //! `destroy`, `unmap` (a null buffer), `remap` (a commit that asks to be configured again),
@@ -246,6 +246,12 @@ impl Client {
             ("max", Some(t)) => t.set_max_size(num(0), num(1)),
             ("size", _) => {
                 self.wins[index].size = (num(0), num(1));
+                self.draw(index, qh);
+                return;
+            }
+            ("colour", _) => {
+                let hex = rest.first().and_then(|h| u32::from_str_radix(h, 16).ok()).unwrap_or(0);
+                self.wins[index].colour = [(hex >> 16) as u8, (hex >> 8) as u8, hex as u8, 0xff];
                 self.draw(index, qh);
                 return;
             }

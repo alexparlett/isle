@@ -145,6 +145,7 @@ pub struct Isle {
     pub processes: crate::processes::Processes,
     /// Cmd+Tab's switcher while its chord is held.
     pub switcher: Option<crate::switcher::SwitcherState>,
+    pub switcher_surface: std::rc::Rc<isle_shell::switcher::SwitcherSurface>,
     /// The windows changed since the switcher last read them.
     pub switcher_dirty: std::cell::Cell<bool>,
     #[cfg(feature = "test-hooks")]
@@ -284,6 +285,7 @@ impl Isle {
             .expect("the shell's wake source");
         let mut shell = isle_shell::Shell::new(ping, theme);
         let zoom_menu = isle_shell::zones::ZoneSurface::menu();
+        let switcher_surface = isle_shell::switcher::SwitcherSurface::new();
         shell.register(zoom_menu.clone());
         let zone_panel = isle_shell::zones::ZoneSurface::panel();
         shell.register(zone_panel.clone());
@@ -294,6 +296,7 @@ impl Isle {
         shell.register(bar.surface.clone());
         shell.register(bar.window_menu.clone());
         shell.register(bar.about.clone());
+        shell.register(switcher_surface.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -373,6 +376,7 @@ impl Isle {
             quitting: Vec::new(),
             processes: Default::default(),
             switcher: None,
+            switcher_surface,
             switcher_dirty: Default::default(),
             #[cfg(feature = "test-hooks")]
             switcher_drawn_count: 0,
@@ -682,6 +686,7 @@ impl State {
                 isle_shell::Action::Island(action) => self.island_action(focus, action),
                 isle_shell::Action::MenuBar(action) => self.menu_bar_action(action),
                 isle_shell::Action::Menu(event) => self.window_menu_event(event),
+                isle_shell::Action::Switcher(action) => self.switcher_pointer(action),
                 isle_shell::Action::Key(code) => {
                     use crate::keyboard::ISLE_DEVICE;
                     use smithay::backend::input::{InputTime, KeyState};

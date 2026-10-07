@@ -9,6 +9,7 @@ publish.workspace = true
 accesskit.workspace = true
 accesskit_unix.workspace = true
 serde_json.workspace = true
+bytes = "1"
 futures-channel = "0.3"
 futures-util = "0.3"
 freya = { workspace = true, features = ["engine"] }

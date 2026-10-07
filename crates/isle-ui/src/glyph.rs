@@ -73,7 +73,6 @@ impl Component for Glyph {
 pub struct AppIcon {
     pub path: std::path::PathBuf,
     pub size: f32,
-    pub opacity: f32,
 }
 
 impl AppIcon {
@@ -81,14 +80,7 @@ impl AppIcon {
         Self {
             path: path.into(),
             size,
-            opacity: 1.0,
         }
-    }
-
-    /// Drawn at `opacity`, as a hidden app's icon is.
-    pub fn opacity(mut self, opacity: f32) -> Self {
-        self.opacity = opacity;
-        self
     }
 }
 
@@ -145,14 +137,12 @@ impl Component for AppIcon {
             .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
         if svg {
             SvgViewer::new((self.path.clone(), svg_bytes(&self.path)))
-                .opacity(self.opacity)
                 .show_loader(false)
                 .width(size.clone())
                 .height(size)
                 .into_element()
         } else {
             ImageViewer::new(self.path.clone())
-                .opacity(self.opacity)
                 .width(size.clone())
                 .height(size)
                 .into_element()

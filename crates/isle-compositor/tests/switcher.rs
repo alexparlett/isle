@@ -559,3 +559,79 @@ async fn glass_floor_by_eye() {
     );
     release(&isle, CMD).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_svg_icon_fills_its_plate_and_a_hidden_apps_is_dimmed() {
+    let mut isle = Isle::start_prepared("switchsvg", "", |dir| {
+        let icon = dir.join("data/red.svg");
+        // As Papirus writes them: a size and no viewBox.
+        std::fs::write(
+            &icon,
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\"><rect width=\"48\" height=\"48\" fill=\"#ff0000\"/></svg>",
+        )
+        .unwrap();
+        for app in ["isle.test.Shown", "isle.test.Hidden"] {
+            std::fs::write(
+                dir.join(format!("data/applications/{app}.desktop")),
+                format!(
+                    "[Desktop Entry]\nType=Application\nName={app}\nExec=true\nIcon={}\n",
+                    icon.display()
+                ),
+            )
+            .unwrap();
+        }
+    })
+    .await;
+    let _hidden = isle.client("isle.test.Hidden", "000000");
+    isle.wait_for_window("isle.test.Hidden").await;
+    let _shown = isle.client("isle.test.Shown", "000000");
+    isle.wait_for_window("isle.test.Shown").await;
+    let _front = isle.client("isle.test.Front", "000000");
+    isle.wait_for_window("isle.test.Front").await;
+    let windows = isle.windows_proxy().await;
+    windows
+        .set_app_hidden("isle.test.Hidden", true)
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    press(&isle, CMD).await;
+    tap(&isle, TAB).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    let s = shell
+        .list()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|s| s.name == "switcher")
+        .unwrap();
+    let shot = isle.shot("HEADLESS-1", "svg").await;
+    release(&isle, CMD).await;
+    // Plates of 144 from the panel's padding of 8, inside the surface's shadow margin.
+    let margin = (s.width - (8 + 3 * 144 + 2 * 8 + 8)) / 2;
+    let centre = |i: i32| {
+        (
+            (s.x + margin + 8 + i * 152 + 72) as usize,
+            (s.y + margin + 8 + 72) as usize,
+        )
+    };
+    let (x, y) = centre(1);
+    let shown = shot.at(x, y);
+    let (x, y) = centre(2);
+    let hidden = shot.at(x, y);
+    // A 48-point file drawn across most of the 128-point icon, not in its corner.
+    let (x, y) = centre(1);
+    let corner = shot.at(x + 50, y + 50);
+    assert!(
+        shown[0] > 230 && shown[1] < 30,
+        "the shown app's icon: {shown:?}"
+    );
+    assert!(
+        corner[0] > 230 && corner[1] < 30,
+        "the icon scaled to its box: {corner:?}"
+    );
+    assert!(
+        hidden[0] < 200 && hidden[0] > 60,
+        "the hidden app's icon dimmed: {hidden:?}"
+    );
+}

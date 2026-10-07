@@ -606,10 +606,13 @@ fn plate_of(
     let left = centre - icon_w / 2.0;
     let top = t.space_s;
     let dim = if entry.hidden { 0.5 } else { 1.0 };
+    // Opacity reaches an image only through a clipping box; the image's own is ignored.
     let icon = rect()
         .position(Position::new_absolute().left(left).top(top))
         .width(Size::px(icon_w))
         .height(Size::px(icon_h))
+        .overflow(Overflow::Clip)
+        .opacity(dim)
         .map(entry.icon.clone(), |el, path| {
             if entry.cover {
                 el.corner_radius(t.radius_small)
@@ -623,21 +626,17 @@ fn plate_of(
                     .child(
                         ImageViewer::new(path)
                             .width(Size::px(icon_w))
-                            .height(Size::px(icon_h))
-                            .opacity(dim),
+                            .height(Size::px(icon_h)),
                     )
             } else {
-                el.child(AppIcon::new(path, size).opacity(dim))
+                el.child(AppIcon::new(path, size))
             }
         })
         .maybe(entry.icon.is_none(), |el| {
             el.center().child(Glyph::new(
                 "app-window",
                 size * 0.75,
-                {
-                    let c = colour(t.colour_text_2);
-                    c.with_a((c.a() as f32 * dim).round() as u8)
-                },
+                colour(t.colour_text_2),
             ))
         });
 

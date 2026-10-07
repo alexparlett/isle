@@ -183,3 +183,20 @@ async fn the_sound_server_going_and_returning_is_followed_without_a_stall() {
         assert!(!maps.contains(module), "{module} is loaded");
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_volume_keys_move_the_open_panels_slider_in_place() {
+    let Some(isle) = started("audio-panel-keys").await else {
+        return;
+    };
+    isle.audio_tool("pactl", &["set-sink-volume", "isle-test-speakers", "40%"]);
+    isle.open_panel(None).await;
+    let slider = || async { isle.module("sound").await["slider"].as_f64().unwrap_or(-1.0) };
+    wait_until(|| async { (slider().await - 0.4).abs() < 0.02 }).await;
+    isle.chord(&[115]).await;
+    wait_until(|| async { slider().await > 0.42 }).await;
+    assert!(
+        !isle.island_output().await["panel"].is_null(),
+        "the panel stays open"
+    );
+}

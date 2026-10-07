@@ -2,6 +2,23 @@
 
 ## 2026-10-07
 
+- P8 8.13: Control Centre completed. The `control-centre` default is the
+  design's arrangement again (Dark Mode and Keyboard layout move to the
+  gallery). A catalogue holds every module with its sizes, group, Settings
+  pane and why it may be missing; Accessibility's module and page switch
+  Increase contrast, Reduce motion and Reduce transparency. Edit mode from
+  the footer or E: remove badges, a size menu by secondary click or Return,
+  moves by drag or Cmd+arrows, Delete, and the gallery by group with Add or,
+  for what cannot show here, why and "Set up…"; every change writes the
+  arrangement, Escape closes the menu then edit mode. The keyboard: one tile
+  of the grid and one tray item take it at a time, so Tab passes each as one
+  stop; the arrows move by place in the grid, Home and End, Return opens a
+  page and Space switches, + and − step a slider, focus comes back to the
+  module whose page was left. Now Playing at Wide is one row. A grid that
+  fits shows no scrollbar. Not built: the gallery sits below the grid rather
+  than beside the panel, has no search, a drag shows no live outline, and a
+  module's own secondary-click menu outside edit mode.
+
 - P8 8.12: the tray. `isle-tray` owns `org.kde.StatusNotifierWatcher`
   before the socket is announced and is the host: items by path on their
   sender or by well-known name, gone when their owner leaves, read again on

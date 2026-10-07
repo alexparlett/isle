@@ -19,6 +19,7 @@ mod keyboard;
 mod island;
 mod centre;
 mod control_centre;
+mod control_edit;
 mod launch;
 mod menubar;
 mod menus;

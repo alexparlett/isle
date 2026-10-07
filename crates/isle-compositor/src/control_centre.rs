@@ -24,23 +24,42 @@ pub struct PanelState {
     pub page: Option<String>,
     /// Notification Centre, in Control Centre's place.
     pub centre: bool,
+    /// Edit mode, and the module whose menu is open in it.
+    pub edit: bool,
+    pub edit_menu: Option<String>,
+    /// The module whose page was last left, where the keyboard returns.
+    pub left_page: Option<String>,
 }
 
 impl Isle {
     /// The modules of the arrangement that have something to control here.
-    fn modules(&self) -> Vec<Module> {
+    pub fn panel_modules(&self) -> Vec<Module> {
         let mut out = Vec::new();
         for entry in &self.settings.control_centre.modules {
             let (id, size) = entry.split_once(':').unwrap_or((entry.as_str(), "m"));
             let size = TileSize::from_name(size).unwrap_or(TileSize::Medium);
-            if let Some(module) = self.module(id, size) {
+            let Some(known) = crate::control_edit::entry(id) else {
+                continue;
+            };
+            // A size it does not come in reads as the nearest it does.
+            let size = if known.sizes.contains(&size) {
+                size
+            } else {
+                *known.sizes.iter().rev().find(|s| s.cells().0 <= size.cells().0).unwrap_or(&known.sizes[0])
+            };
+            if out.iter().any(|m: &Module| m.id == id) {
+                continue;
+            }
+            if let Some(mut module) = self.module_of(id, size) {
+                module.sizes = known.sizes.to_vec();
                 out.push(module);
             }
         }
         out
     }
 
-    fn module(&self, id: &str, size: TileSize) -> Option<Module> {
+    /// A module as it shows here, or none when its source is missing.
+    pub fn module_of(&self, id: &str, size: TileSize) -> Option<Module> {
         match id {
             "dark-mode" => {
                 let dark = self.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
@@ -97,6 +116,7 @@ impl Isle {
             "bluetooth" => self.bluetooth_module(size),
             "now-playing" => self.now_playing_module(size),
             "focus" => self.focus_module(size),
+            "accessibility" => self.accessibility_module(size),
             _ => None,
         }
     }
@@ -155,7 +175,14 @@ impl Isle {
             })).collect::<Vec<_>>(),
             "modules": frame.modules.iter().map(|m| serde_json::json!({
                 "id": m.id, "name": m.name, "state": m.state, "on": m.on, "glyph": m.glyph,
+                "size": format!("{:?}", m.size).to_lowercase(), "slider": m.slider,
             })).collect::<Vec<_>>(),
+            "edit": frame.edit.as_ref().map(|e| serde_json::json!({
+                "menu": e.menu,
+                "gallery": e.gallery.iter().map(|g| serde_json::json!({
+                    "id": g.id, "group": g.group, "why": g.why,
+                })).collect::<Vec<_>>(),
+            })),
             "tray": frame.tray.iter().map(|t| serde_json::json!({
                 "key": t.key, "title": t.title, "icon": t.icon, "attention": t.attention,
             })).collect::<Vec<_>>(),
@@ -210,7 +237,7 @@ impl Isle {
                 chord: "⌘⎋".into(),
             });
         }
-        let modules = self.modules();
+        let modules = self.panel_modules();
         // Media's one place in the panel is Now Playing, while it is in the grid.
         let playing_module = modules.iter().any(|m| m.id == "now-playing");
         let activities = self
@@ -229,6 +256,8 @@ impl Isle {
             privacy,
             modules,
             tray: self.tray_icons(),
+            edit: state.edit.then(|| self.edit_frame(state.edit_menu.clone())),
+            focus_module: state.left_page.clone(),
             tray_menu: state.page.as_deref().and_then(|p| self.tray_menu_module(p)),
             centre: None,
             body: 0.0,
@@ -252,11 +281,20 @@ impl State {
         let was_pinned = self.isle.island.panel.as_ref().is_some_and(|p| p.pinned);
         // Pinning a panel already open keeps the page it shows.
         let page = page.or_else(|| self.isle.island.panel.as_ref().and_then(|p| p.page.clone()));
+        let (edit, edit_menu) = self
+            .isle
+            .island
+            .panel
+            .as_ref()
+            .map_or((false, None), |p| (p.edit, p.edit_menu.clone()));
         self.isle.island.panel = Some(crate::control_centre::PanelState {
             output: name,
             pinned: pinned || was_pinned,
             page,
             centre: false,
+            edit,
+            edit_menu,
+            left_page: None,
         });
         if pinned && !was_pinned {
             self.focus_island(output);
@@ -343,9 +381,26 @@ impl State {
             PanelAction::Page(page) => {
                 // Back from an item's menu is the grid; the tray has no page of its own.
                 let page = page.filter(|p| p != "tray");
-                self.isle.island.panel = Some(crate::control_centre::PanelState { page, ..panel });
+                let left_page = match (&page, &panel.page) {
+                    (None, Some(old)) => old.split('/').next().map(str::to_owned),
+                    _ => panel.left_page.clone(),
+                };
+                self.isle.island.panel = Some(crate::control_centre::PanelState {
+                    page,
+                    left_page,
+                    ..panel
+                });
             }
             PanelAction::Tray { .. } | PanelAction::TrayMove { .. } => self.tray_action(action),
+            PanelAction::Edit(_)
+            | PanelAction::EditMenu(_)
+            | PanelAction::EditRemove(_)
+            | PanelAction::EditAdd(_)
+            | PanelAction::EditSize { .. }
+            | PanelAction::EditMove { .. } => self.edit_action(action),
+            PanelAction::Switch { module, row, on } if module == "accessibility" => {
+                self.accessibility_switch(&row, on)
+            }
             PanelAction::Choose { ref module, .. } if module == "tray" => self.tray_action(action),
             PanelAction::Choose { module, row } if module == "keyboard-layout" => {
                 if let Ok(index) = row.parse::<u32>() {
@@ -436,6 +491,18 @@ impl State {
                         args[2].as_i64().unwrap_or(1) as i32,
                     ),
                 },
+            },
+            "edit" => PanelAction::Edit(args.as_bool().ok_or("on or off")?),
+            "edit-menu" => PanelAction::EditMenu(args.as_str().map(str::to_owned)),
+            "edit-remove" => PanelAction::EditRemove(args.as_str().unwrap_or_default().into()),
+            "edit-add" => PanelAction::EditAdd(args.as_str().unwrap_or_default().into()),
+            "edit-size" => PanelAction::EditSize {
+                id: s(0),
+                size: TileSize::from_name(&s(1)).ok_or("a size")?,
+            },
+            "edit-move" => PanelAction::EditMove {
+                id: s(0),
+                to: args[1].as_u64().ok_or("a place")? as usize,
             },
             "tray-move" => {
                 self.tray_reorder(&s(0), args[1].as_u64().ok_or("a place")? as usize);

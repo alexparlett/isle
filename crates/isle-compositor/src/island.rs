@@ -687,7 +687,21 @@ impl State {
             IslandAction::Panel(action) => self.panel_action(action),
             IslandAction::Close => {
                 let page = self.isle.island.panel.as_ref().and_then(|p| p.page.clone());
-                if let Some(page) = page {
+                let edit = self
+                    .isle
+                    .island
+                    .panel
+                    .as_ref()
+                    .filter(|p| p.edit)
+                    .map(|p| p.edit_menu.is_some());
+                if let Some(menu) = edit {
+                    use isle_shell::island::panel::PanelAction;
+                    self.panel_action(if menu {
+                        PanelAction::EditMenu(None)
+                    } else {
+                        PanelAction::Edit(false)
+                    });
+                } else if let Some(page) = page {
                     let parent = isle_shell::island::panel::parent_page(&page);
                     self.panel_action(isle_shell::island::panel::PanelAction::Page(parent));
                 } else {

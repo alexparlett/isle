@@ -640,8 +640,7 @@ pub struct ControlCentre {
     /// has nothing to control here closes up.
     #[setting(default = [
         "wifi:m", "now-playing:l", "bluetooth:m", "focus:m", "vpn:m", "sound:w", "display:w",
-        "night-light:s", "energy-mode:s", "updates:m", "batteries:m", "dark-mode:s",
-        "keyboard-layout:m",
+        "night-light:s", "energy-mode:s", "updates:m", "batteries:m",
     ].map(String::from).to_vec())]
     pub modules: Vec<String>,
     /// Tray items in order by their id; items not named follow in the order they came.

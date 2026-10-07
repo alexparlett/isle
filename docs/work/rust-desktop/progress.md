@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+- B58: glass with no text on it is clear and never raised by the floor; the
+  switcher's panel is clear and its name sits on a strip of the default
+  glass. Chosen by the user from three renders.
+
 - P7: the switcher drawn to the gate-5 board, not the sheet's drifted
   numbers: window-coloured cards with hairline edges, round marks, progress
   in the card, the name centred, titles in the window row; the sheet follows.

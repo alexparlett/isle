@@ -473,3 +473,58 @@ async fn a_drag_carries_through_cmd_tab_into_the_app_brought_forward() {
         "the icon goes"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "a measure of the panel's glass: ISLE_TEST_KEEP=1 --nocapture"]
+async fn glass_by_eye() {
+    let backdrop = std::env::var("GLASS_WALLPAPER").unwrap_or_else(|_| "#808080".into());
+    let mut isle = Isle::start_with(
+        "switchglass",
+        &format!("wallpaper {{\n    source \"{backdrop}\"\n}}\n"),
+    )
+    .await;
+    let _clients = three(&mut isle).await;
+    press(&isle, CMD).await;
+    tap(&isle, TAB).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let shot = isle.shot("HEADLESS-1", "glass").await;
+    let s: Value = switcher(&isle).await;
+    println!("{s}");
+    // The panel's left padding, beside the first plate, and the gap between plates.
+    for (x, y) in [(563, 450), (820, 450), (960, 655), (1352, 450)] {
+        println!("({x},{y}) {:?}", shot.at(x, y));
+    }
+    println!("wallpaper {:?}", shot.at(100, 900));
+    release(&isle, CMD).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "a measure of the glass floor over a light window: --nocapture"]
+async fn glass_floor_by_eye() {
+    let glass = std::env::var("GLASS").unwrap_or_else(|_| "0.5".into());
+    let mut isle = Isle::start_with(
+        "switchfloor",
+        &format!("wallpaper {{\n    source \"frost\"\n}}\nappearance {{\n    glass {glass}\n}}\n"),
+    )
+    .await;
+    let _light = isle.client_with(&[
+        "--app-id",
+        "isle.test.Light",
+        "--colour",
+        "f2f2f2",
+        "--size",
+        "1600x900",
+    ]);
+    isle.wait_for_window("isle.test.Light").await;
+    let _clients = three(&mut isle).await;
+    press(&isle, CMD).await;
+    tap(&isle, TAB).await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let shot = isle.shot("HEADLESS-1", "floor").await;
+    println!(
+        "glass {glass}: panel padding {:?}, light window {:?}",
+        shot.at(432, 450),
+        shot.at(200, 250)
+    );
+    release(&isle, CMD).await;
+}

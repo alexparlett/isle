@@ -663,3 +663,15 @@ surface. The rule is a compositor function, not the shell's: Control Centre
 and the bar are states of surfaces that never close. Rejected: exclusive
 groups in `Shell`, which would need those states to become surfaces.
 
+**B58 · Glass that carries no text is clear.** Taken after P7, when the user
+found the switcher's panel neither glassy nor frosted. The floor (B39)
+raises a shape's tint until secondary text holds 4.5:1 anywhere on it; over a
+light window that took the switcher's panel to about 0.82 whatever the Glass
+setting, though its only text is the name line. A glass shape with no text on
+it is drawn at `glass-clear` and never raised; text on clear glass sits on a
+strip of the default glass drawn over it, which the floor raises as before.
+Increase Contrast and Reduce Transparency still take both to their forms.
+Built first for the switcher's panel and name. Rejected: a clearer default
+for every glass surface (text-bearing glass would still darken), relaxing
+the floor to the Mac's levels (it revises DESIGN.md's contrast rule).
+

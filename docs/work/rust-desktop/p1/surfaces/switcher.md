@@ -12,7 +12,8 @@ in a band under its row.
 
 **Panel**
 
-- Material `material-glass` (blur `material-blur`, saturation
+- Material `material-glass-clear`, never raised by the floor, since the panel
+  carries no text but its name line (B58) (blur `material-blur`, saturation
   `material-saturation`, grain `material-noise-opacity`); `radius-panel`;
   `shadow-panel`.
 - Padding `space-s` on every side. Plates sit `space-s` apart. Under each
@@ -72,8 +73,9 @@ the window row open, the app's plate turns `colour-selection-unfocused` and
 the selected window's plate takes `colour-fill-strong`.
 
 **Name**: the selected app's name in `type-style-headline`, `colour-text`,
-centred under its row, one line, cut at its end; not shown while the window
-row is open. A state follows as a second run,
+centred under its row, one line, cut at its end, on a capsule of
+`material-glass` padded `space-m` and `space-xs`, which the floor raises
+over a light backdrop (B58); not shown while the window row is open. A state follows as a second run,
 `space-s` after it, in `type-style-callout`, `colour-text-2`: "Hidden",
 "Minimised", "Not responding", "Running in background". Other rows' bands
 are empty.

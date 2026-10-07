@@ -417,6 +417,10 @@ differences from the plan:
   22-point round marks, progress inside the card, the name centred under the
   row and each window's title under it in the window row. The sheet was
   brought to the board.
+- **Clear glass** (B58). The panel read as an opaque slab: the floor raised
+  its whole shape to about 0.82 over light windows for its one line of text.
+  The panel is now `glass-clear` and never raised, and the name sits on a
+  capsule of the default glass the floor still governs.
 - **An app with no id** is named by its process in the switcher as in the
   menu bar (Chromium's first-run dialog had no name).
 - **The ` key** is the one that types it, as P5 made Cmd+`, not the key above

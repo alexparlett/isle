@@ -965,7 +965,12 @@ impl Shell {
                 continue;
             };
             let shapes = instance.glass.shapes.borrow();
-            for (id, shape) in shapes.iter() {
+            // Front to back: the shapes drawn over the others first.
+            let ordered = shapes
+                .iter()
+                .filter(|(_, s)| s.front)
+                .chain(shapes.iter().filter(|(_, s)| !s.front));
+            for (id, shape) in ordered {
                 let Some(blur) = instance.blurs.get(id) else {
                     continue;
                 };
@@ -984,6 +989,7 @@ impl Shell {
                     shape.radius * instance.scale as f32,
                     &self.theme,
                     instance.transition.opacity(),
+                    shape.clear,
                 );
                 push(ShellElement::Glass(RescaleRenderElement::from_element(
                     glass, origin, scale,

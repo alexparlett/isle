@@ -64,13 +64,17 @@ pub fn focus_ring(theme: &Theme) -> Border {
 }
 
 /// Where a surface's glass lies, in points from its origin, for the compositor to blur behind.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct GlassShape {
     pub x: f32,
     pub y: f32,
     pub width: f32,
     pub height: f32,
     pub radius: f32,
+    /// Glass with no text on it: the clear end, never raised by the contrast floor (B58).
+    pub clear: bool,
+    /// Drawn over the surface's other glass, as a strip behind text on clear glass is.
+    pub front: bool,
 }
 
 /// The glass shapes of one tree, by the id of the [`Glass`] that reported each.
@@ -129,6 +133,7 @@ impl Component for Hit {
                             width: e.area.width(),
                             height: e.area.height(),
                             radius: 0.0,
+                            ..Default::default()
                         },
                     );
                 }
@@ -142,11 +147,29 @@ impl Component for Hit {
 #[derive(Clone, PartialEq)]
 pub struct Glass {
     pub radius: f32,
+    pub clear: bool,
+    pub front: bool,
 }
 
 impl Glass {
     pub fn new(radius: f32) -> Self {
-        Self { radius }
+        Self {
+            radius,
+            clear: false,
+            front: false,
+        }
+    }
+
+    /// Glass that carries no text: the clear end of the material, never darkened for contrast.
+    pub fn clear(mut self) -> Self {
+        self.clear = true;
+        self
+    }
+
+    /// Drawn over the surface's other glass.
+    pub fn front(mut self) -> Self {
+        self.front = true;
+        self
     }
 }
 
@@ -161,10 +184,14 @@ impl Component for Glass {
                 shapes.shapes.borrow_mut().remove(&id);
             }
         });
-        let radius = self.radius;
+        let (radius, clear, front) = (self.radius, self.clear, self.front);
         let theme = use_theme();
         let tint = if shapes.draw_tint {
-            colour(theme.tokens.material_glass)
+            colour(if clear {
+                theme.tokens.material_glass_clear
+            } else {
+                theme.tokens.material_glass
+            })
         } else {
             Color::TRANSPARENT
         };
@@ -183,6 +210,8 @@ impl Component for Glass {
                         width: e.area.width(),
                         height: e.area.height(),
                         radius,
+                        clear,
+                        front,
                     },
                 );
             })

@@ -93,6 +93,9 @@ without Increase Contrast:
   holds 4.5:1, so the setting changes how much colour shows through, never
   whether text can be read. The compositor reads a reduction of the blur
   back a frame late to do it, over the worst of sixteen cells (B39).
+- **Clear glass.** Glass with no text on it, such as the switcher's panel
+  round its cards, is `glass-clear` and is never raised; text on it sits
+  on a strip of the default glass that the floor governs (B58).
 - **On fills on glass** only `text` is used on a `fill-strong` plate;
   tertiary text is never on a fill. The find highlight is never drawn on
   glass: Spotlight marks a match by weight.

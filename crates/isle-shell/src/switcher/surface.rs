@@ -344,6 +344,9 @@ impl Component for Panel {
         let t = &theme.tokens;
         let frame = self.frame.read().clone();
         let actions = Actions::get();
+        // The name's measured width: a fill placed absolutely in an auto-sized box takes the
+        // room the box had, so the strip under the name is given its width.
+        let mut name_width = use_state(|| 0.0f32);
         let layout = &frame.layout;
         let margin = SwitcherSurface::margin(&theme);
         let contrast = theme.appearance.increase_contrast;
@@ -375,7 +378,10 @@ impl Component for Panel {
                         .alignment(BorderAlignment::Inner),
                 )
             })
-            .maybe(!frame.solid, |el| el.child(Glass::new(t.radius_panel)))
+            // The panel's glass carries no text: the clear end, never raised (B58).
+            .maybe(!frame.solid, |el| {
+                el.child(Glass::new(t.radius_panel).clear())
+            })
             .child(isle_ui::Hit);
 
         if let Some(d) = &layout.divider {
@@ -409,26 +415,57 @@ impl Component for Panel {
         ) && let Some(band) = layout.bands.iter().find(|b| b.y >= plate.y + plate.h - 0.5)
         {
             let word = state_word(entry);
+            // The name on a strip of the default glass, which the floor darkens over a light
+            // backdrop so the text holds its contrast while the panel stays clear.
+            let height = band.h + 2.0 * t.space_xs;
+            let measured = *name_width.read();
+            let row = rect()
+                .height(Size::px(height))
+                .padding((0.0, t.space_m))
+                .direction(Direction::Horizontal)
+                .cross_align(Alignment::Center)
+                .spacing(t.space_s)
+                .on_sized(move |e: Event<SizedEventData>| {
+                    let w = e.area.width().ceil();
+                    if *name_width.peek() != w {
+                        name_width.set(w);
+                    }
+                })
+                .child(text::line(
+                    &theme,
+                    text::Style::Headline,
+                    colour(t.colour_text),
+                    entry.name.clone(),
+                ))
+                .map(word, |el, word| {
+                    el.child(text::line(
+                        &theme,
+                        text::Style::Callout,
+                        colour(t.colour_text_2),
+                        word,
+                    ))
+                });
+            let line = Rect {
+                y: band.y - t.space_xs,
+                h: height,
+                ..*band
+            };
+            if !frame.solid && measured > 0.0 {
+                panel = panel.child(
+                    at(&Rect {
+                        x: line.x + ((line.w - measured) / 2.0).max(0.0),
+                        w: measured.min(line.w),
+                        ..line
+                    })
+                    .child(Glass::new(height / 2.0).front()),
+                );
+            }
             panel = panel.child(
-                at(band)
+                at(&line)
                     .direction(Direction::Horizontal)
                     .main_align(Alignment::Center)
                     .cross_align(Alignment::Center)
-                    .spacing(t.space_s)
-                    .child(text::line(
-                        &theme,
-                        text::Style::Headline,
-                        colour(t.colour_text),
-                        entry.name.clone(),
-                    ))
-                    .map(word, |el, word| {
-                        el.child(text::line(
-                            &theme,
-                            text::Style::Callout,
-                            colour(t.colour_text_2),
-                            word,
-                        ))
-                    }),
+                    .child(row),
             );
         }
 

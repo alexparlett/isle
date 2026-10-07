@@ -423,8 +423,17 @@ impl GlassElement {
         radius: f32,
         theme: &Theme,
         alpha: f32,
+        clear: bool,
     ) -> Self {
         let t = &theme.tokens;
+        let a = &theme.appearance;
+        // Clear glass carries no text, so the floor never raises it; Increase Contrast and
+        // Reduce Transparency still take it to their forms.
+        let tint = if clear && !a.increase_contrast && !a.reduce_transparency {
+            t.material_glass_clear
+        } else {
+            t.material_glass.mix(t.material_glass_tinted, blur.floor)
+        };
         let local = Rectangle::<f64, Buffer>::new(
             (
                 (shape.loc.x - blur.region.loc.x) as f64 / 2.0,
@@ -442,7 +451,7 @@ impl GlassElement {
             program,
             radius,
             saturation: t.material_saturation,
-            tint: t.material_glass.mix(t.material_glass_tinted, blur.floor),
+            tint,
             alpha,
         }
     }

@@ -2,6 +2,7 @@
 
 pub mod backend;
 mod badges;
+mod banners;
 mod binds;
 pub mod build_info;
 pub mod crash;

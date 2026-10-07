@@ -4,6 +4,7 @@
 
 pub mod camera;
 pub mod pulse;
+pub mod sounds;
 
 use std::{
     ffi::{CStr, CString},

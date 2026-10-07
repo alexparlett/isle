@@ -1,6 +1,7 @@
 //! The shell surface host: Freya trees drawn on the compositor's GL context (B7).
 
 mod a11y;
+pub mod banners;
 pub mod boundary;
 mod blur;
 mod element;

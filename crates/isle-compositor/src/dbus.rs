@@ -723,6 +723,20 @@ impl Test {
             .map_err(fdo::Error::InvalidArgs)
     }
 
+    /// Acts on the banners as their controls would: `{"hover": true}`, `{"open": id}`,
+    /// `{"action": [id, key]}`, `{"close": id}`, `{"reply": id}`, `{"send": [id, text]}`.
+    async fn banner(&self, json: String) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| state.banner_test_action(&json))
+            .await?
+            .map_err(fdo::Error::InvalidArgs)
+    }
+
+    /// The banner stack as JSON.
+    async fn banners(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.banners_status()).await?)
+    }
+
     /// Gives an output a backlight named `test` at `current` of `max`, set through logind.
     async fn fake_screen(&self, connector: String, current: u32, max: u32) -> fdo::Result<()> {
         Ok(self

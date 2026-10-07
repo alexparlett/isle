@@ -316,6 +316,9 @@ impl Isle {
             .retain(|name, _| outputs.iter().any(|o| &o.name() == name));
         self.push_island_frames();
         self.arm_island_timer();
+        if !self.banners.model.idle() || self.shell.is_open("banners") {
+            self.refresh_banners();
+        }
         for output in &outputs {
             self.queue_redraw(output);
         }

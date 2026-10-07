@@ -191,8 +191,11 @@ impl Isle {
     }
 
     /// An app's rules: muted, and whether it shows over full screen.
-    pub fn notification_rules(&self, _app: &str) -> (bool, bool) {
-        (false, false)
+    pub fn notification_rules(&self, app: &str) -> (bool, bool) {
+        self.settings
+            .notification_app
+            .get(app)
+            .map_or((false, false), |a| (!a.allow, a.over_full_screen))
     }
 
     /// What holds banners at this moment.
@@ -203,7 +206,7 @@ impl Isle {
         Holds {
             focus: self.focus_hold(),
             game: self.game_mode_on(),
-            full_screen,
+            full_screen: full_screen && self.settings.notifications.hold_full_screen,
             away: self.services.login.state.preparing_for_sleep,
             capture: false,
         }
@@ -424,10 +427,14 @@ impl State {
     }
 
     /// An arrival decided: a banner, when it is one.
-    fn notification_shown(&mut self, _id: u32, _fate: Fate) {}
+    fn notification_shown(&mut self, id: u32, fate: Fate) {
+        self.banner_for(id, fate);
+    }
 
     /// A notification gone: its banner goes with it.
-    fn notification_hidden(&mut self, _id: u32) {}
+    fn notification_hidden(&mut self, id: u32) {
+        self.banner_gone(id);
+    }
 
     /// Brings an app forward, or starts it from its entry.
     pub fn activate_or_launch(&mut self, app: &str) {

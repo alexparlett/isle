@@ -453,6 +453,10 @@ pub mod test {
         fn island(&self, json: &str) -> zbus::Result<()>;
         /// Acts on Control Centre as its controls would.
         fn panel(&self, json: &str) -> zbus::Result<()>;
+        /// The banner stack as JSON.
+        fn banners(&self) -> zbus::Result<String>;
+        /// Acts on the banners as their controls would.
+        fn banner(&self, json: &str) -> zbus::Result<()>;
         /// Gives an output a backlight named `test`, set through logind.
         fn fake_screen(&self, connector: &str, current: u32, max: u32) -> zbus::Result<()>;
         /// Holds the main loop for `millis`, from its next dispatch.

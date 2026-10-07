@@ -2,6 +2,21 @@
 
 ## 2026-10-07
 
+- P8 8.8: banners. `isle-shell`'s `banners::model` is pure: one card per app
+  with its count, three at most newest first, the oldest temporary one
+  leaving for a fourth, the overflow row, lives from the tokens' banner
+  timings, time paused while hovered and resumed after a grace, arrivals
+  waiting under the pointer or behind a panel, those waiting past their life
+  dropped. The `banners` surface is a placed top-layer surface at the main
+  screen's top right under the strip, its hit shapes the cards; cards come in
+  from the trailing edge, still in Game Mode. Clicks, actions, close and the
+  reply field (which takes the keyboard and gives it back) go through the
+  server; a banner suppresses its app's attention event. Sounds: the app's
+  file or theme name, else the alert, uploaded once to pipewire-pulse as a
+  sample and played, one per burst. The `notifications` settings section and
+  per-app `notification-app` rules. A banner is on screen inside 100 ms of
+  Notify in the headless test. The summary after silence comes with Focus.
+
 - P8 8.7: the notification server. `isle-notifications` serves
   `org.freedesktop.Notifications` (spec 1.3 with `inline-reply`,
   `NotificationReplied`, `ActivationToken` and `Inhibited`), owned before the

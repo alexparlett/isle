@@ -38,6 +38,11 @@ pub struct Settings {
     #[setting(keyed)]
     pub wallpaper_output: BTreeMap<String, Wallpaper>,
     #[setting(section)]
+    pub notifications: Notifications,
+    /// An app's notification rules, by its desktop id.
+    #[setting(keyed)]
+    pub notification_app: BTreeMap<String, NotificationApp>,
+    #[setting(section)]
     pub shortcuts: Shortcuts,
     #[setting(section)]
     pub debug: Debug,
@@ -663,6 +668,60 @@ pub struct Wallpaper {
     /// A folder's pictures in random order rather than by name.
     #[setting(default = false)]
     pub shuffle: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Notifications {
+    /// Hold banners while a window is full screen, unless another screen is free of one.
+    #[setting(default = true)]
+    pub hold_full_screen: bool,
+    /// Hold banners while a screen is shared or recorded.
+    #[setting(default = true)]
+    pub hold_sharing: bool,
+    /// Play a sound for notifications.
+    #[setting(default = true)]
+    pub sounds: bool,
+    /// The alert sound, by its name in the sound theme.
+    #[setting(default = "message-new-instant".to_owned())]
+    pub alert_sound: String,
+    /// What the lock screen shows of notifications.
+    #[setting(default = LockScreen::Count)]
+    pub lock_screen: LockScreen,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum LockScreen {
+    /// Nothing.
+    None,
+    /// Each app with its count.
+    Count,
+    /// Each notification's app and summary.
+    Previews,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct NotificationApp {
+    /// Off mutes the app: no banner, no sound, still kept in the centre.
+    #[setting(default = true)]
+    pub allow: bool,
+    #[setting(default = BannerStyle::Temporary)]
+    pub banner_style: BannerStyle,
+    #[setting(default = true)]
+    pub sound: bool,
+    /// The switcher's and the Apps grid's badge for the app.
+    #[setting(default = true)]
+    pub badges: bool,
+    /// Its banners break through a full-screen window.
+    #[setting(default = false)]
+    pub over_full_screen: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum BannerStyle {
+    /// Leaves by itself.
+    Temporary,
+    /// Stays until acted on or closed.
+    Persistent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

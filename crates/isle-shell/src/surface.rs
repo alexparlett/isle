@@ -108,6 +108,8 @@ pub enum Action {
     Menu(isle_ui::MenuEvent),
     /// From the switcher's panel.
     Switcher(crate::switcher::SwitcherAction),
+    /// From the notification banners.
+    Banner(crate::banners::BannerAction),
 }
 
 /// What a title bar asks of its window.

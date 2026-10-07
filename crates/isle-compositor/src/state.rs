@@ -120,6 +120,9 @@ pub struct Isle {
     pub island: crate::island::IslandState,
     pub services: crate::services::Services,
     pub notifications: crate::notifications::NotificationsState,
+    pub banners: crate::banners::BannersState,
+    /// The apps whose banners show, whose attention events wait.
+    pub banners_apps: Vec<String>,
     pub top_edge: crate::top_edge::TopEdge,
     pub bar: crate::menubar::BarState,
     pub menus: crate::menus::MenuState,
@@ -293,6 +296,8 @@ impl Isle {
         let mut shell = isle_shell::Shell::new(ping, theme);
         let zoom_menu = isle_shell::zones::ZoneSurface::menu();
         let switcher_surface = isle_shell::switcher::SwitcherSurface::new();
+        let banners = crate::banners::BannersState::new();
+        shell.register(banners.surface.clone());
         shell.register(zoom_menu.clone());
         let zone_panel = isle_shell::zones::ZoneSurface::panel();
         shell.register(zone_panel.clone());
@@ -396,6 +401,8 @@ impl Isle {
             badges: Default::default(),
             services: Default::default(),
             notifications: Default::default(),
+            banners,
+            banners_apps: Vec::new(),
             icons: Default::default(),
             pings: Vec::new(),
             cursor_before_busy: None,
@@ -699,6 +706,7 @@ impl State {
                 isle_shell::Action::MenuBar(action) => self.menu_bar_action(action),
                 isle_shell::Action::Menu(event) => self.window_menu_event(event),
                 isle_shell::Action::Switcher(action) => self.switcher_pointer(action),
+                isle_shell::Action::Banner(action) => self.banner_action(action),
                 isle_shell::Action::Key(code) => {
                     use crate::keyboard::ISLE_DEVICE;
                     use smithay::backend::input::{InputTime, KeyState};

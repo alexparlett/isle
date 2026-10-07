@@ -87,13 +87,29 @@ impl DataDeviceHandler for State {
     }
 }
 
-impl DndGrabHandler for State {}
+impl DndGrabHandler for State {
+    fn dropped(
+        &mut self,
+        _target: Option<smithay::input::dnd::DndTarget<'_, Self>>,
+        _validated: bool,
+        _seat: Seat<Self>,
+        _location: smithay::utils::Point<f64, smithay::utils::Logical>,
+    ) {
+        self.isle.dnd_icon = None;
+        self.isle.queue_redraw_all();
+    }
+
+    fn cancelled(&mut self, _seat: Seat<Self>, _location: smithay::utils::Point<f64, smithay::utils::Logical>) {
+        self.isle.dnd_icon = None;
+        self.isle.queue_redraw_all();
+    }
+}
 
 impl WaylandDndGrabHandler for State {
     fn dnd_requested<S: Source>(
         &mut self,
         source: S,
-        _icon: Option<WlSurface>,
+        icon: Option<WlSurface>,
         seat: Seat<Self>,
         serial: Serial,
         type_: GrabType,
@@ -104,6 +120,8 @@ impl WaylandDndGrabHandler for State {
                 let start = pointer.grab_start_data().unwrap();
                 let grab = DnDGrab::new_pointer(&self.isle.display_handle, start, source, seat);
                 pointer.set_grab(self, grab, serial, Focus::Keep);
+                self.isle.dnd_icon = icon;
+                self.isle.queue_redraw_all();
             }
             GrabType::Touch => source.cancel(),
         }

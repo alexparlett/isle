@@ -134,6 +134,20 @@ impl Isle {
             }
             _ => {}
         }
+        // The drag's icon, under the cursor and over every surface.
+        if let (Some(icon), Some(at)) = (&self.dnd_icon, pointer.filter(|_| from <= Stage::Cursor)) {
+            let location = at - geometry.loc.to_f64();
+            for element in render_elements_from_surface_tree(
+                renderer,
+                icon,
+                location.to_physical(scale).to_i32_round(),
+                scale,
+                1.0,
+                Kind::Unspecified,
+            ) {
+                push(IsleElement::Surface(element));
+            }
+        }
 
         let shell = |layer, push: &mut dyn FnMut(IsleElement)| {
             self.shell

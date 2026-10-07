@@ -143,6 +143,8 @@ pub struct Isle {
     /// Apps being quit, with the processes that get the polite signal once their windows go.
     pub quitting: Vec<(String, Vec<i32>)>,
     pub processes: crate::processes::Processes,
+    /// The icon of the drag in progress, drawn at the pointer over everything.
+    pub dnd_icon: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     /// Cmd+Tab's switcher while its chord is held.
     pub switcher: Option<crate::switcher::SwitcherState>,
     pub switcher_surface: std::rc::Rc<isle_shell::switcher::SwitcherSurface>,
@@ -375,6 +377,7 @@ impl Isle {
             apps: Default::default(),
             quitting: Vec::new(),
             processes: Default::default(),
+            dnd_icon: None,
             switcher: None,
             switcher_surface,
             switcher_dirty: Default::default(),

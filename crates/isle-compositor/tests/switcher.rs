@@ -431,3 +431,45 @@ async fn marks_by_eye() {
     isle.shot("HEADLESS-1", "row").await;
     release(&isle, CMD).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_drag_carries_through_cmd_tab_into_the_app_brought_forward() {
+    let mut isle = Isle::start("switchdrag").await;
+    let target = isle.client("isle.test.Target", "00ff00");
+    let target_id = isle.wait_for_window("isle.test.Target").await.id;
+    let source = isle.client_with(&["--app-id", "isle.test.Source", "--colour", "ff0000"]);
+    let source_window = isle.wait_for_window("isle.test.Source").await;
+    wait_until(|| async { isle.window(source_window.id).await.focused }).await;
+    source.send("drag-on-press");
+    let test = isle.test().await;
+    let (x, y) = (source_window.x as f64 + 50.0, source_window.y as f64 + 50.0);
+    test.pointer_to(x, y).await.unwrap();
+    test.button(272, true).await.unwrap();
+    source.wait_for("drag started").await;
+    test.pointer_to(x + 10.0, y + 10.0).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let shot = isle.shot("HEADLESS-1", "dragging").await;
+    assert_eq!(
+        shot.at(x as usize + 20, y as usize + 20),
+        [255, 0, 255],
+        "the icon is drawn"
+    );
+
+    // Cmd+Tab while dragging brings the target forward; the drop lands in it.
+    isle.chord(&[CMD, TAB]).await;
+    wait_until(|| async { isle.window(target_id).await.focused }).await;
+    let t = isle.window(target_id).await;
+    test.pointer_to(t.x as f64 + 40.0, t.y as f64 + 40.0)
+        .await
+        .unwrap();
+    target.wait_for("dnd enter").await;
+    test.button(272, false).await.unwrap();
+    target.wait_for("dnd drop").await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let shot = isle.shot("HEADLESS-1", "dropped").await;
+    assert_ne!(
+        shot.at(t.x as usize + 40, t.y as usize + 40),
+        [255, 0, 255],
+        "the icon goes"
+    );
+}

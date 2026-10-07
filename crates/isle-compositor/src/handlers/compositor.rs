@@ -72,6 +72,9 @@ impl CompositorHandler for State {
             }
         }
 
+        if self.isle.dnd_icon.as_ref() == Some(surface) {
+            self.isle.queue_redraw_all();
+        }
         if self.commit_layer(surface) {
             return;
         }

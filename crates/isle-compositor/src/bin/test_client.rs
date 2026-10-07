@@ -11,7 +11,9 @@
 //! `pings ignore|answer` (answering those ignored so far), `inhibit` (hold a keyboard
 //! shortcuts inhibitor, printing `inhibitor active|inactive`), `linger` (a close of the
 //! first window destroys it but leaves the process running), `badge count=N progress=F
-//! urgent=B` (a LauncherEntry Update for the app id's entry; any of the three), `quit`. A
+//! urgent=B` (a LauncherEntry Update for the app id's entry; any of the three),
+//! `drag-on-press` (the next press starts a drag of text with a magenta icon; drags print
+//! `dnd enter`, `dnd drop`, and to the source `dnd finished` or `dnd cancelled`), `quit`. A
 //! close of any other window destroys it.
 //!
 //! Keys print as `key CODE pressed`, then `sym NAME pressed` from the keymap the client was
@@ -26,8 +28,9 @@ use std::{
 use wayland_client::{
     Connection, Dispatch, QueueHandle, WEnum,
     protocol::{
-        wl_buffer, wl_compositor, wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm,
-        wl_shm_pool, wl_surface,
+        wl_buffer, wl_compositor, wl_data_device, wl_data_device_manager, wl_data_offer,
+        wl_data_source, wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm, wl_shm_pool,
+        wl_surface,
     },
 };
 use wayland_protocols::xdg::{
@@ -95,6 +98,9 @@ struct Client {
     /// The first window has made its first commit.
     started: bool,
     xkb: Option<isle_keys::xkb::State>,
+    data_manager: Option<wl_data_device_manager::WlDataDeviceManager>,
+    data_device: Option<wl_data_device::WlDataDevice>,
+    drag_on_press: bool,
     /// The bus `badge` sends on, kept so the sender stays until the client exits.
     launcher: Option<(tokio::runtime::Runtime, zbus::Connection)>,
 }
@@ -178,6 +184,33 @@ impl Client {
             gone: false,
         });
         index
+    }
+
+    /// A drag of text from window `index` with a 32 by 32 magenta icon.
+    fn start_drag(&mut self, index: usize, serial: u32, qh: &QueueHandle<Self>) {
+        let (Some(manager), Some(device), Some(compositor), Some(shm)) =
+            (&self.data_manager, &self.data_device, &self.compositor, &self.shm)
+        else {
+            return;
+        };
+        let source = manager.create_data_source(qh, ());
+        source.offer("text/plain".into());
+        source.set_actions(wl_data_device_manager::DndAction::Copy);
+        let icon = compositor.create_surface(qh, ());
+        let len = 32 * 32 * 4;
+        let fd = unsafe { libc::memfd_create(c"isle-test-icon".as_ptr(), libc::MFD_CLOEXEC) };
+        let file = unsafe { std::fs::File::from_raw_fd(fd) };
+        file.set_len(len as u64).unwrap();
+        let data: Vec<u8> = [0xff, 0x00, 0xff, 0xff].repeat(32 * 32);
+        std::os::unix::fs::FileExt::write_all_at(&file, &data, 0).unwrap();
+        let fd: OwnedFd = file.into();
+        let pool = shm.create_pool(fd.as_fd(), len, qh, ());
+        let buffer = pool.create_buffer(0, 32, 32, 128, wl_shm::Format::Argb8888, qh, ());
+        pool.destroy();
+        icon.attach(Some(&buffer), 0, 0);
+        icon.commit();
+        device.start_drag(Some(&source), &self.wins[index].surface, Some(&icon), serial);
+        say(index, "drag started".into());
     }
 
     fn badge(&mut self, rest: &[&str]) {
@@ -282,6 +315,7 @@ impl Client {
                 }
             }
             ("move-on-press", _) => self.on_press = Some(None),
+            ("drag-on-press", _) => self.drag_on_press = true,
             ("resize-on-press", _) => {
                 use xdg_toplevel::ResizeEdge as E;
                 let edge = match rest.first().copied() {
@@ -376,6 +410,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "wl_shm" => state.shm = Some(registry.bind(name, 1, qh, ())),
                 "xdg_wm_base" => state.wm_base = Some(registry.bind(name, 6, qh, ())),
                 "wl_seat" => state.seat = Some(registry.bind(name, 5, qh, ())),
+                "wl_data_device_manager" => {
+                    state.data_manager = Some(registry.bind(name, 3, qh, ()))
+                }
                 "zwlr_layer_shell_v1" => state.layer_shell = Some(registry.bind(name, 4, qh, ())),
                 "zxdg_decoration_manager_v1" => {
                     state.decorations = Some(registry.bind(name, 1, qh, ()))
@@ -629,7 +666,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for Client {
         event: wl_pointer::Event,
         _: &(),
         _: &Connection,
-        _: &QueueHandle<Self>,
+        qh: &QueueHandle<Self>,
     ) {
         match event {
             wl_pointer::Event::Enter {
@@ -653,6 +690,9 @@ impl Dispatch<wl_pointer::WlPointer, ()> for Client {
             } => {
                 let pressed = s == wl_pointer::ButtonState::Pressed;
                 let index = state.pointer_on.unwrap_or(0);
+                if pressed && std::mem::take(&mut state.drag_on_press) {
+                    state.start_drag(index, serial, qh);
+                }
                 say(
                     index,
                     format!(
@@ -690,6 +730,54 @@ impl Dispatch<zwp_keyboard_shortcuts_inhibitor_v1::ZwpKeyboardShortcutsInhibitor
         match event {
             zwp_keyboard_shortcuts_inhibitor_v1::Event::Active => say(0, "inhibitor active".into()),
             zwp_keyboard_shortcuts_inhibitor_v1::Event::Inactive => say(0, "inhibitor inactive".into()),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &wl_data_device::WlDataDevice,
+        event: wl_data_device::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_data_device::Event::Enter { serial, id: Some(offer), .. } => {
+                offer.accept(serial, Some("text/plain".into()));
+                offer.set_actions(
+                    wl_data_device_manager::DndAction::Copy,
+                    wl_data_device_manager::DndAction::Copy,
+                );
+                say(0, "dnd enter".into());
+            }
+            wl_data_device::Event::Drop => say(0, "dnd drop".into()),
+            _ => {}
+        }
+    }
+
+    wayland_client::event_created_child!(Client, wl_data_device::WlDataDevice, [
+        wl_data_device::EVT_DATA_OFFER_OPCODE => (wl_data_offer::WlDataOffer, ()),
+    ]);
+}
+
+impl Dispatch<wl_data_source::WlDataSource, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &wl_data_source::WlDataSource,
+        event: wl_data_source::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_data_source::Event::Send { fd, .. } => {
+                let _ = std::fs::File::from(fd).write_all(b"dragged");
+            }
+            wl_data_source::Event::DndFinished => say(0, "dnd finished".into()),
+            wl_data_source::Event::Cancelled => say(0, "dnd cancelled".into()),
             _ => {}
         }
     }
@@ -739,6 +827,8 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Client {
 }
 
 ignore!(
+    wl_data_device_manager::WlDataDeviceManager,
+    wl_data_offer::WlDataOffer,
     zwlr_layer_shell_v1::ZwlrLayerShellV1,
     zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
     xdg_wm_dialog_v1::XdgWmDialogV1,
@@ -791,6 +881,9 @@ fn main() {
         on_press: None,
         pointer_on: None,
         quit: false,
+        data_manager: None,
+        data_device: None,
+        drag_on_press: false,
         launcher: None,
         app_id: app_id.clone(),
         started: false,
@@ -847,6 +940,9 @@ fn main() {
             client.command(command, &qh);
         }
         client.wins[0].surface.commit();
+        if let (Some(manager), Some(seat)) = (&client.data_manager, &client.seat) {
+            client.data_device = Some(manager.get_data_device(seat, &qh, ()));
+        }
         // Menus exported as an app would, announced the way the flags say.
         let menus = menus(&args, &client, &qh);
         std::mem::forget(menus);

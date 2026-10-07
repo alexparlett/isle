@@ -1,6 +1,7 @@
 //! Fake system daemons for tests, served on a private bus. Each answers the calls Isle's
 //! proxies make, can change its state as the daemon would, and can leave the bus and return.
 
+pub mod bluez;
 pub mod logind;
 pub mod network;
 pub mod upower;

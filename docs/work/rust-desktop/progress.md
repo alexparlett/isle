@@ -2,6 +2,14 @@
 
 ## 2026-10-07
 
+- P8 8.5: Bluetooth. `isle-bluetooth` reads BlueZ's object tree in one call
+  after any of its signals: the adapter, devices paired and nearby with
+  their batteries. The Bluetooth glyph while a device is connected, the
+  module and its page (My devices, Nearby devices), discovery started when
+  the page opens and stopped when it closes, and a row that connects,
+  disconnects or pairs and connects; a device that needs a code waits for
+  P9's agent.
+
 - P8 8.4: network. `isle-network` reads NetworkManager whole after any of
   its signals: the wire, Wi-Fi with the network joined, known networks and
   the rest in range one per name, and VPN and WireGuard connections; on the

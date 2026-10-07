@@ -92,6 +92,7 @@ impl Isle {
             "display" => self.display_module(size),
             "wifi" => self.wifi_module(size),
             "vpn" => self.vpn_module(size),
+            "bluetooth" => self.bluetooth_module(size),
             _ => None,
         }
     }
@@ -319,6 +320,11 @@ impl State {
                 if m == "wifi" =>
             {
                 self.wifi_action(action)
+            }
+            PanelAction::Toggle(ref m) | PanelAction::Choose { module: ref m, .. }
+                if m == "bluetooth" =>
+            {
+                self.bluetooth_action(action)
             }
             PanelAction::Toggle(ref m) | PanelAction::Choose { module: ref m, .. }
                 if m == "vpn" =>

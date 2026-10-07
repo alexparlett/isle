@@ -3,6 +3,7 @@
 //! (`p8-services.md` choice 2).
 
 pub mod audio;
+pub mod bluetooth;
 pub mod brightness;
 pub mod login;
 pub mod network;
@@ -33,6 +34,10 @@ pub struct Services {
     pub input_level: f32,
     pub meter: Option<tokio::task::JoinHandle<()>>,
     pub screens: brightness::Screens,
+    pub bluetooth: Snapshot<isle_bluetooth::Bluetooth>,
+    /// Devices being connected or paired, by path.
+    pub connecting: std::collections::HashSet<String>,
+    pub discovering: bool,
     pub network: Snapshot<isle_network::State>,
     /// The network being joined: its name and access point.
     pub joining: Option<(String, String)>,
@@ -64,6 +69,7 @@ impl Services {
             "audio": entry(&self.audio, applied("audio")),
             "cameras": entry(&self.cameras, applied("cameras")),
             "network": entry(&self.network, applied("network")),
+            "bluetooth": entry(&self.bluetooth, applied("bluetooth")),
         })
         .to_string()
     }
@@ -145,6 +151,8 @@ impl Isle {
         self.island.model.set_glyph(GlyphKind::Wifi, wifi);
         let vpn = self.vpn_glyph();
         self.island.model.set_glyph(GlyphKind::Vpn, vpn);
+        let bluetooth = self.bluetooth_glyph();
+        self.island.model.set_glyph(GlyphKind::Bluetooth, bluetooth);
         self.audio_privacy();
         self.refresh_island();
     }
@@ -155,5 +163,6 @@ impl State {
     pub fn follow_pages(&mut self) {
         self.follow_meter();
         self.follow_scan();
+        self.follow_discovery();
     }
 }

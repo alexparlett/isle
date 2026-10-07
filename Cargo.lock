@@ -2464,6 +2464,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-bluetooth"
+version = "0.1.0"
+dependencies = [
+ "isle-bus",
+ "serde",
+ "zbus",
+]
+
+[[package]]
 name = "isle-brightness"
 version = "0.1.0"
 dependencies = [
@@ -2507,6 +2516,7 @@ dependencies = [
  "image",
  "isle-apps",
  "isle-audio",
+ "isle-bluetooth",
  "isle-brightness",
  "isle-bus",
  "isle-fakes",

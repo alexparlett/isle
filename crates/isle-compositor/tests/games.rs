@@ -207,16 +207,22 @@ async fn a_window_holding_the_keys_gets_them_until_cmd_escape() {
         1,
         "the desktop has Cmd+Tab back"
     );
+    let windows = isle.windows_proxy().await;
+    let other = isle.wait_for_window("isle.test.Other").await.id;
+    wait_until(|| async { isle.window(other).await.focused }).await;
 
+    // Back to it, the inhibitor holds again; Cmd+Escape takes the keys back.
     vm.clear();
-    chord(&isle, &[CMD], ESCAPE).await;
+    windows
+        .focus(isle.wait_for_window("isle.test.Vm").await.id)
+        .await
+        .unwrap();
     vm.wait_for("inhibitor active").await;
     chord(&isle, &[CMD], ESCAPE).await;
     vm.wait_for("inhibitor inactive").await;
 
     // Focus away and back gives the keys back.
     vm.clear();
-    let windows = isle.windows_proxy().await;
     windows
         .focus(isle.wait_for_window("isle.test.Other").await.id)
         .await

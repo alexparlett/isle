@@ -460,6 +460,10 @@ pub mod test {
         fn key_on(&self, id: &str, code: u32, pressed: bool) -> zbus::Result<()>;
         /// Held chords told of their release so far.
         fn held_releases(&self) -> zbus::Result<u32>;
+        /// The switcher while held, as JSON, or `null`.
+        fn switcher(&self) -> zbus::Result<String>;
+        /// Times the switcher's panel has been drawn.
+        fn switcher_draws(&self) -> zbus::Result<u32>;
         /// Moves the pointer to a point in the global space.
         fn pointer_to(&self, x: f64, y: f64) -> zbus::Result<()>;
         /// Moves the pointer by a relative amount, as a mouse does, held to the outputs.

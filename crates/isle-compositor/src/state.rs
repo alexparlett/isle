@@ -143,6 +143,14 @@ pub struct Isle {
     /// Apps being quit, with the processes that get the polite signal once their windows go.
     pub quitting: Vec<(String, Vec<i32>)>,
     pub processes: crate::processes::Processes,
+    /// Cmd+Tab's switcher while its chord is held.
+    pub switcher: Option<crate::switcher::SwitcherState>,
+    /// The windows changed since the switcher last read them.
+    pub switcher_dirty: std::cell::Cell<bool>,
+    #[cfg(feature = "test-hooks")]
+    pub switcher_drawn_count: u32,
+    #[cfg(feature = "test-hooks")]
+    pub switcher_was_drawn: bool,
     pub games: std::sync::Arc<isle_games::Library>,
     /// LauncherEntry's badges and progress by desktop id.
     pub badges: std::collections::HashMap<String, isle_apps::badges::LauncherEntry>,
@@ -364,6 +372,12 @@ impl Isle {
             apps: Default::default(),
             quitting: Vec::new(),
             processes: Default::default(),
+            switcher: None,
+            switcher_dirty: Default::default(),
+            #[cfg(feature = "test-hooks")]
+            switcher_drawn_count: 0,
+            #[cfg(feature = "test-hooks")]
+            switcher_was_drawn: false,
             games: Default::default(),
             badges: Default::default(),
             icons: Default::default(),

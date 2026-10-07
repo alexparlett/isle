@@ -235,6 +235,9 @@ impl State {
     }
 
     pub fn keyboard_removed(&mut self, id: &str) {
+        if self.isle.keyboards.last.as_deref() == Some(id) {
+            self.end_held_chord();
+        }
         let before = self.isle.keyboards.devices.len();
         self.isle.keyboards.devices.retain(|d| d.id != id);
         if self.isle.keyboards.devices.len() != before {
@@ -389,6 +392,15 @@ impl State {
         }
         let key = (id.to_owned(), code);
         match key_state {
+            KeyState::Pressed if self.isle.switcher.is_some() && {
+                let (role, sym) =
+                    self.isle.keyboards.with_engine(false, &[], |_, ctx| (ctx.keys.role(code), ctx.keys.sym(code)));
+                self.switcher_key(role, sym)
+            } =>
+            {
+                self.isle.swallowed.insert(key);
+                return;
+            }
             KeyState::Pressed if self.isle.bar.keyboard_move.is_some() && self.keyboard_move_key(code) => {
                 self.isle.swallowed.insert(key);
                 return;
@@ -530,11 +542,19 @@ impl State {
         });
     }
 
+    /// The keys that held a chord are gone: its hold ends with no commit.
+    pub fn end_held_chord(&mut self) {
+        self.isle.held_chord = None;
+        self.cancel_switcher();
+    }
+
     /// A held chord whose modifiers are let go is told so: the switcher commits then.
     fn check_held_chord(&mut self) {
-        let Some((id, mods)) = self.isle.held_chord else {
+        let Some((id, mut mods)) = self.isle.held_chord else {
             return;
         };
+        // Shift only picks the direction: letting it go keeps the chord held.
+        mods.shift = false;
         if self.held_mods().contains(mods) {
             return;
         }
@@ -543,6 +563,9 @@ impl State {
         #[cfg(feature = "test-hooks")]
         {
             self.isle.held_releases += 1;
+        }
+        if matches!(id, "switcher" | "switcher-back") {
+            self.switcher_released();
         }
     }
 

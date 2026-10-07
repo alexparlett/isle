@@ -30,6 +30,8 @@ pub enum Action {
     QuitApp,
     /// The front app's next window, or its previous.
     CycleWindows(bool),
+    /// Cmd+Tab's switcher, from the end with Shift.
+    Switcher(bool),
     FullScreen,
     ZoomMenu,
     /// Along the row of desktops by a step.
@@ -106,6 +108,8 @@ fn action_for(id: &'static str) -> Action {
         "next-display" => Action::Display(1),
         "previous-display" => Action::Display(-1),
         "zoom-menu" => Action::ZoomMenu,
+        "switcher" => Action::Switcher(false),
+        "switcher-back" => Action::Switcher(true),
         "next-window" => Action::CycleWindows(true),
         "previous-window" => Action::CycleWindows(false),
         "desktop-left" => Action::Desktop(-1),
@@ -257,6 +261,7 @@ impl State {
                 }
             },
             Action::CycleWindows(forward) => self.cycle_app_windows(forward),
+            Action::Switcher(backwards) => self.open_switcher(backwards),
             Action::FullScreen => {
                 if let Some(id) = self.focused_window() {
                     self.toggle_full_screen(id);

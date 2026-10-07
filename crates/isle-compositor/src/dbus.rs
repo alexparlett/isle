@@ -726,6 +726,16 @@ impl Test {
         Ok(self.to_loop.call(|state| state.isle.held_releases).await?)
     }
 
+    /// The switcher while held, as JSON, or `null`.
+    async fn switcher(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.switcher_json()).await?)
+    }
+
+    /// Times the switcher's panel has been drawn.
+    async fn switcher_draws(&self) -> fdo::Result<u32> {
+        Ok(self.to_loop.call(|state| state.isle.switcher_drawn_count).await?)
+    }
+
     /// A key from a keyboard `add_keyboard` made.
     async fn key_on(&self, id: String, code: u32, pressed: bool) -> fdo::Result<()> {
         use smithay::backend::input::{InputTime, KeyState};

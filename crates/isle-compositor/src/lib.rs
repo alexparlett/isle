@@ -18,6 +18,7 @@ mod control_centre;
 mod launch;
 mod menubar;
 mod menus;
+mod switcher;
 mod top_edge;
 mod outputs;
 mod processes;
@@ -187,6 +188,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         // redraw reads that.
         state.isle.space.refresh();
         state.isle.popups.cleanup();
+        state.switcher_after_dispatch();
         state.redraw_queued();
         let _ = state.isle.display_handle.flush_clients();
     })?;

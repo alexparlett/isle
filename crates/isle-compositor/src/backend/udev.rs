@@ -657,6 +657,7 @@ impl State {
         match event {
             SessionEvent::PauseSession => {
                 info!("session paused");
+                self.end_held_chord();
                 let udev = self.udev();
                 udev.libinput.suspend();
                 for device in udev.devices.values_mut() {

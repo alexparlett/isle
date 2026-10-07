@@ -297,6 +297,9 @@ pub fn window_id(window: &Window) -> u64 {
 
 impl Isle {
     pub fn notify(&self, event: Event) {
+        if matches!(event, Event::WindowsChanged) && self.switcher.is_some() {
+            self.switcher_dirty.set(true);
+        }
         let _ = self.events.send(event);
     }
 
@@ -496,12 +499,26 @@ impl State {
         let Some((app, desktop)) = self.isle.wm.get(id).map(|r| (r.app.clone(), r.desktop)) else {
             return false;
         };
+        // Its desktop comes into view, sliding as a switch does.
+        let mut slide = None;
         if let Some((identity, index)) = self.isle.desktops.locate(desktop)
             && self.isle.desktops.rows[identity].current != index
         {
             let identity = identity.to_owned();
+            let current = self.isle.desktops.rows[&identity].current;
+            let step = if index > current { 1 } else { -1 };
+            let output = self
+                .isle
+                .space
+                .outputs()
+                .find(|o| Isle::output_identity(o) == identity)
+                .cloned();
+            if let Some(output) = &output {
+                self.slide_out(output, step);
+            }
             self.isle.desktops.rows.get_mut(&identity).unwrap().current = index;
             self.isle.notify(Event::DesktopsChanged);
+            slide = output.map(|o| (o, step));
         }
         if self.isle.wm.get(id).is_some_and(|r| r.hidden) {
             self.set_app_hidden(&app, false);
@@ -510,6 +527,9 @@ impl State {
             record.minimised = false;
         }
         self.isle.sync_space();
+        if let Some((output, step)) = slide {
+            self.slide_in(&output, step);
+        }
         let window = self.isle.window_by_id(id);
         self.set_focus(window.as_ref());
         true

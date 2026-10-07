@@ -2,6 +2,18 @@
 
 ## 2026-10-07
 
+- P8 8.4: network. `isle-network` reads NetworkManager whole after any of
+  its signals: the wire, Wi-Fi with the network joined, known networks and
+  the rest in range one per name, and VPN and WireGuard connections; on the
+  host it read the joined network and the unplugged wire. The Wi-Fi glyph
+  (on Wi-Fi, connecting, or offline; a wire is normal) and the VPN glyph;
+  the Wi-Fi module and page (Ethernet's state, known networks, "Other
+  networks" folded, scanning every ten seconds only while the page shows)
+  and the VPN module. A secured network NetworkManager has no password for
+  says "needs a password" in its row until P9's prompt. Service tests now
+  count only stalls in worker jobs, since a first panel draw in a debug build
+  can stall the loop by itself.
+
 - P8 8.3: brightness. `isle-brightness` speaks DDC/CI's brightness itself
   and finds each monitor's bus by its EDID, since the NVIDIA connectors have
   no `ddc` link; on the host it read the AOC on `/dev/i2c-4` at 92 of 100,

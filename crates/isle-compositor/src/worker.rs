@@ -124,6 +124,7 @@ pub fn spawn(
             start(&runtime, &to_loop, "power", isle_power::watch_batteries, State::power_changed);
             start(&runtime, &to_loop, "profiles", isle_power::watch_profiles, State::profiles_changed);
             start(&runtime, &to_loop, "audio", isle_audio::watch, State::audio_changed);
+            start(&runtime, &to_loop, "network", isle_network::watch, State::network_changed);
             start(&runtime, &to_loop, "cameras", isle_audio::camera::watch, State::cameras_changed);
             runtime.block_on(supervise("dbus", move || {
                 crate::dbus::serve(to_loop.clone(), events.clone(), store.clone())

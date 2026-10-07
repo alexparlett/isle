@@ -2514,6 +2514,7 @@ dependencies = [
  "isle-ipc",
  "isle-keys",
  "isle-menus",
+ "isle-network",
  "isle-power",
  "isle-settings",
  "isle-shell",
@@ -2587,6 +2588,16 @@ dependencies = [
  "tracing",
  "zbus",
  "zvariant",
+]
+
+[[package]]
+name = "isle-network"
+version = "0.1.0"
+dependencies = [
+ "isle-bus",
+ "serde",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]

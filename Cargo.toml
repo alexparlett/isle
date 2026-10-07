@@ -20,6 +20,7 @@ isle-games = { path = "crates/isle-games" }
 isle-ipc = { path = "crates/isle-ipc" }
 isle-keys = { path = "crates/isle-keys" }
 isle-menus = { path = "crates/isle-menus" }
+isle-network = { path = "crates/isle-network" }
 isle-settings = { path = "crates/isle-settings" }
 isle-settings-derive = { path = "crates/isle-settings-derive" }
 isle-state = { path = "crates/isle-state" }

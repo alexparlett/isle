@@ -71,8 +71,8 @@ async fn a_daemon_that_goes_is_unavailable_and_followed_again_when_it_returns() 
     wait_until(|| async { login(&isle).await["available"] == true }).await;
     logind.set_locked_hint(false).await.unwrap();
     wait_until(|| async { login(&isle).await["state"]["locked_hint"] == false }).await;
-    let after = isle.log()[quiet..].to_owned();
-    assert!(!after.contains("main loop stalled"), "{after}");
+    let stalls = isle.job_stalls_since(quiet);
+    assert!(stalls.is_empty(), "{stalls:?}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

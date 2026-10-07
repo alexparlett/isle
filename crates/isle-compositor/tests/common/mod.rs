@@ -631,3 +631,15 @@ impl Isle {
         }
     }
 }
+
+impl Isle {
+    /// Main-loop stalls logged since `from` (a length of the log) in work the worker sent the
+    /// loop, which is where a daemon's answer would stall it.
+    pub fn job_stalls_since(&self, from: usize) -> Vec<String> {
+        self.log()[from..]
+            .lines()
+            .filter(|l| l.contains("main loop stalled") && l.contains("worker-job"))
+            .map(str::to_owned)
+            .collect()
+    }
+}

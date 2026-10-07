@@ -2,6 +2,7 @@
 //! proxies make, can change its state as the daemon would, and can leave the bus and return.
 
 pub mod logind;
+pub mod network;
 pub mod upower;
 
 use zbus::Connection;

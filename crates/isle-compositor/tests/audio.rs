@@ -167,8 +167,8 @@ async fn the_sound_server_going_and_returning_is_followed_without_a_stall() {
     assert!(isle.start_audio().await);
     wait_until(|| async { isle.services().await["audio"]["available"] == true }).await;
     wait_until(|| async { isle.services().await["cameras"]["available"] == true }).await;
-    let after = isle.log()[quiet..].to_owned();
-    assert!(!after.contains("main loop stalled"), "{after}");
+    let stalls = isle.job_stalls_since(quiet);
+    assert!(stalls.is_empty(), "{stalls:?}");
 
     // Nothing of the audio path loads a second D-Bus stack. (The NVIDIA EGL driver dlopens
     // libdbus itself, outside Isle.)

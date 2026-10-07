@@ -5,6 +5,7 @@
 pub mod audio;
 pub mod brightness;
 pub mod login;
+pub mod network;
 pub mod power;
 
 use std::{collections::BTreeMap, error::Error, time::Duration};
@@ -32,6 +33,14 @@ pub struct Services {
     pub input_level: f32,
     pub meter: Option<tokio::task::JoinHandle<()>>,
     pub screens: brightness::Screens,
+    pub network: Snapshot<isle_network::State>,
+    /// The network being joined: its name and access point.
+    pub joining: Option<(String, String)>,
+    pub scan: Option<tokio::task::JoinHandle<()>>,
+    /// The VPN last connected, which VPN's switch connects again.
+    pub last_vpn: Option<String>,
+    /// Folded groups of rows opened, by `module/row`.
+    pub expanded: std::collections::HashSet<String>,
     /// When Control Centre last changed a level itself.
     pub own_change: Option<std::time::Instant>,
     /// The last failed action of a module or row, by `module` or `module/row`, shown in its
@@ -54,6 +63,7 @@ impl Services {
             "profiles": entry(&self.profiles, applied("profiles")),
             "audio": entry(&self.audio, applied("audio")),
             "cameras": entry(&self.cameras, applied("cameras")),
+            "network": entry(&self.network, applied("network")),
         })
         .to_string()
     }
@@ -131,7 +141,19 @@ impl Isle {
         self.island.model.set_glyph(GlyphKind::Battery, battery);
         let sound = self.sound_glyph();
         self.island.model.set_glyph(GlyphKind::Sound, sound);
+        let wifi = self.wifi_glyph();
+        self.island.model.set_glyph(GlyphKind::Wifi, wifi);
+        let vpn = self.vpn_glyph();
+        self.island.model.set_glyph(GlyphKind::Vpn, vpn);
         self.audio_privacy();
         self.refresh_island();
+    }
+}
+
+impl State {
+    /// Work a Control Centre page wants while it shows: the input meter, Wi-Fi scans.
+    pub fn follow_pages(&mut self) {
+        self.follow_meter();
+        self.follow_scan();
     }
 }

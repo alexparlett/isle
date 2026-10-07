@@ -90,6 +90,8 @@ impl Isle {
             "batteries" => self.batteries_module(size),
             "sound" => self.sound_module(size),
             "display" => self.display_module(size),
+            "wifi" => self.wifi_module(size),
+            "vpn" => self.vpn_module(size),
             _ => None,
         }
     }
@@ -222,7 +224,7 @@ impl State {
             if panel.pinned {
                 self.unfocus_island();
             }
-            self.follow_meter();
+            self.follow_pages();
             self.isle.refresh_island();
         }
     }
@@ -313,6 +315,18 @@ impl State {
             }
             PanelAction::Toggle(ref m)
             | PanelAction::Choose { module: ref m, .. }
+            | PanelAction::Expand { module: ref m, .. }
+                if m == "wifi" =>
+            {
+                self.wifi_action(action)
+            }
+            PanelAction::Toggle(ref m) | PanelAction::Choose { module: ref m, .. }
+                if m == "vpn" =>
+            {
+                self.vpn_action(action)
+            }
+            PanelAction::Toggle(ref m)
+            | PanelAction::Choose { module: ref m, .. }
             | PanelAction::Slide { module: ref m, .. }
             | PanelAction::Switch { module: ref m, .. }
                 if m == "sound" =>
@@ -322,7 +336,7 @@ impl State {
             PanelAction::Notice(id) => self.notice_action(&id),
             other => info!(?other, "not built yet"),
         }
-        self.follow_meter();
+        self.follow_pages();
         self.isle.refresh_island();
     }
 

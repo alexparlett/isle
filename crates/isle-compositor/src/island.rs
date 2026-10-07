@@ -716,6 +716,7 @@ impl State {
     /// The configuration was rejected, or a rejected one fixed.
     pub fn island_settings_status(&mut self, error: Option<(String, u32, u32, String)>) {
         self.island_sources(Some(error));
+        self.settings_error_note();
         self.isle.refresh_island();
     }
 

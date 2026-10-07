@@ -2,6 +2,14 @@
 
 ## 2026-10-07
 
+- P8 8.11: disks and the desktop's notifications. `isle-disks` reads
+  UDisks2's filesystems on removable drives and the user's loop images, and
+  mounts, unmounts and ejects; nothing mounts by itself. The desktop posts
+  through the same decision as any app: "{volume} connected" from Files with
+  Open (mounting first), Mount and Eject; a rejected `settings.kdl` once per
+  broken place, with Open in editor; and Isle's last crash record at the
+  next start, with Report….
+
 - P8 8.10: Focus. `isle-focus` is a pure model of `structure/focus.md`'s
   order: Game Mode while a detected game is in front unless turned off for
   it, then a mode turned on by hand until off or its end, then the latest

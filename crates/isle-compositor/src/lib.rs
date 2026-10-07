@@ -7,6 +7,7 @@ mod binds;
 pub mod build_info;
 pub mod crash;
 mod cursor;
+mod desktop_notes;
 mod dbus;
 mod focus;
 mod focus_modes;
@@ -204,6 +205,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         Ok((conn, Ok(handle))) => {
             state.isle.notifications.server = Some(handle);
             std::mem::forget(conn);
+            state.crash_note();
         }
         Ok((_, Err(isle_notifications::Taken))) => {
             warn!("another program serves notifications; Isle's banners will be empty")

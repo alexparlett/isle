@@ -103,6 +103,8 @@ fn held_fate() -> Fate {
 pub struct Saved {
     pub next_id: u32,
     pub entries: Vec<Entry>,
+    #[serde(default)]
+    pub last_crash: Option<String>,
 }
 
 impl Domain for Saved {
@@ -119,6 +121,13 @@ pub struct NotificationsState {
     pub saver: Option<Saver<Saved>>,
     /// Arrivals held since silence began, for the summary.
     pub held: Vec<u32>,
+    /// The desktop's own notifications' subjects, by id.
+    pub desktop: std::collections::HashMap<u32, crate::desktop_notes::Note>,
+    pub desktop_next: u32,
+    /// The broken state of `settings.kdl` already said, as file, line and column.
+    pub settings_noted: Option<String>,
+    /// The crash record last said.
+    pub last_crash: Option<String>,
     /// Apps whose stack is open in the centre.
     pub expanded: std::collections::HashSet<String>,
     /// Clear All asked once.
@@ -145,6 +154,7 @@ impl Isle {
             .max(saved.next_id);
         self.notifications.entries = saved.entries;
         self.notifications.next_id = next;
+        self.notifications.last_crash = saved.last_crash;
         self.notifications.saver = Some(Saver::spawn(runtime, dir));
         next
     }
@@ -160,6 +170,7 @@ impl Isle {
                     .filter(|e| e.fate != Fate::Transient)
                     .cloned()
                     .collect(),
+                last_crash: self.notifications.last_crash.clone(),
             });
         }
     }
@@ -386,6 +397,11 @@ impl State {
         else {
             return false;
         };
+        if self.isle.notifications.desktop.contains_key(&id) {
+            self.desktop_action(id, key);
+            self.notification_close(id);
+            return true;
+        }
         if !entry.live {
             if let Some(app) = entry.n.desktop_entry.clone() {
                 self.activate_or_launch(&app);

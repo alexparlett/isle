@@ -34,6 +34,7 @@ pub struct Services {
     pub input_level: f32,
     pub meter: Option<tokio::task::JoinHandle<()>>,
     pub screens: brightness::Screens,
+    pub disks: Snapshot<isle_disks::Disks>,
     pub media: Snapshot<isle_media::Media>,
     /// When the media snapshot was taken in, from which a playing track's position runs on.
     pub media_read: std::time::Instant,
@@ -79,6 +80,7 @@ impl Services {
             "network": entry(&self.network, applied("network")),
             "bluetooth": entry(&self.bluetooth, applied("bluetooth")),
             "media": entry(&self.media, applied("media")),
+            "disks": entry(&self.disks, applied("disks")),
         })
         .to_string()
     }
@@ -190,6 +192,7 @@ impl Default for Services {
             meter: None,
             own_change: None,
             screens: Default::default(),
+            disks: Default::default(),
             media: Default::default(),
             media_read: std::time::Instant::now(),
             art: Default::default(),

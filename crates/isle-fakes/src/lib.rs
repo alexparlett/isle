@@ -5,6 +5,7 @@ pub mod bluez;
 pub mod logind;
 pub mod mpris;
 pub mod network;
+pub mod udisks;
 pub mod upower;
 
 use zbus::Connection;

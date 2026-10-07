@@ -427,7 +427,7 @@ impl State {
         Ok(())
     }
 
-    fn notice_action(&mut self, id: &str) {
+    pub fn notice_action(&mut self, id: &str) {
         match id {
             "take-back" => {
                 self.close_control_centre();

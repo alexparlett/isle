@@ -39,6 +39,7 @@ isle-bluetooth.workspace = true
 isle-brightness.workspace = true
 isle-bus.workspace = true
 isle-power.workspace = true
+isle-disks.workspace = true
 isle-focus.workspace = true
 isle-games.workspace = true
 isle-keys.workspace = true

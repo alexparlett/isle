@@ -2629,6 +2629,7 @@ dependencies = [
  "isle-bluetooth",
  "isle-brightness",
  "isle-bus",
+ "isle-disks",
  "isle-fakes",
  "isle-focus",
  "isle-games",
@@ -2666,6 +2667,16 @@ dependencies = [
  "xcursor",
  "zbus",
  "zvariant",
+]
+
+[[package]]
+name = "isle-disks"
+version = "0.1.0"
+dependencies = [
+ "isle-bus",
+ "libc",
+ "serde",
+ "zbus",
 ]
 
 [[package]]

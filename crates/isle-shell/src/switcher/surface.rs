@@ -255,6 +255,29 @@ struct Panel {
 /// Over a card's preview, which draws in a layer of its own for its clip.
 const ABOVE: freya::prelude::Layer = freya::prelude::Layer::Relative(2);
 
+/// A mark's circle and its glyph, as the board draws them.
+const TAG: f32 = 22.0;
+const TAG_GLYPH: f32 = 13.0;
+
+/// A card: the window's own colour with a hairline edge, a preview fitted inside it.
+fn card(theme: &Theme, w: f32, h: f32) -> freya::prelude::Rect {
+    let t = &theme.tokens;
+    rect()
+        .position(Position::new_absolute().left(t.space_s).top(t.space_s))
+        .width(Size::px(w))
+        .height(Size::px(h))
+        .corner_radius(t.radius_small)
+        .overflow(Overflow::Clip)
+        .background(colour(t.colour_window))
+        .border(
+            Border::new()
+                .fill(colour(t.colour_hairline))
+                .width(1.0)
+                .alignment(BorderAlignment::Inner),
+        )
+        .center()
+}
+
 /// A rect placed at `r` in its parent.
 fn at(r: &Rect) -> freya::prelude::Rect {
     rect()
@@ -378,74 +401,53 @@ impl Component for Panel {
             ));
         }
 
-        // The selected app's name, under its plate, clamped inside the panel.
-        if let (Some(entry), Some(plate)) = (
+        // The selected app's name, centred under its row, while the window row is closed.
+        if let (Some(entry), Some(plate), false) = (
             frame.entries.get(frame.selected),
             layout.plates.get(frame.selected),
+            row_open,
         ) && let Some(band) = layout.bands.iter().find(|b| b.y >= plate.y + plate.h - 0.5)
         {
-            let w = band.w.min(560.0);
-            let centre = plate.x + plate.w / 2.0;
-            let x = (centre - w / 2.0).clamp(band.x, band.x + band.w - w);
             let word = state_word(entry);
             panel = panel.child(
-                at(&Rect {
-                    x,
-                    y: band.y,
-                    w,
-                    h: band.h,
-                })
-                .direction(Direction::Horizontal)
-                .main_align(Alignment::Center)
-                .cross_align(Alignment::Center)
-                .spacing(t.space_s)
-                .child(text::line(
-                    &theme,
-                    text::Style::Headline,
-                    colour(t.colour_text),
-                    entry.name.clone(),
-                ))
-                .map(word, |el, word| {
-                    el.child(text::line(
+                at(band)
+                    .direction(Direction::Horizontal)
+                    .main_align(Alignment::Center)
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_s)
+                    .child(text::line(
                         &theme,
-                        text::Style::Body,
-                        colour(t.colour_text_2),
-                        word,
+                        text::Style::Headline,
+                        colour(t.colour_text),
+                        entry.name.clone(),
                     ))
-                }),
+                    .map(word, |el, word| {
+                        el.child(text::line(
+                            &theme,
+                            text::Style::Callout,
+                            colour(t.colour_text_2),
+                            word,
+                        ))
+                    }),
             );
         }
 
         // The window row, under a rule.
         if let (Some(rule), Some(entry)) = (&layout.rule, frame.entries.get(frame.selected)) {
             panel = panel.child(at(rule).background(edge));
-            let card_w = layout
-                .windows
-                .first()
-                .map_or(0.0, |p| p.w - 2.0 * t.space_s);
-            let card_h = layout
-                .windows
-                .first()
-                .map_or(0.0, |p| p.h - 2.0 * t.space_s);
+            let (card_w, card_h) = layout.window_card;
             for (k, (window, plate)) in entry.windows.iter().zip(&layout.windows).enumerate() {
                 let selected = frame.row == Some(k);
                 let hover = actions.clone();
                 let click = actions.clone();
                 let index = frame.selected;
-                let mut well = rect()
-                    .position(Position::new_absolute().left(t.space_s).top(t.space_s))
-                    .width(Size::px(card_w))
-                    .height(Size::px(card_h))
-                    .corner_radius(t.radius_small)
-                    .background(colour(t.colour_fill))
-                    .center()
-                    .child(preview(
-                        frame.preview(Some(window.id)),
-                        card_w,
-                        card_h,
-                        t.radius_small,
-                        false,
-                    ));
+                let mut well = card(&theme, card_w, card_h).child(preview(
+                    frame.preview(Some(window.id)),
+                    card_w,
+                    card_h,
+                    t.radius_small,
+                    false,
+                ));
                 if window.minimised {
                     well = well.child(tags(&theme, &[Tag::Minimised]));
                 }
@@ -470,23 +472,24 @@ impl Component for Panel {
                                 window: Some(k),
                             }))
                         })
-                        .child(well),
-                );
-            }
-            if let (Some(band), Some(window)) = (
-                &layout.window_band,
-                frame.row.and_then(|k| entry.windows.get(k)),
-            ) {
-                panel = panel.child(
-                    at(band)
-                        .main_align(Alignment::Center)
-                        .cross_align(Alignment::Center)
-                        .child(text::line(
-                            &theme,
-                            text::Style::Body,
-                            colour(t.colour_text),
-                            window.title.clone(),
-                        )),
+                        .child(well)
+                        .child(
+                            rect()
+                                .position(
+                                    Position::new_absolute()
+                                        .left(t.space_s)
+                                        .top(t.space_s + card_h + t.space_xs),
+                                )
+                                .width(Size::px(card_w))
+                                .main_align(Alignment::Center)
+                                .direction(Direction::Horizontal)
+                                .child(text::line(
+                                    &theme,
+                                    text::Style::Callout,
+                                    colour(t.colour_text),
+                                    window.title.clone(),
+                                )),
+                        ),
                 );
             }
         }
@@ -555,13 +558,7 @@ fn plate_of(
         marks.push(Tag::Minimised);
     }
 
-    let mut well = rect()
-        .position(Position::new_absolute().left(t.space_s).top(t.space_s))
-        .width(Size::px(card_w))
-        .height(Size::px(card_h))
-        .corner_radius(t.radius_small)
-        .background(colour(t.colour_fill))
-        .center();
+    let mut well = card(theme, card_w, card_h);
     if !entry.background {
         well = well.child(preview(
             frame.preview(entry.recent),
@@ -575,6 +572,7 @@ fn plate_of(
         well = well.child(tags(theme, &marks));
     }
 
+    // The icon hangs from the card's lower edge, centred on the plate.
     let icon_size = t.size_app_icon_medium;
     let icon_top = t.space_s + card_h - icon_size / 2.0;
     let (icon_w, icon_h) = if entry.cover {
@@ -582,7 +580,8 @@ fn plate_of(
     } else {
         (icon_size, icon_size)
     };
-    let icon_left = t.space_s + (card_w - icon_w) / 2.0;
+    let centre = plate.w / 2.0;
+    let icon_left = centre - icon_w / 2.0;
     let icon = rect()
         .layer(ABOVE)
         .position(Position::new_absolute().left(icon_left).top(icon_top))
@@ -657,19 +656,21 @@ fn plate_of(
         .child(well)
         .child(icon);
 
-    // The window count, quiet, past the icon's trailing edge on its lower half.
+    // The window count, quiet, at the icon's lower trailing corner.
     if entry.windows.len() > 1 {
+        let size = t.size_badge_quiet;
         out = out.child(
             rect()
                 .layer(ABOVE)
                 .position(
                     Position::new_absolute()
-                        .left(icon_left + icon_w + t.space_xs)
-                        .top(icon_top + icon_h * 0.75 - 8.0),
+                        .left(centre + icon_size / 2.0 - 2.0)
+                        .top(icon_top + icon_h - size),
                 )
-                .height(Size::px(16.0))
+                .height(Size::px(size))
+                .min_width(Size::px(size))
                 .padding((0.0, t.space_xs))
-                .corner_radius(8.0)
+                .corner_radius(size / 2.0)
                 .background(colour(t.colour_fill_strong))
                 .center()
                 .child(text::line(
@@ -680,43 +681,46 @@ fn plate_of(
                 )),
         );
     }
-    // The badge, centred on the icon's top trailing corner, inset into it.
+    // The badge over the icon's top trailing corner.
     if let Some(count) = entry.badge {
+        let size = t.size_badge;
         out = out.child(
             rect()
                 .layer(ABOVE)
                 .position(
                     Position::new_absolute()
-                        .left(icon_left + icon_w - 4.0 - 9.0)
-                        .top(icon_top + 4.0 - 9.0),
+                        .left(centre + 14.0)
+                        .top(icon_top + 8.0 - size),
                 )
-                .height(Size::px(18.0))
-                .min_width(Size::px(18.0))
+                .height(Size::px(size))
+                .min_width(Size::px(size))
                 .padding((0.0, 5.0))
-                .corner_radius(9.0)
+                .corner_radius(size / 2.0)
                 .background(colour(t.colour_danger))
                 .center()
                 .child(text::line(
                     theme,
-                    text::Style::Footnote,
+                    text::Style::Subheadline,
                     colour(t.colour_on_danger),
                     isle_badge_text(count),
                 )),
         );
     }
-    // Progress along the plate's lower edge; its room is kept when there is none.
+    // Progress inside the card, above the icon.
     if let Some(p) = entry.progress {
-        let y = t.space_s + card_h + icon_size / 2.0 + t.space_s;
+        let y = icon_top - 10.0 - 6.0;
+        let w = card_w - 2.0 * t.space_s;
         out = out.child(
             rect()
-                .position(Position::new_absolute().left(t.space_s).top(y))
-                .width(Size::px(card_w))
+                .layer(ABOVE)
+                .position(Position::new_absolute().left(2.0 * t.space_s).top(y))
+                .width(Size::px(w))
                 .height(Size::px(6.0))
                 .corner_radius(3.0)
                 .background(colour(t.colour_fill_strong))
                 .child(
                     rect()
-                        .width(Size::px((card_w * p as f32).round()))
+                        .width(Size::px((w * p as f32).round()))
                         .height(Size::px(6.0))
                         .corner_radius(3.0)
                         .background(colour(t.colour_accent)),
@@ -768,12 +772,12 @@ fn tags(theme: &Theme, marks: &[Tag]) -> freya::prelude::Rect {
         .layer(ABOVE)
         .position(Position::new_absolute().left(t.space_xs).top(t.space_xs))
         .direction(Direction::Horizontal)
-        .spacing(t.space_xxs);
+        .spacing(t.space_xs);
     for tag in marks {
         let (glyph, fill, ink, ground, alt) = match tag {
             Tag::Attention => (
                 "bell-simple-ringing",
-                false,
+                true,
                 t.colour_warn_text,
                 t.material_solid,
                 "Needs attention",
@@ -823,9 +827,9 @@ fn tags(theme: &Theme, marks: &[Tag]) -> freya::prelude::Rect {
         };
         row = row.child(
             rect()
-                .height(Size::px(t.size_control_small))
-                .width(Size::px(t.size_control_small + t.space_xs))
-                .corner_radius(t.size_control_small / 2.0)
+                .height(Size::px(TAG))
+                .width(Size::px(TAG))
+                .corner_radius(TAG / 2.0)
                 .background(colour(ground))
                 .map(Some(shadows(&t.shadow_control)), |el, list| {
                     list.into_iter().fold(el, |el, s| el.shadow(s))
@@ -840,7 +844,7 @@ fn tags(theme: &Theme, marks: &[Tag]) -> freya::prelude::Rect {
                 })
                 .center()
                 .child(
-                    Glyph::new(glyph, t.size_glyph_small, colour(ink))
+                    Glyph::new(glyph, TAG_GLYPH, colour(ink))
                         .fill(fill)
                         .alt(alt),
                 ),

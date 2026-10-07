@@ -15,47 +15,44 @@ in a band under its row.
 - Material `material-glass` (blur `material-blur`, saturation
   `material-saturation`, grain `material-noise-opacity`); `radius-panel`;
   `shadow-panel`.
-- Padding `space-s` on every side. Plates sit `space-xs` apart. Under each
-  row of plates, a name band `size-row` high.
+- Padding `space-s` on every side. Plates sit `space-s` apart. Under each
+  row of plates, `space-xs` below it, a name line in `type-style-headline`.
 - Centred on the screen (not the work area) when it appears. Its top edge
   then stays put: the window row grows it downward, never re-centring it
   (brief P5).
-- Width for n apps at full size: 2 × `space-s` + 272n + `space-xs` (n − 1);
-  six apps make 1668 × 258. The rows never grow past three quarters of the
+- Width for n apps at full size: 2 × `space-s` + 256n + `space-s` (n − 1);
+  six apps make 1592 wide (the gate-5 board; P7 brought this sheet to it). The rows never grow past three quarters of the
   screen's width (v1): 2580 on the ultrawide, 1440 on the 1920 screen.
 
 **Plate** (one app)
 
 - The plate is the entry's hit area and its selection: `space-s` padding
   around the card, `radius-card`, drawn only when selected (below).
-- **Card**: a well `size-switcher-card-width` × `size-switcher-card-height`
-  (256 × 160, 16:10), `radius-small` (concentric: `radius-card` less the
-  plate's `space-s`, floored), filled `colour-fill` until a texture arrives.
-- **Preview**: the app's most recent window, scaled to fit inside the well
-  keeping its aspect and centred in it: a maximised ultrawide window is
-  256 × 107, a third-width one 128 × 160. Its corners are `radius-small`.
-  The well's `colour-fill` shows around it.
+- **Plate** is `size-switcher-card-width` (256) wide; its card is inset
+  `space-s` on the top and sides: 240 × 144 (`size-switcher-card-height`
+  less `space-s` twice), `radius-small`, the window's own `colour-window`
+  with a `colour-hairline` inner edge.
+- **Preview**: the app's most recent window, scaled to fit inside the card
+  keeping its aspect and centred in it; the card's colour shows around it.
 - **Icon**: Papirus at `size-app-icon-medium` (48), centred on the card's
   width with its centre on the card's lower edge, so half hangs below; its
   own shape, no tile. A game's cover stands in, fitted to the 48 height and
   keeping its aspect (a 2:3 library cover is 32 × 48), `radius-small`, with
   a `colour-hairline` edge (`structure/spotlight.md`).
-- **Window count**: when the app has more than one window, the quiet badge
-  (badge component's quiet form: 16 tall, `colour-fill-strong` with
-  `colour-text`, `type-style-subheadline` semibold, tabular, padded
-  `space-xs`, capsule) `space-xs` past the icon's trailing edge, centred
-  on the icon's lower half, so it sits on glass below the card.
-- **Badge**: the badge component (18 high, `colour-danger`,
-  `colour-on-danger`, 11 semibold, tabular, "999+" past three digits), its centre on the icon's
-  top trailing corner, inset 4 so it overlaps the icon.
+- **Icon** hangs from the card's lower edge, centred on the plate, its
+  bottom 6 above the plate's: a plate is 8 + 144 + 24 + 6 = 182 tall.
+- **Window count**: the quiet badge (`size-badge-quiet`) at the icon's lower
+  trailing corner.
+- **Badge**: the badge component (`size-badge`, `colour-danger`,
+  `colour-on-danger`, subheadline semibold, "999+" past three digits) over
+  the icon's top trailing corner.
 - **Progress**: the progress component (6 high, track `colour-fill-strong`,
-  fill `colour-accent`) across the card's full width, `space-s` under the
-  icon, at the plate's lower edge. No indeterminate form. Absent, its
-  space stays reserved so a bar appearing moves nothing.
-- **Tags**, at the card's top leading corner, inset `space-xs`, in a row
-  `space-xxs` apart, attention first: capsules `size-control-small` high,
-  `material-solid`, `shadow-control`, glyph `size-glyph-small` in
-  `colour-text-2`, Phosphor regular.
+  fill `colour-accent`) inside the card, inset `space-s` from its sides, 10
+  above the icon. No indeterminate form.
+- **Tags**, at the card's top leading corner, inset `space-xs`, `space-xs`
+  apart, attention first: 22-point circles in `material-solid`,
+  `shadow-control`, a 13-point glyph in `colour-text-2`; attention filled in
+  `colour-warn-text`.
 
 | Tag | Glyph | Also |
 |---|---|---|
@@ -67,48 +64,41 @@ in a band under its row.
 | Attention, urgent | `bell-simple-ringing` fill weight, `colour-on-danger`, on a `colour-danger` capsule | |
 | Quitting (after Q) | the spinner component at 12 | Until the app has gone |
 
-Plate height: 160 + 24 (icon overhang) + `space-s` + 6 (progress) + 2 ×
-`space-s` = 214; width 272.
+Plate: 256 × 182.
 
 **Selection** (recommended, Choices 1): the selected plate filled
 `colour-fill-strong`, as macOS's grey plate behind the selected icon. With
 the window row open, the app's plate turns `colour-selection-unfocused` and
 the selected window's plate takes `colour-fill-strong`.
 
-**Name band**: the selected app's name in `type-style-headline`,
-`colour-text`, centred under its plate and clamped inside the panel's
-padding, one line, cut at its end. A state follows as a second run,
-`space-s` after it, in `type-style-body`, `colour-text-2`: "Hidden",
+**Name**: the selected app's name in `type-style-headline`, `colour-text`,
+centred under its row, one line, cut at its end; not shown while the window
+row is open. A state follows as a second run,
+`space-s` after it, in `type-style-callout`, `colour-text-2`: "Hidden",
 "Minimised", "Not responding", "Running in background". Other rows' bands
 are empty.
 
-**Background entries**: after the last app with a window, a gap of
-`space-xxl` with a vertical `colour-hairline` (1, the card's height,
-centred in the gap), then plates whose well is `size-switcher-background-width`
-(128) × 160, empty `colour-fill`, with the icon in its usual place over the
-lower edge and the `tray` tag. No preview, count or progress; a badge if
-the app keeps one. With many apps the background group stays whole at the
-end of the last row; if it does not fit, it starts its own row, centred,
-with no hairline.
+**Background entries**: after the last app with a window, a vertical
+`colour-hairline` (1, the card's height) with `space-m` each side, then
+plates `size-switcher-background-width` (128) wide whose cards are empty,
+with the icon in its usual place over the lower edge and the `tray` tag. No
+preview, count or progress; a badge if the app keeps one. With many apps the
+background group stays whole at the end of the last row; if it does not fit,
+it starts its own row, centred, with no hairline.
 
-**Window row** (↓ or `): under the last row's band, a `colour-hairline`
-across the panel inset `space-l`, `space-s` above and below it, then one
-plate per window in Cmd+`'s order, centred under the app's plate and
-clamped inside the panel. With several rows the window row opens under
-the last row, centred on the app plate's x, so no row reflows. Window
-plates are the app plates without icon, count, badge or progress: 256 ×
-160 card, `space-s` padding (272 × 176).
-A minimised window carries the `minus` tag. The selected window's title
-in its band in `type-style-body`, `colour-text`, cut in the middle so a
-document's name and its app suffix both survive.
+**Window row** (↓ or `): under the row, a `colour-hairline` across the panel
+inside its padding, then one plate per window in Cmd+`'s order, centred in
+the panel. A window plate is 256 wide: its 240 × 144 card at `space-s`, the
+window's title under it in `type-style-callout`, `space-xs` below the card.
+The selected window's plate takes `colour-fill-strong`. A minimised window
+carries the `minus` tag.
 
-**Many apps**: past what fits in three quarters of the width, cards shrink
-together, keeping 16:10, to `size-switcher-card-min-width` (160 × 100;
-plate 176 × 154). The icon, badge, count, tags and progress keep their
-size. Past the floor, the row wraps into rows of equal count (15 apps:
-8 and 7), each centred, each with its own band. At the floor the ultrawide
-holds 14 a row, the 1920 screen 7. The window row shrinks the same way on
-its own count.
+**Many apps**: past what fits in three quarters of the width, plates shrink
+together, their cards keeping 5:3, to `size-switcher-card-min-width` (160).
+The icon, badge, count, tags and progress keep their size. Past the floor,
+the row wraps into rows of equal count, each centred, each with its own name
+line. At the floor the ultrawide holds 15 a row, the 1920 screen 8. The
+window row shrinks the same way on its own count.
 
 **Second screen**: the same panel at the same point sizes, centred on the
 1920 × 1080 screen when it holds the focused window; five full-size cards

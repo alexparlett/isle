@@ -347,16 +347,7 @@ impl Isle {
     pub fn bar_app(&self) -> (String, String) {
         if let Some(record) = self.bar_record() {
             let app = record.app.clone();
-            let mut name = self.app_name(&app);
-            // A window with no app id is named by its process, as a Mac app by its binary.
-            if name.is_empty()
-                && let Some(pid) = record.pid
-            {
-                name = std::fs::read_to_string(format!("/proc/{pid}/comm"))
-                    .map(|c| c.trim().to_owned())
-                    .unwrap_or_default();
-            }
-            return (app, name);
+            return (app.clone(), self.app_name(&app));
         }
         let files = [
             "org.gnome.Nautilus",

@@ -197,3 +197,23 @@ async fn a_steam_game_takes_its_name_and_cover_from_the_library() {
         game.icon
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_app_with_no_id_is_named_by_its_process() {
+    let mut isle = Isle::start("noid").await;
+    let _client = isle.client_with(&["--app-id", "", "--title", "No id"]);
+    let windows = isle.windows_proxy().await;
+    wait_until(|| async {
+        windows
+            .list()
+            .await
+            .unwrap()
+            .iter()
+            .any(|w| w.title == "No id")
+    })
+    .await;
+    let apps = windows.apps().await.unwrap();
+    let app = apps.iter().find(|a| a.app.is_empty()).unwrap();
+    // The kernel keeps fifteen characters of a process's name.
+    assert_eq!(app.name, "isle-test-clien");
+}

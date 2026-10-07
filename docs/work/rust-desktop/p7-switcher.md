@@ -408,6 +408,17 @@ differences from the plan:
   with its own fade-only transition, still in Game Mode.
 - **The quitting mark** is Phosphor's `circle-notch`, still: Isle has no
   spinner component yet.
+- **Drawn first from the sheet, then to the board.** The first build took
+  `surfaces/switcher.md`'s numbers (272-point plates, a `colour-fill` well,
+  progress along the plate's foot), which had drifted from the gate-5 board
+  the user approved; the user saw it did not look like the design. The panel
+  now follows the board: 256-point plates 8 apart holding a 240 × 144 card in
+  the window's colour with a hairline edge, the icon off its lower edge,
+  22-point round marks, progress inside the card, the name centred under the
+  row and each window's title under it in the window row. The sheet was
+  brought to the board.
+- **An app with no id** is named by its process in the switcher as in the
+  menu bar (Chromium's first-run dialog had no name).
 - **The ` key** is the one that types it, as P5 made Cmd+`, not the key above
   Tab the surface sheet named.
 

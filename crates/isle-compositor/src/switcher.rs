@@ -348,20 +348,19 @@ impl State {
         };
         let theme = self.isle.shell.theme().clone();
         let t = &theme.tokens;
+        let line = |style| isle_ui::text::metrics(&theme, style).1;
         let metrics = Metrics {
-            card_width: t.size_switcher_card_width,
+            plate_width: t.size_switcher_card_width,
+            plate_min_width: t.size_switcher_card_min_width,
             card_height: t.size_switcher_card_height,
-            card_min_width: t.size_switcher_card_min_width,
             background_width: t.size_switcher_background_width,
             space_xs: t.space_xs,
             space_s: t.space_s,
-            space_l: t.space_l,
-            space_xxl: t.space_xxl,
-            band: t
-                .size_row
-                .max(isle_ui::text::metrics(&theme, isle_ui::text::Style::Headline).1 + t.space_m),
+            divider_margin: t.space_m,
             icon_overhang: t.size_app_icon_medium / 2.0,
-            progress: 6.0,
+            icon_drop: 6.0,
+            name: line(isle_ui::text::Style::Headline),
+            title: line(isle_ui::text::Style::Callout),
         };
         let model = &switcher.model;
         let row_of = model.row().map(|_| model.selected_index());
@@ -477,6 +476,10 @@ impl State {
                 .take(PREVIEWS_PER_PASS),
         );
         let (w, h) = (layout.card_width as f64, layout.card_height as f64);
+        let (w, h) = (
+            w.max(layout.window_card.0 as f64),
+            h.max(layout.window_card.1 as f64),
+        );
         for &id in &todo {
             if let Some(image) = self.render_preview(id, w, h, scale) {
                 let switcher = self.isle.switcher.as_mut().unwrap();

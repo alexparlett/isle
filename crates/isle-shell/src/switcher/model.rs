@@ -351,40 +351,60 @@ impl Switcher {
     }
 }
 
-/// The sizes the layout reads, in points; `tokens.kdl`'s values by default.
+/// The sizes the layout reads, in points; `tokens.kdl`'s values by default. A plate holds a
+/// card inset by `space_s` on three sides, with the app's icon hanging off the card's lower
+/// edge into the plate (the gate-5 board).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Metrics {
-    pub card_width: f32,
+    /// A plate's width at full size and its floor.
+    pub plate_width: f32,
+    pub plate_min_width: f32,
+    /// The card's top inset and height together at full size: the card is this less
+    /// `space_s` twice.
     pub card_height: f32,
-    pub card_min_width: f32,
+    /// A background app's plate at full size.
     pub background_width: f32,
     pub space_xs: f32,
     pub space_s: f32,
-    pub space_l: f32,
-    pub space_xxl: f32,
-    /// A name band's height.
-    pub band: f32,
-    /// The icon's overhang below the card: half its size.
+    /// Each side of the divider before the background group.
+    pub divider_margin: f32,
+    /// The icon's half below the card, and the room under the icon.
     pub icon_overhang: f32,
-    /// The progress bar's height.
-    pub progress: f32,
+    pub icon_drop: f32,
+    /// The selected app's name line, and a window title's in the window row.
+    pub name: f32,
+    pub title: f32,
 }
 
 impl Default for Metrics {
     fn default() -> Self {
         Self {
-            card_width: 256.0,
+            plate_width: 256.0,
+            plate_min_width: 160.0,
             card_height: 160.0,
-            card_min_width: 160.0,
             background_width: 128.0,
             space_xs: 4.0,
             space_s: 8.0,
-            space_l: 16.0,
-            space_xxl: 24.0,
-            band: 28.0,
+            divider_margin: 12.0,
             icon_overhang: 24.0,
-            progress: 6.0,
+            icon_drop: 6.0,
+            name: 18.0,
+            title: 16.0,
         }
+    }
+}
+
+impl Metrics {
+    /// The card inside a plate `plate` points wide.
+    fn card(&self, plate: f32) -> (f32, f32) {
+        let full_w = self.plate_width - 2.0 * self.space_s;
+        let full_h = self.card_height - 2.0 * self.space_s;
+        let w = plate - 2.0 * self.space_s;
+        (w, (w * full_h / full_w).round())
+    }
+
+    fn plate_height(&self, card_h: f32) -> f32 {
+        self.space_s + card_h + self.icon_overhang + self.icon_drop
     }
 }
 
@@ -404,28 +424,24 @@ pub struct Layout {
     pub height: f32,
     /// The panel without its window row: where it starts, so the row grows it downward.
     pub rows_height: f32,
+    /// The card inside each app's plate, inset `space_s` from its top and sides.
     pub card_width: f32,
     pub card_height: f32,
     /// Each entry's plate, in entry order.
     pub plates: Vec<Rect>,
-    /// The name band under each row of plates.
+    /// The name line under each row of plates.
     pub bands: Vec<Rect>,
     /// The hairline between the apps and the background group, when they share a row.
     pub divider: Option<Rect>,
-    /// The rule above the window row, and its plates, while it is open.
+    /// The rule above the window row, and its plates, while it is open; each window plate
+    /// holds a card of `window_card` and its title under it.
     pub rule: Option<Rect>,
     pub windows: Vec<Rect>,
-    pub window_band: Option<Rect>,
+    pub window_card: (f32, f32),
 }
 
-impl Metrics {
-    fn plate_height(&self, card_height: f32) -> f32 {
-        card_height + self.icon_overhang + self.space_s + self.progress + 2.0 * self.space_s
-    }
-}
-
-/// Lays out `entries` for an output `screen` points wide, with the window row open on
-/// `row_of` and holding `windows` plates.
+/// Lays out `entries` for an output `screen` points wide, with the window row open
+/// (`row_of`) holding `windows` plates.
 pub fn layout(
     entries: &[Entry],
     screen: f32,
@@ -436,38 +452,39 @@ pub fn layout(
     let max = (screen * 0.75).floor();
     let apps = entries.iter().filter(|e| !e.background).count();
     let background = entries.len() - apps;
+    let gap = m.space_s;
 
-    // Cards shrink together, keeping 16:10, until the apps and the background group fit in
-    // one row; past the floor the apps wrap into rows of equal count.
-    let row_width = |n: usize, nb: usize, card: f32| {
-        let bg = m.background_width * card / m.card_width;
-        let plates = n as f32 * (card + 2.0 * m.space_s) + nb as f32 * (bg + 2.0 * m.space_s);
-        let gaps = (n + nb).saturating_sub(1) as f32 * m.space_xs;
+    // Plates shrink together, keeping their cards' aspect, until the apps and the
+    // background group fit in one row; past the floor the apps wrap into rows of equal
+    // count.
+    let bg_of = |plate: f32| (m.background_width * plate / m.plate_width).round();
+    let row_width = |n: usize, nb: usize, plate: f32| {
+        let plates = n as f32 * plate + nb as f32 * bg_of(plate);
+        let gaps = (n + nb).saturating_sub(1) as f32 * gap;
         let divider = if n > 0 && nb > 0 {
-            m.space_xxl - m.space_xs
+            2.0 * m.divider_margin + 1.0 + gap
         } else {
             0.0
         };
         2.0 * m.space_s + plates + gaps + divider
     };
-    let mut card = m.card_width;
-    if row_width(apps, background, card) > max {
+    let mut plate = m.plate_width;
+    if row_width(apps, background, plate) > max {
         let fixed = row_width(apps, background, 0.0);
-        let per_card = apps as f32 + background as f32 * m.background_width / m.card_width;
-        card = ((max - fixed) / per_card)
+        let per = apps as f32 + background as f32 * m.background_width / m.plate_width;
+        plate = ((max - fixed) / per)
             .floor()
-            .max(m.card_min_width)
-            .min(m.card_width);
+            .clamp(m.plate_min_width, m.plate_width);
     }
-    let card_h = (card * m.card_height / m.card_width).round();
-    let bg_w = (m.background_width * card / m.card_width).round();
+    let (card_w, card_h) = m.card(plate);
+    let bg_w = bg_of(plate);
     let plate_h = m.plate_height(card_h);
 
     // Rows: apps at the floor wrap into rows of equal count; the background group joins
     // the last row when it fits, else takes its own.
     let per_row = {
         let mut n = apps.max(1);
-        while n > 1 && row_width(n, 0, card) > max {
+        while n > 1 && row_width(n, 0, plate) > max {
             n -= 1;
         }
         n
@@ -493,16 +510,16 @@ pub fn layout(
     if background > 0 {
         let group: Vec<usize> = (apps..entries.len()).collect();
         match rows.last_mut() {
-            Some((last, bg)) if row_width(last.len(), background, card) <= max => *bg = group,
+            Some((last, bg)) if row_width(last.len(), background, plate) <= max => *bg = group,
             _ => rows.push((Vec::new(), group)),
         }
     }
 
     let widths: Vec<f32> = rows
         .iter()
-        .map(|(a, b)| row_width(a.len(), b.len(), card))
+        .map(|(a, b)| row_width(a.len(), b.len(), plate))
         .collect();
-    let width = widths.iter().cloned().fold(0.0, f32::max);
+    let mut width = widths.iter().cloned().fold(0.0, f32::max);
     let mut plates = vec![Rect::default(); entries.len()];
     let mut bands = Vec::new();
     let mut divider = None;
@@ -511,121 +528,112 @@ pub fn layout(
         let mut x = (width - w) / 2.0 + m.space_s;
         for (k, &i) in apps_in.iter().enumerate() {
             if k > 0 {
-                x += m.space_xs;
+                x += gap;
             }
             plates[i] = Rect {
                 x,
                 y,
-                w: card + 2.0 * m.space_s,
+                w: plate,
                 h: plate_h,
             };
-            x += card + 2.0 * m.space_s;
+            x += plate;
         }
         if !apps_in.is_empty() && !bg_in.is_empty() {
             divider = Some(Rect {
-                x: x + (m.space_xxl - 1.0) / 2.0,
+                x: x + gap + m.divider_margin,
                 y: y + m.space_s,
                 w: 1.0,
                 h: card_h,
             });
-            x += m.space_xxl;
+            x += gap + 2.0 * m.divider_margin + 1.0;
         }
         for (k, &i) in bg_in.iter().enumerate() {
-            if k > 0 {
-                x += m.space_xs;
+            if k > 0 || !apps_in.is_empty() {
+                x += gap;
             }
             plates[i] = Rect {
                 x,
                 y,
-                w: bg_w + 2.0 * m.space_s,
+                w: bg_w,
                 h: plate_h,
             };
-            x += bg_w + 2.0 * m.space_s;
+            x += bg_w;
         }
-        y += plate_h;
+        // The name sits just under the plates, the icon's room above it shared.
+        y += plate_h + m.space_s - m.space_xs;
         bands.push(Rect {
             x: m.space_s,
             y,
             w: width - 2.0 * m.space_s,
-            h: m.band,
+            h: m.name,
         });
-        y += m.band;
+        y += m.name;
     }
     let rows_height = y + m.space_s;
+    let mut height = rows_height;
 
-    let mut layout = Layout {
+    let mut rule = None;
+    let mut window_plates = Vec::new();
+    let mut window_card = (0.0, 0.0);
+    if row_of.is_some() && windows > 0 {
+        // The window row, centred under a rule; it shrinks on its own count, and the panel
+        // widens about its centre if the row needs it.
+        let row_w = |n: usize, p: f32| n as f32 * p + n.saturating_sub(1) as f32 * gap;
+        let mut wplate = m.plate_width;
+        if row_w(windows, wplate) + 2.0 * m.space_s > max {
+            let room = max - 2.0 * m.space_s - windows.saturating_sub(1) as f32 * gap;
+            wplate = (room / windows as f32).floor().max(m.plate_min_width);
+        }
+        let (wc_w, wc_h) = m.card(wplate);
+        window_card = (wc_w, wc_h);
+        let total = row_w(windows, wplate);
+        if total + 2.0 * m.space_s > width {
+            let grow = total + 2.0 * m.space_s - width;
+            width += grow;
+            for p in plates.iter_mut() {
+                p.x += grow / 2.0;
+            }
+            if let Some(d) = divider.as_mut() {
+                d.x += grow / 2.0;
+            }
+            for b in bands.iter_mut() {
+                b.w = width - 2.0 * m.space_s;
+            }
+        }
+        let rule_y = rows_height - m.space_s + m.space_xs;
+        rule = Some(Rect {
+            x: m.space_s,
+            y: rule_y,
+            w: width - 2.0 * m.space_s,
+            h: 1.0,
+        });
+        let top = rule_y + 1.0 + gap;
+        let start = (width - total) / 2.0;
+        let wplate_h = m.space_s + wc_h + m.space_xs + m.title + m.space_s;
+        window_plates = (0..windows)
+            .map(|k| Rect {
+                x: start + k as f32 * (wplate + gap),
+                y: top,
+                w: wplate,
+                h: wplate_h,
+            })
+            .collect();
+        height = top + wplate_h + m.space_s;
+    }
+
+    Layout {
         width,
-        height: rows_height,
+        height,
         rows_height,
-        card_width: card,
+        card_width: card_w,
         card_height: card_h,
         plates,
         bands,
         divider,
-        ..Default::default()
-    };
-    if let (Some(of), true) = (row_of, windows > 0) {
-        // The window row shrinks on its own count, centred under its app's plate and
-        // clamped inside the panel; the panel widens about its centre if the row needs it.
-        let mut wcard = m.card_width;
-        let row_w = |n: usize, c: f32| {
-            n as f32 * (c + 2.0 * m.space_s) + n.saturating_sub(1) as f32 * m.space_xs
-        };
-        if row_w(windows, wcard) + 2.0 * m.space_s > max {
-            let room = max - 2.0 * m.space_s - windows.saturating_sub(1) as f32 * m.space_xs;
-            wcard = (room / windows as f32 - 2.0 * m.space_s)
-                .floor()
-                .max(m.card_min_width);
-        }
-        let wcard_h = (wcard * m.card_height / m.card_width).round();
-        let total = row_w(windows, wcard);
-        if total + 2.0 * m.space_s > layout.width {
-            let grow = total + 2.0 * m.space_s - layout.width;
-            layout.width += grow;
-            for p in layout.plates.iter_mut() {
-                p.x += grow / 2.0;
-            }
-            if let Some(d) = layout.divider.as_mut() {
-                d.x += grow / 2.0;
-            }
-            for b in layout.bands.iter_mut() {
-                b.w = layout.width - 2.0 * m.space_s;
-            }
-        }
-        let rule_y = rows_height - m.space_s + m.space_s;
-        layout.rule = Some(Rect {
-            x: m.space_l,
-            y: rule_y,
-            w: layout.width - 2.0 * m.space_l,
-            h: 1.0,
-        });
-        let top = rule_y + 1.0 + m.space_s;
-        let centre = layout
-            .plates
-            .get(of)
-            .map(|p| p.x + p.w / 2.0)
-            .unwrap_or(layout.width / 2.0);
-        let start = (centre - total / 2.0)
-            .max(m.space_s)
-            .min(layout.width - m.space_s - total);
-        let plate_h = wcard_h + 2.0 * m.space_s;
-        layout.windows = (0..windows)
-            .map(|k| Rect {
-                x: start + k as f32 * (wcard + 2.0 * m.space_s + m.space_xs),
-                y: top,
-                w: wcard + 2.0 * m.space_s,
-                h: plate_h,
-            })
-            .collect();
-        layout.window_band = Some(Rect {
-            x: m.space_s,
-            y: top + plate_h,
-            w: layout.width - 2.0 * m.space_s,
-            h: m.band,
-        });
-        layout.height = top + plate_h + m.band + m.space_s;
+        rule,
+        windows: window_plates,
+        window_card,
     }
-    layout
 }
 
 #[cfg(test)]
@@ -813,54 +821,46 @@ mod tests {
     }
 
     #[test]
-    fn six_apps_make_the_sheets_panel() {
+    fn six_apps_make_the_boards_panel() {
         let l = layout(&apps(6), 3440.0, &Metrics::default(), None, 0);
-        assert_eq!((l.width, l.height), (1668.0, 258.0));
+        // 8 + 6 × 256 + 5 × 8 + 8 wide; a plate is 8 + 144 + 24 + 6 tall; the name 4 under.
+        assert_eq!(l.width, 1592.0);
+        assert_eq!((l.card_width, l.card_height), (240.0, 144.0));
         assert_eq!(
             l.plates[0],
             Rect {
                 x: 8.0,
                 y: 8.0,
-                w: 272.0,
-                h: 214.0
+                w: 256.0,
+                h: 182.0
             }
         );
-        assert_eq!(l.plates[1].x, 284.0);
-        assert_eq!(l.bands.len(), 1);
+        assert_eq!(l.plates[1].x, 272.0);
+        assert_eq!(l.bands[0].y, 194.0);
+        assert_eq!(l.height, 194.0 + 18.0 + 8.0);
     }
 
     #[test]
     fn many_apps_shrink_to_the_floor_then_wrap_into_rows_of_equal_count() {
         let m = Metrics::default();
         let l = layout(&apps(12), 3440.0, &m, None, 0);
-        assert!(
-            l.card_width < 256.0 && l.card_width >= 160.0,
-            "{}",
-            l.card_width
-        );
+        let w = l.plates[0].w;
+        assert!((160.0..256.0).contains(&w), "{w}");
         assert!(l.width <= 2580.0);
         assert_eq!(l.bands.len(), 1);
 
-        let l = layout(&apps(14), 3440.0, &m, None, 0);
-        assert!(
-            l.card_width >= 160.0 && l.card_width < 170.0,
-            "{}",
-            l.card_width
-        );
-        assert_eq!(
-            l.bands.len(),
-            1,
-            "fourteen fit a row at the floor on the ultrawide"
-        );
+        // At the floor, (2580 - 16 + 8) / (160 + 8) is fifteen a row on the ultrawide.
         let l = layout(&apps(15), 3440.0, &m, None, 0);
+        assert!(l.plates[0].w >= 160.0 && l.plates[0].w < 170.0);
+        assert_eq!(l.bands.len(), 1);
+        let l = layout(&apps(16), 3440.0, &m, None, 0);
         assert_eq!(l.bands.len(), 2);
         let first_row = l.plates.iter().filter(|p| p.y == l.plates[0].y).count();
-        assert_eq!(first_row, 8, "fifteen as eight and seven");
-        assert_eq!(l.plates[14].y, l.plates[8].y);
+        assert_eq!(first_row, 8, "sixteen as eight and eight");
 
-        let l = layout(&apps(7), 1920.0, &m, None, 0);
-        assert_eq!(l.bands.len(), 1, "seven a row on the 1920 screen");
         let l = layout(&apps(8), 1920.0, &m, None, 0);
+        assert_eq!(l.bands.len(), 1, "eight a row on the 1920 screen");
+        let l = layout(&apps(9), 1920.0, &m, None, 0);
         assert_eq!(l.bands.len(), 2);
         assert!(l.width <= 1440.0);
     }
@@ -875,14 +875,14 @@ mod tests {
         let divider = l.divider.unwrap();
         assert!(divider.x > l.plates[2].x + l.plates[2].w);
         assert!(l.plates[3].x > divider.x);
-        assert_eq!(l.plates[3].w, 144.0);
+        assert_eq!(l.plates[3].w, 128.0);
         assert_eq!(l.plates[3].y, l.plates[0].y);
 
-        let mut entries = apps(14);
+        let mut entries = apps(15);
         entries.push(background("steam"));
         let l = layout(&entries, 3440.0, &m, None, 0);
         assert!(l.divider.is_none());
-        assert!(l.plates[14].y > l.plates[0].y, "its own row");
+        assert!(l.plates[15].y > l.plates[0].y, "its own row");
 
         let l = layout(&[background("steam")], 3440.0, &m, None, 0);
         assert!(l.divider.is_none());
@@ -898,10 +898,10 @@ mod tests {
         assert_eq!(open.rows_height, closed.height);
         assert!(open.height > closed.height);
         assert_eq!(open.windows.len(), 3);
-        assert_eq!(open.windows[0].w, 272.0);
-        assert_eq!(open.windows[0].h, 176.0);
+        assert_eq!(open.windows[0].w, 256.0);
+        assert_eq!(open.window_card, (240.0, 144.0));
         // Wider than the app row: the panel widens about its centre and the row is inside.
-        assert!(open.width >= 3.0 * 272.0 + 2.0 * 4.0 + 16.0);
+        assert!(open.width >= 3.0 * 256.0 + 2.0 * 8.0 + 16.0);
         assert!(open.windows[0].x >= 8.0);
         assert!(open.windows[2].x + open.windows[2].w <= open.width - 8.0 + 0.01);
     }

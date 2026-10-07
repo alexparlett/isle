@@ -47,11 +47,22 @@ pub async fn watch(to_loop: ToLoop) -> Result<(), Box<dyn Error + Send + Sync>> 
 }
 
 impl crate::state::Isle {
-    /// The name shown for `app`: a game's from its library, else its entry's.
+    /// The name shown for `app`: a game's from its library, else its entry's; an app with
+    /// no id is named by its process, as a Mac app by its binary.
     pub fn app_name(&self, app: &str) -> String {
-        match self.games.for_app(app) {
-            Some(game) => game.name.clone(),
-            None => self.apps.name(app),
+        if let Some(game) = self.games.for_app(app) {
+            return game.name.clone();
         }
+        let name = self.apps.name(app);
+        if !name.is_empty() {
+            return name;
+        }
+        self.wm
+            .records
+            .iter()
+            .filter(|r| r.app == app)
+            .find_map(|r| std::fs::read_to_string(format!("/proc/{}/comm", r.pid?)).ok())
+            .map(|comm| comm.trim().to_owned())
+            .unwrap_or_default()
     }
 }

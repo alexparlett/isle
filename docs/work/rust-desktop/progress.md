@@ -2,6 +2,11 @@
 
 ## 2026-10-07
 
+- P7: the switcher drawn to the gate-5 board, not the sheet's drifted
+  numbers: window-coloured cards with hairline edges, round marks, progress
+  in the card, the name centred, titles in the window row; the sheet follows.
+  An app with no id is named by its process.
+
 - P7 closed. ARCHITECTURE has How switching works, B53–B57 are recorded,
   the intent docs' open points answered, the plan ends with its outcome.
 

@@ -46,6 +46,7 @@ pub mod chrome;
 pub mod island;
 pub mod menubar;
 pub mod placed_menu;
+pub mod switcher;
 pub mod zones;
 use surface::{Instance, Root, Shown, Wakeup};
 use tracing::{debug, warn};

@@ -393,10 +393,8 @@ impl Component for Panel {
             let quitting = frame.quitting.contains(&entry.app);
             panel = panel.child(plate_of(
                 &theme,
-                &frame,
                 entry,
                 plate,
-                layout,
                 PlateState {
                     selected,
                     unfocused: selected && row_open,
@@ -445,10 +443,16 @@ impl Component for Panel {
                         word,
                     ))
                 });
-            let line = Rect {
-                y: band.y - t.space_xs,
-                h: height,
-                ..*band
+            // The name sits under its own icon, as macOS's does, kept inside the panel.
+            let line = {
+                let w = band.w.min(560.0);
+                let x = (plate.x + plate.w / 2.0 - w / 2.0).clamp(band.x, band.x + band.w - w);
+                Rect {
+                    x,
+                    y: band.y - t.space_xs,
+                    w,
+                    h: height,
+                }
             };
             if !frame.solid && measured > 0.0 {
                 panel = panel.child(
@@ -558,20 +562,16 @@ enum Tag {
     Quitting,
 }
 
-#[allow(clippy::too_many_arguments)]
+/// One app: its icon on a plate, with its marks, badge, window count and progress.
 fn plate_of(
     theme: &Theme,
-    frame: &Frame,
     entry: &Entry,
     plate: &Rect,
-    layout: &Layout,
     state: PlateState,
     index: usize,
     actions: &Actions,
 ) -> freya::prelude::Rect {
     let t = &theme.tokens;
-    let card_w = plate.w - 2.0 * t.space_s;
-    let card_h = layout.card_height;
     let hover = actions.clone();
     let click = actions.clone();
 
@@ -595,33 +595,19 @@ fn plate_of(
         marks.push(Tag::Minimised);
     }
 
-    let mut well = card(theme, card_w, card_h);
-    if !entry.background {
-        well = well.child(preview(
-            frame.preview(entry.recent),
-            card_w,
-            card_h,
-            t.radius_small,
-            entry.hidden,
-        ));
-    }
-    if !marks.is_empty() {
-        well = well.child(tags(theme, &marks));
-    }
-
-    // The icon hangs from the card's lower edge, centred on the plate.
-    let icon_size = t.size_app_icon_medium;
-    let icon_top = t.space_s + card_h - icon_size / 2.0;
+    // The icon fills the plate inside `space-s`; a game's 2:3 cover stands at its height.
+    let size = plate.w - 2.0 * t.space_s;
     let (icon_w, icon_h) = if entry.cover {
-        ((icon_size * 2.0 / 3.0).round(), icon_size)
+        ((size * 2.0 / 3.0).round(), size)
     } else {
-        (icon_size, icon_size)
+        (size, size)
     };
     let centre = plate.w / 2.0;
-    let icon_left = centre - icon_w / 2.0;
+    let left = centre - icon_w / 2.0;
+    let top = t.space_s;
+    let dim = if entry.hidden { 0.5 } else { 1.0 };
     let icon = rect()
-        .layer(ABOVE)
-        .position(Position::new_absolute().left(icon_left).top(icon_top))
+        .position(Position::new_absolute().left(left).top(top))
         .width(Size::px(icon_w))
         .height(Size::px(icon_h))
         .map(entry.icon.clone(), |el, path| {
@@ -637,17 +623,21 @@ fn plate_of(
                     .child(
                         ImageViewer::new(path)
                             .width(Size::px(icon_w))
-                            .height(Size::px(icon_h)),
+                            .height(Size::px(icon_h))
+                            .opacity(dim),
                     )
             } else {
-                el.child(AppIcon::new(path, icon_size))
+                el.child(AppIcon::new(path, size).opacity(dim))
             }
         })
         .maybe(entry.icon.is_none(), |el| {
             el.center().child(Glyph::new(
                 "app-window",
-                icon_size * 0.75,
-                colour(t.colour_text_2),
+                size * 0.75,
+                {
+                    let c = colour(t.colour_text_2);
+                    c.with_a((c.a() as f32 * dim).round() as u8)
+                },
             ))
         });
 
@@ -690,8 +680,10 @@ fn plate_of(
                 window: None,
             }))
         })
-        .child(well)
         .child(icon);
+    if !marks.is_empty() {
+        out = out.child(tags(theme, &marks));
+    }
 
     // The window count, quiet, at the icon's lower trailing corner.
     if entry.windows.len() > 1 {
@@ -701,8 +693,8 @@ fn plate_of(
                 .layer(ABOVE)
                 .position(
                     Position::new_absolute()
-                        .left(centre + icon_size / 2.0 - 2.0)
-                        .top(icon_top + icon_h - size),
+                        .left(centre + icon_w / 2.0 - size)
+                        .top(top + icon_h - size),
                 )
                 .height(Size::px(size))
                 .min_width(Size::px(size))
@@ -726,8 +718,8 @@ fn plate_of(
                 .layer(ABOVE)
                 .position(
                     Position::new_absolute()
-                        .left(centre + 14.0)
-                        .top(icon_top + 8.0 - size),
+                        .left(centre + icon_w / 2.0 - size * 0.8)
+                        .top(top - size / 3.0),
                 )
                 .height(Size::px(size))
                 .min_width(Size::px(size))
@@ -743,14 +735,17 @@ fn plate_of(
                 )),
         );
     }
-    // Progress inside the card, above the icon.
+    // Progress under the icon, inside the plate.
     if let Some(p) = entry.progress {
-        let y = icon_top - 10.0 - 6.0;
-        let w = card_w - 2.0 * t.space_s;
+        let w = (icon_w * 0.75).round();
         out = out.child(
             rect()
                 .layer(ABOVE)
-                .position(Position::new_absolute().left(2.0 * t.space_s).top(y))
+                .position(
+                    Position::new_absolute()
+                        .left(centre - w / 2.0)
+                        .top(top + icon_h + 1.0),
+                )
                 .width(Size::px(w))
                 .height(Size::px(6.0))
                 .corner_radius(3.0)

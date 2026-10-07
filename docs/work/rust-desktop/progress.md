@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+- B59: the switcher shows icons, with live previews in the window row only;
+  chosen by the user from both drawn in the VM. Theme SVGs without a viewBox
+  now scale, so an icon drawn larger than its file fills its box.
+
 - B58 widened: the Glass setting's default is the clear end, so the island's
   panels, menus and Control Centre are clear where the backdrop allows and
   the floor darkens them only as their text needs. The island's pill no

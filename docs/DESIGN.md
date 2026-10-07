@@ -94,7 +94,7 @@ without Increase Contrast:
   whether text can be read. The compositor reads a reduction of the blur
   back a frame late to do it, over the worst of sixteen cells (B39).
 - **Clear glass.** The Glass setting starts at `glass-clear`. Glass with no
-  text on it, such as the switcher's panel round its cards, is never
+  text on it, such as the switcher's panel round its icons, is never
   raised; text on it sits on a strip of glass that the floor governs. The
   island's pill is `colour-island` over the blur alone (B58).
 - **On fills on glass** only `text` is used on a `fill-strong` plate;
@@ -224,9 +224,10 @@ Each surface's look, states and motion, by wave. The full specs are in
   the title in headline weight; the zoom menu a glass grid of layouts in
   the output's shape; the zone preview clear glass, never the accent.
   Windows open from 94% and minimise toward the island.
-- **Switcher** (`switcher.md`): a glass panel of 256 by 160 cards with the
-  app's icon on the lower edge, a neutral plate for the selection, marks
-  for badges, progress, attention, minimised, hidden and background apps.
+- **Switcher** (`switcher.md`): a clear glass panel of 128-point app icons,
+  a neutral plate for the selection with the app's name under it, marks for
+  badges, progress, attention, minimised, hidden and background apps; the
+  window row (↓) shows each window's live preview with its title (B59).
   It appears after 150 ms with a fade; the selection moves at once.
 - **Wallpaper** (`wallpaper.md`): a drawn backdrop by default, a soft
   light from above the island to a darker floor; a 600 ms crossfade on

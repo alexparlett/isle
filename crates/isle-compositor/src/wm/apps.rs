@@ -144,7 +144,7 @@ impl Isle {
                     badge: entry.and_then(|e| e.badge()).unwrap_or(-1),
                     progress: entry.and_then(|e| e.progress()).unwrap_or(-1.0),
                     icon: self
-                        .app_icon(&app, 48)
+                        .app_icon(&app, 128)
                         .map(|p| p.to_string_lossy().into_owned())
                         .unwrap_or_default(),
                     app,

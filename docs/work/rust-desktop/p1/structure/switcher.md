@@ -224,6 +224,9 @@ Decided at gate 2 on 2026-10-03: every recommendation below was accepted.
    carries badges, progress and marks that a bare icon would crowd. (b)
    is calmer, fits many more apps in a row, and is the Mac answer (brief
    P3).
+   **Revised after P7 (B59):** (b). With both drawn in the VM, previews at
+   card size identified nothing that the icon did not, covered the glass,
+   and cost a render on every Cmd+Tab; the window row keeps them.
 2. **Second screen.** (a) Every app, whichever screen its windows are on,
    with the switcher on the screen holding the focused window; (b) the
    same, plus a "current screen only" setting (AltTab, KDE,

@@ -366,35 +366,66 @@ async fn cmd_tab_leaves_a_full_screen_game_and_escape_gives_it_back_its_keys() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_panel_shows_each_apps_live_preview_and_goes_on_release() {
+async fn the_panel_shows_icons_and_the_window_row_live_previews() {
     let mut isle = Isle::start("switchpanel").await;
     let clients = three(&mut isle).await;
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    // Pixels of exactly `colour` inside the switcher's surface: only a preview has them, as
+    // the windows behind the panel come through its glass tinted.
+    let count = |shot: &common::Shot, s: &isle_ipc::SurfaceInfo, colour: [u8; 3]| {
+        let mut n = 0;
+        for y in (s.y.max(0) as usize..(s.y + s.height) as usize).step_by(4) {
+            for x in (s.x.max(0) as usize..(s.x + s.width) as usize).step_by(4) {
+                n += usize::from(shot.at(x, y) == colour);
+            }
+        }
+        n
+    };
+    let surface = || async {
+        shell
+            .list()
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|s| s.name == "switcher")
+            .unwrap()
+    };
+
     press(&isle, CMD).await;
     tap(&isle, TAB).await;
     tokio::time::sleep(Duration::from_millis(400)).await;
-    // Three plates of 272 in a panel 840 wide, centred on 1920 by 1080; the cards' centres.
-    let (y, xs) = (507, [684, 960, 1236]);
+    let s = surface().await;
+    assert!(s.open);
     let shot = isle.shot("HEADLESS-1", "held").await;
-    assert_eq!(shot.at(xs[0], y), [0, 0, 255], "C, in front, first");
-    assert_eq!(shot.at(xs[1], y), [0, 255, 0], "B selected");
-    assert_eq!(shot.at(xs[2], y), [255, 0, 0], "A last");
-    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    for colour in [[0, 0, 255], [0, 255, 0], [255, 0, 0]] {
+        assert_eq!(
+            count(&shot, &s, colour),
+            0,
+            "no preview in the row of icons"
+        );
+    }
     let tree = shell.tree("switcher").await.unwrap();
     assert!(
         tree.contains("App switcher") && tree.contains("isle.test.B"),
         "{tree}"
     );
 
-    // A window that draws while held is drawn again in its card.
+    // The window row shows B's window live, and draws it again when it changes.
+    tap(&isle, DOWN).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let s = surface().await;
+    let shot = isle.shot("HEADLESS-1", "row").await;
+    assert!(
+        count(&shot, &s, [0, 255, 0]) > 100,
+        "B's preview in the window row"
+    );
     clients[1].send("colour ffff00");
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
     let shot = isle.shot("HEADLESS-1", "recoloured").await;
-    assert_eq!(shot.at(xs[1], y), [255, 255, 0]);
+    assert!(count(&shot, &s, [255, 255, 0]) > 100, "drawn again");
 
     release(&isle, CMD).await;
     tokio::time::sleep(Duration::from_millis(400)).await;
-    let shot = isle.shot("HEADLESS-1", "released").await;
-    assert_ne!(shot.at(xs[2], y), [255, 0, 0], "the panel has gone");
     let open = shell.list().await.unwrap();
     assert!(open.iter().all(|s| s.name != "switcher" || !s.open));
 }

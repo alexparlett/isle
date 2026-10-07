@@ -678,3 +678,13 @@ Reduce Transparency still take glass to their forms. Rejected: relaxing the
 floor to the Mac's levels (it revises DESIGN.md's contrast rule), a
 separate clear material per surface.
 
+**B59 · The switcher shows icons; the window row shows windows.** Taken after
+P7, revising gate 2's answer to `switcher.md` For the user 1 from (a) to (b),
+when the user saw both drawn in the VM with the same apps. Each app is its
+128-point icon on a plate, the selected one filled with its name under it, as
+macOS draws it; badges, the window count, progress and marks sit on the
+icon. Live previews (B54) are in the window row only, where they tell one
+app's windows apart. Previews at card size showed little an icon did not,
+covered most of the panel's glass, and cost a render on every Cmd+Tab.
+Rejected: icons in the window row too (it loses the pictures where they help).
+

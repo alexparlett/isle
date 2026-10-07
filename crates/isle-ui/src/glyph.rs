@@ -73,6 +73,7 @@ impl Component for Glyph {
 pub struct AppIcon {
     pub path: std::path::PathBuf,
     pub size: f32,
+    pub opacity: f32,
 }
 
 impl AppIcon {
@@ -80,8 +81,59 @@ impl AppIcon {
         Self {
             path: path.into(),
             size,
+            opacity: 1.0,
         }
     }
+
+    /// Drawn at `opacity`, as a hidden app's icon is.
+    pub fn opacity(mut self, opacity: f32) -> Self {
+        self.opacity = opacity;
+        self
+    }
+}
+
+/// An icon theme's SVG with a `viewBox` from its width and height when it has none, as
+/// Papirus's files do, so it scales to the size it is drawn at rather than keeping its own.
+pub fn scalable_svg(text: &str) -> std::borrow::Cow<'_, str> {
+    let Some(start) = text.find("<svg") else {
+        return text.into();
+    };
+    let Some(end) = text[start..].find('>').map(|e| start + e) else {
+        return text.into();
+    };
+    let tag = &text[start..end];
+    if tag.contains("viewBox") {
+        return text.into();
+    }
+    let attr = |name: &str| {
+        let at = tag.find(&format!(" {name}=\""))? + name.len() + 3;
+        let value = &tag[at..at + tag[at..].find('"')?];
+        value.trim_end_matches("px").parse::<f32>().ok()
+    };
+    let (Some(w), Some(h)) = (attr("width"), attr("height")) else {
+        return text.into();
+    };
+    let at = start + 4;
+    format!("{} viewBox=\"0 0 {w} {h}\"{}", &text[..at], &text[at..]).into()
+}
+
+thread_local! {
+    static SVGS: std::cell::RefCell<std::collections::HashMap<std::path::PathBuf, bytes::Bytes>> =
+        Default::default();
+}
+
+/// `path`'s SVG made scalable, read once per path.
+fn svg_bytes(path: &std::path::Path) -> bytes::Bytes {
+    SVGS.with(|cache| {
+        cache
+            .borrow_mut()
+            .entry(path.to_owned())
+            .or_insert_with(|| {
+                let text = std::fs::read_to_string(path).unwrap_or_default();
+                bytes::Bytes::from(scalable_svg(&text).into_owned())
+            })
+            .clone()
+    })
 }
 
 impl Component for AppIcon {
@@ -92,13 +144,15 @@ impl Component for AppIcon {
             .extension()
             .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
         if svg {
-            SvgViewer::new(self.path.clone())
+            SvgViewer::new((self.path.clone(), svg_bytes(&self.path)))
+                .opacity(self.opacity)
                 .show_loader(false)
                 .width(size.clone())
                 .height(size)
                 .into_element()
         } else {
             ImageViewer::new(self.path.clone())
+                .opacity(self.opacity)
                 .width(size.clone())
                 .height(size)
                 .into_element()

@@ -390,8 +390,9 @@ async fn island_and_menu_bar_cost() {
     assert!(!isle.log().contains("panicked"), "a surface panicked");
 }
 
-/// The switcher held over twenty apps on a 3440 by 1440 output while every app redraws: the
-/// panel's draws, the previews' updates, and what it adds to memory and the GPU.
+/// The switcher held over twenty apps on a 3440 by 1440 output, its window row open, while
+/// every app redraws: the panel's draws, the previews' updates, and what it adds to memory
+/// and the GPU.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn switcher_cost() {
@@ -419,6 +420,8 @@ async fn switcher_cost() {
     for round in 0..5 {
         test.key(CMD, true).await.unwrap();
         tap(&isle, TAB).await;
+        // Previews are in the window row only.
+        tap(&isle, 108).await;
         tokio::time::sleep(Duration::from_millis(400)).await;
         if round == 0 {
             snap("held");

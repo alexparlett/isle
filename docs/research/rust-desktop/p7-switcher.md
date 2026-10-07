@@ -30,6 +30,14 @@ held five times while every app redraws at about 60 Hz. Draws are timed with
   budgeted, purged when the surface closes) are inside the noise of the
   twenty windows' own textures.
 
+### With icons (B59)
+
+The same bench with the window row open, since only it has previews now:
+the panel draws at p50 0.48 ms, p95 1.44 ms; a preview pass at p50 1.69 ms,
+p95 5.62 ms (one window's preview, most of the pass its shm upload);
+RSS 271 MB held, own memory 37 MB, VRAM no higher than at rest. A Cmd+Tab
+that never opens the window row renders no preview at all.
+
 ## The VM
 
 In the guest (llvmpipe, 2560 by 1080, a PC keyboard so Cmd is the Alt key):

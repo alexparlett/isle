@@ -351,9 +351,9 @@ impl Switcher {
     }
 }
 
-/// The sizes the layout reads, in points; `tokens.kdl`'s values by default. A plate holds a
-/// card inset by `space_s` on three sides, with the app's icon hanging off the card's lower
-/// edge into the plate (the gate-5 board).
+/// The sizes the layout reads, in points; `tokens.kdl`'s values by default. An app's plate
+/// holds its icon inset by `space_s`; a window's plate in the window row holds its preview's
+/// card inset the same way, and its title under it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Metrics {
     /// A plate's width at full size and its floor.
@@ -374,22 +374,28 @@ pub struct Metrics {
     /// The selected app's name line, and a window title's in the window row.
     pub name: f32,
     pub title: f32,
+    /// The window row's plate width and card height at full size, as `plate_width` and
+    /// `card_height` are the app row's.
+    pub row_plate_width: f32,
+    pub row_card_height: f32,
 }
 
 impl Default for Metrics {
     fn default() -> Self {
         Self {
-            plate_width: 256.0,
-            plate_min_width: 160.0,
-            card_height: 160.0,
-            background_width: 128.0,
+            plate_width: 144.0,
+            plate_min_width: 80.0,
+            card_height: 144.0,
+            background_width: 144.0,
             space_xs: 4.0,
             space_s: 8.0,
             divider_margin: 12.0,
-            icon_overhang: 24.0,
-            icon_drop: 6.0,
+            icon_overhang: 0.0,
+            icon_drop: 8.0,
             name: 18.0,
             title: 16.0,
+            row_plate_width: 256.0,
+            row_card_height: 160.0,
         }
     }
 }
@@ -397,8 +403,14 @@ impl Default for Metrics {
 impl Metrics {
     /// The card inside a plate `plate` points wide.
     fn card(&self, plate: f32) -> (f32, f32) {
-        let full_w = self.plate_width - 2.0 * self.space_s;
-        let full_h = self.card_height - 2.0 * self.space_s;
+        self.card_of(plate, self.plate_width, self.card_height)
+    }
+
+    /// The card inside a plate `plate` wide, of a row whose plates are `full_plate` wide
+    /// with cards `full_card` tall less their insets at full size.
+    fn card_of(&self, plate: f32, full_plate: f32, full_card: f32) -> (f32, f32) {
+        let full_w = full_plate - 2.0 * self.space_s;
+        let full_h = full_card - 2.0 * self.space_s;
         let w = plate - 2.0 * self.space_s;
         (w, (w * full_h / full_w).round())
     }
@@ -579,12 +591,12 @@ pub fn layout(
         // The window row, centred under a rule; it shrinks on its own count, and the panel
         // widens about its centre if the row needs it.
         let row_w = |n: usize, p: f32| n as f32 * p + n.saturating_sub(1) as f32 * gap;
-        let mut wplate = m.plate_width;
+        let mut wplate = m.row_plate_width;
         if row_w(windows, wplate) + 2.0 * m.space_s > max {
             let room = max - 2.0 * m.space_s - windows.saturating_sub(1) as f32 * gap;
             wplate = (room / windows as f32).floor().max(m.plate_min_width);
         }
-        let (wc_w, wc_h) = m.card(wplate);
+        let (wc_w, wc_h) = m.card_of(wplate, m.row_plate_width, m.row_card_height);
         window_card = (wc_w, wc_h);
         let total = row_w(windows, wplate);
         if total + 2.0 * m.space_s > width {
@@ -821,46 +833,47 @@ mod tests {
     }
 
     #[test]
-    fn six_apps_make_the_boards_panel() {
+    fn six_apps_make_a_row_of_icons() {
         let l = layout(&apps(6), 3440.0, &Metrics::default(), None, 0);
-        // 8 + 6 × 256 + 5 × 8 + 8 wide; a plate is 8 + 144 + 24 + 6 tall; the name 4 under.
-        assert_eq!(l.width, 1592.0);
-        assert_eq!((l.card_width, l.card_height), (240.0, 144.0));
+        // 8 + 6 × 144 + 5 × 8 + 8 wide; a plate is a 128-point icon inside 8; the name 4 under.
+        assert_eq!(l.width, 920.0);
         assert_eq!(
             l.plates[0],
             Rect {
                 x: 8.0,
                 y: 8.0,
-                w: 256.0,
-                h: 182.0
+                w: 144.0,
+                h: 144.0
             }
         );
-        assert_eq!(l.plates[1].x, 272.0);
-        assert_eq!(l.bands[0].y, 194.0);
-        assert_eq!(l.height, 194.0 + 18.0 + 8.0);
+        assert_eq!(l.plates[1].x, 160.0);
+        assert_eq!(l.bands[0].y, 156.0);
+        assert_eq!(l.height, 156.0 + 18.0 + 8.0);
     }
 
     #[test]
     fn many_apps_shrink_to_the_floor_then_wrap_into_rows_of_equal_count() {
         let m = Metrics::default();
-        let l = layout(&apps(12), 3440.0, &m, None, 0);
+        // Sixteen fit the ultrawide's three quarters at full size; the seventeenth shrinks them.
+        let l = layout(&apps(16), 3440.0, &m, None, 0);
+        assert_eq!(l.plates[0].w, 144.0);
+        let l = layout(&apps(17), 3440.0, &m, None, 0);
         let w = l.plates[0].w;
-        assert!((160.0..256.0).contains(&w), "{w}");
+        assert!((80.0..144.0).contains(&w), "{w}");
         assert!(l.width <= 2580.0);
         assert_eq!(l.bands.len(), 1);
 
-        // At the floor, (2580 - 16 + 8) / (160 + 8) is fifteen a row on the ultrawide.
-        let l = layout(&apps(15), 3440.0, &m, None, 0);
-        assert!(l.plates[0].w >= 160.0 && l.plates[0].w < 170.0);
+        // At the floor, (2580 - 16 + 8) / (80 + 8) is twenty-nine a row.
+        let l = layout(&apps(29), 3440.0, &m, None, 0);
         assert_eq!(l.bands.len(), 1);
-        let l = layout(&apps(16), 3440.0, &m, None, 0);
+        let l = layout(&apps(30), 3440.0, &m, None, 0);
         assert_eq!(l.bands.len(), 2);
         let first_row = l.plates.iter().filter(|p| p.y == l.plates[0].y).count();
-        assert_eq!(first_row, 8, "sixteen as eight and eight");
+        assert_eq!(first_row, 15, "thirty as fifteen and fifteen");
 
-        let l = layout(&apps(8), 1920.0, &m, None, 0);
-        assert_eq!(l.bands.len(), 1, "eight a row on the 1920 screen");
         let l = layout(&apps(9), 1920.0, &m, None, 0);
+        assert_eq!(l.plates[0].w, 144.0, "nine at full size on the 1920 screen");
+        let l = layout(&apps(17), 1920.0, &m, None, 0);
         assert_eq!(l.bands.len(), 2);
         assert!(l.width <= 1440.0);
     }
@@ -875,14 +888,14 @@ mod tests {
         let divider = l.divider.unwrap();
         assert!(divider.x > l.plates[2].x + l.plates[2].w);
         assert!(l.plates[3].x > divider.x);
-        assert_eq!(l.plates[3].w, 128.0);
+        assert_eq!(l.plates[3].w, 144.0);
         assert_eq!(l.plates[3].y, l.plates[0].y);
 
-        let mut entries = apps(15);
+        let mut entries = apps(29);
         entries.push(background("steam"));
         let l = layout(&entries, 3440.0, &m, None, 0);
         assert!(l.divider.is_none());
-        assert!(l.plates[15].y > l.plates[0].y, "its own row");
+        assert!(l.plates[29].y > l.plates[0].y, "its own row");
 
         let l = layout(&[background("steam")], 3440.0, &m, None, 0);
         assert!(l.divider.is_none());

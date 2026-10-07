@@ -285,7 +285,6 @@ size {
     switcher-card-width 256
     switcher-card-height 160
     switcher-card-min-width 160
-    switcher-background-width 128
     banner-thumbnail 48
     swipe-threshold 120
     app-icon-row 20

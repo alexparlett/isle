@@ -256,8 +256,9 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   the floor, rows of equal count, the background group) are unit-tested with
   a fake clock; the loop arms one timer for the delay.
 - **Previews are the compositor's drawing** (B54). The panel is a placed
-  overlay surface on the focused window's output. For each card the
-  compositor draws the window's pieces at card size into a texture and Skia
+  overlay surface on the focused window's output, a row of app icons (B59).
+  For each card of the window row the compositor draws the window's pieces
+  at card size into a texture and Skia
   copies it on the GPU into an image it owns, which the tree draws among its
   own layers. A window that commits while held is drawn again, a few at a
   time, ten times a second; a parked window shows its last buffer and is not

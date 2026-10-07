@@ -349,18 +349,22 @@ impl State {
         let theme = self.isle.shell.theme().clone();
         let t = &theme.tokens;
         let line = |style| isle_ui::text::metrics(&theme, style).1;
+        // An app's plate is its icon inside `space-s`; the window row's plates hold previews.
+        let icon_plate = t.size_app_icon_hero + 2.0 * t.space_s;
         let metrics = Metrics {
-            plate_width: t.size_switcher_card_width,
-            plate_min_width: t.size_switcher_card_min_width,
-            card_height: t.size_switcher_card_height,
-            background_width: t.size_switcher_background_width,
+            plate_width: icon_plate,
+            plate_min_width: t.size_app_icon_large + 2.0 * t.space_s,
+            card_height: icon_plate,
+            background_width: icon_plate,
             space_xs: t.space_xs,
             space_s: t.space_s,
             divider_margin: t.space_m,
-            icon_overhang: t.size_app_icon_medium / 2.0,
-            icon_drop: 6.0,
+            icon_overhang: 0.0,
+            icon_drop: t.space_s,
             name: line(isle_ui::text::Style::Headline),
             title: line(isle_ui::text::Style::Callout),
+            row_plate_width: t.size_switcher_card_width,
+            row_card_height: t.size_switcher_card_height,
         };
         let model = &switcher.model;
         let row_of = model.row().map(|_| model.selected_index());
@@ -449,13 +453,8 @@ impl State {
             return;
         };
         let scale = output.current_scale().fractional_scale();
-        let mut wanted: Vec<u64> = switcher
-            .model
-            .entries()
-            .iter()
-            .filter(|e| !e.background)
-            .filter_map(|e| e.recent)
-            .collect();
+        // Only the window row shows previews.
+        let mut wanted: Vec<u64> = Vec::new();
         if switcher.model.row().is_some()
             && let Some(entry) = switcher.model.selected()
         {

@@ -423,6 +423,10 @@ differences from the plan:
   glass the floor still governs. At the user's next word this widened to
   every glass surface: the Glass setting now defaults to its clear end, and
   the island's pill stopped stacking two tints.
+- **Icons, not previews** (B59). After seeing both drawn, the user chose
+  macOS's row of icons; previews stay in the window row. Papirus's SVGs
+  have no viewBox and drew at their file's size, so app icons are loaded
+  with one added.
 - **An app with no id** is named by its process in the switcher as in the
   menu bar (Chromium's first-run dialog had no name).
 - **The ` key** is the one that types it, as P5 made Cmd+`, not the key above

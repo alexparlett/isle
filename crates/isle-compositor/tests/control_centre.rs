@@ -113,6 +113,14 @@ async fn dark_mode_switches_the_appearance_and_keyboard_lists_its_layouts() {
         .set("keyboard.layouts", &zvariant::Value::from(vec!["us", "de"]))
         .await
         .unwrap();
+    // The two modules this clicks, alone in the grid.
+    settings
+        .set(
+            "control-centre.modules",
+            &zvariant::Value::from(vec!["dark-mode:s", "keyboard-layout:m"]),
+        )
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(300)).await;
     isle.chord(&[CTRL, F8]).await;
     let panel = panel_settled(&isle).await;

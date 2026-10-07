@@ -731,6 +731,14 @@ impl Test {
         Ok(self.to_loop.call(|state| state.switcher_json()).await?)
     }
 
+    /// Each update of the switcher's previews in microseconds, while measuring.
+    async fn switcher_updates(&self) -> fdo::Result<Vec<u64>> {
+        Ok(self
+            .to_loop
+            .call(|state| std::mem::take(&mut state.isle.switcher_updates))
+            .await?)
+    }
+
     /// Times the switcher's panel has been drawn.
     async fn switcher_draws(&self) -> fdo::Result<u32> {
         Ok(self.to_loop.call(|state| state.isle.switcher_drawn_count).await?)

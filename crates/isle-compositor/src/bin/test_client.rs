@@ -783,6 +783,22 @@ impl Dispatch<wl_data_source::WlDataSource, ()> for Client {
     }
 }
 
+impl Dispatch<wl_buffer::WlBuffer, ()> for Client {
+    fn event(
+        _: &mut Self,
+        buffer: &wl_buffer::WlBuffer,
+        event: wl_buffer::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        // A buffer drawn over is let go once the compositor is done with it.
+        if let wl_buffer::Event::Release = event {
+            buffer.destroy();
+        }
+    }
+}
+
 macro_rules! ignore {
     ($($t:ty),*) => {$(
         impl Dispatch<$t, ()> for Client {
@@ -837,7 +853,6 @@ ignore!(
     wl_compositor::WlCompositor,
     wl_shm::WlShm,
     wl_shm_pool::WlShmPool,
-    wl_buffer::WlBuffer,
     wl_surface::WlSurface
 );
 

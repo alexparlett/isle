@@ -24,6 +24,10 @@ use tracing::{debug, info};
 
 use crate::state::State;
 
+/// The most previews of windows that drew since are drawn again in one pass, and how often.
+const PREVIEWS_PER_PASS: usize = 4;
+const PREVIEW_INTERVAL: Duration = Duration::from_millis(100);
+
 /// The switcher while its chord is held.
 pub struct SwitcherState {
     pub model: Switcher,
@@ -35,6 +39,9 @@ pub struct SwitcherState {
     /// Each previewed window's image, and the windows that committed since it was made.
     previews: HashMap<u64, PreviewImage>,
     pub stale: HashSet<u64>,
+    /// When previews were last drawn, and the timer for the next pass.
+    refreshed: Instant,
+    refresh: Option<RegistrationToken>,
     /// Where the pointer was when the panel appeared; hover waits for it to move.
     pointer_at: Option<Point<f64, Logical>>,
 }
@@ -155,6 +162,8 @@ impl State {
             top: None,
             previews: HashMap::new(),
             stale: HashSet::new(),
+            refreshed: Instant::now(),
+            refresh: None,
             pointer_at: None,
         });
         self.arm_switcher();
@@ -272,7 +281,10 @@ impl State {
         let Some(mut switcher) = self.isle.switcher.take() else {
             return;
         };
-        if let Some(token) = switcher.timer.take() {
+        for token in [switcher.timer.take(), switcher.refresh.take()]
+            .into_iter()
+            .flatten()
+        {
             self.isle.loop_handle.remove(token);
         }
         debug!("switcher closed");
@@ -293,13 +305,25 @@ impl State {
     pub fn switcher_after_dispatch(&mut self) {
         if self.isle.switcher_dirty.take() {
             self.refresh_switcher();
-        } else if self
-            .isle
-            .switcher
-            .as_ref()
-            .is_some_and(|s| s.drawn() && !s.stale.is_empty())
+        } else if let Some(switcher) = &self.isle.switcher
+            && switcher.drawn()
+            && !switcher.stale.is_empty()
+            && switcher.refresh.is_none()
         {
-            self.switcher_changed();
+            let wait = PREVIEW_INTERVAL.saturating_sub(switcher.refreshed.elapsed());
+            let token =
+                self.isle
+                    .loop_handle
+                    .insert_source(Timer::from_duration(wait), |_, _, state| {
+                        if let Some(switcher) = state.isle.switcher.as_mut() {
+                            switcher.refresh = None;
+                            state.switcher_changed();
+                        }
+                        TimeoutAction::Drop
+                    });
+            if let Ok(token) = token {
+                self.isle.switcher.as_mut().unwrap().refresh = Some(token);
+            }
         }
     }
 
@@ -349,7 +373,18 @@ impl State {
             row_of,
             if row_of.is_some() { windows } else { 0 },
         );
+        #[cfg(feature = "test-hooks")]
+        let started = Instant::now();
         self.update_previews(&layout);
+        #[cfg(feature = "test-hooks")]
+        if self.isle.shell.measuring() {
+            if let Some(renderer) = self.backend.renderer_opt() {
+                let _ = renderer.with_context(|gl| unsafe { gl.Finish() });
+            }
+            self.isle
+                .switcher_updates
+                .push(started.elapsed().as_micros() as u64);
+        }
         let game = self.isle.island_game_mode();
         let pointer = self.isle.seat.get_pointer().map(|p| p.current_location());
         let Some(switcher) = &mut self.isle.switcher else {
@@ -427,21 +462,34 @@ impl State {
         {
             wanted.extend(entry.windows.iter().map(|w| w.id));
         }
-        let todo: Vec<u64> = wanted
+        // Missing previews are drawn now; windows that drew since are drawn a few at a time,
+        // so a burst of redraws never holds the loop.
+        let mut todo: Vec<u64> = wanted
             .iter()
             .copied()
-            .filter(|id| !switcher.previews.contains_key(id) || switcher.stale.contains(id))
+            .filter(|id| !switcher.previews.contains_key(id))
             .collect();
+        todo.extend(
+            wanted
+                .iter()
+                .copied()
+                .filter(|id| switcher.previews.contains_key(id) && switcher.stale.contains(id))
+                .take(PREVIEWS_PER_PASS),
+        );
         let (w, h) = (layout.card_width as f64, layout.card_height as f64);
-        for id in todo {
+        for &id in &todo {
             if let Some(image) = self.render_preview(id, w, h, scale) {
                 let switcher = self.isle.switcher.as_mut().unwrap();
                 switcher.previews.insert(id, PreviewImage(image));
             }
         }
         let switcher = self.isle.switcher.as_mut().unwrap();
-        switcher.stale.clear();
+        for id in &todo {
+            switcher.stale.remove(id);
+        }
+        switcher.stale.retain(|id| wanted.contains(id));
         switcher.previews.retain(|id, _| wanted.contains(id));
+        switcher.refreshed = Instant::now();
     }
 
     /// Window `id` drawn into a texture fitted inside `w` by `h` points, as an image the

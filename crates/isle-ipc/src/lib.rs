@@ -462,6 +462,8 @@ pub mod test {
         fn held_releases(&self) -> zbus::Result<u32>;
         /// The switcher while held, as JSON, or `null`.
         fn switcher(&self) -> zbus::Result<String>;
+        /// Each update of the switcher's previews in microseconds, while measuring.
+        fn switcher_updates(&self) -> zbus::Result<Vec<u64>>;
         /// Times the switcher's panel has been drawn.
         fn switcher_draws(&self) -> zbus::Result<u32>;
         /// Moves the pointer to a point in the global space.

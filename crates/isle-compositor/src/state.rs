@@ -154,6 +154,9 @@ pub struct Isle {
     pub switcher_drawn_count: u32,
     #[cfg(feature = "test-hooks")]
     pub switcher_was_drawn: bool,
+    /// Each update of the switcher's panel and previews in microseconds, while measuring.
+    #[cfg(feature = "test-hooks")]
+    pub switcher_updates: Vec<u64>,
     pub games: std::sync::Arc<isle_games::Library>,
     /// LauncherEntry's badges and progress by desktop id.
     pub badges: std::collections::HashMap<String, isle_apps::badges::LauncherEntry>,
@@ -385,6 +388,8 @@ impl Isle {
             switcher_drawn_count: 0,
             #[cfg(feature = "test-hooks")]
             switcher_was_drawn: false,
+            #[cfg(feature = "test-hooks")]
+            switcher_updates: Vec::new(),
             games: Default::default(),
             badges: Default::default(),
             icons: Default::default(),

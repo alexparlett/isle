@@ -389,3 +389,62 @@ async fn island_and_menu_bar_cost() {
     snap("rest again");
     assert!(!isle.log().contains("panicked"), "a surface panicked");
 }
+
+/// The switcher held over twenty apps on a 3440 by 1440 output while every app redraws: the
+/// panel's draws, the previews' updates, and what it adds to memory and the GPU.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn switcher_cost() {
+    const CMD: u32 = 125;
+    const TAB: u32 = 15;
+    let mut isle = Isle::start("cost-switcher").await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let test = isle.test().await;
+    test.add_output("BIG", "Isle", "Bench", "1", 3440, 1440).await.unwrap();
+    test.remove_output("HEADLESS-1").await.unwrap();
+    let mut clients = Vec::new();
+    for i in 0..20 {
+        let app = format!("isle.test.App{i:02}");
+        let size = if i % 3 == 0 { "3440x1400" } else { "1600x900" };
+        clients.push(isle.client_with(&["--app-id", &app, "--size", size, "--colour", "3366ff"]));
+        isle.wait_for_window(&app).await;
+    }
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let snap = |what: &str| {
+        let (rss, own) = memory(pid);
+        println!("{what}: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    };
+    snap("rest, twenty apps");
+    test.measure(true).await.unwrap();
+    for round in 0..5 {
+        test.key(CMD, true).await.unwrap();
+        tap(&isle, TAB).await;
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        if round == 0 {
+            snap("held");
+        }
+        for frame in 0..30 {
+            for (i, c) in clients.iter().enumerate() {
+                c.send(&format!("colour {:06x}", (frame * 8 + i * 12) % 0xff * 0x010101));
+            }
+            tokio::time::sleep(Duration::from_millis(16)).await;
+        }
+        test.key(CMD, false).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    snap("released");
+    report("switcher, five holds", &surface(&isle, "switcher").await);
+    let mut updates = test.switcher_updates().await.unwrap();
+    updates.sort_unstable();
+    let at = |q: f64| updates[((updates.len() - 1) as f64 * q) as usize] as f64 / 1000.0;
+    eprintln!(
+        "previews: {} updates, p50 {:.2} ms, p95 {:.2} ms, max {:.2} ms",
+        updates.len(),
+        at(0.5),
+        at(0.95),
+        at(1.0)
+    );
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    snap("rest again");
+    assert!(!isle.log().contains("panicked"), "a surface panicked");
+}

@@ -879,6 +879,11 @@ impl Shell {
         Some(freya::elements::image::ImageHandle::new(image, bytes::Bytes::new()))
     }
 
+    /// Whether draws are being timed.
+    pub fn measuring(&self) -> bool {
+        self.measure
+    }
+
     /// Times every draw, waiting for the GPU after each; for benches.
     pub fn set_measure(&mut self, on: bool) {
         self.measure = on;

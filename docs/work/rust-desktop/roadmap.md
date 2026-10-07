@@ -88,11 +88,14 @@ hidden, minimised and background marks. Launching from Spotlight's Apps
 grid with its favourites row is built with Spotlight in P10. Intent:
 shell.md.
 
-**P8 · Services, notifications and Control Centre.** The zbus service
+**P8 · Services, notifications and Control Centre.** Planned 2026-10-07:
+`p8-services.md`. The zbus service
 crates (B11): network, Bluetooth, power, audio through pipewire-pulse,
 media, disks; the notification server and tray (B12); notification
 banners, OSDs and Control Centre as P1 designs them (B24); Focus modes
-(B30). Intent:
+(B30), Game Mode among them with its chord and the profile hold;
+Notification Centre's notifications, moved from P17 at P8's review, its
+agenda waiting for calendars. Intent:
 platform.md, shell.md.
 
 **P9 · Lock and prompts.** The compositor's own lock with PAM off-thread
@@ -119,7 +122,10 @@ control tested on the RTX 5070 Ti (B6); VRR on while a full-screen app is
 in front, with its setting (B30), and direct scanout for games; game
 detection, Game Mode as the automatic Gaming Focus and the escape set of
 chords over a game (B30); Steam, its Big Picture as a full-screen game
-(B22), and nested gamescope. Intent: gaming.md, compositor.md.
+(B22), and nested gamescope. Night light, the colour transform on each
+output (GAMMA_LUT or a shader), with Control Centre's Night Light module
+and Game Mode turning it off (given here at P8's review). Intent:
+gaming.md, compositor.md.
 
 **P13 · Settings, core.** The Settings app on the app conventions: displays,
 sound, network, Bluetooth, keyboard and shortcuts, appearance, desktop and
@@ -156,7 +162,7 @@ Intent: apps.md, platform.md.
 gestures, Split View; Stage Manager as a layout module, off by default
 (B25). Intent: shell.md, compositor.md.
 
-**P17 · Notification Centre and widgets.** Notification Centre; widgets
+**P17 · Widgets.** Notification Centre moved to P8 at its review. Widgets
 where P1 places them, with the grid editor and the gallery (B24); the provider contract (B14), sandboxed with granted
 permissions (B28); the isle-widgets registry as providers. Intent:
 shell.md, platform.md.
@@ -168,7 +174,7 @@ gaming.md, apps.md.
 **P19 · Monitor, Keychain, Cleaner.** Intent: apps.md.
 
 **P20 · The rest of v1.** Settings' remaining pages, session restore,
-clipboard history, emoji, calendars, the providers (vault, VPN, snapshots,
+clipboard history, emoji, calendars with Notification Centre's agenda, the providers (vault, VPN, snapshots,
 phone), the dropdown terminal and picture-in-picture, the on-screen
 keyboard, and an audit against the inventory that nothing of v1 is left.
 Intent: all.

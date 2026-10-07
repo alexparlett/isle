@@ -18,4 +18,5 @@ one at a time.
 - `p5-keyboard.md`: P5, keyboard.
 - `p6-island-and-menus.md`: P6, the island, menus and wallpaper.
 - `p7-switcher.md`: P7, the app switcher.
+- `p8-services.md`: P8, services, notifications and Control Centre.
 - Evidence: `docs/research/rust-desktop/`.

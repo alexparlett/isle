@@ -266,3 +266,12 @@
   `docs/research/rust-desktop/p7-switcher.md`. Checked headless and in the VM;
   no host run (the user's choice). Next: P8 (services, notifications and
   Control Centre).
+- P8 planned in `p8-services.md` (2026-10-07): a crate per daemon family
+  with one shape, snapshots coalesced onto the loop, audio over the Pulse
+  protocol in pure Rust (libpulse links libdbus; B11 revised at close),
+  DDC/CI written by Isle, OSDs from changes, the notification server owned
+  before the socket, a pure banner model, Focus as a pure model with Game
+  Mode as a mode, the tray Isle's own, Control Centre's modules, pages and
+  edit mode, fake daemons on a private system bus. The user took every
+  recommendation: Notification Centre's notifications moved in from P17,
+  night light to P12, one packet. Phases 8.0–8.15.

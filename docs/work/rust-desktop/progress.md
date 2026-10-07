@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+- P8 planned: services, notifications and Control Centre. Reviewed; every
+  recommendation taken: Notification Centre's notifications in P8, night
+  light to P12, one packet. Research in `services-2026.md`.
+
 - B59: the switcher shows icons, with live previews in the window row only;
   chosen by the user from both drawn in the VM. Theme SVGs without a viewBox
   now scale, so an icon drawn larger than its file fills its box.

@@ -249,10 +249,12 @@ impl Builder<'_> {
             .collect()
     }
 
+    /// A submenu, disabled when nothing in it is enabled.
     fn submenu(&mut self, label: impl Into<String>, entries: Vec<MenuEntry>) -> MenuEntry {
         let id = *self.next;
         *self.next += 1;
-        MenuEntry::Item(MenuItem::new(id, label).submenu(entries))
+        let enabled = entries.iter().filter_map(MenuEntry::item).any(|i| i.enabled);
+        MenuEntry::Item(MenuItem::new(id, label).enabled(enabled).submenu(entries))
     }
 
     /// The app's own menu nodes, each item running itself by its path.
@@ -322,34 +324,39 @@ impl Isle {
         chords.first().and_then(|c| Chord::parse(c))
     }
 
-    /// The app the bar speaks for: the window it speaks for's, else Files.
-    /// The record of the window the bar speaks for.
+    /// The record of the window the bar speaks for, or of the window a dialog belongs to,
+    /// since the bar names the app whose menus it shows.
     fn bar_record(&self) -> Option<&crate::wm::Record> {
-        match self.bar.window {
-            Some(id) if self.bar.output.is_some() => self.wm.get(id),
+        let mut record = match self.bar.window {
+            Some(id) if self.bar.output.is_some() => self.wm.get(id)?,
             _ => {
                 let focus = self.seat.get_keyboard()?.current_focus()?;
-                self.wm.for_surface(focus.surface()?)
+                self.wm.for_surface(focus.surface()?)?
+            }
+        };
+        for _ in 0..8 {
+            match record.parent.and_then(|p| self.wm.get(p)) {
+                Some(parent) => record = parent,
+                None => break,
             }
         }
+        Some(record)
     }
 
+    /// The app the bar speaks for: the window it speaks for's, else Files.
     pub fn bar_app(&self) -> (String, String) {
-        let app = match self.bar.window {
-            Some(id) if self.bar.output.is_some() => self.wm.get(id).map(|r| r.app.clone()),
-            _ => self.front_app(),
-        };
-        if let Some(app) = app {
+        if let Some(record) = self.bar_record() {
+            let app = record.app.clone();
             let mut name = self.apps.name(&app);
             // A window with no app id is named by its process, as a Mac app by its binary.
             if name.is_empty()
-                && let Some(pid) = self.bar_record().and_then(|r| r.pid)
+                && let Some(pid) = record.pid
             {
                 name = std::fs::read_to_string(format!("/proc/{pid}/comm"))
                     .map(|c| c.trim().to_owned())
                     .unwrap_or_default();
             }
-            return (app.clone(), name);
+            return (app, name);
         }
         let files = [
             "org.gnome.Nautilus",

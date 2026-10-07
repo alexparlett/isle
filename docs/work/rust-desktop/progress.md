@@ -1,5 +1,13 @@
 # Progress
 
+## 2026-10-07
+
+- P6 screenshots in the VM, and what they showed: menus and the inhibit
+  notice drew their glass inside their padding, leaving a ring; the About
+  panel could not draw SVG icons and clipped its button; a dialog with its
+  own app id named itself in the bar; Control Centre's check was the
+  filled glyph; a submenu with nothing enabled stayed enabled. All fixed.
+
 ## 2026-10-06
 
 - P6 6.8: closed. ARCHITECTURE has How the top of the screen works,

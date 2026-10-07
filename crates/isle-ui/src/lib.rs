@@ -13,7 +13,7 @@ pub use isle_tokens;
 use isle_tokens::{Colour, Theme};
 
 pub use button::{Button, LevelBar};
-pub use glyph::{Glyph, LevelGlyph, glyph_svg};
+pub use glyph::{AppIcon, Glyph, LevelGlyph, glyph_svg};
 pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
 pub use search::SearchField;
 

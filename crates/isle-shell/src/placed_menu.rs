@@ -7,7 +7,7 @@ use freya::prelude::*;
 use freya_embed::AppComponent;
 use isle_tokens::Theme;
 use isle_ui::{
-    Button, Glyph, Menu, MenuEntry, button::Kind, colour, menu::Material, shadows, text, use_theme,
+    AppIcon, Button, Glyph, Menu, MenuEntry, button::Kind, colour, menu::Material, shadows, text, use_theme,
 };
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
@@ -244,16 +244,14 @@ impl Component for AboutView {
             .padding(t.space_l)
             .spacing(t.space_s)
             .cross_align(Alignment::Center)
+            .content(Content::flex())
             .on_global_key_down(move |e: Event<KeyboardEventData>| {
                 if e.key == Key::Named(NamedKey::Escape) {
                     actions.send(Action::Close);
                 }
             })
             .child(match about.icon {
-                Some(path) => ImageViewer::new(path)
-                    .width(Size::px(64.))
-                    .height(Size::px(64.))
-                    .into_element(),
+                Some(path) => AppIcon::new(path, 64.0).into_element(),
                 None => Glyph::new("app-window", 64.0, ink2).into_element(),
             })
             .child(text::line(

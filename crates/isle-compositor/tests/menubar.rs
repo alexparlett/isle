@@ -246,3 +246,27 @@ async fn a_window_with_no_app_id_is_named_by_its_process() {
     // The kernel keeps fifteen characters of a process's name.
     wait_until(|| async { bar(&isle).await["app"] == "isle-test-clien" }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_dialog_with_its_own_app_id_is_named_as_its_parent_s_app() {
+    let mut isle = Isle::start("bar-dialog-name").await;
+    let client = isle.client("isle.test.Writer", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    wait_until(|| async { bar(&isle).await["app"] == "isle.test.Writer" }).await;
+    client.send("dialog");
+    client.wait_for("w1 configured 300 200").await;
+    client.send("w1 app-id isle.test.Tips");
+    wait_until(|| async { isle.windows().await.iter().any(|w| w.app == "isle.test.Tips" && w.focused) }).await;
+    assert_eq!(bar(&isle).await["app"], "isle.test.Writer");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_submenu_with_nothing_enabled_is_disabled() {
+    let mut isle = Isle::start("bar-empty-submenu").await;
+    let client = isle.client("isle.test.Typing", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    let b = bar(&isle).await;
+    let window = title(&b, "Window").unwrap();
+    assert_eq!(item(window, "Full screen tile").unwrap()["enabled"], false);
+    assert_eq!(item(window, "Move and resize").unwrap()["enabled"], true);
+}

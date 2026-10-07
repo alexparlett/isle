@@ -67,6 +67,45 @@ impl Component for Glyph {
     }
 }
 
+/// An app's icon from its theme file: SVG through the vector viewer, PNG and the rest
+/// through the image one, which cannot read SVG.
+#[derive(Clone, PartialEq)]
+pub struct AppIcon {
+    pub path: std::path::PathBuf,
+    pub size: f32,
+}
+
+impl AppIcon {
+    pub fn new(path: impl Into<std::path::PathBuf>, size: f32) -> Self {
+        Self {
+            path: path.into(),
+            size,
+        }
+    }
+}
+
+impl Component for AppIcon {
+    fn render(&self) -> impl IntoElement {
+        let size = Size::px(self.size);
+        let svg = self
+            .path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
+        if svg {
+            SvgViewer::new(self.path.clone())
+                .show_loader(false)
+                .width(size.clone())
+                .height(size)
+                .into_element()
+        } else {
+            ImageViewer::new(self.path.clone())
+                .width(size.clone())
+                .height(size)
+                .into_element()
+        }
+    }
+}
+
 /// A level drawn in two layers: the whole glyph dimmed, the level's glyph over it
 /// (`icons.md`, levels).
 #[derive(Clone, PartialEq)]

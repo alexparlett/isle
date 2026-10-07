@@ -158,7 +158,8 @@ async fn an_open_still_probe_presents_nothing_and_a_closed_one_wakes_nothing() {
     let frames = test.frames("HEADLESS-1").await.unwrap();
     tokio::time::sleep(Duration::from_secs(2)).await;
     assert_eq!(probe(&isle).await.wakes, wakes);
-    assert_eq!(test.frames("HEADLESS-1").await.unwrap(), frames);
+    // The island's clock may turn a minute in the window: one frame a minute at rest.
+    assert!(test.frames("HEADLESS-1").await.unwrap() - frames <= 1);
 }
 
 #[tokio::test(flavor = "multi_thread")]

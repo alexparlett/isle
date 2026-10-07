@@ -479,7 +479,7 @@ impl Component for Row {
                 self.label.clone(),
             )))
             .maybe(self.checked, |el| {
-                el.child(Glyph::new("check", t.size_glyph_small, colour(t.colour_text)).fill(true))
+                el.child(Glyph::new("check", t.size_glyph_small, colour(t.colour_text)))
             })
     }
 }

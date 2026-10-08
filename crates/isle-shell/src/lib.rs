@@ -43,7 +43,9 @@ use smithay::{
     utils::{Logical, Point, Rectangle, Size},
 };
 pub use surface::{Action, Actions, Here, Layer, Scope, SurfaceDef, WindowAction};
+pub mod alert;
 pub mod chrome;
+pub mod force_quit;
 pub mod island;
 pub mod lock;
 pub mod menubar;

@@ -12,6 +12,7 @@ mod desktop_notes;
 mod dbus;
 mod focus;
 mod focus_modes;
+mod force_quit;
 mod games;
 mod grabs;
 mod handlers;

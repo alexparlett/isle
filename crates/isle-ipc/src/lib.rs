@@ -477,6 +477,8 @@ pub mod test {
         /// The session dialog and the session's end as JSON.
         fn session(&self) -> zbus::Result<String>;
         fn session_act(&self, action: &str) -> zbus::Result<()>;
+        fn force_quit(&self) -> zbus::Result<String>;
+        fn force_quit_act(&self, action: &str) -> zbus::Result<()>;
         fn prompt_wrong(&self, id: u64, message: &str) -> zbus::Result<()>;
         fn prompt_done(&self, id: u64) -> zbus::Result<()>;
         /// The island's Show or Cancel on a waiting prompt.

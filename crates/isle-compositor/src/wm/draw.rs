@@ -557,12 +557,22 @@ impl crate::state::Isle {
             }
         }
 
+        // The not-responding alert hangs in front of the window's dimmed content.
+        let alert = self.frame(id).and_then(|frame| {
+            self.alert_element(id, frame.loc - origin, scale, alpha)
+        });
+        let alerted = alert.is_some();
+        if let Some(alert) = alert {
+            push(WindowPiece::Bar(alert));
+        }
+
         // A window with a modal dialog attached under its top is dimmed below it.
-        let dimmed = self
-            .wm
-            .records
-            .iter()
-            .any(|r| r.parent == Some(id) && r.modal && self.wm.is_shown(r.id));
+        let dimmed = alerted
+            || self
+                .wm
+                .records
+                .iter()
+                .any(|r| r.parent == Some(id) && r.modal && self.wm.is_shown(r.id));
         if dimmed {
             let c = self.shell.theme().tokens.colour_scrim;
             let colour = [

@@ -121,6 +121,10 @@ pub enum Action {
     Prompt(crate::prompts::PromptAction),
     /// From the session dialog.
     Session(crate::prompts::session::SessionAction),
+    /// From Force Quit.
+    ForceQuit(crate::force_quit::ForceQuitAction),
+    /// From a not-responding alert, for the window it hangs on.
+    Alert(crate::alert::AlertAction),
 }
 
 /// What a title bar asks of its window.

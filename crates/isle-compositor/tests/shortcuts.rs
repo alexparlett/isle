@@ -78,6 +78,7 @@ const DISRUPTIVE: &[&str] = &[
     "log-out-now",
     "log-out",
     "session-chooser",
+    "force-quit",
     "next-display",
     "previous-display",
     "desktop-left",
@@ -122,7 +123,7 @@ async fn every_chord_in_the_set_reaches_its_action_and_no_client() {
             );
         }
     }
-    assert!(pressed > 50, "pressed {pressed}");
+    assert!(pressed > 45, "pressed {pressed}");
     // Cmd+Q is the desktop's even though Q is not, and a plain key still types.
     client.clear();
     press(&isle, &[], 16).await;

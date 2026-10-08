@@ -56,6 +56,8 @@ const FIELD_LIMIT: usize = 512;
 pub struct LockState {
     pub locked: bool,
     pub since: Option<Instant>,
+    /// From the lock's request to every screen showing it.
+    pub shown_after: Option<std::time::Duration>,
     /// The typed password; the face draws only its length.
     pub field: Zeroizing<String>,
     /// The field has the face's keyboard focus, so typing goes into it.
@@ -86,6 +88,7 @@ impl Default for LockState {
         Self {
             locked: false,
             since: None,
+            shown_after: None,
             field: Default::default(),
             field_focused: true,
             status: Status::None,
@@ -166,6 +169,7 @@ impl Isle {
             "status": self.lock.status.name(),
             "failures": self.lock.failures,
             "pending": self.lock.pending,
+            "shown_ms": self.lock.shown_after.map(|d| d.as_secs_f64() * 1000.0),
             "face": self.lock.face.output,
             "minimal": self.lock.face.minimal_on,
             "awake": self.lock.face.awake,
@@ -289,6 +293,7 @@ impl State {
         }
         self.isle.lock.locked = true;
         self.isle.lock.since = Some(Instant::now());
+        self.isle.lock.shown_after = None;
         self.isle.lock.field_focused = true;
         self.isle.lock.face.first_note = self.isle.notifications.next_id;
         self.take_input_back();
@@ -355,6 +360,7 @@ impl State {
     /// the menu-bar group close, grabs end, and neither keyboard nor pointer is a client's.
     fn take_input_back(&mut self) {
         self.close_session_dialog();
+        self.close_force_quit();
         self.cancel_switcher();
         self.close_menu_bar_group();
         if self.isle.recording.is_some() {

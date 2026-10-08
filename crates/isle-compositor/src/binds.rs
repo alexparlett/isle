@@ -55,6 +55,7 @@ pub enum Action {
     /// Shift+Cmd+Q: the log-out confirmation.
     LogOut,
     SessionChooser,
+    ForceQuit,
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
     /// The chord the recording grab took.
@@ -110,6 +111,7 @@ fn action_for(id: &'static str) -> Action {
         "log-out-now" => Action::Quit,
         "log-out" => Action::LogOut,
         "session-chooser" => Action::SessionChooser,
+        "force-quit" => Action::ForceQuit,
         "lock" => Action::Lock,
         "redetect-displays" => Action::Redetect,
         "next-layout" => Action::NextLayout,
@@ -232,6 +234,7 @@ impl State {
                 self.open_session_confirm(isle_shell::prompts::session::Choice::LogOut)
             }
             Action::SessionChooser => self.open_session_chooser(),
+            Action::ForceQuit => self.open_force_quit(),
             Action::Tile(zone) => self.tile_by_chord(zone),
             Action::Fill => {
                 if let Some(id) = self.focused_window() {

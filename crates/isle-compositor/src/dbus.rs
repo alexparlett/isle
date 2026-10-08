@@ -848,6 +848,32 @@ impl Test {
             .await?)
     }
 
+    /// Force Quit's panel and the alerts hung on windows as JSON.
+    async fn force_quit(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.force_quit_status()).await?)
+    }
+
+    /// Presses what a test cannot reach by key: the sheet's `confirm`, `select {app}`, and an
+    /// alert's `force-quit {window}`.
+    async fn force_quit_act(&self, action: String) -> fdo::Result<()> {
+        use isle_shell::{alert::AlertAction, force_quit::ForceQuitAction};
+        Ok(self
+            .to_loop
+            .call(move |state| match action.split_once(' ') {
+                Some(("select", app)) => {
+                    state.force_quit_action(ForceQuitAction::Select(app.to_owned()))
+                }
+                Some(("force-quit", id)) => {
+                    if let Ok(id) = id.parse() {
+                        state.alert_action(id, AlertAction::ForceQuit);
+                    }
+                }
+                _ if action == "confirm" => state.force_quit_action(ForceQuitAction::Confirm),
+                _ => {}
+            })
+            .await?)
+    }
+
     /// A prompt's answer was wrong: it asks again with `message`.
     async fn prompt_wrong(&self, id: u64, message: String) -> fdo::Result<()> {
         Ok(self

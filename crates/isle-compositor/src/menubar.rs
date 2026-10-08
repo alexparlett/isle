@@ -31,6 +31,7 @@ pub enum Command {
     LockScreen,
     /// The session dialog's confirmation for this action.
     EndSession(isle_shell::prompts::session::Choice),
+    ForceQuit,
     About,
     Hide,
     HideOthers,
@@ -486,7 +487,11 @@ impl State {
             b.item("System Settings…", None, None),
             b.item("Software Update…", None, None),
             MenuEntry::Separator,
-            b.item("Force Quit…", None, Chord::parse("Option+Cmd+Escape")),
+            b.item(
+                "Force Quit…",
+                Some(Command::ForceQuit),
+                Chord::parse("Option+Cmd+Escape"),
+            ),
             MenuEntry::Separator,
             b.item("Sleep", Some(Command::Sleep), None),
             b.item(
@@ -1237,6 +1242,7 @@ impl State {
             Command::Sleep => self.isle.suspend(),
             Command::LockScreen => self.lock("system menu"),
             Command::EndSession(choice) => self.open_session_confirm(choice),
+            Command::ForceQuit => self.open_force_quit(),
             Command::About => self.open_about(&app),
             Command::Hide => {
                 self.set_app_hidden(&app, true);

@@ -74,6 +74,7 @@ impl Isle {
 
     /// Keeps `id`'s bar over the top of its frame.
     pub fn place_bar(&mut self, id: u64) {
+        self.place_alert(id);
         if self.wm.get(id).is_none_or(|r| r.bar.is_none()) {
             return;
         }

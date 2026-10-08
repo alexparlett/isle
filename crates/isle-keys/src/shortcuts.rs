@@ -59,7 +59,7 @@ pub const SHORTCUTS: &[Shortcut] = &[
     Shortcut { id: "spotlight", packet: Some("P10"), escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "apps", packet: Some("P10"), escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "emoji", packet: Some("P10"), escape: false, locked: false, repeats: false, holds: false },
-    Shortcut { id: "force-quit", packet: Some("P9"), escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "force-quit", packet: None, escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "terminal", packet: None, escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "settings", packet: Some("P13"), escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "monitor", packet: Some("P19"), escape: false, locked: false, repeats: false, holds: false },

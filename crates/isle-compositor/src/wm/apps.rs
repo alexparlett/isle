@@ -189,6 +189,10 @@ impl State {
             info!(app, "last window of a keep-running app: hidden");
             return self.set_app_hidden(&app, true);
         }
+        if record.not_responding {
+            self.show_alert(id);
+            return true;
+        }
         record.send_close();
         self.ping(id);
         true
@@ -230,7 +234,7 @@ impl State {
     }
 
     /// Force Quit: every process of the app is killed, its windows' and its launch scope's.
-    pub fn force_quit_app(&mut self, app: &str) {
+    pub fn force_quit_app(&mut self, app: &str) -> bool {
         let mut pids = self.isle.processes.pids(app);
         pids.extend(
             self.isle
@@ -244,12 +248,15 @@ impl State {
         pids.dedup();
         pids.retain(|pid| *pid > 1 && *pid != std::process::id() as i32);
         info!(app, ?pids, "force quit");
+        let mut all = true;
         for pid in pids {
             // Safety: a signal to a process this app's windows or scope belong to.
             if unsafe { libc::kill(pid, libc::SIGKILL) } != 0 {
                 warn!(app, pid, "couldn't force quit: {}", std::io::Error::last_os_error());
+                all = false;
             }
         }
+        all
     }
 
     /// After a window went: an app being quit whose windows are all gone gets its signal.
@@ -397,7 +404,7 @@ impl State {
             return;
         };
         if let Err(err) = client.send_ping(SERIAL_COUNTER.next_serial()) {
-            warn!(id, "no ping: {err:?}");
+            debug!(id, "no ping: {err:?}");
             return;
         }
         let token = self.isle.loop_handle.insert_source(
@@ -431,7 +438,7 @@ impl State {
     }
 
     fn set_not_responding(&mut self, client: &ShellClient, on: bool) {
-        let mut changed = false;
+        let mut changed = Vec::new();
         for record in &mut self.isle.wm.records {
             if record
                 .window
@@ -440,10 +447,13 @@ impl State {
                 && record.not_responding != on
             {
                 record.not_responding = on;
-                changed = true;
+                changed.push(record.id);
             }
         }
-        if changed {
+        if !on {
+            self.alerts_answered(&changed);
+        }
+        if !changed.is_empty() {
             self.isle.notify(Event::WindowsChanged);
             self.refresh_pointer_cursor();
         }

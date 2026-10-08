@@ -351,6 +351,16 @@ impl State {
             state.pending_feedback.take()
         };
         self.isle.shell.presented(output);
+        if self.isle.lock.locked
+            && self.isle.lock.shown_after.is_none()
+            && self
+                .isle
+                .space
+                .outputs()
+                .all(|o| OutputState::of(o).borrow().locked_shown)
+        {
+            self.isle.lock.shown_after = self.isle.lock.since.map(|s| s.elapsed());
+        }
         if self.isle.sleep_waiting {
             self.sleep_ready();
         }

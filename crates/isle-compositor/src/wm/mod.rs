@@ -654,6 +654,7 @@ impl State {
             self.animate_leaving(id, None);
         }
         self.isle.shadow_cache.borrow_mut().retain(|(w, _), _| *w != id);
+        self.close_alert(id);
         self.isle.shell.detach(id);
         self.isle.scrims.borrow_mut().remove(&id);
         let record = self.isle.wm.get(id).unwrap();
@@ -708,6 +709,7 @@ impl State {
         record.morph = None;
         let window = record.window.clone();
         self.isle.shell.detach(id);
+        self.close_alert(id);
         self.isle.queue_redraw_for_window(&window);
         self.isle.space.unmap_elem(&window);
         if let Some((desktop, origin)) = full_screen {

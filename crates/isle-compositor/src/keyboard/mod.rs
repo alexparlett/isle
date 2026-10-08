@@ -450,6 +450,7 @@ impl State {
         let bindings = &self.isle.bindings;
         let recording = matches!(self.isle.recording, Some(inject::Recording::Chord(_)));
         let inhibited = self.inhibited();
+        let locked = self.isle.lock.locked;
         let bind = |chord| {
             if recording {
                 return Some(Bound {
@@ -459,6 +460,12 @@ impl State {
                 });
             }
             let bound = bindings.lookup(chord)?;
+            // While locked only the keys marked for it act, and the kernel's VT keys.
+            if locked {
+                let acts = matches!(bound.action, Action::SwitchVt(_))
+                    || bound.shortcut.is_some_and(|s| s.locked);
+                return acts.then_some(bound);
+            }
             let Some(shortcut) = bound.shortcut else {
                 // The VT keys and the desktop numbers: the kernel's keys always act.
                 return (!inhibited && !game || matches!(bound.action, Action::SwitchVt(_)))
@@ -686,13 +693,22 @@ impl State {
     /// One key to the focus, as Isle decided it.
     fn send_key(&mut self, code: u32, key_state: KeyState, time: InputTime) {
         let keyboard = self.isle.seat.get_keyboard().unwrap();
+        // While locked the field's keys are the compositor's, never a tree's (choice 6).
+        let field = self.isle.lock.locked && self.isle.lock.field_focused;
         keyboard.input::<(), _>(
             self,
             Keycode::new(code + 8),
             key_state,
             SERIAL_COUNTER.next_serial(),
             time,
-            |_, _, _| FilterResult::Forward,
+            |state, mods, handle| {
+                if field && key_state == KeyState::Pressed && state.lock_key(handle.modified_sym(), mods)
+                {
+                    FilterResult::Intercept(())
+                } else {
+                    FilterResult::Forward
+                }
+            },
         );
     }
 
@@ -701,6 +717,9 @@ impl State {
     pub fn focus_keyboard(&mut self, target: Option<Focus>, serial: Serial) {
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         if keyboard.current_focus() == target {
+            return;
+        }
+        if !self.isle.lock_allows(target.as_ref()) {
             return;
         }
         let released: Vec<Out<Bound>> = self.isle.keyboards.engine.unwind();

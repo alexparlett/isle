@@ -76,14 +76,18 @@ impl State {
         let pointer = self.isle.seat.get_pointer().unwrap();
         let target = self.isle.clamp_to_outputs(pointer.current_location() + delta);
         self.move_pointer(target, time);
-        self.top_edge_motion(delta);
+        if !self.isle.lock.locked {
+            self.top_edge_motion(delta);
+        }
     }
 
     /// Moves the pointer to `location` in the global space.
     pub fn on_pointer_to(&mut self, location: Point<f64, Logical>, time: InputTime) {
         let from = self.isle.seat.get_pointer().unwrap().current_location();
         self.move_pointer(location, time);
-        self.top_edge_motion(location - from);
+        if !self.isle.lock.locked {
+            self.top_edge_motion(location - from);
+        }
     }
 
     fn move_pointer(&mut self, location: Point<f64, Logical>, time: InputTime) {
@@ -99,9 +103,11 @@ impl State {
             },
         );
         pointer.frame(self);
-        self.refresh_pointer_cursor();
-        self.update_bar_option();
-        self.check_zoom_dwell();
+        if !self.isle.lock.locked {
+            self.refresh_pointer_cursor();
+            self.update_bar_option();
+            self.check_zoom_dwell();
+        }
         // A nested backend's host draws named cursors; everywhere else the cursor is
         // Isle's to draw, so it moves only with a redraw.
         let host_draws = matches!(self.backend, crate::backend::Backend::Winit(_))
@@ -120,11 +126,25 @@ impl State {
             ButtonState::Released => self.isle.buttons_down.remove(&button),
         };
         // A press taken to close a menu is kept from the window, and so is its release.
-        if button_state == ButtonState::Pressed && self.top_edge_press() {
+        if button_state == ButtonState::Pressed && !self.isle.lock.locked && self.top_edge_press() {
             self.isle.taken_buttons.insert(button);
             return;
         }
         if button_state == ButtonState::Released && self.isle.taken_buttons.remove(&button) {
+            return;
+        }
+        // While locked a button goes to the lock's surface under it, and moves no focus.
+        if self.isle.lock.locked {
+            pointer.button(
+                self,
+                &ButtonEvent {
+                    button,
+                    state: button_state,
+                    serial,
+                    time,
+                },
+            );
+            pointer.frame(self);
             return;
         }
         if button_state == ButtonState::Pressed

@@ -927,11 +927,25 @@ impl Shell {
 
     /// The surfaces of `layer` on `output`, front to back, positioned relative to the output.
     pub fn elements(&self, output: &Output, layer: Layer, push: &mut dyn FnMut(ShellElement)) {
+        self.elements_where(output, &|def| def.layer() == layer, push);
+    }
+
+    /// The surface `name` on `output`, as [`Shell::elements`] gives it.
+    pub fn elements_of(&self, output: &Output, name: &str, push: &mut dyn FnMut(ShellElement)) {
+        self.elements_where(output, &|def| def.name() == name, push);
+    }
+
+    fn elements_where(
+        &self,
+        output: &Output,
+        wanted: &dyn Fn(&dyn SurfaceDef) -> bool,
+        push: &mut dyn FnMut(ShellElement),
+    ) {
         for instance in self.instances.iter().rev() {
             if !instance.visible()
                 || instance.attached.is_some()
                 || &instance.output != output
-                || instance.def.layer() != layer
+                || !wanted(&*instance.def)
             {
                 continue;
             }

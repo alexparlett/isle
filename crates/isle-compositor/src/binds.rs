@@ -51,6 +51,7 @@ pub enum Action {
     MenuBar,
     HelpSearch,
     WindowMenu,
+    Lock,
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
     /// The chord the recording grab took.
@@ -104,6 +105,7 @@ fn action_for(id: &'static str) -> Action {
         "carry-right" => Action::CarryWindow(1),
         "terminal" => Action::Terminal,
         "log-out-now" => Action::Quit,
+        "lock" => Action::Lock,
         "redetect-displays" => Action::Redetect,
         "next-layout" => Action::NextLayout,
         "take-keys-back" => Action::TakeKeysBack,
@@ -283,6 +285,7 @@ impl State {
                 }
             }
             Action::Recorded(chord) => self.finish_recording(chord),
+            Action::Lock => self.lock("chord"),
             Action::Reserved(id) => {
                 let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);
                 info!(id, packet, "a shortcut whose action is not built yet");

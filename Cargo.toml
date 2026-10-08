@@ -11,6 +11,7 @@ publish = false
 
 [workspace.dependencies]
 isle-apps = { path = "crates/isle-apps" }
+isle-auth = { path = "crates/isle-auth" }
 isle-audio = { path = "crates/isle-audio" }
 isle-bluetooth = { path = "crates/isle-bluetooth" }
 isle-brightness = { path = "crates/isle-brightness" }
@@ -55,6 +56,7 @@ smithay = { git = "https://github.com/alexparlett/smithay", rev = "764ad1b109392
     "xwayland",
 ] }
 libc = "0.2"
+zeroize = "1"
 png = "0.17"
 smithay-drm-extras = { git = "https://github.com/alexparlett/smithay", rev = "764ad1b1093925d86ff9e2ca0d66097f9b19021d" }
 xcursor = "0.3"

@@ -69,6 +69,19 @@ impl Session {
             .await?;
         Ok(())
     }
+
+    async fn lock(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.lock("the bus")).await?)
+    }
+
+    #[zbus(property)]
+    async fn locked(&self) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(|state| state.isle.lock.locked).await?)
+    }
+
+    /// The session was locked or unlocked; `Locked` says which.
+    #[zbus(signal)]
+    async fn lock_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
 struct Windows {
@@ -763,6 +776,35 @@ impl Test {
             .map_err(fdo::Error::InvalidArgs)
     }
 
+    /// The lock as JSON: whether locked, the dots typed, the status, failures, pending, and
+    /// the minutes left of a lockout.
+    async fn lock_status(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.lock_status()).await?)
+    }
+
+    /// Ends the lock with no password, as only a test may.
+    async fn unlock(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.unlock("the Test interface")).await?)
+    }
+
+    /// What `output`'s last frame was made of, front to back: `client` for any client's
+    /// surface, `shell`, `wallpaper`, `solid` and `cursor`.
+    async fn frame_kinds(&self, output: String) -> fdo::Result<Vec<String>> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                state
+                    .isle
+                    .lock
+                    .frame_kinds
+                    .borrow()
+                    .get(&output)
+                    .map(|k| k.iter().map(|k| k.to_string()).collect())
+                    .unwrap_or_default()
+            })
+            .await?)
+    }
+
     /// The banner stack as JSON.
     async fn banners(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.banners_status()).await?)
@@ -1414,6 +1456,10 @@ pub async fn serve(
                     .interface::<_, NotificationsIface>(isle_ipc::NOTIFICATIONS_PATH)
                     .await?;
                 NotificationsIface::changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::LockChanged) => {
+                let iface = server.interface::<_, Session>(SESSION_PATH).await?;
+                Session::lock_changed(iface.signal_emitter()).await?;
             }
             Ok(Event::DisplaysChanged) => {
                 let iface = server.interface::<_, Displays>(DISPLAYS_PATH).await?;

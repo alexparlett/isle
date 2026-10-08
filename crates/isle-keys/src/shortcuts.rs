@@ -79,7 +79,7 @@ pub const SHORTCUTS: &[Shortcut] = &[
     Shortcut { id: "capture-toolbar-copy", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
     Shortcut { id: "colour-pick", packet: Some("P11"), escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "stop-recording", packet: Some("P11"), escape: true, locked: false, repeats: false, holds: false },
-    Shortcut { id: "lock", packet: Some("P9"), escape: true, locked: false, repeats: false, holds: false },
+    Shortcut { id: "lock", packet: None, escape: true, locked: false, repeats: false, holds: false },
     Shortcut { id: "log-out", packet: Some("P9"), escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "log-out-now", packet: None, escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "session-chooser", packet: Some("P9"), escape: false, locked: false, repeats: false, holds: false },

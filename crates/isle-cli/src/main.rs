@@ -31,6 +31,8 @@ enum Command {
     Version,
     /// End the session.
     Quit,
+    /// Lock the screen.
+    Lock,
     #[command(subcommand)]
     Windows(Windows),
     #[command(subcommand)]
@@ -333,6 +335,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Quit => SessionProxy::new(&bus).await?.quit().await?,
+        Command::Lock => SessionProxy::new(&bus).await?.lock().await?,
         Command::Windows(command) => {
             let proxy = WindowsProxy::new(&bus).await?;
             match command {

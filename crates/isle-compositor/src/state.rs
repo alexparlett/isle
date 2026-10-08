@@ -118,6 +118,7 @@ pub struct Isle {
     pub desktops: crate::wm::desktops::Desktops,
     pub wallpapers: crate::wallpaper::Wallpapers,
     pub island: crate::island::IslandState,
+    pub lock: crate::lock::LockState,
     pub services: crate::services::Services,
     pub notifications: crate::notifications::NotificationsState,
     pub banners: crate::banners::BannersState,
@@ -375,6 +376,7 @@ impl Isle {
             desktops: Default::default(),
             wallpapers: Default::default(),
             island,
+            lock: Default::default(),
             top_edge: Default::default(),
             bar,
             menus: Default::default(),
@@ -457,6 +459,10 @@ impl Isle {
                 .focus_at(output, layer, pos - origin.to_f64())
                 .map(|(focus, at)| (Focus::Shell(focus), at + origin.to_f64()))
         };
+        // While locked the pointer reaches the lock's surfaces and nothing else.
+        if self.lock.locked {
+            return shell_at(isle_shell::Layer::Lock);
+        }
         let surface_under = || self.client_surface_under(output, origin, pos);
         shell_at(isle_shell::Layer::Overlay)
             .or_else(|| {

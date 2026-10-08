@@ -1,0 +1,7 @@
+#%PAM-1.0
+# Isle's lock: authentication and the account only. Installed as /usr/lib/pam.d/isle;
+# an /etc/pam.d/isle overrides it.
+
+auth       include      system-local-login
+-auth      optional     pam_gnome_keyring.so
+account    include      system-local-login

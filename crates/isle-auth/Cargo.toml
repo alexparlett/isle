@@ -1,0 +1,20 @@
+[package]
+name = "isle-auth"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "isle-auth"
+path = "src/main.rs"
+
+[features]
+# Reads a PAM configuration directory from ISLE_PAM_CONFDIR, for the tests' own service.
+test-hooks = []
+
+[dependencies]
+libc.workspace = true
+tokio = { workspace = true, features = ["io-util"] }
+tracing.workspace = true
+zeroize.workspace = true

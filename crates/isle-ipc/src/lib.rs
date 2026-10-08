@@ -290,6 +290,12 @@ pub mod session {
     pub trait Session {
         /// Ends the session as a clean exit.
         fn quit(&self) -> zbus::Result<()>;
+        /// Locks the session.
+        fn lock(&self) -> zbus::Result<()>;
+        #[zbus(property)]
+        fn locked(&self) -> zbus::Result<bool>;
+        #[zbus(signal)]
+        fn lock_changed(&self) -> zbus::Result<()>;
     }
 }
 
@@ -456,6 +462,12 @@ pub mod test {
         fn panel(&self, json: &str) -> zbus::Result<()>;
         /// The banner stack as JSON.
         fn banners(&self) -> zbus::Result<String>;
+        /// Ends the lock with no password.
+        fn unlock(&self) -> zbus::Result<()>;
+        /// The lock as JSON.
+        fn lock_status(&self) -> zbus::Result<String>;
+        /// What an output's last frame was made of, front to back.
+        fn frame_kinds(&self, output: &str) -> zbus::Result<Vec<String>>;
         /// Acts on the banners as their controls would.
         fn banner(&self, json: &str) -> zbus::Result<()>;
         /// Gives an output a backlight named `test`, set through logind.

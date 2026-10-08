@@ -21,6 +21,7 @@ mod centre;
 mod control_centre;
 mod control_edit;
 mod launch;
+mod lock;
 mod menubar;
 mod menus;
 mod notifications;
@@ -147,6 +148,9 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.load_desktops(&runtime);
     isle.wallpapers.load(&runtime);
     isle.safe_start = safe_start;
+    if lock::marked() {
+        isle.start_locked();
+    }
     let mut state = State { backend, isle };
     state.apply_settings(initial, None);
     match (winit_events, session_events) {

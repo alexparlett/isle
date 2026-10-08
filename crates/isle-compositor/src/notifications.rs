@@ -222,7 +222,7 @@ impl Isle {
             focus: self.focus_hold(),
             game: self.game_mode_on(),
             full_screen: full_screen && self.settings.notifications.hold_full_screen,
-            away: self.services.login.state.preparing_for_sleep,
+            away: self.services.login.state.preparing_for_sleep || self.lock.locked,
             capture: false,
         }
     }

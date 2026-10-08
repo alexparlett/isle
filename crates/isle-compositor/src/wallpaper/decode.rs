@@ -20,7 +20,18 @@ pub struct Request {
     /// Around a fitted or centred picture; its mean colour when unset.
     pub colour: Option<[u8; 3]>,
     pub folder: Pick,
+    pub soften: Soften,
 }
+
+/// How the softened form is made: its blur in the screen's device pixels, and its saturation.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Soften {
+    pub sigma: f32,
+    pub saturation: f32,
+}
+
+/// The softened form is kept at this fraction of the screen's size: shapes do not read in it.
+pub const SOFTENED_SCALE: u32 = 4;
 
 /// Which of a folder's pictures to show.
 #[derive(Clone, Debug, PartialEq)]
@@ -43,6 +54,8 @@ pub struct Decoded {
     pub rgba: Vec<u8>,
     /// The scaled picture's mean colour, averaged in linear light.
     pub mean: [u8; 3],
+    /// The picture blurred and saturated, at a quarter of its size, for the lock.
+    pub softened: RgbaImage,
 }
 
 /// Reads the picture `request` names, or the folder's pick, and fits it to the screen.
@@ -54,12 +67,14 @@ pub fn load(request: &Request) -> Result<Decoded, String> {
     };
     let picture = read(&file)?;
     let (rgba, mean) = fit(&picture, request.size, request.fit, request.colour);
+    let softened = soften(&rgba, request.soften);
     Ok(Decoded {
         file,
         width: rgba.width(),
         height: rgba.height(),
         rgba: rgba.into_raw(),
         mean,
+        softened,
     })
 }
 
@@ -185,6 +200,25 @@ pub fn fit(
     (canvas, mean)
 }
 
+/// `picture` at [`SOFTENED_SCALE`]'s fraction of its size, blurred and saturated; the wash
+/// over it is drawn with it, since it follows the appearance.
+pub fn soften(picture: &RgbaImage, how: Soften) -> RgbaImage {
+    let (w, h) = (
+        (picture.width() / SOFTENED_SCALE).max(1),
+        (picture.height() / SOFTENED_SCALE).max(1),
+    );
+    let small = imageops::resize(picture, w, h, FilterType::Triangle);
+    let mut blurred = imageops::fast_blur(&small, how.sigma / SOFTENED_SCALE as f32);
+    for pixel in blurred.pixels_mut() {
+        let [r, g, b, _] = pixel.0.map(|c| c as f32);
+        // Rec. 709 luma: saturation moves each channel away from it.
+        let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        let push = |c: f32| (luma + (c - luma) * how.saturation).round().clamp(0.0, 255.0) as u8;
+        pixel.0 = [push(r), push(g), push(b), 255];
+    }
+    blurred
+}
+
 /// The average of `picture`'s colour in linear light, weighted by alpha, as sRGB.
 pub fn mean(picture: &RgbaImage) -> [u8; 3] {
     let lut: Vec<f64> = (0..=255).map(|v| to_linear(v as f64 / 255.0)).collect();
@@ -222,6 +256,37 @@ fn to_srgb(c: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_softened_form_is_a_quarter_size_and_holds_no_edge() {
+        let picture = halves(400, 200, [0, 0, 0], [255, 255, 255]);
+        let soft = soften(
+            &picture,
+            Soften {
+                sigma: 80.0,
+                saturation: 1.0,
+            },
+        );
+        assert_eq!((soft.width(), soft.height()), (100, 50));
+        // Across the edge the step is spread wide: neighbours a few pixels apart barely differ.
+        let at = |x: u32| soft.get_pixel(x, 25).0[0] as i32;
+        assert!((at(48) - at(52)).abs() < 40, "{} {}", at(48), at(52));
+        assert!(at(5) < at(50) && at(50) < at(95));
+    }
+
+    #[test]
+    fn saturation_moves_colour_away_from_grey() {
+        let picture = RgbaImage::from_pixel(8, 8, Rgba([150, 100, 100, 255]));
+        let soft = soften(
+            &picture,
+            Soften {
+                sigma: 4.0,
+                saturation: 1.4,
+            },
+        );
+        let [r, g, _, _] = soft.get_pixel(1, 1).0;
+        assert!(r > 150 && g < 100, "{r} {g}");
+    }
 
     /// Left half one colour, right half another.
     fn halves(w: u32, h: u32, left: [u8; 3], right: [u8; 3]) -> RgbaImage {

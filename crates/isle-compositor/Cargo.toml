@@ -8,6 +8,7 @@ publish.workspace = true
 [features]
 # The Test interface: input injection, forced stalls and panics. Never in a package.
 test-hooks = [
+    "isle-auth/test-hooks",
     "isle-shell/probe",
     "isle-menus/exporter",
     "wayland-protocols-plasma/client",
@@ -34,6 +35,7 @@ jiff.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 isle-apps.workspace = true
+isle-auth.workspace = true
 isle-audio.workspace = true
 isle-bluetooth.workspace = true
 isle-brightness.workspace = true
@@ -52,6 +54,7 @@ isle-ui.workspace = true
 isle-state.workspace = true
 libc.workspace = true
 notify.workspace = true
+zeroize.workspace = true
 png = { workspace = true, optional = true }
 wayland-client = { workspace = true, optional = true }
 wayland-protocols = { workspace = true, optional = true }

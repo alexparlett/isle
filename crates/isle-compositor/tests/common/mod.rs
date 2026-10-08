@@ -90,6 +90,16 @@ impl Isle {
         settings: &str,
         prepare: impl FnOnce(&std::path::Path),
     ) -> Self {
+        Self::start_env(name, settings, prepare, |_| Vec::new()).await
+    }
+
+    /// As `start_prepared`, with variables for the compositor from the test's directory.
+    pub async fn start_env(
+        name: &str,
+        settings: &str,
+        prepare: impl FnOnce(&std::path::Path),
+        env: impl FnOnce(&std::path::Path) -> Vec<(String, String)>,
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!("isle-headless-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         for sub in [
@@ -113,7 +123,9 @@ impl Isle {
         let (system_address, system_pid) = private_bus();
 
         let log = fs::File::create(dir.join("compositor.log")).unwrap();
+        let extra = env(&dir);
         let compositor = Command::new(env!("CARGO_BIN_EXE_isle-compositor"))
+            .envs(extra)
             .arg("--headless")
             .env_remove("WAYLAND_DISPLAY")
             .env_remove("DISPLAY")
@@ -173,6 +185,10 @@ impl Isle {
         // Screenshots taken as a window maps see it whole; the motion tests turn it back on.
         isle.test().await.window_motion(false).await.unwrap();
         isle
+    }
+
+    pub fn compositor_pid(&self) -> i32 {
+        self.compositor.id() as i32
     }
 
     pub fn bus_address(&self) -> String {

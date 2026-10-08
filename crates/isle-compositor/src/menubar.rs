@@ -27,6 +27,7 @@ use crate::{
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     Sleep,
+    LockScreen,
     About,
     Hide,
     HideOthers,
@@ -488,7 +489,7 @@ impl State {
             b.item("Restart…", None, None),
             b.item("Shut Down…", None, None),
             MenuEntry::Separator,
-            b.item("Lock Screen", None, Chord::parse("Ctrl+Cmd+Q")),
+            b.item("Lock Screen", Some(Command::LockScreen), Chord::parse("Ctrl+Cmd+Q")),
             b.item(
                 format!("Log Out {}…", whoami()),
                 None,
@@ -1223,6 +1224,7 @@ impl State {
         let app = self.isle.bar_app().0;
         match command {
             Command::Sleep => self.isle.suspend(),
+            Command::LockScreen => self.lock("system menu"),
             Command::About => self.open_about(&app),
             Command::Hide => {
                 self.set_app_hidden(&app, true);

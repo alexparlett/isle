@@ -40,6 +40,22 @@ render_elements! {
     Wallpaper = crate::wallpaper::WallpaperElement,
 }
 
+impl IsleElement {
+    /// What kind of thing the element draws, for the Test interface: `client` for any
+    /// client's surface.
+    #[cfg(feature = "test-hooks")]
+    pub fn kind_name(&self) -> &'static str {
+        match self {
+            IsleElement::Surface(_) | IsleElement::Window(_) => "client",
+            IsleElement::Memory(_) => "cursor",
+            IsleElement::Solid(_) => "solid",
+            IsleElement::Shell(_) => "shell",
+            IsleElement::Wallpaper(_) => "wallpaper",
+            _ => "other",
+        }
+    }
+}
+
 /// A themed cursor image the backend draws itself, with its hotspot.
 pub struct NamedCursor<'a> {
     pub buffer: &'a MemoryRenderBuffer,
@@ -58,7 +74,20 @@ impl Isle {
         cursor: Option<NamedCursor<'_>>,
         push: &mut dyn FnMut(IsleElement),
     ) {
-        self.render_elements_from(renderer, output, cursor, Stage::Cursor, push);
+        #[cfg(feature = "test-hooks")]
+        let mut kinds = Vec::new();
+        #[cfg(feature = "test-hooks")]
+        let push = &mut |e: IsleElement| {
+            kinds.push(e.kind_name());
+            push(e)
+        };
+        if self.lock.locked {
+            self.render_locked(output, renderer, cursor, true, push);
+        } else {
+            self.render_elements_from(renderer, output, cursor, Stage::Cursor, push);
+        }
+        #[cfg(feature = "test-hooks")]
+        self.lock.frame_kinds.borrow_mut().insert(output.name(), kinds);
     }
 
     /// What lies behind shell surfaces of `layer`, front to back, for their glass.
@@ -69,8 +98,12 @@ impl Isle {
         layer: isle_shell::Layer,
         push: &mut dyn FnMut(IsleElement),
     ) {
+        if self.lock.locked {
+            self.render_locked(output, renderer, None, false, push);
+            return;
+        }
         let from = match layer {
-            isle_shell::Layer::Overlay => Stage::LayerOverlay,
+            isle_shell::Layer::Overlay | isle_shell::Layer::Lock => Stage::LayerOverlay,
             isle_shell::Layer::Top => Stage::Windows,
             isle_shell::Layer::Background => return,
         };

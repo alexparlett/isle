@@ -9,7 +9,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use isle_ipc::{settings::SettingsProxy, test::TestProxy, version::VersionProxy};
+use isle_ipc::{
+    session::SessionProxy, settings::SettingsProxy, test::TestProxy, version::VersionProxy,
+};
 
 struct Session {
     dir: PathBuf,
@@ -159,6 +161,46 @@ async fn a_killed_compositor_is_restarted_and_recorded() {
             .any(|r| r.contains("kind: exit") && r.contains("exit: signal 9")),
         "{records:?}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_compositor_killed_while_locked_comes_back_locked() {
+    let Some(session) = Session::start("kill-locked").await else {
+        return;
+    };
+    let first = session.compositor_pid(0).await;
+    SessionProxy::new(&session.bus)
+        .await
+        .unwrap()
+        .lock()
+        .await
+        .unwrap();
+    assert!(session.dir.join("runtime/isle/locked").exists());
+    Command::new("kill")
+        .args(["-9", &first.to_string()])
+        .status()
+        .unwrap();
+    session.compositor_pid(first).await;
+    let locked = SessionProxy::builder(&session.bus)
+        .cache_properties(zbus::proxy::CacheProperties::No)
+        .build()
+        .await
+        .unwrap()
+        .locked()
+        .await
+        .unwrap();
+    assert!(locked, "the restarted compositor is not locked");
+    let test = TestProxy::new(&session.bus).await.unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let kinds = test.frame_kinds("HEADLESS-1").await.unwrap();
+        if !kinds.is_empty() {
+            assert!(!kinds.iter().any(|k| k == "client"), "{kinds:?}");
+            break;
+        }
+        assert!(Instant::now() < deadline, "no frame after the restart");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

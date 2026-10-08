@@ -2574,6 +2574,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-auth"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "isle-bluetooth"
 version = "0.1.0"
 dependencies = [
@@ -2626,6 +2636,7 @@ dependencies = [
  "image",
  "isle-apps",
  "isle-audio",
+ "isle-auth",
  "isle-bluetooth",
  "isle-brightness",
  "isle-bus",
@@ -2667,6 +2678,7 @@ dependencies = [
  "x11rb",
  "xcursor",
  "zbus",
+ "zeroize",
  "zvariant",
 ]
 

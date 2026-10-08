@@ -134,6 +134,8 @@ struct Screen {
     /// What is shown stands in for a picture not yet decoded: its colour from last time, or
     /// the drawn backdrop.
     standing_in: bool,
+    /// The picture shown, blurred and saturated at a quarter of its size, for the lock.
+    softened: Option<TextureBuffer<GlesTexture>>,
 }
 
 #[derive(Default)]
@@ -143,6 +145,8 @@ pub struct Wallpapers {
     saved: Saved,
     saver: Option<Saver<Saved>>,
     next_request: u64,
+    /// Each screen's wash over its softened form, by the output's identity.
+    washes: std::cell::RefCell<HashMap<String, SolidColorBuffer>>,
 }
 
 /// One screen's wallpaper as the bus reports it.
@@ -312,6 +316,68 @@ impl Isle {
         }
     }
 
+    /// The softened form of `output`'s wallpaper with its wash, front to back, for the lock
+    /// (`surfaces/wallpaper.md`). A picture is drawn from its quarter-size blur; the drawn
+    /// backdrop and a colour hold no shapes, so they are drawn as they are.
+    pub fn softened_elements(&self, output: &Output, push: &mut dyn FnMut(WallpaperElement)) {
+        let identity = Self::output_identity(output);
+        let Some(screen) = self.wallpapers.screens.get(&identity) else {
+            return;
+        };
+        let scale = Scale::from(output.current_scale().fractional_scale());
+        let logical = screen
+            .wanted
+            .as_ref()
+            .map(|w| w.logical)
+            .unwrap_or_default();
+        let c = self.shell.theme().tokens.material_softened;
+        let mut washes = self.wallpapers.washes.borrow_mut();
+        let wash = washes.entry(identity).or_default();
+        wash.update(logical, premultiplied(c));
+        push(WallpaperElement::Solid(SolidColorRenderElement::from_buffer(
+            wash,
+            (0, 0),
+            scale,
+            1.0,
+            Kind::Unspecified,
+        )));
+        match (&screen.front, &screen.softened) {
+            (Some(Layer::Picture(_)), Some(softened)) => {
+                push(WallpaperElement::Picture(TextureRenderElement::from_texture_buffer(
+                    (0.0, 0.0),
+                    softened,
+                    None,
+                    None,
+                    Some(logical),
+                    Kind::Unspecified,
+                )))
+            }
+            (Some(Layer::Picture(picture)), None) => {
+                push(WallpaperElement::Picture(TextureRenderElement::from_texture_buffer(
+                    (0.0, 0.0),
+                    picture,
+                    None,
+                    None,
+                    Some(logical),
+                    Kind::Unspecified,
+                )))
+            }
+            (Some(Layer::Frost(element)), _) => {
+                push(WallpaperElement::Backdrop(element.with_alpha(1.0)))
+            }
+            (Some(Layer::Solid(buffer)), _) => {
+                push(WallpaperElement::Solid(SolidColorRenderElement::from_buffer(
+                    buffer,
+                    (0, 0),
+                    scale,
+                    1.0,
+                    Kind::Unspecified,
+                )))
+            }
+            (None, _) => {}
+        }
+    }
+
     fn theme_fade(&self) -> Duration {
         isle_tokens::Theme::millis(self.shell.theme().tokens.motion_wallpaper_fade_ms)
     }
@@ -329,6 +395,9 @@ impl Isle {
         } else {
             screen.behind = screen.front.take();
             screen.fade = Some(Instant::now());
+        }
+        if !matches!(layer, Layer::Picture(_)) {
+            screen.softened = None;
         }
         screen.front = Some(layer);
         screen.standing_in = false;
@@ -365,6 +434,11 @@ impl Isle {
                 }
             } else {
                 decode::Pick::Keep(current)
+            },
+            soften: decode::Soften {
+                sigma: self.shell.theme().tokens.material_softened_blur
+                    * output.current_scale().fractional_scale() as f32,
+                saturation: self.shell.theme().tokens.material_softened_saturation,
             },
         };
         self.wallpapers.next_request += 1;
@@ -583,11 +657,27 @@ impl Isle {
                     (decoded.width as i32, decoded.height as i32).into(),
                 )]),
             );
+            let softened = TextureBuffer::from_memory(
+                renderer,
+                decoded.softened.as_raw(),
+                Fourcc::Abgr8888,
+                (decoded.softened.width() as i32, decoded.softened.height() as i32),
+                false,
+                1,
+                Transform::Normal,
+                None,
+            );
             match picture {
                 Ok(picture) => {
                     info!(output = output.name(), file = %decoded.file.display(), "wallpaper");
                     screen.file = Some(decoded.file);
                     self.show_wallpaper(&identity, Layer::Picture(picture), cut || arrived_cut);
+                    if let Some(screen) = self.wallpapers.screens.get_mut(&identity) {
+                        match softened {
+                            Ok(softened) => screen.softened = Some(softened),
+                            Err(err) => warn!(output = output.name(), "softened wallpaper: {err}"),
+                        }
+                    }
                 }
                 Err(err) => warn!(output = output.name(), "wallpaper upload failed: {err}"),
             }
@@ -600,6 +690,16 @@ impl Isle {
             screen.behind = None;
         }
     }
+}
+
+/// A token's colour as a solid buffer takes it, its alpha multiplied in.
+pub fn premultiplied(c: isle_tokens::Colour) -> [f32; 4] {
+    [
+        c.r as f32 / 255.0 * c.a,
+        c.g as f32 / 255.0 * c.a,
+        c.b as f32 / 255.0 * c.a,
+        c.a,
+    ]
 }
 
 fn rgba([r, g, b]: [u8; 3]) -> [f32; 4] {

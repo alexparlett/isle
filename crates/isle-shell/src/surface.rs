@@ -31,6 +31,8 @@ pub enum Layer {
     Top,
     /// Over everything a client can put on screen, overlays included (shell.md rule 13).
     Overlay,
+    /// The lock's own, drawn only while the session is locked and only by the lock's path.
+    Lock,
 }
 
 /// How many instances a surface has.

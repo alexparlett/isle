@@ -76,6 +76,8 @@ const DISRUPTIVE: &[&str] = &[
     "minimise-app",
     "full-screen",
     "log-out-now",
+    "log-out",
+    "session-chooser",
     "next-display",
     "previous-display",
     "desktop-left",

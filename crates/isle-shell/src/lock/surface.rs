@@ -6,10 +6,12 @@ use std::{cell::Cell, cell::RefCell, collections::HashMap, rc::Rc};
 use freya::{animation::*, prelude::*};
 use freya_embed::AppComponent;
 use isle_tokens::Theme;
-use isle_ui::{AppIcon, Glyph, Spinner, colour, focus_ring, shadows, text, use_theme};
+use isle_ui::{
+    AppIcon, Button, Glyph, Spinner, button::Kind, colour, focus_ring, shadows, text, use_theme,
+};
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
-use super::{Face, Frame, Line, LockAction, Note, Playing};
+use super::{Face, Frame, Line, LockAction, Note, Playing, Power};
 use crate::surface::{Action, Actions, Here, Layer, Scope, SurfaceDef};
 
 #[derive(Default)]
@@ -680,18 +682,58 @@ fn power_row(
             ))
             .into_element()
     };
-    rect()
+    let row = rect()
         .position(Position::new_absolute().top(top).left(0.))
         .width(Size::fill())
         .opacity(lower)
         .horizontal()
-        .main_align(Alignment::Center)
-        .spacing(t.space_xxl)
-        .children([
+        .main_align(Alignment::Center);
+    // The confirm and the quitting line replace the circles in one capsule where they were.
+    let capsule = || {
+        plate(theme, face.solid, t.size_lock_button / 2.0)
+            .height(Size::px(t.size_lock_button))
+            .padding((0., t.space_l))
+            .horizontal()
+            .cross_align(Alignment::Center)
+    };
+    let ink = colour(t.colour_text);
+    match face.power {
+        Power::Row => row.spacing(t.space_xxl).children([
             circle("moon-stars", "Sleep", LockAction::Sleep),
             circle("arrow-clockwise", "Restart", LockAction::Restart),
             circle("power", "Shut Down", LockAction::ShutDown),
-        ])
+        ]),
+        Power::Confirm { restart } => {
+            let (question, action) = if restart {
+                ("Restart now?", "Restart")
+            } else {
+                ("Shut down now?", "Shut Down")
+            };
+            let (cancel, confirm) = (actions.clone(), actions.clone());
+            row.child(
+                capsule()
+                    .child(text::line(theme, text::Style::Body, ink, question))
+                    .child(rect().width(Size::px(t.space_l)))
+                    .child(
+                        rect().horizontal().spacing(t.space_s).child(
+                            Button::new("Cancel")
+                                .on_press(move |_| send(&cancel, LockAction::PowerCancel)),
+                        )
+                        .child(
+                            Button::new(action)
+                                .kind(Kind::Default)
+                                .on_press(move |_| send(&confirm, LockAction::PowerConfirm)),
+                        ),
+                    ),
+            )
+        }
+        Power::Quitting => row.child(
+            capsule()
+                .spacing(t.space_s)
+                .child(Spinner::new(12., "Quitting apps"))
+                .child(text::line(theme, text::Style::Body, ink, "Quitting apps…")),
+        ),
+    }
 }
 
 fn utilities(

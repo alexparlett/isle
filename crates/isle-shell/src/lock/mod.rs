@@ -28,6 +28,8 @@ pub enum Line {
         minutes: u32,
     },
     Error,
+    /// The session's end was stopped, or refused.
+    Stopped(String),
 }
 
 impl Line {
@@ -55,6 +57,7 @@ impl Line {
                 format!("Too many attempts. Try again in {minutes} min."),
             ),
             Line::Error => (warning, "Couldn't check the password. Try again.".into()),
+            Line::Stopped(words) => (warning, words.clone()),
         })
     }
 
@@ -112,8 +115,21 @@ pub struct Face {
     pub layout_marked: bool,
     /// The battery's percentage and whether it charges, on a machine that has one.
     pub battery: Option<(u8, bool)>,
+    pub power: Power,
     pub solid: bool,
     pub still: bool,
+}
+
+/// The power row: its circles, Restart or Shut Down asked once in place, then the apps
+/// quitting.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Power {
+    #[default]
+    Row,
+    Confirm {
+        restart: bool,
+    },
+    Quitting,
 }
 
 /// One screen's frame: the face's content, and whether this screen has the face.
@@ -137,6 +153,9 @@ pub enum LockAction {
     Sleep,
     Restart,
     ShutDown,
+    /// The confirm in place: go on, or back to the circles.
+    PowerConfirm,
+    PowerCancel,
     PlayPause,
     Next,
     Previous,

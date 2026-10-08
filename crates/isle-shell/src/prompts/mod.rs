@@ -2,6 +2,7 @@
 //! one at a time from a queue (`p1/structure/prompts.md`, `p1/surfaces/prompts.md`).
 
 pub mod queue;
+pub mod session;
 mod surface;
 
 use std::path::PathBuf;

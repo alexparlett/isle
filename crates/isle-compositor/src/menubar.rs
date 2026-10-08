@@ -8,6 +8,7 @@ use isle_keys::{chord::Chord, engine::Stroke, profile::Profile};
 use isle_shell::{
     menubar::{BarAction, BarFrame, MenuBarSurface, Title, TitleKind},
     placed_menu::{About, AboutPanel, MenuModel, WindowMenu},
+    prompts::session::Choice,
     transition::Motion,
 };
 use isle_ui::{
@@ -28,6 +29,8 @@ use crate::{
 pub enum Command {
     Sleep,
     LockScreen,
+    /// The session dialog's confirmation for this action.
+    EndSession(isle_shell::prompts::session::Choice),
     About,
     Hide,
     HideOthers,
@@ -486,13 +489,21 @@ impl State {
             b.item("Force Quit…", None, Chord::parse("Option+Cmd+Escape")),
             MenuEntry::Separator,
             b.item("Sleep", Some(Command::Sleep), None),
-            b.item("Restart…", None, None),
-            b.item("Shut Down…", None, None),
+            b.item(
+                "Restart…",
+                Some(Command::EndSession(Choice::Restart)),
+                None,
+            ),
+            b.item(
+                "Shut Down…",
+                Some(Command::EndSession(Choice::ShutDown)),
+                None,
+            ),
             MenuEntry::Separator,
             b.item("Lock Screen", Some(Command::LockScreen), Chord::parse("Ctrl+Cmd+Q")),
             b.item(
                 format!("Log Out {}…", whoami()),
-                None,
+                Some(Command::EndSession(Choice::LogOut)),
                 Chord::parse("Shift+Cmd+Q"),
             ),
         ];
@@ -1225,6 +1236,7 @@ impl State {
         match command {
             Command::Sleep => self.isle.suspend(),
             Command::LockScreen => self.lock("system menu"),
+            Command::EndSession(choice) => self.open_session_confirm(choice),
             Command::About => self.open_about(&app),
             Command::Hide => {
                 self.set_app_hidden(&app, true);

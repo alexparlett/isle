@@ -36,6 +36,13 @@ trait Manager {
 
     #[zbus(name = "GetSessionByPID")]
     fn get_session_by_pid(&self, pid: u32) -> zbus::Result<zbus::zvariant::OwnedObjectPath>;
+
+    #[allow(clippy::type_complexity)]
+    fn list_inhibitors(&self) -> zbus::Result<Vec<(String, String, String, String, u32, u32)>>;
+
+    fn reboot(&self, interactive: bool) -> zbus::Result<()>;
+
+    fn power_off(&self, interactive: bool) -> zbus::Result<()>;
 }
 
 #[zbus::proxy(
@@ -84,6 +91,34 @@ pub async fn set_hint(locked: Option<bool>, idle: Option<bool>) -> Result<(), is
         session.set_idle_hint(on).await?;
     }
     Ok(())
+}
+
+/// Restarts or shuts down; another program's block inhibitor on shutdown is named in the
+/// refusal rather than left to logind's.
+pub async fn end(restart: bool) -> Result<(), String> {
+    let verb = if restart { "restart" } else { "shut down" };
+    let bus = isle_bus::system().await.map_err(|e| e.to_string())?;
+    let manager = ManagerProxy::new(&bus).await.map_err(|e| e.to_string())?;
+    let blocker = manager
+        .list_inhibitors()
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .find(|(what, who, _, mode, _, _)| {
+            mode == "block" && who != "Isle" && what.split(':').any(|w| w == "shutdown")
+        });
+    if let Some((_, who, why, ..)) = blocker {
+        return Err(format!("Couldn't {verb}: {who} is preventing it ({why})."));
+    }
+    let called = if restart {
+        manager.reboot(false).await
+    } else {
+        manager.power_off(false).await
+    };
+    called.map_err(|err| {
+        info!("logind refused to {verb}: {err}");
+        format!("Couldn't {verb}. Try again.")
+    })
 }
 
 /// Holds Isle's inhibitors and passes on the session's Lock and Unlock. The sleep delay is

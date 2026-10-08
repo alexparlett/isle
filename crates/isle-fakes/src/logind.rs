@@ -21,6 +21,8 @@ struct Values {
 /// An inhibitor a client took: what, its mode, and logind's end of its descriptor.
 struct Inhibitor {
     what: String,
+    who: String,
+    why: String,
     mode: String,
     end: std::io::PipeReader,
 }
@@ -30,6 +32,7 @@ type Inhibitors = Arc<Mutex<Vec<Inhibitor>>>;
 struct Manager {
     preparing_for_sleep: bool,
     inhibitors: Inhibitors,
+    ended: Arc<Mutex<Vec<String>>>,
 }
 
 #[zbus::interface(name = "org.freedesktop.login1.Manager")]
@@ -43,17 +46,46 @@ impl Manager {
     fn inhibit(
         &self,
         what: String,
-        _who: String,
-        _why: String,
+        who: String,
+        why: String,
         mode: String,
     ) -> zbus::fdo::Result<zvariant::OwnedFd> {
         let (end, held) =
             std::io::pipe().map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+        self.inhibitors.lock().unwrap().push(Inhibitor {
+            what,
+            who,
+            why,
+            mode,
+            end,
+        });
+        Ok(zvariant::OwnedFd::from(std::os::fd::OwnedFd::from(held)))
+    }
+
+    fn list_inhibitors(&self) -> Vec<(String, String, String, String, u32, u32)> {
         self.inhibitors
             .lock()
             .unwrap()
-            .push(Inhibitor { what, mode, end });
-        Ok(zvariant::OwnedFd::from(std::os::fd::OwnedFd::from(held)))
+            .iter()
+            .map(|i| {
+                (
+                    i.what.clone(),
+                    i.who.clone(),
+                    i.why.clone(),
+                    i.mode.clone(),
+                    0,
+                    0,
+                )
+            })
+            .collect()
+    }
+
+    fn reboot(&self, _interactive: bool) {
+        self.ended.lock().unwrap().push("Reboot".into());
+    }
+
+    fn power_off(&self, _interactive: bool) {
+        self.ended.lock().unwrap().push("PowerOff".into());
     }
 
     #[zbus(name = "GetSessionByPID")]
@@ -123,6 +155,9 @@ pub struct Logind {
     values: Values,
     conn: Option<Connection>,
     inhibitors: Inhibitors,
+    ended: Arc<Mutex<Vec<String>>>,
+    /// Block inhibitors taken for a test, as another program holds them.
+    held: Vec<zvariant::OwnedFd>,
 }
 
 impl Logind {
@@ -132,6 +167,8 @@ impl Logind {
             values: Values::default(),
             conn: None,
             inhibitors: Default::default(),
+            ended: Default::default(),
+            held: Vec::new(),
         };
         fake.restore().await?;
         Ok(fake)
@@ -153,6 +190,7 @@ impl Logind {
                 Manager {
                     preparing_for_sleep: v.preparing_for_sleep,
                     inhibitors: self.inhibitors.clone(),
+                    ended: self.ended.clone(),
                 },
             )?
             .serve_at(
@@ -187,6 +225,29 @@ impl Logind {
             .await
             .locked_hint_changed(iface.signal_emitter())
             .await
+    }
+
+    /// `Reboot` and `PowerOff`, as they were called.
+    pub fn ended(&self) -> Vec<String> {
+        self.ended.lock().unwrap().clone()
+    }
+
+    /// Another program's block inhibitor on `what`, held until the fake goes.
+    pub async fn block(&mut self, what: &str, who: &str, why: &str) -> zbus::Result<()> {
+        let conn = zbus::connection::Builder::address(self.address.as_str())?
+            .build()
+            .await?;
+        let reply = conn
+            .call_method(
+                Some("org.freedesktop.login1"),
+                MANAGER,
+                Some("org.freedesktop.login1.Manager"),
+                "Inhibit",
+                &(what, who, why, "block"),
+            )
+            .await?;
+        self.held.push(reply.body().deserialize()?);
+        Ok(())
     }
 
     /// The inhibitors still held, as `what:mode`; one whose holder closed it is gone.

@@ -40,6 +40,7 @@ mod processes;
 mod prompts;
 mod screensaver;
 mod services;
+mod session_end;
 pub mod redraw;
 mod render;
 pub mod settings;

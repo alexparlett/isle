@@ -191,7 +191,7 @@ impl Isle {
                 .elements(output, layer, &mut |e| push(IsleElement::Shell(e)))
         };
         // A prompt and the island over its scrim, the scrim over the rest.
-        let prompting = self.prompt_showing().is_some();
+        let prompting = self.scrimmed();
         if from <= Stage::Prompt && prompting {
             shell(isle_shell::Layer::Prompt, push);
             self.shell

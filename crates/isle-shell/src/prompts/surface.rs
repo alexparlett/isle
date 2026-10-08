@@ -339,7 +339,7 @@ impl Component for PromptView {
             .child(rect().height(Size::px(t.space_m)))
             .child(text::line(
                 &theme,
-                text::Style::Title,
+                text::Style::Title3,
                 ink,
                 prompt.title.clone(),
             ))

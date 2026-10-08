@@ -52,6 +52,9 @@ pub enum Action {
     HelpSearch,
     WindowMenu,
     Lock,
+    /// Shift+Cmd+Q: the log-out confirmation.
+    LogOut,
+    SessionChooser,
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
     /// The chord the recording grab took.
@@ -105,6 +108,8 @@ fn action_for(id: &'static str) -> Action {
         "carry-right" => Action::CarryWindow(1),
         "terminal" => Action::Terminal,
         "log-out-now" => Action::Quit,
+        "log-out" => Action::LogOut,
+        "session-chooser" => Action::SessionChooser,
         "lock" => Action::Lock,
         "redetect-displays" => Action::Redetect,
         "next-layout" => Action::NextLayout,
@@ -222,7 +227,11 @@ impl State {
                     }
                 }
             },
-            Action::Quit => self.isle.loop_signal.stop(),
+            Action::Quit => self.end_session(isle_shell::prompts::session::Choice::LogOut, false),
+            Action::LogOut => {
+                self.open_session_confirm(isle_shell::prompts::session::Choice::LogOut)
+            }
+            Action::SessionChooser => self.open_session_chooser(),
             Action::Tile(zone) => self.tile_by_chord(zone),
             Action::Fill => {
                 if let Some(id) = self.focused_window() {

@@ -11,6 +11,8 @@ pub enum Kind {
     Default,
     /// No fill until hovered.
     Plain,
+    /// A well on glass: the solid material with the label in the danger colour; never default.
+    Destructive,
 }
 
 /// A button with a label or a glyph.
@@ -111,11 +113,14 @@ impl Component for Button {
             (_, false, true) => colour(t.colour_control_hover),
             (Kind::Plain, false, false) => Color::TRANSPARENT,
             (Kind::Regular, false, false) => colour(t.colour_control),
+            (Kind::Destructive, false, false) => colour(t.material_solid),
         };
         let ink = if !enabled {
             colour(t.colour_text_disabled)
         } else if self.kind == Kind::Default {
             colour(t.colour_on_accent)
+        } else if self.kind == Kind::Destructive {
+            colour(t.colour_danger_text)
         } else {
             colour(t.colour_text)
         };
@@ -136,7 +141,7 @@ impl Component for Button {
             .center()
             .corner_radius(t.radius_control)
             .background(fill)
-            .maybe(self.kind == Kind::Regular && enabled, |el| {
+            .maybe(matches!(self.kind, Kind::Regular | Kind::Destructive) && enabled, |el| {
                 shadows(&t.shadow_control)
                     .into_iter()
                     .fold(el, |el, s| el.shadow(s))

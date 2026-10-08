@@ -229,6 +229,29 @@ impl State {
         true
     }
 
+    /// Force Quit: every process of the app is killed, its windows' and its launch scope's.
+    pub fn force_quit_app(&mut self, app: &str) {
+        let mut pids = self.isle.processes.pids(app);
+        pids.extend(
+            self.isle
+                .wm
+                .records
+                .iter()
+                .filter(|r| r.app == app)
+                .filter_map(|r| r.pid),
+        );
+        pids.sort_unstable();
+        pids.dedup();
+        pids.retain(|pid| *pid > 1 && *pid != std::process::id() as i32);
+        info!(app, ?pids, "force quit");
+        for pid in pids {
+            // Safety: a signal to a process this app's windows or scope belong to.
+            if unsafe { libc::kill(pid, libc::SIGKILL) } != 0 {
+                warn!(app, pid, "couldn't force quit: {}", std::io::Error::last_os_error());
+            }
+        }
+    }
+
     /// After a window went: an app being quit whose windows are all gone gets its signal.
     pub fn finish_quits(&mut self) {
         let records = &self.isle.wm.records;
@@ -373,7 +396,8 @@ impl State {
         else {
             return;
         };
-        if client.send_ping(SERIAL_COUNTER.next_serial()).is_err() {
+        if let Err(err) = client.send_ping(SERIAL_COUNTER.next_serial()) {
+            warn!(id, "no ping: {err:?}");
             return;
         }
         let token = self.isle.loop_handle.insert_source(

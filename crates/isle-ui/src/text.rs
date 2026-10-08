@@ -12,6 +12,7 @@ pub enum Style {
     Headline,
     Subheadline,
     Title,
+    Title3,
 }
 
 /// Size, line height and weight of `style`, scaled.
@@ -52,6 +53,11 @@ pub fn metrics(theme: &Theme, style: Style) -> (f32, f32, f32) {
             t.type_style_title_size,
             t.type_style_title_line,
             t.type_style_title_weight,
+        ),
+        Style::Title3 => (
+            t.type_style_title_3_size,
+            t.type_style_title_3_line,
+            t.type_style_title_3_weight,
         ),
     };
     let scale = theme.appearance.text_scale.min(t.type_scale_max);

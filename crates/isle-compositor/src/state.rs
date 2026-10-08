@@ -121,6 +121,7 @@ pub struct Isle {
     pub lock: crate::lock::LockState,
     pub idle: crate::idle::IdleState,
     pub prompts: crate::prompts::PromptsState,
+    pub session: crate::session_end::SessionState,
     pub idle_notifier_state: smithay::wayland::idle_notify::IdleNotifierState<State>,
     /// The outputs changed under the lock; its face is shown again on the next dispatch.
     pub lock_outputs_changed: bool,
@@ -332,6 +333,8 @@ impl Isle {
         shell.register(lock.face.minimal.clone());
         let prompts = crate::prompts::PromptsState::new();
         shell.register(prompts.surface.clone());
+        let session = crate::session_end::SessionState::new();
+        shell.register(session.surface.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -400,6 +403,7 @@ impl Isle {
             lock,
             idle: Default::default(),
             prompts,
+            session,
             idle_notifier_state,
             lock_outputs_changed: false,
             panicked: Vec::new(),
@@ -493,7 +497,7 @@ impl Isle {
         if self.lock.locked {
             return shell_at(isle_shell::Layer::Lock);
         }
-        if self.prompt_showing().is_some() {
+        if self.scrimmed() {
             return shell_at(isle_shell::Layer::Prompt)
                 .or_else(|| shell_at(isle_shell::Layer::Overlay));
         }
@@ -760,6 +764,7 @@ impl State {
                 isle_shell::Action::Banner(action) => self.banner_action(action),
                 isle_shell::Action::Lock(action) => self.lock_action(action),
                 isle_shell::Action::Prompt(action) => self.prompt_action(action),
+                isle_shell::Action::Session(action) => self.session_action(action),
                 isle_shell::Action::Key(code) => {
                     use crate::keyboard::ISLE_DEVICE;
                     use smithay::backend::input::{InputTime, KeyState};

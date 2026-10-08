@@ -162,6 +162,7 @@ impl Isle {
         serde_json::json!({
             "locked": self.lock.locked,
             "dots": self.lock.field.chars().count(),
+            "session_line": self.lock_session_line(),
             "status": self.lock.status.name(),
             "failures": self.lock.failures,
             "pending": self.lock.pending,
@@ -269,7 +270,7 @@ impl Isle {
                         .name_of(focus)
                         .is_some_and(|name| name.starts_with("lock"))
             }
-            Some(_) => !self.lock.locked && self.prompt_showing().is_none(),
+            Some(_) => !self.lock.locked && !self.scrimmed(),
         }
     }
 }
@@ -317,6 +318,7 @@ impl State {
         self.isle.lock.since = None;
         set_marker(false);
         self.end_auth();
+        self.session_unlocked();
         self.hide_lock_face();
         self.isle.island.model.set_locked(false);
         self.isle.refresh_island();
@@ -352,6 +354,7 @@ impl State {
     /// Everything a client or a desktop surface holds is taken back: the centre surface and
     /// the menu-bar group close, grabs end, and neither keyboard nor pointer is a client's.
     fn take_input_back(&mut self) {
+        self.close_session_dialog();
         self.cancel_switcher();
         self.close_menu_bar_group();
         if self.isle.recording.is_some() {
@@ -391,6 +394,19 @@ impl State {
     ) -> bool {
         use smithay::input::keyboard::keysyms as k;
         let held = self.isle.lock.pending || self.isle.locked_out();
+        // The power row's confirm has the keys while it shows.
+        if matches!(
+            self.isle.session.lock_power,
+            isle_shell::lock::Power::Confirm { .. }
+        ) {
+            use isle_shell::lock::LockAction;
+            match sym.raw() {
+                k::KEY_Return | k::KEY_KP_Enter => self.lock_power(LockAction::PowerConfirm),
+                k::KEY_Escape => self.lock_power(LockAction::PowerCancel),
+                _ => {}
+            }
+            return true;
+        }
         match sym.raw() {
             k::KEY_Return | k::KEY_KP_Enter => self.submit_password(),
             k::KEY_BackSpace if !held => {
@@ -573,7 +589,7 @@ impl State {
             self.lock_activity();
             return;
         }
-        info!("the power key; the session chooser is built in 9.11");
+        self.open_session_chooser();
     }
 
     /// logind announced sleep: lock if the setting asks, and let sleep go on once every lit

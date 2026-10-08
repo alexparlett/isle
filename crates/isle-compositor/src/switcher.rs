@@ -136,6 +136,7 @@ impl State {
             return;
         }
         self.set_prompt_aside();
+        self.close_session_dialog();
         self.close_menu_bar_group();
         let output = self
             .isle

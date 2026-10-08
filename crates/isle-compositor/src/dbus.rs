@@ -825,6 +825,29 @@ impl Test {
         Ok(self.to_loop.call(|state| state.isle.prompts_status()).await?)
     }
 
+    /// The session dialog and the session's end as JSON.
+    async fn session(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.session_status()).await?)
+    }
+
+    /// Presses what a test cannot reach by key: `force-quit {app}`, `show {app}`, and the
+    /// lock's `restart` and `shut-down`.
+    async fn session_act(&self, action: String) -> fdo::Result<()> {
+        use isle_shell::{lock::LockAction, prompts::session::SessionAction};
+        Ok(self
+            .to_loop
+            .call(move |state| match action.split_once(' ') {
+                Some(("force-quit", app)) => {
+                    state.session_action(SessionAction::ForceQuit(app.to_owned()))
+                }
+                Some(("show", app)) => state.session_action(SessionAction::ShowApp(app.to_owned())),
+                _ if action == "restart" => state.lock_power(LockAction::Restart),
+                _ if action == "shut-down" => state.lock_power(LockAction::ShutDown),
+                _ => {}
+            })
+            .await?)
+    }
+
     /// A prompt's answer was wrong: it asks again with `message`.
     async fn prompt_wrong(&self, id: u64, message: String) -> fdo::Result<()> {
         Ok(self

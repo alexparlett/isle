@@ -31,7 +31,7 @@
 //! modifiers in force after each `modifiers` event.
 
 use std::{
-    io::{BufRead, Write},
+    io::Write,
     os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd},
 };
 
@@ -1344,9 +1344,9 @@ fn main() {
     }
     client.started = true;
 
-    let stdin = std::io::stdin();
     let mut stdin_open = true;
-    let mut lines = stdin.lock();
+    // Raw reads, so every line that arrived together is run, not one per wake.
+    let mut pending: Vec<u8> = Vec::new();
     while !client.quit {
         if connection.flush().is_err() {
             break;
@@ -1383,10 +1383,16 @@ fn main() {
             break;
         }
         if fds[1].revents & (libc::POLLIN | libc::POLLHUP) != 0 {
-            let mut line = String::new();
-            match lines.read_line(&mut line) {
-                Ok(0) | Err(_) => stdin_open = false,
-                Ok(_) => client.command(line.trim(), &qh),
+            let mut buf = [0u8; 4096];
+            let n = unsafe { libc::read(0, buf.as_mut_ptr().cast(), buf.len()) };
+            if n <= 0 {
+                stdin_open = false;
+            } else {
+                pending.extend_from_slice(&buf[..n as usize]);
+            }
+            while let Some(at) = pending.iter().position(|b| *b == b'\n') {
+                let line: Vec<u8> = pending.drain(..=at).collect();
+                client.command(String::from_utf8_lossy(&line).trim(), &qh);
             }
         }
     }

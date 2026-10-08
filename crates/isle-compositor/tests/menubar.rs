@@ -61,11 +61,7 @@ async fn ctrl_f2_opens_the_system_menu_and_escape_gives_the_keys_back() {
     let system = &b["titles"][0];
     assert_eq!(system["kind"], "system");
     assert_eq!(item(system, "Sleep").unwrap()["enabled"], true);
-    assert_eq!(
-        item(system, "Restart…").unwrap()["enabled"],
-        false,
-        "the session dialog is P9's"
-    );
+    assert_eq!(item(system, "Restart…").unwrap()["enabled"], true);
 
     client.clear();
     isle.chord(&[ESC]).await;

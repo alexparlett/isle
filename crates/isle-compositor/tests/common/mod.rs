@@ -187,6 +187,11 @@ impl Isle {
         isle
     }
 
+    /// The compositor's exit status, once it has exited.
+    pub fn compositor_exit(&mut self) -> Option<std::process::ExitStatus> {
+        self.compositor.try_wait().unwrap()
+    }
+
     pub fn compositor_pid(&self) -> i32 {
         self.compositor.id() as i32
     }

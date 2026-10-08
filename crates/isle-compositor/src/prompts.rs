@@ -169,9 +169,10 @@ impl Isle {
         self.prompts.shown.as_ref().map(|(id, _, _)| *id)
     }
 
-    /// The scrim under a prompt on `output`: every screen dimmed while one shows.
+    /// The scrim under a prompt or the session dialog on `output`: every screen dimmed while
+    /// one shows.
     pub fn scrim_elements(&self, output: &Output, push: &mut dyn FnMut(IsleElement)) {
-        let Some((_, _, since)) = &self.prompts.shown else {
+        let Some(since) = self.scrim_since() else {
             return;
         };
         let Some(geometry) = self.space.output_geometry(output) else {
@@ -205,10 +206,8 @@ impl Isle {
     /// The scrim still fades in.
     pub fn scrim_fading(&self) -> bool {
         let fade = Duration::from_millis(self.shell.theme().tokens.motion_fade_ms as u64);
-        self.prompts
-            .shown
-            .as_ref()
-            .is_some_and(|(_, _, since)| since.elapsed() < fade)
+        self.scrim_since()
+            .is_some_and(|since| since.elapsed() < fade)
     }
 
     fn prompt_holds(&self) -> Holds {

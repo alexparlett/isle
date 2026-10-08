@@ -119,6 +119,8 @@ pub enum Action {
     Lock(crate::lock::LockAction),
     /// From a system prompt.
     Prompt(crate::prompts::PromptAction),
+    /// From the session dialog.
+    Session(crate::prompts::session::SessionAction),
 }
 
 /// What a title bar asks of its window.

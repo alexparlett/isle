@@ -16,7 +16,7 @@ use smithay::{
         timer::{TimeoutAction, Timer},
     },
 };
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::{focus::Focus, lock::Status, state::State};
 
@@ -305,6 +305,8 @@ impl State {
             }
         } else if lock.status == Status::Error {
             Line::Error
+        } else if let Some(words) = self.isle.lock_session_line() {
+            Line::Stopped(words)
         } else if caps {
             Line::CapsLock
         } else {
@@ -341,6 +343,7 @@ impl State {
                 .state
                 .system()
                 .and_then(|b| b.level.map(|l| (l, b.charging))),
+            power: self.isle.session.lock_power,
             solid: game || theme.appearance.reduce_transparency,
             still: game || theme.appearance.reduce_motion,
         }
@@ -515,9 +518,10 @@ impl State {
             LockAction::FieldFocus(on) => self.isle.lock.field_focused = on,
             LockAction::Wake => self.lock_activity(),
             LockAction::Sleep => self.isle.suspend(),
-            LockAction::Restart | LockAction::ShutDown => {
-                info!(?action, "the lock's power row; the session's end is 9.11's")
-            }
+            LockAction::Restart
+            | LockAction::ShutDown
+            | LockAction::PowerConfirm
+            | LockAction::PowerCancel => self.lock_power(action),
             LockAction::PlayPause => self.media_key(crate::binds::Media::PlayPause),
             LockAction::Next => self.media_key(crate::binds::Media::Next),
             LockAction::Previous => self.media_key(crate::binds::Media::Previous),

@@ -19,4 +19,6 @@ one at a time.
 - `p6-island-and-menus.md`: P6, the island, menus and wallpaper.
 - `p7-switcher.md`: P7, the app switcher.
 - `p8-services.md`: P8, services, notifications and Control Centre.
+- `p9-lock-and-prompts.md`: P9, the lock, idle, the system prompts and the
+  session's end.
 - Evidence: `docs/research/rust-desktop/`.

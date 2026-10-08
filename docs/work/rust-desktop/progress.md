@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-08
+
+- P9 planned in `p9-lock-and-prompts.md`, with research in
+  `docs/research/rust-desktop/lock-and-prompts-2026.md`: the lock as a state
+  of the core drawn by its own path, the runtime marker, PAM in an
+  `isle-auth` helper process (replacing ARCHITECTURE's PAM thread), Isle's
+  auth-and-account PAM service, the password held by the compositor, the
+  minimal lock at the second panic, sleep and power-key inhibitors, the
+  softened wallpaper made on the worker, one idle policy with its holds,
+  ScreenSaver, the dim and display off, one prompt queue over a compositor
+  scrim, the polkit, keyring, NetworkManager (VPN external UI included)
+  and Bluetooth agents, one session-ending engine, Force Quit. Reviewed
+  choice by choice: every recommendation taken but fingerprint, left out
+  until there is a reader, and logind's `Unlock`, honoured. One packet,
+  phases 9.0–9.14; the host run optional.
+
 ## 2026-10-07
 
 - P8 closed. ARCHITECTURE has How services reach the shell, How

@@ -291,3 +291,12 @@
   Focus decides; `p8-services.md` ends with its outcome; measures and the
   VM in `docs/research/rust-desktop/p8-services.md`. No host run. Next: P9
   (lock and prompts).
+- P9 planned in `p9-lock-and-prompts.md` (2026-10-08), reviewed choice by
+  choice: the lock is the core's state with its own render path and a
+  runtime marker; PAM runs in an `isle-auth` helper process; the compositor
+  holds the typed password; idle is one policy and one timer with
+  ScreenSaver served; prompts are one queue over a compositor scrim with
+  the polkit, keyring, NetworkManager and Bluetooth agents behind them; one
+  engine ends the session; Force Quit. Every recommendation taken but two:
+  no fingerprint in P9, and logind's `Unlock` honoured. Phases 9.0–9.14.
+  Next: 9.0 (the locked core).

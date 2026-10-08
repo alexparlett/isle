@@ -139,6 +139,18 @@ pub fn spawn(
             start(&runtime, &to_loop, "media", isle_media::watch, State::media_changed);
             start(&runtime, &to_loop, "disks", isle_disks::watch, State::disks_changed);
             start(&runtime, &to_loop, "cameras", isle_audio::camera::watch, State::cameras_changed);
+            let loop_p = to_loop.clone();
+            runtime.spawn(supervise("polkit-agent", move || {
+                crate::polkit::run(crate::prompts::PromptClient(loop_p.clone()))
+            }));
+            let loop_bt = to_loop.clone();
+            runtime.spawn(supervise("bluetooth-agent", move || {
+                crate::bluetooth_agent::run(crate::prompts::PromptClient(loop_bt.clone()))
+            }));
+            let loop_n = to_loop.clone();
+            runtime.spawn(supervise("secret-agent", move || {
+                crate::network_secrets::run(crate::prompts::PromptClient(loop_n.clone()))
+            }));
             runtime.block_on(supervise("dbus", move || {
                 crate::dbus::serve(to_loop.clone(), events.clone(), store.clone())
             }));

@@ -31,6 +31,9 @@ pub enum Layer {
     Top,
     /// Over everything a client can put on screen, overlays included (shell.md rule 13).
     Overlay,
+    /// A system prompt: over everything a client can show and the shell's overlays, with the
+    /// compositor's scrim under it; under the lock.
+    Prompt,
     /// The lock's own, drawn only while the session is locked and only by the lock's path.
     Lock,
 }
@@ -114,6 +117,8 @@ pub enum Action {
     Banner(crate::banners::BannerAction),
     /// From the lock's face.
     Lock(crate::lock::LockAction),
+    /// From a system prompt.
+    Prompt(crate::prompts::PromptAction),
 }
 
 /// What a title bar asks of its window.

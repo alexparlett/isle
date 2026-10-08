@@ -12,7 +12,8 @@
 //! shortcuts inhibitor, printing `inhibitor active|inactive`), `idle-inhibit` and
 //! `idle-uninhibit` (hold an idle inhibitor on the window, and let it go), `idle-notify MS`
 //! (an ext-idle-notify notification after MS of idle, printing `idled` and `resumed`), `linger` (a close of the
-//! first window destroys it but leaves the process running), `badge count=N progress=F
+//! first window destroys it but leaves the process running), `keep-open` (every close is
+//! refused, as by an app with unsaved work), `badge count=N progress=F
 //! urgent=B` (a LauncherEntry Update for the app id's entry; any of the three), `notify
 //! key=value...` (summary, body, icon, actions=key:Label,..., urgency, transient,
 //! resident, desktop-entry, image, replaces, timeout; underscores read as spaces),
@@ -107,6 +108,8 @@ struct Client {
     ignore_pings: bool,
     ignored_pings: Vec<u32>,
     linger: bool,
+    /// A close is answered by staying open, as an app with unsaved work does.
+    keep_open: bool,
     /// The next button press starts a move, or a resize from this edge.
     on_press: Option<Option<xdg_toplevel::ResizeEdge>>,
     /// The window the pointer is over, by index.
@@ -698,6 +701,7 @@ impl Client {
                     manager.inhibit_shortcuts(&self.wins[index].surface, seat, qh, ());
                 }
             }
+            ("keep-open", _) => self.keep_open = true,
             ("idle-inhibit", _) => {
                 if let Some(manager) = &self.idle_inhibits {
                     self.idle_inhibitor =
@@ -847,7 +851,9 @@ impl Dispatch<xdg_toplevel::XdgToplevel, usize> for Client {
             }
             xdg_toplevel::Event::Close => {
                 say(*index, "closed".into());
-                if *index == 0 && !state.linger {
+                if state.keep_open {
+                    // As an app with unsaved work: it stays and asks.
+                } else if *index == 0 && !state.linger {
                     state.quit = true;
                 } else {
                     let win = &mut state.wins[*index];
@@ -1248,6 +1254,7 @@ fn main() {
         dialogs: None,
         inhibits: None,
         idle_inhibits: None,
+        keep_open: false,
         idle_inhibitor: None,
         idle_notifier: None,
         activation: None,

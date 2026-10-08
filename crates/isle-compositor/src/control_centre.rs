@@ -456,6 +456,9 @@ impl State {
                 self.sound_action(action)
             }
             PanelAction::Notice(id) => self.notice_action(&id),
+            PanelAction::Activity { kind, action } if kind == "prompt" => {
+                self.prompt_activity(&action)
+            }
             other => info!(?other, "not built yet"),
         }
         self.follow_pages();

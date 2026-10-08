@@ -800,6 +800,51 @@ impl Test {
             .await?)
     }
 
+    /// Queues a prompt as an agent would, from JSON: `kind`, `title`, `message`, `fields`
+    /// (`id`, `label`, `secret`, `show`), `choices` (`id`, `label`, `checked`), `action`,
+    /// `cancel`, `details`, `code`, `typed`, `confirm`, `pid`, `user_started`, `checks`.
+    async fn prompt_ask(&self, json: String) -> fdo::Result<u64> {
+        let ask = crate::prompts::test_ask(&json).map_err(fdo::Error::InvalidArgs)?;
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let (send, mut answers) = tokio::sync::mpsc::unbounded_channel();
+                let id = state.prompt_ask(ask, send);
+                // The answers are recorded by the queue for the test to read.
+                if let Some(runtime) = &state.isle.worker {
+                    runtime.spawn(async move { while answers.recv().await.is_some() {} });
+                }
+                id
+            })
+            .await?)
+    }
+
+    /// The prompt queue as JSON: the one showing, whether armed, those waiting and why, the
+    /// answers the test's prompts received.
+    async fn prompts(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.prompts_status()).await?)
+    }
+
+    /// A prompt's answer was wrong: it asks again with `message`.
+    async fn prompt_wrong(&self, id: u64, message: String) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.prompt_wrong(id, message))
+            .await?)
+    }
+
+    async fn prompt_done(&self, id: u64) -> fdo::Result<()> {
+        Ok(self.to_loop.call(move |state| state.prompt_done(id)).await?)
+    }
+
+    /// The island's Show or Cancel on a waiting prompt.
+    async fn prompt_activity(&self, action: String) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.prompt_activity(&action))
+            .await?)
+    }
+
     /// Makes the lock's face panic once, as a fault in its tree would.
     async fn panic_lock(&self) -> fdo::Result<()> {
         Ok(self

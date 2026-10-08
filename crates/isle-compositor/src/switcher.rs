@@ -135,6 +135,7 @@ impl State {
         if self.isle.switcher.is_some() {
             return;
         }
+        self.set_prompt_aside();
         self.close_menu_bar_group();
         let output = self
             .isle

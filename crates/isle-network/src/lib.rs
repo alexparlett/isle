@@ -1,5 +1,7 @@
 //! NetworkManager: the wired link, Wi-Fi with its networks in range and those it knows, and
-//! VPN and WireGuard connections. Secrets are NetworkManager's and its agents' (P9).
+//! VPN and WireGuard connections; and the secret agent that asks for their passwords.
+
+pub mod agent;
 
 use std::collections::HashMap;
 

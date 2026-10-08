@@ -1,5 +1,7 @@
 //! BlueZ: the adapter, paired and nearby devices with their batteries, discovery, connecting
-//! and pairing. Codes are the pairing agent's, which P9 builds.
+//! and pairing; and the pairing agent that asks for codes.
+
+pub mod agent;
 
 use std::collections::HashMap;
 

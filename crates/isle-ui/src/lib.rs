@@ -2,6 +2,7 @@
 
 pub mod button;
 mod controls;
+pub mod field;
 mod glyph;
 pub mod menu;
 pub mod search;
@@ -16,6 +17,7 @@ use isle_tokens::{Colour, Theme};
 
 pub use button::{Button, LevelBar};
 pub use controls::{Spinner, Switch, scroll_area};
+pub use field::{CheckRow, Field, FieldText, Secret};
 pub use glyph::{AppIcon, Glyph, LevelGlyph, glyph_svg};
 pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
 pub use search::SearchField;

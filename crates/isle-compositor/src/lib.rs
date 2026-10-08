@@ -4,6 +4,7 @@ pub mod backend;
 mod badges;
 mod banners;
 mod binds;
+mod bluetooth_agent;
 pub mod build_info;
 pub mod crash;
 mod cursor;
@@ -21,17 +22,22 @@ mod island;
 mod centre;
 mod control_centre;
 mod control_edit;
+mod keyring;
 mod launch;
 mod lock;
 mod lock_face;
 mod menubar;
 mod menus;
+mod network_secrets;
 mod notifications;
 mod switcher;
+mod vpn_secrets;
 mod top_edge;
 mod osd;
 mod outputs;
+mod polkit;
 mod processes;
+mod prompts;
 mod screensaver;
 mod services;
 pub mod redraw;
@@ -237,6 +243,17 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         }
         Ok((_, false)) => warn!("another program serves org.freedesktop.ScreenSaver"),
         Err(err) => warn!("no ScreenSaver interface: {err}"),
+    }
+    // gnome-keyring, gcr's SSH agent and pinentry ask Isle's prompter, never gcr's own.
+    let keyring = runtime.block_on(async {
+        let conn = zbus::Connection::session().await?;
+        let owned = keyring::own(&conn, prompts::PromptClient(to_loop.clone())).await?;
+        Ok::<_, zbus::Error>((conn, owned))
+    });
+    match keyring {
+        Ok((conn, true)) => std::mem::forget(conn),
+        Ok((_, false)) => warn!("another program serves the keyring's prompts"),
+        Err(err) => warn!("no keyring prompter: {err}"),
     }
     // Apps look for the watcher once at start, as for the registrar.
     let tray = runtime.block_on(async {

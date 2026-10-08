@@ -84,8 +84,7 @@ impl State {
             move |state, result| {
                 if let Err(err) = result {
                     state.isle.services.joining = None;
-                    // With no secret agent until P9, a secured network NetworkManager has no
-                    // password for cannot be joined from here.
+                    // The password's prompt was cancelled, or nothing answered it.
                     let message = if err.contains("Secrets were required")
                         || err.contains("No agents")
                     {

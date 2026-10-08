@@ -11,3 +11,4 @@ accesskit.workspace = true
 bytes = "1"
 freya.workspace = true
 isle-tokens.workspace = true
+zeroize.workspace = true

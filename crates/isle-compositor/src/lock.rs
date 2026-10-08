@@ -257,7 +257,8 @@ impl Isle {
         )));
     }
 
-    /// While locked only the lock's own surfaces take the keyboard.
+    /// While locked only the lock's own surfaces take the keyboard; while a prompt shows, no
+    /// client does.
     pub fn lock_allows(&self, target: Option<&Focus>) -> bool {
         match target {
             None => true,
@@ -268,7 +269,7 @@ impl Isle {
                         .name_of(focus)
                         .is_some_and(|name| name.starts_with("lock"))
             }
-            Some(_) => !self.lock.locked,
+            Some(_) => !self.lock.locked && self.prompt_showing().is_none(),
         }
     }
 }
@@ -553,6 +554,7 @@ impl State {
     fn lock_changed(&mut self) {
         self.silence_check();
         self.arm_idle();
+        self.refresh_prompts();
         self.isle.notify(Event::LockChanged);
         let locked = self.isle.lock.locked;
         self.isle.run_service(

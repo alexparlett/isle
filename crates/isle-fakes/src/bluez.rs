@@ -1,6 +1,8 @@
 //! `org.bluez`: one adapter whose discovery finds a speaker, and the devices it starts with,
 //! under an object manager as BlueZ serves them.
 
+use std::sync::{Arc, Mutex};
+
 use zbus::{Connection, object_server::SignalEmitter};
 
 const ADAPTER: &str = "/org/bluez/hci0";
@@ -119,15 +121,52 @@ impl Battery {
     }
 }
 
+/// The agent registered: its owner, path, capability, and whether it is the default.
+#[derive(Clone, Debug, Default)]
+pub struct Agent {
+    pub sender: String,
+    pub path: String,
+    pub capability: String,
+    pub default: bool,
+}
+
+struct AgentManager(Arc<Mutex<Option<Agent>>>);
+
+#[zbus::interface(name = "org.bluez.AgentManager1")]
+impl AgentManager {
+    fn register_agent(
+        &self,
+        agent: zbus::zvariant::ObjectPath<'_>,
+        capability: String,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+    ) {
+        *self.0.lock().unwrap() = Some(Agent {
+            sender: header.sender().map(|s| s.to_string()).unwrap_or_default(),
+            path: agent.to_string(),
+            capability,
+            default: false,
+        });
+    }
+
+    fn request_default_agent(&self, _agent: zbus::zvariant::ObjectPath<'_>) {
+        if let Some(agent) = self.0.lock().unwrap().as_mut() {
+            agent.default = true;
+        }
+    }
+}
+
 /// BlueZ on the bus at an address, its adapter on.
 pub struct BlueZ {
     conn: Connection,
+    agent: Arc<Mutex<Option<Agent>>>,
 }
 
 impl BlueZ {
     pub async fn start(address: &str, devices: Vec<Device>) -> zbus::Result<Self> {
+        let agent = Arc::new(Mutex::new(None));
         let mut builder = zbus::connection::Builder::address(address)?
             .serve_at("/", zbus::fdo::ObjectManager)?
+            .serve_at("/org/bluez", AgentManager(agent.clone()))?
             .serve_at(
                 ADAPTER,
                 Adapter {
@@ -143,7 +182,39 @@ impl BlueZ {
             builder = builder.serve_at(p, DeviceIface(device))?;
         }
         let conn = builder.name("org.bluez")?.build().await?;
-        Ok(Self { conn })
+        Ok(Self { conn, agent })
+    }
+
+    /// The agent registered, once one has.
+    pub fn agent(&self) -> Option<Agent> {
+        self.agent.lock().unwrap().clone()
+    }
+
+    /// Calls the agent's `method` about device `id` with the rest of `args`, as BlueZ does
+    /// while pairing; its reply, or its error's name.
+    pub async fn ask_agent<B, R>(&self, method: &str, args: B) -> Result<R, String>
+    where
+        B: serde::Serialize + zbus::zvariant::DynamicType,
+        R: for<'d> zbus::zvariant::DynamicDeserialize<'d>,
+    {
+        let agent = self.agent().ok_or("no agent")?;
+        let proxy = zbus::Proxy::new(
+            &self.conn,
+            agent.sender.clone(),
+            agent.path.clone(),
+            "org.bluez.Agent1",
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+        proxy.call(method, &args).await.map_err(|e| match e {
+            zbus::Error::MethodError(name, _, _) => name.to_string(),
+            other => other.to_string(),
+        })
+    }
+
+    /// A device's path, for the agent's calls.
+    pub fn device_path(id: &str) -> zbus::zvariant::OwnedObjectPath {
+        zbus::zvariant::OwnedObjectPath::try_from(path(id)).unwrap()
     }
 
     async fn adapter(&self) -> zbus::object_server::InterfaceRef<Adapter> {

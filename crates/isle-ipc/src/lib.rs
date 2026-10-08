@@ -470,6 +470,14 @@ pub mod test {
         fn unlock(&self) -> zbus::Result<()>;
         /// Makes the lock's face panic once.
         fn panic_lock(&self) -> zbus::Result<()>;
+        /// Queues a prompt from JSON; its id.
+        fn prompt_ask(&self, json: &str) -> zbus::Result<u64>;
+        /// The prompt queue as JSON.
+        fn prompts(&self) -> zbus::Result<String>;
+        fn prompt_wrong(&self, id: u64, message: &str) -> zbus::Result<()>;
+        fn prompt_done(&self, id: u64) -> zbus::Result<()>;
+        /// The island's Show or Cancel on a waiting prompt.
+        fn prompt_activity(&self, action: &str) -> zbus::Result<()>;
         /// Moves idle's clock on.
         fn idle_advance(&self, millis: u64) -> zbus::Result<()>;
         /// The lock as JSON.

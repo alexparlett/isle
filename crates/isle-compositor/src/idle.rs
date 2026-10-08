@@ -457,6 +457,7 @@ impl State {
         }
         if self.isle.idle.windows_changed.take() {
             self.idle_holds_changed();
+            self.refresh_prompts();
         }
     }
 

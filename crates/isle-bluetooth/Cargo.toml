@@ -7,5 +7,7 @@ publish.workspace = true
 
 [dependencies]
 isle-bus.workspace = true
+tokio.workspace = true
+tracing.workspace = true
 serde.workspace = true
 zbus.workspace = true

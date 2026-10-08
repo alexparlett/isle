@@ -99,10 +99,19 @@ async fn the_page_scans_while_open_and_joins_what_it_can() {
     wait_until(|| async { nm.current().as_deref() == Some("Cafe") }).await;
     wait_until(|| async { isle.module("wifi").await["state"] == "Cafe" }).await;
 
-    // A secured network NetworkManager has no password for says so in its row.
+    // A secured network asks for its password; cancelled, its row says it needs one.
     let office = other_network(&isle, "Office").await;
     isle.panel(serde_json::json!({ "choose": ["wifi", office] }))
         .await;
+    wait_until(|| async {
+        let prompts: serde_json::Value =
+            serde_json::from_str(&isle.test().await.prompts().await.unwrap()).unwrap();
+        prompts["showing"].is_u64()
+    })
+    .await;
+    let test = isle.test().await;
+    test.key(1, true).await.unwrap();
+    test.key(1, false).await.unwrap();
     wait_until(|| async {
         let rows = isle.rows().await;
         let group = rows

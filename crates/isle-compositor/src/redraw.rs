@@ -245,6 +245,7 @@ impl State {
             // A shell surface, a window or a wallpaper still moving needs the next frame too.
             if self.isle.shell.animating(output)
                 || self.isle.dimming()
+                || self.isle.scrim_fading()
                 || self.isle.windows_moving(output)
                 || self.isle.wallpapers.fading(&Isle::output_identity(output))
                 || self.isle.island_moving(output)
@@ -289,6 +290,7 @@ impl State {
         // Something still moving that drew nothing visible this frame goes on at the next.
         if self.isle.shell.animating(output)
             || self.isle.dimming()
+                || self.isle.scrim_fading()
             || self.isle.windows_moving(output)
             || self.isle.wallpapers.fading(&Isle::output_identity(output))
             || self.isle.island_moving(output)

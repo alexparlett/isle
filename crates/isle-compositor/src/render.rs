@@ -24,6 +24,8 @@ use crate::state::Isle;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Stage {
     Cursor,
+    Prompt,
+    Scrim,
     ShellOverlay,
     LayerOverlay,
     ShellTop,
@@ -105,6 +107,7 @@ impl Isle {
         }
         let from = match layer {
             isle_shell::Layer::Overlay | isle_shell::Layer::Lock => Stage::LayerOverlay,
+            isle_shell::Layer::Prompt => Stage::Scrim,
             isle_shell::Layer::Top => Stage::Windows,
             isle_shell::Layer::Background => return,
         };
@@ -187,8 +190,27 @@ impl Isle {
             self.shell
                 .elements(output, layer, &mut |e| push(IsleElement::Shell(e)))
         };
+        // A prompt and the island over its scrim, the scrim over the rest.
+        let prompting = self.prompt_showing().is_some();
+        if from <= Stage::Prompt && prompting {
+            shell(isle_shell::Layer::Prompt, push);
+            self.shell
+                .elements_of(output, "island", &mut |e| push(IsleElement::Shell(e)));
+        }
+        if from <= Stage::Scrim && prompting {
+            self.scrim_elements(output, push);
+        }
         if from <= Stage::ShellOverlay {
-            shell(isle_shell::Layer::Overlay, push);
+            if prompting {
+                self.shell.elements_except(
+                    output,
+                    isle_shell::Layer::Overlay,
+                    "island",
+                    &mut |e| push(IsleElement::Shell(e)),
+                );
+            } else {
+                shell(isle_shell::Layer::Overlay, push);
+            }
         }
         let layers = layer_map_for_output(output);
         if from <= Stage::LayerOverlay {

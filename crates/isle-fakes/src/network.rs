@@ -42,6 +42,71 @@ struct Model {
     /// Active connections by saved index.
     active: Vec<usize>,
     scans: u32,
+    /// The secret agent's unique name, once one registers.
+    agent: Option<String>,
+    /// What a secured network takes.
+    password: String,
+}
+
+/// The settings a secured network's request carries, as NetworkManager sends them.
+fn wifi_settings(ssid: &str) -> HashMap<String, HashMap<String, OwnedValue>> {
+    let mut connection = HashMap::new();
+    connection.insert("id".to_owned(), OwnedValue::from(zbus::zvariant::Str::from(ssid.to_owned())));
+    connection.insert("uuid".to_owned(), OwnedValue::from(zbus::zvariant::Str::from("0f3e-test")));
+    connection.insert("type".to_owned(), OwnedValue::from(zbus::zvariant::Str::from("802-11-wireless")));
+    let mut wireless = HashMap::new();
+    wireless.insert(
+        "ssid".to_owned(),
+        OwnedValue::try_from(Value::from(ssid.as_bytes().to_vec())).unwrap(),
+    );
+    let mut security = HashMap::new();
+    security.insert("key-mgmt".to_owned(), OwnedValue::from(zbus::zvariant::Str::from("wpa-psk")));
+    HashMap::from([
+        ("connection".to_owned(), connection),
+        ("802-11-wireless".to_owned(), wireless),
+        ("802-11-wireless-security".to_owned(), security),
+    ])
+}
+
+/// Asks the agent `agent` for a setting's secrets, as NetworkManager does.
+async fn get_secrets(
+    conn: &Connection,
+    agent: &str,
+    settings: HashMap<String, HashMap<String, OwnedValue>>,
+    setting: &str,
+    hints: Vec<String>,
+    flags: u32,
+) -> Result<HashMap<String, HashMap<String, OwnedValue>>, String> {
+    let path = ObjectPath::try_from(format!("{NM}/Settings/99")).unwrap();
+    let reply = conn
+        .call_method(
+            Some(agent),
+            "/org/freedesktop/NetworkManager/SecretAgent",
+            Some("org.freedesktop.NetworkManager.SecretAgent"),
+            "GetSecrets",
+            &(settings, path, setting, hints, flags),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    reply.body().deserialize().map_err(|e| e.to_string())
+}
+
+struct AgentManager(Shared);
+
+#[zbus::interface(name = "org.freedesktop.NetworkManager.AgentManager")]
+impl AgentManager {
+    fn register_with_capabilities(
+        &self,
+        _identifier: String,
+        _capabilities: u32,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+    ) {
+        self.0.lock().unwrap().agent = header.sender().map(|s| s.to_string());
+    }
+
+    fn unregister(&self) {
+        self.0.lock().unwrap().agent = None;
+    }
 }
 
 type Shared = Arc<Mutex<Model>>;
@@ -138,6 +203,7 @@ impl Manager {
         _settings: HashMap<String, HashMap<String, OwnedValue>>,
         _device: ObjectPath<'_>,
         object: ObjectPath<'_>,
+        #[zbus(connection)] conn: &Connection,
         _options: HashMap<String, OwnedValue>,
         #[zbus(object_server)] server: &zbus::ObjectServer,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
@@ -147,6 +213,43 @@ impl Manager {
         HashMap<String, OwnedValue>,
     )> {
         let ap = index(&object).ok_or(zbus::fdo::Error::InvalidArgs("no such".into()))?;
+        // A secured network's password comes from the agent, asked again once if wrong.
+        let (secured, agent, ssid, password) = {
+            let m = self.0.lock().unwrap();
+            let network = m.aps.get(ap).cloned();
+            (
+                network.as_ref().is_some_and(|n| n.secured),
+                m.agent.clone(),
+                network.map(|n| n.ssid).unwrap_or_default(),
+                m.password.clone(),
+            )
+        };
+        let mut joined = !secured;
+        if let (true, Some(agent)) = (secured, agent) {
+            for flags in [0x1 | 0x4, 0x1 | 0x2 | 0x4] {
+                let secrets = get_secrets(
+                    conn,
+                    &agent,
+                    wifi_settings(&ssid),
+                    "802-11-wireless-security",
+                    Vec::new(),
+                    flags,
+                )
+                .await;
+                let given = secrets
+                    .ok()
+                    .and_then(|s| s.get("802-11-wireless-security")?.get("psk").cloned())
+                    .and_then(|v| String::try_from(v).ok());
+                match given {
+                    Some(given) if given == password => {
+                        joined = true;
+                        break;
+                    }
+                    Some(_) => continue,
+                    None => break,
+                }
+            }
+        }
         let i = {
             let mut m = self.0.lock().unwrap();
             let network = m
@@ -154,8 +257,7 @@ impl Manager {
                 .get(ap)
                 .cloned()
                 .ok_or(zbus::fdo::Error::InvalidArgs("no such".into()))?;
-            if network.secured {
-                // With no secret agent, NetworkManager has no way to ask for the password.
+            if !joined {
                 return Err(zbus::fdo::Error::Failed(
                     "Secrets were required, but not provided".into(),
                 ));
@@ -368,6 +470,8 @@ impl NetworkManager {
             saved,
             active,
             scans: 0,
+            agent: None,
+            password: "password".into(),
         }));
         let m = model.lock().unwrap();
         let mut builder = zbus::connection::Builder::address(address)?
@@ -375,7 +479,8 @@ impl NetworkManager {
             .serve_at(format!("{NM}/Settings"), Settings(model.clone()))?
             .serve_at(WIRED, Device(model.clone(), false))?
             .serve_at(WIFI, Device(model.clone(), true))?
-            .serve_at(WIFI, Wireless(model.clone()))?;
+            .serve_at(WIFI, Wireless(model.clone()))?
+            .serve_at(format!("{NM}/AgentManager"), AgentManager(model.clone()))?;
         for i in 0..m.aps.len() {
             builder = builder.serve_at(ap_path(i), AccessPoint(model.clone(), i))?;
         }
@@ -391,6 +496,35 @@ impl NetworkManager {
             .build()
             .await?;
         Ok(Self { model, conn })
+    }
+
+    /// Whether a secret agent has registered.
+    pub fn agent_registered(&self) -> bool {
+        self.model.lock().unwrap().agent.is_some()
+    }
+
+    /// What secured networks take; `password` until set.
+    pub fn set_password(&self, password: &str) {
+        self.model.lock().unwrap().password = password.to_owned();
+    }
+
+    /// Asks the agent for a setting's secrets in a connection of `settings`, as
+    /// NetworkManager does; its reply, or its error's text.
+    pub async fn ask_agent(
+        &self,
+        settings: HashMap<String, HashMap<String, OwnedValue>>,
+        setting: &str,
+        hints: Vec<String>,
+        flags: u32,
+    ) -> Result<HashMap<String, HashMap<String, OwnedValue>>, String> {
+        let agent = self
+            .model
+            .lock()
+            .unwrap()
+            .agent
+            .clone()
+            .ok_or("no agent")?;
+        get_secrets(&self.conn, &agent, settings, setting, hints, flags).await
     }
 
     /// Announces a change, as NetworkManager's signals do, so readers look again.

@@ -49,6 +49,10 @@ pub struct OutputState {
     pub redraw: RedrawState,
     pub frames_presented: u64,
     pending_feedback: Option<OutputPresentationFeedback>,
+    /// The frame waiting for its vblank was drawn by the lock's path.
+    locked_pending: bool,
+    /// The frame on screen was drawn by the lock's path.
+    pub locked_shown: bool,
 }
 
 impl OutputState {
@@ -195,8 +199,9 @@ impl State {
 
     fn redraw(&mut self, output: &Output) {
         let _beat = self.isle.heartbeat.beat("redraw");
-        // Away from the console, nothing is drawn; taking it back redraws every output.
-        if !self.backend.can_draw() {
+        // Away from the console, asleep or with the screens off, nothing is drawn; coming
+        // back redraws every output.
+        if !self.backend.can_draw() || self.isle.asleep || self.isle.idle.off {
             OutputState::of(output).borrow_mut().redraw = RedrawState::Idle;
             return;
         }
@@ -227,6 +232,7 @@ impl State {
             let mut state = OutputState::of(output).borrow_mut();
             state.pending_feedback = Some(feedback);
             state.frames_presented += 1;
+            state.locked_pending = self.isle.lock.locked;
             state.redraw = RedrawState::WaitingForVBlank {
                 redraw_needed: false,
             };
@@ -238,6 +244,7 @@ impl State {
             drop(state);
             // A shell surface, a window or a wallpaper still moving needs the next frame too.
             if self.isle.shell.animating(output)
+                || self.isle.dimming()
                 || self.isle.windows_moving(output)
                 || self.isle.wallpapers.fading(&Isle::output_identity(output))
                 || self.isle.island_moving(output)
@@ -281,6 +288,7 @@ impl State {
         OutputState::of(output).borrow_mut().redraw = RedrawState::WaitingForEstimatedVBlank(token);
         // Something still moving that drew nothing visible this frame goes on at the next.
         if self.isle.shell.animating(output)
+            || self.isle.dimming()
             || self.isle.windows_moving(output)
             || self.isle.wallpapers.fading(&Isle::output_identity(output))
             || self.isle.island_moving(output)
@@ -328,6 +336,7 @@ impl State {
                     } else {
                         RedrawState::Idle
                     };
+                    state.locked_shown = state.locked_pending;
                 }
                 other => {
                     // A vblank nobody waited for: the host asked for a redraw.
@@ -340,6 +349,9 @@ impl State {
             state.pending_feedback.take()
         };
         self.isle.shell.presented(output);
+        if self.isle.sleep_waiting {
+            self.sleep_ready();
+        }
         if let Some(mut feedback) = feedback {
             feedback.presented(
                 self.isle.clock.now(),

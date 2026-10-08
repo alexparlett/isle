@@ -112,6 +112,8 @@ pub enum Action {
     Switcher(crate::switcher::SwitcherAction),
     /// From the notification banners.
     Banner(crate::banners::BannerAction),
+    /// From the lock's face.
+    Lock(crate::lock::LockAction),
 }
 
 /// What a title bar asks of its window.

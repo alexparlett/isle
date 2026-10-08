@@ -69,6 +69,13 @@ impl Backend {
         }
     }
 
+    /// Turns an output's screen off, or lets its next frame light it again.
+    pub fn set_power(&mut self, output: &Output, on: bool) {
+        if let Backend::Udev(udev) = self {
+            udev.set_power(output, on);
+        }
+    }
+
     /// Whether frames can be drawn now: not while another session has the console.
     pub fn can_draw(&self) -> bool {
         match self {

@@ -222,7 +222,10 @@ impl Isle {
             focus: self.focus_hold(),
             game: self.game_mode_on(),
             full_screen: full_screen && self.settings.notifications.hold_full_screen,
-            away: self.services.login.state.preparing_for_sleep || self.lock.locked,
+            away: self.services.login.state.preparing_for_sleep
+                || self.lock.locked
+                || self.dimmed()
+                || self.idle.off,
             capture: false,
         }
     }
@@ -295,6 +298,11 @@ impl State {
     }
 
     fn notification_arrived(&mut self, n: Notification) {
+        self.notification_decided(n);
+        self.refresh_lock_face();
+    }
+
+    fn notification_decided(&mut self, n: Notification) {
         let app = self.isle.notification_app(&n);
         let holds = self.isle.holds();
         let (muted, over_full_screen) = self.isle.notification_rules(&app);

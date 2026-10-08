@@ -81,6 +81,7 @@ impl Isle {
             kinds.push(e.kind_name());
             push(e)
         };
+        self.dim_elements(output, push);
         if self.lock.locked {
             self.render_locked(output, renderer, cursor, true, push);
         } else {

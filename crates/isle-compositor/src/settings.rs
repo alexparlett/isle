@@ -136,6 +136,9 @@ impl State {
         let touched =
             |prefix: &str| changed.is_none_or(|keys| keys.iter().any(|k| k.starts_with(prefix)));
         self.isle.settings = settings;
+        if touched("lock-screen") {
+            self.arm_idle();
+        }
 
         if touched("keyboard") {
             self.apply_keyboard_settings();

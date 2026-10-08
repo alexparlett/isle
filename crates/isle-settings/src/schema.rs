@@ -44,6 +44,8 @@ pub struct Settings {
     pub focus_mode: BTreeMap<String, FocusMode>,
     #[setting(section)]
     pub notifications: Notifications,
+    #[setting(section)]
+    pub lock_screen: ScreenLock,
     /// An app's notification rules, by its desktop id.
     #[setting(keyed)]
     pub notification_app: BTreeMap<String, NotificationApp>,
@@ -718,6 +720,23 @@ pub struct Notifications {
     /// What the lock screen shows of notifications.
     #[setting(default = LockScreen::Count)]
     pub lock_screen: LockScreen,
+}
+
+/// Idle's steps and the lock before sleep (Settings › Lock Screen).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct ScreenLock {
+    /// Minutes with no input before the screens dim; 0 never.
+    #[setting(default = 5, range = 0..=240)]
+    pub dim_after: i32,
+    /// Minutes with no input before the session locks; 0 never.
+    #[setting(default = 10, range = 0..=240)]
+    pub lock_after: i32,
+    /// Minutes with no input before the screens turn off; 0 never.
+    #[setting(default = 15, range = 0..=240)]
+    pub display_off_after: i32,
+    /// Lock before every sleep.
+    #[setting(default = true)]
+    pub lock_on_sleep: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

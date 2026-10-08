@@ -119,6 +119,18 @@ pub struct Isle {
     pub wallpapers: crate::wallpaper::Wallpapers,
     pub island: crate::island::IslandState,
     pub lock: crate::lock::LockState,
+    pub idle: crate::idle::IdleState,
+    pub idle_notifier_state: smithay::wayland::idle_notify::IdleNotifierState<State>,
+    /// The outputs changed under the lock; its face is shown again on the next dispatch.
+    pub lock_outputs_changed: bool,
+    /// Surfaces that panicked in the last dispatch.
+    pub panicked: Vec<String>,
+    /// Lets the sleep logind is waiting on go ahead.
+    pub may_sleep: Option<tokio::sync::watch::Sender<bool>>,
+    /// Sleep waits for every screen to show the lock.
+    pub sleep_waiting: bool,
+    /// Asleep: nothing is drawn until resume.
+    pub asleep: bool,
     pub services: crate::services::Services,
     pub notifications: crate::notifications::NotificationsState,
     pub banners: crate::banners::BannersState,
@@ -278,6 +290,9 @@ impl Isle {
         let xwayland_grab_state =
             smithay::wayland::xwayland_keyboard_grab::XWaylandKeyboardGrabState::new::<State>(&dh);
         // Its keys are a client's own, sent with its own keymap and never translated.
+        smithay::wayland::idle_inhibit::IdleInhibitManagerState::new::<State>(&dh);
+        let idle_notifier_state =
+            smithay::wayland::idle_notify::IdleNotifierState::<State>::new(&dh, loop_handle.clone());
         let virtual_keyboard_state =
             smithay::wayland::virtual_keyboard::VirtualKeyboardManagerState::new::<State, _>(&dh, |_| true);
 
@@ -311,6 +326,9 @@ impl Isle {
         shell.register(bar.window_menu.clone());
         shell.register(bar.about.clone());
         shell.register(switcher_surface.clone());
+        let lock = crate::lock::LockState::default();
+        shell.register(lock.face.surface.clone());
+        shell.register(lock.face.minimal.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -376,7 +394,14 @@ impl Isle {
             desktops: Default::default(),
             wallpapers: Default::default(),
             island,
-            lock: Default::default(),
+            lock,
+            idle: Default::default(),
+            idle_notifier_state,
+            lock_outputs_changed: false,
+            panicked: Vec::new(),
+            may_sleep: None,
+            sleep_waiting: false,
+            asleep: false,
             top_edge: Default::default(),
             bar,
             menus: Default::default(),
@@ -582,6 +607,7 @@ impl Isle {
     /// Runs the shell surfaces whose wakers fired and redraws the outputs they changed.
     pub fn dispatch_shell(&mut self) -> Vec<(String, Option<isle_shell::ShellFocus>, isle_shell::Action)> {
         let dispatched = self.shell.dispatch();
+        self.panicked.extend(dispatched.panicked.iter().cloned());
         let mut actions: Vec<(String, Option<isle_shell::ShellFocus>, isle_shell::Action)> = dispatched
             .disabled
             .into_iter()
@@ -631,6 +657,7 @@ impl Isle {
         self.shell.set_outputs(places);
         self.dispatch_shell();
         self.refresh_island();
+        self.lock_outputs_changed = true;
     }
 
     pub fn queue_redraw_all(&mut self) {
@@ -698,7 +725,14 @@ impl State {
 
     /// Runs the shell surfaces whose wakers fired, then what they asked for, in order.
     pub fn dispatch_shell(&mut self) {
-        for (name, focus, action) in self.isle.dispatch_shell() {
+        let actions = self.isle.dispatch_shell();
+        for name in std::mem::take(&mut self.isle.panicked) {
+            self.lock_panicked(&name);
+        }
+        if std::mem::take(&mut self.isle.lock_outputs_changed) && self.isle.lock.locked {
+            self.show_lock_face();
+        }
+        for (name, focus, action) in actions {
             match action {
                 isle_shell::Action::Window(action) => {
                     if let Some(id) = focus.and_then(|f| self.isle.shell.attached_key(&f)) {
@@ -715,6 +749,7 @@ impl State {
                 isle_shell::Action::Menu(event) => self.window_menu_event(event),
                 isle_shell::Action::Switcher(action) => self.switcher_pointer(action),
                 isle_shell::Action::Banner(action) => self.banner_action(action),
+                isle_shell::Action::Lock(action) => self.lock_action(action),
                 isle_shell::Action::Key(code) => {
                     use crate::keyboard::ISLE_DEVICE;
                     use smithay::backend::input::{InputTime, KeyState};

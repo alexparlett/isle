@@ -74,6 +74,11 @@ impl Session {
         Ok(self.to_loop.call(|state| state.lock("the bus")).await?)
     }
 
+    /// Idle as JSON: how long, dimmed, the screens off, the steps come, what holds it.
+    async fn idle(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.idle_status()).await?)
+    }
+
     #[zbus(property)]
     async fn locked(&self) -> fdo::Result<bool> {
         Ok(self.to_loop.call(|state| state.isle.lock.locked).await?)
@@ -561,6 +566,11 @@ impl Displays {
         Ok(self.to_loop.call(|state| state.redetect()).await?)
     }
 
+    /// Turns every screen off now; any input lights them.
+    async fn sleep(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.displays_sleep()).await?)
+    }
+
     #[zbus(signal)]
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
@@ -780,6 +790,25 @@ impl Test {
     /// the minutes left of a lockout.
     async fn lock_status(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.isle.lock_status()).await?)
+    }
+
+    /// Moves idle's clock on by `millis`, as that long with no input would.
+    async fn idle_advance(&self, millis: u64) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.idle_advance(std::time::Duration::from_millis(millis)))
+            .await?)
+    }
+
+    /// Makes the lock's face panic once, as a fault in its tree would.
+    async fn panic_lock(&self) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                state.isle.lock.face.injected += 1;
+                state.refresh_lock_face();
+            })
+            .await?)
     }
 
     /// Ends the lock with no password, as only a test may.

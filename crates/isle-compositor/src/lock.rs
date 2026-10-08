@@ -53,7 +53,6 @@ impl Status {
 /// The longest password the field takes.
 const FIELD_LIMIT: usize = 512;
 
-#[derive(Default)]
 pub struct LockState {
     pub locked: bool,
     pub since: Option<Instant>,
@@ -67,6 +66,7 @@ pub struct LockState {
     pub locked_out_until: Option<Instant>,
     /// An attempt is with the helper.
     pub pending: bool,
+    pub face: crate::lock_face::FaceState,
     /// The worker's task that owns the helper; aborting it kills the helper.
     helper: Option<(
         tokio::sync::mpsc::UnboundedSender<Zeroizing<String>>,
@@ -79,6 +79,27 @@ pub struct LockState {
     /// What each output's last frame was made of, by output name, for the Test interface.
     #[cfg(feature = "test-hooks")]
     pub frame_kinds: RefCell<HashMap<String, Vec<&'static str>>>,
+}
+
+impl Default for LockState {
+    fn default() -> Self {
+        Self {
+            locked: false,
+            since: None,
+            field: Default::default(),
+            field_focused: true,
+            status: Status::None,
+            failures: 0,
+            locked_out_until: None,
+            pending: false,
+            face: crate::lock_face::FaceState::new(),
+            helper: None,
+            return_window: None,
+            washes: Default::default(),
+            #[cfg(feature = "test-hooks")]
+            frame_kinds: Default::default(),
+        }
+    }
 }
 
 fn runtime_dir() -> PathBuf {
@@ -144,6 +165,10 @@ impl Isle {
             "status": self.lock.status.name(),
             "failures": self.lock.failures,
             "pending": self.lock.pending,
+            "face": self.lock.face.output,
+            "minimal": self.lock.face.minimal_on,
+            "awake": self.lock.face.awake,
+            "field_focused": self.lock.field_focused,
             "minutes": self.lock.locked_out_until.map(|until| {
                 until.saturating_duration_since(Instant::now()).as_secs().div_ceil(60)
             }),
@@ -177,6 +202,8 @@ impl Isle {
                 .get_pointer()
                 .map(|p| p.current_location())
                 .filter(|p| geometry.to_f64().contains(*p));
+            // A dozing face hides the pointer.
+            let pointer = pointer.filter(|_| self.lock.face.awake);
             if let (CursorImageStatus::Named(_), Some(at), Some(cursor)) =
                 (&self.cursor_status, pointer, cursor)
             {
@@ -255,12 +282,28 @@ impl State {
         set_marker(true);
         info!(why, "locked");
         self.isle.lock.return_window = self.focused_window();
+        for output in self.isle.space.outputs() {
+            crate::redraw::OutputState::of(output).borrow_mut().locked_shown = false;
+        }
         self.isle.lock.locked = true;
         self.isle.lock.since = Some(Instant::now());
         self.isle.lock.field_focused = true;
+        self.isle.lock.face.first_note = self.isle.notifications.next_id;
         self.take_input_back();
+        self.isle.island.model.set_locked(true);
+        self.isle.refresh_island();
+        self.show_lock_face();
         self.isle.queue_redraw_all();
         self.lock_changed();
+    }
+
+    /// A compositor started locked shows the face once its outputs are lit.
+    pub fn locked_at_start(&mut self) {
+        if self.isle.lock.locked {
+            self.isle.island.model.set_locked(true);
+            self.isle.refresh_island();
+            self.show_lock_face();
+        }
     }
 
     /// Ends the lock and gives the keyboard back to the window that had it.
@@ -273,6 +316,9 @@ impl State {
         self.isle.lock.since = None;
         set_marker(false);
         self.end_auth();
+        self.hide_lock_face();
+        self.isle.island.model.set_locked(false);
+        self.isle.refresh_island();
         let window = self
             .isle
             .lock
@@ -363,11 +409,7 @@ impl State {
                     return false;
                 }
                 if !held && self.isle.lock.field.len() < FIELD_LIMIT {
-                    if self.isle.lock.status == Status::Wrong
-                        || self.isle.lock.status == Status::Error
-                    {
-                        self.isle.lock.status = Status::None;
-                    }
+                    self.isle.lock.face.error_edge = false;
                     self.isle.lock.field.push(c);
                     self.field_changed();
                 }
@@ -377,7 +419,7 @@ impl State {
     }
 
     fn field_changed(&mut self) {
-        self.isle.queue_redraw_all();
+        self.refresh_lock_face();
     }
 
     /// Return in the field: the password goes to the helper, off the loop.
@@ -401,6 +443,7 @@ impl State {
         }
         self.isle.lock.pending = true;
         self.isle.lock.status = Status::Checking;
+        self.arm_check_long();
         self.field_changed();
     }
 
@@ -478,6 +521,7 @@ impl State {
                     lock.failures += 1;
                     lock.status = Status::Wrong;
                     info!(failures = lock.failures, "a wrong password");
+                    self.lock_wrong();
                 }
             },
             Ok(isle_auth::Outcome {
@@ -508,6 +552,73 @@ impl State {
 
     fn lock_changed(&mut self) {
         self.silence_check();
+        self.arm_idle();
         self.isle.notify(Event::LockChanged);
+        let locked = self.isle.lock.locked;
+        self.isle.run_service(
+            crate::services::login::set_hint(Some(locked), None),
+            |_, result| {
+                if let Err(err) = result {
+                    tracing::debug!("logind's locked hint: {err}");
+                }
+            },
+        );
+    }
+
+    /// The power key: the lock's face wakes; otherwise the session chooser opens.
+    pub fn power_key(&mut self) {
+        if self.isle.lock.locked {
+            self.lock_activity();
+            return;
+        }
+        info!("the power key; the session chooser is built in 9.11");
+    }
+
+    /// logind announced sleep: lock if the setting asks, and let sleep go on once every lit
+    /// screen shows the lock (choice 10).
+    pub fn before_sleep(&mut self) {
+        if let Some(gate) = &self.isle.may_sleep {
+            gate.send_replace(false);
+        }
+        if self.isle.settings.lock_screen.lock_on_sleep {
+            self.lock("sleep");
+        }
+        self.isle.sleep_waiting = true;
+        self.isle.queue_redraw_all();
+        self.sleep_ready();
+    }
+
+    /// Sleep goes on once every screen's frame on show is the lock's, or at once when the
+    /// lock is not wanted; drawing stops until resume.
+    pub fn sleep_ready(&mut self) {
+        if !self.isle.sleep_waiting {
+            return;
+        }
+        let shown = !self.isle.lock.locked
+            || self
+                .isle
+                .space
+                .outputs()
+                .all(|o| crate::redraw::OutputState::of(o).borrow().locked_shown);
+        if !shown {
+            return;
+        }
+        self.isle.sleep_waiting = false;
+        self.isle.asleep = true;
+        info!("ready for sleep");
+        if let Some(gate) = &self.isle.may_sleep {
+            gate.send_replace(true);
+        }
+    }
+
+    /// Back from sleep: drawing resumes, and the face wakes.
+    pub fn after_sleep(&mut self) {
+        self.isle.sleep_waiting = false;
+        self.isle.asleep = false;
+        if let Some(gate) = &self.isle.may_sleep {
+            gate.send_replace(false);
+        }
+        self.isle.queue_redraw_all();
+        self.lock_activity();
     }
 }

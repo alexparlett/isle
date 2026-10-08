@@ -21,6 +21,7 @@ impl Isle {
         self.adopt_strays(output);
         self.rescue_windows();
         self.output_set_changed();
+        self.idle.output_events.push((output.clone(), true));
     }
 
     /// Every window on the output's desktops moves whole onto the nearest output, joining
@@ -31,6 +32,7 @@ impl Isle {
         };
         let identity = Self::output_identity(output);
         self.wallpapers.forget(&identity);
+        self.idle.output_events.push((output.clone(), false));
         let leaving: Vec<(u64, Rectangle<i32, Logical>)> = self
             .wm
             .records

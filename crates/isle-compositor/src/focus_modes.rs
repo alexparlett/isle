@@ -125,6 +125,13 @@ impl Isle {
         Some((mode.name.clone(), mode.allowed.clone(), mode.critical))
     }
 
+    /// The symbol of the Focus in force, as its glyph draws it.
+    pub fn focus_symbol(&self) -> String {
+        self.focus_glyph()
+            .map(|g| g.symbol)
+            .unwrap_or_else(|| "moon".into())
+    }
+
     fn focus_glyph(&self) -> Option<Glyph> {
         let active = self.focus.active.as_ref()?;
         let symbol = self
@@ -307,6 +314,7 @@ impl State {
         if changed {
             info!(?active, ?origin, "focus");
             self.focus_changed(before, origin);
+            self.refresh_lock_face();
         }
         self.arm_focus_timer(&cfg, &now);
         if let Some(saver) = &self.isle.focus.saver {

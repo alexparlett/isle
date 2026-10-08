@@ -65,6 +65,9 @@ impl State {
     }
 
     pub fn on_axis(&mut self, frame: AxisFrame) {
+        if self.idle_activity() {
+            return;
+        }
         let pointer = self.isle.seat.get_pointer().unwrap();
         pointer.axis(self, frame);
         pointer.frame(self);
@@ -73,6 +76,7 @@ impl State {
     /// Moves the pointer by `delta`, held to the outputs; the top edge sees the travel the
     /// edge stopped.
     pub fn on_pointer_by(&mut self, delta: Point<f64, Logical>, time: InputTime) {
+        self.idle_activity();
         let pointer = self.isle.seat.get_pointer().unwrap();
         let target = self.isle.clamp_to_outputs(pointer.current_location() + delta);
         self.move_pointer(target, time);
@@ -83,6 +87,7 @@ impl State {
 
     /// Moves the pointer to `location` in the global space.
     pub fn on_pointer_to(&mut self, location: Point<f64, Logical>, time: InputTime) {
+        self.idle_activity();
         let from = self.isle.seat.get_pointer().unwrap().current_location();
         self.move_pointer(location, time);
         if !self.isle.lock.locked {
@@ -103,7 +108,9 @@ impl State {
             },
         );
         pointer.frame(self);
-        if !self.isle.lock.locked {
+        if self.isle.lock.locked {
+            self.lock_pointer_moved();
+        } else {
             self.refresh_pointer_cursor();
             self.update_bar_option();
             self.check_zoom_dwell();
@@ -121,6 +128,11 @@ impl State {
     pub fn on_button(&mut self, button: u32, button_state: ButtonState, time: InputTime) {
         let pointer = self.isle.seat.get_pointer().unwrap();
         let serial = SERIAL_COUNTER.next_serial();
+        // A press that wakes dark screens lands on nothing, and neither does its release.
+        if button_state == ButtonState::Pressed && self.idle_activity() {
+            self.isle.taken_buttons.insert(button);
+            return;
+        }
         match button_state {
             ButtonState::Pressed => self.isle.buttons_down.insert(button),
             ButtonState::Released => self.isle.buttons_down.remove(&button),

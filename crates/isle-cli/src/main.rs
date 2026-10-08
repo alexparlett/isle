@@ -33,6 +33,8 @@ enum Command {
     Quit,
     /// Lock the screen.
     Lock,
+    /// How long the session has been idle, and what keeps it awake.
+    Idle,
     #[command(subcommand)]
     Windows(Windows),
     #[command(subcommand)]
@@ -172,6 +174,8 @@ enum Displays {
     List,
     /// Release every display and probe the connectors again, as after a KVM switch.
     Redetect,
+    /// Turn the displays off now; any input lights them.
+    Sleep,
 }
 
 #[derive(Subcommand)]
@@ -557,6 +561,25 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Displays(Displays::Redetect) => DisplaysProxy::new(&bus).await?.redetect().await?,
+        Command::Displays(Displays::Sleep) => DisplaysProxy::new(&bus).await?.sleep().await?,
+        Command::Idle => {
+            let status: serde_json::Value =
+                serde_json::from_str(&SessionProxy::new(&bus).await?.idle().await?).unwrap_or_default();
+            if cli.json {
+                println!("{status}");
+            } else {
+                let holders: Vec<String> = status["holders"]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(|h| h.as_str().map(str::to_owned)).collect())
+                    .unwrap_or_default();
+                println!("idle for {} s", status["idle_ms"].as_u64().unwrap_or(0) / 1000);
+                if holders.is_empty() {
+                    println!("nothing holds it");
+                } else {
+                    println!("held by {}", holders.join(", "));
+                }
+            }
+        }
         Command::Displays(Displays::List) => {
             let displays = DisplaysProxy::new(&bus).await?.list().await?;
             if cli.json {

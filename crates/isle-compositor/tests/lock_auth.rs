@@ -134,6 +134,8 @@ async fn a_wrong_password_counts_and_the_right_one_unlocks() {
         after["dots"], 0,
         "the field is cleared after a wrong password"
     );
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("lock-wrong").await;
 
     window.clear();
     type_keys(&isle, &[I, S, L, E, RETURN]).await;

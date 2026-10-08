@@ -6,5 +6,6 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+libc.workspace = true
 zbus.workspace = true
 zvariant.workspace = true

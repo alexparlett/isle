@@ -14,6 +14,7 @@ mod focus_modes;
 mod games;
 mod grabs;
 mod handlers;
+mod idle;
 mod input;
 mod keyboard;
 mod island;
@@ -22,6 +23,7 @@ mod control_centre;
 mod control_edit;
 mod launch;
 mod lock;
+mod lock_face;
 mod menubar;
 mod menus;
 mod notifications;
@@ -30,6 +32,7 @@ mod top_edge;
 mod osd;
 mod outputs;
 mod processes;
+mod screensaver;
 mod services;
 pub mod redraw;
 mod render;
@@ -159,6 +162,8 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         _ => backend::headless::setup(&mut state)?,
     }
     state.sync_island();
+    state.locked_at_start();
+    state.arm_idle();
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };
@@ -217,6 +222,22 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(err) => warn!("no notification server: {err}"),
     }
+    // Players and games ask it to hold the screen awake from their start.
+    let saver = runtime.block_on(async {
+        let conn = zbus::Connection::session().await?;
+        let owned = screensaver::own(&conn, to_loop.clone()).await?;
+        Ok::<_, zbus::Error>((conn, owned))
+    });
+    match saver {
+        Ok((conn, true)) => {
+            let (loop_s, events) = (to_loop.clone(), state.isle.events.clone());
+            runtime.spawn(worker::supervise("screensaver", move || {
+                screensaver::follow(conn.clone(), loop_s.clone(), events.clone())
+            }));
+        }
+        Ok((_, false)) => warn!("another program serves org.freedesktop.ScreenSaver"),
+        Err(err) => warn!("no ScreenSaver interface: {err}"),
+    }
     // Apps look for the watcher once at start, as for the registrar.
     let tray = runtime.block_on(async {
         let conn = zbus::Connection::session().await?;
@@ -236,6 +257,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         state.isle.space.refresh();
         state.isle.popups.cleanup();
         state.switcher_after_dispatch();
+        state.idle_after_dispatch();
         state.redraw_queued();
         let _ = state.isle.display_handle.flush_clients();
     })?;

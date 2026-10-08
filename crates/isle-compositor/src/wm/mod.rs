@@ -300,6 +300,9 @@ impl Isle {
         if matches!(event, Event::WindowsChanged) && self.switcher.is_some() {
             self.switcher_dirty.set(true);
         }
+        if matches!(event, Event::WindowsChanged) {
+            self.idle.windows_changed.set(true);
+        }
         let _ = self.events.send(event);
     }
 

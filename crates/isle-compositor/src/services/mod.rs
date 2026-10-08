@@ -109,6 +109,7 @@ where
         to_loop.post(move |state| {
             *state.isle.services.applied.entry(name).or_default() += 1;
             apply(state, snapshot);
+            state.refresh_lock_face();
         });
         tokio::time::sleep(FRAME).await;
     }

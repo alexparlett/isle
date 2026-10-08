@@ -132,13 +132,18 @@ fn locale_24_hour() -> bool {
     }
 }
 
-/// The clock's strftime format, and the widest string it can make.
-fn clock_format(settings: &isle_settings::schema::Island) -> (String, String) {
-    let hours = match settings.clock_24_hour {
+/// Whether the clock shows 24-hour time, from the setting or the locale.
+pub fn clock_24_hour(settings: &isle_settings::schema::Island) -> bool {
+    match settings.clock_24_hour {
         ClockHours::On => true,
         ClockHours::Off => false,
         ClockHours::Auto => locale_24_hour(),
-    };
+    }
+}
+
+/// The clock's strftime format, and the widest string it can make.
+fn clock_format(settings: &isle_settings::schema::Island) -> (String, String) {
+    let hours = clock_24_hour(settings);
     let mut format = String::new();
     let mut widest = String::new();
     if settings.clock_weekday {

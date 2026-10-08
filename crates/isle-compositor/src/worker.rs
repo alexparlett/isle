@@ -125,6 +125,12 @@ pub fn spawn(
             }));
             use crate::services::start;
             start(&runtime, &to_loop, "login", crate::services::login::watch, State::login_changed);
+            let (may_sleep, may_sleep_rx) = tokio::sync::watch::channel(false);
+            to_loop.post(move |state| state.isle.may_sleep = Some(may_sleep));
+            let loop_l = to_loop.clone();
+            runtime.spawn(supervise("login-hold", move || {
+                crate::services::login::hold(loop_l.clone(), may_sleep_rx.clone())
+            }));
             start(&runtime, &to_loop, "power", isle_power::watch_batteries, State::power_changed);
             start(&runtime, &to_loop, "profiles", isle_power::watch_profiles, State::profiles_changed);
             start(&runtime, &to_loop, "audio", isle_audio::watch, State::audio_changed);

@@ -9,7 +9,9 @@
 //! `window` (another toplevel), `dialog` and `modal` (a toplevel whose parent is this one),
 //! `destroy`, `unmap` (a null buffer), `remap` (a commit that asks to be configured again),
 //! `pings ignore|answer` (answering those ignored so far), `inhibit` (hold a keyboard
-//! shortcuts inhibitor, printing `inhibitor active|inactive`), `linger` (a close of the
+//! shortcuts inhibitor, printing `inhibitor active|inactive`), `idle-inhibit` and
+//! `idle-uninhibit` (hold an idle inhibitor on the window, and let it go), `idle-notify MS`
+//! (an ext-idle-notify notification after MS of idle, printing `idled` and `resumed`), `linger` (a close of the
 //! first window destroys it but leaves the process running), `badge count=N progress=F
 //! urgent=B` (a LauncherEntry Update for the app id's entry; any of the three), `notify
 //! key=value...` (summary, body, icon, actions=key:Label,..., urgency, transient,
@@ -45,6 +47,12 @@ use wayland_protocols::xdg::{
     decoration::zv1::client::{zxdg_decoration_manager_v1, zxdg_toplevel_decoration_v1},
     dialog::v1::client::{xdg_dialog_v1, xdg_wm_dialog_v1},
     shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base},
+};
+use wayland_protocols::ext::idle_notify::v1::client::{
+    ext_idle_notification_v1, ext_idle_notifier_v1,
+};
+use wayland_protocols::wp::idle_inhibit::zv1::client::{
+    zwp_idle_inhibit_manager_v1, zwp_idle_inhibitor_v1,
 };
 use wayland_protocols::wp::keyboard_shortcuts_inhibit::zv1::client::{
     zwp_keyboard_shortcuts_inhibit_manager_v1, zwp_keyboard_shortcuts_inhibitor_v1,
@@ -89,6 +97,9 @@ struct Client {
     decorations: Option<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1>,
     dialogs: Option<xdg_wm_dialog_v1::XdgWmDialogV1>,
     inhibits: Option<zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1>,
+    idle_inhibits: Option<zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1>,
+    idle_inhibitor: Option<zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1>,
+    idle_notifier: Option<ext_idle_notifier_v1::ExtIdleNotifierV1>,
     activation: Option<xdg_activation_v1::XdgActivationV1>,
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
@@ -687,6 +698,25 @@ impl Client {
                     manager.inhibit_shortcuts(&self.wins[index].surface, seat, qh, ());
                 }
             }
+            ("idle-inhibit", _) => {
+                if let Some(manager) = &self.idle_inhibits {
+                    self.idle_inhibitor =
+                        Some(manager.create_inhibitor(&self.wins[index].surface, qh, ()));
+                }
+            }
+            ("idle-uninhibit", _) => {
+                if let Some(inhibitor) = self.idle_inhibitor.take() {
+                    inhibitor.destroy();
+                }
+            }
+            ("idle-notify", _) => {
+                let ms = rest.first().and_then(|ms| ms.parse::<u32>().ok());
+                if let (Some(notifier), Some(seat), Some(ms)) =
+                    (&self.idle_notifier, &self.seat, ms)
+                {
+                    notifier.get_idle_notification(ms, seat, qh, ());
+                }
+            }
             ("quit", _) => self.quit = true,
             _ => say(index, format!("unknown command {verb}")),
         }
@@ -729,6 +759,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                     state.inhibits = Some(registry.bind(name, 1, qh, ()))
                 }
                 "xdg_activation_v1" => state.activation = Some(registry.bind(name, 1, qh, ())),
+                "zwp_idle_inhibit_manager_v1" => {
+                    state.idle_inhibits = Some(registry.bind(name, 1, qh, ()))
+                }
+                "ext_idle_notifier_v1" => state.idle_notifier = Some(registry.bind(name, 1, qh, ())),
                 "org_kde_kwin_appmenu_manager" => state.appmenus = Some(registry.bind(name, 2, qh, ())),
                 "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
                 _ => {}
@@ -1042,6 +1076,23 @@ impl Dispatch<zwp_keyboard_shortcuts_inhibitor_v1::ZwpKeyboardShortcutsInhibitor
     }
 }
 
+impl Dispatch<ext_idle_notification_v1::ExtIdleNotificationV1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &ext_idle_notification_v1::ExtIdleNotificationV1,
+        event: ext_idle_notification_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            ext_idle_notification_v1::Event::Idled => say(0, "idled".into()),
+            ext_idle_notification_v1::Event::Resumed => say(0, "resumed".into()),
+            _ => {}
+        }
+    }
+}
+
 impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
     fn event(
         _: &mut Self,
@@ -1157,6 +1208,9 @@ ignore!(
     xdg_wm_dialog_v1::XdgWmDialogV1,
     xdg_dialog_v1::XdgDialogV1,
     zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1,
+    zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1,
+    zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1,
+    ext_idle_notifier_v1::ExtIdleNotifierV1,
     wl_compositor::WlCompositor,
     wl_shm::WlShm,
     wl_shm_pool::WlShmPool,
@@ -1193,6 +1247,9 @@ fn main() {
         decorations: None,
         dialogs: None,
         inhibits: None,
+        idle_inhibits: None,
+        idle_inhibitor: None,
+        idle_notifier: None,
         activation: None,
         appmenus: None,
         gtk_shell: None,

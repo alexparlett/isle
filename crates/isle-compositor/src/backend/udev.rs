@@ -79,6 +79,9 @@ struct Lit {
     output: Output,
     global: GlobalId,
     surface: Surface,
+    /// Lit again after being off: its first frame is composited, never scanned out
+    /// directly, which some NVIDIA cards fault on waking into.
+    woken: bool,
 }
 
 struct Device {
@@ -187,9 +190,14 @@ impl Udev {
         };
         let mut elements = Vec::new();
         isle.render_elements(renderer, output, cursor, &mut |e| elements.push(e));
+        let flags = if std::mem::take(&mut lit.woken) {
+            FrameFlags::empty()
+        } else {
+            FrameFlags::DEFAULT
+        };
         let result = lit
             .surface
-            .render_frame(renderer, &elements, CLEAR, FrameFlags::DEFAULT)
+            .render_frame(renderer, &elements, CLEAR, flags)
             .map_err(|e| format!("{e:?}"))?;
         let damaged = !result.is_empty;
         let states = result.states;
@@ -197,6 +205,28 @@ impl Udev {
             lit.surface.queue_frame(()).map_err(|e| format!("{e:?}"))?;
         }
         Ok(Rendered { damaged, states })
+    }
+}
+
+impl Udev {
+    /// Off disables the output's connector and CRTC; on waits for the next frame, which
+    /// lights it with a mode set.
+    pub fn set_power(&mut self, output: &Output, on: bool) {
+        let Some(id) = output.user_data().get::<OutputId>().copied() else {
+            return;
+        };
+        let Some(lit) = self
+            .devices
+            .get_mut(&id.device)
+            .and_then(|d| d.lit.get_mut(&id.crtc))
+        else {
+            return;
+        };
+        if on {
+            lit.woken = true;
+        } else if let Err(err) = lit.surface.with_compositor(|c| c.clear()) {
+            tracing::warn!(output = output.name(), "could not turn the screen off: {err:?}");
+        }
     }
 }
 
@@ -538,6 +568,7 @@ impl State {
                 output: output.clone(),
                 global,
                 surface,
+                woken: false,
             },
         );
 

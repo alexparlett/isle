@@ -292,6 +292,8 @@ pub mod session {
         fn quit(&self) -> zbus::Result<()>;
         /// Locks the session.
         fn lock(&self) -> zbus::Result<()>;
+        /// Idle as JSON.
+        fn idle(&self) -> zbus::Result<String>;
         #[zbus(property)]
         fn locked(&self) -> zbus::Result<bool>;
         #[zbus(signal)]
@@ -441,6 +443,8 @@ pub mod displays {
         fn list(&self) -> zbus::Result<Vec<DisplayInfo>>;
         /// Releases every output and probes the connectors again, as one step.
         fn redetect(&self) -> zbus::Result<()>;
+        /// Turns every screen off now.
+        fn sleep(&self) -> zbus::Result<()>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }
@@ -464,6 +468,10 @@ pub mod test {
         fn banners(&self) -> zbus::Result<String>;
         /// Ends the lock with no password.
         fn unlock(&self) -> zbus::Result<()>;
+        /// Makes the lock's face panic once.
+        fn panic_lock(&self) -> zbus::Result<()>;
+        /// Moves idle's clock on.
+        fn idle_advance(&self, millis: u64) -> zbus::Result<()>;
         /// The lock as JSON.
         fn lock_status(&self) -> zbus::Result<String>;
         /// What an output's last frame was made of, front to back.

@@ -2696,6 +2696,7 @@ dependencies = [
 name = "isle-fakes"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "zbus",
  "zvariant",
 ]

@@ -340,6 +340,11 @@ impl State {
         use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
         let delay = self.isle.settings.keyboard.slow_keys;
         let key = (id.to_owned(), code);
+        // A key that wakes dark screens is not typed, and neither is its release.
+        if key_state == KeyState::Pressed && self.idle_activity() {
+            self.isle.swallowed.insert(key);
+            return;
+        }
         match key_state {
             KeyState::Pressed if delay > 0 => {
                 let (id_owned, name_owned) = (id.to_owned(), name.to_owned());
@@ -413,8 +418,17 @@ impl State {
                 self.isle.swallowed.insert(key);
                 return;
             }
+            // logind leaves the power key to Isle, which holds its inhibitor.
+            KeyState::Pressed if code == KEY_POWER => {
+                self.isle.swallowed.insert(key);
+                self.power_key();
+                return;
+            }
             KeyState::Released if self.isle.swallowed.remove(&key) => return,
             _ => {}
+        }
+        if key_state == KeyState::Pressed {
+            self.lock_activity();
         }
         let game = self.focus_is_game();
         let (swap, spec) = {
@@ -812,6 +826,9 @@ pub async fn watch_tables(
     })
     .await
 }
+
+/// The power button's key, which the session chooser takes, or the lock's row.
+const KEY_POWER: u32 = 116;
 
 /// Left Alt and left Super traded.
 fn swapped(code: u32) -> u32 {

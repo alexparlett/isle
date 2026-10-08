@@ -45,6 +45,7 @@ use smithay::{
 pub use surface::{Action, Actions, Here, Layer, Scope, SurfaceDef, WindowAction};
 pub mod chrome;
 pub mod island;
+pub mod lock;
 pub mod menubar;
 pub mod placed_menu;
 pub mod switcher;
@@ -132,6 +133,8 @@ pub struct Dispatched {
     pub cursors: Vec<(ShellFocus, freya::prelude::CursorIcon)>,
     /// Surfaces turned off after panicking too often; the compositor closes them.
     pub disabled: Vec<String>,
+    /// Surfaces that panicked and were rebuilt or turned off, once for each panic.
+    pub panicked: Vec<String>,
 }
 
 /// Every shell surface, and what they share: fonts and one Skia context.
@@ -154,6 +157,8 @@ pub struct Shell {
     glass_programs: Option<blur::Programs>,
     /// Waits for the GPU after each draw and times it; for measuring, never in use.
     measure: bool,
+    /// Surfaces rebuilt or turned off since the last dispatch, once for each panic.
+    panicked: Vec<String>,
 }
 
 impl Shell {
@@ -174,6 +179,7 @@ impl Shell {
             clip: None,
             glass_programs: None,
             measure: false,
+            panicked: Vec::new(),
             a11y: a11y::Requests::new(ping.clone()),
             fonts: Fonts::new(families),
             gpu: None,
@@ -383,17 +389,20 @@ impl Shell {
             }
         }
         out.disabled = self.recover();
+        out.panicked = std::mem::take(&mut self.panicked);
         out
     }
 
     /// Rebuilds every instance that panicked from its definition, or turns it off after its
-    /// sixth panic in a minute. Returns the names turned off.
+    /// sixth panic in a minute. Returns the names turned off; those that panicked wait for
+    /// the next dispatch.
     fn recover(&mut self) -> Vec<String> {
         let mut disabled = Vec::new();
         // A rebuild can panic too; each pass counts one more panic, so this ends.
         while let Some(index) = self.instances.iter().position(|i| i.crashed && !i.disabled) {
             let mut instance = self.instances.remove(index);
             instance.crashed = false;
+            self.panicked.push(instance.def.name().to_string());
             let now = std::time::Instant::now();
             instance.panics.push_back(now);
             while instance

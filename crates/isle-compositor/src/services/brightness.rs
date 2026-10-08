@@ -180,6 +180,13 @@ impl Isle {
                 ))),
             }
         }
+        let holders = self.idle_holders();
+        if !holders.is_empty() {
+            rows.push(PageRow::Status(format!(
+                "Kept awake by {}",
+                holders.join(", ")
+            )));
+        }
         let here = panel_output
             .and_then(|o| self.services.screens.get(&o))
             .or_else(|| self.services.screens.values().next());

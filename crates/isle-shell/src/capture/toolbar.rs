@@ -105,6 +105,8 @@ pub struct Bar {
     pub recording: bool,
     /// A portal's request: the asking app's name and icon; the action reads Share.
     pub request: Option<(String, Option<std::path::PathBuf>)>,
+    /// Choosing a portion for the share picker: Close and the action only.
+    pub chooser: bool,
     pub focus: Option<Control>,
     pub solid: bool,
     pub contrast: bool,
@@ -114,6 +116,9 @@ impl Bar {
     pub fn action_label(&self) -> Option<&'static str> {
         if self.mode.window() {
             return None;
+        }
+        if self.chooser {
+            return Some("Choose");
         }
         Some(
             match (self.request.is_some(), self.recording, self.mode.records()) {
@@ -178,6 +183,9 @@ impl ToolbarSurface {
         let action = bar.action_label().map_or(0.0, |l| {
             l.len() as f32 * font * 0.55 + 2.0 * t.space_l + gap
         });
+        if bar.chooser {
+            return (2.0 * t.space_s + close + action).ceil();
+        }
         let request = bar.request.as_ref().map_or(0.0, |(app, _)| {
             t.size_app_icon_small + t.space_xs + (app.len() + 18) as f32 * font * 0.5 + gap
         });
@@ -418,18 +426,20 @@ impl App for ToolbarApp {
                     )),
             );
         }
-        row = row
-            .child(rule())
-            .child(modes)
-            .child(rule())
-            .child(icon_button(
-                "eyedropper",
-                "Pick colour",
-                Control::PickColour,
-                ToolbarAction::PickColour,
-            ))
-            .child(rule())
-            .child(options);
+        if !bar.chooser {
+            row = row
+                .child(rule())
+                .child(modes)
+                .child(rule())
+                .child(icon_button(
+                    "eyedropper",
+                    "Pick colour",
+                    Control::PickColour,
+                    ToolbarAction::PickColour,
+                ))
+                .child(rule())
+                .child(options);
+        }
         if let Some(label) = bar.action_label() {
             let actions = actions.clone();
             row = row.child(rule()).child(

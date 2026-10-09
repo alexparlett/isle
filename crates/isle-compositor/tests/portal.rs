@@ -13,6 +13,10 @@ const BACKEND: &str = "org.freedesktop.impl.portal.desktop.isle";
 const PATH: &str = "/org/freedesktop/portal/desktop";
 const RETURN: u32 = 28;
 const ESCAPE: u32 = 1;
+const TAB: u32 = 15;
+const BACKSPACE: u32 = 14;
+const M: u32 = 50;
+const A: u32 = 30;
 
 /// A connection that owns the frontend's name, as xdg-desktop-portal would.
 pub async fn frontend(isle: &Isle) -> zbus::Connection {
@@ -260,7 +264,7 @@ async fn a_share_chosen_in_the_picker_streams_comes_back_without_asking_and_stop
     let started = start(&frontend, &s1, 1);
     wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
     let picker = share(&isle).await["picker"].clone();
-    assert_eq!(picker["tabs"], serde_json::json!(["Screens", "Windows"]));
+    assert_eq!(picker["tabs"], serde_json::json!(["Screens", "Windows", "Portion"]));
     assert_eq!(picker["remember"], true);
     wait_until(|| async { share(&isle).await["picker"]["previews"].as_u64() == Some(1) }).await;
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -405,6 +409,68 @@ async fn an_ask_made_while_locked_waits_for_the_unlock() {
     wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
     press(&isle, ESCAPE).await;
     assert_eq!(started.await.unwrap().0, 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_portion_chosen_through_the_toolbar_is_shared_and_typing_narrows_the_windows() {
+    let mut isle = Isle::start("portal-portion").await;
+    if !isle.start_audio().await {
+        return;
+    }
+    let red = isle.client("isle.test.Red", "ff0000");
+    red.wait_for("keyboard-enter").await;
+    red.send("title Notes");
+    let blue = isle.client("isle.test.Blue", "0000ff");
+    blue.wait_for("keyboard-enter").await;
+    blue.send("title Mail");
+    let frontend = frontend(&isle).await;
+    let s = session(&frontend, 1, None).await;
+    let started = start(&frontend, &s, 1);
+    wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
+
+    // Typing on the Windows tab narrows its tiles; Backspace widens them again.
+    press(&isle, TAB).await;
+    wait_until(|| async { share(&isle).await["picker"]["tiles"].as_array().unwrap().len() == 2 })
+        .await;
+    for key in [M, A] {
+        press(&isle, key).await;
+    }
+    wait_until(|| async { share(&isle).await["picker"]["filter"] == "ma" }).await;
+    let tiles = share(&isle).await["picker"]["tiles"].clone();
+    assert_eq!(tiles.as_array().unwrap().len(), 1, "{tiles}");
+    press(&isle, BACKSPACE).await;
+    press(&isle, BACKSPACE).await;
+    wait_until(|| async { share(&isle).await["picker"]["tiles"].as_array().unwrap().len() == 2 })
+        .await;
+
+    // Portion of screen: Space opens the toolbar to choose it, and Choose brings the picker
+    // back with it chosen.
+    press(&isle, TAB).await;
+    wait_until(|| async { share(&isle).await["picker"]["tiles"].as_array().unwrap().is_empty() })
+        .await;
+    press(&isle, SPACE).await;
+    let toolbar = || async {
+        serde_json::from_str::<serde_json::Value>(&isle.test().await.toolbar().await.unwrap())
+            .unwrap()
+    };
+    wait_until(|| async { toolbar().await["share"] == true }).await;
+    assert_eq!(share(&isle).await["picker"]["choosing"], true);
+    assert_eq!(share(&isle).await["picker"]["drawn"], false);
+    isle.keep_shot("share-portion-toolbar").await;
+    press(&isle, RETURN).await;
+    wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
+    let picker = share(&isle).await["picker"].clone();
+    assert_eq!(picker["chosen"], serde_json::json!(["portion"]));
+    let [_, _, w, h] = serde_json::from_value::<[i32; 4]>(picker["portion"].clone()).unwrap();
+    wait_until(|| async { share(&isle).await["picker"]["previews"].as_u64() == Some(1) }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.keep_shot("share-portion").await;
+    press(&isle, RETURN).await;
+    let (response, results) = started.await.unwrap();
+    assert_eq!(response, 0);
+    let (node, _) = first_node(&results);
+    let consumer = isle.consumer(node);
+    consumer.wait_for(&format!("format {w}x{h}")).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

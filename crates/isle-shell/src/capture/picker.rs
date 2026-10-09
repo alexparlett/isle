@@ -6,7 +6,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use freya::{elements::image::ImageHandle, prelude::*};
 use freya_embed::AppComponent;
 use isle_tokens::Theme;
-use isle_ui::{AppIcon, Button, button::Kind, colour, focus_ring, shadows, text, use_theme};
+use isle_ui::{AppIcon, Button, Glyph, button::Kind, colour, focus_ring, shadows, text, use_theme};
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
 use crate::surface::{Action, Actions, Layer, Scope, SurfaceDef};
@@ -15,6 +15,7 @@ use crate::surface::{Action, Actions, Layer, Scope, SurfaceDef};
 pub enum Tab {
     Screens,
     Windows,
+    Portion,
 }
 
 impl Tab {
@@ -22,6 +23,7 @@ impl Tab {
         match self {
             Tab::Screens => "Screens",
             Tab::Windows => "Windows",
+            Tab::Portion => "Portion of screen",
         }
     }
 }
@@ -40,6 +42,16 @@ pub struct Tile {
 /// A tile's live picture, compared by its image.
 #[derive(Clone)]
 pub struct Preview(pub ImageHandle);
+
+/// An image of premultiplied RGBA rows, as a portion's readback gives.
+pub fn image_from_rgba(width: u32, height: u32, rgba: Vec<u8>) -> Option<ImageHandle> {
+    ImageHandle::from_rgba(
+        width,
+        height,
+        bytes::Bytes::from(rgba),
+        freya::engine::prelude::AlphaType::Premul,
+    )
+}
 
 impl PartialEq for Preview {
     fn eq(&self, other: &Self) -> bool {
@@ -67,6 +79,8 @@ pub struct Model {
     pub multiple: bool,
     /// "Let {app} share this again without asking", when the app asks to keep it.
     pub remember: Option<bool>,
+    /// What has been typed to narrow the windows.
+    pub filter: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -77,6 +91,11 @@ pub enum PickerAction {
     /// The keyboard's tile moves by a step; nought chooses it.
     Step(i32),
     Remember(bool),
+    /// "Select portion…": the toolbar chooses the portion.
+    SelectPortion,
+    /// Typed text narrowing the windows; Backspace takes the last character.
+    Type(String),
+    Erase,
     Share,
     Cancel,
 }
@@ -258,13 +277,17 @@ impl App for PickerApp {
             .corner_radius(t.radius_card)
             .background(colour(t.colour_window_sunken))
             .spacing(t.space_m);
-        if model.tiles.is_empty() {
+        let tab = model.tabs.get(model.tab).copied();
+        if model.tiles.is_empty() && tab != Some(Tab::Portion) {
             grid = grid.center().child(text::line(
                 &theme,
                 text::Style::Body,
                 colour(t.colour_text_2),
                 "No windows",
             ));
+        }
+        if tab == Some(Tab::Portion) {
+            grid = grid.center();
         }
         for row in model.tiles.chunks(columns).enumerate() {
             let (r, tiles) = row;
@@ -338,6 +361,36 @@ impl App for PickerApp {
             }
             grid = grid.child(line);
         }
+        if tab == Some(Tab::Portion) {
+            let select = actions.clone();
+            grid = grid.child(
+                Button::new("Select portion…")
+                    .on_press(move |_| send(&select, PickerAction::SelectPortion)),
+            );
+        }
+        let filter = (tab == Some(Tab::Windows) && !model.filter.is_empty()).then(|| {
+            rect()
+                .position(Position::new_absolute().right(0.).top(0.))
+                .width(Size::px(t.size_toolbar_search))
+                .height(Size::px(t.size_control))
+                .corner_radius(t.radius_row)
+                .background(colour(t.colour_fill))
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .padding((0., t.space_s))
+                .spacing(t.space_xs)
+                .child(Glyph::new(
+                    "magnifying-glass",
+                    t.size_glyph_small,
+                    colour(t.colour_text_2),
+                ))
+                .child(text::line(
+                    &theme,
+                    text::Style::Body,
+                    colour(t.colour_text),
+                    model.filter.clone(),
+                ))
+        });
 
         let mut options = rect().spacing(t.space_s);
         if let Some(on) = model.remember {
@@ -371,8 +424,6 @@ impl App for PickerApp {
         };
         let (cancel, share, keys) = (actions.clone(), actions.clone(), actions.clone());
         let can_share = !model.chosen.is_empty();
-        let tab_count = model.tabs.len();
-        let tab_now = model.tab;
         rect()
             .expanded()
             .padding(margin)
@@ -380,14 +431,15 @@ impl App for PickerApp {
                 let action = match &e.key {
                     Key::Named(NamedKey::Escape) => Some(PickerAction::Cancel),
                     Key::Named(NamedKey::Enter) => Some(PickerAction::Share),
-                    Key::Named(NamedKey::Tab) if tab_count > 1 => {
-                        Some(PickerAction::Tab((tab_now + 1) % tab_count))
-                    }
                     Key::Named(NamedKey::ArrowLeft) => Some(PickerAction::Step(-1)),
                     Key::Named(NamedKey::ArrowRight) => Some(PickerAction::Step(1)),
                     Key::Named(NamedKey::ArrowUp) => Some(PickerAction::Step(-(columns as i32))),
                     Key::Named(NamedKey::ArrowDown) => Some(PickerAction::Step(columns as i32)),
                     Key::Character(c) if c == " " => Some(PickerAction::Step(0)),
+                    Key::Named(NamedKey::Backspace) => Some(PickerAction::Erase),
+                    Key::Character(c) if !e.modifiers.intersects(Modifiers::CONTROL | Modifiers::META | Modifiers::ALT) => {
+                        Some(PickerAction::Type(c.to_string()))
+                    }
                     _ => None,
                 };
                 if let Some(action) = action {
@@ -421,7 +473,13 @@ impl App for PickerApp {
                             )),
                     )
                     .child(rect().height(Size::px(t.space_m)))
-                    .child(rect().width(Size::fill()).center().child(tabs))
+                    .child(
+                        rect()
+                            .width(Size::fill())
+                            .center()
+                            .child(tabs)
+                            .maybe_child(filter),
+                    )
                     .child(rect().height(Size::px(t.space_m)))
                     .child(
                         rect()

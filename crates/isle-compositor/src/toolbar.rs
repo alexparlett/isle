@@ -102,6 +102,8 @@ pub struct Toolbar {
     moved: bool,
     /// A portal's interactive Screenshot: the shot goes to the app.
     request: Option<PortalShot>,
+    /// Choosing a portion for the share picker.
+    share: bool,
     solids: RefCell<HashMap<(String, usize), SolidColorBuffer>>,
     /// Each output's round handles and the rounded line round a lifted window.
     shapes: crate::wm::draw::Shapes,
@@ -502,6 +504,7 @@ impl State {
             menu_open: false,
             moved: false,
             request: None,
+            share: false,
             solids: RefCell::default(),
             shapes: Default::default(),
         });
@@ -511,6 +514,9 @@ impl State {
     }
 
     pub fn close_toolbar(&mut self) {
+        if self.isle.toolbar.is_some() {
+            self.keep_capture_state();
+        }
         let Some(mut toolbar) = self.isle.toolbar.take() else {
             return;
         };
@@ -518,6 +524,7 @@ impl State {
         if let Some(reply) = toolbar.request.as_mut().and_then(|r| r.reply.take()) {
             let _ = reply.send(None);
         }
+        let share = toolbar.share;
         if toolbar.menu_open {
             self.close_surface("window-menu");
         }
@@ -525,8 +532,10 @@ impl State {
         self.isle.shell.close("capture-readout");
         self.isle.cursor_status = CursorImageStatus::default_named();
         self.backend.update_cursor(&self.isle);
-        self.keep_capture_state();
         self.isle.queue_redraw_all();
+        if share {
+            self.share_portion_chosen(None);
+        }
     }
 
     /// The bar's place: where it was dragged to on this screen, else centred above the
@@ -575,12 +584,25 @@ impl State {
         };
         let theme = self.isle.shell.theme();
         let game = self.game_in_front();
+        if toolbar.share {
+            return Bar {
+                mode: Mode::ShotPortion,
+                allowed: vec![Mode::ShotPortion],
+                recording: false,
+                request: None,
+                chooser: true,
+                focus: toolbar.focus,
+                solid: theme.appearance.reduce_transparency || game,
+                contrast: theme.appearance.increase_contrast,
+            };
+        }
         if let Some(request) = &toolbar.request {
             return Bar {
                 mode: toolbar.mode,
                 allowed: Mode::ALL.into_iter().filter(|m| !m.records()).collect(),
                 recording: false,
                 request: Some((request.app.clone(), request.icon.clone())),
+                chooser: false,
                 focus: toolbar.focus,
                 solid: theme.appearance.reduce_transparency || game,
                 contrast: theme.appearance.increase_contrast,
@@ -603,6 +625,7 @@ impl State {
                 .collect(),
             recording: self.recording(),
             request: None,
+            chooser: false,
             focus: toolbar.focus,
             solid: theme.appearance.reduce_transparency || game,
             contrast: theme.appearance.increase_contrast,
@@ -799,19 +822,24 @@ impl State {
         let Some(toolbar) = self.isle.toolbar.as_mut() else {
             return false;
         };
-        let groups = [
-            Control::Close,
-            Control::Modes,
-            Control::PickColour,
-            Control::Options,
-            Control::Act,
-        ];
+        let groups: &[Control] = if toolbar.share {
+            &[Control::Close, Control::Act]
+        } else {
+            &[
+                Control::Close,
+                Control::Modes,
+                Control::PickColour,
+                Control::Options,
+                Control::Act,
+            ]
+        };
         let has_act = !toolbar.mode.window();
         match code {
             KEY_ESC => self.close_toolbar(),
             KEY_TAB => {
                 let present: Vec<Control> = groups
-                    .into_iter()
+                    .iter()
+                    .copied()
                     .filter(|c| *c != Control::Act || has_act)
                     .collect();
                 let i = toolbar
@@ -887,6 +915,24 @@ impl State {
         let Some(toolbar) = &self.isle.toolbar else {
             return;
         };
+        if toolbar.share {
+            let Some(screen) = self.isle.space.output_geometry(&toolbar.output) else {
+                return;
+            };
+            let chosen = (
+                toolbar.output.clone(),
+                Rectangle::new(
+                    (toolbar.portion.loc - screen.loc.to_f64()).to_i32_round(),
+                    toolbar.portion.size.to_i32_round(),
+                ),
+            );
+            if let Some(toolbar) = self.isle.toolbar.as_mut() {
+                toolbar.share = false;
+            }
+            self.close_toolbar();
+            self.share_portion_chosen(Some(chosen));
+            return;
+        }
         if self.recording() && toolbar.mode.records() {
             self.close_toolbar();
             self.stop_recording();
@@ -938,6 +984,29 @@ impl State {
             _ => return,
         };
         self.toolbar_take(target);
+    }
+
+    /// "Select portion…" in the share picker: the toolbar in portion mode with Close and
+    /// Choose, on `portion` when one was chosen before (local to its output).
+    pub fn open_toolbar_for_share(&mut self, portion: Option<(Output, Rectangle<i32, Logical>)>) {
+        if self.isle.toolbar.is_some() {
+            return;
+        }
+        self.open_toolbar(false);
+        let Some(toolbar) = self.isle.toolbar.as_mut() else {
+            return self.share_portion_chosen(None);
+        };
+        toolbar.mode = Mode::ShotPortion;
+        toolbar.share = true;
+        toolbar.focus = None;
+        if let Some((output, rect)) = portion
+            && let Some(screen) = self.isle.space.output_geometry(&output)
+        {
+            toolbar.output = output;
+            toolbar.portion = Rectangle::new(rect.loc + screen.loc, rect.size).to_f64();
+        }
+        self.place_toolbar();
+        self.toolbar_changed();
     }
 
     /// An app's interactive Screenshot: the toolbar on the shot modes, naming the app, its
@@ -1284,7 +1353,10 @@ impl State {
         {
             let identity = Isle::output_identity(&toolbar.output);
             let state = &mut self.isle.capture_state;
-            state.mode = toolbar.mode.key().into();
+            // The share's chooser keeps the portion, not its fixed mode.
+            if !toolbar.share {
+                state.mode = toolbar.mode.key().into();
+            }
             if toolbar.moved {
                 state.toolbar = Some(isle_state::domains::Spot {
                     output: identity.clone(),
@@ -1330,6 +1402,7 @@ impl State {
             "focus": t.focus.map(|f| format!("{f:?}")),
             "drawn": self.isle.shell.is_open("capture-toolbar"),
             "request": t.request.as_ref().map(|r| r.app.clone()),
+            "share": t.share,
         })
         .to_string()
     }

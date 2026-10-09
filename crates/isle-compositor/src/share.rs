@@ -65,6 +65,10 @@ struct Picking {
     /// The asking app's window, while the picker is a sheet on it.
     parent: Option<u64>,
     sheet: Option<Rc<PickerSurface>>,
+    /// The portion chosen through the toolbar, local to its output.
+    portion: Option<(smithay::output::Output, Rectangle<i32, Logical>)>,
+    /// The toolbar is choosing the portion; the picker is put away until it is done.
+    choosing: bool,
 }
 
 struct Grant {
@@ -343,6 +347,9 @@ impl State {
         if selection.types & isle_portal::screencast::WINDOW != 0 {
             tabs.push(Tab::Windows);
         }
+        if selection.types & isle_portal::screencast::MONITOR != 0 {
+            tabs.push(Tab::Portion);
+        }
         let mut model = Model {
             icon: self.isle.app_icon(app_id.trim_end_matches(".desktop"), 32),
             app,
@@ -364,13 +371,27 @@ impl State {
             timer: None,
             parent: self.isle.parent_window(parent_window),
             sheet: None,
+            portion: None,
+            choosing: false,
         });
         self.share_previews();
         self.open_picker();
     }
 
     fn share_tiles(&self, tab: Option<Tab>) -> Vec<Tile> {
+        let picking = self.isle.share.picking.as_ref();
         match tab {
+            Some(Tab::Portion) => picking
+                .and_then(|p| p.portion.as_ref())
+                .map(|(_, rect)| Tile {
+                    key: "portion".into(),
+                    title: "Portion of screen".into(),
+                    subtitle: format!("{} × {}", rect.size.w, rect.size.h),
+                    icon: None,
+                    preview: None,
+                })
+                .into_iter()
+                .collect(),
             Some(Tab::Screens) | None => self
                 .isle
                 .space
@@ -392,11 +413,17 @@ impl State {
                 })
                 .collect(),
             Some(Tab::Windows) => {
+                let filter = picking.map_or(String::new(), |p| p.model.filter.to_lowercase());
                 let mut windows: Vec<_> = self
                     .isle
                     .window_infos()
                     .into_iter()
                     .filter(|w| self.isle.wm.is_shown(w.id))
+                    .filter(|w| {
+                        filter.is_empty()
+                            || w.title.to_lowercase().contains(&filter)
+                            || w.app.to_lowercase().contains(&filter)
+                    })
                     .collect();
                 // Grouped by app, front to back within each.
                 windows.sort_by(|a, b| a.app.cmp(&b.app));
@@ -424,6 +451,9 @@ impl State {
         let Some(picking) = &self.isle.share.picking else {
             return;
         };
+        if picking.choosing {
+            return;
+        }
         let mut model = picking.model.clone();
         for tile in &mut model.tiles {
             tile.preview = picking.previews.get(&tile.key).cloned();
@@ -537,6 +567,23 @@ impl State {
                     .output_of(id)
                     .map_or(1.0, |o| o.current_scale().fractional_scale());
                 self.render_preview(id, w, h, scale)
+            } else if key == "portion" {
+                let portion = self
+                    .isle
+                    .share
+                    .picking
+                    .as_ref()
+                    .and_then(|p| p.portion.clone());
+                portion.and_then(|(output, rect)| {
+                    let pixels = self
+                        .capture_pixels(&crate::capture::Target::Region(output, rect), false)
+                        .ok()?;
+                    isle_shell::capture::picker::image_from_rgba(
+                        pixels.width,
+                        pixels.height,
+                        pixels.rgba,
+                    )
+                })
             } else if let Some(name) = key.strip_prefix("screen:") {
                 let output = self
                     .isle
@@ -565,8 +612,11 @@ impl State {
                 .isle
                 .loop_handle
                 .insert_source(Timer::from_duration(PREVIEW_EVERY), |_, _, state| {
-                    if state.isle.share.picking.is_none() {
+                    let Some(picking) = &state.isle.share.picking else {
                         return TimeoutAction::Drop;
+                    };
+                    if picking.choosing {
+                        return TimeoutAction::ToDuration(PREVIEW_EVERY);
                     }
                     state.share_previews();
                     state.open_picker();
@@ -579,6 +629,15 @@ impl State {
     pub fn picker_action(&mut self, action: PickerAction) {
         let Some(picking) = self.isle.share.picking.as_mut() else {
             return;
+        };
+        let on_portion = picking.model.tabs.get(picking.model.tab) == Some(&Tab::Portion);
+        // On the Portion tab, Space, and Return with nothing chosen, press "Select portion…".
+        let action = match action {
+            PickerAction::Step(0) if on_portion => PickerAction::SelectPortion,
+            PickerAction::Share if on_portion && picking.model.chosen.is_empty() => {
+                PickerAction::SelectPortion
+            }
+            other => other,
         };
         match action {
             PickerAction::Tab(i) if i < picking.model.tabs.len() => {
@@ -632,9 +691,88 @@ impl State {
                 }
             }
             PickerAction::Remember(on) => picking.model.remember = Some(on),
+            PickerAction::SelectPortion => {
+                picking.choosing = true;
+                let portion = picking.portion.clone();
+                self.close_sheet();
+                self.close_surface("share-picker");
+                return self.open_toolbar_for_share(portion);
+            }
+            PickerAction::Type(text) => {
+                if picking.model.tabs.get(picking.model.tab) != Some(&Tab::Windows) {
+                    return;
+                }
+                picking.model.filter.push_str(&text);
+                picking.model.focus = None;
+                return self.share_filter_changed();
+            }
+            PickerAction::Erase => {
+                if picking.model.filter.pop().is_none() {
+                    return;
+                }
+                return self.share_filter_changed();
+            }
             PickerAction::Share => return self.share_picked(),
             PickerAction::Cancel => return self.share_cancel(),
         }
+        self.open_picker();
+    }
+
+    /// Tab with the picker's keyboard: the next tab, Shift the one before. Taken here, so
+    /// Freya's Tab never moves focus among the picker's buttons.
+    pub fn share_tab_key(&mut self, code: u32) -> bool {
+        const KEY_TAB: u32 = 15;
+        let Some(picking) = &self.isle.share.picking else {
+            return false;
+        };
+        if code != KEY_TAB || picking.choosing {
+            return false;
+        }
+        let focus = self.isle.seat.get_keyboard().unwrap().current_focus();
+        let picker = match self.isle.share_sheet() {
+            Some(id) => self.isle.sheet_focus(id),
+            None => self.isle.shell.keyboard_taker("share-picker").map(Focus::Shell),
+        };
+        if focus.is_none() || focus != picker {
+            return false;
+        }
+        let n = picking.model.tabs.len();
+        if n > 1 {
+            let step = if self.held_mods().shift { n - 1 } else { 1 };
+            self.picker_action(PickerAction::Tab((picking.model.tab + step) % n));
+        }
+        true
+    }
+
+    fn share_filter_changed(&mut self) {
+        let tiles = self.share_tiles(Some(Tab::Windows));
+        if let Some(picking) = self.isle.share.picking.as_mut() {
+            picking.model.tiles = tiles;
+        }
+        self.share_previews();
+        self.open_picker();
+    }
+
+    /// The toolbar closed: with the portion chosen, the Portion tab holds it, chosen.
+    pub fn share_portion_chosen(
+        &mut self,
+        chosen: Option<(smithay::output::Output, Rectangle<i32, Logical>)>,
+    ) {
+        let Some(picking) = self.isle.share.picking.as_mut() else {
+            return;
+        };
+        if !std::mem::take(&mut picking.choosing) {
+            return;
+        }
+        if let Some(chosen) = chosen {
+            picking.portion = Some(chosen);
+            picking.model.chosen = vec!["portion".into()];
+        }
+        let tiles = self.share_tiles(Some(Tab::Portion));
+        if let Some(picking) = self.isle.share.picking.as_mut() {
+            picking.model.tiles = tiles;
+        }
+        self.share_previews();
         self.open_picker();
     }
 
@@ -651,6 +789,12 @@ impl State {
             .chosen
             .iter()
             .filter_map(|key| {
+                if key == "portion" {
+                    return picking
+                        .portion
+                        .clone()
+                        .map(|(output, rect)| Source::Portion(output, rect));
+                }
                 if let Some(name) = key.strip_prefix("screen:") {
                     self.isle
                         .space
@@ -938,6 +1082,9 @@ impl State {
                 "chosen": p.model.chosen,
                 "previews": p.previews.len(),
                 "remember": p.model.remember,
+                "filter": p.model.filter,
+                "choosing": p.choosing,
+                "portion": p.portion.as_ref().map(|(_, r)| [r.loc.x, r.loc.y, r.size.w, r.size.h]),
                 "drawn": sheet.is_some() || self.isle.shell.is_open("share-picker"),
                 "sheet": sheet,
                 "keyboard": sheet.is_some_and(|id| {

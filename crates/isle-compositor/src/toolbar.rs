@@ -583,7 +583,10 @@ impl State {
         match action {
             ToolbarAction::Close => self.close_toolbar(),
             ToolbarAction::Mode(mode) => self.set_toolbar_mode(mode),
-            ToolbarAction::PickColour => self.close_toolbar(),
+            ToolbarAction::PickColour => {
+                self.close_toolbar();
+                self.open_pick(crate::freeze::Purpose::Colour);
+            }
             ToolbarAction::Options => self.open_toolbar_options(),
             ToolbarAction::Act => self.toolbar_act(),
             ToolbarAction::Grab => {

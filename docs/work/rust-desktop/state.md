@@ -368,3 +368,4 @@
 - P11 11.2 done (2026-10-09): the freeze and the pick, region and window.
 - P11 11.3 done (2026-10-09): the thumbnail, its menu, flick and drag.
 - P11 11.4 done (2026-10-09): the toolbar's shot modes, Options and the countdown.
+- P11 11.5 done (2026-10-09): the colour pick and its loupe.

@@ -66,6 +66,8 @@ pub enum Action {
     Toolbar { copy: bool },
     /// Cmd+Ctrl+Escape: stops a recording or a countdown.
     StopCapture,
+    /// Shift+Cmd+6: the colour under a loupe.
+    ColourPick,
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
     /// The chord the recording grab took.
@@ -152,6 +154,7 @@ fn action_for(id: &'static str) -> Action {
         "capture-toolbar" => Action::Toolbar { copy: false },
         "capture-toolbar-copy" => Action::Toolbar { copy: true },
         "stop-recording" => Action::StopCapture,
+        "colour-pick" => Action::ColourPick,
         other => Action::Reserved(other),
     }
 }
@@ -346,6 +349,7 @@ impl State {
             Action::ShootScreens { copy } => self.shoot_screens(copy),
             Action::Pick { copy } => self.open_pick(crate::freeze::Purpose::Shot { copy }),
             Action::Toolbar { copy } => self.open_toolbar(copy),
+            Action::ColourPick => self.open_pick(crate::freeze::Purpose::Colour),
             Action::StopCapture => {
                 self.cancel_capture_countdown();
             }

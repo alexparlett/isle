@@ -7,10 +7,12 @@ use std::{cell::RefCell, collections::HashMap};
 
 use smithay::{
     backend::{
+        allocator::Fourcc,
         input::{ButtonState, InputTime},
         renderer::{
             element::{
                 Kind,
+                memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
                 solid::{SolidColorBuffer, SolidColorRenderElement},
                 texture::{TextureBuffer, TextureRenderElement},
             },
@@ -46,12 +48,16 @@ const KEY_DOWN: u32 = 108;
 pub enum Purpose {
     /// A shot, to the files or with `copy` the clipboard.
     Shot { copy: bool },
+    /// Shift+Cmd+6: the colour under the loupe, copied.
+    Colour,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     Region,
     Window,
+    /// The colour pick's loupe over the frozen frame, with no veil.
+    Colour,
 }
 
 /// One screen as it was at the chord.
@@ -95,6 +101,10 @@ pub struct Freeze {
     space_held: bool,
     /// Each output's solids: the veil's four sides and the line's eight edges.
     solids: RefCell<HashMap<(String, usize), SolidColorBuffer>>,
+    /// For the colour pick: each screen's frozen pixels, by its place in `screens`.
+    pixels: Vec<Pixels>,
+    /// The loupe drawn for the pointer's pixel on a screen, kept while it stays there.
+    loupe: RefCell<Option<((usize, i32, i32), MemoryRenderBuffer)>>,
 }
 
 impl Freeze {
@@ -151,6 +161,50 @@ impl Isle {
         let scale = output.current_scale().fractional_scale();
         let t = &self.shell.theme().tokens;
         let pointer = self.seat.get_pointer().map(|p| p.current_location());
+
+        if freeze.mode == Mode::Colour {
+            if let Some(at) = pointer.filter(|p| geometry.to_f64().contains(*p)) {
+                let px = ((at - geometry.loc.to_f64()).to_physical(scale)).to_i32_floor::<i32>();
+                let key = (index, px.x, px.y);
+                let mut loupe = freeze.loupe.borrow_mut();
+                if loupe.as_ref().is_none_or(|(k, _)| *k != key)
+                    && let Some(pixels) = freeze.pixels.get(index)
+                {
+                    let s = scale.ceil().max(1.0) as i32;
+                    *loupe = Some((key, loupe_image(pixels, px.x, px.y, s, t)));
+                }
+                if let Some((_, buffer)) = loupe.as_ref() {
+                    let half = t.size_loupe as f64 / 2.0;
+                    let location =
+                        (at - geometry.loc.to_f64() - Point::from((half, half))).to_physical(scale);
+                    if let Ok(element) = MemoryRenderBufferRenderElement::from_buffer(
+                        renderer,
+                        location,
+                        buffer,
+                        None,
+                        None,
+                        None,
+                        Kind::Unspecified,
+                    ) {
+                        push(IsleElement::Memory(element));
+                    }
+                }
+            }
+            self.shell.elements_of(output, "capture-readout", &mut |e| {
+                push(IsleElement::Shell(e))
+            });
+            push(IsleElement::Texture(
+                TextureRenderElement::from_texture_buffer(
+                    Point::<f64, Physical>::from((0.0, 0.0)),
+                    &screen.buffer,
+                    None,
+                    None,
+                    Some(geometry.size),
+                    Kind::Unspecified,
+                ),
+            ));
+            return true;
+        }
 
         if let (Some(cursor), Some(at)) =
             (cursor, pointer.filter(|p| geometry.to_f64().contains(*p)))
@@ -332,13 +386,34 @@ impl State {
         if screens.is_empty() {
             return;
         }
+        let colour = purpose == Purpose::Colour;
+        let mut pixels = Vec::new();
+        if colour {
+            for screen in &mut screens {
+                let size = screen
+                    .output
+                    .current_mode()
+                    .map(|m| m.size)
+                    .unwrap_or_default();
+                match self
+                    .backend
+                    .read_back(&mut screen.texture, Rectangle::from_size(size), false)
+                {
+                    Ok(p) => pixels.push(p),
+                    Err(err) => {
+                        warn!("no frozen pixels: {err}");
+                        return;
+                    }
+                }
+            }
+        }
         let ids: Vec<u64> = self
             .isle
             .space
             .elements()
             .rev()
             .map(crate::wm::window_id)
-            .filter(|id| self.isle.wm.is_shown(*id))
+            .filter(|id| !colour && self.isle.wm.is_shown(*id))
             .collect();
         let mut windows = Vec::new();
         for id in ids {
@@ -370,7 +445,7 @@ impl State {
         }
         self.isle.freeze = Some(Freeze {
             purpose,
-            mode: Mode::Region,
+            mode: if colour { Mode::Colour } else { Mode::Region },
             screens,
             windows,
             drag: None,
@@ -378,6 +453,8 @@ impl State {
             lifted: None,
             space_held: false,
             solids: RefCell::default(),
+            pixels,
+            loupe: RefCell::default(),
         });
         // The pointer leaves whatever it was over; nothing below sees it until the pick ends.
         let at = self.isle.seat.get_pointer().unwrap().current_location();
@@ -404,11 +481,12 @@ impl State {
     }
 
     fn set_pick_cursor(&mut self) {
-        let icon = match self.isle.freeze.as_ref().map(|f| f.mode) {
-            Some(Mode::Window) => CursorIcon::Default,
-            _ => CursorIcon::Crosshair,
+        self.isle.cursor_status = match self.isle.freeze.as_ref().map(|f| f.mode) {
+            Some(Mode::Window) => CursorImageStatus::Named(CursorIcon::Default),
+            // The loupe stands in for the pointer.
+            Some(Mode::Colour) => CursorImageStatus::Hidden,
+            _ => CursorImageStatus::Named(CursorIcon::Crosshair),
         };
-        self.isle.cursor_status = CursorImageStatus::Named(icon);
         self.backend.update_cursor(&self.isle);
     }
 
@@ -509,6 +587,8 @@ impl State {
                 }
             }
             (Mode::Window, ButtonState::Released) => {}
+            (Mode::Colour, ButtonState::Pressed) => self.take_colour(),
+            (Mode::Colour, ButtonState::Released) => {}
         }
     }
 
@@ -528,6 +608,32 @@ impl State {
         let Some(freeze) = self.isle.freeze.as_mut() else {
             return true;
         };
+        let at = self.isle.seat.get_pointer().unwrap().current_location();
+        let step = if mods.shift { 10.0 } else { 1.0 };
+        if freeze.mode == Mode::Colour {
+            match code {
+                KEY_ESC => self.close_pick(),
+                KEY_ENTER | KEY_KPENTER => self.take_colour(),
+                KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT => {
+                    // A step is a pixel of the screen under the loupe.
+                    let scale = self
+                        .isle
+                        .output_under_pointer()
+                        .map_or(1.0, |o| o.current_scale().fractional_scale());
+                    let step = step / scale;
+                    let (dx, dy) = match code {
+                        KEY_UP => (0.0, -step),
+                        KEY_DOWN => (0.0, step),
+                        KEY_LEFT => (-step, 0.0),
+                        _ => (step, 0.0),
+                    };
+                    let to = self.isle.clamp_to_outputs(at + Point::from((dx, dy)));
+                    self.pick_pointer_to(to);
+                }
+                _ => {}
+            }
+            return true;
+        }
         if freeze.drag.is_some() && freeze.anchor.is_none() {
             match code {
                 KEY_SPACE => freeze.space_held = true,
@@ -536,14 +642,13 @@ impl State {
             }
             return true;
         }
-        let at = self.isle.seat.get_pointer().unwrap().current_location();
-        let step = if mods.shift { 10.0 } else { 1.0 };
         match code {
             KEY_ESC => self.close_pick(),
             KEY_SPACE => {
                 freeze.mode = match freeze.mode {
                     Mode::Region => Mode::Window,
                     Mode::Window => Mode::Region,
+                    Mode::Colour => Mode::Colour,
                 };
                 freeze.anchor = None;
                 self.set_pick_cursor();
@@ -576,6 +681,7 @@ impl State {
                         self.take_window(index, !mods.option);
                     }
                 }
+                Mode::Colour => {}
                 Mode::Region => match freeze.anchor.take() {
                     None => {
                         freeze.anchor = Some(at);
@@ -659,6 +765,24 @@ impl State {
         let Some(freeze) = &self.isle.freeze else {
             return;
         };
+        if freeze.mode == Mode::Colour {
+            let at = self.isle.seat.get_pointer().unwrap().current_location();
+            let half = self.isle.shell.theme().tokens.size_loupe as f64 / 2.0;
+            let (Some(output), Some(rgb)) = (
+                self.isle.output_under_pointer(),
+                self.colour_under_pointer(),
+            ) else {
+                self.isle.shell.close("capture-readout");
+                return;
+            };
+            let text = colour_text(rgb, self.isle.settings.capture.colour_format);
+            let loupe = Rectangle::new(
+                at - Point::from((half, half)),
+                (2.0 * half, 2.0 * half).into(),
+            );
+            self.show_readout_text(&output, loupe, text);
+            return;
+        }
         let Some((index, rect)) = freeze.selection(option) else {
             self.isle.shell.close("capture-readout");
             return;
@@ -670,12 +794,22 @@ impl State {
     /// The size readout for `rect`, in the global space on `output`, by its trailing foot:
     /// inside the foot when the screen ends below, then above.
     pub fn show_readout(&mut self, output: &Output, rect: Rectangle<f64, Logical>) {
+        let scale = output.current_scale().fractional_scale();
+        let px = rect.size.to_physical(scale).to_i32_round::<i32>();
+        self.show_readout_text(output, rect, format!("{} × {}", px.w, px.h));
+    }
+
+    /// `text` in the readout's capsule by `rect`'s trailing foot.
+    pub fn show_readout_text(
+        &mut self,
+        output: &Output,
+        rect: Rectangle<f64, Logical>,
+        text: String,
+    ) {
         let Some(screen) = self.isle.space.output_geometry(output) else {
             return;
         };
         let scale = output.current_scale().fractional_scale();
-        let px = rect.size.to_physical(scale).to_i32_round::<i32>();
-        let text = format!("{} × {}", px.w, px.h);
         let theme = self.isle.shell.theme().clone();
         let size = isle_shell::capture::readout::ReadoutSurface::size_for(&theme);
         let margin = isle_shell::capture::readout::ReadoutSurface::margin(&theme) as i32;
@@ -770,8 +904,60 @@ impl State {
         }
     }
 
+    /// The frozen colour under the pointer, as sRGB bytes.
+    fn colour_under_pointer(&self) -> Option<[u8; 3]> {
+        let freeze = self.isle.freeze.as_ref()?;
+        let at = self.isle.seat.get_pointer()?.current_location();
+        let (index, screen) = freeze.screens.iter().enumerate().find(|(_, s)| {
+            self.isle
+                .space
+                .output_geometry(&s.output)
+                .is_some_and(|g| g.to_f64().contains(at))
+        })?;
+        let geometry = self.isle.space.output_geometry(&screen.output)?;
+        let scale = screen.output.current_scale().fractional_scale();
+        let px = (at - geometry.loc.to_f64())
+            .to_physical(scale)
+            .to_i32_floor::<i32>();
+        let pixels = freeze.pixels.get(index)?;
+        let (x, y) = (
+            px.x.clamp(0, pixels.width as i32 - 1),
+            px.y.clamp(0, pixels.height as i32 - 1),
+        );
+        let i = (y as usize * pixels.width as usize + x as usize) * 4;
+        Some([pixels.rgba[i], pixels.rgba[i + 1], pixels.rgba[i + 2]])
+    }
+
+    /// The colour under the loupe copied in the settings' format, and the pick closed.
+    fn take_colour(&mut self) {
+        let Some(rgb) = self.colour_under_pointer() else {
+            return;
+        };
+        let text = colour_text(rgb, self.isle.settings.capture.colour_format);
+        self.close_pick();
+        let pick = crate::clipboard::Pick::text(text);
+        self.keep_copy(&pick, String::new());
+        self.set_clipboard(pick);
+        use isle_shell::island::model::{Event, EventKind, Form};
+        self.isle.island.model.post(
+            Event {
+                kind: EventKind::Copied,
+                form: Form::Line {
+                    symbol: "eyedropper".into(),
+                    fill: false,
+                    text: "Colour copied".into(),
+                },
+                output: None,
+                app: None,
+                urgent: false,
+            },
+            std::time::Instant::now(),
+        );
+        self.isle.refresh_island();
+    }
+
     fn keep_shot(&mut self, pixels: Pixels, purpose: Purpose, on: Output) {
-        let Purpose::Shot { copy } = purpose;
+        let copy = matches!(purpose, Purpose::Shot { copy: true });
         let to = if copy {
             Destination::Clipboard
         } else {
@@ -794,7 +980,8 @@ impl State {
             return "null".into();
         };
         serde_json::json!({
-            "mode": match freeze.mode { Mode::Region => "region", Mode::Window => "window" },
+            "mode": match freeze.mode { Mode::Region => "region", Mode::Window => "window", Mode::Colour => "colour" },
+            "value": self.colour_under_pointer().map(|c| colour_text(c, self.isle.settings.capture.colour_format)),
             "screens": freeze.screens.len(),
             "windows": freeze.windows.iter().map(|w| w.id).collect::<Vec<_>>(),
             "lifted": freeze.lifted.map(|i| freeze.windows[i].id),
@@ -802,5 +989,128 @@ impl State {
             "readout": self.isle.shell.is_open("capture-readout"),
         })
         .to_string()
+    }
+}
+
+/// `rgb` written as the colour pick copies it.
+pub fn colour_text([r, g, b]: [u8; 3], format: isle_settings::schema::ColourFormat) -> String {
+    use isle_settings::schema::ColourFormat;
+    match format {
+        ColourFormat::Hex => format!("#{r:02X}{g:02X}{b:02X}"),
+        ColourFormat::Rgb => format!("rgb({r}, {g}, {b})"),
+        ColourFormat::Hsl => {
+            let (r, g, b) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
+            let (max, min) = (r.max(g).max(b), r.min(g).min(b));
+            let l = (max + min) / 2.0;
+            let d = max - min;
+            let (h, s) = if d == 0.0 {
+                (0.0, 0.0)
+            } else {
+                let s = d / (1.0 - (2.0 * l - 1.0).abs());
+                let h = if max == r {
+                    60.0 * (((g - b) / d).rem_euclid(6.0))
+                } else if max == g {
+                    60.0 * ((b - r) / d + 2.0)
+                } else {
+                    60.0 * ((r - g) / d + 4.0)
+                };
+                (h, s)
+            };
+            format!(
+                "hsl({}, {}%, {}%)",
+                h.round() as i32,
+                (s * 100.0).round() as i32,
+                (l * 100.0).round() as i32
+            )
+        }
+    }
+}
+
+/// The loupe at buffer scale `s`: fifteen frozen pixels square round `(x, y)` at eight points
+/// each, unsmoothed, with a grid between them, the centre ringed, in a circle with a rim.
+fn loupe_image(
+    pixels: &Pixels,
+    x: i32,
+    y: i32,
+    s: i32,
+    t: &isle_tokens::Tokens,
+) -> MemoryRenderBuffer {
+    const CELLS: i32 = 15;
+    let cell = 8 * s;
+    let size = CELLS * cell;
+    let premul = |c: isle_tokens::Colour| {
+        let a = c.a;
+        [
+            (c.r as f32 * a) as u8,
+            (c.g as f32 * a) as u8,
+            (c.b as f32 * a) as u8,
+            (a * 255.0) as u8,
+        ]
+    };
+    let line = premul(t.colour_capture_line);
+    let shadow = premul(t.colour_capture_line_shadow);
+    let radius = size as f32 / 2.0;
+    let rim = 2.0 * s as f32;
+    let mut data = vec![0u8; (size * size * 4) as usize];
+    for py in 0..size {
+        for px in 0..size {
+            let (dx, dy) = (px as f32 + 0.5 - radius, py as f32 + 0.5 - radius);
+            let dist = (dx * dx + dy * dy).sqrt();
+            if dist > radius {
+                continue;
+            }
+            let (cx, cy) = (px / cell, py / cell);
+            let colour = if dist > radius - rim {
+                line
+            } else if dist > radius - rim - s as f32 {
+                shadow
+            } else if cx == CELLS / 2
+                && cy == CELLS / 2
+                && (px % cell < s
+                    || px % cell >= cell - s
+                    || py % cell < s
+                    || py % cell >= cell - s)
+            {
+                line
+            } else if px % cell == 0 || py % cell == 0 {
+                shadow
+            } else {
+                let (sx, sy) = (x + cx - CELLS / 2, y + cy - CELLS / 2);
+                if sx < 0 || sy < 0 || sx >= pixels.width as i32 || sy >= pixels.height as i32 {
+                    [0, 0, 0, 255]
+                } else {
+                    let i = (sy as usize * pixels.width as usize + sx as usize) * 4;
+                    [pixels.rgba[i], pixels.rgba[i + 1], pixels.rgba[i + 2], 255]
+                }
+            };
+            let i = ((py * size + px) * 4) as usize;
+            data[i..i + 4].copy_from_slice(&colour);
+        }
+    }
+    MemoryRenderBuffer::from_slice(
+        &data,
+        Fourcc::Abgr8888,
+        (size, size),
+        s,
+        Transform::Normal,
+        None,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use isle_settings::schema::ColourFormat;
+
+    #[test]
+    fn colours_are_written_in_each_format() {
+        let c = [0x1e, 0x1f, 0x23];
+        assert_eq!(colour_text(c, ColourFormat::Hex), "#1E1F23");
+        assert_eq!(colour_text(c, ColourFormat::Rgb), "rgb(30, 31, 35)");
+        assert_eq!(colour_text(c, ColourFormat::Hsl), "hsl(228, 8%, 13%)");
+        assert_eq!(
+            colour_text([255, 0, 0], ColourFormat::Hsl),
+            "hsl(0, 100%, 50%)"
+        );
     }
 }

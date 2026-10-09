@@ -759,3 +759,27 @@ async fn the_countdown_shows_in_the_island_and_ctrl_cmd_escape_stops_it() {
     wait_until(|| async { screenshots(&isle).len() == 1 }).await;
     assert_ne!(isle.island_output().await["text"], "1");
 }
+
+const SIX: u32 = 7;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_colour_under_the_loupe_is_copied() {
+    let mut isle = Isle::start("colour-pick").await;
+    let window = isle.client("isle.test.Teal", "1e1f23");
+    window.wait_for("keyboard-enter").await;
+    let info = isle.wait_for_window("isle.test.Teal").await;
+    let test = isle.test().await;
+    // On the window's edge: one step left is the desktop.
+    let (x, y) = (info.x as f64 + 0.5, (info.y + info.height / 2) as f64);
+    test.pointer_to(x, y).await.unwrap();
+    isle.chord(&[SHIFT, CMD, SIX]).await;
+    wait_until(|| async { pick(&isle).await["mode"] == "colour" }).await;
+    assert_eq!(pick(&isle).await["value"], "#1E1F23");
+    assert_eq!(pick(&isle).await["readout"], true);
+    isle.keep_shot("colour-pick").await;
+    tap(&isle, RIGHT).await;
+    tap(&isle, ENTER).await;
+    wait_until(|| async { isle.island_output().await["text"] == "Colour copied" }).await;
+    assert!(pick(&isle).await.is_null());
+    assert_eq!(test.clipboard().await.unwrap(), "#1E1F23");
+}

@@ -2,6 +2,17 @@
 
 ## 2026-10-09
 
+- P11 11.5: the colour pick. Shift+Cmd+6, or Pick colour on the toolbar,
+  freezes the screens and reads their pixels back once; a loupe stands in for
+  the pointer, fifteen pixels square at eight points each, unsmoothed, with
+  its grid, the centre ringed and a rim, drawn on the CPU into a buffer kept
+  while the pointer stays on its pixel; the value shows in the readout's
+  capsule under it. The arrows move it a pixel (Shift, ten); a click or
+  Return copies the value in `capture.colour-format` (hex, rgb or hsl) and
+  the island says "Colour copied"; Escape leaves. Not yet: the swatch beside
+  the value, and the capsule centred under the loupe rather than at its
+  trailing edge.
+
 - P11 11.4: the toolbar and the countdown. Shift+Cmd+5 (Ctrl for the
   clipboard) opens the bar at the bottom centre of the screen with the
   pointer, in the centre group both ways, on the last shot mode: Close, the

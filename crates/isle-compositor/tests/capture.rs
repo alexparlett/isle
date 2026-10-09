@@ -783,3 +783,45 @@ async fn the_colour_under_the_loupe_is_copied() {
     assert!(pick(&isle).await.is_null());
     assert_eq!(test.clipboard().await.unwrap(), "#1E1F23");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_capture_interface_and_the_control_do_what_the_chords_do() {
+    let isle = Isle::start("capture-interface").await;
+    let capture = isle_ipc::capture::CaptureProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    capture.shoot("screen", false).await.unwrap();
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    assert!(capture.shoot("everything", false).await.is_err());
+    let status: serde_json::Value = serde_json::from_str(&capture.status().await.unwrap()).unwrap();
+    assert_eq!(status["portal"], true);
+    assert_eq!(status["streams"], serde_json::json!([]));
+
+    // The `isle` command speaks it too.
+    let built = std::process::Command::new(env!("CARGO"))
+        .args(["build", "-q", "-p", "isle-cli"])
+        .status()
+        .unwrap();
+    assert!(built.success());
+    let isle_cli =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/debug/isle");
+    let out = std::process::Command::new(&isle_cli)
+        .args(["--json", "portal", "status"])
+        .env("DBUS_SESSION_BUS_ADDRESS", isle.bus_address())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let printed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(printed["backend"], true);
+
+    // Control Centre's screenshot control opens the toolbar and the panel goes.
+    isle.open_panel(None).await;
+    isle.panel(serde_json::json!({"toggle": "screenshot"}))
+        .await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    wait_until(|| async { isle.island_output().await["panel"].is_null() }).await;
+}

@@ -212,6 +212,62 @@ struct FocusIface {
     to_loop: ToLoop,
 }
 
+struct CaptureIface {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Capture1")]
+impl CaptureIface {
+    async fn shoot(&self, what: String, copy: bool) -> fdo::Result<()> {
+        if !matches!(what.as_str(), "screen" | "pick" | "toolbar" | "colour") {
+            return Err(fdo::Error::InvalidArgs(format!("no shot called {what}")));
+        }
+        Ok(self
+            .to_loop
+            .call(move |state| match what.as_str() {
+                "screen" => state.shoot_screens(copy),
+                "pick" => state.open_pick(crate::freeze::Purpose::Shot { copy }),
+                "toolbar" => state.open_toolbar(copy),
+                _ => state.open_pick(crate::freeze::Purpose::Colour),
+            })
+            .await?)
+    }
+
+    async fn record(&self, action: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                match action.as_str() {
+                    "start" => {
+                        if let Some(output) = state.isle.main_output() {
+                            state.start_recording(crate::cast::Source::Screen(output));
+                        }
+                    }
+                    _ => {
+                        state.stop_recording();
+                    }
+                }
+                state.recording()
+            })
+            .await?)
+    }
+
+    async fn status(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.capture_status().to_string()).await?)
+    }
+
+    async fn stop_stream(&self, id: u64) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let there = state.isle.casting.get(id).is_some();
+                state.end_cast(id, crate::cast::Ended::Stopped);
+                there
+            })
+            .await?)
+    }
+}
+
 #[interface(name = "io.github.alexparlett.Isle.Focus1")]
 impl FocusIface {
     async fn status(&self) -> fdo::Result<String> {
@@ -1697,6 +1753,12 @@ pub async fn serve(
         .serve_at(
             isle_ipc::NOTIFICATIONS_PATH,
             NotificationsIface {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
+            isle_ipc::CAPTURE_PATH,
+            CaptureIface {
                 to_loop: to_loop.clone(),
             },
         )?

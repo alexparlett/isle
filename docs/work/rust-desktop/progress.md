@@ -2,6 +2,17 @@
 
 ## 2026-10-09
 
+- P11 11.13: the CLI and the rest. `Capture1` (`Shoot`, `Record`, `Status`,
+  `StopStream`) does what the chords and Stop do and never returns pixels;
+  `isle capture screen|pick|toolbar|colour [--copy]`, `isle capture record
+  start|stop` (the main screen), `isle capture streams [--stop <id>]`, `isle
+  portal status` and `isle portal permissions [--revoke <app>]`, which reads
+  and edits the permission store's `screenshot` and `screencast` tables.
+  Control Centre's Screenshot control, not yet since P8, opens the toolbar,
+  which closes the panel as a centre surface. Test1 has the pick, the
+  thumbnail and its menu, the toolbar, streams, recordings, shares and
+  capture sessions.
+
 - P11 11.12: the capture protocols. ext-foreign-toplevel-list names every
   window (title and app id kept current from the window list's changes);
   ext-image-capture-source makes a source of an output or a foreign toplevel;

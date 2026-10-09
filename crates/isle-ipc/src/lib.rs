@@ -20,6 +20,7 @@ pub const MENUS_PATH: &str = "/io/github/alexparlett/Isle/Menus";
 pub const SERVICES_PATH: &str = "/io/github/alexparlett/Isle/Services";
 pub const NOTIFICATIONS_PATH: &str = "/io/github/alexparlett/Isle/Notifications";
 pub const FOCUS_PATH: &str = "/io/github/alexparlett/Isle/Focus";
+pub const CAPTURE_PATH: &str = "/io/github/alexparlett/Isle/Capture";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -700,6 +701,27 @@ pub mod notifications {
         fn clear(&self) -> zbus::Result<()>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
+    }
+}
+
+pub mod capture {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Capture1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Capture"
+    )]
+    pub trait Capture {
+        /// Does what the chords do: `screen`, `pick`, `toolbar` or `colour`; with `copy`, to
+        /// the clipboard. Never returns pixels.
+        fn shoot(&self, what: &str, copy: bool) -> zbus::Result<()>;
+        /// `start` records the main screen; `stop` stops the recording. Whether one runs after.
+        fn record(&self, action: &str) -> zbus::Result<bool>;
+        /// The streams, the shares, the recording and whether Isle is the portal backend, as JSON.
+        fn status(&self) -> zbus::Result<String>;
+        /// Ends a stream from Isle's side; false when there is none.
+        fn stop_stream(&self, id: u64) -> zbus::Result<bool>;
     }
 }
 

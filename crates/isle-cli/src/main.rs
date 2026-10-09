@@ -75,9 +75,92 @@ enum Command {
         #[arg(long, default_value = "general")]
         scope: String,
     },
+    #[command(subcommand)]
+    Capture(Capture),
+    #[command(subcommand)]
+    Portal(Portal),
     /// Hooks served only by test builds.
     #[command(subcommand, hide = true)]
     Test(Test),
+}
+
+#[derive(Subcommand)]
+enum Capture {
+    /// Every screen to a file each, as Shift+Cmd+3 does.
+    Screen {
+        /// The main screen to the clipboard instead.
+        #[arg(long)]
+        copy: bool,
+    },
+    /// The frozen pick of a region or a window, as Shift+Cmd+4.
+    Pick {
+        #[arg(long)]
+        copy: bool,
+    },
+    /// The capture toolbar, as Shift+Cmd+5.
+    Toolbar {
+        #[arg(long)]
+        copy: bool,
+    },
+    /// The colour pick, as Shift+Cmd+6.
+    Colour,
+    /// Start recording the main screen, or stop the recording.
+    Record { action: RecordAction },
+    /// The streams, shares and recording running.
+    Streams {
+        /// End this stream from Isle's side.
+        #[arg(long)]
+        stop: Option<u64>,
+    },
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum RecordAction {
+    Start,
+    Stop,
+}
+
+#[derive(Subcommand)]
+enum Portal {
+    /// Whether Isle is the portal backend, and the shares running.
+    Status,
+    /// What apps may do without asking: screenshots, and shares they keep.
+    Permissions {
+        /// Take back everything this app id was allowed.
+        #[arg(long)]
+        revoke: Option<String>,
+    },
+}
+
+const PERMISSIONS: &str = "org.freedesktop.impl.portal.PermissionStore";
+const PERMISSIONS_PATH: &str = "/org/freedesktop/impl/portal/PermissionStore";
+
+/// Each app's permissions in the store's `table`, by entry id.
+async fn permissions(
+    bus: &zbus::Connection,
+    table: &str,
+) -> zbus::Result<Vec<(String, std::collections::HashMap<String, Vec<String>>)>> {
+    let ids: Vec<String> = bus
+        .call_method(Some(PERMISSIONS), PERMISSIONS_PATH, Some(PERMISSIONS), "List", &(table,))
+        .await?
+        .body()
+        .deserialize()?;
+    let mut out = Vec::new();
+    for id in ids {
+        let (apps, _): (std::collections::HashMap<String, Vec<String>>, zvariant::OwnedValue) = bus
+            .call_method(
+                Some(PERMISSIONS),
+                PERMISSIONS_PATH,
+                Some(PERMISSIONS),
+                "Lookup",
+                &(table, id.as_str()),
+            )
+            .await?
+            .body()
+            .deserialize()?;
+        out.push((id, apps));
+    }
+    Ok(out)
 }
 
 #[derive(Subcommand)]
@@ -737,6 +820,110 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 print_json(&changed);
             }
         }
+        Command::Capture(command) => {
+            let proxy = isle_ipc::capture::CaptureProxy::new(&bus).await?;
+            match command {
+                Capture::Screen { copy } => proxy.shoot("screen", *copy).await?,
+                Capture::Pick { copy } => proxy.shoot("pick", *copy).await?,
+                Capture::Toolbar { copy } => proxy.shoot("toolbar", *copy).await?,
+                Capture::Colour => proxy.shoot("colour", false).await?,
+                Capture::Record { action } => {
+                    let action = match action {
+                        RecordAction::Start => "start",
+                        RecordAction::Stop => "stop",
+                    };
+                    let running = proxy.record(action).await?;
+                    if cli.json {
+                        print_json(&running);
+                    }
+                }
+                Capture::Streams { stop } => {
+                    if let Some(id) = stop
+                        && !proxy.stop_stream(*id).await?
+                    {
+                        return Err(zbus::Error::Failure(format!("no stream {id}")));
+                    }
+                    let status: serde_json::Value =
+                        serde_json::from_str(&proxy.status().await?).unwrap_or_default();
+                    if cli.json {
+                        print_json(&status);
+                    } else {
+                        for s in status["streams"].as_array().into_iter().flatten() {
+                            println!(
+                                "{}  {}  {}  node {}  {}x{}",
+                                s["id"],
+                                s["owner"].as_str().unwrap_or(""),
+                                s["source"],
+                                s["node"],
+                                s["size"][0],
+                                s["size"][1]
+                            );
+                        }
+                        if let Some(path) = status["recording"].as_str() {
+                            println!("recording to {path}");
+                        }
+                    }
+                }
+            }
+        }
+        Command::Portal(command) => match command {
+            Portal::Status => {
+                let status: serde_json::Value = serde_json::from_str(
+                    &isle_ipc::capture::CaptureProxy::new(&bus).await?.status().await?,
+                )
+                .unwrap_or_default();
+                if cli.json {
+                    print_json(&serde_json::json!({"backend": status["portal"], "shares": status["shares"]}));
+                } else {
+                    let owned = status["portal"].as_bool().unwrap_or(false);
+                    println!(
+                        "backend: {}",
+                        if owned { "Isle" } else { "not Isle's (another program owns it)" }
+                    );
+                    for (path, share) in status["shares"].as_object().into_iter().flatten() {
+                        println!("sharing with {}  {path}", share["app"].as_str().unwrap_or(""));
+                    }
+                }
+            }
+            Portal::Permissions { revoke } => {
+                let tables = ["screenshot", "screencast"];
+                if let Some(app) = revoke {
+                    for table in tables {
+                        for (id, apps) in permissions(&bus, table).await.unwrap_or_default() {
+                            if apps.contains_key(app.as_str()) {
+                                bus.call_method(
+                                    Some(PERMISSIONS),
+                                    PERMISSIONS_PATH,
+                                    Some(PERMISSIONS),
+                                    "DeletePermission",
+                                    &(table, id.as_str(), app.as_str()),
+                                )
+                                .await?;
+                            }
+                        }
+                    }
+                }
+                let mut rows = Vec::new();
+                for table in tables {
+                    for (id, apps) in permissions(&bus, table).await.unwrap_or_default() {
+                        for (app, granted) in apps {
+                            rows.push(serde_json::json!({"table": table, "id": id, "app": app, "granted": granted}));
+                        }
+                    }
+                }
+                if cli.json {
+                    print_json(&rows);
+                } else {
+                    for row in &rows {
+                        let app = row["app"].as_str().filter(|a| !a.is_empty()).unwrap_or("(apps with no id)");
+                        let granted = row["granted"].as_array().map(|g| {
+                            g.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(",")
+                        });
+                        println!("{}  {app}  {}", row["table"].as_str().unwrap_or(""), granted.unwrap_or_default());
+                    }
+                }
+            }
+        },
         Command::Spotlight { how } => {
             let open = ShellProxy::new(&bus).await?.spotlight(how).await?;
             if cli.json {

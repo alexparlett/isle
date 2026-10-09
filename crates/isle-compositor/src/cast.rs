@@ -1208,6 +1208,25 @@ impl State {
     }
 }
 
+impl State {
+    /// Every stream, share and recording, and the portal backend, as JSON.
+    pub fn capture_status(&self) -> serde_json::Value {
+        let shares: serde_json::Map<String, serde_json::Value> = self
+            .isle
+            .share
+            .sessions
+            .iter()
+            .map(|(path, s)| (path.clone(), serde_json::json!({"app": s.app, "streams": s.streams})))
+            .collect();
+        serde_json::json!({
+            "portal": self.isle.portal.is_some(),
+            "streams": self.casts_status(),
+            "shares": shares,
+            "recording": self.isle.recording_now.as_ref().map(|r| r.path.display().to_string()),
+        })
+    }
+}
+
 /// An element of a stream's frame, moved to the stream's origin.
 pub type CastElement = RelocateRenderElement<IsleElement>;
 

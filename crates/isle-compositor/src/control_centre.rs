@@ -61,6 +61,15 @@ impl Isle {
     /// A module as it shows here, or none when its source is missing.
     pub fn module_of(&self, id: &str, size: TileSize) -> Option<Module> {
         match id {
+            "screenshot" => Some(Module {
+                id: id.into(),
+                size,
+                name: "Screenshot".into(),
+                glyph: "selection".into(),
+                toggles: true,
+                pane: "Keyboard".into(),
+                ..Default::default()
+            }),
             "dark-mode" => {
                 let dark = self.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
                 Some(Module {
@@ -371,6 +380,11 @@ impl State {
             return;
         };
         match action {
+            // The toolbar is a centre surface: opening it closes the panel too.
+            PanelAction::Toggle(id) if id == "screenshot" => {
+                self.open_toolbar(false);
+                return;
+            }
             PanelAction::Toggle(id) if id == "dark-mode" => {
                 let dark = self.isle.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
                 self.isle.write_setting(

@@ -151,7 +151,7 @@ pub const CATALOGUE: &[Entry] = &[
         group: "System",
         sizes: &[S],
         pane: "Keyboard",
-        missing: NOT_YET,
+        missing: "",
     },
     Entry {
         id: "accessibility",

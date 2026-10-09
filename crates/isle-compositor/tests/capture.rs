@@ -838,3 +838,34 @@ async fn the_capture_interface_and_the_control_do_what_the_chords_do() {
     wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
     wait_until(|| async { isle.island_output().await["panel"].is_null() }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_open_panel_lifts_in_window_mode_and_is_taken_alone() {
+    let isle = Isle::start("pick-panel").await;
+    isle.chord(&[CMD, SPACE]).await;
+    wait_until(|| async {
+        let s: serde_json::Value =
+            serde_json::from_str(&isle.test().await.spotlight().await.unwrap()).unwrap();
+        s["open"] == true
+    })
+    .await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    let test = isle.test().await;
+    test.pointer_to(960.0, 270.0).await.unwrap();
+    isle.chord(&[SHIFT, CMD, FOUR]).await;
+    wait_until(|| async { !pick(&isle).await.is_null() }).await;
+    tap(&isle, SPACE).await;
+    let panel = 1u64 << 60;
+    wait_until(|| async { pick(&isle).await["lifted"] == panel }).await;
+    isle.keep_shot("pick-panel").await;
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.button(BTN_LEFT, false).await.unwrap();
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    let png = newest_screenshot(&isle);
+    assert!(
+        png.width > 720 && png.width < 1000 && png.height < 300,
+        "Spotlight with its shadow: {}x{}",
+        png.width,
+        png.height
+    );
+}

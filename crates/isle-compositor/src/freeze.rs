@@ -69,9 +69,12 @@ pub struct FrozenScreen {
     buffer: TextureBuffer<GlesTexture>,
 }
 
-/// One shown window as it was at the chord, alone, with and without its shadow.
+/// One shown window or open panel as it was at the chord, alone, with and without its
+/// shadow.
 pub struct FrozenWindow {
+    /// The window's id, or a panel's number with `PANEL` set.
     pub id: u64,
+    on: Output,
     /// Its frame, title bar included, in the global space.
     pub frame: Rectangle<i32, Logical>,
     scale: f64,
@@ -80,6 +83,9 @@ pub struct FrozenWindow {
     bare: (GlesTexture, TextureBuffer<GlesTexture>),
     shadowed: (GlesTexture, Size<i32, Physical>),
 }
+
+/// Set on a frozen panel's id, apart from window ids.
+const PANEL: u64 = 1 << 60;
 
 /// A region being dragged, in the global space, on the screen it began on.
 #[derive(Clone, Copy, Debug)]
@@ -466,14 +472,57 @@ impl State {
             let buffer =
                 TextureBuffer::from_texture(renderer, bare.clone(), 1, Transform::Normal, None);
             let radius = self.isle.window_style(id).corners[2];
+            let Some(on) = self.isle.output_of(id) else {
+                continue;
+            };
             windows.push(FrozenWindow {
                 id,
+                on,
                 frame,
                 scale,
                 radius,
                 bare: (bare, buffer),
                 shadowed,
             });
+        }
+        // Open panels lift in front of the windows: Spotlight, a menu, a banner.
+        if !colour {
+            let mut panels = Vec::new();
+            for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
+                let Some(geometry) = self.isle.space.output_geometry(&output) else {
+                    continue;
+                };
+                let scale = output.current_scale().fractional_scale();
+                for panel in self.isle.shell.panels(&output, crate::render::CAPTURE_SURFACES) {
+                    let (Ok(bare), Ok(shadowed)) = (
+                        self.panel_texture(&output, panel.name, panel.rect),
+                        self.panel_texture(&output, panel.name, panel.shadowed),
+                    ) else {
+                        continue;
+                    };
+                    let Some(renderer) = self.backend.renderer_opt() else {
+                        return;
+                    };
+                    let buffer = TextureBuffer::from_texture(
+                        renderer,
+                        bare.0.clone(),
+                        1,
+                        Transform::Normal,
+                        None,
+                    );
+                    panels.push(FrozenWindow {
+                        id: PANEL | panels.len() as u64,
+                        on: output.clone(),
+                        frame: Rectangle::new(panel.rect.loc + geometry.loc, panel.rect.size),
+                        scale,
+                        radius: panel.radius,
+                        bare: (bare.0, buffer),
+                        shadowed,
+                    });
+                }
+            }
+            panels.append(&mut windows);
+            windows = panels;
         }
         self.isle.freeze = Some(Freeze {
             purpose,
@@ -941,13 +990,35 @@ impl State {
         }
     }
 
+    /// Panel `name` on `output` drawn alone into a texture of `rect`, relative to the output.
+    fn panel_texture(
+        &mut self,
+        output: &Output,
+        name: &str,
+        rect: Rectangle<i32, Logical>,
+    ) -> Result<(GlesTexture, Size<i32, Physical>), String> {
+        let scale = output.current_scale().fractional_scale();
+        let size = rect.size.to_f64().to_physical(scale).to_i32_round();
+        let mut pieces = Vec::new();
+        self.isle.shell.elements_of(output, name, &mut |e| {
+            pieces.push(crate::wm::draw::place(
+                crate::wm::draw::WindowPiece::Bar(e),
+                rect,
+                Rectangle::from_size(rect.size).to_f64(),
+                scale,
+            ))
+        });
+        let renderer = self.backend.renderer_opt().ok_or("no renderer")?;
+        let texture = crate::wm::motion::render_to_texture(renderer, size, scale, &pieces)?;
+        Ok((texture, size))
+    }
+
     fn take_window(&mut self, index: usize, shadow: bool) {
         let Some(freeze) = self.isle.freeze.as_mut() else {
             return;
         };
         let purpose = freeze.purpose;
-        let id = freeze.windows[index].id;
-        let on = self.isle.output_of(id).or_else(|| self.isle.main_output());
+        let on = Some(freeze.windows[index].on.clone());
         let Some(freeze) = self.isle.freeze.as_mut() else {
             return;
         };

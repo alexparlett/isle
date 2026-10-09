@@ -512,7 +512,10 @@ impl State {
             None
         } else if mods.cmd {
             match raw {
-                keysyms::KEY_1..=keysyms::KEY_4 => Some(Key::Quick((raw - keysyms::KEY_0) as u8)),
+                // With Shift, Cmd+3 and Cmd+4 are the screenshot chords.
+                keysyms::KEY_1..=keysyms::KEY_4 if !mods.shift => {
+                    Some(Key::Quick((raw - keysyms::KEY_0) as u8))
+                }
                 keysyms::KEY_k => Some(Key::Menu),
                 keysyms::KEY_y => Some(Key::Preview),
                 keysyms::KEY_c => Some(Key::Copy),

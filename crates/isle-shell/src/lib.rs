@@ -84,6 +84,16 @@ pub struct OutputPlace {
     pub scale: f64,
 }
 
+/// An open placed surface as the capture pick lifts it, relative to its output: the box
+/// of what it draws and that box's corner radius, and the box grown by its shadow's room.
+#[derive(Clone, Debug)]
+pub struct Panel {
+    pub name: &'static str,
+    pub rect: Rectangle<i32, Logical>,
+    pub radius: f32,
+    pub shadowed: Rectangle<i32, Logical>,
+}
+
 /// A surface as `Shell1` lists it.
 #[derive(Clone, Debug)]
 pub struct SurfaceInfo {
@@ -538,6 +548,73 @@ impl Shell {
                     })
             })
             .map(|i| (Self::focus_of(i), i.geometry.loc.to_f64()))
+    }
+
+    /// The open placed surfaces on `output` front to back, but those named in `leave`.
+    pub fn panels(&self, output: &Output, leave: &[&str]) -> Vec<Panel> {
+        self.instances
+            .iter()
+            .rev()
+            .filter(|i| {
+                i.open
+                    && i.attached.is_none()
+                    && &i.output == output
+                    && i.def.scope() == Scope::Placed
+                    && !leave.contains(&i.def.name())
+            })
+            .map(|i| {
+                let shapes = i.hits.shapes.borrow();
+                let drawn = shapes.values().fold(None, |acc: Option<(f32, f32, f32, f32, f32)>, s| {
+                    Some(match acc {
+                        None => (s.x, s.y, s.x + s.width, s.y + s.height, s.radius),
+                        Some((l, t, r, b, radius)) => (
+                            l.min(s.x),
+                            t.min(s.y),
+                            r.max(s.x + s.width),
+                            b.max(s.y + s.height),
+                            radius,
+                        ),
+                    })
+                });
+                // Glass knows its corners; a hit shape may not.
+                let glass_radius = i
+                    .glass
+                    .shapes
+                    .borrow()
+                    .values()
+                    .map(|g| g.radius)
+                    .fold(0.0, f32::max);
+                let (rect, radius) = match drawn.filter(|_| i.def.hit_shapes()) {
+                    Some((l, t, r, b, radius)) => (
+                        Rectangle::new(
+                            (i.geometry.loc.x + l.round() as i32, i.geometry.loc.y + t.round() as i32).into(),
+                            ((r - l).round() as i32, (b - t).round() as i32).into(),
+                        ),
+                        radius,
+                    ),
+                    None => (i.geometry, 0.0),
+                };
+                // The shadow's room is the margin round the drawn box, the least side's: one
+                // side may hold room for more, as Spotlight's foot holds its results.
+                let g = i.geometry;
+                let room = (rect.loc.x - g.loc.x)
+                    .min(rect.loc.y - g.loc.y)
+                    .min(g.loc.x + g.size.w - rect.loc.x - rect.size.w)
+                    .min(g.loc.y + g.size.h - rect.loc.y - rect.size.h)
+                    .max(0);
+                let shadowed = Rectangle::new(
+                    (rect.loc.x - room, rect.loc.y - room).into(),
+                    (rect.size.w + 2 * room, rect.size.h + 2 * room).into(),
+                );
+                Panel {
+                    name: i.def.name(),
+                    rect,
+                    radius: if radius > 0.0 { radius } else { glass_radius },
+                    shadowed,
+                }
+            })
+            .filter(|p| !p.rect.is_empty())
+            .collect()
     }
 
     /// The focus of `name`'s open instance that takes the keyboard.

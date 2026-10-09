@@ -292,6 +292,7 @@ impl State {
             crate::redraw::OutputState::of(output).borrow_mut().locked_shown = false;
         }
         self.isle.lock.locked = true;
+        self.portal_monitor_state(None);
         self.isle.lock.since = Some(Instant::now());
         self.isle.lock.shown_after = None;
         self.isle.lock.field_focused = true;
@@ -320,6 +321,7 @@ impl State {
         }
         info!(why, "unlocked");
         self.isle.lock.locked = false;
+        self.portal_monitor_state(None);
         self.isle.lock.since = None;
         set_marker(false);
         self.end_auth();

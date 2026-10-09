@@ -435,6 +435,7 @@ impl State {
             self.refresh_lock_face();
         }
         self.put_session_frame();
+        self.portal_monitor_state(None);
         self.session_check();
         if self
             .isle
@@ -482,6 +483,24 @@ impl State {
             return;
         }
         let (choice, started) = (ending.choice, ending.started);
+        // An app holding off the session's end through the portal is named at once.
+        let held = self
+            .isle
+            .portal_holds
+            .values()
+            .find(|(_, flags, _)| {
+                flags & (isle_portal::inhibit::LOGOUT | isle_portal::inhibit::USER_SWITCH) != 0
+            })
+            .map(|(app, _, reason)| {
+                if reason.is_empty() {
+                    format!("{app} is keeping the session open.")
+                } else {
+                    format!("{app} is keeping the session open: {reason}")
+                }
+            });
+        if let Some(why) = held {
+            return self.session_stopped(Stop::Refused(why));
+        }
         let open = self.isle.open_apps();
         let stop = if open.is_empty() {
             None
@@ -526,6 +545,7 @@ impl State {
             ending.finishing = true;
         }
         info!(?choice, "every app quit");
+        self.portal_monitor_state(None);
         match choice {
             Choice::LogOut => self.isle.loop_signal.stop(),
             Choice::Restart | Choice::ShutDown => {

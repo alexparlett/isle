@@ -2,6 +2,18 @@
 
 ## 2026-10-09
 
+- P11 11.11: Settings and Inhibit. The Settings portal serves
+  `org.freedesktop.appearance` from the theme in force: `color-scheme` from
+  the resolved mode, `accent-color` as sRGB, `contrast` from Increase
+  Contrast, `reduced-motion` from Reduce Motion; a settings or tokens change
+  that moves one emits `SettingChanged` for it, and the frontend merges gtk's
+  other namespaces after Isle's (`Settings=isle;gtk`). Inhibit's idle and
+  suspend flags hold idle under the app's name until the frontend closes the
+  request; logout and user switch stop the session's end at once, naming the
+  app and its reason as a block inhibitor is named. Monitors hear
+  `screensaver-active` with the lock and `session-state` going to query-end
+  when the session's end starts and to ending when it commits.
+
 - P11 11.10: Screenshot and PickColor. An interactive Screenshot opens the
   toolbar on the shot modes with the app's icon and "{app} wants a
   screenshot", its action Share; the shot goes to the app, not to

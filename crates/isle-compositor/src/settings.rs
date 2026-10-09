@@ -175,6 +175,7 @@ impl State {
         }
         if touched("appearance.") {
             self.isle.refresh_theme();
+            self.portal_appearance_changed();
         }
         if touched("appearance.mode") || touched("wallpaper") {
             self.isle.queue_redraw_all();

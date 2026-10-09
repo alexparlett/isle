@@ -131,6 +131,11 @@ pub struct Isle {
     pub share_picker: std::rc::Rc<isle_shell::capture::picker::PickerSurface>,
     /// The portal backend's connection, while Isle owns its name.
     pub portal: Option<zbus::Connection>,
+    pub portal_appearance: crate::portal::Appearance,
+    /// Apps' Inhibits by request handle: the app's name, the flags, the reason.
+    pub portal_holds: std::collections::HashMap<String, (String, u32, String)>,
+    /// Session-state monitors, by session handle.
+    pub portal_monitors: std::collections::HashSet<String>,
     /// The screen recording running, if one is.
     pub recording_now: Option<crate::recording::Recording>,
     /// A portal's PickColor waiting on the pick.
@@ -452,6 +457,9 @@ impl Isle {
             casting: Default::default(),
             recording_now: None,
             portal: None,
+            portal_appearance: Default::default(),
+            portal_holds: Default::default(),
+            portal_monitors: Default::default(),
             share: Default::default(),
             share_picker,
             freeze: None,

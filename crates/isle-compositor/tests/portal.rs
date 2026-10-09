@@ -469,3 +469,159 @@ async fn pick_color_answers_the_colour_under_the_loupe() {
     assert_eq!(colour, (1.0, 0.0, 0.0));
     assert!(!window.printed("button 272"));
 }
+
+async fn appearance(frontend: &zbus::Connection) -> HashMap<String, OwnedValue> {
+    let reply = frontend
+        .call_method(
+            Some(BACKEND),
+            PATH,
+            Some("org.freedesktop.impl.portal.Settings"),
+            "ReadAll",
+            &(vec!["org.freedesktop.appearance"],),
+        )
+        .await
+        .unwrap();
+    let mut all: HashMap<String, HashMap<String, OwnedValue>> = reply.body().deserialize().unwrap();
+    all.remove("org.freedesktop.appearance").unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_follow_the_appearance() {
+    let isle = Isle::start("portal-settings").await;
+    let frontend = frontend(&isle).await;
+    let keys = appearance(&frontend).await;
+    assert_eq!(
+        u32::try_from(keys["color-scheme"].try_clone().unwrap()).unwrap(),
+        1
+    );
+    assert_eq!(
+        u32::try_from(keys["reduced-motion"].try_clone().unwrap()).unwrap(),
+        0
+    );
+    let accent: (f64, f64, f64) = keys["accent-color"]
+        .try_clone()
+        .unwrap()
+        .try_into()
+        .unwrap();
+    assert!(accent.0 >= 0.0 && accent.2 <= 1.0);
+
+    let rule = zbus::MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface("org.freedesktop.impl.portal.Settings")
+        .unwrap()
+        .member("SettingChanged")
+        .unwrap()
+        .build();
+    let mut changes = zbus::MessageStream::for_match_rule(rule, &frontend, None)
+        .await
+        .unwrap();
+    isle_ipc::settings::SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("appearance.mode", &zvariant::Value::from("light"))
+        .await
+        .unwrap();
+    wait_until(|| async {
+        u32::try_from(
+            appearance(&frontend).await["color-scheme"]
+                .try_clone()
+                .unwrap(),
+        )
+        .unwrap()
+            == 2
+    })
+    .await;
+    use futures_util::StreamExt;
+    let signal = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while let Some(Ok(message)) = changes.next().await {
+            let header = message.header();
+            if header
+                .member()
+                .is_some_and(|m| m.as_str() == "SettingChanged")
+            {
+                return Some(message);
+            }
+        }
+        None
+    })
+    .await
+    .unwrap()
+    .expect("SettingChanged");
+    let (namespace, key, _): (String, String, OwnedValue) = signal.body().deserialize().unwrap();
+    assert_eq!(namespace, "org.freedesktop.appearance");
+    assert!(
+        ["color-scheme", "accent-color"].contains(&key.as_str()),
+        "{key}"
+    );
+}
+
+async fn inhibit(frontend: &zbus::Connection, handle: &str, flags: u32) {
+    let mut options: HashMap<String, OwnedValue> = HashMap::new();
+    options.insert(
+        "reason".into(),
+        OwnedValue::try_from(zvariant::Value::from("Playing a film")).unwrap(),
+    );
+    frontend
+        .call_method(
+            Some(BACKEND),
+            PATH,
+            Some("org.freedesktop.impl.portal.Inhibit"),
+            "Inhibit",
+            &(
+                ObjectPath::try_from(handle).unwrap(),
+                "",
+                "",
+                flags,
+                options,
+            ),
+        )
+        .await
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn inhibit_holds_idle_until_released_and_names_itself_at_log_out() {
+    let mut isle = Isle::start("portal-inhibit").await;
+    let frontend = frontend(&isle).await;
+    let idle = || async {
+        let text = isle_ipc::session::SessionProxy::new(&isle.bus)
+            .await
+            .unwrap()
+            .idle()
+            .await
+            .unwrap();
+        serde_json::from_str::<serde_json::Value>(&text).unwrap()
+    };
+    let handle = "/org/freedesktop/portal/desktop/request/1_1/hold";
+    inhibit(&frontend, handle, 8).await;
+    wait_until(|| async { idle().await["holders"] == serde_json::json!(["An app"]) }).await;
+    frontend
+        .call_method(
+            Some(BACKEND),
+            handle,
+            Some("org.freedesktop.impl.portal.Request"),
+            "Close",
+            &(),
+        )
+        .await
+        .unwrap();
+    wait_until(|| async { idle().await["holders"] == serde_json::json!([]) }).await;
+
+    // A logout hold stops the session's end and says why.
+    inhibit(
+        &frontend,
+        "/org/freedesktop/portal/desktop/request/1_1/keep",
+        1,
+    )
+    .await;
+    let client = isle.client("isle.test.Open", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    isle.chord(&[56, 42, 125, 16]).await;
+    wait_until(|| async {
+        let s: serde_json::Value =
+            serde_json::from_str(&isle.test().await.session().await.unwrap()).unwrap();
+        s["stop"] == "refused An app is keeping the session open: Playing a film"
+    })
+    .await;
+    assert!(isle.compositor_exit().is_none());
+}

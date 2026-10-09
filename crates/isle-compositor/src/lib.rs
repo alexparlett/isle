@@ -283,7 +283,8 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     state.isle.services.tray_kill = Some(services::tray::start(&runtime, &to_loop, tray));
     // The portal frontend reads a backend once at its start: Isle owns the name before the
     // session's apps can start the frontend.
-    state.isle.portal = portal::own(&runtime, to_loop.clone());
+    *state.isle.portal_appearance.lock().unwrap() = portal::appearance_of(state.isle.shell.theme());
+    state.isle.portal = portal::own(&runtime, to_loop.clone(), state.isle.portal_appearance.clone());
     report_ready(&state.isle.socket_name, display);
 
     event_loop.run(None, &mut state, |state| {

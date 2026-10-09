@@ -1,6 +1,9 @@
 //! The loop's side of the portal backend: what each `isle-portal` interface answers with.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use isle_portal::{BoxFuture, Closed, access::AccessRequest};
 use isle_shell::prompts::{Kind, Prompt};
@@ -12,11 +15,15 @@ use crate::{
     worker::ToLoop,
 };
 
+/// The appearance namespace as the Settings portal reads it, kept by the loop.
+pub type Appearance = Arc<Mutex<HashMap<String, OwnedValue>>>;
+
 /// The handlers, sharing the way to the loop and the prompt queue.
 #[derive(Clone)]
 pub struct Desktop {
     pub to_loop: ToLoop,
     pub prompts: PromptClient,
+    pub appearance: Appearance,
 }
 
 impl Desktop {
@@ -204,23 +211,156 @@ impl isle_portal::screenshot::Screenshot for Desktop {
 
 impl isle_portal::settings::Settings for Desktop {
     fn read_all(&self) -> HashMap<String, HashMap<String, OwnedValue>> {
-        HashMap::new()
+        let keys = self
+            .appearance
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|(k, v)| Some((k.clone(), v.try_clone().ok()?)))
+            .collect();
+        HashMap::from([(isle_portal::settings::APPEARANCE.to_owned(), keys)])
     }
 }
 
 impl isle_portal::inhibit::Inhibit for Desktop {
-    fn inhibit(&self, _handle: String, _app: String, _flags: u32, _reason: String) {}
-    fn release(&self, _handle: String) {}
-    fn monitor(&self, _session: String, _app: String) {}
-    fn monitor_closed(&self, _session: String) {}
+    fn inhibit(&self, handle: String, app: String, flags: u32, reason: String) {
+        self.to_loop
+            .post(move |state| state.portal_inhibit(handle, app, flags, reason));
+    }
+
+    fn release(&self, handle: String) {
+        self.to_loop
+            .post(move |state| state.portal_release(&handle));
+    }
+
+    fn monitor(&self, session: String, _app: String) {
+        self.to_loop.post(move |state| {
+            state.isle.portal_monitors.insert(session.clone());
+            state.portal_monitor_state(Some(session));
+        });
+    }
+
+    fn monitor_closed(&self, session: String) {
+        self.to_loop.post(move |state| {
+            state.isle.portal_monitors.remove(&session);
+        });
+    }
+
     fn query_end_response(&self, _session: String) {}
 }
 
+/// The appearance namespace from the theme in force.
+pub fn appearance_of(theme: &isle_tokens::Theme) -> HashMap<String, OwnedValue> {
+    use zvariant::Value;
+    let a = &theme.appearance;
+    let c = theme.tokens.colour_accent;
+    let f = |v: u8| v as f64 / 255.0;
+    let mut keys = HashMap::new();
+    let mut put = |k: &str, v: Value<'_>| {
+        if let Ok(v) = OwnedValue::try_from(v) {
+            keys.insert(k.to_owned(), v);
+        }
+    };
+    put(
+        "color-scheme",
+        Value::from(match a.mode {
+            isle_tokens::Mode::Dark => 1u32,
+            isle_tokens::Mode::Light => 2u32,
+        }),
+    );
+    put("accent-color", Value::from((f(c.r), f(c.g), f(c.b))));
+    put("contrast", Value::from(u32::from(a.increase_contrast)));
+    put("reduced-motion", Value::from(u32::from(a.reduce_motion)));
+    keys
+}
+
+impl crate::state::State {
+    /// The theme changed: the Settings portal's keys follow, each change told to the
+    /// frontend.
+    pub fn portal_appearance_changed(&mut self) {
+        let now = appearance_of(self.isle.shell.theme());
+        let changed: Vec<(String, OwnedValue)> = {
+            let mut kept = self.isle.portal_appearance.lock().unwrap();
+            let changed = now
+                .iter()
+                .filter(|(k, v)| kept.get(*k).map(|old| old != *v).unwrap_or(true))
+                .filter_map(|(k, v)| Some((k.clone(), v.try_clone().ok()?)))
+                .collect();
+            *kept = now;
+            changed
+        };
+        if changed.is_empty() {
+            return;
+        }
+        if let (Some(conn), Some(worker)) = (self.isle.portal.clone(), self.isle.worker.clone()) {
+            worker.spawn(async move {
+                for (key, value) in changed {
+                    isle_portal::settings::changed(
+                        &conn,
+                        isle_portal::settings::APPEARANCE,
+                        &key,
+                        zvariant::Value::from(value),
+                    )
+                    .await;
+                }
+            });
+        }
+    }
+
+    /// An app's Inhibit: idle and suspend hold idle; logout and user switch hold the
+    /// session's end.
+    pub fn portal_inhibit(&mut self, handle: String, app: String, flags: u32, reason: String) {
+        let app = app.trim_end_matches(".desktop").to_owned();
+        let name = if app.is_empty() {
+            "An app".to_owned()
+        } else {
+            self.isle.app_name(&app)
+        };
+        self.isle.portal_holds.insert(handle, (name, flags, reason));
+        self.idle_holds_changed();
+    }
+
+    pub fn portal_release(&mut self, handle: &str) {
+        if self.isle.portal_holds.remove(handle).is_some() {
+            self.idle_holds_changed();
+        }
+    }
+
+    /// Tells monitors the session's state: `session` alone, or every one.
+    pub fn portal_monitor_state(&mut self, session: Option<String>) {
+        let state = match &self.isle.session.ending {
+            Some(e) if e.finishing => isle_portal::inhibit::ENDING,
+            Some(_) => isle_portal::inhibit::QUERY_END,
+            None => isle_portal::inhibit::RUNNING,
+        };
+        let locked = self.isle.lock.locked;
+        let sessions: Vec<String> = match session {
+            Some(s) => vec![s],
+            None => self.isle.portal_monitors.iter().cloned().collect(),
+        };
+        if sessions.is_empty() {
+            return;
+        }
+        if let (Some(conn), Some(worker)) = (self.isle.portal.clone(), self.isle.worker.clone()) {
+            worker.spawn(async move {
+                for s in sessions {
+                    isle_portal::inhibit::state_changed(&conn, &s, locked, state).await;
+                }
+            });
+        }
+    }
+}
+
 /// Owns the backend's name on a connection of its own, then has the frontend read it.
-pub fn own(runtime: &tokio::runtime::Handle, to_loop: ToLoop) -> Option<zbus::Connection> {
+pub fn own(
+    runtime: &tokio::runtime::Handle,
+    to_loop: ToLoop,
+    appearance: Appearance,
+) -> Option<zbus::Connection> {
     let desktop = Desktop {
         to_loop: to_loop.clone(),
         prompts: PromptClient(to_loop),
+        appearance,
     };
     let owned = runtime.block_on(async {
         let conn = zbus::Connection::session().await?;

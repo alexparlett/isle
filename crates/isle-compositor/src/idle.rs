@@ -191,6 +191,14 @@ impl Isle {
             }
         }
         holders.extend(self.idle.cookies.values().map(|(_, app)| app.clone()));
+        holders.extend(
+            self.portal_holds
+                .values()
+                .filter(|(_, flags, _)| {
+                    flags & (isle_portal::inhibit::IDLE | isle_portal::inhibit::SUSPEND) != 0
+                })
+                .map(|(app, _, _)| app.clone()),
+        );
         if self
             .services
             .login

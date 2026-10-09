@@ -146,6 +146,7 @@ impl State {
                 self.isle.tokens = source;
                 self.isle.tokens_error = None;
                 self.isle.refresh_theme();
+                self.portal_appearance_changed();
                 self.sync_island();
             }
             Err(err) => {

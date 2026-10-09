@@ -312,3 +312,12 @@
   right password in the VM (no test password), a video holding idle (a
   logind idle inhibitor stood in), DPMS and the keyring on the host. No host
   run. Next: P10 (Spotlight).
+- P10 planned in `p10-spotlight.md` (2026-10-09), reviewed: the user took
+  every recommendation but one, every pick pasted rather than typed. A placed
+  surface that takes the keyboard with keys buffered from the chord, one
+  pure model, fast sources on the loop and slow ones on the worker in a new
+  `isle-search`, ranking by tier then decaying use, Isle's own file index,
+  `fend-core`, a generated emoji table, clipboard history moved in from P20,
+  games from every launcher and root, the vault left to P20. Research in
+  `docs/research/rust-desktop/spotlight-2026.md`. Phases 10.0–10.14. Next:
+  10.0.

@@ -113,7 +113,9 @@ Intent: shell.md, platform.md, compositor.md.
 v1's prefixes and sources. Games: the rest of `gaming.md`'s Game library on
 P7's `isle-games` (Heroic, Lutris, gamescope's game, launching through the
 launchers, B56), and badges on the Apps grid's tiles from `Windows1.Apps`.
-Intent: shell.md, gaming.md.
+Clipboard history and emoji, moved from P20 at P10's review; the vault stays
+with the providers in P20. Planned 2026-10-09: `p10-spotlight.md`.
+Intent: shell.md, gaming.md, platform.md.
 
 **P11 · Capture and portals.** `xdg-desktop-portal-isle` (B13), a bus name
 on the compositor's service worker (B26): ScreenCast and Screenshot with
@@ -186,7 +188,7 @@ gaming.md, apps.md.
 **P20 · The rest of v1.** Settings' remaining pages, session restore
 with the session dialog's "Reopen windows when logging back in" and the
 crash notice for apps (from P9),
-clipboard history, emoji, calendars with Notification Centre's agenda, the providers (vault, VPN, snapshots,
+calendars with Notification Centre's agenda, the providers (vault, VPN, snapshots,
 phone), the dropdown terminal and picture-in-picture, the on-screen
 keyboard (on the lock too), and an audit against the inventory that nothing of v1 is left.
 Intent: all.

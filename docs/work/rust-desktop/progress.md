@@ -2,6 +2,10 @@
 
 ## 2026-10-09
 
+- P10 planned (`p10-spotlight.md`), 28 choices and phases 10.0–10.14, with
+  the research note `spotlight-2026.md`. Reviewed: every recommendation
+  taken but choice 16, now every pick pasted and nothing injected.
+
 - P9 closed. ARCHITECTURE has How the lock holds, How idle decides, How
   prompts are asked and How the session ends, with `isle-auth` in the
   process layout; B66–B72 are recorded and B12 revised; the intent docs'

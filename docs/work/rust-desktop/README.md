@@ -21,4 +21,5 @@ one at a time.
 - `p8-services.md`: P8, services, notifications and Control Centre.
 - `p9-lock-and-prompts.md`: P9, the lock, idle, the system prompts and the
   session's end.
+- `p10-spotlight.md`: P10, Spotlight.
 - Evidence: `docs/research/rust-desktop/`.

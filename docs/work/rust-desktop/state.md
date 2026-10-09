@@ -374,3 +374,4 @@
 - P11 11.8 done (2026-10-09): `isle-portal`, the name, the sender check, Access.
 - P11 11.9 done (2026-10-09): ScreenCast with the picker, restore data and Stop;
   the picker is centred until alexparlett/smithay#3 (xdg-foreign lookup) is merged.
+- P11 11.10 done (2026-10-09): the Screenshot portal, both kinds, and PickColor.

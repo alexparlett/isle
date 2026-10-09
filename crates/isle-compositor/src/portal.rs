@@ -142,19 +142,63 @@ impl isle_portal::screencast::ScreenCast for Desktop {
 impl isle_portal::screenshot::Screenshot for Desktop {
     fn screenshot(
         &self,
-        _request: isle_portal::screenshot::ShotRequest,
-        _closed: Closed,
+        request: isle_portal::screenshot::ShotRequest,
+        mut closed: Closed,
     ) -> BoxFuture<Option<String>> {
-        Box::pin(async { None })
+        let to_loop = self.to_loop.clone();
+        Box::pin(async move {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            to_loop
+                .call(move |state| {
+                    if request.interactive {
+                        state.open_toolbar_for(&request.app_id, tx);
+                    } else {
+                        state.shoot_for_portal(request.target, tx);
+                    }
+                })
+                .await
+                .ok()?;
+            let path = tokio::select! {
+                path = rx => path.ok().flatten(),
+                _ = closed.wait() => {
+                    to_loop.post(|state| state.close_toolbar());
+                    None
+                }
+            }?;
+            Some(format!("file://{}", path.display()))
+        })
     }
 
     fn pick_color(
         &self,
         _app_id: String,
         _parent_window: String,
-        _closed: Closed,
+        mut closed: Closed,
     ) -> BoxFuture<Option<(f64, f64, f64)>> {
-        Box::pin(async { None })
+        let to_loop = self.to_loop.clone();
+        Box::pin(async move {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            to_loop
+                .call(move |state| {
+                    if state.picking() || state.isle.lock.locked {
+                        let _ = tx.send(None);
+                        return;
+                    }
+                    state.isle.pick_reply = Some(tx);
+                    state.open_pick(crate::freeze::Purpose::ColourFor);
+                })
+                .await
+                .ok()?;
+            let rgb = tokio::select! {
+                rgb = rx => rgb.ok().flatten(),
+                _ = closed.wait() => {
+                    to_loop.post(|state| state.close_pick());
+                    None
+                }
+            }?;
+            let f = |c: u8| c as f64 / 255.0;
+            Some((f(rgb[0]), f(rgb[1]), f(rgb[2])))
+        })
     }
 }
 

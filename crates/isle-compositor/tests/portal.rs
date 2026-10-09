@@ -329,3 +329,143 @@ async fn cancel_in_the_picker_answers_cancel() {
     assert_eq!(response, 1);
     assert!(share(&isle).await["picker"].is_null());
 }
+
+async fn shot(
+    frontend: &zbus::Connection,
+    n: u32,
+    options: HashMap<String, OwnedValue>,
+) -> (u32, HashMap<String, OwnedValue>) {
+    let reply = frontend
+        .call_method(
+            Some(BACKEND),
+            PATH,
+            Some("org.freedesktop.impl.portal.Screenshot"),
+            "Screenshot",
+            &(
+                ObjectPath::try_from(format!(
+                    "/org/freedesktop/portal/desktop/request/1_1/shot{n}"
+                ))
+                .unwrap(),
+                "",
+                "",
+                options,
+            ),
+        )
+        .await
+        .unwrap();
+    reply.body().deserialize().unwrap()
+}
+
+/// The PNG a URI names, its size, and the file removed.
+fn taken(results: &HashMap<String, OwnedValue>) -> (u32, u32) {
+    let uri: String = results["uri"].try_clone().unwrap().try_into().unwrap();
+    let path = uri.strip_prefix("file://").unwrap().to_owned();
+    let decoder = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(&path).unwrap()));
+    let info = decoder.read_info().unwrap().info().clone();
+    let _ = std::fs::remove_file(&path);
+    (info.width, info.height)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn screenshots_for_apps_with_and_without_asking() {
+    let mut isle = Isle::start("portal-screenshot").await;
+    let window = isle.client("isle.test.Red", "ff0000");
+    window.wait_for("keyboard-enter").await;
+    let info = isle.wait_for_window("isle.test.Red").await;
+    let frontend = frontend(&isle).await;
+
+    // Not interactive: the screens, or the front window.
+    let (response, results) = shot(&frontend, 1, HashMap::new()).await;
+    assert_eq!(response, 0);
+    assert_eq!(taken(&results), (1920, 1080));
+    let mut options: HashMap<String, OwnedValue> = HashMap::new();
+    options.insert("target".into(), OwnedValue::from(8u32));
+    let (_, results) = shot(&frontend, 2, options).await;
+    let (w, _) = taken(&results);
+    assert!(w as i32 > info.width, "the window with its shadow: {w}");
+
+    // Interactive: the toolbar names the app, and its action shares the shot.
+    let mut options: HashMap<String, OwnedValue> = HashMap::new();
+    options.insert("interactive".into(), OwnedValue::from(true));
+    let asked = tokio::spawn({
+        let frontend = frontend.clone();
+        async move { shot(&frontend, 3, options).await }
+    });
+    let toolbar = || async {
+        serde_json::from_str::<serde_json::Value>(&isle.test().await.toolbar().await.unwrap())
+            .unwrap()
+    };
+    wait_until(|| async { toolbar().await["request"].is_string() }).await;
+    press(&isle, RETURN).await;
+    let (response, results) = asked.await.unwrap();
+    assert_eq!(response, 0);
+    assert_eq!(taken(&results), (1920, 1080));
+    assert!(!isle.dir.join("home/Pictures/Screenshots").exists());
+    let thumbnail: serde_json::Value =
+        serde_json::from_str(&isle.test().await.thumbnail().await.unwrap()).unwrap();
+    assert!(thumbnail.is_null());
+
+    // Escape answers cancel.
+    let asked = tokio::spawn({
+        let frontend = frontend.clone();
+        let mut options: HashMap<String, OwnedValue> = HashMap::new();
+        options.insert("interactive".into(), OwnedValue::from(true));
+        async move { shot(&frontend, 4, options).await }
+    });
+    wait_until(|| async { toolbar().await["request"].is_string() }).await;
+    press(&isle, ESCAPE).await;
+    assert_eq!(asked.await.unwrap().0, 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn pick_color_answers_the_colour_under_the_loupe() {
+    let mut isle = Isle::start("portal-pick").await;
+    let window = isle.client("isle.test.Red", "ff0000");
+    window.wait_for("keyboard-enter").await;
+    let info = isle.wait_for_window("isle.test.Red").await;
+    let frontend = frontend(&isle).await;
+    let test = isle.test().await;
+    test.pointer_to(
+        (info.x + info.width / 2) as f64,
+        (info.y + info.height / 2) as f64,
+    )
+    .await
+    .unwrap();
+    let asked = tokio::spawn({
+        let frontend = frontend.clone();
+        async move {
+            let reply = frontend
+                .call_method(
+                    Some(BACKEND),
+                    PATH,
+                    Some("org.freedesktop.impl.portal.Screenshot"),
+                    "PickColor",
+                    &(
+                        ObjectPath::try_from("/org/freedesktop/portal/desktop/request/1_1/pick")
+                            .unwrap(),
+                        "",
+                        "",
+                        HashMap::<String, OwnedValue>::new(),
+                    ),
+                )
+                .await
+                .unwrap();
+            reply
+                .body()
+                .deserialize::<(u32, HashMap<String, OwnedValue>)>()
+                .unwrap()
+        }
+    });
+    wait_until(|| async {
+        let pick: serde_json::Value = serde_json::from_str(&test.pick().await.unwrap()).unwrap();
+        pick["mode"] == "colour"
+    })
+    .await;
+    test.button(0x110, true).await.unwrap();
+    test.button(0x110, false).await.unwrap();
+    let (response, results) = asked.await.unwrap();
+    assert_eq!(response, 0);
+    let colour: (f64, f64, f64) = results["color"].try_clone().unwrap().try_into().unwrap();
+    assert_eq!(colour, (1.0, 0.0, 0.0));
+    assert!(!window.printed("button 272"));
+}

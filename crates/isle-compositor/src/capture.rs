@@ -363,6 +363,138 @@ impl State {
     }
 }
 
+impl State {
+    /// A shot for an app through the portal: written where the app may read it, never kept
+    /// in Screenshots, with no thumbnail. `reply` has the file.
+    pub fn take_for_portal(
+        &mut self,
+        target: Target,
+        reply: tokio::sync::oneshot::Sender<Option<PathBuf>>,
+    ) {
+        for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
+            self.draw_shell(&output);
+        }
+        let pointer = self.isle.settings.capture.show_pointer;
+        match self.capture_pixels(&target, pointer) {
+            Ok(pixels) => self.portal_still(pixels, reply),
+            Err(err) => {
+                warn!("no shot for the portal: {err}");
+                let _ = reply.send(None);
+            }
+        }
+    }
+
+    /// A non-interactive Screenshot, already allowed by the frontend: the front window
+    /// for the active window's target, else every screen as laid out.
+    pub fn shoot_for_portal(
+        &mut self,
+        target: u32,
+        reply: tokio::sync::oneshot::Sender<Option<PathBuf>>,
+    ) {
+        let front = self.focused_window();
+        if matches!(
+            target,
+            isle_portal::screenshot::TARGET_ACTIVE_WINDOW | isle_portal::screenshot::TARGET_WINDOW
+        ) && let Some(id) = front
+        {
+            return self.take_for_portal(Target::Window { id, shadow: true }, reply);
+        }
+        for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
+            self.draw_shell(&output);
+        }
+        let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
+        let mut parts = Vec::new();
+        for output in outputs {
+            let Some(geometry) = self.isle.space.output_geometry(&output) else {
+                continue;
+            };
+            let scale = output.current_scale().fractional_scale();
+            if let Ok(pixels) = self.capture_pixels(&Target::Screen(output), false) {
+                let at = geometry
+                    .loc
+                    .to_f64()
+                    .to_physical(scale)
+                    .to_i32_round::<i32>();
+                parts.push((at, pixels));
+            }
+        }
+        match compose(&parts) {
+            Some(pixels) => self.portal_still(pixels, reply),
+            None => {
+                let _ = reply.send(None);
+            }
+        }
+    }
+
+    fn portal_still(
+        &mut self,
+        pixels: Pixels,
+        reply: tokio::sync::oneshot::Sender<Option<PathBuf>>,
+    ) {
+        let folder = portal_folder();
+        prune(&folder);
+        self.keep_stills(
+            vec![pixels],
+            Destination::Folder(folder),
+            false,
+            move |_, written, _| {
+                let _ = reply.send(written.into_iter().next());
+            },
+        );
+    }
+}
+
+/// Where shots for apps are written: kept a day, for the document portal to hand on.
+pub fn portal_folder() -> PathBuf {
+    std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".cache"))
+        .join("isle/portal")
+}
+
+/// Removes the portal's shots older than a day.
+fn prune(folder: &Path) {
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return;
+    };
+    let day = std::time::Duration::from_secs(24 * 3600);
+    for entry in entries.flatten() {
+        let old = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.elapsed().ok())
+            .is_some_and(|age| age > day);
+        if old {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
+/// Screens' pixels placed at their places in one picture, the gaps transparent.
+fn compose(parts: &[(smithay::utils::Point<i32, Physical>, Pixels)]) -> Option<Pixels> {
+    let left = parts.iter().map(|(at, _)| at.x).min()?;
+    let top = parts.iter().map(|(at, _)| at.y).min()?;
+    let right = parts.iter().map(|(at, p)| at.x + p.width as i32).max()?;
+    let bottom = parts.iter().map(|(at, p)| at.y + p.height as i32).max()?;
+    let (w, h) = ((right - left) as u32, (bottom - top) as u32);
+    let mut rgba = vec![0u8; (w * h * 4) as usize];
+    for (at, p) in parts {
+        let (x0, y0) = ((at.x - left) as usize, (at.y - top) as usize);
+        let row = p.width as usize * 4;
+        for y in 0..p.height as usize {
+            let from = y * row;
+            let to = ((y0 + y) * w as usize + x0) * 4;
+            rgba[to..to + row].copy_from_slice(&p.rgba[from..from + row]);
+        }
+    }
+    Some(Pixels {
+        width: w,
+        height: h,
+        rgba,
+    })
+}
+
 /// What a file holds, for its folder and name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {

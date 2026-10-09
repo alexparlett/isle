@@ -2,6 +2,17 @@
 
 ## 2026-10-09
 
+- P11 11.10: Screenshot and PickColor. An interactive Screenshot opens the
+  toolbar on the shot modes with the app's icon and "{app} wants a
+  screenshot", its action Share; the shot goes to the app, not to
+  Screenshots, with no thumbnail, and Close or Escape answers cancel. A
+  non-interactive one, already allowed by the frontend through Isle's Access,
+  takes the front window for the window targets and every screen as laid out
+  otherwise. Shots for apps are written under `$XDG_CACHE_HOME/isle/portal/`
+  and those over a day old are removed at the next. PickColor opens the
+  colour pick and answers the colour under the loupe as sRGB in [0, 1].
+  Not yet: the countdown for an app's shot (it shoots at once).
+
 - P11 11.9: ScreenCast and the picker. CreateSession exports a Session;
   SelectSources keeps the types, cursor mode and persistence asked for (a
   cursor mode not offered is refused; hidden and embedded are); Start finds

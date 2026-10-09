@@ -133,6 +133,8 @@ pub struct Isle {
     pub portal: Option<zbus::Connection>,
     /// The screen recording running, if one is.
     pub recording_now: Option<crate::recording::Recording>,
+    /// A portal's PickColor waiting on the pick.
+    pub pick_reply: Option<tokio::sync::oneshot::Sender<Option<[u8; 3]>>>,
     /// Shift+Cmd+4's frozen screens while the pick is open.
     pub freeze: Option<crate::freeze::Freeze>,
     pub capture_readout: std::rc::Rc<isle_shell::capture::readout::ReadoutSurface>,
@@ -453,6 +455,7 @@ impl Isle {
             share: Default::default(),
             share_picker,
             freeze: None,
+            pick_reply: None,
             capture_readout,
             thumbnail: None,
             capture_thumbnail,

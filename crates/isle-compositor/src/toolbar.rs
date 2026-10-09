@@ -100,7 +100,16 @@ pub struct Toolbar {
     menu_open: bool,
     /// Dragged this time: its place is kept.
     moved: bool,
+    /// A portal's interactive Screenshot: the shot goes to the app.
+    request: Option<PortalShot>,
     solids: RefCell<HashMap<(String, usize), SolidColorBuffer>>,
+}
+
+/// An app's screenshot request the toolbar answers.
+pub struct PortalShot {
+    app: String,
+    icon: Option<std::path::PathBuf>,
+    reply: Option<tokio::sync::oneshot::Sender<Option<std::path::PathBuf>>>,
 }
 
 /// A shot or recording waiting for its timer.
@@ -454,6 +463,7 @@ impl State {
             lifted: None,
             menu_open: false,
             moved: false,
+            request: None,
             solids: RefCell::default(),
         });
         self.place_toolbar();
@@ -462,9 +472,13 @@ impl State {
     }
 
     pub fn close_toolbar(&mut self) {
-        let Some(toolbar) = self.isle.toolbar.take() else {
+        let Some(mut toolbar) = self.isle.toolbar.take() else {
             return;
         };
+        // An app's request closed without a shot is answered cancel.
+        if let Some(reply) = toolbar.request.as_mut().and_then(|r| r.reply.take()) {
+            let _ = reply.send(None);
+        }
         if toolbar.menu_open {
             self.close_surface("window-menu");
         }
@@ -522,6 +536,17 @@ impl State {
         };
         let theme = self.isle.shell.theme();
         let game = self.game_in_front();
+        if let Some(request) = &toolbar.request {
+            return Bar {
+                mode: toolbar.mode,
+                allowed: Mode::ALL.into_iter().filter(|m| !m.records()).collect(),
+                recording: false,
+                request: Some((request.app.clone(), request.icon.clone())),
+                focus: toolbar.focus,
+                solid: theme.appearance.reduce_transparency || game,
+                contrast: theme.appearance.increase_contrast,
+            };
+        }
         Bar {
             mode: toolbar.mode,
             allowed: Mode::ALL
@@ -876,6 +901,39 @@ impl State {
         self.toolbar_take(target);
     }
 
+    /// An app's interactive Screenshot: the toolbar on the shot modes, naming the app, its
+    /// action Share.
+    pub fn open_toolbar_for(
+        &mut self,
+        app_id: &str,
+        reply: tokio::sync::oneshot::Sender<Option<std::path::PathBuf>>,
+    ) {
+        if self.isle.toolbar.is_some() || self.isle.lock.locked {
+            let _ = reply.send(None);
+            return;
+        }
+        self.open_toolbar(false);
+        let app_id = app_id.trim_end_matches(".desktop");
+        let app = self.isle.app_name(app_id);
+        let request = PortalShot {
+            app: if app.is_empty() { "An app".into() } else { app },
+            icon: self.isle.app_icon(app_id, 16),
+            reply: Some(reply),
+        };
+        let Some(toolbar) = self.isle.toolbar.as_mut() else {
+            if let Some(reply) = request.reply {
+                let _ = reply.send(None);
+            }
+            return;
+        };
+        if toolbar.mode.records() {
+            toolbar.mode = Mode::ShotScreen;
+        }
+        toolbar.request = Some(request);
+        self.place_toolbar();
+        self.toolbar_changed();
+    }
+
     fn toolbar_record(&mut self, source: crate::cast::Source) {
         self.close_toolbar();
         let timer = self.isle.settings.capture.timer.max(0) as u32;
@@ -887,6 +945,17 @@ impl State {
     }
 
     fn toolbar_take(&mut self, target: Target) {
+        if let Some(reply) = self
+            .isle
+            .toolbar
+            .as_mut()
+            .and_then(|t| t.request.as_mut())
+            .and_then(|r| r.reply.take())
+        {
+            self.close_toolbar();
+            self.take_for_portal(target, reply);
+            return;
+        }
         let copy = self.isle.toolbar.as_ref().is_some_and(|t| t.copy);
         self.close_toolbar();
         let timer = self.isle.settings.capture.timer.max(0) as u32;
@@ -1203,6 +1272,7 @@ impl State {
             "lifted": t.lifted,
             "focus": t.focus.map(|f| format!("{f:?}")),
             "drawn": self.isle.shell.is_open("capture-toolbar"),
+            "request": t.request.as_ref().map(|r| r.app.clone()),
         })
         .to_string()
     }

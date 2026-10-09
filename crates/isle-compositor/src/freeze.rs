@@ -50,6 +50,8 @@ pub enum Purpose {
     Shot { copy: bool },
     /// Shift+Cmd+6: the colour under the loupe, copied.
     Colour,
+    /// A portal's PickColor: the colour goes to the app.
+    ColourFor,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -386,7 +388,7 @@ impl State {
         if screens.is_empty() {
             return;
         }
-        let colour = purpose == Purpose::Colour;
+        let colour = matches!(purpose, Purpose::Colour | Purpose::ColourFor);
         let mut pixels = Vec::new();
         if colour {
             for screen in &mut screens {
@@ -471,6 +473,10 @@ impl State {
     pub fn close_pick(&mut self) {
         if self.isle.freeze.take().is_none() {
             return;
+        }
+        // An app's PickColor closed without a colour is answered cancel.
+        if let Some(reply) = self.isle.pick_reply.take() {
+            let _ = reply.send(None);
         }
         self.isle.shell.close("capture-readout");
         self.isle.cursor_status = CursorImageStatus::default_named();
@@ -933,6 +939,13 @@ impl State {
         let Some(rgb) = self.colour_under_pointer() else {
             return;
         };
+        if self.isle.freeze.as_ref().map(|f| f.purpose) == Some(Purpose::ColourFor) {
+            if let Some(reply) = self.isle.pick_reply.take() {
+                let _ = reply.send(Some(rgb));
+            }
+            self.close_pick();
+            return;
+        }
         let text = colour_text(rgb, self.isle.settings.capture.colour_format);
         self.close_pick();
         let pick = crate::clipboard::Pick::text(text);

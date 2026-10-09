@@ -2,6 +2,13 @@
 
 ## 2026-10-09
 
+- P10 closed. ARCHITECTURE has How Spotlight searches and How the clipboard
+  is kept, with `isle-search` in the repository's layout; B73–B79 recorded;
+  `shell.md`'s file-search point, `platform.md`'s clipboard points and
+  `gaming.md`'s library and gamescope points answered, Spotlight 8 and
+  Clipboard 3 and 7 now say pasted; the roadmap's P10, P13, P15, P16 and P20
+  entries follow; `p10-spotlight.md` ends with its outcome.
+
 - P10 10.13: the measure and the VM (`docs/research/rust-desktop/p10-spotlight.md`).
   At 3440×1440 the fast sources answer a keystroke in 0.3 ms at p95; the
   list, the Apps view and the emoji grid draw under 2 ms at p95; the first

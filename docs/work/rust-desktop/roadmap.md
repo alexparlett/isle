@@ -5,7 +5,7 @@ packet's brief: what it delivers, what it depends on, and the decisions and
 intent documents it answers to. A packet is planned in detail, with its own
 PRD and phases, by its own run of feature-plan when it starts, against the
 code as it is then. Intent: `docs/design/` (compositor, shell, gaming,
-apps, platform). Decisions: `docs/DECISIONS.md` (B1–B59).
+apps, platform). Decisions: `docs/DECISIONS.md` (B1–B79).
 
 Everything happens on `feature/rust-desktop` (B16); v1 stays the daily
 desktop on `main` until milestone M2.
@@ -108,13 +108,13 @@ idle and the lock among the holds on banners; the session's end and Force
 Quit. Fingerprint waits for a reader.
 Intent: shell.md, platform.md, compositor.md.
 
-**P10 · Spotlight.** Launcher with apps, the Apps grid with its favourites
+**P10 · Spotlight.** Done 2026-10-09: `p10-spotlight.md`, B73–B79. Launcher with apps, the Apps grid with its favourites
 (B19), windows, settings, the front app's menu items (B18), actions and
 v1's prefixes and sources. Games: the rest of `gaming.md`'s Game library on
 P7's `isle-games` (Heroic, Lutris, gamescope's game, launching through the
 launchers, B56), and badges on the Apps grid's tiles from `Windows1.Apps`.
 Clipboard history and emoji, moved from P20 at P10's review; the vault stays
-with the providers in P20. Planned 2026-10-09: `p10-spotlight.md`.
+with the providers in P20.
 Intent: shell.md, gaming.md, platform.md.
 
 **P11 · Capture and portals.** `xdg-desktop-portal-isle` (B13), a bus name
@@ -141,7 +141,11 @@ sound, network, Bluetooth, keyboard and shortcuts, appearance, desktop and
 hot corners, notifications, Control Centre, Focus and Game Mode, over the
 settings P8 added; the modules' "Settings…" links open them. Measures an app's memory on the GPU before
 B26's default is final. A display mode change reverts unless confirmed in
-the Displays pane (moved from P2). Intent: apps.md.
+the Displays pane (moved from P2). Settings ships the row index Spotlight
+reads (`data/settings/index.kdl`, empty since P10) and opens at a pane and
+row from `isle-settings://<pane>/<row>`; Settings › Spotlight edits the
+`spotlight` section (favourites, file folders, clipboard exclusions, the
+web search). Intent: apps.md.
 
 ## Milestone M2: Isle replaces v1 on the host
 
@@ -167,10 +171,13 @@ Intent: platform.md, compositor.md.
 **P15 · Files.** Finder-shaped Files with v1's browsing-engine lessons; the
 Open and Save panels, handed FileChooser by the portal backend, and Quick
 Look as a D-Bus service Spotlight calls, all in the Files process (B26).
-Intent: apps.md, platform.md.
+Files owns `org.freedesktop.FileManager1`, which Spotlight's Show in Files and
+Cmd+Return on a file already call (P10), and a search that Spotlight's "Show
+all in Files" and Cmd+Y on a file reach. Intent: apps.md, platform.md.
 
 **P16 · Mission Control.** The Spaces overview, hot corners (Lock Screen
-and Put Display to Sleep among them, from P9), trackpad gestures, Split
+and Put Display to Sleep among them, from P9, and the bottom-right corner's
+Apps view, which `isle spotlight apps` opens since P10), trackpad gestures, Split
 View; Stage Manager as a layout module, off by default (B25). Intent: shell.md, compositor.md.
 
 **P17 · Widgets.** Notification Centre moved to P8 at its review. Widgets
@@ -188,8 +195,8 @@ gaming.md, apps.md.
 **P20 · The rest of v1.** Settings' remaining pages, session restore
 with the session dialog's "Reopen windows when logging back in" and the
 crash notice for apps (from P9),
-calendars with Notification Centre's agenda, the providers (vault, VPN, snapshots,
-phone), the dropdown terminal and picture-in-picture, the on-screen
+calendars with Notification Centre's agenda, the providers (vault, with
+Spotlight's `*` scope, VPN, snapshots, phone), the dropdown terminal and picture-in-picture, the on-screen
 keyboard (on the lock too), and an audit against the inventory that nothing of v1 is left.
 Intent: all.
 

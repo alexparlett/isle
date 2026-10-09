@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B72 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B79 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -344,4 +344,12 @@
   scope.
 - P10 10.13 done (2026-10-09): measures and the VM in
   `docs/research/rust-desktop/p10-spotlight.md`; tests share fontconfig's
-  cache again. Next: 10.14 (close).
+  cache again.
+- P10 is done (2026-10-09): ARCHITECTURE has How Spotlight searches and How
+  the clipboard is kept; B73 (the compositor owns Spotlight's model and
+  keys), B74 (sources in `isle-search`), B75 (tier, then use), B76 (Isle's
+  own file index), B77 (games through their launchers' entries), B78
+  (clipboard history in the compositor), B79 (every pick pasted) are
+  recorded; the intent docs' open points answered; the roadmap's P13, P15,
+  P16 and P20 entries follow; `p10-spotlight.md` ends with its outcome. No
+  host run. Next: P11 (capture and portals).

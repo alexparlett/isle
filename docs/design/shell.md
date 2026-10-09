@@ -216,7 +216,7 @@ clipboard history, with the Apps grid that replaced Launchpad. It carries every 
 5. Fast sources (apps, actions, settings, windows, menu items) answer from memory. Slow sources (files, contents, calculator) arrive after them and never change the selected row while the user has not moved.
 6. Content search is debounced and bounded in results, and runs on the worker (inventory §4 Launcher).
 7. Clipboard results include images and pins; a result can be pasted, pinned or deleted. Paste goes into the window focused before Spotlight opened, using that app's paste chord (terminals differ).
-8. Emoji are typed into the previous window through Isle's injected-key source, which Cmd translation never touches (B21). Ctrl+Cmd+Space opens Spotlight in emoji mode.
+8. Emoji are pasted into the previous window: Isle offers the pick as the clipboard and sends that app's paste chord, putting the clipboard back after (B79). Ctrl+Cmd+Space opens Spotlight in emoji mode.
 9. A vault result copies the password on Return, the username with Shift and the one-time code with Ctrl; each secret is fetched for that keypress and never cached (D42).
 10. Cmd+Y on a file result opens Quick Look, which Spotlight calls over D-Bus in the Files process (B26); Space is typed into the field, which keeps focus. Cmd+Return reveals the file in Files.
 11. The Apps view lists every installed app, filterable by typing and by category, with a row of favourites at the top in the user's order, added from a tile's menu or by dragging a tile there. It opens from Cmd+1, a hot corner or the Launchpad key. A tile shows the app's badge, and its menu reaches the app's actions (No Dock 5).
@@ -228,8 +228,9 @@ v1 lessons kept
 - Inventory §4 Launcher: debounce content search and cap its results; type into the previous window, not into Spotlight's own.
 - D42: secrets are fetched per field.
 
-Open for its packet
-- File search: no indexer was compared (localsearch, plocate, an own index); v1 searched on demand (`macos-model.md` OPEN).
+Settled in P10
+- File search is Isle's own index of names, kept live by inotify, with contents searched on demand (B76); localsearch and plocate were compared and rejected (`spotlight-2026.md` §1).
+- The compositor owns Spotlight's model and its keys (B73); sources are `isle-search`'s (B74); results rank by tier, then use (B75).
 
 ### App switcher
 

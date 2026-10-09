@@ -707,8 +707,7 @@ in use.
    app on the exclusion list, is not recorded. A vault copy carries that
    hint.
 3. A pick sets the selection and pastes into the window that had focus, with
-   the app's paste chord sent through Isle's own input source, untranslated
-   (B21).
+   the app's paste chord from the translation tables (B79).
 4. Items can be deleted one at a time or all at once. The primary selection
    is not recorded.
 5. Emoji come from unicode-emoji's `emoji-test.txt` with names, groups and
@@ -717,11 +716,12 @@ in use.
 6. Search matches the start of a name, a word start, anywhere in the name,
    or the group. Recent picks lead an empty query and rank higher; they are
    kept in state.
-7. A pick is typed into the focused field after the picker closes, through
-   Isle's own input source; Shift copies instead.
+7. A pick is pasted into the focused field after the picker closes; Shift
+   copies instead (B79).
 
-**Open for its packet.** The history caps, and whether images persist across
-a reboot. How a character reaches a client that has no text-input-v3.
+**Settled in P10.** 200 unpinned items or 30 days, 8 MB an item at most;
+images persist across a reboot (B78). A character is pasted, never typed,
+so a client needs no text-input-v3, only a paste chord (B79).
 
 ### Calendars
 

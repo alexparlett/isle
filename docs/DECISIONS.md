@@ -846,3 +846,69 @@ stops it with Show {app}; one that missed its ping stops it with Force Quit
 shutdown is named. The chooser, the confirmation, log out with no
 confirmation and the lock's power row all use it. Force Quit sends `SIGKILL`
 to every process of the app; close on a frozen window offers it directly.
+
+**B73 · The compositor owns Spotlight's model and its keys.** Built in P10.
+The pure `Spotlight` model is made at the press of Cmd+Space and given
+Spotlight's keys before the keyboard engine while Spotlight holds the
+keyboard; the surface draws a frame built from it. A key typed with the
+chord reaches the model whether or not the surface has drawn, so nothing is
+buffered, and every rule (the top hit, the calculation row, slow answers
+never landing above a moved selection) is tested without a tree. Rejected:
+a text field in the tree with keys buffered until it has focus (the plan's
+choice 2), which would hold the rules in Freya's input handling.
+
+**B74 · Spotlight's sources are one trait in `isle-search`.** Built in P10.
+Each source holds what it searches, handed over when Spotlight opens, and
+answers a query with rows; fast ones answer in the keystroke's frame on the
+loop, slow ones (files, contents, the calculator) on the worker, giving up
+when a newer query comes. Rejected: sources reaching into the compositor's
+state (untestable alone), every source on the worker (the fast ones would
+miss the frame).
+
+**B75 · Results rank by tier, then use, then name.** Built in P10. A match's
+tier comes first (the name starts with the query, a word does, initials,
+inside, fuzzy at 18 a character or better); within a tier, use that halves
+every 30 days with a bonus over the week after; a shell action wins a tie
+with an app. Help's menu search ranks the same way. Rejected: one fuzzy
+score for everything (a near miss outranks a real start), v1's counts that
+never decay, `frizbee`'s typo tolerance.
+
+**B76 · File search is Isle's own index; contents are searched on demand.**
+Built in P10. Home and the folders added are walked with the `ignore` crate
+without hidden folders, what `.gitignore` files exclude and the folders
+excluded, kept live by one inotify watch per folder and walked again when a
+watch overflows; names are matched against a lower-cased copy. Contents are
+searched with ripgrep's engine, plain text, twenty files at most, after a
+pause in typing. Rejected: plocate (readable only through its setgid binary,
+a day old at best, and its update had failed on the host), localsearch (a
+GNOME stack that skips Git repositories), a content index.
+
+**B77 · Games start through their launchers' desktop entries.** Built in
+P10. A library game is the launcher's entry given the game's link
+(`steam://rungameid/`, `heroic://launch/<runner>/<app>`,
+`lutris:rungameid/`), through the one launch path, so it has a token and a
+scope. A launcher's own entry for a game folds into the game; where Steam is
+installed it alone says which Steam games are, Lutris's imports of them
+left out. Rejected: running a game's binary (D38), `xdg-open` of the link
+alone (no scope).
+
+**B78 · Clipboard history is the compositor's.** Built in P10. Every
+clipboard copy, Wayland's or an X11 app's through Xwayland, is read off the
+loop and kept under `~/.local/state/isle/clipboard/`: 200 unpinned items or
+30 days, 8 MB an item at most, pins never evicted, images surviving a
+reboot. An offer marked `x-kde-passwordManagerHint`, or made while an app on
+`spotlight.clipboard-exclude` is in front, is not kept. No data-control
+protocol is served. Every selection the Wayland side sets is handed to the
+X11 window manager, and one Isle offers is written by Isle itself. Rejected:
+cliphist through `wl-paste` (v1; it kept passwords), serving
+`ext-data-control` (it hands every copy to any client that binds it).
+
+**B79 · Every pick is pasted.** Built in P10. An emoji, a symbol or a
+clipboard item reaches a window as Isle's selection and the app's paste
+chord through P5's tables; for an emoji the clipboard as it was comes back
+once the app has read the pick, or after a second. Rejected: typing through
+a keymap carrying the characters (Xwayland applies a changed keymap late),
+serving text-input-v3 as an input method (it reaches few of the apps that
+matter). An app with no paste chord, such as xterm by default, takes no
+pick.
+

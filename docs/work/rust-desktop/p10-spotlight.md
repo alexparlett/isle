@@ -512,3 +512,46 @@ P5's keymap trick and pasted only into X11 ones; every pick is now pasted
 and nothing is injected. Clipboard history moves into P10 from P20, the
 vault stays with the providers, and P10 stays one packet with the host run
 optional, as for P6 to P9.
+
+## Outcome
+
+Built 2026-10-09 in phases 10.0–10.14, as planned, with these differences:
+
+- **The compositor owns the model and its keys** (B73), where choice 2 had
+  a field in the tree with keys buffered until it took focus: the model is
+  made at the chord's press, so a key typed with it is never held anywhere.
+- **The emoji table is tab-separated, `data/emoji/emoji.tsv`**, not KDL:
+  parsing 273 KB of KDL cost about 600 ms of CPU in debug builds. No CLDR
+  keywords: the host has no annotations file, and the generator takes one
+  when given.
+- **The font's emoji coverage is checked on the loop** the first time the
+  Emoji scope searches, through the font manager the shell holds; on the
+  worker it held the loop's text layout up behind fontconfig's lock.
+- **Every pick is pasted** (choice 16 as revised at the review, B79), the
+  clipboard read before and put back after; an app with no paste chord
+  (xterm by default) takes no pick.
+- **Menus in Spotlight are drawn in its own tree** and take the keys while
+  open; the clipboard's Clear asks in a menu rather than an alert sheet.
+- **File names match a lower-cased copy first**, which took a search of
+  84,000 names from 60 ms to 2 ms; initials no longer find files.
+- **Launches start in the home folder**, as from a terminal.
+- **Drags out carry no icon yet.**
+- **What waits for Files is left out rather than hidden**: the tile menu has
+  no Show in Files and the Files scope no "Show all in Files" row; Cmd+Y on a
+  file does nothing. Cmd+Return on a file asks FileManager1 already.
+
+Found and fixed on the way: the Pulse client sent an empty cookie when there
+is no cookie file (audio failed to connect); a Wayland client could not read
+an X11 app's clipboard, and an X11 app could not read the Wayland side's or
+Isle's; tests scanned every font for want of fontconfig's cache since they
+got a HOME of their own, about 53 MB and a burst of CPU per test compositor.
+
+The measures and the VM are in `docs/research/rust-desktop/p10-spotlight.md`:
+the fast sources answer a keystroke in 0.3 ms at p95, every Spotlight draw is
+under 2 ms at p95, nothing draws while closed, and the shell stays inside its
+budgets. The VM launched and raised kitty, pasted an emoji into it, kept a
+copy, found a file written over ssh and answered `isle search`. Not checked:
+the host's real game libraries in the grid, the Launchpad key, contents
+search and a drag in the guest (both headless). B73–B79 record the
+decisions.
+

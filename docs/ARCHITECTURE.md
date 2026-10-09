@@ -275,7 +275,9 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   urgent from the X11 urgency hint or LauncherEntry, normal from a stale
   activation, `_NET_ACTIVE_WINDOW`, demands-attention or `gtk_surface1`.
 - **Games are named from their launcher's library** (B56): `isle-games` reads
-  Steam's library folders, manifests and covers on the worker.
+  Steam's, Heroic's and Lutris's libraries from their native and Flatpak
+  folders on the worker; a gamescope window Steam started is the game it
+  hosts.
 - **Centre surfaces close the menu-bar surfaces** (B57).
 
 ## How services reach the shell
@@ -418,6 +420,58 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   window that missed its ping hangs the not-responding alert on it, keyed
   apart from its bar.
 
+## How Spotlight searches
+
+- **The compositor owns Spotlight's model** (B73). `isle-shell`'s pure
+  `Spotlight` holds the field, the scope, the groups and the selection; the
+  compositor makes it at the press of Cmd+Space and gives it Spotlight's
+  keys before the keyboard engine while Spotlight holds the keyboard, with
+  text from the seat's layout, its own chords and repeat. A key typed with
+  the chord reaches the model whether or not the surface has drawn. The
+  surface draws a frame the compositor builds from the model; the pointer
+  sends actions back.
+- **Sources are `isle-search`'s, one trait** (B74). Each holds what it
+  searches, handed over when Spotlight opens: apps and games, actions with
+  their chords, windows, the front app's menu items from the menu bar's own
+  titles, Settings rows, clipboard history, emoji, Run and the web. These
+  answer from memory in the keystroke's frame on the loop. Files, contents
+  and the calculator are slow: they run on the worker, checking the newest
+  query's generation, and an answer to an older query is dropped. The model
+  lets a slow answer land only below a selection the user moved.
+- **Ranking is a tier, then use, then the name** (B75). A name that starts
+  with the query, then a word start, initials, inside, then nucleo's fuzzy
+  score; within a tier, use that halves every 30 days with a week's bonus
+  (`usage`), a shell action ahead of an app, the match's score, the name.
+  Help's menu search ranks the same way.
+- **File names come from Isle's own index** (B76): a walk of home and
+  `spotlight.files-include` with the `ignore` crate, without hidden folders,
+  what `.gitignore` files exclude and `spotlight.files-exclude`, kept live by
+  one inotify watch per folder and walked again on an overflow. Contents
+  are searched on demand with ripgrep's engine, plain text only.
+- **Games start through their launchers' entries** (B77): the launcher's
+  desktop entry given the game's link, so a game has a token and a scope as
+  an app does.
+
+## How the clipboard is kept
+
+- **History is the compositor's** (B78). A clipboard copy from a Wayland
+  client, or through Xwayland from an X11 one, is read off the loop (text,
+  an image, a file list) once Smithay has made it current, and kept under
+  `~/.local/state/isle/clipboard/`. An offer marked
+  `x-kde-passwordManagerHint`, or made while an excluded app is in front,
+  is not kept. No data-control protocol is served.
+- **Isle offers selections of its own.** A selection's owner is either
+  Xwayland, read through Isle's X11 window manager, or Isle, whose bytes it
+  writes itself; every selection the Wayland side sets is handed to the
+  window manager so X11 clients read it.
+- **Every pick is pasted** (B79). An emoji, a symbol or a clipboard item
+  becomes Isle's selection and the app is sent its paste chord through P5's
+  tables; for an emoji the clipboard as it was comes back once the pick has
+  been read, or after a second.
+- **A drag out of Spotlight is Isle's.** A file or clipboard row dragged
+  past Spotlight's edge starts a `DnDGrab` whose source writes the row's
+  types to the target.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -448,7 +502,8 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 | `settings.kdl` | `~/.config/isle/` | the user's choices, apps' preferences included | the compositor, into the file's own text (B36), or the user by hand | yes |
 | `tokens.kdl` | built into Isle; `~/.config/isle/` over it | design tokens | the user by hand; Isle never writes it | the user's file |
 | `translation.kdl` | built into Isle; `~/.config/isle/` over it | Cmd translation tables (B45) | the user by hand; Isle never writes it | the user's file |
-| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), notifications and their records (`notifications`), what the user turned on or off in Focus (`focus`), launch counts, session restore, crash history | the compositor and the supervisor | no |
+| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), notifications and their records (`notifications`), what the user turned on or off in Focus (`focus`), Spotlight's use (`usage`) and Run's history (`commands`), session restore, crash history | the compositor and the supervisor | no |
+| clipboard history | `~/.local/state/isle/clipboard/` | `index.json` and each copy's types as files, mode 0600 | the worker | no |
 | caches | `~/.cache/isle/` | media art (`art`), notifications' images (`notifications`), tray items' pixmaps (`tray`) | the worker | no |
 | crash records | `~/.local/state/isle/crashes/` | the last ten | the compositor's panic hook and watchdog, then the supervisor | no |
 | session log | `~/.local/state/isle/session.log`, `.old` | this session's and the last | the supervisor | no |
@@ -489,11 +544,13 @@ followed, snapshots and listeners), the service crates `isle-power`, `isle-audio
 `isle-brightness`, `isle-network`, `isle-bluetooth`, `isle-media`, `isle-disks` and
 `isle-tray`, `isle-notifications` (the notification server), `isle-focus` (which Focus
 is in force), `isle-fakes` (fake system daemons for the tests), `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
-badges), `isle-games` (launchers' libraries: names and covers), `isle-keys` (keyboard
+badges), `isle-games` (launchers' libraries: names, covers and launch links), `isle-search` (Spotlight's
+sources, the matcher, ranking and the file index), `isle-keys` (keyboard
 profiles, chords, the shortcut set's table, translation tables and the engine),
 `isle-menus` (the menu tree, its DBusMenu and GMenuModel clients and the registrar),
 `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
 Freya side shared with Isle's apps) and `isle-preview`; `data/` holds the shipped tokens with their schema and
-contrast check, the translation tables, the Phosphor subset with Isle's own glyphs, and
+contrast check, the translation tables, the Phosphor subset with Isle's own glyphs,
+Spotlight's actions, the emoji table with its generator and the Settings row index, and
 the vendored `gtk-shell.xml`. `spikes/shell-ui/`
 is the throwaway code behind B7 and is not built on.

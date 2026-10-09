@@ -72,7 +72,7 @@ The user gets: the switcher, Spotlight, Mission Control and per-app volume show 
 
 v1 lessons kept: inventory §3.6 Apps (`steam_app_<id>` named from the library, gamescope from its title); D59 (the switcher lists apps, so the app's name is what the user reads).
 
-Open for its packet: how to find the game under a gamescope window that Isle did not start (B22).
+Settled in P10: a gamescope window whose process Steam started (its `SteamGameId`) is the library game it hosts; one started otherwise is named by its title. Heroic's and Lutris's games are not tied to their windows: they run under the launcher with ids of their own (B77).
 
 Settled in P7: Steam keeps a 300 by 450 portrait cover at `appcache/librarycache/<id>/<hash>/library_600x900.jpg` (or `library_capsule.jpg`) since 2024, and `<id>_library_600x900.jpg` before; names come from each library folder's `appmanifest_<id>.acf` (B56).
 
@@ -86,7 +86,7 @@ The user gets: one list of installed games across Steam, Heroic and Lutris, with
 
 v1 lessons kept: D38 (reimplementing a launcher's library never catches up); inventory §3.8 Launching.
 
-Open for its packet: library paths for Flatpak installs of each launcher.
+Settled in P10: Steam, Heroic and Lutris are read from their native and Flatpak folders, every one found (B56, B77); a game starts through its launcher's desktop entry given its link.
 
 ### Full-screen Spaces for games
 

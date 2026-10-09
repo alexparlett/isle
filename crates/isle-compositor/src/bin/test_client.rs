@@ -21,7 +21,9 @@
 //! `export` (an xdg-foreign v2 handle for the window, printed as `exported HANDLE`),
 //! `cursor-surface` (a 16-point magenta cursor surface, hotspot 2 3, set at each pointer
 //! enter), `copy-screen` (an ext-image-copy-capture session of the screen, a frame after each
-//! frame, printing `copied N`, then `copy stopped`),
+//! frame, printing `copied N`, then `copy stopped`), `copy-cursor` (a pointer cursor
+//! session of the screen, printing `cursor-enter`, `cursor-position X Y`, `cursor-hotspot X
+//! Y`, `cursor-leave` and `cursor copied N RRGGBBAA` with the pixel at 5, 5),
 //! `tray [--name] [--item-is-menu] [--id ID]` (a status item with a pixmap icon and the test menu,
 //! registered by path or by a well-known name and again whenever the watcher comes back,
 //! printing `tray registered`, `tray activated`, `tray secondary`, `tray scroll N` and
@@ -58,8 +60,8 @@ use wayland_protocols::ext::image_capture_source::v1::client::{
     ext_image_capture_source_v1, ext_output_image_capture_source_manager_v1,
 };
 use wayland_protocols::ext::image_copy_capture::v1::client::{
-    ext_image_copy_capture_frame_v1, ext_image_copy_capture_manager_v1,
-    ext_image_copy_capture_session_v1,
+    ext_image_copy_capture_cursor_session_v1, ext_image_copy_capture_frame_v1,
+    ext_image_copy_capture_manager_v1, ext_image_copy_capture_session_v1,
 };
 use wayland_protocols::ext::idle_notify::v1::client::{
     ext_idle_notification_v1, ext_idle_notifier_v1,
@@ -119,6 +121,8 @@ struct Client {
     output_sources: Option<ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1>,
     copy_manager: Option<ext_image_copy_capture_manager_v1::ExtImageCopyCaptureManagerV1>,
     copying: Option<Copying>,
+    cursor_copying: Option<Copying>,
+    pointer: Option<wl_pointer::WlPointer>,
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
     wins: Vec<Win>,
@@ -777,9 +781,19 @@ impl Client {
                         &source,
                         ext_image_copy_capture_manager_v1::Options::empty(),
                         qh,
-                        (),
+                        "screen",
                     );
-                    self.copying = Some(Copying { session, size: (0, 0), buffer: None, frames: 0 });
+                    self.copying = Some(Copying::new(session));
+                }
+            }
+            ("copy-cursor", _) => {
+                if let (Some(sources), Some(manager), Some(output), Some(pointer)) =
+                    (&self.output_sources, &self.copy_manager, &self.output, &self.pointer)
+                {
+                    let source = sources.create_source(output, qh, ());
+                    let cursor = manager.create_pointer_cursor_session(&source, pointer, qh, ());
+                    let session = cursor.get_capture_session(qh, "cursor");
+                    self.cursor_copying = Some(Copying::new(session));
                 }
             }
             ("export", _) => {
@@ -1020,7 +1034,7 @@ impl Dispatch<zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1, usize> for 
 
 impl Dispatch<wl_seat::WlSeat, ()> for Client {
     fn event(
-        _: &mut Self,
+        state: &mut Self,
         seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
         _: &(),
@@ -1035,7 +1049,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for Client {
                 seat.get_keyboard(qh, ());
             }
             if caps.contains(wl_seat::Capability::Pointer) {
-                seat.get_pointer(qh, ());
+                state.pointer = Some(seat.get_pointer(qh, ()));
             }
         }
     }
@@ -1380,38 +1394,64 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Client {
     }
 }
 
-/// An ext-image-copy-capture session taking frame after frame.
+/// An ext-image-copy-capture session taking frame after frame, named by what it copies:
+/// `screen` or `cursor`.
 struct Copying {
     session: ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1,
     size: (i32, i32),
-    buffer: Option<wl_buffer::WlBuffer>,
+    buffer: Option<(wl_buffer::WlBuffer, std::fs::File)>,
     frames: u32,
 }
 
 impl Copying {
-    fn capture(&self, qh: &QueueHandle<Client>) {
-        let Some(buffer) = &self.buffer else {
+    fn new(session: ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1) -> Self {
+        Self { session, size: (0, 0), buffer: None, frames: 0 }
+    }
+
+    fn capture(&self, kind: &'static str, qh: &QueueHandle<Client>) {
+        let Some((buffer, _)) = &self.buffer else {
             return;
         };
-        let frame = self.session.create_frame(qh, ());
+        let frame = self.session.create_frame(qh, kind);
         frame.attach_buffer(buffer);
         frame.damage_buffer(0, 0, self.size.0, self.size.1);
         frame.capture();
     }
+
+    /// The copied pixel at `(x, y)` as RRGGBBAA.
+    fn pixel(&self, x: i32, y: i32) -> String {
+        let Some((_, file)) = &self.buffer else {
+            return String::new();
+        };
+        let mut px = [0u8; 4];
+        let at = ((y * self.size.0 + x) * 4) as u64;
+        let _ = std::os::unix::fs::FileExt::read_exact_at(file, &mut px, at);
+        format!("{:02x}{:02x}{:02x}{:02x}", px[2], px[1], px[0], px[3])
+    }
 }
 
-impl Dispatch<ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1, ()> for Client {
+impl Client {
+    fn copying(&mut self, kind: &str) -> Option<&mut Copying> {
+        match kind {
+            "cursor" => self.cursor_copying.as_mut(),
+            _ => self.copying.as_mut(),
+        }
+    }
+}
+
+impl Dispatch<ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1, &'static str> for Client {
     fn event(
         state: &mut Self,
         _: &ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1,
         event: ext_image_copy_capture_session_v1::Event,
-        _: &(),
+        kind: &&'static str,
         _: &Connection,
         qh: &QueueHandle<Self>,
     ) {
         use ext_image_copy_capture_session_v1::Event;
         let shm = state.shm.clone();
-        let Some(copying) = state.copying.as_mut() else {
+        let kind = *kind;
+        let Some(copying) = state.copying(kind) else {
             return;
         };
         match event {
@@ -1423,39 +1463,65 @@ impl Dispatch<ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1, (
                 assert!(fd >= 0, "memfd_create");
                 let file = unsafe { std::fs::File::from_raw_fd(fd) };
                 file.set_len(len as u64).unwrap();
-                let fd: OwnedFd = file.into();
-                let pool = shm.unwrap().create_pool(fd.as_fd(), len as i32, qh, ());
-                copying.buffer = Some(pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, qh, ()));
+                let pool = shm.unwrap().create_pool(file.as_fd(), len as i32, qh, ());
+                let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, qh, ());
                 pool.destroy();
-                copying.capture(qh);
+                copying.buffer = Some((buffer, file));
+                copying.capture(kind, qh);
             }
+            Event::Stopped if kind == "cursor" => say(0, "cursor copy stopped".into()),
             Event::Stopped => say(0, "copy stopped".into()),
             _ => {}
         }
     }
 }
 
-impl Dispatch<ext_image_copy_capture_frame_v1::ExtImageCopyCaptureFrameV1, ()> for Client {
+impl Dispatch<ext_image_copy_capture_frame_v1::ExtImageCopyCaptureFrameV1, &'static str> for Client {
     fn event(
         state: &mut Self,
         frame: &ext_image_copy_capture_frame_v1::ExtImageCopyCaptureFrameV1,
         event: ext_image_copy_capture_frame_v1::Event,
-        _: &(),
+        kind: &&'static str,
         _: &Connection,
         qh: &QueueHandle<Self>,
     ) {
         use ext_image_copy_capture_frame_v1::Event;
-        let Some(copying) = state.copying.as_mut() else {
+        let kind = *kind;
+        let Some(copying) = state.copying(kind) else {
             return;
         };
         match event {
             Event::Ready => {
                 frame.destroy();
                 copying.frames += 1;
-                say(0, format!("copied {}", copying.frames));
-                copying.capture(qh);
+                if kind == "cursor" {
+                    say(0, format!("cursor copied {} {}", copying.frames, copying.pixel(5, 5)));
+                } else {
+                    say(0, format!("copied {}", copying.frames));
+                }
+                copying.capture(kind, qh);
             }
             Event::Failed { .. } => frame.destroy(),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ext_image_copy_capture_cursor_session_v1::ExtImageCopyCaptureCursorSessionV1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &ext_image_copy_capture_cursor_session_v1::ExtImageCopyCaptureCursorSessionV1,
+        event: ext_image_copy_capture_cursor_session_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        use ext_image_copy_capture_cursor_session_v1::Event;
+        match event {
+            Event::Enter => say(0, "cursor-enter".into()),
+            Event::Leave => say(0, "cursor-leave".into()),
+            Event::Position { x, y } => say(0, format!("cursor-position {x} {y}")),
+            Event::Hotspot { x, y } => say(0, format!("cursor-hotspot {x} {y}")),
             _ => {}
         }
     }
@@ -1538,6 +1604,8 @@ fn main() {
         output_sources: None,
         copy_manager: None,
         copying: None,
+        cursor_copying: None,
+        pointer: None,
         appmenus: None,
         gtk_shell: None,
         wins: Vec::new(),

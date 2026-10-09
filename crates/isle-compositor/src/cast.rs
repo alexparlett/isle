@@ -74,8 +74,8 @@ use crate::{
 };
 
 const SHM_BYTES_PER_PIXEL: u32 = 4;
-/// The side of the square a metadata cursor's bitmap is drawn into, in pixels.
-const CURSOR_SIDE: i32 = 128;
+/// The side of the square a cursor's bitmap is drawn into, in pixels.
+pub const CURSOR_SIDE: i32 = 128;
 const CURSOR_META_SIZE: usize = size_of::<spa_meta_cursor>()
     + size_of::<spa_meta_bitmap>()
     + (CURSOR_SIDE * CURSOR_SIDE * 4) as usize;
@@ -280,6 +280,11 @@ impl Stream {
 }
 
 impl Casting {
+    /// The cursor bitmap `State::cursor_bitmap` last drew, and its hotspot.
+    pub fn cursor_image(&self) -> Option<(Option<&crate::backend::Pixels>, Point<i32, Physical>)> {
+        self.cursor.as_ref().map(|c| (c.image.as_ref(), c.hotspot))
+    }
+
     pub fn serial(&self, node: u32) -> Option<u64> {
         self.connection
             .as_ref()
@@ -1118,7 +1123,6 @@ impl State {
     /// Metadata mode: the pointer's place in `source`'s frame while it is over it and shown,
     /// and the serial of the bitmap of its image now, drawn again when the image changes.
     fn cursor_for(&mut self, source: &Source) -> Option<SentCursor> {
-        use smithay::{input::pointer::CursorImageStatus, reexports::wayland_server::Resource};
         let pointer = self.isle.seat.get_pointer()?.current_location();
         let (area, output) = match source {
             Source::Screen(o) => (self.isle.space.output_geometry(o)?, o.clone()),
@@ -1131,7 +1135,17 @@ impl State {
         if !area.to_f64().contains(pointer) {
             return None;
         }
-        let scale = output.current_scale().integer_scale().max(1) as u32;
+        let serial = self.cursor_bitmap(output.current_scale().integer_scale().max(1) as u32)?;
+        let at = (pointer - area.loc.to_f64())
+            .to_physical(output.current_scale().fractional_scale())
+            .to_i32_round();
+        Some(SentCursor { at, serial })
+    }
+
+    /// The pointer's image now at an integer `scale`, drawn again when it changes: its
+    /// serial, or `None` while it is hidden.
+    pub fn cursor_bitmap(&mut self, scale: u32) -> Option<u64> {
+        use smithay::{input::pointer::CursorImageStatus, reexports::wayland_server::Resource};
         let key = match &self.isle.cursor_status {
             CursorImageStatus::Named(icon) => CursorKey::Named(*icon, scale),
             CursorImageStatus::Surface(s) => CursorKey::Surface(s.id(), scale),
@@ -1157,13 +1171,7 @@ impl State {
                 hotspot,
             });
         }
-        let at = (pointer - area.loc.to_f64())
-            .to_physical(output.current_scale().fractional_scale())
-            .to_i32_round();
-        Some(SentCursor {
-            at,
-            serial: self.isle.casting.cursor.as_ref()?.serial,
-        })
+        self.isle.casting.cursor.as_ref().map(|c| c.serial)
     }
 
     /// The marks of recent presses within `area` (global), placed relative to its origin,

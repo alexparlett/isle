@@ -110,3 +110,25 @@ async fn a_capture_session_is_listed_in_sharing_and_stop_ends_it() {
     wait_until(|| async { isle.island_output().await["privacy"] == 0 }).await;
     assert!(copies(&isle).await["sessions"].as_array().unwrap().is_empty());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cursor_session_follows_the_pointer_and_copies_its_image() {
+    let mut isle = Isle::start("image-copy-cursor").await;
+    let client = isle.client("isle.test.Cursor", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    client.send("cursor-surface");
+    let info = isle.wait_for_window("isle.test.Cursor").await;
+    let test = isle.test().await;
+    test.pointer_to(20.0, 600.0).await.unwrap();
+    client.send("copy-cursor");
+    client.wait_for("cursor-enter").await;
+    client.wait_for("cursor-position 20 600").await;
+    client.wait_for("cursor copied 1 00000000").await;
+
+    // Over the window, its cursor surface is the image, at its hotspot.
+    let (x, y) = (info.x + 40, info.y + 40);
+    test.pointer_to(x as f64, y as f64).await.unwrap();
+    client.wait_for(&format!("cursor-position {x} {y}")).await;
+    client.wait_for("cursor-hotspot 2 3").await;
+    client.wait_for("cursor copied 2 ff00ffff").await;
+}

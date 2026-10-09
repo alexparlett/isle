@@ -18,8 +18,8 @@ use smithay::{
             OutputCaptureSourceState, ToplevelCaptureSourceHandler, ToplevelCaptureSourceState,
         },
         image_copy_capture::{
-            BufferConstraints, CaptureFailureReason, Frame, ImageCopyCaptureHandler,
-            ImageCopyCaptureState, Session, SessionRef,
+            BufferConstraints, CaptureFailureReason, CursorSession, CursorSessionRef, Frame,
+            ImageCopyCaptureHandler, ImageCopyCaptureState, Session, SessionRef,
         },
         shm::with_buffer_contents_mut,
     },
@@ -45,6 +45,10 @@ struct HandleWindow(u64);
 #[derive(Default)]
 struct Frames(Cell<u32>);
 
+/// The cursor image's serial a cursor session's last frame held.
+#[derive(Default)]
+struct CursorSent(Cell<u64>);
+
 /// A session's number in the Sharing row and the app of the client that opened it.
 struct Copier {
     id: u64,
@@ -62,6 +66,10 @@ pub struct ImageCopy {
     sessions: Vec<Session>,
     /// Frames waiting for their source's next redraw.
     pending: Vec<(SessionRef, Frame)>,
+    /// Pointer cursor sessions, kept so they live.
+    cursors: Vec<CursorSession>,
+    /// Cursor frames waiting for the pointer's image to change.
+    cursor_pending: Vec<(CursorSessionRef, Frame)>,
     pub dirty: Cell<bool>,
     next_id: u64,
     /// The streaming sessions the Sharing row lists.
@@ -78,6 +86,8 @@ impl ImageCopy {
             handles: HashMap::new(),
             sessions: Vec::new(),
             pending: Vec::new(),
+            cursors: Vec::new(),
+            cursor_pending: Vec::new(),
             dirty: Cell::new(true),
             next_id: 0,
             listed: Vec::new(),
@@ -90,6 +100,37 @@ impl ImageCopy {
             .iter()
             .filter(|s| s.user_data().get::<Frames>().is_some_and(|f| f.0.get() > 1))
     }
+}
+
+/// `pixels` copied into the frame's shared-memory buffer as BGRA rows; false when its size or
+/// pool does not fit them.
+fn write_shm(frame: &Frame, pixels: &crate::backend::Pixels) -> bool {
+    let buffer = frame.buffer();
+    let written = with_buffer_contents_mut(&buffer, |ptr, len, data| {
+        if data.width as u32 != pixels.width || data.height as u32 != pixels.height {
+            return false;
+        }
+        let alpha = data.format == wl_shm::Format::Argb8888;
+        let stride = data.stride as usize;
+        let row = pixels.width as usize * 4;
+        for y in 0..pixels.height as usize {
+            let to = data.offset as usize + y * stride;
+            if to + row > len {
+                return false;
+            }
+            // SAFETY: the range was checked against the pool's length.
+            let dst = unsafe { std::slice::from_raw_parts_mut(ptr.add(to), row) };
+            let src = &pixels.rgba[y * row..(y + 1) * row];
+            for (d, s) in dst.chunks_exact_mut(4).zip(src.chunks_exact(4)) {
+                d[0] = s[2];
+                d[1] = s[1];
+                d[2] = s[0];
+                d[3] = if alpha { s[3] } else { 255 };
+            }
+        }
+        true
+    });
+    matches!(written, Ok(true))
 }
 
 fn captured(source: &ImageCaptureSource) -> Option<Captured> {
@@ -192,6 +233,7 @@ impl State {
 
     /// After `output`'s frame: the frames waiting on a source it shows are copied.
     pub fn copy_frames(&mut self, output: &Output) {
+        self.follow_cursor_sessions();
         if self.isle.image_copy.pending.is_empty() {
             return;
         }
@@ -242,39 +284,105 @@ impl State {
                 return;
             }
         };
-        let buffer = frame.buffer();
-        let written = with_buffer_contents_mut(&buffer, |ptr, len, data| {
-            if data.width as u32 != pixels.width || data.height as u32 != pixels.height {
-                return false;
-            }
-            let alpha = data.format == wl_shm::Format::Argb8888;
-            let stride = data.stride as usize;
-            let row = pixels.width as usize * 4;
-            for y in 0..pixels.height as usize {
-                let to = data.offset as usize + y * stride;
-                if to + row > len {
-                    return false;
-                }
-                // SAFETY: the range was checked against the pool's length.
-                let dst = unsafe { std::slice::from_raw_parts_mut(ptr.add(to), row) };
-                let src = &pixels.rgba[y * row..(y + 1) * row];
-                for (d, s) in dst.chunks_exact_mut(4).zip(src.chunks_exact(4)) {
-                    d[0] = s[2];
-                    d[1] = s[1];
-                    d[2] = s[0];
-                    d[3] = if alpha { s[3] } else { 255 };
-                }
-            }
-            true
-        });
+        let written = write_shm(&frame, &pixels);
         match written {
-            Ok(true) => {
+            true => {
                 let frames = session.user_data().get_or_insert(Frames::default);
                 frames.0.set(frames.0.get().saturating_add(1));
                 frame.success(Transform::Normal, None, now());
                 self.copying_changed();
             }
             _ => frame.fail(CaptureFailureReason::BufferConstraints),
+        }
+    }
+
+    /// The output a source is on, its area in the global space and the scale its frames are
+    /// at.
+    fn source_area(&self, captured: &Captured) -> Option<(smithay::utils::Rectangle<i32, smithay::utils::Logical>, f64)> {
+        match captured {
+            Captured::Output(weak) => {
+                let output = weak.upgrade()?;
+                Some((
+                    self.isle.space.output_geometry(&output)?,
+                    output.current_scale().fractional_scale(),
+                ))
+            }
+            Captured::Window(id) => Some((
+                self.isle.frame(*id)?,
+                self.isle.output_of(*id)?.current_scale().fractional_scale(),
+            )),
+        }
+    }
+
+    /// Each cursor session follows the pointer over its source, and a waiting cursor frame
+    /// is answered once the pointer's image has changed.
+    fn follow_cursor_sessions(&mut self) {
+        if self.isle.image_copy.cursors.is_empty() {
+            return;
+        }
+        self.isle
+            .image_copy
+            .cursors
+            .retain(|s| smithay::utils::IsAlive::alive(&s.as_ref()));
+        let pointer = self.isle.seat.get_pointer().unwrap().current_location();
+        let sessions: Vec<CursorSessionRef> =
+            self.isle.image_copy.cursors.iter().map(|s| s.as_ref()).collect();
+        for session in sessions {
+            let area = captured(&session.source()).and_then(|c| self.source_area(&c));
+            let at = area.filter(|(a, _)| a.to_f64().contains(pointer)).map(|(a, scale)| {
+                let p = (pointer - a.loc.to_f64()).to_physical(scale).to_i32_round::<i32>();
+                smithay::utils::Point::<i32, BufferCoords>::from((p.x, p.y))
+            });
+            let scale = area.map_or(1, |(_, s)| s.ceil().max(1.0) as u32);
+            if at.is_some() && self.cursor_bitmap(scale).is_some()
+                && let Some((_, hotspot)) = self.isle.casting.cursor_image()
+            {
+                session.set_cursor_hotspot((hotspot.x, hotspot.y));
+            }
+            session.set_cursor_pos(at);
+        }
+        for (session, frame) in std::mem::take(&mut self.isle.image_copy.cursor_pending) {
+            let scale = captured(&session.source())
+                .and_then(|c| self.source_area(&c))
+                .map_or(1, |(_, s)| s.ceil().max(1.0) as u32);
+            let serial = self.cursor_bitmap(scale).unwrap_or(0);
+            let sent = session.user_data().get::<CursorSent>().map(|c| c.0.get());
+            if sent == Some(serial) {
+                self.isle.image_copy.cursor_pending.push((session, frame));
+            } else {
+                self.copy_cursor_frame(&session, frame);
+            }
+        }
+    }
+
+    /// The pointer's image into a cursor frame's buffer, clear while it is hidden.
+    fn copy_cursor_frame(&mut self, session: &CursorSessionRef, frame: Frame) {
+        let side = crate::cast::CURSOR_SIDE as u32;
+        let scale = captured(&session.source())
+            .and_then(|c| self.source_area(&c))
+            .map_or(1, |(_, s)| s.ceil().max(1.0) as u32);
+        let serial = self.cursor_bitmap(scale);
+        let clear;
+        let pixels = match self.isle.casting.cursor_image() {
+            Some((Some(image), _)) if serial.is_some() => image,
+            _ => {
+                clear = crate::backend::Pixels {
+                    width: side,
+                    height: side,
+                    rgba: vec![0; (side * side * 4) as usize],
+                };
+                &clear
+            }
+        };
+        if write_shm(&frame, pixels) {
+            session
+                .user_data()
+                .get_or_insert(CursorSent::default)
+                .0
+                .set(serial.unwrap_or(0));
+            frame.success(Transform::Normal, None, now());
+        } else {
+            frame.fail(CaptureFailureReason::BufferConstraints);
         }
     }
 
@@ -391,6 +499,40 @@ impl ImageCopyCaptureHandler for State {
             shm: vec![wl_shm::Format::Xrgb8888, wl_shm::Format::Argb8888],
             dma: None,
         })
+    }
+
+    fn cursor_capture_constraints(
+        &mut self,
+        source: &ImageCaptureSource,
+        _pointer: &smithay::reexports::wayland_server::protocol::wl_pointer::WlPointer,
+    ) -> Option<BufferConstraints> {
+        captured(source)?;
+        let side = crate::cast::CURSOR_SIDE;
+        Some(BufferConstraints {
+            size: (side, side).into(),
+            shm: vec![wl_shm::Format::Argb8888],
+            dma: None,
+        })
+    }
+
+    fn new_cursor_session(&mut self, session: CursorSession) {
+        self.isle.image_copy.cursors.push(session);
+        self.follow_cursor_sessions();
+    }
+
+    /// A cursor session's first frame is copied at once; later ones wait for the pointer's
+    /// image to change.
+    fn cursor_frame(&mut self, session: &CursorSessionRef, frame: Frame) {
+        if session.user_data().get::<CursorSent>().is_none() {
+            return self.copy_cursor_frame(session, frame);
+        }
+        self.isle.image_copy.cursor_pending.push((session.clone(), frame));
+        self.follow_cursor_sessions();
+    }
+
+    fn cursor_session_destroyed(&mut self, session: CursorSessionRef) {
+        self.isle.image_copy.cursors.retain(|s| *s != session);
+        self.isle.image_copy.cursor_pending.retain(|(s, _)| *s != session);
     }
 
     fn new_session(&mut self, session: Session) {

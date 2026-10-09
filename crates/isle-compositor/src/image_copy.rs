@@ -71,12 +71,32 @@ pub struct ImageCopy {
     /// Cursor frames waiting for the pointer's image to change.
     cursor_pending: Vec<(CursorSessionRef, Frame)>,
     pub dirty: Cell<bool>,
+    /// What a client's dmabuf may be: the renderer's device and the formats it draws.
+    pub dma: Option<smithay::wayland::image_copy_capture::DmabufConstraints>,
     next_id: u64,
     /// The streaming sessions the Sharing row lists.
     listed: Vec<u64>,
 }
 
 impl ImageCopy {
+    /// Dmabufs on `node` in the 8-bit RGB formats the renderer draws, with their modifiers.
+    pub fn set_dma(&mut self, node: smithay::backend::drm::DrmNode, formats: &smithay::backend::allocator::format::FormatSet) {
+        use smithay::backend::allocator::Fourcc;
+        let formats = [Fourcc::Argb8888, Fourcc::Xrgb8888]
+            .into_iter()
+            .map(|code| {
+                let modifiers = formats
+                    .iter()
+                    .filter(|f| f.code == code)
+                    .map(|f| f.modifier)
+                    .collect::<Vec<_>>();
+                (code, modifiers)
+            })
+            .filter(|(_, m)| !m.is_empty())
+            .collect();
+        self.dma = Some(smithay::wayland::image_copy_capture::DmabufConstraints { node, formats });
+    }
+
     pub fn new(dh: &smithay::reexports::wayland_server::DisplayHandle) -> Self {
         Self {
             copy: ImageCopyCaptureState::new::<State>(dh),
@@ -89,6 +109,7 @@ impl ImageCopy {
             cursors: Vec::new(),
             cursor_pending: Vec::new(),
             dirty: Cell::new(true),
+            dma: None,
             next_id: 0,
             listed: Vec::new(),
         }
@@ -276,15 +297,24 @@ impl State {
                 }
             }
         };
-        let pixels = match self.capture_pixels(&target, session.draw_cursor()) {
-            Ok(pixels) => pixels,
-            Err(err) => {
-                warn!("a capture frame: {err}");
-                frame.fail(CaptureFailureReason::Unknown);
-                return;
-            }
+        let dmabuf = smithay::wayland::dmabuf::get_dmabuf(&frame.buffer()).ok().cloned();
+        let written = match dmabuf {
+            Some(dmabuf) => match self.blit_into(&target, session.draw_cursor(), dmabuf) {
+                Ok(()) => true,
+                Err(err) => {
+                    warn!("a capture frame into a dmabuf: {err}");
+                    false
+                }
+            },
+            None => match self.capture_pixels(&target, session.draw_cursor()) {
+                Ok(pixels) => write_shm(&frame, &pixels),
+                Err(err) => {
+                    warn!("a capture frame: {err}");
+                    frame.fail(CaptureFailureReason::Unknown);
+                    return;
+                }
+            },
         };
-        let written = write_shm(&frame, &pixels);
         match written {
             true => {
                 let frames = session.user_data().get_or_insert(Frames::default);
@@ -294,6 +324,39 @@ impl State {
             }
             _ => frame.fail(CaptureFailureReason::BufferConstraints),
         }
+    }
+
+    /// `target` drawn as a still is and copied on the GPU into a client's `dmabuf` of its
+    /// size; done once the copy is.
+    fn blit_into(
+        &mut self,
+        target: &Target,
+        pointer: bool,
+        mut dmabuf: smithay::backend::allocator::dmabuf::Dmabuf,
+    ) -> Result<(), String> {
+        use smithay::backend::renderer::{Bind, Blit, TextureFilter};
+        let (mut texture, size) = match target {
+            Target::Screen(output) => {
+                let size = output.current_mode().ok_or("the output has no mode")?.size;
+                (self.backend.capture_screen(&self.isle, output, pointer)?, size)
+            }
+            Target::Window { id, shadow } => self.window_texture(*id, *shadow)?,
+            Target::Region(..) => return Err("not a capture source".into()),
+        };
+        use smithay::backend::allocator::Buffer;
+        let wanted = dmabuf.size();
+        if (wanted.w, wanted.h) != (size.w, size.h) {
+            return Err(format!("a {wanted:?} buffer for a {size:?} frame"));
+        }
+        let renderer = self.backend.renderer_opt().ok_or("no renderer")?;
+        let rect = smithay::utils::Rectangle::from_size(size);
+        let from = renderer.bind(&mut texture).map_err(|e| e.to_string())?;
+        let mut to = renderer.bind(&mut dmabuf).map_err(|e| e.to_string())?;
+        let sync = renderer
+            .blit(&from, &mut to, rect, rect, TextureFilter::Nearest)
+            .map_err(|e| e.to_string())?;
+        drop((from, to));
+        sync.wait().map_err(|_| "the copy's fence was interrupted".to_owned())
     }
 
     /// The output a source is on, its area in the global space and the scale its frames are
@@ -497,7 +560,7 @@ impl ImageCopyCaptureHandler for State {
         Some(BufferConstraints {
             size,
             shm: vec![wl_shm::Format::Xrgb8888, wl_shm::Format::Argb8888],
-            dma: None,
+            dma: self.isle.image_copy.dma.clone(),
         })
     }
 

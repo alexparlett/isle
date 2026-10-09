@@ -132,3 +132,54 @@ async fn a_cursor_session_follows_the_pointer_and_copies_its_image() {
     client.wait_for("cursor-hotspot 2 3").await;
     client.wait_for("cursor copied 2 ff00ffff").await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_frame_is_copied_into_a_clients_dmabuf() {
+    let mut isle = Isle::start("image-copy-dmabuf").await;
+    let client = isle.client("isle.test.Red", "ff0000");
+    client.wait_for("keyboard-enter").await;
+    let info = isle.wait_for_window("isle.test.Red").await;
+    client.send("copy-screen-dmabuf");
+    client.wait_for("dma copied 1").await;
+
+    // The window turns blue, then shows the copy as its picture: a shot of the window
+    // holds the screen as it was, the red window at its centre over the backdrop.
+    client.send("colour 0000ff");
+    client.send("show-dmabuf");
+    client.wait_for("dmabuf shown").await;
+    wait_until(|| async { isle.window(info.id).await.width == 1920 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let folder = isle.dir.join("Shots");
+    let written = isle
+        .test()
+        .await
+        .capture(
+            &serde_json::json!({"target": "window", "id": info.id, "shadow": false,
+                                "to": folder.to_str().unwrap()})
+            .to_string(),
+        )
+        .await
+        .unwrap();
+    let decoder = png::Decoder::new(std::io::BufReader::new(
+        std::fs::File::open(&written[0]).unwrap(),
+    ));
+    let mut reader = decoder.read_info().unwrap();
+    let mut rgba = vec![0; reader.output_buffer_size()];
+    let png = reader.next_frame(&mut rgba).unwrap();
+    let at = |x: u32, y: u32| {
+        let i = ((y * png.width + x) * 4) as usize;
+        [rgba[i], rgba[i + 1], rgba[i + 2]]
+    };
+    // The buffer is the window's foot; above it may be its bar.
+    let top = png.height - 1080;
+    let centre = at(960, top + 540);
+    assert!(centre[0] > 200 && centre[2] < 60, "{centre:?}");
+    let corner = at(40, top + 1040);
+    assert!(corner[2] < 60 && corner[0] < 60, "{corner:?}");
+    // The window sits below the screen's middle: the right way up, its foot is red and the
+    // rows as far above its top are not.
+    let (foot, above) = (info.y + info.height - 6, 1080 - (info.y + info.height - 6));
+    let (foot, above) = (at(960, top + foot as u32), at(960, top + above as u32));
+    assert!(foot[0] > 200, "the copy is upside down: {foot:?} {above:?}");
+    assert!(above[0] < 60, "the copy is upside down: {foot:?} {above:?}");
+}

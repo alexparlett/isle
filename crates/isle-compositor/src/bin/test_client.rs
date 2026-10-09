@@ -24,6 +24,8 @@
 //! frame, printing `copied N`, then `copy stopped`), `copy-cursor` (a pointer cursor
 //! session of the screen, printing `cursor-enter`, `cursor-position X Y`, `cursor-hotspot X
 //! Y`, `cursor-leave` and `cursor copied N RRGGBBAA` with the pixel at 5, 5),
+//! `copy-screen-dmabuf` (one frame of the screen into a GBM dmabuf, printing `dma copied 1`
+//! or `dma failed`), `show-dmabuf` (that dmabuf as the window's buffer),
 //! `tray [--name] [--item-is-menu] [--id ID]` (a status item with a pixmap icon and the test menu,
 //! registered by path or by a well-known name and again whenever the watcher comes back,
 //! printing `tray registered`, `tray activated`, `tray secondary`, `tray scroll N` and
@@ -59,6 +61,7 @@ use wayland_protocols::xdg::foreign::zv2::client::{zxdg_exported_v2, zxdg_export
 use wayland_protocols::ext::image_capture_source::v1::client::{
     ext_image_capture_source_v1, ext_output_image_capture_source_manager_v1,
 };
+use wayland_protocols::wp::linux_dmabuf::zv1::client::{zwp_linux_buffer_params_v1, zwp_linux_dmabuf_v1};
 use wayland_protocols::ext::image_copy_capture::v1::client::{
     ext_image_copy_capture_cursor_session_v1, ext_image_copy_capture_frame_v1,
     ext_image_copy_capture_manager_v1, ext_image_copy_capture_session_v1,
@@ -122,6 +125,8 @@ struct Client {
     copy_manager: Option<ext_image_copy_capture_manager_v1::ExtImageCopyCaptureManagerV1>,
     copying: Option<Copying>,
     cursor_copying: Option<Copying>,
+    dma_copying: Option<DmaCopying>,
+    linux_dmabuf: Option<zwp_linux_dmabuf_v1::ZwpLinuxDmabufV1>,
     pointer: Option<wl_pointer::WlPointer>,
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
@@ -786,6 +791,41 @@ impl Client {
                     self.copying = Some(Copying::new(session));
                 }
             }
+            ("copy-screen-dmabuf", _) => {
+                if let (Some(sources), Some(manager), Some(output)) =
+                    (&self.output_sources, &self.copy_manager, &self.output)
+                {
+                    let source = sources.create_source(output, qh, ());
+                    let session = manager.create_session(
+                        &source,
+                        ext_image_copy_capture_manager_v1::Options::empty(),
+                        qh,
+                        "dmabuf",
+                    );
+                    self.dma_copying = Some(DmaCopying {
+                        session,
+                        size: (0, 0),
+                        device: None,
+                        modifiers: Vec::new(),
+                        gbm: None,
+                        bo: None,
+                        buffer: None,
+                        frames: 0,
+                    });
+                }
+            }
+            ("show-dmabuf", _) => {
+                // The copy as the window's picture, so a shot of the window shows what it
+                // holds whatever its layout.
+                if let Some(buffer) = self.dma_copying.as_ref().and_then(|d| d.buffer.clone()) {
+                    let surface = &self.wins[index].surface;
+                    surface.attach(Some(&buffer), 0, 0);
+                    surface.damage_buffer(0, 0, i32::MAX, i32::MAX);
+                    surface.commit();
+                    say(index, "dmabuf shown".into());
+                }
+                return;
+            }
             ("copy-cursor", _) => {
                 if let (Some(sources), Some(manager), Some(output), Some(pointer)) =
                     (&self.output_sources, &self.copy_manager, &self.output, &self.pointer)
@@ -899,6 +939,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 }
                 "ext_output_image_capture_source_manager_v1" => {
                     state.output_sources = Some(registry.bind(name, 1, qh, ()))
+                }
+                "zwp_linux_dmabuf_v1" => {
+                    state.linux_dmabuf = Some(registry.bind(name, 3, qh, ()))
                 }
                 "ext_image_copy_capture_manager_v1" => {
                     state.copy_manager = Some(registry.bind(name, 1, qh, ()))
@@ -1430,6 +1473,82 @@ impl Copying {
     }
 }
 
+/// An ext-image-copy-capture session of the screen into a dmabuf the client allocates
+/// through GBM on the device the session names.
+struct DmaCopying {
+    session: ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1,
+    size: (u32, u32),
+    device: Option<u64>,
+    modifiers: Vec<u64>,
+    gbm: Option<smithay::reexports::gbm::Device<std::fs::File>>,
+    bo: Option<smithay::reexports::gbm::BufferObject<()>>,
+    buffer: Option<wl_buffer::WlBuffer>,
+    frames: u32,
+}
+
+impl DmaCopying {
+    /// The buffer on the session's device, in ARGB8888, linear when it may be.
+    fn allocate(&mut self, dmabuf: &zwp_linux_dmabuf_v1::ZwpLinuxDmabufV1, qh: &QueueHandle<Client>) -> Option<()> {
+        use smithay::reexports::gbm::{BufferObjectFlags, Device, Format, Modifier};
+        let node = smithay::backend::drm::DrmNode::from_dev_id(self.device?).ok()?;
+        let path = node.dev_path_with_type(smithay::backend::drm::NodeType::Render)?;
+        let file = std::fs::OpenOptions::new().read(true).write(true).open(path).ok()?;
+        let gbm = Device::new(file).ok()?;
+        const LINEAR: u64 = 0;
+        let modifiers: Vec<Modifier> = if self.modifiers.contains(&LINEAR) {
+            vec![Modifier::Linear]
+        } else {
+            self.modifiers.iter().map(|m| Modifier::from(*m)).collect()
+        };
+        let (w, h) = self.size;
+        let bo = gbm.create_buffer_object_with_modifiers2::<()>(
+            w,
+            h,
+            Format::Argb8888,
+            modifiers.into_iter(),
+            BufferObjectFlags::RENDERING,
+        );
+        let bo = match bo {
+            Ok(bo) => bo,
+            Err(e) => {
+                say(0, format!("gbm: {e}"));
+                return None;
+            }
+        };
+        let modifier = u64::from(bo.modifier());
+        let params = dmabuf.create_params(qh, ());
+        params.add(
+            bo.fd_for_plane(0).ok()?.as_fd(),
+            0,
+            bo.offset(0),
+            bo.stride_for_plane(0),
+            (modifier >> 32) as u32,
+            modifier as u32,
+        );
+        self.buffer = Some(params.create_immed(
+            w as i32,
+            h as i32,
+            Format::Argb8888 as u32,
+            zwp_linux_buffer_params_v1::Flags::empty(),
+            qh,
+            (),
+        ));
+        self.bo = Some(bo);
+        self.gbm = Some(gbm);
+        Some(())
+    }
+
+    fn capture(&self, qh: &QueueHandle<Client>) {
+        let Some(buffer) = &self.buffer else {
+            return;
+        };
+        let frame = self.session.create_frame(qh, "dmabuf");
+        frame.attach_buffer(buffer);
+        frame.damage_buffer(0, 0, self.size.0 as i32, self.size.1 as i32);
+        frame.capture();
+    }
+}
+
 impl Client {
     fn copying(&mut self, kind: &str) -> Option<&mut Copying> {
         match kind {
@@ -1451,6 +1570,32 @@ impl Dispatch<ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1, &
         use ext_image_copy_capture_session_v1::Event;
         let shm = state.shm.clone();
         let kind = *kind;
+        if kind == "dmabuf" {
+            let linux_dmabuf = state.linux_dmabuf.clone();
+            let Some(dma) = state.dma_copying.as_mut() else {
+                return;
+            };
+            match event {
+                Event::BufferSize { width, height } => dma.size = (width, height),
+                Event::DmabufDevice { device } => {
+                    dma.device = device.try_into().ok().map(u64::from_ne_bytes);
+                }
+                Event::DmabufFormat { format, modifiers } if format == 0x34325241 => {
+                    dma.modifiers = modifiers
+                        .chunks_exact(8)
+                        .map(|m| u64::from_ne_bytes(m.try_into().unwrap()))
+                        .collect();
+                }
+                Event::Done if dma.buffer.is_none() => {
+                    match linux_dmabuf.and_then(|d| dma.allocate(&d, qh)) {
+                        Some(()) => dma.capture(qh),
+                        None => say(0, "no dmabuf".into()),
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
         let Some(copying) = state.copying(kind) else {
             return;
         };
@@ -1487,6 +1632,24 @@ impl Dispatch<ext_image_copy_capture_frame_v1::ExtImageCopyCaptureFrameV1, &'sta
     ) {
         use ext_image_copy_capture_frame_v1::Event;
         let kind = *kind;
+        if kind == "dmabuf" {
+            let Some(dma) = state.dma_copying.as_mut() else {
+                return;
+            };
+            match event {
+                Event::Ready => {
+                    frame.destroy();
+                    dma.frames += 1;
+                    say(0, format!("dma copied {}", dma.frames));
+                }
+                Event::Failed { .. } => {
+                    frame.destroy();
+                    say(0, "dma failed".into());
+                }
+                _ => {}
+            }
+            return;
+        }
         let Some(copying) = state.copying(kind) else {
             return;
         };
@@ -1543,6 +1706,8 @@ impl Dispatch<zxdg_exported_v2::ZxdgExportedV2, usize> for Client {
 }
 
 ignore!(
+    zwp_linux_dmabuf_v1::ZwpLinuxDmabufV1,
+    zwp_linux_buffer_params_v1::ZwpLinuxBufferParamsV1,
     zxdg_exporter_v2::ZxdgExporterV2,
     wl_output::WlOutput,
     ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1,
@@ -1605,6 +1770,8 @@ fn main() {
         copy_manager: None,
         copying: None,
         cursor_copying: None,
+        dma_copying: None,
+        linux_dmabuf: None,
         pointer: None,
         appmenus: None,
         gtk_shell: None,

@@ -183,6 +183,34 @@ pub fn setup(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
                 .create_global::<State>(&state.isle.display_handle, formats);
         }
     }
+    // Streams' and capture clients' dmabufs come from the render node, as on the hardware.
+    if let Some(node) = headless.render_node
+        && let Some(path) = node.dev_path()
+        && let Ok(file) = std::fs::OpenOptions::new().read(true).write(true).open(&path)
+    {
+        use smithay::backend::{
+            allocator::{format::FormatSet, gbm::GbmDevice},
+            drm::DrmDeviceFd,
+        };
+        let fd = DrmDeviceFd::new(smithay::utils::DeviceFd::from(std::os::fd::OwnedFd::from(file)));
+        match GbmDevice::new(fd) {
+            Ok(gbm) => {
+                let render: FormatSet = headless
+                    .renderer
+                    .egl_context()
+                    .dmabuf_render_formats()
+                    .iter()
+                    .copied()
+                    .collect();
+                state.isle.image_copy.set_dma(node, &render);
+                state.isle.casting.gbm = Some((gbm, render));
+            }
+            Err(err) => warn!("no GBM on the render node: {err}"),
+        }
+    }
+    let Backend::Headless(headless) = &mut state.backend else {
+        unreachable!()
+    };
     headless.add_output(
         &mut state.isle,
         "HEADLESS-1",

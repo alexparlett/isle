@@ -396,7 +396,9 @@ impl State {
             .copied()
             .collect();
         // Streams are drawn by the renderer, so their buffers come from its device.
-        if node == udev.primary && self.isle.casting.gbm.is_none() {
+        let (primary, render_node) = (udev.primary, udev.render_node);
+        if node == primary && self.isle.casting.gbm.is_none() {
+            self.isle.image_copy.set_dma(render_node, &render_formats);
             self.isle.casting.gbm = Some((gbm.clone(), render_formats.clone()));
         }
         let udev = self.udev();

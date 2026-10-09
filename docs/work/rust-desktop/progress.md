@@ -2,6 +2,19 @@
 
 ## 2026-10-09
 
+- P11 11.12: the capture protocols. ext-foreign-toplevel-list names every
+  window (title and app id kept current from the window list's changes);
+  ext-image-capture-source makes a source of an output or a foreign toplevel;
+  ext-image-copy-capture copies it into the client's shared-memory buffer
+  (`Xrgb8888` or `Argb8888`) through the same render as a shot, so a locked
+  screen gives the lock and a window is refused while locked or not shown. A
+  session's first frame is copied at once and later ones after the source's
+  next frame, so a client asking in a loop gets one per redraw; a session
+  past its first frame shows the screen privacy mark. grim takes the screen
+  and a window by its identifier. Differences: no dmabuf buffers or cursor
+  sessions yet, and a capture-protocol session shows the mark but no Sharing
+  row with Stop. wlr-screencopy is not served.
+
 - P11 11.11: Settings and Inhibit. The Settings portal serves
   `org.freedesktop.appearance` from the theme in force: `color-scheme` from
   the resolved mode, `accent-color` as sRGB, `contrast` from Increase

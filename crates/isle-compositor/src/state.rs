@@ -126,6 +126,8 @@ pub struct Isle {
     pub spotlight: crate::spotlight::SpotlightState,
     /// The screen streams Isle produces.
     pub casting: crate::cast::Casting,
+    /// ext-image-copy-capture, its sources and the foreign-toplevel list.
+    pub image_copy: crate::image_copy::ImageCopy,
     /// Screen shares through the portal.
     pub share: crate::share::ShareState,
     pub share_picker: std::rc::Rc<isle_shell::capture::picker::PickerSurface>,
@@ -304,6 +306,7 @@ impl Isle {
             .expect("the Wayland display source");
         info!(socket = ?socket_name, "listening");
 
+        let image_copy = crate::image_copy::ImageCopy::new(&dh);
         let compositor_state = CompositorState::new::<State>(&dh);
         let xdg_shell_state = XdgShellState::new::<State>(&dh);
         let layer_shell_state = WlrLayerShellState::new::<State>(&dh);
@@ -455,6 +458,7 @@ impl Isle {
             session,
             force_quit,
             casting: Default::default(),
+            image_copy,
             recording_now: None,
             portal: None,
             portal_appearance: Default::default(),

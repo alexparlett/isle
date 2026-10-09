@@ -1403,6 +1403,11 @@ impl Test {
         Ok(self.to_loop.call(|state| state.share_status().to_string()).await?)
     }
 
+    /// The capture protocols' sessions as JSON.
+    async fn copies(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.copy_status().to_string()).await?)
+    }
+
     /// The streams as JSON.
     async fn casts(&self) -> fdo::Result<String> {
         Ok(self

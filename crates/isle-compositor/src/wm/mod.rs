@@ -302,6 +302,7 @@ impl Isle {
         }
         if matches!(event, Event::WindowsChanged) {
             self.idle.windows_changed.set(true);
+            self.image_copy.dirty.set(true);
         }
         let _ = self.events.send(event);
     }

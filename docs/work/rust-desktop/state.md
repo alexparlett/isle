@@ -376,3 +376,4 @@
   the picker is centred until alexparlett/smithay#3 (xdg-foreign lookup) is merged.
 - P11 11.10 done (2026-10-09): the Screenshot portal, both kinds, and PickColor.
 - P11 11.11 done (2026-10-09): the Settings and Inhibit portals.
+- P11 11.12 done (2026-10-09): ext-image-copy-capture, its sources, ext-foreign-toplevel-list.

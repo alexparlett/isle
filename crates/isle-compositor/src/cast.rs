@@ -852,7 +852,8 @@ impl State {
     /// Any stream holds banners and shows the screen mark.
     fn casting_changed(&mut self) {
         use isle_shell::island::model::Privacy;
-        let any = !self.isle.casting.streams.is_empty();
+        let any = !self.isle.casting.streams.is_empty()
+            || self.isle.image_copy.streaming().next().is_some();
         self.isle.island.model.set_privacy(Privacy::Screen, any);
         self.isle.refresh_island();
         self.isle.refresh_banners();

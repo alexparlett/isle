@@ -587,6 +587,9 @@ pub mod test {
         /// Screen shares as JSON: the picker and the sessions.
         fn share(&self) -> zbus::Result<String>;
 
+        /// The capture protocols' sessions as JSON.
+        fn copies(&self) -> zbus::Result<String>;
+
         /// The streams as JSON.
         fn casts(&self) -> zbus::Result<String>;
 

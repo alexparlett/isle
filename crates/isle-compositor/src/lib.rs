@@ -19,6 +19,7 @@ mod games;
 mod grabs;
 mod handlers;
 mod idle;
+mod image_copy;
 mod input;
 mod keyboard;
 mod island;
@@ -293,6 +294,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         state.isle.space.refresh();
         state.isle.popups.cleanup();
         state.switcher_after_dispatch();
+        state.sync_foreign_toplevels();
         state.idle_after_dispatch();
         state.redraw_queued();
         let _ = state.isle.display_handle.flush_clients();

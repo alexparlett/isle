@@ -269,6 +269,146 @@ async fn the_front_apps_menu_items_are_found_and_chosen() {
     client.wait_for("menu activated Word Wrap").await;
 }
 
+/// Desktop entries named `names`, each running the test client under its own app id.
+fn entries(isle: &Isle, names: &[(&str, &str, &str)]) {
+    let client = env!("CARGO_BIN_EXE_isle-test-client");
+    for (id, name, category) in names {
+        std::fs::write(
+            isle.dir.join(format!("data/applications/{id}.desktop")),
+            format!(
+                "[Desktop Entry]\nType=Application\nName={name}\nCategories={category};\nExec={client} --app-id {id} --colour 22aa44\n"
+            ),
+        )
+        .unwrap();
+    }
+}
+
+fn favourites(isle: &Isle) -> String {
+    let text = std::fs::read_to_string(isle.dir.join("config/settings.kdl")).unwrap_or_default();
+    text.lines()
+        .find(|l| l.trim_start().starts_with("favourites"))
+        .unwrap_or("")
+        .trim()
+        .to_owned()
+}
+
+async fn keys_listed(isle: &Isle) -> Vec<String> {
+    status(isle).await["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|l| l["key"].as_str().map(str::to_owned))
+        .collect()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn favourites_are_added_moved_and_removed_and_written() {
+    let isle = Isle::start("spotlight-favourites").await;
+    entries(
+        &isle,
+        &[
+            ("isle.test.Alpha", "Alpha", "Utility"),
+            ("isle.test.Beta", "Beta", "Network"),
+            ("isle.test.Gamma", "Gamma", "Network"),
+        ],
+    );
+    let test = isle.test().await;
+    wait_until(|| async {
+        isle.chord(&[SUPER, SPACE]).await;
+        isle.chord(&[SUPER, ONE]).await;
+        let found = keys_listed(&isle).await.len() >= 3;
+        if !found {
+            press(&isle, ESCAPE).await;
+            press(&isle, ESCAPE).await;
+        }
+        found
+    })
+    .await;
+    assert_eq!(status(&isle).await["scope"], "Apps");
+
+    for key in ["app:isle.test.Gamma", "app:isle.test.Alpha"] {
+        test.spotlight_act(&format!("secondary {key}"))
+            .await
+            .unwrap();
+        wait_until(|| async {
+            status(&isle).await["menu"]
+                .as_array()
+                .is_some_and(|m| m.iter().any(|l| l == "Add to favourites"))
+        })
+        .await;
+        test.spotlight_act("menu Add to favourites").await.unwrap();
+    }
+    wait_until(|| async {
+        favourites(&isle) == r#"favourites "isle.test.Gamma" "isle.test.Alpha""#
+    })
+    .await;
+    let listed = keys_listed(&isle).await;
+    assert_eq!(
+        &listed[..2],
+        ["fav:app:isle.test.Gamma", "fav:app:isle.test.Alpha"],
+        "{listed:?}"
+    );
+
+    test.spotlight_act("drag fav:app:isle.test.Alpha fav:app:isle.test.Gamma")
+        .await
+        .unwrap();
+    wait_until(|| async {
+        favourites(&isle) == r#"favourites "isle.test.Alpha" "isle.test.Gamma""#
+    })
+    .await;
+    test.spotlight_act("drag app:isle.test.Beta fav:app:isle.test.Gamma")
+        .await
+        .unwrap();
+    wait_until(|| async {
+        favourites(&isle) == r#"favourites "isle.test.Alpha" "isle.test.Beta" "isle.test.Gamma""#
+    })
+    .await;
+    test.spotlight_act("drag fav:app:isle.test.Alpha app:isle.test.Gamma")
+        .await
+        .unwrap();
+    wait_until(|| async {
+        favourites(&isle) == r#"favourites "isle.test.Beta" "isle.test.Gamma""#
+    })
+    .await;
+
+    test.spotlight_act("filter").await.unwrap();
+    wait_until(|| async {
+        status(&isle).await["menu"]
+            .as_array()
+            .is_some_and(|m| m.iter().any(|l| l == "Internet"))
+    })
+    .await;
+    test.spotlight_act("menu Internet").await.unwrap();
+    wait_until(|| async { status(&isle).await["category"] == "Internet" }).await;
+    let listed = keys_listed(&isle).await;
+    assert_eq!(
+        listed,
+        ["app:isle.test.Beta", "app:isle.test.Gamma"],
+        "a category alone, no favourites"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_badge_shows_on_its_tile() {
+    let mut isle = Isle::start("spotlight-badge").await;
+    entries(&isle, &[("isle.test.Badged", "Badged", "Utility")]);
+    let client = isle.client("isle.test.Badged", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    client.send("badge count=7");
+    client.wait_for("badge sent").await;
+    wait_until(|| async {
+        isle.chord(&[SUPER, SPACE]).await;
+        isle.chord(&[SUPER, ONE]).await;
+        let badge = status(&isle).await["badges"]["app:isle.test.Badged"].clone();
+        if badge != 7 {
+            press(&isle, ESCAPE).await;
+            press(&isle, ESCAPE).await;
+        }
+        badge == 7
+    })
+    .await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -305,6 +445,10 @@ async fn look() {
         .await
         .unwrap();
     isle.chord(&[SUPER, ONE]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    test.spotlight_act("secondary app:org.mozilla.firefox")
+        .await
+        .unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     test.screenshot(
         "HEADLESS-1",

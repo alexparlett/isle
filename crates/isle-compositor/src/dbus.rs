@@ -862,6 +862,22 @@ impl Test {
             Some(("secondary", key)) => SpotlightAction::Secondary(key.to_owned()),
             Some(("quick", n)) => SpotlightAction::Quick(n.parse().unwrap_or(0)),
             Some(("contents", on)) => SpotlightAction::Contents(on == "true"),
+            Some(("drag", keys)) => {
+                let (from, to) = keys.split_once(' ').ok_or_else(|| fdo::Error::InvalidArgs(action.clone()))?;
+                let (from, to) = (from.to_owned(), to.to_owned());
+                return Ok(self
+                    .to_loop
+                    .call(move |state| {
+                        state.spotlight_action(SpotlightAction::DragFrom(from));
+                        state.spotlight_action(SpotlightAction::DragTo(to));
+                    })
+                    .await?);
+            }
+            Some(("menu", label)) => {
+                let label = label.to_owned();
+                return Ok(self.to_loop.call(move |state| state.spotlight_menu_choose(&label)).await?);
+            }
+            None if action == "filter" => SpotlightAction::Filter,
             _ => return Err(fdo::Error::InvalidArgs(action)),
         };
         Ok(self.to_loop.call(move |state| state.spotlight_action(action)).await?)

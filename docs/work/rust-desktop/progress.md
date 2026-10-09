@@ -2,6 +2,17 @@
 
 ## 2026-10-09
 
+- P10 10.6: the Apps view. Favourites first in the user's order, then
+  every app and game by name; the fixed bar with the section's title and
+  the category filter, a menu of the categories that have apps; typing
+  drops the sections. The tile's and a row's menu inside Spotlight's tree
+  (Open, the entry's actions, favourites, Keep running after last window,
+  Show in {launcher}, Copy, Quit while running), which takes the keys while
+  open. Favourites are written to `spotlight.favourites` from the menu,
+  Option+Cmd+arrows and drags between tiles, and show at once. Badges on
+  tiles. Found on the way: the compositor re-sorted each group by rank,
+  which undid a scope's own order.
+
 - P10 10.5: the fast sources in `isle-search/src/sources/`: apps and library
   games (generic names and keywords as other words, launchers' entries
   folded into their games, unlisted entries out), shell actions from

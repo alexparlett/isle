@@ -77,6 +77,8 @@ pub enum Effect {
     Pin(Row),
     Delete(Row),
     MoveFavourite(Row, i32),
+    /// The Apps view's category filter, from Tab.
+    Filter,
 }
 
 /// How the scope's results are laid out.
@@ -583,6 +585,7 @@ impl Spotlight {
                     self.search()
                 }
             }
+            Key::Tab if self.scope == Scope::Apps => vec![Effect::Filter],
             Key::Tab => match self.selected_row() {
                 Some(Row {
                     item: Item::App(app),
@@ -805,6 +808,17 @@ impl Spotlight {
     pub fn click(&mut self, key: &str, how: How) -> Vec<Effect> {
         self.hover(key);
         self.choose(how)
+    }
+
+    /// The same query asked again, as when what a source holds changed: the selection
+    /// stays on its row where the row is still there.
+    pub fn refresh(&mut self) -> Vec<Effect> {
+        let (selected, moved, panel) = (self.selected.clone(), self.moved, self.panel);
+        let effects = self.search();
+        self.selected = selected;
+        self.moved = moved;
+        self.panel = panel;
+        effects
     }
 
     /// The scope a quick-key button, prefix or tile set from outside: Cmd+1's button, the
@@ -1272,6 +1286,20 @@ mod tests {
         s.key(Key::SelectAll);
         s.key(Key::Backspace);
         assert!(!s.panel());
+    }
+
+    #[test]
+    fn a_refresh_asks_again_and_keeps_the_moved_selection() {
+        let mut s = opened();
+        let g = typed(&mut s, "a");
+        s.answer(g, Group::Apps, vec![row(Group::Apps, "Alpha", "a"), row(Group::Apps, "Apex", "a")], false);
+        s.key(Key::Down);
+        let selected = s.selected().unwrap().to_owned();
+        let effects = s.refresh();
+        assert!(matches!(&effects[..], [Effect::Search(q)] if q.text == "a" && q.generation > g));
+        s.answer(s.generation(), Group::Apps, vec![row(Group::Apps, "Alpha", "a"), row(Group::Apps, "Apex", "a")], false);
+        assert_eq!(s.selected(), Some(selected.as_str()));
+        assert!(s.panel());
     }
 
     #[test]

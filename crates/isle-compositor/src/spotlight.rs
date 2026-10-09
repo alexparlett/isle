@@ -35,8 +35,29 @@ use crate::{
 /// The sources a search runs, built when Spotlight opens from what the compositor knows then.
 #[derive(Default)]
 pub struct Sources {
+    /// Apps apart, as favourites and the category filter change while Spotlight is open.
+    pub apps: isle_search::sources::apps::AppsSource,
     pub fast: Vec<Box<dyn Source>>,
     pub slow: Vec<Arc<dyn Source>>,
+}
+
+/// What a row's or tile's menu item does.
+#[derive(Clone, Debug)]
+enum MenuCommand {
+    Choose(Row),
+    EntryAction { app: String, action: String },
+    AddFavourite(String),
+    RemoveFavourite(String),
+    KeepRunning(String, bool),
+    ShowInLauncher(String),
+    Quit(String),
+    Copy(Row),
+    Category(Option<String>),
+}
+
+struct OpenMenu {
+    view: isle_shell::spotlight::surface::MenuView,
+    commands: std::collections::HashMap<u64, MenuCommand>,
 }
 
 pub struct SpotlightState {
@@ -57,6 +78,9 @@ pub struct SpotlightState {
     usage_saver: Option<Saver<Usage>>,
     /// The Apps view's panel on the screen Spotlight opened on.
     apps_panel: (f32, f32),
+    menu: Option<OpenMenu>,
+    /// The tile a press went down on, which a release elsewhere drops.
+    drag_from: Option<String>,
 }
 
 impl SpotlightState {
@@ -73,6 +97,8 @@ impl SpotlightState {
             usage: Usage::default(),
             usage_saver: None,
             apps_panel: (0., 0.),
+            menu: None,
+            drag_from: None,
         }
     }
 
@@ -164,8 +190,37 @@ impl Isle {
                 }),
             })
             .collect();
+        fn labels(entries: &[isle_ui::MenuEntry], out: &mut Vec<String>) {
+            for item in entries.iter().filter_map(isle_ui::MenuEntry::item) {
+                out.push(item.label.clone());
+                if let Some(sub) = &item.submenu {
+                    labels(sub, out);
+                }
+            }
+        }
+        let mut menu = Vec::new();
+        if let Some(m) = &self.spotlight.menu {
+            labels(&m.view.entries, &mut menu);
+        }
+        let badges: serde_json::Map<String, serde_json::Value> = self
+            .spotlight_frame()
+            .map(|f| {
+                f.lines
+                    .into_iter()
+                    .filter_map(|l| match l {
+                        isle_shell::spotlight::surface::LineView::Row(r) => {
+                            r.badge.map(|b| (r.key, b.into()))
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         serde_json::json!({
             "open": true,
+            "menu": self.spotlight.menu.as_ref().map(|_| menu),
+            "badges": badges,
+            "category": self.spotlight.sources.apps.category,
             "text": model.field().text,
             "caret": model.field().caret,
             "scope": format!("{:?}", model.scope()),
@@ -274,6 +329,24 @@ impl Isle {
             solid: self.game_mode_on(),
             quick_chords: [chord(1), chord(2), chord(3), chord(4)],
             apps_panel: self.spotlight.apps_panel,
+            apps_title: match &self.spotlight.sources.apps.category {
+                Some(c) => c.clone(),
+                None if model.field().text.is_empty()
+                    && !self.spotlight.sources.apps.favourites.is_empty() =>
+                {
+                    "Favourites".into()
+                }
+                None => "All apps".into(),
+            },
+            filter: self
+                .spotlight
+                .sources
+                .apps
+                .category
+                .clone()
+                .unwrap_or_else(|| "All apps".into()),
+            menu: self.spotlight.menu.as_ref().map(|m| m.view.clone()),
+            dragging: self.spotlight.drag_from.clone(),
             lines,
             selected: model.selected().map(str::to_owned),
             searching: model.searching(),
@@ -354,6 +427,8 @@ impl State {
         };
         self.isle.spotlight.kept = model.keep();
         self.isle.spotlight.sources = Sources::default();
+        self.isle.spotlight.menu = None;
+        self.isle.spotlight.drag_from = None;
         self.isle.spotlight.latest.fetch_add(1, Ordering::Relaxed);
         self.stop_spotlight_repeat();
         self.close_surface("spotlight");
@@ -448,6 +523,9 @@ impl State {
         let Some(key) = key else {
             return false;
         };
+        if self.isle.spotlight.menu.is_some() {
+            return false;
+        }
         let repeats = matches!(
             key,
             Key::Text(_)
@@ -560,6 +638,22 @@ impl State {
             }
             SpotlightAction::Quick(n) => model.key(Key::Quick(n)),
             SpotlightAction::Contents(on) => model.set_contents(on),
+            SpotlightAction::DragFrom(key) => {
+                self.isle.spotlight.drag_from = Some(key);
+                Vec::new()
+            }
+            SpotlightAction::DragTo(key) => {
+                let from = self.isle.spotlight.drag_from.take();
+                match from.filter(|f| *f != key) {
+                    Some(from) => self.spotlight_drop(&from, &key),
+                    None => Vec::new(),
+                }
+            }
+            SpotlightAction::Filter => {
+                self.spotlight_filter_menu(false);
+                Vec::new()
+            }
+            SpotlightAction::Menu(event) => self.spotlight_menu_event(event),
         };
         self.spotlight_effects(effects);
         self.put_spotlight_frame();
@@ -577,6 +671,7 @@ impl State {
                 Effect::Pin(row) => self.spotlight_pin(row),
                 Effect::Delete(row) => self.spotlight_delete(row),
                 Effect::MoveFavourite(row, by) => self.spotlight_move_favourite(row, by),
+                Effect::Filter => self.spotlight_filter_menu(true),
             }
         }
     }
@@ -594,6 +689,10 @@ impl State {
                 now,
                 latest: None,
             };
+            if spotlight.sources.apps.answers(&query.scope) {
+                let rows = spotlight.sources.apps.search(&query, &mut cx);
+                fast.entry(Group::Apps).or_default().extend(rows);
+            }
             for source in spotlight
                 .sources
                 .fast
@@ -616,8 +715,7 @@ impl State {
         };
         model.started(query.generation, slow.iter().map(|s| s.group()));
         let mut effects = Vec::new();
-        for (group, mut rows) in fast {
-            rows.sort_by(|a, b| a.rank.cmp(&b.rank));
+        for (group, rows) in fast {
             effects.extend(model.answer(query.generation, group, rows, false));
         }
         let (Some(worker), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone())
@@ -642,11 +740,10 @@ impl State {
                     now,
                     latest: Some(&latest),
                 };
-                let mut rows = source.search(&query, &mut cx);
+                let rows = source.search(&query, &mut cx);
                 if cx.stale(&query) {
                     return;
                 }
-                rows.sort_by(|a, b| a.rank.cmp(&b.rank));
                 let group = source.group();
                 to_loop.post(move |state| {
                     let Some(model) = state.isle.spotlight.model.as_mut() else {
@@ -856,8 +953,8 @@ impl State {
             .map(|t| settings::parse(&t))
             .unwrap_or_default();
         Sources {
+            apps: apps_source,
             fast: vec![
-                Box::new(apps_source),
                 Box::new(actions::ActionsSource {
                     actions: action_list,
                     entry_actions,
@@ -985,10 +1082,6 @@ impl State {
         self.launch(crate::launch::Launch::Command(line));
     }
 
-    fn spotlight_menu(&mut self, row: Row) {
-        debug!(key = row.key, "spotlight menu");
-    }
-
     fn spotlight_preview(&mut self, row: Row) {
         debug!(key = row.key, "spotlight preview");
     }
@@ -1013,10 +1106,6 @@ impl State {
     fn spotlight_delete(&mut self, row: Row) {
         debug!(key = row.key, "spotlight delete");
     }
-
-    fn spotlight_move_favourite(&mut self, row: Row, by: i32) {
-        debug!(key = row.key, by, "spotlight move favourite");
-    }
 }
 
 /// Where Settings installs its row index: beside its data, else the checkout's empty one.
@@ -1031,4 +1120,356 @@ fn settings_index() -> std::path::PathBuf {
 /// `text` as one word for `sh`.
 fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
+}
+
+impl State {
+    /// A row's or tile's menu (`structure/spotlight.md`, the tile's menu).
+    fn spotlight_menu(&mut self, row: Row) {
+        use isle_ui::{MenuEntry, MenuItem, menu::Mark};
+        let mut commands = std::collections::HashMap::new();
+        let mut next = 1u64;
+        let mut item = |label: &str, command: MenuCommand| {
+            let id = next;
+            next += 1;
+            commands.insert(id, command);
+            MenuItem::new(id, label)
+        };
+        let mut groups: Vec<Vec<MenuEntry>> = Vec::new();
+        let target = match &row.item {
+            Item::App(app) => Some(app.clone()),
+            Item::Game(key) => Some(key.clone()),
+            _ => None,
+        };
+        groups.push(vec![MenuEntry::Item(item(
+            "Open",
+            MenuCommand::Choose(row.clone()),
+        ))]);
+        if let Item::App(app) = &row.item
+            && let Some(entry) = self.isle.apps.get(app).cloned()
+            && !entry.actions.is_empty()
+        {
+            groups.push(
+                entry
+                    .actions
+                    .iter()
+                    .map(|a| {
+                        MenuEntry::Item(item(
+                            &a.name,
+                            MenuCommand::EntryAction {
+                                app: app.clone(),
+                                action: a.id.clone(),
+                            },
+                        ))
+                    })
+                    .collect(),
+            );
+        }
+        if let Some(target) = &target {
+            let favourite = self.isle.spotlight.sources.apps.favourites.contains(target);
+            groups.push(vec![MenuEntry::Item(if favourite {
+                item(
+                    "Remove from favourites",
+                    MenuCommand::RemoveFavourite(target.clone()),
+                )
+            } else {
+                item(
+                    "Add to favourites",
+                    MenuCommand::AddFavourite(target.clone()),
+                )
+            })]);
+        }
+        let mut options = Vec::new();
+        if let Item::App(app) = &row.item {
+            let on = self.isle.settings.windows.keep_running.contains(app);
+            let keep = item(
+                "Keep running after last window",
+                MenuCommand::KeepRunning(app.clone(), !on),
+            )
+            .mark(if on { Mark::Check } else { Mark::None });
+            options.push(MenuEntry::Item(
+                item("Options", MenuCommand::Category(None)).submenu(vec![MenuEntry::Item(keep)]),
+            ));
+        }
+        if let Item::Game(key) = &row.item
+            && let Some(game) =
+                isle_games::GameId::parse(key).and_then(|id| self.isle.games.get(&id).cloned())
+        {
+            options.push(MenuEntry::Item(item(
+                &format!("Show in {}", game.launcher.name()),
+                MenuCommand::ShowInLauncher(key.clone()),
+            )));
+        }
+        if matches!(row.item, Item::Answer(_) | Item::File(_) | Item::Emoji(_)) {
+            options.push(MenuEntry::Item(item(
+                "Copy",
+                MenuCommand::Copy(row.clone()),
+            )));
+        }
+        if !options.is_empty() {
+            groups.push(options);
+        }
+        let app_of = |target: &str| match target.strip_prefix("steam:") {
+            Some(n) => format!("steam_app_{n}"),
+            None => target.to_owned(),
+        };
+        let running = target.as_deref().is_some_and(|t| {
+            self.isle
+                .wm
+                .records
+                .iter()
+                .any(|r| r.app == app_of(t) && r.mapped)
+        });
+        if running && let Some(target) = &target {
+            groups.push(vec![MenuEntry::Item(item(
+                "Quit",
+                MenuCommand::Quit(app_of(target)),
+            ))]);
+        }
+        let mut entries = Vec::new();
+        for (i, group) in groups.into_iter().enumerate() {
+            if i > 0 {
+                entries.push(MenuEntry::Separator);
+            }
+            entries.extend(group);
+        }
+        self.isle.spotlight.menu = Some(OpenMenu {
+            view: isle_shell::spotlight::surface::MenuView {
+                entries: Rc::new(entries),
+                anchor: isle_shell::spotlight::surface::MenuAnchor::Selected,
+                by_key: true,
+            },
+            commands,
+        });
+    }
+
+    /// The Apps view's category filter: All apps, then each category that has apps.
+    fn spotlight_filter_menu(&mut self, by_key: bool) {
+        use isle_ui::{MenuEntry, MenuItem, menu::Mark};
+        let apps = &self.isle.spotlight.sources.apps;
+        let present: Vec<String> = isle_apps::Category::ALL
+            .iter()
+            .map(|c| c.label().to_owned())
+            .filter(|label| {
+                apps.apps.iter().any(|a| &a.category == label)
+                    || (label == isle_search::sources::apps::GAMES && !apps.games.is_empty())
+            })
+            .collect();
+        let current = apps.category.clone();
+        let mut commands = std::collections::HashMap::new();
+        commands.insert(1, MenuCommand::Category(None));
+        let check = |on: bool| if on { Mark::Check } else { Mark::None };
+        let mut entries = vec![
+            MenuEntry::Item(MenuItem::new(1, "All apps").mark(check(current.is_none()))),
+            MenuEntry::Separator,
+        ];
+        for (i, label) in present.into_iter().enumerate() {
+            let id = i as u64 + 2;
+            entries.push(MenuEntry::Item(
+                MenuItem::new(id, label.clone()).mark(check(current.as_ref() == Some(&label))),
+            ));
+            commands.insert(id, MenuCommand::Category(Some(label)));
+        }
+        self.isle.spotlight.menu = Some(OpenMenu {
+            view: isle_shell::spotlight::surface::MenuView {
+                entries: Rc::new(entries),
+                anchor: isle_shell::spotlight::surface::MenuAnchor::Filter,
+                by_key,
+            },
+            commands,
+        });
+    }
+
+    fn spotlight_menu_event(&mut self, event: isle_ui::MenuEvent) -> Vec<Effect> {
+        use isle_ui::MenuEvent;
+        match event {
+            MenuEvent::Chosen(id) => {
+                let command = self
+                    .isle
+                    .spotlight
+                    .menu
+                    .take()
+                    .and_then(|m| m.commands.get(&id).cloned());
+                match command {
+                    Some(command) => self.spotlight_menu_command(command),
+                    None => Vec::new(),
+                }
+            }
+            MenuEvent::Back => {
+                self.isle.spotlight.menu = None;
+                Vec::new()
+            }
+            MenuEvent::Opening(_) | MenuEvent::Forward => Vec::new(),
+        }
+    }
+
+    fn spotlight_menu_command(&mut self, command: MenuCommand) -> Vec<Effect> {
+        match command {
+            MenuCommand::Choose(row) => vec![Effect::Choose(row, How::Default)],
+            MenuCommand::EntryAction { app, action } => {
+                self.close_spotlight();
+                self.launch(crate::launch::Launch::App {
+                    app,
+                    action: Some(action),
+                    uris: Vec::new(),
+                });
+                Vec::new()
+            }
+            MenuCommand::AddFavourite(target) => {
+                let mut list = self.isle.spotlight.sources.apps.favourites.clone();
+                if !list.contains(&target) {
+                    list.push(target);
+                }
+                self.set_favourites(list)
+            }
+            MenuCommand::RemoveFavourite(target) => {
+                let mut list = self.isle.spotlight.sources.apps.favourites.clone();
+                list.retain(|f| *f != target);
+                self.set_favourites(list)
+            }
+            MenuCommand::KeepRunning(app, on) => {
+                let mut list = self.isle.settings.windows.keep_running.clone();
+                list.retain(|a| *a != app);
+                if on {
+                    list.push(app);
+                }
+                self.isle
+                    .write_setting("windows.keep-running", isle_settings::Value::List(list));
+                Vec::new()
+            }
+            MenuCommand::ShowInLauncher(key) => {
+                self.close_spotlight();
+                let game = isle_games::GameId::parse(&key)
+                    .and_then(|id| self.isle.games.get(&id).cloned());
+                if let Some(game) = game {
+                    match game.page_url() {
+                        Some(url) => {
+                            self.launch(crate::launch::Launch::Open(url));
+                        }
+                        None => {
+                            let entry = game.launcher.desktop_id(game.flatpak).to_owned();
+                            if !self.activate_app(&entry) {
+                                self.launch(crate::launch::Launch::App {
+                                    app: entry,
+                                    action: None,
+                                    uris: Vec::new(),
+                                });
+                            }
+                        }
+                    }
+                }
+                Vec::new()
+            }
+            MenuCommand::Quit(app) => {
+                self.quit_app(&app);
+                Vec::new()
+            }
+            MenuCommand::Copy(row) => {
+                self.spotlight_copy(row);
+                Vec::new()
+            }
+            MenuCommand::Category(category) => {
+                self.isle.spotlight.sources.apps.category = category;
+                self.isle
+                    .spotlight
+                    .model
+                    .as_mut()
+                    .map(Spotlight::refresh)
+                    .unwrap_or_default()
+            }
+        }
+    }
+
+    /// Writes the favourites and shows them at once.
+    fn set_favourites(&mut self, list: Vec<String>) -> Vec<Effect> {
+        self.isle.write_setting(
+            "spotlight.favourites",
+            isle_settings::Value::List(list.clone()),
+        );
+        self.isle.spotlight.sources.apps.favourites = list;
+        self.isle
+            .spotlight
+            .model
+            .as_mut()
+            .map(Spotlight::refresh)
+            .unwrap_or_default()
+    }
+
+    /// Whether a tile's key is a favourite's, and the app or game it names.
+    fn tile_target(key: &str) -> Option<(bool, String)> {
+        let (favourite, rest) = match key.strip_prefix("fav:") {
+            Some(rest) => (true, rest),
+            None => (false, key),
+        };
+        let target = rest
+            .strip_prefix("app:")
+            .or_else(|| rest.strip_prefix("game:"))?;
+        Some((favourite, target.to_owned()))
+    }
+
+    /// A tile dropped on another: onto a favourite it goes before that one, joining the
+    /// favourites if it was not among them; a favourite dropped on all apps leaves them.
+    fn spotlight_drop(&mut self, from: &str, to: &str) -> Vec<Effect> {
+        let (Some((from_fav, from_target)), Some((to_fav, to_target))) =
+            (Self::tile_target(from), Self::tile_target(to))
+        else {
+            return Vec::new();
+        };
+        let mut list = self.isle.spotlight.sources.apps.favourites.clone();
+        match (from_fav, to_fav) {
+            (_, true) => {
+                list.retain(|f| *f != from_target);
+                let at = list
+                    .iter()
+                    .position(|f| *f == to_target)
+                    .unwrap_or(list.len());
+                list.insert(at, from_target);
+            }
+            (true, false) => list.retain(|f| *f != from_target),
+            (false, false) => return Vec::new(),
+        }
+        self.set_favourites(list)
+    }
+
+    /// Option+Cmd+Left and Right on a favourite.
+    fn spotlight_move_favourite(&mut self, row: Row, by: i32) {
+        let Some((_, target)) = Self::tile_target(&row.key) else {
+            return;
+        };
+        let mut list = self.isle.spotlight.sources.apps.favourites.clone();
+        let Some(at) = list.iter().position(|f| *f == target) else {
+            return;
+        };
+        let to = (at as i32 + by).clamp(0, list.len() as i32 - 1) as usize;
+        let moved = list.remove(at);
+        list.insert(to, moved);
+        let effects = self.set_favourites(list);
+        self.spotlight_effects(effects);
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+impl State {
+    /// Chooses the open menu's item labelled `label`, as a click would.
+    pub fn spotlight_menu_choose(&mut self, label: &str) {
+        fn find(entries: &[isle_ui::MenuEntry], label: &str) -> Option<u64> {
+            entries
+                .iter()
+                .filter_map(isle_ui::MenuEntry::item)
+                .find_map(|item| {
+                    if item.label == label {
+                        return Some(item.id);
+                    }
+                    item.submenu.as_ref().and_then(|sub| find(sub, label))
+                })
+        }
+        let id = self
+            .isle
+            .spotlight
+            .menu
+            .as_ref()
+            .and_then(|m| find(&m.view.entries, label));
+        if let Some(id) = id {
+            self.spotlight_action(SpotlightAction::Menu(isle_ui::MenuEvent::Chosen(id)));
+        }
+    }
 }

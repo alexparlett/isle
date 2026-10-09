@@ -331,5 +331,6 @@
 - P10 10.3 done (2026-10-09): the pure model.
 - P10 10.4 done (2026-10-09): the surface, keys from the chord, the centre
   group, the clipboard core with the Xwayland read fixed.
-- P10 10.5 done (2026-10-09): the fast sources and choosing them. Next:
-  10.6 (the Apps view).
+- P10 10.5 done (2026-10-09): the fast sources and choosing them.
+- P10 10.6 done (2026-10-09): the Apps view, favourites, the category
+  filter, menus, badges. Next: 10.7 (files and contents).

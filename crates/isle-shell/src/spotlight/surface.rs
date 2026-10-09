@@ -10,7 +10,10 @@ use std::{
 use freya::prelude::*;
 use freya_embed::AppComponent;
 use isle_tokens::Theme;
-use isle_ui::{AppIcon, Glass, Glyph, Hit, colour, shadows, text, use_theme};
+use isle_ui::{
+    AppIcon, Glass, Glyph, Hit, Menu, MenuEntry, MenuEvent, colour, menu::Material, shadows, text,
+    use_theme,
+};
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
 use crate::surface::{Action, Actions, Layer, Scope, SurfaceDef};
@@ -57,6 +60,24 @@ pub enum Layout {
     Emoji(usize),
 }
 
+/// Where an open menu hangs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuAnchor {
+    /// Under the selected row or tile.
+    Selected,
+    /// Under the Apps view's category filter.
+    Filter,
+}
+
+/// A menu open in Spotlight: a row's or tile's, or the category filter's.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MenuView {
+    pub entries: Rc<Vec<MenuEntry>>,
+    pub anchor: MenuAnchor,
+    /// Opened from the keyboard, so its first row is selected.
+    pub by_key: bool,
+}
+
 /// What Spotlight shows now.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
@@ -88,6 +109,12 @@ pub struct Frame {
     pub quick_chords: [String; 4],
     /// The Apps view's panel, fitted to the screen: width and height.
     pub apps_panel: (f32, f32),
+    /// The Apps view's top bar: its title and the category filter's choice.
+    pub apps_title: String,
+    pub filter: String,
+    pub menu: Option<MenuView>,
+    /// The tile being dragged.
+    pub dragging: Option<String>,
 }
 
 impl Frame {
@@ -111,6 +138,13 @@ pub enum SpotlightAction {
     Quick(u8),
     /// The Files scope's Names / Contents switch.
     Contents(bool),
+    /// A press on a tile, which may become a drag.
+    DragFrom(String),
+    /// A release on a tile.
+    DragTo(String),
+    /// The Apps view's category filter.
+    Filter,
+    Menu(MenuEvent),
 }
 
 #[derive(Default)]
@@ -273,16 +307,43 @@ struct Root {
     frame: State<Frame>,
 }
 
+/// Where the selected row and the filter button are in the surface, for a menu to hang
+/// under: their bottom-left corners.
+#[derive(Clone, Copy, PartialEq)]
+struct Anchors {
+    selected: State<(f32, f32)>,
+    filter: State<(f32, f32)>,
+}
+
 impl Component for Root {
     fn render(&self) -> impl IntoElement {
         let theme = use_theme();
         let t = &theme.tokens;
         let frame = self.frame.read().clone();
         let solid = frame.solid || theme.appearance.reduce_transparency;
+        let anchors = use_hook(|| Anchors {
+            selected: State::create((0., 0.)),
+            filter: State::create((0., 0.)),
+        });
         let field = Field {
             frame: frame.clone(),
             solid,
         };
+        let menu = frame.menu.clone().map(|m| {
+            let actions = Actions::get();
+            let (x, y) = match m.anchor {
+                MenuAnchor::Selected => *anchors.selected.read(),
+                MenuAnchor::Filter => *anchors.filter.read(),
+            };
+            rect()
+                .position(Position::new_absolute().left(x).top(y))
+                .layer(freya::prelude::Layer::Overlay)
+                .child(
+                    Menu::new(m.entries, move |e| send(&actions, SpotlightAction::Menu(e)))
+                        .material(Material::Solid)
+                        .first_selected(m.by_key),
+                )
+        });
         let mut root = rect()
             .expanded()
             .padding(SpotlightSurface::margin(&theme))
@@ -293,16 +354,22 @@ impl Component for Root {
             .child(field);
         if frame.panel {
             root = root.child(match frame.layout {
-                Layout::List => ListPanel { frame, solid }.into_element(),
+                Layout::List => ListPanel {
+                    frame,
+                    solid,
+                    anchors,
+                }
+                .into_element(),
                 Layout::Apps(columns) | Layout::Emoji(columns) => GridPanel {
                     frame,
                     solid,
                     columns,
+                    anchors,
                 }
                 .into_element(),
             });
         }
-        root
+        rect().expanded().child(root).maybe_child(menu)
     }
 }
 
@@ -455,6 +522,7 @@ fn line_height(theme: &Theme, line: &LineView) -> f32 {
 struct ListPanel {
     frame: Frame,
     solid: bool,
+    anchors: Anchors,
 }
 
 #[derive(Clone, PartialEq)]
@@ -462,6 +530,7 @@ struct ListData {
     lines: Rc<Vec<LineView>>,
     selected: Option<String>,
     unfocused: bool,
+    anchors: Anchors,
 }
 
 impl Component for ListPanel {
@@ -490,6 +559,7 @@ impl Component for ListPanel {
             lines: Rc::new(frame.lines.clone()),
             selected: frame.selected.clone(),
             unfocused: frame.unfocused,
+            anchors: self.anchors,
         };
         let length = frame.lines.len();
         let body: Element = match &frame.empty {
@@ -510,6 +580,7 @@ impl Component for ListPanel {
                         row: row.clone(),
                         selected: data.selected.as_ref() == Some(&row.key),
                         unfocused: data.unfocused,
+                        anchors: data.anchors,
                     }
                     .into_element(),
                 },
@@ -644,6 +715,7 @@ struct ResultRow {
     row: RowView,
     selected: bool,
     unfocused: bool,
+    anchors: Anchors,
 }
 
 impl Component for ResultRow {
@@ -676,7 +748,14 @@ impl Component for ResultRow {
         };
         let (hover, click, secondary) = (actions.clone(), actions.clone(), actions);
         let (k1, k2, k3) = (row.key.clone(), row.key.clone(), row.key.clone());
+        let mut anchor = self.anchors.selected;
+        let pad = t.space_s;
         rect()
+            .maybe(self.selected, |el| {
+                el.on_sized(move |e: Event<SizedEventData>| {
+                    anchor.set_if_modified((e.area.min_x() + pad, e.area.max_y()))
+                })
+            })
             .width(Size::fill())
             .height(Size::px(t.size_row_large))
             .corner_radius(t.radius_card)
@@ -754,6 +833,7 @@ struct GridPanel {
     frame: Frame,
     solid: bool,
     columns: usize,
+    anchors: Anchors,
 }
 
 #[derive(Clone, PartialEq)]
@@ -762,6 +842,8 @@ struct GridData {
     selected: Option<String>,
     unfocused: bool,
     apps: bool,
+    anchors: Anchors,
+    dragging: Option<String>,
 }
 
 impl Component for GridPanel {
@@ -775,7 +857,11 @@ impl Component for GridPanel {
         } else {
             t.size_emoji_cell
         };
-        let lines = grid_lines(&frame.lines, self.columns);
+        let mut lines = grid_lines(&frame.lines, self.columns);
+        // The top bar names the first section.
+        if apps && matches!(lines.first(), Some(GridLine::Header(_))) {
+            lines.remove(0);
+        }
         let heights: Rc<Vec<f32>> = Rc::new(
             lines
                 .iter()
@@ -824,6 +910,8 @@ impl Component for GridPanel {
             selected: frame.selected.clone(),
             unfocused: frame.unfocused,
             apps,
+            anchors: self.anchors,
+            dragging: frame.dragging.clone(),
         };
         let grid = VirtualScrollView::new_with_data_controlled(
             data,
@@ -837,6 +925,8 @@ impl Component for GridPanel {
                             selected: data.selected.as_ref() == Some(&r.key),
                             unfocused: data.unfocused,
                             apps: data.apps,
+                            anchors: data.anchors,
+                            dragged: data.dragging.as_ref() == Some(&r.key),
                         }
                         .into_element()
                     }))
@@ -858,10 +948,17 @@ impl Component for GridPanel {
                 .into_element(),
             _ => grid.into_element(),
         };
+        let top_bar = apps.then(|| AppsBar {
+            title: frame.apps_title.clone(),
+            filter: frame.filter.clone(),
+            anchor: self.anchors.filter,
+        });
+        let side = if apps { t.space_l } else { t.space_s };
         shape(&theme, self.solid, width, height).child(
             rect()
                 .expanded()
-                .padding((t.space_s, if apps { t.space_l } else { t.space_s }))
+                .padding((if apps { 0. } else { t.space_s }, side, t.space_s, side))
+                .maybe_child(top_bar)
                 .child(
                     rect()
                         .width(Size::fill())
@@ -896,12 +993,75 @@ impl Component for GridPanel {
     }
 }
 
+/// The Apps view's fixed bar: the section's title and the category filter.
+#[derive(PartialEq)]
+struct AppsBar {
+    title: String,
+    filter: String,
+    anchor: State<(f32, f32)>,
+}
+
+impl Component for AppsBar {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let actions = Actions::get();
+        let mut anchor = self.anchor;
+        rect()
+            .width(Size::fill())
+            .height(Size::px(t.size_row_large))
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .child(
+                rect().width(Size::flex(1.)).child(
+                    text::line(
+                        &theme,
+                        text::Style::Subheadline,
+                        colour(t.colour_text_2),
+                        self.title.clone(),
+                    )
+                    .font_weight(600),
+                ),
+            )
+            .child(
+                rect()
+                    .height(Size::px(t.size_control))
+                    .padding((0., t.space_s))
+                    .corner_radius(t.radius_small)
+                    .background(colour(t.colour_control))
+                    .horizontal()
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_xs)
+                    .a11y_role(AccessibilityRole::ComboBox)
+                    .a11y_alt(self.filter.clone())
+                    .on_sized(move |e: Event<SizedEventData>| {
+                        anchor.set_if_modified((e.area.min_x(), e.area.max_y()))
+                    })
+                    .on_press(move |_| send(&actions, SpotlightAction::Filter))
+                    .child(text::line(
+                        &theme,
+                        text::Style::Body,
+                        colour(t.colour_text),
+                        self.filter.clone(),
+                    ))
+                    .child(Glyph::new(
+                        "caret-up-down",
+                        t.size_glyph_small,
+                        colour(t.colour_text_2),
+                    )),
+            )
+    }
+}
+
 #[derive(PartialEq)]
 struct Tile {
     row: RowView,
     selected: bool,
     unfocused: bool,
     apps: bool,
+    anchors: Anchors,
+    dragged: bool,
 }
 
 impl Component for Tile {
@@ -910,14 +1070,25 @@ impl Component for Tile {
         let t = &theme.tokens;
         let actions = Actions::get();
         let row = &self.row;
-        let (hover, click, secondary) = (actions.clone(), actions.clone(), actions);
+        let (hover, click, secondary) = (actions.clone(), actions.clone(), actions.clone());
         let (k1, k2, k3) = (row.key.clone(), row.key.clone(), row.key.clone());
+        let (down, up) = (actions.clone(), actions);
+        let (k4, k5) = (row.key.clone(), row.key.clone());
         let fill = if self.unfocused {
             t.colour_selection_unfocused
         } else {
             t.colour_accent
         };
+        let mut anchor = self.anchors.selected;
         let base = rect()
+            .maybe(self.selected, |el| {
+                el.on_sized(move |e: Event<SizedEventData>| {
+                    anchor.set_if_modified((e.area.min_x(), e.area.max_y()))
+                })
+            })
+            .maybe(self.dragged, |el| el.opacity(0.4))
+            .on_mouse_down(move |_| send(&down, SpotlightAction::DragFrom(k4.clone())))
+            .on_mouse_up(move |_| send(&up, SpotlightAction::DragTo(k5.clone())))
             .on_pointer_move(move |_| send(&hover, SpotlightAction::Hover(k1.clone())))
             .on_press(move |_| send(&click, SpotlightAction::Click(k2.clone())))
             .on_secondary_down(move |_| send(&secondary, SpotlightAction::Secondary(k3.clone())))

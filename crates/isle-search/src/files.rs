@@ -221,6 +221,12 @@ pub fn tilde(path: &Path) -> String {
 
 /// Recently used files from `recently-used.xbel`, newest first.
 pub fn recent(xbel: &str, limit: usize) -> Vec<PathBuf> {
+    recent_by(xbel, limit, &[])
+}
+
+/// As `recent`, only the files one of `apps` used, by the names the file gives them: an
+/// app's name or its command. All files when `apps` is empty.
+pub fn recent_by(xbel: &str, limit: usize, apps: &[String]) -> Vec<PathBuf> {
     let mut found: Vec<(String, PathBuf)> = Vec::new();
     for chunk in xbel.split("<bookmark ").skip(1) {
         let attr = |name: &str| {
@@ -234,6 +240,27 @@ pub fn recent(xbel: &str, limit: usize) -> Vec<PathBuf> {
         let Some(path) = href.strip_prefix("file://") else {
             continue;
         };
+        if !apps.is_empty() {
+            let used: Vec<&str> = chunk
+                .split("<bookmark:application ")
+                .skip(1)
+                .flat_map(|app| {
+                    let attr = |name: &str| {
+                        let at = app.find(&format!("{name}=\""))? + name.len() + 2;
+                        Some(&app[at..at + app[at..].find('"')?])
+                    };
+                    let exec = attr("exec").map(|e| {
+                        e.trim_matches(|c| c == '\'' || c == '&' || c == ';' || c == ' ')
+                            .trim_start_matches("apos;")
+                    });
+                    [attr("name"), exec.and_then(|e| e.split_whitespace().next())]
+                })
+                .flatten()
+                .collect();
+            if !used.iter().any(|u| apps.iter().any(|a| a == u)) {
+                continue;
+            }
+        }
         let path = PathBuf::from(percent_decode(path));
         if path.exists() {
             found.push((modified.unwrap_or("").to_owned(), path));
@@ -292,8 +319,10 @@ fn file_row(
 /// for an empty one.
 pub struct FilesSource {
     pub index: Shared,
-    /// `recently-used.xbel`, read for an empty Files scope.
+    /// `recently-used.xbel`, read for an empty Files scope and an app's recent files.
     pub xbel: Option<PathBuf>,
+    /// Each app's names a recent file may give it, by desktop id: its name and command.
+    pub app_names: std::collections::HashMap<String, Vec<String>>,
 }
 
 pub const GENERAL_LIMIT: usize = 5;
@@ -305,7 +334,10 @@ impl Source for FilesSource {
     }
 
     fn answers(&self, scope: &Scope) -> bool {
-        matches!(scope, Scope::General | Scope::Files { contents: false })
+        matches!(
+            scope,
+            Scope::General | Scope::Files { contents: false } | Scope::App(_)
+        )
     }
 
     fn slow(&self) -> bool {
@@ -314,6 +346,40 @@ impl Source for FilesSource {
 
     fn search(&self, query: &Query, cx: &mut Context<'_>) -> Vec<Row> {
         let text = query.text.trim();
+        if let Scope::App(app) = &query.scope {
+            let names = self.app_names.get(app).cloned().unwrap_or_default();
+            if names.is_empty() {
+                return Vec::new();
+            }
+            let xbel = self
+                .xbel
+                .as_ref()
+                .and_then(|p| std::fs::read_to_string(p).ok())
+                .unwrap_or_default();
+            let m = cx.matcher.find("", "").expect("an empty query matches");
+            return recent_by(&xbel, GENERAL_LIMIT, &names)
+                .into_iter()
+                .filter(|p| {
+                    text.is_empty()
+                        || p.file_name().is_some_and(|n| {
+                            n.to_string_lossy()
+                                .to_lowercase()
+                                .contains(&text.to_lowercase())
+                        })
+                })
+                .map(|p| {
+                    let parent = p.parent().map(tilde).unwrap_or_default();
+                    file_row(
+                        format!("file:{}", p.display()),
+                        &p,
+                        p.is_dir(),
+                        parent,
+                        crate::Rank::new(&m, 0.0, false, ""),
+                        Vec::new(),
+                    )
+                })
+                .collect();
+        }
         if text.is_empty() {
             if query.scope == Scope::General {
                 return Vec::new();
@@ -580,6 +646,7 @@ mod tests {
         let files = FilesSource {
             index: index.clone(),
             xbel: None,
+            app_names: Default::default(),
         };
         let rows = search(&files, Scope::Files { contents: false }, "plan");
         let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
@@ -610,7 +677,17 @@ mod tests {
             a.display(),
             b.display().to_string().replace(' ', "%20")
         );
-        assert_eq!(recent(&xbel, 10), [b, a]);
+        assert_eq!(recent(&xbel, 10), [b.clone(), a.clone()]);
+        let by_app = format!(
+            "<xbel><bookmark href=\"file://{}\" modified=\"2026-10-01T10:00:00Z\"><info><metadata><bookmark:applications><bookmark:application name=\"Text Editor\" exec=\"&apos;gnome-text-editor %u&apos;\"/></bookmark:applications></metadata></info></bookmark><bookmark href=\"file://{}\" modified=\"2026-10-02T10:00:00Z\"><info><metadata><bookmark:applications><bookmark:application name=\"Firefox\" exec=\"firefox %u\"/></bookmark:applications></metadata></info></bookmark></xbel>",
+            a.display(),
+            b.display()
+        );
+        assert_eq!(
+            recent_by(&by_app, 10, &["gnome-text-editor".into()]),
+            [a.clone()]
+        );
+        assert_eq!(recent_by(&by_app, 10, &["Firefox".into()]), [b]);
         fs::remove_dir_all(root).unwrap();
     }
 }

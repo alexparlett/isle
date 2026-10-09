@@ -353,6 +353,11 @@ pub mod shell {
     )]
     pub trait Shell {
         fn list(&self) -> zbus::Result<Vec<SurfaceInfo>>;
+        /// Spotlight opened as `how` says (`open`, `apps`, `emoji`) or closed (`close`);
+        /// whether it is open after.
+        fn spotlight(&self, how: &str) -> zbus::Result<bool>;
+        /// Spotlight's rows for a query in a scope, as JSON.
+        fn search(&self, query: &str, scope: &str) -> zbus::Result<String>;
         /// False when no surface has that name.
         fn open(&self, name: &str) -> zbus::Result<bool>;
         fn close(&self, name: &str) -> zbus::Result<bool>;

@@ -33,6 +33,26 @@ pub enum Scope {
     App(String),
 }
 
+impl Scope {
+    /// A scope by the CLI's name for it: `general`, `apps`, `files`, `contents`, `actions`,
+    /// `clipboard`, `calculator`, `emoji`, `windows`, `run`, or `app:<desktop id>`.
+    pub fn parse(name: &str) -> Option<Scope> {
+        Some(match name {
+            "general" | "" => Scope::General,
+            "apps" => Scope::Apps,
+            "files" => Scope::Files { contents: false },
+            "contents" => Scope::Files { contents: true },
+            "actions" => Scope::Actions,
+            "clipboard" => Scope::Clipboard,
+            "calculator" => Scope::Calculator,
+            "emoji" => Scope::Emoji,
+            "windows" => Scope::Windows,
+            "run" => Scope::Run,
+            other => Scope::App(other.strip_prefix("app:")?.to_owned()),
+        })
+    }
+}
+
 /// The groups of the general search, in the order they are listed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Group {

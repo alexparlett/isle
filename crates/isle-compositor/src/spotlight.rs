@@ -1029,6 +1029,23 @@ impl State {
                         index: index.clone(),
                         xbel: isle_apps::appimage::data_home()
                             .map(|d| d.join("recently-used.xbel")),
+                        app_names: self
+                            .isle
+                            .apps
+                            .entries()
+                            .iter()
+                            .map(|e| {
+                                let command = e
+                                    .exec
+                                    .as_deref()
+                                    .and_then(|x| x.split_whitespace().next())
+                                    .map(|c| c.rsplit('/').next().unwrap_or(c).to_owned());
+                                (
+                                    e.id.clone(),
+                                    std::iter::once(e.name.clone()).chain(command).collect(),
+                                )
+                            })
+                            .collect(),
                     }) as Arc<dyn Source>,
                     Arc::new(isle_search::files::ContentsSource {
                         index: index.clone(),
@@ -1797,5 +1814,57 @@ impl State {
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         pointer.set_grab(self, grab, serial, smithay::input::pointer::Focus::Clear);
         info!(from, "a drag out of Spotlight");
+    }
+}
+
+/// Runs every source that answers `scope` for `text`, fast and slow, without Spotlight open:
+/// `isle search`. The rows as JSON, grouped in the order Spotlight lists them.
+pub fn search_all(sources: Sources, usage: Usage, text: String, scope: Scope) -> String {
+    let query = Query {
+        text,
+        scope,
+        generation: 1,
+    };
+    let mut matcher = Matcher::new();
+    let mut cx = Context {
+        matcher: &mut matcher,
+        usage: &usage,
+        now: now(),
+        latest: None,
+    };
+    let mut rows: Vec<Row> = Vec::new();
+    if sources.apps.answers(&query.scope) {
+        rows.extend(sources.apps.search(&query, &mut cx));
+    }
+    if sources.clipboard.answers(&query.scope) {
+        rows.extend(sources.clipboard.search(&query, &mut cx));
+    }
+    for source in sources.fast.iter().filter(|s| s.answers(&query.scope)) {
+        rows.extend(source.search(&query, &mut cx));
+    }
+    for source in sources.slow.iter().filter(|s| s.answers(&query.scope)) {
+        rows.extend(source.search(&query, &mut cx));
+    }
+    rows.sort_by_key(|r| r.group);
+    let json: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "group": format!("{:?}", r.group),
+                "key": r.key,
+                "title": r.title,
+                "detail": r.detail,
+                "trailing": r.trailing,
+                "section": r.section,
+            })
+        })
+        .collect();
+    serde_json::Value::Array(json).to_string()
+}
+
+impl State {
+    /// The sources a search would run now, for `isle search`.
+    pub fn search_sources(&mut self) -> (Sources, Usage) {
+        (self.spotlight_sources(), self.isle.spotlight.usage.clone())
     }
 }

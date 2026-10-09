@@ -697,6 +697,49 @@ async fn a_file_dragged_out_arrives_as_its_link() {
     target.wait_for(&link).await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn search_runs_without_spotlight_and_tab_scopes_to_an_app() {
+    let mut isle = Isle::start("spotlight-cli").await;
+    entries(&isle, &[("isle.test.Editor", "Editor", "Development")]);
+    let editor = isle.client_with(&[
+        "--app-id",
+        "isle.test.Editor",
+        "--title",
+        "draft notes",
+        "--colour",
+        "3366ff",
+    ]);
+    editor.wait_for("keyboard-enter").await;
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    wait_until(|| async {
+        let found: serde_json::Value =
+            serde_json::from_str(&shell.search("edit", "general").await.unwrap()).unwrap();
+        found
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["title"] == "Editor" && r["group"] == "Apps")
+    })
+    .await;
+    let found: serde_json::Value =
+        serde_json::from_str(&shell.search("draft", "windows").await.unwrap()).unwrap();
+    assert_eq!(found[0]["title"], "draft notes");
+    assert!(shell.search("x", "nowhere").await.is_err());
+    assert_eq!(status(&isle).await["open"], false, "nothing opened");
+
+    assert!(shell.spotlight("apps").await.unwrap());
+    assert_eq!(status(&isle).await["scope"], "Apps");
+    assert!(!shell.spotlight("close").await.unwrap());
+
+    search(&isle, "editor").await;
+    wait_until(|| async { status(&isle).await["selected"] == "app:isle.test.Editor" }).await;
+    press(&isle, TAB).await;
+    wait_until(|| async { status(&isle).await["scope"] == "App(\"isle.test.Editor\")" }).await;
+    wait_until(|| async { titles(&isle).await.contains(&"draft notes".to_owned()) }).await;
+    press(&isle, BACKSPACE).await;
+    wait_until(|| async { status(&isle).await["text"] == "editor" }).await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

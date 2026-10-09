@@ -478,6 +478,40 @@ impl Shell {
             .await?)
     }
 
+    /// Opens Spotlight as `how` says: `open`, `apps`, `emoji`; `close` closes it.
+    async fn spotlight(&self, how: String) -> fdo::Result<bool> {
+        let scope = match how.as_str() {
+            "open" => Some(isle_search::Scope::General),
+            "apps" => Some(isle_search::Scope::Apps),
+            "emoji" => Some(isle_search::Scope::Emoji),
+            "close" => None,
+            _ => return Err(fdo::Error::InvalidArgs(format!("no way to open Spotlight called {how}"))),
+        };
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                match scope {
+                    Some(scope) => {
+                        state.close_spotlight();
+                        state.open_spotlight(scope);
+                    }
+                    None => state.close_spotlight(),
+                }
+                state.isle.spotlight.open()
+            })
+            .await?)
+    }
+
+    /// Spotlight's rows for `query` in `scope` as JSON, run without opening it.
+    async fn search(&self, query: String, scope: String) -> fdo::Result<String> {
+        let scope = isle_search::Scope::parse(&scope)
+            .ok_or_else(|| fdo::Error::InvalidArgs(format!("no scope called {scope}")))?;
+        let (sources, usage) = self.to_loop.call(|state| state.search_sources()).await?;
+        tokio::task::spawn_blocking(move || crate::spotlight::search_all(sources, usage, query, scope))
+            .await
+            .map_err(|e| fdo::Error::Failed(e.to_string()))
+    }
+
     async fn open(&self, name: String) -> fdo::Result<bool> {
         Ok(self
             .to_loop

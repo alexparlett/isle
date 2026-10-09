@@ -65,6 +65,16 @@ enum Command {
     Settings(Settings),
     #[command(subcommand)]
     Shell(Shell),
+    /// Open Spotlight (`open`, `apps`, `emoji`) or close it (`close`).
+    Spotlight { how: String },
+    /// Spotlight's rows for a query, without opening it.
+    Search {
+        query: String,
+        /// general, apps, files, contents, actions, clipboard, calculator, emoji, windows,
+        /// run, or app:<desktop id>.
+        #[arg(long, default_value = "general")]
+        scope: String,
+    },
     /// Hooks served only by test builds.
     #[command(subcommand, hide = true)]
     Test(Test),
@@ -725,6 +735,28 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 .await?;
             if cli.json {
                 print_json(&changed);
+            }
+        }
+        Command::Spotlight { how } => {
+            let open = ShellProxy::new(&bus).await?.spotlight(how).await?;
+            if cli.json {
+                print_json(&open);
+            }
+        }
+        Command::Search { query, scope } => {
+            let found = ShellProxy::new(&bus).await?.search(query, scope).await?;
+            if cli.json {
+                println!("{found}");
+            } else {
+                let rows: serde_json::Value = serde_json::from_str(&found).unwrap_or_default();
+                for row in rows.as_array().into_iter().flatten() {
+                    let group = row["group"].as_str().unwrap_or("");
+                    let title = row["title"].as_str().unwrap_or("");
+                    match row["detail"].as_str() {
+                        Some(detail) => println!("{group}  {title}  ({detail})"),
+                        None => println!("{group}  {title}"),
+                    }
+                }
             }
         }
         Command::Shell(command) => {

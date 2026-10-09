@@ -2,6 +2,13 @@
 
 ## 2026-10-09
 
+- P10 10.12: the CLI and the one-app scope. `isle spotlight open|apps|emoji|close`
+  and `isle search <query> [--scope …]` (`--json` for the rows), which runs
+  every source on the worker without opening Spotlight, through `Shell1`'s
+  `Spotlight` and `Search`. Tab on an app lists its windows, its
+  desktop-entry actions and the files `recently-used.xbel` says it opened,
+  matched by the app's name or command; Backspace brings the query back.
+
 - P10 10.11: dragging out. A press on a file or clipboard row that leaves
   Spotlight's bounds starts a drag whose source is Isle (Smithay's
   `DnDGrab` with a source of Isle's own), offering a file as its link and

@@ -324,4 +324,7 @@
   with use and the `usage` domain; Help's search on the matcher.
 - P10 10.1 done (2026-10-09): the app index's new keys and translations,
   Flatpak dirs, categories, AppImages, DBusActivatable and run commands in
-  the launch path. Next: 10.2 (games from every launcher).
+  the launch path. 
+- P10 10.2 done (2026-10-09): Steam, Heroic and Lutris from every root,
+  launching through the launchers, entries folding into games, gamescope's
+  game. Next: 10.3 (the model).

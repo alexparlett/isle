@@ -11,14 +11,13 @@ use crate::{
     worker::{Event, ToLoop},
 };
 
-/// Whether a process was started by Steam as a game: Steam gives it `SteamGameId`.
-fn steam_game_env(pid: i32) -> bool {
-    let Ok(environ) = std::fs::read(format!("/proc/{pid}/environ")) else {
-        return false;
-    };
-    environ.split(|b| *b == 0).any(|var| {
+/// The `SteamGameId` Steam gives a process it starts as a game, if it has one.
+fn steam_game_env(pid: i32) -> Option<String> {
+    let environ = std::fs::read(format!("/proc/{pid}/environ")).ok()?;
+    environ.split(|b| *b == 0).find_map(|var| {
         var.strip_prefix(b"SteamGameId=")
-            .is_some_and(|id| !id.is_empty() && id != b"0")
+            .filter(|id| !id.is_empty() && *id != b"0")
+            .map(|id| String::from_utf8_lossy(id).into_owned())
     })
 }
 
@@ -75,10 +74,20 @@ impl State {
             return;
         };
         worker.spawn_blocking(move || {
-            if steam_game_env(pid) {
+            if let Some(game) = steam_game_env(pid) {
                 to_loop.post(move |state| {
                     if let Some(record) = state.isle.wm.get_mut(id) {
                         record.steam = true;
+                        // gamescope started by Steam hosts that game, so it is that game's app
+                        // (`gaming.md` Games as apps 2).
+                        let steam_app = format!("steam_app_{game}");
+                        if record.app == "gamescope"
+                            && state.isle.games.for_app(&steam_app).is_some()
+                        {
+                            info!(id, app = steam_app, "gamescope hosts a library game");
+                            record.app = steam_app;
+                            state.isle.notify(Event::WindowsChanged);
+                        }
                     }
                     state.isle.refresh_game(id);
                 });

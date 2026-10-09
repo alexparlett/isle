@@ -2,6 +2,20 @@
 
 ## 2026-10-09
 
+- P10 10.2: games from every launcher. `isle-games` reads Steam, Heroic
+  (Epic, GOG and Amazon store caches with legendary's and gogdl's installed
+  records, and sideloaded apps; covers from its image cache, named by the
+  URL's SHA-256) and Lutris (`pga.db` read only through `rusqlite`), from
+  every native and Flatpak root found. A cover the user set in Steam wins.
+  Steam's runtimes are not games. Where Steam is installed it alone decides
+  its games: on the host Lutris marked six Steam imports installed that
+  Steam has not. A game starts through its launcher's entry with its link
+  (`steam://rungameid/`, `heroic://launch/<runner>/<app>` as v1 used,
+  `lutris:rungameid/`), a launcher's desktop entry folds into its game by
+  that link, and gamescope started by Steam becomes the game it hosts. On
+  the host: 18 games read in 132 ms; Steam's entries for ERA ONE and Path of
+  Exile 2 fold.
+
 - P10 10.1: the app index. Entries gain GenericName, Keywords, Categories,
   OnlyShowIn and NotShowIn (against `XDG_CURRENT_DESKTOP`), DBusActivatable,
   SingleMainWindow, TryExec, their translations for the session's language

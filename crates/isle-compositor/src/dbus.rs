@@ -848,6 +848,14 @@ impl Test {
             .await?)
     }
 
+    /// Starts a library game by its key (`steam:570`) as Spotlight does.
+    async fn launch_game(&self, key: String) -> fdo::Result<bool> {
+        let Some(id) = isle_games::GameId::parse(&key) else {
+            return Ok(false);
+        };
+        Ok(self.to_loop.call(move |state| state.launch_game(&id)).await?)
+    }
+
     /// Runs a command line as Spotlight's Run does.
     async fn run(&self, command: String) -> fdo::Result<bool> {
         Ok(self

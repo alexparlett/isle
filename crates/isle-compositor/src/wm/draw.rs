@@ -730,8 +730,10 @@ impl crate::state::Isle {
             push(WindowPiece::Bar(alert));
         }
 
-        // A window with a modal dialog attached under its top is dimmed below it.
+        // A window with a modal dialog or the share sheet attached under its top is dimmed
+        // below it.
         let dimmed = alerted
+            || self.share_sheet() == Some(id)
             || self
                 .wm
                 .records

@@ -351,6 +351,8 @@ async fn the_picker_is_a_sheet_on_the_asking_window_and_holds_only_its_focus() {
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     };
     let id = isle.wait_for_window("isle.test.Red").await.id;
+    isle.windows_proxy().await.set_box(id, 300, 120, 1200, 800).await.unwrap();
+    wait_until(|| async { isle.window(id).await.width == 1200 }).await;
     let other = isle.client("isle.test.Blue", "0000ff");
     other.wait_for("keyboard-enter").await;
     let frontend = frontend(&isle).await;

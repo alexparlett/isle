@@ -253,7 +253,7 @@ impl State {
     pub fn prompt_ask(&mut self, ask: Ask, replies: mpsc::UnboundedSender<Answer>) -> u64 {
         let id = self.isle.prompts.next;
         self.isle.prompts.next += 1;
-        let app = ask.pid.and_then(|pid| self.isle.processes.app_of(pid));
+        let app = ask.pid.and_then(|pid| self.isle.processes.app_of_tree(pid));
         let mut prompt = ask.prompt;
         prompt.id = id;
         if let Some(fallback) = ask.title_unknown {

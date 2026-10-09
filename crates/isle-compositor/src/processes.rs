@@ -42,6 +42,22 @@ impl Processes {
         self.pids.get(&pid).map(|(app, _)| app.clone())
     }
 
+    /// The app `pid` belongs to: its own window's, the nearest ancestor's, or the scope Isle
+    /// launched it in. `pkexec` in a terminal is the terminal's.
+    pub fn app_of_tree(&self, pid: i32) -> Option<String> {
+        let mut at = pid;
+        for _ in 0..32 {
+            if let Some(app) = self.app_of(at) {
+                return Some(app);
+            }
+            if let Some(app) = cgroup_of(at as u32).and_then(|dir| self.scopes.get(&dir)) {
+                return Some(app.clone());
+            }
+            at = parent_of(at).filter(|p| *p > 1)?;
+        }
+        None
+    }
+
     pub fn pids(&self, app: &str) -> Vec<i32> {
         let mut pids: Vec<i32> = self
             .pids
@@ -65,6 +81,12 @@ fn cgroup_pids(dir: &Path) -> Vec<i32> {
         .lines()
         .filter_map(|l| l.trim().parse().ok())
         .collect()
+}
+
+/// `pid`'s parent, from the field after the command in `/proc/{pid}/stat`.
+fn parent_of(pid: i32) -> Option<i32> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    stat.rsplit_once(')')?.1.split_whitespace().nth(1)?.parse().ok()
 }
 
 /// The cgroup directory `pid` is in, under the unified hierarchy.

@@ -617,3 +617,113 @@ async fn services_cost() {
     snap("rest again");
     assert!(!isle.log().contains("panicked"), "a surface panicked");
 }
+
+/// P9's measures at 3440x1440 over the frost wallpaper: the time from a lock request to every
+/// screen showing it, the lock's face and a prompt as they are typed in, memory and VRAM
+/// locked, and what draws at rest locked and unlocked.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn lock_and_prompts_cost() {
+    use isle_fakes::logind::Logind;
+    use isle_ipc::session::SessionProxy;
+    let mut isle = Isle::start_with("cost-lock", "wallpaper {\n    source \"frost\"\n}\n").await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let _logind = Logind::start(&isle.system_address()).await.unwrap();
+    let test = isle.test().await;
+    let session = SessionProxy::new(&isle.bus).await.unwrap();
+    ultrawide(&isle).await;
+    let app = isle.client_with(&["--app-id", "isle.test.Work", "--size", "1600x900"]);
+    app.wait_for("keyboard-enter").await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let snap = |what: &str| {
+        let (rss, own) = memory(pid);
+        println!("{what}: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    };
+    let lock = || async {
+        serde_json::from_str::<serde_json::Value>(&test.lock_status().await.unwrap()).unwrap()
+    };
+    let draws = || async {
+        ShellProxy::new(&isle.bus)
+            .await
+            .unwrap()
+            .list()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|s| (s.name, s.draws))
+            .collect::<Vec<_>>()
+    };
+    let at_rest = |what: &'static str, before: Vec<(String, u64)>| {
+        let bus = isle.bus.clone();
+        async move {
+            let after = ShellProxy::new(&bus).await.unwrap().list().await.unwrap();
+            let mut quiet = true;
+            for s in after {
+                let was = before.iter().find(|(n, _)| *n == s.name).map_or(0, |(_, d)| *d);
+                if s.draws != was {
+                    quiet = false;
+                    println!("{what}: {} drew {} times in 10 s", s.name, s.draws - was);
+                }
+            }
+            if quiet {
+                println!("{what}: nothing drew in 10 s");
+            }
+        }
+    };
+    snap("rest, unlocked");
+
+    let mut shown = Vec::new();
+    for _ in 0..5 {
+        session.lock().await.unwrap();
+        wait_until(|| async { !lock().await["shown_ms"].is_null() }).await;
+        shown.push(lock().await["shown_ms"].as_f64().unwrap());
+        test.unlock().await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    println!("lock request to every screen locked, ms: {shown:.1?}");
+
+    test.measure(true).await.unwrap();
+    session.lock().await.unwrap();
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    snap("locked");
+    for code in [30, 48, 46, 32, 18, 33, 34, 35, 14, 14, 14, 14].repeat(3) {
+        tap(&isle, code).await;
+        tokio::time::sleep(Duration::from_millis(120)).await;
+    }
+    report("the lock's face, typing", &surface(&isle, "lock").await);
+    let face = surface(&isle, "lock").await;
+    test.measure(false).await.unwrap();
+    // The face dozes, then nothing but the clock's minute should draw.
+    tokio::time::sleep(Duration::from_secs(12)).await;
+    let before = draws().await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    at_rest("locked, at rest", before).await;
+    test.unlock().await.unwrap();
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    snap("unlocked again");
+
+    test.measure(true).await.unwrap();
+    test.prompt_ask(
+        r#"{"title": "Isle needs your password", "message": "To install updates.", "fields": [{"id": "password", "label": "Password", "secret": true}], "action": "Allow"}"#,
+    )
+    .await
+    .unwrap();
+    tokio::time::sleep(Duration::from_millis(900)).await;
+    snap("a prompt showing");
+    for code in [30, 48, 46, 32, 18, 33, 34, 35, 14, 14, 14, 14].repeat(3) {
+        tap(&isle, code).await;
+        tokio::time::sleep(Duration::from_millis(120)).await;
+    }
+    let prompt = surface(&isle, "prompt").await;
+    report("a prompt, typing", &prompt);
+    tap(&isle, 1).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    test.measure(false).await.unwrap();
+    let before = draws().await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    at_rest("unlocked, at rest", before).await;
+    snap("after");
+
+    assert!(face.draw_p95 < 2000, "the face under 2 ms p95");
+    assert!(prompt.draw_p95 < 2000, "a prompt under 2 ms p95");
+}

@@ -479,6 +479,7 @@ impl State {
     )> {
         let (runtime, to_loop) = (self.isle.worker.clone()?, self.isle.to_loop.clone()?);
         let program = helper_program();
+        #[cfg_attr(not(feature = "test-hooks"), allow(unused_mut))]
         let mut env: Vec<(String, String)> = Vec::new();
         #[cfg(feature = "test-hooks")]
         if let Ok(dir) = std::env::var("ISLE_PAM_CONFDIR") {

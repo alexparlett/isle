@@ -140,16 +140,17 @@ PipeWire for volumes (a node's `channelVolumes` is not what WirePlumber's
 routes do).
 
 **B12 · The desktop takes the system's prompt and tray roles, and locks
-itself.** On the service worker, with every dialog drawn by the shell: the
-notification server (`org.freedesktop.Notifications`, written by hand, no
-crate serves it); the tray (`org.kde.StatusNotifierWatcher` and host); the
-polkit agent through `/run/polkit/agent-helper.socket` (polkit 127's
-helper is not setuid on the host); the keyring unlock prompter
+itself (revised).** On the service worker, with every dialog drawn by the
+shell: the notification server (`org.freedesktop.Notifications`, written by
+hand, no crate serves it); the tray (`org.kde.StatusNotifierWatcher` and
+host); the polkit agent through `/run/polkit/agent-helper.socket` (polkit
+127's helper is not setuid on the host); the keyring prompter
 (`org.gnome.keyring.SystemPrompter`, which gnome-keyring 50 and oo7-daemon
-both call); the NetworkManager secret agent for Wi-Fi passwords. The lock
-screen is the compositor's own, with PAM conversations off the main thread
-(fprintd blocks); v1's locker-death lessons (D15, D43) carry over as
-requirements.
+both call, with its `sx-aes-1` exchange); the NetworkManager secret agent
+for Wi-Fi, 802.1X and VPN passwords, VPN plugins asked in their external-UI
+mode; BlueZ's pairing agent, made the default. The lock screen is the
+compositor's own, with PAM conversations in a helper process (B67); v1's
+locker-death lessons (D15, D43) carry over as requirements. Built in P9.
 
 **B13 · Our own portal backend; the shell draws the picker.**
 `xdg-desktop-portal-isle` implements ScreenCast, Screenshot and
@@ -773,3 +774,75 @@ at once. A laptop panel goes through logind's `SetBrightness`, a keyboard
 backlight through UPower. Access is ddcutil's `uaccess` rule until Isle's
 package ships its own. Rejected: `ddcutil-service` (a daemon Isle would
 start), `ddc-hi` (unmaintained since 2021).
+
+**B66 · The lock is a state of the core, drawn by its own path.** Built in
+P9. Locking writes `$XDG_RUNTIME_DIR/isle/locked` before anything else, and
+a compositor that finds it starts locked, so a crash or a restarted session
+never opens the desktop; with tty1's autologin that includes a session
+restarted from a locked one. While locked, every frame comes from
+`render_locked`, which draws the softened wallpaper, the wash, the lock's
+own surfaces, the island and the dim and nothing of any client, and input
+reaches only the lock's surfaces. The password never leaves the
+compositor's zeroizing buffer except to the helper. logind's `Lock` and
+`Unlock` are honoured; the sleep delay is given back only once every lit
+screen has presented a locked frame. Rejected: ext-session-lock with a
+separate locker client (its death is v1's D15 and D43 again), and a lock
+that is a shell surface over the normal path (one missed element shows a
+window).
+
+**B67 · PAM runs in a helper process.** Built in P9, replacing the PAM
+thread. `isle-auth` speaks a line protocol on its pipes (`attempt`, then
+`info`, `error`, `ok`, `fail` or `broken`), calls libpam through its own
+small binding with `pam_start_confdir` for the tests, and reads faillock's
+messages under `LC_ALL=C`. It runs Isle's PAM service, auth and account
+only, whose `pam_gnome_keyring` unlocks the login keyring. A module that
+blocks or crashes takes the helper, not the compositor; the loop is told
+`broken` and starts another on the next attempt. Rejected: a thread in the
+compositor (a module's crash or hang is the session's), `pam-client2`
+(no confdir).
+
+**B68 · The minimal lock at the second panic.** Built in P9. The face is a
+shell surface behind a panic boundary; a first panic rebuilds it, a second
+within a minute replaces it on every screen with the minimal lock (no
+picture, plates or glass, window roles throughout, nothing moving) until
+unlock. The locked path
+draws the lock either way, so a failing face never shows the desktop.
+
+**B69 · Idle is one pure policy with holds.** Built in P9. `due` gives the
+next step (dim, lock, display off) from the settings and the time since the
+last input; `passed_over` keeps a step from firing twice; one timer waits
+for the next. An idle-inhibit on a shown surface, a ScreenSaver cookie,
+logind's `idle` block and a game in front hold the clock, and the count
+starts again when the last hold ends. The dim is a compositor element;
+display off clears the DRM compositor and the first frame after it is
+composited. Rejected: a timer per step, and swayidle-style rules (each
+hold would need a rule).
+
+**B70 · Prompts are one queue over a compositor scrim.** Built in P9. Every
+agent's question becomes an `Ask` on the loop's queue, which decides the one
+on screen: the user's own requests first but never ahead of the prompt
+showing, waiting behind the lock, behind a full-screen window or game unless
+its app asked, and once set aside with Cmd+Tab, as the island's activity.
+The scrim is drawn by the compositor above every window and surface but the
+island, no client takes focus while a prompt shows, and an armed moment
+keeps a key meant for a window from answering. The asker is the nearest
+process with a window above the asking pid. Rejected: a prompt per agent
+with its own window (they would stack and fight for focus).
+
+**B71 · The agents keep no secrets.** Built in P9. A password typed into a
+prompt goes in a zeroizing buffer to its agent's reply and nowhere else.
+The agent-owned secrets NetworkManager hands back to save go only to the
+keyring, under nm-applet's schema, saved and looked up with no D-Bus
+activation so a desktop without a keyring daemon is not given one. The keyring prompter's secret
+travels in the `sx-aes-1` exchange (1024-bit MODP, HKDF-SHA256, AES-128-CBC).
+Rejected: caching a secret for a retry (the requester asks again).
+
+**B72 · Ending the session is one engine.** Built in P9. `end_session` asks
+every app to quit as Cmd+Q does, signals those with no window, and once all
+are gone logs out (the compositor ends cleanly, which ends the session) or
+calls logind's `Reboot` or `PowerOff`. An app still open after the wait
+stops it with Show {app}; one that missed its ping stops it with Force Quit
+{app}, after which it goes on; another program's block inhibitor on
+shutdown is named. The chooser, the confirmation, log out with no
+confirmation and the lock's power row all use it. Force Quit sends `SIGKILL`
+to every process of the app; close on a frozen window offers it directly.

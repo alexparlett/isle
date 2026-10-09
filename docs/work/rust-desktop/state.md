@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B65 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B72 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -299,4 +299,16 @@
   the polkit, keyring, NetworkManager and Bluetooth agents behind them; one
   engine ends the session; Force Quit. Every recommendation taken but two:
   no fingerprint in P9, and logind's `Unlock` honoured. Phases 9.0–9.14.
-  Next: 9.0 (the locked core).
+- P9 is done (2026-10-09): the lock as the core's state with its own render
+  path and the runtime marker (B66); PAM in the `isle-auth` helper (B67); the
+  minimal lock at the second panic (B68); idle as one policy with its holds
+  (B69); prompts as one queue over a compositor scrim (B70), with the
+  polkit, keyring, NetworkManager (VPN included) and Bluetooth agents keeping
+  no secrets (B12 revised, B71); one engine ending the session, Force Quit
+  and the not-responding alert (B72). ARCHITECTURE has How the lock holds,
+  How idle decides, How prompts are asked and How the session ends;
+  `p9-lock-and-prompts.md` ends with its outcome; measures and the VM in
+  `docs/research/rust-desktop/p9-lock-and-prompts.md`. Not checked: the
+  right password in the VM (no test password), a video holding idle (a
+  logind idle inhibitor stood in), DPMS and the keyring on the host. No host
+  run. Next: P10 (Spotlight).

@@ -33,9 +33,11 @@ isle-session                      supervisor: starts the compositor in the
       │                           settings D-Bus interface (B10), the portal backend
       │                           xdg-desktop-portal-isle (B13, B26), and the runner
       │                           for providers (B14)
-      ├── PAM thread              lock-screen conversations, which can block (B12)
-      └── watchdog thread         ends a dispatch stuck for ten seconds; the loop
-                                  itself logs any over a frame's budget (B9, B35)
+      ├── watchdog thread         ends a dispatch stuck for ten seconds; the loop
+      │                           itself logs any over a frame's budget (B9, B35)
+      └── isle-auth               the lock's PAM conversations in a helper process,
+                                  started on the first password and kept until
+                                  unlock (B67)
 
 isle                            the command line over the D-Bus API
 Apps, launched on demand        Settings, Files, Monitor, Keychain, Cleaner:
@@ -340,11 +342,87 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   and still. When the last silencer ends, what waited is summarised in one
   banner.
 
+## How the lock holds
+
+- **The lock is a state of the core** (B66). `State::lock` writes the
+  marker `$XDG_RUNTIME_DIR/isle/locked` first, takes input back (centre
+  surfaces, menus, grabs, focus) and from then every output's frame comes
+  from `render_locked`: the softened wallpaper (made on the worker at a
+  quarter of the size), the lock's wash, the lock layer's surfaces, the
+  island and the dim, over an opaque floor. No client is drawn or takes
+  input; the focus guard refuses any target but the lock's surfaces. A
+  compositor that starts with the marker present starts locked.
+- **The password is the compositor's.** Keys go to `lock_key`, which
+  holds the typed text in a zeroizing buffer; the face draws its length.
+  Return sends it to the `isle-auth` helper (B67), whose `ok`, `fail`,
+  `info`, `error` and `broken` lines come back to the loop.
+- **The face is a surface that may fail.** `lock_face` shows the face on
+  the screen with the pointer and keeps the rest drawn by the locked path;
+  its second panic within a minute replaces it with the minimal lock for
+  the rest of the lock (B68).
+- **logind is told and listened to.** The locked hint follows the lock;
+  `Lock` and `Unlock` on the session lock and unlock it; the sleep delay
+  inhibitor is given back once every lit screen has presented a locked
+  frame, and drawing stops until resume; the power key's block inhibitor
+  makes the key Isle's.
+
+## How idle decides
+
+- **One policy, one timer** (B69). `idle.rs`'s pure `due` gives the next
+  step from the settings (dim, lock, display off) and the time since the
+  last input; `passed_over` keeps a step the user has already been through
+  from firing again. The loop arms one timer for the next step.
+- **Holds stop the clock**: an idle-inhibit on a shown surface, a
+  ScreenSaver cookie (served at both of its paths), logind's `idle` block
+  and a game in front. While held nothing steps; the count starts again
+  when the last hold ends.
+- **The dim is the compositor's**, a solid element over everything; display
+  off goes through `DrmCompositor::clear`, the first frame after waking is
+  composited, and a connector that flaps within ten seconds of going dark
+  is not taken as unplugged. ext-idle-notify tells clients the same idle.
+
+## How prompts are asked
+
+- **The agents live on the worker** (B12): the polkit agent, the Gcr
+  system prompter for the keyring, NetworkManager's secret agent (VPN
+  plugins in external-UI mode included) and BlueZ's agent as the default.
+  Each turns its daemon's question into an `Ask` through a `PromptClient`
+  and waits for an `Answer`; none keeps a secret past its reply (B71).
+- **One queue on the loop** (B70). `prompts::queue` decides which prompt
+  shows: the user's own requests first, never ahead of the one on screen;
+  a prompt waits behind the lock, behind a full-screen window or game
+  unless that app asked, and once Cmd+Tab set it aside, as the island's
+  activity with Show and Cancel. The asking app is the nearest process
+  with a window above the asking pid.
+- **The scrim is the compositor's.** While a prompt or the session dialog
+  shows, every screen gets the scrim above windows and every surface but
+  the island; the frame is a `Prompt` layer surface that takes the keyboard,
+  and no client may take focus. Return and clicks answer only once armed,
+  after `timing-prompt-arm-ms`.
+
+## How the session ends
+
+- **One engine** (B72). `end_session` asks every app to quit as Cmd+Q
+  does, background ones signalled, then checks every quarter second: all
+  gone, it logs out (the loop stops, which ends the session) or calls
+  logind's `Reboot` or `PowerOff`; an app that missed its ping stops it as
+  not responding, one still open after the wait stops it as asking to save,
+  and another program's block inhibitor on shutdown stops it named.
+- **It serves the chooser, the confirmation, log out with no confirmation
+  and the lock's power row.** The session dialog is a `Prompt` layer
+  surface over the scrim, in the centre group; on the lock the power row
+  confirms in place and names no app.
+- **Force Quit is a centre surface, the alert an attached one.** The panel
+  lists the registry's running apps, pinging each window as it opens;
+  `force_quit_app` sends `SIGKILL` to every process of the app. Close on a
+  window that missed its ping hangs the not-responding alert on it, keyed
+  apart from its bar.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
-  and icon work, search and PAM run elsewhere and reach the loop through
-  calloop channels (B9).
+  and icon work and search run elsewhere and reach the loop through
+  calloop channels; PAM runs in the `isle-auth` process (B9, B67).
 - A shell surface's event handling and drawing run behind a panic
   boundary; a panicking surface is rebuilt, a panicking service restarted.
   A panic in the compositor core ends the session and the supervisor

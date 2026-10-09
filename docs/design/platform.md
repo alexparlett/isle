@@ -390,9 +390,11 @@ keyring opens at sign-in.
 5. SSH keys go through gcr's socket-activated agent at
    `$XDG_RUNTIME_DIR/gcr/ssh`, exported as `SSH_AUTH_SOCK`.
 
-**Open for its packet.** The prompter's secret exchange in Rust, with oo7's
-`server/src/gnome/prompter.rs` as reference. Whether gcr's SSH agent sends
-its passphrase prompts through the SystemPrompter.
+**Open for its packet.** Whether gcr's SSH agent sends its passphrase
+prompts through the SystemPrompter.
+
+**Answered in P9.** The prompter's `sx-aes-1` exchange is Isle's own Rust,
+checked against oo7's test vector and gnome-keyring 50 (B12, B71).
 
 ### Network and Bluetooth agents
 
@@ -411,9 +413,12 @@ in a terminal.
 **v1 lessons kept.** Inventory §7: pairing needed a live agent. D20: a
 secret goes from Isle's own field straight to the tool that wants it.
 
-**Open for its packet.** Which Wi-Fi security types get fields
-(WPA-Enterprise identities and certificates). VPN plugin secrets, whose own
-auth dialogs are GTK.
+**Open for its packet.** Certificate selection for 802.1X (P13).
+
+**Answered in P9.** WPA Personal, WEP and 802.1X get the fields
+NetworkManager's hints ask for (user name, password, private key password).
+VPN plugins are asked in their external-UI mode and their fields drawn in
+Isle's prompt; a plugin without that mode shows its own dialog (B12).
 
 ### Lock, PAM and idle
 
@@ -431,7 +436,7 @@ by password or fingerprint, and stays locked whatever crashes.
    first locked frame. A compositor that starts and finds it starts locked,
    and never shows an unlocked frame first.
 5. The password goes through a PAM service of Isle's own, installed by the
-   package, on a dedicated thread.
+   package, in the `isle-auth` helper process (B67).
 6. Fingerprint runs beside the password through fprintd's D-Bus interface; a
    match unlocks.
 7. Caps Lock state comes from the compositor's keyboard state. Locking and
@@ -448,7 +453,10 @@ by password or fingerprint, and stays locked whatever crashes.
 marker, relock at start and logs outside the runtime directory carry over.
 D33: fingerprint beside the password, not in front of it. D18. D76.
 
-**Open for its packet.** The contents of Isle's PAM service.
+**Answered in P9.** Isle's PAM service is auth and account only:
+`system-local-login` for both, and `pam_gnome_keyring` optional for auth, so
+unlock unlocks the login keyring (`data/pam/isle`, B67). Fingerprint (item 6)
+waits for a reader.
 
 ### Portal backend
 

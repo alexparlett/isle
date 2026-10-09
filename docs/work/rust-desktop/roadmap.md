@@ -98,12 +98,14 @@ Notification Centre's notifications, moved from P17 at P8's review, its
 agenda waiting for calendars. Intent:
 platform.md, shell.md.
 
-**P9 · Lock and prompts.** The compositor's own lock with PAM off-thread
-and v1's locker lessons, with no ext-session-lock served (B28); the
+**P9 · Lock and prompts.** Done 2026-10-09: `p9-lock-and-prompts.md`,
+B66–B72, B12 revised. The compositor's own lock with PAM in a helper
+process and v1's locker lessons, with no ext-session-lock served (B28); the
 polkit agent, keyring prompter and NetworkManager secret agent (B12) and
 the Bluetooth pairing agent (B28) with their dialogs, behind the Wi-Fi and
 Bluetooth rows that fail in P8 for want of them; idle, dim and DPMS, with
-idle and the lock among the holds on banners.
+idle and the lock among the holds on banners; the session's end and Force
+Quit. Fingerprint waits for a reader.
 Intent: shell.md, platform.md, compositor.md.
 
 **P10 · Spotlight.** Launcher with apps, the Apps grid with its favourites
@@ -116,8 +118,10 @@ Intent: shell.md, gaming.md.
 **P11 · Capture and portals.** `xdg-desktop-portal-isle` (B13), a bus name
 on the compositor's service worker (B26): ScreenCast and Screenshot with
 PipeWire streams from the compositor and the shell's picker, the screenshot
-tool, ext-image-copy-capture; FileChooser follows in P15. Intent:
-platform.md, shell.md.
+tool, ext-image-copy-capture; FileChooser follows in P15. A capture of a
+locked screen shows the lock and a window share holds its last frame; the
+portal's Inhibit joins idle's holds (from P9). Intent: platform.md,
+shell.md.
 
 **P12 · Gaming.** The async page flip patch on the Smithay fork and tearing
 control tested on the RTX 5070 Ti (B6); VRR on while a full-screen app is
@@ -145,7 +149,8 @@ greetd (B26) and session start, Login Items and autostart, crash logs, the
 update path, the dev loop that replaces `isle-dev-sync`; theming installed
 apps from tokens as P1's `system/theming.md` maps them, with Qt apps
 reaching Isle's file panels; the one-time import of v1's preferences, window places
-and launch counts (B27). Scan-out of a second GPU's connectors (moved from
+and launch counts (B27). The package installs `/usr/lib/pam.d/isle`, and the
+greeter is the lock's face with its PAM path (from P9). Scan-out of a second GPU's connectors (moved from
 P2). v1's user units disabled before the host moves over: xremap.service is
 wanted by graphical-session.target, which isle-session.target binds, and
 would rewrite Cmd chords before Isle saw them. The supervisor stops clearing
@@ -162,9 +167,9 @@ Open and Save panels, handed FileChooser by the portal backend, and Quick
 Look as a D-Bus service Spotlight calls, all in the Files process (B26).
 Intent: apps.md, platform.md.
 
-**P16 · Mission Control.** The Spaces overview, hot corners, trackpad
-gestures, Split View; Stage Manager as a layout module, off by default
-(B25). Intent: shell.md, compositor.md.
+**P16 · Mission Control.** The Spaces overview, hot corners (Lock Screen
+and Put Display to Sleep among them, from P9), trackpad gestures, Split
+View; Stage Manager as a layout module, off by default (B25). Intent: shell.md, compositor.md.
 
 **P17 · Widgets.** Notification Centre moved to P8 at its review. Widgets
 where P1 places them, with the grid editor and the gallery (B24); the provider contract (B14), sandboxed with granted
@@ -172,15 +177,18 @@ permissions (B28); the isle-widgets registry as providers. Intent:
 shell.md, platform.md.
 
 **P18 · Controllers.** Pad detection and naming, batteries in Control
-Centre, Settings › Controllers, idle held off by pad play. Intent:
+Centre, Settings › Controllers, idle held off by pad play (a hold on P9's
+idle policy). Intent:
 gaming.md, apps.md.
 
 **P19 · Monitor, Keychain, Cleaner.** Intent: apps.md.
 
-**P20 · The rest of v1.** Settings' remaining pages, session restore,
+**P20 · The rest of v1.** Settings' remaining pages, session restore
+with the session dialog's "Reopen windows when logging back in" and the
+crash notice for apps (from P9),
 clipboard history, emoji, calendars with Notification Centre's agenda, the providers (vault, VPN, snapshots,
 phone), the dropdown terminal and picture-in-picture, the on-screen
-keyboard, and an audit against the inventory that nothing of v1 is left.
+keyboard (on the lock too), and an audit against the inventory that nothing of v1 is left.
 Intent: all.
 
 **P21 · Cut-over.** Remove v1's tree (`shell/`, `hypr/`, `plugins/`,

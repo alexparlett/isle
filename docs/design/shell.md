@@ -47,7 +47,7 @@ desktop with it.
 1. Every surface in this document is a Freya tree inside the compositor process. No shell surface is a separate Wayland client or process (B7).
 2. Each surface's event handling and drawing runs behind a panic boundary. A panicking surface is logged with its name and rebuilt from service state; windows and the other surfaces keep running (B9).
 3. A rebuilt surface comes back in the state it was in: open or closed, with the same page or query where that state is held outside the tree.
-4. The lock screen stays locked whatever happens to its surface. A panic in it never shows session content; repeated panics are an open question below.
+4. The lock screen stays locked whatever happens to its surface. A panic in it never shows session content; a second within a minute brings in the minimal lock (B68).
 5. Open and close transitions, morphs between surface sizes and the minimise animation are drawn by the compositor on the surface's texture. Freya animates only what changes inside a surface (B7; `shell-ui-spike.md`, launcher rows).
 6. Skia's GPU resource cache has a fixed budget, and a surface's cached resources are released when it closes (B7; `shell-ui-spike.md` measured cached layers as the extra VRAM).
 7. A surface redraws only when its state changes. A closed surface draws nothing and runs no timers; a service that samples (CPU, storage, sensors) samples only while a visible surface shows it (inventory §6 Polling).
@@ -356,7 +356,7 @@ macOS's lock screen, drawn by the compositor itself rather than a separate locke
 4. The session locks on Ctrl+Cmd+Q, the system menu, a hot corner, idle, lid close, login1's Lock signal and before every sleep. Sleep proceeds only once every screen shows the lock.
 5. No frame of session content is shown between a lock request and the lock, or on resume.
 6. Screens added while locked show the lock; the password field follows the pointer's screen.
-7. PAM conversations run off the main thread; fprintd blocking never stalls the lock (B12).
+7. PAM conversations run in a helper process; a module that blocks or crashes never stalls the lock (B67).
 8. If the compositor restarts while locked, it comes back locked (D15, D43).
 9. Unlock unlocks the login keyring where PAM allows; when it cannot (a fingerprint unlock), the keyring prompt follows.
 10. The lock is Isle's alone: `ext-session-lock` is not served, so no other locker can take or end it (B28).
@@ -367,8 +367,9 @@ v1 lessons kept
 - D33: fingerprint beside the password.
 
 Open for its packet
-- The login keyring after a fingerprint unlock (`macos-model.md` §3 Touch ID, reasoning only).
-- How many panics bring in the minimal lock (`lock.md`).
+- The login keyring after a fingerprint unlock (`macos-model.md` §3 Touch ID, reasoning only), with fingerprint itself: P9 left fingerprint out until there is a reader.
+
+Answered in P9: the second panic within a minute brings in the minimal lock (B68).
 
 ### System prompts
 

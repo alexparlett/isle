@@ -725,3 +725,34 @@ recommendation but two: fingerprint is left out of P9 until the host has a
 reader (choice 7), and logind's `Unlock` signal unlocks the session
 (choice 9), where the plan had ignored it. P9 stays one packet, and the host
 run is optional, as for P6 to P8.
+
+## Outcome
+
+Built 2026-10-08 to 10-09 in phases 9.0–9.14, as planned, with these
+differences:
+
+- **Idle's state is on `Session1`** (`isle idle`), not a separate `Idle1`
+  interface.
+- **The queue never puts a request ahead of the prompt on screen**, the
+  user's own included; it goes first among those waiting.
+- **`isle-auth` binds libpam itself**, a few functions with
+  `pam_start_confdir` for the tests, rather than through `pam-client2`.
+- **The asker is the nearest process with a window**, walking up from the
+  asking pid, found in the VM where `pkexec` in kitty named no app.
+- **Force Quit pings every window as it opens** so its marks are current,
+  and its double click is the compositor's two presses.
+- **The session dialog's chooser keeps its form while apps quit**; Show
+  {app} or Force Quit {app} comes under its countdown line.
+- **A session restarted while locked starts locked**, from the marker, as
+  tty1's autologin would otherwise open the desktop.
+
+The measures are in `docs/research/rust-desktop/p9-lock-and-prompts.md`:
+the lock reaches every screen in about 20 ms, the face and a prompt draw
+under 2 ms p95 in quiet runs (three earlier runs had single slow frames up
+to 3.5 ms that did not come back), and nothing draws at rest. The VM
+checked the lock through logind and the real PAM stack (a wrong password;
+the right one was not typed, with no test password), `kill -9` while locked,
+pkexec, the keyring, an OpenVPN password, the chooser with a real restart,
+the idle steps and a logind idle hold. Not checked: a video holding idle,
+DPMS on the NVIDIA driver and the login keyring on the host, and Wi-Fi (no
+adapter in the guest). B66–B72 record the decisions; B12 is revised.

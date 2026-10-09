@@ -714,6 +714,12 @@ impl State {
                 }
             }
             IslandAction::Event => {
+                let countdown = self.isle.island.model.showing().map(|e| e.kind)
+                    == Some(isle_shell::island::model::EventKind::Countdown);
+                if countdown {
+                    self.cancel_capture_countdown();
+                    return;
+                }
                 // Attention's app comes forward; a held event is acknowledged.
                 let app = self.isle.island.model.showing().and_then(|e| e.app.clone());
                 self.isle.island.model.dismiss(Instant::now());

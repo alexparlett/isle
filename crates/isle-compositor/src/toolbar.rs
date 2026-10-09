@@ -1087,7 +1087,7 @@ impl State {
         }
     }
 
-    /// Cmd+Ctrl+Escape, or the lock: a countdown stops and nothing is taken.
+    /// Cmd+Ctrl+Escape, a click on it, or the lock: a countdown stops and nothing is taken.
     pub fn cancel_capture_countdown(&mut self) -> bool {
         let Some(countdown) = self.isle.countdown.take() else {
             return false;

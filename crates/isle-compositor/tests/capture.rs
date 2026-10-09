@@ -741,7 +741,7 @@ async fn a_window_clicked_in_window_mode_is_taken_and_never_clicked() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_countdown_shows_in_the_island_and_ctrl_cmd_escape_stops_it() {
+async fn the_countdown_shows_in_the_island_and_ctrl_cmd_escape_or_a_click_stops_it() {
     let isle = Isle::start_with("toolbar-countdown", "capture { timer 5; }").await;
     isle.chord(&[SHIFT, CMD, FIVE]).await;
     wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
@@ -750,6 +750,18 @@ async fn the_countdown_shows_in_the_island_and_ctrl_cmd_escape_stops_it() {
     wait_until(|| async { isle.island_output().await["text"] == "4" }).await;
     isle.chord(&[CTRL, CMD, ESC]).await;
     wait_until(|| async { toolbar(&isle).await["countdown"].is_null() }).await;
+
+    // A click on it stops it too.
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    tap(&isle, ENTER).await;
+    wait_until(|| async { isle.island_output().await["text"] == "5" }).await;
+    let test = isle.test().await;
+    test.pointer_to(960.0, 24.0).await.unwrap();
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.button(BTN_LEFT, false).await.unwrap();
+    wait_until(|| async { toolbar(&isle).await["countdown"].is_null() }).await;
+    test.pointer_to(400.0, 500.0).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     assert!(screenshots(&isle).is_empty(), "a cancelled countdown shot");
 

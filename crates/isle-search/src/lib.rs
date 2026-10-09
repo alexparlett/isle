@@ -91,7 +91,7 @@ pub enum Icon {
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     /// Stable across queries, so the selection can follow a row; also its key in `Usage`.
     pub key: String,
@@ -102,6 +102,8 @@ pub struct Row {
     pub trailing: Option<String>,
     pub icon: Icon,
     pub item: Item,
+    /// The header it lists under in place of its group's: "Pinned", "Favourites".
+    pub section: Option<String>,
     pub rank: Rank,
     /// The title's matched graphemes.
     pub matched: Vec<u32>,
@@ -190,6 +192,7 @@ mod tests {
                         trailing: None,
                         icon: Icon::None,
                         item: Item::App(name.to_string()),
+                        section: None,
                         rank,
                         matched,
                     })

@@ -2,6 +2,17 @@
 
 ## 2026-10-09
 
+- P10 10.3: Spotlight's model in `isle-shell/src/spotlight/model.rs`: the
+  field as a text field (caret, words, select all, paste of a line), scopes
+  from prefixes, quick keys and Tab on an app with Backspace back out, the
+  general search's fixed groups under a top hit from the fast groups, the
+  calculation row placed before its answer, slow answers that wait rather
+  than land above a moved selection, Return before an answer acting on it
+  once it comes, the panel held until the query is cleared, the last general
+  query kept and a scoped one never, the grid's arrows across sections. The
+  compositor will own the model and feed it keys from the chord's press, so
+  no key needs buffering.
+
 - P10 10.2: games from every launcher. `isle-games` reads Steam, Heroic
   (Epic, GOG and Amazon store caches with legendary's and gogdl's installed
   records, and sideloaded apps; covers from its image cache, named by the

@@ -51,6 +51,7 @@ pub mod lock;
 pub mod menubar;
 pub mod placed_menu;
 pub mod prompts;
+pub mod spotlight;
 pub mod switcher;
 pub mod zones;
 use surface::{Instance, Root, Shown, Wakeup};

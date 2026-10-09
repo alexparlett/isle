@@ -15,6 +15,7 @@ futures-channel = "0.3"
 futures-util = "0.3"
 freya = { workspace = true, features = ["engine"] }
 freya-embed.workspace = true
+isle-search.workspace = true
 isle-ui.workspace = true
 isle-tokens.workspace = true
 smithay.workspace = true

@@ -2971,6 +2971,7 @@ dependencies = [
  "freya-embed",
  "futures-channel",
  "futures-util",
+ "isle-search",
  "isle-tokens",
  "isle-ui",
  "serde_json",

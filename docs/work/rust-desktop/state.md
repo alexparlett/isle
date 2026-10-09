@@ -327,4 +327,5 @@
   the launch path. 
 - P10 10.2 done (2026-10-09): Steam, Heroic and Lutris from every root,
   launching through the launchers, entries folding into games, gamescope's
-  game. Next: 10.3 (the model).
+  game.
+- P10 10.3 done (2026-10-09): the pure model. Next: 10.4 (the surface).

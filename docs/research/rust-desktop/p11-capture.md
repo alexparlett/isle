@@ -63,6 +63,14 @@ workspace's debug build from `/repo`:
   `pipewire-serial` 76, the screen's place and size, and the frontend's
   restore token; `isle-test-consumer` linked to the node and streamed
   2560 by 1080 in shared memory.
+- **The sheet, through the real frontend**, after the leftovers were built:
+  a GTK 4 window exported its handle over xdg-foreign and asked ScreenCast
+  with `wayland:` that handle and the metadata cursor mode; Isle's picker
+  hung on that window over it dimmed, the arrows and Space chose the screen
+  from the sheet's keyboard, and Return answered Start with node 62.
+  `isle-test-consumer` linked to it and printed the cursor's place at each
+  pointer move and one 128 by 128 bitmap of the themed arrow, over two
+  picture frames: the moves over a still screen sent the cursor alone.
 - **Found: a user's `portals.conf` outranks the packaged
   `isle-portals.conf`.** The frontend looks in `~/.config` for
   `isle-portals.conf`, then `portals.conf`, before the system's folders; the

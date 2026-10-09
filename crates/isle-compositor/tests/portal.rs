@@ -487,6 +487,38 @@ async fn screenshots_for_apps_with_and_without_asking() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn an_apps_shot_waits_out_the_timer_and_its_cancel_answers_cancel() {
+    use common::keys::{CTRL, SUPER as CMD};
+    let isle = Isle::start_with("portal-shot-timer", "capture { timer 5; }").await;
+    let frontend = frontend(&isle).await;
+    let ask = |n: u32| {
+        let frontend = frontend.clone();
+        let mut options: HashMap<String, OwnedValue> = HashMap::new();
+        options.insert("interactive".into(), OwnedValue::from(true));
+        tokio::spawn(async move { shot(&frontend, n, options).await })
+    };
+    let toolbar = || async {
+        serde_json::from_str::<serde_json::Value>(&isle.test().await.toolbar().await.unwrap())
+            .unwrap()
+    };
+
+    let asked = ask(1);
+    wait_until(|| async { toolbar().await["request"].is_string() }).await;
+    press(&isle, RETURN).await;
+    wait_until(|| async { isle.island_output().await["text"] == "5" }).await;
+    isle.chord(&[CTRL, CMD, ESCAPE]).await;
+    assert_eq!(asked.await.unwrap().0, 1);
+
+    let asked = ask(2);
+    wait_until(|| async { toolbar().await["request"].is_string() }).await;
+    press(&isle, RETURN).await;
+    wait_until(|| async { isle.island_output().await["text"] == "5" }).await;
+    let (response, results) = asked.await.unwrap();
+    assert_eq!(response, 0);
+    assert_eq!(taken(&results), (1920, 1080));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn pick_color_answers_the_colour_under_the_loupe() {
     let mut isle = Isle::start("portal-pick").await;
     let window = isle.client("isle.test.Red", "ff0000");

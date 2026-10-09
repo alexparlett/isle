@@ -121,10 +121,16 @@ pub struct Countdown {
     then: Pending,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum Pending {
     Shot { target: Target, copy: bool },
     Record { source: crate::cast::Source },
+    /// An app's shot, its request answered with the file; dropped with the countdown, it is
+    /// answered cancel.
+    ForApp {
+        target: Target,
+        reply: tokio::sync::oneshot::Sender<Option<std::path::PathBuf>>,
+    },
 }
 
 impl Isle {
@@ -986,7 +992,12 @@ impl State {
             .and_then(|r| r.reply.take())
         {
             self.close_toolbar();
-            self.take_for_portal(target, reply);
+            let timer = self.isle.settings.capture.timer.max(0) as u32;
+            if timer > 0 {
+                self.start_capture_countdown(timer, Pending::ForApp { target, reply });
+            } else {
+                self.take_for_portal(target, reply);
+            }
             return;
         }
         let copy = self.isle.toolbar.as_ref().is_some_and(|t| t.copy);
@@ -1053,12 +1064,17 @@ impl State {
             let settle = Duration::from_millis(
                 self.isle.shell.theme().tokens.motion_exit_fade_ms as u64 + 100,
             );
+            let mut then = Some(then);
             let _ = self.isle.loop_handle.insert_source(
                 Timer::from_duration(settle),
                 move |_, _, state| {
-                    match then.clone() {
-                        Pending::Shot { target, copy } => state.take_still(target, copy),
-                        Pending::Record { source } => state.start_recording(source),
+                    match then.take() {
+                        Some(Pending::Shot { target, copy }) => state.take_still(target, copy),
+                        Some(Pending::Record { source }) => state.start_recording(source),
+                        Some(Pending::ForApp { target, reply }) => {
+                            state.take_for_portal(target, reply)
+                        }
+                        None => {}
                     }
                     TimeoutAction::Drop
                 },

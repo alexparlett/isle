@@ -52,6 +52,8 @@ pub struct Settings {
     #[setting(section)]
     pub shortcuts: Shortcuts,
     #[setting(section)]
+    pub spotlight: Spotlight,
+    #[setting(section)]
     pub debug: Debug,
     #[setting(app = "io.github.alexparlett.Isle.Example")]
     pub example_app: ExampleApp,
@@ -655,6 +657,23 @@ pub struct Shell {
     /// The screen events and Spotlight show on, by make, model and serial; unset follows
     /// focus.
     pub main_screen: Option<String>,
+}
+
+/// Spotlight's own settings (`p1/structure/spotlight.md`).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Spotlight {
+    /// The Apps view's favourites in order, by desktop id or game (`steam:570`).
+    pub favourites: Vec<String>,
+    /// Folders file search looks in besides home.
+    pub files_include: Vec<String>,
+    /// Folders file search leaves out.
+    pub files_exclude: Vec<String>,
+    /// Apps whose copies clipboard history never keeps, by desktop id or app id.
+    #[setting(default = vec!["org.keepassxc.KeePassXC".to_owned(), "com.bitwarden.desktop".to_owned()])]
+    pub clipboard_exclude: Vec<String>,
+    /// The web search's address, with `{query}` where the query goes.
+    #[setting(default = "https://duckduckgo.com/?q={query}".to_owned())]
+    pub web_search: String,
 }
 
 /// The picture behind the windows (`p1/structure/wallpaper.md`).

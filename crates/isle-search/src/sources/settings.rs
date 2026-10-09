@@ -1,0 +1,98 @@
+//! Settings' rows from the index installed with Settings (`apps.md` Settings 4).
+
+use crate::{Context, Group, Icon, Item, Query, Row, Scope, Source};
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SettingRow {
+    pub pane: String,
+    pub row: String,
+    pub label: String,
+    pub pane_label: String,
+    pub also: Vec<String>,
+}
+
+/// The index's rows: `row pane=… id=… label=… pane-label=… also=…`.
+pub fn parse(text: &str) -> Vec<SettingRow> {
+    let Ok(doc) = text.parse::<kdl::KdlDocument>() else {
+        return Vec::new();
+    };
+    doc.nodes()
+        .iter()
+        .filter(|n| n.name().value() == "row")
+        .filter_map(|n| {
+            let get = |key: &str| n.get(key).and_then(|v| v.as_string()).map(str::to_owned);
+            Some(SettingRow {
+                pane: get("pane")?,
+                row: get("id")?,
+                label: get("label")?,
+                pane_label: get("pane-label").unwrap_or_default(),
+                also: super::words(&get("also").unwrap_or_default()),
+            })
+        })
+        .collect()
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct SettingsSource {
+    pub rows: Vec<SettingRow>,
+}
+
+impl Source for SettingsSource {
+    fn group(&self) -> Group {
+        Group::Settings
+    }
+
+    fn answers(&self, scope: &Scope) -> bool {
+        *scope == Scope::General
+    }
+
+    fn search(&self, query: &Query, cx: &mut Context<'_>) -> Vec<Row> {
+        if query.text.trim().is_empty() {
+            return Vec::new();
+        }
+        let rows = self
+            .rows
+            .iter()
+            .filter_map(|r| {
+                let also: Vec<&str> = r.also.iter().map(String::as_str).collect();
+                let key = format!("setting:{}/{}", r.pane, r.row);
+                super::row(
+                    cx,
+                    query,
+                    key,
+                    Group::Settings,
+                    &r.label,
+                    &also,
+                    false,
+                    || {
+                        (
+                            Some(format!("Settings › {}", r.pane_label)),
+                            None,
+                            Icon::Glyph("gear-six"),
+                            Item::Setting {
+                                pane: r.pane.clone(),
+                                row: r.row.clone(),
+                            },
+                        )
+                    },
+                )
+            })
+            .collect();
+        super::sorted(rows)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_index_parses_and_ships_empty() {
+        let rows = parse(
+            r#"row pane="displays" id="scale" label="Scale" pane-label="Displays" also="zoom;size""#,
+        );
+        assert_eq!(rows[0].label, "Scale");
+        assert_eq!(rows[0].also, ["zoom", "size"]);
+        assert!(parse(include_str!("../../../../data/settings/index.kdl")).is_empty());
+    }
+}

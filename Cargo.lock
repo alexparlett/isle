@@ -2929,6 +2929,7 @@ name = "isle-search"
 version = "0.1.0"
 dependencies = [
  "isle-state",
+ "kdl",
  "nucleo-matcher",
 ]
 

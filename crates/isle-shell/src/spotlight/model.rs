@@ -495,7 +495,7 @@ impl Spotlight {
                 let header = row
                     .section
                     .clone()
-                    .or_else(|| header(*group).map(str::to_owned));
+                    .or_else(|| general.then(|| header(*group)).flatten().map(str::to_owned));
                 if header != section {
                     if let Some(h) = &header {
                         lines.push(Line::Header(h.clone()));

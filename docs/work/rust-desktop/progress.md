@@ -2,6 +2,20 @@
 
 ## 2026-10-09
 
+- P10 10.5: the fast sources in `isle-search/src/sources/`: apps and library
+  games (generic names and keywords as other words, launchers' entries
+  folded into their games, unlisted entries out), shell actions from
+  `data/spotlight/actions.kdl` with their chords in the menu bar's form and
+  Sleep, Restart, Shut Down, Dark Mode and each Focus as commands, apps'
+  desktop-entry actions, windows with their app and desktop, the front
+  app's enabled menu items from the same titles Help's search reads, and
+  Settings rows from `data/settings/index.kdl`, which ships empty. Choosing
+  raises a running app or starts it, runs an action, raises a window or
+  activates a menu item once focus is back. The `spotlight` settings
+  section (favourites, file folders, the clipboard's exclusions, the web
+  search). The menus test `gtk_s_menus_arrive…` failed once under the full
+  suite's load and passes alone, with and without this change.
+
 - P10 10.4: the surface and the field. Spotlight opens on the main screen
   from Cmd+Space, Ctrl+Cmd+Space and the Launchpad key; the compositor owns
   the model and takes Spotlight's keys before the keyboard engine while it

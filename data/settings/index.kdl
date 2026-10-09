@@ -1,0 +1,2 @@
+// Settings' panes and rows as Spotlight finds them: one `row` per row, by pane and id, with
+// its label, its pane's name and the other words it is found by. Settings fills it.

@@ -149,6 +149,11 @@ pub enum Opening {
     Emoji,
 }
 
+/// Whether the shortcut `id` has an action built.
+pub fn built(id: &str) -> bool {
+    isle_keys::shortcuts::find(id).is_some_and(|s| !matches!(action_for(s.id), Action::Reserved(_)))
+}
+
 /// What a chord bound: the action, its shortcut, and the modifiers it was pressed with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Bound {

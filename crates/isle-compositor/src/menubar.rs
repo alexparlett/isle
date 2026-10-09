@@ -378,7 +378,7 @@ impl State {
         }
     }
 
-    fn labels(&self) -> Labels {
+    pub fn labels(&self) -> Labels {
         match self.isle.keyboards.last_device() {
             Some(d) if d.profile == Profile::Pc && d.swap => Labels::PcSwapped,
             Some(d) if d.profile == Profile::Pc => Labels::Pc,
@@ -387,7 +387,7 @@ impl State {
     }
 
     /// The front app's titles and their menus, with every item's command.
-    fn build_bar(&mut self) -> Vec<Title> {
+    pub fn build_bar(&mut self) -> Vec<Title> {
         let (app, name) = self.isle.bar_app();
         let labels = self.labels();
         let game = self.focus_is_game();
@@ -1116,7 +1116,7 @@ impl State {
 
     /// Help's search is opening: the submenus the app fills only when asked are asked for,
     /// a few levels down and at most fifty, so search finds what is in them.
-    fn crawl_menus(&mut self) {
+    pub fn crawl_menus(&mut self) {
         let Some(id) = self.bar_window().map(|id| self.menus_window(id)) else {
             return;
         };

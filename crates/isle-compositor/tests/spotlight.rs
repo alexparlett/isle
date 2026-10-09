@@ -17,6 +17,38 @@ const N: u32 = 49;
 const ONE: u32 = 2;
 const SLASH: u32 = 53;
 
+/// The evdev code of a lowercase letter, digit or space on the US layout.
+fn code(c: char) -> u32 {
+    const ROWS: [(&str, u32); 4] = [
+        ("1234567890", 2),
+        ("qwertyuiop", 16),
+        ("asdfghjkl", 30),
+        ("zxcvbnm", 44),
+    ];
+    if c == ' ' {
+        return SPACE;
+    }
+    ROWS.iter()
+        .find_map(|(row, first)| row.find(c).map(|i| first + i as u32))
+        .unwrap_or_else(|| panic!("no key for {c:?}"))
+}
+
+/// Cmd+Space and `text`.
+async fn search(isle: &Isle, text: &str) {
+    let keys: Vec<u32> = text.chars().map(code).collect();
+    open_and_type(isle, &keys).await;
+    wait_until(|| async { status(isle).await["text"] == text }).await;
+}
+
+async fn titles(isle: &Isle) -> Vec<String> {
+    status(isle).await["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|l| l["title"].as_str().map(str::to_owned))
+        .collect()
+}
+
 async fn status(isle: &Isle) -> serde_json::Value {
     serde_json::from_str(&isle.test().await.spotlight().await.unwrap()).unwrap()
 }
@@ -141,6 +173,102 @@ async fn a_prompt_takes_the_keys_and_gives_them_back() {
     .await;
 }
 
+const RETURN: u32 = 28;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_app_starts_from_its_name_and_is_raised_the_second_time() {
+    let mut isle = Isle::start("spotlight-launch").await;
+    let client = env!("CARGO_BIN_EXE_isle-test-client");
+    std::fs::write(
+        isle.dir.join("data/applications/isle.test.Launched.desktop"),
+        format!("[Desktop Entry]\nType=Application\nName=Launchable\nExec={client} --app-id isle.test.Launched --colour 22aa44\n"),
+    )
+    .unwrap();
+    wait_until(|| async {
+        search(&isle, "launcha").await;
+        let found = titles(&isle).await.contains(&"Launchable".to_owned());
+        if !found {
+            press(&isle, ESCAPE).await;
+            press(&isle, ESCAPE).await;
+        }
+        found
+    })
+    .await;
+    assert_eq!(status(&isle).await["lines"][0]["header"], "Top hit");
+    press(&isle, RETURN).await;
+    let first = isle.wait_for_window("isle.test.Launched").await;
+    wait_until(|| async { isle.window(first.id).await.focused }).await;
+
+    let _other = isle.client("isle.test.Other", "3366ff");
+    wait_until(|| async { !isle.window(first.id).await.focused }).await;
+    search(&isle, "launcha").await;
+    press(&isle, RETURN).await;
+    wait_until(|| async { isle.window(first.id).await.focused }).await;
+    let launched = isle
+        .windows()
+        .await
+        .iter()
+        .filter(|w| w.app_id == "isle.test.Launched")
+        .count();
+    assert_eq!(launched, 1, "raised, not started again");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_and_a_shell_action_are_found_and_done() {
+    let mut isle = Isle::start("spotlight-windows").await;
+    let a = isle.client_with(&[
+        "--app-id",
+        "isle.test.A",
+        "--title",
+        "quarterly report",
+        "--colour",
+        "3366ff",
+    ]);
+    a.wait_for("keyboard-enter").await;
+    let wa = isle.wait_for_window("isle.test.A").await;
+    let b = isle.client("isle.test.B", "22aa44");
+    b.wait_for("keyboard-enter").await;
+    search(&isle, "quarterly").await;
+    assert!(titles(&isle).await.contains(&"quarterly report".to_owned()));
+    press(&isle, RETURN).await;
+    wait_until(|| async { isle.window(wa.id).await.focused }).await;
+
+    search(&isle, "hide").await;
+    let lines = status(&isle).await["lines"].clone();
+    assert_eq!(lines[1]["title"], "Hide", "{lines}");
+    assert_eq!(lines[1]["trailing"], "⌘H", "the action shows its chord");
+    press(&isle, RETURN).await;
+    wait_until(|| async { isle.window(wa.id).await.hidden }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_front_apps_menu_items_are_found_and_chosen() {
+    let mut isle = Isle::start("spotlight-menus").await;
+    let client = isle.client_with(&[
+        "--app-id",
+        "isle.test.Qt",
+        "--colour",
+        "3366ff",
+        "--appmenu",
+    ]);
+    client.wait_for("menus exported").await;
+    client.wait_for("keyboard-enter").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    search(&isle, "word wrap").await;
+    let lines = status(&isle).await["lines"].clone();
+    let found = lines
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|l| l["title"] == "Word Wrap")
+        .cloned();
+    let found = found.unwrap_or_else(|| panic!("{lines}"));
+    assert_eq!(found["detail"], "Edit");
+    client.clear();
+    press(&isle, RETURN).await;
+    client.wait_for("menu activated Word Wrap").await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -148,9 +276,28 @@ async fn look() {
     let Some(dir) = std::env::var_os("ISLE_SHOT_DIR") else {
         return;
     };
-    let isle = Isle::start("spotlight-look").await;
-    open_and_type(&isle, &[F, I]).await;
-    wait_until(|| async { status(&isle).await["text"] == "fi" }).await;
+    let mut isle = Isle::start("spotlight-look").await;
+    for (id, name) in [
+        ("org.mozilla.firefox", "Firefox"),
+        ("org.gnome.Nautilus", "Files"),
+        ("fish", "Fish"),
+    ] {
+        std::fs::write(
+            isle.dir.join(format!("data/applications/{id}.desktop")),
+            format!("[Desktop Entry]\nType=Application\nName={name}\nExec=true\nIcon={id}\nActions=new;\n\n[Desktop Action new]\nName=New Window\nExec=true\n"),
+        )
+        .unwrap();
+    }
+    let _w = isle.client_with(&[
+        "--app-id",
+        "isle.test.A",
+        "--title",
+        "final draft",
+        "--colour",
+        "3366ff",
+    ]);
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    search(&isle, "fi").await;
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     let test = isle.test().await;
     let path = std::path::Path::new(&dir).join("spotlight-field.png");

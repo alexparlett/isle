@@ -7,4 +7,5 @@ publish.workspace = true
 
 [dependencies]
 isle-state.workspace = true
+kdl.workspace = true
 nucleo-matcher = "0.3"

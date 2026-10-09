@@ -2,6 +2,7 @@
 
 pub mod matcher;
 pub mod rank;
+pub mod sources;
 pub mod usage;
 
 use std::{

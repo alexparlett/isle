@@ -704,7 +704,7 @@ impl State {
                     uris: Vec::new(),
                 });
             }
-            Item::Action(id) => self.run_shortcut(&id),
+            Item::Action(id) => self.run_spotlight_action(&id),
             Item::Window(id) => {
                 self.activate(id);
             }
@@ -745,9 +745,196 @@ impl Isle {
 }
 
 impl State {
-    /// The sources for a search opened now.
-    fn spotlight_sources(&self) -> Sources {
-        Sources::default()
+    /// The sources for a search opened now, from what the compositor knows: the app index,
+    /// the game library, the shortcut set, the windows and the front app's menus.
+    fn spotlight_sources(&mut self) -> Sources {
+        use isle_search::sources::{actions, apps, settings, windows};
+        let isle = &self.isle;
+        let listed: Vec<&isle_apps::Entry> = isle
+            .apps
+            .entries()
+            .iter()
+            .filter(|e| e.listed())
+            .filter(|e| {
+                e.exec
+                    .as_deref()
+                    .and_then(|x| isle.games.for_exec(x))
+                    .is_none()
+            })
+            .collect();
+        let apps_source = apps::AppsSource {
+            apps: listed
+                .iter()
+                .map(|e| apps::App {
+                    id: e.id.clone(),
+                    name: e.name.clone(),
+                    also: e
+                        .generic_name
+                        .iter()
+                        .chain(e.keywords.iter())
+                        .cloned()
+                        .collect(),
+                    category: e.category().label().to_owned(),
+                })
+                .collect(),
+            games: isle
+                .games
+                .games()
+                .iter()
+                .map(|g| apps::Game {
+                    key: g.id.to_string(),
+                    name: g.name.clone(),
+                    cover: g.cover.clone(),
+                })
+                .collect(),
+            favourites: isle.settings.spotlight.favourites.clone(),
+            category: None,
+        };
+
+        let labels = self.labels();
+        let chords = isle.settings.shortcuts.chords();
+        let chord_of = |id: &str| {
+            chords
+                .iter()
+                .find(|(i, _)| *i == id)
+                .and_then(|(_, c)| c.first())
+                .and_then(|c| isle_keys::chord::Chord::parse(c))
+                .map(|c| {
+                    let hint = crate::menubar::hint(&c, labels);
+                    format!("{}{}", hint.modifiers, hint.key)
+                })
+        };
+        const COMMANDS: [&str; 4] = ["sleep", "restart", "shut-down", "dark-mode"];
+        let mut action_list: Vec<actions::Action> = actions::catalogue()
+            .iter()
+            .filter(|a| COMMANDS.contains(&a.id.as_str()) || crate::binds::built(&a.id))
+            .map(|a| actions::Action {
+                id: a.id.clone(),
+                title: a.title.clone(),
+                glyph: a.glyph,
+                also: a.also.clone(),
+                chord: chord_of(&a.id),
+            })
+            .collect();
+        for mode in isle.settings.focus_mode.keys() {
+            action_list.push(actions::Action {
+                id: format!("focus:{mode}"),
+                title: mode.clone(),
+                glyph: "moon",
+                also: vec!["focus".into()],
+                chord: None,
+            });
+        }
+        let entry_actions = listed
+            .iter()
+            .flat_map(|e| {
+                e.actions.iter().map(|a| actions::EntryAction {
+                    app: e.id.clone(),
+                    app_name: e.name.clone(),
+                    action: a.id.clone(),
+                    name: a.name.clone(),
+                })
+            })
+            .collect();
+
+        let windows_source = windows::WindowsSource {
+            windows: isle
+                .window_infos()
+                .into_iter()
+                .map(|w| windows::Window {
+                    app_name: isle.app_name(&w.app),
+                    desktop: format!("Desktop {}", w.desktop),
+                    id: w.id,
+                    title: w.title,
+                    app: w.app,
+                })
+                .collect(),
+        };
+
+        let menus_source = self.spotlight_menu_items();
+        let settings_rows = std::fs::read_to_string(settings_index())
+            .map(|t| settings::parse(&t))
+            .unwrap_or_default();
+        Sources {
+            fast: vec![
+                Box::new(apps_source),
+                Box::new(actions::ActionsSource {
+                    actions: action_list,
+                    entry_actions,
+                }),
+                Box::new(windows_source),
+                Box::new(menus_source),
+                Box::new(settings::SettingsSource {
+                    rows: settings_rows,
+                }),
+            ],
+            slow: Vec::new(),
+        }
+    }
+
+    /// The front app's enabled menu items, from the same titles Help's search reads; submenus
+    /// the app fills on demand are asked for, for the next search.
+    fn spotlight_menu_items(&mut self) -> isle_search::sources::menus::MenusSource {
+        use isle_search::sources::menus::{MenuItem, MenusSource};
+        self.crawl_menus();
+        let Some(app) = self.isle.front_app() else {
+            return MenusSource::default();
+        };
+        if self.isle.bar.output.is_none() {
+            self.isle.bar.titles = self.build_bar();
+        }
+        let titles = &self.isle.bar.titles;
+        let last = titles.len().saturating_sub(1);
+        fn walk(entries: &[isle_ui::MenuEntry], path: &mut Vec<String>, out: &mut Vec<MenuItem>) {
+            for item in entries.iter().filter_map(isle_ui::MenuEntry::item) {
+                path.push(item.label.clone());
+                match &item.submenu {
+                    Some(children) => walk(children, path, out),
+                    None if item.enabled && !item.label.is_empty() => out.push(MenuItem {
+                        path: path.clone(),
+                        hint: item
+                            .hint
+                            .as_ref()
+                            .map(|h| format!("{}{}", h.modifiers, h.key)),
+                    }),
+                    None => {}
+                }
+                path.pop();
+            }
+        }
+        let mut items = Vec::new();
+        for (i, title) in titles.iter().enumerate() {
+            if i == last || title.kind == isle_shell::menubar::TitleKind::System {
+                continue;
+            }
+            let mut path = vec![title.label.clone()];
+            walk(&title.menu, &mut path, &mut items);
+        }
+        MenusSource { app, items }
+    }
+
+    /// A Spotlight action: a shortcut's, or a command with no chord.
+    fn run_spotlight_action(&mut self, id: &str) {
+        use isle_shell::prompts::session::Choice;
+        match id {
+            "sleep" => self.isle.suspend(),
+            "restart" => self.open_session_confirm(Choice::Restart),
+            "shut-down" => self.open_session_confirm(Choice::ShutDown),
+            "dark-mode" => {
+                let dark = self.isle.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
+                self.isle.write_setting(
+                    "appearance.mode",
+                    isle_settings::Value::Str(if dark { "light" } else { "dark" }.into()),
+                );
+            }
+            _ => match id.strip_prefix("focus:") {
+                Some(mode) => {
+                    let mode = mode.to_owned();
+                    self.focus_chord(&mode);
+                }
+                None => self.run_shortcut(id),
+            },
+        }
     }
 
     /// A menu item of the window `id`'s app, by its labels from the title down.
@@ -830,6 +1017,15 @@ impl State {
     fn spotlight_move_favourite(&mut self, row: Row, by: i32) {
         debug!(key = row.key, by, "spotlight move favourite");
     }
+}
+
+/// Where Settings installs its row index: beside its data, else the checkout's empty one.
+fn settings_index() -> std::path::PathBuf {
+    let installed = std::path::Path::new("/usr/share/isle/settings/index.kdl");
+    if installed.is_file() {
+        return installed.to_owned();
+    }
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/settings/index.kdl")
 }
 
 /// `text` as one word for `sh`.

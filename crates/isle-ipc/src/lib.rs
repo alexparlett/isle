@@ -584,6 +584,9 @@ pub mod test {
         /// Stops the recording as its Stop does.
         fn stop_recording(&self) -> zbus::Result<bool>;
 
+        /// Screen shares as JSON: the picker and the sessions.
+        fn share(&self) -> zbus::Result<String>;
+
         /// The streams as JSON.
         fn casts(&self) -> zbus::Result<String>;
 

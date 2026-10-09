@@ -129,6 +129,8 @@ pub enum Action {
     Alert(crate::alert::AlertAction),
     /// From the capture toolbar.
     Toolbar(crate::capture::toolbar::ToolbarAction),
+    /// From the screen-share picker.
+    Picker(crate::capture::picker::PickerAction),
 }
 
 /// What a title bar asks of its window.

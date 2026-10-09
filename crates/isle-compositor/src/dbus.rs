@@ -1398,6 +1398,11 @@ impl Test {
         Ok(self.to_loop.call(|state| state.stop_recording()).await?)
     }
 
+    /// Screen shares as JSON: the picker and the sessions.
+    async fn share(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.share_status().to_string()).await?)
+    }
+
     /// The streams as JSON.
     async fn casts(&self) -> fdo::Result<String> {
         Ok(self

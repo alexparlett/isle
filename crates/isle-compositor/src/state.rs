@@ -126,6 +126,9 @@ pub struct Isle {
     pub spotlight: crate::spotlight::SpotlightState,
     /// The screen streams Isle produces.
     pub casting: crate::cast::Casting,
+    /// Screen shares through the portal.
+    pub share: crate::share::ShareState,
+    pub share_picker: std::rc::Rc<isle_shell::capture::picker::PickerSurface>,
     /// The portal backend's connection, while Isle owns its name.
     pub portal: Option<zbus::Connection>,
     /// The screen recording running, if one is.
@@ -372,6 +375,8 @@ impl Isle {
         shell.register(capture_thumbnail.clone());
         let capture_toolbar = isle_shell::capture::toolbar::ToolbarSurface::new();
         shell.register(capture_toolbar.clone());
+        let share_picker = isle_shell::capture::picker::PickerSurface::new();
+        shell.register(share_picker.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -445,6 +450,8 @@ impl Isle {
             casting: Default::default(),
             recording_now: None,
             portal: None,
+            share: Default::default(),
+            share_picker,
             freeze: None,
             capture_readout,
             thumbnail: None,
@@ -828,6 +835,7 @@ impl State {
                 isle_shell::Action::ForceQuit(action) => self.force_quit_action(action),
                 isle_shell::Action::Spotlight(action) => self.spotlight_action(action),
                 isle_shell::Action::Toolbar(action) => self.toolbar_action(action),
+                isle_shell::Action::Picker(action) => self.picker_action(action),
                 isle_shell::Action::Alert(action) => {
                     if let Some(id) = focus
                         .and_then(|f| self.isle.shell.attached_key(&f))

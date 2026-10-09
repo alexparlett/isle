@@ -462,6 +462,11 @@ impl State {
             PanelAction::Activity { kind, action } if kind == "recording" && action == "stop" => {
                 self.stop_recording();
             }
+            PanelAction::Activity { kind, action } if kind == "sharing" => {
+                if let Some(session) = action.strip_prefix("stop:") {
+                    self.share_stop(session);
+                }
+            }
             other => info!(?other, "not built yet"),
         }
         self.follow_pages();
@@ -481,6 +486,7 @@ impl State {
             "page" => PanelAction::Page(args.as_str().map(str::to_owned)),
             "toggle" => PanelAction::Toggle(args.as_str().unwrap_or_default().into()),
             "choose" => PanelAction::Choose { module: s(0), row: s(1) },
+            "activity" => PanelAction::Activity { kind: s(0), action: s(1) },
             "expand" => PanelAction::Expand { module: s(0), row: s(1) },
             "slide" => PanelAction::Slide {
                 module: s(0),

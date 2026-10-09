@@ -372,3 +372,5 @@
 - P11 11.6 done (2026-10-09): PipeWire streams of a screen, a portion or a window.
 - P11 11.7 done (2026-10-09): recording through `isle-record`, H.264 and AAC in MP4.
 - P11 11.8 done (2026-10-09): `isle-portal`, the name, the sender check, Access.
+- P11 11.9 done (2026-10-09): ScreenCast with the picker, restore data and Stop;
+  the picker is centred until alexparlett/smithay#3 (xdg-foreign lookup) is merged.

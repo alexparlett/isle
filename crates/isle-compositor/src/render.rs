@@ -66,6 +66,7 @@ pub const CAPTURE_SURFACES: &[&str] = &[
     "capture-toolbar",
     "capture-loupe",
     "capture-thumbnail",
+    "share-picker",
 ];
 
 /// A themed cursor image the backend draws itself, with its hotspot.

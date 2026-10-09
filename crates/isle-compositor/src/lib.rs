@@ -55,6 +55,7 @@ pub mod state;
 pub mod state_writer;
 mod portal;
 mod recording;
+mod share;
 mod thumbnail;
 mod toolbar;
 pub mod tokens;

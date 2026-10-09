@@ -2,6 +2,29 @@
 
 ## 2026-10-09
 
+- P11 11.9: ScreenCast and the picker. CreateSession exports a Session;
+  SelectSources keeps the types, cursor mode and persistence asked for (a
+  cursor mode not offered is refused; hidden and embedded are); Start finds
+  the sources in the restore data `("Isle", 1, [specs])` (a screen by its
+  identity, a window by its app and title), or from the same app's second ask
+  within ten seconds of a share it was granted, or asks in the picker; then
+  streams each source and answers with each node, its `pipewire-serial`,
+  position, size, source type and mapping id, and the restore data when the
+  user let it be kept. The picker is a shell surface with the asking app's
+  icon and name, Screens and Windows tabs as the request allows, a tile per
+  screen or shown window with its live preview (every half second, while it
+  is open, and never of the picker itself), the remember check, Cancel and
+  Share; Tab changes tab, the arrows move, Space chooses, Return shares,
+  Escape cancels, and a second click on a tile shares it alone. The frontend
+  closing a session ends its streams; a stream whose source goes ends its
+  session with Closed and an ended event. While any share runs, the island's
+  Sharing activity lists each app and its sources, each with Stop.
+  Differences: the picker is centred on the main screen, not yet a sheet on
+  the asking window: that needs the fork's xdg-foreign lookup, opened as
+  alexparlett/smithay#3 and waiting for the user's merge. No Portion of
+  screen tab, no typing filter, and a request made while locked is answered
+  cancel rather than held until unlock.
+
 - P11 11.8: the backend. `isle-portal` holds the impl interfaces as
   hand-written zbus (Access, ScreenCast with its Session objects, Screenshot,
   Settings, Inhibit), the Request object each held reply exports while it

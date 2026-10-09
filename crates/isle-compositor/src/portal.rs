@@ -90,16 +90,53 @@ impl isle_portal::screencast::ScreenCast for Desktop {
 
     fn start(
         &self,
-        _session: String,
-        _app_id: String,
+        session: String,
+        app_id: String,
         _parent_window: String,
-        _selection: isle_portal::screencast::Selection,
-        _closed: Closed,
+        selection: isle_portal::screencast::Selection,
+        mut closed: Closed,
     ) -> BoxFuture<Option<isle_portal::screencast::Started>> {
-        Box::pin(async { None })
+        let to_loop = self.to_loop.clone();
+        Box::pin(async move {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            let (app, chosen) = (app_id.clone(), selection.clone());
+            to_loop
+                .call(move |state| state.share_begin(app, chosen, tx))
+                .await
+                .ok()?;
+            let picked = tokio::select! {
+                picked = rx => picked.ok().flatten(),
+                _ = closed.wait() => {
+                    to_loop.post(|state| state.share_cancel());
+                    None
+                }
+            }?;
+            let remember = picked.remember;
+            let (s, a, sel) = (session.clone(), app_id.clone(), selection.clone());
+            let ids = to_loop
+                .call(move |state| state.share_start(&s, &a, &sel, &picked))
+                .await
+                .ok()??;
+            // The nodes and their serials come from PipeWire a moment after the streams.
+            for _ in 0..100 {
+                let (ids, sel) = (ids.clone(), selection.clone());
+                let ready = to_loop
+                    .call(move |state| state.share_ready(&ids, &sel, remember))
+                    .await
+                    .ok()?;
+                if let Some(started) = ready {
+                    return Some(started);
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            }
+            to_loop.post(move |state| state.share_closed(&session));
+            None
+        })
     }
 
-    fn close(&self, _session: String) {}
+    fn close(&self, session: String) {
+        self.to_loop.post(move |state| state.share_closed(&session));
+    }
 }
 
 impl isle_portal::screenshot::Screenshot for Desktop {

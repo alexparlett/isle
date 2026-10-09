@@ -501,7 +501,7 @@ impl State {
 
     /// Window `id` drawn into a texture fitted inside `w` by `h` points, as an image the
     /// switcher's tree draws. A window not on screen gives its last buffer.
-    fn render_preview(
+    pub(crate) fn render_preview(
         &mut self,
         id: u64,
         w: f64,

@@ -138,3 +138,194 @@ async fn only_the_frontend_may_call_and_access_asks_in_a_prompt() {
     assert_ne!(response, 0);
     wait_until(|| async { prompts(&isle).await["showing"].is_null() }).await;
 }
+
+const RIGHT: u32 = 106;
+const SPACE: u32 = 57;
+
+async fn call(
+    conn: &zbus::Connection,
+    method: &str,
+    body: &(impl serde::Serialize + zvariant::DynamicType),
+) -> (u32, HashMap<String, OwnedValue>) {
+    let reply = conn
+        .call_method(
+            Some(BACKEND),
+            PATH,
+            Some("org.freedesktop.impl.portal.ScreenCast"),
+            method,
+            body,
+        )
+        .await
+        .unwrap();
+    reply.body().deserialize().unwrap()
+}
+
+async fn share(isle: &Isle) -> serde_json::Value {
+    serde_json::from_str(&isle.test().await.share().await.unwrap()).unwrap()
+}
+
+/// CreateSession and SelectSources for screens and windows, keeping the share.
+async fn session(frontend: &zbus::Connection, n: u32, restore: Option<OwnedValue>) -> String {
+    let session = format!("/org/freedesktop/portal/desktop/session/1_1/s{n}");
+    let (r, _) = call(
+        frontend,
+        "CreateSession",
+        &(
+            ObjectPath::try_from(format!("/org/freedesktop/portal/desktop/request/1_1/c{n}"))
+                .unwrap(),
+            ObjectPath::try_from(session.as_str()).unwrap(),
+            "",
+            HashMap::<String, OwnedValue>::new(),
+        ),
+    )
+    .await;
+    assert_eq!(r, 0);
+    let mut options: HashMap<String, OwnedValue> = HashMap::new();
+    options.insert("types".into(), OwnedValue::from(3u32));
+    options.insert("cursor_mode".into(), OwnedValue::from(1u32));
+    options.insert("persist_mode".into(), OwnedValue::from(2u32));
+    if let Some(restore) = restore {
+        options.insert("restore_data".into(), restore);
+    }
+    let (r, _) = call(
+        frontend,
+        "SelectSources",
+        &(
+            ObjectPath::try_from(format!("/org/freedesktop/portal/desktop/request/1_1/s{n}"))
+                .unwrap(),
+            ObjectPath::try_from(session.as_str()).unwrap(),
+            "",
+            options,
+        ),
+    )
+    .await;
+    assert_eq!(r, 0);
+    session
+}
+
+fn start(
+    frontend: &zbus::Connection,
+    session: &str,
+    n: u32,
+) -> tokio::task::JoinHandle<(u32, HashMap<String, OwnedValue>)> {
+    let frontend = frontend.clone();
+    let session = session.to_owned();
+    tokio::spawn(async move {
+        call(
+            &frontend,
+            "Start",
+            &(
+                ObjectPath::try_from(format!("/org/freedesktop/portal/desktop/request/1_1/t{n}"))
+                    .unwrap(),
+                ObjectPath::try_from(session.as_str()).unwrap(),
+                "",
+                "",
+                HashMap::<String, OwnedValue>::new(),
+            ),
+        )
+        .await
+    })
+}
+
+/// The first stream's node from Start's results.
+fn first_node(results: &HashMap<String, OwnedValue>) -> (u32, HashMap<String, OwnedValue>) {
+    let streams: Vec<(u32, HashMap<String, OwnedValue>)> =
+        results["streams"].try_clone().unwrap().try_into().unwrap();
+    streams.into_iter().next().unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_share_chosen_in_the_picker_streams_comes_back_without_asking_and_stops() {
+    let mut isle = Isle::start("portal-screencast").await;
+    if !isle.start_audio().await {
+        return;
+    }
+    let window = isle.client("isle.test.Red", "ff0000");
+    window.wait_for("keyboard-enter").await;
+    let frontend = frontend(&isle).await;
+
+    // The picker opens on Screens; the keys choose the screen and share it.
+    let s1 = session(&frontend, 1, None).await;
+    let started = start(&frontend, &s1, 1);
+    wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
+    let picker = share(&isle).await["picker"].clone();
+    assert_eq!(picker["tabs"], serde_json::json!(["Screens", "Windows"]));
+    assert_eq!(picker["remember"], true);
+    wait_until(|| async { share(&isle).await["picker"]["previews"].as_u64() == Some(1) }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("share-picker").await;
+    press(&isle, RIGHT).await;
+    press(&isle, SPACE).await;
+    wait_until(|| async {
+        share(&isle).await["picker"]["chosen"] == serde_json::json!(["screen:HEADLESS-1"])
+    })
+    .await;
+    press(&isle, RETURN).await;
+    let (response, results) = started.await.unwrap();
+    assert_eq!(response, 0);
+    let (node, props) = first_node(&results);
+    assert_eq!(
+        u32::try_from(props["source_type"].try_clone().unwrap()).unwrap(),
+        1
+    );
+    assert!(props.contains_key("pipewire-serial"));
+    assert_eq!(
+        u32::try_from(results["persist_mode"].try_clone().unwrap()).unwrap(),
+        2
+    );
+    let restore = results["restore_data"].try_clone().unwrap();
+    let consumer = isle.consumer(node);
+    consumer.wait_for("format 1920x1080").await;
+    wait_until(|| async { isle.island_output().await["privacy"] == 1 }).await;
+
+    // The kept share comes back with no picker.
+    let s2 = session(&frontend, 2, Some(restore)).await;
+    let (response, results) = start(&frontend, &s2, 2).await.unwrap();
+    assert_eq!(response, 0);
+    assert!(share(&isle).await["picker"].is_null());
+    first_node(&results);
+    assert_eq!(share(&isle).await["sessions"].as_object().unwrap().len(), 2);
+
+    // The frontend closing a session ends its streams; Stop in the island ends the other.
+    frontend
+        .call_method(
+            Some(BACKEND),
+            s1.as_str(),
+            Some("org.freedesktop.impl.portal.Session"),
+            "Close",
+            &(),
+        )
+        .await
+        .unwrap();
+    wait_until(|| async { share(&isle).await["sessions"].as_object().unwrap().len() == 1 }).await;
+    isle.open_panel(None).await;
+    isle.test()
+        .await
+        .panel(&serde_json::json!({"activity": ["sharing", format!("stop:{s2}")]}).to_string())
+        .await
+        .unwrap();
+    wait_until(|| async {
+        share(&isle).await["sessions"]
+            .as_object()
+            .unwrap()
+            .is_empty()
+    })
+    .await;
+    let casts: Vec<serde_json::Value> =
+        serde_json::from_str(&isle.test().await.casts().await.unwrap()).unwrap();
+    assert!(casts.is_empty());
+    wait_until(|| async { isle.island_output().await["privacy"] == 0 }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cancel_in_the_picker_answers_cancel() {
+    let isle = Isle::start("portal-cancel").await;
+    let frontend = frontend(&isle).await;
+    let s = session(&frontend, 1, None).await;
+    let started = start(&frontend, &s, 1);
+    wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
+    press(&isle, ESCAPE).await;
+    let (response, _) = started.await.unwrap();
+    assert_eq!(response, 1);
+    assert!(share(&isle).await["picker"].is_null());
+}

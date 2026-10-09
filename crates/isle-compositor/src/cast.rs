@@ -842,8 +842,10 @@ impl State {
 
     /// Owners hear of a stream's end; the portal and the recorder add theirs.
     fn cast_ended(&mut self, id: u64, owner: &'static str, why: Ended) {
-        if owner == "recording" {
-            self.recording_stream_ended(id, why);
+        match owner {
+            "recording" => self.recording_stream_ended(id, why),
+            "portal" => self.share_stream_ended(id, why),
+            _ => {}
         }
     }
 

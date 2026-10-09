@@ -2,6 +2,9 @@
 
 ## 2026-10-09
 
+- P11 planned (`p11-capture.md`), 31 choices and phases 11.0–11.15, with
+  the research note `capture-2026.md`. Reviewed: every recommendation taken.
+
 - P10 closed. ARCHITECTURE has How Spotlight searches and How the clipboard
   is kept, with `isle-search` in the repository's layout; B73–B79 recorded;
   `shell.md`'s file-search point, `platform.md`'s clipboard points and

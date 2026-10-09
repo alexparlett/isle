@@ -353,3 +353,12 @@
   recorded; the intent docs' open points answered; the roadmap's P13, P15,
   P16 and P20 entries follow; `p10-spotlight.md` ends with its outcome. No
   host run. Next: P11 (capture and portals).
+- P11 planned in `p11-capture.md` (2026-10-09), reviewed: the user took
+  every recommendation. Stills rendered from the compositor's own element
+  list, the freeze and its veil the compositor's, PipeWire streams made on
+  the loop with module-rt off, recording in an `isle-record` helper with
+  ffmpeg (NVENC, else x264), `isle-portal` as hand-written zbus on the
+  worker with the sender checked, Access answered by Isle, the picker a sheet
+  through xdg-foreign, the Settings and Inhibit portals, ext-image-copy-capture
+  without wlr-screencopy. Research in
+  `docs/research/rust-desktop/capture-2026.md`. Phases 11.0–11.15.

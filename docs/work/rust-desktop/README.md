@@ -22,4 +22,5 @@ one at a time.
 - `p9-lock-and-prompts.md`: P9, the lock, idle, the system prompts and the
   session's end.
 - `p10-spotlight.md`: P10, Spotlight.
+- `p11-capture.md`: P11, capture and portals.
 - Evidence: `docs/research/rust-desktop/`.

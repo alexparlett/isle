@@ -2,6 +2,29 @@
 
 ## 2026-10-09
 
+- P11 11.7: recording. The toolbar's three recording modes (shown while
+  `isle-record` is installed) and its countdown start a recording; one at a
+  time. The compositor streams the source (the pointer embedded when
+  `capture.show-pointer` is on) and starts `isle-record` with the node, which
+  links itself port to port, reads the frames as shared memory, and encodes
+  H.264 High through NVENC when it opens and x264 when not, and, when asked,
+  the default output's monitor and the chosen microphone mixed as AAC at
+  48 kHz, into `$XDG_VIDEOS_DIR/Recordings/Screen Recording … .mp4`. The
+  recorder is built against FFmpeg 9 without libavdevice and with
+  PipeWire's realtime module off: it links neither libdbus nor libpulse.
+  While it runs the island shows the Recording activity with its elapsed
+  time and Stop; Stop is that row's button, Cmd+Ctrl+Escape (after a
+  countdown) or the toolbar reopened on the running mode. A recorded window
+  that closes or a screen that goes stops it and keeps the file, with
+  "Recording stopped: the window closed" in the island. The thumbnail
+  follows with the source's first frame. Differences: the file stays a
+  fragmented MP4, each frame a fragment flushed as it goes, rather than being
+  rewritten with its index first: its index already leads the file, a
+  recorder killed midway leaves a file that plays, and the rewrite failed on
+  AAC's packets through the API. The audio streams set
+  `adapter.auto-port-config` so they have ports with no session manager. Not
+  yet: Show mouse clicks; the dmabuf path into the encoder.
+
 - P11 11.6: streams. `cast.rs` produces PipeWire video nodes in the
   compositor: the PipeWire loop is a calloop source, the context has
   module-rt and D-Bus support off (checked: neither is mapped), and each

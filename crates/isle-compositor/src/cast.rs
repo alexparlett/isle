@@ -842,7 +842,9 @@ impl State {
 
     /// Owners hear of a stream's end; the portal and the recorder add theirs.
     fn cast_ended(&mut self, id: u64, owner: &'static str, why: Ended) {
-        let _ = (id, owner, why);
+        if owner == "recording" {
+            self.recording_stream_ended(id, why);
+        }
     }
 
     /// Any stream holds banners and shows the screen mark.
@@ -856,7 +858,12 @@ impl State {
 
     fn cast_event(&mut self, event: Event) {
         match event {
-            Event::Paused { id, node } => debug!(id, node, "a stream's node"),
+            Event::Paused { id, node } => {
+                debug!(id, node, "a stream's node");
+                if self.isle.casting.get(id).is_some_and(|s| s.owner == "recording") {
+                    self.recording_node(id, node);
+                }
+            }
             Event::End { id, why } => self.end_cast(id, why),
             Event::Streaming { id } | Event::Redraw { id } => self.cast_redraw_source(id),
             Event::Failed { id } => self.end_cast(id, Ended::Disconnected),
@@ -1187,6 +1194,14 @@ impl State {
             _ => CursorMode::Hidden,
         };
         self.start_cast(source, cursor, "test")
+    }
+
+    pub fn test_record(&mut self, spec: &str) -> Result<(), String> {
+        let id = self.test_cast_start(spec)?;
+        let source = self.isle.casting.get(id).map(|s| s.source.clone()).ok_or("no stream")?;
+        self.end_cast(id, Ended::Stopped);
+        self.start_recording(source);
+        if self.recording() { Ok(()) } else { Err("not recording".into()) }
     }
 }
 

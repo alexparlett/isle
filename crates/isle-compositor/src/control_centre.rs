@@ -459,6 +459,9 @@ impl State {
             PanelAction::Activity { kind, action } if kind == "prompt" => {
                 self.prompt_activity(&action)
             }
+            PanelAction::Activity { kind, action } if kind == "recording" && action == "stop" => {
+                self.stop_recording();
+            }
             other => info!(?other, "not built yet"),
         }
         self.follow_pages();

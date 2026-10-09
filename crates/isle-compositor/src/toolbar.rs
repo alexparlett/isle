@@ -113,6 +113,7 @@ pub struct Countdown {
 #[derive(Clone, Debug)]
 enum Pending {
     Shot { target: Target, copy: bool },
+    Record { source: crate::cast::Source },
 }
 
 impl Isle {
@@ -410,9 +411,12 @@ impl State {
         };
         let identity = Isle::output_identity(&output);
         let kept = self.isle.capture_state.clone();
-        let mode = Mode::from_key(&kept.mode)
-            .filter(|m| !m.records())
-            .unwrap_or_default();
+        // Reopened while recording, it opens on the running recording's mode.
+        let mode = self.recording_mode().unwrap_or_else(|| {
+            Mode::from_key(&kept.mode)
+                .filter(|m| !m.records() || crate::recording::available())
+                .unwrap_or_default()
+        });
         let screen_f = screen.to_f64();
         let portion = kept
             .portion
@@ -520,8 +524,20 @@ impl State {
         let game = self.game_in_front();
         Bar {
             mode: toolbar.mode,
-            allowed: Mode::ALL.into_iter().filter(|m| !m.records()).collect(),
-            recording: false,
+            allowed: Mode::ALL
+                .into_iter()
+                .filter(|m| {
+                    // Recording needs the recorder; while one runs, only its mode and shots.
+                    if !m.records() {
+                        return true;
+                    }
+                    match self.recording_mode() {
+                        Some(running) => *m == running,
+                        None => crate::recording::available(),
+                    }
+                })
+                .collect(),
+            recording: self.recording(),
             request: None,
             focus: toolbar.focus,
             solid: theme.appearance.reduce_transparency || game,
@@ -599,7 +615,7 @@ impl State {
     }
 
     fn set_toolbar_mode(&mut self, mode: Mode) {
-        if mode.records() {
+        if !self.toolbar_bar().allowed.contains(&mode) {
             return;
         }
         let Some(toolbar) = self.isle.toolbar.as_mut() else {
@@ -689,14 +705,26 @@ impl State {
         }
         if mode.window() {
             if let Some(id) = toolbar.lifted {
-                let shadow = !self.held_mods().option;
-                self.toolbar_take(Target::Window { id, shadow });
+                if mode.records() {
+                    if !self.recording() {
+                        self.toolbar_record(crate::cast::Source::Window(id));
+                    }
+                } else {
+                    let shadow = !self.held_mods().option;
+                    self.toolbar_take(Target::Window { id, shadow });
+                }
             }
             return true;
         }
         // A screen: with several, the click names it.
         if let Some(output) = self.isle.output_under_pointer() {
-            self.toolbar_take(Target::Screen(output));
+            if mode.records() {
+                if !self.recording() {
+                    self.toolbar_record(crate::cast::Source::Screen(output));
+                }
+            } else {
+                self.toolbar_take(Target::Screen(output));
+            }
         }
         true
     }
@@ -737,8 +765,9 @@ impl State {
                 self.toolbar_changed();
             }
             KEY_LEFT | KEY_RIGHT if toolbar.focus == Some(Control::Modes) => {
-                let allowed: Vec<Mode> = Mode::ALL.into_iter().filter(|m| !m.records()).collect();
-                let i = allowed.iter().position(|m| *m == toolbar.mode).unwrap_or(0);
+                let current = toolbar.mode;
+                let allowed = self.toolbar_bar().allowed;
+                let i = allowed.iter().position(|m| *m == current).unwrap_or(0);
                 let n = allowed.len();
                 let j = if code == KEY_LEFT {
                     (i + n - 1) % n
@@ -788,11 +817,42 @@ impl State {
         true
     }
 
-    /// The action button: the mode's shot, after the timer when one is set.
+    /// The action button: the mode's shot or recording, after the timer when one is set;
+    /// with a recording running, Stop.
     fn toolbar_act(&mut self) {
         let Some(toolbar) = &self.isle.toolbar else {
             return;
         };
+        if self.recording() && toolbar.mode.records() {
+            self.close_toolbar();
+            self.stop_recording();
+            return;
+        }
+        let source = match toolbar.mode {
+            Mode::RecordScreen => Some(crate::cast::Source::Screen(
+                self.isle
+                    .output_under_pointer()
+                    .unwrap_or_else(|| toolbar.output.clone()),
+            )),
+            Mode::RecordPortion => self
+                .isle
+                .space
+                .output_geometry(&toolbar.output)
+                .map(|screen| {
+                    crate::cast::Source::Portion(
+                        toolbar.output.clone(),
+                        Rectangle::new(
+                            (toolbar.portion.loc - screen.loc.to_f64()).to_i32_round(),
+                            toolbar.portion.size.to_i32_round(),
+                        ),
+                    )
+                }),
+            _ => None,
+        };
+        if let Some(source) = source {
+            self.toolbar_record(source);
+            return;
+        }
         let target = match toolbar.mode {
             Mode::ShotPortion => {
                 let Some(screen) = self.isle.space.output_geometry(&toolbar.output) else {
@@ -814,6 +874,16 @@ impl State {
             _ => return,
         };
         self.toolbar_take(target);
+    }
+
+    fn toolbar_record(&mut self, source: crate::cast::Source) {
+        self.close_toolbar();
+        let timer = self.isle.settings.capture.timer.max(0) as u32;
+        if timer > 0 {
+            self.start_capture_countdown(timer, Pending::Record { source });
+        } else {
+            self.start_recording(source);
+        }
     }
 
     fn toolbar_take(&mut self, target: Target) {
@@ -886,6 +956,7 @@ impl State {
                 move |_, _, state| {
                     match then.clone() {
                         Pending::Shot { target, copy } => state.take_still(target, copy),
+                        Pending::Record { source } => state.start_recording(source),
                     }
                     TimeoutAction::Drop
                 },
@@ -1106,6 +1177,15 @@ impl State {
         if let Some(saver) = &self.isle.capture_saver {
             saver.save(self.isle.capture_state.clone());
         }
+    }
+
+    /// The toolbar's mode for the recording running, if one is.
+    fn recording_mode(&self) -> Option<Mode> {
+        self.isle.recording_now.as_ref().map(|r| match r.source {
+            crate::cast::Source::Screen(_) => Mode::RecordScreen,
+            crate::cast::Source::Portion(..) => Mode::RecordPortion,
+            crate::cast::Source::Window(_) => Mode::RecordWindow,
+        })
     }
 
     /// The toolbar as JSON, for the Test interface.

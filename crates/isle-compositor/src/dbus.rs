@@ -1377,6 +1377,27 @@ impl Test {
             .map_err(fdo::Error::Failed)
     }
 
+    /// Starts a recording of a source given as `CastStart` takes it.
+    async fn record(&self, spec: String) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| state.test_record(&spec))
+            .await?
+            .map_err(fdo::Error::Failed)
+    }
+
+    /// The recording as JSON, or `null`.
+    async fn recording(&self) -> fdo::Result<String> {
+        Ok(self
+            .to_loop
+            .call(|state| state.recording_status().to_string())
+            .await?)
+    }
+
+    /// Stops the recording as its Stop does.
+    async fn stop_recording(&self) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(|state| state.stop_recording()).await?)
+    }
+
     /// The streams as JSON.
     async fn casts(&self) -> fdo::Result<String> {
         Ok(self

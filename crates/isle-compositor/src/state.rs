@@ -126,6 +126,8 @@ pub struct Isle {
     pub spotlight: crate::spotlight::SpotlightState,
     /// The screen streams Isle produces.
     pub casting: crate::cast::Casting,
+    /// The screen recording running, if one is.
+    pub recording_now: Option<crate::recording::Recording>,
     /// Shift+Cmd+4's frozen screens while the pick is open.
     pub freeze: Option<crate::freeze::Freeze>,
     pub capture_readout: std::rc::Rc<isle_shell::capture::readout::ReadoutSurface>,
@@ -439,6 +441,7 @@ impl Isle {
             session,
             force_quit,
             casting: Default::default(),
+            recording_now: None,
             freeze: None,
             capture_readout,
             thumbnail: None,

@@ -351,7 +351,9 @@ impl State {
             Action::Toolbar { copy } => self.open_toolbar(copy),
             Action::ColourPick => self.open_pick(crate::freeze::Purpose::Colour),
             Action::StopCapture => {
-                self.cancel_capture_countdown();
+                if !self.cancel_capture_countdown() {
+                    self.stop_recording();
+                }
             }
             Action::Reserved(id) => {
                 let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);

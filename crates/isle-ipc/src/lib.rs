@@ -575,6 +575,15 @@ pub mod test {
         /// Starts a stream by a JSON spec and returns its id.
         fn cast_start(&self, spec: &str) -> zbus::Result<u64>;
 
+        /// Starts a recording of a source given as `cast_start` takes it.
+        fn record(&self, spec: &str) -> zbus::Result<()>;
+
+        /// The recording as JSON, or `null`.
+        fn recording(&self) -> zbus::Result<String>;
+
+        /// Stops the recording as its Stop does.
+        fn stop_recording(&self) -> zbus::Result<bool>;
+
         /// The streams as JSON.
         fn casts(&self) -> zbus::Result<String>;
 

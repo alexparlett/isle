@@ -463,7 +463,7 @@ fn write_still(
 
 /// `still` made small enough for its thumbnail at twice its size, premultiplied as the
 /// shell draws images.
-fn thumbnail_of(still: &Pixels) -> Pixels {
+pub(crate) fn thumbnail_of(still: &Pixels) -> Pixels {
     const W: u32 = 480;
     const H: u32 = 320;
     let f = (W as f64 / still.width.max(1) as f64)

@@ -93,7 +93,9 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   handlers as devices, outputs added and removed, frames counted,
   screenshots, forced stalls and panics. `cargo test --workspace
   --features isle-compositor/test-hooks` runs the compositor headless on a
-  private bus with a small Wayland test client.
+  private bus with a small Wayland test client. The headless backend draws
+  on a GPU's render node when there is one and opens GBM there, as the
+  hardware backend does, so dmabufs are tested too.
 
 ## How the shell runs
 
@@ -483,12 +485,16 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   left out by name (the readout, the toolbar, the loupe, the thumbnail, the
   share picker); a locked screen therefore gives the lock. A region is that
   render cut; a window is its own pieces at its output's scale, refused while
-  locked. Streams and ext-image-copy-capture frames are the same renders.
+  locked. Streams and ext-image-copy-capture frames are the same renders;
+  the share sheet, drawn with its window, is left out with them.
 - **The freeze holds textures, not clients.** Shift+Cmd+4 renders each
-  screen and each shown window into textures of their own and draws the
-  frozen frames in place of the scene, with the veil, the cut, the line and
-  the lifted window as compositor elements; clients run on unaware. The pick
-  reads keys and the pointer without taking focus.
+  screen, each shown window and each open placed shell surface (Spotlight, a
+  menu, a banner) into textures of their own and draws the frozen frames in
+  place of the scene, with the veil, the cut, the line and the lifted piece
+  as compositor elements; clients run on unaware. Rounded lines and handles
+  are the window shadow's program at no blur. The pick reads keys and the
+  pointer without taking focus; in window mode a camera surface stands in
+  for the pointer.
 - **Pixels leave the loop at once.** The readback is on the loop; PNG
   encoding, the file and the thumbnail's small copy are on the worker, and
   the allocator is trimmed after, so a still's tens of megabytes are not
@@ -506,6 +512,12 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   renders when its damage tracker has damage and the negotiated rate allows,
   and a dmabuf is queued once its fence signals. A window streams only while
   it is shown; a window closing or a screen going ends its streams.
+- **The pointer is left out, drawn in, or sent beside.** In the metadata
+  mode each buffer carries the pointer's place in the frame and, when its
+  image changes, a bitmap the renderer draws from the named cursor or the
+  client's cursor surface; the pointer moving over a still frame queues a
+  buffer with no picture. A recording with Show mouse clicks draws a fading
+  disc at each press into its own frames only.
 - **Every stream shows.** Any stream sets the screen privacy mark and holds
   banners; a recording is the island's Recording activity, a portal share
   its Sharing row, each with Stop.
@@ -525,14 +537,22 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 - **What each interface answers with.** ScreenCast: the restore data, the
   same app's second ask, or the share picker, then a stream per source
   (B84). The picker is a sheet on the window `parent_window` names, found
-  through xdg-foreign v2 or the X11 window id, and holds only that window's
-  keyboard; with no window found it is centred on the main screen. Screenshot: the toolbar for an interactive request, the front window
-  or every screen for one the frontend allowed. Access: a P9 prompt.
+  through xdg-foreign v2 or the X11 window id, over that window dimmed, and
+  holds only that window's keyboard; with no window found it is centred on
+  the main screen. Its Portion of screen tab puts it away for the toolbar
+  in a Close-and-Choose form. Screenshot: the toolbar for an interactive
+  request, after the timer when one is set, the front window or every
+  screen for one the frontend allowed. Access: a P9 prompt.
   Settings: the appearance namespace from the theme. Inhibit: idle's holds
   and the session's end.
 - **The standard protocols beside it** (B85): ext-foreign-toplevel-list,
-  ext-image-capture-source and ext-image-copy-capture into shared memory;
-  no wlr-screencopy.
+  ext-image-capture-source and ext-image-copy-capture into shared memory or
+  a dmabuf on the renderer's device, the still's texture blitted into it,
+  and pointer cursor sessions that follow the pointer with its image; no
+  wlr-screencopy. A streaming session is listed in the Sharing row by its
+  client's app, with Stop.
+- **Asks made while locked wait.** ScreenCast, Screenshot and PickColor
+  asks are held until the unlock unless the app gives up first.
 
 ## Rules the layout enforces
 

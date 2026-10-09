@@ -2,13 +2,36 @@
 
 ## 2026-10-09
 
+- P11's leftovers. alexparlett/smithay#3 merged and pinned; xdg-foreign v2
+  served, and the share picker hangs as a sheet on the window ScreenCast's
+  `parent_window` names (a wayland handle or an X11 id), over it dimmed,
+  holding only its keyboard, centred when no window is found or it goes.
+  The picker's Portion of screen tab opens the toolbar in a
+  Close-and-Choose form and comes back with the portion's live tile; typing
+  on the Windows tab narrows its tiles; Tab is taken by the compositor, so
+  Freya's own Tab no longer walks focus onto Cancel. ScreenCast's metadata
+  cursor: each buffer carries the pointer's place and, when its image
+  changes, a bitmap, and a pointer moving over a still frame sends a buffer
+  with no picture. ext-image-copy-capture copies into dmabufs on the
+  renderer's device by a GPU blit, serves pointer cursor sessions, and a
+  streaming session is in the Sharing row by its client's app with Stop.
+  The headless backend opens GBM on its render node, so dmabufs are tested.
+  Show mouse clicks marks each press in the recording only. Open panels lift
+  in the pick's window mode. ScreenCast, Screenshot and PickColor asks made
+  while locked wait for the unlock. An app's interactive shot waits out the
+  timer; a click on the countdown stops it. Round handles and the rounded
+  line round a lifted window are the shadow program at no blur; the
+  colour's swatch sits beside its value; a camera stands in for the pointer
+  in window mode. Found and fixed: Spotlight took Shift+Cmd+3 and
+  Shift+Cmd+4 as its quick actions, and the toolbar's state was kept only
+  after a drag. Not done here: the VM and the host.
+
 - P11 closed. ARCHITECTURE has How a capture is rendered, How streams are
   produced and How the portal backend answers, with `isle-record` in the
   process layout and `isle-portal` and `isle-record` in the repository's;
   B80–B85 recorded; `platform.md`'s non-interactive screenshot point
   answered; the roadmap's P11, P13, P14, P15 and P22 entries follow;
-  `p11-capture.md` ends with its outcome. alexparlett/smithay#3 waits for the
-  user's review.
+  `p11-capture.md` ends with its outcome.
 
 - P11 11.14: the measure and the VM (`docs/research/rust-desktop/p11-capture.md`).
   At 3440×1440 a shot is on disk in about 55 ms, the freeze takes a few

@@ -372,8 +372,7 @@
 - P11 11.6 done (2026-10-09): PipeWire streams of a screen, a portion or a window.
 - P11 11.7 done (2026-10-09): recording through `isle-record`, H.264 and AAC in MP4.
 - P11 11.8 done (2026-10-09): `isle-portal`, the name, the sender check, Access.
-- P11 11.9 done (2026-10-09): ScreenCast with the picker, restore data and Stop;
-  the picker is centred until alexparlett/smithay#3 (xdg-foreign lookup) is merged.
+- P11 11.9 done (2026-10-09): ScreenCast with the picker, restore data and Stop.
 - P11 11.10 done (2026-10-09): the Screenshot portal, both kinds, and PickColor.
 - P11 11.11 done (2026-10-09): the Settings and Inhibit portals.
 - P11 11.12 done (2026-10-09): ext-image-copy-capture, its sources, ext-foreign-toplevel-list.
@@ -386,7 +385,13 @@
   without wlr-screencopy (B85). ARCHITECTURE has How a capture is rendered,
   How streams are produced and How the portal backend answers;
   `p11-capture.md` ends with its outcome; measures and the VM in
-  `docs/research/rust-desktop/p11-capture.md`. Waiting on the user:
-  alexparlett/smithay#3 (the xdg-foreign lookup), after which the picker
-  becomes a sheet. No host run. Next: P12 (gaming).
+  `docs/research/rust-desktop/p11-capture.md`. No host run. Next: P12
+  (gaming).
+- P11's leftovers built (2026-10-09), with alexparlett/smithay#3 merged and
+  pinned: the picker a sheet through xdg-foreign, its Portion tab and typing
+  filter; the metadata cursor; image-copy into dmabufs and its cursor
+  sessions, its sessions in the Sharing row; Show mouse clicks; panels
+  liftable in the pick; asks made while locked held; the countdown for
+  apps' shots and a click to cancel it; round handles, rounded lines, the
+  swatch and the camera pointer. `p11-capture.md`'s outcome lists them.
 

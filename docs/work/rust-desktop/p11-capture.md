@@ -561,28 +561,28 @@ one packet, the host run optional, as for P6 to P10.
 
 Built 2026-10-09 in phases 11.0–11.15, as planned, with these differences:
 
-- **The share picker became a sheet after the close**, once
-  alexparlett/smithay#3 was merged: closed with the picker centred, the sheet
-  followed with xdg-foreign served.
 - **Recordings stay fragmented MP4s**, each frame a fragment flushed as it
   goes, not rewritten with the index first on Stop: the index already leads
   the file, a recorder killed midway leaves one that plays, and the rewrite
   failed on AAC's packets through the API.
-- **No metadata cursor in streams yet**: ScreenCast offers hidden and
-  embedded; metadata waits for a bitmap of the pointer's image.
-- **dmabufs only through the udev backend**, so the headless tests and the VM
-  stream shared memory; ext-image-copy-capture copies into shared memory only,
-  with no cursor sessions.
-- **A capture-protocol session shows the screen mark**, but no Sharing row
-  with Stop.
-- **Smaller gaps**: no click on the countdown to cancel it (Cmd+Ctrl+Escape
-  does), square handles, no swatch beside the colour value, no camera
-  pointer in window mode, the line square round a lifted window, shell panels
-  not pickable apart from the region, no Show mouse clicks, no Portion of
-  screen tab or typing filter in the picker, a request made while locked
-  answered cancel, no countdown for an app's shot.
+- **The camera pointer is Phosphor's camera** in a small overlay surface
+  over the frozen frame, not an Isle-drawn `isle-camera` cursor.
 - **The thumbnail's click opens the default image viewer** until Quick Look
   (P15).
+
+The close left gaps, built the same day after alexparlett/smithay#3 was
+merged and pinned: the picker as a sheet on the asking window through
+xdg-foreign, over the window dimmed; its Portion of screen tab, choosing
+through the toolbar's Close-and-Choose form, and its typing filter; the
+metadata cursor mode with cursor-only buffers; ext-image-copy-capture into
+dmabufs and its pointer cursor sessions; a capture-protocol session's
+Sharing row with Stop; a click on the countdown cancelling it; round
+handles and the rounded line round a lifted window; the colour's swatch;
+the camera pointer; open panels liftable in window mode; Show mouse clicks;
+asks made while locked held until the unlock; the countdown for an app's
+shot. Found on the way: Spotlight took Shift+Cmd+3 and Shift+Cmd+4 as its
+quick actions, Freya's own Tab walked the picker's focus onto Cancel, and
+the toolbar's state was kept only after a drag, never at its close.
 
 Found and fixed on the way: the allocator kept every still's pixels for the
 worker threads that freed them, 135 MB after five shots; the audio streams'

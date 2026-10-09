@@ -2,6 +2,12 @@
 
 ## 2026-10-09
 
+- P9 closed. ARCHITECTURE has How the lock holds, How idle decides, How
+  prompts are asked and How the session ends, with `isle-auth` in the
+  process layout; B66–B72 are recorded and B12 revised; the intent docs'
+  open points answered; the roadmap's P9, P11, P14, P16, P18 and P20
+  entries follow; `p9-lock-and-prompts.md` ends with its outcome.
+
 - P9 9.13: the measure and the VM
   (`docs/research/rust-desktop/p9-lock-and-prompts.md`). At 3440×1440 a lock
   reaches every screen about 20 ms after the request (45 ms the first time,

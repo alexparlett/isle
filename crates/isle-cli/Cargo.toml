@@ -14,6 +14,7 @@ clap.workspace = true
 humantime.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true
+libc.workspace = true
 zvariant.workspace = true
 serde.workspace = true
 serde_json.workspace = true

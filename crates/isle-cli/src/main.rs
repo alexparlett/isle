@@ -290,6 +290,9 @@ struct VersionReport {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
+    // Output into a closed pipe (`| head`) ends the program quietly, as other tools do.
+    // Safety: the default disposition; nothing here installs a SIGPIPE handler.
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
     let cli = Cli::parse();
     match run(&cli).await {
         Ok(()) => ExitCode::SUCCESS,

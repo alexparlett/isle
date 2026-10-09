@@ -1,6 +1,49 @@
 # Progress
 
+## 2026-10-09
+
+- P9 9.13: the measure and the VM
+  (`docs/research/rust-desktop/p9-lock-and-prompts.md`). At 3440×1440 a lock
+  reaches every screen about 20 ms after the request (45 ms the first time,
+  making the softened wallpaper); in quiet runs the face draws at 0.6–0.8 ms
+  p95 and a prompt at 0.41 ms, with single slow frames of up to 3.5 ms in
+  three earlier runs that did not come back; nothing draws at rest; RSS
+  150–164 MB, VRAM at most 108 MiB. The VM: lock and unlock through logind, a
+  wrong password through the real PAM stack, pkexec, the keyring's new
+  keyring, an OpenVPN password through the plugin's auth dialog, the power
+  key's chooser and a real restart, and the idle steps. Found and fixed:
+  pkexec in a terminal named no app (the asker is now the nearest ancestor
+  with a window), and the CLI panicked writing into a closed pipe.
+
 ## 2026-10-08
+
+- P9 9.12: Force Quit on Option+Cmd+Escape and the system menu, every running
+  app with background ones, a frozen app marked and selected, the sheet, the
+  kill; close on a frozen window hangs the not-responding alert on it.
+
+- P9 9.11: ending the session. One engine quits every app as Cmd+Q does,
+  then logs out or asks logind to restart or shut down; an app that keeps
+  its window stops it (Show {app}), one that misses its ping offers Force
+  Quit {app}, another program's block inhibitor is named. The chooser from
+  the power key and Ctrl+Cmd+Backspace with its letters and countdown, the
+  confirmation from the system menu and Shift+Cmd+Q, log out with no
+  confirmation, and the lock's power row confirming in place. The test
+  client now runs every command line that arrives together.
+
+- P9 9.6–9.10: the prompt frame, its queue and the compositor's scrim, the
+  armed moment, Cmd+Tab setting a prompt aside into the island; the polkit
+  agent, the Gcr system prompter for the keyring (`sx-aes-1`), NetworkManager's
+  secret agent with VPN auth dialogs and keyring saves, BlueZ's pairing
+  agent as the default.
+
+- P9 9.2–9.5: the lock's face and the minimal lock at the second panic;
+  logind's sleep delay released once every screen shows the lock, the
+  power-key inhibitor, Lock and Unlock, the hints; one idle policy with the
+  dim, the lock and display power, its holds (idle-inhibit, ScreenSaver,
+  logind's idle block, a game); ScreenSaver served.
+
+- P9 9.0–9.1: the locked core (the marker first, the lock's own render
+  path, input held) and authentication through the `isle-auth` PAM helper.
 
 - P9 planned in `p9-lock-and-prompts.md`, with research in
   `docs/research/rust-desktop/lock-and-prompts-2026.md`: the lock as a state

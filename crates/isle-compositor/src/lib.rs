@@ -53,6 +53,7 @@ pub mod settings;
 pub mod state;
 pub mod state_writer;
 mod thumbnail;
+mod toolbar;
 pub mod tokens;
 mod wallpaper;
 pub mod watchdog;
@@ -163,6 +164,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.settings_store = Some(store);
     isle.load_places(&runtime);
     isle.load_usage(&runtime);
+    isle.load_capture_state(&runtime);
     isle.load_desktops(&runtime);
     isle.wallpapers.load(&runtime);
     isle.safe_start = safe_start;

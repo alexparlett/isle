@@ -120,6 +120,7 @@ impl State {
             self.check_zoom_dwell();
             self.spotlight_drag_check(location);
             self.thumbnail_pointer(location);
+            self.toolbar_pointer(location);
         }
         // A nested backend's host draws named cursors; everywhere else the cursor is
         // Isle's to draw, so it moves only with a redraw.
@@ -154,6 +155,14 @@ impl State {
             return;
         }
         if !self.isle.lock.locked && self.thumbnail_button(button, button_state) {
+            return;
+        }
+        if self.isle.toolbar.is_some() && self.toolbar_button(button, button_state) {
+            if button_state == ButtonState::Pressed {
+                self.isle.taken_buttons.insert(button);
+            } else {
+                self.isle.taken_buttons.remove(&button);
+            }
             return;
         }
         // A press taken to close a menu is kept from the window, and so is its release.

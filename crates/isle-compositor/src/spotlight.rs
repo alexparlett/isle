@@ -408,6 +408,7 @@ impl State {
         self.cancel_switcher();
         self.close_session_dialog();
         self.close_force_quit();
+        self.close_toolbar();
         self.close_menu_bar_group();
         self.isle.spotlight.previous = self.focused_window();
         self.isle.spotlight.sources = self.spotlight_sources();

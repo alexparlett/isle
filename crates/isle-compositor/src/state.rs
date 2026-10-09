@@ -130,6 +130,12 @@ pub struct Isle {
     /// The thumbnail after a shot, while it shows.
     pub thumbnail: Option<crate::thumbnail::Thumbnail>,
     pub capture_thumbnail: std::rc::Rc<isle_shell::capture::thumbnail::ThumbnailSurface>,
+    /// Shift+Cmd+5's toolbar while it is open.
+    pub toolbar: Option<crate::toolbar::Toolbar>,
+    pub countdown: Option<crate::toolbar::Countdown>,
+    pub capture_toolbar: std::rc::Rc<isle_shell::capture::toolbar::ToolbarSurface>,
+    pub capture_state: isle_state::domains::Capture,
+    pub capture_saver: Option<crate::state_writer::Saver<isle_state::domains::Capture>>,
     /// The emoji the colour font draws, by their place in the table, once checked.
     pub emoji_drawable: std::sync::Arc<std::sync::OnceLock<Vec<usize>>>,
     /// The file-name index, once built.
@@ -358,6 +364,8 @@ impl Isle {
         shell.register(capture_readout.clone());
         let capture_thumbnail = isle_shell::capture::thumbnail::ThumbnailSurface::new();
         shell.register(capture_thumbnail.clone());
+        let capture_toolbar = isle_shell::capture::toolbar::ToolbarSurface::new();
+        shell.register(capture_toolbar.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -432,6 +440,11 @@ impl Isle {
             capture_readout,
             thumbnail: None,
             capture_thumbnail,
+            toolbar: None,
+            countdown: None,
+            capture_toolbar,
+            capture_state: Default::default(),
+            capture_saver: None,
             spotlight,
             emoji_drawable: Default::default(),
             files: None,
@@ -805,6 +818,7 @@ impl State {
                 isle_shell::Action::Session(action) => self.session_action(action),
                 isle_shell::Action::ForceQuit(action) => self.force_quit_action(action),
                 isle_shell::Action::Spotlight(action) => self.spotlight_action(action),
+                isle_shell::Action::Toolbar(action) => self.toolbar_action(action),
                 isle_shell::Action::Alert(action) => {
                     if let Some(id) = focus
                         .and_then(|f| self.isle.shell.attached_key(&f))

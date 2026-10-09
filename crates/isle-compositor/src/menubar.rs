@@ -1446,7 +1446,7 @@ impl State {
     }
 
     pub fn window_menu_event(&mut self, event: MenuEvent) {
-        if self.thumbnail_menu_event(&event) {
+        if self.thumbnail_menu_event(&event) || self.toolbar_menu_event(&event) {
             return;
         }
         match event {

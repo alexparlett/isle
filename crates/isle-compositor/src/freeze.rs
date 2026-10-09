@@ -664,7 +664,13 @@ impl State {
             return;
         };
         let output = freeze.screens[index].output.clone();
-        let Some(screen) = self.isle.space.output_geometry(&output) else {
+        self.show_readout(&output, rect);
+    }
+
+    /// The size readout for `rect`, in the global space on `output`, by its trailing foot:
+    /// inside the foot when the screen ends below, then above.
+    pub fn show_readout(&mut self, output: &Output, rect: Rectangle<f64, Logical>) {
+        let Some(screen) = self.isle.space.output_geometry(output) else {
             return;
         };
         let scale = output.current_scale().fractional_scale();
@@ -678,7 +684,6 @@ impl State {
         let below = (rect.loc.y + rect.size.h).round() as i32 - screen.loc.y + gap - margin;
         let mut y = below;
         if y + size.h > screen.size.h {
-            // Inside the selection's foot, then above it.
             y = below - gap * 2 - (size.h - 2 * margin);
             if y < 0 {
                 y = rect.loc.y.round() as i32 - screen.loc.y - gap - size.h + margin;

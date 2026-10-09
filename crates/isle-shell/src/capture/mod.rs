@@ -3,3 +3,4 @@
 
 pub mod readout;
 pub mod thumbnail;
+pub mod toolbar;

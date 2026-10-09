@@ -127,6 +127,8 @@ pub enum Action {
     ForceQuit(crate::force_quit::ForceQuitAction),
     /// From a not-responding alert, for the window it hangs on.
     Alert(crate::alert::AlertAction),
+    /// From the capture toolbar.
+    Toolbar(crate::capture::toolbar::ToolbarAction),
 }
 
 /// What a title bar asks of its window.

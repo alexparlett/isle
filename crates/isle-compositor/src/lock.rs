@@ -360,6 +360,8 @@ impl State {
     /// the menu-bar group close, grabs end, and neither keyboard nor pointer is a client's.
     fn take_input_back(&mut self) {
         self.close_pick();
+        self.close_toolbar();
+        self.cancel_capture_countdown();
         self.dismiss_thumbnail();
         self.close_session_dialog();
         self.close_force_quit();

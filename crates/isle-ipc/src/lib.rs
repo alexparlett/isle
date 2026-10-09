@@ -572,6 +572,9 @@ pub mod test {
         /// Draws an output and writes it to `path` as a PNG.
         fn screenshot(&self, output: &str, path: &str) -> zbus::Result<()>;
 
+        /// The capture toolbar as JSON.
+        fn toolbar(&self) -> zbus::Result<String>;
+
         /// The thumbnail after a shot as JSON, or `null`.
         fn thumbnail(&self) -> zbus::Result<String>;
 

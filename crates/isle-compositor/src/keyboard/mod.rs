@@ -396,8 +396,9 @@ impl State {
             self.keyboard_added(id, name, hint);
         }
         let key = (id.to_owned(), code);
-        // The pick takes every key but the modifiers, which the engine keeps count of.
-        let modifier = self.picking()
+        // The pick and the toolbar take every key but the modifiers, which the engine keeps
+        // count of.
+        let modifier = (self.picking() || self.isle.toolbar.is_some())
             && !matches!(
                 self.isle
                     .keyboards
@@ -408,6 +409,10 @@ impl State {
             self.isle
                 .loop_handle
                 .insert_idle(|state| state.pick_modifiers_changed());
+        } else if self.isle.toolbar.is_some() && key_state == KeyState::Pressed {
+            self.isle.swallowed.insert(key);
+            self.toolbar_key(code);
+            return;
         } else if self.picking() {
             match key_state {
                 KeyState::Pressed => {

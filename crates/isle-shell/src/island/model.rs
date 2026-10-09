@@ -149,6 +149,16 @@ pub enum EventKind {
     Start,
     Ended,
     TimerDone,
+    /// A capture's seconds left: OSD-class, held until withdrawn.
+    Countdown,
+}
+
+impl EventKind {
+    /// Whether it answers a key pressed now: it pre-empts, never queues, and shows over full
+    /// screen and the lock.
+    pub fn osd_class(self) -> bool {
+        matches!(self, Self::Osd | Self::Countdown)
+    }
 }
 
 impl EventKind {
@@ -161,6 +171,7 @@ impl EventKind {
             "start" => Self::Start,
             "ended" => Self::Ended,
             "timer-done" => Self::TimerDone,
+            "countdown" => Self::Countdown,
             _ => return None,
         })
     }
@@ -236,7 +247,7 @@ impl Timings {
                 _ => self.event,
             }),
             EventKind::Ended => Some(self.ended),
-            EventKind::TimerDone => None,
+            EventKind::TimerDone | EventKind::Countdown => None,
         }
     }
 }
@@ -433,6 +444,14 @@ impl Island {
         }
     }
 
+    /// Takes back every event of `kind`, shown or queued; the next queued shows.
+    pub fn withdraw(&mut self, kind: EventKind, now: Instant) {
+        self.queue.retain(|(e, _)| e.kind != kind);
+        if self.showing.as_ref().is_some_and(|(e, _)| e.kind == kind) {
+            self.showing = self.queue.pop_front().map(|(e, _)| (e, now));
+        }
+    }
+
     /// Takes an event in by the queue's rules.
     pub fn post(&mut self, event: Event, now: Instant) {
         if event.kind == EventKind::Attention
@@ -442,15 +461,15 @@ impl Island {
             return;
         }
         // Over full screen and the lock, only OSDs show; the rest is dropped, not held.
-        if (self.locked || self.main_covered) && event.kind != EventKind::Osd {
+        if (self.locked || self.main_covered) && !event.kind.osd_class() {
             return;
         }
         // An OSD answers a key pressed now: it pre-empts at once and never queues.
-        if event.kind == EventKind::Osd {
+        if event.kind.osd_class() {
             if self
                 .showing
                 .as_ref()
-                .is_some_and(|(e, _)| e.kind != EventKind::Osd)
+                .is_some_and(|(e, _)| !e.kind.osd_class())
             {
                 let (bumped, _) = self.showing.take().unwrap();
                 self.queue.push_front((bumped, now));
@@ -561,7 +580,7 @@ impl Island {
                 None => place.main,
             });
         if self.locked || place.covered {
-            return match event.filter(|e| e.kind == EventKind::Osd) {
+            return match event.filter(|e| e.kind.osd_class()) {
                 Some(osd) => Shown::Alone(osd.clone(), privacy),
                 None if privacy.is_empty() => Shown::Nothing,
                 None => Shown::Privacy(privacy),

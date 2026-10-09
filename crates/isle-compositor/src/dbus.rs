@@ -1368,6 +1368,11 @@ impl Test {
             .map_err(|e| fdo::Error::Failed(e.to_string()))
     }
 
+    /// The capture toolbar as JSON.
+    async fn toolbar(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.toolbar_status()).await?)
+    }
+
     /// The thumbnail after a shot as JSON, or `null`.
     async fn thumbnail(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.thumbnail_status()).await?)

@@ -367,3 +367,4 @@
 - P11 11.1 done (2026-10-09): Shift+Cmd+3 and its Ctrl form.
 - P11 11.2 done (2026-10-09): the freeze and the pick, region and window.
 - P11 11.3 done (2026-10-09): the thumbnail, its menu, flick and drag.
+- P11 11.4 done (2026-10-09): the toolbar's shot modes, Options and the countdown.

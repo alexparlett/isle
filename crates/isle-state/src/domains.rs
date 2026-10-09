@@ -118,3 +118,33 @@ impl Domain for Usage {
     const NAME: &'static str = "usage";
     const VERSION: u32 = 1;
 }
+
+/// The capture toolbar's last mode, where it was dragged to and its last portion, by the
+/// screen's identity, relative to that screen.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Capture {
+    pub mode: String,
+    pub toolbar: Option<Spot>,
+    pub portion: Option<Portion>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Spot {
+    pub output: String,
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Portion {
+    pub output: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl Domain for Capture {
+    const NAME: &'static str = "capture";
+    const VERSION: u32 = 1;
+}

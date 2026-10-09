@@ -62,6 +62,10 @@ pub enum Action {
     ShootScreens { copy: bool },
     /// Shift+Cmd+4: the frozen pick of a region or a window.
     Pick { copy: bool },
+    /// Shift+Cmd+5: the capture toolbar.
+    Toolbar { copy: bool },
+    /// Cmd+Ctrl+Escape: stops a recording or a countdown.
+    StopCapture,
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
     /// The chord the recording grab took.
@@ -145,6 +149,9 @@ fn action_for(id: &'static str) -> Action {
         "screenshot-screen-copy" => Action::ShootScreens { copy: true },
         "screenshot-pick" => Action::Pick { copy: false },
         "screenshot-pick-copy" => Action::Pick { copy: true },
+        "capture-toolbar" => Action::Toolbar { copy: false },
+        "capture-toolbar-copy" => Action::Toolbar { copy: true },
+        "stop-recording" => Action::StopCapture,
         other => Action::Reserved(other),
     }
 }
@@ -338,6 +345,10 @@ impl State {
             }),
             Action::ShootScreens { copy } => self.shoot_screens(copy),
             Action::Pick { copy } => self.open_pick(crate::freeze::Purpose::Shot { copy }),
+            Action::Toolbar { copy } => self.open_toolbar(copy),
+            Action::StopCapture => {
+                self.cancel_capture_countdown();
+            }
             Action::Reserved(id) => {
                 let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);
                 info!(id, packet, "a shortcut whose action is not built yet");

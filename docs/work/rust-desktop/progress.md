@@ -2,6 +2,25 @@
 
 ## 2026-10-09
 
+- P11 11.4: the toolbar and the countdown. Shift+Cmd+5 (Ctrl for the
+  clipboard) opens the bar at the bottom centre of the screen with the
+  pointer, in the centre group both ways, on the last shot mode: Close, the
+  six modes (the three recordings shown and disabled until 11.7), Pick
+  colour, Options and the action. The compositor reads its keys (Tab between
+  groups, Left and Right through the modes, Up and Down and the arrows off
+  the modes moving the portion, Option sizing it, Return acting, Escape
+  closing) and draws each mode over the live screen under the bar: the
+  portion with its line, handles, veil and readout, dragged by its body, an
+  edge or a corner; the window under the pointer lifted whole, a click
+  taking it and never reaching it; on two screens, the screen under the
+  pointer marked. A shot from it holds none of the tool. Options writes the
+  `capture` section through the store. The bar's place once dragged, the
+  mode and the portion are kept in the new `capture` state domain. A timer
+  runs a countdown in the island, a new OSD-class event that holds until
+  withdrawn, which Cmd+Ctrl+Escape cancels; the shot waits for the island to
+  return to rest. Not yet: a click on the countdown cancelling it, round
+  handles, Pick colour (11.5).
+
 - P11 11.3: the thumbnail. After a shot to a file (not a copy, not over a
   full-screen game, not with `capture.floating-thumbnail` off) a top-layer
   surface shows the shot, made small on the worker, in the bottom-trailing

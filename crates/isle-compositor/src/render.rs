@@ -250,6 +250,11 @@ impl Isle {
                 shell(isle_shell::Layer::Overlay, push);
             }
         }
+        // The capture toolbar's drawing over the live screen, under its bar and never in a
+        // picture of it.
+        if from <= Stage::ShellOverlay && leave.is_empty() {
+            self.toolbar_elements(renderer, output, push);
+        }
         let layers = layer_map_for_output(output);
         if from <= Stage::LayerOverlay {
             push_layers(&layers, Layer::Overlay, renderer, scale, push);

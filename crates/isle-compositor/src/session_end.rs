@@ -172,6 +172,7 @@ impl State {
         self.cancel_switcher();
         self.close_force_quit();
         self.close_spotlight();
+        self.close_toolbar();
         self.close_menu_bar_group();
         let theme = self.isle.shell.theme().clone();
         let screen = self.isle.space.output_geometry(&output).unwrap_or_default();

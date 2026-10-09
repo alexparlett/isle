@@ -609,3 +609,153 @@ async fn no_thumbnail_follows_a_copy() {
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     assert!(thumbnail(&isle).await.is_null());
 }
+
+const FIVE: u32 = 6;
+const TAB: u32 = 15;
+const SLASH_SPACE: u32 = 57;
+
+async fn toolbar(isle: &Isle) -> serde_json::Value {
+    serde_json::from_str(&isle.test().await.toolbar().await.unwrap()).unwrap()
+}
+
+/// Tab onto the modes and step to `mode`.
+async fn toolbar_mode(isle: &Isle, mode: &str) {
+    tap(isle, TAB).await;
+    tap(isle, TAB).await;
+    for _ in 0..3 {
+        if toolbar(isle).await["mode"] == mode {
+            return;
+        }
+        tap(isle, RIGHT).await;
+    }
+    assert_eq!(toolbar(isle).await["mode"], mode);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_shot_from_the_toolbar_holds_none_of_it() {
+    let isle = Isle::start("toolbar-screen").await;
+    let test = isle.test().await;
+    test.pointer_to(400.0, 300.0).await.unwrap();
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    let bar = toolbar(&isle).await["rect"].clone();
+    let (bx, by) = centre_of(&bar);
+    let live = isle.keep_shot("toolbar-live").await;
+    let shown = live.at(bx as usize, by as usize);
+    tap(&isle, ENTER).await;
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    assert_eq!(toolbar(&isle).await["open"], false);
+    let png = newest_screenshot(&isle);
+    let [r, g, b, _] = png.at(bx as usize, by as usize);
+    assert_ne!([r, g, b], shown, "the bar is in the shot");
+    let [r2, g2, b2, _] = png.at(bx as usize, 1060);
+    assert!(
+        (r as i32 - r2 as i32).abs() < 8 && (g as i32 - g2 as i32).abs() < 8,
+        "the bar's place differs from the desktop beside it: {:?} {:?}",
+        [r, g, b],
+        [r2, g2, b2]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_portion_moves_by_keys_and_is_what_the_shot_holds() {
+    let isle = Isle::start("toolbar-portion").await;
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    toolbar_mode(&isle, "shot-portion").await;
+    let portion = toolbar(&isle).await["portion"].clone();
+    assert_eq!(portion, serde_json::json!([480.0, 270.0, 960.0, 540.0]));
+    isle.keep_shot("toolbar-portion").await;
+    // Up and Down move the portion while the modes have the keys; Left and Right change mode.
+    tap(&isle, DOWN).await;
+    assert_eq!(
+        toolbar(&isle).await["portion"],
+        serde_json::json!([480.0, 271.0, 960.0, 540.0])
+    );
+    let test = isle.test().await;
+    test.pointer_to(600.0, 400.0).await.unwrap();
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.pointer_to(640.0, 420.0).await.unwrap();
+    test.button(BTN_LEFT, false).await.unwrap();
+    assert_eq!(
+        toolbar(&isle).await["portion"],
+        serde_json::json!([520.0, 291.0, 960.0, 540.0])
+    );
+    // A drag from a corner sizes it.
+    test.pointer_to(1480.0, 831.0).await.unwrap();
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.pointer_to(1400.0, 801.0).await.unwrap();
+    test.button(BTN_LEFT, false).await.unwrap();
+    assert_eq!(
+        toolbar(&isle).await["portion"],
+        serde_json::json!([520.0, 291.0, 880.0, 510.0])
+    );
+    tap(&isle, TAB).await;
+    tap(&isle, TAB).await;
+    tap(&isle, TAB).await;
+    assert_eq!(toolbar(&isle).await["focus"], "Act");
+    tap(&isle, ENTER).await;
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    let png = newest_screenshot(&isle);
+    assert_eq!((png.width, png.height), (880, 510));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_toolbar_and_spotlight_close_each_other() {
+    let isle = Isle::start("toolbar-centre").await;
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    isle.chord(&[CMD, SLASH_SPACE]).await;
+    wait_until(|| async { toolbar(&isle).await["open"] == false }).await;
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    let spotlight: serde_json::Value =
+        serde_json::from_str(&isle.test().await.spotlight().await.unwrap()).unwrap();
+    assert_eq!(spotlight["open"], false);
+    tap(&isle, ESC).await;
+    wait_until(|| async { toolbar(&isle).await["open"] == false }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_clicked_in_window_mode_is_taken_and_never_clicked() {
+    let mut isle = Isle::start("toolbar-window").await;
+    let window = isle.client("isle.test.Red", "ff0000");
+    window.wait_for("keyboard-enter").await;
+    let info = isle.wait_for_window("isle.test.Red").await;
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    toolbar_mode(&isle, "shot-window").await;
+    let test = isle.test().await;
+    let (cx, cy) = (
+        (info.x + info.width / 2) as f64,
+        (info.y + info.height / 2) as f64,
+    );
+    test.pointer_to(cx, cy).await.unwrap();
+    wait_until(|| async { toolbar(&isle).await["lifted"] == info.id }).await;
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.button(BTN_LEFT, false).await.unwrap();
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    assert!(newest_screenshot(&isle).width > info.width as usize);
+    assert!(!window.printed("button 272"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_countdown_shows_in_the_island_and_ctrl_cmd_escape_stops_it() {
+    let isle = Isle::start_with("toolbar-countdown", "capture { timer 5; }").await;
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    tap(&isle, ENTER).await;
+    wait_until(|| async { isle.island_output().await["text"] == "5" }).await;
+    wait_until(|| async { isle.island_output().await["text"] == "4" }).await;
+    isle.chord(&[CTRL, CMD, ESC]).await;
+    wait_until(|| async { toolbar(&isle).await["countdown"].is_null() }).await;
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    assert!(screenshots(&isle).is_empty(), "a cancelled countdown shot");
+
+    isle.chord(&[SHIFT, CMD, FIVE]).await;
+    wait_until(|| async { toolbar(&isle).await["drawn"] == true }).await;
+    tap(&isle, ENTER).await;
+    tokio::time::sleep(std::time::Duration::from_millis(5800)).await;
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    assert_ne!(isle.island_output().await["text"], "1");
+}

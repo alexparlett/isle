@@ -337,5 +337,6 @@
 - P10 10.7 done (2026-10-09): the file index and contents search.
 - P10 10.8 done (2026-10-09): the calculator, Run and the web.
 - P10 10.9 done (2026-10-09): emoji and the paste path that puts the
-  clipboard back; Xwayland now follows the Wayland clipboard. Next: 10.10
-  (clipboard history).
+  clipboard back; Xwayland now follows the Wayland clipboard.
+- P10 10.10 done (2026-10-09): clipboard history in the compositor. Next:
+  10.11 (dragging out).

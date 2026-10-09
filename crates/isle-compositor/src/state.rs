@@ -422,7 +422,9 @@ impl Isle {
             emoji_drawable: Default::default(),
             files: None,
             files_reach: None,
-            clipboard: Default::default(),
+            clipboard: crate::clipboard::ClipboardState::load(
+                isle_state::StateDir::default_dir().join("clipboard"),
+            ),
             idle_notifier_state,
             lock_outputs_changed: false,
             panicked: Vec::new(),

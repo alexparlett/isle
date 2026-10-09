@@ -579,6 +579,91 @@ async fn an_emoji_reaches_an_x11_window() {
     client.wait_for("pasted 🥳").await;
 }
 
+const FOUR: u32 = 5;
+const P: u32 = 25;
+const Y: u32 = 21;
+const DELETE: u32 = 111;
+
+async fn clip_titles(isle: &Isle) -> Vec<(String, String)> {
+    status(isle).await["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .scan(String::new(), |section, l| {
+            if let Some(h) = l["header"].as_str() {
+                *section = h.to_owned();
+                return Some(None);
+            }
+            Some(l["title"].as_str().map(|t| (section.clone(), t.to_owned())))
+        })
+        .flatten()
+        .collect()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn copies_are_kept_secrets_are_not_and_a_pick_pastes() {
+    let mut isle = Isle::start("spotlight-clipboard").await;
+    let a = isle.client("isle.test.Copier", "3366ff");
+    a.wait_for("keyboard-enter").await;
+    let index = isle.dir.join("state/isle/clipboard/index.json");
+    let kept = |text: &'static str| {
+        let index = index.clone();
+        async move { std::fs::read_to_string(&index).is_ok_and(|t| t.contains(text)) }
+    };
+    a.send("copy first copy");
+    wait_until(|| kept("first copy")).await;
+    a.send("copy-secret hunter2");
+    a.wait_for("copied").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    a.send("copy second copy");
+    wait_until(|| kept("second copy")).await;
+    let kept = std::fs::read_to_string(&index).unwrap();
+    assert!(
+        kept.contains("first copy") && !kept.contains("hunter2"),
+        "{kept}"
+    );
+
+    open_and_type(&isle, &[]).await;
+    isle.chord(&[SUPER, FOUR]).await;
+    wait_until(|| async { status(&isle).await["scope"] == "Clipboard" }).await;
+    wait_until(|| async { clip_titles(&isle).await.len() == 2 }).await;
+    assert_eq!(
+        clip_titles(&isle).await,
+        [
+            ("Recent".to_owned(), "second copy".to_owned()),
+            ("Recent".to_owned(), "first copy".to_owned())
+        ]
+    );
+    // Pin the older one; it leads under Pinned.
+    press(&isle, 108).await;
+    isle.chord(&[SUPER, P]).await;
+    wait_until(|| async {
+        clip_titles(&isle).await.first() == Some(&("Pinned".to_owned(), "first copy".to_owned()))
+    })
+    .await;
+    // Cmd+Y shows it whole; Escape puts the list back.
+    isle.chord(&[SUPER, Y]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    press(&isle, ESCAPE).await;
+    assert_eq!(
+        status(&isle).await["scope"],
+        "Clipboard",
+        "Escape closed the preview, not the scope"
+    );
+
+    // Return pastes the pinned one into the window that had focus.
+    a.clear();
+    press(&isle, RETURN).await;
+    a.wait_for("pasted first copy").await;
+
+    open_and_type(&isle, &[]).await;
+    isle.chord(&[SUPER, FOUR]).await;
+    wait_until(|| async { clip_titles(&isle).await.len() == 2 }).await;
+    press(&isle, 108).await;
+    isle.chord(&[SUPER, DELETE]).await;
+    wait_until(|| async { clip_titles(&isle).await.len() == 1 }).await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

@@ -89,7 +89,12 @@ impl SelectionHandler for State {
         let types = source.map(|s| s.mime_types());
         self.tell_xwayland(ty, types.clone());
         if ty == smithay::wayland::selection::SelectionTarget::Clipboard {
+            let copied = types.is_some();
             self.clipboard_offered(types.unwrap_or_default());
+            // Smithay makes the source current after this returns, so it is read after.
+            if copied {
+                self.isle.loop_handle.insert_idle(|state| state.record_copy());
+            }
         }
     }
 

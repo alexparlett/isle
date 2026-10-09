@@ -2,6 +2,20 @@
 
 ## 2026-10-09
 
+- P10 10.10: clipboard history. Every clipboard copy, from a Wayland app or
+  through Xwayland from an X11 one, is read off the loop (its text, an
+  image, a file list) once Smithay has made it current, and kept under
+  `~/.local/state/isle/clipboard/` (folder 0700, files 0600): 200 unpinned
+  items or 30 days, 8 MB an item at most, pins never evicted, the same text
+  again moving up rather than adding. Not kept: an offer carrying
+  `x-kde-passwordManagerHint`, a copy while an app on
+  `spotlight.clipboard-exclude` is in front. Isle's own copies (an answer, a
+  path) are kept too. The Clipboard scope lists Pinned then Recent; Return
+  pastes into the window that had focus, Shift+Return copies, Cmd+P pins,
+  Cmd+Delete deletes, Cmd+Y shows the whole text or image over the list,
+  and the row's menu has Paste, Copy, Pin, Delete and Clear clipboard
+  history… with its confirmation.
+
 - P10 10.9: emoji. `data/emoji/generate.py` writes `emoji.tsv` from
   `emoji-test.txt` (Emoji 17: 1,920 emoji with skin tones as variants) and
   UnicodeData (1,295 symbols in v1's blocks), with CLDR's keywords when an

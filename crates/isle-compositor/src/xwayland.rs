@@ -532,12 +532,16 @@ impl XwmHandler for State {
     fn new_selection(&mut self, _xwm: XwmId, selection: SelectionTarget, mime_types: Vec<String>) {
         let dh = self.isle.display_handle.clone();
         match selection {
-            SelectionTarget::Clipboard => set_data_device_selection(
-                &dh,
-                &self.isle.seat,
-                mime_types,
-                crate::clipboard::Owner::Xwayland,
-            ),
+            SelectionTarget::Clipboard => {
+                set_data_device_selection(
+                    &dh,
+                    &self.isle.seat,
+                    mime_types.clone(),
+                    crate::clipboard::Owner::Xwayland,
+                );
+                self.clipboard_offered(mime_types);
+                self.record_copy();
+            }
             SelectionTarget::Primary => set_primary_selection(
                 &dh,
                 &self.isle.seat,

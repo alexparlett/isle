@@ -134,7 +134,9 @@ impl State {
 
     /// Copies `text` and says so in the island.
     pub fn copy_text(&mut self, text: String) {
-        self.set_clipboard(Pick::text(text));
+        let pick = Pick::text(text);
+        self.keep_copy(&pick, String::new());
+        self.set_clipboard(pick);
         self.island_copied();
     }
 
@@ -302,9 +304,10 @@ impl State {
     /// when a client offers them; `None` when nothing is copied.
     pub fn read_selection(&mut self, then: impl FnOnce(&mut State, Option<Pick>) + Send + 'static) {
         let owner = current_data_device_selection_userdata(&self.isle.seat).map(|o| o.clone());
-        if let Some(Owner::Isle(pick)) = owner {
-            return then(self, Some((*pick).clone()));
+        if let Some(Owner::Isle(pick)) = &owner {
+            return then(self, Some((**pick).clone()));
         }
+        let from_x11 = matches!(owner, Some(Owner::Xwayland));
         let wanted = kept_types(&self.isle.clipboard.offered);
         let (Some(worker), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone())
         else {
@@ -318,7 +321,15 @@ impl State {
             let Ok((read, write)) = rustix_pipe() else {
                 continue;
             };
-            if request_data_device_client_selection(&self.isle.seat, mime.clone(), write).is_ok() {
+            let asked = if from_x11 {
+                self.isle.xwm.as_mut().is_some_and(|xwm| {
+                    xwm.send_selection(SelectionTarget::Clipboard, mime.clone(), write)
+                        .is_ok()
+                })
+            } else {
+                request_data_device_client_selection(&self.isle.seat, mime.clone(), write).is_ok()
+            };
+            if asked {
                 reads.push((mime, read));
             }
         }
@@ -355,6 +366,12 @@ impl State {
     /// A clipboard item picked from history.
     pub fn insert_clip(&mut self, target: Option<u64>, id: u64, copy_only: bool) {
         if let Some(pick) = self.isle.clipboard.pick(id) {
+            if let Some(at) = self.isle.clipboard.items.iter().position(|i| i.id == id) {
+                let mut item = self.isle.clipboard.items.remove(at);
+                item.at = unix_now();
+                self.isle.clipboard.items.insert(0, item);
+                self.save_clipboard(Vec::new(), Vec::new());
+            }
             self.insert_pick(target, pick, copy_only, false);
         }
     }
@@ -404,21 +421,394 @@ pub fn rustix_pipe() -> std::io::Result<(OwnedFd, OwnedFd)> {
     Ok(unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) })
 }
 
-/// Clipboard history; filled in by the selection hook.
+/// How many unpinned copies history keeps, and for how long.
+const KEEP_ITEMS: usize = 200;
+const KEEP_FOR: u64 = 30 * 86_400;
+/// The most of an item's text kept beside it for searching.
+const SEARCH_TEXT: usize = 64 * 1024;
+
+/// One kept copy: its types' bytes are files in history's folder, named by id and place.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Item {
+    pub id: u64,
+    /// Unix seconds.
+    pub at: u64,
+    pub app: String,
+    pub pinned: bool,
+    pub types: Vec<String>,
+    /// The text, cut for searching; empty for an image or files.
+    pub text: String,
+    pub size: Option<(u32, u32)>,
+}
+
+impl Item {
+    fn file(&self, dir: &std::path::Path, n: usize) -> std::path::PathBuf {
+        dir.join(format!("{}-{n}", self.id))
+    }
+
+    /// The image's file, for thumbnails.
+    pub fn image(&self, dir: &std::path::Path) -> Option<std::path::PathBuf> {
+        let n = self.types.iter().position(|t| t.starts_with("image/"))?;
+        Some(self.file(dir, n))
+    }
+}
+
+/// Clipboard history in `~/.local/state/isle/clipboard/`, newest first, read at start and
+/// written from the worker.
 #[derive(Default)]
 pub struct ClipboardState {
-    items: Vec<(u64, Pick)>,
+    dir: std::path::PathBuf,
+    pub items: Vec<Item>,
+    next: u64,
     /// The types the client that set the clipboard offers.
     offered: Vec<String>,
     /// A pick pasted for the user, with the clipboard to put back after.
     restore: Option<Restore>,
 }
 
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
 impl ClipboardState {
+    pub fn load(dir: std::path::PathBuf) -> Self {
+        let items: Vec<Item> = std::fs::read(dir.join("index.json"))
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .unwrap_or_default();
+        let next = items.iter().map(|i| i.id).max().unwrap_or(0) + 1;
+        Self {
+            dir,
+            items,
+            next,
+            ..Default::default()
+        }
+    }
+
+    pub fn dir(&self) -> &std::path::Path {
+        &self.dir
+    }
+
+    /// The kept copy `id` as a pick, read from its files.
     pub fn pick(&self, id: u64) -> Option<Pick> {
+        let item = self.items.iter().find(|i| i.id == id)?;
+        let types: Vec<(String, Arc<Vec<u8>>)> = item
+            .types
+            .iter()
+            .enumerate()
+            .filter_map(|(n, t)| {
+                std::fs::read(item.file(&self.dir, n))
+                    .ok()
+                    .map(|b| (t.clone(), Arc::new(b)))
+            })
+            .collect();
+        let mut pick = Pick { types };
+        // Text goes out under every name clients ask for it by.
+        if let Some(text) = pick
+            .types
+            .iter()
+            .find(|(t, _)| t.starts_with("text/plain"))
+            .map(|(_, b)| b.clone())
+        {
+            for name in TEXT_TYPES {
+                if !pick.types.iter().any(|(t, _)| t == name) {
+                    pick.types.push((name.to_owned(), text.clone()));
+                }
+            }
+        }
+        (!pick.types.is_empty()).then_some(pick)
+    }
+
+    /// Keeps `pick`, copied in `app`: a copy of the newest text moves it up instead; the
+    /// oldest unpinned past the caps go. The files to write and to remove, for the worker.
+    fn keep(
+        &mut self,
+        pick: &Pick,
+        app: String,
+    ) -> (
+        Vec<(std::path::PathBuf, Arc<Vec<u8>>)>,
+        Vec<std::path::PathBuf>,
+    ) {
+        let now = unix_now();
+        let text = pick
+            .types
+            .iter()
+            .find(|(t, _)| t.starts_with("text/plain") || *t == "UTF8_STRING")
+            .map(|(_, b)| String::from_utf8_lossy(b).into_owned())
+            .unwrap_or_default();
+        let image = pick.types.iter().find(|(t, _)| t.starts_with("image/"));
+        if image.is_none()
+            && !text.is_empty()
+            && let Some(at) = self.items.iter().position(|i| {
+                !i.pinned && i.text == text.chars().take(SEARCH_TEXT).collect::<String>()
+            })
+        {
+            let mut item = self.items.remove(at);
+            item.at = now;
+            self.items.insert(0, item);
+            return (Vec::new(), Vec::new());
+        }
+        let size = image.and_then(|(_, b)| png_size(b));
+        let kept: Vec<(String, Arc<Vec<u8>>)> = kept_types(
+            &pick
+                .types
+                .iter()
+                .map(|(t, _)| t.clone())
+                .collect::<Vec<_>>(),
+        )
+        .into_iter()
+        .filter_map(|t| pick.types.iter().find(|(n, _)| *n == t).cloned())
+        .collect();
+        let item = Item {
+            id: self.next,
+            at: now,
+            app,
+            pinned: false,
+            types: kept.iter().map(|(t, _)| t.clone()).collect(),
+            text: if image.is_some() {
+                String::new()
+            } else {
+                text.chars().take(SEARCH_TEXT).collect()
+            },
+            size,
+        };
+        self.next += 1;
+        let writes = kept
+            .iter()
+            .enumerate()
+            .map(|(n, (_, b))| (item.file(&self.dir, n), b.clone()))
+            .collect();
+        self.items.insert(0, item);
+        (writes, self.trim(now))
+    }
+
+    /// Drops unpinned copies past the caps; their files.
+    fn trim(&mut self, now: u64) -> Vec<std::path::PathBuf> {
+        let mut unpinned = 0;
+        let mut gone = Vec::new();
+        let dir = self.dir.clone();
+        self.items.retain(|i| {
+            if i.pinned {
+                return true;
+            }
+            unpinned += 1;
+            let keep = unpinned <= KEEP_ITEMS && now.saturating_sub(i.at) <= KEEP_FOR;
+            if !keep {
+                gone.extend((0..i.types.len()).map(|n| i.file(&dir, n)));
+            }
+            keep
+        });
+        gone
+    }
+
+    fn remove(&mut self, id: u64) -> Vec<std::path::PathBuf> {
+        let Some(at) = self.items.iter().position(|i| i.id == id) else {
+            return Vec::new();
+        };
+        let item = self.items.remove(at);
+        (0..item.types.len())
+            .map(|n| item.file(&self.dir, n))
+            .collect()
+    }
+
+    /// The copies as Spotlight's clipboard source lists them.
+    pub fn clips(
+        &self,
+        name: impl Fn(&str) -> String,
+    ) -> Vec<isle_search::sources::clipboard::Clip> {
+        use isle_search::sources::clipboard::{Clip, Kind};
         self.items
             .iter()
-            .find(|(i, _)| *i == id)
-            .map(|(_, p)| p.clone())
+            .map(|i| {
+                let kind = if let Some(path) = i.image(&self.dir) {
+                    Kind::Image { path, size: i.size }
+                } else if i.text.is_empty() && i.types.iter().any(|t| t == "text/uri-list") {
+                    Kind::Files {
+                        first: "Files".into(),
+                        count: 1,
+                    }
+                } else {
+                    let mut lines = i.text.lines();
+                    Kind::Text {
+                        first: lines.next().unwrap_or("").trim().to_owned(),
+                        more: lines.count(),
+                    }
+                };
+                Clip {
+                    id: i.id,
+                    kind,
+                    text: i.text.clone(),
+                    app: name(&i.app),
+                    pinned: i.pinned,
+                }
+            })
+            .collect()
+    }
+}
+
+/// A PNG's width and height from its header.
+fn png_size(bytes: &[u8]) -> Option<(u32, u32)> {
+    (bytes.len() > 24 && bytes[..8] == *b"\x89PNG\r\n\x1a\n").then(|| {
+        (
+            u32::from_be_bytes(bytes[16..20].try_into().unwrap()),
+            u32::from_be_bytes(bytes[20..24].try_into().unwrap()),
+        )
+    })
+}
+
+impl State {
+    /// A copy was made: it is read off the loop and kept, unless it is marked a secret or
+    /// comes from an excluded app (`platform.md` Clipboard 2).
+    pub fn record_copy(&mut self) {
+        let offered = self.isle.clipboard.offered.clone();
+        if offered.iter().any(|t| t == "x-kde-passwordManagerHint") {
+            return;
+        }
+        let app = self.isle.front_app().unwrap_or_default();
+        let excluded = &self.isle.settings.spotlight.clipboard_exclude;
+        if excluded.iter().any(|x| x == &app) {
+            return;
+        }
+        self.read_selection(move |state, pick| {
+            if let Some(pick) = pick {
+                state.keep_copy(&pick, app);
+            }
+        });
+    }
+
+    /// Keeps `pick` in history and writes it out.
+    pub fn keep_copy(&mut self, pick: &Pick, app: String) {
+        let (writes, gone) = self.isle.clipboard.keep(pick, app);
+        self.save_clipboard(writes, gone);
+    }
+
+    /// Writes history's index, the new files and removes the old, on the worker.
+    fn save_clipboard(
+        &mut self,
+        writes: Vec<(std::path::PathBuf, Arc<Vec<u8>>)>,
+        gone: Vec<std::path::PathBuf>,
+    ) {
+        let Some(worker) = self.isle.worker.clone() else {
+            return;
+        };
+        let dir = self.isle.clipboard.dir.clone();
+        let index = serde_json::to_vec(&self.isle.clipboard.items).unwrap_or_default();
+        worker.spawn_blocking(move || {
+            use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+            let _ = std::fs::DirBuilder::new()
+                .recursive(true)
+                .mode(0o700)
+                .create(&dir);
+            let write = |path: &std::path::Path, bytes: &[u8]| {
+                let tmp = path.with_extension("tmp");
+                let done = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .mode(0o600)
+                    .open(&tmp)
+                    .and_then(|mut f| f.write_all(bytes))
+                    .and_then(|_| std::fs::rename(&tmp, path));
+                if let Err(err) = done {
+                    warn!(path = %path.display(), "could not keep a copy: {err}");
+                }
+            };
+            for (path, bytes) in writes {
+                write(&path, &bytes);
+            }
+            for path in gone {
+                let _ = std::fs::remove_file(path);
+            }
+            write(&dir.join("index.json"), &index);
+        });
+    }
+
+    pub fn clipboard_pin(&mut self, id: u64) {
+        if let Some(item) = self.isle.clipboard.items.iter_mut().find(|i| i.id == id) {
+            item.pinned = !item.pinned;
+        }
+        self.save_clipboard(Vec::new(), Vec::new());
+    }
+
+    pub fn clipboard_delete(&mut self, id: u64) {
+        let gone = self.isle.clipboard.remove(id);
+        self.save_clipboard(Vec::new(), gone);
+    }
+
+    /// Forgets every copy but the pinned.
+    pub fn clipboard_clear(&mut self) {
+        let dir = self.isle.clipboard.dir.clone();
+        let mut gone = Vec::new();
+        self.isle.clipboard.items.retain(|i| {
+            if !i.pinned {
+                gone.extend((0..i.types.len()).map(|n| i.file(&dir, n)));
+            }
+            i.pinned
+        });
+        self.save_clipboard(Vec::new(), gone);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("isle-clip-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn copies_are_kept_newest_first_and_capped() {
+        let mut history = ClipboardState::load(temp("keep"));
+        for n in 0..(KEEP_ITEMS + 5) {
+            history.keep(&Pick::text(format!("copy {n}")), "kitty".into());
+        }
+        assert_eq!(history.items.len(), KEEP_ITEMS);
+        assert_eq!(history.items[0].text, format!("copy {}", KEEP_ITEMS + 4));
+        let id = history.items[KEEP_ITEMS - 1].id;
+        history
+            .items
+            .iter_mut()
+            .find(|i| i.id == id)
+            .unwrap()
+            .pinned = true;
+        history.keep(&Pick::text("one more"), "kitty".into());
+        assert!(
+            history.items.iter().any(|i| i.id == id),
+            "a pin is never evicted"
+        );
+        assert_eq!(
+            history.items.iter().filter(|i| !i.pinned).count(),
+            KEEP_ITEMS
+        );
+    }
+
+    #[test]
+    fn copying_the_same_text_again_moves_it_up() {
+        let mut history = ClipboardState::load(temp("dup"));
+        history.keep(&Pick::text("a"), "kitty".into());
+        history.keep(&Pick::text("b"), "kitty".into());
+        let (writes, _) = history.keep(&Pick::text("a"), "kitty".into());
+        assert!(writes.is_empty());
+        let texts: Vec<&str> = history.items.iter().map(|i| i.text.as_str()).collect();
+        assert_eq!(texts, ["a", "b"]);
+    }
+
+    #[test]
+    fn only_text_images_and_files_are_kept() {
+        let mut history = ClipboardState::load(temp("types"));
+        let pick = Pick {
+            types: vec![
+                ("text/html".into(), Arc::new(b"<b>x</b>".to_vec())),
+                ("text/plain;charset=utf-8".into(), Arc::new(b"x".to_vec())),
+                ("application/x-secret".into(), Arc::new(b"no".to_vec())),
+            ],
+        };
+        history.keep(&pick, "firefox".into());
+        assert_eq!(history.items[0].types, ["text/plain;charset=utf-8"]);
     }
 }

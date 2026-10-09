@@ -37,6 +37,8 @@ use crate::{
 pub struct Sources {
     /// Apps apart, as favourites and the category filter change while Spotlight is open.
     pub apps: isle_search::sources::apps::AppsSource,
+    /// Clipboard history apart, as pins and deletions change it while open.
+    pub clipboard: isle_search::sources::clipboard::ClipboardSource,
     pub fast: Vec<Box<dyn Source>>,
     pub slow: Vec<Arc<dyn Source>>,
 }
@@ -58,6 +60,11 @@ enum MenuCommand {
     Quit(String),
     Copy(Row),
     Category(Option<String>),
+    Pin(u64),
+    Delete(u64),
+    /// Asks before clearing history.
+    ClearAsk,
+    Clear,
 }
 
 struct OpenMenu {
@@ -86,6 +93,8 @@ pub struct SpotlightState {
     /// The Apps view's panel on the screen Spotlight opened on.
     apps_panel: (f32, f32),
     menu: Option<OpenMenu>,
+    /// A clipboard item shown whole over the list.
+    preview: Option<isle_shell::spotlight::surface::Preview>,
     /// The tile a press went down on, which a release elsewhere drops.
     drag_from: Option<String>,
 }
@@ -107,6 +116,7 @@ impl SpotlightState {
             commands_saver: None,
             apps_panel: (0., 0.),
             menu: None,
+            preview: None,
             drag_from: None,
         }
     }
@@ -357,6 +367,7 @@ impl Isle {
                 .clone()
                 .unwrap_or_else(|| "All apps".into()),
             menu: self.spotlight.menu.as_ref().map(|m| m.view.clone()),
+            preview: self.spotlight.preview.clone(),
             dragging: self.spotlight.drag_from.clone(),
             lines,
             selected: model.selected().map(str::to_owned),
@@ -439,6 +450,7 @@ impl State {
         self.isle.spotlight.kept = model.keep();
         self.isle.spotlight.sources = Sources::default();
         self.isle.spotlight.menu = None;
+        self.isle.spotlight.preview = None;
         self.isle.spotlight.drag_from = None;
         self.isle.spotlight.latest.fetch_add(1, Ordering::Relaxed);
         self.stop_spotlight_repeat();
@@ -536,6 +548,13 @@ impl State {
         };
         if self.isle.spotlight.menu.is_some() {
             return false;
+        }
+        if self.isle.spotlight.preview.is_some() {
+            if matches!(key, Key::Escape | Key::Preview) {
+                self.isle.spotlight.preview = None;
+                self.put_spotlight_frame();
+            }
+            return true;
         }
         let repeats = matches!(
             key,
@@ -703,6 +722,10 @@ impl State {
             if spotlight.sources.apps.answers(&query.scope) {
                 let rows = spotlight.sources.apps.search(&query, &mut cx);
                 fast.entry(Group::Apps).or_default().extend(rows);
+            }
+            if spotlight.sources.clipboard.answers(&query.scope) {
+                let rows = spotlight.sources.clipboard.search(&query, &mut cx);
+                fast.entry(Group::Clipboard).or_default().extend(rows);
             }
             for source in spotlight
                 .sources
@@ -968,8 +991,12 @@ impl State {
         let settings_rows = std::fs::read_to_string(settings_index())
             .map(|t| settings::parse(&t))
             .unwrap_or_default();
+        let clipboard = isle_search::sources::clipboard::ClipboardSource {
+            clips: self.isle.clipboard.clips(|app| self.isle.app_name(app)),
+        };
         Sources {
             apps: apps_source,
+            clipboard,
             fast: vec![
                 Box::new(actions::ActionsSource {
                     actions: action_list,
@@ -1132,12 +1159,53 @@ impl State {
         self.launch(crate::launch::Launch::Command(line));
     }
 
+    /// Cmd+Y on a clipboard item: the whole text or the image over the list.
     fn spotlight_preview(&mut self, row: Row) {
-        debug!(key = row.key, "spotlight preview");
+        use isle_shell::spotlight::surface::Preview;
+        let Item::Clip(id) = row.item else {
+            return;
+        };
+        let Some(item) = self.isle.clipboard.items.iter().find(|i| i.id == id) else {
+            return;
+        };
+        self.isle.spotlight.preview = Some(match item.image(self.isle.clipboard.dir()) {
+            Some(path) => Preview::Image(path),
+            None => Preview::Text(
+                self.isle
+                    .clipboard
+                    .pick(id)
+                    .and_then(|p| {
+                        p.types
+                            .iter()
+                            .find(|(t, _)| t.starts_with("text/"))
+                            .map(|(_, b)| String::from_utf8_lossy(b).into_owned())
+                    })
+                    .unwrap_or_default(),
+            ),
+        });
+    }
+
+    /// History changed while open: the clipboard scope lists it again.
+    fn refresh_clipboard_scope(&mut self) {
+        let clips = self.isle.clipboard.clips(|app| self.isle.app_name(app));
+        self.isle.spotlight.sources.clipboard.clips = clips;
+        let effects = self
+            .isle
+            .spotlight
+            .model
+            .as_mut()
+            .map(Spotlight::refresh)
+            .unwrap_or_default();
+        self.spotlight_effects(effects);
     }
 
     /// Cmd+C on a row: its answer, path or text.
     fn spotlight_copy(&mut self, row: Row) {
+        if let Item::Clip(id) = row.item {
+            self.close_spotlight();
+            self.insert_clip(None, id, true);
+            return;
+        }
         let text = match row.item {
             Item::Answer(a) => a,
             Item::File(p) => p.to_string_lossy().into_owned(),
@@ -1150,11 +1218,17 @@ impl State {
     }
 
     fn spotlight_pin(&mut self, row: Row) {
-        debug!(key = row.key, "spotlight pin");
+        if let Item::Clip(id) = row.item {
+            self.clipboard_pin(id);
+            self.refresh_clipboard_scope();
+        }
     }
 
     fn spotlight_delete(&mut self, row: Row) {
-        debug!(key = row.key, "spotlight delete");
+        if let Item::Clip(id) = row.item {
+            self.clipboard_delete(id);
+            self.refresh_clipboard_scope();
+        }
     }
 }
 
@@ -1190,10 +1264,34 @@ impl State {
             Item::Game(key) => Some(key.clone()),
             _ => None,
         };
-        groups.push(vec![MenuEntry::Item(item(
-            "Open",
-            MenuCommand::Choose(row.clone()),
-        ))]);
+        if let Item::Clip(id) = row.item {
+            let pinned = self
+                .isle
+                .clipboard
+                .items
+                .iter()
+                .any(|i| i.id == id && i.pinned);
+            groups.push(vec![
+                MenuEntry::Item(item("Paste", MenuCommand::Choose(row.clone()))),
+                MenuEntry::Item(item("Copy", MenuCommand::Copy(row.clone()))),
+            ]);
+            groups.push(vec![
+                MenuEntry::Item(item(
+                    if pinned { "Unpin" } else { "Pin" },
+                    MenuCommand::Pin(id),
+                )),
+                MenuEntry::Item(item("Delete", MenuCommand::Delete(id))),
+            ]);
+            groups.push(vec![MenuEntry::Item(item(
+                "Clear clipboard history…",
+                MenuCommand::ClearAsk,
+            ))]);
+        } else {
+            groups.push(vec![MenuEntry::Item(item(
+                "Open",
+                MenuCommand::Choose(row.clone()),
+            ))]);
+        }
         if let Item::App(app) = &row.item
             && let Some(entry) = self.isle.apps.get(app).cloned()
             && !entry.actions.is_empty()
@@ -1441,6 +1539,52 @@ impl State {
             }
             MenuCommand::Copy(row) => {
                 self.spotlight_copy(row);
+                Vec::new()
+            }
+            MenuCommand::Pin(id) => {
+                self.clipboard_pin(id);
+                self.refresh_clipboard_scope();
+                Vec::new()
+            }
+            MenuCommand::Delete(id) => {
+                self.clipboard_delete(id);
+                self.refresh_clipboard_scope();
+                Vec::new()
+            }
+            MenuCommand::ClearAsk => {
+                use isle_ui::{MenuEntry, MenuItem};
+                let n = self
+                    .isle
+                    .clipboard
+                    .items
+                    .iter()
+                    .filter(|i| !i.pinned)
+                    .count();
+                let mut commands = std::collections::HashMap::new();
+                commands.insert(1, MenuCommand::Clear);
+                commands.insert(
+                    2,
+                    MenuCommand::Category(self.isle.spotlight.sources.apps.category.clone()),
+                );
+                self.isle.spotlight.menu = Some(OpenMenu {
+                    view: isle_shell::spotlight::surface::MenuView {
+                        entries: Rc::new(vec![
+                            MenuEntry::Section(
+                                "Clear clipboard history? Pinned items are kept.".into(),
+                            ),
+                            MenuEntry::Item(MenuItem::new(1, format!("Clear {n} items"))),
+                            MenuEntry::Item(MenuItem::new(2, "Cancel")),
+                        ]),
+                        anchor: isle_shell::spotlight::surface::MenuAnchor::Selected,
+                        by_key: true,
+                    },
+                    commands,
+                });
+                Vec::new()
+            }
+            MenuCommand::Clear => {
+                self.clipboard_clear();
+                self.refresh_clipboard_scope();
                 Vec::new()
             }
             MenuCommand::Category(category) => {

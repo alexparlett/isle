@@ -374,14 +374,17 @@ impl Client {
         });
     }
 
-    /// Offers `text` as the clipboard.
-    fn copy(&mut self, text: String, qh: &QueueHandle<Self>) {
+    /// Offers `text` as the clipboard, marked a secret as password managers mark theirs.
+    fn copy(&mut self, text: String, secret: bool, qh: &QueueHandle<Self>) {
         let (Some(manager), Some(device)) = (&self.data_manager, &self.data_device) else {
             return;
         };
         let source = manager.create_data_source(qh, ());
         source.offer("text/plain;charset=utf-8".into());
         source.offer("text/plain".into());
+        if secret {
+            source.offer("x-kde-passwordManagerHint".into());
+        }
         device.set_selection(Some(&source), self.key_serial);
         self.copied = Some(text);
         say(0, "copied".into());
@@ -700,7 +703,8 @@ impl Client {
                 }
             }
             ("linger", _) => self.linger = true,
-            ("copy", _) => self.copy(rest.join(" "), qh),
+            ("copy", _) => self.copy(rest.join(" "), false, qh),
+            ("copy-secret", _) => self.copy(rest.join(" "), true, qh),
             ("badge", _) => self.badge(&rest),
             ("notify", _) => self.notify(&rest),
             ("tray", _) => self.tray = Some(tray(&rest)),

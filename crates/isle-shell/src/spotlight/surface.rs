@@ -78,6 +78,13 @@ pub struct MenuView {
     pub by_key: bool,
 }
 
+/// A clipboard item shown whole over the list.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Preview {
+    Text(String),
+    Image(PathBuf),
+}
+
 /// What Spotlight shows now.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
@@ -113,6 +120,7 @@ pub struct Frame {
     pub apps_title: String,
     pub filter: String,
     pub menu: Option<MenuView>,
+    pub preview: Option<Preview>,
     /// The tile being dragged.
     pub dragging: Option<String>,
 }
@@ -562,33 +570,57 @@ impl Component for ListPanel {
             anchors: self.anchors,
         };
         let length = frame.lines.len();
-        let body: Element = match &frame.empty {
-            Some(empty) if frame.lines.is_empty() => rect()
-                .padding((t.space_s, t.space_m))
-                .child(text::line(
-                    &theme,
-                    text::Style::Body,
-                    colour(t.colour_text_2),
-                    empty.clone(),
-                ))
+        let body: Element = match (&frame.preview, &frame.empty) {
+            (Some(Preview::Text(text)), _) => isle_ui::scroll_area(&theme)
+                .child(
+                    label()
+                        .width(Size::fill())
+                        .font_size(t.type_style_body_size)
+                        .color(colour(t.colour_text))
+                        .text(text.clone()),
+                )
                 .into_element(),
-            _ => VirtualScrollView::new_with_data_controlled(
-                data,
-                |item: VirtualItem, data: &ListData| match &data.lines[item.index] {
-                    LineView::Header(h) => Header { text: h.clone() }.into_element(),
-                    LineView::Row(row) => ResultRow {
-                        row: row.clone(),
-                        selected: data.selected.as_ref() == Some(&row.key),
-                        unfocused: data.unfocused,
-                        anchors: data.anchors,
-                    }
+            (Some(Preview::Image(path)), _) => rect()
+                .expanded()
+                .padding(t.space_s)
+                .corner_radius(t.radius_card)
+                .background(colour(t.colour_fill))
+                .center()
+                .child(
+                    ImageViewer::new(path.clone())
+                        .width(Size::fill())
+                        .height(Size::fill())
+                        .aspect_ratio(AspectRatio::Min),
+                )
+                .into_element(),
+            (None, empty) => match empty {
+                Some(empty) if frame.lines.is_empty() => rect()
+                    .padding((t.space_s, t.space_m))
+                    .child(text::line(
+                        &theme,
+                        text::Style::Body,
+                        colour(t.colour_text_2),
+                        empty.clone(),
+                    ))
                     .into_element(),
-                },
-                controller,
-            )
-            .length(length)
-            .item_size(item_size)
-            .into_element(),
+                _ => VirtualScrollView::new_with_data_controlled(
+                    data,
+                    |item: VirtualItem, data: &ListData| match &data.lines[item.index] {
+                        LineView::Header(h) => Header { text: h.clone() }.into_element(),
+                        LineView::Row(row) => ResultRow {
+                            row: row.clone(),
+                            selected: data.selected.as_ref() == Some(&row.key),
+                            unfocused: data.unfocused,
+                            anchors: data.anchors,
+                        }
+                        .into_element(),
+                    },
+                    controller,
+                )
+                .length(length)
+                .item_size(item_size)
+                .into_element(),
+            },
         };
         shape(&theme, self.solid, t.size_spotlight_width, height).child(
             rect()

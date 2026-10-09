@@ -1,5 +1,6 @@
 //! A PipeWire video consumer for the stream tests: links itself to `--node`, takes shared
-//! memory, and prints each format and frame.
+//! memory, and prints each format and frame, and the cursor metadata when it moves:
+//! `cursor X Y`, `cursor gone`, and `bitmap WxH` with a new image.
 
 use std::{cell::Cell, io::Cursor, rc::Rc};
 
@@ -19,6 +20,79 @@ use pipewire::{
     },
     stream::{StreamFlags, StreamRc, StreamState},
 };
+
+fn cursor_meta_size(side: i32) -> i32 {
+    use pw::spa::sys::{spa_meta_bitmap, spa_meta_cursor};
+    (size_of::<spa_meta_cursor>() + size_of::<spa_meta_bitmap>()) as i32 + side * side * 4
+}
+
+/// Prints the buffer's cursor metadata where it differs from the last.
+///
+/// # Safety
+/// `spa` is a dequeued buffer's.
+unsafe fn read_cursor(spa: *mut pw::spa::sys::spa_buffer, last: &Cell<Option<(i32, i32)>>) {
+    use pw::spa::sys::{SPA_META_Cursor, spa_buffer_find_meta_data, spa_meta_bitmap, spa_meta_cursor};
+    // SAFETY: as the caller says.
+    unsafe {
+        let meta: *const spa_meta_cursor =
+            spa_buffer_find_meta_data(spa, SPA_META_Cursor, size_of::<spa_meta_cursor>()).cast();
+        let Some(meta) = meta.as_ref() else {
+            return;
+        };
+        if meta.id == 0 {
+            if last.take().is_some() {
+                println!("cursor gone");
+            }
+            return;
+        }
+        let at = (meta.position.x, meta.position.y);
+        if last.replace(Some(at)) != Some(at) {
+            println!("cursor {} {}", at.0, at.1);
+        }
+        if meta.bitmap_offset > 0 {
+            let bitmap: *const spa_meta_bitmap = (meta as *const spa_meta_cursor)
+                .cast::<u8>()
+                .add(meta.bitmap_offset as usize)
+                .cast();
+            println!("bitmap {}x{}", (*bitmap).size.width, (*bitmap).size.height);
+        }
+    }
+}
+
+/// The frame's line, its centre pixel in BGRx, or `None` for a buffer with no picture.
+///
+/// # Safety
+/// `spa` is a dequeued, mapped buffer's.
+unsafe fn frame_line(
+    spa: *mut pw::spa::sys::spa_buffer,
+    (w, h): (u32, u32),
+    frames: &Cell<u64>,
+) -> Option<String> {
+    // SAFETY: as the caller says.
+    unsafe {
+        let data = (*spa).datas.as_ref()?;
+        let chunk = data.chunk.as_ref()?;
+        let (offset, stride, len) = (chunk.offset as usize, chunk.stride as usize, chunk.size as usize);
+        if len == 0 || data.data.is_null() {
+            return None;
+        }
+        let bytes = std::slice::from_raw_parts(data.data.cast::<u8>(), data.maxsize as usize);
+        let i = offset + (h as usize / 2) * stride + (w as usize / 2) * 4;
+        if i + 3 > bytes.len() {
+            return None;
+        }
+        frames.set(frames.get() + 1);
+        Some(format!(
+            "frame {} {}x{} {:02x}{:02x}{:02x}",
+            frames.get(),
+            w,
+            h,
+            bytes[i + 2],
+            bytes[i + 1],
+            bytes[i]
+        ))
+    }
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -48,6 +122,7 @@ fn main() {
     .unwrap();
     let size = Rc::new(Cell::new((0u32, 0u32)));
     let frames = Rc::new(Cell::new(0u64));
+    let cursor_at = Rc::new(Cell::new(None::<(i32, i32)>));
     let link: Rc<std::cell::RefCell<Option<pw::link::Link>>> = Rc::default();
 
     // With no session manager, the consumer links itself port to port once both show.
@@ -110,7 +185,7 @@ fn main() {
         })
         .param_changed({
             let size = size.clone();
-            move |_, (), id, pod| {
+            move |stream, (), id, pod| {
                 if ParamType::from_raw(id) != ParamType::Format {
                     return;
                 }
@@ -119,48 +194,53 @@ fn main() {
                 if info.parse(pod).is_ok() {
                     size.set((info.size().width, info.size().height));
                     println!("format {}x{}", info.size().width, info.size().height);
+                    // The cursor's metadata, up to a 256-pixel bitmap, as OBS asks.
+                    let cursor = pod::Value::Object(pod::Object {
+                        type_: SpaTypes::ObjectParamMeta.as_raw(),
+                        id: ParamType::Meta.as_raw(),
+                        properties: vec![
+                            pod::Property::new(
+                                pw::spa::sys::SPA_PARAM_META_type,
+                                pod::Value::Id(pw::spa::utils::Id(pw::spa::sys::SPA_META_Cursor)),
+                            ),
+                            pod::Property::new(
+                                pw::spa::sys::SPA_PARAM_META_size,
+                                pod::Value::Choice(pod::ChoiceValue::Int(pw::spa::utils::Choice(
+                                    pw::spa::utils::ChoiceFlags::empty(),
+                                    pw::spa::utils::ChoiceEnum::Range {
+                                        default: cursor_meta_size(64),
+                                        min: cursor_meta_size(1),
+                                        max: cursor_meta_size(256),
+                                    },
+                                ))),
+                            ),
+                        ],
+                    });
+                    let mut bytes = Vec::new();
+                    PodSerializer::serialize(Cursor::new(&mut bytes), &cursor).unwrap();
+                    let mut params = [Pod::from_bytes(&bytes).unwrap()];
+                    let _ = stream.update_params(&mut params);
                 }
             }
         })
         .process({
             let size = size.clone();
             let frames = frames.clone();
+            let cursor_at = cursor_at.clone();
             move |stream, ()| {
-                let Some(mut buffer) = stream.dequeue_buffer() else {
-                    return;
-                };
-                let datas = buffer.datas_mut();
-                let Some(data) = datas.first_mut() else {
-                    return;
-                };
-                let chunk = data.chunk();
-                let (offset, stride, len) = (
-                    chunk.offset() as usize,
-                    chunk.stride() as usize,
-                    chunk.size() as usize,
-                );
-                if len == 0 {
-                    return;
+                // SAFETY: a dequeued buffer is ours until it is queued back, below.
+                unsafe {
+                    let raw = stream.dequeue_raw_buffer();
+                    if raw.is_null() {
+                        return;
+                    }
+                    let spa = (*raw).buffer;
+                    read_cursor(spa, &cursor_at);
+                    if let Some(line) = frame_line(spa, size.get(), &frames) {
+                        println!("{line}");
+                    }
+                    stream.queue_raw_buffer(raw);
                 }
-                let (w, h) = size.get();
-                let Some(bytes) = data.data() else {
-                    return;
-                };
-                // BGRx: the centre pixel's blue, green and red.
-                let i = offset + (h as usize / 2) * stride + (w as usize / 2) * 4;
-                if i + 3 > bytes.len() {
-                    return;
-                }
-                frames.set(frames.get() + 1);
-                println!(
-                    "frame {} {}x{} {:02x}{:02x}{:02x}",
-                    frames.get(),
-                    w,
-                    h,
-                    bytes[i + 2],
-                    bytes[i + 1],
-                    bytes[i]
-                );
             }
         })
         .register()

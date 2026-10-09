@@ -19,7 +19,8 @@
 //! resident, desktop-entry, image, replaces, timeout; underscores read as spaces),
 //! `close-notification ID`, `use-token TOKEN` (an activation with a token it was sent),
 //! `export` (an xdg-foreign v2 handle for the window, printed as `exported HANDLE`),
-//! `copy-screen` (an ext-image-copy-capture session of the screen, a frame after each
+//! `cursor-surface` (a 16-point magenta cursor surface, hotspot 2 3, set at each pointer
+//! enter), `copy-screen` (an ext-image-copy-capture session of the screen, a frame after each
 //! frame, printing `copied N`, then `copy stopped`),
 //! `tray [--name] [--item-is-menu] [--id ID]` (a status item with a pixmap icon and the test menu,
 //! registered by path or by a well-known name and again whenever the watcher comes back,
@@ -132,6 +133,7 @@ struct Client {
     on_press: Option<Option<xdg_toplevel::ResizeEdge>>,
     /// The window the pointer is over, by index.
     pointer_on: Option<usize>,
+    cursor_surface: bool,
     quit: bool,
     app_id: String,
     /// The first window has made its first commit.
@@ -762,6 +764,10 @@ impl Client {
                     &(id,),
                 ));
             }
+            ("cursor-surface", _) => {
+                self.cursor_surface = true;
+                return;
+            }
             ("copy-screen", _) => {
                 if let (Some(sources), Some(manager), Some(output)) =
                     (&self.output_sources, &self.copy_manager, &self.output)
@@ -1136,7 +1142,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Client {
 impl Dispatch<wl_pointer::WlPointer, ()> for Client {
     fn event(
         state: &mut Self,
-        _: &wl_pointer::WlPointer,
+        pointer: &wl_pointer::WlPointer,
         event: wl_pointer::Event,
         _: &(),
         _: &Connection,
@@ -1144,11 +1150,30 @@ impl Dispatch<wl_pointer::WlPointer, ()> for Client {
     ) {
         match event {
             wl_pointer::Event::Enter {
+                serial,
                 surface,
                 surface_x,
                 surface_y,
-                ..
             } => {
+                if state.cursor_surface
+                    && let (Some(compositor), Some(shm)) = (&state.compositor, &state.shm)
+                {
+                    let cursor = compositor.create_surface(qh, ());
+                    let (w, h) = (16, 16);
+                    let len = (w * h * 4) as usize;
+                    let fd = unsafe { libc::memfd_create(c"isle-test-cursor".as_ptr(), libc::MFD_CLOEXEC) };
+                    let file = unsafe { std::fs::File::from_raw_fd(fd) };
+                    let pixel = [0xffu8, 0x00, 0xff, 0xff];
+                    std::os::unix::fs::FileExt::write_all_at(&file, &pixel.repeat(w as usize * h as usize), 0).unwrap();
+                    let fd: OwnedFd = file.into();
+                    let pool = shm.create_pool(fd.as_fd(), len as i32, qh, ());
+                    let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, qh, ());
+                    pool.destroy();
+                    cursor.attach(Some(&buffer), 0, 0);
+                    cursor.damage_buffer(0, 0, w, h);
+                    cursor.commit();
+                    pointer.set_cursor(serial, Some(&cursor), 2, 3);
+                }
                 state.pointer_on = state.index_of_surface(&surface);
                 say(
                     state.pointer_on.unwrap_or(0),
@@ -1522,6 +1547,7 @@ fn main() {
         linger: false,
         on_press: None,
         pointer_on: None,
+        cursor_surface: false,
         quit: false,
         data_manager: None,
         data_device: None,

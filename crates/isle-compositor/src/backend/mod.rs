@@ -171,6 +171,80 @@ impl Backend {
         Some(())
     }
 
+    /// The pointer's image at an integer `scale` from the top left of a `side`-pixel square,
+    /// straight RGBA, and its hotspot in those pixels; `None` while it is hidden or has no
+    /// image Isle can draw.
+    pub fn cursor_image(
+        &mut self,
+        isle: &Isle,
+        scale: u32,
+        side: i32,
+    ) -> Result<Option<(Pixels, smithay::utils::Point<i32, smithay::utils::Physical>)>, String> {
+        use smithay::{
+            backend::renderer::element::{
+                Kind as ElementKind, memory::MemoryRenderBufferRenderElement,
+                surface::render_elements_from_surface_tree,
+            },
+            input::pointer::{CursorImageAttributes, CursorImageStatus},
+            wayland::compositor::with_states,
+        };
+        use crate::render::IsleElement;
+        let (renderer, named) = match self {
+            Backend::Udev(udev) => udev.renderer_with_cursor(isle, scale).ok_or("no renderer")?,
+            Backend::Winit(winit) => (winit.renderer(), None),
+            Backend::Headless(headless) => (&mut headless.renderer, None),
+        };
+        let mut elements = Vec::new();
+        let hotspot = match &isle.cursor_status {
+            CursorImageStatus::Surface(surface) => {
+                let hotspot = with_states(surface, |states| {
+                    states
+                        .data_map
+                        .get::<std::sync::Mutex<CursorImageAttributes>>()
+                        .map(|a| a.lock().unwrap().hotspot)
+                        .unwrap_or_default()
+                });
+                for element in render_elements_from_surface_tree(
+                    renderer,
+                    surface,
+                    (0, 0),
+                    scale as f64,
+                    1.0,
+                    ElementKind::Cursor,
+                ) {
+                    elements.push(IsleElement::Surface(element));
+                }
+                hotspot
+            }
+            CursorImageStatus::Named(_) => {
+                let Some(named) = named else {
+                    return Ok(None);
+                };
+                let element = MemoryRenderBufferRenderElement::from_buffer(
+                    renderer,
+                    (0.0, 0.0),
+                    named.buffer,
+                    None,
+                    None,
+                    None,
+                    ElementKind::Cursor,
+                )
+                .map_err(|e| e.to_string())?;
+                elements.push(IsleElement::Memory(element));
+                named.hotspot
+            }
+            CursorImageStatus::Hidden => return Ok(None),
+        };
+        if elements.is_empty() {
+            return Ok(None);
+        }
+        let size = (side, side).into();
+        let mut texture =
+            crate::wm::motion::render_to_texture(renderer, size, scale as f64, &elements)?;
+        let pixels = read_back(renderer, &mut texture, Rectangle::from_size(size), true)?;
+        Ok(Some((pixels, hotspot.to_physical(scale as i32))))
+    }
+
     /// Reads `rect` of `texture` back.
     pub fn read_back(
         &mut self,

@@ -64,7 +64,7 @@ use smithay::{
         generic::Generic,
         timer::{TimeoutAction, Timer},
     },
-    utils::{Logical, Physical, Rectangle, Size, Transform},
+    utils::{Logical, Physical, Point, Rectangle, Size, Transform},
 };
 use tracing::{debug, info, warn};
 
@@ -74,6 +74,12 @@ use crate::{
 };
 
 const SHM_BYTES_PER_PIXEL: u32 = 4;
+/// The side of the square a metadata cursor's bitmap is drawn into, in pixels.
+const CURSOR_SIDE: i32 = 128;
+const CURSOR_META_SIZE: usize = size_of::<spa_meta_cursor>()
+    + size_of::<spa_meta_bitmap>()
+    + (CURSOR_SIDE * CURSOR_SIDE * 4) as usize;
+
 /// How long a click's mark takes to fade from the recording.
 const CLICK_FADE: Duration = Duration::from_millis(600);
 
@@ -86,11 +92,13 @@ pub enum Source {
     Window(u64),
 }
 
-/// How the pointer reaches the consumer: left out, or drawn into the frames.
+/// How the pointer reaches the consumer: left out, drawn into the frames, or sent beside
+/// them as cursor metadata.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CursorMode {
     Hidden,
     Embedded,
+    Metadata,
 }
 
 /// Why a stream ended.
@@ -165,6 +173,31 @@ pub struct Casting {
     pub gbm: Option<(GbmDevice<DrmDeviceFd>, FormatSet)>,
     /// Each frame's render on the loop in microseconds, while measuring.
     pub times: Vec<u64>,
+    /// The pointer's image as metadata streams send it, and its serial.
+    cursor: Option<CursorImage>,
+    cursor_serial: u64,
+}
+
+/// What a cursor bitmap was drawn from.
+#[derive(Clone, Debug, PartialEq)]
+enum CursorKey {
+    Named(smithay::input::pointer::CursorIcon, u32),
+    Surface(smithay::reexports::wayland_server::backend::ObjectId, u32),
+}
+
+struct CursorImage {
+    key: CursorKey,
+    serial: u64,
+    /// `None` when the backend has no image for it.
+    image: Option<crate::backend::Pixels>,
+    hotspot: Point<i32, Physical>,
+}
+
+/// The cursor a metadata stream sends with a buffer: where, and the bitmap's serial.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct SentCursor {
+    at: Point<i32, Physical>,
+    serial: u64,
 }
 
 /// The negotiated buffers' kind and layout.
@@ -219,6 +252,9 @@ pub struct Stream {
     /// Buffers rendered and waiting for their fence, in order.
     rendering: Vec<(NonNull<pw_buffer>, SyncPoint)>,
     pub frames: u64,
+    /// Metadata mode: where the pointer was last sent, and the bitmap's serial sent.
+    cursor_sent: Option<Point<i32, Physical>>,
+    bitmap_sent: u64,
 }
 
 impl Stream {
@@ -743,11 +779,23 @@ impl State {
                             pod::Value::Int(size_of::<spa_meta_header>() as i32)
                         ),
                     );
-                    params_buf.resize(2, Vec::new());
-                    let [a, b] = &mut params_buf[..] else {
+                    let cursor_meta = pod::object!(
+                        SpaTypes::ObjectParamMeta,
+                        ParamType::Meta,
+                        Property::new(
+                            SPA_PARAM_META_type,
+                            pod::Value::Id(spa::utils::Id(SPA_META_Cursor))
+                        ),
+                        Property::new(SPA_PARAM_META_size, pod::Value::Int(CURSOR_META_SIZE as i32)),
+                    );
+                    params_buf.resize(3, Vec::new());
+                    let [a, b, c] = &mut params_buf[..] else {
                         unreachable!()
                     };
                     let mut params = vec![make_pod(a, buffers), make_pod(b, header)];
+                    if cursor == CursorMode::Metadata {
+                        params.push(make_pod(c, cursor_meta));
+                    }
                     if let Err(err) = stream.update_params(&mut params) {
                         warn!(id, "params: {err}");
                     }
@@ -824,6 +872,8 @@ impl State {
             seq: 0,
             rendering: Vec::new(),
             frames: 0,
+            cursor_sent: None,
+            bitmap_sent: 0,
         });
         self.casting_changed();
         Ok(id)
@@ -975,19 +1025,20 @@ impl State {
             return;
         }
         let cursor_mode = stream.cursor;
+        let recording = stream.owner == "recording";
+        let cursor = (cursor_mode == CursorMode::Metadata)
+            .then(|| self.cursor_for(&source))
+            .flatten();
         let began = Instant::now();
         let (elements, scale) =
             match self.cast_elements(
                 &source,
                 cursor_mode == CursorMode::Embedded,
-                stream.owner == "recording",
+                recording,
             ) {
                 Some(x) => x,
                 None => return,
             };
-        let Some(renderer) = self.backend.renderer_opt() else {
-            return;
-        };
         let stream = &mut self.isle.casting.streams[index];
         let psize: Size<i32, Physical> = (size.w as i32, size.h as i32).into();
         let tracker = stream
@@ -997,7 +1048,10 @@ impl State {
             Ok((damage, _)) => damage.is_some(),
             Err(_) => true,
         };
-        if !damaged {
+        let new_bitmap = cursor.filter(|c| c.serial != stream.bitmap_sent);
+        let moved = cursor_mode == CursorMode::Metadata
+            && (cursor.map(|c| c.at) != stream.cursor_sent || new_bitmap.is_some());
+        if !damaged && !moved {
             return;
         }
         // SAFETY: a dequeued buffer is ours until it is queued back.
@@ -1006,6 +1060,35 @@ impl State {
             return;
         };
         let negotiated = stream.inner.borrow().negotiated.unwrap();
+        if cursor_mode == CursorMode::Metadata {
+            let image = self.isle.casting.cursor.as_ref();
+            let hotspot = image.map(|c| c.hotspot).unwrap_or_default();
+            let bitmap = new_bitmap.and(image).and_then(|c| c.image.as_ref());
+            // SAFETY: as above.
+            unsafe { write_cursor(buffer, cursor.map(|c| c.at), hotspot, bitmap) };
+            let stream = &mut self.isle.casting.streams[index];
+            stream.cursor_sent = cursor.map(|c| c.at);
+            if bitmap.is_some()
+                && let Some(c) = cursor
+            {
+                stream.bitmap_sent = c.serial;
+            }
+        }
+        let stream = &mut self.isle.casting.streams[index];
+        if !damaged {
+            stream.seq += 1;
+            // SAFETY: as above; the pointer moved over a still frame.
+            unsafe { mark_cursor_only(buffer, stream.seq) };
+            stream.last_queued = Some(now);
+            self.queue_after(id, buffer, SyncPoint::signaled());
+            return;
+        }
+        let Some(renderer) = self.backend.renderer_opt() else {
+            // SAFETY: as above.
+            unsafe { return_unused(&self.isle.casting.streams[index].stream, buffer) };
+            return;
+        };
+        let stream = &mut self.isle.casting.streams[index];
         let result = unsafe {
             render_into(
                 renderer, stream, buffer, negotiated, psize, scale, &elements,
@@ -1030,6 +1113,57 @@ impl State {
                 unsafe { return_unused(&stream.stream, buffer) };
             }
         }
+    }
+
+    /// Metadata mode: the pointer's place in `source`'s frame while it is over it and shown,
+    /// and the serial of the bitmap of its image now, drawn again when the image changes.
+    fn cursor_for(&mut self, source: &Source) -> Option<SentCursor> {
+        use smithay::{input::pointer::CursorImageStatus, reexports::wayland_server::Resource};
+        let pointer = self.isle.seat.get_pointer()?.current_location();
+        let (area, output) = match source {
+            Source::Screen(o) => (self.isle.space.output_geometry(o)?, o.clone()),
+            Source::Portion(o, r) => {
+                let g = self.isle.space.output_geometry(o)?;
+                (Rectangle::new(g.loc + r.loc, r.size), o.clone())
+            }
+            Source::Window(id) => (self.isle.frame(*id)?, self.isle.output_of(*id)?),
+        };
+        if !area.to_f64().contains(pointer) {
+            return None;
+        }
+        let scale = output.current_scale().integer_scale().max(1) as u32;
+        let key = match &self.isle.cursor_status {
+            CursorImageStatus::Named(icon) => CursorKey::Named(*icon, scale),
+            CursorImageStatus::Surface(s) => CursorKey::Surface(s.id(), scale),
+            CursorImageStatus::Hidden => return None,
+        };
+        if self.isle.casting.cursor.as_ref().map(|c| &c.key) != Some(&key) {
+            let drawn = self
+                .backend
+                .cursor_image(&self.isle, scale, CURSOR_SIDE)
+                .unwrap_or_else(|err| {
+                    warn!("a cursor bitmap: {err}");
+                    None
+                });
+            self.isle.casting.cursor_serial += 1;
+            let (image, hotspot) = match drawn {
+                Some((pixels, hotspot)) => (Some(pixels), hotspot),
+                None => (None, Point::default()),
+            };
+            self.isle.casting.cursor = Some(CursorImage {
+                key,
+                serial: self.isle.casting.cursor_serial,
+                image,
+                hotspot,
+            });
+        }
+        let at = (pointer - area.loc.to_f64())
+            .to_physical(output.current_scale().fractional_scale())
+            .to_i32_round();
+        Some(SentCursor {
+            at,
+            serial: self.isle.casting.cursor.as_ref()?.serial,
+        })
     }
 
     /// The marks of recent presses within `area` (global), placed relative to its origin,
@@ -1260,6 +1394,7 @@ impl State {
         };
         let cursor = match spec["cursor"].as_str() {
             Some("embedded") => CursorMode::Embedded,
+            Some("metadata") => CursorMode::Metadata,
             _ => CursorMode::Hidden,
         };
         self.start_cast(source, cursor, "test")
@@ -1462,6 +1597,80 @@ unsafe fn mark_good(buffer: NonNull<pw_buffer>, seq: u64, negotiated: Negotiated
             header.seq = seq;
             header.pts = -1;
         }
+    }
+}
+
+/// A buffer with no new picture: its chunk empty, its header sequenced, for a consumer to
+/// read the cursor from.
+unsafe fn mark_cursor_only(buffer: NonNull<pw_buffer>, seq: u64) {
+    // SAFETY: the caller's buffer.
+    unsafe {
+        let spa = (*buffer.as_ptr()).buffer;
+        let chunk = (*(*spa).datas).chunk;
+        (*chunk).size = 0;
+        (*chunk).flags = SPA_CHUNK_FLAG_NONE as i32;
+        let header: *mut spa_meta_header =
+            spa_buffer_find_meta_data(spa, SPA_META_Header, size_of::<spa_meta_header>()).cast();
+        if let Some(header) = header.as_mut() {
+            header.flags = 0;
+            header.seq = seq;
+            header.pts = -1;
+        }
+    }
+}
+
+/// The buffer's cursor metadata: the pointer at `at` in the frame, or none there; with
+/// `bitmap`, its image after the cursor's header.
+unsafe fn write_cursor(
+    buffer: NonNull<pw_buffer>,
+    at: Option<Point<i32, Physical>>,
+    hotspot: Point<i32, Physical>,
+    bitmap: Option<&crate::backend::Pixels>,
+) {
+    // SAFETY: the caller's buffer; its cursor meta is CURSOR_META_SIZE long when found at
+    // that size.
+    unsafe {
+        let spa = (*buffer.as_ptr()).buffer;
+        let meta: *mut spa_meta_cursor =
+            spa_buffer_find_meta_data(spa, SPA_META_Cursor, size_of::<spa_meta_cursor>()).cast();
+        let Some(meta) = meta.as_mut() else {
+            return;
+        };
+        let Some(at) = at else {
+            meta.id = 0;
+            return;
+        };
+        meta.id = 1;
+        meta.flags = 0;
+        meta.position = spa_point { x: at.x, y: at.y };
+        meta.hotspot = spa_point {
+            x: hotspot.x,
+            y: hotspot.y,
+        };
+        meta.bitmap_offset = 0;
+        let Some(pixels) = bitmap else {
+            return;
+        };
+        if spa_buffer_find_meta_data(spa, SPA_META_Cursor, CURSOR_META_SIZE).is_null()
+            || pixels.rgba.len() > (CURSOR_SIDE * CURSOR_SIDE * 4) as usize
+        {
+            return;
+        }
+        meta.bitmap_offset = size_of::<spa_meta_cursor>() as u32;
+        let base = (meta as *mut spa_meta_cursor).cast::<u8>();
+        let bitmap = base.add(meta.bitmap_offset as usize).cast::<spa_meta_bitmap>();
+        (*bitmap).format = SPA_VIDEO_FORMAT_RGBA;
+        (*bitmap).size = spa_rectangle {
+            width: pixels.width,
+            height: pixels.height,
+        };
+        (*bitmap).stride = (pixels.width * 4) as i32;
+        (*bitmap).offset = size_of::<spa_meta_bitmap>() as u32;
+        std::ptr::copy_nonoverlapping(
+            pixels.rgba.as_ptr(),
+            bitmap.cast::<u8>().add((*bitmap).offset as usize),
+            pixels.rgba.len(),
+        );
     }
 }
 

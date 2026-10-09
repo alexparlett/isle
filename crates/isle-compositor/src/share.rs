@@ -848,10 +848,10 @@ impl State {
         selection: &Selection,
         picked: &Picked,
     ) -> Option<Vec<u64>> {
-        let cursor = if selection.cursor_mode == isle_portal::screencast::CURSOR_EMBEDDED {
-            CursorMode::Embedded
-        } else {
-            CursorMode::Hidden
+        let cursor = match selection.cursor_mode {
+            isle_portal::screencast::CURSOR_EMBEDDED => CursorMode::Embedded,
+            isle_portal::screencast::CURSOR_METADATA => CursorMode::Metadata,
+            _ => CursorMode::Hidden,
         };
         let mut ids = Vec::new();
         for source in &picked.sources {

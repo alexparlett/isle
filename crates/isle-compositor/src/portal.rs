@@ -92,7 +92,9 @@ impl isle_portal::screencast::ScreenCast for Desktop {
     }
 
     fn cursor_modes(&self) -> u32 {
-        isle_portal::screencast::CURSOR_HIDDEN | isle_portal::screencast::CURSOR_EMBEDDED
+        isle_portal::screencast::CURSOR_HIDDEN
+            | isle_portal::screencast::CURSOR_EMBEDDED
+            | isle_portal::screencast::CURSOR_METADATA
     }
 
     fn start(

@@ -157,3 +157,49 @@ async fn a_portion_is_its_rectangle_and_a_screen_going_ends_its_stream() {
     wait_until(|| async { !casts(&isle).await.iter().any(|c| c["id"] == second) }).await;
     assert_eq!(casts(&isle).await.len(), 1);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_metadata_cursor_moves_over_a_still_frame_without_new_pictures() {
+    let mut isle = Isle::start("cast-cursor").await;
+    if !isle.start_audio().await {
+        return;
+    }
+    let test = isle.test().await;
+    test.pointer_to(100.0, 100.0).await.unwrap();
+    let (_, consumer) = stream(
+        &mut isle,
+        serde_json::json!({"portion": "HEADLESS-1", "x": 50, "y": 50, "w": 400, "h": 300,
+                           "cursor": "metadata"}),
+    )
+    .await;
+    consumer.wait_for("format 400x300").await;
+    consumer.wait_for("cursor 50 50").await;
+    wait_until(|| async { last_frame(&consumer).is_some() }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let (frames, _) = last_frame(&consumer).unwrap();
+
+    // The pointer moves over a still screen: the cursor follows with no new picture.
+    test.pointer_to(250.0, 150.0).await.unwrap();
+    consumer.wait_for("cursor 200 100").await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(last_frame(&consumer).unwrap().0, frames);
+
+    // Off the portion, the cursor goes.
+    test.pointer_to(900.0, 700.0).await.unwrap();
+    consumer.wait_for("cursor gone").await;
+
+    // Over a window with a cursor surface of its own, its image goes with it.
+    let window = isle.client("isle.test.Cursor", "3366ff");
+    window.wait_for("keyboard-enter").await;
+    window.send("cursor-surface");
+    let info = isle.wait_for_window("isle.test.Cursor").await;
+    isle.windows_proxy()
+        .await
+        .set_box(info.id, 60, 60, 300, 200)
+        .await
+        .unwrap();
+    wait_until(|| async { isle.window(info.id).await.x == 60 }).await;
+    test.pointer_to(150.0, 150.0).await.unwrap();
+    window.wait_for("pointer-enter 90 90").await;
+    consumer.wait_for("bitmap 128x128").await;
+}

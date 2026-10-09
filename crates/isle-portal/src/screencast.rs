@@ -14,6 +14,7 @@ pub const MONITOR: u32 = 1;
 pub const WINDOW: u32 = 2;
 pub const CURSOR_HIDDEN: u32 = 1;
 pub const CURSOR_EMBEDDED: u32 = 2;
+pub const CURSOR_METADATA: u32 = 4;
 
 /// What SelectSources asked for.
 #[derive(Clone, Debug)]

@@ -783,7 +783,9 @@ impl Component for ResultRow {
         let (k1, k2, k3) = (row.key.clone(), row.key.clone(), row.key.clone());
         let mut anchor = self.anchors.selected;
         let pad = t.space_s;
+        let (down, k4) = (Actions::get(), row.key.clone());
         rect()
+            .on_mouse_down(move |_| send(&down, SpotlightAction::DragFrom(k4.clone())))
             .maybe(self.selected, |el| {
                 el.on_sized(move |e: Event<SizedEventData>| {
                     anchor.set_if_modified((e.area.min_x() + pad, e.area.max_y()))

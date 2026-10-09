@@ -97,6 +97,8 @@ pub struct SpotlightState {
     preview: Option<isle_shell::spotlight::surface::Preview>,
     /// The tile a press went down on, which a release elsewhere drops.
     drag_from: Option<String>,
+    /// Spotlight's surface in the global space, which a drag of a row leaves to begin.
+    rect: Rectangle<f64, smithay::utils::Logical>,
 }
 
 impl SpotlightState {
@@ -118,6 +120,7 @@ impl SpotlightState {
             menu: None,
             preview: None,
             drag_from: None,
+            rect: Rectangle::default(),
         }
     }
 
@@ -420,6 +423,8 @@ impl State {
             size,
         );
         self.isle.spotlight.surface.set_size(size);
+        self.isle.spotlight.rect =
+            Rectangle::new(screen.loc + geometry.loc, geometry.size).to_f64();
         self.isle.spotlight.apps_panel =
             SpotlightSurface::apps_panel(&theme, columns, top, screen.size.h as f32);
         self.spotlight_effects(effects);
@@ -1691,5 +1696,106 @@ impl State {
         if let Some(id) = id {
             self.spotlight_action(SpotlightAction::Menu(isle_ui::MenuEvent::Chosen(id)));
         }
+    }
+}
+
+/// A drag out of Spotlight: Isle offers the row's types and writes them to the drop target.
+struct DragSource {
+    pick: crate::clipboard::Pick,
+}
+
+impl smithay::utils::IsAlive for DragSource {
+    fn alive(&self) -> bool {
+        true
+    }
+}
+
+impl smithay::input::dnd::Source for DragSource {
+    fn metadata(&self) -> Option<smithay::input::dnd::SourceMetadata> {
+        Some(smithay::input::dnd::SourceMetadata {
+            mime_types: self.pick.types.iter().map(|(t, _)| t.clone()).collect(),
+            dnd_actions: [smithay::input::dnd::DndAction::Copy].into_iter().collect(),
+        })
+    }
+
+    fn send(&self, mime_type: &str, fd: std::os::fd::OwnedFd) {
+        if let Some((_, bytes)) = self.pick.types.iter().find(|(t, _)| t == mime_type) {
+            let bytes = bytes.clone();
+            std::thread::spawn(move || {
+                use std::io::Write;
+                let _ = std::fs::File::from(fd).write_all(&bytes);
+            });
+        }
+    }
+
+    fn choose_action(&self, _action: smithay::input::dnd::DndAction) {}
+
+    fn drop_performed(&self) {}
+
+    fn cancel(&self) {}
+
+    fn finished(&self) {}
+}
+
+impl State {
+    /// The pointer moved with a press held on a file or clipboard row: once it leaves
+    /// Spotlight, the row is dragged and Spotlight goes, so the target shows.
+    pub fn spotlight_drag_check(
+        &mut self,
+        location: smithay::utils::Point<f64, smithay::utils::Logical>,
+    ) {
+        let Some(from) = self.isle.spotlight.drag_from.clone() else {
+            return;
+        };
+        let pointer = self.isle.seat.get_pointer().unwrap();
+        if !pointer.is_grabbed() {
+            self.isle.spotlight.drag_from = None;
+            return;
+        }
+        if self.isle.spotlight.rect.contains(location) {
+            return;
+        }
+        let item = self
+            .isle
+            .spotlight
+            .model
+            .as_ref()
+            .and_then(|m| m.selectable().into_iter().find(|r| r.key == from))
+            .map(|r| r.item);
+        let pick = match item {
+            Some(Item::File(path)) => {
+                let uri = format!("file://{}\r\n", path.display());
+                let path = path.display().to_string();
+                Some(crate::clipboard::Pick {
+                    types: vec![
+                        ("text/uri-list".into(), Arc::new(uri.into_bytes())),
+                        (
+                            "text/plain;charset=utf-8".into(),
+                            Arc::new(path.clone().into_bytes()),
+                        ),
+                        ("text/plain".into(), Arc::new(path.into_bytes())),
+                    ],
+                })
+            }
+            Some(Item::Clip(id)) => self.isle.clipboard.pick(id),
+            _ => None,
+        };
+        let Some(pick) = pick else {
+            return;
+        };
+        let Some(mut start) = pointer.grab_start_data() else {
+            return;
+        };
+        start.focus = None;
+        self.close_spotlight();
+        let grab = smithay::input::dnd::DnDGrab::new_pointer(
+            &self.isle.display_handle,
+            start,
+            DragSource { pick },
+            self.isle.seat.clone(),
+        );
+        let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+        pointer.set_grab(self, grab, serial, smithay::input::pointer::Focus::Clear);
+        info!(from, "a drag out of Spotlight");
     }
 }

@@ -664,6 +664,39 @@ async fn copies_are_kept_secrets_are_not_and_a_pick_pastes() {
     wait_until(|| async { clip_titles(&isle).await.len() == 1 }).await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn a_file_dragged_out_arrives_as_its_link() {
+    let mut isle = Isle::start_prepared("spotlight-drag", "", |dir| {
+        std::fs::create_dir_all(dir.join("home/notes")).unwrap();
+        std::fs::write(dir.join("home/notes/plan.md"), "the plan").unwrap();
+    })
+    .await;
+    let target = isle.client("isle.test.Target", "3366ff");
+    target.wait_for("keyboard-enter").await;
+    let w = isle.wait_for_window("isle.test.Target").await;
+    wait_until(|| async { found_in(&isle, SLASH, "plan", "plan.md").await }).await;
+    scoped_search(&isle, SLASH, "plan").await;
+    wait_until(|| async { titles(&isle).await.iter().any(|t| t == "plan.md") }).await;
+    let test = isle.test().await;
+    // The first row: under the panel's padding and its first header.
+    test.pointer_to(960.0, 352.0).await.unwrap();
+    test.button(272, true).await.unwrap();
+    for x in [800.0, 500.0, 200.0, 100.0] {
+        test.pointer_to(x, 352.0).await.unwrap();
+    }
+    wait_until(|| async { status(&isle).await["open"] == false }).await;
+    let (cx, cy) = ((w.x + w.width / 2) as f64, (w.y + w.height / 2) as f64);
+    test.pointer_to(cx - 10.0, cy).await.unwrap();
+    test.pointer_to(cx, cy).await.unwrap();
+    target.wait_for("dnd enter").await;
+    test.button(272, false).await.unwrap();
+    let link = format!(
+        "dropped file://{}",
+        isle.dir.join("home/notes/plan.md").display()
+    );
+    target.wait_for(&link).await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

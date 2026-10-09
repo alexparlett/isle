@@ -124,6 +124,8 @@ struct Client {
     drag_on_press: bool,
     /// The clipboard as offered to this client, and the text this client offers.
     selection: Option<wl_data_offer::WlDataOffer>,
+    /// A drag over this client's window.
+    dnd_offer: Option<wl_data_offer::WlDataOffer>,
     copied: Option<String>,
     /// The latest serial from the keyboard, for setting the clipboard.
     key_serial: u32,
@@ -1156,7 +1158,7 @@ impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
         _: &wl_data_device::WlDataDevice,
         event: wl_data_device::Event,
         _: &(),
-        _: &Connection,
+        conn: &Connection,
         _: &QueueHandle<Self>,
     ) {
         match event {
@@ -1166,9 +1168,29 @@ impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
                     wl_data_device_manager::DndAction::Copy,
                     wl_data_device_manager::DndAction::Copy,
                 );
+                state.dnd_offer = Some(offer);
                 say(0, "dnd enter".into());
             }
-            wl_data_device::Event::Drop => say(0, "dnd drop".into()),
+            wl_data_device::Event::Drop => {
+                say(0, "dnd drop".into());
+                // What was dropped is read as a list of links and printed.
+                if let Some(offer) = state.dnd_offer.take() {
+                    let mut fds = [0; 2];
+                    // Safety: room for both ends.
+                    unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) };
+                    // Safety: both ends are new and owned here.
+                    let (read, write) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
+                    offer.receive("text/uri-list".into(), write.as_fd());
+                    drop(write);
+                    offer.finish();
+                    let _ = conn.flush();
+                    std::thread::spawn(move || {
+                        let mut text = String::new();
+                        let _ = std::io::Read::read_to_string(&mut std::fs::File::from(read), &mut text);
+                        say(0, format!("dropped {}", text.trim()));
+                    });
+                }
+            }
             wl_data_device::Event::Selection { id } => state.selection = id,
             _ => {}
         }
@@ -1324,6 +1346,7 @@ fn main() {
         data_device: None,
         drag_on_press: false,
         selection: None,
+        dnd_offer: None,
         copied: None,
         key_serial: 0,
         launcher: None,

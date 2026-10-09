@@ -2,6 +2,13 @@
 
 ## 2026-10-09
 
+- P10 10.11: dragging out. A press on a file or clipboard row that leaves
+  Spotlight's bounds starts a drag whose source is Isle (Smithay's
+  `DnDGrab` with a source of Isle's own), offering a file as its link and
+  path and a clipboard item as its types; Spotlight closes so the target
+  shows, and the target reads what it asks for. The test client prints what
+  is dropped on it. No drag icon yet.
+
 - P10 10.10: clipboard history. Every clipboard copy, from a Wayland app or
   through Xwayland from an X11 one, is read off the loop (its text, an
   image, a file list) once Smithay has made it current, and kept under

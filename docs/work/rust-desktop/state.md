@@ -338,5 +338,6 @@
 - P10 10.8 done (2026-10-09): the calculator, Run and the web.
 - P10 10.9 done (2026-10-09): emoji and the paste path that puts the
   clipboard back; Xwayland now follows the Wayland clipboard.
-- P10 10.10 done (2026-10-09): clipboard history in the compositor. Next:
-  10.11 (dragging out).
+- P10 10.10 done (2026-10-09): clipboard history in the compositor.
+- P10 10.11 done (2026-10-09): dragging files and clipboard items out.
+  Next: 10.12 (the CLI and the one-app scope).

@@ -114,6 +114,7 @@ impl State {
             self.refresh_pointer_cursor();
             self.update_bar_option();
             self.check_zoom_dwell();
+            self.spotlight_drag_check(location);
         }
         // A nested backend's host draws named cursors; everywhere else the cursor is
         // Isle's to draw, so it moves only with a redraw.

@@ -224,6 +224,7 @@ impl State {
         };
         self.isle
             .update_primary_scanout_output(output, &rendered.states);
+        self.cast_frames(output);
 
         if rendered.damaged {
             let feedback = self

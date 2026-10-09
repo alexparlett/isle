@@ -369,3 +369,4 @@
 - P11 11.3 done (2026-10-09): the thumbnail, its menu, flick and drag.
 - P11 11.4 done (2026-10-09): the toolbar's shot modes, Options and the countdown.
 - P11 11.5 done (2026-10-09): the colour pick and its loupe.
+- P11 11.6 done (2026-10-09): PipeWire streams of a screen, a portion or a window.

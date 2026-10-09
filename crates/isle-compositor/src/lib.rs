@@ -23,6 +23,7 @@ mod input;
 mod keyboard;
 mod island;
 pub mod capture;
+pub mod cast;
 mod centre;
 mod clipboard;
 mod control_centre;

@@ -1368,6 +1368,31 @@ impl Test {
             .map_err(|e| fdo::Error::Failed(e.to_string()))
     }
 
+    /// Starts a stream: `{"screen": name}`, `{"window": id}` or `{"portion": name, "x",
+    /// "y", "w", "h"}`, with `"cursor": "embedded"` to draw the pointer in. Returns its id.
+    async fn cast_start(&self, spec: String) -> fdo::Result<u64> {
+        self.to_loop
+            .call(move |state| state.test_cast_start(&spec))
+            .await?
+            .map_err(fdo::Error::Failed)
+    }
+
+    /// The streams as JSON.
+    async fn casts(&self) -> fdo::Result<String> {
+        Ok(self
+            .to_loop
+            .call(|state| state.casts_status().to_string())
+            .await?)
+    }
+
+    /// Ends a stream from Isle's side.
+    async fn cast_stop(&self, id: u64) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.end_cast(id, crate::cast::Ended::Stopped))
+            .await?)
+    }
+
     /// The capture toolbar as JSON.
     async fn toolbar(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.toolbar_status()).await?)

@@ -395,6 +395,11 @@ impl State {
             .iter()
             .copied()
             .collect();
+        // Streams are drawn by the renderer, so their buffers come from its device.
+        if node == udev.primary && self.isle.casting.gbm.is_none() {
+            self.isle.casting.gbm = Some((gbm.clone(), render_formats.clone()));
+        }
+        let udev = self.udev();
         let allocator = GbmAllocator::new(
             gbm.clone(),
             GbmBufferFlags::RENDERING | GbmBufferFlags::SCANOUT,

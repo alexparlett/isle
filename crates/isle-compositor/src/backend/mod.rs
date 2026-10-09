@@ -152,6 +152,25 @@ impl Backend {
         render_offscreen(renderer, output, &elements)
     }
 
+    /// What a picture of `output` holds, as `Isle::capture_elements` gives it, with the
+    /// themed pointer when `pointer`.
+    pub fn capture_elements(
+        &mut self,
+        isle: &Isle,
+        output: &Output,
+        pointer: bool,
+        push: &mut dyn FnMut(crate::render::IsleElement),
+    ) -> Option<()> {
+        let scale = output.current_scale().integer_scale().max(1) as u32;
+        let (renderer, cursor) = match self {
+            Backend::Udev(udev) => udev.renderer_with_cursor(isle, scale)?,
+            Backend::Winit(winit) => (winit.renderer(), None),
+            Backend::Headless(headless) => (&mut headless.renderer, None),
+        };
+        isle.capture_elements(renderer, output, cursor, pointer, push);
+        Some(())
+    }
+
     /// Reads `rect` of `texture` back.
     pub fn read_back(
         &mut self,

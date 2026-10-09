@@ -27,9 +27,15 @@ name = "isle-test-client"
 path = "src/bin/test_client.rs"
 required-features = ["test-hooks"]
 
+[[bin]]
+name = "isle-test-consumer"
+path = "src/bin/test_consumer.rs"
+required-features = ["test-hooks"]
+
 [dependencies]
 humantime.workspace = true
 image.workspace = true
+pipewire = { version = "0.10", features = ["v0_3_33"] }
 jiff.workspace = true
 serde.workspace = true
 serde_json.workspace = true

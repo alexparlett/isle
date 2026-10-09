@@ -667,6 +667,7 @@ impl State {
         let app = record.app.clone();
         self.isle.queue_redraw_for_window(&window);
         self.isle.space.unmap_elem(&window);
+        self.cast_window_closed(id);
         self.isle.wm.records.retain(|r| r.id != id);
         if !self.isle.wm.records.iter().any(|r| r.app == app && r.mapped) {
             self.app_windowless(&app);

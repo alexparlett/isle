@@ -259,6 +259,15 @@ impl Isle {
         )
     }
 
+    /// A PipeWire video consumer linked to `node` on the private server.
+    pub fn consumer(&mut self, node: u32) -> Client {
+        self.spawn(
+            env!("CARGO_BIN_EXE_isle-test-consumer"),
+            &["--node", &node.to_string()],
+            &[],
+        )
+    }
+
     /// A Wayland test client with more in its environment.
     pub fn client_env(&mut self, app_id: &str, env: &[(&str, &str)]) -> Client {
         let socket = self.socket();

@@ -124,6 +124,8 @@ pub struct Isle {
     pub session: crate::session_end::SessionState,
     pub force_quit: crate::force_quit::ForceQuitState,
     pub spotlight: crate::spotlight::SpotlightState,
+    /// The screen streams Isle produces.
+    pub casting: crate::cast::Casting,
     /// Shift+Cmd+4's frozen screens while the pick is open.
     pub freeze: Option<crate::freeze::Freeze>,
     pub capture_readout: std::rc::Rc<isle_shell::capture::readout::ReadoutSurface>,
@@ -436,6 +438,7 @@ impl Isle {
             prompts,
             session,
             force_quit,
+            casting: Default::default(),
             freeze: None,
             capture_readout,
             thumbnail: None,

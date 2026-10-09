@@ -226,7 +226,7 @@ impl Isle {
                 || self.lock.locked
                 || self.dimmed()
                 || self.idle.off,
-            capture: false,
+            capture: !self.casting.streams.is_empty() && self.settings.notifications.hold_sharing,
         }
     }
 

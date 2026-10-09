@@ -30,6 +30,7 @@ impl Isle {
         let Some(area) = self.space.output_geometry(output) else {
             return;
         };
+        self.end_casts_of_output(output);
         // A screen going ends the pick: its frozen frame has nowhere to be.
         if self.freeze.take().is_some() {
             self.shell.close("capture-readout");

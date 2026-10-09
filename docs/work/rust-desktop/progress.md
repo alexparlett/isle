@@ -2,6 +2,29 @@
 
 ## 2026-10-09
 
+- P11 11.6: streams. `cast.rs` produces PipeWire video nodes in the
+  compositor: the PipeWire loop is a calloop source, the context has
+  module-rt and D-Bus support off (checked: neither is mapped), and each
+  stream drives itself. It offers BGRx and BGRA as dmabufs with each modifier
+  the renderer draws to, LINEAR first, fixing one by a GBM test allocation
+  when the consumer leaves the choice open, and shared memory (a sealed
+  memfd) last; the header is written on every buffer, frames with no damage
+  are skipped, frames are spaced by the negotiated rate with a timer for the
+  last change, and a dmabuf is queued once its render fence signals. Sources:
+  a screen (what a shot of it holds, so a locked screen streams the lock), a
+  portion of one, a window alone (which queues nothing while hidden,
+  minimised, on another desktop or behind the lock, the consumer holding its
+  last frame). A window closing or a screen going ends its streams. Any
+  stream shows the screen privacy mark and holds banners under
+  `notifications.hold-sharing`. Node serials come from the registry. Tests
+  stream on the private PipeWire to `isle-test-consumer`, which links itself
+  port to port. Differences: the cursor is hidden or embedded, not offered as
+  metadata (a bitmap of the pointer's image is not drawn yet); the dmabuf
+  path is the udev backend's, so only shared memory is checked headless; a
+  source that changes size holds its stream rather than renegotiating.
+  Under the full suite's load the lock face's typing test and the keyboard's
+  Cmd test each failed once and pass alone.
+
 - P11 11.5: the colour pick. Shift+Cmd+6, or Pick colour on the toolbar,
   freezes the screens and reads their pixels back once; a loupe stands in for
   the pointer, fifteen pixels square at eight points each, unsmoothed, with

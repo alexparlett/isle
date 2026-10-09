@@ -572,6 +572,15 @@ pub mod test {
         /// Draws an output and writes it to `path` as a PNG.
         fn screenshot(&self, output: &str, path: &str) -> zbus::Result<()>;
 
+        /// Starts a stream by a JSON spec and returns its id.
+        fn cast_start(&self, spec: &str) -> zbus::Result<u64>;
+
+        /// The streams as JSON.
+        fn casts(&self) -> zbus::Result<String>;
+
+        /// Ends a stream from Isle's side.
+        fn cast_stop(&self, id: u64) -> zbus::Result<()>;
+
         /// The capture toolbar as JSON.
         fn toolbar(&self) -> zbus::Result<String>;
 

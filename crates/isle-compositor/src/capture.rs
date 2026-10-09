@@ -66,7 +66,7 @@ impl State {
 
     /// Window `id` drawn alone into a texture of its own at its output's scale: its
     /// surfaces, popups and title bar, with its shadow when `shadow`.
-    fn window_texture(
+    pub(crate) fn window_texture(
         &mut self,
         id: u64,
         shadow: bool,
@@ -257,7 +257,7 @@ impl State {
     }
 
     /// The shot's sound, when shots make one.
-    fn shutter(&mut self) {
+    pub(crate) fn shutter(&mut self) {
         if !self.isle.settings.capture.sound {
             return;
         }

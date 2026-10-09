@@ -365,3 +365,4 @@
 - P11 11.0 done (2026-10-09): stills of a screen, a region or a window from
   the compositor's element list, written as PNG or copied.
 - P11 11.1 done (2026-10-09): Shift+Cmd+3 and its Ctrl form.
+- P11 11.2 done (2026-10-09): the freeze and the pick, region and window.

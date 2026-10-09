@@ -572,6 +572,9 @@ pub mod test {
         /// Draws an output and writes it to `path` as a PNG.
         fn screenshot(&self, output: &str, path: &str) -> zbus::Result<()>;
 
+        /// Shift+Cmd+4's pick as JSON, or `null`.
+        fn pick(&self) -> zbus::Result<String>;
+
         /// Takes a still by a JSON spec and returns the files written.
         fn capture(&self, spec: &str) -> zbus::Result<Vec<String>>;
         /// Panics in the worker's D-Bus service.

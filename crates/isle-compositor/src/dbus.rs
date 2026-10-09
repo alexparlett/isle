@@ -1368,6 +1368,11 @@ impl Test {
             .map_err(|e| fdo::Error::Failed(e.to_string()))
     }
 
+    /// Shift+Cmd+4's pick as JSON, or `null`.
+    async fn pick(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.pick_status()).await?)
+    }
+
     /// Takes a still as `Isle::test_capture` reads `spec` and returns the files written.
     async fn capture(&self, spec: String) -> fdo::Result<Vec<String>> {
         let written = self

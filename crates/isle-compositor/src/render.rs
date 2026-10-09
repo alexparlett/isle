@@ -40,6 +40,7 @@ render_elements! {
     Window = crate::wm::draw::Placed,
     Shell = isle_shell::ShellElement,
     Wallpaper = crate::wallpaper::WallpaperElement,
+    Texture = smithay::backend::renderer::element::texture::TextureRenderElement<smithay::backend::renderer::gles::GlesTexture>,
 }
 
 impl IsleElement {
@@ -53,6 +54,7 @@ impl IsleElement {
             IsleElement::Solid(_) => "solid",
             IsleElement::Shell(_) => "shell",
             IsleElement::Wallpaper(_) => "wallpaper",
+            IsleElement::Texture(_) => "frozen",
             _ => "other",
         }
     }
@@ -91,6 +93,11 @@ impl Isle {
             kinds.push(e.kind_name());
             push(e)
         };
+        if self.freeze_elements(renderer, output, cursor.as_ref().map(|c| NamedCursor { buffer: c.buffer, hotspot: c.hotspot }), push) {
+            #[cfg(feature = "test-hooks")]
+            self.lock.frame_kinds.borrow_mut().insert(output.name(), kinds);
+            return;
+        }
         self.dim_elements(output, push);
         if self.lock.locked {
             self.render_locked(output, renderer, cursor, true, push);

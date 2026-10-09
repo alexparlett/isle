@@ -13,6 +13,7 @@ mod dbus;
 mod files;
 mod focus;
 mod focus_modes;
+pub mod freeze;
 mod force_quit;
 mod games;
 mod grabs;

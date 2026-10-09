@@ -2,6 +2,23 @@
 
 ## 2026-10-09
 
+- P11 11.2: the freeze and the pick. Shift+Cmd+4 renders every screen and
+  every shown window (with and without its shadow) into textures of their own
+  and draws the frozen frames in place of the scene; clients keep running,
+  unaware. The veil, the cut, the two-tone line and the lifted window are
+  compositor elements; the size readout is a placed shell surface, flipped
+  inside then above the selection at a screen's foot. Region mode by a drag
+  (Shift locks an axis, Option grows from the centre, Space moves it) or by
+  the keys alone (Return, arrows by one or ten, Return); Space before a drag
+  switches to window mode, where the window under the pointer or stepped to
+  with Tab lifts whole and a click or Return takes it, Option without its
+  shadow. The focused window keeps the keyboard, the pick's clicks never
+  reach a client, and the lock or a screen going ends it. Not yet: shell
+  panels as pickable targets of their own (they are in a region's frame),
+  the camera pointer (the arrow stands in), the line along a window's
+  rounded corners. No pointer lock to release: Isle serves no pointer
+  constraints yet.
+
 - P11 11.1: Shift+Cmd+3. Every screen is shot, the main one first and the
   second ending " (2)"; with Ctrl the main screen's shot goes to the
   clipboard and the island says "Screenshot copied". The theme's

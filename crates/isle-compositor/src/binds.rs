@@ -60,6 +60,8 @@ pub enum Action {
     ForceQuit,
     /// Shift+Cmd+3: every screen to files, or to the clipboard with Ctrl.
     ShootScreens { copy: bool },
+    /// Shift+Cmd+4: the frozen pick of a region or a window.
+    Pick { copy: bool },
     /// An action a later packet builds; its chord is the desktop's already.
     Reserved(&'static str),
     /// The chord the recording grab took.
@@ -141,6 +143,8 @@ fn action_for(id: &'static str) -> Action {
         "previous-track" => Action::Media(Media::Previous),
         "screenshot-screen" => Action::ShootScreens { copy: false },
         "screenshot-screen-copy" => Action::ShootScreens { copy: true },
+        "screenshot-pick" => Action::Pick { copy: false },
+        "screenshot-pick-copy" => Action::Pick { copy: true },
         other => Action::Reserved(other),
     }
 }
@@ -333,6 +337,7 @@ impl State {
                 Opening::Emoji => isle_search::Scope::Emoji,
             }),
             Action::ShootScreens { copy } => self.shoot_screens(copy),
+            Action::Pick { copy } => self.open_pick(crate::freeze::Purpose::Shot { copy }),
             Action::Reserved(id) => {
                 let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);
                 info!(id, packet, "a shortcut whose action is not built yet");

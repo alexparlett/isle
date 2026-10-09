@@ -96,6 +96,10 @@ impl State {
     }
 
     fn move_pointer(&mut self, location: Point<f64, Logical>, time: InputTime) {
+        if self.picking() {
+            self.pick_pointer_to(location);
+            return;
+        }
         let under = self.isle.surface_under(location);
         let pointer = self.isle.seat.get_pointer().unwrap();
         pointer.motion(
@@ -138,6 +142,16 @@ impl State {
             ButtonState::Pressed => self.isle.buttons_down.insert(button),
             ButtonState::Released => self.isle.buttons_down.remove(&button),
         };
+        // The pick's presses and their releases are its own, even once it has closed.
+        if self.picking() {
+            if button_state == ButtonState::Pressed {
+                self.isle.taken_buttons.insert(button);
+            } else {
+                self.isle.taken_buttons.remove(&button);
+            }
+            self.pick_button(button, button_state);
+            return;
+        }
         // A press taken to close a menu is kept from the window, and so is its release.
         if button_state == ButtonState::Pressed && !self.isle.lock.locked && self.top_edge_press() {
             self.isle.taken_buttons.insert(button);

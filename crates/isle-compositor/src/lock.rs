@@ -359,6 +359,7 @@ impl State {
     /// Everything a client or a desktop surface holds is taken back: the centre surface and
     /// the menu-bar group close, grabs end, and neither keyboard nor pointer is a client's.
     fn take_input_back(&mut self) {
+        self.close_pick();
         self.close_session_dialog();
         self.close_force_quit();
         self.close_spotlight();

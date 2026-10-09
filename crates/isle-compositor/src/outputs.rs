@@ -30,6 +30,11 @@ impl Isle {
         let Some(area) = self.space.output_geometry(output) else {
             return;
         };
+        // A screen going ends the pick: its frozen frame has nowhere to be.
+        if self.freeze.take().is_some() {
+            self.shell.close("capture-readout");
+            self.cursor_status = smithay::input::pointer::CursorImageStatus::default_named();
+        }
         let identity = Self::output_identity(output);
         self.wallpapers.forget(&identity);
         self.idle.output_events.push((output.clone(), false));

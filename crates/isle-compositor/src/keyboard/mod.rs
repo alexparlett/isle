@@ -396,6 +396,32 @@ impl State {
             self.keyboard_added(id, name, hint);
         }
         let key = (id.to_owned(), code);
+        // The pick takes every key but the modifiers, which the engine keeps count of.
+        let modifier = self.picking()
+            && !matches!(
+                self.isle
+                    .keyboards
+                    .with_engine(false, &[], |_, ctx| ctx.keys.role(code)),
+                isle_keys::keyinfo::Role::Key
+            );
+        if modifier {
+            self.isle
+                .loop_handle
+                .insert_idle(|state| state.pick_modifiers_changed());
+        } else if self.picking() {
+            match key_state {
+                KeyState::Pressed => {
+                    self.isle.swallowed.insert(key);
+                    self.pick_key(code, true);
+                    return;
+                }
+                KeyState::Released if self.isle.swallowed.remove(&key) => {
+                    self.pick_key(code, false);
+                    return;
+                }
+                KeyState::Released => {}
+            }
+        }
         match key_state {
             KeyState::Pressed if self.isle.switcher.is_some() && {
                 let (role, sym) =

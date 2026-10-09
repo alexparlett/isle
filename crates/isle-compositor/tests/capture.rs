@@ -307,3 +307,177 @@ async fn a_shot_over_a_full_screen_game_says_so_in_the_island() {
     // The chord is the desktop's, never the game's.
     assert!(!game.printed(&format!("key {THREE}")));
 }
+
+const FOUR: u32 = 5;
+const ESC: u32 = 1;
+const SPACE: u32 = 57;
+const ENTER: u32 = 28;
+const OPTION: u32 = 56;
+const RIGHT: u32 = 106;
+const DOWN: u32 = 108;
+const BTN_LEFT: u32 = 272;
+
+async fn pick(isle: &Isle) -> serde_json::Value {
+    serde_json::from_str(&isle.test().await.pick().await.unwrap()).unwrap()
+}
+
+async fn tap(isle: &Isle, key: u32) {
+    let test = isle.test().await;
+    test.key(key, true).await.unwrap();
+    test.key(key, false).await.unwrap();
+}
+
+fn newest_screenshot(isle: &Isle) -> Png {
+    let dir = isle.dir.join("home/Pictures/Screenshots");
+    let newest = std::fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .max_by_key(|e| e.metadata().unwrap().modified().unwrap())
+        .unwrap();
+    Png::read(newest.path().to_str().unwrap())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_region_is_cut_from_the_frame_frozen_at_the_chord() {
+    let mut isle = Isle::start("pick-region").await;
+    let window = isle.client("isle.test.Red", "ff0000");
+    window.wait_for("keyboard-enter").await;
+    let info = isle.wait_for_window("isle.test.Red").await;
+    isle.chord(&[SHIFT, CMD, FOUR]).await;
+    wait_until(|| async { pick(&isle).await["mode"] == "region" }).await;
+    // Frozen: the window turning green changes nothing in the shot.
+    window.send("colour 00ff00");
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    let test = isle.test().await;
+    let (x, y) = ((info.x + 20) as f64, (info.y + 40) as f64);
+    test.pointer_to(x, y).await.unwrap();
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.pointer_to(x + 100.0, y + 50.0).await.unwrap();
+    wait_until(|| async { pick(&isle).await["readout"] == true }).await;
+    assert_eq!(
+        pick(&isle).await["selection"],
+        serde_json::json!([x, y, 100.0, 50.0])
+    );
+    isle.keep_shot("pick-region").await;
+    test.button(BTN_LEFT, false).await.unwrap();
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    assert_eq!(pick(&isle).await, serde_json::Value::Null);
+    let png = newest_screenshot(&isle);
+    assert_eq!((png.width, png.height), (100, 50));
+    assert!(red(png.at(50, 25)), "{:?}", png.at(50, 25));
+    // The window kept the keyboard and saw neither the click nor its release.
+    assert!(!window.printed("keyboard-leave"));
+    assert!(!window.printed("button 272"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_region_can_be_taken_with_the_keys_alone() {
+    let isle = Isle::start("pick-keys").await;
+    let test = isle.test().await;
+    test.pointer_to(300.0, 200.0).await.unwrap();
+    isle.chord(&[SHIFT, CMD, FOUR]).await;
+    wait_until(|| async { !pick(&isle).await.is_null() }).await;
+    tap(&isle, ENTER).await;
+    test.key(SHIFT, true).await.unwrap();
+    for _ in 0..5 {
+        tap(&isle, RIGHT).await;
+    }
+    for _ in 0..3 {
+        tap(&isle, DOWN).await;
+    }
+    test.key(SHIFT, false).await.unwrap();
+    tap(&isle, RIGHT).await;
+    wait_until(|| async {
+        pick(&isle).await["selection"] == serde_json::json!([300.0, 200.0, 51.0, 30.0])
+    })
+    .await;
+    tap(&isle, ENTER).await;
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    let png = newest_screenshot(&isle);
+    assert_eq!((png.width, png.height), (51, 30));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn space_picks_a_window_whole_and_option_leaves_its_shadow_out() {
+    let mut isle = Isle::start("pick-window").await;
+    let below = isle.client("isle.test.Below", "ff0000");
+    below.wait_for("keyboard-enter").await;
+    let below_info = isle.wait_for_window("isle.test.Below").await;
+    let above = isle.client("isle.test.Above", "00ff00");
+    above.wait_for("keyboard-enter").await;
+    let above_info = isle.wait_for_window("isle.test.Above").await;
+    let windows = isle.windows_proxy().await;
+    windows
+        .set_box(below_info.id, 100, 100, 400, 300)
+        .await
+        .unwrap();
+    windows
+        .set_box(above_info.id, 200, 150, 400, 300)
+        .await
+        .unwrap();
+    wait_until(|| async { isle.window(above_info.id).await.x == 200 }).await;
+    let frame = isle.window(below_info.id).await;
+
+    let test = isle.test().await;
+    test.pointer_to(120.0, frame.y as f64 + 100.0)
+        .await
+        .unwrap();
+    isle.chord(&[SHIFT, CMD, FOUR]).await;
+    wait_until(|| async { !pick(&isle).await.is_null() }).await;
+    tap(&isle, SPACE).await;
+    wait_until(|| async { pick(&isle).await["lifted"] == below_info.id }).await;
+    isle.keep_shot("pick-window").await;
+    test.key(OPTION, true).await.unwrap();
+    tap(&isle, ENTER).await;
+    test.key(OPTION, false).await.unwrap();
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    let png = newest_screenshot(&isle);
+    assert_eq!(png.width, frame.width as usize);
+    let covered = png.at(png.width - 20, png.height - 20);
+    assert!(red(covered), "{covered:?}");
+
+    // A click takes it with its shadow.
+    isle.chord(&[SHIFT, CMD, FOUR]).await;
+    wait_until(|| async { !pick(&isle).await.is_null() }).await;
+    tap(&isle, SPACE).await;
+    test.pointer_to(120.0, frame.y as f64 + 100.0)
+        .await
+        .unwrap();
+    wait_until(|| async { pick(&isle).await["lifted"] == below_info.id }).await;
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.button(BTN_LEFT, false).await.unwrap();
+    wait_until(|| async { screenshots(&isle).len() == 2 }).await;
+    assert!(newest_screenshot(&isle).width > frame.width as usize);
+    assert!(!below.printed("button 272"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn escape_leaves_the_pick_and_the_frames_live_again() {
+    let isle = Isle::start("pick-escape").await;
+    isle.chord(&[SHIFT, CMD, FOUR]).await;
+    wait_until(|| async { !pick(&isle).await.is_null() }).await;
+    wait_until(|| async {
+        isle.test()
+            .await
+            .frame_kinds("HEADLESS-1")
+            .await
+            .unwrap()
+            .iter()
+            .any(|k| k == "frozen")
+    })
+    .await;
+    tap(&isle, ESC).await;
+    wait_until(|| async { pick(&isle).await.is_null() }).await;
+    wait_until(|| async {
+        !isle
+            .test()
+            .await
+            .frame_kinds("HEADLESS-1")
+            .await
+            .unwrap()
+            .iter()
+            .any(|k| k == "frozen")
+    })
+    .await;
+    assert!(screenshots(&isle).is_empty());
+}

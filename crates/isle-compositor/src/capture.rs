@@ -219,6 +219,92 @@ impl State {
     }
 }
 
+impl State {
+    /// Every screen, the main one first, written to the files or with `copy` put on the
+    /// clipboard.
+    pub fn shoot_screens(&mut self, copy: bool) {
+        let main = self.isle.main_output();
+        let mut outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
+        outputs.sort_by_key(|o| Some(o) != main.as_ref());
+        let pointer = self.isle.settings.capture.show_pointer;
+        let stills: Vec<Pixels> = outputs
+            .iter()
+            .filter_map(
+                |o| match self.capture_pixels(&Target::Screen(o.clone()), pointer) {
+                    Ok(pixels) => Some(pixels),
+                    Err(err) => {
+                        warn!(output = %o.name(), "no screenshot: {err}");
+                        None
+                    }
+                },
+            )
+            .collect();
+        if stills.is_empty() {
+            return;
+        }
+        self.shutter();
+        let to = if copy {
+            Destination::Clipboard
+        } else {
+            self.still_destination()
+        };
+        let quiet = self.game_in_front();
+        self.keep_stills(stills, to, move |state, written| {
+            if quiet && !written.is_empty() {
+                state.island_shot_saved();
+            }
+        });
+    }
+
+    /// The shot's sound, when shots make one.
+    fn shutter(&mut self) {
+        if !self.isle.settings.capture.sound {
+            return;
+        }
+        if let Some(file) = isle_audio::sounds::lookup("screen-capture", "freedesktop") {
+            self.isle.run_service(
+                async move { isle_audio::sounds::play(&file).await },
+                |_, result| {
+                    if let Err(err) = result {
+                        tracing::debug!("the shutter sound: {err}");
+                    }
+                },
+            );
+        }
+    }
+
+    /// Whether a full-screen game is in front, over which a shot shows nothing of its own.
+    pub fn game_in_front(&self) -> bool {
+        self.focused_window().is_some_and(|id| {
+            self.isle.wm.get(id).is_some_and(|r| r.game)
+                && self
+                    .isle
+                    .output_of(id)
+                    .is_some_and(|o| self.isle.output_full_screen(&o))
+        })
+    }
+
+    /// "Screenshot saved" in the island, in an OSD's place over a full-screen window.
+    fn island_shot_saved(&mut self) {
+        use isle_shell::island::model::{Event, EventKind, Form};
+        self.isle.island.model.post(
+            Event {
+                kind: EventKind::Osd,
+                form: Form::Line {
+                    symbol: "camera".into(),
+                    fill: false,
+                    text: "Screenshot saved".into(),
+                },
+                output: None,
+                app: None,
+                urgent: false,
+            },
+            std::time::Instant::now(),
+        );
+        self.isle.refresh_island();
+    }
+}
+
 #[cfg(feature = "test-hooks")]
 impl State {
     /// Takes the still a JSON spec names and writes it to the spec's folder: `{"target":

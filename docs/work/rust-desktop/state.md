@@ -364,3 +364,4 @@
   `docs/research/rust-desktop/capture-2026.md`. Phases 11.0–11.15.
 - P11 11.0 done (2026-10-09): stills of a screen, a region or a window from
   the compositor's element list, written as PNG or copied.
+- P11 11.1 done (2026-10-09): Shift+Cmd+3 and its Ctrl form.

@@ -232,3 +232,78 @@ async fn a_shot_that_cannot_be_written_is_copied_instead() {
     .await;
     let _ = &mut isle;
 }
+
+const SHIFT: u32 = 42;
+const CTRL: u32 = 29;
+const CMD: u32 = 125;
+const THREE: u32 = 4;
+
+fn screenshots(isle: &Isle) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(isle.dir.join("home/Pictures/Screenshots"))
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default();
+    names.sort();
+    names
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shift_cmd_3_writes_a_file_per_screen() {
+    let isle = Isle::start("capture-chord").await;
+    isle.test()
+        .await
+        .add_output("HEADLESS-2", "Test", "Second", "2", 1280, 720)
+        .await
+        .unwrap();
+    isle.chord(&[SHIFT, CMD, THREE]).await;
+    wait_until(|| async { screenshots(&isle).len() == 2 }).await;
+    let mut names = screenshots(&isle);
+    names.sort_by_key(|n| n.contains(" (2)"));
+    assert!(!names[0].contains(" (2)"), "{names:?}");
+    assert!(names[1].ends_with(" (2).png"), "{names:?}");
+    let first = Png::read(
+        isle.dir
+            .join("home/Pictures/Screenshots")
+            .join(&names[0])
+            .to_str()
+            .unwrap(),
+    );
+    let second = Png::read(
+        isle.dir
+            .join("home/Pictures/Screenshots")
+            .join(&names[1])
+            .to_str()
+            .unwrap(),
+    );
+    let mut sizes = [(first.width, first.height), (second.width, second.height)];
+    sizes.sort();
+    assert_eq!(sizes, [(1280, 720), (1920, 1080)]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ctrl_puts_the_shot_on_the_clipboard_instead() {
+    let isle = Isle::start("capture-copy").await;
+    isle.chord(&[CTRL, SHIFT, CMD, THREE]).await;
+    wait_until(|| async { isle.island_output().await["text"] == "Screenshot copied" }).await;
+    assert!(screenshots(&isle).is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_shot_over_a_full_screen_game_says_so_in_the_island() {
+    let mut isle = Isle::start("capture-game").await;
+    let game = isle.client("steam_app_1", "3366ff");
+    let id = isle.wait_for_window("steam_app_1").await.id;
+    wait_until(|| async { isle.window(id).await.game }).await;
+    game.send("fullscreen");
+    wait_until(|| async { isle.window(id).await.mode == "fullscreen" }).await;
+    wait_until(|| async { isle.window(id).await.focused }).await;
+    game.clear();
+    isle.chord(&[SHIFT, CMD, THREE]).await;
+    wait_until(|| async { screenshots(&isle).len() == 1 }).await;
+    wait_until(|| async { isle.island_output().await["text"] == "Screenshot saved" }).await;
+    // The chord is the desktop's, never the game's.
+    assert!(!game.printed(&format!("key {THREE}")));
+}

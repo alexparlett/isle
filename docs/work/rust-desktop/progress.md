@@ -2,6 +2,13 @@
 
 ## 2026-10-09
 
+- P11 11.1: Shift+Cmd+3. Every screen is shot, the main one first and the
+  second ending " (2)"; with Ctrl the main screen's shot goes to the
+  clipboard and the island says "Screenshot copied". The theme's
+  `screen-capture` sound plays behind `capture.sound`. Over a full-screen
+  game the island says "Screenshot saved" in the OSD's place and the chord
+  never reaches the game. The VM's look at the chords waits for 11.14.
+
 - P11 11.0: the render and the file. `capture.rs` renders a screen, a region
   of one, or a window alone (its surfaces, popups and title bar, with its
   shadow on a transparent ground when asked) into a texture of its own, the

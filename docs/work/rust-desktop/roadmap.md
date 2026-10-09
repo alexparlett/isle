@@ -5,7 +5,7 @@ packet's brief: what it delivers, what it depends on, and the decisions and
 intent documents it answers to. A packet is planned in detail, with its own
 PRD and phases, by its own run of feature-plan when it starts, against the
 code as it is then. Intent: `docs/design/` (compositor, shell, gaming,
-apps, platform). Decisions: `docs/DECISIONS.md` (B1–B79).
+apps, platform). Decisions: `docs/DECISIONS.md` (B1–B85).
 
 Everything happens on `feature/rust-desktop` (B16); v1 stays the daily
 desktop on `main` until milestone M2.
@@ -117,7 +117,13 @@ Clipboard history and emoji, moved from P20 at P10's review; the vault stays
 with the providers in P20.
 Intent: shell.md, gaming.md, platform.md.
 
-**P11 · Capture and portals.** `xdg-desktop-portal-isle` (B13), a bus name
+**P11 · Capture and portals.** Done 2026-10-09: `p11-capture.md`, B80–B85.
+The screenshot tool with its freeze, toolbar, thumbnail, colour pick and
+recording through `isle-record`; PipeWire streams from the compositor;
+`isle-portal` with ScreenCast and its picker, Screenshot, Access, Settings and
+Inhibit; ext-image-copy-capture with ext-foreign-toplevel-list. The picker is
+centred until alexparlett/smithay#3 (the xdg-foreign lookup) is merged, when it
+becomes a sheet. Brief: `xdg-desktop-portal-isle` (B13), a bus name
 on the compositor's service worker (B26): ScreenCast and Screenshot with
 PipeWire streams from the compositor and the shell's picker, the screenshot
 tool, ext-image-copy-capture; FileChooser follows in P15. A capture of a
@@ -136,7 +142,9 @@ output (GAMMA_LUT or a shader), with Control Centre's Night Light module
 and Game Mode turning it off (given here at P8's review). Intent:
 gaming.md, compositor.md.
 
-**P13 · Settings, core.** The Settings app on the app conventions: displays,
+**P13 · Settings, core.** Settings › Privacy & Security lists and revokes
+the permission store's `screenshot` and `screencast` entries, as `isle portal
+permissions` does since P11. The Settings app on the app conventions: displays,
 sound, network, Bluetooth, keyboard and shortcuts, appearance, desktop and
 hot corners, notifications, Control Centre, Focus and Game Mode, over the
 settings P8 added; the modules' "Settings…" links open them. Measures an app's memory on the GPU before
@@ -149,7 +157,11 @@ web search). Intent: apps.md.
 
 ## Milestone M2: Isle replaces v1 on the host
 
-**P14 · Session and install.** The PKGBUILD built from git, installed with
+**P14 · Session and install.** The package installs `isle-record` beside
+the compositor, `isle.portal` and `isle-portals.conf` (from `data/portal/`),
+and sees to a user's own `~/.config/xdg-desktop-portal/portals.conf`, which
+outranks the packaged file (v1 left one preferring Hyprland's backend, and
+v1's own `isle.portal` claims the same name); found in P11's VM. The PKGBUILD built from git, installed with
 paru and updated through pacman (B29); the compositor's greeter mode under
 greetd (B26) and session start, Login Items and autostart, crash logs, the
 update path, the dev loop that replaces `isle-dev-sync`; theming installed
@@ -168,7 +180,9 @@ Intent: platform.md, compositor.md.
 
 ## After M2: parity
 
-**P15 · Files.** Finder-shaped Files with v1's browsing-engine lessons; the
+**P15 · Files.** The capture thumbnail's click opens Quick Look with Markup,
+and its menu gains Show in Files and Markup; FileChooser joins `isle-portal`
+(both left out in P11). Finder-shaped Files with v1's browsing-engine lessons; the
 Open and Save panels, handed FileChooser by the portal backend, and Quick
 Look as a D-Bus service Spotlight calls, all in the Files process (B26).
 Files owns `org.freedesktop.FileManager1`, which Spotlight's Show in Files and
@@ -205,7 +219,8 @@ Intent: all.
 
 ## After cut-over
 
-**P22 · HDR.** Colour management from the community Smithay fork's work
+**P22 · HDR.** Shots, streams and the colour pick from HDR outputs (P11's
+are 8-bit sRGB). Colour management from the community Smithay fork's work
 (B23): the colour-management protocol, HDR metadata to the output, SDR
 content composited beside HDR, the NVIDIA colour pipeline, HDR through
 nested gamescope; tested on the host's driver first. Intent:

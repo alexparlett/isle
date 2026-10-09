@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B79 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B85 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -379,3 +379,14 @@
 - P11 11.12 done (2026-10-09): ext-image-copy-capture, its sources, ext-foreign-toplevel-list.
 - P11 11.13 done (2026-10-09): `Capture1`, `isle capture`, `isle portal`, the Screenshot control.
 - P11 11.14 done (2026-10-09): measures and the VM in `docs/research/rust-desktop/p11-capture.md`.
+- P11 is done (2026-10-09): every capture the compositor's own render (B80);
+  streams produced on the loop (B81); recording in the `isle-record` helper
+  with ffmpeg (B82); `isle-portal` on the worker with Access answered by Isle
+  (B83); shares coming back by what the user saw (B84); ext capture protocols
+  without wlr-screencopy (B85). ARCHITECTURE has How a capture is rendered,
+  How streams are produced and How the portal backend answers;
+  `p11-capture.md` ends with its outcome; measures and the VM in
+  `docs/research/rust-desktop/p11-capture.md`. Waiting on the user:
+  alexparlett/smithay#3 (the xdg-foreign lookup), after which the picker
+  becomes a sheet. No host run. Next: P12 (gaming).
+

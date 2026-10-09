@@ -35,9 +35,12 @@ isle-session                      supervisor: starts the compositor in the
       │                           for providers (B14)
       ├── watchdog thread         ends a dispatch stuck for ten seconds; the loop
       │                           itself logs any over a frame's budget (B9, B35)
-      └── isle-auth               the lock's PAM conversations in a helper process,
-                                  started on the first password and kept until
-                                  unlock (B67)
+      ├── isle-auth               the lock's PAM conversations in a helper process,
+      │                           started on the first password and kept until
+      │                           unlock (B67)
+      └── isle-record             a screen recording's encoder, started per
+                                  recording, reading the compositor's own stream
+                                  (B82)
 
 isle                            the command line over the D-Bus API
 Apps, launched on demand        Settings, Files, Monitor, Keychain, Cleaner:
@@ -472,6 +475,63 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   past Spotlight's edge starts a `DnDGrab` whose source writes the row's
   types to the target.
 
+## How a capture is rendered
+
+- **Every capture is the compositor's own render** (B80). A still of a
+  screen is what that output shows, through the same element list, less the
+  idle dim, the pointer unless asked, and the capture tool's own surfaces
+  left out by name (the readout, the toolbar, the loupe, the thumbnail, the
+  share picker); a locked screen therefore gives the lock. A region is that
+  render cut; a window is its own pieces at its output's scale, refused while
+  locked. Streams and ext-image-copy-capture frames are the same renders.
+- **The freeze holds textures, not clients.** Shift+Cmd+4 renders each
+  screen and each shown window into textures of their own and draws the
+  frozen frames in place of the scene, with the veil, the cut, the line and
+  the lifted window as compositor elements; clients run on unaware. The pick
+  reads keys and the pointer without taking focus.
+- **Pixels leave the loop at once.** The readback is on the loop; PNG
+  encoding, the file and the thumbnail's small copy are on the worker, and
+  the allocator is trimmed after, so a still's tens of megabytes are not
+  kept.
+
+## How streams are produced
+
+- **PipeWire runs inside the loop** (B81). Its loop's descriptor is a
+  calloop source; the context has the realtime module and D-Bus support
+  off, so nothing in the compositor loads libdbus or asks the Realtime
+  portal. Each stream drives itself and offers dmabufs by the modifiers the
+  renderer draws to, LINEAR first and one fixed by a test allocation, then
+  shared memory.
+- **Frames come with damage.** After each output's frame, each stream of it
+  renders when its damage tracker has damage and the negotiated rate allows,
+  and a dmabuf is queued once its fence signals. A window streams only while
+  it is shown; a window closing or a screen going ends its streams.
+- **Every stream shows.** Any stream sets the screen privacy mark and holds
+  banners; a recording is the island's Recording activity, a portal share
+  its Sharing row, each with Stop.
+- **Recording is a helper** (B82): the compositor streams the source and
+  `isle-record` reads it, with the output's monitor and the microphone, into
+  a fragmented MP4 whose every frame is flushed.
+
+## How the portal backend answers
+
+- **Isle's own backend on the worker** (B83). `isle-portal` holds the impl
+  interfaces as zbus, with the Request object each held reply exports and
+  the Session objects; the compositor serves them on a connection of its
+  own and takes `org.freedesktop.impl.portal.desktop.isle` before it reports
+  ready, then has systemd try-restart the frontend so a running one reads
+  Isle's versions. Only the owner of `org.freedesktop.portal.Desktop` may
+  call it.
+- **What each interface answers with.** ScreenCast: the restore data, the
+  same app's second ask, or the share picker, then a stream per source
+  (B84). Screenshot: the toolbar for an interactive request, the front window
+  or every screen for one the frontend allowed. Access: a P9 prompt.
+  Settings: the appearance namespace from the theme. Inhibit: idle's holds
+  and the session's end.
+- **The standard protocols beside it** (B85): ext-foreign-toplevel-list,
+  ext-image-capture-source and ext-image-copy-capture into shared memory;
+  no wlr-screencopy.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -502,9 +562,10 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 | `settings.kdl` | `~/.config/isle/` | the user's choices, apps' preferences included | the compositor, into the file's own text (B36), or the user by hand | yes |
 | `tokens.kdl` | built into Isle; `~/.config/isle/` over it | design tokens | the user by hand; Isle never writes it | the user's file |
 | `translation.kdl` | built into Isle; `~/.config/isle/` over it | Cmd translation tables (B45) | the user by hand; Isle never writes it | the user's file |
-| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), notifications and their records (`notifications`), what the user turned on or off in Focus (`focus`), Spotlight's use (`usage`) and Run's history (`commands`), session restore, crash history | the compositor and the supervisor | no |
+| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), the capture toolbar's mode, place and portion (`capture`), notifications and their records (`notifications`), what the user turned on or off in Focus (`focus`), Spotlight's use (`usage`) and Run's history (`commands`), session restore, crash history | the compositor and the supervisor | no |
 | clipboard history | `~/.local/state/isle/clipboard/` | `index.json` and each copy's types as files, mode 0600 | the worker | no |
-| caches | `~/.cache/isle/` | media art (`art`), notifications' images (`notifications`), tray items' pixmaps (`tray`) | the worker | no |
+| caches | `~/.cache/isle/` | media art (`art`), notifications' images (`notifications`), tray items' pixmaps (`tray`), shots for apps through the portal (`portal`, a day) | the worker | no |
+| shots and recordings | `$XDG_PICTURES_DIR/Screenshots`, `$XDG_VIDEOS_DIR/Recordings` | by macOS's names | the worker, `isle-record` | no |
 | crash records | `~/.local/state/isle/crashes/` | the last ten | the compositor's panic hook and watchdog, then the supervisor | no |
 | session log | `~/.local/state/isle/session.log`, `.old` | this session's and the last | the supervisor | no |
 
@@ -522,7 +583,10 @@ paru and updated through pacman (B29).
   its `isle` branch: upstream master at `118e34f` with Isle's patches, each
   merged by pull request in the fork, none offered upstream (B43). So far two:
   the X11 window manager tracks windows' bounding shape (SHAPE) and reads
-  Steam's `STEAM_GAME` label (alexparlett/smithay#2). The async
+  Steam's `STEAM_GAME` label (alexparlett/smithay#2). A third, a lookup of
+  an xdg-foreign export by its handle, waits for review as
+  alexparlett/smithay#3; with it the share picker becomes a sheet on the
+  asking window. The async
   page flip joins it by P12. Its `master` follows upstream; moving Isle to a
   newer upstream is a rebase of `isle` and a revision bump.
 - **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
@@ -548,9 +612,10 @@ badges), `isle-games` (launchers' libraries: names, covers and launch links), `i
 sources, the matcher, ranking and the file index), `isle-keys` (keyboard
 profiles, chords, the shortcut set's table, translation tables and the engine),
 `isle-menus` (the menu tree, its DBusMenu and GMenuModel clients and the registrar),
+`isle-portal` (the portal backend's interfaces), `isle-record` (the recorder),
 `isle-shell` (the surface host), `isle-tokens`, `isle-ui` (the
 Freya side shared with Isle's apps) and `isle-preview`; `data/` holds the shipped tokens with their schema and
 contrast check, the translation tables, the Phosphor subset with Isle's own glyphs,
-Spotlight's actions, the emoji table with its generator and the Settings row index, and
+Spotlight's actions, the portal's description and preferences, the emoji table with its generator and the Settings row index, and
 the vendored `gtk-shell.xml`. `spikes/shell-ui/`
 is the throwaway code behind B7 and is not built on.

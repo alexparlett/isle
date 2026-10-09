@@ -556,3 +556,50 @@ outputs (P22); importing v1's capture settings (P14).
 
 The user reviewed the plan on 2026-10-09 and took every recommendation:
 one packet, the host run optional, as for P6 to P10.
+
+## Outcome
+
+Built 2026-10-09 in phases 11.0–11.15, as planned, with these differences:
+
+- **The share picker is centred on the main screen, not a sheet.** The sheet
+  needs the fork's lookup of an xdg-foreign export, opened as
+  alexparlett/smithay#3 and waiting for the user's review; xdg-foreign is not
+  served until it is merged.
+- **Recordings stay fragmented MP4s**, each frame a fragment flushed as it
+  goes, not rewritten with the index first on Stop: the index already leads
+  the file, a recorder killed midway leaves one that plays, and the rewrite
+  failed on AAC's packets through the API.
+- **No metadata cursor in streams yet**: ScreenCast offers hidden and
+  embedded; metadata waits for a bitmap of the pointer's image.
+- **dmabufs only through the udev backend**, so the headless tests and the VM
+  stream shared memory; ext-image-copy-capture copies into shared memory only,
+  with no cursor sessions.
+- **A capture-protocol session shows the screen mark**, but no Sharing row
+  with Stop.
+- **Smaller gaps**: no click on the countdown to cancel it (Cmd+Ctrl+Escape
+  does), square handles, no swatch beside the colour value, no camera
+  pointer in window mode, the line square round a lifted window, shell panels
+  not pickable apart from the region, no Show mouse clicks, no Portion of
+  screen tab or typing filter in the picker, a request made while locked
+  answered cancel, no countdown for an app's shot.
+- **The thumbnail's click opens the default image viewer** until Quick Look
+  (P15).
+
+Found and fixed on the way: the allocator kept every still's pixels for the
+worker threads that freed them, 135 MB after five shots; the audio streams'
+ports configure themselves with no session manager
+(`adapter.auto-port-config`); a callback on PipeWire's data thread
+(`RT_PROCESS`) raced the recorder's main loop. Found and left for P14: a
+user's `~/.config/xdg-desktop-portal/portals.conf` outranks the packaged
+`isle-portals.conf`.
+
+The measures and the VM are in `docs/research/rust-desktop/p11-capture.md`:
+a shot is on disk in about 55 ms, the freeze takes a few milliseconds, a
+3440 by 1440 stream costs 1.7 ms of the loop a frame at p50 without slowing
+the output, a still screen streams nothing, and the compositor's own heap
+stays near 30 MB. The VM shot by CLI and by the pick's keys, recorded, ran
+grim, and shared a screen through the guest's real frontend and Isle's
+picker to a consumer. Not checked: Chromium and Firefox sharing, OBS,
+Discord, NVENC and dmabufs on the host, a game recorded. B80–B85 record the
+decisions.
+

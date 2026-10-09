@@ -2,6 +2,14 @@
 
 ## 2026-10-09
 
+- P11 closed. ARCHITECTURE has How a capture is rendered, How streams are
+  produced and How the portal backend answers, with `isle-record` in the
+  process layout and `isle-portal` and `isle-record` in the repository's;
+  B80–B85 recorded; `platform.md`'s non-interactive screenshot point
+  answered; the roadmap's P11, P13, P14, P15 and P22 entries follow;
+  `p11-capture.md` ends with its outcome. alexparlett/smithay#3 waits for the
+  user's review.
+
 - P11 11.14: the measure and the VM (`docs/research/rust-desktop/p11-capture.md`).
   At 3440×1440 a shot is on disk in about 55 ms, the freeze takes a few
   milliseconds with eight windows, a screen stream costs 1.7 ms of the loop a

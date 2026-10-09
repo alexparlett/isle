@@ -415,6 +415,11 @@ v1 lessons kept
 
 Open for its packet: none.
 
+Built in P11 (B80–B85). Until Files brings Quick Look (P15), a click on the
+thumbnail opens the shot in the default image viewer and Markup waits. The
+screen-share picker is centred on the main screen until it can be a sheet on
+the asking window.
+
 ### Wallpaper and idle dimmer
 
 The desktop picture per screen, and macOS's dim before the display turns off, with v1's dim, lock and

@@ -912,3 +912,53 @@ serving text-input-v3 as an input method (it reaches few of the apps that
 matter). An app with no paste chord, such as xterm by default, takes no
 pick.
 
+**B80 · Every capture is the compositor's own render.** Built in P11. A
+shot, a frozen frame, a stream frame and an ext-image-copy-capture frame are
+renders of the compositor's element list, so a locked screen gives the lock
+and the capture tool's surfaces, left out by name, never appear. A window is
+its own pieces, refused while locked. The freeze holds textures of each
+screen and each shown window. Rejected: reading the scanout buffer (the
+tool's veil would be in it), pausing clients for the freeze.
+
+**B81 · Streams are produced on the loop.** Built in P11. PipeWire's loop is
+a calloop source; its context loads neither the realtime module nor D-Bus
+support (B11, and no call to a Realtime portal Isle may be serving). Streams
+drive themselves, offer dmabufs by tested modifier with LINEAR first and
+shared memory last, render with damage at the negotiated rate, queue after
+the render's fence, and stream a window only while it is shown. Any stream
+shows the screen mark and holds banners. Rejected: a PipeWire thread with a
+second GL context (more to keep in step for no measured need: 1.7 ms of the
+loop a frame at p50), Mutter's D-Bus API for xdg-desktop-portal-gnome (B13).
+
+**B82 · Recording is a helper process with ffmpeg.** Built in P11.
+`isle-record` reads the compositor's own stream and the output's monitor and
+microphone, and writes H.264 through NVENC when it opens, x264 when not, with
+AAC, into a fragmented MP4 flushed every frame, which is kept as the file:
+its index leads it and a recording cut short plays. Built without
+libavdevice, it links neither libdbus nor libpulse. Rejected: GStreamer
+(no MP4 muxer without gst-plugins-good; `pipewiresrc` loads the realtime
+module), encoding in the compositor (CUDA and an encoder's threads in the
+process that must not fall), rewriting the file with its index first on stop.
+
+**B83 · Isle's portal backend is its own zbus on the worker.** Built in P11.
+`isle-portal` holds the impl interfaces by hand; only the frontend's owner
+may call them; the name is taken before Isle reports ready and the frontend
+restarted if it runs, since it reads a backend's versions once. Isle answers
+Access, so the frontend's own permission store decides non-interactive
+screenshots, asking once through a P9 prompt. Rejected: `ashpd`'s backend
+module (unstable, no Inhibit), a separate portal process (B26).
+
+**B84 · A share comes back by what the user saw.** Built in P11. Restore data
+is `("Isle", 1, [specs])`: a screen by its identity, a window by its app and
+title, a portion by both; data that no longer resolves opens the picker. The
+same app's second ask within ten seconds of a granted share is answered with
+it, for Chromium's preview-then-capture. The picker's tiles are live while
+it is open, and never show the picker.
+
+**B85 · Standard capture tools through ext protocols only.** Built in P11.
+ext-foreign-toplevel-list, ext-image-capture-source and ext-image-copy-capture
+are served; frames are copied once per redraw after the first, and a session
+taking more than one shows the screen mark. wlr-screencopy is not served: its
+users here, wf-recorder and hyprpicker, are replaced by Isle's recorder and
+colour pick.
+

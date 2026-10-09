@@ -80,6 +80,19 @@ impl TabletSeatHandler for State {
 impl SelectionHandler for State {
     type SelectionUserData = crate::clipboard::Owner;
 
+    fn new_selection(
+        &mut self,
+        ty: smithay::wayland::selection::SelectionTarget,
+        source: Option<smithay::wayland::selection::SelectionSource>,
+        _seat: Seat<Self>,
+    ) {
+        let types = source.map(|s| s.mime_types());
+        self.tell_xwayland(ty, types.clone());
+        if ty == smithay::wayland::selection::SelectionTarget::Clipboard {
+            self.clipboard_offered(types.unwrap_or_default());
+        }
+    }
+
     fn send_selection(
         &mut self,
         ty: smithay::wayland::selection::SelectionTarget,

@@ -124,6 +124,8 @@ pub struct Isle {
     pub session: crate::session_end::SessionState,
     pub force_quit: crate::force_quit::ForceQuitState,
     pub spotlight: crate::spotlight::SpotlightState,
+    /// The emoji the colour font draws, by their place in the table, once checked.
+    pub emoji_drawable: std::sync::Arc<std::sync::OnceLock<Vec<usize>>>,
     /// The file-name index, once built.
     pub files: Option<isle_search::files::Shared>,
     /// Where the index reaches, sent to its watcher when the settings change.
@@ -417,6 +419,7 @@ impl Isle {
             session,
             force_quit,
             spotlight,
+            emoji_drawable: Default::default(),
             files: None,
             files_reach: None,
             clipboard: Default::default(),

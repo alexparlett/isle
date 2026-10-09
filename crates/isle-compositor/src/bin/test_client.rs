@@ -122,6 +122,11 @@ struct Client {
     data_manager: Option<wl_data_device_manager::WlDataDeviceManager>,
     data_device: Option<wl_data_device::WlDataDevice>,
     drag_on_press: bool,
+    /// The clipboard as offered to this client, and the text this client offers.
+    selection: Option<wl_data_offer::WlDataOffer>,
+    copied: Option<String>,
+    /// The latest serial from the keyboard, for setting the clipboard.
+    key_serial: u32,
     /// The bus `badge` sends on, kept so the sender stays until the client exits.
     launcher: Option<(tokio::runtime::Runtime, zbus::Connection)>,
     /// The server's signals are being printed.
@@ -346,6 +351,40 @@ impl Client {
             gone: false,
         });
         index
+    }
+
+    /// Reads the clipboard's text off the event loop and prints it.
+    fn paste(&mut self, conn: &Connection) {
+        let Some(offer) = &self.selection else {
+            say(0, "pasted nothing".into());
+            return;
+        };
+        let mut fds = [0; 2];
+        // Safety: room for both ends.
+        unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) };
+        // Safety: both ends are new and owned here.
+        let (read, write) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
+        offer.receive("text/plain;charset=utf-8".into(), write.as_fd());
+        drop(write);
+        let _ = conn.flush();
+        std::thread::spawn(move || {
+            let mut text = String::new();
+            let _ = std::io::Read::read_to_string(&mut std::fs::File::from(read), &mut text);
+            say(0, format!("pasted {text}"));
+        });
+    }
+
+    /// Offers `text` as the clipboard.
+    fn copy(&mut self, text: String, qh: &QueueHandle<Self>) {
+        let (Some(manager), Some(device)) = (&self.data_manager, &self.data_device) else {
+            return;
+        };
+        let source = manager.create_data_source(qh, ());
+        source.offer("text/plain;charset=utf-8".into());
+        source.offer("text/plain".into());
+        device.set_selection(Some(&source), self.key_serial);
+        self.copied = Some(text);
+        say(0, "copied".into());
     }
 
     /// A drag of text from window `index` with a 32 by 32 magenta icon.
@@ -661,6 +700,7 @@ impl Client {
                 }
             }
             ("linger", _) => self.linger = true,
+            ("copy", _) => self.copy(rest.join(" "), qh),
             ("badge", _) => self.badge(&rest),
             ("notify", _) => self.notify(&rest),
             ("tray", _) => self.tray = Some(tray(&rest)),
@@ -921,14 +961,14 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Client {
         _: &wl_keyboard::WlKeyboard,
         event: wl_keyboard::Event,
         _: &(),
-        _: &Connection,
+        conn: &Connection,
         _: &QueueHandle<Self>,
     ) {
         match event {
-            wl_keyboard::Event::Enter { surface, .. } => say(
-                state.index_of_surface(&surface).unwrap_or(0),
-                "keyboard-enter".into(),
-            ),
+            wl_keyboard::Event::Enter { surface, serial, .. } => {
+                state.key_serial = serial;
+                say(state.index_of_surface(&surface).unwrap_or(0), "keyboard-enter".into())
+            }
             wl_keyboard::Event::Leave { surface, .. } => say(
                 state.index_of_surface(&surface).unwrap_or(0),
                 "keyboard-leave".into(),
@@ -984,9 +1024,11 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Client {
             }
             wl_keyboard::Event::Key {
                 key,
+                serial,
                 state: WEnum::Value(s),
                 ..
             } => {
+                state.key_serial = serial;
                 let pressed = if s == wl_keyboard::KeyState::Pressed {
                     "pressed"
                 } else {
@@ -999,6 +1041,11 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Client {
                         0,
                         format!("sym {} {pressed}", isle_keys::xkb::keysym_get_name(sym)),
                     );
+                    // Ctrl+V reads the clipboard's text and prints it.
+                    let ctrl = xkb_state.mod_name_is_active("Control", isle_keys::xkb::STATE_MODS_EFFECTIVE);
+                    if ctrl && pressed == "pressed" && sym.raw() == isle_keys::xkb::keysyms::KEY_v {
+                        state.paste(conn);
+                    }
                 }
             }
             _ => {}
@@ -1101,7 +1148,7 @@ impl Dispatch<ext_idle_notification_v1::ExtIdleNotificationV1, ()> for Client {
 
 impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
     fn event(
-        _: &mut Self,
+        state: &mut Self,
         _: &wl_data_device::WlDataDevice,
         event: wl_data_device::Event,
         _: &(),
@@ -1118,6 +1165,7 @@ impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
                 say(0, "dnd enter".into());
             }
             wl_data_device::Event::Drop => say(0, "dnd drop".into()),
+            wl_data_device::Event::Selection { id } => state.selection = id,
             _ => {}
         }
     }
@@ -1129,7 +1177,7 @@ impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
 
 impl Dispatch<wl_data_source::WlDataSource, ()> for Client {
     fn event(
-        _: &mut Self,
+        state: &mut Self,
         _: &wl_data_source::WlDataSource,
         event: wl_data_source::Event,
         _: &(),
@@ -1138,7 +1186,8 @@ impl Dispatch<wl_data_source::WlDataSource, ()> for Client {
     ) {
         match event {
             wl_data_source::Event::Send { fd, .. } => {
-                let _ = std::fs::File::from(fd).write_all(b"dragged");
+                let text = state.copied.clone().unwrap_or_else(|| "dragged".into());
+                let _ = std::fs::File::from(fd).write_all(text.as_bytes());
             }
             wl_data_source::Event::DndFinished => say(0, "dnd finished".into()),
             wl_data_source::Event::Cancelled => say(0, "dnd cancelled".into()),
@@ -1270,6 +1319,9 @@ fn main() {
         data_manager: None,
         data_device: None,
         drag_on_press: false,
+        selection: None,
+        copied: None,
+        key_serial: 0,
         launcher: None,
         tray: None,
         listening: false,

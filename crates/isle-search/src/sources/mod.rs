@@ -4,6 +4,7 @@
 pub mod actions;
 pub mod apps;
 pub mod calculator;
+pub mod emoji;
 pub mod menus;
 pub mod run;
 pub mod settings;

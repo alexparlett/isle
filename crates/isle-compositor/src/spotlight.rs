@@ -45,11 +45,16 @@ pub struct Sources {
 #[derive(Clone, Debug)]
 enum MenuCommand {
     Choose(Row),
-    EntryAction { app: String, action: String },
+    EntryAction {
+        app: String,
+        action: String,
+    },
     AddFavourite(String),
     RemoveFavourite(String),
     KeepRunning(String, bool),
     ShowInLauncher(String),
+    /// An emoji's variant, put in as the emoji is.
+    Insert(String),
     Quit(String),
     Copy(Row),
     Category(Option<String>),
@@ -775,7 +780,11 @@ impl State {
             Item::Web(_) | Item::Answer(_) | Item::Run(_) | Item::Clip(_) | Item::File(_)
         );
         if counted {
-            self.isle.record_use(&row.key);
+            let key = match &row.item {
+                Item::Emoji(text) => format!("emoji:{text}"),
+                _ => row.key.clone(),
+            };
+            self.isle.record_use(&key);
         }
         match row.item {
             Item::App(app) => {
@@ -834,6 +843,7 @@ impl State {
                 previous,
                 crate::clipboard::Pick::text(text),
                 how == How::Alternate,
+                true,
             ),
             Item::Clip(id) => self.insert_clip(previous, id, how == How::Alternate),
         }
@@ -972,6 +982,10 @@ impl State {
                 }),
                 Box::new(isle_search::sources::run::RunSource {
                     history: self.isle.spotlight.commands.run.clone(),
+                }),
+                Box::new(isle_search::sources::emoji::EmojiSource {
+                    drawable: self.isle.emoji_drawable.clone(),
+                    check: isle_shell::spotlight::drawable_emoji,
                 }),
                 Box::new(isle_search::sources::run::WebSource {
                     template: self.isle.settings.spotlight.web_search.clone(),
@@ -1235,6 +1249,25 @@ impl State {
                 MenuCommand::ShowInLauncher(key.clone()),
             )));
         }
+        if let Item::Emoji(text) = &row.item
+            && let Some(glyph) = isle_search::sources::emoji::table()
+                .iter()
+                .find(|g| &g.text == text)
+            && !glyph.variants.is_empty()
+        {
+            groups.push(
+                glyph
+                    .variants
+                    .iter()
+                    .map(|(v, name)| {
+                        MenuEntry::Item(item(
+                            &format!("{v}  {name}"),
+                            MenuCommand::Insert(v.clone()),
+                        ))
+                    })
+                    .collect(),
+            );
+        }
         if matches!(row.item, Item::Answer(_) | Item::File(_) | Item::Emoji(_)) {
             options.push(MenuEntry::Item(item(
                 "Copy",
@@ -1397,6 +1430,13 @@ impl State {
             }
             MenuCommand::Quit(app) => {
                 self.quit_app(&app);
+                Vec::new()
+            }
+            MenuCommand::Insert(text) => {
+                let previous = self.isle.spotlight.previous;
+                self.close_spotlight();
+                self.isle.record_use(&format!("emoji:{text}"));
+                self.insert_pick(previous, crate::clipboard::Pick::text(text), false, true);
                 Vec::new()
             }
             MenuCommand::Copy(row) => {

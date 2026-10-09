@@ -531,6 +531,54 @@ async fn a_command_runs_and_is_kept() {
     .await;
 }
 
+/// Ctrl+Cmd+Space, then `name`, then Return.
+async fn pick_emoji(isle: &Isle, name: &str) {
+    let test = isle.test().await;
+    test.key(CTRL, true).await.unwrap();
+    isle.chord(&[SUPER, SPACE]).await;
+    test.key(CTRL, false).await.unwrap();
+    wait_until(|| async { status(isle).await["scope"] == "Emoji" }).await;
+    for c in name.chars() {
+        press(isle, code(c)).await;
+    }
+    wait_until(|| async { status(isle).await["text"] == name }).await;
+    wait_until(|| async {
+        status(isle).await["selected"]
+            .as_str()
+            .is_some_and(|s| s.starts_with("emoji:"))
+    })
+    .await;
+    press(isle, RETURN).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_emoji_is_pasted_and_the_clipboard_comes_back() {
+    let mut isle = Isle::start("spotlight-emoji").await;
+    let client = isle.client("isle.test.Typing", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    client.send("copy before");
+    client.wait_for("copied").await;
+    pick_emoji(&isle, "partying face").await;
+    client.wait_for("pasted 🥳").await;
+    let test = isle.test().await;
+    wait_until(|| async { test.clipboard().await.unwrap() == "before" }).await;
+
+    client.clear();
+    pick_emoji(&isle, "people holding hands").await;
+    client.wait_for("pasted 🧑\u{200d}🤝\u{200d}🧑").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_emoji_reaches_an_x11_window() {
+    let mut isle = Isle::start("spotlight-emoji-x11").await;
+    let client = isle
+        .x11_client(&["--class", "isle.test.X11", "--colour", "ff0000"])
+        .await;
+    client.wait_for("focus-in").await;
+    pick_emoji(&isle, "partying face").await;
+    client.wait_for("pasted 🥳").await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -581,4 +629,16 @@ async fn look() {
     )
     .await
     .unwrap();
+    press(&isle, ESCAPE).await;
+    press(&isle, ESCAPE).await;
+    press(&isle, ESCAPE).await;
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    test.key(CTRL, true).await.unwrap();
+    isle.chord(&[SUPER, SPACE]).await;
+    test.key(CTRL, false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    let emoji = std::path::Path::new(&dir).join("spotlight-emoji.png");
+    test.screenshot("HEADLESS-1", emoji.to_str().unwrap())
+        .await
+        .unwrap();
 }

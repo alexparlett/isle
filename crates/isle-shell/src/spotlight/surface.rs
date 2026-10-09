@@ -593,6 +593,7 @@ impl Component for ListPanel {
         shape(&theme, self.solid, t.size_spotlight_width, height).child(
             rect()
                 .expanded()
+                .content(Content::flex())
                 .padding(t.space_s)
                 .maybe_child(strip)
                 .child(
@@ -957,6 +958,7 @@ impl Component for GridPanel {
         shape(&theme, self.solid, width, height).child(
             rect()
                 .expanded()
+                .content(Content::flex())
                 .padding((if apps { 0. } else { t.space_s }, side, t.space_s, side))
                 .maybe_child(top_bar)
                 .child(

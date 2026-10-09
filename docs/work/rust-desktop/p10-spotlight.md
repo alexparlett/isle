@@ -171,7 +171,7 @@ before anything is done in it.
     reads as `<number> <unit> to|in <unit>`. v1's `qalc` respawned on every
     keystroke; libqalculate has no maintained Rust binding.
 15. **Emoji and symbols are a generated table shipped as data.** A script
-    in `data/emoji/` builds `emoji.kdl` from the `unicode-emoji` package's
+    in `data/emoji/` builds `emoji.tsv` from the `unicode-emoji` package's
     `emoji-test.txt` (names, groups, skin-tone variants), CLDR's keyword
     annotations, and UnicodeData's names for the symbol blocks v1 offered;
     the output is checked in and regenerated when Unicode moves. Glyphs the

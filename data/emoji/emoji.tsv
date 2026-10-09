@@ -1,0 +1,5262 @@
+# Emoji 17.0 and symbols, written by generate.py; regenerate rather than edit.
+group	Smileys & Emotion
+e	😀	grinning face	face-smiling	
+e	😃	grinning face with big eyes	face-smiling	
+e	😄	grinning face with smiling eyes	face-smiling	
+e	😁	beaming face with smiling eyes	face-smiling	
+e	😆	grinning squinting face	face-smiling	
+e	😅	grinning face with sweat	face-smiling	
+e	🤣	rolling on the floor laughing	face-smiling	
+e	😂	face with tears of joy	face-smiling	
+e	🙂	slightly smiling face	face-smiling	
+e	🙃	upside-down face	face-smiling	
+e	🫠	melting face	face-smiling	
+e	😉	winking face	face-smiling	
+e	😊	smiling face with smiling eyes	face-smiling	
+e	😇	smiling face with halo	face-smiling	
+e	🥰	smiling face with hearts	face-affection	
+e	😍	smiling face with heart-eyes	face-affection	
+e	🤩	star-struck	face-affection	
+e	😘	face blowing a kiss	face-affection	
+e	😗	kissing face	face-affection	
+e	☺️	smiling face	face-affection	
+e	😚	kissing face with closed eyes	face-affection	
+e	😙	kissing face with smiling eyes	face-affection	
+e	🥲	smiling face with tear	face-affection	
+e	😋	face savoring food	face-tongue	
+e	😛	face with tongue	face-tongue	
+e	😜	winking face with tongue	face-tongue	
+e	🤪	zany face	face-tongue	
+e	😝	squinting face with tongue	face-tongue	
+e	🤑	money-mouth face	face-tongue	
+e	🤗	smiling face with open hands	face-hand	
+e	🤭	face with hand over mouth	face-hand	
+e	🫢	face with open eyes and hand over mouth	face-hand	
+e	🫣	face with peeking eye	face-hand	
+e	🤫	shushing face	face-hand	
+e	🤔	thinking face	face-hand	
+e	🫡	saluting face	face-hand	
+e	🤐	zipper-mouth face	face-neutral-skeptical	
+e	🤨	face with raised eyebrow	face-neutral-skeptical	
+e	😐	neutral face	face-neutral-skeptical	
+e	😑	expressionless face	face-neutral-skeptical	
+e	😶	face without mouth	face-neutral-skeptical	
+e	🫥	dotted line face	face-neutral-skeptical	
+e	😶‍🌫️	face in clouds	face-neutral-skeptical	
+e	😏	smirking face	face-neutral-skeptical	
+e	😒	unamused face	face-neutral-skeptical	
+e	🙄	face with rolling eyes	face-neutral-skeptical	
+e	😬	grimacing face	face-neutral-skeptical	
+e	😮‍💨	face exhaling	face-neutral-skeptical	
+e	🤥	lying face	face-neutral-skeptical	
+e	🫨	shaking face	face-neutral-skeptical	
+e	🙂‍↔️	head shaking horizontally	face-neutral-skeptical	
+e	🙂‍↕️	head shaking vertically	face-neutral-skeptical	
+e	😌	relieved face	face-sleepy	
+e	😔	pensive face	face-sleepy	
+e	😪	sleepy face	face-sleepy	
+e	🤤	drooling face	face-sleepy	
+e	😴	sleeping face	face-sleepy	
+e	🫩	face with bags under eyes	face-sleepy	
+e	😷	face with medical mask	face-unwell	
+e	🤒	face with thermometer	face-unwell	
+e	🤕	face with head-bandage	face-unwell	
+e	🤢	nauseated face	face-unwell	
+e	🤮	face vomiting	face-unwell	
+e	🤧	sneezing face	face-unwell	
+e	🥵	hot face	face-unwell	
+e	🥶	cold face	face-unwell	
+e	🥴	woozy face	face-unwell	
+e	😵	face with crossed-out eyes	face-unwell	
+e	😵‍💫	face with spiral eyes	face-unwell	
+e	🤯	exploding head	face-unwell	
+e	🤠	cowboy hat face	face-hat	
+e	🥳	partying face	face-hat	
+e	🥸	disguised face	face-hat	
+e	😎	smiling face with sunglasses	face-glasses	
+e	🤓	nerd face	face-glasses	
+e	🧐	face with monocle	face-glasses	
+e	😕	confused face	face-concerned	
+e	🫤	face with diagonal mouth	face-concerned	
+e	😟	worried face	face-concerned	
+e	🙁	slightly frowning face	face-concerned	
+e	☹️	frowning face	face-concerned	
+e	😮	face with open mouth	face-concerned	
+e	😯	hushed face	face-concerned	
+e	😲	astonished face	face-concerned	
+e	😳	flushed face	face-concerned	
+e	🫪	distorted face	face-concerned	
+e	🥺	pleading face	face-concerned	
+e	🥹	face holding back tears	face-concerned	
+e	😦	frowning face with open mouth	face-concerned	
+e	😧	anguished face	face-concerned	
+e	😨	fearful face	face-concerned	
+e	😰	anxious face with sweat	face-concerned	
+e	😥	sad but relieved face	face-concerned	
+e	😢	crying face	face-concerned	
+e	😭	loudly crying face	face-concerned	
+e	😱	face screaming in fear	face-concerned	
+e	😖	confounded face	face-concerned	
+e	😣	persevering face	face-concerned	
+e	😞	disappointed face	face-concerned	
+e	😓	downcast face with sweat	face-concerned	
+e	😩	weary face	face-concerned	
+e	😫	tired face	face-concerned	
+e	🥱	yawning face	face-concerned	
+e	😤	face with steam from nose	face-negative	
+e	😡	enraged face	face-negative	
+e	😠	angry face	face-negative	
+e	🤬	face with symbols on mouth	face-negative	
+e	😈	smiling face with horns	face-negative	
+e	👿	angry face with horns	face-negative	
+e	💀	skull	face-negative	
+e	☠️	skull and crossbones	face-negative	
+e	💩	pile of poo	face-costume	
+e	🤡	clown face	face-costume	
+e	👹	ogre	face-costume	
+e	👺	goblin	face-costume	
+e	👻	ghost	face-costume	
+e	👽	alien	face-costume	
+e	👾	alien monster	face-costume	
+e	🤖	robot	face-costume	
+e	😺	grinning cat	cat-face	
+e	😸	grinning cat with smiling eyes	cat-face	
+e	😹	cat with tears of joy	cat-face	
+e	😻	smiling cat with heart-eyes	cat-face	
+e	😼	cat with wry smile	cat-face	
+e	😽	kissing cat	cat-face	
+e	🙀	weary cat	cat-face	
+e	😿	crying cat	cat-face	
+e	😾	pouting cat	cat-face	
+e	🙈	see-no-evil monkey	monkey-face	
+e	🙉	hear-no-evil monkey	monkey-face	
+e	🙊	speak-no-evil monkey	monkey-face	
+e	💌	love letter	heart	
+e	💘	heart with arrow	heart	
+e	💝	heart with ribbon	heart	
+e	💖	sparkling heart	heart	
+e	💗	growing heart	heart	
+e	💓	beating heart	heart	
+e	💞	revolving hearts	heart	
+e	💕	two hearts	heart	
+e	💟	heart decoration	heart	
+e	❣️	heart exclamation	heart	
+e	💔	broken heart	heart	
+e	❤️‍🔥	heart on fire	heart	
+e	❤️‍🩹	mending heart	heart	
+e	❤️	red heart	heart	
+e	🩷	pink heart	heart	
+e	🧡	orange heart	heart	
+e	💛	yellow heart	heart	
+e	💚	green heart	heart	
+e	💙	blue heart	heart	
+e	🩵	light blue heart	heart	
+e	💜	purple heart	heart	
+e	🤎	brown heart	heart	
+e	🖤	black heart	heart	
+e	🩶	grey heart	heart	
+e	🤍	white heart	heart	
+e	💋	kiss mark	emotion	
+e	💯	hundred points	emotion	
+e	💢	anger symbol	emotion	
+e	🫯	fight cloud	emotion	
+e	💥	collision	emotion	
+e	💫	dizzy	emotion	
+e	💦	sweat droplets	emotion	
+e	💨	dashing away	emotion	
+e	🕳️	hole	emotion	
+e	💬	speech balloon	emotion	
+e	👁️‍🗨️	eye in speech bubble	emotion	
+e	🗨️	left speech bubble	emotion	
+e	🗯️	right anger bubble	emotion	
+e	💭	thought balloon	emotion	
+e	💤	ZZZ	emotion	
+group	People & Body
+e	👋	waving hand	hand-fingers-open	
+v	👋🏻	light skin tone
+v	👋🏼	medium-light skin tone
+v	👋🏽	medium skin tone
+v	👋🏾	medium-dark skin tone
+v	👋🏿	dark skin tone
+e	🤚	raised back of hand	hand-fingers-open	
+v	🤚🏻	light skin tone
+v	🤚🏼	medium-light skin tone
+v	🤚🏽	medium skin tone
+v	🤚🏾	medium-dark skin tone
+v	🤚🏿	dark skin tone
+e	🖐️	hand with fingers splayed	hand-fingers-open	
+v	🖐🏻	light skin tone
+v	🖐🏼	medium-light skin tone
+v	🖐🏽	medium skin tone
+v	🖐🏾	medium-dark skin tone
+v	🖐🏿	dark skin tone
+e	✋	raised hand	hand-fingers-open	
+v	✋🏻	light skin tone
+v	✋🏼	medium-light skin tone
+v	✋🏽	medium skin tone
+v	✋🏾	medium-dark skin tone
+v	✋🏿	dark skin tone
+e	🖖	vulcan salute	hand-fingers-open	
+v	🖖🏻	light skin tone
+v	🖖🏼	medium-light skin tone
+v	🖖🏽	medium skin tone
+v	🖖🏾	medium-dark skin tone
+v	🖖🏿	dark skin tone
+e	🫱	rightwards hand	hand-fingers-open	
+v	🫱🏻	light skin tone
+v	🫱🏼	medium-light skin tone
+v	🫱🏽	medium skin tone
+v	🫱🏾	medium-dark skin tone
+v	🫱🏿	dark skin tone
+e	🫲	leftwards hand	hand-fingers-open	
+v	🫲🏻	light skin tone
+v	🫲🏼	medium-light skin tone
+v	🫲🏽	medium skin tone
+v	🫲🏾	medium-dark skin tone
+v	🫲🏿	dark skin tone
+e	🫳	palm down hand	hand-fingers-open	
+v	🫳🏻	light skin tone
+v	🫳🏼	medium-light skin tone
+v	🫳🏽	medium skin tone
+v	🫳🏾	medium-dark skin tone
+v	🫳🏿	dark skin tone
+e	🫴	palm up hand	hand-fingers-open	
+v	🫴🏻	light skin tone
+v	🫴🏼	medium-light skin tone
+v	🫴🏽	medium skin tone
+v	🫴🏾	medium-dark skin tone
+v	🫴🏿	dark skin tone
+e	🫷	leftwards pushing hand	hand-fingers-open	
+v	🫷🏻	light skin tone
+v	🫷🏼	medium-light skin tone
+v	🫷🏽	medium skin tone
+v	🫷🏾	medium-dark skin tone
+v	🫷🏿	dark skin tone
+e	🫸	rightwards pushing hand	hand-fingers-open	
+v	🫸🏻	light skin tone
+v	🫸🏼	medium-light skin tone
+v	🫸🏽	medium skin tone
+v	🫸🏾	medium-dark skin tone
+v	🫸🏿	dark skin tone
+e	👌	OK hand	hand-fingers-partial	
+v	👌🏻	light skin tone
+v	👌🏼	medium-light skin tone
+v	👌🏽	medium skin tone
+v	👌🏾	medium-dark skin tone
+v	👌🏿	dark skin tone
+e	🤌	pinched fingers	hand-fingers-partial	
+v	🤌🏻	light skin tone
+v	🤌🏼	medium-light skin tone
+v	🤌🏽	medium skin tone
+v	🤌🏾	medium-dark skin tone
+v	🤌🏿	dark skin tone
+e	🤏	pinching hand	hand-fingers-partial	
+v	🤏🏻	light skin tone
+v	🤏🏼	medium-light skin tone
+v	🤏🏽	medium skin tone
+v	🤏🏾	medium-dark skin tone
+v	🤏🏿	dark skin tone
+e	✌️	victory hand	hand-fingers-partial	
+v	✌🏻	light skin tone
+v	✌🏼	medium-light skin tone
+v	✌🏽	medium skin tone
+v	✌🏾	medium-dark skin tone
+v	✌🏿	dark skin tone
+e	🤞	crossed fingers	hand-fingers-partial	
+v	🤞🏻	light skin tone
+v	🤞🏼	medium-light skin tone
+v	🤞🏽	medium skin tone
+v	🤞🏾	medium-dark skin tone
+v	🤞🏿	dark skin tone
+e	🫰	hand with index finger and thumb crossed	hand-fingers-partial	
+v	🫰🏻	light skin tone
+v	🫰🏼	medium-light skin tone
+v	🫰🏽	medium skin tone
+v	🫰🏾	medium-dark skin tone
+v	🫰🏿	dark skin tone
+e	🤟	love-you gesture	hand-fingers-partial	
+v	🤟🏻	light skin tone
+v	🤟🏼	medium-light skin tone
+v	🤟🏽	medium skin tone
+v	🤟🏾	medium-dark skin tone
+v	🤟🏿	dark skin tone
+e	🤘	sign of the horns	hand-fingers-partial	
+v	🤘🏻	light skin tone
+v	🤘🏼	medium-light skin tone
+v	🤘🏽	medium skin tone
+v	🤘🏾	medium-dark skin tone
+v	🤘🏿	dark skin tone
+e	🤙	call me hand	hand-fingers-partial	
+v	🤙🏻	light skin tone
+v	🤙🏼	medium-light skin tone
+v	🤙🏽	medium skin tone
+v	🤙🏾	medium-dark skin tone
+v	🤙🏿	dark skin tone
+e	👈	backhand index pointing left	hand-single-finger	
+v	👈🏻	light skin tone
+v	👈🏼	medium-light skin tone
+v	👈🏽	medium skin tone
+v	👈🏾	medium-dark skin tone
+v	👈🏿	dark skin tone
+e	👉	backhand index pointing right	hand-single-finger	
+v	👉🏻	light skin tone
+v	👉🏼	medium-light skin tone
+v	👉🏽	medium skin tone
+v	👉🏾	medium-dark skin tone
+v	👉🏿	dark skin tone
+e	👆	backhand index pointing up	hand-single-finger	
+v	👆🏻	light skin tone
+v	👆🏼	medium-light skin tone
+v	👆🏽	medium skin tone
+v	👆🏾	medium-dark skin tone
+v	👆🏿	dark skin tone
+e	🖕	middle finger	hand-single-finger	
+v	🖕🏻	light skin tone
+v	🖕🏼	medium-light skin tone
+v	🖕🏽	medium skin tone
+v	🖕🏾	medium-dark skin tone
+v	🖕🏿	dark skin tone
+e	👇	backhand index pointing down	hand-single-finger	
+v	👇🏻	light skin tone
+v	👇🏼	medium-light skin tone
+v	👇🏽	medium skin tone
+v	👇🏾	medium-dark skin tone
+v	👇🏿	dark skin tone
+e	☝️	index pointing up	hand-single-finger	
+v	☝🏻	light skin tone
+v	☝🏼	medium-light skin tone
+v	☝🏽	medium skin tone
+v	☝🏾	medium-dark skin tone
+v	☝🏿	dark skin tone
+e	🫵	index pointing at the viewer	hand-single-finger	
+v	🫵🏻	light skin tone
+v	🫵🏼	medium-light skin tone
+v	🫵🏽	medium skin tone
+v	🫵🏾	medium-dark skin tone
+v	🫵🏿	dark skin tone
+e	👍	thumbs up	hand-fingers-closed	
+v	👍🏻	light skin tone
+v	👍🏼	medium-light skin tone
+v	👍🏽	medium skin tone
+v	👍🏾	medium-dark skin tone
+v	👍🏿	dark skin tone
+e	👎	thumbs down	hand-fingers-closed	
+v	👎🏻	light skin tone
+v	👎🏼	medium-light skin tone
+v	👎🏽	medium skin tone
+v	👎🏾	medium-dark skin tone
+v	👎🏿	dark skin tone
+e	✊	raised fist	hand-fingers-closed	
+v	✊🏻	light skin tone
+v	✊🏼	medium-light skin tone
+v	✊🏽	medium skin tone
+v	✊🏾	medium-dark skin tone
+v	✊🏿	dark skin tone
+e	👊	oncoming fist	hand-fingers-closed	
+v	👊🏻	light skin tone
+v	👊🏼	medium-light skin tone
+v	👊🏽	medium skin tone
+v	👊🏾	medium-dark skin tone
+v	👊🏿	dark skin tone
+e	🤛	left-facing fist	hand-fingers-closed	
+v	🤛🏻	light skin tone
+v	🤛🏼	medium-light skin tone
+v	🤛🏽	medium skin tone
+v	🤛🏾	medium-dark skin tone
+v	🤛🏿	dark skin tone
+e	🤜	right-facing fist	hand-fingers-closed	
+v	🤜🏻	light skin tone
+v	🤜🏼	medium-light skin tone
+v	🤜🏽	medium skin tone
+v	🤜🏾	medium-dark skin tone
+v	🤜🏿	dark skin tone
+e	👏	clapping hands	hands	
+v	👏🏻	light skin tone
+v	👏🏼	medium-light skin tone
+v	👏🏽	medium skin tone
+v	👏🏾	medium-dark skin tone
+v	👏🏿	dark skin tone
+e	🙌	raising hands	hands	
+v	🙌🏻	light skin tone
+v	🙌🏼	medium-light skin tone
+v	🙌🏽	medium skin tone
+v	🙌🏾	medium-dark skin tone
+v	🙌🏿	dark skin tone
+e	🫶	heart hands	hands	
+v	🫶🏻	light skin tone
+v	🫶🏼	medium-light skin tone
+v	🫶🏽	medium skin tone
+v	🫶🏾	medium-dark skin tone
+v	🫶🏿	dark skin tone
+e	👐	open hands	hands	
+v	👐🏻	light skin tone
+v	👐🏼	medium-light skin tone
+v	👐🏽	medium skin tone
+v	👐🏾	medium-dark skin tone
+v	👐🏿	dark skin tone
+e	🤲	palms up together	hands	
+v	🤲🏻	light skin tone
+v	🤲🏼	medium-light skin tone
+v	🤲🏽	medium skin tone
+v	🤲🏾	medium-dark skin tone
+v	🤲🏿	dark skin tone
+e	🤝	handshake	hands	
+v	🤝🏻	light skin tone
+v	🤝🏼	medium-light skin tone
+v	🤝🏽	medium skin tone
+v	🤝🏾	medium-dark skin tone
+v	🤝🏿	dark skin tone
+v	🫱🏻‍🫲🏼	light skin tone, medium-light skin tone
+v	🫱🏻‍🫲🏽	light skin tone, medium skin tone
+v	🫱🏻‍🫲🏾	light skin tone, medium-dark skin tone
+v	🫱🏻‍🫲🏿	light skin tone, dark skin tone
+v	🫱🏼‍🫲🏻	medium-light skin tone, light skin tone
+v	🫱🏼‍🫲🏽	medium-light skin tone, medium skin tone
+v	🫱🏼‍🫲🏾	medium-light skin tone, medium-dark skin tone
+v	🫱🏼‍🫲🏿	medium-light skin tone, dark skin tone
+v	🫱🏽‍🫲🏻	medium skin tone, light skin tone
+v	🫱🏽‍🫲🏼	medium skin tone, medium-light skin tone
+v	🫱🏽‍🫲🏾	medium skin tone, medium-dark skin tone
+v	🫱🏽‍🫲🏿	medium skin tone, dark skin tone
+v	🫱🏾‍🫲🏻	medium-dark skin tone, light skin tone
+v	🫱🏾‍🫲🏼	medium-dark skin tone, medium-light skin tone
+v	🫱🏾‍🫲🏽	medium-dark skin tone, medium skin tone
+v	🫱🏾‍🫲🏿	medium-dark skin tone, dark skin tone
+v	🫱🏿‍🫲🏻	dark skin tone, light skin tone
+v	🫱🏿‍🫲🏼	dark skin tone, medium-light skin tone
+v	🫱🏿‍🫲🏽	dark skin tone, medium skin tone
+v	🫱🏿‍🫲🏾	dark skin tone, medium-dark skin tone
+e	🙏	folded hands	hands	
+v	🙏🏻	light skin tone
+v	🙏🏼	medium-light skin tone
+v	🙏🏽	medium skin tone
+v	🙏🏾	medium-dark skin tone
+v	🙏🏿	dark skin tone
+e	✍️	writing hand	hand-prop	
+v	✍🏻	light skin tone
+v	✍🏼	medium-light skin tone
+v	✍🏽	medium skin tone
+v	✍🏾	medium-dark skin tone
+v	✍🏿	dark skin tone
+e	💅	nail polish	hand-prop	
+v	💅🏻	light skin tone
+v	💅🏼	medium-light skin tone
+v	💅🏽	medium skin tone
+v	💅🏾	medium-dark skin tone
+v	💅🏿	dark skin tone
+e	🤳	selfie	hand-prop	
+v	🤳🏻	light skin tone
+v	🤳🏼	medium-light skin tone
+v	🤳🏽	medium skin tone
+v	🤳🏾	medium-dark skin tone
+v	🤳🏿	dark skin tone
+e	💪	flexed biceps	body-parts	
+v	💪🏻	light skin tone
+v	💪🏼	medium-light skin tone
+v	💪🏽	medium skin tone
+v	💪🏾	medium-dark skin tone
+v	💪🏿	dark skin tone
+e	🦾	mechanical arm	body-parts	
+e	🦿	mechanical leg	body-parts	
+e	🦵	leg	body-parts	
+v	🦵🏻	light skin tone
+v	🦵🏼	medium-light skin tone
+v	🦵🏽	medium skin tone
+v	🦵🏾	medium-dark skin tone
+v	🦵🏿	dark skin tone
+e	🦶	foot	body-parts	
+v	🦶🏻	light skin tone
+v	🦶🏼	medium-light skin tone
+v	🦶🏽	medium skin tone
+v	🦶🏾	medium-dark skin tone
+v	🦶🏿	dark skin tone
+e	👂	ear	body-parts	
+v	👂🏻	light skin tone
+v	👂🏼	medium-light skin tone
+v	👂🏽	medium skin tone
+v	👂🏾	medium-dark skin tone
+v	👂🏿	dark skin tone
+e	🦻	ear with hearing aid	body-parts	
+v	🦻🏻	light skin tone
+v	🦻🏼	medium-light skin tone
+v	🦻🏽	medium skin tone
+v	🦻🏾	medium-dark skin tone
+v	🦻🏿	dark skin tone
+e	👃	nose	body-parts	
+v	👃🏻	light skin tone
+v	👃🏼	medium-light skin tone
+v	👃🏽	medium skin tone
+v	👃🏾	medium-dark skin tone
+v	👃🏿	dark skin tone
+e	🧠	brain	body-parts	
+e	🫀	anatomical heart	body-parts	
+e	🫁	lungs	body-parts	
+e	🦷	tooth	body-parts	
+e	🦴	bone	body-parts	
+e	👀	eyes	body-parts	
+e	👁️	eye	body-parts	
+e	👅	tongue	body-parts	
+e	👄	mouth	body-parts	
+e	🫦	biting lip	body-parts	
+e	👶	baby	person	
+v	👶🏻	light skin tone
+v	👶🏼	medium-light skin tone
+v	👶🏽	medium skin tone
+v	👶🏾	medium-dark skin tone
+v	👶🏿	dark skin tone
+e	🧒	child	person	
+v	🧒🏻	light skin tone
+v	🧒🏼	medium-light skin tone
+v	🧒🏽	medium skin tone
+v	🧒🏾	medium-dark skin tone
+v	🧒🏿	dark skin tone
+e	👦	boy	person	
+v	👦🏻	light skin tone
+v	👦🏼	medium-light skin tone
+v	👦🏽	medium skin tone
+v	👦🏾	medium-dark skin tone
+v	👦🏿	dark skin tone
+e	👧	girl	person	
+v	👧🏻	light skin tone
+v	👧🏼	medium-light skin tone
+v	👧🏽	medium skin tone
+v	👧🏾	medium-dark skin tone
+v	👧🏿	dark skin tone
+e	🧑	person	person	
+v	🧑🏻	light skin tone
+v	🧑🏼	medium-light skin tone
+v	🧑🏽	medium skin tone
+v	🧑🏾	medium-dark skin tone
+v	🧑🏿	dark skin tone
+v	👱🏻	light skin tone, blond hair
+v	👱🏼	medium-light skin tone, blond hair
+v	👱🏽	medium skin tone, blond hair
+v	👱🏾	medium-dark skin tone, blond hair
+v	👱🏿	dark skin tone, blond hair
+v	🧔🏻	light skin tone, beard
+v	🧔🏼	medium-light skin tone, beard
+v	🧔🏽	medium skin tone, beard
+v	🧔🏾	medium-dark skin tone, beard
+v	🧔🏿	dark skin tone, beard
+v	🧑🏻‍🦰	light skin tone, red hair
+v	🧑🏼‍🦰	medium-light skin tone, red hair
+v	🧑🏽‍🦰	medium skin tone, red hair
+v	🧑🏾‍🦰	medium-dark skin tone, red hair
+v	🧑🏿‍🦰	dark skin tone, red hair
+v	🧑🏻‍🦱	light skin tone, curly hair
+v	🧑🏼‍🦱	medium-light skin tone, curly hair
+v	🧑🏽‍🦱	medium skin tone, curly hair
+v	🧑🏾‍🦱	medium-dark skin tone, curly hair
+v	🧑🏿‍🦱	dark skin tone, curly hair
+v	🧑🏻‍🦳	light skin tone, white hair
+v	🧑🏼‍🦳	medium-light skin tone, white hair
+v	🧑🏽‍🦳	medium skin tone, white hair
+v	🧑🏾‍🦳	medium-dark skin tone, white hair
+v	🧑🏿‍🦳	dark skin tone, white hair
+v	🧑🏻‍🦲	light skin tone, bald
+v	🧑🏼‍🦲	medium-light skin tone, bald
+v	🧑🏽‍🦲	medium skin tone, bald
+v	🧑🏾‍🦲	medium-dark skin tone, bald
+v	🧑🏿‍🦲	dark skin tone, bald
+e	👱	person: blond hair	person	
+e	👨	man	person	
+v	👨🏻	light skin tone
+v	👨🏼	medium-light skin tone
+v	👨🏽	medium skin tone
+v	👨🏾	medium-dark skin tone
+v	👨🏿	dark skin tone
+v	🧔🏻‍♂️	light skin tone, beard
+v	🧔🏼‍♂️	medium-light skin tone, beard
+v	🧔🏽‍♂️	medium skin tone, beard
+v	🧔🏾‍♂️	medium-dark skin tone, beard
+v	🧔🏿‍♂️	dark skin tone, beard
+v	👨🏻‍🦰	light skin tone, red hair
+v	👨🏼‍🦰	medium-light skin tone, red hair
+v	👨🏽‍🦰	medium skin tone, red hair
+v	👨🏾‍🦰	medium-dark skin tone, red hair
+v	👨🏿‍🦰	dark skin tone, red hair
+v	👨🏻‍🦱	light skin tone, curly hair
+v	👨🏼‍🦱	medium-light skin tone, curly hair
+v	👨🏽‍🦱	medium skin tone, curly hair
+v	👨🏾‍🦱	medium-dark skin tone, curly hair
+v	👨🏿‍🦱	dark skin tone, curly hair
+v	👨🏻‍🦳	light skin tone, white hair
+v	👨🏼‍🦳	medium-light skin tone, white hair
+v	👨🏽‍🦳	medium skin tone, white hair
+v	👨🏾‍🦳	medium-dark skin tone, white hair
+v	👨🏿‍🦳	dark skin tone, white hair
+v	👨🏻‍🦲	light skin tone, bald
+v	👨🏼‍🦲	medium-light skin tone, bald
+v	👨🏽‍🦲	medium skin tone, bald
+v	👨🏾‍🦲	medium-dark skin tone, bald
+v	👨🏿‍🦲	dark skin tone, bald
+v	👱🏻‍♂️	light skin tone, blond hair
+v	👱🏼‍♂️	medium-light skin tone, blond hair
+v	👱🏽‍♂️	medium skin tone, blond hair
+v	👱🏾‍♂️	medium-dark skin tone, blond hair
+v	👱🏿‍♂️	dark skin tone, blond hair
+e	🧔	person: beard	person	
+e	🧔‍♂️	man: beard	person	
+e	🧔‍♀️	woman: beard	person	
+e	🧔🏻‍♀️	woman: light skin tone, beard	person	
+e	🧔🏼‍♀️	woman: medium-light skin tone, beard	person	
+e	🧔🏽‍♀️	woman: medium skin tone, beard	person	
+e	🧔🏾‍♀️	woman: medium-dark skin tone, beard	person	
+e	🧔🏿‍♀️	woman: dark skin tone, beard	person	
+e	👨‍🦰	man: red hair	person	
+e	👨‍🦱	man: curly hair	person	
+e	👨‍🦳	man: white hair	person	
+e	👨‍🦲	man: bald	person	
+e	👩	woman	person	
+v	👩🏻	light skin tone
+v	👩🏼	medium-light skin tone
+v	👩🏽	medium skin tone
+v	👩🏾	medium-dark skin tone
+v	👩🏿	dark skin tone
+v	👩🏻‍🦰	light skin tone, red hair
+v	👩🏼‍🦰	medium-light skin tone, red hair
+v	👩🏽‍🦰	medium skin tone, red hair
+v	👩🏾‍🦰	medium-dark skin tone, red hair
+v	👩🏿‍🦰	dark skin tone, red hair
+v	👩🏻‍🦱	light skin tone, curly hair
+v	👩🏼‍🦱	medium-light skin tone, curly hair
+v	👩🏽‍🦱	medium skin tone, curly hair
+v	👩🏾‍🦱	medium-dark skin tone, curly hair
+v	👩🏿‍🦱	dark skin tone, curly hair
+v	👩🏻‍🦳	light skin tone, white hair
+v	👩🏼‍🦳	medium-light skin tone, white hair
+v	👩🏽‍🦳	medium skin tone, white hair
+v	👩🏾‍🦳	medium-dark skin tone, white hair
+v	👩🏿‍🦳	dark skin tone, white hair
+v	👩🏻‍🦲	light skin tone, bald
+v	👩🏼‍🦲	medium-light skin tone, bald
+v	👩🏽‍🦲	medium skin tone, bald
+v	👩🏾‍🦲	medium-dark skin tone, bald
+v	👩🏿‍🦲	dark skin tone, bald
+v	👱🏻‍♀️	light skin tone, blond hair
+v	👱🏼‍♀️	medium-light skin tone, blond hair
+v	👱🏽‍♀️	medium skin tone, blond hair
+v	👱🏾‍♀️	medium-dark skin tone, blond hair
+v	👱🏿‍♀️	dark skin tone, blond hair
+e	👩‍🦰	woman: red hair	person	
+e	🧑‍🦰	person: red hair	person	
+e	👩‍🦱	woman: curly hair	person	
+e	🧑‍🦱	person: curly hair	person	
+e	👩‍🦳	woman: white hair	person	
+e	🧑‍🦳	person: white hair	person	
+e	👩‍🦲	woman: bald	person	
+e	🧑‍🦲	person: bald	person	
+e	👱‍♀️	woman: blond hair	person	
+e	👱‍♂️	man: blond hair	person	
+e	🧓	older person	person	
+v	🧓🏻	light skin tone
+v	🧓🏼	medium-light skin tone
+v	🧓🏽	medium skin tone
+v	🧓🏾	medium-dark skin tone
+v	🧓🏿	dark skin tone
+e	👴	old man	person	
+v	👴🏻	light skin tone
+v	👴🏼	medium-light skin tone
+v	👴🏽	medium skin tone
+v	👴🏾	medium-dark skin tone
+v	👴🏿	dark skin tone
+e	👵	old woman	person	
+v	👵🏻	light skin tone
+v	👵🏼	medium-light skin tone
+v	👵🏽	medium skin tone
+v	👵🏾	medium-dark skin tone
+v	👵🏿	dark skin tone
+e	🙍	person frowning	person-gesture	
+v	🙍🏻	light skin tone
+v	🙍🏼	medium-light skin tone
+v	🙍🏽	medium skin tone
+v	🙍🏾	medium-dark skin tone
+v	🙍🏿	dark skin tone
+e	🙍‍♂️	man frowning	person-gesture	
+v	🙍🏻‍♂️	light skin tone
+v	🙍🏼‍♂️	medium-light skin tone
+v	🙍🏽‍♂️	medium skin tone
+v	🙍🏾‍♂️	medium-dark skin tone
+v	🙍🏿‍♂️	dark skin tone
+e	🙍‍♀️	woman frowning	person-gesture	
+v	🙍🏻‍♀️	light skin tone
+v	🙍🏼‍♀️	medium-light skin tone
+v	🙍🏽‍♀️	medium skin tone
+v	🙍🏾‍♀️	medium-dark skin tone
+v	🙍🏿‍♀️	dark skin tone
+e	🙎	person pouting	person-gesture	
+v	🙎🏻	light skin tone
+v	🙎🏼	medium-light skin tone
+v	🙎🏽	medium skin tone
+v	🙎🏾	medium-dark skin tone
+v	🙎🏿	dark skin tone
+e	🙎‍♂️	man pouting	person-gesture	
+v	🙎🏻‍♂️	light skin tone
+v	🙎🏼‍♂️	medium-light skin tone
+v	🙎🏽‍♂️	medium skin tone
+v	🙎🏾‍♂️	medium-dark skin tone
+v	🙎🏿‍♂️	dark skin tone
+e	🙎‍♀️	woman pouting	person-gesture	
+v	🙎🏻‍♀️	light skin tone
+v	🙎🏼‍♀️	medium-light skin tone
+v	🙎🏽‍♀️	medium skin tone
+v	🙎🏾‍♀️	medium-dark skin tone
+v	🙎🏿‍♀️	dark skin tone
+e	🙅	person gesturing NO	person-gesture	
+v	🙅🏻	light skin tone
+v	🙅🏼	medium-light skin tone
+v	🙅🏽	medium skin tone
+v	🙅🏾	medium-dark skin tone
+v	🙅🏿	dark skin tone
+e	🙅‍♂️	man gesturing NO	person-gesture	
+v	🙅🏻‍♂️	light skin tone
+v	🙅🏼‍♂️	medium-light skin tone
+v	🙅🏽‍♂️	medium skin tone
+v	🙅🏾‍♂️	medium-dark skin tone
+v	🙅🏿‍♂️	dark skin tone
+e	🙅‍♀️	woman gesturing NO	person-gesture	
+v	🙅🏻‍♀️	light skin tone
+v	🙅🏼‍♀️	medium-light skin tone
+v	🙅🏽‍♀️	medium skin tone
+v	🙅🏾‍♀️	medium-dark skin tone
+v	🙅🏿‍♀️	dark skin tone
+e	🙆	person gesturing OK	person-gesture	
+v	🙆🏻	light skin tone
+v	🙆🏼	medium-light skin tone
+v	🙆🏽	medium skin tone
+v	🙆🏾	medium-dark skin tone
+v	🙆🏿	dark skin tone
+e	🙆‍♂️	man gesturing OK	person-gesture	
+v	🙆🏻‍♂️	light skin tone
+v	🙆🏼‍♂️	medium-light skin tone
+v	🙆🏽‍♂️	medium skin tone
+v	🙆🏾‍♂️	medium-dark skin tone
+v	🙆🏿‍♂️	dark skin tone
+e	🙆‍♀️	woman gesturing OK	person-gesture	
+v	🙆🏻‍♀️	light skin tone
+v	🙆🏼‍♀️	medium-light skin tone
+v	🙆🏽‍♀️	medium skin tone
+v	🙆🏾‍♀️	medium-dark skin tone
+v	🙆🏿‍♀️	dark skin tone
+e	💁	person tipping hand	person-gesture	
+v	💁🏻	light skin tone
+v	💁🏼	medium-light skin tone
+v	💁🏽	medium skin tone
+v	💁🏾	medium-dark skin tone
+v	💁🏿	dark skin tone
+e	💁‍♂️	man tipping hand	person-gesture	
+v	💁🏻‍♂️	light skin tone
+v	💁🏼‍♂️	medium-light skin tone
+v	💁🏽‍♂️	medium skin tone
+v	💁🏾‍♂️	medium-dark skin tone
+v	💁🏿‍♂️	dark skin tone
+e	💁‍♀️	woman tipping hand	person-gesture	
+v	💁🏻‍♀️	light skin tone
+v	💁🏼‍♀️	medium-light skin tone
+v	💁🏽‍♀️	medium skin tone
+v	💁🏾‍♀️	medium-dark skin tone
+v	💁🏿‍♀️	dark skin tone
+e	🙋	person raising hand	person-gesture	
+v	🙋🏻	light skin tone
+v	🙋🏼	medium-light skin tone
+v	🙋🏽	medium skin tone
+v	🙋🏾	medium-dark skin tone
+v	🙋🏿	dark skin tone
+e	🙋‍♂️	man raising hand	person-gesture	
+v	🙋🏻‍♂️	light skin tone
+v	🙋🏼‍♂️	medium-light skin tone
+v	🙋🏽‍♂️	medium skin tone
+v	🙋🏾‍♂️	medium-dark skin tone
+v	🙋🏿‍♂️	dark skin tone
+e	🙋‍♀️	woman raising hand	person-gesture	
+v	🙋🏻‍♀️	light skin tone
+v	🙋🏼‍♀️	medium-light skin tone
+v	🙋🏽‍♀️	medium skin tone
+v	🙋🏾‍♀️	medium-dark skin tone
+v	🙋🏿‍♀️	dark skin tone
+e	🧏	deaf person	person-gesture	
+v	🧏🏻	light skin tone
+v	🧏🏼	medium-light skin tone
+v	🧏🏽	medium skin tone
+v	🧏🏾	medium-dark skin tone
+v	🧏🏿	dark skin tone
+e	🧏‍♂️	deaf man	person-gesture	
+v	🧏🏻‍♂️	light skin tone
+v	🧏🏼‍♂️	medium-light skin tone
+v	🧏🏽‍♂️	medium skin tone
+v	🧏🏾‍♂️	medium-dark skin tone
+v	🧏🏿‍♂️	dark skin tone
+e	🧏‍♀️	deaf woman	person-gesture	
+v	🧏🏻‍♀️	light skin tone
+v	🧏🏼‍♀️	medium-light skin tone
+v	🧏🏽‍♀️	medium skin tone
+v	🧏🏾‍♀️	medium-dark skin tone
+v	🧏🏿‍♀️	dark skin tone
+e	🙇	person bowing	person-gesture	
+v	🙇🏻	light skin tone
+v	🙇🏼	medium-light skin tone
+v	🙇🏽	medium skin tone
+v	🙇🏾	medium-dark skin tone
+v	🙇🏿	dark skin tone
+e	🙇‍♂️	man bowing	person-gesture	
+v	🙇🏻‍♂️	light skin tone
+v	🙇🏼‍♂️	medium-light skin tone
+v	🙇🏽‍♂️	medium skin tone
+v	🙇🏾‍♂️	medium-dark skin tone
+v	🙇🏿‍♂️	dark skin tone
+e	🙇‍♀️	woman bowing	person-gesture	
+v	🙇🏻‍♀️	light skin tone
+v	🙇🏼‍♀️	medium-light skin tone
+v	🙇🏽‍♀️	medium skin tone
+v	🙇🏾‍♀️	medium-dark skin tone
+v	🙇🏿‍♀️	dark skin tone
+e	🤦	person facepalming	person-gesture	
+v	🤦🏻	light skin tone
+v	🤦🏼	medium-light skin tone
+v	🤦🏽	medium skin tone
+v	🤦🏾	medium-dark skin tone
+v	🤦🏿	dark skin tone
+e	🤦‍♂️	man facepalming	person-gesture	
+v	🤦🏻‍♂️	light skin tone
+v	🤦🏼‍♂️	medium-light skin tone
+v	🤦🏽‍♂️	medium skin tone
+v	🤦🏾‍♂️	medium-dark skin tone
+v	🤦🏿‍♂️	dark skin tone
+e	🤦‍♀️	woman facepalming	person-gesture	
+v	🤦🏻‍♀️	light skin tone
+v	🤦🏼‍♀️	medium-light skin tone
+v	🤦🏽‍♀️	medium skin tone
+v	🤦🏾‍♀️	medium-dark skin tone
+v	🤦🏿‍♀️	dark skin tone
+e	🤷	person shrugging	person-gesture	
+v	🤷🏻	light skin tone
+v	🤷🏼	medium-light skin tone
+v	🤷🏽	medium skin tone
+v	🤷🏾	medium-dark skin tone
+v	🤷🏿	dark skin tone
+e	🤷‍♂️	man shrugging	person-gesture	
+v	🤷🏻‍♂️	light skin tone
+v	🤷🏼‍♂️	medium-light skin tone
+v	🤷🏽‍♂️	medium skin tone
+v	🤷🏾‍♂️	medium-dark skin tone
+v	🤷🏿‍♂️	dark skin tone
+e	🤷‍♀️	woman shrugging	person-gesture	
+v	🤷🏻‍♀️	light skin tone
+v	🤷🏼‍♀️	medium-light skin tone
+v	🤷🏽‍♀️	medium skin tone
+v	🤷🏾‍♀️	medium-dark skin tone
+v	🤷🏿‍♀️	dark skin tone
+e	🧑‍⚕️	health worker	person-role	
+v	🧑🏻‍⚕️	light skin tone
+v	🧑🏼‍⚕️	medium-light skin tone
+v	🧑🏽‍⚕️	medium skin tone
+v	🧑🏾‍⚕️	medium-dark skin tone
+v	🧑🏿‍⚕️	dark skin tone
+e	👨‍⚕️	man health worker	person-role	
+v	👨🏻‍⚕️	light skin tone
+v	👨🏼‍⚕️	medium-light skin tone
+v	👨🏽‍⚕️	medium skin tone
+v	👨🏾‍⚕️	medium-dark skin tone
+v	👨🏿‍⚕️	dark skin tone
+e	👩‍⚕️	woman health worker	person-role	
+v	👩🏻‍⚕️	light skin tone
+v	👩🏼‍⚕️	medium-light skin tone
+v	👩🏽‍⚕️	medium skin tone
+v	👩🏾‍⚕️	medium-dark skin tone
+v	👩🏿‍⚕️	dark skin tone
+e	🧑‍🎓	student	person-role	
+v	🧑🏻‍🎓	light skin tone
+v	🧑🏼‍🎓	medium-light skin tone
+v	🧑🏽‍🎓	medium skin tone
+v	🧑🏾‍🎓	medium-dark skin tone
+v	🧑🏿‍🎓	dark skin tone
+e	👨‍🎓	man student	person-role	
+v	👨🏻‍🎓	light skin tone
+v	👨🏼‍🎓	medium-light skin tone
+v	👨🏽‍🎓	medium skin tone
+v	👨🏾‍🎓	medium-dark skin tone
+v	👨🏿‍🎓	dark skin tone
+e	👩‍🎓	woman student	person-role	
+v	👩🏻‍🎓	light skin tone
+v	👩🏼‍🎓	medium-light skin tone
+v	👩🏽‍🎓	medium skin tone
+v	👩🏾‍🎓	medium-dark skin tone
+v	👩🏿‍🎓	dark skin tone
+e	🧑‍🏫	teacher	person-role	
+v	🧑🏻‍🏫	light skin tone
+v	🧑🏼‍🏫	medium-light skin tone
+v	🧑🏽‍🏫	medium skin tone
+v	🧑🏾‍🏫	medium-dark skin tone
+v	🧑🏿‍🏫	dark skin tone
+e	👨‍🏫	man teacher	person-role	
+v	👨🏻‍🏫	light skin tone
+v	👨🏼‍🏫	medium-light skin tone
+v	👨🏽‍🏫	medium skin tone
+v	👨🏾‍🏫	medium-dark skin tone
+v	👨🏿‍🏫	dark skin tone
+e	👩‍🏫	woman teacher	person-role	
+v	👩🏻‍🏫	light skin tone
+v	👩🏼‍🏫	medium-light skin tone
+v	👩🏽‍🏫	medium skin tone
+v	👩🏾‍🏫	medium-dark skin tone
+v	👩🏿‍🏫	dark skin tone
+e	🧑‍⚖️	judge	person-role	
+v	🧑🏻‍⚖️	light skin tone
+v	🧑🏼‍⚖️	medium-light skin tone
+v	🧑🏽‍⚖️	medium skin tone
+v	🧑🏾‍⚖️	medium-dark skin tone
+v	🧑🏿‍⚖️	dark skin tone
+e	👨‍⚖️	man judge	person-role	
+v	👨🏻‍⚖️	light skin tone
+v	👨🏼‍⚖️	medium-light skin tone
+v	👨🏽‍⚖️	medium skin tone
+v	👨🏾‍⚖️	medium-dark skin tone
+v	👨🏿‍⚖️	dark skin tone
+e	👩‍⚖️	woman judge	person-role	
+v	👩🏻‍⚖️	light skin tone
+v	👩🏼‍⚖️	medium-light skin tone
+v	👩🏽‍⚖️	medium skin tone
+v	👩🏾‍⚖️	medium-dark skin tone
+v	👩🏿‍⚖️	dark skin tone
+e	🧑‍🌾	farmer	person-role	
+v	🧑🏻‍🌾	light skin tone
+v	🧑🏼‍🌾	medium-light skin tone
+v	🧑🏽‍🌾	medium skin tone
+v	🧑🏾‍🌾	medium-dark skin tone
+v	🧑🏿‍🌾	dark skin tone
+e	👨‍🌾	man farmer	person-role	
+v	👨🏻‍🌾	light skin tone
+v	👨🏼‍🌾	medium-light skin tone
+v	👨🏽‍🌾	medium skin tone
+v	👨🏾‍🌾	medium-dark skin tone
+v	👨🏿‍🌾	dark skin tone
+e	👩‍🌾	woman farmer	person-role	
+v	👩🏻‍🌾	light skin tone
+v	👩🏼‍🌾	medium-light skin tone
+v	👩🏽‍🌾	medium skin tone
+v	👩🏾‍🌾	medium-dark skin tone
+v	👩🏿‍🌾	dark skin tone
+e	🧑‍🍳	cook	person-role	
+v	🧑🏻‍🍳	light skin tone
+v	🧑🏼‍🍳	medium-light skin tone
+v	🧑🏽‍🍳	medium skin tone
+v	🧑🏾‍🍳	medium-dark skin tone
+v	🧑🏿‍🍳	dark skin tone
+e	👨‍🍳	man cook	person-role	
+v	👨🏻‍🍳	light skin tone
+v	👨🏼‍🍳	medium-light skin tone
+v	👨🏽‍🍳	medium skin tone
+v	👨🏾‍🍳	medium-dark skin tone
+v	👨🏿‍🍳	dark skin tone
+e	👩‍🍳	woman cook	person-role	
+v	👩🏻‍🍳	light skin tone
+v	👩🏼‍🍳	medium-light skin tone
+v	👩🏽‍🍳	medium skin tone
+v	👩🏾‍🍳	medium-dark skin tone
+v	👩🏿‍🍳	dark skin tone
+e	🧑‍🔧	mechanic	person-role	
+v	🧑🏻‍🔧	light skin tone
+v	🧑🏼‍🔧	medium-light skin tone
+v	🧑🏽‍🔧	medium skin tone
+v	🧑🏾‍🔧	medium-dark skin tone
+v	🧑🏿‍🔧	dark skin tone
+e	👨‍🔧	man mechanic	person-role	
+v	👨🏻‍🔧	light skin tone
+v	👨🏼‍🔧	medium-light skin tone
+v	👨🏽‍🔧	medium skin tone
+v	👨🏾‍🔧	medium-dark skin tone
+v	👨🏿‍🔧	dark skin tone
+e	👩‍🔧	woman mechanic	person-role	
+v	👩🏻‍🔧	light skin tone
+v	👩🏼‍🔧	medium-light skin tone
+v	👩🏽‍🔧	medium skin tone
+v	👩🏾‍🔧	medium-dark skin tone
+v	👩🏿‍🔧	dark skin tone
+e	🧑‍🏭	factory worker	person-role	
+v	🧑🏻‍🏭	light skin tone
+v	🧑🏼‍🏭	medium-light skin tone
+v	🧑🏽‍🏭	medium skin tone
+v	🧑🏾‍🏭	medium-dark skin tone
+v	🧑🏿‍🏭	dark skin tone
+e	👨‍🏭	man factory worker	person-role	
+v	👨🏻‍🏭	light skin tone
+v	👨🏼‍🏭	medium-light skin tone
+v	👨🏽‍🏭	medium skin tone
+v	👨🏾‍🏭	medium-dark skin tone
+v	👨🏿‍🏭	dark skin tone
+e	👩‍🏭	woman factory worker	person-role	
+v	👩🏻‍🏭	light skin tone
+v	👩🏼‍🏭	medium-light skin tone
+v	👩🏽‍🏭	medium skin tone
+v	👩🏾‍🏭	medium-dark skin tone
+v	👩🏿‍🏭	dark skin tone
+e	🧑‍💼	office worker	person-role	
+v	🧑🏻‍💼	light skin tone
+v	🧑🏼‍💼	medium-light skin tone
+v	🧑🏽‍💼	medium skin tone
+v	🧑🏾‍💼	medium-dark skin tone
+v	🧑🏿‍💼	dark skin tone
+e	👨‍💼	man office worker	person-role	
+v	👨🏻‍💼	light skin tone
+v	👨🏼‍💼	medium-light skin tone
+v	👨🏽‍💼	medium skin tone
+v	👨🏾‍💼	medium-dark skin tone
+v	👨🏿‍💼	dark skin tone
+e	👩‍💼	woman office worker	person-role	
+v	👩🏻‍💼	light skin tone
+v	👩🏼‍💼	medium-light skin tone
+v	👩🏽‍💼	medium skin tone
+v	👩🏾‍💼	medium-dark skin tone
+v	👩🏿‍💼	dark skin tone
+e	🧑‍🔬	scientist	person-role	
+v	🧑🏻‍🔬	light skin tone
+v	🧑🏼‍🔬	medium-light skin tone
+v	🧑🏽‍🔬	medium skin tone
+v	🧑🏾‍🔬	medium-dark skin tone
+v	🧑🏿‍🔬	dark skin tone
+e	👨‍🔬	man scientist	person-role	
+v	👨🏻‍🔬	light skin tone
+v	👨🏼‍🔬	medium-light skin tone
+v	👨🏽‍🔬	medium skin tone
+v	👨🏾‍🔬	medium-dark skin tone
+v	👨🏿‍🔬	dark skin tone
+e	👩‍🔬	woman scientist	person-role	
+v	👩🏻‍🔬	light skin tone
+v	👩🏼‍🔬	medium-light skin tone
+v	👩🏽‍🔬	medium skin tone
+v	👩🏾‍🔬	medium-dark skin tone
+v	👩🏿‍🔬	dark skin tone
+e	🧑‍💻	technologist	person-role	
+v	🧑🏻‍💻	light skin tone
+v	🧑🏼‍💻	medium-light skin tone
+v	🧑🏽‍💻	medium skin tone
+v	🧑🏾‍💻	medium-dark skin tone
+v	🧑🏿‍💻	dark skin tone
+e	👨‍💻	man technologist	person-role	
+v	👨🏻‍💻	light skin tone
+v	👨🏼‍💻	medium-light skin tone
+v	👨🏽‍💻	medium skin tone
+v	👨🏾‍💻	medium-dark skin tone
+v	👨🏿‍💻	dark skin tone
+e	👩‍💻	woman technologist	person-role	
+v	👩🏻‍💻	light skin tone
+v	👩🏼‍💻	medium-light skin tone
+v	👩🏽‍💻	medium skin tone
+v	👩🏾‍💻	medium-dark skin tone
+v	👩🏿‍💻	dark skin tone
+e	🧑‍🎤	singer	person-role	
+v	🧑🏻‍🎤	light skin tone
+v	🧑🏼‍🎤	medium-light skin tone
+v	🧑🏽‍🎤	medium skin tone
+v	🧑🏾‍🎤	medium-dark skin tone
+v	🧑🏿‍🎤	dark skin tone
+e	👨‍🎤	man singer	person-role	
+v	👨🏻‍🎤	light skin tone
+v	👨🏼‍🎤	medium-light skin tone
+v	👨🏽‍🎤	medium skin tone
+v	👨🏾‍🎤	medium-dark skin tone
+v	👨🏿‍🎤	dark skin tone
+e	👩‍🎤	woman singer	person-role	
+v	👩🏻‍🎤	light skin tone
+v	👩🏼‍🎤	medium-light skin tone
+v	👩🏽‍🎤	medium skin tone
+v	👩🏾‍🎤	medium-dark skin tone
+v	👩🏿‍🎤	dark skin tone
+e	🧑‍🎨	artist	person-role	
+v	🧑🏻‍🎨	light skin tone
+v	🧑🏼‍🎨	medium-light skin tone
+v	🧑🏽‍🎨	medium skin tone
+v	🧑🏾‍🎨	medium-dark skin tone
+v	🧑🏿‍🎨	dark skin tone
+e	👨‍🎨	man artist	person-role	
+v	👨🏻‍🎨	light skin tone
+v	👨🏼‍🎨	medium-light skin tone
+v	👨🏽‍🎨	medium skin tone
+v	👨🏾‍🎨	medium-dark skin tone
+v	👨🏿‍🎨	dark skin tone
+e	👩‍🎨	woman artist	person-role	
+v	👩🏻‍🎨	light skin tone
+v	👩🏼‍🎨	medium-light skin tone
+v	👩🏽‍🎨	medium skin tone
+v	👩🏾‍🎨	medium-dark skin tone
+v	👩🏿‍🎨	dark skin tone
+e	🧑‍✈️	pilot	person-role	
+v	🧑🏻‍✈️	light skin tone
+v	🧑🏼‍✈️	medium-light skin tone
+v	🧑🏽‍✈️	medium skin tone
+v	🧑🏾‍✈️	medium-dark skin tone
+v	🧑🏿‍✈️	dark skin tone
+e	👨‍✈️	man pilot	person-role	
+v	👨🏻‍✈️	light skin tone
+v	👨🏼‍✈️	medium-light skin tone
+v	👨🏽‍✈️	medium skin tone
+v	👨🏾‍✈️	medium-dark skin tone
+v	👨🏿‍✈️	dark skin tone
+e	👩‍✈️	woman pilot	person-role	
+v	👩🏻‍✈️	light skin tone
+v	👩🏼‍✈️	medium-light skin tone
+v	👩🏽‍✈️	medium skin tone
+v	👩🏾‍✈️	medium-dark skin tone
+v	👩🏿‍✈️	dark skin tone
+e	🧑‍🚀	astronaut	person-role	
+v	🧑🏻‍🚀	light skin tone
+v	🧑🏼‍🚀	medium-light skin tone
+v	🧑🏽‍🚀	medium skin tone
+v	🧑🏾‍🚀	medium-dark skin tone
+v	🧑🏿‍🚀	dark skin tone
+e	👨‍🚀	man astronaut	person-role	
+v	👨🏻‍🚀	light skin tone
+v	👨🏼‍🚀	medium-light skin tone
+v	👨🏽‍🚀	medium skin tone
+v	👨🏾‍🚀	medium-dark skin tone
+v	👨🏿‍🚀	dark skin tone
+e	👩‍🚀	woman astronaut	person-role	
+v	👩🏻‍🚀	light skin tone
+v	👩🏼‍🚀	medium-light skin tone
+v	👩🏽‍🚀	medium skin tone
+v	👩🏾‍🚀	medium-dark skin tone
+v	👩🏿‍🚀	dark skin tone
+e	🧑‍🚒	firefighter	person-role	
+v	🧑🏻‍🚒	light skin tone
+v	🧑🏼‍🚒	medium-light skin tone
+v	🧑🏽‍🚒	medium skin tone
+v	🧑🏾‍🚒	medium-dark skin tone
+v	🧑🏿‍🚒	dark skin tone
+e	👨‍🚒	man firefighter	person-role	
+v	👨🏻‍🚒	light skin tone
+v	👨🏼‍🚒	medium-light skin tone
+v	👨🏽‍🚒	medium skin tone
+v	👨🏾‍🚒	medium-dark skin tone
+v	👨🏿‍🚒	dark skin tone
+e	👩‍🚒	woman firefighter	person-role	
+v	👩🏻‍🚒	light skin tone
+v	👩🏼‍🚒	medium-light skin tone
+v	👩🏽‍🚒	medium skin tone
+v	👩🏾‍🚒	medium-dark skin tone
+v	👩🏿‍🚒	dark skin tone
+e	👮	police officer	person-role	
+v	👮🏻	light skin tone
+v	👮🏼	medium-light skin tone
+v	👮🏽	medium skin tone
+v	👮🏾	medium-dark skin tone
+v	👮🏿	dark skin tone
+e	👮‍♂️	man police officer	person-role	
+v	👮🏻‍♂️	light skin tone
+v	👮🏼‍♂️	medium-light skin tone
+v	👮🏽‍♂️	medium skin tone
+v	👮🏾‍♂️	medium-dark skin tone
+v	👮🏿‍♂️	dark skin tone
+e	👮‍♀️	woman police officer	person-role	
+v	👮🏻‍♀️	light skin tone
+v	👮🏼‍♀️	medium-light skin tone
+v	👮🏽‍♀️	medium skin tone
+v	👮🏾‍♀️	medium-dark skin tone
+v	👮🏿‍♀️	dark skin tone
+e	🕵️	detective	person-role	
+v	🕵🏻	light skin tone
+v	🕵🏼	medium-light skin tone
+v	🕵🏽	medium skin tone
+v	🕵🏾	medium-dark skin tone
+v	🕵🏿	dark skin tone
+e	🕵️‍♂️	man detective	person-role	
+v	🕵🏻‍♂️	light skin tone
+v	🕵🏼‍♂️	medium-light skin tone
+v	🕵🏽‍♂️	medium skin tone
+v	🕵🏾‍♂️	medium-dark skin tone
+v	🕵🏿‍♂️	dark skin tone
+e	🕵️‍♀️	woman detective	person-role	
+v	🕵🏻‍♀️	light skin tone
+v	🕵🏼‍♀️	medium-light skin tone
+v	🕵🏽‍♀️	medium skin tone
+v	🕵🏾‍♀️	medium-dark skin tone
+v	🕵🏿‍♀️	dark skin tone
+e	💂	guard	person-role	
+v	💂🏻	light skin tone
+v	💂🏼	medium-light skin tone
+v	💂🏽	medium skin tone
+v	💂🏾	medium-dark skin tone
+v	💂🏿	dark skin tone
+e	💂‍♂️	man guard	person-role	
+v	💂🏻‍♂️	light skin tone
+v	💂🏼‍♂️	medium-light skin tone
+v	💂🏽‍♂️	medium skin tone
+v	💂🏾‍♂️	medium-dark skin tone
+v	💂🏿‍♂️	dark skin tone
+e	💂‍♀️	woman guard	person-role	
+v	💂🏻‍♀️	light skin tone
+v	💂🏼‍♀️	medium-light skin tone
+v	💂🏽‍♀️	medium skin tone
+v	💂🏾‍♀️	medium-dark skin tone
+v	💂🏿‍♀️	dark skin tone
+e	🥷	ninja	person-role	
+v	🥷🏻	light skin tone
+v	🥷🏼	medium-light skin tone
+v	🥷🏽	medium skin tone
+v	🥷🏾	medium-dark skin tone
+v	🥷🏿	dark skin tone
+e	👷	construction worker	person-role	
+v	👷🏻	light skin tone
+v	👷🏼	medium-light skin tone
+v	👷🏽	medium skin tone
+v	👷🏾	medium-dark skin tone
+v	👷🏿	dark skin tone
+e	👷‍♂️	man construction worker	person-role	
+v	👷🏻‍♂️	light skin tone
+v	👷🏼‍♂️	medium-light skin tone
+v	👷🏽‍♂️	medium skin tone
+v	👷🏾‍♂️	medium-dark skin tone
+v	👷🏿‍♂️	dark skin tone
+e	👷‍♀️	woman construction worker	person-role	
+v	👷🏻‍♀️	light skin tone
+v	👷🏼‍♀️	medium-light skin tone
+v	👷🏽‍♀️	medium skin tone
+v	👷🏾‍♀️	medium-dark skin tone
+v	👷🏿‍♀️	dark skin tone
+e	🫅	person with crown	person-role	
+v	🫅🏻	light skin tone
+v	🫅🏼	medium-light skin tone
+v	🫅🏽	medium skin tone
+v	🫅🏾	medium-dark skin tone
+v	🫅🏿	dark skin tone
+e	🤴	prince	person-role	
+v	🤴🏻	light skin tone
+v	🤴🏼	medium-light skin tone
+v	🤴🏽	medium skin tone
+v	🤴🏾	medium-dark skin tone
+v	🤴🏿	dark skin tone
+e	👸	princess	person-role	
+v	👸🏻	light skin tone
+v	👸🏼	medium-light skin tone
+v	👸🏽	medium skin tone
+v	👸🏾	medium-dark skin tone
+v	👸🏿	dark skin tone
+e	👳	person wearing turban	person-role	
+v	👳🏻	light skin tone
+v	👳🏼	medium-light skin tone
+v	👳🏽	medium skin tone
+v	👳🏾	medium-dark skin tone
+v	👳🏿	dark skin tone
+e	👳‍♂️	man wearing turban	person-role	
+v	👳🏻‍♂️	light skin tone
+v	👳🏼‍♂️	medium-light skin tone
+v	👳🏽‍♂️	medium skin tone
+v	👳🏾‍♂️	medium-dark skin tone
+v	👳🏿‍♂️	dark skin tone
+e	👳‍♀️	woman wearing turban	person-role	
+v	👳🏻‍♀️	light skin tone
+v	👳🏼‍♀️	medium-light skin tone
+v	👳🏽‍♀️	medium skin tone
+v	👳🏾‍♀️	medium-dark skin tone
+v	👳🏿‍♀️	dark skin tone
+e	👲	person with skullcap	person-role	
+v	👲🏻	light skin tone
+v	👲🏼	medium-light skin tone
+v	👲🏽	medium skin tone
+v	👲🏾	medium-dark skin tone
+v	👲🏿	dark skin tone
+e	🧕	woman with headscarf	person-role	
+v	🧕🏻	light skin tone
+v	🧕🏼	medium-light skin tone
+v	🧕🏽	medium skin tone
+v	🧕🏾	medium-dark skin tone
+v	🧕🏿	dark skin tone
+e	🤵	person in tuxedo	person-role	
+v	🤵🏻	light skin tone
+v	🤵🏼	medium-light skin tone
+v	🤵🏽	medium skin tone
+v	🤵🏾	medium-dark skin tone
+v	🤵🏿	dark skin tone
+e	🤵‍♂️	man in tuxedo	person-role	
+v	🤵🏻‍♂️	light skin tone
+v	🤵🏼‍♂️	medium-light skin tone
+v	🤵🏽‍♂️	medium skin tone
+v	🤵🏾‍♂️	medium-dark skin tone
+v	🤵🏿‍♂️	dark skin tone
+e	🤵‍♀️	woman in tuxedo	person-role	
+v	🤵🏻‍♀️	light skin tone
+v	🤵🏼‍♀️	medium-light skin tone
+v	🤵🏽‍♀️	medium skin tone
+v	🤵🏾‍♀️	medium-dark skin tone
+v	🤵🏿‍♀️	dark skin tone
+e	👰	person with veil	person-role	
+v	👰🏻	light skin tone
+v	👰🏼	medium-light skin tone
+v	👰🏽	medium skin tone
+v	👰🏾	medium-dark skin tone
+v	👰🏿	dark skin tone
+e	👰‍♂️	man with veil	person-role	
+v	👰🏻‍♂️	light skin tone
+v	👰🏼‍♂️	medium-light skin tone
+v	👰🏽‍♂️	medium skin tone
+v	👰🏾‍♂️	medium-dark skin tone
+v	👰🏿‍♂️	dark skin tone
+e	👰‍♀️	woman with veil	person-role	
+v	👰🏻‍♀️	light skin tone
+v	👰🏼‍♀️	medium-light skin tone
+v	👰🏽‍♀️	medium skin tone
+v	👰🏾‍♀️	medium-dark skin tone
+v	👰🏿‍♀️	dark skin tone
+e	🤰	pregnant woman	person-role	
+v	🤰🏻	light skin tone
+v	🤰🏼	medium-light skin tone
+v	🤰🏽	medium skin tone
+v	🤰🏾	medium-dark skin tone
+v	🤰🏿	dark skin tone
+e	🫃	pregnant man	person-role	
+v	🫃🏻	light skin tone
+v	🫃🏼	medium-light skin tone
+v	🫃🏽	medium skin tone
+v	🫃🏾	medium-dark skin tone
+v	🫃🏿	dark skin tone
+e	🫄	pregnant person	person-role	
+v	🫄🏻	light skin tone
+v	🫄🏼	medium-light skin tone
+v	🫄🏽	medium skin tone
+v	🫄🏾	medium-dark skin tone
+v	🫄🏿	dark skin tone
+e	🤱	breast-feeding	person-role	
+v	🤱🏻	light skin tone
+v	🤱🏼	medium-light skin tone
+v	🤱🏽	medium skin tone
+v	🤱🏾	medium-dark skin tone
+v	🤱🏿	dark skin tone
+e	👩‍🍼	woman feeding baby	person-role	
+v	👩🏻‍🍼	light skin tone
+v	👩🏼‍🍼	medium-light skin tone
+v	👩🏽‍🍼	medium skin tone
+v	👩🏾‍🍼	medium-dark skin tone
+v	👩🏿‍🍼	dark skin tone
+e	👨‍🍼	man feeding baby	person-role	
+v	👨🏻‍🍼	light skin tone
+v	👨🏼‍🍼	medium-light skin tone
+v	👨🏽‍🍼	medium skin tone
+v	👨🏾‍🍼	medium-dark skin tone
+v	👨🏿‍🍼	dark skin tone
+e	🧑‍🍼	person feeding baby	person-role	
+v	🧑🏻‍🍼	light skin tone
+v	🧑🏼‍🍼	medium-light skin tone
+v	🧑🏽‍🍼	medium skin tone
+v	🧑🏾‍🍼	medium-dark skin tone
+v	🧑🏿‍🍼	dark skin tone
+e	👼	baby angel	person-fantasy	
+v	👼🏻	light skin tone
+v	👼🏼	medium-light skin tone
+v	👼🏽	medium skin tone
+v	👼🏾	medium-dark skin tone
+v	👼🏿	dark skin tone
+e	🎅	Santa Claus	person-fantasy	
+v	🎅🏻	light skin tone
+v	🎅🏼	medium-light skin tone
+v	🎅🏽	medium skin tone
+v	🎅🏾	medium-dark skin tone
+v	🎅🏿	dark skin tone
+e	🤶	Mrs. Claus	person-fantasy	
+v	🤶🏻	light skin tone
+v	🤶🏼	medium-light skin tone
+v	🤶🏽	medium skin tone
+v	🤶🏾	medium-dark skin tone
+v	🤶🏿	dark skin tone
+e	🧑‍🎄	Mx Claus	person-fantasy	
+v	🧑🏻‍🎄	light skin tone
+v	🧑🏼‍🎄	medium-light skin tone
+v	🧑🏽‍🎄	medium skin tone
+v	🧑🏾‍🎄	medium-dark skin tone
+v	🧑🏿‍🎄	dark skin tone
+e	🦸	superhero	person-fantasy	
+v	🦸🏻	light skin tone
+v	🦸🏼	medium-light skin tone
+v	🦸🏽	medium skin tone
+v	🦸🏾	medium-dark skin tone
+v	🦸🏿	dark skin tone
+e	🦸‍♂️	man superhero	person-fantasy	
+v	🦸🏻‍♂️	light skin tone
+v	🦸🏼‍♂️	medium-light skin tone
+v	🦸🏽‍♂️	medium skin tone
+v	🦸🏾‍♂️	medium-dark skin tone
+v	🦸🏿‍♂️	dark skin tone
+e	🦸‍♀️	woman superhero	person-fantasy	
+v	🦸🏻‍♀️	light skin tone
+v	🦸🏼‍♀️	medium-light skin tone
+v	🦸🏽‍♀️	medium skin tone
+v	🦸🏾‍♀️	medium-dark skin tone
+v	🦸🏿‍♀️	dark skin tone
+e	🦹	supervillain	person-fantasy	
+v	🦹🏻	light skin tone
+v	🦹🏼	medium-light skin tone
+v	🦹🏽	medium skin tone
+v	🦹🏾	medium-dark skin tone
+v	🦹🏿	dark skin tone
+e	🦹‍♂️	man supervillain	person-fantasy	
+v	🦹🏻‍♂️	light skin tone
+v	🦹🏼‍♂️	medium-light skin tone
+v	🦹🏽‍♂️	medium skin tone
+v	🦹🏾‍♂️	medium-dark skin tone
+v	🦹🏿‍♂️	dark skin tone
+e	🦹‍♀️	woman supervillain	person-fantasy	
+v	🦹🏻‍♀️	light skin tone
+v	🦹🏼‍♀️	medium-light skin tone
+v	🦹🏽‍♀️	medium skin tone
+v	🦹🏾‍♀️	medium-dark skin tone
+v	🦹🏿‍♀️	dark skin tone
+e	🧙	mage	person-fantasy	
+v	🧙🏻	light skin tone
+v	🧙🏼	medium-light skin tone
+v	🧙🏽	medium skin tone
+v	🧙🏾	medium-dark skin tone
+v	🧙🏿	dark skin tone
+e	🧙‍♂️	man mage	person-fantasy	
+v	🧙🏻‍♂️	light skin tone
+v	🧙🏼‍♂️	medium-light skin tone
+v	🧙🏽‍♂️	medium skin tone
+v	🧙🏾‍♂️	medium-dark skin tone
+v	🧙🏿‍♂️	dark skin tone
+e	🧙‍♀️	woman mage	person-fantasy	
+v	🧙🏻‍♀️	light skin tone
+v	🧙🏼‍♀️	medium-light skin tone
+v	🧙🏽‍♀️	medium skin tone
+v	🧙🏾‍♀️	medium-dark skin tone
+v	🧙🏿‍♀️	dark skin tone
+e	🧚	fairy	person-fantasy	
+v	🧚🏻	light skin tone
+v	🧚🏼	medium-light skin tone
+v	🧚🏽	medium skin tone
+v	🧚🏾	medium-dark skin tone
+v	🧚🏿	dark skin tone
+e	🧚‍♂️	man fairy	person-fantasy	
+v	🧚🏻‍♂️	light skin tone
+v	🧚🏼‍♂️	medium-light skin tone
+v	🧚🏽‍♂️	medium skin tone
+v	🧚🏾‍♂️	medium-dark skin tone
+v	🧚🏿‍♂️	dark skin tone
+e	🧚‍♀️	woman fairy	person-fantasy	
+v	🧚🏻‍♀️	light skin tone
+v	🧚🏼‍♀️	medium-light skin tone
+v	🧚🏽‍♀️	medium skin tone
+v	🧚🏾‍♀️	medium-dark skin tone
+v	🧚🏿‍♀️	dark skin tone
+e	🧛	vampire	person-fantasy	
+v	🧛🏻	light skin tone
+v	🧛🏼	medium-light skin tone
+v	🧛🏽	medium skin tone
+v	🧛🏾	medium-dark skin tone
+v	🧛🏿	dark skin tone
+e	🧛‍♂️	man vampire	person-fantasy	
+v	🧛🏻‍♂️	light skin tone
+v	🧛🏼‍♂️	medium-light skin tone
+v	🧛🏽‍♂️	medium skin tone
+v	🧛🏾‍♂️	medium-dark skin tone
+v	🧛🏿‍♂️	dark skin tone
+e	🧛‍♀️	woman vampire	person-fantasy	
+v	🧛🏻‍♀️	light skin tone
+v	🧛🏼‍♀️	medium-light skin tone
+v	🧛🏽‍♀️	medium skin tone
+v	🧛🏾‍♀️	medium-dark skin tone
+v	🧛🏿‍♀️	dark skin tone
+e	🧜	merperson	person-fantasy	
+v	🧜🏻	light skin tone
+v	🧜🏼	medium-light skin tone
+v	🧜🏽	medium skin tone
+v	🧜🏾	medium-dark skin tone
+v	🧜🏿	dark skin tone
+e	🧜‍♂️	merman	person-fantasy	
+v	🧜🏻‍♂️	light skin tone
+v	🧜🏼‍♂️	medium-light skin tone
+v	🧜🏽‍♂️	medium skin tone
+v	🧜🏾‍♂️	medium-dark skin tone
+v	🧜🏿‍♂️	dark skin tone
+e	🧜‍♀️	mermaid	person-fantasy	
+v	🧜🏻‍♀️	light skin tone
+v	🧜🏼‍♀️	medium-light skin tone
+v	🧜🏽‍♀️	medium skin tone
+v	🧜🏾‍♀️	medium-dark skin tone
+v	🧜🏿‍♀️	dark skin tone
+e	🧝	elf	person-fantasy	
+v	🧝🏻	light skin tone
+v	🧝🏼	medium-light skin tone
+v	🧝🏽	medium skin tone
+v	🧝🏾	medium-dark skin tone
+v	🧝🏿	dark skin tone
+e	🧝‍♂️	man elf	person-fantasy	
+v	🧝🏻‍♂️	light skin tone
+v	🧝🏼‍♂️	medium-light skin tone
+v	🧝🏽‍♂️	medium skin tone
+v	🧝🏾‍♂️	medium-dark skin tone
+v	🧝🏿‍♂️	dark skin tone
+e	🧝‍♀️	woman elf	person-fantasy	
+v	🧝🏻‍♀️	light skin tone
+v	🧝🏼‍♀️	medium-light skin tone
+v	🧝🏽‍♀️	medium skin tone
+v	🧝🏾‍♀️	medium-dark skin tone
+v	🧝🏿‍♀️	dark skin tone
+e	🧞	genie	person-fantasy	
+e	🧞‍♂️	man genie	person-fantasy	
+e	🧞‍♀️	woman genie	person-fantasy	
+e	🧟	zombie	person-fantasy	
+e	🧟‍♂️	man zombie	person-fantasy	
+e	🧟‍♀️	woman zombie	person-fantasy	
+e	🧌	troll	person-fantasy	
+e	🫈	hairy creature	person-fantasy	
+e	💆	person getting massage	person-activity	
+v	💆🏻	light skin tone
+v	💆🏼	medium-light skin tone
+v	💆🏽	medium skin tone
+v	💆🏾	medium-dark skin tone
+v	💆🏿	dark skin tone
+e	💆‍♂️	man getting massage	person-activity	
+v	💆🏻‍♂️	light skin tone
+v	💆🏼‍♂️	medium-light skin tone
+v	💆🏽‍♂️	medium skin tone
+v	💆🏾‍♂️	medium-dark skin tone
+v	💆🏿‍♂️	dark skin tone
+e	💆‍♀️	woman getting massage	person-activity	
+v	💆🏻‍♀️	light skin tone
+v	💆🏼‍♀️	medium-light skin tone
+v	💆🏽‍♀️	medium skin tone
+v	💆🏾‍♀️	medium-dark skin tone
+v	💆🏿‍♀️	dark skin tone
+e	💇	person getting haircut	person-activity	
+v	💇🏻	light skin tone
+v	💇🏼	medium-light skin tone
+v	💇🏽	medium skin tone
+v	💇🏾	medium-dark skin tone
+v	💇🏿	dark skin tone
+e	💇‍♂️	man getting haircut	person-activity	
+v	💇🏻‍♂️	light skin tone
+v	💇🏼‍♂️	medium-light skin tone
+v	💇🏽‍♂️	medium skin tone
+v	💇🏾‍♂️	medium-dark skin tone
+v	💇🏿‍♂️	dark skin tone
+e	💇‍♀️	woman getting haircut	person-activity	
+v	💇🏻‍♀️	light skin tone
+v	💇🏼‍♀️	medium-light skin tone
+v	💇🏽‍♀️	medium skin tone
+v	💇🏾‍♀️	medium-dark skin tone
+v	💇🏿‍♀️	dark skin tone
+e	🚶	person walking	person-activity	
+v	🚶🏻	light skin tone
+v	🚶🏼	medium-light skin tone
+v	🚶🏽	medium skin tone
+v	🚶🏾	medium-dark skin tone
+v	🚶🏿	dark skin tone
+e	🚶‍♂️	man walking	person-activity	
+v	🚶🏻‍♂️	light skin tone
+v	🚶🏼‍♂️	medium-light skin tone
+v	🚶🏽‍♂️	medium skin tone
+v	🚶🏾‍♂️	medium-dark skin tone
+v	🚶🏿‍♂️	dark skin tone
+e	🚶‍♀️	woman walking	person-activity	
+v	🚶🏻‍♀️	light skin tone
+v	🚶🏼‍♀️	medium-light skin tone
+v	🚶🏽‍♀️	medium skin tone
+v	🚶🏾‍♀️	medium-dark skin tone
+v	🚶🏿‍♀️	dark skin tone
+e	🚶‍➡️	person walking facing right	person-activity	
+v	🚶🏻‍➡️	light skin tone
+v	🚶🏼‍➡️	medium-light skin tone
+v	🚶🏽‍➡️	medium skin tone
+v	🚶🏾‍➡️	medium-dark skin tone
+v	🚶🏿‍➡️	dark skin tone
+e	🚶‍♀️‍➡️	woman walking facing right	person-activity	
+v	🚶🏻‍♀️‍➡️	light skin tone
+v	🚶🏼‍♀️‍➡️	medium-light skin tone
+v	🚶🏽‍♀️‍➡️	medium skin tone
+v	🚶🏾‍♀️‍➡️	medium-dark skin tone
+v	🚶🏿‍♀️‍➡️	dark skin tone
+e	🚶‍♂️‍➡️	man walking facing right	person-activity	
+v	🚶🏻‍♂️‍➡️	light skin tone
+v	🚶🏼‍♂️‍➡️	medium-light skin tone
+v	🚶🏽‍♂️‍➡️	medium skin tone
+v	🚶🏾‍♂️‍➡️	medium-dark skin tone
+v	🚶🏿‍♂️‍➡️	dark skin tone
+e	🧍	person standing	person-activity	
+v	🧍🏻	light skin tone
+v	🧍🏼	medium-light skin tone
+v	🧍🏽	medium skin tone
+v	🧍🏾	medium-dark skin tone
+v	🧍🏿	dark skin tone
+e	🧍‍♂️	man standing	person-activity	
+v	🧍🏻‍♂️	light skin tone
+v	🧍🏼‍♂️	medium-light skin tone
+v	🧍🏽‍♂️	medium skin tone
+v	🧍🏾‍♂️	medium-dark skin tone
+v	🧍🏿‍♂️	dark skin tone
+e	🧍‍♀️	woman standing	person-activity	
+v	🧍🏻‍♀️	light skin tone
+v	🧍🏼‍♀️	medium-light skin tone
+v	🧍🏽‍♀️	medium skin tone
+v	🧍🏾‍♀️	medium-dark skin tone
+v	🧍🏿‍♀️	dark skin tone
+e	🧎	person kneeling	person-activity	
+v	🧎🏻	light skin tone
+v	🧎🏼	medium-light skin tone
+v	🧎🏽	medium skin tone
+v	🧎🏾	medium-dark skin tone
+v	🧎🏿	dark skin tone
+e	🧎‍♂️	man kneeling	person-activity	
+v	🧎🏻‍♂️	light skin tone
+v	🧎🏼‍♂️	medium-light skin tone
+v	🧎🏽‍♂️	medium skin tone
+v	🧎🏾‍♂️	medium-dark skin tone
+v	🧎🏿‍♂️	dark skin tone
+e	🧎‍♀️	woman kneeling	person-activity	
+v	🧎🏻‍♀️	light skin tone
+v	🧎🏼‍♀️	medium-light skin tone
+v	🧎🏽‍♀️	medium skin tone
+v	🧎🏾‍♀️	medium-dark skin tone
+v	🧎🏿‍♀️	dark skin tone
+e	🧎‍➡️	person kneeling facing right	person-activity	
+v	🧎🏻‍➡️	light skin tone
+v	🧎🏼‍➡️	medium-light skin tone
+v	🧎🏽‍➡️	medium skin tone
+v	🧎🏾‍➡️	medium-dark skin tone
+v	🧎🏿‍➡️	dark skin tone
+e	🧎‍♀️‍➡️	woman kneeling facing right	person-activity	
+v	🧎🏻‍♀️‍➡️	light skin tone
+v	🧎🏼‍♀️‍➡️	medium-light skin tone
+v	🧎🏽‍♀️‍➡️	medium skin tone
+v	🧎🏾‍♀️‍➡️	medium-dark skin tone
+v	🧎🏿‍♀️‍➡️	dark skin tone
+e	🧎‍♂️‍➡️	man kneeling facing right	person-activity	
+v	🧎🏻‍♂️‍➡️	light skin tone
+v	🧎🏼‍♂️‍➡️	medium-light skin tone
+v	🧎🏽‍♂️‍➡️	medium skin tone
+v	🧎🏾‍♂️‍➡️	medium-dark skin tone
+v	🧎🏿‍♂️‍➡️	dark skin tone
+e	🧑‍🦯	person with white cane	person-activity	
+v	🧑🏻‍🦯	light skin tone
+v	🧑🏼‍🦯	medium-light skin tone
+v	🧑🏽‍🦯	medium skin tone
+v	🧑🏾‍🦯	medium-dark skin tone
+v	🧑🏿‍🦯	dark skin tone
+e	🧑‍🦯‍➡️	person with white cane facing right	person-activity	
+v	🧑🏻‍🦯‍➡️	light skin tone
+v	🧑🏼‍🦯‍➡️	medium-light skin tone
+v	🧑🏽‍🦯‍➡️	medium skin tone
+v	🧑🏾‍🦯‍➡️	medium-dark skin tone
+v	🧑🏿‍🦯‍➡️	dark skin tone
+e	👨‍🦯	man with white cane	person-activity	
+v	👨🏻‍🦯	light skin tone
+v	👨🏼‍🦯	medium-light skin tone
+v	👨🏽‍🦯	medium skin tone
+v	👨🏾‍🦯	medium-dark skin tone
+v	👨🏿‍🦯	dark skin tone
+e	👨‍🦯‍➡️	man with white cane facing right	person-activity	
+v	👨🏻‍🦯‍➡️	light skin tone
+v	👨🏼‍🦯‍➡️	medium-light skin tone
+v	👨🏽‍🦯‍➡️	medium skin tone
+v	👨🏾‍🦯‍➡️	medium-dark skin tone
+v	👨🏿‍🦯‍➡️	dark skin tone
+e	👩‍🦯	woman with white cane	person-activity	
+v	👩🏻‍🦯	light skin tone
+v	👩🏼‍🦯	medium-light skin tone
+v	👩🏽‍🦯	medium skin tone
+v	👩🏾‍🦯	medium-dark skin tone
+v	👩🏿‍🦯	dark skin tone
+e	👩‍🦯‍➡️	woman with white cane facing right	person-activity	
+v	👩🏻‍🦯‍➡️	light skin tone
+v	👩🏼‍🦯‍➡️	medium-light skin tone
+v	👩🏽‍🦯‍➡️	medium skin tone
+v	👩🏾‍🦯‍➡️	medium-dark skin tone
+v	👩🏿‍🦯‍➡️	dark skin tone
+e	🧑‍🦼	person in motorized wheelchair	person-activity	
+v	🧑🏻‍🦼	light skin tone
+v	🧑🏼‍🦼	medium-light skin tone
+v	🧑🏽‍🦼	medium skin tone
+v	🧑🏾‍🦼	medium-dark skin tone
+v	🧑🏿‍🦼	dark skin tone
+e	🧑‍🦼‍➡️	person in motorized wheelchair facing right	person-activity	
+v	🧑🏻‍🦼‍➡️	light skin tone
+v	🧑🏼‍🦼‍➡️	medium-light skin tone
+v	🧑🏽‍🦼‍➡️	medium skin tone
+v	🧑🏾‍🦼‍➡️	medium-dark skin tone
+v	🧑🏿‍🦼‍➡️	dark skin tone
+e	👨‍🦼	man in motorized wheelchair	person-activity	
+v	👨🏻‍🦼	light skin tone
+v	👨🏼‍🦼	medium-light skin tone
+v	👨🏽‍🦼	medium skin tone
+v	👨🏾‍🦼	medium-dark skin tone
+v	👨🏿‍🦼	dark skin tone
+e	👨‍🦼‍➡️	man in motorized wheelchair facing right	person-activity	
+v	👨🏻‍🦼‍➡️	light skin tone
+v	👨🏼‍🦼‍➡️	medium-light skin tone
+v	👨🏽‍🦼‍➡️	medium skin tone
+v	👨🏾‍🦼‍➡️	medium-dark skin tone
+v	👨🏿‍🦼‍➡️	dark skin tone
+e	👩‍🦼	woman in motorized wheelchair	person-activity	
+v	👩🏻‍🦼	light skin tone
+v	👩🏼‍🦼	medium-light skin tone
+v	👩🏽‍🦼	medium skin tone
+v	👩🏾‍🦼	medium-dark skin tone
+v	👩🏿‍🦼	dark skin tone
+e	👩‍🦼‍➡️	woman in motorized wheelchair facing right	person-activity	
+v	👩🏻‍🦼‍➡️	light skin tone
+v	👩🏼‍🦼‍➡️	medium-light skin tone
+v	👩🏽‍🦼‍➡️	medium skin tone
+v	👩🏾‍🦼‍➡️	medium-dark skin tone
+v	👩🏿‍🦼‍➡️	dark skin tone
+e	🧑‍🦽	person in manual wheelchair	person-activity	
+v	🧑🏻‍🦽	light skin tone
+v	🧑🏼‍🦽	medium-light skin tone
+v	🧑🏽‍🦽	medium skin tone
+v	🧑🏾‍🦽	medium-dark skin tone
+v	🧑🏿‍🦽	dark skin tone
+e	🧑‍🦽‍➡️	person in manual wheelchair facing right	person-activity	
+v	🧑🏻‍🦽‍➡️	light skin tone
+v	🧑🏼‍🦽‍➡️	medium-light skin tone
+v	🧑🏽‍🦽‍➡️	medium skin tone
+v	🧑🏾‍🦽‍➡️	medium-dark skin tone
+v	🧑🏿‍🦽‍➡️	dark skin tone
+e	👨‍🦽	man in manual wheelchair	person-activity	
+v	👨🏻‍🦽	light skin tone
+v	👨🏼‍🦽	medium-light skin tone
+v	👨🏽‍🦽	medium skin tone
+v	👨🏾‍🦽	medium-dark skin tone
+v	👨🏿‍🦽	dark skin tone
+e	👨‍🦽‍➡️	man in manual wheelchair facing right	person-activity	
+v	👨🏻‍🦽‍➡️	light skin tone
+v	👨🏼‍🦽‍➡️	medium-light skin tone
+v	👨🏽‍🦽‍➡️	medium skin tone
+v	👨🏾‍🦽‍➡️	medium-dark skin tone
+v	👨🏿‍🦽‍➡️	dark skin tone
+e	👩‍🦽	woman in manual wheelchair	person-activity	
+v	👩🏻‍🦽	light skin tone
+v	👩🏼‍🦽	medium-light skin tone
+v	👩🏽‍🦽	medium skin tone
+v	👩🏾‍🦽	medium-dark skin tone
+v	👩🏿‍🦽	dark skin tone
+e	👩‍🦽‍➡️	woman in manual wheelchair facing right	person-activity	
+v	👩🏻‍🦽‍➡️	light skin tone
+v	👩🏼‍🦽‍➡️	medium-light skin tone
+v	👩🏽‍🦽‍➡️	medium skin tone
+v	👩🏾‍🦽‍➡️	medium-dark skin tone
+v	👩🏿‍🦽‍➡️	dark skin tone
+e	🏃	person running	person-activity	
+v	🏃🏻	light skin tone
+v	🏃🏼	medium-light skin tone
+v	🏃🏽	medium skin tone
+v	🏃🏾	medium-dark skin tone
+v	🏃🏿	dark skin tone
+e	🏃‍♂️	man running	person-activity	
+v	🏃🏻‍♂️	light skin tone
+v	🏃🏼‍♂️	medium-light skin tone
+v	🏃🏽‍♂️	medium skin tone
+v	🏃🏾‍♂️	medium-dark skin tone
+v	🏃🏿‍♂️	dark skin tone
+e	🏃‍♀️	woman running	person-activity	
+v	🏃🏻‍♀️	light skin tone
+v	🏃🏼‍♀️	medium-light skin tone
+v	🏃🏽‍♀️	medium skin tone
+v	🏃🏾‍♀️	medium-dark skin tone
+v	🏃🏿‍♀️	dark skin tone
+e	🏃‍➡️	person running facing right	person-activity	
+v	🏃🏻‍➡️	light skin tone
+v	🏃🏼‍➡️	medium-light skin tone
+v	🏃🏽‍➡️	medium skin tone
+v	🏃🏾‍➡️	medium-dark skin tone
+v	🏃🏿‍➡️	dark skin tone
+e	🏃‍♀️‍➡️	woman running facing right	person-activity	
+v	🏃🏻‍♀️‍➡️	light skin tone
+v	🏃🏼‍♀️‍➡️	medium-light skin tone
+v	🏃🏽‍♀️‍➡️	medium skin tone
+v	🏃🏾‍♀️‍➡️	medium-dark skin tone
+v	🏃🏿‍♀️‍➡️	dark skin tone
+e	🏃‍♂️‍➡️	man running facing right	person-activity	
+v	🏃🏻‍♂️‍➡️	light skin tone
+v	🏃🏼‍♂️‍➡️	medium-light skin tone
+v	🏃🏽‍♂️‍➡️	medium skin tone
+v	🏃🏾‍♂️‍➡️	medium-dark skin tone
+v	🏃🏿‍♂️‍➡️	dark skin tone
+e	🧑‍🩰	ballet dancer	person-activity	
+v	🧑🏻‍🩰	light skin tone
+v	🧑🏼‍🩰	medium-light skin tone
+v	🧑🏽‍🩰	medium skin tone
+v	🧑🏾‍🩰	medium-dark skin tone
+v	🧑🏿‍🩰	dark skin tone
+e	💃	woman dancing	person-activity	
+v	💃🏻	light skin tone
+v	💃🏼	medium-light skin tone
+v	💃🏽	medium skin tone
+v	💃🏾	medium-dark skin tone
+v	💃🏿	dark skin tone
+e	🕺	man dancing	person-activity	
+v	🕺🏻	light skin tone
+v	🕺🏼	medium-light skin tone
+v	🕺🏽	medium skin tone
+v	🕺🏾	medium-dark skin tone
+v	🕺🏿	dark skin tone
+e	🕴️	person in suit levitating	person-activity	
+v	🕴🏻	light skin tone
+v	🕴🏼	medium-light skin tone
+v	🕴🏽	medium skin tone
+v	🕴🏾	medium-dark skin tone
+v	🕴🏿	dark skin tone
+e	👯	people with bunny ears	person-activity	
+v	👯🏻	light skin tone
+v	👯🏼	medium-light skin tone
+v	👯🏽	medium skin tone
+v	👯🏾	medium-dark skin tone
+v	👯🏿	dark skin tone
+v	🧑🏻‍🐰‍🧑🏼	light skin tone, medium-light skin tone
+v	🧑🏻‍🐰‍🧑🏽	light skin tone, medium skin tone
+v	🧑🏻‍🐰‍🧑🏾	light skin tone, medium-dark skin tone
+v	🧑🏻‍🐰‍🧑🏿	light skin tone, dark skin tone
+v	🧑🏼‍🐰‍🧑🏻	medium-light skin tone, light skin tone
+v	🧑🏼‍🐰‍🧑🏽	medium-light skin tone, medium skin tone
+v	🧑🏼‍🐰‍🧑🏾	medium-light skin tone, medium-dark skin tone
+v	🧑🏼‍🐰‍🧑🏿	medium-light skin tone, dark skin tone
+v	🧑🏽‍🐰‍🧑🏻	medium skin tone, light skin tone
+v	🧑🏽‍🐰‍🧑🏼	medium skin tone, medium-light skin tone
+v	🧑🏽‍🐰‍🧑🏾	medium skin tone, medium-dark skin tone
+v	🧑🏽‍🐰‍🧑🏿	medium skin tone, dark skin tone
+v	🧑🏾‍🐰‍🧑🏻	medium-dark skin tone, light skin tone
+v	🧑🏾‍🐰‍🧑🏼	medium-dark skin tone, medium-light skin tone
+v	🧑🏾‍🐰‍🧑🏽	medium-dark skin tone, medium skin tone
+v	🧑🏾‍🐰‍🧑🏿	medium-dark skin tone, dark skin tone
+v	🧑🏿‍🐰‍🧑🏻	dark skin tone, light skin tone
+v	🧑🏿‍🐰‍🧑🏼	dark skin tone, medium-light skin tone
+v	🧑🏿‍🐰‍🧑🏽	dark skin tone, medium skin tone
+v	🧑🏿‍🐰‍🧑🏾	dark skin tone, medium-dark skin tone
+e	👯‍♂️	men with bunny ears	person-activity	
+v	👯🏻‍♂️	light skin tone
+v	👯🏼‍♂️	medium-light skin tone
+v	👯🏽‍♂️	medium skin tone
+v	👯🏾‍♂️	medium-dark skin tone
+v	👯🏿‍♂️	dark skin tone
+v	👨🏻‍🐰‍👨🏼	light skin tone, medium-light skin tone
+v	👨🏻‍🐰‍👨🏽	light skin tone, medium skin tone
+v	👨🏻‍🐰‍👨🏾	light skin tone, medium-dark skin tone
+v	👨🏻‍🐰‍👨🏿	light skin tone, dark skin tone
+v	👨🏼‍🐰‍👨🏻	medium-light skin tone, light skin tone
+v	👨🏼‍🐰‍👨🏽	medium-light skin tone, medium skin tone
+v	👨🏼‍🐰‍👨🏾	medium-light skin tone, medium-dark skin tone
+v	👨🏼‍🐰‍👨🏿	medium-light skin tone, dark skin tone
+v	👨🏽‍🐰‍👨🏻	medium skin tone, light skin tone
+v	👨🏽‍🐰‍👨🏼	medium skin tone, medium-light skin tone
+v	👨🏽‍🐰‍👨🏾	medium skin tone, medium-dark skin tone
+v	👨🏽‍🐰‍👨🏿	medium skin tone, dark skin tone
+v	👨🏾‍🐰‍👨🏻	medium-dark skin tone, light skin tone
+v	👨🏾‍🐰‍👨🏼	medium-dark skin tone, medium-light skin tone
+v	👨🏾‍🐰‍👨🏽	medium-dark skin tone, medium skin tone
+v	👨🏾‍🐰‍👨🏿	medium-dark skin tone, dark skin tone
+v	👨🏿‍🐰‍👨🏻	dark skin tone, light skin tone
+v	👨🏿‍🐰‍👨🏼	dark skin tone, medium-light skin tone
+v	👨🏿‍🐰‍👨🏽	dark skin tone, medium skin tone
+v	👨🏿‍🐰‍👨🏾	dark skin tone, medium-dark skin tone
+e	👯‍♀️	women with bunny ears	person-activity	
+v	👯🏻‍♀️	light skin tone
+v	👯🏼‍♀️	medium-light skin tone
+v	👯🏽‍♀️	medium skin tone
+v	👯🏾‍♀️	medium-dark skin tone
+v	👯🏿‍♀️	dark skin tone
+v	👩🏻‍🐰‍👩🏼	light skin tone, medium-light skin tone
+v	👩🏻‍🐰‍👩🏽	light skin tone, medium skin tone
+v	👩🏻‍🐰‍👩🏾	light skin tone, medium-dark skin tone
+v	👩🏻‍🐰‍👩🏿	light skin tone, dark skin tone
+v	👩🏼‍🐰‍👩🏻	medium-light skin tone, light skin tone
+v	👩🏼‍🐰‍👩🏽	medium-light skin tone, medium skin tone
+v	👩🏼‍🐰‍👩🏾	medium-light skin tone, medium-dark skin tone
+v	👩🏼‍🐰‍👩🏿	medium-light skin tone, dark skin tone
+v	👩🏽‍🐰‍👩🏻	medium skin tone, light skin tone
+v	👩🏽‍🐰‍👩🏼	medium skin tone, medium-light skin tone
+v	👩🏽‍🐰‍👩🏾	medium skin tone, medium-dark skin tone
+v	👩🏽‍🐰‍👩🏿	medium skin tone, dark skin tone
+v	👩🏾‍🐰‍👩🏻	medium-dark skin tone, light skin tone
+v	👩🏾‍🐰‍👩🏼	medium-dark skin tone, medium-light skin tone
+v	👩🏾‍🐰‍👩🏽	medium-dark skin tone, medium skin tone
+v	👩🏾‍🐰‍👩🏿	medium-dark skin tone, dark skin tone
+v	👩🏿‍🐰‍👩🏻	dark skin tone, light skin tone
+v	👩🏿‍🐰‍👩🏼	dark skin tone, medium-light skin tone
+v	👩🏿‍🐰‍👩🏽	dark skin tone, medium skin tone
+v	👩🏿‍🐰‍👩🏾	dark skin tone, medium-dark skin tone
+e	🧖	person in steamy room	person-activity	
+v	🧖🏻	light skin tone
+v	🧖🏼	medium-light skin tone
+v	🧖🏽	medium skin tone
+v	🧖🏾	medium-dark skin tone
+v	🧖🏿	dark skin tone
+e	🧖‍♂️	man in steamy room	person-activity	
+v	🧖🏻‍♂️	light skin tone
+v	🧖🏼‍♂️	medium-light skin tone
+v	🧖🏽‍♂️	medium skin tone
+v	🧖🏾‍♂️	medium-dark skin tone
+v	🧖🏿‍♂️	dark skin tone
+e	🧖‍♀️	woman in steamy room	person-activity	
+v	🧖🏻‍♀️	light skin tone
+v	🧖🏼‍♀️	medium-light skin tone
+v	🧖🏽‍♀️	medium skin tone
+v	🧖🏾‍♀️	medium-dark skin tone
+v	🧖🏿‍♀️	dark skin tone
+e	🧗	person climbing	person-activity	
+v	🧗🏻	light skin tone
+v	🧗🏼	medium-light skin tone
+v	🧗🏽	medium skin tone
+v	🧗🏾	medium-dark skin tone
+v	🧗🏿	dark skin tone
+e	🧗‍♂️	man climbing	person-activity	
+v	🧗🏻‍♂️	light skin tone
+v	🧗🏼‍♂️	medium-light skin tone
+v	🧗🏽‍♂️	medium skin tone
+v	🧗🏾‍♂️	medium-dark skin tone
+v	🧗🏿‍♂️	dark skin tone
+e	🧗‍♀️	woman climbing	person-activity	
+v	🧗🏻‍♀️	light skin tone
+v	🧗🏼‍♀️	medium-light skin tone
+v	🧗🏽‍♀️	medium skin tone
+v	🧗🏾‍♀️	medium-dark skin tone
+v	🧗🏿‍♀️	dark skin tone
+e	🤺	person fencing	person-sport	
+e	🏇	horse racing	person-sport	
+v	🏇🏻	light skin tone
+v	🏇🏼	medium-light skin tone
+v	🏇🏽	medium skin tone
+v	🏇🏾	medium-dark skin tone
+v	🏇🏿	dark skin tone
+e	⛷️	skier	person-sport	
+e	🏂	snowboarder	person-sport	
+v	🏂🏻	light skin tone
+v	🏂🏼	medium-light skin tone
+v	🏂🏽	medium skin tone
+v	🏂🏾	medium-dark skin tone
+v	🏂🏿	dark skin tone
+e	🏌️	person golfing	person-sport	
+v	🏌🏻	light skin tone
+v	🏌🏼	medium-light skin tone
+v	🏌🏽	medium skin tone
+v	🏌🏾	medium-dark skin tone
+v	🏌🏿	dark skin tone
+e	🏌️‍♂️	man golfing	person-sport	
+v	🏌🏻‍♂️	light skin tone
+v	🏌🏼‍♂️	medium-light skin tone
+v	🏌🏽‍♂️	medium skin tone
+v	🏌🏾‍♂️	medium-dark skin tone
+v	🏌🏿‍♂️	dark skin tone
+e	🏌️‍♀️	woman golfing	person-sport	
+v	🏌🏻‍♀️	light skin tone
+v	🏌🏼‍♀️	medium-light skin tone
+v	🏌🏽‍♀️	medium skin tone
+v	🏌🏾‍♀️	medium-dark skin tone
+v	🏌🏿‍♀️	dark skin tone
+e	🏄	person surfing	person-sport	
+v	🏄🏻	light skin tone
+v	🏄🏼	medium-light skin tone
+v	🏄🏽	medium skin tone
+v	🏄🏾	medium-dark skin tone
+v	🏄🏿	dark skin tone
+e	🏄‍♂️	man surfing	person-sport	
+v	🏄🏻‍♂️	light skin tone
+v	🏄🏼‍♂️	medium-light skin tone
+v	🏄🏽‍♂️	medium skin tone
+v	🏄🏾‍♂️	medium-dark skin tone
+v	🏄🏿‍♂️	dark skin tone
+e	🏄‍♀️	woman surfing	person-sport	
+v	🏄🏻‍♀️	light skin tone
+v	🏄🏼‍♀️	medium-light skin tone
+v	🏄🏽‍♀️	medium skin tone
+v	🏄🏾‍♀️	medium-dark skin tone
+v	🏄🏿‍♀️	dark skin tone
+e	🚣	person rowing boat	person-sport	
+v	🚣🏻	light skin tone
+v	🚣🏼	medium-light skin tone
+v	🚣🏽	medium skin tone
+v	🚣🏾	medium-dark skin tone
+v	🚣🏿	dark skin tone
+e	🚣‍♂️	man rowing boat	person-sport	
+v	🚣🏻‍♂️	light skin tone
+v	🚣🏼‍♂️	medium-light skin tone
+v	🚣🏽‍♂️	medium skin tone
+v	🚣🏾‍♂️	medium-dark skin tone
+v	🚣🏿‍♂️	dark skin tone
+e	🚣‍♀️	woman rowing boat	person-sport	
+v	🚣🏻‍♀️	light skin tone
+v	🚣🏼‍♀️	medium-light skin tone
+v	🚣🏽‍♀️	medium skin tone
+v	🚣🏾‍♀️	medium-dark skin tone
+v	🚣🏿‍♀️	dark skin tone
+e	🏊	person swimming	person-sport	
+v	🏊🏻	light skin tone
+v	🏊🏼	medium-light skin tone
+v	🏊🏽	medium skin tone
+v	🏊🏾	medium-dark skin tone
+v	🏊🏿	dark skin tone
+e	🏊‍♂️	man swimming	person-sport	
+v	🏊🏻‍♂️	light skin tone
+v	🏊🏼‍♂️	medium-light skin tone
+v	🏊🏽‍♂️	medium skin tone
+v	🏊🏾‍♂️	medium-dark skin tone
+v	🏊🏿‍♂️	dark skin tone
+e	🏊‍♀️	woman swimming	person-sport	
+v	🏊🏻‍♀️	light skin tone
+v	🏊🏼‍♀️	medium-light skin tone
+v	🏊🏽‍♀️	medium skin tone
+v	🏊🏾‍♀️	medium-dark skin tone
+v	🏊🏿‍♀️	dark skin tone
+e	⛹️	person bouncing ball	person-sport	
+v	⛹🏻	light skin tone
+v	⛹🏼	medium-light skin tone
+v	⛹🏽	medium skin tone
+v	⛹🏾	medium-dark skin tone
+v	⛹🏿	dark skin tone
+e	⛹️‍♂️	man bouncing ball	person-sport	
+v	⛹🏻‍♂️	light skin tone
+v	⛹🏼‍♂️	medium-light skin tone
+v	⛹🏽‍♂️	medium skin tone
+v	⛹🏾‍♂️	medium-dark skin tone
+v	⛹🏿‍♂️	dark skin tone
+e	⛹️‍♀️	woman bouncing ball	person-sport	
+v	⛹🏻‍♀️	light skin tone
+v	⛹🏼‍♀️	medium-light skin tone
+v	⛹🏽‍♀️	medium skin tone
+v	⛹🏾‍♀️	medium-dark skin tone
+v	⛹🏿‍♀️	dark skin tone
+e	🏋️	person lifting weights	person-sport	
+v	🏋🏻	light skin tone
+v	🏋🏼	medium-light skin tone
+v	🏋🏽	medium skin tone
+v	🏋🏾	medium-dark skin tone
+v	🏋🏿	dark skin tone
+e	🏋️‍♂️	man lifting weights	person-sport	
+v	🏋🏻‍♂️	light skin tone
+v	🏋🏼‍♂️	medium-light skin tone
+v	🏋🏽‍♂️	medium skin tone
+v	🏋🏾‍♂️	medium-dark skin tone
+v	🏋🏿‍♂️	dark skin tone
+e	🏋️‍♀️	woman lifting weights	person-sport	
+v	🏋🏻‍♀️	light skin tone
+v	🏋🏼‍♀️	medium-light skin tone
+v	🏋🏽‍♀️	medium skin tone
+v	🏋🏾‍♀️	medium-dark skin tone
+v	🏋🏿‍♀️	dark skin tone
+e	🚴	person biking	person-sport	
+v	🚴🏻	light skin tone
+v	🚴🏼	medium-light skin tone
+v	🚴🏽	medium skin tone
+v	🚴🏾	medium-dark skin tone
+v	🚴🏿	dark skin tone
+e	🚴‍♂️	man biking	person-sport	
+v	🚴🏻‍♂️	light skin tone
+v	🚴🏼‍♂️	medium-light skin tone
+v	🚴🏽‍♂️	medium skin tone
+v	🚴🏾‍♂️	medium-dark skin tone
+v	🚴🏿‍♂️	dark skin tone
+e	🚴‍♀️	woman biking	person-sport	
+v	🚴🏻‍♀️	light skin tone
+v	🚴🏼‍♀️	medium-light skin tone
+v	🚴🏽‍♀️	medium skin tone
+v	🚴🏾‍♀️	medium-dark skin tone
+v	🚴🏿‍♀️	dark skin tone
+e	🚵	person mountain biking	person-sport	
+v	🚵🏻	light skin tone
+v	🚵🏼	medium-light skin tone
+v	🚵🏽	medium skin tone
+v	🚵🏾	medium-dark skin tone
+v	🚵🏿	dark skin tone
+e	🚵‍♂️	man mountain biking	person-sport	
+v	🚵🏻‍♂️	light skin tone
+v	🚵🏼‍♂️	medium-light skin tone
+v	🚵🏽‍♂️	medium skin tone
+v	🚵🏾‍♂️	medium-dark skin tone
+v	🚵🏿‍♂️	dark skin tone
+e	🚵‍♀️	woman mountain biking	person-sport	
+v	🚵🏻‍♀️	light skin tone
+v	🚵🏼‍♀️	medium-light skin tone
+v	🚵🏽‍♀️	medium skin tone
+v	🚵🏾‍♀️	medium-dark skin tone
+v	🚵🏿‍♀️	dark skin tone
+e	🤸	person cartwheeling	person-sport	
+v	🤸🏻	light skin tone
+v	🤸🏼	medium-light skin tone
+v	🤸🏽	medium skin tone
+v	🤸🏾	medium-dark skin tone
+v	🤸🏿	dark skin tone
+e	🤸‍♂️	man cartwheeling	person-sport	
+v	🤸🏻‍♂️	light skin tone
+v	🤸🏼‍♂️	medium-light skin tone
+v	🤸🏽‍♂️	medium skin tone
+v	🤸🏾‍♂️	medium-dark skin tone
+v	🤸🏿‍♂️	dark skin tone
+e	🤸‍♀️	woman cartwheeling	person-sport	
+v	🤸🏻‍♀️	light skin tone
+v	🤸🏼‍♀️	medium-light skin tone
+v	🤸🏽‍♀️	medium skin tone
+v	🤸🏾‍♀️	medium-dark skin tone
+v	🤸🏿‍♀️	dark skin tone
+e	🤼	people wrestling	person-sport	
+v	🤼🏻	light skin tone
+v	🤼🏼	medium-light skin tone
+v	🤼🏽	medium skin tone
+v	🤼🏾	medium-dark skin tone
+v	🤼🏿	dark skin tone
+v	🧑🏻‍🫯‍🧑🏼	light skin tone, medium-light skin tone
+v	🧑🏻‍🫯‍🧑🏽	light skin tone, medium skin tone
+v	🧑🏻‍🫯‍🧑🏾	light skin tone, medium-dark skin tone
+v	🧑🏻‍🫯‍🧑🏿	light skin tone, dark skin tone
+v	🧑🏼‍🫯‍🧑🏻	medium-light skin tone, light skin tone
+v	🧑🏼‍🫯‍🧑🏽	medium-light skin tone, medium skin tone
+v	🧑🏼‍🫯‍🧑🏾	medium-light skin tone, medium-dark skin tone
+v	🧑🏼‍🫯‍🧑🏿	medium-light skin tone, dark skin tone
+v	🧑🏽‍🫯‍🧑🏻	medium skin tone, light skin tone
+v	🧑🏽‍🫯‍🧑🏼	medium skin tone, medium-light skin tone
+v	🧑🏽‍🫯‍🧑🏾	medium skin tone, medium-dark skin tone
+v	🧑🏽‍🫯‍🧑🏿	medium skin tone, dark skin tone
+v	🧑🏾‍🫯‍🧑🏻	medium-dark skin tone, light skin tone
+v	🧑🏾‍🫯‍🧑🏼	medium-dark skin tone, medium-light skin tone
+v	🧑🏾‍🫯‍🧑🏽	medium-dark skin tone, medium skin tone
+v	🧑🏾‍🫯‍🧑🏿	medium-dark skin tone, dark skin tone
+v	🧑🏿‍🫯‍🧑🏻	dark skin tone, light skin tone
+v	🧑🏿‍🫯‍🧑🏼	dark skin tone, medium-light skin tone
+v	🧑🏿‍🫯‍🧑🏽	dark skin tone, medium skin tone
+v	🧑🏿‍🫯‍🧑🏾	dark skin tone, medium-dark skin tone
+e	🤼‍♂️	men wrestling	person-sport	
+v	🤼🏻‍♂️	light skin tone
+v	🤼🏼‍♂️	medium-light skin tone
+v	🤼🏽‍♂️	medium skin tone
+v	🤼🏾‍♂️	medium-dark skin tone
+v	🤼🏿‍♂️	dark skin tone
+v	👨🏻‍🫯‍👨🏼	light skin tone, medium-light skin tone
+v	👨🏻‍🫯‍👨🏽	light skin tone, medium skin tone
+v	👨🏻‍🫯‍👨🏾	light skin tone, medium-dark skin tone
+v	👨🏻‍🫯‍👨🏿	light skin tone, dark skin tone
+v	👨🏼‍🫯‍👨🏻	medium-light skin tone, light skin tone
+v	👨🏼‍🫯‍👨🏽	medium-light skin tone, medium skin tone
+v	👨🏼‍🫯‍👨🏾	medium-light skin tone, medium-dark skin tone
+v	👨🏼‍🫯‍👨🏿	medium-light skin tone, dark skin tone
+v	👨🏽‍🫯‍👨🏻	medium skin tone, light skin tone
+v	👨🏽‍🫯‍👨🏼	medium skin tone, medium-light skin tone
+v	👨🏽‍🫯‍👨🏾	medium skin tone, medium-dark skin tone
+v	👨🏽‍🫯‍👨🏿	medium skin tone, dark skin tone
+v	👨🏾‍🫯‍👨🏻	medium-dark skin tone, light skin tone
+v	👨🏾‍🫯‍👨🏼	medium-dark skin tone, medium-light skin tone
+v	👨🏾‍🫯‍👨🏽	medium-dark skin tone, medium skin tone
+v	👨🏾‍🫯‍👨🏿	medium-dark skin tone, dark skin tone
+v	👨🏿‍🫯‍👨🏻	dark skin tone, light skin tone
+v	👨🏿‍🫯‍👨🏼	dark skin tone, medium-light skin tone
+v	👨🏿‍🫯‍👨🏽	dark skin tone, medium skin tone
+v	👨🏿‍🫯‍👨🏾	dark skin tone, medium-dark skin tone
+e	🤼‍♀️	women wrestling	person-sport	
+v	🤼🏻‍♀️	light skin tone
+v	🤼🏼‍♀️	medium-light skin tone
+v	🤼🏽‍♀️	medium skin tone
+v	🤼🏾‍♀️	medium-dark skin tone
+v	🤼🏿‍♀️	dark skin tone
+v	👩🏻‍🫯‍👩🏼	light skin tone, medium-light skin tone
+v	👩🏻‍🫯‍👩🏽	light skin tone, medium skin tone
+v	👩🏻‍🫯‍👩🏾	light skin tone, medium-dark skin tone
+v	👩🏻‍🫯‍👩🏿	light skin tone, dark skin tone
+v	👩🏼‍🫯‍👩🏻	medium-light skin tone, light skin tone
+v	👩🏼‍🫯‍👩🏽	medium-light skin tone, medium skin tone
+v	👩🏼‍🫯‍👩🏾	medium-light skin tone, medium-dark skin tone
+v	👩🏼‍🫯‍👩🏿	medium-light skin tone, dark skin tone
+v	👩🏽‍🫯‍👩🏻	medium skin tone, light skin tone
+v	👩🏽‍🫯‍👩🏼	medium skin tone, medium-light skin tone
+v	👩🏽‍🫯‍👩🏾	medium skin tone, medium-dark skin tone
+v	👩🏽‍🫯‍👩🏿	medium skin tone, dark skin tone
+v	👩🏾‍🫯‍👩🏻	medium-dark skin tone, light skin tone
+v	👩🏾‍🫯‍👩🏼	medium-dark skin tone, medium-light skin tone
+v	👩🏾‍🫯‍👩🏽	medium-dark skin tone, medium skin tone
+v	👩🏾‍🫯‍👩🏿	medium-dark skin tone, dark skin tone
+v	👩🏿‍🫯‍👩🏻	dark skin tone, light skin tone
+v	👩🏿‍🫯‍👩🏼	dark skin tone, medium-light skin tone
+v	👩🏿‍🫯‍👩🏽	dark skin tone, medium skin tone
+v	👩🏿‍🫯‍👩🏾	dark skin tone, medium-dark skin tone
+e	🤽	person playing water polo	person-sport	
+v	🤽🏻	light skin tone
+v	🤽🏼	medium-light skin tone
+v	🤽🏽	medium skin tone
+v	🤽🏾	medium-dark skin tone
+v	🤽🏿	dark skin tone
+e	🤽‍♂️	man playing water polo	person-sport	
+v	🤽🏻‍♂️	light skin tone
+v	🤽🏼‍♂️	medium-light skin tone
+v	🤽🏽‍♂️	medium skin tone
+v	🤽🏾‍♂️	medium-dark skin tone
+v	🤽🏿‍♂️	dark skin tone
+e	🤽‍♀️	woman playing water polo	person-sport	
+v	🤽🏻‍♀️	light skin tone
+v	🤽🏼‍♀️	medium-light skin tone
+v	🤽🏽‍♀️	medium skin tone
+v	🤽🏾‍♀️	medium-dark skin tone
+v	🤽🏿‍♀️	dark skin tone
+e	🤾	person playing handball	person-sport	
+v	🤾🏻	light skin tone
+v	🤾🏼	medium-light skin tone
+v	🤾🏽	medium skin tone
+v	🤾🏾	medium-dark skin tone
+v	🤾🏿	dark skin tone
+e	🤾‍♂️	man playing handball	person-sport	
+v	🤾🏻‍♂️	light skin tone
+v	🤾🏼‍♂️	medium-light skin tone
+v	🤾🏽‍♂️	medium skin tone
+v	🤾🏾‍♂️	medium-dark skin tone
+v	🤾🏿‍♂️	dark skin tone
+e	🤾‍♀️	woman playing handball	person-sport	
+v	🤾🏻‍♀️	light skin tone
+v	🤾🏼‍♀️	medium-light skin tone
+v	🤾🏽‍♀️	medium skin tone
+v	🤾🏾‍♀️	medium-dark skin tone
+v	🤾🏿‍♀️	dark skin tone
+e	🤹	person juggling	person-sport	
+v	🤹🏻	light skin tone
+v	🤹🏼	medium-light skin tone
+v	🤹🏽	medium skin tone
+v	🤹🏾	medium-dark skin tone
+v	🤹🏿	dark skin tone
+e	🤹‍♂️	man juggling	person-sport	
+v	🤹🏻‍♂️	light skin tone
+v	🤹🏼‍♂️	medium-light skin tone
+v	🤹🏽‍♂️	medium skin tone
+v	🤹🏾‍♂️	medium-dark skin tone
+v	🤹🏿‍♂️	dark skin tone
+e	🤹‍♀️	woman juggling	person-sport	
+v	🤹🏻‍♀️	light skin tone
+v	🤹🏼‍♀️	medium-light skin tone
+v	🤹🏽‍♀️	medium skin tone
+v	🤹🏾‍♀️	medium-dark skin tone
+v	🤹🏿‍♀️	dark skin tone
+e	🧘	person in lotus position	person-resting	
+v	🧘🏻	light skin tone
+v	🧘🏼	medium-light skin tone
+v	🧘🏽	medium skin tone
+v	🧘🏾	medium-dark skin tone
+v	🧘🏿	dark skin tone
+e	🧘‍♂️	man in lotus position	person-resting	
+v	🧘🏻‍♂️	light skin tone
+v	🧘🏼‍♂️	medium-light skin tone
+v	🧘🏽‍♂️	medium skin tone
+v	🧘🏾‍♂️	medium-dark skin tone
+v	🧘🏿‍♂️	dark skin tone
+e	🧘‍♀️	woman in lotus position	person-resting	
+v	🧘🏻‍♀️	light skin tone
+v	🧘🏼‍♀️	medium-light skin tone
+v	🧘🏽‍♀️	medium skin tone
+v	🧘🏾‍♀️	medium-dark skin tone
+v	🧘🏿‍♀️	dark skin tone
+e	🛀	person taking bath	person-resting	
+v	🛀🏻	light skin tone
+v	🛀🏼	medium-light skin tone
+v	🛀🏽	medium skin tone
+v	🛀🏾	medium-dark skin tone
+v	🛀🏿	dark skin tone
+e	🛌	person in bed	person-resting	
+v	🛌🏻	light skin tone
+v	🛌🏼	medium-light skin tone
+v	🛌🏽	medium skin tone
+v	🛌🏾	medium-dark skin tone
+v	🛌🏿	dark skin tone
+e	🧑‍🤝‍🧑	people holding hands	family	
+v	🧑🏻‍🤝‍🧑🏻	light skin tone
+v	🧑🏻‍🤝‍🧑🏼	light skin tone, medium-light skin tone
+v	🧑🏻‍🤝‍🧑🏽	light skin tone, medium skin tone
+v	🧑🏻‍🤝‍🧑🏾	light skin tone, medium-dark skin tone
+v	🧑🏻‍🤝‍🧑🏿	light skin tone, dark skin tone
+v	🧑🏼‍🤝‍🧑🏻	medium-light skin tone, light skin tone
+v	🧑🏼‍🤝‍🧑🏼	medium-light skin tone
+v	🧑🏼‍🤝‍🧑🏽	medium-light skin tone, medium skin tone
+v	🧑🏼‍🤝‍🧑🏾	medium-light skin tone, medium-dark skin tone
+v	🧑🏼‍🤝‍🧑🏿	medium-light skin tone, dark skin tone
+v	🧑🏽‍🤝‍🧑🏻	medium skin tone, light skin tone
+v	🧑🏽‍🤝‍🧑🏼	medium skin tone, medium-light skin tone
+v	🧑🏽‍🤝‍🧑🏽	medium skin tone
+v	🧑🏽‍🤝‍🧑🏾	medium skin tone, medium-dark skin tone
+v	🧑🏽‍🤝‍🧑🏿	medium skin tone, dark skin tone
+v	🧑🏾‍🤝‍🧑🏻	medium-dark skin tone, light skin tone
+v	🧑🏾‍🤝‍🧑🏼	medium-dark skin tone, medium-light skin tone
+v	🧑🏾‍🤝‍🧑🏽	medium-dark skin tone, medium skin tone
+v	🧑🏾‍🤝‍🧑🏾	medium-dark skin tone
+v	🧑🏾‍🤝‍🧑🏿	medium-dark skin tone, dark skin tone
+v	🧑🏿‍🤝‍🧑🏻	dark skin tone, light skin tone
+v	🧑🏿‍🤝‍🧑🏼	dark skin tone, medium-light skin tone
+v	🧑🏿‍🤝‍🧑🏽	dark skin tone, medium skin tone
+v	🧑🏿‍🤝‍🧑🏾	dark skin tone, medium-dark skin tone
+v	🧑🏿‍🤝‍🧑🏿	dark skin tone
+e	👭	women holding hands	family	
+v	👭🏻	light skin tone
+v	👩🏻‍🤝‍👩🏼	light skin tone, medium-light skin tone
+v	👩🏻‍🤝‍👩🏽	light skin tone, medium skin tone
+v	👩🏻‍🤝‍👩🏾	light skin tone, medium-dark skin tone
+v	👩🏻‍🤝‍👩🏿	light skin tone, dark skin tone
+v	👩🏼‍🤝‍👩🏻	medium-light skin tone, light skin tone
+v	👭🏼	medium-light skin tone
+v	👩🏼‍🤝‍👩🏽	medium-light skin tone, medium skin tone
+v	👩🏼‍🤝‍👩🏾	medium-light skin tone, medium-dark skin tone
+v	👩🏼‍🤝‍👩🏿	medium-light skin tone, dark skin tone
+v	👩🏽‍🤝‍👩🏻	medium skin tone, light skin tone
+v	👩🏽‍🤝‍👩🏼	medium skin tone, medium-light skin tone
+v	👭🏽	medium skin tone
+v	👩🏽‍🤝‍👩🏾	medium skin tone, medium-dark skin tone
+v	👩🏽‍🤝‍👩🏿	medium skin tone, dark skin tone
+v	👩🏾‍🤝‍👩🏻	medium-dark skin tone, light skin tone
+v	👩🏾‍🤝‍👩🏼	medium-dark skin tone, medium-light skin tone
+v	👩🏾‍🤝‍👩🏽	medium-dark skin tone, medium skin tone
+v	👭🏾	medium-dark skin tone
+v	👩🏾‍🤝‍👩🏿	medium-dark skin tone, dark skin tone
+v	👩🏿‍🤝‍👩🏻	dark skin tone, light skin tone
+v	👩🏿‍🤝‍👩🏼	dark skin tone, medium-light skin tone
+v	👩🏿‍🤝‍👩🏽	dark skin tone, medium skin tone
+v	👩🏿‍🤝‍👩🏾	dark skin tone, medium-dark skin tone
+v	👭🏿	dark skin tone
+e	👫	woman and man holding hands	family	
+v	👫🏻	light skin tone
+v	👩🏻‍🤝‍👨🏼	light skin tone, medium-light skin tone
+v	👩🏻‍🤝‍👨🏽	light skin tone, medium skin tone
+v	👩🏻‍🤝‍👨🏾	light skin tone, medium-dark skin tone
+v	👩🏻‍🤝‍👨🏿	light skin tone, dark skin tone
+v	👩🏼‍🤝‍👨🏻	medium-light skin tone, light skin tone
+v	👫🏼	medium-light skin tone
+v	👩🏼‍🤝‍👨🏽	medium-light skin tone, medium skin tone
+v	👩🏼‍🤝‍👨🏾	medium-light skin tone, medium-dark skin tone
+v	👩🏼‍🤝‍👨🏿	medium-light skin tone, dark skin tone
+v	👩🏽‍🤝‍👨🏻	medium skin tone, light skin tone
+v	👩🏽‍🤝‍👨🏼	medium skin tone, medium-light skin tone
+v	👫🏽	medium skin tone
+v	👩🏽‍🤝‍👨🏾	medium skin tone, medium-dark skin tone
+v	👩🏽‍🤝‍👨🏿	medium skin tone, dark skin tone
+v	👩🏾‍🤝‍👨🏻	medium-dark skin tone, light skin tone
+v	👩🏾‍🤝‍👨🏼	medium-dark skin tone, medium-light skin tone
+v	👩🏾‍🤝‍👨🏽	medium-dark skin tone, medium skin tone
+v	👫🏾	medium-dark skin tone
+v	👩🏾‍🤝‍👨🏿	medium-dark skin tone, dark skin tone
+v	👩🏿‍🤝‍👨🏻	dark skin tone, light skin tone
+v	👩🏿‍🤝‍👨🏼	dark skin tone, medium-light skin tone
+v	👩🏿‍🤝‍👨🏽	dark skin tone, medium skin tone
+v	👩🏿‍🤝‍👨🏾	dark skin tone, medium-dark skin tone
+v	👫🏿	dark skin tone
+e	👬	men holding hands	family	
+v	👬🏻	light skin tone
+v	👨🏻‍🤝‍👨🏼	light skin tone, medium-light skin tone
+v	👨🏻‍🤝‍👨🏽	light skin tone, medium skin tone
+v	👨🏻‍🤝‍👨🏾	light skin tone, medium-dark skin tone
+v	👨🏻‍🤝‍👨🏿	light skin tone, dark skin tone
+v	👨🏼‍🤝‍👨🏻	medium-light skin tone, light skin tone
+v	👬🏼	medium-light skin tone
+v	👨🏼‍🤝‍👨🏽	medium-light skin tone, medium skin tone
+v	👨🏼‍🤝‍👨🏾	medium-light skin tone, medium-dark skin tone
+v	👨🏼‍🤝‍👨🏿	medium-light skin tone, dark skin tone
+v	👨🏽‍🤝‍👨🏻	medium skin tone, light skin tone
+v	👨🏽‍🤝‍👨🏼	medium skin tone, medium-light skin tone
+v	👬🏽	medium skin tone
+v	👨🏽‍🤝‍👨🏾	medium skin tone, medium-dark skin tone
+v	👨🏽‍🤝‍👨🏿	medium skin tone, dark skin tone
+v	👨🏾‍🤝‍👨🏻	medium-dark skin tone, light skin tone
+v	👨🏾‍🤝‍👨🏼	medium-dark skin tone, medium-light skin tone
+v	👨🏾‍🤝‍👨🏽	medium-dark skin tone, medium skin tone
+v	👬🏾	medium-dark skin tone
+v	👨🏾‍🤝‍👨🏿	medium-dark skin tone, dark skin tone
+v	👨🏿‍🤝‍👨🏻	dark skin tone, light skin tone
+v	👨🏿‍🤝‍👨🏼	dark skin tone, medium-light skin tone
+v	👨🏿‍🤝‍👨🏽	dark skin tone, medium skin tone
+v	👨🏿‍🤝‍👨🏾	dark skin tone, medium-dark skin tone
+v	👬🏿	dark skin tone
+e	💏	kiss	family	
+v	💏🏻	light skin tone
+v	💏🏼	medium-light skin tone
+v	💏🏽	medium skin tone
+v	💏🏾	medium-dark skin tone
+v	💏🏿	dark skin tone
+v	🧑🏻‍❤️‍💋‍🧑🏼	person, person, light skin tone, medium-light skin tone
+v	🧑🏻‍❤️‍💋‍🧑🏽	person, person, light skin tone, medium skin tone
+v	🧑🏻‍❤️‍💋‍🧑🏾	person, person, light skin tone, medium-dark skin tone
+v	🧑🏻‍❤️‍💋‍🧑🏿	person, person, light skin tone, dark skin tone
+v	🧑🏼‍❤️‍💋‍🧑🏻	person, person, medium-light skin tone, light skin tone
+v	🧑🏼‍❤️‍💋‍🧑🏽	person, person, medium-light skin tone, medium skin tone
+v	🧑🏼‍❤️‍💋‍🧑🏾	person, person, medium-light skin tone, medium-dark skin tone
+v	🧑🏼‍❤️‍💋‍🧑🏿	person, person, medium-light skin tone, dark skin tone
+v	🧑🏽‍❤️‍💋‍🧑🏻	person, person, medium skin tone, light skin tone
+v	🧑🏽‍❤️‍💋‍🧑🏼	person, person, medium skin tone, medium-light skin tone
+v	🧑🏽‍❤️‍💋‍🧑🏾	person, person, medium skin tone, medium-dark skin tone
+v	🧑🏽‍❤️‍💋‍🧑🏿	person, person, medium skin tone, dark skin tone
+v	🧑🏾‍❤️‍💋‍🧑🏻	person, person, medium-dark skin tone, light skin tone
+v	🧑🏾‍❤️‍💋‍🧑🏼	person, person, medium-dark skin tone, medium-light skin tone
+v	🧑🏾‍❤️‍💋‍🧑🏽	person, person, medium-dark skin tone, medium skin tone
+v	🧑🏾‍❤️‍💋‍🧑🏿	person, person, medium-dark skin tone, dark skin tone
+v	🧑🏿‍❤️‍💋‍🧑🏻	person, person, dark skin tone, light skin tone
+v	🧑🏿‍❤️‍💋‍🧑🏼	person, person, dark skin tone, medium-light skin tone
+v	🧑🏿‍❤️‍💋‍🧑🏽	person, person, dark skin tone, medium skin tone
+v	🧑🏿‍❤️‍💋‍🧑🏾	person, person, dark skin tone, medium-dark skin tone
+v	👩🏻‍❤️‍💋‍👨🏻	woman, man, light skin tone
+v	👩🏻‍❤️‍💋‍👨🏼	woman, man, light skin tone, medium-light skin tone
+v	👩🏻‍❤️‍💋‍👨🏽	woman, man, light skin tone, medium skin tone
+v	👩🏻‍❤️‍💋‍👨🏾	woman, man, light skin tone, medium-dark skin tone
+v	👩🏻‍❤️‍💋‍👨🏿	woman, man, light skin tone, dark skin tone
+v	👩🏼‍❤️‍💋‍👨🏻	woman, man, medium-light skin tone, light skin tone
+v	👩🏼‍❤️‍💋‍👨🏼	woman, man, medium-light skin tone
+v	👩🏼‍❤️‍💋‍👨🏽	woman, man, medium-light skin tone, medium skin tone
+v	👩🏼‍❤️‍💋‍👨🏾	woman, man, medium-light skin tone, medium-dark skin tone
+v	👩🏼‍❤️‍💋‍👨🏿	woman, man, medium-light skin tone, dark skin tone
+v	👩🏽‍❤️‍💋‍👨🏻	woman, man, medium skin tone, light skin tone
+v	👩🏽‍❤️‍💋‍👨🏼	woman, man, medium skin tone, medium-light skin tone
+v	👩🏽‍❤️‍💋‍👨🏽	woman, man, medium skin tone
+v	👩🏽‍❤️‍💋‍👨🏾	woman, man, medium skin tone, medium-dark skin tone
+v	👩🏽‍❤️‍💋‍👨🏿	woman, man, medium skin tone, dark skin tone
+v	👩🏾‍❤️‍💋‍👨🏻	woman, man, medium-dark skin tone, light skin tone
+v	👩🏾‍❤️‍💋‍👨🏼	woman, man, medium-dark skin tone, medium-light skin tone
+v	👩🏾‍❤️‍💋‍👨🏽	woman, man, medium-dark skin tone, medium skin tone
+v	👩🏾‍❤️‍💋‍👨🏾	woman, man, medium-dark skin tone
+v	👩🏾‍❤️‍💋‍👨🏿	woman, man, medium-dark skin tone, dark skin tone
+v	👩🏿‍❤️‍💋‍👨🏻	woman, man, dark skin tone, light skin tone
+v	👩🏿‍❤️‍💋‍👨🏼	woman, man, dark skin tone, medium-light skin tone
+v	👩🏿‍❤️‍💋‍👨🏽	woman, man, dark skin tone, medium skin tone
+v	👩🏿‍❤️‍💋‍👨🏾	woman, man, dark skin tone, medium-dark skin tone
+v	👩🏿‍❤️‍💋‍👨🏿	woman, man, dark skin tone
+v	👨🏻‍❤️‍💋‍👨🏻	man, man, light skin tone
+v	👨🏻‍❤️‍💋‍👨🏼	man, man, light skin tone, medium-light skin tone
+v	👨🏻‍❤️‍💋‍👨🏽	man, man, light skin tone, medium skin tone
+v	👨🏻‍❤️‍💋‍👨🏾	man, man, light skin tone, medium-dark skin tone
+v	👨🏻‍❤️‍💋‍👨🏿	man, man, light skin tone, dark skin tone
+v	👨🏼‍❤️‍💋‍👨🏻	man, man, medium-light skin tone, light skin tone
+v	👨🏼‍❤️‍💋‍👨🏼	man, man, medium-light skin tone
+v	👨🏼‍❤️‍💋‍👨🏽	man, man, medium-light skin tone, medium skin tone
+v	👨🏼‍❤️‍💋‍👨🏾	man, man, medium-light skin tone, medium-dark skin tone
+v	👨🏼‍❤️‍💋‍👨🏿	man, man, medium-light skin tone, dark skin tone
+v	👨🏽‍❤️‍💋‍👨🏻	man, man, medium skin tone, light skin tone
+v	👨🏽‍❤️‍💋‍👨🏼	man, man, medium skin tone, medium-light skin tone
+v	👨🏽‍❤️‍💋‍👨🏽	man, man, medium skin tone
+v	👨🏽‍❤️‍💋‍👨🏾	man, man, medium skin tone, medium-dark skin tone
+v	👨🏽‍❤️‍💋‍👨🏿	man, man, medium skin tone, dark skin tone
+v	👨🏾‍❤️‍💋‍👨🏻	man, man, medium-dark skin tone, light skin tone
+v	👨🏾‍❤️‍💋‍👨🏼	man, man, medium-dark skin tone, medium-light skin tone
+v	👨🏾‍❤️‍💋‍👨🏽	man, man, medium-dark skin tone, medium skin tone
+v	👨🏾‍❤️‍💋‍👨🏾	man, man, medium-dark skin tone
+v	👨🏾‍❤️‍💋‍👨🏿	man, man, medium-dark skin tone, dark skin tone
+v	👨🏿‍❤️‍💋‍👨🏻	man, man, dark skin tone, light skin tone
+v	👨🏿‍❤️‍💋‍👨🏼	man, man, dark skin tone, medium-light skin tone
+v	👨🏿‍❤️‍💋‍👨🏽	man, man, dark skin tone, medium skin tone
+v	👨🏿‍❤️‍💋‍👨🏾	man, man, dark skin tone, medium-dark skin tone
+v	👨🏿‍❤️‍💋‍👨🏿	man, man, dark skin tone
+v	👩🏻‍❤️‍💋‍👩🏻	woman, woman, light skin tone
+v	👩🏻‍❤️‍💋‍👩🏼	woman, woman, light skin tone, medium-light skin tone
+v	👩🏻‍❤️‍💋‍👩🏽	woman, woman, light skin tone, medium skin tone
+v	👩🏻‍❤️‍💋‍👩🏾	woman, woman, light skin tone, medium-dark skin tone
+v	👩🏻‍❤️‍💋‍👩🏿	woman, woman, light skin tone, dark skin tone
+v	👩🏼‍❤️‍💋‍👩🏻	woman, woman, medium-light skin tone, light skin tone
+v	👩🏼‍❤️‍💋‍👩🏼	woman, woman, medium-light skin tone
+v	👩🏼‍❤️‍💋‍👩🏽	woman, woman, medium-light skin tone, medium skin tone
+v	👩🏼‍❤️‍💋‍👩🏾	woman, woman, medium-light skin tone, medium-dark skin tone
+v	👩🏼‍❤️‍💋‍👩🏿	woman, woman, medium-light skin tone, dark skin tone
+v	👩🏽‍❤️‍💋‍👩🏻	woman, woman, medium skin tone, light skin tone
+v	👩🏽‍❤️‍💋‍👩🏼	woman, woman, medium skin tone, medium-light skin tone
+v	👩🏽‍❤️‍💋‍👩🏽	woman, woman, medium skin tone
+v	👩🏽‍❤️‍💋‍👩🏾	woman, woman, medium skin tone, medium-dark skin tone
+v	👩🏽‍❤️‍💋‍👩🏿	woman, woman, medium skin tone, dark skin tone
+v	👩🏾‍❤️‍💋‍👩🏻	woman, woman, medium-dark skin tone, light skin tone
+v	👩🏾‍❤️‍💋‍👩🏼	woman, woman, medium-dark skin tone, medium-light skin tone
+v	👩🏾‍❤️‍💋‍👩🏽	woman, woman, medium-dark skin tone, medium skin tone
+v	👩🏾‍❤️‍💋‍👩🏾	woman, woman, medium-dark skin tone
+v	👩🏾‍❤️‍💋‍👩🏿	woman, woman, medium-dark skin tone, dark skin tone
+v	👩🏿‍❤️‍💋‍👩🏻	woman, woman, dark skin tone, light skin tone
+v	👩🏿‍❤️‍💋‍👩🏼	woman, woman, dark skin tone, medium-light skin tone
+v	👩🏿‍❤️‍💋‍👩🏽	woman, woman, dark skin tone, medium skin tone
+v	👩🏿‍❤️‍💋‍👩🏾	woman, woman, dark skin tone, medium-dark skin tone
+v	👩🏿‍❤️‍💋‍👩🏿	woman, woman, dark skin tone
+e	👩‍❤️‍💋‍👨	kiss: woman, man	family	
+e	👨‍❤️‍💋‍👨	kiss: man, man	family	
+e	👩‍❤️‍💋‍👩	kiss: woman, woman	family	
+e	💑	couple with heart	family	
+v	💑🏻	light skin tone
+v	💑🏼	medium-light skin tone
+v	💑🏽	medium skin tone
+v	💑🏾	medium-dark skin tone
+v	💑🏿	dark skin tone
+v	🧑🏻‍❤️‍🧑🏼	person, person, light skin tone, medium-light skin tone
+v	🧑🏻‍❤️‍🧑🏽	person, person, light skin tone, medium skin tone
+v	🧑🏻‍❤️‍🧑🏾	person, person, light skin tone, medium-dark skin tone
+v	🧑🏻‍❤️‍🧑🏿	person, person, light skin tone, dark skin tone
+v	🧑🏼‍❤️‍🧑🏻	person, person, medium-light skin tone, light skin tone
+v	🧑🏼‍❤️‍🧑🏽	person, person, medium-light skin tone, medium skin tone
+v	🧑🏼‍❤️‍🧑🏾	person, person, medium-light skin tone, medium-dark skin tone
+v	🧑🏼‍❤️‍🧑🏿	person, person, medium-light skin tone, dark skin tone
+v	🧑🏽‍❤️‍🧑🏻	person, person, medium skin tone, light skin tone
+v	🧑🏽‍❤️‍🧑🏼	person, person, medium skin tone, medium-light skin tone
+v	🧑🏽‍❤️‍🧑🏾	person, person, medium skin tone, medium-dark skin tone
+v	🧑🏽‍❤️‍🧑🏿	person, person, medium skin tone, dark skin tone
+v	🧑🏾‍❤️‍🧑🏻	person, person, medium-dark skin tone, light skin tone
+v	🧑🏾‍❤️‍🧑🏼	person, person, medium-dark skin tone, medium-light skin tone
+v	🧑🏾‍❤️‍🧑🏽	person, person, medium-dark skin tone, medium skin tone
+v	🧑🏾‍❤️‍🧑🏿	person, person, medium-dark skin tone, dark skin tone
+v	🧑🏿‍❤️‍🧑🏻	person, person, dark skin tone, light skin tone
+v	🧑🏿‍❤️‍🧑🏼	person, person, dark skin tone, medium-light skin tone
+v	🧑🏿‍❤️‍🧑🏽	person, person, dark skin tone, medium skin tone
+v	🧑🏿‍❤️‍🧑🏾	person, person, dark skin tone, medium-dark skin tone
+v	👩🏻‍❤️‍👨🏻	woman, man, light skin tone
+v	👩🏻‍❤️‍👨🏼	woman, man, light skin tone, medium-light skin tone
+v	👩🏻‍❤️‍👨🏽	woman, man, light skin tone, medium skin tone
+v	👩🏻‍❤️‍👨🏾	woman, man, light skin tone, medium-dark skin tone
+v	👩🏻‍❤️‍👨🏿	woman, man, light skin tone, dark skin tone
+v	👩🏼‍❤️‍👨🏻	woman, man, medium-light skin tone, light skin tone
+v	👩🏼‍❤️‍👨🏼	woman, man, medium-light skin tone
+v	👩🏼‍❤️‍👨🏽	woman, man, medium-light skin tone, medium skin tone
+v	👩🏼‍❤️‍👨🏾	woman, man, medium-light skin tone, medium-dark skin tone
+v	👩🏼‍❤️‍👨🏿	woman, man, medium-light skin tone, dark skin tone
+v	👩🏽‍❤️‍👨🏻	woman, man, medium skin tone, light skin tone
+v	👩🏽‍❤️‍👨🏼	woman, man, medium skin tone, medium-light skin tone
+v	👩🏽‍❤️‍👨🏽	woman, man, medium skin tone
+v	👩🏽‍❤️‍👨🏾	woman, man, medium skin tone, medium-dark skin tone
+v	👩🏽‍❤️‍👨🏿	woman, man, medium skin tone, dark skin tone
+v	👩🏾‍❤️‍👨🏻	woman, man, medium-dark skin tone, light skin tone
+v	👩🏾‍❤️‍👨🏼	woman, man, medium-dark skin tone, medium-light skin tone
+v	👩🏾‍❤️‍👨🏽	woman, man, medium-dark skin tone, medium skin tone
+v	👩🏾‍❤️‍👨🏾	woman, man, medium-dark skin tone
+v	👩🏾‍❤️‍👨🏿	woman, man, medium-dark skin tone, dark skin tone
+v	👩🏿‍❤️‍👨🏻	woman, man, dark skin tone, light skin tone
+v	👩🏿‍❤️‍👨🏼	woman, man, dark skin tone, medium-light skin tone
+v	👩🏿‍❤️‍👨🏽	woman, man, dark skin tone, medium skin tone
+v	👩🏿‍❤️‍👨🏾	woman, man, dark skin tone, medium-dark skin tone
+v	👩🏿‍❤️‍👨🏿	woman, man, dark skin tone
+v	👨🏻‍❤️‍👨🏻	man, man, light skin tone
+v	👨🏻‍❤️‍👨🏼	man, man, light skin tone, medium-light skin tone
+v	👨🏻‍❤️‍👨🏽	man, man, light skin tone, medium skin tone
+v	👨🏻‍❤️‍👨🏾	man, man, light skin tone, medium-dark skin tone
+v	👨🏻‍❤️‍👨🏿	man, man, light skin tone, dark skin tone
+v	👨🏼‍❤️‍👨🏻	man, man, medium-light skin tone, light skin tone
+v	👨🏼‍❤️‍👨🏼	man, man, medium-light skin tone
+v	👨🏼‍❤️‍👨🏽	man, man, medium-light skin tone, medium skin tone
+v	👨🏼‍❤️‍👨🏾	man, man, medium-light skin tone, medium-dark skin tone
+v	👨🏼‍❤️‍👨🏿	man, man, medium-light skin tone, dark skin tone
+v	👨🏽‍❤️‍👨🏻	man, man, medium skin tone, light skin tone
+v	👨🏽‍❤️‍👨🏼	man, man, medium skin tone, medium-light skin tone
+v	👨🏽‍❤️‍👨🏽	man, man, medium skin tone
+v	👨🏽‍❤️‍👨🏾	man, man, medium skin tone, medium-dark skin tone
+v	👨🏽‍❤️‍👨🏿	man, man, medium skin tone, dark skin tone
+v	👨🏾‍❤️‍👨🏻	man, man, medium-dark skin tone, light skin tone
+v	👨🏾‍❤️‍👨🏼	man, man, medium-dark skin tone, medium-light skin tone
+v	👨🏾‍❤️‍👨🏽	man, man, medium-dark skin tone, medium skin tone
+v	👨🏾‍❤️‍👨🏾	man, man, medium-dark skin tone
+v	👨🏾‍❤️‍👨🏿	man, man, medium-dark skin tone, dark skin tone
+v	👨🏿‍❤️‍👨🏻	man, man, dark skin tone, light skin tone
+v	👨🏿‍❤️‍👨🏼	man, man, dark skin tone, medium-light skin tone
+v	👨🏿‍❤️‍👨🏽	man, man, dark skin tone, medium skin tone
+v	👨🏿‍❤️‍👨🏾	man, man, dark skin tone, medium-dark skin tone
+v	👨🏿‍❤️‍👨🏿	man, man, dark skin tone
+v	👩🏻‍❤️‍👩🏻	woman, woman, light skin tone
+v	👩🏻‍❤️‍👩🏼	woman, woman, light skin tone, medium-light skin tone
+v	👩🏻‍❤️‍👩🏽	woman, woman, light skin tone, medium skin tone
+v	👩🏻‍❤️‍👩🏾	woman, woman, light skin tone, medium-dark skin tone
+v	👩🏻‍❤️‍👩🏿	woman, woman, light skin tone, dark skin tone
+v	👩🏼‍❤️‍👩🏻	woman, woman, medium-light skin tone, light skin tone
+v	👩🏼‍❤️‍👩🏼	woman, woman, medium-light skin tone
+v	👩🏼‍❤️‍👩🏽	woman, woman, medium-light skin tone, medium skin tone
+v	👩🏼‍❤️‍👩🏾	woman, woman, medium-light skin tone, medium-dark skin tone
+v	👩🏼‍❤️‍👩🏿	woman, woman, medium-light skin tone, dark skin tone
+v	👩🏽‍❤️‍👩🏻	woman, woman, medium skin tone, light skin tone
+v	👩🏽‍❤️‍👩🏼	woman, woman, medium skin tone, medium-light skin tone
+v	👩🏽‍❤️‍👩🏽	woman, woman, medium skin tone
+v	👩🏽‍❤️‍👩🏾	woman, woman, medium skin tone, medium-dark skin tone
+v	👩🏽‍❤️‍👩🏿	woman, woman, medium skin tone, dark skin tone
+v	👩🏾‍❤️‍👩🏻	woman, woman, medium-dark skin tone, light skin tone
+v	👩🏾‍❤️‍👩🏼	woman, woman, medium-dark skin tone, medium-light skin tone
+v	👩🏾‍❤️‍👩🏽	woman, woman, medium-dark skin tone, medium skin tone
+v	👩🏾‍❤️‍👩🏾	woman, woman, medium-dark skin tone
+v	👩🏾‍❤️‍👩🏿	woman, woman, medium-dark skin tone, dark skin tone
+v	👩🏿‍❤️‍👩🏻	woman, woman, dark skin tone, light skin tone
+v	👩🏿‍❤️‍👩🏼	woman, woman, dark skin tone, medium-light skin tone
+v	👩🏿‍❤️‍👩🏽	woman, woman, dark skin tone, medium skin tone
+v	👩🏿‍❤️‍👩🏾	woman, woman, dark skin tone, medium-dark skin tone
+v	👩🏿‍❤️‍👩🏿	woman, woman, dark skin tone
+e	👩‍❤️‍👨	couple with heart: woman, man	family	
+e	👨‍❤️‍👨	couple with heart: man, man	family	
+e	👩‍❤️‍👩	couple with heart: woman, woman	family	
+e	👨‍👩‍👦	family: man, woman, boy	family	
+e	👨‍👩‍👧	family: man, woman, girl	family	
+e	👨‍👩‍👧‍👦	family: man, woman, girl, boy	family	
+e	👨‍👩‍👦‍👦	family: man, woman, boy, boy	family	
+e	👨‍👩‍👧‍👧	family: man, woman, girl, girl	family	
+e	👨‍👨‍👦	family: man, man, boy	family	
+e	👨‍👨‍👧	family: man, man, girl	family	
+e	👨‍👨‍👧‍👦	family: man, man, girl, boy	family	
+e	👨‍👨‍👦‍👦	family: man, man, boy, boy	family	
+e	👨‍👨‍👧‍👧	family: man, man, girl, girl	family	
+e	👩‍👩‍👦	family: woman, woman, boy	family	
+e	👩‍👩‍👧	family: woman, woman, girl	family	
+e	👩‍👩‍👧‍👦	family: woman, woman, girl, boy	family	
+e	👩‍👩‍👦‍👦	family: woman, woman, boy, boy	family	
+e	👩‍👩‍👧‍👧	family: woman, woman, girl, girl	family	
+e	👨‍👦	family: man, boy	family	
+e	👨‍👦‍👦	family: man, boy, boy	family	
+e	👨‍👧	family: man, girl	family	
+e	👨‍👧‍👦	family: man, girl, boy	family	
+e	👨‍👧‍👧	family: man, girl, girl	family	
+e	👩‍👦	family: woman, boy	family	
+e	👩‍👦‍👦	family: woman, boy, boy	family	
+e	👩‍👧	family: woman, girl	family	
+e	👩‍👧‍👦	family: woman, girl, boy	family	
+e	👩‍👧‍👧	family: woman, girl, girl	family	
+e	🗣️	speaking head	person-symbol	
+e	👤	bust in silhouette	person-symbol	
+e	👥	busts in silhouette	person-symbol	
+e	🫂	people hugging	person-symbol	
+e	👪	family	person-symbol	
+e	🧑‍🧑‍🧒	family: adult, adult, child	person-symbol	
+e	🧑‍🧑‍🧒‍🧒	family: adult, adult, child, child	person-symbol	
+e	🧑‍🧒	family: adult, child	person-symbol	
+e	🧑‍🧒‍🧒	family: adult, child, child	person-symbol	
+e	👣	footprints	person-symbol	
+e	🫆	fingerprint	person-symbol	
+group	Animals & Nature
+e	🐵	monkey face	animal-mammal	
+e	🐒	monkey	animal-mammal	
+e	🦍	gorilla	animal-mammal	
+e	🦧	orangutan	animal-mammal	
+e	🐶	dog face	animal-mammal	
+e	🐕	dog	animal-mammal	
+e	🦮	guide dog	animal-mammal	
+e	🐕‍🦺	service dog	animal-mammal	
+e	🐩	poodle	animal-mammal	
+e	🐺	wolf	animal-mammal	
+e	🦊	fox	animal-mammal	
+e	🦝	raccoon	animal-mammal	
+e	🐱	cat face	animal-mammal	
+e	🐈	cat	animal-mammal	
+e	🐈‍⬛	black cat	animal-mammal	
+e	🦁	lion	animal-mammal	
+e	🐯	tiger face	animal-mammal	
+e	🐅	tiger	animal-mammal	
+e	🐆	leopard	animal-mammal	
+e	🐴	horse face	animal-mammal	
+e	🫎	moose	animal-mammal	
+e	🫏	donkey	animal-mammal	
+e	🐎	horse	animal-mammal	
+e	🦄	unicorn	animal-mammal	
+e	🦓	zebra	animal-mammal	
+e	🦌	deer	animal-mammal	
+e	🦬	bison	animal-mammal	
+e	🐮	cow face	animal-mammal	
+e	🐂	ox	animal-mammal	
+e	🐃	water buffalo	animal-mammal	
+e	🐄	cow	animal-mammal	
+e	🐷	pig face	animal-mammal	
+e	🐖	pig	animal-mammal	
+e	🐗	boar	animal-mammal	
+e	🐽	pig nose	animal-mammal	
+e	🐏	ram	animal-mammal	
+e	🐑	ewe	animal-mammal	
+e	🐐	goat	animal-mammal	
+e	🐪	camel	animal-mammal	
+e	🐫	two-hump camel	animal-mammal	
+e	🦙	llama	animal-mammal	
+e	🦒	giraffe	animal-mammal	
+e	🐘	elephant	animal-mammal	
+e	🦣	mammoth	animal-mammal	
+e	🦏	rhinoceros	animal-mammal	
+e	🦛	hippopotamus	animal-mammal	
+e	🐭	mouse face	animal-mammal	
+e	🐁	mouse	animal-mammal	
+e	🐀	rat	animal-mammal	
+e	🐹	hamster	animal-mammal	
+e	🐰	rabbit face	animal-mammal	
+e	🐇	rabbit	animal-mammal	
+e	🐿️	chipmunk	animal-mammal	
+e	🦫	beaver	animal-mammal	
+e	🦔	hedgehog	animal-mammal	
+e	🦇	bat	animal-mammal	
+e	🐻	bear	animal-mammal	
+e	🐻‍❄️	polar bear	animal-mammal	
+e	🐨	koala	animal-mammal	
+e	🐼	panda	animal-mammal	
+e	🦥	sloth	animal-mammal	
+e	🦦	otter	animal-mammal	
+e	🦨	skunk	animal-mammal	
+e	🦘	kangaroo	animal-mammal	
+e	🦡	badger	animal-mammal	
+e	🐾	paw prints	animal-mammal	
+e	🦃	turkey	animal-bird	
+e	🐔	chicken	animal-bird	
+e	🐓	rooster	animal-bird	
+e	🐣	hatching chick	animal-bird	
+e	🐤	baby chick	animal-bird	
+e	🐥	front-facing baby chick	animal-bird	
+e	🐦	bird	animal-bird	
+e	🐧	penguin	animal-bird	
+e	🕊️	dove	animal-bird	
+e	🦅	eagle	animal-bird	
+e	🦆	duck	animal-bird	
+e	🦢	swan	animal-bird	
+e	🦉	owl	animal-bird	
+e	🦤	dodo	animal-bird	
+e	🪶	feather	animal-bird	
+e	🦩	flamingo	animal-bird	
+e	🦚	peacock	animal-bird	
+e	🦜	parrot	animal-bird	
+e	🪽	wing	animal-bird	
+e	🐦‍⬛	black bird	animal-bird	
+e	🪿	goose	animal-bird	
+e	🐦‍🔥	phoenix	animal-bird	
+e	🐸	frog	animal-amphibian	
+e	🐊	crocodile	animal-reptile	
+e	🐢	turtle	animal-reptile	
+e	🦎	lizard	animal-reptile	
+e	🐍	snake	animal-reptile	
+e	🐲	dragon face	animal-reptile	
+e	🐉	dragon	animal-reptile	
+e	🦕	sauropod	animal-reptile	
+e	🦖	T-Rex	animal-reptile	
+e	🐳	spouting whale	animal-marine	
+e	🐋	whale	animal-marine	
+e	🐬	dolphin	animal-marine	
+e	🫍	orca	animal-marine	
+e	🦭	seal	animal-marine	
+e	🐟	fish	animal-marine	
+e	🐠	tropical fish	animal-marine	
+e	🐡	blowfish	animal-marine	
+e	🦈	shark	animal-marine	
+e	🐙	octopus	animal-marine	
+e	🐚	spiral shell	animal-marine	
+e	🪸	coral	animal-marine	
+e	🪼	jellyfish	animal-marine	
+e	🦀	crab	animal-marine	
+e	🦞	lobster	animal-marine	
+e	🦐	shrimp	animal-marine	
+e	🦑	squid	animal-marine	
+e	🦪	oyster	animal-marine	
+e	🐌	snail	animal-bug	
+e	🦋	butterfly	animal-bug	
+e	🐛	bug	animal-bug	
+e	🐜	ant	animal-bug	
+e	🐝	honeybee	animal-bug	
+e	🪲	beetle	animal-bug	
+e	🐞	lady beetle	animal-bug	
+e	🦗	cricket	animal-bug	
+e	🪳	cockroach	animal-bug	
+e	🕷️	spider	animal-bug	
+e	🕸️	spider web	animal-bug	
+e	🦂	scorpion	animal-bug	
+e	🦟	mosquito	animal-bug	
+e	🪰	fly	animal-bug	
+e	🪱	worm	animal-bug	
+e	🦠	microbe	animal-bug	
+e	💐	bouquet	plant-flower	
+e	🌸	cherry blossom	plant-flower	
+e	💮	white flower	plant-flower	
+e	🪷	lotus	plant-flower	
+e	🏵️	rosette	plant-flower	
+e	🌹	rose	plant-flower	
+e	🥀	wilted flower	plant-flower	
+e	🌺	hibiscus	plant-flower	
+e	🌻	sunflower	plant-flower	
+e	🌼	blossom	plant-flower	
+e	🌷	tulip	plant-flower	
+e	🪻	hyacinth	plant-flower	
+e	🌱	seedling	plant-other	
+e	🪴	potted plant	plant-other	
+e	🌲	evergreen tree	plant-other	
+e	🌳	deciduous tree	plant-other	
+e	🌴	palm tree	plant-other	
+e	🌵	cactus	plant-other	
+e	🌾	sheaf of rice	plant-other	
+e	🌿	herb	plant-other	
+e	☘️	shamrock	plant-other	
+e	🍀	four leaf clover	plant-other	
+e	🍁	maple leaf	plant-other	
+e	🍂	fallen leaf	plant-other	
+e	🍃	leaf fluttering in wind	plant-other	
+e	🪹	empty nest	plant-other	
+e	🪺	nest with eggs	plant-other	
+e	🍄	mushroom	plant-other	
+e	🪾	leafless tree	plant-other	
+group	Food & Drink
+e	🍇	grapes	food-fruit	
+e	🍈	melon	food-fruit	
+e	🍉	watermelon	food-fruit	
+e	🍊	tangerine	food-fruit	
+e	🍋	lemon	food-fruit	
+e	🍋‍🟩	lime	food-fruit	
+e	🍌	banana	food-fruit	
+e	🍍	pineapple	food-fruit	
+e	🥭	mango	food-fruit	
+e	🍎	red apple	food-fruit	
+e	🫝	apple core	food-fruit	
+e	🍏	green apple	food-fruit	
+e	🍐	pear	food-fruit	
+e	🍑	peach	food-fruit	
+e	🍒	cherries	food-fruit	
+e	🍓	strawberry	food-fruit	
+e	🫐	blueberries	food-fruit	
+e	🥝	kiwi fruit	food-fruit	
+e	🍅	tomato	food-fruit	
+e	🫒	olive	food-fruit	
+e	🥥	coconut	food-fruit	
+e	🥑	avocado	food-vegetable	
+e	🍆	eggplant	food-vegetable	
+e	🥔	potato	food-vegetable	
+e	🥕	carrot	food-vegetable	
+e	🌽	ear of corn	food-vegetable	
+e	🌶️	hot pepper	food-vegetable	
+e	🫑	bell pepper	food-vegetable	
+e	🥒	cucumber	food-vegetable	
+e	🥬	leafy green	food-vegetable	
+e	🥦	broccoli	food-vegetable	
+e	🧄	garlic	food-vegetable	
+e	🧅	onion	food-vegetable	
+e	🥜	peanuts	food-vegetable	
+e	🫘	beans	food-vegetable	
+e	🌰	chestnut	food-vegetable	
+e	🫚	ginger root	food-vegetable	
+e	🫛	pea pod	food-vegetable	
+e	🍄‍🟫	brown mushroom	food-vegetable	
+e	🫜	root vegetable	food-vegetable	
+e	🍞	bread	food-prepared	
+e	🥐	croissant	food-prepared	
+e	🥖	baguette bread	food-prepared	
+e	🫓	flatbread	food-prepared	
+e	🥨	pretzel	food-prepared	
+e	🥯	bagel	food-prepared	
+e	🥞	pancakes	food-prepared	
+e	🧇	waffle	food-prepared	
+e	🧀	cheese wedge	food-prepared	
+e	🍖	meat on bone	food-prepared	
+e	🍗	poultry leg	food-prepared	
+e	🥩	cut of meat	food-prepared	
+e	🥓	bacon	food-prepared	
+e	🍔	hamburger	food-prepared	
+e	🍟	french fries	food-prepared	
+e	🍕	pizza	food-prepared	
+e	🌭	hot dog	food-prepared	
+e	🥪	sandwich	food-prepared	
+e	🌮	taco	food-prepared	
+e	🌯	burrito	food-prepared	
+e	🫔	tamale	food-prepared	
+e	🥙	stuffed flatbread	food-prepared	
+e	🧆	falafel	food-prepared	
+e	🥚	egg	food-prepared	
+e	🍳	cooking	food-prepared	
+e	🥘	shallow pan of food	food-prepared	
+e	🍲	pot of food	food-prepared	
+e	🫕	fondue	food-prepared	
+e	🥣	bowl with spoon	food-prepared	
+e	🥗	green salad	food-prepared	
+e	🍿	popcorn	food-prepared	
+e	🧈	butter	food-prepared	
+e	🧂	salt	food-prepared	
+e	🥫	canned food	food-prepared	
+e	🍱	bento box	food-asian	
+e	🍘	rice cracker	food-asian	
+e	🍙	rice ball	food-asian	
+e	🍚	cooked rice	food-asian	
+e	🍛	curry rice	food-asian	
+e	🍜	steaming bowl	food-asian	
+e	🍝	spaghetti	food-asian	
+e	🍠	roasted sweet potato	food-asian	
+e	🍢	oden	food-asian	
+e	🍣	sushi	food-asian	
+e	🍤	fried shrimp	food-asian	
+e	🍥	fish cake with swirl	food-asian	
+e	🥮	moon cake	food-asian	
+e	🍡	dango	food-asian	
+e	🥟	dumpling	food-asian	
+e	🥠	fortune cookie	food-asian	
+e	🥡	takeout box	food-asian	
+e	🍦	soft ice cream	food-sweet	
+e	🍧	shaved ice	food-sweet	
+e	🍨	ice cream	food-sweet	
+e	🍩	doughnut	food-sweet	
+e	🍪	cookie	food-sweet	
+e	🎂	birthday cake	food-sweet	
+e	🍰	shortcake	food-sweet	
+e	🧁	cupcake	food-sweet	
+e	🥧	pie	food-sweet	
+e	🍫	chocolate bar	food-sweet	
+e	🍬	candy	food-sweet	
+e	🍭	lollipop	food-sweet	
+e	🍮	custard	food-sweet	
+e	🍯	honey pot	food-sweet	
+e	🍼	baby bottle	drink	
+e	🥛	glass of milk	drink	
+e	☕	hot beverage	drink	
+e	🫖	teapot	drink	
+e	🍵	teacup without handle	drink	
+e	🍶	sake	drink	
+e	🍾	bottle with popping cork	drink	
+e	🍷	wine glass	drink	
+e	🍸	cocktail glass	drink	
+e	🍹	tropical drink	drink	
+e	🍺	beer mug	drink	
+e	🍻	clinking beer mugs	drink	
+e	🥂	clinking glasses	drink	
+e	🥃	tumbler glass	drink	
+e	🫗	pouring liquid	drink	
+e	🥤	cup with straw	drink	
+e	🧋	bubble tea	drink	
+e	🧃	beverage box	drink	
+e	🧉	mate	drink	
+e	🧊	ice	drink	
+e	🥢	chopsticks	dishware	
+e	🍽️	fork and knife with plate	dishware	
+e	🍴	fork and knife	dishware	
+e	🥄	spoon	dishware	
+e	🔪	kitchen knife	dishware	
+e	🫙	jar	dishware	
+e	🏺	amphora	dishware	
+group	Travel & Places
+e	🌍	globe showing Europe-Africa	place-map	
+e	🌎	globe showing Americas	place-map	
+e	🌏	globe showing Asia-Australia	place-map	
+e	🌐	globe with meridians	place-map	
+e	🗺️	world map	place-map	
+e	🗾	map of Japan	place-map	
+e	🧭	compass	place-map	
+e	🏔️	snow-capped mountain	place-geographic	
+e	⛰️	mountain	place-geographic	
+e	🛘	landslide	place-geographic	
+e	🌋	volcano	place-geographic	
+e	🗻	mount fuji	place-geographic	
+e	🏕️	camping	place-geographic	
+e	🏖️	beach with umbrella	place-geographic	
+e	🏜️	desert	place-geographic	
+e	🏝️	desert island	place-geographic	
+e	🏞️	national park	place-geographic	
+e	🏟️	stadium	place-building	
+e	🏛️	classical building	place-building	
+e	🏗️	building construction	place-building	
+e	🧱	brick	place-building	
+e	🪨	rock	place-building	
+e	🪵	wood	place-building	
+e	🛖	hut	place-building	
+e	🏘️	houses	place-building	
+e	🏚️	derelict house	place-building	
+e	🏠	house	place-building	
+e	🏡	house with garden	place-building	
+e	🏢	office building	place-building	
+e	🏣	Japanese post office	place-building	
+e	🏤	post office	place-building	
+e	🏥	hospital	place-building	
+e	🏦	bank	place-building	
+e	🏨	hotel	place-building	
+e	🏩	love hotel	place-building	
+e	🏪	convenience store	place-building	
+e	🏫	school	place-building	
+e	🏬	department store	place-building	
+e	🏭	factory	place-building	
+e	🏯	Japanese castle	place-building	
+e	🏰	castle	place-building	
+e	💒	wedding	place-building	
+e	🗼	Tokyo tower	place-building	
+e	🗽	Statue of Liberty	place-building	
+e	⛪	church	place-religious	
+e	🕌	mosque	place-religious	
+e	🛕	hindu temple	place-religious	
+e	🕍	synagogue	place-religious	
+e	⛩️	shinto shrine	place-religious	
+e	🕋	kaaba	place-religious	
+e	⛲	fountain	place-other	
+e	⛺	tent	place-other	
+e	🌁	foggy	place-other	
+e	🌃	night with stars	place-other	
+e	🏙️	cityscape	place-other	
+e	🌄	sunrise over mountains	place-other	
+e	🌅	sunrise	place-other	
+e	🌆	cityscape at dusk	place-other	
+e	🌇	sunset	place-other	
+e	🌉	bridge at night	place-other	
+e	♨️	hot springs	place-other	
+e	🎠	carousel horse	place-other	
+e	🛝	playground slide	place-other	
+e	🎡	ferris wheel	place-other	
+e	🎢	roller coaster	place-other	
+e	💈	barber pole	place-other	
+e	🎪	circus tent	place-other	
+e	🚂	locomotive	transport-ground	
+e	🚃	railway car	transport-ground	
+e	🚄	high-speed train	transport-ground	
+e	🚅	bullet train	transport-ground	
+e	🚆	train	transport-ground	
+e	🚇	metro	transport-ground	
+e	🚈	light rail	transport-ground	
+e	🚉	station	transport-ground	
+e	🚊	tram	transport-ground	
+e	🚝	monorail	transport-ground	
+e	🚞	mountain railway	transport-ground	
+e	🚋	tram car	transport-ground	
+e	🚌	bus	transport-ground	
+e	🚍	oncoming bus	transport-ground	
+e	🚎	trolleybus	transport-ground	
+e	🚐	minibus	transport-ground	
+e	🚑	ambulance	transport-ground	
+e	🚒	fire engine	transport-ground	
+e	🚓	police car	transport-ground	
+e	🚔	oncoming police car	transport-ground	
+e	🚕	taxi	transport-ground	
+e	🚖	oncoming taxi	transport-ground	
+e	🚗	automobile	transport-ground	
+e	🚘	oncoming automobile	transport-ground	
+e	🚙	sport utility vehicle	transport-ground	
+e	🛻	pickup truck	transport-ground	
+e	🚚	delivery truck	transport-ground	
+e	🚛	articulated lorry	transport-ground	
+e	🚜	tractor	transport-ground	
+e	🏎️	racing car	transport-ground	
+e	🏍️	motorcycle	transport-ground	
+e	🛵	motor scooter	transport-ground	
+e	🦽	manual wheelchair	transport-ground	
+e	🦼	motorized wheelchair	transport-ground	
+e	🛺	auto rickshaw	transport-ground	
+e	🚲	bicycle	transport-ground	
+e	🛴	kick scooter	transport-ground	
+e	🛹	skateboard	transport-ground	
+e	🛼	roller skate	transport-ground	
+e	🚏	bus stop	transport-ground	
+e	🛣️	motorway	transport-ground	
+e	🛤️	railway track	transport-ground	
+e	🛢️	oil drum	transport-ground	
+e	⛽	fuel pump	transport-ground	
+e	🛞	wheel	transport-ground	
+e	🚨	police car light	transport-ground	
+e	🚥	horizontal traffic light	transport-ground	
+e	🚦	vertical traffic light	transport-ground	
+e	🛑	stop sign	transport-ground	
+e	🚧	construction	transport-ground	
+e	⚓	anchor	transport-water	
+e	🛟	ring buoy	transport-water	
+e	⛵	sailboat	transport-water	
+e	🛶	canoe	transport-water	
+e	🚤	speedboat	transport-water	
+e	🛳️	passenger ship	transport-water	
+e	⛴️	ferry	transport-water	
+e	🛥️	motor boat	transport-water	
+e	🚢	ship	transport-water	
+e	✈️	airplane	transport-air	
+e	🛩️	small airplane	transport-air	
+e	🛫	airplane departure	transport-air	
+e	🛬	airplane arrival	transport-air	
+e	🪂	parachute	transport-air	
+e	💺	seat	transport-air	
+e	🚁	helicopter	transport-air	
+e	🚟	suspension railway	transport-air	
+e	🚠	mountain cableway	transport-air	
+e	🚡	aerial tramway	transport-air	
+e	🛰️	satellite	transport-air	
+e	🚀	rocket	transport-air	
+e	🛸	flying saucer	transport-air	
+e	🛎️	bellhop bell	hotel	
+e	🧳	luggage	hotel	
+e	⌛	hourglass done	time	
+e	⏳	hourglass not done	time	
+e	⌚	watch	time	
+e	⏰	alarm clock	time	
+e	⏱️	stopwatch	time	
+e	⏲️	timer clock	time	
+e	🕰️	mantelpiece clock	time	
+e	🕛	twelve o’clock	time	
+e	🕧	twelve-thirty	time	
+e	🕐	one o’clock	time	
+e	🕜	one-thirty	time	
+e	🕑	two o’clock	time	
+e	🕝	two-thirty	time	
+e	🕒	three o’clock	time	
+e	🕞	three-thirty	time	
+e	🕓	four o’clock	time	
+e	🕟	four-thirty	time	
+e	🕔	five o’clock	time	
+e	🕠	five-thirty	time	
+e	🕕	six o’clock	time	
+e	🕡	six-thirty	time	
+e	🕖	seven o’clock	time	
+e	🕢	seven-thirty	time	
+e	🕗	eight o’clock	time	
+e	🕣	eight-thirty	time	
+e	🕘	nine o’clock	time	
+e	🕤	nine-thirty	time	
+e	🕙	ten o’clock	time	
+e	🕥	ten-thirty	time	
+e	🕚	eleven o’clock	time	
+e	🕦	eleven-thirty	time	
+e	🌑	new moon	sky & weather	
+e	🌒	waxing crescent moon	sky & weather	
+e	🌓	first quarter moon	sky & weather	
+e	🌔	waxing gibbous moon	sky & weather	
+e	🌕	full moon	sky & weather	
+e	🌖	waning gibbous moon	sky & weather	
+e	🌗	last quarter moon	sky & weather	
+e	🌘	waning crescent moon	sky & weather	
+e	🌙	crescent moon	sky & weather	
+e	🌚	new moon face	sky & weather	
+e	🌛	first quarter moon face	sky & weather	
+e	🌜	last quarter moon face	sky & weather	
+e	🌡️	thermometer	sky & weather	
+e	☀️	sun	sky & weather	
+e	🌝	full moon face	sky & weather	
+e	🌞	sun with face	sky & weather	
+e	🪐	ringed planet	sky & weather	
+e	⭐	star	sky & weather	
+e	🌟	glowing star	sky & weather	
+e	🌠	shooting star	sky & weather	
+e	🌌	milky way	sky & weather	
+e	☁️	cloud	sky & weather	
+e	⛅	sun behind cloud	sky & weather	
+e	⛈️	cloud with lightning and rain	sky & weather	
+e	🌤️	sun behind small cloud	sky & weather	
+e	🌥️	sun behind large cloud	sky & weather	
+e	🌦️	sun behind rain cloud	sky & weather	
+e	🌧️	cloud with rain	sky & weather	
+e	🌨️	cloud with snow	sky & weather	
+e	🌩️	cloud with lightning	sky & weather	
+e	🌪️	tornado	sky & weather	
+e	🌫️	fog	sky & weather	
+e	🌬️	wind face	sky & weather	
+e	🌀	cyclone	sky & weather	
+e	🌈	rainbow	sky & weather	
+e	🌂	closed umbrella	sky & weather	
+e	☂️	umbrella	sky & weather	
+e	☔	umbrella with rain drops	sky & weather	
+e	⛱️	umbrella on ground	sky & weather	
+e	⚡	high voltage	sky & weather	
+e	❄️	snowflake	sky & weather	
+e	☃️	snowman	sky & weather	
+e	⛄	snowman without snow	sky & weather	
+e	☄️	comet	sky & weather	
+e	🔥	fire	sky & weather	
+e	💧	droplet	sky & weather	
+e	🌊	water wave	sky & weather	
+group	Activities
+e	🎃	jack-o-lantern	event	
+e	🎄	Christmas tree	event	
+e	🎆	fireworks	event	
+e	🎇	sparkler	event	
+e	🧨	firecracker	event	
+e	✨	sparkles	event	
+e	🎈	balloon	event	
+e	🎉	party popper	event	
+e	🎊	confetti ball	event	
+e	🎋	tanabata tree	event	
+e	🎍	pine decoration	event	
+e	🎎	Japanese dolls	event	
+e	🎏	carp streamer	event	
+e	🎐	wind chime	event	
+e	🎑	moon viewing ceremony	event	
+e	🧧	red envelope	event	
+e	🎀	ribbon	event	
+e	🎁	wrapped gift	event	
+e	🎗️	reminder ribbon	event	
+e	🎟️	admission tickets	event	
+e	🎫	ticket	event	
+e	🎖️	military medal	award-medal	
+e	🏆	trophy	award-medal	
+e	🏅	sports medal	award-medal	
+e	🥇	1st place medal	award-medal	
+e	🥈	2nd place medal	award-medal	
+e	🥉	3rd place medal	award-medal	
+e	⚽	soccer ball	sport	
+e	⚾	baseball	sport	
+e	🥎	softball	sport	
+e	🏀	basketball	sport	
+e	🏐	volleyball	sport	
+e	🏈	american football	sport	
+e	🏉	rugby football	sport	
+e	🎾	tennis	sport	
+e	🥏	flying disc	sport	
+e	🎳	bowling	sport	
+e	🏏	cricket game	sport	
+e	🏑	field hockey	sport	
+e	🏒	ice hockey	sport	
+e	🥍	lacrosse	sport	
+e	🏓	ping pong	sport	
+e	🏸	badminton	sport	
+e	🥊	boxing glove	sport	
+e	🥋	martial arts uniform	sport	
+e	🥅	goal net	sport	
+e	⛳	flag in hole	sport	
+e	⛸️	ice skate	sport	
+e	🎣	fishing pole	sport	
+e	🤿	diving mask	sport	
+e	🎽	running shirt	sport	
+e	🎿	skis	sport	
+e	🛷	sled	sport	
+e	🥌	curling stone	sport	
+e	🎯	bullseye	game	
+e	🪀	yo-yo	game	
+e	🪁	kite	game	
+e	🔫	water pistol	game	
+e	🎱	pool 8 ball	game	
+e	🔮	crystal ball	game	
+e	🪄	magic wand	game	
+e	🎮	video game	game	
+e	🕹️	joystick	game	
+e	🎰	slot machine	game	
+e	🎲	game die	game	
+e	🧩	puzzle piece	game	
+e	🧸	teddy bear	game	
+e	🪅	piñata	game	
+e	🪩	mirror ball	game	
+e	🪆	nesting dolls	game	
+e	♠️	spade suit	game	
+e	♥️	heart suit	game	
+e	♦️	diamond suit	game	
+e	♣️	club suit	game	
+e	♟️	chess pawn	game	
+e	🃏	joker	game	
+e	🀄	mahjong red dragon	game	
+e	🎴	flower playing cards	game	
+e	🎭	performing arts	arts & crafts	
+e	🖼️	framed picture	arts & crafts	
+e	🎨	artist palette	arts & crafts	
+e	🧵	thread	arts & crafts	
+e	🪡	sewing needle	arts & crafts	
+e	🧶	yarn	arts & crafts	
+e	🪢	knot	arts & crafts	
+group	Objects
+e	👓	glasses	clothing	
+e	🕶️	sunglasses	clothing	
+e	🥽	goggles	clothing	
+e	🥼	lab coat	clothing	
+e	🦺	safety vest	clothing	
+e	👔	necktie	clothing	
+e	👕	t-shirt	clothing	
+e	👖	jeans	clothing	
+e	🧣	scarf	clothing	
+e	🧤	gloves	clothing	
+e	🧥	coat	clothing	
+e	🧦	socks	clothing	
+e	👗	dress	clothing	
+e	👘	kimono	clothing	
+e	🥻	sari	clothing	
+e	🩱	one-piece swimsuit	clothing	
+e	🩲	briefs	clothing	
+e	🩳	shorts	clothing	
+e	👙	bikini	clothing	
+e	👚	woman’s clothes	clothing	
+e	🪭	folding hand fan	clothing	
+e	👛	purse	clothing	
+e	👜	handbag	clothing	
+e	👝	clutch bag	clothing	
+e	🛍️	shopping bags	clothing	
+e	🎒	backpack	clothing	
+e	🩴	thong sandal	clothing	
+e	👞	man’s shoe	clothing	
+e	👟	running shoe	clothing	
+e	🥾	hiking boot	clothing	
+e	🥿	flat shoe	clothing	
+e	👠	high-heeled shoe	clothing	
+e	👡	woman’s sandal	clothing	
+e	🩰	ballet shoes	clothing	
+e	👢	woman’s boot	clothing	
+e	🪮	hair pick	clothing	
+e	👑	crown	clothing	
+e	👒	woman’s hat	clothing	
+e	🎩	top hat	clothing	
+e	🎓	graduation cap	clothing	
+e	🧢	billed cap	clothing	
+e	🪖	military helmet	clothing	
+e	⛑️	rescue worker’s helmet	clothing	
+e	📿	prayer beads	clothing	
+e	💄	lipstick	clothing	
+e	💍	ring	clothing	
+e	💎	gem stone	clothing	
+e	🔇	muted speaker	sound	
+e	🔈	speaker low volume	sound	
+e	🔉	speaker medium volume	sound	
+e	🔊	speaker high volume	sound	
+e	📢	loudspeaker	sound	
+e	📣	megaphone	sound	
+e	📯	postal horn	sound	
+e	🔔	bell	sound	
+e	🔕	bell with slash	sound	
+e	🎼	musical score	music	
+e	🎵	musical note	music	
+e	🎶	musical notes	music	
+e	🎙️	studio microphone	music	
+e	🎚️	level slider	music	
+e	🎛️	control knobs	music	
+e	🎤	microphone	music	
+e	🎧	headphone	music	
+e	📻	radio	music	
+e	🎷	saxophone	musical-instrument	
+e	🎺	trumpet	musical-instrument	
+e	🪊	trombone	musical-instrument	
+e	🪗	accordion	musical-instrument	
+e	🎸	guitar	musical-instrument	
+e	🎹	musical keyboard	musical-instrument	
+e	🎻	violin	musical-instrument	
+e	🪕	banjo	musical-instrument	
+e	🥁	drum	musical-instrument	
+e	🪘	long drum	musical-instrument	
+e	🪇	maracas	musical-instrument	
+e	🪈	flute	musical-instrument	
+e	🪉	harp	musical-instrument	
+e	📱	mobile phone	phone	
+e	📲	mobile phone with arrow	phone	
+e	☎️	telephone	phone	
+e	📞	telephone receiver	phone	
+e	📟	pager	phone	
+e	📠	fax machine	phone	
+e	🔋	battery	computer	
+e	🪫	low battery	computer	
+e	🔌	electric plug	computer	
+e	💻	laptop	computer	
+e	🖥️	desktop computer	computer	
+e	🖨️	printer	computer	
+e	⌨️	keyboard	computer	
+e	🖱️	computer mouse	computer	
+e	🖲️	trackball	computer	
+e	💽	computer disk	computer	
+e	💾	floppy disk	computer	
+e	💿	optical disk	computer	
+e	📀	dvd	computer	
+e	🧮	abacus	computer	
+e	🎥	movie camera	light & video	
+e	🎞️	film frames	light & video	
+e	📽️	film projector	light & video	
+e	🎬	clapper board	light & video	
+e	📺	television	light & video	
+e	📷	camera	light & video	
+e	📸	camera with flash	light & video	
+e	📹	video camera	light & video	
+e	📼	videocassette	light & video	
+e	🔍	magnifying glass tilted left	light & video	
+e	🔎	magnifying glass tilted right	light & video	
+e	🕯️	candle	light & video	
+e	💡	light bulb	light & video	
+e	🔦	flashlight	light & video	
+e	🏮	red paper lantern	light & video	
+e	🪔	diya lamp	light & video	
+e	📔	notebook with decorative cover	book-paper	
+e	📕	closed book	book-paper	
+e	📖	open book	book-paper	
+e	📗	green book	book-paper	
+e	📘	blue book	book-paper	
+e	📙	orange book	book-paper	
+e	📚	books	book-paper	
+e	📓	notebook	book-paper	
+e	📒	ledger	book-paper	
+e	📃	page with curl	book-paper	
+e	📜	scroll	book-paper	
+e	📄	page facing up	book-paper	
+e	📰	newspaper	book-paper	
+e	🗞️	rolled-up newspaper	book-paper	
+e	📑	bookmark tabs	book-paper	
+e	🔖	bookmark	book-paper	
+e	🏷️	label	book-paper	
+e	🪙	coin	money	
+e	💰	money bag	money	
+e	🪎	treasure chest	money	
+e	💴	yen banknote	money	
+e	💵	dollar banknote	money	
+e	💶	euro banknote	money	
+e	💷	pound banknote	money	
+e	💸	money with wings	money	
+e	💳	credit card	money	
+e	🧾	receipt	money	
+e	💹	chart increasing with yen	money	
+e	✉️	envelope	mail	
+e	📧	e-mail	mail	
+e	📨	incoming envelope	mail	
+e	📩	envelope with arrow	mail	
+e	📤	outbox tray	mail	
+e	📥	inbox tray	mail	
+e	📦	package	mail	
+e	📫	closed mailbox with raised flag	mail	
+e	📪	closed mailbox with lowered flag	mail	
+e	📬	open mailbox with raised flag	mail	
+e	📭	open mailbox with lowered flag	mail	
+e	📮	postbox	mail	
+e	🗳️	ballot box with ballot	mail	
+e	✏️	pencil	writing	
+e	✒️	black nib	writing	
+e	🖋️	fountain pen	writing	
+e	🖊️	pen	writing	
+e	🖌️	paintbrush	writing	
+e	🖍️	crayon	writing	
+e	📝	memo	writing	
+e	💼	briefcase	office	
+e	📁	file folder	office	
+e	📂	open file folder	office	
+e	🗂️	card index dividers	office	
+e	📅	calendar	office	
+e	📆	tear-off calendar	office	
+e	🗒️	spiral notepad	office	
+e	🗓️	spiral calendar	office	
+e	📇	card index	office	
+e	📈	chart increasing	office	
+e	📉	chart decreasing	office	
+e	📊	bar chart	office	
+e	📋	clipboard	office	
+e	📌	pushpin	office	
+e	📍	round pushpin	office	
+e	📎	paperclip	office	
+e	🖇️	linked paperclips	office	
+e	📏	straight ruler	office	
+e	📐	triangular ruler	office	
+e	✂️	scissors	office	
+e	🗃️	card file box	office	
+e	🗄️	file cabinet	office	
+e	🗑️	wastebasket	office	
+e	🔒	locked	lock	
+e	🔓	unlocked	lock	
+e	🔏	locked with pen	lock	
+e	🔐	locked with key	lock	
+e	🔑	key	lock	
+e	🗝️	old key	lock	
+e	🔨	hammer	tool	
+e	🪓	axe	tool	
+e	⛏️	pick	tool	
+e	⚒️	hammer and pick	tool	
+e	🛠️	hammer and wrench	tool	
+e	🗡️	dagger	tool	
+e	⚔️	crossed swords	tool	
+e	💣	bomb	tool	
+e	🪃	boomerang	tool	
+e	🏹	bow and arrow	tool	
+e	🛡️	shield	tool	
+e	🪚	carpentry saw	tool	
+e	🔧	wrench	tool	
+e	🪛	screwdriver	tool	
+e	🔩	nut and bolt	tool	
+e	⚙️	gear	tool	
+e	🗜️	clamp	tool	
+e	⚖️	balance scale	tool	
+e	🦯	white cane	tool	
+e	🔗	link	tool	
+e	⛓️‍💥	broken chain	tool	
+e	⛓️	chains	tool	
+e	🪝	hook	tool	
+e	🧰	toolbox	tool	
+e	🧲	magnet	tool	
+e	🪜	ladder	tool	
+e	🪏	shovel	tool	
+e	⚗️	alembic	science	
+e	🧪	test tube	science	
+e	🧫	petri dish	science	
+e	🧬	dna	science	
+e	🔬	microscope	science	
+e	🔭	telescope	science	
+e	📡	satellite antenna	science	
+e	💉	syringe	medical	
+e	🩸	drop of blood	medical	
+e	💊	pill	medical	
+e	🩹	adhesive bandage	medical	
+e	🩼	crutch	medical	
+e	🩺	stethoscope	medical	
+e	🩻	x-ray	medical	
+e	🚪	door	household	
+e	🛗	elevator	household	
+e	🪞	mirror	household	
+e	🪟	window	household	
+e	🛏️	bed	household	
+e	🛋️	couch and lamp	household	
+e	🪑	chair	household	
+e	🚽	toilet	household	
+e	🪠	plunger	household	
+e	🚿	shower	household	
+e	🛁	bathtub	household	
+e	🪤	mouse trap	household	
+e	🪒	razor	household	
+e	🧴	lotion bottle	household	
+e	🧷	safety pin	household	
+e	🧹	broom	household	
+e	🧺	basket	household	
+e	🧻	roll of paper	household	
+e	🪣	bucket	household	
+e	🧼	soap	household	
+e	🫧	bubbles	household	
+e	🪥	toothbrush	household	
+e	🧽	sponge	household	
+e	🧯	fire extinguisher	household	
+e	🛒	shopping cart	household	
+e	🚬	cigarette	other-object	
+e	⚰️	coffin	other-object	
+e	🪦	headstone	other-object	
+e	⚱️	funeral urn	other-object	
+e	🧿	nazar amulet	other-object	
+e	🪬	hamsa	other-object	
+e	🗿	moai	other-object	
+e	🪧	placard	other-object	
+e	🪪	identification card	other-object	
+group	Symbols
+e	🏧	ATM sign	transport-sign	
+e	🚮	litter in bin sign	transport-sign	
+e	🚰	potable water	transport-sign	
+e	♿	wheelchair symbol	transport-sign	
+e	🚹	men’s room	transport-sign	
+e	🚺	women’s room	transport-sign	
+e	🚻	restroom	transport-sign	
+e	🚼	baby symbol	transport-sign	
+e	🚾	water closet	transport-sign	
+e	🛂	passport control	transport-sign	
+e	🛃	customs	transport-sign	
+e	🛄	baggage claim	transport-sign	
+e	🛅	left luggage	transport-sign	
+e	⚠️	warning	warning	
+e	🚸	children crossing	warning	
+e	⛔	no entry	warning	
+e	🚫	prohibited	warning	
+e	🚳	no bicycles	warning	
+e	🚭	no smoking	warning	
+e	🚯	no littering	warning	
+e	🚱	non-potable water	warning	
+e	🚷	no pedestrians	warning	
+e	📵	no mobile phones	warning	
+e	🔞	no one under eighteen	warning	
+e	☢️	radioactive	warning	
+e	☣️	biohazard	warning	
+e	⬆️	up arrow	arrow	
+e	↗️	up-right arrow	arrow	
+e	➡️	right arrow	arrow	
+e	↘️	down-right arrow	arrow	
+e	⬇️	down arrow	arrow	
+e	↙️	down-left arrow	arrow	
+e	⬅️	left arrow	arrow	
+e	↖️	up-left arrow	arrow	
+e	↕️	up-down arrow	arrow	
+e	↔️	left-right arrow	arrow	
+e	↩️	right arrow curving left	arrow	
+e	↪️	left arrow curving right	arrow	
+e	⤴️	right arrow curving up	arrow	
+e	⤵️	right arrow curving down	arrow	
+e	🔃	clockwise vertical arrows	arrow	
+e	🔄	counterclockwise arrows button	arrow	
+e	🔙	BACK arrow	arrow	
+e	🔚	END arrow	arrow	
+e	🔛	ON! arrow	arrow	
+e	🔜	SOON arrow	arrow	
+e	🔝	TOP arrow	arrow	
+e	🛐	place of worship	religion	
+e	⚛️	atom symbol	religion	
+e	🕉️	om	religion	
+e	✡️	star of David	religion	
+e	☸️	wheel of dharma	religion	
+e	☯️	yin yang	religion	
+e	✝️	latin cross	religion	
+e	☦️	orthodox cross	religion	
+e	☪️	star and crescent	religion	
+e	☮️	peace symbol	religion	
+e	🕎	menorah	religion	
+e	🔯	dotted six-pointed star	religion	
+e	🪯	khanda	religion	
+e	♈	Aries	zodiac	
+e	♉	Taurus	zodiac	
+e	♊	Gemini	zodiac	
+e	♋	Cancer	zodiac	
+e	♌	Leo	zodiac	
+e	♍	Virgo	zodiac	
+e	♎	Libra	zodiac	
+e	♏	Scorpio	zodiac	
+e	♐	Sagittarius	zodiac	
+e	♑	Capricorn	zodiac	
+e	♒	Aquarius	zodiac	
+e	♓	Pisces	zodiac	
+e	⛎	Ophiuchus	zodiac	
+e	🔀	shuffle tracks button	av-symbol	
+e	🔁	repeat button	av-symbol	
+e	🔂	repeat single button	av-symbol	
+e	▶️	play button	av-symbol	
+e	⏩	fast-forward button	av-symbol	
+e	⏭️	next track button	av-symbol	
+e	⏯️	play or pause button	av-symbol	
+e	◀️	reverse button	av-symbol	
+e	⏪	fast reverse button	av-symbol	
+e	⏮️	last track button	av-symbol	
+e	🔼	upwards button	av-symbol	
+e	⏫	fast up button	av-symbol	
+e	🔽	downwards button	av-symbol	
+e	⏬	fast down button	av-symbol	
+e	⏸️	pause button	av-symbol	
+e	⏹️	stop button	av-symbol	
+e	⏺️	record button	av-symbol	
+e	⏏️	eject button	av-symbol	
+e	🎦	cinema	av-symbol	
+e	🔅	dim button	av-symbol	
+e	🔆	bright button	av-symbol	
+e	📶	antenna bars	av-symbol	
+e	🛜	wireless	av-symbol	
+e	📳	vibration mode	av-symbol	
+e	📴	mobile phone off	av-symbol	
+e	♀️	female sign	gender	
+e	♂️	male sign	gender	
+e	⚧️	transgender symbol	gender	
+e	✖️	multiply	math	
+e	➕	plus	math	
+e	➖	minus	math	
+e	➗	divide	math	
+e	🟰	heavy equals sign	math	
+e	♾️	infinity	math	
+e	‼️	double exclamation mark	punctuation	
+e	⁉️	exclamation question mark	punctuation	
+e	❓	red question mark	punctuation	
+e	❔	white question mark	punctuation	
+e	❕	white exclamation mark	punctuation	
+e	❗	red exclamation mark	punctuation	
+e	〰️	wavy dash	punctuation	
+e	💱	currency exchange	currency	
+e	💲	heavy dollar sign	currency	
+e	⚕️	medical symbol	other-symbol	
+e	♻️	recycling symbol	other-symbol	
+e	⚜️	fleur-de-lis	other-symbol	
+e	🔱	trident emblem	other-symbol	
+e	📛	name badge	other-symbol	
+e	🔰	Japanese symbol for beginner	other-symbol	
+e	⭕	hollow red circle	other-symbol	
+e	✅	check mark button	other-symbol	
+e	☑️	check box with check	other-symbol	
+e	✔️	check mark	other-symbol	
+e	❌	cross mark	other-symbol	
+e	❎	cross mark button	other-symbol	
+e	➰	curly loop	other-symbol	
+e	➿	double curly loop	other-symbol	
+e	〽️	part alternation mark	other-symbol	
+e	✳️	eight-spoked asterisk	other-symbol	
+e	✴️	eight-pointed star	other-symbol	
+e	❇️	sparkle	other-symbol	
+e	©️	copyright	other-symbol	
+e	®️	registered	other-symbol	
+e	™️	trade mark	other-symbol	
+e	🫟	splatter	other-symbol	
+e	#️⃣	keycap: #	keycap	
+e	*️⃣	keycap: *	keycap	
+e	0️⃣	keycap: 0	keycap	
+e	1️⃣	keycap: 1	keycap	
+e	2️⃣	keycap: 2	keycap	
+e	3️⃣	keycap: 3	keycap	
+e	4️⃣	keycap: 4	keycap	
+e	5️⃣	keycap: 5	keycap	
+e	6️⃣	keycap: 6	keycap	
+e	7️⃣	keycap: 7	keycap	
+e	8️⃣	keycap: 8	keycap	
+e	9️⃣	keycap: 9	keycap	
+e	🔟	keycap: 10	keycap	
+e	🔠	input latin uppercase	alphanum	
+e	🔡	input latin lowercase	alphanum	
+e	🔢	input numbers	alphanum	
+e	🔣	input symbols	alphanum	
+e	🔤	input latin letters	alphanum	
+e	🅰️	A button (blood type)	alphanum	
+e	🆎	AB button (blood type)	alphanum	
+e	🅱️	B button (blood type)	alphanum	
+e	🆑	CL button	alphanum	
+e	🆒	COOL button	alphanum	
+e	🆓	FREE button	alphanum	
+e	ℹ️	information	alphanum	
+e	🆔	ID button	alphanum	
+e	Ⓜ️	circled M	alphanum	
+e	🆕	NEW button	alphanum	
+e	🆖	NG button	alphanum	
+e	🅾️	O button (blood type)	alphanum	
+e	🆗	OK button	alphanum	
+e	🅿️	P button	alphanum	
+e	🆘	SOS button	alphanum	
+e	🆙	UP! button	alphanum	
+e	🆚	VS button	alphanum	
+e	🈁	Japanese “here” button	alphanum	
+e	🈂️	Japanese “service charge” button	alphanum	
+e	🈷️	Japanese “monthly amount” button	alphanum	
+e	🈶	Japanese “not free of charge” button	alphanum	
+e	🈯	Japanese “reserved” button	alphanum	
+e	🉐	Japanese “bargain” button	alphanum	
+e	🈹	Japanese “discount” button	alphanum	
+e	🈚	Japanese “free of charge” button	alphanum	
+e	🈲	Japanese “prohibited” button	alphanum	
+e	🉑	Japanese “acceptable” button	alphanum	
+e	🈸	Japanese “application” button	alphanum	
+e	🈴	Japanese “passing grade” button	alphanum	
+e	🈳	Japanese “vacancy” button	alphanum	
+e	㊗️	Japanese “congratulations” button	alphanum	
+e	㊙️	Japanese “secret” button	alphanum	
+e	🈺	Japanese “open for business” button	alphanum	
+e	🈵	Japanese “no vacancy” button	alphanum	
+e	🔴	red circle	geometric	
+e	🟠	orange circle	geometric	
+e	🟡	yellow circle	geometric	
+e	🟢	green circle	geometric	
+e	🔵	blue circle	geometric	
+e	🟣	purple circle	geometric	
+e	🟤	brown circle	geometric	
+e	⚫	black circle	geometric	
+e	⚪	white circle	geometric	
+e	🟥	red square	geometric	
+e	🟧	orange square	geometric	
+e	🟨	yellow square	geometric	
+e	🟩	green square	geometric	
+e	🟦	blue square	geometric	
+e	🟪	purple square	geometric	
+e	🟫	brown square	geometric	
+e	⬛	black large square	geometric	
+e	⬜	white large square	geometric	
+e	◼️	black medium square	geometric	
+e	◻️	white medium square	geometric	
+e	◾	black medium-small square	geometric	
+e	◽	white medium-small square	geometric	
+e	▪️	black small square	geometric	
+e	▫️	white small square	geometric	
+e	🔶	large orange diamond	geometric	
+e	🔷	large blue diamond	geometric	
+e	🔸	small orange diamond	geometric	
+e	🔹	small blue diamond	geometric	
+e	🔺	red triangle pointed up	geometric	
+e	🔻	red triangle pointed down	geometric	
+e	💠	diamond with a dot	geometric	
+e	🔘	radio button	geometric	
+e	🔳	white square button	geometric	
+e	🔲	black square button	geometric	
+group	Flags
+e	🏁	chequered flag	flag	
+e	🚩	triangular flag	flag	
+e	🎌	crossed flags	flag	
+e	🏴	black flag	flag	
+e	🏳️	white flag	flag	
+e	🏳️‍🌈	rainbow flag	flag	
+e	🏳️‍⚧️	transgender flag	flag	
+e	🏴‍☠️	pirate flag	flag	
+e	🇦🇨	flag: Ascension Island	country-flag	
+e	🇦🇩	flag: Andorra	country-flag	
+e	🇦🇪	flag: United Arab Emirates	country-flag	
+e	🇦🇫	flag: Afghanistan	country-flag	
+e	🇦🇬	flag: Antigua & Barbuda	country-flag	
+e	🇦🇮	flag: Anguilla	country-flag	
+e	🇦🇱	flag: Albania	country-flag	
+e	🇦🇲	flag: Armenia	country-flag	
+e	🇦🇴	flag: Angola	country-flag	
+e	🇦🇶	flag: Antarctica	country-flag	
+e	🇦🇷	flag: Argentina	country-flag	
+e	🇦🇸	flag: American Samoa	country-flag	
+e	🇦🇹	flag: Austria	country-flag	
+e	🇦🇺	flag: Australia	country-flag	
+e	🇦🇼	flag: Aruba	country-flag	
+e	🇦🇽	flag: Åland Islands	country-flag	
+e	🇦🇿	flag: Azerbaijan	country-flag	
+e	🇧🇦	flag: Bosnia & Herzegovina	country-flag	
+e	🇧🇧	flag: Barbados	country-flag	
+e	🇧🇩	flag: Bangladesh	country-flag	
+e	🇧🇪	flag: Belgium	country-flag	
+e	🇧🇫	flag: Burkina Faso	country-flag	
+e	🇧🇬	flag: Bulgaria	country-flag	
+e	🇧🇭	flag: Bahrain	country-flag	
+e	🇧🇮	flag: Burundi	country-flag	
+e	🇧🇯	flag: Benin	country-flag	
+e	🇧🇱	flag: St. Barthélemy	country-flag	
+e	🇧🇲	flag: Bermuda	country-flag	
+e	🇧🇳	flag: Brunei	country-flag	
+e	🇧🇴	flag: Bolivia	country-flag	
+e	🇧🇶	flag: Caribbean Netherlands	country-flag	
+e	🇧🇷	flag: Brazil	country-flag	
+e	🇧🇸	flag: Bahamas	country-flag	
+e	🇧🇹	flag: Bhutan	country-flag	
+e	🇧🇻	flag: Bouvet Island	country-flag	
+e	🇧🇼	flag: Botswana	country-flag	
+e	🇧🇾	flag: Belarus	country-flag	
+e	🇧🇿	flag: Belize	country-flag	
+e	🇨🇦	flag: Canada	country-flag	
+e	🇨🇨	flag: Cocos (Keeling) Islands	country-flag	
+e	🇨🇩	flag: Congo - Kinshasa	country-flag	
+e	🇨🇫	flag: Central African Republic	country-flag	
+e	🇨🇬	flag: Congo - Brazzaville	country-flag	
+e	🇨🇭	flag: Switzerland	country-flag	
+e	🇨🇮	flag: Côte d’Ivoire	country-flag	
+e	🇨🇰	flag: Cook Islands	country-flag	
+e	🇨🇱	flag: Chile	country-flag	
+e	🇨🇲	flag: Cameroon	country-flag	
+e	🇨🇳	flag: China	country-flag	
+e	🇨🇴	flag: Colombia	country-flag	
+e	🇨🇵	flag: Clipperton Island	country-flag	
+e	🇨🇶	flag: Sark	country-flag	
+e	🇨🇷	flag: Costa Rica	country-flag	
+e	🇨🇺	flag: Cuba	country-flag	
+e	🇨🇻	flag: Cape Verde	country-flag	
+e	🇨🇼	flag: Curaçao	country-flag	
+e	🇨🇽	flag: Christmas Island	country-flag	
+e	🇨🇾	flag: Cyprus	country-flag	
+e	🇨🇿	flag: Czechia	country-flag	
+e	🇩🇪	flag: Germany	country-flag	
+e	🇩🇬	flag: Diego Garcia	country-flag	
+e	🇩🇯	flag: Djibouti	country-flag	
+e	🇩🇰	flag: Denmark	country-flag	
+e	🇩🇲	flag: Dominica	country-flag	
+e	🇩🇴	flag: Dominican Republic	country-flag	
+e	🇩🇿	flag: Algeria	country-flag	
+e	🇪🇦	flag: Ceuta & Melilla	country-flag	
+e	🇪🇨	flag: Ecuador	country-flag	
+e	🇪🇪	flag: Estonia	country-flag	
+e	🇪🇬	flag: Egypt	country-flag	
+e	🇪🇭	flag: Western Sahara	country-flag	
+e	🇪🇷	flag: Eritrea	country-flag	
+e	🇪🇸	flag: Spain	country-flag	
+e	🇪🇹	flag: Ethiopia	country-flag	
+e	🇪🇺	flag: European Union	country-flag	
+e	🇫🇮	flag: Finland	country-flag	
+e	🇫🇯	flag: Fiji	country-flag	
+e	🇫🇰	flag: Falkland Islands	country-flag	
+e	🇫🇲	flag: Micronesia	country-flag	
+e	🇫🇴	flag: Faroe Islands	country-flag	
+e	🇫🇷	flag: France	country-flag	
+e	🇬🇦	flag: Gabon	country-flag	
+e	🇬🇧	flag: United Kingdom	country-flag	
+e	🇬🇩	flag: Grenada	country-flag	
+e	🇬🇪	flag: Georgia	country-flag	
+e	🇬🇫	flag: French Guiana	country-flag	
+e	🇬🇬	flag: Guernsey	country-flag	
+e	🇬🇭	flag: Ghana	country-flag	
+e	🇬🇮	flag: Gibraltar	country-flag	
+e	🇬🇱	flag: Greenland	country-flag	
+e	🇬🇲	flag: Gambia	country-flag	
+e	🇬🇳	flag: Guinea	country-flag	
+e	🇬🇵	flag: Guadeloupe	country-flag	
+e	🇬🇶	flag: Equatorial Guinea	country-flag	
+e	🇬🇷	flag: Greece	country-flag	
+e	🇬🇸	flag: South Georgia & South Sandwich Islands	country-flag	
+e	🇬🇹	flag: Guatemala	country-flag	
+e	🇬🇺	flag: Guam	country-flag	
+e	🇬🇼	flag: Guinea-Bissau	country-flag	
+e	🇬🇾	flag: Guyana	country-flag	
+e	🇭🇰	flag: Hong Kong SAR China	country-flag	
+e	🇭🇲	flag: Heard & McDonald Islands	country-flag	
+e	🇭🇳	flag: Honduras	country-flag	
+e	🇭🇷	flag: Croatia	country-flag	
+e	🇭🇹	flag: Haiti	country-flag	
+e	🇭🇺	flag: Hungary	country-flag	
+e	🇮🇨	flag: Canary Islands	country-flag	
+e	🇮🇩	flag: Indonesia	country-flag	
+e	🇮🇪	flag: Ireland	country-flag	
+e	🇮🇱	flag: Israel	country-flag	
+e	🇮🇲	flag: Isle of Man	country-flag	
+e	🇮🇳	flag: India	country-flag	
+e	🇮🇴	flag: British Indian Ocean Territory	country-flag	
+e	🇮🇶	flag: Iraq	country-flag	
+e	🇮🇷	flag: Iran	country-flag	
+e	🇮🇸	flag: Iceland	country-flag	
+e	🇮🇹	flag: Italy	country-flag	
+e	🇯🇪	flag: Jersey	country-flag	
+e	🇯🇲	flag: Jamaica	country-flag	
+e	🇯🇴	flag: Jordan	country-flag	
+e	🇯🇵	flag: Japan	country-flag	
+e	🇰🇪	flag: Kenya	country-flag	
+e	🇰🇬	flag: Kyrgyzstan	country-flag	
+e	🇰🇭	flag: Cambodia	country-flag	
+e	🇰🇮	flag: Kiribati	country-flag	
+e	🇰🇲	flag: Comoros	country-flag	
+e	🇰🇳	flag: St. Kitts & Nevis	country-flag	
+e	🇰🇵	flag: North Korea	country-flag	
+e	🇰🇷	flag: South Korea	country-flag	
+e	🇰🇼	flag: Kuwait	country-flag	
+e	🇰🇾	flag: Cayman Islands	country-flag	
+e	🇰🇿	flag: Kazakhstan	country-flag	
+e	🇱🇦	flag: Laos	country-flag	
+e	🇱🇧	flag: Lebanon	country-flag	
+e	🇱🇨	flag: St. Lucia	country-flag	
+e	🇱🇮	flag: Liechtenstein	country-flag	
+e	🇱🇰	flag: Sri Lanka	country-flag	
+e	🇱🇷	flag: Liberia	country-flag	
+e	🇱🇸	flag: Lesotho	country-flag	
+e	🇱🇹	flag: Lithuania	country-flag	
+e	🇱🇺	flag: Luxembourg	country-flag	
+e	🇱🇻	flag: Latvia	country-flag	
+e	🇱🇾	flag: Libya	country-flag	
+e	🇲🇦	flag: Morocco	country-flag	
+e	🇲🇨	flag: Monaco	country-flag	
+e	🇲🇩	flag: Moldova	country-flag	
+e	🇲🇪	flag: Montenegro	country-flag	
+e	🇲🇫	flag: St. Martin	country-flag	
+e	🇲🇬	flag: Madagascar	country-flag	
+e	🇲🇭	flag: Marshall Islands	country-flag	
+e	🇲🇰	flag: North Macedonia	country-flag	
+e	🇲🇱	flag: Mali	country-flag	
+e	🇲🇲	flag: Myanmar (Burma)	country-flag	
+e	🇲🇳	flag: Mongolia	country-flag	
+e	🇲🇴	flag: Macao SAR China	country-flag	
+e	🇲🇵	flag: Northern Mariana Islands	country-flag	
+e	🇲🇶	flag: Martinique	country-flag	
+e	🇲🇷	flag: Mauritania	country-flag	
+e	🇲🇸	flag: Montserrat	country-flag	
+e	🇲🇹	flag: Malta	country-flag	
+e	🇲🇺	flag: Mauritius	country-flag	
+e	🇲🇻	flag: Maldives	country-flag	
+e	🇲🇼	flag: Malawi	country-flag	
+e	🇲🇽	flag: Mexico	country-flag	
+e	🇲🇾	flag: Malaysia	country-flag	
+e	🇲🇿	flag: Mozambique	country-flag	
+e	🇳🇦	flag: Namibia	country-flag	
+e	🇳🇨	flag: New Caledonia	country-flag	
+e	🇳🇪	flag: Niger	country-flag	
+e	🇳🇫	flag: Norfolk Island	country-flag	
+e	🇳🇬	flag: Nigeria	country-flag	
+e	🇳🇮	flag: Nicaragua	country-flag	
+e	🇳🇱	flag: Netherlands	country-flag	
+e	🇳🇴	flag: Norway	country-flag	
+e	🇳🇵	flag: Nepal	country-flag	
+e	🇳🇷	flag: Nauru	country-flag	
+e	🇳🇺	flag: Niue	country-flag	
+e	🇳🇿	flag: New Zealand	country-flag	
+e	🇴🇲	flag: Oman	country-flag	
+e	🇵🇦	flag: Panama	country-flag	
+e	🇵🇪	flag: Peru	country-flag	
+e	🇵🇫	flag: French Polynesia	country-flag	
+e	🇵🇬	flag: Papua New Guinea	country-flag	
+e	🇵🇭	flag: Philippines	country-flag	
+e	🇵🇰	flag: Pakistan	country-flag	
+e	🇵🇱	flag: Poland	country-flag	
+e	🇵🇲	flag: St. Pierre & Miquelon	country-flag	
+e	🇵🇳	flag: Pitcairn Islands	country-flag	
+e	🇵🇷	flag: Puerto Rico	country-flag	
+e	🇵🇸	flag: Palestinian Territories	country-flag	
+e	🇵🇹	flag: Portugal	country-flag	
+e	🇵🇼	flag: Palau	country-flag	
+e	🇵🇾	flag: Paraguay	country-flag	
+e	🇶🇦	flag: Qatar	country-flag	
+e	🇷🇪	flag: Réunion	country-flag	
+e	🇷🇴	flag: Romania	country-flag	
+e	🇷🇸	flag: Serbia	country-flag	
+e	🇷🇺	flag: Russia	country-flag	
+e	🇷🇼	flag: Rwanda	country-flag	
+e	🇸🇦	flag: Saudi Arabia	country-flag	
+e	🇸🇧	flag: Solomon Islands	country-flag	
+e	🇸🇨	flag: Seychelles	country-flag	
+e	🇸🇩	flag: Sudan	country-flag	
+e	🇸🇪	flag: Sweden	country-flag	
+e	🇸🇬	flag: Singapore	country-flag	
+e	🇸🇭	flag: St. Helena	country-flag	
+e	🇸🇮	flag: Slovenia	country-flag	
+e	🇸🇯	flag: Svalbard & Jan Mayen	country-flag	
+e	🇸🇰	flag: Slovakia	country-flag	
+e	🇸🇱	flag: Sierra Leone	country-flag	
+e	🇸🇲	flag: San Marino	country-flag	
+e	🇸🇳	flag: Senegal	country-flag	
+e	🇸🇴	flag: Somalia	country-flag	
+e	🇸🇷	flag: Suriname	country-flag	
+e	🇸🇸	flag: South Sudan	country-flag	
+e	🇸🇹	flag: São Tomé & Príncipe	country-flag	
+e	🇸🇻	flag: El Salvador	country-flag	
+e	🇸🇽	flag: Sint Maarten	country-flag	
+e	🇸🇾	flag: Syria	country-flag	
+e	🇸🇿	flag: Eswatini	country-flag	
+e	🇹🇦	flag: Tristan da Cunha	country-flag	
+e	🇹🇨	flag: Turks & Caicos Islands	country-flag	
+e	🇹🇩	flag: Chad	country-flag	
+e	🇹🇫	flag: French Southern Territories	country-flag	
+e	🇹🇬	flag: Togo	country-flag	
+e	🇹🇭	flag: Thailand	country-flag	
+e	🇹🇯	flag: Tajikistan	country-flag	
+e	🇹🇰	flag: Tokelau	country-flag	
+e	🇹🇱	flag: Timor-Leste	country-flag	
+e	🇹🇲	flag: Turkmenistan	country-flag	
+e	🇹🇳	flag: Tunisia	country-flag	
+e	🇹🇴	flag: Tonga	country-flag	
+e	🇹🇷	flag: Türkiye	country-flag	
+e	🇹🇹	flag: Trinidad & Tobago	country-flag	
+e	🇹🇻	flag: Tuvalu	country-flag	
+e	🇹🇼	flag: Taiwan	country-flag	
+e	🇹🇿	flag: Tanzania	country-flag	
+e	🇺🇦	flag: Ukraine	country-flag	
+e	🇺🇬	flag: Uganda	country-flag	
+e	🇺🇲	flag: U.S. Outlying Islands	country-flag	
+e	🇺🇳	flag: United Nations	country-flag	
+e	🇺🇸	flag: United States	country-flag	
+e	🇺🇾	flag: Uruguay	country-flag	
+e	🇺🇿	flag: Uzbekistan	country-flag	
+e	🇻🇦	flag: Vatican City	country-flag	
+e	🇻🇨	flag: St. Vincent & Grenadines	country-flag	
+e	🇻🇪	flag: Venezuela	country-flag	
+e	🇻🇬	flag: British Virgin Islands	country-flag	
+e	🇻🇮	flag: U.S. Virgin Islands	country-flag	
+e	🇻🇳	flag: Vietnam	country-flag	
+e	🇻🇺	flag: Vanuatu	country-flag	
+e	🇼🇫	flag: Wallis & Futuna	country-flag	
+e	🇼🇸	flag: Samoa	country-flag	
+e	🇽🇰	flag: Kosovo	country-flag	
+e	🇾🇪	flag: Yemen	country-flag	
+e	🇾🇹	flag: Mayotte	country-flag	
+e	🇿🇦	flag: South Africa	country-flag	
+e	🇿🇲	flag: Zambia	country-flag	
+e	🇿🇼	flag: Zimbabwe	country-flag	
+e	🏴󠁧󠁢󠁥󠁮󠁧󠁿	flag: England	subdivision-flag	
+e	🏴󠁧󠁢󠁳󠁣󠁴󠁿	flag: Scotland	subdivision-flag	
+e	🏴󠁧󠁢󠁷󠁬󠁳󠁿	flag: Wales	subdivision-flag	
+symbols	Arrows
+s	←	leftwards arrow
+s	↑	upwards arrow
+s	→	rightwards arrow
+s	↓	downwards arrow
+s	↔	left right arrow
+s	↕	up down arrow
+s	↖	north west arrow
+s	↗	north east arrow
+s	↘	south east arrow
+s	↙	south west arrow
+s	↚	leftwards arrow with stroke
+s	↛	rightwards arrow with stroke
+s	↜	leftwards wave arrow
+s	↝	rightwards wave arrow
+s	↞	leftwards two headed arrow
+s	↟	upwards two headed arrow
+s	↠	rightwards two headed arrow
+s	↡	downwards two headed arrow
+s	↢	leftwards arrow with tail
+s	↣	rightwards arrow with tail
+s	↤	leftwards arrow from bar
+s	↥	upwards arrow from bar
+s	↦	rightwards arrow from bar
+s	↧	downwards arrow from bar
+s	↨	up down arrow with base
+s	↩	leftwards arrow with hook
+s	↪	rightwards arrow with hook
+s	↫	leftwards arrow with loop
+s	↬	rightwards arrow with loop
+s	↭	left right wave arrow
+s	↮	left right arrow with stroke
+s	↯	downwards zigzag arrow
+s	↰	upwards arrow with tip leftwards
+s	↱	upwards arrow with tip rightwards
+s	↲	downwards arrow with tip leftwards
+s	↳	downwards arrow with tip rightwards
+s	↴	rightwards arrow with corner downwards
+s	↵	downwards arrow with corner leftwards
+s	↶	anticlockwise top semicircle arrow
+s	↷	clockwise top semicircle arrow
+s	↸	north west arrow to long bar
+s	↹	leftwards arrow to bar over rightwards arrow to bar
+s	↺	anticlockwise open circle arrow
+s	↻	clockwise open circle arrow
+s	↼	leftwards harpoon with barb upwards
+s	↽	leftwards harpoon with barb downwards
+s	↾	upwards harpoon with barb rightwards
+s	↿	upwards harpoon with barb leftwards
+s	⇀	rightwards harpoon with barb upwards
+s	⇁	rightwards harpoon with barb downwards
+s	⇂	downwards harpoon with barb rightwards
+s	⇃	downwards harpoon with barb leftwards
+s	⇄	rightwards arrow over leftwards arrow
+s	⇅	upwards arrow leftwards of downwards arrow
+s	⇆	leftwards arrow over rightwards arrow
+s	⇇	leftwards paired arrows
+s	⇈	upwards paired arrows
+s	⇉	rightwards paired arrows
+s	⇊	downwards paired arrows
+s	⇋	leftwards harpoon over rightwards harpoon
+s	⇌	rightwards harpoon over leftwards harpoon
+s	⇍	leftwards double arrow with stroke
+s	⇎	left right double arrow with stroke
+s	⇏	rightwards double arrow with stroke
+s	⇐	leftwards double arrow
+s	⇑	upwards double arrow
+s	⇒	rightwards double arrow
+s	⇓	downwards double arrow
+s	⇔	left right double arrow
+s	⇕	up down double arrow
+s	⇖	north west double arrow
+s	⇗	north east double arrow
+s	⇘	south east double arrow
+s	⇙	south west double arrow
+s	⇚	leftwards triple arrow
+s	⇛	rightwards triple arrow
+s	⇜	leftwards squiggle arrow
+s	⇝	rightwards squiggle arrow
+s	⇞	upwards arrow with double stroke
+s	⇟	downwards arrow with double stroke
+s	⇠	leftwards dashed arrow
+s	⇡	upwards dashed arrow
+s	⇢	rightwards dashed arrow
+s	⇣	downwards dashed arrow
+s	⇤	leftwards arrow to bar
+s	⇥	rightwards arrow to bar
+s	⇦	leftwards white arrow
+s	⇧	upwards white arrow
+s	⇨	rightwards white arrow
+s	⇩	downwards white arrow
+s	⇪	upwards white arrow from bar
+s	⇫	upwards white arrow on pedestal
+s	⇬	upwards white arrow on pedestal with horizontal bar
+s	⇭	upwards white arrow on pedestal with vertical bar
+s	⇮	upwards white double arrow
+s	⇯	upwards white double arrow on pedestal
+s	⇰	rightwards white arrow from wall
+s	⇱	north west arrow to corner
+s	⇲	south east arrow to corner
+s	⇳	up down white arrow
+s	⇴	right arrow with small circle
+s	⇵	downwards arrow leftwards of upwards arrow
+s	⇶	three rightwards arrows
+s	⇷	leftwards arrow with vertical stroke
+s	⇸	rightwards arrow with vertical stroke
+s	⇹	left right arrow with vertical stroke
+s	⇺	leftwards arrow with double vertical stroke
+s	⇻	rightwards arrow with double vertical stroke
+s	⇼	left right arrow with double vertical stroke
+s	⇽	leftwards open-headed arrow
+s	⇾	rightwards open-headed arrow
+s	⇿	left right open-headed arrow
+symbols	Mathematics
+s	∀	for all
+s	∁	complement
+s	∂	partial differential
+s	∃	there exists
+s	∄	there does not exist
+s	∅	empty set
+s	∆	increment
+s	∇	nabla
+s	∈	element of
+s	∉	not an element of
+s	∊	small element of
+s	∋	contains as member
+s	∌	does not contain as member
+s	∍	small contains as member
+s	∎	end of proof
+s	∏	n-ary product
+s	∐	n-ary coproduct
+s	∑	n-ary summation
+s	−	minus sign
+s	∓	minus-or-plus sign
+s	∔	dot plus
+s	∕	division slash
+s	∖	set minus
+s	∗	asterisk operator
+s	∘	ring operator
+s	∙	bullet operator
+s	√	square root
+s	∛	cube root
+s	∜	fourth root
+s	∝	proportional to
+s	∞	infinity
+s	∟	right angle
+s	∠	angle
+s	∡	measured angle
+s	∢	spherical angle
+s	∣	divides
+s	∤	does not divide
+s	∥	parallel to
+s	∦	not parallel to
+s	∧	logical and
+s	∨	logical or
+s	∩	intersection
+s	∪	union
+s	∫	integral
+s	∬	double integral
+s	∭	triple integral
+s	∮	contour integral
+s	∯	surface integral
+s	∰	volume integral
+s	∱	clockwise integral
+s	∲	clockwise contour integral
+s	∳	anticlockwise contour integral
+s	∴	therefore
+s	∵	because
+s	∶	ratio
+s	∷	proportion
+s	∸	dot minus
+s	∹	excess
+s	∺	geometric proportion
+s	∻	homothetic
+s	∼	tilde operator
+s	∽	reversed tilde
+s	∾	inverted lazy s
+s	∿	sine wave
+s	≀	wreath product
+s	≁	not tilde
+s	≂	minus tilde
+s	≃	asymptotically equal to
+s	≄	not asymptotically equal to
+s	≅	approximately equal to
+s	≆	approximately but not actually equal to
+s	≇	neither approximately nor actually equal to
+s	≈	almost equal to
+s	≉	not almost equal to
+s	≊	almost equal or equal to
+s	≋	triple tilde
+s	≌	all equal to
+s	≍	equivalent to
+s	≎	geometrically equivalent to
+s	≏	difference between
+s	≐	approaches the limit
+s	≑	geometrically equal to
+s	≒	approximately equal to or the image of
+s	≓	image of or approximately equal to
+s	≔	colon equals
+s	≕	equals colon
+s	≖	ring in equal to
+s	≗	ring equal to
+s	≘	corresponds to
+s	≙	estimates
+s	≚	equiangular to
+s	≛	star equals
+s	≜	delta equal to
+s	≝	equal to by definition
+s	≞	measured by
+s	≟	questioned equal to
+s	≠	not equal to
+s	≡	identical to
+s	≢	not identical to
+s	≣	strictly equivalent to
+s	≤	less-than or equal to
+s	≥	greater-than or equal to
+s	≦	less-than over equal to
+s	≧	greater-than over equal to
+s	≨	less-than but not equal to
+s	≩	greater-than but not equal to
+s	≪	much less-than
+s	≫	much greater-than
+s	≬	between
+s	≭	not equivalent to
+s	≮	not less-than
+s	≯	not greater-than
+s	≰	neither less-than nor equal to
+s	≱	neither greater-than nor equal to
+s	≲	less-than or equivalent to
+s	≳	greater-than or equivalent to
+s	≴	neither less-than nor equivalent to
+s	≵	neither greater-than nor equivalent to
+s	≶	less-than or greater-than
+s	≷	greater-than or less-than
+s	≸	neither less-than nor greater-than
+s	≹	neither greater-than nor less-than
+s	≺	precedes
+s	≻	succeeds
+s	≼	precedes or equal to
+s	≽	succeeds or equal to
+s	≾	precedes or equivalent to
+s	≿	succeeds or equivalent to
+s	⊀	does not precede
+s	⊁	does not succeed
+s	⊂	subset of
+s	⊃	superset of
+s	⊄	not a subset of
+s	⊅	not a superset of
+s	⊆	subset of or equal to
+s	⊇	superset of or equal to
+s	⊈	neither a subset of nor equal to
+s	⊉	neither a superset of nor equal to
+s	⊊	subset of with not equal to
+s	⊋	superset of with not equal to
+s	⊌	multiset
+s	⊍	multiset multiplication
+s	⊎	multiset union
+s	⊏	square image of
+s	⊐	square original of
+s	⊑	square image of or equal to
+s	⊒	square original of or equal to
+s	⊓	square cap
+s	⊔	square cup
+s	⊕	circled plus
+s	⊖	circled minus
+s	⊗	circled times
+s	⊘	circled division slash
+s	⊙	circled dot operator
+s	⊚	circled ring operator
+s	⊛	circled asterisk operator
+s	⊜	circled equals
+s	⊝	circled dash
+s	⊞	squared plus
+s	⊟	squared minus
+s	⊠	squared times
+s	⊡	squared dot operator
+s	⊢	right tack
+s	⊣	left tack
+s	⊤	down tack
+s	⊥	up tack
+s	⊦	assertion
+s	⊧	models
+s	⊨	true
+s	⊩	forces
+s	⊪	triple vertical bar right turnstile
+s	⊫	double vertical bar double right turnstile
+s	⊬	does not prove
+s	⊭	not true
+s	⊮	does not force
+s	⊯	negated double vertical bar double right turnstile
+s	⊰	precedes under relation
+s	⊱	succeeds under relation
+s	⊲	normal subgroup of
+s	⊳	contains as normal subgroup
+s	⊴	normal subgroup of or equal to
+s	⊵	contains as normal subgroup or equal to
+s	⊶	original of
+s	⊷	image of
+s	⊸	multimap
+s	⊹	hermitian conjugate matrix
+s	⊺	intercalate
+s	⊻	xor
+s	⊼	nand
+s	⊽	nor
+s	⊾	right angle with arc
+s	⊿	right triangle
+s	⋀	n-ary logical and
+s	⋁	n-ary logical or
+s	⋂	n-ary intersection
+s	⋃	n-ary union
+s	⋄	diamond operator
+s	⋅	dot operator
+s	⋆	star operator
+s	⋇	division times
+s	⋈	bowtie
+s	⋉	left normal factor semidirect product
+s	⋊	right normal factor semidirect product
+s	⋋	left semidirect product
+s	⋌	right semidirect product
+s	⋍	reversed tilde equals
+s	⋎	curly logical or
+s	⋏	curly logical and
+s	⋐	double subset
+s	⋑	double superset
+s	⋒	double intersection
+s	⋓	double union
+s	⋔	pitchfork
+s	⋕	equal and parallel to
+s	⋖	less-than with dot
+s	⋗	greater-than with dot
+s	⋘	very much less-than
+s	⋙	very much greater-than
+s	⋚	less-than equal to or greater-than
+s	⋛	greater-than equal to or less-than
+s	⋜	equal to or less-than
+s	⋝	equal to or greater-than
+s	⋞	equal to or precedes
+s	⋟	equal to or succeeds
+s	⋠	does not precede or equal
+s	⋡	does not succeed or equal
+s	⋢	not square image of or equal to
+s	⋣	not square original of or equal to
+s	⋤	square image of or not equal to
+s	⋥	square original of or not equal to
+s	⋦	less-than but not equivalent to
+s	⋧	greater-than but not equivalent to
+s	⋨	precedes but not equivalent to
+s	⋩	succeeds but not equivalent to
+s	⋪	not normal subgroup of
+s	⋫	does not contain as normal subgroup
+s	⋬	not normal subgroup of or equal to
+s	⋭	does not contain as normal subgroup or equal
+s	⋮	vertical ellipsis
+s	⋯	midline horizontal ellipsis
+s	⋰	up right diagonal ellipsis
+s	⋱	down right diagonal ellipsis
+s	⋲	element of with long horizontal stroke
+s	⋳	element of with vertical bar at end of horizontal stroke
+s	⋴	small element of with vertical bar at end of horizontal stroke
+s	⋵	element of with dot above
+s	⋶	element of with overbar
+s	⋷	small element of with overbar
+s	⋸	element of with underbar
+s	⋹	element of with two horizontal strokes
+s	⋺	contains with long horizontal stroke
+s	⋻	contains with vertical bar at end of horizontal stroke
+s	⋼	small contains with vertical bar at end of horizontal stroke
+s	⋽	contains with overbar
+s	⋾	small contains with overbar
+s	⋿	z notation bag membership
+symbols	Currency
+s	₠	euro-currency sign
+s	₡	colon sign
+s	₢	cruzeiro sign
+s	₣	french franc sign
+s	₤	lira sign
+s	₥	mill sign
+s	₦	naira sign
+s	₧	peseta sign
+s	₨	rupee sign
+s	₩	won sign
+s	₪	new sheqel sign
+s	₫	dong sign
+s	€	euro sign
+s	₭	kip sign
+s	₮	tugrik sign
+s	₯	drachma sign
+s	₰	german penny sign
+s	₱	peso sign
+s	₲	guarani sign
+s	₳	austral sign
+s	₴	hryvnia sign
+s	₵	cedi sign
+s	₶	livre tournois sign
+s	₷	spesmilo sign
+s	₸	tenge sign
+s	₹	indian rupee sign
+s	₺	turkish lira sign
+s	₻	nordic mark sign
+s	₼	manat sign
+s	₽	ruble sign
+s	₾	lari sign
+s	₿	bitcoin sign
+s	⃀	som sign
+s	⃁	saudi riyal sign
+s	⃂	rufiyaa sign
+s	⃃	uae dirham sign
+s	⃄	omani rial sign
+symbols	Punctuation
+s	‐	hyphen
+s	‑	non-breaking hyphen
+s	‒	figure dash
+s	–	en dash
+s	—	em dash
+s	―	horizontal bar
+s	‖	double vertical line
+s	‗	double low line
+s	‘	left single quotation mark
+s	’	right single quotation mark
+s	‚	single low-9 quotation mark
+s	‛	single high-reversed-9 quotation mark
+s	“	left double quotation mark
+s	”	right double quotation mark
+s	„	double low-9 quotation mark
+s	‟	double high-reversed-9 quotation mark
+s	†	dagger
+s	‡	double dagger
+s	•	bullet
+s	‣	triangular bullet
+s	․	one dot leader
+s	‥	two dot leader
+s	…	horizontal ellipsis
+s	‧	hyphenation point
+symbols	Latin-1
+s	¡	inverted exclamation mark
+s	¢	cent sign
+s	£	pound sign
+s	¤	currency sign
+s	¥	yen sign
+s	¦	broken bar
+s	§	section sign
+s	¨	diaeresis
+s	©	copyright sign
+s	ª	feminine ordinal indicator
+s	«	left-pointing double angle quotation mark
+s	¬	not sign
+s	®	registered sign
+s	¯	macron
+s	°	degree sign
+s	±	plus-minus sign
+s	²	superscript two
+s	³	superscript three
+s	´	acute accent
+s	µ	micro sign
+s	¶	pilcrow sign
+s	·	middle dot
+s	¸	cedilla
+s	¹	superscript one
+s	º	masculine ordinal indicator
+s	»	right-pointing double angle quotation mark
+s	¼	vulgar fraction one quarter
+s	½	vulgar fraction one half
+s	¾	vulgar fraction three quarters
+s	¿	inverted question mark
+symbols	Greek
+s	Α	greek capital letter alpha
+s	Β	greek capital letter beta
+s	Γ	greek capital letter gamma
+s	Δ	greek capital letter delta
+s	Ε	greek capital letter epsilon
+s	Ζ	greek capital letter zeta
+s	Η	greek capital letter eta
+s	Θ	greek capital letter theta
+s	Ι	greek capital letter iota
+s	Κ	greek capital letter kappa
+s	Λ	greek capital letter lamda
+s	Μ	greek capital letter mu
+s	Ν	greek capital letter nu
+s	Ξ	greek capital letter xi
+s	Ο	greek capital letter omicron
+s	Π	greek capital letter pi
+s	Ρ	greek capital letter rho
+s	Σ	greek capital letter sigma
+s	Τ	greek capital letter tau
+s	Υ	greek capital letter upsilon
+s	Φ	greek capital letter phi
+s	Χ	greek capital letter chi
+s	Ψ	greek capital letter psi
+s	Ω	greek capital letter omega
+s	Ϊ	greek capital letter iota with dialytika
+s	Ϋ	greek capital letter upsilon with dialytika
+s	ά	greek small letter alpha with tonos
+s	έ	greek small letter epsilon with tonos
+s	ή	greek small letter eta with tonos
+s	ί	greek small letter iota with tonos
+s	ΰ	greek small letter upsilon with dialytika and tonos
+s	α	greek small letter alpha
+s	β	greek small letter beta
+s	γ	greek small letter gamma
+s	δ	greek small letter delta
+s	ε	greek small letter epsilon
+s	ζ	greek small letter zeta
+s	η	greek small letter eta
+s	θ	greek small letter theta
+s	ι	greek small letter iota
+s	κ	greek small letter kappa
+s	λ	greek small letter lamda
+s	μ	greek small letter mu
+s	ν	greek small letter nu
+s	ξ	greek small letter xi
+s	ο	greek small letter omicron
+s	π	greek small letter pi
+s	ρ	greek small letter rho
+s	ς	greek small letter final sigma
+s	σ	greek small letter sigma
+s	τ	greek small letter tau
+s	υ	greek small letter upsilon
+s	φ	greek small letter phi
+s	χ	greek small letter chi
+s	ψ	greek small letter psi
+s	ω	greek small letter omega
+symbols	Letterlike
+s	℀	account of
+s	℁	addressed to the subject
+s	ℂ	double-struck capital c
+s	℃	degree celsius
+s	℄	centre line symbol
+s	℅	care of
+s	℆	cada una
+s	ℇ	euler constant
+s	℈	scruple
+s	℉	degree fahrenheit
+s	ℊ	script small g
+s	ℋ	script capital h
+s	ℌ	black-letter capital h
+s	ℍ	double-struck capital h
+s	ℎ	planck constant
+s	ℏ	planck constant over two pi
+s	ℐ	script capital i
+s	ℑ	black-letter capital i
+s	ℒ	script capital l
+s	ℓ	script small l
+s	℔	l b bar symbol
+s	ℕ	double-struck capital n
+s	№	numero sign
+s	℗	sound recording copyright
+s	℘	script capital p
+s	ℙ	double-struck capital p
+s	ℚ	double-struck capital q
+s	ℛ	script capital r
+s	ℜ	black-letter capital r
+s	ℝ	double-struck capital r
+s	℞	prescription take
+s	℟	response
+s	℠	service mark
+s	℡	telephone sign
+s	™	trade mark sign
+s	℣	versicle
+s	ℤ	double-struck capital z
+s	℥	ounce sign
+s	Ω	ohm sign
+s	℧	inverted ohm sign
+s	ℨ	black-letter capital z
+s	℩	turned greek small letter iota
+s	K	kelvin sign
+s	Å	angstrom sign
+s	ℬ	script capital b
+s	ℭ	black-letter capital c
+s	℮	estimated symbol
+s	ℯ	script small e
+s	ℰ	script capital e
+s	ℱ	script capital f
+s	Ⅎ	turned capital f
+s	ℳ	script capital m
+s	ℴ	script small o
+s	ℵ	alef symbol
+s	ℶ	bet symbol
+s	ℷ	gimel symbol
+s	ℸ	dalet symbol
+s	ℹ	information source
+s	℺	rotated capital q
+s	℻	facsimile sign
+s	ℼ	double-struck small pi
+s	ℽ	double-struck small gamma
+s	ℾ	double-struck capital gamma
+s	ℿ	double-struck capital pi
+s	⅀	double-struck n-ary summation
+s	⅁	turned sans-serif capital g
+s	⅂	turned sans-serif capital l
+s	⅃	reversed sans-serif capital l
+s	⅄	turned sans-serif capital y
+s	ⅅ	double-struck italic capital d
+s	ⅆ	double-struck italic small d
+s	ⅇ	double-struck italic small e
+s	ⅈ	double-struck italic small i
+s	ⅉ	double-struck italic small j
+s	⅊	property line
+s	⅋	turned ampersand
+s	⅌	per sign
+s	⅍	aktieselskab
+s	ⅎ	turned small f
+s	⅏	symbol for samaritan source
+symbols	Number forms
+s	⅐	vulgar fraction one seventh
+s	⅑	vulgar fraction one ninth
+s	⅒	vulgar fraction one tenth
+s	⅓	vulgar fraction one third
+s	⅔	vulgar fraction two thirds
+s	⅕	vulgar fraction one fifth
+s	⅖	vulgar fraction two fifths
+s	⅗	vulgar fraction three fifths
+s	⅘	vulgar fraction four fifths
+s	⅙	vulgar fraction one sixth
+s	⅚	vulgar fraction five sixths
+s	⅛	vulgar fraction one eighth
+s	⅜	vulgar fraction three eighths
+s	⅝	vulgar fraction five eighths
+s	⅞	vulgar fraction seven eighths
+s	⅟	fraction numerator one
+s	Ⅰ	roman numeral one
+s	Ⅱ	roman numeral two
+s	Ⅲ	roman numeral three
+s	Ⅳ	roman numeral four
+s	Ⅴ	roman numeral five
+s	Ⅵ	roman numeral six
+s	Ⅶ	roman numeral seven
+s	Ⅷ	roman numeral eight
+s	Ⅸ	roman numeral nine
+s	Ⅹ	roman numeral ten
+s	Ⅺ	roman numeral eleven
+s	Ⅻ	roman numeral twelve
+s	Ⅼ	roman numeral fifty
+s	Ⅽ	roman numeral one hundred
+s	Ⅾ	roman numeral five hundred
+s	Ⅿ	roman numeral one thousand
+s	ⅰ	small roman numeral one
+s	ⅱ	small roman numeral two
+s	ⅲ	small roman numeral three
+s	ⅳ	small roman numeral four
+s	ⅴ	small roman numeral five
+s	ⅵ	small roman numeral six
+s	ⅶ	small roman numeral seven
+s	ⅷ	small roman numeral eight
+s	ⅸ	small roman numeral nine
+s	ⅹ	small roman numeral ten
+s	ⅺ	small roman numeral eleven
+s	ⅻ	small roman numeral twelve
+s	ⅼ	small roman numeral fifty
+s	ⅽ	small roman numeral one hundred
+s	ⅾ	small roman numeral five hundred
+s	ⅿ	small roman numeral one thousand
+s	ↀ	roman numeral one thousand c d
+s	ↁ	roman numeral five thousand
+s	ↂ	roman numeral ten thousand
+s	Ↄ	roman numeral reversed one hundred
+s	ↄ	latin small letter reversed c
+s	ↅ	roman numeral six late form
+s	ↆ	roman numeral fifty early form
+s	ↇ	roman numeral fifty thousand
+s	ↈ	roman numeral one hundred thousand
+s	↉	vulgar fraction zero thirds
+s	↊	turned digit two
+s	↋	turned digit three
+symbols	Technical
+s	⌀	diameter sign
+s	⌁	electric arrow
+s	⌂	house
+s	⌃	up arrowhead
+s	⌄	down arrowhead
+s	⌅	projective
+s	⌆	perspective
+s	⌇	wavy line
+s	⌈	left ceiling
+s	⌉	right ceiling
+s	⌊	left floor
+s	⌋	right floor
+s	⌌	bottom right crop
+s	⌍	bottom left crop
+s	⌎	top right crop
+s	⌏	top left crop
+s	⌐	reversed not sign
+s	⌑	square lozenge
+s	⌒	arc
+s	⌓	segment
+s	⌔	sector
+s	⌕	telephone recorder
+s	⌖	position indicator
+s	⌗	viewdata square
+s	⌘	place of interest sign
+s	⌙	turned not sign
+s	⌚	watch
+s	⌛	hourglass
+s	⌜	top left corner
+s	⌝	top right corner
+s	⌞	bottom left corner
+s	⌟	bottom right corner
+s	⌠	top half integral
+s	⌡	bottom half integral
+s	⌢	frown
+s	⌣	smile
+s	⌤	up arrowhead between two horizontal bars
+s	⌥	option key
+s	⌦	erase to the right
+s	⌧	x in a rectangle box
+s	⌨	keyboard
+s	〈	left-pointing angle bracket
+s	〉	right-pointing angle bracket
+s	⌫	erase to the left
+s	⌬	benzene ring
+s	⌭	cylindricity
+s	⌮	all around-profile
+s	⌯	symmetry
+s	⌰	total runout
+s	⌱	dimension origin
+s	⌲	conical taper
+s	⌳	slope
+s	⌴	counterbore
+s	⌵	countersink
+s	⌶	apl functional symbol i-beam
+s	⌷	apl functional symbol squish quad
+s	⌸	apl functional symbol quad equal
+s	⌹	apl functional symbol quad divide
+s	⌺	apl functional symbol quad diamond
+s	⌻	apl functional symbol quad jot
+s	⌼	apl functional symbol quad circle
+s	⌽	apl functional symbol circle stile
+s	⌾	apl functional symbol circle jot
+s	⌿	apl functional symbol slash bar
+s	⍀	apl functional symbol backslash bar
+s	⍁	apl functional symbol quad slash
+s	⍂	apl functional symbol quad backslash
+s	⍃	apl functional symbol quad less-than
+s	⍄	apl functional symbol quad greater-than
+s	⍅	apl functional symbol leftwards vane
+s	⍆	apl functional symbol rightwards vane
+s	⍇	apl functional symbol quad leftwards arrow
+s	⍈	apl functional symbol quad rightwards arrow
+s	⍉	apl functional symbol circle backslash
+s	⍊	apl functional symbol down tack underbar
+s	⍋	apl functional symbol delta stile
+s	⍌	apl functional symbol quad down caret
+s	⍍	apl functional symbol quad delta
+s	⍎	apl functional symbol down tack jot
+s	⍏	apl functional symbol upwards vane
+s	⍐	apl functional symbol quad upwards arrow
+s	⍑	apl functional symbol up tack overbar
+s	⍒	apl functional symbol del stile
+s	⍓	apl functional symbol quad up caret
+s	⍔	apl functional symbol quad del
+s	⍕	apl functional symbol up tack jot
+s	⍖	apl functional symbol downwards vane
+s	⍗	apl functional symbol quad downwards arrow
+s	⍘	apl functional symbol quote underbar
+s	⍙	apl functional symbol delta underbar
+s	⍚	apl functional symbol diamond underbar
+s	⍛	apl functional symbol jot underbar
+s	⍜	apl functional symbol circle underbar
+s	⍝	apl functional symbol up shoe jot
+s	⍞	apl functional symbol quote quad
+s	⍟	apl functional symbol circle star
+s	⍠	apl functional symbol quad colon
+s	⍡	apl functional symbol up tack diaeresis
+s	⍢	apl functional symbol del diaeresis
+s	⍣	apl functional symbol star diaeresis
+s	⍤	apl functional symbol jot diaeresis
+s	⍥	apl functional symbol circle diaeresis
+s	⍦	apl functional symbol down shoe stile
+s	⍧	apl functional symbol left shoe stile
+s	⍨	apl functional symbol tilde diaeresis
+s	⍩	apl functional symbol greater-than diaeresis
+s	⍪	apl functional symbol comma bar
+s	⍫	apl functional symbol del tilde
+s	⍬	apl functional symbol zilde
+s	⍭	apl functional symbol stile tilde
+s	⍮	apl functional symbol semicolon underbar
+s	⍯	apl functional symbol quad not equal
+s	⍰	apl functional symbol quad question
+s	⍱	apl functional symbol down caret tilde
+s	⍲	apl functional symbol up caret tilde
+s	⍳	apl functional symbol iota
+s	⍴	apl functional symbol rho
+s	⍵	apl functional symbol omega
+s	⍶	apl functional symbol alpha underbar
+s	⍷	apl functional symbol epsilon underbar
+s	⍸	apl functional symbol iota underbar
+s	⍹	apl functional symbol omega underbar
+s	⍺	apl functional symbol alpha
+s	⍻	not check mark
+s	⍼	right angle with downwards zigzag arrow
+s	⍽	shouldered open box
+s	⍾	bell symbol
+s	⍿	vertical line with middle dot
+s	⎀	insertion symbol
+s	⎁	continuous underline symbol
+s	⎂	discontinuous underline symbol
+s	⎃	emphasis symbol
+s	⎄	composition symbol
+s	⎅	white square with centre vertical line
+s	⎆	enter symbol
+s	⎇	alternative key symbol
+s	⎈	helm symbol
+s	⎉	circled horizontal bar with notch
+s	⎊	circled triangle down
+s	⎋	broken circle with northwest arrow
+s	⎌	undo symbol
+s	⎍	monostable symbol
+s	⎎	hysteresis symbol
+s	⎏	open-circuit-output h-type symbol
+s	⎐	open-circuit-output l-type symbol
+s	⎑	passive-pull-down-output symbol
+s	⎒	passive-pull-up-output symbol
+s	⎓	direct current symbol form two
+s	⎔	software-function symbol
+s	⎕	apl functional symbol quad
+s	⎖	decimal separator key symbol
+s	⎗	previous page
+s	⎘	next page
+s	⎙	print screen symbol
+s	⎚	clear screen symbol
+s	⎛	left parenthesis upper hook
+s	⎜	left parenthesis extension
+s	⎝	left parenthesis lower hook
+s	⎞	right parenthesis upper hook
+s	⎟	right parenthesis extension
+s	⎠	right parenthesis lower hook
+s	⎡	left square bracket upper corner
+s	⎢	left square bracket extension
+s	⎣	left square bracket lower corner
+s	⎤	right square bracket upper corner
+s	⎥	right square bracket extension
+s	⎦	right square bracket lower corner
+s	⎧	left curly bracket upper hook
+s	⎨	left curly bracket middle piece
+s	⎩	left curly bracket lower hook
+s	⎪	curly bracket extension
+s	⎫	right curly bracket upper hook
+s	⎬	right curly bracket middle piece
+s	⎭	right curly bracket lower hook
+s	⎮	integral extension
+s	⎯	horizontal line extension
+s	⎰	upper left or lower right curly bracket section
+s	⎱	upper right or lower left curly bracket section
+s	⎲	summation top
+s	⎳	summation bottom
+s	⎴	top square bracket
+s	⎵	bottom square bracket
+s	⎶	bottom square bracket over top square bracket
+s	⎷	radical symbol bottom
+s	⎸	left vertical box line
+s	⎹	right vertical box line
+s	⎺	horizontal scan line-1
+s	⎻	horizontal scan line-3
+s	⎼	horizontal scan line-7
+s	⎽	horizontal scan line-9
+s	⎾	dentistry symbol light vertical and top right
+s	⎿	dentistry symbol light vertical and bottom right
+s	⏀	dentistry symbol light vertical with circle
+s	⏁	dentistry symbol light down and horizontal with circle
+s	⏂	dentistry symbol light up and horizontal with circle
+s	⏃	dentistry symbol light vertical with triangle
+s	⏄	dentistry symbol light down and horizontal with triangle
+s	⏅	dentistry symbol light up and horizontal with triangle
+s	⏆	dentistry symbol light vertical and wave
+s	⏇	dentistry symbol light down and horizontal with wave
+s	⏈	dentistry symbol light up and horizontal with wave
+s	⏉	dentistry symbol light down and horizontal
+s	⏊	dentistry symbol light up and horizontal
+s	⏋	dentistry symbol light vertical and top left
+s	⏌	dentistry symbol light vertical and bottom left
+s	⏍	square foot
+s	⏎	return symbol
+s	⏏	eject symbol
+s	⏐	vertical line extension
+s	⏑	metrical breve
+s	⏒	metrical long over short
+s	⏓	metrical short over long
+s	⏔	metrical long over two shorts
+s	⏕	metrical two shorts over long
+s	⏖	metrical two shorts joined
+s	⏗	metrical triseme
+s	⏘	metrical tetraseme
+s	⏙	metrical pentaseme
+s	⏚	earth ground
+s	⏛	fuse
+s	⏜	top parenthesis
+s	⏝	bottom parenthesis
+s	⏞	top curly bracket
+s	⏟	bottom curly bracket
+s	⏠	top tortoise shell bracket
+s	⏡	bottom tortoise shell bracket
+s	⏢	white trapezium
+s	⏣	benzene ring with circle
+s	⏤	straightness
+s	⏥	flatness
+s	⏦	ac current
+s	⏧	electrical intersection
+s	⏨	decimal exponent symbol
+s	⏩	black right-pointing double triangle
+s	⏪	black left-pointing double triangle
+s	⏫	black up-pointing double triangle
+s	⏬	black down-pointing double triangle
+s	⏭	black right-pointing double triangle with vertical bar
+s	⏮	black left-pointing double triangle with vertical bar
+s	⏯	black right-pointing triangle with double vertical bar
+s	⏰	alarm clock
+s	⏱	stopwatch
+s	⏲	timer clock
+s	⏳	hourglass with flowing sand
+s	⏴	black medium left-pointing triangle
+s	⏵	black medium right-pointing triangle
+s	⏶	black medium up-pointing triangle
+s	⏷	black medium down-pointing triangle
+s	⏸	double vertical bar
+s	⏹	black square for stop
+s	⏺	black circle for record
+s	⏻	power symbol
+s	⏼	power on-off symbol
+s	⏽	power on symbol
+s	⏾	power sleep symbol
+s	⏿	observer eye symbol
+symbols	Enclosed
+s	①	circled digit one
+s	②	circled digit two
+s	③	circled digit three
+s	④	circled digit four
+s	⑤	circled digit five
+s	⑥	circled digit six
+s	⑦	circled digit seven
+s	⑧	circled digit eight
+s	⑨	circled digit nine
+s	⑩	circled number ten
+s	⑪	circled number eleven
+s	⑫	circled number twelve
+s	⑬	circled number thirteen
+s	⑭	circled number fourteen
+s	⑮	circled number fifteen
+s	⑯	circled number sixteen
+s	⑰	circled number seventeen
+s	⑱	circled number eighteen
+s	⑲	circled number nineteen
+s	⑳	circled number twenty
+s	⑴	parenthesized digit one
+s	⑵	parenthesized digit two
+s	⑶	parenthesized digit three
+s	⑷	parenthesized digit four
+s	⑸	parenthesized digit five
+s	⑹	parenthesized digit six
+s	⑺	parenthesized digit seven
+s	⑻	parenthesized digit eight
+s	⑼	parenthesized digit nine
+s	⑽	parenthesized number ten
+s	⑾	parenthesized number eleven
+s	⑿	parenthesized number twelve
+s	⒀	parenthesized number thirteen
+s	⒁	parenthesized number fourteen
+s	⒂	parenthesized number fifteen
+s	⒃	parenthesized number sixteen
+s	⒄	parenthesized number seventeen
+s	⒅	parenthesized number eighteen
+s	⒆	parenthesized number nineteen
+s	⒇	parenthesized number twenty
+s	⒈	digit one full stop
+s	⒉	digit two full stop
+s	⒊	digit three full stop
+s	⒋	digit four full stop
+s	⒌	digit five full stop
+s	⒍	digit six full stop
+s	⒎	digit seven full stop
+s	⒏	digit eight full stop
+s	⒐	digit nine full stop
+s	⒑	number ten full stop
+s	⒒	number eleven full stop
+s	⒓	number twelve full stop
+s	⒔	number thirteen full stop
+s	⒕	number fourteen full stop
+s	⒖	number fifteen full stop
+s	⒗	number sixteen full stop
+s	⒘	number seventeen full stop
+s	⒙	number eighteen full stop
+s	⒚	number nineteen full stop
+s	⒛	number twenty full stop
+s	⒜	parenthesized latin small letter a
+s	⒝	parenthesized latin small letter b
+s	⒞	parenthesized latin small letter c
+s	⒟	parenthesized latin small letter d
+s	⒠	parenthesized latin small letter e
+s	⒡	parenthesized latin small letter f
+s	⒢	parenthesized latin small letter g
+s	⒣	parenthesized latin small letter h
+s	⒤	parenthesized latin small letter i
+s	⒥	parenthesized latin small letter j
+s	⒦	parenthesized latin small letter k
+s	⒧	parenthesized latin small letter l
+s	⒨	parenthesized latin small letter m
+s	⒩	parenthesized latin small letter n
+s	⒪	parenthesized latin small letter o
+s	⒫	parenthesized latin small letter p
+s	⒬	parenthesized latin small letter q
+s	⒭	parenthesized latin small letter r
+s	⒮	parenthesized latin small letter s
+s	⒯	parenthesized latin small letter t
+s	⒰	parenthesized latin small letter u
+s	⒱	parenthesized latin small letter v
+s	⒲	parenthesized latin small letter w
+s	⒳	parenthesized latin small letter x
+s	⒴	parenthesized latin small letter y
+s	⒵	parenthesized latin small letter z
+s	Ⓐ	circled latin capital letter a
+s	Ⓑ	circled latin capital letter b
+s	Ⓒ	circled latin capital letter c
+s	Ⓓ	circled latin capital letter d
+s	Ⓔ	circled latin capital letter e
+s	Ⓕ	circled latin capital letter f
+s	Ⓖ	circled latin capital letter g
+s	Ⓗ	circled latin capital letter h
+s	Ⓘ	circled latin capital letter i
+s	Ⓙ	circled latin capital letter j
+s	Ⓚ	circled latin capital letter k
+s	Ⓛ	circled latin capital letter l
+s	Ⓜ	circled latin capital letter m
+s	Ⓝ	circled latin capital letter n
+s	Ⓞ	circled latin capital letter o
+s	Ⓟ	circled latin capital letter p
+s	Ⓠ	circled latin capital letter q
+s	Ⓡ	circled latin capital letter r
+s	Ⓢ	circled latin capital letter s
+s	Ⓣ	circled latin capital letter t
+s	Ⓤ	circled latin capital letter u
+s	Ⓥ	circled latin capital letter v
+s	Ⓦ	circled latin capital letter w
+s	Ⓧ	circled latin capital letter x
+s	Ⓨ	circled latin capital letter y
+s	Ⓩ	circled latin capital letter z
+s	ⓐ	circled latin small letter a
+s	ⓑ	circled latin small letter b
+s	ⓒ	circled latin small letter c
+s	ⓓ	circled latin small letter d
+s	ⓔ	circled latin small letter e
+s	ⓕ	circled latin small letter f
+s	ⓖ	circled latin small letter g
+s	ⓗ	circled latin small letter h
+s	ⓘ	circled latin small letter i
+s	ⓙ	circled latin small letter j
+s	ⓚ	circled latin small letter k
+s	ⓛ	circled latin small letter l
+s	ⓜ	circled latin small letter m
+s	ⓝ	circled latin small letter n
+s	ⓞ	circled latin small letter o
+s	ⓟ	circled latin small letter p
+s	ⓠ	circled latin small letter q
+s	ⓡ	circled latin small letter r
+s	ⓢ	circled latin small letter s
+s	ⓣ	circled latin small letter t
+s	ⓤ	circled latin small letter u
+s	ⓥ	circled latin small letter v
+s	ⓦ	circled latin small letter w
+s	ⓧ	circled latin small letter x
+s	ⓨ	circled latin small letter y
+s	ⓩ	circled latin small letter z
+s	⓪	circled digit zero
+s	⓫	negative circled number eleven
+s	⓬	negative circled number twelve
+s	⓭	negative circled number thirteen
+s	⓮	negative circled number fourteen
+s	⓯	negative circled number fifteen
+s	⓰	negative circled number sixteen
+s	⓱	negative circled number seventeen
+s	⓲	negative circled number eighteen
+s	⓳	negative circled number nineteen
+s	⓴	negative circled number twenty
+s	⓵	double circled digit one
+s	⓶	double circled digit two
+s	⓷	double circled digit three
+s	⓸	double circled digit four
+s	⓹	double circled digit five
+s	⓺	double circled digit six
+s	⓻	double circled digit seven
+s	⓼	double circled digit eight
+s	⓽	double circled digit nine
+s	⓾	double circled number ten
+s	⓿	negative circled digit zero
+symbols	Box drawing
+s	─	box drawings light horizontal
+s	━	box drawings heavy horizontal
+s	│	box drawings light vertical
+s	┃	box drawings heavy vertical
+s	┄	box drawings light triple dash horizontal
+s	┅	box drawings heavy triple dash horizontal
+s	┆	box drawings light triple dash vertical
+s	┇	box drawings heavy triple dash vertical
+s	┈	box drawings light quadruple dash horizontal
+s	┉	box drawings heavy quadruple dash horizontal
+s	┊	box drawings light quadruple dash vertical
+s	┋	box drawings heavy quadruple dash vertical
+s	┌	box drawings light down and right
+s	┍	box drawings down light and right heavy
+s	┎	box drawings down heavy and right light
+s	┏	box drawings heavy down and right
+s	┐	box drawings light down and left
+s	┑	box drawings down light and left heavy
+s	┒	box drawings down heavy and left light
+s	┓	box drawings heavy down and left
+s	└	box drawings light up and right
+s	┕	box drawings up light and right heavy
+s	┖	box drawings up heavy and right light
+s	┗	box drawings heavy up and right
+s	┘	box drawings light up and left
+s	┙	box drawings up light and left heavy
+s	┚	box drawings up heavy and left light
+s	┛	box drawings heavy up and left
+s	├	box drawings light vertical and right
+s	┝	box drawings vertical light and right heavy
+s	┞	box drawings up heavy and right down light
+s	┟	box drawings down heavy and right up light
+s	┠	box drawings vertical heavy and right light
+s	┡	box drawings down light and right up heavy
+s	┢	box drawings up light and right down heavy
+s	┣	box drawings heavy vertical and right
+s	┤	box drawings light vertical and left
+s	┥	box drawings vertical light and left heavy
+s	┦	box drawings up heavy and left down light
+s	┧	box drawings down heavy and left up light
+s	┨	box drawings vertical heavy and left light
+s	┩	box drawings down light and left up heavy
+s	┪	box drawings up light and left down heavy
+s	┫	box drawings heavy vertical and left
+s	┬	box drawings light down and horizontal
+s	┭	box drawings left heavy and right down light
+s	┮	box drawings right heavy and left down light
+s	┯	box drawings down light and horizontal heavy
+s	┰	box drawings down heavy and horizontal light
+s	┱	box drawings right light and left down heavy
+s	┲	box drawings left light and right down heavy
+s	┳	box drawings heavy down and horizontal
+s	┴	box drawings light up and horizontal
+s	┵	box drawings left heavy and right up light
+s	┶	box drawings right heavy and left up light
+s	┷	box drawings up light and horizontal heavy
+s	┸	box drawings up heavy and horizontal light
+s	┹	box drawings right light and left up heavy
+s	┺	box drawings left light and right up heavy
+s	┻	box drawings heavy up and horizontal
+s	┼	box drawings light vertical and horizontal
+s	┽	box drawings left heavy and right vertical light
+s	┾	box drawings right heavy and left vertical light
+s	┿	box drawings vertical light and horizontal heavy
+s	╀	box drawings up heavy and down horizontal light
+s	╁	box drawings down heavy and up horizontal light
+s	╂	box drawings vertical heavy and horizontal light
+s	╃	box drawings left up heavy and right down light
+s	╄	box drawings right up heavy and left down light
+s	╅	box drawings left down heavy and right up light
+s	╆	box drawings right down heavy and left up light
+s	╇	box drawings down light and up horizontal heavy
+s	╈	box drawings up light and down horizontal heavy
+s	╉	box drawings right light and left vertical heavy
+s	╊	box drawings left light and right vertical heavy
+s	╋	box drawings heavy vertical and horizontal
+s	╌	box drawings light double dash horizontal
+s	╍	box drawings heavy double dash horizontal
+s	╎	box drawings light double dash vertical
+s	╏	box drawings heavy double dash vertical
+s	═	box drawings double horizontal
+s	║	box drawings double vertical
+s	╒	box drawings down single and right double
+s	╓	box drawings down double and right single
+s	╔	box drawings double down and right
+s	╕	box drawings down single and left double
+s	╖	box drawings down double and left single
+s	╗	box drawings double down and left
+s	╘	box drawings up single and right double
+s	╙	box drawings up double and right single
+s	╚	box drawings double up and right
+s	╛	box drawings up single and left double
+s	╜	box drawings up double and left single
+s	╝	box drawings double up and left
+s	╞	box drawings vertical single and right double
+s	╟	box drawings vertical double and right single
+s	╠	box drawings double vertical and right
+s	╡	box drawings vertical single and left double
+s	╢	box drawings vertical double and left single
+s	╣	box drawings double vertical and left
+s	╤	box drawings down single and horizontal double
+s	╥	box drawings down double and horizontal single
+s	╦	box drawings double down and horizontal
+s	╧	box drawings up single and horizontal double
+s	╨	box drawings up double and horizontal single
+s	╩	box drawings double up and horizontal
+s	╪	box drawings vertical single and horizontal double
+s	╫	box drawings vertical double and horizontal single
+s	╬	box drawings double vertical and horizontal
+s	╭	box drawings light arc down and right
+s	╮	box drawings light arc down and left
+s	╯	box drawings light arc up and left
+s	╰	box drawings light arc up and right
+s	╱	box drawings light diagonal upper right to lower left
+s	╲	box drawings light diagonal upper left to lower right
+s	╳	box drawings light diagonal cross
+s	╴	box drawings light left
+s	╵	box drawings light up
+s	╶	box drawings light right
+s	╷	box drawings light down
+s	╸	box drawings heavy left
+s	╹	box drawings heavy up
+s	╺	box drawings heavy right
+s	╻	box drawings heavy down
+s	╼	box drawings light left and heavy right
+s	╽	box drawings light up and heavy down
+s	╾	box drawings heavy left and light right
+s	╿	box drawings heavy up and light down
+symbols	Shapes
+s	■	black square
+s	□	white square
+s	▢	white square with rounded corners
+s	▣	white square containing black small square
+s	▤	square with horizontal fill
+s	▥	square with vertical fill
+s	▦	square with orthogonal crosshatch fill
+s	▧	square with upper left to lower right fill
+s	▨	square with upper right to lower left fill
+s	▩	square with diagonal crosshatch fill
+s	▪	black small square
+s	▫	white small square
+s	▬	black rectangle
+s	▭	white rectangle
+s	▮	black vertical rectangle
+s	▯	white vertical rectangle
+s	▰	black parallelogram
+s	▱	white parallelogram
+s	▲	black up-pointing triangle
+s	△	white up-pointing triangle
+s	▴	black up-pointing small triangle
+s	▵	white up-pointing small triangle
+s	▶	black right-pointing triangle
+s	▷	white right-pointing triangle
+s	▸	black right-pointing small triangle
+s	▹	white right-pointing small triangle
+s	►	black right-pointing pointer
+s	▻	white right-pointing pointer
+s	▼	black down-pointing triangle
+s	▽	white down-pointing triangle
+s	▾	black down-pointing small triangle
+s	▿	white down-pointing small triangle
+s	◀	black left-pointing triangle
+s	◁	white left-pointing triangle
+s	◂	black left-pointing small triangle
+s	◃	white left-pointing small triangle
+s	◄	black left-pointing pointer
+s	◅	white left-pointing pointer
+s	◆	black diamond
+s	◇	white diamond
+s	◈	white diamond containing black small diamond
+s	◉	fisheye
+s	◊	lozenge
+s	○	white circle
+s	◌	dotted circle
+s	◍	circle with vertical fill
+s	◎	bullseye
+s	●	black circle
+s	◐	circle with left half black
+s	◑	circle with right half black
+s	◒	circle with lower half black
+s	◓	circle with upper half black
+s	◔	circle with upper right quadrant black
+s	◕	circle with all but upper left quadrant black
+s	◖	left half black circle
+s	◗	right half black circle
+s	◘	inverse bullet
+s	◙	inverse white circle
+s	◚	upper half inverse white circle
+s	◛	lower half inverse white circle
+s	◜	upper left quadrant circular arc
+s	◝	upper right quadrant circular arc
+s	◞	lower right quadrant circular arc
+s	◟	lower left quadrant circular arc
+s	◠	upper half circle
+s	◡	lower half circle
+s	◢	black lower right triangle
+s	◣	black lower left triangle
+s	◤	black upper left triangle
+s	◥	black upper right triangle
+s	◦	white bullet
+s	◧	square with left half black
+s	◨	square with right half black
+s	◩	square with upper left diagonal half black
+s	◪	square with lower right diagonal half black
+s	◫	white square with vertical bisecting line
+s	◬	white up-pointing triangle with dot
+s	◭	up-pointing triangle with left half black
+s	◮	up-pointing triangle with right half black
+s	◯	large circle
+s	◰	white square with upper left quadrant
+s	◱	white square with lower left quadrant
+s	◲	white square with lower right quadrant
+s	◳	white square with upper right quadrant
+s	◴	white circle with upper left quadrant
+s	◵	white circle with lower left quadrant
+s	◶	white circle with lower right quadrant
+s	◷	white circle with upper right quadrant
+s	◸	upper left triangle
+s	◹	upper right triangle
+s	◺	lower left triangle
+s	◻	white medium square
+s	◼	black medium square
+s	◽	white medium small square
+s	◾	black medium small square
+s	◿	lower right triangle

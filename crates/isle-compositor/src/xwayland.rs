@@ -507,6 +507,14 @@ impl XwmHandler for State {
         fd: OwnedFd,
     ) {
         let seat = self.isle.seat.clone();
+        // A selection Isle offers itself is written from what it holds.
+        let isle_owned = match selection {
+            SelectionTarget::Clipboard => current_data_device_selection_userdata(&seat).map(|o| o.clone()),
+            SelectionTarget::Primary => current_primary_selection_userdata(&seat).map(|o| o.clone()),
+        };
+        if let Some(owner @ crate::clipboard::Owner::Isle(_)) = isle_owned {
+            return self.send_selection_to(selection, mime_type, fd, &owner);
+        }
         let result = match selection {
             SelectionTarget::Clipboard => {
                 request_data_device_client_selection(&seat, mime_type, fd)

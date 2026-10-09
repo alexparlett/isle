@@ -2,6 +2,24 @@
 
 ## 2026-10-09
 
+- P10 10.9: emoji. `data/emoji/generate.py` writes `emoji.tsv` from
+  `emoji-test.txt` (Emoji 17: 1,920 emoji with skin tones as variants) and
+  UnicodeData (1,295 symbols in v1's blocks), with CLDR's keywords when an
+  annotations file is given, which the host has none of. A tab-separated
+  file, not KDL as planned: parsing 273 KB of KDL cost about 600 ms of CPU
+  in debug builds, which starved the test compositors' loops. The grid
+  leads with recent picks; the colour font's coverage is checked on the
+  loop the first time the Emoji scope searches, through the font manager
+  the shell holds (a second one on the worker held the loop's text up
+  behind fontconfig's lock). Every pick is pasted: Isle reads the clipboard
+  as it was, offers the pick, sends the app's paste chord and puts the
+  clipboard back once the pick was read or after a second. Found on the
+  way: Isle never told Xwayland when the Wayland side set the clipboard,
+  so an X11 app could not paste what a Wayland app copied, and Xwayland
+  could not read a selection Isle offers. The test clients paste and copy.
+  The full suite's timing tests fail one at a time under load and pass
+  alone.
+
 - P10 10.8: the calculator, Run and the web. `fend-core` evaluates on the
   worker, given up after 100 ms or at the next key, offline; the general
   search places its row when the query reads as a sum. Return copies the

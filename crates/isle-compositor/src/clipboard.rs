@@ -11,8 +11,8 @@ use std::{
 use smithay::wayland::selection::{
     SelectionTarget,
     data_device::{
-        current_data_device_selection_userdata, request_data_device_client_selection,
-        set_data_device_selection,
+        clear_data_device_selection, current_data_device_selection_userdata,
+        request_data_device_client_selection, set_data_device_selection,
     },
 };
 use tracing::warn;
@@ -112,9 +112,24 @@ pub fn read_pipe(fd: OwnedFd) -> Option<Vec<u8>> {
 impl State {
     /// Makes `pick` the clipboard, offered by Isle.
     pub fn set_clipboard(&mut self, pick: Pick) {
+        self.offer(Arc::new(pick));
+    }
+
+    fn offer(&mut self, pick: Arc<Pick>) {
         let dh = self.isle.display_handle.clone();
-        let types = pick.types.iter().map(|(t, _)| t.clone()).collect();
-        set_data_device_selection(&dh, &self.isle.seat, types, Owner::Isle(Arc::new(pick)));
+        let types: Vec<String> = pick.types.iter().map(|(t, _)| t.clone()).collect();
+        set_data_device_selection(&dh, &self.isle.seat, types.clone(), Owner::Isle(pick));
+        self.tell_xwayland(SelectionTarget::Clipboard, Some(types));
+    }
+
+    /// Tells Isle's X11 window manager that the Wayland side set a selection, so X11 clients
+    /// read it through Xwayland.
+    pub fn tell_xwayland(&mut self, ty: SelectionTarget, types: Option<Vec<String>>) {
+        if let Some(xwm) = self.isle.xwm.as_mut()
+            && let Err(err) = xwm.new_selection(ty, types)
+        {
+            warn!("could not hand a selection to Xwayland: {err}");
+        }
     }
 
     /// Copies `text` and says so in the island.
@@ -209,29 +224,172 @@ impl State {
                 if let (Some(bytes), Some(worker)) = (pick.bytes(&mime), self.isle.worker.clone()) {
                     write_off_loop(&worker, fd, bytes);
                 }
+                self.pick_read(pick);
             }
         }
     }
 
-    /// Puts `pick` into the window `target` by making it the clipboard and sending that app's
-    /// paste chord; `copy_only`, or no window, leaves it on the clipboard and says so.
-    pub fn insert_pick(&mut self, target: Option<u64>, pick: Pick, copy_only: bool) {
-        self.set_clipboard(pick);
-        match target.filter(|_| !copy_only) {
-            Some(id) => {
-                let chord = isle_keys::chord::Chord::parse("Cmd+V").expect("a chord");
-                self.send_chord_to(id, chord);
+    /// Puts `pick` into the window `target`: it becomes the clipboard and the app is sent
+    /// its paste chord. With `restore` the clipboard as it was comes back once the app has
+    /// read the pick, or after a second; `copy_only`, or no window, leaves the pick on the
+    /// clipboard and says so.
+    pub fn insert_pick(&mut self, target: Option<u64>, pick: Pick, copy_only: bool, restore: bool) {
+        let Some(target) = target.filter(|_| !copy_only) else {
+            self.set_clipboard(pick);
+            self.island_copied();
+            return;
+        };
+        if !restore {
+            self.set_clipboard(pick);
+            self.paste_into(target);
+            return;
+        }
+        self.read_selection(move |state, previous| {
+            let pick = Arc::new(pick);
+            state.offer(pick.clone());
+            state.isle.clipboard.restore = Some(Restore {
+                pick,
+                previous,
+                timer: None,
+            });
+            state.arm_restore(RESTORE_UNREAD);
+            state.paste_into(target);
+        });
+    }
+
+    fn paste_into(&mut self, target: u64) {
+        let chord = isle_keys::chord::Chord::parse("Cmd+V").expect("a chord");
+        self.send_chord_to(target, chord);
+    }
+
+    /// Puts the clipboard back `after` from now, unless something else took it first.
+    fn arm_restore(&mut self, after: Duration) {
+        use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
+        let Some(restore) = self.isle.clipboard.restore.as_mut() else {
+            return;
+        };
+        if let Some(token) = restore.timer.take() {
+            self.isle.loop_handle.remove(token);
+        }
+        let token =
+            self.isle
+                .loop_handle
+                .insert_source(Timer::from_duration(after), |_, _, state| {
+                    if let Some(restore) = state.isle.clipboard.restore.take() {
+                        let ours = current_data_device_selection_userdata(&state.isle.seat)
+                            .is_some_and(
+                                |o| matches!(&*o, Owner::Isle(p) if Arc::ptr_eq(p, &restore.pick)),
+                            );
+                        if ours {
+                            match restore.previous {
+                                Some(previous) => state.set_clipboard(previous),
+                                None => {
+                                    let dh = state.isle.display_handle.clone();
+                                    clear_data_device_selection(&dh, &state.isle.seat);
+                                    state.tell_xwayland(SelectionTarget::Clipboard, None);
+                                }
+                            }
+                        }
+                    }
+                    TimeoutAction::Drop
+                });
+        if let (Ok(token), Some(restore)) = (token, self.isle.clipboard.restore.as_mut()) {
+            restore.timer = Some(token);
+        }
+    }
+
+    /// The clipboard's text, image and file types as a pick of Isle's own, read off the loop
+    /// when a client offers them; `None` when nothing is copied.
+    pub fn read_selection(&mut self, then: impl FnOnce(&mut State, Option<Pick>) + Send + 'static) {
+        let owner = current_data_device_selection_userdata(&self.isle.seat).map(|o| o.clone());
+        if let Some(Owner::Isle(pick)) = owner {
+            return then(self, Some((*pick).clone()));
+        }
+        let wanted = kept_types(&self.isle.clipboard.offered);
+        let (Some(worker), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone())
+        else {
+            return then(self, None);
+        };
+        if wanted.is_empty() {
+            return then(self, None);
+        }
+        let mut reads = Vec::new();
+        for mime in wanted {
+            let Ok((read, write)) = rustix_pipe() else {
+                continue;
+            };
+            if request_data_device_client_selection(&self.isle.seat, mime.clone(), write).is_ok() {
+                reads.push((mime, read));
             }
-            None => self.island_copied(),
+        }
+        worker.spawn_blocking(move || {
+            let types: Vec<(String, Arc<Vec<u8>>)> = reads
+                .into_iter()
+                .filter_map(|(mime, fd)| read_pipe(fd).map(|b| (mime, Arc::new(b))))
+                .filter(|(_, b)| !b.is_empty())
+                .collect();
+            let pick = (!types.is_empty()).then_some(Pick { types });
+            to_loop.post(move |state| then(state, pick));
+        });
+    }
+
+    /// A client set the clipboard: its types are kept for reading it later.
+    pub fn clipboard_offered(&mut self, types: Vec<String>) {
+        self.isle.clipboard.offered = types;
+    }
+
+    /// A client is reading a pick Isle offers: a pick waiting to be put back goes back soon
+    /// after its last read.
+    pub fn pick_read(&mut self, pick: &Arc<Pick>) {
+        let ours = self
+            .isle
+            .clipboard
+            .restore
+            .as_ref()
+            .is_some_and(|r| Arc::ptr_eq(&r.pick, pick));
+        if ours {
+            self.arm_restore(RESTORE_AFTER_READ);
         }
     }
 
     /// A clipboard item picked from history.
     pub fn insert_clip(&mut self, target: Option<u64>, id: u64, copy_only: bool) {
         if let Some(pick) = self.isle.clipboard.pick(id) {
-            self.insert_pick(target, pick, copy_only);
+            self.insert_pick(target, pick, copy_only, false);
         }
     }
+}
+
+/// How long a pick waits to be read before the clipboard is put back, and how long after its
+/// last read.
+const RESTORE_UNREAD: Duration = Duration::from_secs(1);
+const RESTORE_AFTER_READ: Duration = Duration::from_millis(250);
+
+/// The types worth keeping of an offer: its text as UTF-8, an image, a file list.
+pub fn kept_types(offered: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    let text = ["text/plain;charset=utf-8", "UTF8_STRING", "text/plain"]
+        .iter()
+        .find(|t| offered.iter().any(|o| o == *t));
+    if let Some(t) = text {
+        out.push(t.to_string());
+    }
+    if let Some(image) = ["image/png", "image/jpeg", "image/webp"]
+        .iter()
+        .find(|t| offered.iter().any(|o| o == *t))
+    {
+        out.push(image.to_string());
+    }
+    if offered.iter().any(|o| o == "text/uri-list") {
+        out.push("text/uri-list".into());
+    }
+    out
+}
+
+struct Restore {
+    pick: Arc<Pick>,
+    previous: Option<Pick>,
+    timer: Option<smithay::reexports::calloop::RegistrationToken>,
 }
 
 /// A pipe whose ends close on exec.
@@ -250,6 +408,10 @@ pub fn rustix_pipe() -> std::io::Result<(OwnedFd, OwnedFd)> {
 #[derive(Default)]
 pub struct ClipboardState {
     items: Vec<(u64, Pick)>,
+    /// The types the client that set the clipboard offers.
+    offered: Vec<String>,
+    /// A pick pasted for the user, with the clipboard to put back after.
+    restore: Option<Restore>,
 }
 
 impl ClipboardState {

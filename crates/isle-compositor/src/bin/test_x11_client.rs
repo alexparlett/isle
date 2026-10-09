@@ -54,6 +54,8 @@ struct Atoms {
     moveresize: u32,
     demands: u32,
     active: u32,
+    clipboard: u32,
+    paste: u32,
 }
 
 fn atom(conn: &impl Connection, name: &str) -> u32 {
@@ -102,6 +104,8 @@ fn main() {
         moveresize: atom(&conn, "_NET_WM_MOVERESIZE"),
         demands: atom(&conn, "_NET_WM_STATE_DEMANDS_ATTENTION"),
         active: atom(&conn, "_NET_ACTIVE_WINDOW"),
+        clipboard: atom(&conn, "CLIPBOARD"),
+        paste: atom(&conn, "ISLE_PASTE"),
     };
 
     // With `--argb`, a 32-bit visual with its own colormap, as xeyes and many launchers use.
@@ -343,7 +347,25 @@ fn main() {
                 }
                 Event::FocusIn(e) => say(index(e.event), "focus-in".into()),
                 Event::FocusOut(e) => say(index(e.event), "focus-out".into()),
-                Event::KeyPress(e) => say(index(e.event), format!("key {} pressed", e.detail)),
+                Event::KeyPress(e) => {
+                    say(index(e.event), format!("key {} pressed", e.detail));
+                    // Ctrl+V asks for the clipboard's text, printed when it comes.
+                    let ctrl = u16::from(e.state) & u16::from(x11rb::protocol::xproto::KeyButMask::CONTROL) != 0;
+                    if ctrl && e.detail == 47 + 8 {
+                        conn.convert_selection(e.event, atoms.clipboard, atoms.utf8, atoms.paste, e.time)
+                            .unwrap();
+                        conn.flush().unwrap();
+                    }
+                }
+                Event::SelectionNotify(e) if e.property == atoms.paste => {
+                    let reply = conn
+                        .get_property(true, e.requestor, atoms.paste, x11rb::protocol::xproto::AtomEnum::ANY, 0, 1 << 20)
+                        .unwrap()
+                        .reply()
+                        .unwrap();
+                    say(index(e.requestor), format!("pasted {}", String::from_utf8_lossy(&reply.value)));
+                }
+                Event::SelectionNotify(e) => say(index(e.requestor), "pasted nothing".into()),
                 Event::ButtonPress(e) => {
                     say(index(e.event), format!("button {} pressed", e.detail));
                     if move_on_press {

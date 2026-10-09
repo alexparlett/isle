@@ -187,12 +187,17 @@ impl isle_portal::screenshot::Screenshot for Desktop {
             let (tx, rx) = tokio::sync::oneshot::channel();
             to_loop
                 .call(move |state| {
-                    if state.picking() || state.isle.lock.locked {
-                        let _ = tx.send(None);
-                        return;
-                    }
-                    state.isle.pick_reply = Some(tx);
-                    state.open_pick(crate::freeze::Purpose::ColourFor);
+                    state.when_unlocked(move |state| {
+                        if tx.is_closed() {
+                            return;
+                        }
+                        if state.picking() {
+                            let _ = tx.send(None);
+                            return;
+                        }
+                        state.isle.pick_reply = Some(tx);
+                        state.open_pick(crate::freeze::Purpose::ColourFor);
+                    })
                 })
                 .await
                 .ok()?;

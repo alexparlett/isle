@@ -947,7 +947,15 @@ impl State {
         app_id: &str,
         reply: tokio::sync::oneshot::Sender<Option<std::path::PathBuf>>,
     ) {
-        if self.isle.toolbar.is_some() || self.isle.lock.locked {
+        if self.isle.lock.locked {
+            let app_id = app_id.to_owned();
+            return self.when_unlocked(move |state| {
+                if !reply.is_closed() {
+                    state.open_toolbar_for(&app_id, reply);
+                }
+            });
+        }
+        if self.isle.toolbar.is_some() {
             let _ = reply.send(None);
             return;
         }

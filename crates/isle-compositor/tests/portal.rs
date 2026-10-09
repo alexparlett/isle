@@ -387,6 +387,27 @@ async fn the_picker_is_a_sheet_on_the_asking_window_and_holds_only_its_focus() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn an_ask_made_while_locked_waits_for_the_unlock() {
+    let isle = Isle::start("portal-locked").await;
+    let frontend = frontend(&isle).await;
+    isle_ipc::session::SessionProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .lock()
+        .await
+        .unwrap();
+    let s = session(&frontend, 1, None).await;
+    let started = start(&frontend, &s, 1);
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(share(&isle).await["picker"].is_null());
+    assert!(!started.is_finished());
+    isle.test().await.unlock().await.unwrap();
+    wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
+    press(&isle, ESCAPE).await;
+    assert_eq!(started.await.unwrap().0, 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn cancel_in_the_picker_answers_cancel() {
     let isle = Isle::start("portal-cancel").await;
     let frontend = frontend(&isle).await;

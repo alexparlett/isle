@@ -76,6 +76,8 @@ pub struct LockState {
     )>,
     /// The window that had the keyboard when the lock came, given it back at unlock.
     return_window: Option<u64>,
+    /// What waits for the unlock: apps' capture requests made while locked.
+    after_unlock: Vec<Box<dyn FnOnce(&mut State)>>,
     /// Each output's floor and the lock's wash, by the output's identity.
     washes: RefCell<HashMap<String, (SolidColorBuffer, SolidColorBuffer)>>,
     /// What each output's last frame was made of, by output name, for the Test interface.
@@ -98,6 +100,7 @@ impl Default for LockState {
             face: crate::lock_face::FaceState::new(),
             helper: None,
             return_window: None,
+            after_unlock: Vec::new(),
             washes: Default::default(),
             #[cfg(feature = "test-hooks")]
             frame_kinds: Default::default(),
@@ -356,6 +359,18 @@ impl State {
         pointer.frame(self);
         self.isle.queue_redraw_all();
         self.lock_changed();
+        for then in std::mem::take(&mut self.isle.lock.after_unlock) {
+            then(self);
+        }
+    }
+
+    /// Runs `then` once the screen is unlocked: now, when it is not locked.
+    pub fn when_unlocked(&mut self, then: impl FnOnce(&mut State) + 'static) {
+        if self.isle.lock.locked {
+            self.isle.lock.after_unlock.push(Box::new(then));
+        } else {
+            then(self);
+        }
     }
 
     /// Everything a client or a desktop surface holds is taken back: the centre surface and

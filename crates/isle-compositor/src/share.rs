@@ -287,9 +287,14 @@ impl State {
         selection: Selection,
         reply: oneshot::Sender<Option<Picked>>,
     ) {
+        // An ask made while locked waits for the unlock, unless the app gives up first.
         if self.isle.lock.locked {
-            let _ = reply.send(None);
-            return;
+            let parent_window = parent_window.to_owned();
+            return self.when_unlocked(move |state| {
+                if !reply.is_closed() {
+                    state.share_begin(app_id, &parent_window, selection, reply);
+                }
+            });
         }
         if let Some((vendor, version, payload)) = &selection.restore
             && vendor == VENDOR

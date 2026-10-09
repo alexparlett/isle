@@ -393,6 +393,13 @@ impl State {
         target: u32,
         reply: tokio::sync::oneshot::Sender<Option<PathBuf>>,
     ) {
+        if self.isle.lock.locked {
+            return self.when_unlocked(move |state| {
+                if !reply.is_closed() {
+                    state.shoot_for_portal(target, reply);
+                }
+            });
+        }
         let front = self.focused_window();
         if matches!(
             target,

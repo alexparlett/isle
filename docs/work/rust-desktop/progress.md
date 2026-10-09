@@ -2,6 +2,14 @@
 
 ## 2026-10-09
 
+- P10 10.0: `isle-search` with the `Source` trait, rows, scopes and items;
+  the tiered matcher (prefix, word start, initials, inside, then nucleo's
+  fuzzy score at 18 a character or better, which keeps "kty" for kitty and
+  drops letters scattered inside words); ranking by tier, use, action, score
+  and name; the `usage` state domain halving every 30 days with a week's
+  bonus. Help's menu search is on the same matcher, so "far" finds Find and
+  Replace.
+
 - P10 planned (`p10-spotlight.md`), 28 choices and phases 10.0–10.14, with
   the research note `spotlight-2026.md`. Reviewed: every recommendation
   taken but choice 16, now every pick pasted and nothing injected.

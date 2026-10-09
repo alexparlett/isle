@@ -319,5 +319,7 @@
   `isle-search`, ranking by tier then decaying use, Isle's own file index,
   `fend-core`, a generated emoji table, clipboard history moved in from P20,
   games from every launcher and root, the vault left to P20. Research in
-  `docs/research/rust-desktop/spotlight-2026.md`. Phases 10.0–10.14. Next:
-  10.0.
+  `docs/research/rust-desktop/spotlight-2026.md`. Phases 10.0–10.14.
+- P10 10.0 done (2026-10-09): `isle-search`, the tiered matcher, ranking
+  with use and the `usage` domain; Help's search on the matcher. Next: 10.1
+  (the app index).

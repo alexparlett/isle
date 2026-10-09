@@ -134,9 +134,9 @@ pub fn type_select(entries: &[MenuEntry], from: Option<usize>, typed: &str) -> O
     })
 }
 
-/// The items under `menus` whose labels hold `query`, ignoring case, each with the labels of
-/// the menus above it; labels that start with it first, then by depth. Submenus themselves
-/// are not results, only what they hold.
+/// The items under `menus` whose labels match `query`, each with the labels of the menus
+/// above it, in Spotlight's order (`isle_search::rank`) and then shallower first. Submenus
+/// themselves are not results, only what they hold.
 pub fn search(menus: &[(String, Rc<Vec<MenuEntry>>)], query: &str) -> Vec<(Vec<String>, MenuItem)> {
     fn walk(entries: &[MenuEntry], path: &mut Vec<String>, out: &mut Vec<(Vec<String>, MenuItem)>) {
         for item in entries.iter().filter_map(MenuEntry::item) {
@@ -150,8 +150,7 @@ pub fn search(menus: &[(String, Rc<Vec<MenuEntry>>)], query: &str) -> Vec<(Vec<S
             }
         }
     }
-    let query = query.trim().to_lowercase();
-    if query.is_empty() {
+    if query.trim().is_empty() {
         return Vec::new();
     }
     let mut all = Vec::new();
@@ -159,13 +158,17 @@ pub fn search(menus: &[(String, Rc<Vec<MenuEntry>>)], query: &str) -> Vec<(Vec<S
         let mut path = vec![title.clone()];
         walk(entries, &mut path, &mut all);
     }
-    let mut found: Vec<(Vec<String>, MenuItem)> = all
+    let mut matcher = isle_search::Matcher::new();
+    let mut found: Vec<(isle_search::Rank, Vec<String>, MenuItem)> = all
         .into_iter()
-        .filter(|(_, item)| item.label.to_lowercase().contains(&query))
+        .filter_map(|(path, item)| {
+            let m = matcher.find(query, &item.label)?;
+            Some((isle_search::Rank::new(&m, 0.0, false, &item.label), path, item))
+        })
         .collect();
-    found.sort_by_key(|(path, item)| (!item.label.to_lowercase().starts_with(&query), path.len()));
+    found.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.len().cmp(&b.1.len())));
     found.truncate(20);
-    found
+    found.into_iter().map(|(_, path, item)| (path, item)).collect()
 }
 
 /// What a menu tells its owner.
@@ -697,6 +700,8 @@ mod tests {
         assert!(!found[1].1.enabled, "disabled results are kept, marked");
         assert!(search(&menus, "zzz").is_empty());
         assert!(search(&menus, "  ").is_empty());
+        let initials = search(&menus, "far");
+        assert_eq!(initials[0].1.label, "Find and Replace");
     }
 
     #[test]

@@ -32,6 +32,7 @@ isle-prompter = { path = "crates/isle-prompter" }
 isle-settings = { path = "crates/isle-settings" }
 isle-settings-derive = { path = "crates/isle-settings-derive" }
 isle-state = { path = "crates/isle-state" }
+isle-search = { path = "crates/isle-search" }
 isle-shell = { path = "crates/isle-shell" }
 isle-tokens = { path = "crates/isle-tokens" }
 isle-tray = { path = "crates/isle-tray" }

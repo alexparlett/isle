@@ -1,4 +1,4 @@
-//! The state domains. Later packets add theirs (launch counts, session restore, ...).
+//! The state domains. Later packets add theirs (session restore, ...).
 
 use std::collections::BTreeMap;
 
@@ -85,5 +85,25 @@ pub struct WallpaperScreen {
 
 impl Domain for Wallpapers {
     const NAME: &'static str = "wallpapers";
+    const VERSION: u32 = 1;
+}
+
+/// How often each of Spotlight's results has been chosen, by the result's key
+/// (`app:<desktop id>`, `action:<id>`, ...), for ranking.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Usage {
+    pub uses: BTreeMap<String, Use>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Use {
+    /// The count as it stood at `last`; it decays from there.
+    pub weight: f64,
+    /// Unix seconds of the latest choice.
+    pub last: u64,
+}
+
+impl Domain for Usage {
+    const NAME: &'static str = "usage";
     const VERSION: u32 = 1;
 }

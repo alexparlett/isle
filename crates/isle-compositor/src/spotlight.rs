@@ -97,6 +97,8 @@ pub struct SpotlightState {
     preview: Option<isle_shell::spotlight::surface::Preview>,
     /// The tile a press went down on, which a release elsewhere drops.
     drag_from: Option<String>,
+    /// How long each search's fast sources took, in microseconds, newest last.
+    pub search_us: Vec<u64>,
     /// Spotlight's surface in the global space, which a drag of a row leaves to begin.
     rect: Rectangle<f64, smithay::utils::Logical>,
 }
@@ -121,6 +123,7 @@ impl SpotlightState {
             preview: None,
             drag_from: None,
             rect: Rectangle::default(),
+            search_us: Vec::new(),
         }
     }
 
@@ -244,6 +247,7 @@ impl Isle {
             "open": true,
             "menu": self.spotlight.menu.as_ref().map(|_| menu),
             "badges": badges,
+            "search_us": self.spotlight.search_us,
             "category": self.spotlight.sources.apps.category,
             "text": model.field().text,
             "caret": model.field().caret,
@@ -713,6 +717,7 @@ impl State {
 
     /// Runs the fast sources now and starts the slow ones on the worker.
     fn spotlight_search(&mut self, query: Query) {
+        let started = std::time::Instant::now();
         let spotlight = &mut self.isle.spotlight;
         spotlight.latest.store(query.generation, Ordering::Relaxed);
         let now = now();
@@ -753,6 +758,15 @@ impl State {
             return;
         };
         model.started(query.generation, slow.iter().map(|s| s.group()));
+        let took = started.elapsed().as_micros() as u64;
+        let times = &mut self.isle.spotlight.search_us;
+        times.push(took);
+        if times.len() > 256 {
+            times.remove(0);
+        }
+        let Some(model) = self.isle.spotlight.model.as_mut() else {
+            return;
+        };
         let mut effects = Vec::new();
         for (group, rows) in fast {
             effects.extend(model.answer(query.generation, group, rows, false));

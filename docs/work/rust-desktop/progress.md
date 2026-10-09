@@ -2,6 +2,21 @@
 
 ## 2026-10-09
 
+- P10 10.13: the measure and the VM (`docs/research/rust-desktop/p10-spotlight.md`).
+  At 3440×1440 the fast sources answer a keystroke in 0.3 ms at p95; the
+  list, the Apps view and the emoji grid draw under 2 ms at p95; the first
+  open takes up to 63 ms and later ones a frame; nothing draws while closed;
+  the shell stays inside its budgets (about 190 MB with the emoji grid open,
+  once 255). Found and fixed: since 10.1 each test compositor scanned every
+  font for want of fontconfig's cache, about 53 MB and a burst of CPU each,
+  which the P9 bench showed as 216 MB at rest against 147; the tests keep the
+  user's cache folder and the suite's CPU time fell from 230 s to 134 s. The
+  VM: kitty launched and raised, the Apps view with Papirus's icons, an
+  emoji pasted into kitty, a `wl-copy` copy in the Clipboard scope, a file
+  written over ssh found by name, `isle search` over ssh. xterm started from
+  Spotlight but takes no pasted emoji: it has no clipboard paste chord by
+  default.
+
 - P10 10.12: the CLI and the one-app scope. `isle spotlight open|apps|emoji|close`
   and `isle search <query> [--scope …]` (`--json` for the rows), which runs
   every source on the worker without opening Spotlight, through `Shell1`'s

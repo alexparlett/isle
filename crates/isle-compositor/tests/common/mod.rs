@@ -136,6 +136,9 @@ impl Isle {
             .env("XDG_DATA_HOME", dir.join("data"))
             .env("XDG_DATA_DIRS", dir.join("data-system"))
             .env("HOME", dir.join("home"))
+            // The test's own HOME, but the user's caches: without fontconfig's, every
+            // compositor would scan the system's fonts again.
+            .env("XDG_CACHE_HOME", user_cache())
             // The host's own layout must not reach the tests.
             .env("XKB_DEFAULT_LAYOUT", "us")
             .env("DBUS_SESSION_BUS_ADDRESS", &bus_address)
@@ -666,4 +669,13 @@ impl Isle {
             .map(str::to_owned)
             .collect()
     }
+}
+
+/// The user's cache folder, as the tests themselves see it.
+pub fn user_cache() -> std::path::PathBuf {
+    std::env::var_os("XDG_CACHE_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache")
+        })
 }

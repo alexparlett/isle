@@ -341,4 +341,7 @@
 - P10 10.10 done (2026-10-09): clipboard history in the compositor.
 - P10 10.11 done (2026-10-09): dragging files and clipboard items out.
 - P10 10.12 done (2026-10-09): `isle spotlight`, `isle search`, the one-app
-  scope. Next: 10.13 (the measure and the VM).
+  scope.
+- P10 10.13 done (2026-10-09): measures and the VM in
+  `docs/research/rust-desktop/p10-spotlight.md`; tests share fontconfig's
+  cache again. Next: 10.14 (close).

@@ -727,3 +727,130 @@ async fn lock_and_prompts_cost() {
     assert!(face.draw_p95 < 2000, "the face under 2 ms p95");
     assert!(prompt.draw_p95 < 2000, "a prompt under 2 ms p95");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn spotlight_cost() {
+    // The host's own apps and icons, and a home of a few thousand files.
+    let mut isle = Isle::start_prepared("cost-spotlight", "wallpaper {\n    source \"frost\"\n}\n", |dir| {
+        std::os::unix::fs::symlink("/usr/share/icons", dir.join("data-system/icons")).unwrap();
+        std::fs::create_dir_all(dir.join("data-system/applications")).unwrap();
+        for entry in fs::read_dir("/usr/share/applications").unwrap().flatten() {
+            let _ = fs::copy(entry.path(), dir.join("data-system/applications").join(entry.file_name()));
+        }
+        for d in 0..50 {
+            let folder = dir.join(format!("home/projects/p{d}/src"));
+            fs::create_dir_all(&folder).unwrap();
+            for f in 0..100 {
+                fs::write(folder.join(format!("module_{f}.rs")), format!("fn item_{f}() {{}}\n")).unwrap();
+            }
+        }
+    })
+    .await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let test = isle.test().await;
+    ultrawide(&isle).await;
+    let app = isle.client_with(&["--app-id", "isle.test.Work", "--size", "1600x900"]);
+    app.wait_for("keyboard-enter").await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let snap = |what: &str| {
+        let (rss, own) = memory(pid);
+        println!("{what}: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    };
+    let status = || async { serde_json::from_str::<serde_json::Value>(&test.spotlight().await.unwrap()).unwrap() };
+    let chord = |keys: &'static [u32]| {
+        let test = test.clone();
+        async move {
+            for k in keys {
+                test.key(*k, true).await.unwrap();
+            }
+            for k in keys.iter().rev() {
+                test.key(*k, false).await.unwrap();
+            }
+        }
+    };
+    snap("rest");
+
+    let draws = || async {
+        ShellProxy::new(&isle.bus)
+            .await
+            .unwrap()
+            .list()
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|s| s.name == "spotlight")
+            .map_or(0, |s| s.draws)
+    };
+    // The chord to Spotlight's first drawn frame, as the test sees it.
+    let mut first = Vec::new();
+    for _ in 0..5 {
+        let before = draws().await;
+        let sent = Instant::now();
+        chord(&[125, 57]).await;
+        wait_until(|| async { draws().await > before }).await;
+        first.push(sent.elapsed().as_secs_f64() * 1000.0);
+        chord(&[125, 57]).await;
+        tokio::time::sleep(Duration::from_millis(400)).await;
+    }
+    println!("Cmd+Space to the first frame, ms: {first:.1?}");
+
+    test.measure(true).await.unwrap();
+    chord(&[125, 57]).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    snap("open, empty");
+    // f i r e f o x, then away and back, three times: a key every 120 ms.
+    for _ in 0..3 {
+        for code in [33, 23, 19, 18, 33, 24, 45, 14, 14, 14, 14, 14, 14, 14] {
+            tap(&isle, code).await;
+            tokio::time::sleep(Duration::from_millis(120)).await;
+        }
+    }
+    let times: Vec<u64> = status().await["search_us"].as_array().unwrap().iter().filter_map(|v| v.as_u64()).collect();
+    let mut sorted = times.clone();
+    sorted.sort_unstable();
+    let at = |q: f64| sorted[((sorted.len() - 1) as f64 * q) as usize] as f64 / 1000.0;
+    println!("fast sources per key ({} searches): p50 {:.2} ms, p95 {:.2} ms, max {:.2} ms", sorted.len(), at(0.5), at(0.95), at(1.0));
+    report("the list, typing", &surface(&isle, "spotlight").await);
+    snap("open, typing");
+    chord(&[125, 57]).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+
+    test.measure(false).await.unwrap();
+    test.measure(true).await.unwrap();
+    chord(&[125, 57]).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    chord(&[125, 2]).await;
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    for code in [106, 106, 106, 108, 108, 108, 108, 105, 103, 103].repeat(3) {
+        tap(&isle, code).await;
+        tokio::time::sleep(Duration::from_millis(120)).await;
+    }
+    report("the Apps view, arrows", &surface(&isle, "spotlight").await);
+    snap("the Apps view");
+    chord(&[125, 57]).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+
+    test.measure(false).await.unwrap();
+    test.measure(true).await.unwrap();
+    chord(&[29, 125, 57]).await;
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    snap("the emoji grid opened");
+    for code in [108; 30] {
+        tap(&isle, code).await;
+        tokio::time::sleep(Duration::from_millis(80)).await;
+    }
+    report("the emoji grid, down", &surface(&isle, "spotlight").await);
+    snap("the emoji grid");
+    chord(&[125, 57]).await;
+    test.measure(false).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let before = draws().await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    let after = draws().await;
+    println!("closed, 10 s: Spotlight drew {} times", after - before);
+    snap("closed again");
+    drop(app);
+    let _ = isle.compositor_exit();
+}

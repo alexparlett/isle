@@ -477,6 +477,9 @@ pub mod test {
         /// The session dialog and the session's end as JSON.
         fn session(&self) -> zbus::Result<String>;
         fn session_act(&self, action: &str) -> zbus::Result<()>;
+        /// Spotlight's model as JSON.
+        fn spotlight(&self) -> zbus::Result<String>;
+        fn spotlight_act(&self, action: &str) -> zbus::Result<()>;
         /// Starts a library game by its key (`steam:570`) as Spotlight does.
         fn launch_game(&self, key: &str) -> zbus::Result<bool>;
         /// Runs a command line as Spotlight's Run does.

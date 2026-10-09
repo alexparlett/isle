@@ -2736,6 +2736,7 @@ dependencies = [
  "isle-polkit",
  "isle-power",
  "isle-prompter",
+ "isle-search",
  "isle-settings",
  "isle-shell",
  "isle-state",

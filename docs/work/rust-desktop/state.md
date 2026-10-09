@@ -328,4 +328,7 @@
 - P10 10.2 done (2026-10-09): Steam, Heroic and Lutris from every root,
   launching through the launchers, entries folding into games, gamescope's
   game.
-- P10 10.3 done (2026-10-09): the pure model. Next: 10.4 (the surface).
+- P10 10.3 done (2026-10-09): the pure model.
+- P10 10.4 done (2026-10-09): the surface, keys from the chord, the centre
+  group, the clipboard core with the Xwayland read fixed. Next: 10.5 (fast
+  sources).

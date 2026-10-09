@@ -361,6 +361,7 @@ impl State {
     fn take_input_back(&mut self) {
         self.close_session_dialog();
         self.close_force_quit();
+        self.close_spotlight();
         self.cancel_switcher();
         self.close_menu_bar_group();
         if self.isle.recording.is_some() {

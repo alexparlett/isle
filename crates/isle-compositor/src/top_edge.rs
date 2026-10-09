@@ -291,6 +291,10 @@ impl State {
                 return true;
             }
         }
+        if self.isle.spotlight.open() && focus_name != Some("spotlight") {
+            self.close_spotlight();
+            return true;
+        }
         if self.isle.shell.is_open("window-menu") && focus_name != Some("window-menu") {
             self.close_surface("window-menu");
             return true;

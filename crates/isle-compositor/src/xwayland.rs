@@ -524,10 +524,18 @@ impl XwmHandler for State {
     fn new_selection(&mut self, _xwm: XwmId, selection: SelectionTarget, mime_types: Vec<String>) {
         let dh = self.isle.display_handle.clone();
         match selection {
-            SelectionTarget::Clipboard => {
-                set_data_device_selection(&dh, &self.isle.seat, mime_types, ())
-            }
-            SelectionTarget::Primary => set_primary_selection(&dh, &self.isle.seat, mime_types, ()),
+            SelectionTarget::Clipboard => set_data_device_selection(
+                &dh,
+                &self.isle.seat,
+                mime_types,
+                crate::clipboard::Owner::Xwayland,
+            ),
+            SelectionTarget::Primary => set_primary_selection(
+                &dh,
+                &self.isle.seat,
+                mime_types,
+                crate::clipboard::Owner::Xwayland,
+            ),
         }
     }
 
@@ -535,12 +543,16 @@ impl XwmHandler for State {
         let dh = self.isle.display_handle.clone();
         match selection {
             SelectionTarget::Clipboard => {
-                if current_data_device_selection_userdata(&self.isle.seat).is_some() {
+                if current_data_device_selection_userdata(&self.isle.seat)
+                    .is_some_and(|o| matches!(*o, crate::clipboard::Owner::Xwayland))
+                {
                     clear_data_device_selection(&dh, &self.isle.seat);
                 }
             }
             SelectionTarget::Primary => {
-                if current_primary_selection_userdata(&self.isle.seat).is_some() {
+                if current_primary_selection_userdata(&self.isle.seat)
+                    .is_some_and(|o| matches!(*o, crate::clipboard::Owner::Xwayland))
+                {
                     clear_primary_selection(&dh, &self.isle.seat);
                 }
             }

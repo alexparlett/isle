@@ -848,6 +848,25 @@ impl Test {
             .await?)
     }
 
+    /// Spotlight's model as JSON.
+    async fn spotlight(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.spotlight_status()).await?)
+    }
+
+    /// Does what the pointer would in Spotlight: `hover {key}`, `click {key}`, `quick {n}`.
+    async fn spotlight_act(&self, action: String) -> fdo::Result<()> {
+        use isle_shell::spotlight::SpotlightAction;
+        let action = match action.split_once(' ') {
+            Some(("hover", key)) => SpotlightAction::Hover(key.to_owned()),
+            Some(("click", key)) => SpotlightAction::Click(key.to_owned()),
+            Some(("secondary", key)) => SpotlightAction::Secondary(key.to_owned()),
+            Some(("quick", n)) => SpotlightAction::Quick(n.parse().unwrap_or(0)),
+            Some(("contents", on)) => SpotlightAction::Contents(on == "true"),
+            _ => return Err(fdo::Error::InvalidArgs(action)),
+        };
+        Ok(self.to_loop.call(move |state| state.spotlight_action(action)).await?)
+    }
+
     /// Starts a library game by its key (`steam:570`) as Spotlight does.
     async fn launch_game(&self, key: String) -> fdo::Result<bool> {
         let Some(id) = isle_games::GameId::parse(&key) else {

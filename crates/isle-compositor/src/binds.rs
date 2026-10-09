@@ -38,6 +38,8 @@ pub enum Action {
     Desktop(i32),
     /// To a desktop by its place, from 0.
     JumpDesktop(usize),
+    /// Spotlight, or its Apps view, or its emoji.
+    Spotlight(Opening),
     CarryWindow(i32),
     /// The kernel's VT keys: Ctrl+Option+F1 to F12.
     SwitchVt(i32),
@@ -108,6 +110,9 @@ fn action_for(id: &'static str) -> Action {
         "carry-left" => Action::CarryWindow(-1),
         "carry-right" => Action::CarryWindow(1),
         "terminal" => Action::Terminal,
+        "spotlight" => Action::Spotlight(Opening::General),
+        "apps" => Action::Spotlight(Opening::Apps),
+        "emoji" => Action::Spotlight(Opening::Emoji),
         "log-out-now" => Action::Quit,
         "log-out" => Action::LogOut,
         "session-chooser" => Action::SessionChooser,
@@ -134,6 +139,14 @@ fn action_for(id: &'static str) -> Action {
         "previous-track" => Action::Media(Media::Previous),
         other => Action::Reserved(other),
     }
+}
+
+/// The way Spotlight is opened.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Opening {
+    General,
+    Apps,
+    Emoji,
 }
 
 /// What a chord bound: the action, its shortcut, and the modifiers it was pressed with.
@@ -217,6 +230,13 @@ impl Bindings {
 }
 
 impl State {
+    /// Runs the shortcut `id` as its chord would, as Spotlight's actions do.
+    pub fn run_shortcut(&mut self, id: &str) {
+        if let Some(shortcut) = isle_keys::shortcuts::find(id) {
+            self.run_action(action_for(shortcut.id));
+        }
+    }
+
     pub fn run_action(&mut self, action: Action) {
         info!(?action, "bind");
         match action {
@@ -298,6 +318,11 @@ impl State {
             }
             Action::Recorded(chord) => self.finish_recording(chord),
             Action::Lock => self.lock("chord"),
+            Action::Spotlight(opening) => self.toggle_spotlight(match opening {
+                Opening::General => isle_search::Scope::General,
+                Opening::Apps => isle_search::Scope::Apps,
+                Opening::Emoji => isle_search::Scope::Emoji,
+            }),
             Action::Reserved(id) => {
                 let packet = isle_keys::shortcuts::find(id).and_then(|s| s.packet);
                 info!(id, packet, "a shortcut whose action is not built yet");

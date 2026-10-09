@@ -406,6 +406,10 @@ impl State {
                 self.isle.swallowed.insert(key);
                 return;
             }
+            KeyState::Pressed if self.isle.spotlight.open() && self.spotlight_key(code) => {
+                self.isle.swallowed.insert(key);
+                return;
+            }
             KeyState::Pressed if self.isle.bar.keyboard_move.is_some() && self.keyboard_move_key(code) => {
                 self.isle.swallowed.insert(key);
                 return;
@@ -424,7 +428,10 @@ impl State {
                 self.power_key();
                 return;
             }
-            KeyState::Released if self.isle.swallowed.remove(&key) => return,
+            KeyState::Released if self.isle.swallowed.remove(&key) => {
+                self.spotlight_key_released(code);
+                return;
+            }
             _ => {}
         }
         if key_state == KeyState::Pressed {

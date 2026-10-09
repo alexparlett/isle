@@ -44,6 +44,7 @@ isle-power.workspace = true
 isle-disks.workspace = true
 isle-focus.workspace = true
 isle-games.workspace = true
+isle-search.workspace = true
 isle-keys.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true

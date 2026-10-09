@@ -196,6 +196,7 @@ impl State {
         };
         self.cancel_switcher();
         self.close_session_dialog();
+        self.close_spotlight();
         self.close_menu_bar_group();
         // Each window is asked again, so "Not responding" is current.
         let ids: Vec<u64> = self

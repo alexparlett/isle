@@ -123,6 +123,8 @@ pub struct Isle {
     pub prompts: crate::prompts::PromptsState,
     pub session: crate::session_end::SessionState,
     pub force_quit: crate::force_quit::ForceQuitState,
+    pub spotlight: crate::spotlight::SpotlightState,
+    pub clipboard: crate::clipboard::ClipboardState,
     pub idle_notifier_state: smithay::wayland::idle_notify::IdleNotifierState<State>,
     /// The outputs changed under the lock; its face is shown again on the next dispatch.
     pub lock_outputs_changed: bool,
@@ -338,6 +340,8 @@ impl Isle {
         shell.register(session.surface.clone());
         let force_quit = crate::force_quit::ForceQuitState::new();
         shell.register(force_quit.surface.clone());
+        let spotlight = crate::spotlight::SpotlightState::new();
+        shell.register(spotlight.surface.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -408,6 +412,8 @@ impl Isle {
             prompts,
             session,
             force_quit,
+            spotlight,
+            clipboard: Default::default(),
             idle_notifier_state,
             lock_outputs_changed: false,
             panicked: Vec::new(),
@@ -773,6 +779,7 @@ impl State {
                 isle_shell::Action::Prompt(action) => self.prompt_action(action),
                 isle_shell::Action::Session(action) => self.session_action(action),
                 isle_shell::Action::ForceQuit(action) => self.force_quit_action(action),
+                isle_shell::Action::Spotlight(action) => self.spotlight_action(action),
                 isle_shell::Action::Alert(action) => {
                     if let Some(id) = focus
                         .and_then(|f| self.isle.shell.attached_key(&f))

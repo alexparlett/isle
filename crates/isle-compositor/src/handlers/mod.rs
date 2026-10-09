@@ -78,7 +78,19 @@ impl TabletSeatHandler for State {
 }
 
 impl SelectionHandler for State {
-    type SelectionUserData = ();
+    type SelectionUserData = crate::clipboard::Owner;
+
+    fn send_selection(
+        &mut self,
+        ty: smithay::wayland::selection::SelectionTarget,
+        mime_type: String,
+        fd: std::os::fd::OwnedFd,
+        _seat: Seat<Self>,
+        owner: &Self::SelectionUserData,
+    ) {
+        let owner = owner.clone();
+        self.send_selection_to(ty, mime_type, fd, &owner);
+    }
 }
 
 impl DataDeviceHandler for State {

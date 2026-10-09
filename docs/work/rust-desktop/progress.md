@@ -2,6 +2,19 @@
 
 ## 2026-10-09
 
+- P10 10.4: the surface and the field. Spotlight opens on the main screen
+  from Cmd+Space, Ctrl+Cmd+Space and the Launchpad key; the compositor owns
+  the model and takes Spotlight's keys before the keyboard engine while it
+  holds the keyboard (text from the seat's layout, its own chords, repeat),
+  so keys typed with the chord reach the field. A prompt takes the keys and
+  gives them back; the lock, the switcher, Force Quit, the session dialog
+  and a click outside close it, and it closes them. The field (token,
+  caret, selected query, quick keys, activity mark), the results list and
+  the Apps view's grid on virtual scroll views, sized to the screen. The
+  clipboard core: Isle's own selections, reading a client's offer off the
+  loop for Cmd+V in the field, and a fix found on the way: a Wayland
+  client reading an X11 app's clipboard was never handed to Xwayland.
+
 - P10 10.3: Spotlight's model in `isle-shell/src/spotlight/model.rs`: the
   field as a text field (caret, words, select all, paste of a line), scopes
   from prefixes, quick keys and Tab on an app with Backspace back out, the

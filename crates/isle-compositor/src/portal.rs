@@ -99,7 +99,7 @@ impl isle_portal::screencast::ScreenCast for Desktop {
         &self,
         session: String,
         app_id: String,
-        _parent_window: String,
+        parent_window: String,
         selection: isle_portal::screencast::Selection,
         mut closed: Closed,
     ) -> BoxFuture<Option<isle_portal::screencast::Started>> {
@@ -108,7 +108,7 @@ impl isle_portal::screencast::ScreenCast for Desktop {
             let (tx, rx) = tokio::sync::oneshot::channel();
             let (app, chosen) = (app_id.clone(), selection.clone());
             to_loop
-                .call(move |state| state.share_begin(app, chosen, tx))
+                .call(move |state| state.share_begin(app, &parent_window, chosen, tx))
                 .await
                 .ok()?;
             let picked = tokio::select! {

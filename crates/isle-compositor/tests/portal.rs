@@ -208,8 +208,19 @@ fn start(
     session: &str,
     n: u32,
 ) -> tokio::task::JoinHandle<(u32, HashMap<String, OwnedValue>)> {
+    start_on(frontend, session, n, "")
+}
+
+/// Start for the window `parent_window` names.
+fn start_on(
+    frontend: &zbus::Connection,
+    session: &str,
+    n: u32,
+    parent_window: &str,
+) -> tokio::task::JoinHandle<(u32, HashMap<String, OwnedValue>)> {
     let frontend = frontend.clone();
     let session = session.to_owned();
+    let parent_window = parent_window.to_owned();
     tokio::spawn(async move {
         call(
             &frontend,
@@ -219,7 +230,7 @@ fn start(
                     .unwrap(),
                 ObjectPath::try_from(session.as_str()).unwrap(),
                 "",
-                "",
+                parent_window.as_str(),
                 HashMap::<String, OwnedValue>::new(),
             ),
         )
@@ -315,6 +326,64 @@ async fn a_share_chosen_in_the_picker_streams_comes_back_without_asking_and_stop
         serde_json::from_str(&isle.test().await.casts().await.unwrap()).unwrap();
     assert!(casts.is_empty());
     wait_until(|| async { isle.island_output().await["privacy"] == 0 }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_picker_is_a_sheet_on_the_asking_window_and_holds_only_its_focus() {
+    let mut isle = Isle::start("portal-sheet").await;
+    let asking = isle.client("isle.test.Red", "ff0000");
+    asking.wait_for("keyboard-enter").await;
+    asking.send("export");
+    let handle = loop {
+        let line = asking
+            .lines
+            .lock()
+            .unwrap()
+            .iter()
+            .find_map(|l| l.strip_prefix("exported ").map(str::to_owned));
+        if let Some(handle) = line {
+            break handle;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+    let id = isle.wait_for_window("isle.test.Red").await.id;
+    let other = isle.client("isle.test.Blue", "0000ff");
+    other.wait_for("keyboard-enter").await;
+    let frontend = frontend(&isle).await;
+
+    // The sheet hangs on the asking window, which comes forward with the keyboard on it.
+    let s = session(&frontend, 1, None).await;
+    let started = start_on(&frontend, &s, 1, &format!("wayland:{handle}"));
+    wait_until(|| async { share(&isle).await["picker"]["sheet"] == id }).await;
+    wait_until(|| async { share(&isle).await["picker"]["keyboard"] == true }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("share-sheet").await;
+
+    // Another window takes the keyboard and the sheet stays; back on its window, the
+    // keyboard is the sheet's again.
+    other.clear();
+    let blue = isle.wait_for_window("isle.test.Blue").await.id;
+    isle.windows_proxy().await.focus(blue).await.unwrap();
+    other.wait_for("keyboard-enter").await;
+    assert_eq!(share(&isle).await["picker"]["keyboard"], false);
+    assert_eq!(share(&isle).await["picker"]["sheet"], id);
+    isle.windows_proxy().await.focus(id).await.unwrap();
+    wait_until(|| async { share(&isle).await["picker"]["keyboard"] == true }).await;
+
+    // Escape in the sheet cancels; the keyboard goes back to its window.
+    asking.clear();
+    press(&isle, ESCAPE).await;
+    let (response, _) = started.await.unwrap();
+    assert_eq!(response, 1);
+    asking.wait_for("keyboard-enter").await;
+
+    // An unknown handle gets the centred picker.
+    let s = session(&frontend, 2, None).await;
+    let started = start_on(&frontend, &s, 2, "wayland:nothing");
+    wait_until(|| async { share(&isle).await["picker"]["drawn"] == true }).await;
+    assert!(share(&isle).await["picker"]["sheet"].is_null());
+    press(&isle, ESCAPE).await;
+    assert_eq!(started.await.unwrap().0, 1);
 }
 
 #[tokio::test(flavor = "multi_thread")]

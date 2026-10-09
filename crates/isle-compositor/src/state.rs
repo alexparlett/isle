@@ -32,6 +32,7 @@ use smithay::{
         socket::ListeningSocketSource,
         viewporter::ViewporterState,
         xdg_activation::XdgActivationState,
+        xdg_foreign::XdgForeignState,
     },
 };
 use smithay::reexports::wayland_protocols_misc::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as KdeMode;
@@ -239,6 +240,7 @@ pub struct Isle {
     pub xdg_dialog_state: smithay::wayland::shell::xdg::dialog::XdgDialogState,
     pub kde_decoration_state: KdeDecorationState,
     pub xdg_activation_state: XdgActivationState,
+    pub xdg_foreign_state: XdgForeignState,
     pub shm_state: ShmState,
     pub dmabuf_state: DmabufState,
     pub output_manager_state: OutputManagerState,
@@ -317,6 +319,7 @@ impl Isle {
             smithay::wayland::shell::xdg::dialog::XdgDialogState::new::<State>(&dh);
         let kde_decoration_state = KdeDecorationState::new::<State>(&dh, KdeMode::Server);
         let xdg_activation_state = XdgActivationState::new::<State>(&dh);
+        let xdg_foreign_state = XdgForeignState::new::<State>(&dh);
         crate::menus::protocols::create_globals(&dh);
         let shm_state = ShmState::new::<State>(&dh, vec![]);
         let output_manager_state = OutputManagerState::new_with_xdg_output::<State>(&dh);
@@ -533,6 +536,7 @@ impl Isle {
             xdg_dialog_state,
             kde_decoration_state,
             xdg_activation_state,
+            xdg_foreign_state,
             shm_state,
             dmabuf_state: DmabufState::new(),
             output_manager_state,
@@ -646,6 +650,9 @@ impl Isle {
             if let Some(hit) = self.alert_at(id, pos) {
                 return Some(hit);
             }
+            if let Some(hit) = self.sheet_at(id, pos) {
+                return Some(hit);
+            }
             if let Some(part) = self.bar_or_edge_at(id, pos) {
                 let at = match &part {
                     Focus::Shell(_) => self.frame(id).map(|f| f.loc.to_f64()).unwrap_or_default(),
@@ -688,6 +695,9 @@ impl Isle {
         self.wm.raise(id);
         self.wm.touch(id);
         self.sync_space();
+        if let Some(sheet) = self.sheet_focus(id) {
+            return Some(sheet);
+        }
         use smithay::wayland::seat::WaylandFocus;
         let surface = window.wl_surface()?.into_owned();
         Some(match window.x11_surface() {

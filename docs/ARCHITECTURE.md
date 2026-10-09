@@ -524,7 +524,9 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   call it.
 - **What each interface answers with.** ScreenCast: the restore data, the
   same app's second ask, or the share picker, then a stream per source
-  (B84). Screenshot: the toolbar for an interactive request, the front window
+  (B84). The picker is a sheet on the window `parent_window` names, found
+  through xdg-foreign v2 or the X11 window id, and holds only that window's
+  keyboard; with no window found it is centred on the main screen. Screenshot: the toolbar for an interactive request, the front window
   or every screen for one the frontend allowed. Access: a P9 prompt.
   Settings: the appearance namespace from the theme. Inhibit: idle's holds
   and the session's end.
@@ -581,12 +583,11 @@ paru and updated through pacman (B29).
 
 - **Smithay**, through `alexparlett/smithay` (B6), pinned by revision on
   its `isle` branch: upstream master at `118e34f` with Isle's patches, each
-  merged by pull request in the fork, none offered upstream (B43). So far two:
-  the X11 window manager tracks windows' bounding shape (SHAPE) and reads
-  Steam's `STEAM_GAME` label (alexparlett/smithay#2). A third, a lookup of
-  an xdg-foreign export by its handle, waits for review as
-  alexparlett/smithay#3; with it the share picker becomes a sheet on the
-  asking window. The async
+  merged by pull request in the fork, none offered upstream (B43). So far
+  three: the X11 window manager tracks windows' bounding shape (SHAPE) and
+  reads Steam's `STEAM_GAME` label (alexparlett/smithay#2), and an
+  xdg-foreign export is looked up by its handle (alexparlett/smithay#3), which
+  the share picker uses to hang on the asking window. The async
   page flip joins it by P12. Its `master` follows upstream; moving Isle to a
   newer upstream is a rebase of `isle` and a revision bump.
 - **Freya**, through `alexparlett/freya` (B7), pinned by revision of its

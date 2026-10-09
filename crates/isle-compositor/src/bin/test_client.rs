@@ -18,6 +18,7 @@
 //! key=value...` (summary, body, icon, actions=key:Label,..., urgency, transient,
 //! resident, desktop-entry, image, replaces, timeout; underscores read as spaces),
 //! `close-notification ID`, `use-token TOKEN` (an activation with a token it was sent),
+//! `export` (an xdg-foreign v2 handle for the window, printed as `exported HANDLE`),
 //! `tray [--name] [--item-is-menu] [--id ID]` (a status item with a pixmap icon and the test menu,
 //! registered by path or by a well-known name and again whenever the watcher comes back,
 //! printing `tray registered`, `tray activated`, `tray secondary`, `tray scroll N` and
@@ -49,6 +50,7 @@ use wayland_protocols::xdg::{
     dialog::v1::client::{xdg_dialog_v1, xdg_wm_dialog_v1},
     shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base},
 };
+use wayland_protocols::xdg::foreign::zv2::client::{zxdg_exported_v2, zxdg_exporter_v2};
 use wayland_protocols::ext::idle_notify::v1::client::{
     ext_idle_notification_v1, ext_idle_notifier_v1,
 };
@@ -102,6 +104,7 @@ struct Client {
     idle_inhibitor: Option<zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1>,
     idle_notifier: Option<ext_idle_notifier_v1::ExtIdleNotifierV1>,
     activation: Option<xdg_activation_v1::XdgActivationV1>,
+    exporter: Option<zxdg_exporter_v2::ZxdgExporterV2>,
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
     wins: Vec<Win>,
@@ -746,6 +749,11 @@ impl Client {
                     &(id,),
                 ));
             }
+            ("export", _) => {
+                if let Some(exporter) = &self.exporter {
+                    exporter.export_toplevel(&self.wins[index].surface, qh, index);
+                }
+            }
             ("use-token", _) => {
                 if let Some(activation) = &self.activation {
                     activation.activate(rest[0].to_owned(), &self.wins[index].surface);
@@ -838,6 +846,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                     state.inhibits = Some(registry.bind(name, 1, qh, ()))
                 }
                 "xdg_activation_v1" => state.activation = Some(registry.bind(name, 1, qh, ())),
+                "zxdg_exporter_v2" => state.exporter = Some(registry.bind(name, 1, qh, ())),
                 "zwp_idle_inhibit_manager_v1" => {
                     state.idle_inhibits = Some(registry.bind(name, 1, qh, ()))
                 }
@@ -1310,7 +1319,23 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Client {
     }
 }
 
+impl Dispatch<zxdg_exported_v2::ZxdgExportedV2, usize> for Client {
+    fn event(
+        _: &mut Self,
+        _: &zxdg_exported_v2::ZxdgExportedV2,
+        event: zxdg_exported_v2::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let zxdg_exported_v2::Event::Handle { handle } = event {
+            say(*index, format!("exported {handle}"));
+        }
+    }
+}
+
 ignore!(
+    zxdg_exporter_v2::ZxdgExporterV2,
     wl_data_device_manager::WlDataDeviceManager,
     wl_data_offer::WlDataOffer,
     zwlr_layer_shell_v1::ZwlrLayerShellV1,
@@ -1362,6 +1387,7 @@ fn main() {
         idle_inhibitor: None,
         idle_notifier: None,
         activation: None,
+        exporter: None,
         appmenus: None,
         gtk_shell: None,
         wins: Vec::new(),

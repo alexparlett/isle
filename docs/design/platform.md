@@ -504,9 +504,9 @@ check: Isle serves Access, so the permission store's `screenshot` table asks
 once per app through a system prompt and remembers the answer; `isle portal
 permissions` lists and revokes it until Settings › Privacy & Security (B83).
 Settings is served by Isle ahead of gtk (`Settings=isle;gtk`), and FileChooser
-stays gtk's until Files serves it (P15). The picker opens centred on the main
-screen; it becomes a sheet on the asking window with the fork's xdg-foreign
-lookup (alexparlett/smithay#3). Restore tokens are the frontend's; Isle's
+stays gtk's until Files serves it (P15). The picker is a sheet on the asking
+window, found by its xdg-foreign handle or X11 id, and centred on the main
+screen when no window is named or the window goes. Restore tokens are the frontend's; Isle's
 restore data names a screen by its identity and a window by its app and
 title (B84). A user's own `~/.config/xdg-desktop-portal/portals.conf`
 outranks the packaged `isle-portals.conf`, so the install has to see to it

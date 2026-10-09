@@ -4,17 +4,18 @@
 
 use std::{
     collections::HashMap,
+    rc::Rc,
     time::{Duration, Instant},
 };
 
 use isle_portal::screencast::{Selection, Started, StreamOut};
-use isle_shell::capture::picker::{Model, PickerAction, Preview, Tab, Tile};
+use isle_shell::capture::picker::{Model, PickerAction, PickerSurface, Preview, Tab, Tile};
 use smithay::{
     reexports::calloop::{
         RegistrationToken,
         timer::{TimeoutAction, Timer},
     },
-    utils::Rectangle,
+    utils::{Logical, Point, Rectangle},
 };
 use tokio::sync::oneshot;
 use tracing::info;
@@ -22,6 +23,7 @@ use zvariant::{OwnedValue, Value};
 
 use crate::{
     cast::{CursorMode, Ended, Source},
+    focus::Focus,
     state::{Isle, State},
 };
 
@@ -33,6 +35,13 @@ const VERSION: u32 = 1;
 const SECOND_ASK: Duration = Duration::from_secs(10);
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 const PREVIEW_EVERY: Duration = Duration::from_millis(500);
+/// The picker's key among attached surfaces when it is a sheet on a window: the window's id
+/// with this bit set, apart from its bar and its alert.
+const SHEET: u64 = 1 << 61;
+
+fn sheet_key(id: u64) -> u64 {
+    id | SHEET
+}
 
 /// What the user chose.
 pub struct Picked {
@@ -53,6 +62,9 @@ struct Picking {
     last_click: Option<(String, Instant)>,
     previews: HashMap<String, Preview>,
     timer: Option<RegistrationToken>,
+    /// The asking app's window, while the picker is a sheet on it.
+    parent: Option<u64>,
+    sheet: Option<Rc<PickerSurface>>,
 }
 
 struct Grant {
@@ -150,11 +162,128 @@ fn source_key(source: &Source) -> String {
     }
 }
 
+impl Isle {
+    /// The window a portal request's `parent_window` names: `wayland:` an xdg-foreign handle,
+    /// `x11:` a window id in hex.
+    pub fn parent_window(&self, parent: &str) -> Option<u64> {
+        let record = if let Some(handle) = parent.strip_prefix("wayland:") {
+            let surface = self.xdg_foreign_state.exported_surface(handle)?;
+            self.wm.for_surface(surface)?
+        } else {
+            let xid = u32::from_str_radix(parent.strip_prefix("x11:")?.trim_start_matches("0x"), 16).ok()?;
+            self.wm
+                .records
+                .iter()
+                .find(|r| r.x11().is_some_and(|x| x.window_id() == xid))?
+        };
+        record.mapped.then_some(record.id)
+    }
+
+    /// The window the picker is a sheet on.
+    pub fn share_sheet(&self) -> Option<u64> {
+        self.share.picking.as_ref().filter(|p| p.sheet.is_some())?.parent
+    }
+
+    /// Where the sheet hangs on `id`: centred, its panel's top under the bar, as an offset
+    /// from the frame, and its size with the shadow's room.
+    fn sheet_box(&self, id: u64) -> Option<Rectangle<i32, Logical>> {
+        let frame = self.frame(id)?;
+        let theme = self.shell.theme();
+        let size = PickerSurface::size_for(theme);
+        let margin = PickerSurface::margin(theme) as i32;
+        let below = if self.wm.get(id)?.bar.is_some() {
+            self.bar_height(id)
+        } else {
+            0
+        };
+        Some(Rectangle::new(
+            ((frame.size.w - size.w) / 2, below - margin).into(),
+            size,
+        ))
+    }
+
+    /// The sheet on `id` drawn at the frame's `frame_at`, physical on the output being drawn.
+    pub fn sheet_element(
+        &self,
+        id: u64,
+        frame_at: Point<i32, Logical>,
+        scale: f64,
+        alpha: f32,
+    ) -> Option<isle_shell::ShellElement> {
+        if self.share_sheet() != Some(id) {
+            return None;
+        }
+        let at = frame_at + self.sheet_box(id)?.loc;
+        self.shell
+            .attached_element(sheet_key(id), at.to_f64().to_physical(scale), alpha)
+    }
+
+    /// The sheet's panel under `pos` on `id`, and the sheet's top left.
+    pub fn sheet_at(&self, id: u64, pos: Point<f64, Logical>) -> Option<(Focus, Point<f64, Logical>)> {
+        if self.share_sheet() != Some(id) {
+            return None;
+        }
+        let frame = self.frame(id)?;
+        let place = self.sheet_box(id)?;
+        let margin = PickerSurface::margin(self.shell.theme()) as i32;
+        let at = frame.loc + place.loc;
+        let panel = Rectangle::new(at, place.size);
+        let panel = Rectangle::new(
+            panel.loc + Point::from((margin, margin)),
+            (panel.size.w - 2 * margin, panel.size.h - 2 * margin).into(),
+        );
+        panel
+            .to_f64()
+            .contains(pos)
+            .then(|| self.shell.attached_focus(sheet_key(id)))
+            .flatten()
+            .map(|focus| (Focus::Shell(focus), at.to_f64()))
+    }
+
+    /// The sheet's keyboard focus, when `id` has the sheet.
+    pub fn sheet_focus(&self, id: u64) -> Option<Focus> {
+        (self.share_sheet() == Some(id))
+            .then(|| self.sheet_focus_of(id))
+            .flatten()
+    }
+
+    fn sheet_focus_of(&self, id: u64) -> Option<Focus> {
+        self.shell.attached_focus(sheet_key(id)).map(Focus::Shell)
+    }
+
+    /// Keeps the sheet on `id` where its window is.
+    pub fn place_sheet(&mut self, id: u64) {
+        if self.share_sheet() != Some(id) {
+            return;
+        }
+        if let Some((place, rect)) = self.sheet_place(id) {
+            self.shell.place_attached(sheet_key(id), &place, rect);
+        }
+    }
+
+    fn sheet_place(&self, id: u64) -> Option<(isle_shell::OutputPlace, Rectangle<i32, Logical>)> {
+        let frame = self.frame(id)?;
+        let place = self.sheet_box(id)?;
+        let output = self.output_of(id)?;
+        let geometry = self.space.output_geometry(&output)?;
+        let at = frame.loc + place.loc - geometry.loc;
+        Some((
+            isle_shell::OutputPlace {
+                scale: output.current_scale().fractional_scale(),
+                output,
+                geometry,
+            },
+            Rectangle::new(at, place.size),
+        ))
+    }
+}
+
 impl State {
     /// A ScreenCast Start: its sources from the restore data, a second ask, or the picker.
     pub fn share_begin(
         &mut self,
         app_id: String,
+        parent_window: &str,
         selection: Selection,
         reply: oneshot::Sender<Option<Picked>>,
     ) {
@@ -228,6 +357,8 @@ impl State {
             last_click: None,
             previews: HashMap::new(),
             timer: None,
+            parent: self.isle.parent_window(parent_window),
+            sheet: None,
         });
         self.share_previews();
         self.open_picker();
@@ -282,22 +413,37 @@ impl State {
         }
     }
 
+    /// Shows the picker with its model: a sheet on the asking window while that window is
+    /// shown, else centred on the main screen.
     fn open_picker(&mut self) {
         let Some(picking) = &self.isle.share.picking else {
-            return;
-        };
-        let Some(output) = self.isle.main_output() else {
-            return;
-        };
-        let Some(screen) = self.isle.space.output_geometry(&output) else {
             return;
         };
         let mut model = picking.model.clone();
         for tile in &mut model.tiles {
             tile.preview = picking.previews.get(&tile.key).cloned();
         }
+        let parent = picking.parent;
+        if let Some(id) = parent {
+            if self.isle.wm.is_shown(id)
+                && let Some((place, rect)) = self.isle.sheet_place(id)
+            {
+                return self.open_sheet(id, model, &place, rect);
+            }
+            // Once the window goes, the picker stays centred.
+            self.close_sheet();
+            if let Some(picking) = self.isle.share.picking.as_mut() {
+                picking.parent = None;
+            }
+        }
+        let Some(output) = self.isle.main_output() else {
+            return;
+        };
+        let Some(screen) = self.isle.space.output_geometry(&output) else {
+            return;
+        };
         let theme = self.isle.shell.theme().clone();
-        let size = isle_shell::capture::picker::PickerSurface::size_for(&theme);
+        let size = PickerSurface::size_for(&theme);
         let geometry = Rectangle::new(
             ((screen.size.w - size.w) / 2, (screen.size.h - size.h) / 3).into(),
             size,
@@ -320,6 +466,54 @@ impl State {
             self.open_surface("share-picker");
         }
         self.dispatch_shell();
+    }
+
+    fn open_sheet(
+        &mut self,
+        id: u64,
+        model: Model,
+        place: &isle_shell::OutputPlace,
+        rect: Rectangle<i32, Logical>,
+    ) {
+        let Some(picking) = self.isle.share.picking.as_mut() else {
+            return;
+        };
+        let first = picking.sheet.is_none();
+        let sheet = picking.sheet.get_or_insert_with(PickerSurface::sheet).clone();
+        sheet.set_model(model.clone());
+        if first {
+            self.isle.shell.attach(sheet.clone(), sheet_key(id), place, rect);
+            // The sheet holds its window's keyboard: the window comes forward with it.
+            self.activate(id);
+        } else {
+            self.isle.shell.place_attached(sheet_key(id), place, rect);
+            self.isle.shell.with_attached(sheet_key(id), || sheet.set(model));
+        }
+        self.dispatch_shell();
+        self.isle.queue_redraw_all();
+    }
+
+    /// Takes the sheet down, its window's keyboard back to the window.
+    fn close_sheet(&mut self) {
+        let Some(picking) = self.isle.share.picking.as_mut() else {
+            return;
+        };
+        let (Some(id), Some(_)) = (picking.parent, picking.sheet.take()) else {
+            return;
+        };
+        let focus = self.isle.sheet_focus_of(id);
+        self.isle.shell.detach(sheet_key(id));
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        if focus.is_some() && keyboard.current_focus() == focus {
+            let window = self.isle.wm.get(id).map(|r| r.window.clone());
+            let target = window.and_then(|w| self.isle.focus_window(Some(&w)));
+            let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+            match target {
+                Some(target) => self.focus_keyboard(Some(target), serial),
+                None => self.focus_next(),
+            }
+        }
+        self.isle.queue_redraw_all();
     }
 
     /// Each tile's live picture, again every half second while the picker is open.
@@ -440,7 +634,7 @@ impl State {
     }
 
     fn share_picked(&mut self) {
-        let Some(mut picking) = self.isle.share.picking.take() else {
+        let Some(picking) = self.isle.share.picking.take() else {
             return;
         };
         if picking.model.chosen.is_empty() {
@@ -466,7 +660,7 @@ impl State {
                 }
             })
             .collect();
-        self.close_picker(&mut picking);
+        let mut picking = self.close_picker(picking);
         if let Some(reply) = picking.reply.take() {
             let _ = reply.send(Some(Picked {
                 sources,
@@ -477,19 +671,24 @@ impl State {
 
     /// The picker goes and its request is answered cancel.
     pub fn share_cancel(&mut self) {
-        if let Some(mut picking) = self.isle.share.picking.take() {
-            self.close_picker(&mut picking);
+        if let Some(picking) = self.isle.share.picking.take() {
+            let mut picking = self.close_picker(picking);
             if let Some(reply) = picking.reply.take() {
                 let _ = reply.send(None);
             }
         }
     }
 
-    fn close_picker(&mut self, picking: &mut Picking) {
+    fn close_picker(&mut self, mut picking: Picking) -> Picking {
         if let Some(token) = picking.timer.take() {
             self.isle.loop_handle.remove(token);
         }
+        // The sheet goes with the picking in place, so its window's focus comes back.
+        self.isle.share.picking = Some(picking);
+        self.close_sheet();
+        let picking = self.isle.share.picking.take().unwrap();
         self.close_surface("share-picker");
+        picking
     }
 
     /// Starts a stream per source for the session; their ids.
@@ -713,7 +912,9 @@ impl State {
     /// The share as JSON, for the Test interface.
     #[cfg(feature = "test-hooks")]
     pub fn share_status(&self) -> serde_json::Value {
+        let keyboard = self.isle.seat.get_keyboard().unwrap().current_focus();
         let picker = self.isle.share.picking.as_ref().map(|p| {
+            let sheet = self.isle.share_sheet();
             serde_json::json!({
                 "app": p.model.app,
                 "tabs": p.model.tabs.iter().map(|t| format!("{t:?}")).collect::<Vec<_>>(),
@@ -721,7 +922,11 @@ impl State {
                 "chosen": p.model.chosen,
                 "previews": p.previews.len(),
                 "remember": p.model.remember,
-                "drawn": self.isle.shell.is_open("share-picker"),
+                "drawn": sheet.is_some() || self.isle.shell.is_open("share-picker"),
+                "sheet": sheet,
+                "keyboard": sheet.is_some_and(|id| {
+                    keyboard.is_some() && keyboard == self.isle.sheet_focus(id)
+                }),
             })
         });
         let sessions: serde_json::Map<String, serde_json::Value> = self

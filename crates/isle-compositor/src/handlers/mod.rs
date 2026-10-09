@@ -354,6 +354,12 @@ impl XdgActivationHandler for State {
     }
 }
 
+impl smithay::wayland::xdg_foreign::XdgForeignHandler for State {
+    fn xdg_foreign_state(&mut self) -> &mut smithay::wayland::xdg_foreign::XdgForeignState {
+        &mut self.isle.xdg_foreign_state
+    }
+}
+
 impl FractionalScaleHandler for State {
     fn new_fractional_scale(&mut self, surface: WlSurface) {
         let mut root = surface.clone();

@@ -85,6 +85,8 @@ pub enum PickerAction {
 pub struct PickerSurface {
     model: Rc<RefCell<Model>>,
     state: Rc<RefCell<Option<State<Model>>>>,
+    /// Attached to the asking app's window rather than placed on the screen.
+    sheet: bool,
 }
 
 pub const TILE_WIDTH: f32 = 200.0;
@@ -93,6 +95,14 @@ pub const TILE_PREVIEW: f32 = 125.0;
 impl PickerSurface {
     pub fn new() -> Rc<Self> {
         Rc::new(Self::default())
+    }
+
+    /// The picker as a sheet on a window, one per ask.
+    pub fn sheet() -> Rc<Self> {
+        Rc::new(Self {
+            sheet: true,
+            ..Self::default()
+        })
     }
 
     pub fn set(&self, model: Model) {
@@ -146,7 +156,7 @@ impl PickerSurface {
 
 impl SurfaceDef for PickerSurface {
     fn name(&self) -> &'static str {
-        "share-picker"
+        if self.sheet { "share-sheet" } else { "share-picker" }
     }
 
     fn layer(&self) -> Layer {
@@ -154,7 +164,7 @@ impl SurfaceDef for PickerSurface {
     }
 
     fn scope(&self) -> Scope {
-        Scope::Placed
+        if self.sheet { Scope::Attached } else { Scope::Placed }
     }
 
     fn takes_keyboard(&self) -> bool {

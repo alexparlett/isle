@@ -121,9 +121,8 @@ Intent: shell.md, gaming.md, platform.md.
 The screenshot tool with its freeze, toolbar, thumbnail, colour pick and
 recording through `isle-record`; PipeWire streams from the compositor;
 `isle-portal` with ScreenCast and its picker, Screenshot, Access, Settings and
-Inhibit; ext-image-copy-capture with ext-foreign-toplevel-list. The picker is
-centred until alexparlett/smithay#3 (the xdg-foreign lookup) is merged, when it
-becomes a sheet. Brief: `xdg-desktop-portal-isle` (B13), a bus name
+Inhibit; ext-image-copy-capture with ext-foreign-toplevel-list; the picker a
+sheet on the asking window through xdg-foreign. Brief: `xdg-desktop-portal-isle` (B13), a bus name
 on the compositor's service worker (B26): ScreenCast and Screenshot with
 PipeWire streams from the compositor and the shell's picker, the screenshot
 tool, ext-image-copy-capture; FileChooser follows in P15. A capture of a

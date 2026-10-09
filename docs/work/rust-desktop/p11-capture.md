@@ -561,10 +561,9 @@ one packet, the host run optional, as for P6 to P10.
 
 Built 2026-10-09 in phases 11.0–11.15, as planned, with these differences:
 
-- **The share picker is centred on the main screen, not a sheet.** The sheet
-  needs the fork's lookup of an xdg-foreign export, opened as
-  alexparlett/smithay#3 and waiting for the user's review; xdg-foreign is not
-  served until it is merged.
+- **The share picker became a sheet after the close**, once
+  alexparlett/smithay#3 was merged: closed with the picker centred, the sheet
+  followed with xdg-foreign served.
 - **Recordings stay fragmented MP4s**, each frame a fragment flushed as it
   goes, not rewritten with the index first on Stop: the index already leads
   the file, a recorder killed midway leaves one that plays, and the rewrite

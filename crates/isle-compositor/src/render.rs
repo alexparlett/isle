@@ -315,6 +315,13 @@ impl Isle {
             to.loc -= geometry.loc.to_f64();
             let from = Rectangle::new(frame.loc - geometry.loc, frame.size);
             let mut pieces = Vec::new();
+            // The share sheet is the capture tool's own: drawn here, so a capture leaves it.
+            if !leave.contains(&"share-picker")
+                && let Some(sheet) =
+                    self.sheet_element(id, frame.loc - geometry.loc, output_scale, alpha)
+            {
+                pieces.push(crate::wm::draw::WindowPiece::Bar(sheet));
+            }
             self.window_pieces(renderer, id, geometry.loc, output_scale, true, alpha, &mut |p| {
                 pieces.push(p)
             });

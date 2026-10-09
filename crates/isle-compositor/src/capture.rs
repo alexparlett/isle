@@ -113,12 +113,14 @@ impl State {
     }
 
     /// Writes `stills` as PNG files into a folder, or puts the first on the clipboard,
-    /// encoding on the worker. `done` has each file written.
+    /// encoding on the worker. `done` has each file written and, with `preview`, the first
+    /// still made small for its thumbnail.
     pub fn keep_stills(
         &mut self,
         stills: Vec<Pixels>,
         to: Destination,
-        done: impl FnOnce(&mut State, Vec<PathBuf>) + Send + 'static,
+        preview: bool,
+        done: impl FnOnce(&mut State, Vec<PathBuf>, Option<Pixels>) + Send + 'static,
     ) {
         let (Some(worker), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone())
         else {
@@ -135,7 +137,7 @@ impl State {
                             Some(Err(err)) => warn!("could not copy the screenshot: {err}"),
                             None => {}
                         }
-                        done(state, Vec::new());
+                        done(state, Vec::new(), None);
                     });
                     return;
                 }
@@ -152,8 +154,9 @@ impl State {
                     }
                 }
             }
+            let small = preview.then(|| stills.first().map(thumbnail_of)).flatten();
             match failed {
-                None => to_loop.post(move |state| done(state, written)),
+                None => to_loop.post(move |state| done(state, written, small)),
                 Some((n, err)) => {
                     warn!(folder = %folder.display(), "could not save a screenshot: {err}");
                     let png = encode_png(&stills[n]);
@@ -162,7 +165,7 @@ impl State {
                             state.copy_still_quietly(png);
                         }
                         state.still_not_saved(&folder, &err);
-                        done(state, written);
+                        done(state, written, None);
                     });
                 }
             }
@@ -249,9 +252,14 @@ impl State {
             self.still_destination()
         };
         let quiet = self.game_in_front();
-        self.keep_stills(stills, to, move |state, written| {
+        let preview = !quiet && self.isle.settings.capture.floating_thumbnail;
+        let shown_on = main.or_else(|| outputs.first().cloned());
+        self.keep_stills(stills, to, preview, move |state, written, small| {
             if quiet && !written.is_empty() {
                 state.island_shot_saved();
+            }
+            if let (Some(path), Some(small), Some(output)) = (written.first(), small, shown_on) {
+                state.show_thumbnail(path.clone(), &output, small);
             }
         });
     }
@@ -348,7 +356,7 @@ impl State {
             None => self.still_destination(),
         };
         let (tx, rx) = tokio::sync::oneshot::channel();
-        self.keep_stills(vec![pixels], to, move |_, written| {
+        self.keep_stills(vec![pixels], to, false, move |_, written, _| {
             let _ = tx.send(written);
         });
         Ok(rx)
@@ -383,7 +391,7 @@ fn home() -> PathBuf {
 }
 
 /// The user's `XDG_<NAME>_DIR` from `user-dirs.dirs`, else `~/<fallback>`.
-fn user_dir(name: &str, fallback: &str) -> PathBuf {
+pub fn user_dir(name: &str, fallback: &str) -> PathBuf {
     let home = home();
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
@@ -450,6 +458,36 @@ fn write_still(
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
             Err(err) => return Err(err),
         }
+    }
+}
+
+/// `still` made small enough for its thumbnail at twice its size, premultiplied as the
+/// shell draws images.
+fn thumbnail_of(still: &Pixels) -> Pixels {
+    const W: u32 = 480;
+    const H: u32 = 320;
+    let f = (W as f64 / still.width.max(1) as f64)
+        .min(H as f64 / still.height.max(1) as f64)
+        .min(1.0);
+    let (w, h) = (
+        ((still.width as f64 * f).round() as u32).max(1),
+        ((still.height as f64 * f).round() as u32).max(1),
+    );
+    let mut rgba = image::RgbaImage::from_raw(still.width, still.height, still.rgba.clone())
+        .map(|image| {
+            image::imageops::resize(&image, w, h, image::imageops::FilterType::Triangle).into_raw()
+        })
+        .unwrap_or_else(|| vec![0; (w * h * 4) as usize]);
+    for px in rgba.chunks_exact_mut(4) {
+        let a = px[3] as u32;
+        for c in &mut px[..3] {
+            *c = ((*c as u32 * a + 127) / 255) as u8;
+        }
+    }
+    Pixels {
+        width: w,
+        height: h,
+        rgba,
     }
 }
 

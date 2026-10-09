@@ -52,6 +52,7 @@ mod render;
 pub mod settings;
 pub mod state;
 pub mod state_writer;
+mod thumbnail;
 pub mod tokens;
 mod wallpaper;
 pub mod watchdog;

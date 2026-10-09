@@ -304,6 +304,7 @@ async fn a_shot_over_a_full_screen_game_says_so_in_the_island() {
     isle.chord(&[SHIFT, CMD, THREE]).await;
     wait_until(|| async { screenshots(&isle).len() == 1 }).await;
     wait_until(|| async { isle.island_output().await["text"] == "Screenshot saved" }).await;
+    assert!(thumbnail(&isle).await.is_null(), "a thumbnail over a game");
     // The chord is the desktop's, never the game's.
     assert!(!game.printed(&format!("key {THREE}")));
 }
@@ -480,4 +481,131 @@ async fn escape_leaves_the_pick_and_the_frames_live_again() {
     })
     .await;
     assert!(screenshots(&isle).is_empty());
+}
+
+async fn thumbnail(isle: &Isle) -> serde_json::Value {
+    serde_json::from_str(&isle.test().await.thumbnail().await.unwrap()).unwrap()
+}
+
+/// Shift+Cmd+3 and its thumbnail, and the file it holds.
+async fn shot_with_thumbnail(isle: &Isle) -> (serde_json::Value, std::path::PathBuf) {
+    isle.chord(&[SHIFT, CMD, THREE]).await;
+    wait_until(|| async { thumbnail(isle).await["drawn"] == true }).await;
+    let shown = thumbnail(isle).await;
+    let path = std::path::PathBuf::from(shown["path"].as_str().unwrap());
+    (shown, path)
+}
+
+fn centre_of(rect: &serde_json::Value) -> (f64, f64) {
+    let r: Vec<f64> = rect
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_f64().unwrap())
+        .collect();
+    (r[0] + r[2] / 2.0, r[1] + r[3] / 2.0)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_thumbnail_sits_in_the_corner_and_goes_on_its_own() {
+    let isle = Isle::start("thumbnail-corner").await;
+    let test = isle.test().await;
+    test.pointer_to(100.0, 100.0).await.unwrap();
+    let (shown, path) = shot_with_thumbnail(&isle).await;
+    assert!(path.exists());
+    isle.keep_shot("thumbnail").await;
+    let r: Vec<i64> = shown["rect"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_i64().unwrap())
+        .collect();
+    assert!(r[0] + r[2] > 1800 && r[0] + r[2] < 1920, "{r:?}");
+    assert!(r[1] + r[3] > 960 && r[1] + r[3] < 1080, "{r:?}");
+    // A 16:9 shot fills the thumbnail's width, in a mat on each side.
+    assert!(r[2] > 240 && r[2] <= 256, "{r:?}");
+
+    // Held while the pointer is over it, gone after its time once it leaves.
+    let (cx, cy) = centre_of(&shown["rect"]);
+    test.pointer_to(cx, cy).await.unwrap();
+    wait_until(|| async { thumbnail(&isle).await["hovered"] == true }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(5500)).await;
+    assert!(!thumbnail(&isle).await.is_null(), "it went while held");
+    test.pointer_to(100.0, 100.0).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(5500)).await;
+    assert!(thumbnail(&isle).await.is_null(), "it outstayed its time");
+    assert!(path.exists(), "the shot went with its thumbnail");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_flick_dismisses_and_a_drag_carries_the_file() {
+    let mut isle = Isle::start("thumbnail-drag").await;
+    let target = isle.client("isle.test.Target", "3366ff");
+    target.wait_for("keyboard-enter").await;
+    let w = isle.wait_for_window("isle.test.Target").await;
+    let test = isle.test().await;
+
+    let (shown, path) = shot_with_thumbnail(&isle).await;
+    let (cx, cy) = centre_of(&shown["rect"]);
+    test.pointer_to(cx, cy).await.unwrap();
+    test.button(BTN_LEFT, true).await.unwrap();
+    test.pointer_to(cx + 40.0, cy + 2.0).await.unwrap();
+    test.button(BTN_LEFT, false).await.unwrap();
+    wait_until(|| async { thumbnail(&isle).await.is_null() }).await;
+    assert!(path.exists());
+    assert!(!target.printed("button 272"));
+
+    let (shown, path) = shot_with_thumbnail(&isle).await;
+    let (cx, cy) = centre_of(&shown["rect"]);
+    test.pointer_to(cx, cy).await.unwrap();
+    test.button(BTN_LEFT, true).await.unwrap();
+    for f in [0.1, 0.4, 0.7] {
+        test.pointer_to(cx + (w.x as f64 - cx) * f, cy + (w.y as f64 - cy) * f)
+            .await
+            .unwrap();
+    }
+    wait_until(|| async { thumbnail(&isle).await.is_null() }).await;
+    let (tx, ty) = ((w.x + w.width / 2) as f64, (w.y + w.height / 2) as f64);
+    test.pointer_to(tx - 10.0, ty).await.unwrap();
+    test.pointer_to(tx, ty).await.unwrap();
+    target.wait_for("dnd enter").await;
+    test.button(BTN_LEFT, false).await.unwrap();
+    target
+        .wait_for(&format!("dropped file://{}", path.display()))
+        .await;
+    assert!(path.exists(), "a drop into an app keeps the file");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_menu_moves_and_trashes_the_shot() {
+    let isle = Isle::start("thumbnail-menu").await;
+    let test = isle.test().await;
+    let (_, path) = shot_with_thumbnail(&isle).await;
+    test.thumbnail_act("save-documents").await.unwrap();
+    let moved = isle
+        .dir
+        .join("home/Documents")
+        .join(path.file_name().unwrap());
+    assert!(moved.exists() && !path.exists());
+    assert_eq!(
+        thumbnail(&isle).await["path"].as_str().unwrap(),
+        moved.to_str().unwrap()
+    );
+    test.thumbnail_act("trash").await.unwrap();
+    assert!(!moved.exists());
+    let name = path.file_name().unwrap().to_string_lossy().into_owned();
+    assert!(isle.dir.join("data/Trash/files").join(&name).exists());
+    let info = std::fs::read_to_string(isle.dir.join(format!("data/Trash/info/{name}.trashinfo")))
+        .unwrap();
+    assert!(info.starts_with("[Trash Info]\nPath=/"), "{info}");
+    assert!(thumbnail(&isle).await.is_null());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn no_thumbnail_follows_a_copy() {
+    let isle = Isle::start("thumbnail-copy").await;
+    isle.chord(&[CTRL, SHIFT, CMD, THREE]).await;
+    wait_until(|| async { isle.island_output().await["text"] == "Screenshot copied" }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(thumbnail(&isle).await.is_null());
 }

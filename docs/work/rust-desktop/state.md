@@ -366,3 +366,4 @@
   the compositor's element list, written as PNG or copied.
 - P11 11.1 done (2026-10-09): Shift+Cmd+3 and its Ctrl form.
 - P11 11.2 done (2026-10-09): the freeze and the pick, region and window.
+- P11 11.3 done (2026-10-09): the thumbnail, its menu, flick and drag.

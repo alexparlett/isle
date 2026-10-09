@@ -1368,6 +1368,20 @@ impl Test {
             .map_err(|e| fdo::Error::Failed(e.to_string()))
     }
 
+    /// The thumbnail after a shot as JSON, or `null`.
+    async fn thumbnail(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.thumbnail_status()).await?)
+    }
+
+    /// Acts as an item of the thumbnail's menu would: `save-screenshots`,
+    /// `save-documents`, `save-clipboard`, `copy`, `trash` or `close`.
+    async fn thumbnail_act(&self, item: String) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| state.thumbnail_test_act(&item))
+            .await?
+            .map_err(fdo::Error::Failed)
+    }
+
     /// Shift+Cmd+4's pick as JSON, or `null`.
     async fn pick(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.pick_status()).await?)

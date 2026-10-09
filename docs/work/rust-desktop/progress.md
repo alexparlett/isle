@@ -2,6 +2,22 @@
 
 ## 2026-10-09
 
+- P11 11.3: the thumbnail. After a shot to a file (not a copy, not over a
+  full-screen game, not with `capture.floating-thumbnail` off) a top-layer
+  surface shows the shot, made small on the worker, in the bottom-trailing
+  corner of the work area of the screen shot. It goes after
+  `timing-thumbnail-ms`, held while the pointer is over it or its menu is
+  open; a new shot replaces it. A click opens the file through the launch
+  path (Quick Look and Markup take the click in P15); a press that heads for
+  the trailing or bottom edge is a flick that dismisses it; one that heads
+  elsewhere drags the file out as Spotlight's rows are dragged, and a drop
+  into an app keeps the file. Its menu (Save to Screenshots, Documents or
+  Clipboard, Copy, Move to Trash, Close) is drawn in the window menu's
+  surface, which now opens for owners other than windows; Move to Trash
+  follows the freedesktop.org trash layout. Not yet: the thumbnail following
+  the pointer during a drag or flick (it goes at once), and Show in Files
+  and Markup in its menu (P15).
+
 - P11 11.2: the freeze and the pick. Shift+Cmd+4 renders every screen and
   every shown window (with and without its shadow) into textures of their own
   and draws the frozen frames in place of the scene; clients keep running,

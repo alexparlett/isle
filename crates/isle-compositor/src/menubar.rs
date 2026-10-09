@@ -1401,7 +1401,54 @@ impl State {
         self.open_surface("window-menu");
     }
 
+    /// `entries` in the window menu's surface at `at` in the global space, for an owner
+    /// other than a window, who reads the choice before the window menu does.
+    pub fn open_menu_at(
+        &mut self,
+        entries: Vec<isle_ui::MenuEntry>,
+        output: &Output,
+        at: smithay::utils::Point<i32, smithay::utils::Logical>,
+    ) {
+        let Some(screen) = self.isle.space.output_geometry(output) else {
+            return;
+        };
+        let bar = &mut self.isle.bar;
+        bar.window_commands.clear();
+        bar.window_menu_for = None;
+        bar.generation += 1;
+        let rows = entries.len();
+        let model = MenuModel {
+            entries: Rc::new(entries),
+            by_key: false,
+            generation: bar.generation,
+        };
+        let theme = self.isle.shell.theme().clone();
+        let size = isle_shell::placed_menu::window_menu_size(&theme, rows);
+        let rect = crate::wm::geometry::clamp_whole(Rectangle::new(at, size), screen);
+        let menu = self.isle.bar.window_menu.clone();
+        menu.set_model(model.clone());
+        self.isle.shell.with_root("window-menu", || menu.set(model));
+        let place = isle_shell::OutputPlace {
+            output: output.clone(),
+            geometry: screen,
+            scale: output.current_scale().fractional_scale(),
+        };
+        let m = isle_shell::placed_menu::menu_margin(&theme);
+        self.isle.shell.open_placed(
+            "window-menu",
+            &place,
+            Rectangle::new(
+                rect.loc - screen.loc - Point::<i32, Logical>::from((m, m)),
+                rect.size + Size::<i32, Logical>::from((2 * m, 2 * m)),
+            ),
+        );
+        self.open_surface("window-menu");
+    }
+
     pub fn window_menu_event(&mut self, event: MenuEvent) {
+        if self.thumbnail_menu_event(&event) {
+            return;
+        }
         match event {
             MenuEvent::Chosen(id) => {
                 let command = self.isle.bar.window_commands.get(&id).cloned();

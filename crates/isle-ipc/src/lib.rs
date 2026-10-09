@@ -572,6 +572,12 @@ pub mod test {
         /// Draws an output and writes it to `path` as a PNG.
         fn screenshot(&self, output: &str, path: &str) -> zbus::Result<()>;
 
+        /// The thumbnail after a shot as JSON, or `null`.
+        fn thumbnail(&self) -> zbus::Result<String>;
+
+        /// Acts as an item of the thumbnail's menu would.
+        fn thumbnail_act(&self, item: &str) -> zbus::Result<()>;
+
         /// Shift+Cmd+4's pick as JSON, or `null`.
         fn pick(&self) -> zbus::Result<String>;
 

@@ -127,6 +127,9 @@ pub struct Isle {
     /// Shift+Cmd+4's frozen screens while the pick is open.
     pub freeze: Option<crate::freeze::Freeze>,
     pub capture_readout: std::rc::Rc<isle_shell::capture::readout::ReadoutSurface>,
+    /// The thumbnail after a shot, while it shows.
+    pub thumbnail: Option<crate::thumbnail::Thumbnail>,
+    pub capture_thumbnail: std::rc::Rc<isle_shell::capture::thumbnail::ThumbnailSurface>,
     /// The emoji the colour font draws, by their place in the table, once checked.
     pub emoji_drawable: std::sync::Arc<std::sync::OnceLock<Vec<usize>>>,
     /// The file-name index, once built.
@@ -353,6 +356,8 @@ impl Isle {
         shell.register(spotlight.surface.clone());
         let capture_readout = isle_shell::capture::readout::ReadoutSurface::new();
         shell.register(capture_readout.clone());
+        let capture_thumbnail = isle_shell::capture::thumbnail::ThumbnailSurface::new();
+        shell.register(capture_thumbnail.clone());
         #[cfg(feature = "test-hooks")]
         let probe = std::rc::Rc::new(isle_shell::probe::Probe::default());
         #[cfg(feature = "test-hooks")]
@@ -425,6 +430,8 @@ impl Isle {
             force_quit,
             freeze: None,
             capture_readout,
+            thumbnail: None,
+            capture_thumbnail,
             spotlight,
             emoji_drawable: Default::default(),
             files: None,

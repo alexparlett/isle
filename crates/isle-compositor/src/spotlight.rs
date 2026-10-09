@@ -1819,6 +1819,17 @@ impl State {
         };
         start.focus = None;
         self.close_spotlight();
+        self.drag_out(pick, start);
+        info!(from, "a drag out of Spotlight");
+    }
+
+    /// Starts a drag whose source is Isle, offering `pick`'s types to the drop target.
+    pub fn drag_out(
+        &mut self,
+        pick: crate::clipboard::Pick,
+        start: smithay::input::pointer::GrabStartData<State>,
+    ) {
+        let pointer = self.isle.seat.get_pointer().unwrap();
         let grab = smithay::input::dnd::DnDGrab::new_pointer(
             &self.isle.display_handle,
             start,
@@ -1827,7 +1838,6 @@ impl State {
         );
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         pointer.set_grab(self, grab, serial, smithay::input::pointer::Focus::Clear);
-        info!(from, "a drag out of Spotlight");
     }
 }
 

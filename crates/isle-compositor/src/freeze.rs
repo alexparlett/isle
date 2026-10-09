@@ -723,7 +723,7 @@ impl State {
         let pixels = px.map(|px| self.backend.read_back(&mut texture, px, false));
         self.close_pick();
         match pixels {
-            Some(Ok(pixels)) => self.keep_shot(pixels, purpose),
+            Some(Ok(pixels)) => self.keep_shot(pixels, purpose, out),
             Some(Err(err)) => warn!("no region: {err}"),
             None => {}
         }
@@ -734,6 +734,11 @@ impl State {
             return;
         };
         let purpose = freeze.purpose;
+        let id = freeze.windows[index].id;
+        let on = self.isle.output_of(id).or_else(|| self.isle.main_output());
+        let Some(freeze) = self.isle.freeze.as_mut() else {
+            return;
+        };
         let window = &freeze.windows[index];
         let (mut texture, size) = if shadow {
             window.shadowed.clone()
@@ -751,12 +756,16 @@ impl State {
             .read_back(&mut texture, Rectangle::from_size(size), true);
         self.close_pick();
         match pixels {
-            Ok(pixels) => self.keep_shot(pixels, purpose),
+            Ok(pixels) => {
+                if let Some(on) = on {
+                    self.keep_shot(pixels, purpose, on)
+                }
+            }
             Err(err) => warn!("no window: {err}"),
         }
     }
 
-    fn keep_shot(&mut self, pixels: Pixels, purpose: Purpose) {
+    fn keep_shot(&mut self, pixels: Pixels, purpose: Purpose, on: Output) {
         let Purpose::Shot { copy } = purpose;
         let to = if copy {
             Destination::Clipboard
@@ -764,7 +773,12 @@ impl State {
             self.still_destination()
         };
         self.shutter();
-        self.keep_stills(vec![pixels], to, |_, _| {});
+        let preview = !copy && self.isle.settings.capture.floating_thumbnail;
+        self.keep_stills(vec![pixels], to, preview, move |state, written, small| {
+            if let (Some(path), Some(small)) = (written.first(), small) {
+                state.show_thumbnail(path.clone(), &on, small);
+            }
+        });
     }
 
     /// The pick as JSON, for the Test interface.

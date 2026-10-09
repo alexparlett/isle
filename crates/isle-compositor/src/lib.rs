@@ -10,6 +10,7 @@ pub mod crash;
 mod cursor;
 mod desktop_notes;
 mod dbus;
+mod files;
 mod focus;
 mod focus_modes;
 mod force_quit;

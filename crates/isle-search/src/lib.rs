@@ -1,5 +1,6 @@
 //! Spotlight's sources, the matcher and the ranking, with no compositor in them.
 
+pub mod files;
 pub mod matcher;
 pub mod rank;
 pub mod sources;

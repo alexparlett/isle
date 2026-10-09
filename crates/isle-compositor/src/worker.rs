@@ -123,6 +123,16 @@ pub fn spawn(
             runtime.spawn(supervise("apps-watch", move || {
                 crate::wm::watch_apps(loop_a.clone())
             }));
+            let (reach_tx, reach_rx) = tokio::sync::watch::channel(None);
+            to_loop.post(move |state| {
+                let reach = crate::files::reach(&state.isle.settings.spotlight);
+                reach_tx.send_replace(Some(reach));
+                state.isle.files_reach = Some(reach_tx);
+            });
+            let loop_f = to_loop.clone();
+            runtime.spawn(supervise("files-watch", move || {
+                crate::files::watch(loop_f.clone(), reach_rx.clone())
+            }));
             use crate::services::start;
             start(&runtime, &to_loop, "login", crate::services::login::watch, State::login_changed);
             let (may_sleep, may_sleep_rx) = tokio::sync::watch::channel(false);

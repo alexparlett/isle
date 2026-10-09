@@ -333,4 +333,6 @@
   group, the clipboard core with the Xwayland read fixed.
 - P10 10.5 done (2026-10-09): the fast sources and choosing them.
 - P10 10.6 done (2026-10-09): the Apps view, favourites, the category
-  filter, menus, badges. Next: 10.7 (files and contents).
+  filter, menus, badges.
+- P10 10.7 done (2026-10-09): the file index and contents search. Next:
+  10.8 (the calculator, run and the web).

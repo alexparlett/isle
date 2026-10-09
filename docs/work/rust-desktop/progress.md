@@ -2,6 +2,19 @@
 
 ## 2026-10-09
 
+- P10 10.7: files and contents. `isle-search`'s file index walks home and
+  `spotlight.files-include` with the `ignore` crate, leaving out hidden
+  folders, what `.gitignore` files exclude and `spotlight.files-exclude`;
+  the compositor's watcher holds one inotify watch per folder, reads a
+  changed folder again (walking new folders, forgetting gone ones) and
+  builds afresh on an overflow or a settings change. Names match against a
+  lower-cased copy first. On the host: 83,960 entries in 7,022 folders,
+  built in 165 ms, about 20 MB, a name search in about 2 ms. The Files
+  scope lists recent files from `recently-used.xbel` when empty; Contents
+  waits 250 ms, searches plain text with ripgrep's engine, stops at twenty
+  files and gives up when the next key comes. A file opens in its default
+  app; Cmd+Return shows it through FileManager1.
+
 - P10 10.6: the Apps view. Favourites first in the user's order, then
   every app and game by name; the fixed bar with the section's title and
   the category filter, a menu of the categories that have apps; typing

@@ -139,6 +139,16 @@ impl State {
         if touched("lock-screen") {
             self.arm_idle();
         }
+        if touched("spotlight")
+            && let Some(tx) = &self.isle.files_reach
+        {
+            let reach = crate::files::reach(&self.isle.settings.spotlight);
+            tx.send_if_modified(|old| {
+                let changed = old.as_ref() != Some(&reach);
+                *old = Some(reach);
+                changed
+            });
+        }
 
         if touched("keyboard") {
             self.apply_keyboard_settings();

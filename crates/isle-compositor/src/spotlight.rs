@@ -965,7 +965,19 @@ impl State {
                     rows: settings_rows,
                 }),
             ],
-            slow: Vec::new(),
+            slow: match &self.isle.files {
+                Some(index) => vec![
+                    Arc::new(isle_search::files::FilesSource {
+                        index: index.clone(),
+                        xbel: isle_apps::appimage::data_home()
+                            .map(|d| d.join("recently-used.xbel")),
+                    }) as Arc<dyn Source>,
+                    Arc::new(isle_search::files::ContentsSource {
+                        index: index.clone(),
+                    }),
+                ],
+                None => Vec::new(),
+            },
         }
     }
 

@@ -124,6 +124,10 @@ pub struct Isle {
     pub session: crate::session_end::SessionState,
     pub force_quit: crate::force_quit::ForceQuitState,
     pub spotlight: crate::spotlight::SpotlightState,
+    /// The file-name index, once built.
+    pub files: Option<isle_search::files::Shared>,
+    /// Where the index reaches, sent to its watcher when the settings change.
+    pub files_reach: Option<tokio::sync::watch::Sender<Option<isle_search::files::Reach>>>,
     pub clipboard: crate::clipboard::ClipboardState,
     pub idle_notifier_state: smithay::wayland::idle_notify::IdleNotifierState<State>,
     /// The outputs changed under the lock; its face is shown again on the next dispatch.
@@ -413,6 +417,8 @@ impl Isle {
             session,
             force_quit,
             spotlight,
+            files: None,
+            files_reach: None,
             clipboard: Default::default(),
             idle_notifier_state,
             lock_outputs_changed: false,

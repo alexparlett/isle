@@ -409,6 +409,77 @@ async fn a_badge_shows_on_its_tile() {
     .await;
 }
 
+/// Opens Spotlight in `prefix`'s scope and types `text`.
+async fn scoped_search(isle: &Isle, prefix: u32, text: &str) {
+    let mut keys = vec![prefix];
+    keys.extend(text.chars().map(code));
+    open_and_type(isle, &keys).await;
+    wait_until(|| async { status(isle).await["text"] == text }).await;
+}
+
+async fn found_in(isle: &Isle, prefix: u32, text: &str, title: &str) -> bool {
+    scoped_search(isle, prefix, text).await;
+    let mut seen = false;
+    for _ in 0..40 {
+        if titles(isle).await.iter().any(|t| t == title) {
+            seen = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    isle.chord(&[SUPER, SPACE]).await;
+    wait_until(|| async { status(isle).await["open"] == false }).await;
+    seen
+}
+
+const QUESTION_SHIFT: u32 = 53;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn files_are_found_by_name_live_and_by_content() {
+    let isle = Isle::start_prepared("spotlight-files", "", |dir| {
+        let home = dir.join("home");
+        std::fs::create_dir_all(home.join("notes/work")).unwrap();
+        std::fs::create_dir_all(home.join(".hidden")).unwrap();
+        std::fs::write(home.join("notes/plan.md"), "the plan\nquarterly numbers\n").unwrap();
+        std::fs::write(home.join(".hidden/planb.md"), "").unwrap();
+    })
+    .await;
+    wait_until(|| async { found_in(&isle, SLASH, "plan", "plan.md").await }).await;
+    assert!(
+        !found_in(&isle, SLASH, "planb", "planb.md").await,
+        "hidden folders are left out"
+    );
+
+    let home = isle.dir.join("home");
+    std::fs::create_dir_all(home.join("notes/fresh")).unwrap();
+    std::fs::write(home.join("notes/fresh/minutes.txt"), "").unwrap();
+    wait_until(|| async { found_in(&isle, SLASH, "minutes", "minutes.txt").await }).await;
+    std::fs::remove_dir_all(home.join("notes/fresh")).unwrap();
+    wait_until(|| async { !found_in(&isle, SLASH, "minutes", "minutes.txt").await }).await;
+
+    // ? is Shift+/ on the US layout.
+    let test = isle.test().await;
+    open_and_type(&isle, &[]).await;
+    wait_until(|| async { status(&isle).await["open"] == true }).await;
+    test.key(SHIFT, true).await.unwrap();
+    press(&isle, QUESTION_SHIFT).await;
+    test.key(SHIFT, false).await.unwrap();
+    wait_until(|| async { status(&isle).await["scope"] == "Files { contents: true }" }).await;
+    for c in "quarterly".chars() {
+        press(&isle, code(c)).await;
+    }
+    wait_until(|| async {
+        let lines = status(&isle).await["lines"].clone();
+        lines.as_array().unwrap().iter().any(|l| {
+            l["title"] == "plan.md"
+                && l["detail"]
+                    .as_str()
+                    .is_some_and(|d| d.starts_with("quarterly numbers"))
+        })
+    })
+    .await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

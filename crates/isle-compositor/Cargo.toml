@@ -72,6 +72,7 @@ isle-menus.workspace = true
 isle-network.workspace = true
 isle-notifications.workspace = true
 isle-polkit.workspace = true
+isle-portal.workspace = true
 isle-prompter.workspace = true
 wayland-server.workspace = true
 wayland-backend.workspace = true

@@ -28,6 +28,7 @@ isle-menus = { path = "crates/isle-menus" }
 isle-network = { path = "crates/isle-network" }
 isle-notifications = { path = "crates/isle-notifications" }
 isle-polkit = { path = "crates/isle-polkit" }
+isle-portal = { path = "crates/isle-portal" }
 isle-prompter = { path = "crates/isle-prompter" }
 isle-settings = { path = "crates/isle-settings" }
 isle-settings-derive = { path = "crates/isle-settings-derive" }

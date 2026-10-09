@@ -53,6 +53,7 @@ mod render;
 pub mod settings;
 pub mod state;
 pub mod state_writer;
+mod portal;
 mod recording;
 mod thumbnail;
 mod toolbar;
@@ -279,6 +280,9 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         None
     });
     state.isle.services.tray_kill = Some(services::tray::start(&runtime, &to_loop, tray));
+    // The portal frontend reads a backend once at its start: Isle owns the name before the
+    // session's apps can start the frontend.
+    state.isle.portal = portal::own(&runtime, to_loop.clone());
     report_ready(&state.isle.socket_name, display);
 
     event_loop.run(None, &mut state, |state| {

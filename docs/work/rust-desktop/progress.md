@@ -2,6 +2,19 @@
 
 ## 2026-10-09
 
+- P11 11.8: the backend. `isle-portal` holds the impl interfaces as
+  hand-written zbus (Access, ScreenCast with its Session objects, Screenshot,
+  Settings, Inhibit), the Request object each held reply exports while it
+  waits, and the check that every call's sender owns
+  `org.freedesktop.portal.Desktop`; `version` is exported lower-case. The
+  compositor serves it on a connection of its own, takes
+  `org.freedesktop.impl.portal.desktop.isle` before it reports ready, and
+  asks systemd to try-restart `xdg-desktop-portal.service` so a frontend
+  already running reads Isle's versions. Access is a P9 prompt with the app's
+  icon, Allow and Don't Allow; the frontend closing the request takes it
+  away. `data/portal/` has `isle.portal` and `isle-portals.conf`. The other
+  interfaces answer nothing until 11.9 to 11.11.
+
 - P11 11.7: recording. The toolbar's three recording modes (shown while
   `isle-record` is installed) and its countdown start a recording; one at a
   time. The compositor streams the source (the pointer embedded when

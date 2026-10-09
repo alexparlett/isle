@@ -2851,6 +2851,7 @@ dependencies = [
  "isle-network",
  "isle-notifications",
  "isle-polkit",
+ "isle-portal",
  "isle-power",
  "isle-prompter",
  "isle-search",
@@ -2999,6 +3000,16 @@ dependencies = [
  "tracing",
  "zbus",
  "zeroize",
+ "zvariant",
+]
+
+[[package]]
+name = "isle-portal"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "tracing",
+ "zbus",
  "zvariant",
 ]
 

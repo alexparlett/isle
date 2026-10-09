@@ -126,6 +126,8 @@ pub struct Isle {
     pub spotlight: crate::spotlight::SpotlightState,
     /// The screen streams Isle produces.
     pub casting: crate::cast::Casting,
+    /// The portal backend's connection, while Isle owns its name.
+    pub portal: Option<zbus::Connection>,
     /// The screen recording running, if one is.
     pub recording_now: Option<crate::recording::Recording>,
     /// Shift+Cmd+4's frozen screens while the pick is open.
@@ -442,6 +444,7 @@ impl Isle {
             force_quit,
             casting: Default::default(),
             recording_now: None,
+            portal: None,
             freeze: None,
             capture_readout,
             thumbnail: None,

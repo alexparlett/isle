@@ -371,3 +371,4 @@
 - P11 11.5 done (2026-10-09): the colour pick and its loupe.
 - P11 11.6 done (2026-10-09): PipeWire streams of a screen, a portion or a window.
 - P11 11.7 done (2026-10-09): recording through `isle-record`, H.264 and AAC in MP4.
+- P11 11.8 done (2026-10-09): `isle-portal`, the name, the sender check, Access.

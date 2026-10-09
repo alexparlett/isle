@@ -20,6 +20,8 @@ pub enum Kind {
     Network,
     Vpn,
     Bluetooth,
+    /// A portal's permission for an app.
+    Access,
 }
 
 impl Kind {
@@ -30,6 +32,7 @@ impl Kind {
             Kind::Network => "wifi-high",
             Kind::Vpn => "isle-vpn",
             Kind::Bluetooth => "bluetooth",
+            Kind::Access => "shield-check",
         }
     }
 }

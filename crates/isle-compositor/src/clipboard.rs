@@ -142,6 +142,18 @@ impl State {
         self.isle.refresh_island();
     }
 
+    /// The clipboard's text when Isle offers it.
+    pub fn isle_clipboard_text(&self) -> Option<String> {
+        let owner = current_data_device_selection_userdata(&self.isle.seat).map(|o| o.clone())?;
+        match owner {
+            Owner::Isle(pick) => TEXT_TYPES
+                .iter()
+                .find_map(|t| pick.bytes(t))
+                .map(|b| String::from_utf8_lossy(&b).into_owned()),
+            Owner::Xwayland => None,
+        }
+    }
+
     /// The clipboard's text, read off the loop when a client offers it, handed to `then` on
     /// the loop.
     pub fn read_clipboard_text(

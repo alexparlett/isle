@@ -197,23 +197,7 @@ fn prefix_scope(c: char) -> Option<Scope> {
     })
 }
 
-/// Whether the query reads as a sum or a conversion, so the calculation row is placed before
-/// the calculator answers (`p10-spotlight.md` choice 14).
-pub fn reads_as_sum(query: &str) -> bool {
-    let q = query.trim();
-    let Some(first) = q.chars().next() else {
-        return false;
-    };
-    if first.is_ascii_digit() || matches!(first, '(' | '-' | '+' | '.' | '√' | 'π') {
-        return true;
-    }
-    const FUNCTIONS: [&str; 10] = [
-        "sqrt", "sin", "cos", "tan", "log", "ln", "abs", "exp", "pi", "e^",
-    ];
-    FUNCTIONS
-        .iter()
-        .any(|f| q.starts_with(f) && q[f.len()..].starts_with(['(', ' ']))
-}
+pub use isle_search::reads_as_sum;
 
 /// Spotlight from opening to closing.
 #[derive(Clone, Debug)]

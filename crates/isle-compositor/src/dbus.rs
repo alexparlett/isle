@@ -848,6 +848,11 @@ impl Test {
             .await?)
     }
 
+    /// The clipboard's text when Isle offers it.
+    async fn clipboard(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle_clipboard_text().unwrap_or_default()).await?)
+    }
+
     /// Spotlight's model as JSON.
     async fn spotlight(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.isle.spotlight_status()).await?)

@@ -88,6 +88,17 @@ impl Domain for Wallpapers {
     const VERSION: u32 = 1;
 }
 
+/// Spotlight's Run history, newest first.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Commands {
+    pub run: Vec<String>,
+}
+
+impl Domain for Commands {
+    const NAME: &'static str = "commands";
+    const VERSION: u32 = 1;
+}
+
 /// How often each of Spotlight's results has been chosen, by the result's key
 /// (`app:<desktop id>`, `action:<id>`, ...), for ranking.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

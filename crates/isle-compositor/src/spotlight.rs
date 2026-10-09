@@ -76,6 +76,8 @@ pub struct SpotlightState {
     repeat: Option<(u32, RegistrationToken)>,
     pub usage: Usage,
     usage_saver: Option<Saver<Usage>>,
+    commands: isle_state::domains::Commands,
+    commands_saver: Option<Saver<isle_state::domains::Commands>>,
     /// The Apps view's panel on the screen Spotlight opened on.
     apps_panel: (f32, f32),
     menu: Option<OpenMenu>,
@@ -96,6 +98,8 @@ impl SpotlightState {
             repeat: None,
             usage: Usage::default(),
             usage_saver: None,
+            commands: Default::default(),
+            commands_saver: None,
             apps_panel: (0., 0.),
             menu: None,
             drag_from: None,
@@ -163,7 +167,9 @@ impl Isle {
             warn!(?loaded, "Spotlight's use");
         }
         self.spotlight.usage = usage;
-        self.spotlight.usage_saver = Some(Saver::spawn(runtime, dir));
+        self.spotlight.usage_saver = Some(Saver::spawn(runtime, dir.clone()));
+        self.spotlight.commands = dir.load().0;
+        self.spotlight.commands_saver = Some(Saver::spawn(runtime, dir));
     }
 
     /// Counts a choice of `key` for ranking.
@@ -964,6 +970,12 @@ impl State {
                 Box::new(settings::SettingsSource {
                     rows: settings_rows,
                 }),
+                Box::new(isle_search::sources::run::RunSource {
+                    history: self.isle.spotlight.commands.run.clone(),
+                }),
+                Box::new(isle_search::sources::run::WebSource {
+                    template: self.isle.settings.spotlight.web_search.clone(),
+                }),
             ],
             slow: match &self.isle.files {
                 Some(index) => vec![
@@ -975,8 +987,12 @@ impl State {
                     Arc::new(isle_search::files::ContentsSource {
                         index: index.clone(),
                     }),
+                    Arc::new(isle_search::sources::calculator::CalculatorSource),
                 ],
-                None => Vec::new(),
+                None => {
+                    vec![Arc::new(isle_search::sources::calculator::CalculatorSource)
+                        as Arc<dyn Source>]
+                }
             },
         }
     }
@@ -1085,8 +1101,16 @@ impl State {
         }
     }
 
-    /// Spotlight's Run: in a scope of its own, or in the user's terminal with Cmd+Return.
+    /// Spotlight's Run: in a scope of its own, or in the user's terminal with Cmd+Return;
+    /// the last fifty commands are kept.
     fn spotlight_run(&mut self, command: String, how: How) {
+        let history = &mut self.isle.spotlight.commands.run;
+        history.retain(|c| *c != command);
+        history.insert(0, command.clone());
+        history.truncate(50);
+        if let Some(saver) = &self.isle.spotlight.commands_saver {
+            saver.save(self.isle.spotlight.commands.clone());
+        }
         let line = match how {
             How::Reveal => format!("xdg-terminal-exec sh -c {}", shell_quote(&command)),
             _ => command,

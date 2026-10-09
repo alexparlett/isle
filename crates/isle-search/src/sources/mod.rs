@@ -3,7 +3,9 @@
 
 pub mod actions;
 pub mod apps;
+pub mod calculator;
 pub mod menus;
+pub mod run;
 pub mod settings;
 pub mod windows;
 

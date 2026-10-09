@@ -2,6 +2,15 @@
 
 ## 2026-10-09
 
+- P10 10.8: the calculator, Run and the web. `fend-core` evaluates on the
+  worker, given up after 100 ms or at the next key, offline; the general
+  search places its row when the query reads as a sum. Return copies the
+  answer and the island says "Copied". `>` runs a command line in a scope
+  of its own, Cmd+Return in the terminal, and the last fifty are kept in
+  the `commands` state domain; launches now start in the home folder, as
+  from a terminal, rather than in Isle's own. The web row searches
+  `spotlight.web-search`, DuckDuckGo unless set.
+
 - P10 10.7: files and contents. `isle-search`'s file index walks home and
   `spotlight.files-include` with the `ignore` crate, leaving out hidden
   folders, what `.gitignore` files exclude and `spotlight.files-exclude`;

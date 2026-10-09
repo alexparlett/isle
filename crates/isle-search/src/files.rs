@@ -180,10 +180,10 @@ impl FileIndex {
         for k in gone {
             self.folders.remove(&k);
         }
-        if let (Some(parent), Some(name)) = (folder.parent(), folder.file_name()) {
-            if let Some(entries) = self.folders.get_mut(parent) {
-                entries.remove(&*name.to_string_lossy());
-            }
+        if let (Some(parent), Some(name)) = (folder.parent(), folder.file_name())
+            && let Some(entries) = self.folders.get_mut(parent)
+        {
+            entries.remove(&*name.to_string_lossy());
         }
     }
 

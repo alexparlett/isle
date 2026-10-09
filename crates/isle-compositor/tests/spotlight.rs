@@ -480,6 +480,57 @@ async fn files_are_found_by_name_live_and_by_content() {
     .await;
 }
 
+const SHIFT_PERIOD_GT: u32 = 52;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_sum_is_answered_and_copied_and_the_web_row_comes_last() {
+    let isle = Isle::start("spotlight-calc").await;
+    // 12*48: * is Shift+8 on the US layout.
+    let test = isle.test().await;
+    open_and_type(&isle, &[code('1'), code('2')]).await;
+    test.key(SHIFT, true).await.unwrap();
+    press(&isle, code('8')).await;
+    test.key(SHIFT, false).await.unwrap();
+    for c in "48".chars() {
+        press(&isle, code(c)).await;
+    }
+    wait_until(|| async { status(&isle).await["text"] == "12*48" }).await;
+    wait_until(|| async { status(&isle).await["lines"][1]["title"] == "576" }).await;
+    let lines = status(&isle).await["lines"].clone();
+    assert_eq!(lines[0]["header"], "Calculation");
+    assert_eq!(
+        lines.as_array().unwrap().last().unwrap()["title"],
+        "Search the web for “12*48”"
+    );
+    press(&isle, RETURN).await;
+    wait_until(|| async { test.clipboard().await.unwrap() == "576" }).await;
+    assert_eq!(status(&isle).await["open"], false);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_command_runs_and_is_kept() {
+    let isle = Isle::start("spotlight-run").await;
+    let test = isle.test().await;
+    open_and_type(&isle, &[]).await;
+    wait_until(|| async { status(&isle).await["open"] == true }).await;
+    test.key(SHIFT, true).await.unwrap();
+    press(&isle, SHIFT_PERIOD_GT).await;
+    test.key(SHIFT, false).await.unwrap();
+    wait_until(|| async { status(&isle).await["scope"] == "Run" }).await;
+    for c in "touch ran".chars() {
+        press(&isle, code(c)).await;
+    }
+    wait_until(|| async { status(&isle).await["lines"][0]["title"] == "touch ran" }).await;
+    press(&isle, RETURN).await;
+    let ran = isle.dir.join("home/ran");
+    wait_until(|| async { ran.exists() }).await;
+    let commands = isle.dir.join("state/isle/commands.json");
+    wait_until(|| async {
+        std::fs::read_to_string(&commands).is_ok_and(|t| t.contains("touch ran"))
+    })
+    .await;
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

@@ -477,6 +477,8 @@ pub mod test {
         /// The session dialog and the session's end as JSON.
         fn session(&self) -> zbus::Result<String>;
         fn session_act(&self, action: &str) -> zbus::Result<()>;
+        /// The clipboard's text when Isle offers it.
+        fn clipboard(&self) -> zbus::Result<String>;
         /// Spotlight's model as JSON.
         fn spotlight(&self) -> zbus::Result<String>;
         fn spotlight_act(&self, action: &str) -> zbus::Result<()>;

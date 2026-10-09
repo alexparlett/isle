@@ -108,6 +108,11 @@ impl State {
             std::process::id() ^ rand_part()
         );
         info!(?argv, unit, "launching");
+        // Started in the home folder, as from a terminal, whatever Isle's own folder is.
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .filter(|h| h.is_dir())
+            .unwrap_or_else(|| "/".into());
         runtime.spawn(async move {
             if let Some(activation) = activate {
                 match activation.call(&token).await {
@@ -138,6 +143,7 @@ impl State {
                 ])
                 .args(&argv)
                 .envs(envs.clone())
+                .current_dir(&home)
                 .stdin(std::process::Stdio::null())
                 .spawn();
             // systemd-run becomes the app once its scope exists; one that exits at once with
@@ -173,6 +179,7 @@ impl State {
                 let direct = tokio::process::Command::new(&argv[0])
                     .args(&argv[1..])
                     .envs(envs)
+                    .current_dir(&home)
                     .stdin(std::process::Stdio::null())
                     .spawn();
                 if let Err(err) = direct {

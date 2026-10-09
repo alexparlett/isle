@@ -155,11 +155,12 @@ impl State {
                 }
             }
             let small = preview.then(|| stills.first().map(thumbnail_of)).flatten();
-            match failed {
-                None => to_loop.post(move |state| done(state, written, small)),
-                Some((n, err)) => {
+            let copied = failed.as_ref().map(|(n, _)| encode_png(&stills[*n]));
+            drop(stills);
+            trim();
+            match (failed, copied) {
+                (Some((_, err)), Some(png)) => {
                     warn!(folder = %folder.display(), "could not save a screenshot: {err}");
-                    let png = encode_png(&stills[n]);
                     to_loop.post(move |state| {
                         if let Ok(png) = png {
                             state.copy_still_quietly(png);
@@ -168,6 +169,7 @@ impl State {
                         done(state, written, None);
                     });
                 }
+                _ => to_loop.post(move |state| done(state, written, small)),
             }
         });
     }
@@ -441,6 +443,15 @@ impl State {
                 let _ = reply.send(written.into_iter().next());
             },
         );
+    }
+}
+
+/// Gives the allocator's free pages back: a still's pixels are tens of megabytes, which the
+/// allocator otherwise keeps for the thread that freed them.
+pub fn trim() {
+    // SAFETY: malloc_trim only releases free memory.
+    unsafe {
+        libc::malloc_trim(0);
     }
 }
 

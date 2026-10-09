@@ -378,3 +378,4 @@
 - P11 11.11 done (2026-10-09): the Settings and Inhibit portals.
 - P11 11.12 done (2026-10-09): ext-image-copy-capture, its sources, ext-foreign-toplevel-list.
 - P11 11.13 done (2026-10-09): `Capture1`, `isle capture`, `isle portal`, the Screenshot control.
+- P11 11.14 done (2026-10-09): measures and the VM in `docs/research/rust-desktop/p11-capture.md`.

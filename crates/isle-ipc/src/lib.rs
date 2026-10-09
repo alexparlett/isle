@@ -588,6 +588,9 @@ pub mod test {
         /// Screen shares as JSON: the picker and the sessions.
         fn share(&self) -> zbus::Result<String>;
 
+        /// Each stream frame's render time on the loop in microseconds since measuring began.
+        fn cast_times(&self) -> zbus::Result<Vec<u64>>;
+
         /// The capture protocols' sessions as JSON.
         fn copies(&self) -> zbus::Result<String>;
 

@@ -161,6 +161,8 @@ pub struct Casting {
     next: u64,
     /// Where dmabufs for streams are allocated, and what the renderer draws into.
     pub gbm: Option<(GbmDevice<DrmDeviceFd>, FormatSet)>,
+    /// Each frame's render on the loop in microseconds, while measuring.
+    pub times: Vec<u64>,
 }
 
 /// The negotiated buffers' kind and layout.
@@ -971,6 +973,7 @@ impl State {
             return;
         }
         let cursor_mode = stream.cursor;
+        let began = Instant::now();
         let (elements, scale) =
             match self.cast_elements(&source, cursor_mode == CursorMode::Embedded) {
                 Some(x) => x,
@@ -1010,6 +1013,10 @@ impl State {
                 stream.frames += 1;
                 stream.last_queued = Some(now);
                 self.queue_after(id, buffer, sync);
+                if self.isle.shell.measuring() {
+                    let micros = began.elapsed().as_micros() as u64;
+                    self.isle.casting.times.push(micros);
+                }
             }
             Err(err) => {
                 warn!(id, "rendering a stream's frame: {err}");
@@ -1155,6 +1162,7 @@ impl State {
                     "kind": s.kind(),
                     "size": [s.size().w, s.size().h],
                     "frames": s.frames,
+                    "times": self.isle.casting.times.len(),
                     "source": match &s.source {
                         Source::Screen(o) => serde_json::json!({"screen": o.name()}),
                         Source::Portion(o, r) => serde_json::json!({"portion": o.name(), "rect": [r.loc.x, r.loc.y, r.size.w, r.size.h]}),

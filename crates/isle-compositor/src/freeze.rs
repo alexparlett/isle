@@ -481,6 +481,7 @@ impl State {
         self.isle.shell.close("capture-readout");
         self.isle.cursor_status = CursorImageStatus::default_named();
         self.backend.update_cursor(&self.isle);
+        crate::capture::trim();
         let at = self.isle.seat.get_pointer().unwrap().current_location();
         self.on_pointer_to(at, InputTime::now());
         self.isle.queue_redraw_all();

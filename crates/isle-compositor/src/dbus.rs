@@ -1459,6 +1459,11 @@ impl Test {
         Ok(self.to_loop.call(|state| state.share_status().to_string()).await?)
     }
 
+    /// Each stream frame's render time on the loop in microseconds since measuring began.
+    async fn cast_times(&self) -> fdo::Result<Vec<u64>> {
+        Ok(self.to_loop.call(|state| state.isle.casting.times.clone()).await?)
+    }
+
     /// The capture protocols' sessions as JSON.
     async fn copies(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.copy_status().to_string()).await?)

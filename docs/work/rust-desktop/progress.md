@@ -2,6 +2,21 @@
 
 ## 2026-10-09
 
+- P11 11.14: the measure and the VM (`docs/research/rust-desktop/p11-capture.md`).
+  At 3440×1440 a shot is on disk in about 55 ms, the freeze takes a few
+  milliseconds with eight windows, a screen stream costs 1.7 ms of the loop a
+  frame at p50 (3.1 at p95) without lowering the output's frame rate, and a
+  still screen streams nothing. Found and fixed: the allocator kept every
+  shot's pixels, 135 MB after five; `malloc_trim` after a still and when the
+  pick closes keeps the compositor's own heap at about 30 MB. Freezing eight
+  windows holds 239 MiB of VRAM while the pick is open. The VM: the CLI shot,
+  the pick by keys, a recording, grim, and a ScreenCast through the guest's
+  real frontend and Isle's picker to a consumer. Found: a user's
+  `~/.config/xdg-desktop-portal/portals.conf` (v1's) outranks the packaged
+  `isle-portals.conf`, which P14 must deal with. Not checked: Chromium and
+  Firefox sharing (Chromium offered only tabs), OBS, Discord, dmabufs on the
+  hybrid host. The test client gained `animate`, a window drawn every frame.
+
 - P11 11.13: the CLI and the rest. `Capture1` (`Shoot`, `Record`, `Status`,
   `StopStream`) does what the chords and Stop do and never returns pixels;
   `isle capture screen|pick|toolbar|colour [--copy]`, `isle capture record

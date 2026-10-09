@@ -38,7 +38,7 @@ use std::{
 use wayland_client::{
     Connection, Dispatch, QueueHandle, WEnum,
     protocol::{
-        wl_buffer, wl_compositor, wl_data_device, wl_data_device_manager, wl_data_offer,
+        wl_buffer, wl_callback, wl_compositor, wl_data_device, wl_data_device_manager, wl_data_offer,
         wl_data_source, wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm, wl_shm_pool,
         wl_surface,
     },
@@ -105,6 +105,8 @@ struct Client {
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
     wins: Vec<Win>,
+    /// A window drawn again at every frame callback, its colour turning: a stand-in game.
+    animating: Option<usize>,
     ignore_pings: bool,
     ignored_pings: Vec<u32>,
     linger: bool,
@@ -314,6 +316,9 @@ impl Client {
         }
         win.surface.attach(Some(&buffer), 0, 0);
         win.surface.damage_buffer(0, 0, w, h);
+        if self.animating == Some(index) {
+            win.surface.frame(qh, index);
+        }
         win.surface.commit();
     }
 
@@ -613,6 +618,11 @@ impl Client {
                 self.draw(index, qh);
                 return;
             }
+            ("animate", _) => {
+                self.animating = if self.animating.is_some() { None } else { Some(index) };
+                self.draw(index, qh);
+                return;
+            }
             ("colour", _) => {
                 let hex = rest.first().and_then(|h| u32::from_str_radix(h, 16).ok()).unwrap_or(0);
                 self.wins[index].colour = [(hex >> 16) as u8, (hex >> 8) as u8, hex as u8, 0xff];
@@ -775,6 +785,25 @@ impl Client {
             && self.started
         {
             win.surface.commit();
+        }
+    }
+}
+
+impl Dispatch<wl_callback::WlCallback, usize> for Client {
+    fn event(
+        state: &mut Self,
+        _: &wl_callback::WlCallback,
+        event: wl_callback::Event,
+        index: &usize,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_callback::Event::Done { .. } = event
+            && state.animating == Some(*index)
+            && let Some(win) = state.wins.get_mut(*index)
+        {
+            win.colour = [win.colour[1], win.colour[2], win.colour[0].wrapping_add(7), 0xff];
+            state.draw(*index, qh);
         }
     }
 }
@@ -1336,6 +1365,7 @@ fn main() {
         appmenus: None,
         gtk_shell: None,
         wins: Vec::new(),
+        animating: None,
         ignore_pings: false,
         ignored_pings: Vec::new(),
         linger: false,

@@ -854,3 +854,194 @@ async fn spotlight_cost() {
     drop(app);
     let _ = isle.compositor_exit();
 }
+
+/// CPU seconds a process has used, from `/proc/<pid>/stat`.
+fn cpu_seconds(pid: u32) -> f64 {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).unwrap_or_default();
+    let fields: Vec<&str> = stat
+        .rsplit_once(')')
+        .map(|(_, rest)| rest.split_whitespace().collect())
+        .unwrap_or_default();
+    let ticks = |i: usize| fields.get(i).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
+    (ticks(11) + ticks(12)) / 100.0
+}
+
+fn percentiles(mut v: Vec<u64>) -> (f64, f64, f64) {
+    if v.is_empty() {
+        return (0.0, 0.0, 0.0);
+    }
+    v.sort();
+    let at = |q: f64| v[((v.len() - 1) as f64 * q).round() as usize] as f64 / 1000.0;
+    (at(0.5), at(0.95), at(1.0))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn capture_cost() {
+    let release = cfg!(debug_assertions).then_some("").unwrap_or("--release");
+    let mut build = std::process::Command::new(env!("CARGO"));
+    build.args(["build", "-q", "-p", "isle-record"]);
+    if !release.is_empty() {
+        build.arg(release);
+    }
+    assert!(build.status().unwrap().success());
+    let profile = if release.is_empty() { "debug" } else { "release" };
+    let helper = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("../../target/{profile}/isle-record"));
+    let mut isle = Isle::start_env(
+        "cost-capture",
+        "wallpaper {\n    source \"frost\"\n}\n",
+        |_| {},
+        move |_| vec![("ISLE_RECORD_HELPER".into(), helper.display().to_string())],
+    )
+    .await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let test = isle.test().await;
+    ultrawide(&isle).await;
+    let app = isle.client_with(&["--app-id", "isle.test.Work", "--size", "1600x900"]);
+    app.wait_for("keyboard-enter").await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let snap = |what: &str| {
+        let (rss, own) = memory(pid);
+        println!("{what}: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    };
+    let chord = |keys: &'static [u32]| {
+        let test = test.clone();
+        async move {
+            for k in keys {
+                test.key(*k, true).await.unwrap();
+            }
+            for k in keys.iter().rev() {
+                test.key(*k, false).await.unwrap();
+            }
+        }
+    };
+    snap("rest");
+    let shots = isle.dir.join("home/Pictures/Screenshots");
+    let count = || fs::read_dir(&shots).map(|d| d.count()).unwrap_or(0);
+
+    // Shift+Cmd+3 to the file on disk.
+    let mut written = Vec::new();
+    for _ in 0..5 {
+        let before = count();
+        let sent = Instant::now();
+        chord(&[42, 125, 4]).await;
+        wait_until(|| async { count() > before }).await;
+        written.push(sent.elapsed().as_secs_f64() * 1000.0);
+        tokio::time::sleep(Duration::from_millis(300)).await;
+    }
+    println!("Shift+Cmd+3 to a written file, ms: {written:.1?}");
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    snap("after five shots");
+
+    // The freeze with one window, then with eight.
+    let pick = || async { test.pick().await.unwrap() != "null" };
+    let mut freezes = Vec::new();
+    let mut extra = Vec::new();
+    for n in [1usize, 8] {
+        while extra.len() + 1 < n {
+            let c = isle.client_with(&["--app-id", &format!("isle.test.W{}", extra.len()), "--size", "800x600"]);
+            c.wait_for("keyboard-enter").await;
+            extra.push(c);
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let mut times = Vec::new();
+        for _ in 0..3 {
+            let sent = Instant::now();
+            chord(&[42, 125, 5]).await;
+            wait_until(|| async { pick().await }).await;
+            times.push(sent.elapsed().as_secs_f64() * 1000.0);
+            snap(&format!("frozen, {n} windows"));
+            tap(&isle, 1).await;
+            wait_until(|| async { !pick().await }).await;
+        }
+        freezes.push((n, times));
+    }
+    println!("Shift+Cmd+4 to the frozen pick, ms: {freezes:.1?}");
+    snap("after the picks");
+    for c in &extra {
+        c.send("close");
+    }
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    if !isle.start_audio().await {
+        println!("no PipeWire: streams and recording not measured");
+        return;
+    }
+    // A screen stream beside a client drawing every frame.
+    app.send("animate");
+    let frames = || async { test.frames("BIG").await.unwrap() };
+    let f0 = frames().await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let alone = (frames().await - f0) as f64 / 3.0;
+    println!("output frames a second, the client animating alone: {alone:.1}");
+    let id = test.cast_start(r#"{"screen": "BIG"}"#).await.unwrap();
+    let node = loop {
+        let casts: Vec<serde_json::Value> = serde_json::from_str(&test.casts().await.unwrap()).unwrap();
+        if let Some(n) = casts.iter().find(|c| c["id"] == id).and_then(|c| c["node"].as_u64()) {
+            break n as u32;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    };
+    let consumer = isle.consumer(node);
+    consumer.wait_for("format 3440x1440").await;
+    test.measure(true).await.unwrap();
+    let cpu0 = cpu_seconds(pid);
+    let f0 = frames().await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    let streamed = (frames().await - f0) as f64 / 5.0;
+    let cpu = (cpu_seconds(pid) - cpu0) / 5.0 * 100.0;
+    let times = test.cast_times().await.unwrap();
+    let got = consumer.lines.lock().unwrap().iter().filter(|l| l.starts_with("frame ")).count();
+    let (p50, p95, max) = percentiles(times.clone());
+    println!(
+        "a 3440x1440 shared-memory stream: {} frames rendered, {got} received in all; the frame's render on the loop p50 {p50:.2} ms, p95 {p95:.2} ms, max {max:.2} ms; output frames a second {streamed:.1}; compositor CPU {cpu:.0}%",
+        times.len()
+    );
+    snap("streaming");
+    test.measure(false).await.unwrap();
+    test.cast_stop(id).await.unwrap();
+
+    // A recording beside the same client.
+    test.record(r#"{"screen": "BIG"}"#).await.unwrap();
+    let recorder = loop {
+        let r: serde_json::Value = serde_json::from_str(&test.recording().await.unwrap()).unwrap();
+        if let Some(p) = r["pid"].as_u64() {
+            break p as u32;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    };
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let (cpu0, rcpu0) = (cpu_seconds(pid), cpu_seconds(recorder));
+    let f0 = frames().await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    let recorded = (frames().await - f0) as f64 / 5.0;
+    let cpu = (cpu_seconds(pid) - cpu0) / 5.0 * 100.0;
+    let rcpu = (cpu_seconds(recorder) - rcpu0) / 5.0 * 100.0;
+    let (rrss, _) = memory(recorder);
+    println!(
+        "recording 3440x1440: output frames a second {recorded:.1}; compositor CPU {cpu:.0}%, recorder CPU {rcpu:.0}%, recorder RSS {rrss:.0} MB"
+    );
+    snap("recording");
+    test.stop_recording().await.unwrap();
+    wait_until(|| async { test.recording().await.unwrap() == "null" }).await;
+
+    // Still: nothing streams and nothing draws.
+    app.send("animate");
+    let id = test.cast_start(r#"{"screen": "BIG"}"#).await.unwrap();
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let count = |id: u64| {
+        let test = test.clone();
+        async move {
+            let casts: Vec<serde_json::Value> = serde_json::from_str(&test.casts().await.unwrap()).unwrap();
+            casts.iter().find(|c| c["id"] == id).map_or(0, |c| c["frames"].as_u64().unwrap())
+        }
+    };
+    let (s0, f0) = (count(id).await, frames().await);
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    println!(
+        "still for 5 s with a stream open: {} stream frames, {} output frames",
+        count(id).await - s0,
+        frames().await - f0
+    );
+}

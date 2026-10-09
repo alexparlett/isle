@@ -2,6 +2,19 @@
 
 ## 2026-10-09
 
+- P10 10.1: the app index. Entries gain GenericName, Keywords, Categories,
+  OnlyShowIn and NotShowIn (against `XDG_CURRENT_DESKTOP`), DBusActivatable,
+  SingleMainWindow, TryExec, their translations for the session's language
+  and the spec's escapes; Flatpak's exports join the data path; categories
+  map to the Apps view's ten. AppImages in `~/Applications` become entries
+  as v1 wrote them, read with `unsquashfs` at the ELF's end and never run.
+  The launch path asks a DBusActivatable app over `org.freedesktop.Application`
+  with the token, falling back to Exec, and runs a command line in a scope.
+  On the host: 115 entries, 68 listed. Tests now get a HOME of their own,
+  which found that Isle's Pulse client sent an empty cookie when
+  `~/.config/pulse/cookie` is missing; it sends 256 zero bytes, which
+  pipewire-pulse takes.
+
 - P10 10.0: `isle-search` with the `Source` trait, rows, scopes and items;
   the tiered matcher (prefix, word start, initials, inside, then nucleo's
   fuzzy score at 18 a character or better, which keeps "kty" for kitty and

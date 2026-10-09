@@ -108,6 +108,7 @@ impl Isle {
             "state",
             "data/applications",
             "data-system",
+            "home",
         ] {
             fs::create_dir_all(dir.join(sub)).unwrap();
         }
@@ -134,6 +135,7 @@ impl Isle {
             .env("XDG_STATE_HOME", dir.join("state"))
             .env("XDG_DATA_HOME", dir.join("data"))
             .env("XDG_DATA_DIRS", dir.join("data-system"))
+            .env("HOME", dir.join("home"))
             // The host's own layout must not reach the tests.
             .env("XKB_DEFAULT_LAYOUT", "us")
             .env("DBUS_SESSION_BUS_ADDRESS", &bus_address)
@@ -556,6 +558,7 @@ impl Isle {
             let child = Command::new(program)
                 .args(&args)
                 .env("XDG_RUNTIME_DIR", &runtime)
+                .env("HOME", self.dir.join("home"))
                 .env("DBUS_SESSION_BUS_ADDRESS", "disabled:")
                 .env_remove("PULSE_SERVER")
                 .stdout(log.try_clone().unwrap())

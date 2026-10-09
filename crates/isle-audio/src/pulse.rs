@@ -48,9 +48,12 @@ impl Conn {
         Error,
     > {
         let path = pulseaudio::socket_path_from_env().ok_or("no Pulse server")?;
+        // The protocol wants 256 bytes and pipewire-pulse checks only their length, so a
+        // session with no cookie file sends zeroes.
         let cookie = pulseaudio::cookie_path_from_env()
             .and_then(|p| std::fs::read(p).ok())
-            .unwrap_or_default();
+            .filter(|c| c.len() == 256)
+            .unwrap_or_else(|| vec![0; 256]);
         let stream = UnixStream::connect(path).await?;
         let (mut reader, writer) = stream.into_split();
         let mut conn = Self {

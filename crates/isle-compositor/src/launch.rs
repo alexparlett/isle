@@ -17,6 +17,8 @@ pub enum Launch {
     },
     /// A link or file in the app that handles it.
     Open(String),
+    /// A shell command line, as Spotlight's Run gives it.
+    Command(String),
 }
 
 /// A unit name's part from `text`: what systemd allows, the rest as `_`.
@@ -33,14 +35,23 @@ fn unit_part(text: &str) -> String {
 }
 
 impl State {
-    /// Starts `what`; false when there is nothing to start.
+    /// Starts `what`; false when there is nothing to start. An entry that is
+    /// `DBusActivatable` is asked over the bus first and started by `Exec` only if that fails.
     pub fn launch(&mut self, what: Launch) -> bool {
+        let mut activate = None;
         let (argv, name) = match &what {
             Launch::App { app, action, uris } => {
                 let Some(entry) = self.isle.apps.get(app).cloned() else {
                     warn!(app, "no desktop entry to start");
                     return false;
                 };
+                if entry.dbus_activatable {
+                    activate = Some(Activation {
+                        app: app.clone(),
+                        action: action.clone(),
+                        uris: uris.clone(),
+                    });
+                }
                 let exec = match action {
                     Some(id) => entry
                         .actions
@@ -49,26 +60,36 @@ impl State {
                         .and_then(|a| a.exec.clone()),
                     None => entry.exec.clone(),
                 };
-                let Some(exec) = exec else {
-                    warn!(app, ?action, "the entry has nothing to run");
-                    return false;
+                let argv = exec.and_then(|exec| {
+                    let argv = isle_apps::exec::command(
+                        &exec,
+                        uris,
+                        &entry.name,
+                        entry.icon.as_deref(),
+                        &entry.path.to_string_lossy(),
+                    );
+                    if argv.is_none() {
+                        warn!(app, exec, "the entry's Exec line does not parse");
+                    }
+                    argv
+                });
+                let argv = match argv {
+                    Some(mut argv) => {
+                        if entry.terminal {
+                            argv.splice(0..0, ["xdg-terminal-exec".to_owned()]);
+                        }
+                        argv
+                    }
+                    None if activate.is_some() => Vec::new(),
+                    None => {
+                        warn!(app, ?action, "the entry has nothing to run");
+                        return false;
+                    }
                 };
-                let Some(mut argv) = isle_apps::exec::command(
-                    &exec,
-                    uris,
-                    &entry.name,
-                    entry.icon.as_deref(),
-                    &entry.path.to_string_lossy(),
-                ) else {
-                    warn!(app, exec, "the entry's Exec line does not parse");
-                    return false;
-                };
-                if entry.terminal {
-                    argv.splice(0..0, ["xdg-terminal-exec".to_owned()]);
-                }
                 (argv, app.clone())
             }
             Launch::Open(target) => (vec!["xdg-open".into(), target.clone()], "xdg-open".into()),
+            Launch::Command(line) => (vec!["sh".into(), "-c".into(), line.clone()], "run".into()),
         };
 
         let (token, _) = self
@@ -88,6 +109,19 @@ impl State {
         );
         info!(?argv, unit, "launching");
         runtime.spawn(async move {
+            if let Some(activation) = activate {
+                match activation.call(&token).await {
+                    Ok(()) => return,
+                    Err(err) if argv.is_empty() => {
+                        warn!(app = activation.app, "could not activate over D-Bus: {err}");
+                        return;
+                    }
+                    Err(err) => warn!(
+                        app = activation.app,
+                        "could not activate over D-Bus, starting by Exec: {err}"
+                    ),
+                }
+            }
             let envs = [
                 ("XDG_ACTIVATION_TOKEN", token.clone()),
                 ("DESKTOP_STARTUP_ID", token),
@@ -150,6 +184,74 @@ impl State {
     }
 }
 
+/// An `org.freedesktop.Application` call for a `DBusActivatable` entry.
+struct Activation {
+    app: String,
+    action: Option<String>,
+    uris: Vec<String>,
+}
+
+impl Activation {
+    /// The object path the spec derives from the desktop id.
+    fn path(&self) -> String {
+        format!("/{}", self.app.replace('.', "/").replace('-', "_"))
+    }
+
+    async fn call(&self, token: &str) -> zbus::Result<()> {
+        use std::collections::HashMap;
+        use zvariant::Value;
+        let conn = isle_bus::session().await?;
+        let platform: HashMap<&str, Value> = HashMap::from([
+            ("activation-token", Value::from(token)),
+            ("desktop-startup-id", Value::from(token)),
+        ]);
+        let (dest, path, iface) = (
+            self.app.as_str(),
+            self.path(),
+            "org.freedesktop.Application",
+        );
+        let call = async {
+            match (&self.action, self.uris.is_empty()) {
+                (Some(action), _) => {
+                    let none: Vec<Value> = Vec::new();
+                    conn.call_method(
+                        Some(dest),
+                        path.as_str(),
+                        Some(iface),
+                        "ActivateAction",
+                        &(action, none, &platform),
+                    )
+                    .await
+                }
+                (None, false) => {
+                    conn.call_method(
+                        Some(dest),
+                        path.as_str(),
+                        Some(iface),
+                        "Open",
+                        &(&self.uris, &platform),
+                    )
+                    .await
+                }
+                (None, true) => {
+                    conn.call_method(
+                        Some(dest),
+                        path.as_str(),
+                        Some(iface),
+                        "Activate",
+                        &(&platform,),
+                    )
+                    .await
+                }
+            }
+        };
+        match tokio::time::timeout(std::time::Duration::from_secs(10), call).await {
+            Ok(reply) => reply.map(|_| ()),
+            Err(_) => Err(zbus::Error::Failure("no answer in ten seconds".into())),
+        }
+    }
+}
+
 fn rand_part() -> u32 {
     use std::hash::{BuildHasher, RandomState};
     RandomState::new().hash_one(std::time::Instant::now()) as u32
@@ -158,6 +260,21 @@ fn rand_part() -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn activation_paths_follow_the_desktop_id() {
+        let a = Activation {
+            app: "org.gnome.Nautilus".into(),
+            action: None,
+            uris: Vec::new(),
+        };
+        assert_eq!(a.path(), "/org/gnome/Nautilus");
+        let b = Activation {
+            app: "org.example.my-app".into(),
+            ..a
+        };
+        assert_eq!(b.path(), "/org/example/my_app");
+    }
 
     #[test]
     fn unit_names_keep_only_what_systemd_allows() {

@@ -321,5 +321,7 @@
   games from every launcher and root, the vault left to P20. Research in
   `docs/research/rust-desktop/spotlight-2026.md`. Phases 10.0–10.14.
 - P10 10.0 done (2026-10-09): `isle-search`, the tiered matcher, ranking
-  with use and the `usage` domain; Help's search on the matcher. Next: 10.1
-  (the app index).
+  with use and the `usage` domain; Help's search on the matcher.
+- P10 10.1 done (2026-10-09): the app index's new keys and translations,
+  Flatpak dirs, categories, AppImages, DBusActivatable and run commands in
+  the launch path. Next: 10.2 (games from every launcher).

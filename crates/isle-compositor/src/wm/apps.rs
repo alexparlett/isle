@@ -21,14 +21,35 @@ use crate::{
 /// How long a client has to answer a ping before it is marked not responding.
 const PING_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Reads the desktop entries, and again whenever an applications directory changes.
+/// Reads the desktop entries, and again whenever an applications directory changes; first
+/// registers the AppImages in `~/Applications`, and again whenever that folder changes.
 pub async fn watch(to_loop: ToLoop) -> Result<(), Box<dyn Error + Send + Sync>> {
     let dirs = Index::data_dirs();
-    let scan = |dirs: Vec<std::path::PathBuf>| async move {
-        tokio::task::spawn_blocking(move || Index::scan(&dirs))
+    let images = isle_apps::appimage::apps_dir();
+    let data_home = isle_apps::appimage::data_home();
+    let scan = |dirs: Vec<std::path::PathBuf>| {
+        let (images, data_home) = (images.clone(), data_home.clone());
+        async move {
+            tokio::task::spawn_blocking(move || {
+                if let (Some(images), Some(home)) = (images, data_home) {
+                    let synced = isle_apps::appimage::sync(
+                        &images,
+                        &home.join("applications"),
+                        &home.join("icons/hicolor"),
+                    );
+                    if synced != Default::default() {
+                        info!(?synced, "AppImages registered again");
+                    }
+                }
+                Index::scan(&dirs)
+            })
             .await
             .unwrap_or_default()
+        }
     };
+    if let Some(images) = &images {
+        let _ = std::fs::create_dir_all(images);
+    }
     let index = scan(dirs.clone()).await;
     info!(entries = index.entries().len(), "desktop entries read");
     to_loop.post(move |state| state.set_apps(Arc::new(index)));
@@ -44,11 +65,17 @@ pub async fn watch(to_loop: ToLoop) -> Result<(), Box<dyn Error + Send + Sync>> 
             let _ = watcher.watch(dir, RecursiveMode::Recursive);
         }
     }
+    if let Some(images) = images.as_ref().filter(|d| d.is_dir()) {
+        let _ = watcher.watch(images, RecursiveMode::NonRecursive);
+    }
     while rx.recv().await.is_some() {
-        // A package install writes many files; read them once it settles.
+        // A package install writes many files, and a download grows for a while; read them
+        // once it settles.
         tokio::time::sleep(Duration::from_secs(1)).await;
         while rx.try_recv().is_ok() {}
         let index = scan(dirs.clone()).await;
+        // Registering an AppImage writes an entry, which wakes this again; let that settle.
+        while rx.try_recv().is_ok() {}
         debug!(
             entries = index.entries().len(),
             "desktop entries read again"

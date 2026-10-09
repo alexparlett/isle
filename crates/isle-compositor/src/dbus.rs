@@ -848,6 +848,14 @@ impl Test {
             .await?)
     }
 
+    /// Runs a command line as Spotlight's Run does.
+    async fn run(&self, command: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.launch(crate::launch::Launch::Command(command)))
+            .await?)
+    }
+
     /// Force Quit's panel and the alerts hung on windows as JSON.
     async fn force_quit(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.isle.force_quit_status()).await?)

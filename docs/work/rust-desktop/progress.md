@@ -24,7 +24,8 @@
   colour's swatch sits beside its value; a camera stands in for the pointer
   in window mode. Found and fixed: Spotlight took Shift+Cmd+3 and
   Shift+Cmd+4 as its quick actions, and the toolbar's state was kept only
-  after a drag. Not done here: the VM and the host.
+  after a drag. The VM shared a screen from a GTK 4 window's sheet through
+  the real frontend with the metadata cursor; no host run.
 
 - P11 closed. ARCHITECTURE has How a capture is rendered, How streams are
   produced and How the portal backend answers, with `isle-record` in the

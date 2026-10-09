@@ -1,5 +1,5 @@
-//! The pick's size readout: "1280 × 720" in a capsule by the selection's trailing foot
-//! (`p1/surfaces/capture.md`, The pick).
+//! The pick's size readout: "1280 × 720" in a capsule by the selection's trailing foot, or
+//! the colour under the loupe with its swatch (`p1/surfaces/capture.md`, The pick).
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -11,10 +11,17 @@ use smithay::utils::{Logical, Rectangle, Size as SSize};
 
 use crate::surface::{Layer, Scope, SurfaceDef};
 
+/// The capsule's text, and the colour it names.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Readout {
+    pub text: String,
+    pub swatch: Option<[u8; 3]>,
+}
+
 #[derive(Default)]
 pub struct ReadoutSurface {
-    text: Rc<RefCell<String>>,
-    state: Rc<RefCell<Option<State<String>>>>,
+    text: Rc<RefCell<Readout>>,
+    state: Rc<RefCell<Option<State<Readout>>>>,
 }
 
 impl ReadoutSurface {
@@ -23,7 +30,7 @@ impl ReadoutSurface {
     }
 
     /// Puts `text` in force; call it in the tree's root scope.
-    pub fn set(&self, text: String) {
+    pub fn set(&self, text: Readout) {
         *self.text.borrow_mut() = text.clone();
         if let Some(mut state) = *self.state.borrow() {
             state.set_if_modified(text);
@@ -31,7 +38,7 @@ impl ReadoutSurface {
     }
 
     /// Keeps `text` for the next tree; safe anywhere.
-    pub fn set_model(&self, text: String) {
+    pub fn set_model(&self, text: Readout) {
         *self.text.borrow_mut() = text;
     }
 
@@ -45,12 +52,16 @@ impl ReadoutSurface {
         let t = &theme.tokens;
         let m = Self::margin(theme);
         let (font, ..) = text::metrics(theme, text::Style::Callout);
-        let width = 13.0 * font * 0.62 + 2.0 * t.space_s;
+        let width = 13.0 * font * 0.62 + 2.0 * t.space_s + Self::swatch(theme) + t.space_xs;
         (
             (width + 2.0 * m).ceil() as i32,
             (Self::height(theme) + 2.0 * m).ceil() as i32,
         )
             .into()
+    }
+
+    fn swatch(theme: &Theme) -> f32 {
+        text::metrics(theme, text::Style::Callout).0
     }
 
     /// The capsule's height: the small control's, or the text's line at larger sizes.
@@ -99,8 +110,8 @@ impl SurfaceDef for ReadoutSurface {
 
 #[derive(Clone)]
 struct ReadoutApp {
-    text: Rc<RefCell<String>>,
-    state: Rc<RefCell<Option<State<String>>>>,
+    text: Rc<RefCell<Readout>>,
+    state: Rc<RefCell<Option<State<Readout>>>>,
 }
 
 impl App for ReadoutApp {
@@ -134,11 +145,30 @@ impl App for ReadoutApp {
                     .map(Some(shadows(&t.shadow_control)), |el, list| {
                         list.into_iter().fold(el, |el, s| el.shadow(s))
                     })
+                    .horizontal()
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_xs)
+                    .map(state.read().swatch, |el, [r, g, b]| {
+                        let side = Size::px(ReadoutSurface::swatch(&theme));
+                        el.child(
+                            rect()
+                                .width(side.clone())
+                                .height(side)
+                                .corner_radius(t.radius_small)
+                                .background(Color::from_rgb(r, g, b))
+                                .border(
+                                    Border::new()
+                                        .fill(colour(t.colour_hairline_strong))
+                                        .width(1.)
+                                        .alignment(BorderAlignment::Inner),
+                                ),
+                        )
+                    })
                     .child(text::line(
                         &theme,
                         text::Style::Callout,
                         colour(t.colour_text),
-                        state.read().clone(),
+                        state.read().text.clone(),
                     )),
             )
     }

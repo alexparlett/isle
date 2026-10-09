@@ -850,7 +850,7 @@ impl State {
                 at - Point::from((half, half)),
                 (2.0 * half, 2.0 * half).into(),
             );
-            self.show_readout_text(&output, loupe, text);
+            self.show_readout_text(&output, loupe, text, Some(rgb));
             return;
         }
         let Some((index, rect)) = freeze.selection(option) else {
@@ -866,16 +866,19 @@ impl State {
     pub fn show_readout(&mut self, output: &Output, rect: Rectangle<f64, Logical>) {
         let scale = output.current_scale().fractional_scale();
         let px = rect.size.to_physical(scale).to_i32_round::<i32>();
-        self.show_readout_text(output, rect, format!("{} × {}", px.w, px.h));
+        self.show_readout_text(output, rect, format!("{} × {}", px.w, px.h), None);
     }
 
-    /// `text` in the readout's capsule by `rect`'s trailing foot.
+    /// `text` in the readout's capsule by `rect`'s trailing foot, after `swatch` in its
+    /// colour.
     pub fn show_readout_text(
         &mut self,
         output: &Output,
         rect: Rectangle<f64, Logical>,
         text: String,
+        swatch: Option<[u8; 3]>,
     ) {
+        let text = isle_shell::capture::readout::Readout { text, swatch };
         let Some(screen) = self.isle.space.output_geometry(output) else {
             return;
         };

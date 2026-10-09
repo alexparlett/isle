@@ -1,5 +1,6 @@
 //! The standard capture protocols through grim: a screen, a window by its foreign handle,
-//! and the lock. Needs `--features test-hooks` and grim.
+//! and the lock; and a session streaming to the test client, listed with Stop. Needs
+//! `--features test-hooks` and grim.
 #![cfg(feature = "test-hooks")]
 
 mod common;
@@ -90,4 +91,22 @@ async fn grim_takes_the_screen_a_window_and_the_lock() {
         grim(&isle, &["-T", &identifier]).is_none(),
         "a window was given while locked"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_capture_session_is_listed_in_sharing_and_stop_ends_it() {
+    let mut isle = Isle::start("image-copy-stop").await;
+    let client = isle.client("isle.test.Copier", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    client.send("copy-screen");
+    client.wait_for("copied 3").await;
+    wait_until(|| async { isle.island_output().await["privacy"] == 1 }).await;
+    wait_until(|| async { isle.island_output().await["form"] == "pill" }).await;
+    assert_ne!(isle.island_output().await["text"], "");
+    isle.open_panel(None).await;
+    isle.panel(serde_json::json!({"activity": ["sharing", "stop-copy:1"]}))
+        .await;
+    client.wait_for("copy stopped").await;
+    wait_until(|| async { isle.island_output().await["privacy"] == 0 }).await;
+    assert!(copies(&isle).await["sessions"].as_array().unwrap().is_empty());
 }

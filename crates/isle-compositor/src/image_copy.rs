@@ -45,6 +45,12 @@ struct HandleWindow(u64);
 #[derive(Default)]
 struct Frames(Cell<u32>);
 
+/// A session's number in the Sharing row and the app of the client that opened it.
+struct Copier {
+    id: u64,
+    app: String,
+}
+
 pub struct ImageCopy {
     pub copy: ImageCopyCaptureState,
     pub outputs: OutputCaptureSourceState,
@@ -57,6 +63,9 @@ pub struct ImageCopy {
     /// Frames waiting for their source's next redraw.
     pending: Vec<(SessionRef, Frame)>,
     pub dirty: Cell<bool>,
+    next_id: u64,
+    /// The streaming sessions the Sharing row lists.
+    listed: Vec<u64>,
 }
 
 impl ImageCopy {
@@ -70,6 +79,8 @@ impl ImageCopy {
             sessions: Vec::new(),
             pending: Vec::new(),
             dirty: Cell::new(true),
+            next_id: 0,
+            listed: Vec::new(),
         }
     }
 
@@ -97,6 +108,26 @@ fn now() -> Duration {
 }
 
 impl Isle {
+    /// Each streaming capture session's number, app and what it takes.
+    pub fn copy_rows(&self) -> Vec<(u64, String, String)> {
+        self.image_copy
+            .streaming()
+            .filter_map(|s| {
+                let copier = s.user_data().get::<Copier>()?;
+                let what = match captured(&s.source())? {
+                    Captured::Output(_) => "Entire screen".to_owned(),
+                    Captured::Window(id) => self
+                        .window_infos()
+                        .into_iter()
+                        .find(|i| i.id == id)
+                        .map(|i| i.title)
+                        .unwrap_or_else(|| "A window".into()),
+                };
+                Some((copier.id, copier.app.clone(), what))
+            })
+            .collect()
+    }
+
     /// The size a source's frames are, in pixels.
     fn source_pixels(&self, captured: &Captured) -> Option<Size<i32, BufferCoords>> {
         match captured {
@@ -247,16 +278,43 @@ impl State {
         }
     }
 
-    /// A capture session taking frames shows as a screen share does.
+    /// A capture session taking frames shows as a screen share does, with its app in the
+    /// Sharing row.
     fn copying_changed(&mut self) {
         use isle_shell::island::model::Privacy;
-        let copying = self.isle.image_copy.streaming().next().is_some();
+        let streaming: Vec<u64> = self
+            .isle
+            .image_copy
+            .streaming()
+            .filter_map(|s| s.user_data().get::<Copier>().map(|c| c.id))
+            .collect();
         let casting = !self.isle.casting.streams.is_empty();
         self.isle
             .island
             .model
-            .set_privacy(Privacy::Screen, copying || casting);
+            .set_privacy(Privacy::Screen, !streaming.is_empty() || casting);
+        if streaming != self.isle.image_copy.listed {
+            self.isle.image_copy.listed = streaming;
+            self.sharing_activity();
+        }
         self.isle.refresh_island();
+    }
+
+    /// Stop in the Sharing row: the session ends and its client is told.
+    pub fn copy_stop(&mut self, id: u64) {
+        let copy = &mut self.isle.image_copy;
+        let Some(index) = copy
+            .sessions
+            .iter()
+            .position(|s| s.user_data().get::<Copier>().is_some_and(|c| c.id == id))
+        else {
+            return;
+        };
+        let session = copy.sessions.remove(index);
+        let gone = session.as_ref();
+        copy.pending.retain(|(s, _)| *s != gone);
+        session.stop();
+        self.copying_changed();
     }
 
     /// The capture sessions as JSON, for the Test interface.
@@ -336,6 +394,24 @@ impl ImageCopyCaptureHandler for State {
     }
 
     fn new_session(&mut self, session: Session) {
+        let pid = session
+            .client()
+            .and_then(|c| c.get_credentials(&self.isle.display_handle).ok())
+            .map(|c| c.pid);
+        let app = pid
+            .and_then(|pid| {
+                self.isle
+                    .processes
+                    .app_of_tree(pid)
+                    .map(|app| self.isle.app_name(&app))
+                    .or_else(|| std::fs::read_to_string(format!("/proc/{pid}/comm")).ok())
+            })
+            .map(|name| name.trim().to_owned())
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "An app".into());
+        self.isle.image_copy.next_id += 1;
+        let id = self.isle.image_copy.next_id;
+        session.user_data().insert_if_missing(|| Copier { id, app });
         self.isle.image_copy.sessions.push(session);
     }
 

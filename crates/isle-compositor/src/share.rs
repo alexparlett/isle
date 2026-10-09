@@ -863,9 +863,10 @@ impl State {
     }
 
     /// The island's Sharing activity: each session's app and sources, each with Stop.
-    fn sharing_activity(&mut self) {
+    pub fn sharing_activity(&mut self) {
         use isle_shell::island::model::{Activity, ActivityKind};
-        if self.isle.share.sessions.is_empty() {
+        let copies = self.isle.copy_rows();
+        if self.isle.share.sessions.is_empty() && copies.is_empty() {
             self.isle.island.model.end_activity(ActivityKind::Sharing);
             self.isle.refresh_island();
             return;
@@ -890,20 +891,30 @@ impl State {
                 .collect::<Vec<_>>()
                 .join(", ")
         };
+        let mut detail: Vec<String> = sessions
+            .iter()
+            .map(|(_, s)| format!("{}: {}", s.app, what(s)))
+            .collect();
+        let mut actions: Vec<(String, String)> = sessions
+            .iter()
+            .map(|(p, s)| (format!("stop:{p}"), format!("Stop {}", s.app)))
+            .collect();
+        for (id, app, what) in &copies {
+            detail.push(format!("{app}: {what}"));
+            actions.push((format!("stop-copy:{id}"), format!("Stop {app}")));
+        }
+        let face = sessions
+            .first()
+            .map(|(_, s)| s.app.clone())
+            .or_else(|| copies.first().map(|(_, app, _)| app.clone()))
+            .unwrap_or_default();
         let activity = Activity {
             kind: ActivityKind::Sharing,
-            face: sessions[0].1.app.clone(),
+            face,
             title: "Sharing".into(),
-            detail: sessions
-                .iter()
-                .map(|(_, s)| format!("{}: {}", s.app, what(s)))
-                .collect::<Vec<_>>()
-                .join("\n"),
-            actions: sessions
-                .iter()
-                .map(|(p, s)| (format!("stop:{p}"), format!("Stop {}", s.app)))
-                .collect(),
-            app: Some(sessions[0].1.app_id.clone()),
+            detail: detail.join("\n"),
+            actions,
+            app: sessions.first().map(|(_, s)| s.app_id.clone()),
             art: None,
             started: Instant::now(),
         };

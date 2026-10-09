@@ -19,6 +19,8 @@
 //! resident, desktop-entry, image, replaces, timeout; underscores read as spaces),
 //! `close-notification ID`, `use-token TOKEN` (an activation with a token it was sent),
 //! `export` (an xdg-foreign v2 handle for the window, printed as `exported HANDLE`),
+//! `copy-screen` (an ext-image-copy-capture session of the screen, a frame after each
+//! frame, printing `copied N`, then `copy stopped`),
 //! `tray [--name] [--item-is-menu] [--id ID]` (a status item with a pixmap icon and the test menu,
 //! registered by path or by a well-known name and again whenever the watcher comes back,
 //! printing `tray registered`, `tray activated`, `tray secondary`, `tray scroll N` and
@@ -40,8 +42,8 @@ use wayland_client::{
     Connection, Dispatch, QueueHandle, WEnum,
     protocol::{
         wl_buffer, wl_callback, wl_compositor, wl_data_device, wl_data_device_manager, wl_data_offer,
-        wl_data_source, wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm, wl_shm_pool,
-        wl_surface,
+        wl_data_source, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_shm,
+        wl_shm_pool, wl_surface,
     },
 };
 use wayland_protocols::xdg::{
@@ -51,6 +53,13 @@ use wayland_protocols::xdg::{
     shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base},
 };
 use wayland_protocols::xdg::foreign::zv2::client::{zxdg_exported_v2, zxdg_exporter_v2};
+use wayland_protocols::ext::image_capture_source::v1::client::{
+    ext_image_capture_source_v1, ext_output_image_capture_source_manager_v1,
+};
+use wayland_protocols::ext::image_copy_capture::v1::client::{
+    ext_image_copy_capture_frame_v1, ext_image_copy_capture_manager_v1,
+    ext_image_copy_capture_session_v1,
+};
 use wayland_protocols::ext::idle_notify::v1::client::{
     ext_idle_notification_v1, ext_idle_notifier_v1,
 };
@@ -105,6 +114,10 @@ struct Client {
     idle_notifier: Option<ext_idle_notifier_v1::ExtIdleNotifierV1>,
     activation: Option<xdg_activation_v1::XdgActivationV1>,
     exporter: Option<zxdg_exporter_v2::ZxdgExporterV2>,
+    output: Option<wl_output::WlOutput>,
+    output_sources: Option<ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1>,
+    copy_manager: Option<ext_image_copy_capture_manager_v1::ExtImageCopyCaptureManagerV1>,
+    copying: Option<Copying>,
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
     wins: Vec<Win>,
@@ -749,6 +762,20 @@ impl Client {
                     &(id,),
                 ));
             }
+            ("copy-screen", _) => {
+                if let (Some(sources), Some(manager), Some(output)) =
+                    (&self.output_sources, &self.copy_manager, &self.output)
+                {
+                    let source = sources.create_source(output, qh, ());
+                    let session = manager.create_session(
+                        &source,
+                        ext_image_copy_capture_manager_v1::Options::empty(),
+                        qh,
+                        (),
+                    );
+                    self.copying = Some(Copying { session, size: (0, 0), buffer: None, frames: 0 });
+                }
+            }
             ("export", _) => {
                 if let Some(exporter) = &self.exporter {
                     exporter.export_toplevel(&self.wins[index].surface, qh, index);
@@ -847,6 +874,15 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 }
                 "xdg_activation_v1" => state.activation = Some(registry.bind(name, 1, qh, ())),
                 "zxdg_exporter_v2" => state.exporter = Some(registry.bind(name, 1, qh, ())),
+                "wl_output" if state.output.is_none() => {
+                    state.output = Some(registry.bind(name, 1, qh, ()))
+                }
+                "ext_output_image_capture_source_manager_v1" => {
+                    state.output_sources = Some(registry.bind(name, 1, qh, ()))
+                }
+                "ext_image_copy_capture_manager_v1" => {
+                    state.copy_manager = Some(registry.bind(name, 1, qh, ()))
+                }
                 "zwp_idle_inhibit_manager_v1" => {
                     state.idle_inhibits = Some(registry.bind(name, 1, qh, ()))
                 }
@@ -1319,6 +1355,87 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Client {
     }
 }
 
+/// An ext-image-copy-capture session taking frame after frame.
+struct Copying {
+    session: ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1,
+    size: (i32, i32),
+    buffer: Option<wl_buffer::WlBuffer>,
+    frames: u32,
+}
+
+impl Copying {
+    fn capture(&self, qh: &QueueHandle<Client>) {
+        let Some(buffer) = &self.buffer else {
+            return;
+        };
+        let frame = self.session.create_frame(qh, ());
+        frame.attach_buffer(buffer);
+        frame.damage_buffer(0, 0, self.size.0, self.size.1);
+        frame.capture();
+    }
+}
+
+impl Dispatch<ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1, ()> for Client {
+    fn event(
+        state: &mut Self,
+        _: &ext_image_copy_capture_session_v1::ExtImageCopyCaptureSessionV1,
+        event: ext_image_copy_capture_session_v1::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        use ext_image_copy_capture_session_v1::Event;
+        let shm = state.shm.clone();
+        let Some(copying) = state.copying.as_mut() else {
+            return;
+        };
+        match event {
+            Event::BufferSize { width, height } => copying.size = (width as i32, height as i32),
+            Event::Done if copying.buffer.is_none() => {
+                let (w, h) = copying.size;
+                let len = (w * h * 4) as usize;
+                let fd = unsafe { libc::memfd_create(c"isle-test-copy".as_ptr(), libc::MFD_CLOEXEC) };
+                assert!(fd >= 0, "memfd_create");
+                let file = unsafe { std::fs::File::from_raw_fd(fd) };
+                file.set_len(len as u64).unwrap();
+                let fd: OwnedFd = file.into();
+                let pool = shm.unwrap().create_pool(fd.as_fd(), len as i32, qh, ());
+                copying.buffer = Some(pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, qh, ()));
+                pool.destroy();
+                copying.capture(qh);
+            }
+            Event::Stopped => say(0, "copy stopped".into()),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ext_image_copy_capture_frame_v1::ExtImageCopyCaptureFrameV1, ()> for Client {
+    fn event(
+        state: &mut Self,
+        frame: &ext_image_copy_capture_frame_v1::ExtImageCopyCaptureFrameV1,
+        event: ext_image_copy_capture_frame_v1::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        use ext_image_copy_capture_frame_v1::Event;
+        let Some(copying) = state.copying.as_mut() else {
+            return;
+        };
+        match event {
+            Event::Ready => {
+                frame.destroy();
+                copying.frames += 1;
+                say(0, format!("copied {}", copying.frames));
+                copying.capture(qh);
+            }
+            Event::Failed { .. } => frame.destroy(),
+            _ => {}
+        }
+    }
+}
+
 impl Dispatch<zxdg_exported_v2::ZxdgExportedV2, usize> for Client {
     fn event(
         _: &mut Self,
@@ -1336,6 +1453,10 @@ impl Dispatch<zxdg_exported_v2::ZxdgExportedV2, usize> for Client {
 
 ignore!(
     zxdg_exporter_v2::ZxdgExporterV2,
+    wl_output::WlOutput,
+    ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1,
+    ext_image_capture_source_v1::ExtImageCaptureSourceV1,
+    ext_image_copy_capture_manager_v1::ExtImageCopyCaptureManagerV1,
     wl_data_device_manager::WlDataDeviceManager,
     wl_data_offer::WlDataOffer,
     zwlr_layer_shell_v1::ZwlrLayerShellV1,
@@ -1388,6 +1509,10 @@ fn main() {
         idle_notifier: None,
         activation: None,
         exporter: None,
+        output: None,
+        output_sources: None,
+        copy_manager: None,
+        copying: None,
         appmenus: None,
         gtk_shell: None,
         wins: Vec::new(),

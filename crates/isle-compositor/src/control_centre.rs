@@ -479,6 +479,8 @@ impl State {
             PanelAction::Activity { kind, action } if kind == "sharing" => {
                 if let Some(session) = action.strip_prefix("stop:") {
                     self.share_stop(session);
+                } else if let Some(id) = action.strip_prefix("stop-copy:").and_then(|i| i.parse().ok()) {
+                    self.copy_stop(id);
                 }
             }
             other => info!(?other, "not built yet"),

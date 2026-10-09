@@ -63,6 +63,7 @@ impl IsleElement {
 /// Shell surfaces a picture of the screen never holds: the capture tool's own.
 pub const CAPTURE_SURFACES: &[&str] = &[
     "capture-readout",
+    "capture-camera",
     "capture-toolbar",
     "capture-loupe",
     "capture-thumbnail",

@@ -103,6 +103,8 @@ pub struct Toolbar {
     /// A portal's interactive Screenshot: the shot goes to the app.
     request: Option<PortalShot>,
     solids: RefCell<HashMap<(String, usize), SolidColorBuffer>>,
+    /// Each output's round handles and the rounded line round a lifted window.
+    shapes: crate::wm::draw::Shapes,
 }
 
 /// An app's screenshot request the toolbar answers.
@@ -245,8 +247,19 @@ impl Isle {
             }
             let p = toolbar.portion;
             // Handles over the line, the line over the veil.
+            let program = self.window_programs.as_ref().map(|p| &p.shadow);
             let size = t.size_capture_handle as f64;
-            for (x, y) in handle_points(p) {
+            for (n, (x, y)) in handle_points(p).into_iter().enumerate() {
+                if let Some(program) = program {
+                    let at = (x - geometry.loc.x as f64, y - geometry.loc.y as f64);
+                    for disc in toolbar.shapes.handle(&output.name(), 2 * n, program, at, t) {
+                        push(IsleElement::Window(crate::wm::draw::unplaced(
+                            crate::wm::draw::WindowPiece::Shadow(disc),
+                            scale,
+                        )));
+                    }
+                    continue;
+                }
                 let ring_rect = Rectangle::new(
                     (x - size / 2.0 - 1.0, y - size / 2.0 - 1.0).into(),
                     (size + 2.0, size + 2.0).into(),
@@ -263,7 +276,26 @@ impl Isle {
                 && let Some(frame) = self.frame(id)
                 && frame.overlaps(geometry)
             {
-                ring(frame.to_f64(), push, &mut solid, &mut next);
+                match self.window_programs.as_ref() {
+                    Some(programs) => {
+                        let radius = self.window_style(id).corners[2];
+                        for ring in toolbar.shapes.capture_ring(
+                            &output.name(),
+                            16,
+                            &programs.shadow,
+                            Rectangle::new(frame.loc - geometry.loc, frame.size),
+                            radius,
+                            line.round() as i32,
+                            t,
+                        ) {
+                            push(IsleElement::Window(crate::wm::draw::unplaced(
+                                crate::wm::draw::WindowPiece::Shadow(ring),
+                                scale,
+                            )));
+                        }
+                    }
+                    None => ring(frame.to_f64(), push, &mut solid, &mut next),
+                }
                 let from = Rectangle::new(frame.loc - geometry.loc, frame.size);
                 let to = from.to_f64();
                 let mut pieces = Vec::new();
@@ -465,6 +497,7 @@ impl State {
             moved: false,
             request: None,
             solids: RefCell::default(),
+            shapes: Default::default(),
         });
         self.place_toolbar();
         self.toolbar_changed();

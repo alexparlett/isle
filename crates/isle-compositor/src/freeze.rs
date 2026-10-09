@@ -75,6 +75,8 @@ pub struct FrozenWindow {
     /// Its frame, title bar included, in the global space.
     pub frame: Rectangle<i32, Logical>,
     scale: f64,
+    /// The frame's corner radius.
+    radius: f32,
     bare: (GlesTexture, TextureBuffer<GlesTexture>),
     shadowed: (GlesTexture, Size<i32, Physical>),
 }
@@ -103,6 +105,8 @@ pub struct Freeze {
     space_held: bool,
     /// Each output's solids: the veil's four sides and the line's eight edges.
     solids: RefCell<HashMap<(String, usize), SolidColorBuffer>>,
+    /// Each output's rounded line round a lifted window.
+    shapes: crate::wm::draw::Shapes,
     /// For the colour pick: each screen's frozen pixels, by its place in `screens`.
     pixels: Vec<Pixels>,
     /// The loupe drawn for the pointer's pixel on a screen, kept while it stays there.
@@ -208,8 +212,10 @@ impl Isle {
             return true;
         }
 
-        if let (Some(cursor), Some(at)) =
-            (cursor, pointer.filter(|p| geometry.to_f64().contains(*p)))
+        if let (Some(cursor), Some(at)) = (
+            cursor.filter(|_| freeze.mode != Mode::Window),
+            pointer.filter(|p| geometry.to_f64().contains(*p)),
+        )
         {
             let location = at - geometry.loc.to_f64() - cursor.hotspot.to_f64();
             if let Ok(element) =
@@ -226,6 +232,9 @@ impl Isle {
                 push(IsleElement::Memory(element));
             }
         }
+        self.shell.elements_of(output, "capture-camera", &mut |e| {
+            push(IsleElement::Shell(e))
+        });
         self.shell.elements_of(output, "capture-readout", &mut |e| {
             push(IsleElement::Shell(e))
         });
@@ -322,7 +331,26 @@ impl Isle {
         if let Some(window) = lifted
             && window.frame.overlaps(geometry)
         {
-            outline(4, window.frame.to_f64(), push);
+            match self.window_programs.as_ref() {
+                Some(programs) => {
+                    let line = t.size_capture_line.round() as i32;
+                    for ring in freeze.shapes.capture_ring(
+                        &output.name(),
+                        0,
+                        &programs.shadow,
+                        Rectangle::new(window.frame.loc - geometry.loc, window.frame.size),
+                        window.radius,
+                        line,
+                        t,
+                    ) {
+                        push(IsleElement::Window(crate::wm::draw::unplaced(
+                            crate::wm::draw::WindowPiece::Shadow(ring),
+                            scale,
+                        )));
+                    }
+                }
+                None => outline(4, window.frame.to_f64(), push),
+            }
             let at = (window.frame.loc - geometry.loc)
                 .to_f64()
                 .to_physical(window.scale);
@@ -437,10 +465,12 @@ impl State {
             };
             let buffer =
                 TextureBuffer::from_texture(renderer, bare.clone(), 1, Transform::Normal, None);
+            let radius = self.isle.window_style(id).corners[2];
             windows.push(FrozenWindow {
                 id,
                 frame,
                 scale,
+                radius,
                 bare: (bare, buffer),
                 shadowed,
             });
@@ -455,6 +485,7 @@ impl State {
             lifted: None,
             space_held: false,
             solids: RefCell::default(),
+            shapes: Default::default(),
             pixels,
             loupe: RefCell::default(),
         });
@@ -479,6 +510,7 @@ impl State {
             let _ = reply.send(None);
         }
         self.isle.shell.close("capture-readout");
+        self.isle.shell.close("capture-camera");
         self.isle.cursor_status = CursorImageStatus::default_named();
         self.backend.update_cursor(&self.isle);
         crate::capture::trim();
@@ -489,12 +521,42 @@ impl State {
 
     fn set_pick_cursor(&mut self) {
         self.isle.cursor_status = match self.isle.freeze.as_ref().map(|f| f.mode) {
-            Some(Mode::Window) => CursorImageStatus::Named(CursorIcon::Default),
-            // The loupe stands in for the pointer.
-            Some(Mode::Colour) => CursorImageStatus::Hidden,
+            // The camera and the loupe stand in for the pointer.
+            Some(Mode::Window | Mode::Colour) => CursorImageStatus::Hidden,
             _ => CursorImageStatus::Named(CursorIcon::Crosshair),
         };
         self.backend.update_cursor(&self.isle);
+        self.place_camera();
+    }
+
+    /// The camera at the pointer while a window is being picked, closed otherwise.
+    fn place_camera(&mut self) {
+        let window = self.isle.freeze.as_ref().is_some_and(|f| f.mode == Mode::Window);
+        let output = self.isle.output_under_pointer();
+        let (true, Some(output)) = (window, output) else {
+            self.isle.shell.close("capture-camera");
+            return;
+        };
+        let Some(screen) = self.isle.space.output_geometry(&output) else {
+            return;
+        };
+        let at = self.isle.seat.get_pointer().unwrap().current_location() - screen.loc.to_f64();
+        let size = isle_shell::capture::camera::CameraSurface::size_for(self.isle.shell.theme());
+        let geometry = Rectangle::new(
+            (
+                (at.x - size.w as f64 / 2.0).round() as i32,
+                (at.y - size.h as f64 / 2.0).round() as i32,
+            )
+                .into(),
+            size,
+        );
+        let place = isle_shell::OutputPlace {
+            scale: output.current_scale().fractional_scale(),
+            output,
+            geometry: screen,
+        };
+        self.isle.shell.open_placed("capture-camera", &place, geometry);
+        self.dispatch_shell();
     }
 
     /// The pointer moved while the pick is open: the drag follows, or the window under it
@@ -541,6 +603,7 @@ impl State {
                 .position(|w| w.frame.to_f64().contains(at));
         }
         self.place_readout();
+        self.place_camera();
         self.isle.queue_redraw_all();
     }
 
@@ -1001,6 +1064,7 @@ impl State {
             "lifted": freeze.lifted.map(|i| freeze.windows[i].id),
             "selection": freeze.selection(option).map(|(_, r)| [r.loc.x, r.loc.y, r.size.w, r.size.h]),
             "readout": self.isle.shell.is_open("capture-readout"),
+            "camera": self.isle.shell.is_open("capture-camera"),
         })
         .to_string()
     }

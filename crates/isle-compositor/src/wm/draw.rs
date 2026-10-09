@@ -415,6 +415,170 @@ impl ShadowElement {
     }
 }
 
+impl ShadowElement {
+    /// A sharp-edged box of `colour` at `area` (logical, relative to the output) with
+    /// corners of `radius`; with `band`, only that wide a band inside its edge.
+    pub fn rounded(
+        program: GlesPixelProgram,
+        area: Rectangle<i32, Logical>,
+        radius: f32,
+        colour: isle_tokens::Colour,
+        band: Option<f32>,
+    ) -> Self {
+        let mut element = Self {
+            id: Id::new(),
+            commit: CommitCounter::default(),
+            program,
+            area,
+            uniforms: Vec::new(),
+            alpha: 1.0,
+        };
+        element.uniforms = rounded_uniforms(area.size, radius, colour, band);
+        element
+    }
+}
+
+fn rounded_uniforms(
+    size: smithay::utils::Size<i32, Logical>,
+    radius: f32,
+    colour: isle_tokens::Colour,
+    band: Option<f32>,
+) -> Vec<Uniform<'static>> {
+    let (w, h) = (size.w as f32, size.h as f32);
+    // The shadow program draws nothing inside `shape`: a band's inner edge, or a point
+    // outside the box for a filled one.
+    let (shape, shape_radius) = match band {
+        Some(b) => ([b, b, w - 2.0 * b, h - 2.0 * b], (radius - b).max(0.0)),
+        None => ([-4.0, -4.0, 0.0, 0.0], 0.0),
+    };
+    vec![
+        Uniform::new("extent", (w, h)),
+        Uniform::new("shape", shape),
+        Uniform::new("shape_radius", shape_radius),
+        Uniform::new("shadow", [0.0, 0.0, w, h]),
+        Uniform::new("shadow_radius", radius),
+        Uniform::new("sigma", 0.0f32),
+        Uniform::new(
+            "colour",
+            [
+                colour.r as f32 / 255.0 * colour.a,
+                colour.g as f32 / 255.0 * colour.a,
+                colour.b as f32 / 255.0 * colour.a,
+                colour.a,
+            ],
+        ),
+    ]
+}
+
+type ShapeKey = (Rectangle<i32, Logical>, f32, isle_tokens::Colour, Option<f32>);
+
+/// Rounded boxes kept by slot, each keeping its id while it is unchanged so damage
+/// tracking sees it as the same element.
+#[derive(Default)]
+pub struct Shapes(std::cell::RefCell<std::collections::HashMap<(String, usize), (ShapeKey, ShadowElement)>>);
+
+impl Shapes {
+    /// `slot`'s box on `output`, as `ShadowElement::rounded` makes it.
+    #[allow(clippy::too_many_arguments)]
+    pub fn get(
+        &self,
+        output: &str,
+        slot: usize,
+        program: &GlesPixelProgram,
+        area: Rectangle<i32, Logical>,
+        radius: f32,
+        colour: isle_tokens::Colour,
+        band: Option<f32>,
+    ) -> ShadowElement {
+        let key = (area, radius, colour, band);
+        let mut map = self.0.borrow_mut();
+        let entry = map.entry((output.to_owned(), slot)).or_insert_with(|| {
+            (
+                key,
+                ShadowElement::rounded(program.clone(), area, radius, colour, band),
+            )
+        });
+        if entry.0 != key {
+            entry.1.area = area;
+            entry.1.uniforms = rounded_uniforms(area.size, radius, colour, band);
+            entry.1.commit.increment();
+            entry.0 = key;
+        }
+        entry.1.clone()
+    }
+
+    /// The capture line round `rect` with corners of `radius`: the light line just outside
+    /// it, its dark edge outside that, front to back, from `first` on.
+    #[allow(clippy::too_many_arguments)]
+    pub fn capture_ring(
+        &self,
+        output: &str,
+        first: usize,
+        program: &GlesPixelProgram,
+        rect: Rectangle<i32, Logical>,
+        radius: f32,
+        line: i32,
+        tokens: &isle_tokens::Tokens,
+    ) -> [ShadowElement; 2] {
+        let grown = |by: i32| {
+            Rectangle::new(
+                (rect.loc.x - by, rect.loc.y - by).into(),
+                (rect.size.w + 2 * by, rect.size.h + 2 * by).into(),
+            )
+        };
+        let band = Some(line as f32);
+        [
+            self.get(output, first, program, grown(line), radius + line as f32, tokens.colour_capture_line, band),
+            self.get(
+                output,
+                first + 1,
+                program,
+                grown(2 * line),
+                radius + 2.0 * line as f32,
+                tokens.colour_capture_line_shadow,
+                band,
+            ),
+        ]
+    }
+
+    /// A round handle at `(x, y)`: the light dot in a dark one a point wider, front to
+    /// back, from `first` on.
+    pub fn handle(
+        &self,
+        output: &str,
+        first: usize,
+        program: &GlesPixelProgram,
+        (x, y): (f64, f64),
+        tokens: &isle_tokens::Tokens,
+    ) -> [ShadowElement; 2] {
+        let size = tokens.size_capture_handle as i32;
+        let disc = |d: i32| {
+            Rectangle::new(
+                ((x - d as f64 / 2.0).round() as i32, (y - d as f64 / 2.0).round() as i32).into(),
+                (d, d).into(),
+            )
+        };
+        [
+            self.get(output, first, program, disc(size), size as f32 / 2.0, tokens.colour_capture_line, None),
+            self.get(
+                output,
+                first + 1,
+                program,
+                disc(size + 2),
+                (size + 2) as f32 / 2.0,
+                tokens.colour_capture_line_shadow,
+                None,
+            ),
+        ]
+    }
+}
+
+/// A shape drawn where it was made.
+pub fn unplaced(piece: WindowPiece, scale: f64) -> Placed {
+    let at = Rectangle::new((0, 0).into(), (1, 1).into());
+    place(piece, at, at.to_f64(), scale)
+}
+
 impl Element for ShadowElement {
     fn id(&self) -> &Id {
         &self.id

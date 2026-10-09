@@ -427,6 +427,7 @@ async fn space_picks_a_window_whole_and_option_leaves_its_shadow_out() {
     wait_until(|| async { !pick(&isle).await.is_null() }).await;
     tap(&isle, SPACE).await;
     wait_until(|| async { pick(&isle).await["lifted"] == below_info.id }).await;
+    assert_eq!(pick(&isle).await["camera"], true);
     isle.keep_shot("pick-window").await;
     test.key(OPTION, true).await.unwrap();
     tap(&isle, ENTER).await;

@@ -384,6 +384,7 @@ impl Isle {
         shell.register(spotlight.surface.clone());
         let capture_readout = isle_shell::capture::readout::ReadoutSurface::new();
         shell.register(capture_readout.clone());
+        shell.register(isle_shell::capture::camera::CameraSurface::new());
         let capture_thumbnail = isle_shell::capture::thumbnail::ThumbnailSurface::new();
         shell.register(capture_thumbnail.clone());
         let capture_toolbar = isle_shell::capture::toolbar::ToolbarSurface::new();

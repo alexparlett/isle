@@ -141,6 +141,8 @@ pub struct Isle {
     pub portal_monitors: std::collections::HashSet<String>,
     /// The screen recording running, if one is.
     pub recording_now: Option<crate::recording::Recording>,
+    /// Presses marked in the recording, in the global space, while they fade.
+    pub clicks: Vec<(smithay::utils::Point<f64, smithay::utils::Logical>, std::time::Instant)>,
     /// A portal's PickColor waiting on the pick.
     pub pick_reply: Option<tokio::sync::oneshot::Sender<Option<[u8; 3]>>>,
     /// Shift+Cmd+4's frozen screens while the pick is open.
@@ -464,6 +466,7 @@ impl Isle {
             casting: Default::default(),
             image_copy,
             recording_now: None,
+            clicks: Vec::new(),
             portal: None,
             portal_appearance: Default::default(),
             portal_holds: Default::default(),

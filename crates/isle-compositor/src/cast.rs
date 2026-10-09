@@ -74,6 +74,8 @@ use crate::{
 };
 
 const SHM_BYTES_PER_PIXEL: u32 = 4;
+/// How long a click's mark takes to fade from the recording.
+const CLICK_FADE: Duration = Duration::from_millis(600);
 
 /// What a stream shows.
 #[derive(Clone, Debug, PartialEq)]
@@ -975,7 +977,11 @@ impl State {
         let cursor_mode = stream.cursor;
         let began = Instant::now();
         let (elements, scale) =
-            match self.cast_elements(&source, cursor_mode == CursorMode::Embedded) {
+            match self.cast_elements(
+                &source,
+                cursor_mode == CursorMode::Embedded,
+                stream.owner == "recording",
+            ) {
                 Some(x) => x,
                 None => return,
             };
@@ -1026,11 +1032,53 @@ impl State {
         }
     }
 
-    /// The source's elements placed at the stream's origin, and its scale.
+    /// The marks of recent presses within `area` (global), placed relative to its origin,
+    /// front to back; while any fade, the area's output is drawn again.
+    fn click_marks(&mut self, area: Rectangle<i32, Logical>, scale: f64) -> Vec<IsleElement> {
+        self.isle.clicks.retain(|(_, at)| at.elapsed() < CLICK_FADE);
+        let Some(programs) = self.isle.window_programs.as_ref() else {
+            return Vec::new();
+        };
+        let t = &self.isle.shell.theme().tokens;
+        let mut marks = Vec::new();
+        for (at, when) in &self.isle.clicks {
+            if !area.to_f64().contains(*at) {
+                continue;
+            }
+            let k = when.elapsed().as_secs_f32() / CLICK_FADE.as_secs_f32();
+            // Grows from three fifths of its size as it fades.
+            let side = (t.size_capture_click * (0.6 + 0.4 * k)).round() as i32;
+            let centre = (*at - area.loc.to_f64()).to_i32_round::<i32>();
+            let rect = Rectangle::new(
+                (centre.x - side / 2, centre.y - side / 2).into(),
+                (side, side).into(),
+            );
+            let disc = crate::wm::draw::ShadowElement::rounded(
+                programs.shadow.clone(),
+                rect,
+                side as f32 / 2.0,
+                t.colour_capture_line_shadow,
+                None,
+            )
+            .at(rect.loc, (0, 0).into(), 1.0 - k);
+            marks.push(IsleElement::Window(crate::wm::draw::unplaced(
+                crate::wm::draw::WindowPiece::Shadow(disc),
+                scale,
+            )));
+        }
+        if !marks.is_empty() {
+            self.isle.queue_redraw_all();
+        }
+        marks
+    }
+
+    /// The source's elements placed at the stream's origin, and its scale; with `clicks`,
+    /// recent presses marked.
     fn cast_elements(
         &mut self,
         source: &Source,
         embed_pointer: bool,
+        clicks: bool,
     ) -> Option<(Vec<CastElement>, f64)> {
         match source {
             Source::Screen(output) | Source::Portion(output, _) => {
@@ -1040,6 +1088,9 @@ impl State {
                     _ => (0, 0).into(),
                 };
                 let mut elements = Vec::new();
+                if clicks && let Some(screen) = self.isle.space.output_geometry(output) {
+                    elements.extend(self.click_marks(screen, scale));
+                }
                 self.backend
                     .capture_elements(&self.isle, output, embed_pointer, &mut |e| {
                         elements.push(e)
@@ -1060,15 +1111,22 @@ impl State {
             Source::Window(id) => {
                 let frame = self.isle.frame(*id)?;
                 let scale = self.isle.output_of(*id)?.current_scale().fractional_scale();
+                let marks = if clicks {
+                    self.click_marks(frame, scale)
+                } else {
+                    Vec::new()
+                };
                 let renderer = self.backend.renderer_opt()?;
                 let mut pieces = Vec::new();
                 self.isle
                     .window_pieces(renderer, *id, frame.loc, scale, false, 1.0, &mut |p| {
                         pieces.push(p)
                     });
-                let placed = pieces
+                let marks = marks
                     .into_iter()
-                    .map(|p| {
+                    .map(|e| RelocateRenderElement::from_element(e, (0, 0), Relocate::Relative));
+                let placed = marks
+                    .chain(pieces.into_iter().map(|p| {
                         RelocateRenderElement::from_element(
                             IsleElement::Window(crate::wm::draw::place(
                                 p,
@@ -1079,7 +1137,7 @@ impl State {
                             (0, 0),
                             Relocate::Relative,
                         )
-                    })
+                    }))
                     .collect();
                 Some((placed, scale))
             }

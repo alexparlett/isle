@@ -86,6 +86,17 @@ impl State {
         self.isle.recording_now.is_some()
     }
 
+    /// A press while recording with Show mouse clicks on: marked at the pointer in the
+    /// recording alone.
+    pub fn mark_click(&mut self) {
+        if !self.isle.settings.capture.show_clicks || self.isle.recording_now.is_none() {
+            return;
+        }
+        let at = self.isle.seat.get_pointer().unwrap().current_location();
+        self.isle.clicks.push((at, Instant::now()));
+        self.isle.queue_redraw_all();
+    }
+
     /// Starts recording `source`, unless one is running.
     pub fn start_recording(&mut self, source: Source) {
         if self.isle.recording_now.is_some() || self.isle.lock.locked {

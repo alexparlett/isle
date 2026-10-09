@@ -326,6 +326,7 @@ size {
     capture-bar 48
     capture-handle 8
     capture-camera 28
+    capture-click 36
     capture-line 1
     loupe 120
     thumbnail-width 240

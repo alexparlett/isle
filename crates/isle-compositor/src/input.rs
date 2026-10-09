@@ -144,6 +144,9 @@ impl State {
             ButtonState::Pressed => self.isle.buttons_down.insert(button),
             ButtonState::Released => self.isle.buttons_down.remove(&button),
         };
+        if button_state == ButtonState::Pressed {
+            self.mark_click();
+        }
         // The pick's presses and their releases are its own, even once it has closed.
         if self.picking() {
             if button_state == ButtonState::Pressed {

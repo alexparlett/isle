@@ -182,3 +182,63 @@ async fn a_recorder_killed_midway_leaves_a_file_that_plays() {
         "a recording cut short does not play"
     );
 }
+
+/// The pixel at `(x, y)` in each of a recording's frames, as ffmpeg decodes them.
+fn pixels_at(path: &std::path::Path, x: u32, y: u32) -> Vec<[u8; 3]> {
+    let out = Command::new("ffmpeg")
+        .args(["-v", "error", "-i"])
+        .arg(path)
+        .args([
+            "-vf",
+            // Two by two: a 4:2:0 picture crops by whole chroma samples.
+            &format!("crop=2:2:{x}:{y}"),
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-",
+        ])
+        .output()
+        .expect("ffmpeg");
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    out.stdout
+        .chunks_exact(12)
+        .map(|p| [p[0], p[1], p[2]])
+        .collect()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn show_mouse_clicks_marks_a_press_in_the_recording() {
+    let mut isle = start("record-clicks", "capture {\n    show-clicks #true\n}\n").await;
+    if !isle.start_audio().await || Command::new("ffmpeg").arg("-version").output().is_err() {
+        return;
+    }
+    let window = isle.client("isle.test.Red", "ff0000");
+    window.wait_for("keyboard-enter").await;
+    let info = isle.wait_for_window("isle.test.Red").await;
+    let (cx, cy) = (info.x + info.width / 2, info.y + info.height / 2);
+    let test = isle.test().await;
+    test.pointer_to(cx as f64 + 100.0, cy as f64).await.unwrap();
+    test.record(&serde_json::json!({"screen": "HEADLESS-1"}).to_string())
+        .await
+        .unwrap();
+    wait_until(|| async { recording(&isle).await["phase"] == "Running" }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    test.pointer_to(cx as f64, cy as f64).await.unwrap();
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(900)).await;
+    assert!(test.stop_recording().await.unwrap());
+    wait_until(|| async { recording(&isle).await.is_null() }).await;
+    let files = recordings(&isle);
+    // Beside the press, outside the pointer's image: the mark darkens the red there.
+    let seen = pixels_at(&files[0], cx as u32 - 8, cy as u32 + 8);
+    assert!(
+        seen.iter().any(|[r, g, b]| (0x50..0xc0).contains(r) && *g < 0x30 && *b < 0x30),
+        "no mark: {seen:?}"
+    );
+    assert!(
+        seen.last().is_some_and(|[r, ..]| *r > 0xe0),
+        "the mark stayed: {seen:?}"
+    );
+}

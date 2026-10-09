@@ -943,15 +943,19 @@ impl Shell {
         self.elements_where(output, &|def| def.layer() == layer, push);
     }
 
-    /// The surfaces of `layer` on `output` but `name`, as [`Shell::elements`] gives them.
-    pub fn elements_except(
+    /// The surfaces of `layer` on `output` but those named in `leave`.
+    pub fn elements_without(
         &self,
         output: &Output,
         layer: Layer,
-        name: &str,
+        leave: &[&str],
         push: &mut dyn FnMut(ShellElement),
     ) {
-        self.elements_where(output, &|def| def.layer() == layer && def.name() != name, push);
+        self.elements_where(
+            output,
+            &|def| def.layer() == layer && !leave.contains(&def.name()),
+            push,
+        );
     }
 
     /// The surface `name` on `output`, as [`Shell::elements`] gives it.

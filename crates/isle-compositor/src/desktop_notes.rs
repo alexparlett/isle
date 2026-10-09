@@ -19,6 +19,7 @@ pub enum Note {
     Drive(String),
     SettingsError,
     Crash(std::path::PathBuf),
+    Capture,
 }
 
 impl Isle {
@@ -106,6 +107,7 @@ impl State {
             (Note::Crash(record), _) => {
                 self.launch(Launch::Open(record.to_string_lossy().into_owned()));
             }
+            (Note::Capture, _) => {}
         }
     }
 

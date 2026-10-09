@@ -51,7 +51,7 @@ use tracing::{error, info, warn};
 use super::{Backend, CLEAR, Rendered};
 use crate::{
     cursor::Cursors,
-    render::IsleElement,
+    render::{IsleElement, NamedCursor},
     state::{Isle, State},
 };
 
@@ -170,6 +170,20 @@ impl Udev {
         self.renderer
             .as_mut()
             .is_some_and(|r| r.import_dmabuf(dmabuf, None).is_ok())
+    }
+
+    /// The renderer with the themed image of the pointer's named cursor at `scale`.
+    pub fn renderer_with_cursor(
+        &mut self,
+        isle: &Isle,
+        scale: u32,
+    ) -> Option<(&mut GlesRenderer, Option<NamedCursor<'_>>)> {
+        let renderer = self.renderer.as_mut()?;
+        let cursor = match &isle.cursor_status {
+            CursorImageStatus::Named(icon) => self.cursors.get(*icon, scale),
+            _ => None,
+        };
+        Some((renderer, cursor))
     }
 
     pub fn render(&mut self, isle: &mut Isle, output: &Output) -> Result<Rendered, String> {

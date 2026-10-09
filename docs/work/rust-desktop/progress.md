@@ -2,6 +2,18 @@
 
 ## 2026-10-09
 
+- P11 11.0: the render and the file. `capture.rs` renders a screen, a region
+  of one, or a window alone (its surfaces, popups and title bar, with its
+  shadow on a transparent ground when asked) into a texture of its own, the
+  pointer left out unless asked and the capture tool's surfaces left out by
+  name; a locked screen gives the lock, and a window is refused while locked.
+  PNGs are encoded at `png`'s Fast setting on the worker and written at once
+  into `$XDG_PICTURES_DIR/Screenshots` by macOS's names, a taken name moving
+  on to " (2)"; a write that fails copies the shot and says so in a banner.
+  The `capture` settings section. `Test1.Capture` takes a still by a JSON
+  spec; `Test1.Screenshot` shares the offscreen path but still shows what
+  the output shows, dim included.
+
 - P11 planned (`p11-capture.md`), 31 choices and phases 11.0–11.15, with
   the research note `capture-2026.md`. Reviewed: every recommendation taken.
 

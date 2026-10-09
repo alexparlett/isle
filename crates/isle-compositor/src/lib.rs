@@ -21,6 +21,7 @@ mod idle;
 mod input;
 mod keyboard;
 mod island;
+pub mod capture;
 mod centre;
 mod clipboard;
 mod control_centre;

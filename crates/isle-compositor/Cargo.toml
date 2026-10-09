@@ -12,7 +12,6 @@ test-hooks = [
     "isle-shell/probe",
     "isle-menus/exporter",
     "wayland-protocols-plasma/client",
-    "dep:png",
     "dep:wayland-client",
     "dep:wayland-protocols",
     "dep:wayland-protocols-wlr",
@@ -56,7 +55,7 @@ isle-state.workspace = true
 libc.workspace = true
 notify.workspace = true
 zeroize.workspace = true
-png = { workspace = true, optional = true }
+png.workspace = true
 wayland-client = { workspace = true, optional = true }
 wayland-protocols = { workspace = true, optional = true }
 wayland-protocols-wlr = { workspace = true, optional = true }

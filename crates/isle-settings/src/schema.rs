@@ -54,6 +54,8 @@ pub struct Settings {
     #[setting(section)]
     pub spotlight: Spotlight,
     #[setting(section)]
+    pub capture: Capture,
+    #[setting(section)]
     pub debug: Debug,
     #[setting(app = "io.github.alexparlett.Isle.Example")]
     pub example_app: ExampleApp,
@@ -674,6 +676,45 @@ pub struct Spotlight {
     /// The web search's address, with `{query}` where the query goes.
     #[setting(default = "https://duckduckgo.com/?q={query}".to_owned())]
     pub web_search: String,
+}
+
+/// Screenshots and recordings: the capture toolbar's Options (`p1/structure/capture.md`).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Capture {
+    /// `default` for Pictures/Screenshots and Videos/Recordings, `documents`, `clipboard`,
+    /// or a folder's path.
+    #[setting(default = "default".to_owned())]
+    pub save_to: String,
+    /// Seconds before a shot or recording starts: 0, 5 or 10.
+    pub timer: i32,
+    /// The input device a recording takes sound from, by name; none when unset.
+    pub microphone: Option<String>,
+    /// Whether a recording takes what the computer plays.
+    pub system_audio: bool,
+    #[setting(default = true)]
+    pub floating_thumbnail: bool,
+    /// Whether the toolbar's portion opens where it was last.
+    pub remember_selection: bool,
+    /// Whether shots and recordings show the pointer.
+    pub show_pointer: bool,
+    /// Whether a recording marks each click.
+    pub show_clicks: bool,
+    /// How a picked colour is copied.
+    #[setting(default = ColourFormat::Hex)]
+    pub colour_format: ColourFormat,
+    /// The sound a shot makes.
+    #[setting(default = true)]
+    pub sound: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum ColourFormat {
+    /// `#1e1f23`
+    Hex,
+    /// `rgb(30, 31, 35)`
+    Rgb,
+    /// `hsl(228, 8%, 13%)`
+    Hsl,
 }
 
 /// The picture behind the windows (`p1/structure/wallpaper.md`).

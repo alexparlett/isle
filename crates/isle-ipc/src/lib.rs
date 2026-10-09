@@ -571,6 +571,9 @@ pub mod test {
         fn frames(&self, output: &str) -> zbus::Result<u64>;
         /// Draws an output and writes it to `path` as a PNG.
         fn screenshot(&self, output: &str, path: &str) -> zbus::Result<()>;
+
+        /// Takes a still by a JSON spec and returns the files written.
+        fn capture(&self, spec: &str) -> zbus::Result<Vec<String>>;
         /// Panics in the worker's D-Bus service.
         fn panic_service(&self) -> zbus::Result<()>;
         /// Panics on the main loop.

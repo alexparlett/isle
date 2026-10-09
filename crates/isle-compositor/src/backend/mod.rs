@@ -123,35 +123,105 @@ impl Backend {
 
     /// Draws `output` whole into a texture of its own and reads it back.
     pub fn screenshot(&mut self, isle: &Isle, output: &Output) -> Result<Pixels, String> {
-        let mode = output.current_mode().ok_or("the output has no mode")?;
-        let size = mode.size;
-        let buffer = size.to_logical(1).to_buffer(1, Transform::Normal);
+        let size = output.current_mode().ok_or("the output has no mode")?.size;
         let renderer = self.renderer();
-        let mut texture: GlesTexture =
-            Offscreen::<GlesTexture>::create_buffer(renderer, Fourcc::Abgr8888, buffer)
-                .map_err(|e| e.to_string())?;
-        let mut tracker = OutputDamageTracker::new(
-            size,
-            output.current_scale().fractional_scale(),
-            Transform::Normal,
-        );
-        let mut framebuffer = renderer.bind(&mut texture).map_err(|e| e.to_string())?;
         let mut elements = Vec::new();
         isle.render_elements(renderer, output, None, &mut |e| elements.push(e));
-        tracker
-            .render_output(renderer, &mut framebuffer, 0, &elements, CLEAR)
-            .map_err(|e| format!("{e:?}"))?;
-        let mapping = renderer
-            .copy_framebuffer(&framebuffer, Rectangle::from_size(buffer), Fourcc::Abgr8888)
-            .map_err(|e| e.to_string())?;
-        let rgba = renderer
-            .map_texture(&mapping)
-            .map_err(|e| e.to_string())?
-            .to_vec();
-        Ok(Pixels {
-            width: size.w as u32,
-            height: size.h as u32,
-            rgba,
-        })
+        let mut texture = render_offscreen(renderer, output, &elements)?;
+        read_back(renderer, &mut texture, Rectangle::from_size(size), false)
     }
+
+    /// Draws what a picture of `output` holds into a texture of its own, the pointer in it
+    /// when `pointer`.
+    pub fn capture_screen(
+        &mut self,
+        isle: &Isle,
+        output: &Output,
+        pointer: bool,
+    ) -> Result<GlesTexture, String> {
+        let scale = output.current_scale().integer_scale().max(1) as u32;
+        let (renderer, cursor) = match self {
+            Backend::Udev(udev) => udev
+                .renderer_with_cursor(isle, scale)
+                .ok_or("no renderer")?,
+            Backend::Winit(winit) => (winit.renderer(), None),
+            Backend::Headless(headless) => (&mut headless.renderer, None),
+        };
+        let mut elements = Vec::new();
+        isle.capture_elements(renderer, output, cursor, pointer, &mut |e| elements.push(e));
+        render_offscreen(renderer, output, &elements)
+    }
+
+    /// Reads `rect` of `texture` back.
+    pub fn read_back(
+        &mut self,
+        texture: &mut GlesTexture,
+        rect: Rectangle<i32, smithay::utils::Physical>,
+        straight: bool,
+    ) -> Result<Pixels, String> {
+        let renderer = self.renderer_opt().ok_or("no renderer")?;
+        read_back(renderer, texture, rect, straight)
+    }
+}
+
+/// `elements`, placed on `output`, drawn into a new texture of the output's mode size.
+fn render_offscreen(
+    renderer: &mut GlesRenderer,
+    output: &Output,
+    elements: &[crate::render::IsleElement],
+) -> Result<GlesTexture, String> {
+    let size = output.current_mode().ok_or("the output has no mode")?.size;
+    let buffer = size.to_logical(1).to_buffer(1, Transform::Normal);
+    let mut texture: GlesTexture =
+        Offscreen::<GlesTexture>::create_buffer(renderer, Fourcc::Abgr8888, buffer)
+            .map_err(|e| e.to_string())?;
+    let mut tracker = OutputDamageTracker::new(
+        size,
+        output.current_scale().fractional_scale(),
+        Transform::Normal,
+    );
+    {
+        let mut framebuffer = renderer.bind(&mut texture).map_err(|e| e.to_string())?;
+        tracker
+            .render_output(renderer, &mut framebuffer, 0, elements, CLEAR)
+            .map_err(|e| format!("{e:?}"))?;
+    }
+    Ok(texture)
+}
+
+/// `rect` of `texture` as RGBA, top row first; `straight` undoes premultiplied alpha.
+fn read_back(
+    renderer: &mut GlesRenderer,
+    texture: &mut GlesTexture,
+    rect: Rectangle<i32, smithay::utils::Physical>,
+    straight: bool,
+) -> Result<Pixels, String> {
+    let framebuffer = renderer.bind(texture).map_err(|e| e.to_string())?;
+    let buffer = Rectangle::new(
+        (rect.loc.x, rect.loc.y).into(),
+        (rect.size.w, rect.size.h).into(),
+    );
+    let mapping = renderer
+        .copy_framebuffer(&framebuffer, buffer, Fourcc::Abgr8888)
+        .map_err(|e| e.to_string())?;
+    drop(framebuffer);
+    let mut rgba = renderer
+        .map_texture(&mapping)
+        .map_err(|e| e.to_string())?
+        .to_vec();
+    if straight {
+        for px in rgba.chunks_exact_mut(4) {
+            let a = px[3] as u32;
+            if a != 0 && a != 255 {
+                for c in &mut px[..3] {
+                    *c = ((*c as u32 * 255 + a / 2) / a).min(255) as u8;
+                }
+            }
+        }
+    }
+    Ok(Pixels {
+        width: rect.size.w as u32,
+        height: rect.size.h as u32,
+        rgba,
+    })
 }

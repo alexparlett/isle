@@ -362,3 +362,5 @@
   through xdg-foreign, the Settings and Inhibit portals, ext-image-copy-capture
   without wlr-screencopy. Research in
   `docs/research/rust-desktop/capture-2026.md`. Phases 11.0–11.15.
+- P11 11.0 done (2026-10-09): stills of a screen, a region or a window from
+  the compositor's element list, written as PNG or copied.

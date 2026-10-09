@@ -58,6 +58,14 @@ impl IsleElement {
     }
 }
 
+/// Shell surfaces a picture of the screen never holds: the capture tool's own.
+pub const CAPTURE_SURFACES: &[&str] = &[
+    "capture-readout",
+    "capture-toolbar",
+    "capture-loupe",
+    "capture-thumbnail",
+];
+
 /// A themed cursor image the backend draws itself, with its hotspot.
 pub struct NamedCursor<'a> {
     pub buffer: &'a MemoryRenderBuffer,
@@ -87,7 +95,7 @@ impl Isle {
         if self.lock.locked {
             self.render_locked(output, renderer, cursor, true, push);
         } else {
-            self.render_elements_from(renderer, output, cursor, Stage::Cursor, push);
+            self.render_elements_from(renderer, output, cursor, Stage::Cursor, &[], push);
         }
         #[cfg(feature = "test-hooks")]
         self.lock.frame_kinds.borrow_mut().insert(output.name(), kinds);
@@ -111,7 +119,27 @@ impl Isle {
             isle_shell::Layer::Top => Stage::Windows,
             isle_shell::Layer::Background => return,
         };
-        self.render_elements_from(renderer, output, None, from, push);
+        self.render_elements_from(renderer, output, None, from, &[], push);
+    }
+
+    /// What a picture of `output` holds, front to back: what it shows but the idle dim and
+    /// the capture tool, with the pointer only when `cursor` is given. A locked screen
+    /// gives the lock.
+    pub fn capture_elements(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        cursor: Option<NamedCursor<'_>>,
+        pointer: bool,
+        push: &mut dyn FnMut(IsleElement),
+    ) {
+        let cursor = cursor.filter(|_| pointer);
+        if self.lock.locked {
+            self.render_locked(output, renderer, cursor, true, push);
+        } else {
+            let from = if pointer { Stage::Cursor } else { Stage::Prompt };
+            self.render_elements_from(renderer, output, cursor, from, CAPTURE_SURFACES, push);
+        }
     }
 
     fn render_elements_from(
@@ -120,6 +148,7 @@ impl Isle {
         output: &Output,
         cursor: Option<NamedCursor<'_>>,
         from: Stage,
+        leave: &[&str],
         push: &mut dyn FnMut(IsleElement),
     ) {
         let Some(geometry) = self.space.output_geometry(output) else {
@@ -188,7 +217,7 @@ impl Isle {
 
         let shell = |layer, push: &mut dyn FnMut(IsleElement)| {
             self.shell
-                .elements(output, layer, &mut |e| push(IsleElement::Shell(e)))
+                .elements_without(output, layer, leave, &mut |e| push(IsleElement::Shell(e)))
         };
         // A prompt and the island over its scrim, the scrim over the rest.
         let prompting = self.scrimmed();
@@ -202,10 +231,12 @@ impl Isle {
         }
         if from <= Stage::ShellOverlay {
             if prompting {
-                self.shell.elements_except(
+                let mut without = vec!["island"];
+                without.extend_from_slice(leave);
+                self.shell.elements_without(
                     output,
                     isle_shell::Layer::Overlay,
-                    "island",
+                    &without,
                     &mut |e| push(IsleElement::Shell(e)),
                 );
             } else {

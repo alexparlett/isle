@@ -1368,6 +1368,23 @@ impl Test {
             .map_err(|e| fdo::Error::Failed(e.to_string()))
     }
 
+    /// Takes a still as `Isle::test_capture` reads `spec` and returns the files written.
+    async fn capture(&self, spec: String) -> fdo::Result<Vec<String>> {
+        let written = self
+            .to_loop
+            .call(move |state| state.test_capture(&spec))
+            .await?
+            .map_err(fdo::Error::Failed)?;
+        let written = tokio::time::timeout(std::time::Duration::from_secs(10), written)
+            .await
+            .map_err(|_| fdo::Error::Failed("timed out".into()))?
+            .map_err(|_| fdo::Error::Failed("nothing written".into()))?;
+        Ok(written
+            .into_iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect())
+    }
+
     fn panic_service(&self) {
         self.to_loop
             .post(|state| state.isle.notify(crate::worker::Event::PanicService));

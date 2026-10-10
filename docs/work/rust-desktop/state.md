@@ -410,5 +410,8 @@
   (`049c787`); Isle passes `PresentationMode::VSync` until 12.4.
 - P12 12.1 done (2026-10-10): hardware presentation times and flags,
   feedback for layers and X11 popups, the plane trace (`isle displays
-  trace`), scanout dmabuf feedback, the fastest rate by default. Next: 12.2
-  (the protocols).
+  trace`), scanout dmabuf feedback, the fastest rate by default.
+- P12 12.2 done (2026-10-10): syncobj, fifo, commit-timing, content-type,
+  buffer blockers, pointer constraints and relative motion with their
+  releases. A hidden fifo client is released only when some output draws;
+  12.5's pacing of hidden windows covers it. Next: 12.3 (VRR).

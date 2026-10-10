@@ -542,6 +542,7 @@ impl State {
         let at = self.isle.seat.get_pointer().unwrap().current_location();
         self.pick_pointer_to(at);
         self.set_pick_cursor();
+        self.refresh_constraint();
         self.isle.queue_redraw_all();
     }
 

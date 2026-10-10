@@ -197,6 +197,7 @@ pub fn setup(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
             drm::DrmDeviceFd,
         };
         let fd = DrmDeviceFd::new(smithay::utils::DeviceFd::from(std::os::fd::OwnedFd::from(file)));
+        state.isle.serve_syncobj(fd.clone());
         match GbmDevice::new(fd) {
             Ok(gbm) => {
                 let render: FormatSet = headless

@@ -376,6 +376,8 @@ impl State {
         self.isle
             .dmabuf_state
             .create_global_with_default_feedback::<State>(&self.isle.display_handle, &feedback);
+        let fd = self.udev().devices[&node].manager.device().device_fd().clone();
+        self.isle.serve_syncobj(fd);
         Ok(())
     }
 

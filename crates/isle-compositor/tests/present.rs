@@ -86,3 +86,80 @@ async fn the_trace_resets_and_names_no_display_it_lacks() {
     assert!(after.frames < 5, "{}", after.frames);
     assert!(displays.trace("DP-9", 0).await.is_err());
 }
+
+fn nanos(f: &[u64; 5]) -> u128 {
+    f[0] as u128 * 1_000_000_000 + f[1] as u128
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn fifo_frames_are_each_shown_a_refresh_apart() {
+    let mut isle = Isle::start("fifo").await;
+    let client = isle.client("isle.test.Fifo", "3366ff");
+    isle.wait_for_window("isle.test.Fifo").await;
+    client.send("timing");
+    client.send("fifo 6");
+    wait_until(|| async { presented(&client).len() >= 6 }).await;
+    // Each fifo frame is shown; only the frame before the first may be replaced.
+    let lines = client.lines.lock().unwrap().clone();
+    let first = lines.iter().position(|l| l.starts_with("presented ")).unwrap();
+    assert!(!lines[first..].iter().any(|l| l == "discarded"), "{lines:?}");
+    let frames = presented(&client);
+    let refresh = frames[0][2] as u128;
+    for pair in frames.windows(2) {
+        let gap = nanos(&pair[1]) - nanos(&pair[0]);
+        assert!(gap * 10 >= refresh * 9, "{gap} under {refresh}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_timed_commit_is_shown_no_sooner_than_asked_on_a_still_desktop() {
+    let mut isle = Isle::start("commit-timing").await;
+    let client = isle.client("isle.test.Timed", "3366ff");
+    isle.wait_for_window("isle.test.Timed").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    client.send("timing");
+    client.send("commit-at 400");
+    wait_until(|| async { !presented(&client).is_empty() }).await;
+    let target = client
+        .lines
+        .lock()
+        .unwrap()
+        .iter()
+        .find_map(|l| l.strip_prefix("target ").map(str::to_owned))
+        .unwrap();
+    let (sec, nsec) = target.split_once(' ').unwrap();
+    let target = sec.parse::<u128>().unwrap() * 1_000_000_000 + nsec.parse::<u128>().unwrap();
+    let shown = nanos(&presented(&client)[0]);
+    assert!(shown >= target, "shown {} ms early", (target - shown) / 1_000_000);
+    assert!(shown < target + 100_000_000, "shown {} ms late", (shown - target) / 1_000_000);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_game_protocols_are_announced() {
+    let mut isle = Isle::start("game-globals").await;
+    let client = isle.client("isle.test.Globals", "3366ff");
+    isle.wait_for_window("isle.test.Globals").await;
+    client.send("globals");
+    client.wait_for("globals done").await;
+    let lines = client.lines.lock().unwrap().clone();
+    let has = |name: &str| lines.iter().any(|l| l.starts_with(&format!("global {name} ")));
+    for name in [
+        "wp_presentation",
+        "wp_fifo_manager_v1",
+        "wp_commit_timing_manager_v1",
+        "wp_content_type_manager_v1",
+        "zwp_pointer_constraints_v1",
+        "zwp_relative_pointer_manager_v1",
+    ] {
+        assert!(has(name), "{name} missing");
+    }
+    // Explicit sync is served when the render node can wait on sync points.
+    assert!(
+        has("wp_linux_drm_syncobj_manager_v1") || isle.log().contains("no explicit sync"),
+        "neither syncobj nor the reason it is missing"
+    );
+    client.send("content-type game");
+    client.send("globals");
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert!(!client.exited());
+}

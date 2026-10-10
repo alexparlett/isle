@@ -159,7 +159,8 @@ impl State {
                 let still = state.isle.pointer_on().is_some_and(|(o, at)| {
                     o == output && state.isle.island_zone(&o).is_some_and(|z| z.contains(at))
                 });
-                if still {
+                // A game holding the pointer is reached through the escape set, not the edge.
+                if still && !state.pointer_constrained() {
                     if reveal {
                         state.reveal_island(&output);
                     } else {
@@ -251,7 +252,9 @@ impl State {
                     .loop_handle
                     .insert_source(timer, move |_, _, state| {
                         state.isle.bar.dwell = None;
-                        if state.isle.pointer_on().is_some_and(|(o, at)| o == output && at.y <= 0.5) {
+                        if !state.pointer_constrained()
+                            && state.isle.pointer_on().is_some_and(|(o, at)| o == output && at.y <= 0.5)
+                        {
                             state.reveal_bar(&output, false, None);
                             state.isle.top_edge.need_move = true;
                         }

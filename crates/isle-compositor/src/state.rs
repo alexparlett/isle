@@ -106,6 +106,18 @@ pub struct Isle {
     pub xwayland_shell_state: smithay::wayland::xwayland_shell::XWaylandShellState,
     /// X11 windows left alone: override-redirect and untitled ones, front last.
     pub unmanaged: Vec<Window>,
+    /// The surface whose pointer lock or confinement is active.
+    pub constrained: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
+    /// Explicit sync, once a device that can wait on sync points is open.
+    pub syncobj_state: Option<smithay::wayland::drm_syncobj::DrmSyncobjState>,
+    /// Each surface's armed wait for its next timed commit.
+    pub commit_timers: std::collections::HashMap<
+        smithay::reexports::wayland_server::backend::ObjectId,
+        (
+            smithay::wayland::commit_timing::Timestamp,
+            smithay::reexports::calloop::RegistrationToken,
+        ),
+    >,
     /// The window whose bar shows Option's glyphs.
     pub bar_option: Option<u64>,
     pub zoom: crate::wm::ZoomState,
@@ -331,6 +343,11 @@ impl Isle {
         let fractional_scale_state = FractionalScaleManagerState::new::<State>(&dh);
         let presentation_state = PresentationState::new::<State>(&dh, clock.id() as u32);
         let single_pixel_buffer_state = SinglePixelBufferState::new::<State>(&dh);
+        smithay::wayland::fifo::FifoManagerState::new::<State>(&dh);
+        smithay::wayland::commit_timing::CommitTimingManagerState::new::<State>(&dh);
+        smithay::wayland::content_type::ContentTypeState::new::<State>(&dh);
+        smithay::wayland::pointer_constraints::PointerConstraintsState::new::<State>(&dh);
+        smithay::wayland::relative_pointer::RelativePointerManagerState::new::<State>(&dh);
         let cursor_shape_state = CursorShapeManagerState::new::<State>(&dh);
         let inhibit_state =
             smithay::wayland::keyboard_shortcuts_inhibit::KeyboardShortcutsInhibitState::new::<State>(&dh);
@@ -448,6 +465,9 @@ impl Isle {
             xwayland_source: None,
             xwayland_shell_state,
             unmanaged: Vec::new(),
+            syncobj_state: None,
+            constrained: None,
+            commit_timers: Default::default(),
             bar_option: None,
             zoom: Default::default(),
             zoom_menu,

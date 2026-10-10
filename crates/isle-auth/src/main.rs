@@ -29,6 +29,12 @@ fn main() {
         say("broken", "this user has no name in the password database");
         return;
     };
+    // A test asking for its own service from a build that would use the system's instead
+    // must fail, not count wrong passwords against the real account.
+    if !cfg!(feature = "test-hooks") && std::env::var_os("ISLE_PAM_CONFDIR").is_some() {
+        say("broken", "this isle-auth was built without test-hooks");
+        return;
+    }
     let confdir = confdir();
     let service = service(confdir.as_deref());
     let stdin = std::io::stdin();

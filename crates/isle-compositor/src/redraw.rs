@@ -60,6 +60,8 @@ pub struct OutputState {
     pending_planes: Option<Planes>,
     /// The output's refresh follows its frames.
     pub vrr: bool,
+    /// When its last frame reached the screen.
+    pub last_shown: Option<Duration>,
     pub trace: Trace,
 }
 
@@ -233,6 +235,12 @@ impl State {
             OutputState::of(output).borrow_mut().redraw = RedrawState::Idle;
             return;
         }
+        let target = crate::sync::frame_target(
+            OutputState::of(output).borrow().last_shown,
+            self.isle.clock.now().into(),
+            refresh_interval(output),
+        );
+        self.pass_commit_timers(output, target);
         self.isle.step_windows(std::time::Instant::now());
         if let Some(renderer) = self.backend.renderer_opt() {
             self.isle.prepare_wallpaper(renderer, output);
@@ -296,6 +304,9 @@ impl State {
                     })
                     .expect("the headless vblank timer");
             }
+            // What set a fifo barrier is in this frame now, so the next commit may come;
+            // after the state above, so the redraw that commit asks for is kept.
+            self.pass_fifo_barriers(output);
             return;
         }
 
@@ -318,6 +329,7 @@ impl State {
             })
             .expect("the estimated vblank timer");
         OutputState::of(output).borrow_mut().redraw = RedrawState::WaitingForEstimatedVBlank(token);
+        self.pass_fifo_barriers(output);
         // Something still moving that drew nothing visible this frame goes on at the next.
         if self.isle.shell.animating(output)
             || self.isle.dimming()
@@ -386,6 +398,7 @@ impl State {
                     return;
                 }
             }
+            state.last_shown = Some(presented.time);
             if let Some(planes) = state.pending_planes.take() {
                 let vrr = state.vrr;
                 state.trace.push(planes, presented, vrr, |id| {

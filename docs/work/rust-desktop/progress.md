@@ -2,6 +2,30 @@
 
 ## 2026-10-10
 
+- P12 12.2: the game protocols. linux-drm-syncobj where the device can wait
+  on sync points (the DRM device; headless, the render node), wp-fifo,
+  wp-commit-timing and wp-content-type served; a commit's buffer is held
+  until it can be read, by its explicit acquire point or else the dmabuf's
+  own fence; fifo barriers are passed once a frame holding what set them is
+  drawn, of surfaces mostly on that output and of those shown nowhere;
+  timed commits apply before the frame that covers them, or at their
+  deadline by a timer while nothing draws, one timer per surface. Pointer
+  constraints and relative pointer: a lock or confinement holds only on the
+  surface under the pointer while its window has the keyboard, and lets go
+  at Cmd+Tab, a click away, the pick and the lock, coming back after;
+  relative motion carries libinput's unaccelerated delta; the top edge's
+  dwells reveal nothing while a constraint holds. The test client gained
+  `fifo`, `commit-at`, `content-type`, `lock-pointer`, `confine-pointer`,
+  `relative` and `globals`. Found and fixed on the way: barriers passed at
+  a vblank let a commit replace a frame never shown, and passed before the
+  frame's state was recorded lost the redraw the next commit asked for.
+  Found: `target/debug/isle-auth` built without test-hooks ignored the lock
+  tests' own PAM service and fell back to `login`, so the tests' wrong
+  passwords counted against the real account's faillock and locked it for
+  ten minutes; `isle-auth` now refuses when `ISLE_PAM_CONFDIR` is set in a
+  build that would ignore it. The VM serves syncobj and its Xwayland binds
+  it. Eleven headless tests.
+
 - P12 12.1: presentation and the trace. A vblank's time and sequence are
   the display's own from the DRM event (Isle's clock only when it gives
   none, or zero, or a time ahead of now), feedback carries the hardware

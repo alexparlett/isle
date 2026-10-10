@@ -1226,7 +1226,7 @@ impl Test {
         use smithay::backend::input::InputTime;
         Ok(self
             .to_loop
-            .call(move |state| state.on_pointer_by((dx, dy).into(), InputTime::now()))
+            .call(move |state| state.on_pointer_by((dx, dy).into(), (dx, dy).into(), InputTime::now()))
             .await?)
     }
 

@@ -23,7 +23,6 @@ use smithay::{
         dmabuf::{DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier},
         fractional_scale::{FractionalScaleHandler, with_fractional_scale},
         output::OutputHandler,
-        pointer_constraints::PointerConstraintsHandler,
         selection::{
             SelectionHandler,
             data_device::{
@@ -62,6 +61,8 @@ impl SeatHandler for State {
             .and_then(|s| dh.get_client(s.id()).ok());
         set_data_device_focus(dh, seat, client.clone());
         set_primary_focus(dh, seat, client);
+        // The keyboard is still busy changing focus here.
+        self.isle.loop_handle.insert_idle(|state| state.refresh_constraint());
     }
 
     fn cursor_image(&mut self, _seat: &Seat<Self>, image: CursorImageStatus) {
@@ -70,8 +71,6 @@ impl SeatHandler for State {
         self.isle.queue_redraw_all();
     }
 }
-
-impl PointerConstraintsHandler for State {}
 
 impl TabletSeatHandler for State {
     type ToolFocus = WlSurface;

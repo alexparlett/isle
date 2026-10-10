@@ -30,6 +30,13 @@
 //! registered by path or by a well-known name and again whenever the watcher comes back,
 //! printing `tray registered`, `tray activated`, `tray secondary`, `tray scroll N` and
 //! `menu activated LABEL`), `tray-attention` (it asks for attention),
+//! `fifo N` (N frames committed at once, each setting and waiting on a wp_fifo barrier),
+//! `commit-at MS` (a frame timed by wp_commit_timing for MS from now, printing `target SEC
+//! NSEC`), `content-type game|video|photo|none` (wp_content_type),
+//! `lock-pointer` and `confine-pointer` (a persistent constraint on the first window,
+//! printing `locked`, `unlocked`, `confined`, `unconfined`), `relative` (relative motion,
+//! printing `relative DX DY UX UY`, and `motion X Y` after it),
+//! `globals` (each announced global as `global INTERFACE VERSION`, then `globals done`),
 //! `timing` (each later frame of the window asks for presentation feedback, printing
 //! `presented SEC NSEC REFRESH_NS SEQ FLAGS` or `discarded`),
 //! `drag-on-press` (the next press starts a drag of text with a magenta icon; drags print
@@ -65,6 +72,15 @@ use wayland_protocols::ext::image_capture_source::v1::client::{
 };
 use wayland_protocols::wp::linux_dmabuf::zv1::client::{zwp_linux_buffer_params_v1, zwp_linux_dmabuf_v1};
 use wayland_protocols::wp::presentation_time::client::{wp_presentation, wp_presentation_feedback};
+use wayland_protocols::wp::fifo::v1::client::{wp_fifo_manager_v1, wp_fifo_v1};
+use wayland_protocols::wp::pointer_constraints::zv1::client::{
+    zwp_confined_pointer_v1, zwp_locked_pointer_v1, zwp_pointer_constraints_v1,
+};
+use wayland_protocols::wp::relative_pointer::zv1::client::{
+    zwp_relative_pointer_manager_v1, zwp_relative_pointer_v1,
+};
+use wayland_protocols::wp::commit_timing::v1::client::{wp_commit_timer_v1, wp_commit_timing_manager_v1};
+use wayland_protocols::wp::content_type::v1::client::{wp_content_type_manager_v1, wp_content_type_v1};
 use wayland_protocols::ext::image_copy_capture::v1::client::{
     ext_image_copy_capture_cursor_session_v1, ext_image_copy_capture_frame_v1,
     ext_image_copy_capture_manager_v1, ext_image_copy_capture_session_v1,
@@ -137,6 +153,19 @@ struct Client {
     /// A window drawn again at every frame callback, its colour turning: a stand-in game.
     animating: Option<usize>,
     presentation: Option<wp_presentation::WpPresentation>,
+    fifo_manager: Option<wp_fifo_manager_v1::WpFifoManagerV1>,
+    constraints: Option<zwp_pointer_constraints_v1::ZwpPointerConstraintsV1>,
+    relative_pointers: Option<zwp_relative_pointer_manager_v1::ZwpRelativePointerManagerV1>,
+    /// Relative motion was asked for; absolute motion is printed too.
+    relative: bool,
+    /// Every global the compositor announced, as `interface version`.
+    globals: Vec<String>,
+    /// The first window's fifo, once asked for; its frames then set and wait on barriers.
+    fifo: Option<wp_fifo_v1::WpFifoV1>,
+    commit_timing: Option<wp_commit_timing_manager_v1::WpCommitTimingManagerV1>,
+    commit_timer: Option<wp_commit_timer_v1::WpCommitTimerV1>,
+    content_types: Option<wp_content_type_manager_v1::WpContentTypeManagerV1>,
+    content_type: Option<wp_content_type_v1::WpContentTypeV1>,
     /// Windows whose frames ask for presentation feedback.
     timing: Vec<usize>,
     ignore_pings: bool,
@@ -356,6 +385,12 @@ impl Client {
             && let Some(presentation) = &self.presentation
         {
             presentation.feedback(&win.surface, qh, index);
+        }
+        if index == 0
+            && let Some(fifo) = &self.fifo
+        {
+            fifo.wait_barrier();
+            fifo.set_barrier();
         }
         win.surface.commit();
     }
@@ -656,6 +691,78 @@ impl Client {
                 self.draw(index, qh);
                 return;
             }
+            ("fifo", _) => {
+                if self.fifo.is_none() {
+                    let manager = self.fifo_manager.as_ref().expect("wp_fifo_manager_v1");
+                    self.fifo = Some(manager.get_fifo(&self.wins[0].surface, qh, ()));
+                }
+                for _ in 0..num(0) {
+                    let win = &mut self.wins[0];
+                    win.colour = [win.colour[1], win.colour[2], win.colour[0].wrapping_add(7), 0xff];
+                    self.draw(0, qh);
+                }
+                return;
+            }
+            ("commit-at", _) => {
+                if self.commit_timer.is_none() {
+                    let manager = self.commit_timing.as_ref().expect("wp_commit_timing_manager_v1");
+                    self.commit_timer = Some(manager.get_timer(&self.wins[0].surface, qh, ()));
+                }
+                let mut now = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+                unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut now) };
+                let at = now.tv_sec as u128 * 1_000_000_000 + now.tv_nsec as u128 + num(0) as u128 * 1_000_000;
+                let (sec, nsec) = ((at / 1_000_000_000) as u64, (at % 1_000_000_000) as u32);
+                self.commit_timer.as_ref().unwrap().set_timestamp((sec >> 32) as u32, sec as u32, nsec);
+                say(0, format!("target {sec} {nsec}"));
+                let win = &mut self.wins[0];
+                win.colour = [win.colour[1], win.colour[2], win.colour[0].wrapping_add(7), 0xff];
+                self.draw(0, qh);
+                return;
+            }
+            ("content-type", _) => {
+                use wp_content_type_v1::Type;
+                if self.content_type.is_none() {
+                    let manager = self.content_types.as_ref().expect("wp_content_type_manager_v1");
+                    self.content_type =
+                        Some(manager.get_surface_content_type(&self.wins[0].surface, qh, ()));
+                }
+                let kind = match rest.first().copied() {
+                    Some("game") => Type::Game,
+                    Some("video") => Type::Video,
+                    Some("photo") => Type::Photo,
+                    _ => Type::None,
+                };
+                self.content_type.as_ref().unwrap().set_content_type(kind);
+                self.wins[0].surface.commit();
+                return;
+            }
+            ("lock-pointer" | "confine-pointer", _) => {
+                use zwp_pointer_constraints_v1::Lifetime;
+                let constraints = self.constraints.as_ref().expect("zwp_pointer_constraints_v1");
+                let pointer = self.pointer.as_ref().expect("a pointer");
+                let surface = &self.wins[0].surface;
+                if verb == "lock-pointer" {
+                    constraints.lock_pointer(surface, pointer, None, Lifetime::Persistent, qh, ());
+                } else {
+                    constraints.confine_pointer(surface, pointer, None, Lifetime::Persistent, qh, ());
+                }
+                surface.commit();
+                return;
+            }
+            ("globals", _) => {
+                for global in &self.globals {
+                    say(0, format!("global {global}"));
+                }
+                say(0, "globals done".into());
+                return;
+            }
+            ("relative", _) => {
+                let manager = self.relative_pointers.as_ref().expect("zwp_relative_pointer_manager_v1");
+                let pointer = self.pointer.as_ref().expect("a pointer");
+                manager.get_relative_pointer(pointer, qh, ());
+                self.relative = true;
+                return;
+            }
             ("timing", _) => {
                 self.timing.push(index);
                 return;
@@ -918,6 +1025,52 @@ impl Dispatch<wl_callback::WlCallback, usize> for Client {
     }
 }
 
+macro_rules! no_events {
+    ($($ty:ty),*) => {$(
+        impl Dispatch<$ty, ()> for Client {
+            fn event(_: &mut Self, _: &$ty, _: <$ty as wayland_client::Proxy>::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+        }
+    )*};
+}
+no_events!(
+    zwp_pointer_constraints_v1::ZwpPointerConstraintsV1,
+    zwp_relative_pointer_manager_v1::ZwpRelativePointerManagerV1,
+    wp_fifo_manager_v1::WpFifoManagerV1,
+    wp_fifo_v1::WpFifoV1,
+    wp_commit_timing_manager_v1::WpCommitTimingManagerV1,
+    wp_commit_timer_v1::WpCommitTimerV1,
+    wp_content_type_manager_v1::WpContentTypeManagerV1,
+    wp_content_type_v1::WpContentTypeV1
+);
+
+impl Dispatch<zwp_locked_pointer_v1::ZwpLockedPointerV1, ()> for Client {
+    fn event(_: &mut Self, _: &zwp_locked_pointer_v1::ZwpLockedPointerV1, event: zwp_locked_pointer_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        match event {
+            zwp_locked_pointer_v1::Event::Locked => say(0, "locked".into()),
+            zwp_locked_pointer_v1::Event::Unlocked => say(0, "unlocked".into()),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<zwp_confined_pointer_v1::ZwpConfinedPointerV1, ()> for Client {
+    fn event(_: &mut Self, _: &zwp_confined_pointer_v1::ZwpConfinedPointerV1, event: zwp_confined_pointer_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        match event {
+            zwp_confined_pointer_v1::Event::Confined => say(0, "confined".into()),
+            zwp_confined_pointer_v1::Event::Unconfined => say(0, "unconfined".into()),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<zwp_relative_pointer_v1::ZwpRelativePointerV1, ()> for Client {
+    fn event(_: &mut Self, _: &zwp_relative_pointer_v1::ZwpRelativePointerV1, event: zwp_relative_pointer_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        if let zwp_relative_pointer_v1::Event::RelativeMotion { dx, dy, dx_unaccel, dy_unaccel, .. } = event {
+            say(0, format!("relative {dx} {dy} {dx_unaccel} {dy_unaccel}"));
+        }
+    }
+}
+
 impl Dispatch<wp_presentation::WpPresentation, ()> for Client {
     fn event(
         _: &mut Self,
@@ -973,9 +1126,12 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
         qh: &QueueHandle<Self>,
     ) {
         if let wl_registry::Event::Global {
-            name, interface, ..
+            name,
+            interface,
+            version,
         } = event
         {
+            state.globals.push(format!("{interface} {version}"));
             match interface.as_str() {
                 "wl_compositor" => state.compositor = Some(registry.bind(name, 4, qh, ())),
                 "wl_shm" => state.shm = Some(registry.bind(name, 1, qh, ())),
@@ -1013,6 +1169,19 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "org_kde_kwin_appmenu_manager" => state.appmenus = Some(registry.bind(name, 2, qh, ())),
                 "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
                 "wp_presentation" => state.presentation = Some(registry.bind(name, 1, qh, ())),
+                "wp_fifo_manager_v1" => state.fifo_manager = Some(registry.bind(name, 1, qh, ())),
+                "zwp_pointer_constraints_v1" => {
+                    state.constraints = Some(registry.bind(name, 1, qh, ()))
+                }
+                "zwp_relative_pointer_manager_v1" => {
+                    state.relative_pointers = Some(registry.bind(name, 1, qh, ()))
+                }
+                "wp_commit_timing_manager_v1" => {
+                    state.commit_timing = Some(registry.bind(name, 1, qh, ()))
+                }
+                "wp_content_type_manager_v1" => {
+                    state.content_types = Some(registry.bind(name, 1, qh, ()))
+                }
                 _ => {}
             }
         }
@@ -1299,6 +1468,9 @@ impl Dispatch<wl_pointer::WlPointer, ()> for Client {
                 );
             }
             wl_pointer::Event::Leave { .. } => state.pointer_on = None,
+            wl_pointer::Event::Motion { surface_x, surface_y, .. } if state.relative => {
+                say(0, format!("motion {surface_x:.0} {surface_y:.0}"));
+            }
             wl_pointer::Event::Button {
                 serial,
                 button,
@@ -1840,6 +2012,16 @@ fn main() {
         animating: None,
         presentation: None,
         timing: Vec::new(),
+        fifo_manager: None,
+        constraints: None,
+        relative_pointers: None,
+        relative: false,
+        globals: Vec::new(),
+        fifo: None,
+        commit_timing: None,
+        commit_timer: None,
+        content_types: None,
+        content_type: None,
         ignore_pings: false,
         ignored_pings: Vec::new(),
         linger: false,

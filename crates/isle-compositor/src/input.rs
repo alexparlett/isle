@@ -36,7 +36,9 @@ impl State {
                 let location = event.position_transformed(geometry.size) + geometry.loc.to_f64();
                 self.on_pointer_to(location, event.time());
             }
-            InputEvent::PointerMotion { event } => self.on_pointer_by(event.delta(), event.time()),
+            InputEvent::PointerMotion { event } => {
+                self.on_pointer_by(event.delta(), event.delta_unaccel(), event.time())
+            }
             InputEvent::PointerButton { event } => {
                 self.on_button(event.button_code(), event.state(), event.time())
             }
@@ -73,14 +75,30 @@ impl State {
         pointer.frame(self);
     }
 
-    /// Moves the pointer by `delta`, held to the outputs; the top edge sees the travel the
-    /// edge stopped.
-    pub fn on_pointer_by(&mut self, delta: Point<f64, Logical>, time: InputTime) {
+    /// Moves the pointer by `delta`, held to the outputs and to a constraint; the top edge
+    /// sees the travel the edge stopped, and the surface under it the device's own motion.
+    pub fn on_pointer_by(
+        &mut self,
+        delta: Point<f64, Logical>,
+        delta_unaccel: Point<f64, Logical>,
+        time: InputTime,
+    ) {
         self.idle_activity();
         let pointer = self.isle.seat.get_pointer().unwrap();
-        let target = self.isle.clamp_to_outputs(pointer.current_location() + delta);
-        self.move_pointer(target, time);
-        if !self.isle.lock.locked {
+        let current = pointer.current_location();
+        let target = self.isle.clamp_to_outputs(current + delta);
+        let target = if self.picking() {
+            target
+        } else {
+            self.constrained_motion(current, target)
+        };
+        if target != current || !self.pointer_constrained() {
+            self.move_pointer(target, time);
+        }
+        if !self.isle.lock.locked && !self.picking() {
+            self.send_relative_motion(delta, delta_unaccel, time);
+        }
+        if !self.isle.lock.locked && !self.pointer_constrained() {
             self.top_edge_motion(delta);
         }
     }
@@ -112,6 +130,7 @@ impl State {
             },
         );
         pointer.frame(self);
+        self.refresh_constraint();
         if self.isle.lock.locked {
             self.lock_pointer_moved();
         } else {

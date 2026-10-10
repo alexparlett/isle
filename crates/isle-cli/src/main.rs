@@ -43,6 +43,12 @@ enum Command {
     Desktops(Desktops),
     #[command(subcommand)]
     Displays(Displays),
+    /// Night light: what it is doing, or turn it the other way until its schedule's next
+    /// change.
+    NightLight {
+        #[arg(value_parser = ["status", "toggle"], default_value = "status")]
+        action: String,
+    },
     #[command(subcommand)]
     Keyboard(Keyboard),
     #[command(subcommand)]
@@ -676,6 +682,29 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
         }
         Command::Displays(Displays::Redetect) => DisplaysProxy::new(&bus).await?.redetect().await?,
         Command::Displays(Displays::Sleep) => DisplaysProxy::new(&bus).await?.sleep().await?,
+        Command::NightLight { action } => {
+            let displays = DisplaysProxy::new(&bus).await?;
+            let status = if action == "toggle" {
+                displays.toggle_night_light().await?
+            } else {
+                displays.night_light().await?
+            };
+            let status: serde_json::Value = serde_json::from_str(&status).unwrap_or_default();
+            if cli.json {
+                print_json(&status);
+            } else {
+                println!(
+                    "{}  {} K  schedule {}  warmth {} K",
+                    status["state"].as_str().unwrap_or(""),
+                    status["kelvin"],
+                    status["schedule"].as_str().unwrap_or(""),
+                    status["warmth"]
+                );
+                for output in status["outputs"].as_array().into_iter().flatten() {
+                    println!("  {}: {}", output["output"].as_str().unwrap_or(""), output["path"].as_str().unwrap_or(""));
+                }
+            }
+        }
         Command::Displays(Displays::Trace {
             output,
             follow,

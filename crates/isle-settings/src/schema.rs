@@ -56,6 +56,8 @@ pub struct Settings {
     #[setting(section)]
     pub capture: Capture,
     #[setting(section)]
+    pub night_light: NightLight,
+    #[setting(section)]
     pub debug: Debug,
     #[setting(app = "io.github.alexparlett.Isle.Example")]
     pub example_app: ExampleApp,
@@ -163,6 +165,32 @@ pub enum Transform {
     Flipped180,
     #[setting(name = "flipped-270")]
     Flipped270,
+}
+
+/// Night light: every screen warmed on a schedule (`compositor.md` Outputs 8).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct NightLight {
+    #[setting(default = NightSchedule::SunsetToSunrise)]
+    pub schedule: NightSchedule,
+    /// When a custom schedule turns it on, `HH:MM` in local time.
+    #[setting(default = "22:00".to_owned())]
+    pub from: String,
+    /// When a custom schedule turns it off.
+    #[setting(default = "07:00".to_owned())]
+    pub to: String,
+    /// The colour temperature it warms to, in kelvin: lower is warmer.
+    #[setting(default = 3400, range = 2700..=6000)]
+    pub warmth: i64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum NightSchedule {
+    /// Only when turned on by hand.
+    Off,
+    /// From sunset to sunrise where the time zone is.
+    SunsetToSunrise,
+    /// From `from` to `to`.
+    Custom,
 }
 
 /// When variable refresh is on (B30).

@@ -91,6 +91,7 @@ struct Lit {
     woken: bool,
     feedback: Option<Feedback>,
     vrr: present::VrrCapability,
+    gamma: Option<super::gamma::Gamma>,
     /// How long a pointer-only frame may wait under VRR.
     pointer_hold: Duration,
 }
@@ -122,6 +123,8 @@ pub struct Udev {
     reprobe: Option<RegistrationToken>,
     /// The render GPU, until the session is first active and it can be opened.
     waiting: Option<(DrmNode, std::path::PathBuf)>,
+    /// Night light's warmth, in kelvin.
+    warmth: f64,
 }
 
 impl Udev {
@@ -167,6 +170,7 @@ impl Udev {
                 pointers: Vec::new(),
                 reprobe: None,
                 waiting: None,
+                warmth: crate::night_light::NEUTRAL,
             },
             notifier,
         ))
@@ -299,6 +303,45 @@ impl Udev {
 }
 
 impl Udev {
+    /// Warms every lit screen to `kelvin`, remembering it for screens lit later.
+    pub fn set_warmth(&mut self, kelvin: f64) {
+        self.warmth = kelvin;
+        let gains = crate::night_light::gains(kelvin);
+        for device in self.devices.values_mut() {
+            let drm = device.manager.device();
+            for (crtc, lit) in device.lit.iter_mut() {
+                if let Some(gamma) = &mut lit.gamma {
+                    gamma.set(drm, *crtc, &crate::night_light::ramp(gains, gamma.size()));
+                }
+            }
+        }
+    }
+
+    /// Gives every screen its ramp from before Isle back.
+    pub fn restore_gamma(&mut self) {
+        for device in self.devices.values_mut() {
+            let drm = device.manager.device();
+            for (crtc, lit) in device.lit.iter_mut() {
+                if let Some(gamma) = &mut lit.gamma {
+                    gamma.restore(drm, *crtc);
+                }
+            }
+        }
+    }
+
+    pub fn gamma_paths(&self) -> Vec<serde_json::Value> {
+        self.devices
+            .values()
+            .flat_map(|d| d.lit.values())
+            .map(|lit| {
+                serde_json::json!({
+                    "output": lit.output.name(),
+                    "path": lit.gamma.as_ref().map_or("none", |g| g.name()),
+                })
+            })
+            .collect()
+    }
+
     /// Off disables the output's connector and CRTC; on waits for the next frame, which
     /// lights it with a mode set.
     pub fn set_power(&mut self, output: &Output, on: bool) {
@@ -630,6 +673,7 @@ impl State {
             .user_data()
             .insert_if_missing(|| OutputId { device: node, crtc });
 
+        let gamma = super::gamma::Gamma::probe(drm, crtc);
         let mut planes = match drm.planes(&crtc) {
             Ok(planes) => planes,
             Err(err) => {
@@ -694,6 +738,7 @@ impl State {
                 woken: false,
                 feedback,
                 vrr,
+                gamma,
                 pointer_hold: present::pointer_hold(min_hz),
             },
         );
@@ -709,6 +754,13 @@ impl State {
             (Some(x), Some(y)) => (x, y),
             _ => (x, 0),
         };
+        if let Some(lit) = device.lit.get_mut(&crtc)
+            && let Some(gamma) = &mut lit.gamma
+            && udev.warmth < crate::night_light::NEUTRAL
+        {
+            let ramp = crate::night_light::ramp(crate::night_light::gains(udev.warmth), gamma.size());
+            gamma.set(device.manager.device(), crtc, &ramp);
+        }
         info!(name, identity, mode = ?Mode::from(drm_mode), ?position, "output lit");
         isle.add_output(&output, position.into());
         isle.queue_redraw(&output);
@@ -822,6 +874,8 @@ impl State {
                 self.end_held_chord();
                 let udev = self.udev();
                 udev.libinput.suspend();
+                // The console or another session gets its screens untinted.
+                udev.restore_gamma();
                 for device in udev.devices.values_mut() {
                     device.manager.pause();
                 }
@@ -853,6 +907,8 @@ impl State {
                         lit.surface.reset_buffers();
                     }
                 }
+                let warmth = udev.warmth;
+                udev.set_warmth(warmth);
                 // A KVM or another session may have changed what is connected.
                 let nodes: Vec<DrmNode> = self.udev().devices.keys().copied().collect();
                 for node in nodes {

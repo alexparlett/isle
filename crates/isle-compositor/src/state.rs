@@ -107,6 +107,11 @@ pub struct Isle {
     /// X11 windows left alone: override-redirect and untitled ones, front last.
     pub unmanaged: Vec<Window>,
     pub big_picture: crate::steam::BigPicture,
+    pub night_light: crate::night_light::NightLight,
+    pub night_timer: Option<smithay::reexports::calloop::RegistrationToken>,
+    /// The warmth last put on the screens.
+    pub night_applied: f64,
+    pub night_fading: bool,
     /// The surface whose pointer lock or confinement is active.
     pub constrained: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     /// Explicit sync, once a device that can wait on sync points is open.
@@ -470,6 +475,10 @@ impl Isle {
             syncobj_state: None,
             constrained: None,
             big_picture: Default::default(),
+            night_light: Default::default(),
+            night_timer: None,
+            night_applied: crate::night_light::NEUTRAL,
+            night_fading: false,
             commit_timers: Default::default(),
             bar_option: None,
             zoom: Default::default(),

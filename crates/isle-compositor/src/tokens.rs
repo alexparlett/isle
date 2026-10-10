@@ -43,7 +43,9 @@ pub fn appearance(settings: &Settings) -> Appearance {
     Appearance {
         mode: match a.mode {
             AppearanceMode::Light => Mode::Light,
-            AppearanceMode::Dark | AppearanceMode::Auto => Mode::Dark,
+            AppearanceMode::Dark => Mode::Dark,
+            AppearanceMode::Auto if crate::night_light::sun_down(&jiff::Zoned::now()) => Mode::Dark,
+            AppearanceMode::Auto => Mode::Light,
         },
         accent: a.accent.clone(),
         glass: a.glass as f32,

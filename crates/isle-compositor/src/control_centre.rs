@@ -86,6 +86,22 @@ impl Isle {
                     ..Default::default()
                 })
             }
+            "night-light" => {
+                let on = self.night_light.on();
+                Some(Module {
+                    id: id.into(),
+                    size,
+                    name: "Night Light".into(),
+                    state: self.night_light.state_line(),
+                    glyph: "sun-horizon".into(),
+                    on,
+                    toggles: true,
+                    page: None,
+                    page_title: None,
+                    pane: "Displays".into(),
+                    ..Default::default()
+                })
+            }
             "keyboard-layout" => {
                 let (layouts, active) = self.island.layouts.clone();
                 Some(Module {
@@ -385,6 +401,7 @@ impl State {
                 self.open_toolbar(false);
                 return;
             }
+            PanelAction::Toggle(id) if id == "night-light" => self.toggle_night_light(),
             PanelAction::Toggle(id) if id == "dark-mode" => {
                 let dark = self.isle.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
                 self.isle.write_setting(

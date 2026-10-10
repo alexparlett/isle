@@ -669,6 +669,22 @@ impl Displays {
             .ok_or_else(|| fdo::Error::InvalidArgs("no such display".into()))
     }
 
+    /// Night light's state, as JSON.
+    async fn night_light(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.night_light_status()).await?)
+    }
+
+    /// Night light's tap: the opposite of what shows, until the schedule's next change.
+    async fn toggle_night_light(&self) -> fdo::Result<String> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                state.toggle_night_light();
+                state.night_light_status()
+            })
+            .await?)
+    }
+
     /// Clears the output's trace counters.
     async fn reset_trace(&self, output: String) -> fdo::Result<()> {
         self.to_loop

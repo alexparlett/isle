@@ -1,6 +1,7 @@
 //! Where frames go and input comes from: a window on another compositor, textures for
 //! tests, or real hardware.
 
+pub mod gamma;
 pub mod headless;
 pub mod udev;
 pub mod winit;
@@ -77,6 +78,21 @@ impl Backend {
     pub fn set_power(&mut self, output: &Output, on: bool) {
         if let Backend::Udev(udev) = self {
             udev.set_power(output, on);
+        }
+    }
+
+    /// Warms every screen to `kelvin` through its gamma ramp.
+    pub fn set_warmth(&mut self, kelvin: f64) {
+        if let Backend::Udev(udev) = self {
+            udev.set_warmth(kelvin);
+        }
+    }
+
+    /// Each screen and how night light reaches it: `gamma-lut`, `legacy` or `none`.
+    pub fn gamma_paths(&self) -> Vec<serde_json::Value> {
+        match self {
+            Backend::Udev(udev) => udev.gamma_paths(),
+            Backend::Winit(_) | Backend::Headless(_) => Vec::new(),
         }
     }
 

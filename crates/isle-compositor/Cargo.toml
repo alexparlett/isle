@@ -36,6 +36,8 @@ required-features = ["test-hooks"]
 humantime.workspace = true
 image.workspace = true
 pipewire = { version = "0.10", features = ["v0_3_33"] }
+# The CRTC gamma blob, which the drm crate cannot make from a slice.
+drm-ffi = "0.9"
 jiff.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -49,6 +51,7 @@ isle-power.workspace = true
 isle-disks.workspace = true
 isle-focus.workspace = true
 isle-games.workspace = true
+isle-sun.workspace = true
 isle-search.workspace = true
 isle-keys.workspace = true
 isle-ipc.workspace = true

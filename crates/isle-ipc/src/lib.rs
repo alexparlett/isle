@@ -496,6 +496,10 @@ pub mod displays {
         fn trace(&self, output: &str, since: u64) -> zbus::Result<PlaneTrace>;
         /// Clears the output's trace counters.
         fn reset_trace(&self, output: &str) -> zbus::Result<()>;
+        /// Night light's state, as JSON.
+        fn night_light(&self) -> zbus::Result<String>;
+        /// Turns night light the other way until its schedule's next change; its state after.
+        fn toggle_night_light(&self) -> zbus::Result<String>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

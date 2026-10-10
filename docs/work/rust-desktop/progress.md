@@ -2,6 +2,29 @@
 
 ## 2026-10-10
 
+- P12 12.7: night light. `isle-sun` gives sunrise and sunset from the
+  system time zone's coordinates in tzdata's `zone1970.tab` (NOAA's sunrise
+  equation, within three minutes of London's and New York's tables);
+  `appearance.mode` Auto now follows it. A `night-light` section (schedule
+  Off, Sunset to Sunrise or Custom with `from` and `to`; warmth 2700 to 6000
+  K, 3400 by default) drives every screen. The warmth is a blackbody white
+  point computed from Kim et al.'s fit of the Planckian locus, normalised so
+  6500 K is identity, within 0.03 of Thies's table in linear light (KWin's
+  copy of that table is GPL code, so it is not ported). It reaches each
+  CRTC as `GAMMA_LUT` written outside `DrmCompositor`'s commits, else the
+  legacy ramp; the ramp found is kept and put back when the session leaves
+  the console or ends, and given again on return and to screens lit later.
+  Control Centre's tap turns it the other way until the schedule's next
+  change ("On until 18:19"); Game Mode turns it off at once and gives it
+  back with a second's fade, unless the user turned it on meanwhile;
+  schedule edges fade over a minute. `isle night-light [status|toggle]`
+  and `Displays1.NightLight`, `ToggleNightLight`. Different from the plan:
+  there is no shader pass where a screen has no ramp (smithay's GL frame
+  sets its own blend function, so a tint needs a whole extra pass a frame);
+  such a screen is reported as `none`, which the VM's virtio screen is.
+  Captures are untinted because they never pass the ramp. Four headless
+  tests and ten unit tests.
+
 - P12 12.6: Steam and gamescope. Quit on Steam (`steam` or the Flatpak's
   id) runs `steam -shutdown` through the launch path instead of closing its
   windows. Steam's toasts (`notificationtoasts_<n>_desktop`) are left

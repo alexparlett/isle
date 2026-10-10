@@ -38,6 +38,7 @@ mod menus;
 mod network_secrets;
 mod notifications;
 mod spotlight;
+mod night_light;
 mod steam;
 mod switcher;
 mod vpn_secrets;
@@ -191,6 +192,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     state.locked_at_start();
     state.arm_idle();
     state.pace_hidden_windows();
+    state.start_night_light();
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };
@@ -305,6 +307,9 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         let _ = state.isle.display_handle.flush_clients();
     })?;
     info!("exiting");
+    if let backend::Backend::Udev(udev) = &mut state.backend {
+        udev.restore_gamma();
+    }
     Ok(())
 }
 

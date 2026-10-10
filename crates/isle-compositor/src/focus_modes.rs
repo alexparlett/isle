@@ -356,6 +356,9 @@ impl State {
         // Game Mode holds the performance profile, and gives it back on leaving.
         let game = self.isle.game_mode_active();
         let was_game = before.as_ref().is_some_and(|b| b.mode == GAME_MODE);
+        if game != was_game {
+            self.night_light_for_game(game);
+        }
         if game && !was_game {
             self.isle.run_service(
                 isle_power::hold_profile("performance", "Game Mode", APP_ID),

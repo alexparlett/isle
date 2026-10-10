@@ -2831,6 +2831,7 @@ dependencies = [
 name = "isle-compositor"
 version = "0.1.0"
 dependencies = [
+ "drm-ffi",
  "futures-util",
  "humantime",
  "image",
@@ -2858,6 +2859,7 @@ dependencies = [
  "isle-settings",
  "isle-shell",
  "isle-state",
+ "isle-sun",
  "isle-tokens",
  "isle-tray",
  "isle-ui",
@@ -3131,6 +3133,10 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "isle-sun"
+version = "0.1.0"
 
 [[package]]
 name = "isle-tokens"

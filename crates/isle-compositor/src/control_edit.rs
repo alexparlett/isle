@@ -84,11 +84,11 @@ pub const CATALOGUE: &[Entry] = &[
     Entry {
         id: "night-light",
         name: "Night Light",
-        glyph: "moon-stars",
+        glyph: "sun-horizon",
         group: "Sound and display",
         sizes: &[S, M],
         pane: "Displays",
-        missing: NOT_YET,
+        missing: "",
     },
     Entry {
         id: "dark-mode",

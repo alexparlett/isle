@@ -21,6 +21,7 @@ isle-power = { path = "crates/isle-power" }
 isle-disks = { path = "crates/isle-disks" }
 isle-focus = { path = "crates/isle-focus" }
 isle-games = { path = "crates/isle-games" }
+isle-sun = { path = "crates/isle-sun" }
 isle-ipc = { path = "crates/isle-ipc" }
 isle-keys = { path = "crates/isle-keys" }
 isle-media = { path = "crates/isle-media" }

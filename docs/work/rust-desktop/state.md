@@ -427,4 +427,7 @@
   detection, `isle windows game`, no places for games, motion still in Game
   Mode, hidden windows paced.
 - P12 12.6 done (2026-10-10): Steam's quit, toasts and Big Picture;
-  nested gamescope on a headless Isle. Next: 12.7 (night light).
+  nested gamescope on a headless Isle.
+- P12 12.7 done (2026-10-10): night light on the CRTC's gamma ramp with
+  its schedule, tap, Game Mode hold and fades, `isle-sun`, appearance Auto
+  real; no shader fallback. Next: 12.8 (the measure, the VM and the host).

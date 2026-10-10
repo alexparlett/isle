@@ -1,5 +1,10 @@
 # Progress
 
+## 2026-10-10
+
+- P12 planned (`p12-gaming.md`), 20 choices and phases 12.0–12.9, with
+  the research note `gaming-2026.md`. Reviewed: every recommendation taken.
+
 ## 2026-10-09
 
 - P11's leftovers. alexparlett/smithay#3 merged and pinned; xdg-foreign v2

@@ -23,4 +23,5 @@ one at a time.
   session's end.
 - `p10-spotlight.md`: P10, Spotlight.
 - `p11-capture.md`: P11, capture and portals.
+- `p12-gaming.md`: P12, gaming and night light.
 - Evidence: `docs/research/rust-desktop/`.

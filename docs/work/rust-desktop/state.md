@@ -394,4 +394,15 @@
   liftable in the pick; asks made while locked held; the countdown for
   apps' shots and a click to cancel it; round handles, rounded lines, the
   swatch and the camera pointer. `p11-capture.md`'s outcome lists them.
-
+- P12 planned in `p12-gaming.md` (2026-10-10), reviewed: the user took
+  every recommendation: scanout
+  made provable by a plane trace and scanout feedback, presentation times
+  from the hardware, syncobj, fifo, commit-timing, content type, pointer
+  constraints and relative motion, VRR live with the pointer held to the
+  game's frames, the preferred size at its highest rate, async flips from
+  Smithay #1948 in the fork behind `output.tearing` (off) and the game's
+  ask, ancestry and content type in detection, Steam's quit, toasts and Big
+  Picture, night light on the CRTC's gamma LUT with a shader fallback and
+  `isle-sun`, the host run part of done. Research in
+  `docs/research/rust-desktop/gaming-2026.md`. Phases 12.0–12.9. Next:
+  12.0 (the fork).

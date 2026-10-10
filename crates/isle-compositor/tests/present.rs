@@ -163,3 +163,42 @@ async fn the_game_protocols_are_announced() {
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     assert!(!client.exited());
 }
+
+async fn vrr_on(isle: &Isle) -> bool {
+    DisplaysProxy::new(&isle.bus).await.unwrap().list().await.unwrap()[0].vrr_on
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn vrr_follows_a_full_screen_window_in_front_and_the_setting() {
+    let mut isle = Isle::start("vrr").await;
+    let game = isle.client("isle.test.FullScreen", "3366ff");
+    isle.wait_for_window("isle.test.FullScreen").await;
+    let other = isle.client("isle.test.Beside", "ff3366");
+    isle.wait_for_window("isle.test.Beside").await;
+    other.send("animate");
+    assert!(!vrr_on(&isle).await);
+
+    let windows = isle.windows_proxy().await;
+    let full = isle.wait_for_window("isle.test.FullScreen").await;
+    windows.focus(full.id).await.unwrap();
+    game.send("fullscreen");
+    wait_until(|| async { vrr_on(&isle).await }).await;
+    let display = &DisplaysProxy::new(&isle.bus).await.unwrap().list().await.unwrap()[0];
+    assert_eq!((display.vrr_capability.as_str(), display.vrr_setting.as_str()), ("on-demand", "fullscreen"));
+
+    // Its window loses the keyboard: VRR goes; it comes back: VRR returns.
+    let beside = isle.wait_for_window("isle.test.Beside").await;
+    windows.focus(beside.id).await.unwrap();
+    wait_until(|| async { !vrr_on(&isle).await }).await;
+    windows.focus(full.id).await.unwrap();
+    wait_until(|| async { vrr_on(&isle).await }).await;
+
+    let settings = isle_ipc::settings::SettingsProxy::new(&isle.bus).await.unwrap();
+    let identity = format!("{} {} {}", display.make, display.model, display.serial);
+    let key = format!("output[{identity}].vrr");
+    settings.set(&key, &zvariant::Value::from("off")).await.unwrap();
+    wait_until(|| async { !vrr_on(&isle).await }).await;
+    settings.set(&key, &zvariant::Value::from("always")).await.unwrap();
+    game.send("unfullscreen");
+    wait_until(|| async { vrr_on(&isle).await }).await;
+}

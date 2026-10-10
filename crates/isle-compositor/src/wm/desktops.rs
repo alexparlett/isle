@@ -132,6 +132,18 @@ impl Isle {
             .cloned()
     }
 
+    /// The window of `output`'s full-screen desktop while it is in view and has the
+    /// keyboard: what VRR follows (B30).
+    pub fn full_screen_front(&self, output: &Output) -> Option<u64> {
+        let row = self.desktops.rows.get(&Self::output_identity(output))?;
+        let Kind::FullScreen { window } = row.desktops.get(row.current)?.kind else {
+            return None;
+        };
+        let focus = self.seat.get_keyboard()?.current_focus()?;
+        let focused = self.wm.for_surface(focus.surface()?)?.id;
+        (focused == window).then_some(window)
+    }
+
     /// The current desktop of `output`.
     pub fn current_desktop(&mut self, output: &Output) -> u64 {
         let identity = Self::output_identity(output);

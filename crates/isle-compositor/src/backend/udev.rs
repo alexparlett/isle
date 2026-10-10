@@ -13,6 +13,7 @@ use smithay::{
         },
         drm::{
             DrmDevice, DrmDeviceFd, DrmEvent, DrmEventMetadata, DrmEventTime, DrmNode, NodeType,
+            VrrSupport,
             compositor::{FrameFlags, PrimaryPlaneElement},
             exporter::gbm::GbmFramebufferExporter,
             output::{DrmOutput, DrmOutputManager, DrmOutputRenderElements},
@@ -89,6 +90,9 @@ struct Lit {
     /// directly, which some NVIDIA cards fault on waking into.
     woken: bool,
     feedback: Option<Feedback>,
+    vrr: present::VrrCapability,
+    /// How long a pointer-only frame may wait under VRR.
+    pointer_hold: Duration,
 }
 
 /// The dmabuf feedback for a surface on this output: what Isle renders from, and what
@@ -218,11 +222,37 @@ impl Udev {
         };
         let mut elements = Vec::new();
         isle.render_elements(renderer, output, cursor, &mut |e| elements.push(e));
-        let flags = if std::mem::take(&mut lit.woken) {
+        let setting = isle
+            .settings
+            .output
+            .get(&Isle::output_identity(output))
+            .map_or(isle_settings::schema::Vrr::Fullscreen, |c| c.vrr);
+        let want = present::wants_vrr(setting, lit.vrr, isle.full_screen_front(output).is_some());
+        let vrr = if lit.vrr == present::VrrCapability::OnDemand {
+            lit.surface.with_compositor(|c| {
+                if c.vrr_enabled() != want
+                    && let Err(err) = c.use_vrr(want)
+                {
+                    warn!(output = output.name(), want, "could not change VRR: {err:?}");
+                }
+                c.vrr_enabled()
+            })
+        } else {
+            lit.surface.with_compositor(|c| c.vrr_enabled())
+        };
+        let hold = {
+            let mut state = crate::redraw::OutputState::of(output).borrow_mut();
+            state.vrr = vrr;
+            present::hold_left(vrr, state.last_shown, isle.clock.now().into(), lit.pointer_hold)
+        };
+        let mut flags = if std::mem::take(&mut lit.woken) {
             FrameFlags::empty()
         } else {
             FrameFlags::DEFAULT
         };
+        if hold.is_some() {
+            flags |= FrameFlags::SKIP_CURSOR_ONLY_UPDATES;
+        }
         let result = lit
             .surface
             .render_frame(renderer, &elements, CLEAR, flags, PresentationMode::VSync)
@@ -253,6 +283,7 @@ impl Udev {
             damaged,
             states,
             planes,
+            retry_in: hold.filter(|_| !damaged),
         })
     }
 }
@@ -621,6 +652,29 @@ impl State {
             }
         };
         let feedback = surface_feedback(&surface, renderer, udev.render_node, node == udev.primary);
+        let vrr = match surface.with_compositor(|c| c.vrr_supported(connector.handle())) {
+            Ok(VrrSupport::Supported) => present::VrrCapability::OnDemand,
+            Ok(VrrSupport::RequiresModeset) => present::VrrCapability::AtModeset,
+            _ => present::VrrCapability::None,
+        };
+        // A connector that changes VRR only with a modeset takes Always now, at the first.
+        if vrr == present::VrrCapability::AtModeset
+            && config.vrr == isle_settings::schema::Vrr::Always
+            && let Err(err) = surface.with_compositor(|c| c.use_vrr(true))
+        {
+            warn!(name, "could not turn VRR on: {err:?}");
+        }
+        let min_hz = info
+            .as_ref()
+            .and_then(|i| i.edid())
+            .and_then(|edid| {
+                edid.display_descriptors()
+                    .iter()
+                    .find_map(|d| d.range_limits())
+                    .map(|r| r.min_vert_rate_hz.max(0) as u32)
+            });
+        info!(name, vrr = vrr.name(), ?min_hz, "refresh range");
+        output.user_data().insert_if_missing(|| vrr);
         device.lit.insert(
             crtc,
             Lit {
@@ -629,6 +683,8 @@ impl State {
                 surface,
                 woken: false,
                 feedback,
+                vrr,
+                pointer_hold: present::pointer_hold(min_hz),
             },
         );
 

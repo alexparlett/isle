@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+- P12 12.3: VRR. Each output's VRR is decided before every frame from its
+  `vrr` setting, what its connector can do (on demand, only at a modeset,
+  or not at all) and whether its full-screen desktop is in view with its
+  window holding the keyboard; `use_vrr` is asked only when the answer
+  changes, so a settings change applies at the next frame. A connector that
+  needs a modeset (Smithay calls every HDMI one so) gets VRR only at Always,
+  set before its first frame. Under VRR a frame that would move only the
+  pointer is held up to the panel's slowest refresh from the EDID's range
+  descriptor plus 2 Hz, 30 Hz at most, then drawn on its own if the window
+  in front has not drawn first. `isle displays` shows each output's VRR
+  capability, setting and state. Headless outputs act as on-demand VRR
+  screens so the policy runs in tests. The VM's virtio screen reports none
+  and a 50 Hz minimum. Two unit tests and a headless one.
+
 - P12 12.2: the game protocols. linux-drm-syncobj where the device can wait
   on sync points (the DRM device; headless, the render node), wp-fifo,
   wp-commit-timing and wp-content-type served; a commit's buffer is held

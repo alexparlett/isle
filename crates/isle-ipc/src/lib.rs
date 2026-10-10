@@ -197,6 +197,11 @@ pub struct DisplayInfo {
     pub scale: f64,
     pub x: i32,
     pub y: i32,
+    /// "none", "at-modeset" or "on-demand".
+    pub vrr_capability: String,
+    /// The `vrr` setting: "off", "fullscreen" or "always".
+    pub vrr_setting: String,
+    pub vrr_on: bool,
 }
 
 /// One presented frame of an output (`isle displays trace`).

@@ -733,7 +733,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             } else {
                 for d in displays {
                     println!(
-                        "{}  {} {} {}  {}x{}@{:.2}  scale {}  at {},{}",
+                        "{}  {} {} {}  {}x{}@{:.2}  scale {}  at {},{}  vrr {} ({}, {})",
                         d.name,
                         d.make,
                         d.model,
@@ -743,7 +743,10 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                         d.refresh as f64 / 1000.0,
                         d.scale,
                         d.x,
-                        d.y
+                        d.y,
+                        if d.vrr_on { "on" } else { "off" },
+                        d.vrr_setting,
+                        d.vrr_capability,
                     );
                 }
             }

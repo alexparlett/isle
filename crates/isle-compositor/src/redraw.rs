@@ -329,6 +329,14 @@ impl State {
             })
             .expect("the estimated vblank timer");
         OutputState::of(output).borrow_mut().redraw = RedrawState::WaitingForEstimatedVBlank(token);
+        // A pointer-only frame held under VRR goes on its own once the hold is over.
+        if let Some(left) = rendered.retry_in {
+            let target = output.clone();
+            let _ = self.isle.loop_handle.insert_source(Timer::from_duration(left), move |_, _, state| {
+                state.isle.queue_redraw(&target);
+                TimeoutAction::Drop
+            });
+        }
         self.pass_fifo_barriers(output);
         // Something still moving that drew nothing visible this frame goes on at the next.
         if self.isle.shell.animating(output)

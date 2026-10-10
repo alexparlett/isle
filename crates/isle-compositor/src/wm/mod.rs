@@ -502,6 +502,19 @@ impl Isle {
                     scale: output.current_scale().fractional_scale(),
                     x: location.x,
                     y: location.y,
+                    vrr_capability: output
+                        .user_data()
+                        .get::<crate::present::VrrCapability>()
+                        .map_or("none", |c| c.name())
+                        .into(),
+                    vrr_setting: self
+                        .settings
+                        .output
+                        .get(&Self::output_identity(output))
+                        .map_or(isle_settings::schema::Vrr::Fullscreen, |c| c.vrr)
+                        .as_str()
+                        .into(),
+                    vrr_on: crate::redraw::OutputState::of(output).borrow().vrr,
                 }
             })
             .collect()

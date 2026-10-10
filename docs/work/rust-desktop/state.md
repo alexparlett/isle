@@ -414,4 +414,7 @@
 - P12 12.2 done (2026-10-10): syncobj, fifo, commit-timing, content-type,
   buffer blockers, pointer constraints and relative motion with their
   releases. A hidden fifo client is released only when some output draws;
-  12.5's pacing of hidden windows covers it. Next: 12.3 (VRR).
+  12.5's pacing of hidden windows covers it.
+- P12 12.3 done (2026-10-10): VRR decided per frame from the setting, the
+  connector and the full-screen window in front; the pointer held to the
+  game's frames. Next: 12.4 (tearing).

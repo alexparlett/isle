@@ -107,6 +107,7 @@ impl Winit {
             damaged: damage.is_some(),
             states,
             planes: crate::present::Planes::COMPOSITED,
+            retry_in: None,
         })
     }
 

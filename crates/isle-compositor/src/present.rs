@@ -126,9 +126,82 @@ impl Trace {
     }
 }
 
+/// What an output's connector can do about VRR.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VrrCapability {
+    None,
+    /// Only with a modeset, so never on demand.
+    AtModeset,
+    OnDemand,
+}
+
+impl VrrCapability {
+    pub fn name(self) -> &'static str {
+        match self {
+            VrrCapability::None => "none",
+            VrrCapability::AtModeset => "at-modeset",
+            VrrCapability::OnDemand => "on-demand",
+        }
+    }
+}
+
+/// Whether an output's refresh should follow its frames now (B30).
+pub fn wants_vrr(setting: isle_settings::schema::Vrr, capability: VrrCapability, full_screen_in_front: bool) -> bool {
+    use isle_settings::schema::Vrr;
+    match (capability, setting) {
+        (VrrCapability::None, _) | (_, Vrr::Off) => false,
+        (_, Vrr::Always) => true,
+        (VrrCapability::AtModeset, Vrr::Fullscreen) => false,
+        (VrrCapability::OnDemand, Vrr::Fullscreen) => full_screen_in_front,
+    }
+}
+
+/// The longest a frame that would move only the pointer is held under VRR, waiting to ride
+/// with the next frame of the window in front: the panel's slowest refresh, with KWin's
+/// margin, and never past 30 Hz.
+pub fn pointer_hold(min_refresh_hz: Option<u32>) -> Duration {
+    let floor = Duration::from_micros(33_333);
+    match min_refresh_hz {
+        Some(hz) if hz > 0 => Duration::from_secs_f64(1.0 / (hz as f64 + 2.0)).min(floor),
+        _ => floor,
+    }
+}
+
+/// How long a pointer-only frame may still wait, or `None` when it must go now.
+pub fn hold_left(vrr: bool, last_shown: Option<Duration>, now: Duration, hold: Duration) -> Option<Duration> {
+    let last = last_shown.filter(|_| vrr)?;
+    (last + hold).checked_sub(now).filter(|left| !left.is_zero())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vrr_by_setting_capability_and_front() {
+        use isle_settings::schema::Vrr;
+        use VrrCapability::*;
+        assert!(wants_vrr(Vrr::Fullscreen, OnDemand, true));
+        assert!(!wants_vrr(Vrr::Fullscreen, OnDemand, false));
+        assert!(wants_vrr(Vrr::Always, OnDemand, false));
+        assert!(!wants_vrr(Vrr::Off, OnDemand, true));
+        // HDMI on amdgpu, say: only Always, set at the next modeset.
+        assert!(!wants_vrr(Vrr::Fullscreen, AtModeset, true));
+        assert!(wants_vrr(Vrr::Always, AtModeset, false));
+        assert!(!wants_vrr(Vrr::Always, None, true));
+    }
+
+    #[test]
+    fn the_pointer_waits_at_most_the_panels_slowest_frame() {
+        let ms = Duration::from_millis;
+        assert_eq!(pointer_hold(Some(48)), Duration::from_millis(20));
+        assert_eq!(pointer_hold(Some(20)), Duration::from_micros(33_333));
+        assert_eq!(pointer_hold(None), Duration::from_micros(33_333));
+        assert_eq!(hold_left(true, Some(ms(100)), ms(105), ms(20)), Some(ms(15)));
+        assert_eq!(hold_left(true, Some(ms(100)), ms(125), ms(20)), None);
+        assert_eq!(hold_left(false, Some(ms(100)), ms(105), ms(20)), None);
+        assert_eq!(hold_left(true, None, ms(105), ms(20)), None);
+    }
 
     fn at(ms: u64, asynchronous: bool) -> Presented {
         Presented {

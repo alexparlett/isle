@@ -44,6 +44,9 @@ pub struct Rendered {
     pub damaged: bool,
     pub states: RenderElementStates,
     pub planes: crate::present::Planes,
+    /// A frame that would have moved only the pointer was held under VRR; draw again
+    /// after this if nothing else does.
+    pub retry_in: Option<std::time::Duration>,
 }
 
 /// An output's pixels, RGBA, top row first.

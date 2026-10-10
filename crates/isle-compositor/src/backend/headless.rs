@@ -61,6 +61,16 @@ impl Headless {
     }
 
     pub fn render(&mut self, isle: &mut Isle, output: &Output) -> Result<Rendered, String> {
+        let setting = isle
+            .settings
+            .output
+            .get(&Isle::output_identity(output))
+            .map_or(isle_settings::schema::Vrr::Fullscreen, |c| c.vrr);
+        crate::redraw::OutputState::of(output).borrow_mut().vrr = crate::present::wants_vrr(
+            setting,
+            crate::present::VrrCapability::OnDemand,
+            isle.full_screen_front(output).is_some(),
+        );
         let target = self
             .targets
             .get_mut(&output.name())
@@ -83,6 +93,7 @@ impl Headless {
             damaged,
             states,
             planes: crate::present::Planes::COMPOSITED,
+            retry_in: None,
         })
     }
 
@@ -117,6 +128,10 @@ impl Headless {
         };
         output.change_current_state(Some(mode), Some(Transform::Normal), None, None);
         output.set_preferred(mode);
+        // A screen that changes its refresh on demand, so the policy runs as on hardware.
+        output
+            .user_data()
+            .insert_if_missing(|| crate::present::VrrCapability::OnDemand);
         let global = output.create_global::<State>(&isle.display_handle);
         let texture = Offscreen::<GlesTexture>::create_buffer(
             &mut self.renderer,

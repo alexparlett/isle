@@ -962,3 +962,56 @@ taking more than one shows the screen mark. wlr-screencopy is not served: its
 users here, wf-recorder and hyprpicker, are replaced by Isle's recorder and
 colour pick.
 
+**B86 · Scanout is Smithay's, proved by a trace; presentation is the
+display's.** Built in P12. Isle adds per-surface dmabuf feedback with a
+primary-plane scanout tranche and a plane trace per output (`isle displays
+trace`), and feeds wp-presentation the vblank's hardware time and sequence.
+It serves linux-drm-syncobj, wp-fifo, wp-commit-timing, wp-content-type,
+pointer constraints and relative pointer, and holds a commit until its
+buffer is readable. Rejected: overlay planes on NVIDIA (every other
+compositor keeps them off), the time Isle handled the vblank as its time.
+
+**B87 · VRR is decided per frame, and the pointer waits for the game.**
+Built in P12. The output's setting, its connector's capability and whether
+its full-screen window has the keyboard decide VRR before each frame;
+`use_vrr` is asked only on a change, never with a modeset on demand (HDMI,
+which Smithay says needs one, gets only Always). A pointer-only frame under
+VRR waits up to the panel's slowest refresh (EDID, plus 2 Hz, at most 33 ms),
+KWin's answer. An output with no mode set takes its preferred size's fastest
+rate. Rejected: cosmic-comp's 30 fps condition, skipping pointer frames
+unbounded (niri's flag freezes the pointer).
+
+**B88 · Tearing only for a full-screen game that asks, where allowed, and
+only a scanned-out buffer.** Built in P12. `output.tearing` (off by default)
+and the front full-screen window's wp-tearing-control hint render a frame
+async; the fork's `ASYNC_SCANOUT_ONLY` presents it with vsync when Isle
+composited it, and Smithay #1948's own rules keep it on vsync when anything
+but the primary plane changed. Rejected: tearing a game that does not ask
+(v1's `immediate`: games ask when their vsync is off), tearing composited
+frames.
+
+**B89 · Games are known by what started them and what they say.** Built in
+P12. Beside P5's labels: a process descending from Steam, Heroic or Lutris
+that is not the launcher's own UI, an ancestor GameMode registered, a
+surface whose content type is game, `steam_proton`; corrected with `isle
+windows game`. A game is never given or recorded a place, Game Mode holds
+window motion, and a game out of view is paced at 30 Hz, other hidden
+windows once a second. Rejected: GameMode alone (Steam does not use it by
+default), stopping hidden games.
+
+**B90 · Steam is an app with three rules.** Built in P12. Quit asks Steam to
+exit (`steam -shutdown`); its toasts are unmanaged; Big Picture is marked
+once by class and title, takes a full-screen desktop, counts as closed when
+Steam minimises it, and Steam's main window returns to its desktop when it
+reappears within ten seconds. Its exact title and hints are the host run's to
+confirm.
+
+**B91 · Night light is the CRTC's gamma ramp.** Built in P12. `GAMMA_LUT`,
+else the legacy ramp, written outside `DrmCompositor`'s commits and put back
+when the session leaves; a blackbody white point from Kim et al.'s
+Planckian fit, normalised at 6500 K; a schedule from the time zone's
+coordinates in tzdata (`isle-sun`), which appearance Auto shares; Game Mode
+turns it off at once. Rejected: the CTM (NVIDIA applies it per plane before
+blending), a shader pass (no direct scanout, and a whole extra pass a frame
+in Smithay's renderer), KWin's table (GPL code), a location service.
+

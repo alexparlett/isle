@@ -5,7 +5,7 @@ packet's brief: what it delivers, what it depends on, and the decisions and
 intent documents it answers to. A packet is planned in detail, with its own
 PRD and phases, by its own run of feature-plan when it starts, against the
 code as it is then. Intent: `docs/design/` (compositor, shell, gaming,
-apps, platform). Decisions: `docs/DECISIONS.md` (B1–B85).
+apps, platform). Decisions: `docs/DECISIONS.md` (B1–B91).
 
 Everything happens on `feature/rust-desktop` (B16); v1 stays the daily
 desktop on `main` until milestone M2.
@@ -130,7 +130,8 @@ locked screen shows the lock and a window share holds its last frame; the
 portal's Inhibit joins idle's holds (from P9). Intent: platform.md,
 shell.md.
 
-**P12 · Gaming.** The async page flip patch on the Smithay fork and tearing
+**P12 · Gaming.** Built 2026-10-10, host run pending: `p12-gaming.md`,
+B86–B91. The async page flip patch on the Smithay fork and tearing
 control tested on the RTX 5070 Ti (B6); VRR on while a full-screen app is
 in front, with its setting (B30), and direct scanout for games; game
 detection, Game Mode as the automatic Gaming Focus and the escape set of
@@ -152,7 +153,10 @@ the Displays pane (moved from P2). Settings ships the row index Spotlight
 reads (`data/settings/index.kdl`, empty since P10) and opens at a pane and
 row from `isle-settings://<pane>/<row>`; Settings › Spotlight edits the
 `spotlight` section (favourites, file folders, clipboard exclusions, the
-web search). Intent: apps.md.
+web search). Settings › Displays draws each output's VRR and tearing and the
+`night-light` section (schedule, from and to, warmth); Focus › Game Mode or
+Windows marks an app a game or never one, as `isle windows game` does since
+P12. Intent: apps.md.
 
 ## Milestone M2: Isle replaces v1 on the host
 
@@ -219,7 +223,8 @@ Intent: all.
 ## After cut-over
 
 **P22 · HDR.** Shots, streams and the colour pick from HDR outputs (P11's
-are 8-bit sRGB). Colour management from the community Smithay fork's work
+are 8-bit sRGB). Night light shares the CRTC's colour pipeline with HDR
+(P12 writes `GAMMA_LUT` alone). Colour management from the community Smithay fork's work
 (B23): the colour-management protocol, HDR metadata to the output, SDR
 content composited beside HDR, the NVIDIA colour pipeline, HDR through
 nested gamescope; tested on the host's driver first. Intent:

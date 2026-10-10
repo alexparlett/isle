@@ -2,6 +2,16 @@
 
 ## 2026-10-10
 
+- P12 closed but for the host run and the fork's third pull request.
+  ARCHITECTURE has How a frame reaches the screen and How night light is
+  applied, with `isle-sun` in the repository's layout and the fork's three
+  new patches in its dependencies; B86–B91 recorded; `compositor.md`'s
+  night light and gaming display points settled and DRM lease taken out of
+  its protocol table; `gaming.md`'s points on detection, hidden games,
+  presentation, Big Picture and gamescope answered or left to the host run;
+  the roadmap's P12, P13 and P22 entries follow; `p12-gaming.md` ends with
+  its outcome.
+
 - P12 12.8, the measure and the VM (`docs/research/rust-desktop/p12-gaming.md`).
   Headless at 3440 by 1440 with a full-screen game drawing every frame: the
   shell draws nothing over it, and a key reaches the game 0.09 ms at p99

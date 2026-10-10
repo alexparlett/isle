@@ -476,3 +476,35 @@ game that does not ask.
 The user reviewed the plan on 2026-10-10 and took every recommendation:
 tearing off by default, hidden games paced at 30 Hz, `isle-sun` built here
 with appearance Auto, and the host run on tty8 part of done.
+
+## Outcome
+
+Built 2026-10-10 in phases 12.0–12.9; the host run on tty8, part of done,
+is the user's, with its checklist in `docs/research/rust-desktop/p12-gaming.md`.
+B86–B91 record the decisions. Differences from the plan:
+
+- **wp_tearing_control is written on `content_type`'s shape**, not taken from
+  Smithay #1325, which held its surface strongly.
+- **Async flips need `FrameFlags::ASYNC_SCANOUT_ONLY`**, a third fork patch:
+  #1948 alone would flip a composited frame asynchronously whenever only the
+  primary plane changed. Its pull request waits on `gh auth login`; Isle pins
+  the branch's commit meanwhile.
+- **Night light has no shader fallback.** Smithay's GL frame sets its own
+  blend function, so a tint is a whole extra pass a frame; a screen with no
+  ramp (the VM's) is left as it is and reported `none`. The white point is
+  Kim et al.'s Planckian fit, not KWin's table, which is GPL code; they agree
+  within 0.03 in linear light.
+- **The anvil check of 12.0 moved to 12.4**: anvil could not open the VM's
+  GPU, and Isle itself showed virtio-gpu taking async flips.
+- **Big Picture takes a full-screen desktop when it covers its screen**, title
+  bar or not, as well as when it asks.
+
+Found and fixed on the way: fifo barriers passed at a vblank let a commit
+replace a frame never shown, and passed before the frame's state was kept
+lost the next redraw; the test client could run two chains of frame
+callbacks; the loop flushed input only after drawing (3.7 ms at p99 with a
+game drawing, 0.09 ms after). Found and fixed outside P12: `isle-auth` built
+without test-hooks fell back to the system's `login` service under the lock
+tests, whose wrong passwords then locked the real account for ten minutes;
+it now refuses. Found, not P12's: in the VM a full-screen window is drawn
+every 66.7 ms, the same with 12.0's build.

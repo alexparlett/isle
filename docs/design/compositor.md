@@ -253,7 +253,9 @@ leaving a screen dark.
 
 **v1 lessons kept.** D56: a KVM that holds EDID leaves a connector up with a CRTC and is never re-probed; releasing outputs recovers it, a renderer reload does not. D76: an output asleep is not released, so redetect wakes first; the stranded state must be read from what is lit, not a stale list; a KVM hands the screen back minutes later. D57: windows are never left off the outputs. smithay-and-gaming.md §0: the AMD iGPU enumerates first on the host, so "first render node" is wrong. Inventory §13: the `renderHWCursorBuffer` crash on layout change; cursor planes are reassigned safely on every output change.
 
-**Settled in part by P2.** Whether the scanner sees a KVM return without a hotplug event no longer matters: while nothing is lit the connectors are probed every three seconds, and again on every session resume (checked headless and in the VM; the KVM itself is P14's to check). Open: night light through `GAMMA_LUT` or a shader.
+**Settled in part by P2.** Whether the scanner sees a KVM return without a hotplug event no longer matters: while nothing is lit the connectors are probed every three seconds, and again on every session resume (checked headless and in the VM; the KVM itself is P14's to check).
+
+**Settled in P12.** Night light is the CRTC's `GAMMA_LUT`, else its legacy ramp, never a shader (B91); a screen with neither is left as it is.
 
 ### Idle, DPMS and sleep
 
@@ -365,7 +367,7 @@ with tearing where the user allows it (B6).
 1. A full-screen window whose buffer the plane accepts is scanned out directly on the primary plane; a shell surface over it forces composition only while visible.
 2. VRR per output has three modes: off, on while a full-screen app is in front (the default), and always; the mode is a setting (B30).
 3. Tearing is allowed per window through wp-tearing-control and X11 tearing-control, only when the window is full screen and scanned out directly, and only when the tearing setting is on; async page flip comes from Isle's Smithay fork.
-4. Explicit sync (linux-drm-syncobj), fifo-v1, commit-timing-v1, pointer constraints, relative pointer, DRM lease for VR headsets, and every global nested gamescope requires (smithay-and-gaming.md §2.2) are served.
+4. Explicit sync (linux-drm-syncobj), fifo-v1, commit-timing-v1, pointer constraints, relative pointer, and every global nested gamescope requires (smithay-and-gaming.md §2.2) are served.
 5. Frame scheduling on NVIDIA does not rely on presentation timestamps or early commit returns.
 6. Overlay planes stay off on NVIDIA until tested on the host, as cosmic-comp does (smithay-and-gaming.md §2); primary-plane scanout stays on.
 7. The compositor process carries an NVIDIA application profile with `GLVidHeapReuseRatio` set to 0 under its own process name.
@@ -373,7 +375,7 @@ with tearing where the user allows it (B6).
 
 **v1 lessons kept.** Inventory §10: v1's game mode turned off animations, blur, shadows, gaps and borders and left tearing to the user; leaving needed a full reload, which the live profile replaces. smithay-and-gaming.md §2.1: NVIDIA needs its own timing, plane and VRAM workarounds; cosmic-comp and niri both carry them.
 
-**Open for its packet.** Cursor-only updates under VRR. Async flips on Blackwell with 615.x.
+**Settled in P12.** Cursor-only updates under VRR wait up to the panel's slowest refresh for the game's next frame (B87). Async flips come from Smithay #1948 in the fork and tear only a scanned-out buffer (B88); whether Blackwell with 615.x takes them is the host run's to see, and a refusal falls back to vsync. DRM lease is not served: no headset (`gaming.md` Not here).
 
 ### Session and robustness
 
@@ -420,7 +422,7 @@ The mechanics `shell.md`'s surfaces rely on.
 | idle-inhibit, ext-idle-notify | video players; clients that watch idle |
 | ext-image-capture-source, ext-image-copy-capture, ext-foreign-toplevel-list | standard capture tools (B13) |
 | ext-data-control, primary-selection, ext-background-effect | clipboard managers; primary selection; blur behind apps' glass |
-| security-context, wp-drm-lease | sandboxed clients refused privileged globals; VR headsets |
+| security-context | sandboxed clients refused privileged globals |
 | org_kde_kwin_appmenu v2, gtk_shell1 | global menu from Qt 6.9+, Chromium 137+ and GTK (B18, macos-model.md §1.3) |
 | wlr-layer-shell | other programs' overlays and tools (B28) |
 

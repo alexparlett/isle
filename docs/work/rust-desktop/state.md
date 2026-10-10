@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B85 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B91 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -433,6 +433,11 @@
   real; no shader fallback.
 - P12 12.8 (2026-10-10): measured headless and in the VM
   (`docs/research/rust-desktop/p12-gaming.md`); the host run on tty8, part of
-  P12's done, is the user's, with its checklist in that note. Next: 12.9
-  (close), and the fork's `async-scanout-only` pull request (gh needs `gh
-  auth login`).
+  P12's done, is the user's, with its checklist in that note.
+- P12 is closed (2026-10-10) but for the host run on tty8 and the fork's
+  `async-scanout-only` pull request (gh needs `gh auth login`): ARCHITECTURE
+  has How a frame reaches the screen and How night light is applied,
+  B86–B91 are recorded, `gaming.md`'s and `compositor.md`'s open points
+  answered or left to the host run, the roadmap's P12, P13 and P22 entries
+  follow, `p12-gaming.md` ends with its outcome. Next: the host run, then
+  P13 (Settings, core).

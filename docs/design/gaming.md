@@ -57,6 +57,8 @@ v1 lessons kept: inventory §3.8 (GameMode or launcher class, both needed: not e
 
 Open for its packet: whether `*.exe` matching catches Wine installers and launchers that are not games; process mapping for Flatpak Steam (macos OPEN on Flatpak PIDs).
 
+Settled in P12 (B89): `.exe` classes stay games, corrected with `isle windows game` until Settings draws it; Flatpak Steam's processes are host PIDs to the client's credentials and to GameMode's portal. Rule 1's ancestry and content type are built, and rule 7.
+
 Built in part by P5 (B46): the flag on the window's record, set from Steam's `STEAM_GAME` X11 label, `steam_app_` and gamescope classes, `SteamGameId` in the process environment, GameMode registrations, `.exe` classes, and `windows.games` and `windows.not-games` for rule 2. P12 adds the launcher ancestry of rule 1 and rule 6.
 
 ### Games as apps
@@ -103,6 +105,8 @@ Requires of `compositor.md`: full-screen Spaces as a window state; borderless de
 v1 lessons kept: D48 (a fullscreen game on a shared Space left alt-tab focusing windows it covered; forcing compositor fullscreen on a borderless game broke its own resizes).
 
 Open for its packet: whether a game whose Space is not visible is throttled, and whether games mind; X11 games that change resolution through Xwayland's emulated RandR modes.
+
+Settled in P12 (B89): a game out of view gets frame callbacks and fifo barriers every 33 ms, so its loop keeps going. Emulated RandR modes are left as Xwayland does them.
 
 ### Game Mode
 
@@ -165,6 +169,8 @@ v1 lessons kept: inventory §3.1 and §3.3 (VRR on, direct scanout on, tearing o
 
 Open for its packet: async flips on Blackwell with 615.71.09 (only an RTX 4060 mobile is reported, gaming OPEN); direct scanout of game buffers on NVIDIA through `DrmCompositor` (gaming OPEN); whether cosmic's NVIDIA overlay-plane quirk still holds on Blackwell (gaming OPEN); whether NVIDIA's Vulkan WSI uses fifo and commit-timing (gaming OPEN); cursor-only motion under VRR (niri's flag, gaming §2); whether the host monitor flashes when VRR toggles; whether to tear for a game that does not ask, as v1's `immediate` rule did; the tearing setting's default.
 
+Settled in P12: fifo and commit-timing are served (NVIDIA's WSI uses fifo since 580); cursor-only motion under VRR waits for the game's frame (B87); a game that does not ask never tears, and tearing is off by default (B88); overlay planes stay off on NVIDIA regardless. Left to the host run (`docs/research/rust-desktop/p12-gaming.md`): async flips and direct scanout on Blackwell, which the plane trace shows, and whether the AOC flashes when VRR changes.
+
 ### Steam's desktop client
 
 The user gets: Steam behaves like any other app: menus where clicked that stay open, a window that minimises, no stray windows.
@@ -194,6 +200,8 @@ v1 lessons kept: inventory §3.8 and v1 ARCHITECTURE § Big Picture (minimise-no
 
 Open for its packet: Big Picture on Smithay compositors has no current reports (gaming OPEN); how Steam asks to be minimised under Isle's WM; whether the title still says "Big Picture".
 
+Settled in P12 (B90): Big Picture is matched by class `steam` and "Big Picture" in its title, marked once; a minimise request from Steam closes its desktop and parks it. Its present title and hints are the host run's to confirm.
+
 ### gamescope
 
 The user gets: gamescope runs nested as a window or full screen with VRR, and Steam can run inside it.
@@ -205,6 +213,8 @@ The user gets: gamescope runs nested as a window or full screen with VRR, and St
 v1 lessons kept: inventory §3.8 Launching.
 
 Open for its packet: nested gamescope on NVIDIA under Smithay compositors (gaming OPEN: a dmabuf import failure, a 60 Hz refresh guess, keyboard latency); where gamescope reads the host's refresh from.
+
+Settled in P12: gamescope 3.16 runs nested on a headless Isle on the 5070 Ti with no missing global. It reads the refresh from wp_presentation (zero meaning VRR, then the `wl_output` mode), which Isle now feeds from the display.
 
 ### Heroic and Lutris
 

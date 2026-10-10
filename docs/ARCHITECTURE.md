@@ -554,6 +554,52 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 - **Asks made while locked wait.** ScreenCast, Screenshot and PickColor
   asks are held until the unlock unless the app gives up first.
 
+## How a frame reaches the screen
+
+- **Smithay assigns the planes; Isle proves it** (B86). A full-screen
+  window is drawn bare, so `DrmCompositor` can put its buffer on the
+  primary plane; each surface gets dmabuf feedback with a scanout tranche
+  of the primary plane's formats Isle can also render, so a game allocates
+  what the plane takes. Overlay planes stay off on NVIDIA. Each output
+  keeps a plane trace (`isle displays trace`): what the primary and cursor
+  planes carried, whether the flip was async, VRR, the interval.
+- **Presentation is the display's.** A vblank's hardware time and sequence
+  go to wp-presentation with the hardware flags, `Variable` refresh under
+  VRR; layers and X11 popups get feedback too. linux-drm-syncobj where the
+  device waits on sync points, wp-fifo, wp-commit-timing and
+  wp-content-type are served; a commit's buffer is held until readable, a
+  fifo barrier passed once its frame is drawn, a timed commit applied for
+  the frame that covers it or at its deadline.
+- **VRR is decided per frame** (B87) from the output's setting, its
+  connector (on demand, only at a modeset, or not at all) and whether its
+  full-screen desktop's window has the keyboard. Under VRR a frame that
+  would move only the pointer waits up to the panel's slowest refresh for
+  the game's next frame.
+- **Tearing only for a full-screen game that asks, where allowed** (B88):
+  such a frame is rendered async with `ASYNC_SCANOUT_ONLY`, so Smithay
+  flips it without vsync only when nothing but the primary plane changed
+  and that plane holds the game's buffer.
+- **Input goes before the frame.** The loop flushes clients before it
+  draws as well as after, so a key taken in a frame's iteration does not
+  wait for the frame.
+- **Windows out of view are paced** (B89): a hidden game's frame
+  callbacks and fifo barriers every 33 ms, any other hidden window's once
+  a second.
+
+## How night light is applied
+
+- **On the CRTC's gamma ramp, never the frame** (B91). Each lit screen's
+  `GAMMA_LUT`, else its legacy ramp, is written outside `DrmCompositor`'s
+  commits, which never touch it, so scanout stays on, the pointer is warmed
+  with the rest, and captures, which never pass the ramp, are untinted. The
+  ramp found is put back when the session leaves the console or ends and
+  given again on return; a screen with neither is left as it is.
+- **The warmth is a blackbody white point** in linear light, 6500 K being
+  none. The schedule (Sunset to Sunrise from `isle-sun`'s reading of the
+  time zone, Custom, or Off), Control Centre's tap until the schedule's
+  next change, and Game Mode's hold decide it; changes fade, but Game Mode
+  turns it off at once. Appearance Auto follows the same sun.
+
 ## Rules the layout enforces
 
 - Nothing that can block runs on the main thread. Services, D-Bus, file
@@ -607,8 +653,11 @@ paru and updated through pacman (B29).
   three: the X11 window manager tracks windows' bounding shape (SHAPE) and
   reads Steam's `STEAM_GAME` label (alexparlett/smithay#2), and an
   xdg-foreign export is looked up by its handle (alexparlett/smithay#3), which
-  the share picker uses to hang on the asking window. The async
-  page flip joins it by P12. Its `master` follows upstream; moving Isle to a
+  the share picker uses to hang on the asking window; DRM async page flips,
+  Smithay #1948 rebased (alexparlett/smithay#4), and wp-tearing-control
+  (alexparlett/smithay#5); and `FrameFlags::ASYNC_SCANOUT_ONLY`, which keeps
+  a composited frame on vsync, pinned by its branch's commit until its pull
+  request is merged. Its `master` follows upstream; moving Isle to a
   newer upstream is a rebase of `isle` and a revision bump.
 - **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
   `main`, which carries `freya-embed` (the embedding crate made from the
@@ -629,7 +678,9 @@ followed, snapshots and listeners), the service crates `isle-power`, `isle-audio
 `isle-brightness`, `isle-network`, `isle-bluetooth`, `isle-media`, `isle-disks` and
 `isle-tray`, `isle-notifications` (the notification server), `isle-focus` (which Focus
 is in force), `isle-fakes` (fake system daemons for the tests), `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
-badges), `isle-games` (launchers' libraries: names, covers and launch links), `isle-search` (Spotlight's
+badges), `isle-games` (launchers' libraries: names, covers and launch links, and
+which processes descend from them), `isle-sun` (sunrise and sunset from the
+time zone's coordinates), `isle-search` (Spotlight's
 sources, the matcher, ranking and the file index), `isle-keys` (keyboard
 profiles, chords, the shortcut set's table, translation tables and the engine),
 `isle-menus` (the menu tree, its DBusMenu and GMenuModel clients and the registrar),

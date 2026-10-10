@@ -2,6 +2,19 @@
 
 ## 2026-10-10
 
+- P12 12.0, the fork, waiting for the user's merges. alexparlett/smithay#4
+  is Smithay#1948 (async page flips) rebased onto `isle`; its one conflict
+  was `handle_flip`, which upstream since made take the prepared frame by
+  reference, and the presentation mode now rides on the callers' pending
+  frame. alexparlett/smithay#5 is wp_tearing_control_v1, written on
+  `content_type`'s current shape rather than taking Smithay#1325, which
+  held its surface strongly and would touch a dead one. Smithay's lib tests
+  pass and anvil builds; Isle, checked against both, needs only the
+  `PresentationMode` argument `render_frame` now takes. anvil would not
+  start in the VM (no DRM master at start, no render node for virtio), so
+  the clean refusal of an async flip on a driver without it is checked with
+  Isle in 12.4 instead.
+
 - P12 planned (`p12-gaming.md`), 20 choices and phases 12.0–12.9, with
   the research note `gaming-2026.md`. Reviewed: every recommendation taken.
 

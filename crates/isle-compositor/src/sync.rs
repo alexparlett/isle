@@ -192,6 +192,89 @@ impl State {
     }
 }
 
+/// How often a game on a desktop out of view is let draw: it keeps its loop, network and
+/// sound going at a fraction of its GPU time.
+const HIDDEN_GAME: Duration = Duration::from_millis(33);
+/// How often any other window out of view is.
+const HIDDEN: Duration = Duration::from_secs(1);
+
+impl State {
+    /// Frame callbacks and fifo barriers for windows that are mapped but out of view, which
+    /// no output's frame reaches.
+    pub fn pace_hidden_windows(&mut self) {
+        let mut since_slow = Duration::ZERO;
+        let timer = Timer::from_duration(HIDDEN);
+        let armed = self.isle.loop_handle.insert_source(timer, move |_, _, state| {
+            let _beat = state.isle.heartbeat.beat("hidden-pacer");
+            let hidden: Vec<(u64, bool)> = state
+                .isle
+                .wm
+                .records
+                .iter()
+                .filter(|r| r.mapped && !state.isle.wm.is_shown(r.id))
+                .map(|r| (r.id, r.game))
+                .collect();
+            let any_game = hidden.iter().any(|(_, game)| *game);
+            let step = if any_game { HIDDEN_GAME } else { HIDDEN };
+            since_slow += step;
+            let slow_due = since_slow >= HIDDEN || !any_game;
+            if slow_due {
+                since_slow = Duration::ZERO;
+            }
+            let due: Vec<u64> = hidden
+                .into_iter()
+                .filter(|(_, game)| *game || slow_due)
+                .map(|(id, _)| id)
+                .collect();
+            state.let_hidden_draw(&due);
+            TimeoutAction::ToDuration(step)
+        });
+        if let Err(err) = armed {
+            warn!("could not pace hidden windows: {err}");
+        }
+    }
+
+    fn let_hidden_draw(&mut self, ids: &[u64]) {
+        let Some(output) = self.isle.space.outputs().next().cloned() else {
+            return;
+        };
+        let time = self.isle.clock.now();
+        let mut clients = HashMap::new();
+        for id in ids {
+            let Some(record) = self.isle.wm.get(*id) else {
+                continue;
+            };
+            record
+                .window
+                .send_frame(&output, time, None, |_, _| Some(output.clone()));
+            let Some(root) = record.surface() else {
+                continue;
+            };
+            with_surface_tree_downward(
+                &root,
+                (),
+                |_, _, _| TraversalAction::DoChildren(()),
+                |surface, states, _| {
+                    let barrier = states
+                        .cached_state
+                        .get::<FifoBarrierCachedState>()
+                        .current()
+                        .barrier
+                        .take();
+                    if let Some(barrier) = barrier {
+                        barrier.signal();
+                        if let Some(client) = surface.client() {
+                            clients.insert(client.id(), client);
+                        }
+                    }
+                },
+                |_, _, _| true,
+            );
+        }
+        self.clear_all(clients);
+    }
+}
+
 impl Isle {
     /// Serves linux-drm-syncobj on `device` when it can wait on sync points.
     pub fn serve_syncobj(&mut self, device: smithay::backend::drm::DrmDeviceFd) {

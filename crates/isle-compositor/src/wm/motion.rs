@@ -46,7 +46,8 @@ impl Style {
     pub fn of(isle: &Isle) -> Self {
         let theme = isle.shell.theme();
         Self {
-            animated: isle.shell.animated() && isle.window_motion,
+            // Game Mode holds windows still (`compositor.md` Gaming display path 8).
+            animated: isle.shell.animated() && isle.window_motion && !isle.game_mode_active(),
             fade: theme
                 .appearance
                 .reduce_motion

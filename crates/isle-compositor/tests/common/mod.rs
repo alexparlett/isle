@@ -259,6 +259,30 @@ impl Isle {
         )
     }
 
+    /// A test client started by a process named `launcher`, as a launcher starts a game.
+    pub fn client_under(&mut self, launcher: &str, args: &[&str]) -> Client {
+        use std::os::unix::fs::PermissionsExt;
+        let bin = self.dir.join("launchers");
+        std::fs::create_dir_all(&bin).unwrap();
+        let script = bin.join(launcher);
+        std::fs::write(&script, "#!/bin/sh\n\"$@\"\n").unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let mut all = vec![env!("CARGO_BIN_EXE_isle-test-client")];
+        all.extend_from_slice(args);
+        let socket = self.socket();
+        self.spawn(script.to_str().unwrap(), &all, &[("WAYLAND_DISPLAY", socket)])
+    }
+
+    /// A test client whose own process is named `name`.
+    pub fn client_named(&mut self, name: &str, args: &[&str]) -> Client {
+        let bin = self.dir.join("named");
+        std::fs::create_dir_all(&bin).unwrap();
+        let link = bin.join(name);
+        let _ = std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_isle-test-client"), &link);
+        let socket = self.socket();
+        self.spawn(link.to_str().unwrap(), args, &[("WAYLAND_DISPLAY", socket)])
+    }
+
     /// A PipeWire video consumer linked to `node` on the private server.
     pub fn consumer(&mut self, node: u32) -> Client {
         self.spawn(

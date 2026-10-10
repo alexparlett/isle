@@ -189,6 +189,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     state.sync_island();
     state.locked_at_start();
     state.arm_idle();
+    state.pace_hidden_windows();
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };

@@ -333,3 +333,75 @@ async fn an_x11_window_steam_labels_is_a_game() {
     game.wait_for("focus-in").await;
     game_window(&isle, "isle.test.SteamX11").await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_launchers_child_is_a_game_and_the_launchers_own_window_is_not() {
+    let mut isle = Isle::start("launched").await;
+    let _game = isle.client_under("heroic", &["--app-id", "isle.test.Launched"]);
+    game_window(&isle, "isle.test.Launched").await;
+    let _ui = isle.client_named("heroic", &["--app-id", "isle.test.Launcher"]);
+    let ui = isle.wait_for_window("isle.test.Launcher").await.id;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(!isle.window(ui).await.game);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_surface_that_says_it_shows_a_game_is_one() {
+    let mut isle = Isle::start("content-game").await;
+    let client = isle.client("isle.test.Content", "3366ff");
+    let id = isle.wait_for_window("isle.test.Content").await.id;
+    assert!(!isle.window(id).await.game);
+    client.send("content-type game");
+    wait_until(|| async { isle.window(id).await.game }).await;
+    client.send("content-type none");
+    wait_until(|| async { !isle.window(id).await.game }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_games_place_is_never_recorded() {
+    let mut isle = Isle::start_with(
+        "game-place",
+        "windows {\n    games \"isle.test.PlacedGame\"\n}\n",
+    )
+    .await;
+    let client = isle.client("isle.test.PlacedGame", "ff0000");
+    let id = game_window(&isle, "isle.test.PlacedGame").await;
+    let windows = isle.windows_proxy().await;
+    assert!(windows.set_box(id, 100, 200, 640, 480).await.unwrap());
+    client.wait_for("configured 640 480").await;
+    tokio::time::sleep(std::time::Duration::from_millis(900)).await;
+    let text = std::fs::read_to_string(isle.dir.join("state/isle/places.json")).unwrap_or_default();
+    assert!(!text.contains("isle.test.PlacedGame"), "{text}");
+}
+
+/// Frame callbacks an animating window had in `ms`.
+async fn hidden_frames(client: &Client, ms: u64) -> usize {
+    let count = || client.lines.lock().unwrap().iter().filter(|l| *l == "frame").count();
+    let before = count();
+    tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+    count() - before
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_hidden_game_is_paced_and_another_hidden_window_slowly() {
+    let mut isle = Isle::start_with(
+        "hidden-pace",
+        "windows {\n    games \"isle.test.HiddenGame\"\n}\n",
+    )
+    .await;
+    let game = isle.client("isle.test.HiddenGame", "3366ff");
+    let game_id = game_window(&isle, "isle.test.HiddenGame").await;
+    let other = isle.client("isle.test.HiddenOther", "ff3366");
+    let other_id = isle.wait_for_window("isle.test.HiddenOther").await.id;
+    for client in [&game, &other] {
+        client.send("count-frames");
+        client.send("animate");
+    }
+    let windows = isle.windows_proxy().await;
+    windows.minimise(game_id).await.unwrap();
+    windows.minimise(other_id).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let (game_frames, other_frames) = tokio::join!(hidden_frames(&game, 2000), hidden_frames(&other, 2000));
+    assert!((50..=70).contains(&game_frames), "the game drew {game_frames} in 2 s");
+    assert!(other_frames <= 4, "the other drew {other_frames} in 2 s");
+}

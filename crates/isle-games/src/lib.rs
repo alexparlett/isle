@@ -2,6 +2,7 @@
 //! (`gaming.md` Games as apps, Game library): Steam, Heroic and Lutris, native and Flatpak.
 
 pub mod heroic;
+pub mod process;
 pub mod lutris;
 pub mod steam;
 pub mod vdf;

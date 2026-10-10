@@ -37,6 +37,7 @@
 //! printing `locked`, `unlocked`, `confined`, `unconfined`), `relative` (relative motion,
 //! printing `relative DX DY UX UY`, and `motion X Y` after it),
 //! `tearing async|vsync` (the first window's wp_tearing_control hint, committed),
+//! `count-frames` (each frame callback of the animating window printed as `frame`),
 //! `globals` (each announced global as `global INTERFACE VERSION`, then `globals done`),
 //! `timing` (each later frame of the window asks for presentation feedback, printing
 //! `presented SEC NSEC REFRESH_NS SEQ FLAGS` or `discarded`),
@@ -166,6 +167,11 @@ struct Client {
     relative: bool,
     /// Every global the compositor announced, as `interface version`.
     globals: Vec<String>,
+    /// Each frame callback of the animating window is printed as `frame`.
+    counting: bool,
+    /// The animating window waits on a frame callback; a draw for another reason asks for
+    /// none, so there is one chain of them.
+    frame_pending: bool,
     /// The first window's fifo, once asked for; its frames then set and wait on barriers.
     fifo: Option<wp_fifo_v1::WpFifoV1>,
     commit_timing: Option<wp_commit_timing_manager_v1::WpCommitTimingManagerV1>,
@@ -384,8 +390,9 @@ impl Client {
         }
         win.surface.attach(Some(&buffer), 0, 0);
         win.surface.damage_buffer(0, 0, w, h);
-        if self.animating == Some(index) {
+        if self.animating == Some(index) && !self.frame_pending {
             win.surface.frame(qh, index);
+            self.frame_pending = true;
         }
         if self.timing.contains(&index)
             && let Some(presentation) = &self.presentation
@@ -788,6 +795,10 @@ impl Client {
                 self.timing.push(index);
                 return;
             }
+            ("count-frames", _) => {
+                self.counting = true;
+                return;
+            }
             ("animate", _) => {
                 self.animating = if self.animating.is_some() { None } else { Some(index) };
                 self.draw(index, qh);
@@ -1036,10 +1047,16 @@ impl Dispatch<wl_callback::WlCallback, usize> for Client {
         _: &Connection,
         qh: &QueueHandle<Self>,
     ) {
+        if let wl_callback::Event::Done { .. } = event {
+            state.frame_pending = false;
+        }
         if let wl_callback::Event::Done { .. } = event
             && state.animating == Some(*index)
             && let Some(win) = state.wins.get_mut(*index)
         {
+            if state.counting {
+                say(*index, "frame".into());
+            }
             win.colour = [win.colour[1], win.colour[2], win.colour[0].wrapping_add(7), 0xff];
             state.draw(*index, qh);
         }
@@ -2045,6 +2062,8 @@ fn main() {
         relative_pointers: None,
         relative: false,
         globals: Vec::new(),
+        counting: false,
+        frame_pending: false,
         fifo: None,
         commit_timing: None,
         commit_timer: None,

@@ -183,6 +183,13 @@ enum Windows {
     Tile { id: u64, zone: String },
     /// Return a tiled or filled window to its box before.
     Restore { id: u64 },
+    /// Mark an app, by desktop id, app id or X11 class, as a game (`yes`), never a game
+    /// (`no`), or as detected (`auto`).
+    Game {
+        app: String,
+        #[arg(value_parser = ["yes", "no", "auto"])]
+        mark: String,
+    },
     /// Move and size a window, in logical points.
     SetBox {
         id: u64,
@@ -497,6 +504,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     width,
                     height,
                 } => found(proxy.set_box(*id, *x, *y, *width, *height).await?, *id)?,
+                Windows::Game { app, mark } => mark_game(&bus, app, mark).await?,
             }
         }
         Command::Shortcuts(Shortcuts::List) => {
@@ -1191,4 +1199,30 @@ fn print_frame(frame: &isle_ipc::FrameTrace, json: bool) {
         if frame.vrr { "  vrr" } else { "" },
         if frame.hardware { "" } else { "  (Isle's time)" },
     );
+}
+
+/// Puts `app` in `windows.games` or `windows.not-games`, or takes it out of both.
+async fn mark_game(bus: &zbus::Connection, app: &str, mark: &str) -> zbus::Result<()> {
+    let proxy = SettingsProxy::new(bus).await?;
+    for (key, wanted) in [("windows.games", mark == "yes"), ("windows.not-games", mark == "no")] {
+        let current = proxy.get(key).await?;
+        let mut apps: Vec<String> = match &*current {
+            zvariant::Value::Array(a) => a
+                .iter()
+                .filter_map(|v| v.downcast_ref::<zvariant::Str>().ok().map(|s| s.to_string()))
+                .collect(),
+            _ => Vec::new(),
+        };
+        let had = apps.iter().any(|a| a == app);
+        if had == wanted {
+            continue;
+        }
+        if wanted {
+            apps.push(app.to_owned());
+        } else {
+            apps.retain(|a| a != app);
+        }
+        proxy.set(key, &zvariant::Value::from(apps)).await?;
+    }
+    Ok(())
 }

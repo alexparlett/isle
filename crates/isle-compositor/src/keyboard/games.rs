@@ -1,5 +1,6 @@
-//! Which windows are games, until P12 detects them properly: Steam's own labels, Feral
-//! GameMode's registrations, Wine's `.exe` classes, and the user's corrections.
+//! Which windows are games (`gaming.md` Games 1, 2): Steam's own labels, the launcher that
+//! started the process, Feral GameMode's registrations, the surface's content type, Wine's
+//! `.exe` classes, and the user's corrections.
 
 use std::collections::HashSet;
 
@@ -34,12 +35,16 @@ impl Isle {
         let matches = |list: &[String]| list.iter().any(|p| isle_keys::tables::matches(p, &names));
         let labelled = names.iter().any(|n| {
             let n = n.to_lowercase();
-            n.starts_with("steam_app_") || n.starts_with("gamescope")
+            n.starts_with("steam_app_") || n.starts_with("gamescope") || n == "steam_proton"
         });
         let wine = record
             .x11()
             .is_some_and(|x| x.class().to_lowercase().ends_with(".exe"));
-        let registered = record.pid.is_some_and(|pid| gamemode.contains(&pid));
+        let registered = record
+            .pid
+            .into_iter()
+            .chain(record.ancestors.iter().copied())
+            .any(|pid| gamemode.contains(&pid));
         let steam_window = record.x11().and_then(|x| x.steam_game()).is_some();
         let game = !matches(&windows.not_games)
             && (matches(&windows.games)
@@ -47,6 +52,8 @@ impl Isle {
                 || steam_window
                 || wine
                 || record.steam
+                || record.launched
+                || record.content_game
                 || registered);
         if record.game != game {
             info!(id, app = record.app, game, "game");
@@ -64,8 +71,9 @@ impl Isle {
 }
 
 impl State {
-    /// Reads a newly mapped window's process environment off the loop for Steam's label.
-    pub fn read_steam_env(&mut self, id: u64) {
+    /// Reads a newly mapped window's process off the loop: Steam's label in its
+    /// environment, and the launcher it descends from.
+    pub fn read_process(&mut self, id: u64) {
         let (Some(pid), Some(worker), Some(to_loop)) = (
             self.isle.wm.get(id).and_then(|r| r.pid),
             self.isle.worker.clone(),
@@ -74,25 +82,51 @@ impl State {
             return;
         };
         worker.spawn_blocking(move || {
-            if let Some(game) = steam_game_env(pid) {
-                to_loop.post(move |state| {
-                    if let Some(record) = state.isle.wm.get_mut(id) {
-                        record.steam = true;
-                        // gamescope started by Steam hosts that game, so it is that game's app
-                        // (`gaming.md` Games as apps 2).
-                        let steam_app = format!("steam_app_{game}");
-                        if record.app == "gamescope"
-                            && state.isle.games.for_app(&steam_app).is_some()
-                        {
-                            info!(id, app = steam_app, "gamescope hosts a library game");
-                            record.app = steam_app;
-                            state.isle.notify(Event::WindowsChanged);
-                        }
+            let lineage = isle_games::process::lineage(pid);
+            let steam = steam_game_env(pid);
+            to_loop.post(move |state| {
+                if let (Some((own, pids, names)), Some(record)) = (lineage, state.isle.wm.get_mut(id)) {
+                    record.launched = isle_games::process::launched_game(&own, &names);
+                    record.ancestors = pids;
+                }
+                if let Some(game) = steam
+                    && let Some(record) = state.isle.wm.get_mut(id)
+                {
+                    record.steam = true;
+                    // gamescope started by Steam hosts that game, so it is that game's app
+                    // (`gaming.md` Games as apps 2).
+                    let steam_app = format!("steam_app_{game}");
+                    if record.app == "gamescope" && state.isle.games.for_app(&steam_app).is_some() {
+                        info!(id, app = steam_app, "gamescope hosts a library game");
+                        record.app = steam_app;
+                        state.isle.notify(Event::WindowsChanged);
                     }
-                    state.isle.refresh_game(id);
-                });
-            }
+                }
+                state.isle.refresh_game(id);
+            });
         });
+    }
+
+    /// A window whose surface says it now shows a game, or no longer does.
+    pub fn check_content_type(&mut self, id: u64, surface: &smithay::reexports::wayland_server::protocol::wl_surface::WlSurface) {
+        use smithay::{
+            reexports::wayland_protocols::wp::content_type::v1::server::wp_content_type_v1::Type,
+            wayland::{compositor::with_states, content_type::ContentTypeSurfaceCachedState},
+        };
+        let game = with_states(surface, |states| {
+            *states
+                .cached_state
+                .get::<ContentTypeSurfaceCachedState>()
+                .current()
+                .content_type()
+                == Type::Game
+        });
+        if let Some(record) = self.isle.wm.get_mut(id)
+            && record.content_game != game
+        {
+            record.content_game = game;
+            self.isle.refresh_game(id);
+        }
     }
 
     /// Whether the window with keyboard focus is a game.

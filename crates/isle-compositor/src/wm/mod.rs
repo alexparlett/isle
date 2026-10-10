@@ -111,6 +111,12 @@ pub struct Record {
     pub game: bool,
     /// Its process carries Steam's game label.
     pub steam: bool,
+    /// Its process's ancestors, nearest first, once read.
+    pub ancestors: Vec<i32>,
+    /// A launcher started its process.
+    pub launched: bool,
+    /// Its surface says it shows a game (wp-content-type).
+    pub content_game: bool,
 }
 
 impl Record {
@@ -346,6 +352,9 @@ impl Isle {
             suspended: false,
             game: false,
             steam: false,
+            ancestors: Vec::new(),
+            launched: false,
+            content_game: false,
         });
         id
     }

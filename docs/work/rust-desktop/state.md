@@ -422,4 +422,7 @@
   `output.tearing` and the game's ask, composited frames on vsync through
   `FrameFlags::ASYNC_SCANOUT_ONLY` on the fork's `async-scanout-only`
   branch, which Isle pins by commit (`10e6b3c`) until its pull request is
-  opened (gh needs `gh auth login`) and merged. Next: 12.5 (games).
+  opened (gh needs `gh auth login`) and merged.
+- P12 12.5 done (2026-10-10): ancestry, content type and `steam_proton` in
+  detection, `isle windows game`, no places for games, motion still in Game
+  Mode, hidden windows paced. Next: 12.6 (Steam and gamescope).

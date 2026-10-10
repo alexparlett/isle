@@ -64,6 +64,7 @@ impl CompositorHandler for State {
                         self.isle.record_place(id);
                     }
                     self.check_borderless(id);
+                    self.check_content_type(id, &root);
                 }
                 None => {
                     if self.isle.unmanaged.iter().any(|w| {

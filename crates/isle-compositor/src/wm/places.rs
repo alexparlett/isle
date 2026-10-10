@@ -128,7 +128,7 @@ impl Isle {
         let Some(record) = self.wm.get(id) else {
             return;
         };
-        if record.mode != super::Mode::Floating {
+        if record.mode != super::Mode::Floating || record.game {
             return;
         }
         let Some(rect) = self.frame(id) else {
@@ -177,6 +177,11 @@ impl State {
         }
         let isle = &mut self.isle;
         if !isle.is_main(id) {
+            return;
+        }
+        // A game is never given a remembered place (`gaming.md` Games 7).
+        isle.refresh_game(id);
+        if isle.wm.get(id).is_some_and(|r| r.game) {
             return;
         }
         let app = isle.wm.get(id).unwrap().app.clone();
@@ -297,6 +302,20 @@ impl State {
             let rect = Rectangle::new((planned.loc.x, planned.loc.y - bar).into(), size);
             return Some(under_bar(geometry::clamp_whole(rect, isle.work_area(&output)).loc));
         }
+        // An X11 game opens where it asked, when that is on a screen.
+        if record.game
+            && let Some(x11) = record.x11()
+        {
+            let asked = x11.geometry().loc;
+            if isle
+                .space
+                .outputs()
+                .filter_map(|o| isle.space.output_geometry(o))
+                .any(|g| g.contains(asked))
+            {
+                return Some(asked);
+            }
+        }
         let parent = record
             .parent
             .and_then(|p| isle.wm.get(p))
@@ -401,6 +420,7 @@ impl State {
         };
         let size = window.geometry().size;
         self.isle.refresh_identity(id);
+        self.isle.refresh_game(id);
         let Some(location) = self.place_new_window(id) else {
             return;
         };
@@ -417,7 +437,7 @@ impl State {
         let (app, pid) = (record.app.clone(), record.pid);
         self.track_process(&app, pid);
         self.isle.refresh_game(id);
-        self.read_steam_env(id);
+        self.read_process(id);
         self.assign_desktop(id);
         self.isle.sync_space();
         self.set_focus(Some(&window));

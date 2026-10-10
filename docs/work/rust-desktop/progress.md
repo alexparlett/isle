@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+- P12 12.5: games. A window's process lineage is read on the worker at
+  map: a process descending from Steam, Heroic or Lutris that is not the
+  launcher's own (`steam`, `steamwebhelper`, `heroic`, `lutris`) is a game,
+  and so is one whose ancestor GameMode registered; a surface whose
+  wp-content-type says game is one; `steam_proton` joins the labelled
+  classes. `isle windows game <app> yes|no|auto` edits `windows.games` and
+  `windows.not-games`. A game is never planned at a remembered place nor
+  recorded, and an X11 game opens where it asks when that is on a screen.
+  Game Mode holds window motion still. Windows mapped but out of view get
+  frame callbacks and fifo releases from a pacer: a game every 33 ms, any
+  other window once a second, the pacer itself once a second while no game
+  is hidden. The test client keeps one chain of frame callbacks, and
+  `count-frames` prints them. Four headless tests and three unit tests.
+
 - P12 12.4: tearing. `output.tearing` (off by default) and
   wp_tearing_control: a frame is rendered as async when the output allows
   it, its full-screen window has the keyboard, and that window's surface

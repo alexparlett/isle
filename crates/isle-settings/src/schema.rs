@@ -142,6 +142,9 @@ pub struct Output {
     pub transform: Transform,
     #[setting(default = Vrr::Fullscreen)]
     pub vrr: Vrr,
+    /// A full-screen game that asks for it is flipped without waiting for vblank.
+    #[setting(default = false)]
+    pub tearing: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

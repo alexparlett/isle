@@ -92,7 +92,10 @@ impl Headless {
         Ok(Rendered {
             damaged,
             states,
-            planes: crate::present::Planes::COMPOSITED,
+            planes: crate::present::Planes {
+                asked_async: isle.wants_tearing(output),
+                ..crate::present::Planes::COMPOSITED
+            },
             retry_in: None,
         })
     }

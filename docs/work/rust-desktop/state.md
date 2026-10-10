@@ -417,4 +417,9 @@
   12.5's pacing of hidden windows covers it.
 - P12 12.3 done (2026-10-10): VRR decided per frame from the setting, the
   connector and the full-screen window in front; the pointer held to the
-  game's frames. Next: 12.4 (tearing).
+  game's frames.
+- P12 12.4 done (2026-10-10) but for the fork's merge: tearing behind
+  `output.tearing` and the game's ask, composited frames on vsync through
+  `FrameFlags::ASYNC_SCANOUT_ONLY` on the fork's `async-scanout-only`
+  branch, which Isle pins by commit (`10e6b3c`) until its pull request is
+  opened (gh needs `gh auth login`) and merged. Next: 12.5 (games).

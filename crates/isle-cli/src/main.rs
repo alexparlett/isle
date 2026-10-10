@@ -1181,7 +1181,13 @@ fn print_frame(frame: &isle_ipc::FrameTrace, json: bool) {
         frame.interval_us as f64 / 1000.0,
         frame.primary,
         frame.cursor,
-        if frame.asynchronous { "  async" } else { "" },
+        if frame.asynchronous {
+            "  async"
+        } else if frame.asked_async {
+            "  asked async"
+        } else {
+            ""
+        },
         if frame.vrr { "  vrr" } else { "" },
         if frame.hardware { "" } else { "  (Isle's time)" },
     );

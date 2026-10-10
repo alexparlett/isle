@@ -33,6 +33,8 @@ pub struct Planes {
     pub primary: Primary,
     pub cursor: Cursor,
     pub overlays: usize,
+    /// The frame asked to flip without waiting for vblank.
+    pub asked_async: bool,
 }
 
 impl Planes {
@@ -40,6 +42,7 @@ impl Planes {
         primary: Primary::Composited,
         cursor: Cursor::Drawn,
         overlays: 0,
+        asked_async: false,
     };
 }
 
@@ -101,6 +104,7 @@ impl Trace {
             cursor: cursor.into(),
             overlays: planes.overlays as u32,
             asynchronous: presented.asynchronous,
+            asked_async: planes.asked_async,
             vrr,
             hardware: presented.hardware,
         });
@@ -123,6 +127,57 @@ impl Trace {
         self.frames = 0;
         self.scanned_out = 0;
         self.async_flips = 0;
+    }
+}
+
+/// Whether the frame on an output may flip without waiting for vblank: the output allows
+/// tearing, its full-screen window is in front, and that window asks for it. Smithay then
+/// tears only when the frame scans that window's buffer out and nothing else changed.
+pub fn may_tear(tearing_allowed: bool, front_asks: Option<bool>) -> bool {
+    tearing_allowed && front_asks == Some(true)
+}
+
+/// Whether `surface`'s tree asks for its frames to be presented without vsync.
+pub fn asks_to_tear(surface: &smithay::reexports::wayland_server::protocol::wl_surface::WlSurface) -> bool {
+    use smithay::{
+        reexports::wayland_protocols::wp::tearing_control::v1::server::wp_tearing_control_v1::PresentationHint,
+        wayland::{
+            compositor::{TraversalAction, with_surface_tree_downward},
+            tearing_control::TearingControlSurfaceCachedState,
+        },
+    };
+    let mut asks = false;
+    with_surface_tree_downward(
+        surface,
+        (),
+        |_, _, _| TraversalAction::DoChildren(()),
+        |_, states, _| {
+            asks |= *states
+                .cached_state
+                .get::<TearingControlSurfaceCachedState>()
+                .current()
+                .presentation_hint()
+                == PresentationHint::Async;
+        },
+        |_, _, _| true,
+    );
+    asks
+}
+
+impl crate::state::Isle {
+    /// Whether `output`'s next frame may tear (`may_tear`).
+    pub fn wants_tearing(&self, output: &smithay::output::Output) -> bool {
+        let allowed = self
+            .settings
+            .output
+            .get(&Self::output_identity(output))
+            .is_some_and(|c| c.tearing);
+        let asks = self
+            .full_screen_front(output)
+            .and_then(|id| self.wm.get(id))
+            .and_then(|r| r.surface())
+            .map(|surface| asks_to_tear(&surface));
+        may_tear(allowed, asks)
     }
 }
 
@@ -178,6 +233,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn tearing_needs_the_setting_and_the_front_windows_ask() {
+        assert!(may_tear(true, Some(true)));
+        assert!(!may_tear(false, Some(true)));
+        assert!(!may_tear(true, Some(false)));
+        // No full-screen window in front.
+        assert!(!may_tear(true, None));
+    }
+
+    #[test]
     fn vrr_by_setting_capability_and_front() {
         use isle_settings::schema::Vrr;
         use VrrCapability::*;
@@ -219,6 +283,7 @@ mod tests {
             primary: Primary::Window(7),
             cursor: Cursor::Plane,
             overlays: 0,
+            asked_async: true,
         };
         trace.push(Planes::COMPOSITED, at(10, false), false, |_| unreachable!());
         trace.push(game, at(17, true), true, |id| format!("app{id}"));

@@ -2,6 +2,23 @@
 
 ## 2026-10-10
 
+- P12 12.4: tearing. `output.tearing` (off by default) and
+  wp_tearing_control: a frame is rendered as async when the output allows
+  it, its full-screen window has the keyboard, and that window's surface
+  tree asks; it also allows any format on the primary plane. Smithay then
+  flips it asynchronously only when nothing but the primary plane changed,
+  and with the fork's new `FrameFlags::ASYNC_SCANOUT_ONLY`
+  (alexparlett/smithay `async-scanout-only`, pinned by its commit until it
+  is merged) only when that plane holds the client's buffer, so composited
+  frames keep vsync. The trace marks frames that asked and did not get it,
+  and an async flip refused on a scanned-out frame is logged once. In the
+  VM, with the scanout check taken out for the run, virtio-gpu flipped 40
+  frames asynchronously without a DRM error; with it, composited frames
+  that asked stayed on vsync. Found, not P12's: a full-screen window in the
+  VM is drawn every 66.7 ms where a windowed one is drawn every 13.3 ms, the
+  same with 12.0's build; 12.8 measures it on the host. `gh` lost its login,
+  so the fork's pull request is not open yet.
+
 - P12 12.3: VRR. Each output's VRR is decided before every frame from its
   `vrr` setting, what its connector can do (on demand, only at a modeset,
   or not at all) and whether its full-screen desktop is in view with its

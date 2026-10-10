@@ -253,9 +253,18 @@ impl Udev {
         if hold.is_some() {
             flags |= FrameFlags::SKIP_CURSOR_ONLY_UPDATES;
         }
+        let tear = isle.wants_tearing(output);
+        if tear {
+            flags |= FrameFlags::ASYNC_SCANOUT_ONLY | FrameFlags::ALLOW_PRIMARY_PLANE_SCANOUT_ANY;
+        }
+        let mode = if tear {
+            PresentationMode::Async
+        } else {
+            PresentationMode::VSync
+        };
         let result = lit
             .surface
-            .render_frame(renderer, &elements, CLEAR, flags, PresentationMode::VSync)
+            .render_frame(renderer, &elements, CLEAR, flags, mode)
             .map_err(|e| format!("{e:?}"))?;
         let damaged = !result.is_empty;
         let planes = Planes {
@@ -271,6 +280,7 @@ impl Udev {
                 present::Cursor::None
             },
             overlays: result.overlay_elements.len(),
+            asked_async: tear,
         };
         let states = result.states;
         if damaged {

@@ -62,6 +62,8 @@ pub struct OutputState {
     pub vrr: bool,
     /// When its last frame reached the screen.
     pub last_shown: Option<Duration>,
+    /// A scanned-out frame asked to tear and was flipped with vsync; said once.
+    async_refused: bool,
     pub trace: Trace,
 }
 
@@ -408,6 +410,11 @@ impl State {
             }
             state.last_shown = Some(presented.time);
             if let Some(planes) = state.pending_planes.take() {
+                let scanned_out = matches!(planes.primary, crate::present::Primary::Window(_));
+                if planes.asked_async && scanned_out && presented.hardware && !presented.asynchronous && !state.async_refused {
+                    state.async_refused = true;
+                    tracing::info!(output = output.name(), "an async flip was refused; presenting with vsync");
+                }
                 let vrr = state.vrr;
                 state.trace.push(planes, presented, vrr, |id| {
                     self.isle.wm.get(id).map(|r| r.app.clone()).unwrap_or_default()

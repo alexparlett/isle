@@ -348,6 +348,7 @@ impl Isle {
         smithay::wayland::content_type::ContentTypeState::new::<State>(&dh);
         smithay::wayland::pointer_constraints::PointerConstraintsState::new::<State>(&dh);
         smithay::wayland::relative_pointer::RelativePointerManagerState::new::<State>(&dh);
+        smithay::wayland::tearing_control::TearingControlState::new::<State>(&dh);
         let cursor_shape_state = CursorShapeManagerState::new::<State>(&dh);
         let inhibit_state =
             smithay::wayland::keyboard_shortcuts_inhibit::KeyboardShortcutsInhibitState::new::<State>(&dh);

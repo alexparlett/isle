@@ -220,6 +220,9 @@ pub struct FrameTrace {
     pub overlays: u32,
     /// The flip did not wait for vblank.
     pub asynchronous: bool,
+    /// Isle asked for that; a frame that asked and did not get it was composited, changed
+    /// more than the primary plane, or the driver refused.
+    pub asked_async: bool,
     pub vrr: bool,
     /// The time is the display's own.
     pub hardware: bool,

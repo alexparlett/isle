@@ -202,3 +202,38 @@ async fn vrr_follows_a_full_screen_window_in_front_and_the_setting() {
     game.send("unfullscreen");
     wait_until(|| async { vrr_on(&isle).await }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_full_screen_window_that_asks_tears_only_where_allowed() {
+    let mut isle = Isle::start("tearing").await;
+    let game = isle.client("isle.test.Tearing", "3366ff");
+    let full = isle.wait_for_window("isle.test.Tearing").await;
+    game.wait_for("keyboard-enter").await;
+    game.send("animate");
+    game.send("tearing async");
+    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
+    let asked = || async {
+        let trace = displays.trace("HEADLESS-1", 0).await.unwrap();
+        trace.recent.last().is_some_and(|f| f.asked_async)
+    };
+    let display = &displays.list().await.unwrap()[0];
+    let key = format!("output[{} {} {}].tearing", display.make, display.model, display.serial);
+    let settings = isle_ipc::settings::SettingsProxy::new(&isle.bus).await.unwrap();
+
+    // Allowed, but the window is not full screen.
+    settings.set(&key, &zvariant::Value::from(true)).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert!(!asked().await);
+
+    game.send("fullscreen");
+    wait_until(|| async { asked().await }).await;
+
+    game.send("tearing vsync");
+    wait_until(|| async { !asked().await }).await;
+    game.send("tearing async");
+    wait_until(|| async { asked().await }).await;
+
+    settings.set(&key, &zvariant::Value::from(false)).await.unwrap();
+    wait_until(|| async { !asked().await }).await;
+    let _ = full;
+}

@@ -36,6 +36,7 @@
 //! `lock-pointer` and `confine-pointer` (a persistent constraint on the first window,
 //! printing `locked`, `unlocked`, `confined`, `unconfined`), `relative` (relative motion,
 //! printing `relative DX DY UX UY`, and `motion X Y` after it),
+//! `tearing async|vsync` (the first window's wp_tearing_control hint, committed),
 //! `globals` (each announced global as `global INTERFACE VERSION`, then `globals done`),
 //! `timing` (each later frame of the window asks for presentation feedback, printing
 //! `presented SEC NSEC REFRESH_NS SEQ FLAGS` or `discarded`),
@@ -73,6 +74,9 @@ use wayland_protocols::ext::image_capture_source::v1::client::{
 use wayland_protocols::wp::linux_dmabuf::zv1::client::{zwp_linux_buffer_params_v1, zwp_linux_dmabuf_v1};
 use wayland_protocols::wp::presentation_time::client::{wp_presentation, wp_presentation_feedback};
 use wayland_protocols::wp::fifo::v1::client::{wp_fifo_manager_v1, wp_fifo_v1};
+use wayland_protocols::wp::tearing_control::v1::client::{
+    wp_tearing_control_manager_v1, wp_tearing_control_v1,
+};
 use wayland_protocols::wp::pointer_constraints::zv1::client::{
     zwp_confined_pointer_v1, zwp_locked_pointer_v1, zwp_pointer_constraints_v1,
 };
@@ -154,6 +158,8 @@ struct Client {
     animating: Option<usize>,
     presentation: Option<wp_presentation::WpPresentation>,
     fifo_manager: Option<wp_fifo_manager_v1::WpFifoManagerV1>,
+    tearing_manager: Option<wp_tearing_control_manager_v1::WpTearingControlManagerV1>,
+    tearing: Option<wp_tearing_control_v1::WpTearingControlV1>,
     constraints: Option<zwp_pointer_constraints_v1::ZwpPointerConstraintsV1>,
     relative_pointers: Option<zwp_relative_pointer_manager_v1::ZwpRelativePointerManagerV1>,
     /// Relative motion was asked for; absolute motion is printed too.
@@ -749,6 +755,21 @@ impl Client {
                 surface.commit();
                 return;
             }
+            ("tearing", _) => {
+                use wp_tearing_control_v1::PresentationHint;
+                if self.tearing.is_none() {
+                    let manager = self.tearing_manager.as_ref().expect("wp_tearing_control_manager_v1");
+                    self.tearing = Some(manager.get_tearing_control(&self.wins[0].surface, qh, ()));
+                }
+                let hint = if rest.first() == Some(&"async") {
+                    PresentationHint::Async
+                } else {
+                    PresentationHint::Vsync
+                };
+                self.tearing.as_ref().unwrap().set_presentation_hint(hint);
+                self.wins[0].surface.commit();
+                return;
+            }
             ("globals", _) => {
                 for global in &self.globals {
                     say(0, format!("global {global}"));
@@ -1033,6 +1054,8 @@ macro_rules! no_events {
     )*};
 }
 no_events!(
+    wp_tearing_control_manager_v1::WpTearingControlManagerV1,
+    wp_tearing_control_v1::WpTearingControlV1,
     zwp_pointer_constraints_v1::ZwpPointerConstraintsV1,
     zwp_relative_pointer_manager_v1::ZwpRelativePointerManagerV1,
     wp_fifo_manager_v1::WpFifoManagerV1,
@@ -1170,6 +1193,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
                 "wp_presentation" => state.presentation = Some(registry.bind(name, 1, qh, ())),
                 "wp_fifo_manager_v1" => state.fifo_manager = Some(registry.bind(name, 1, qh, ())),
+                "wp_tearing_control_manager_v1" => {
+                    state.tearing_manager = Some(registry.bind(name, 1, qh, ()))
+                }
                 "zwp_pointer_constraints_v1" => {
                     state.constraints = Some(registry.bind(name, 1, qh, ()))
                 }
@@ -2013,6 +2039,8 @@ fn main() {
         presentation: None,
         timing: Vec::new(),
         fifo_manager: None,
+        tearing_manager: None,
+        tearing: None,
         constraints: None,
         relative_pointers: None,
         relative: false,

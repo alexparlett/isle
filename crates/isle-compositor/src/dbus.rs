@@ -1167,6 +1167,28 @@ impl Test {
             .await?)
     }
 
+    /// As `key`, returning when the loop took it, in nanoseconds on the monotonic clock, for
+    /// measuring how long it takes to reach a client.
+    async fn key_timed(&self, code: u32, pressed: bool) -> fdo::Result<u64> {
+        use smithay::backend::input::{InputTime, KeyState};
+        let key_state = if pressed { KeyState::Pressed } else { KeyState::Released };
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let taken = monotonic_ns();
+                if state.isle.keyboards.get("test").is_none() {
+                    state.keyboard_added(
+                        "test",
+                        "Isle test keyboard",
+                        Some(isle_keys::profile::Profile::Mac),
+                    );
+                }
+                state.on_device_key("test", "Isle test keyboard", code, key_state, InputTime::now());
+                taken
+            })
+            .await?)
+    }
+
     /// Adds a keyboard by name, as if plugged in; its id for `key_on`.
     async fn add_keyboard(&self, name: String) -> fdo::Result<String> {
         Ok(self
@@ -1882,4 +1904,11 @@ pub async fn serve(
             Err(broadcast::error::RecvError::Closed) => return Ok(()),
         }
     }
+}
+
+#[cfg(feature = "test-hooks")]
+fn monotonic_ns() -> u64 {
+    let mut now = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut now) };
+    now.tv_sec as u64 * 1_000_000_000 + now.tv_nsec as u64
 }

@@ -2,6 +2,16 @@
 
 ## 2026-10-10
 
+- P12 12.8, the measure and the VM (`docs/research/rust-desktop/p12-gaming.md`).
+  Headless at 3440 by 1440 with a full-screen game drawing every frame: the
+  shell draws nothing over it, and a key reaches the game 0.09 ms at p99
+  after the loop takes it (the game still; drawing, the test client's own
+  buffer fill makes it 2.2 ms). Found and fixed: the loop flushed clients
+  only after drawing, so a key taken in a frame's iteration waited for the
+  frame (3.7 ms at p99); clients are flushed before the redraw too. The
+  bench `gaming_cost`, `Test1.KeyTimed` and the test client's `stamp-keys`.
+  The host run's checklist is in the note; it is the user's.
+
 - P12 12.7: night light. `isle-sun` gives sunrise and sunset from the
   system time zone's coordinates in tzdata's `zone1970.tab` (NOAA's sunrise
   equation, within three minutes of London's and New York's tables);

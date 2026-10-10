@@ -1045,3 +1045,93 @@ async fn capture_cost() {
         frames().await - f0
     );
 }
+
+fn percentile(sorted: &[f64], p: f64) -> f64 {
+    sorted[((sorted.len() - 1) as f64 * p).round() as usize]
+}
+
+/// A full-screen game drawing every frame on a 3440 by 1440 output: how long a key takes to
+/// reach it, whether the shell draws anything over it, the output's pacing and memory.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn gaming_cost() {
+    const A: u32 = 30;
+    let mut isle = Isle::start_with("cost-gaming", "windows {\n    games \"isle.test.Bench\"\n}\n").await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    ultrawide(&isle).await;
+    let test = isle.test().await;
+    let game = isle.client_with(&["--app-id", "isle.test.Bench", "--size", "3440x1440"]);
+    let window = isle.wait_for_window("isle.test.Bench").await;
+    isle.windows_proxy().await.focus(window.id).await.unwrap();
+    game.send("fullscreen");
+    game.send("animate");
+    game.send("stamp-keys");
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let (rss, own) = memory(pid);
+    println!("game in front: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    let draws = |list: Vec<SurfaceInfo>| list.iter().map(|s| s.draws).sum::<u64>();
+    test.measure(true).await.unwrap();
+    let before = draws(shell.list().await.unwrap());
+    let displays = isle_ipc::displays::DisplaysProxy::new(&isle.bus).await.unwrap();
+    displays.reset_trace("BIG").await.unwrap();
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    let after = draws(shell.list().await.unwrap());
+    println!("shell draws in 5 s over the game: {}", after - before);
+    let trace = displays.trace("BIG", 0).await.unwrap();
+    let mut gaps: Vec<f64> = trace.recent.iter().skip(1).map(|f| f.interval_us as f64 / 1000.0).collect();
+    gaps.sort_by(f64::total_cmp);
+    println!(
+        "output: {} frames in 5 s, interval p50 {:.2} ms, p99 {:.2} ms, max {:.2} ms",
+        trace.frames,
+        percentile(&gaps, 0.5),
+        percentile(&gaps, 0.99),
+        gaps.last().unwrap()
+    );
+
+    let latency = |what: &'static str| {
+        let (isle, game, test) = (&isle, &game, &test);
+        async move {
+            game.clear();
+            let mut taken = Vec::new();
+            for _ in 0..300 {
+                taken.push(test.key_timed(A, true).await.unwrap());
+                test.key(A, false).await.unwrap();
+                tokio::time::sleep(Duration::from_millis(7)).await;
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            let arrived: Vec<u64> = game
+                .lines
+                .lock()
+                .unwrap()
+                .iter()
+                .filter_map(|l| l.strip_prefix("key 30 pressed at "))
+                .filter_map(|ns| ns.parse().ok())
+                .collect();
+            assert_eq!(arrived.len(), taken.len(), "every key reached the game");
+            let mut ms: Vec<f64> = taken
+                .iter()
+                .zip(&arrived)
+                .map(|(t, a)| (*a as f64 - *t as f64) / 1e6)
+                .collect();
+            ms.sort_by(f64::total_cmp);
+            println!(
+                "a key, taken by the loop to read by the game, {what}: p50 {:.3} ms, p99 {:.3} ms, max {:.3} ms",
+                percentile(&ms, 0.5),
+                percentile(&ms, 0.99),
+                ms.last().unwrap()
+            );
+            let _ = isle;
+        }
+    };
+    // The test client fills a 3440 by 1440 buffer on every frame, unable to read keys
+    // meanwhile; still, what is left is the compositor's.
+    latency("the game drawing every frame").await;
+    game.send("animate");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    latency("the game still").await;
+    let (rss, own) = memory(pid);
+    println!("after: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    assert!(!isle.log().contains("panicked"), "a surface panicked");
+}

@@ -303,6 +303,8 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         state.switcher_after_dispatch();
         state.sync_foreign_toplevels();
         state.idle_after_dispatch();
+        // Input this iteration reaches clients before a frame is drawn, not after.
+        let _ = state.isle.display_handle.flush_clients();
         state.redraw_queued();
         let _ = state.isle.display_handle.flush_clients();
     })?;

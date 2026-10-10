@@ -430,4 +430,9 @@
   nested gamescope on a headless Isle.
 - P12 12.7 done (2026-10-10): night light on the CRTC's gamma ramp with
   its schedule, tap, Game Mode hold and fades, `isle-sun`, appearance Auto
-  real; no shader fallback. Next: 12.8 (the measure, the VM and the host).
+  real; no shader fallback.
+- P12 12.8 (2026-10-10): measured headless and in the VM
+  (`docs/research/rust-desktop/p12-gaming.md`); the host run on tty8, part of
+  P12's done, is the user's, with its checklist in that note. Next: 12.9
+  (close), and the fork's `async-scanout-only` pull request (gh needs `gh
+  auth login`).

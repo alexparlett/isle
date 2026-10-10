@@ -579,6 +579,8 @@ pub mod test {
         fn switcher_draws(&self) -> zbus::Result<u32>;
         /// Moves the pointer to a point in the global space.
         fn pointer_to(&self, x: f64, y: f64) -> zbus::Result<()>;
+        /// A key, returning when the compositor took it on the monotonic clock, in ns.
+        fn key_timed(&self, code: u32, pressed: bool) -> zbus::Result<u64>;
         /// Moves the pointer by a relative amount, as a mouse does, held to the outputs.
         fn pointer_by(&self, dx: f64, dy: f64) -> zbus::Result<()>;
         /// A button by its evdev code: 272 is the left button.

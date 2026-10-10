@@ -37,6 +37,7 @@
 //! printing `locked`, `unlocked`, `confined`, `unconfined`), `relative` (relative motion,
 //! printing `relative DX DY UX UY`, and `motion X Y` after it),
 //! `tearing async|vsync` (the first window's wp_tearing_control hint, committed),
+//! `stamp-keys` (keys printed as `key CODE pressed at NS`, the monotonic clock),
 //! `count-frames` (each frame callback of the animating window printed as `frame`),
 //! `globals` (each announced global as `global INTERFACE VERSION`, then `globals done`),
 //! `timing` (each later frame of the window asks for presentation feedback, printing
@@ -169,6 +170,8 @@ struct Client {
     globals: Vec<String>,
     /// Each frame callback of the animating window is printed as `frame`.
     counting: bool,
+    /// Keys are printed with when they arrived, in ns on the monotonic clock.
+    stamp_keys: bool,
     /// The animating window waits on a frame callback; a draw for another reason asks for
     /// none, so there is one chain of them.
     frame_pending: bool,
@@ -793,6 +796,10 @@ impl Client {
             }
             ("timing", _) => {
                 self.timing.push(index);
+                return;
+            }
+            ("stamp-keys", _) => {
+                self.stamp_keys = true;
                 return;
             }
             ("count-frames", _) => {
@@ -1450,7 +1457,14 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Client {
                 } else {
                     "released"
                 };
-                say(0, format!("key {key} {pressed}"));
+                if state.stamp_keys {
+                    let mut now = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+                    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut now) };
+                    let ns = now.tv_sec as u64 * 1_000_000_000 + now.tv_nsec as u64;
+                    say(0, format!("key {key} {pressed} at {ns}"));
+                } else {
+                    say(0, format!("key {key} {pressed}"));
+                }
                 if let Some(xkb_state) = state.xkb.as_ref() {
                     let sym = xkb_state.key_get_one_sym((key + 8).into());
                     say(
@@ -2063,6 +2077,7 @@ fn main() {
         relative: false,
         globals: Vec::new(),
         counting: false,
+        stamp_keys: false,
         frame_pending: false,
         fifo: None,
         commit_timing: None,

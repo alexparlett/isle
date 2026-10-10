@@ -54,6 +54,7 @@ impl Isle {
                 || record.steam
                 || record.launched
                 || record.content_game
+                || record.big_picture
                 || registered);
         if record.game != game {
             info!(id, app = record.app, game, "game");

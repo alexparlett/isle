@@ -143,8 +143,20 @@ async fn the_game_protocols_are_announced() {
     client.wait_for("globals done").await;
     let lines = client.lines.lock().unwrap().clone();
     let has = |name: &str| lines.iter().any(|l| l.starts_with(&format!("global {name} ")));
+    // Every global gamescope's Wayland backend binds, and the game protocols.
     for name in [
+        "wl_compositor",
+        "wl_subcompositor",
+        "wl_shm",
+        "xdg_wm_base",
+        "zwp_linux_dmabuf_v1",
+        "wp_viewporter",
+        "wp_single_pixel_buffer_manager_v1",
+        "wp_fractional_scale_manager_v1",
+        "wl_data_device_manager",
+        "zwp_primary_selection_device_manager_v1",
         "wp_presentation",
+        "wp_tearing_control_manager_v1",
         "wp_fifo_manager_v1",
         "wp_commit_timing_manager_v1",
         "wp_content_type_manager_v1",
@@ -236,4 +248,31 @@ async fn a_full_screen_window_that_asks_tears_only_where_allowed() {
     settings.set(&key, &zvariant::Value::from(false)).await.unwrap();
     wait_until(|| async { !asked().await }).await;
     let _ = full;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn nested_gamescope_starts_and_shows_its_game() {
+    if std::process::Command::new("gamescope").arg("--help").output().is_err() {
+        eprintln!("skipped: no gamescope");
+        return;
+    }
+    let mut isle = Isle::start("gamescope").await;
+    let inner = env!("CARGO_BIN_EXE_isle-test-x11-client");
+    let gamescope = isle.spawn_logged(
+        "gamescope",
+        &["-W", "800", "-H", "600", "--backend", "wayland", "--", inner, "--class", "isle.test.Inner"],
+    );
+    let window = isle.wait_for_window("gamescope").await;
+    wait_until(|| async { isle.window(window.id).await.game }).await;
+    wait_until(|| async {
+        gamescope
+            .lines
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|l| l.contains("Post-Initted Wayland backend"))
+    })
+    .await;
+    let log = gamescope.lines.lock().unwrap().join("\n");
+    assert!(!log.contains("Fatal") && !log.contains("not supported by the compositor"), "{log}");
 }

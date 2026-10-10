@@ -111,7 +111,7 @@ fn restart_later(state: &mut State, display: u32) {
 /// decorated, animated or shadowed. Override-redirect windows, and untitled ones, which
 /// Steam's menus and drag icons are (v1's `x11-untitled`, D40).
 fn unmanaged(window: &X11Surface) -> bool {
-    window.is_override_redirect() || window.title().is_empty()
+    window.is_override_redirect() || window.title().is_empty() || crate::steam::is_toast(window)
 }
 
 /// Whether an X11 window wears Isle's bar, by the rules a window manager answers to: its
@@ -231,6 +231,8 @@ impl XwmHandler for State {
             self.isle.wm.get_mut(id).unwrap().wants_full_screen = true;
         }
         self.map_window(id);
+        self.check_big_picture(id);
+        self.steam_window_back(id);
     }
 
     fn mapped_override_redirect_window(&mut self, _xwm: XwmId, window: X11Surface) {
@@ -336,6 +338,7 @@ impl XwmHandler for State {
         match property {
             P::Title | P::Class => {
                 self.isle.refresh_identity(id);
+                self.check_big_picture(id);
                 self.isle.sync_bars();
                 self.isle.notify(crate::worker::Event::WindowsChanged);
             }
@@ -387,14 +390,18 @@ impl XwmHandler for State {
 
     /// Answered with a minimise, never another state (v1's sticky maximise toggle).
     fn minimize_request(&mut self, _xwm: XwmId, window: X11Surface) {
-        if let Some(id) = self.x11_record(&window) {
+        if let Some(id) = self.x11_record(&window)
+            && !self.big_picture_minimised(id)
+        {
             self.minimise(id);
         }
     }
 
     fn unminimize_request(&mut self, _xwm: XwmId, window: X11Surface) {
         if let Some(id) = self.x11_record(&window) {
+            self.big_picture_shown(id);
             self.unminimise(id);
+            self.steam_window_back(id);
         }
     }
 

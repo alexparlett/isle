@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+- P12 12.6: Steam and gamescope. Quit on Steam (`steam` or the Flatpak's
+  id) runs `steam -shutdown` through the launch path instead of closing its
+  windows. Steam's toasts (`notificationtoasts_<n>_desktop`) are left
+  unmanaged. Big Picture is marked once by class and title, is a game, and
+  takes a full-screen desktop when it asks or covers its screen; Steam's
+  minimise of it closes that desktop, returns the view and parks it out of
+  the switcher and the app list until Steam shows it again; Steam's main
+  window, when it reappears within ten seconds, goes back to the desktop it
+  was on when Big Picture opened. Nested gamescope 3.16 runs on a headless
+  Isle on the 5070 Ti with no missing global and its window a game; the
+  globals test lists every global its Wayland backend binds. Three X11
+  tests, a gamescope test (skipped where gamescope is missing) and two unit
+  tests.
+
 - P12 12.5: games. A window's process lineage is read on the worker at
   map: a process descending from Steam, Heroic or Lutris that is not the
   launcher's own (`steam`, `steamwebhelper`, `heroic`, `lutris`) is a game,

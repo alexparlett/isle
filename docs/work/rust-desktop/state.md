@@ -425,4 +425,6 @@
   opened (gh needs `gh auth login`) and merged.
 - P12 12.5 done (2026-10-10): ancestry, content type and `steam_proton` in
   detection, `isle windows game`, no places for games, motion still in Game
-  Mode, hidden windows paced. Next: 12.6 (Steam and gamescope).
+  Mode, hidden windows paced.
+- P12 12.6 done (2026-10-10): Steam's quit, toasts and Big Picture;
+  nested gamescope on a headless Isle. Next: 12.7 (night light).

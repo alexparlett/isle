@@ -135,7 +135,7 @@ impl Isle {
             .wm
             .records
             .iter()
-            .filter(|r| r.mapped && r.app == app && r.parent.is_none())
+            .filter(|r| r.mapped && r.app == app && r.parent.is_none() && !r.parked)
             .map(|r| r.id)
             .collect();
         ids.sort_unstable();
@@ -153,7 +153,7 @@ impl Isle {
                     .wm
                     .records
                     .iter()
-                    .filter(|r| r.mapped && r.app == app)
+                    .filter(|r| r.mapped && r.app == app && !r.parked)
                     .collect();
                 let toplevels = windows.iter().filter(|r| r.parent.is_none());
                 let entry = self.badges.get(&app);
@@ -228,6 +228,9 @@ impl State {
     /// Cmd+Q: every window of the app is asked to close, and once they are gone its processes
     /// still running get the polite signal, keep-running apps included (B30).
     pub fn quit_app(&mut self, app: &str) -> bool {
+        if self.quit_steam(app) {
+            return true;
+        }
         let ids: Vec<u64> = self
             .isle
             .wm

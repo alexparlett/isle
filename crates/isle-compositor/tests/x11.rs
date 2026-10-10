@@ -279,3 +279,65 @@ async fn x11_windows_are_decorated_by_their_type_motif_hints_and_frame() {
         wait_until(|| async { isle.windows().await.is_empty() }).await;
     }
 }
+
+async fn full_screen_desktops(isle: &Isle) -> usize {
+    isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .list()
+        .await
+        .unwrap()
+        .iter()
+        .filter(|d| d.kind == "full-screen")
+        .count()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn big_picture_is_a_full_screen_game_that_minimising_closes() {
+    let mut isle = Isle::start("big-picture").await;
+    let bp = isle
+        .x11_client(&[
+            "--class", "steam", "--title", "Steam Big Picture Mode", "--size", "1920x1080",
+            "--no-decorations",
+        ])
+        .await;
+    let window = window(&isle, "steam").await;
+    wait_until(|| async { isle.window(window.id).await.game }).await;
+    wait_until(|| async { full_screen_desktops(&isle).await == 1 }).await;
+
+    bp.send("minimize");
+    wait_until(|| async { full_screen_desktops(&isle).await == 0 }).await;
+    let apps = isle.windows_proxy().await.apps().await.unwrap();
+    let steam = apps.iter().find(|a| a.app == "steam");
+    assert!(steam.is_none_or(|a| a.windows == 0), "{steam:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_steam_toast_is_left_where_it_asks_and_takes_nothing() {
+    let mut isle = Isle::start("steam-toast").await;
+    let _main = isle
+        .x11_client(&["--class", "isle.test.Main", "--colour", "0000ff"])
+        .await;
+    let main = window(&isle, "isle.test.Main").await;
+    wait_until(|| async { isle.window(main.id).await.focused }).await;
+    let _toast = isle
+        .x11_client(&[
+            "--class", "steam", "--title", "notificationtoasts_7_desktop", "--size", "300x100",
+            "--pos", "1600,950",
+        ])
+        .await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(!isle.windows().await.iter().any(|w| w.app == "steam"));
+    assert!(isle.window(main.id).await.focused);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn quitting_steam_asks_steam_rather_than_closing_its_window() {
+    let mut isle = Isle::start("steam-quit").await;
+    let client = isle.client("steam", "3366ff");
+    isle.wait_for_window("steam").await;
+    assert!(isle.windows_proxy().await.quit_app("steam").await.unwrap());
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!client.printed("closed"));
+    assert!(isle.log().contains("quit through Steam"));
+}

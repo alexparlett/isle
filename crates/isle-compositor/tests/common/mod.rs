@@ -259,6 +259,14 @@ impl Isle {
         )
     }
 
+    /// Any Wayland program on the display, its standard error read with its output.
+    pub fn spawn_logged(&mut self, program: &str, args: &[&str]) -> Client {
+        let mut all = vec!["-c", "exec \"$@\" 2>&1", "sh", program];
+        all.extend_from_slice(args);
+        let socket = self.socket();
+        self.spawn("sh", &all, &[("WAYLAND_DISPLAY", socket)])
+    }
+
     /// A test client started by a process named `launcher`, as a launcher starts a game.
     pub fn client_under(&mut self, launcher: &str, args: &[&str]) -> Client {
         use std::os::unix::fs::PermissionsExt;

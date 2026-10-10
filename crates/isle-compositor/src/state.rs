@@ -106,6 +106,7 @@ pub struct Isle {
     pub xwayland_shell_state: smithay::wayland::xwayland_shell::XWaylandShellState,
     /// X11 windows left alone: override-redirect and untitled ones, front last.
     pub unmanaged: Vec<Window>,
+    pub big_picture: crate::steam::BigPicture,
     /// The surface whose pointer lock or confinement is active.
     pub constrained: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     /// Explicit sync, once a device that can wait on sync points is open.
@@ -468,6 +469,7 @@ impl Isle {
             unmanaged: Vec::new(),
             syncobj_state: None,
             constrained: None,
+            big_picture: Default::default(),
             commit_timers: Default::default(),
             bar_option: None,
             zoom: Default::default(),

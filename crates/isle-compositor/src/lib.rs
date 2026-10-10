@@ -38,6 +38,7 @@ mod menus;
 mod network_secrets;
 mod notifications;
 mod spotlight;
+mod steam;
 mod switcher;
 mod vpn_secrets;
 mod top_edge;

@@ -117,6 +117,10 @@ pub struct Record {
     pub launched: bool,
     /// Its surface says it shows a game (wp-content-type).
     pub content_game: bool,
+    /// Steam's Big Picture.
+    pub big_picture: bool,
+    /// Minimised by its app in place of closing, so listed nowhere (Big Picture).
+    pub parked: bool,
 }
 
 impl Record {
@@ -355,6 +359,8 @@ impl Isle {
             ancestors: Vec::new(),
             launched: false,
             content_game: false,
+            big_picture: false,
+            parked: false,
         });
         id
     }

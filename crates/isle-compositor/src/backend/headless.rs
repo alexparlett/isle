@@ -79,7 +79,11 @@ impl Headless {
         let damaged = result.damage.is_some();
         let states = result.states;
         target.drawn = true;
-        Ok(Rendered { damaged, states })
+        Ok(Rendered {
+            damaged,
+            states,
+            planes: crate::present::Planes::COMPOSITED,
+        })
     }
 
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {

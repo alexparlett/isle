@@ -43,6 +43,7 @@ pub enum Backend {
 pub struct Rendered {
     pub damaged: bool,
     pub states: RenderElementStates,
+    pub planes: crate::present::Planes,
 }
 
 /// An output's pixels, RGBA, top row first.

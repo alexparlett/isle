@@ -199,6 +199,39 @@ pub struct DisplayInfo {
     pub y: i32,
 }
 
+/// One presented frame of an output (`isle displays trace`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct FrameTrace {
+    /// Counts up from the compositor's start, across resets.
+    pub frame: u64,
+    /// When it reached the screen, on the monotonic clock.
+    pub time_us: u64,
+    /// Since the frame before it.
+    pub interval_us: u64,
+    /// "composited", "window {id} {app}" for a window's buffer scanned out, or "surface".
+    pub primary: String,
+    /// "plane", "drawn" or "none".
+    pub cursor: String,
+    pub overlays: u32,
+    /// The flip did not wait for vblank.
+    pub asynchronous: bool,
+    pub vrr: bool,
+    /// The time is the display's own.
+    pub hardware: bool,
+}
+
+/// An output's frames since the trace was last reset.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct PlaneTrace {
+    pub output: String,
+    pub frames: u64,
+    /// Frames whose primary plane carried a client's buffer.
+    pub scanned_out: u64,
+    pub async_flips: u64,
+    /// The last kept frames after the one asked from.
+    pub recent: Vec<FrameTrace>,
+}
+
 /// One instance of a shell surface.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct SurfaceInfo {
@@ -451,6 +484,10 @@ pub mod displays {
         fn redetect(&self) -> zbus::Result<()>;
         /// Turns every screen off now.
         fn sleep(&self) -> zbus::Result<()>;
+        /// The output's frames after `since`, with what its planes carried.
+        fn trace(&self, output: &str, since: u64) -> zbus::Result<PlaneTrace>;
+        /// Clears the output's trace counters.
+        fn reset_trace(&self, output: &str) -> zbus::Result<()>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

@@ -49,6 +49,7 @@ mod prompts;
 mod screensaver;
 mod services;
 mod session_end;
+pub mod present;
 pub mod redraw;
 mod render;
 pub mod settings;

@@ -106,6 +106,7 @@ impl Winit {
         Ok(Rendered {
             damaged: damage.is_some(),
             states,
+            planes: crate::present::Planes::COMPOSITED,
         })
     }
 
@@ -198,7 +199,7 @@ pub fn setup(state: &mut State, events: WinitEventLoop) -> Result<(), Box<dyn st
                     state.isle.queue_redraw(&output);
                 }
                 WinitEvent::Input(event) => state.process_input_event(event),
-                WinitEvent::Redraw => state.on_vblank(&output),
+                WinitEvent::Redraw => state.on_vblank(&output, None),
                 WinitEvent::CloseRequested => state.isle.loop_signal.stop(),
                 WinitEvent::Focus(_) => {}
             }

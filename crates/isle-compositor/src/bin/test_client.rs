@@ -30,6 +30,8 @@
 //! registered by path or by a well-known name and again whenever the watcher comes back,
 //! printing `tray registered`, `tray activated`, `tray secondary`, `tray scroll N` and
 //! `menu activated LABEL`), `tray-attention` (it asks for attention),
+//! `timing` (each later frame of the window asks for presentation feedback, printing
+//! `presented SEC NSEC REFRESH_NS SEQ FLAGS` or `discarded`),
 //! `drag-on-press` (the next press starts a drag of text with a magenta icon; drags print
 //! `dnd enter`, `dnd drop`, and to the source `dnd finished` or `dnd cancelled`), `quit`. A
 //! close of any other window destroys it.
@@ -62,6 +64,7 @@ use wayland_protocols::ext::image_capture_source::v1::client::{
     ext_image_capture_source_v1, ext_output_image_capture_source_manager_v1,
 };
 use wayland_protocols::wp::linux_dmabuf::zv1::client::{zwp_linux_buffer_params_v1, zwp_linux_dmabuf_v1};
+use wayland_protocols::wp::presentation_time::client::{wp_presentation, wp_presentation_feedback};
 use wayland_protocols::ext::image_copy_capture::v1::client::{
     ext_image_copy_capture_cursor_session_v1, ext_image_copy_capture_frame_v1,
     ext_image_copy_capture_manager_v1, ext_image_copy_capture_session_v1,
@@ -133,6 +136,9 @@ struct Client {
     wins: Vec<Win>,
     /// A window drawn again at every frame callback, its colour turning: a stand-in game.
     animating: Option<usize>,
+    presentation: Option<wp_presentation::WpPresentation>,
+    /// Windows whose frames ask for presentation feedback.
+    timing: Vec<usize>,
     ignore_pings: bool,
     ignored_pings: Vec<u32>,
     linger: bool,
@@ -345,6 +351,11 @@ impl Client {
         win.surface.damage_buffer(0, 0, w, h);
         if self.animating == Some(index) {
             win.surface.frame(qh, index);
+        }
+        if self.timing.contains(&index)
+            && let Some(presentation) = &self.presentation
+        {
+            presentation.feedback(&win.surface, qh, index);
         }
         win.surface.commit();
     }
@@ -645,6 +656,10 @@ impl Client {
                 self.draw(index, qh);
                 return;
             }
+            ("timing", _) => {
+                self.timing.push(index);
+                return;
+            }
             ("animate", _) => {
                 self.animating = if self.animating.is_some() { None } else { Some(index) };
                 self.draw(index, qh);
@@ -903,6 +918,51 @@ impl Dispatch<wl_callback::WlCallback, usize> for Client {
     }
 }
 
+impl Dispatch<wp_presentation::WpPresentation, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &wp_presentation::WpPresentation,
+        _: wp_presentation::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<wp_presentation_feedback::WpPresentationFeedback, usize> for Client {
+    fn event(
+        _: &mut Self,
+        _: &wp_presentation_feedback::WpPresentationFeedback,
+        event: wp_presentation_feedback::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wp_presentation_feedback::Event::Presented {
+                tv_sec_hi,
+                tv_sec_lo,
+                tv_nsec,
+                refresh,
+                seq_hi,
+                seq_lo,
+                flags,
+            } => {
+                let sec = ((tv_sec_hi as u64) << 32) | tv_sec_lo as u64;
+                let seq = ((seq_hi as u64) << 32) | seq_lo as u64;
+                let flags = match flags {
+                    WEnum::Value(flags) => flags.bits(),
+                    WEnum::Unknown(bits) => bits,
+                };
+                say(*index, format!("presented {sec} {tv_nsec} {refresh} {seq} {flags}"));
+            }
+            wp_presentation_feedback::Event::Discarded => say(*index, "discarded".into()),
+            _ => {}
+        }
+    }
+}
+
 impl Dispatch<wl_registry::WlRegistry, ()> for Client {
     fn event(
         state: &mut Self,
@@ -952,6 +1012,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "ext_idle_notifier_v1" => state.idle_notifier = Some(registry.bind(name, 1, qh, ())),
                 "org_kde_kwin_appmenu_manager" => state.appmenus = Some(registry.bind(name, 2, qh, ())),
                 "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
+                "wp_presentation" => state.presentation = Some(registry.bind(name, 1, qh, ())),
                 _ => {}
             }
         }
@@ -1777,6 +1838,8 @@ fn main() {
         gtk_shell: None,
         wins: Vec::new(),
         animating: None,
+        presentation: None,
+        timing: Vec::new(),
         ignore_pings: false,
         ignored_pings: Vec::new(),
         linger: false,

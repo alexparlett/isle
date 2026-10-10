@@ -661,6 +661,22 @@ impl Displays {
         Ok(self.to_loop.call(|state| state.displays_sleep()).await?)
     }
 
+    /// The output's frames after `since`, with what its planes carried.
+    async fn trace(&self, output: String, since: u64) -> fdo::Result<isle_ipc::PlaneTrace> {
+        self.to_loop
+            .call(move |state| state.isle.plane_trace(&output, since))
+            .await?
+            .ok_or_else(|| fdo::Error::InvalidArgs("no such display".into()))
+    }
+
+    /// Clears the output's trace counters.
+    async fn reset_trace(&self, output: String) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| state.isle.reset_plane_trace(&output))
+            .await?
+            .ok_or_else(|| fdo::Error::InvalidArgs("no such display".into()))
+    }
+
     #[zbus(signal)]
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }

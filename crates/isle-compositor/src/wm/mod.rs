@@ -468,6 +468,18 @@ impl Isle {
             .collect()
     }
 
+    pub fn plane_trace(&self, output: &str, since: u64) -> Option<isle_ipc::PlaneTrace> {
+        let output = self.space.outputs().find(|o| o.name() == output)?;
+        let state = crate::redraw::OutputState::of(output).borrow();
+        Some(state.trace.report(&output.name(), since))
+    }
+
+    pub fn reset_plane_trace(&self, output: &str) -> Option<()> {
+        let output = self.space.outputs().find(|o| o.name() == output)?;
+        crate::redraw::OutputState::of(output).borrow_mut().trace.reset();
+        Some(())
+    }
+
     pub fn display_infos(&self) -> Vec<isle_ipc::DisplayInfo> {
         self.space
             .outputs()

@@ -12,15 +12,19 @@ use smithay::{
             gbm::{GbmAllocator, GbmBufferFlags, GbmDevice},
         },
         drm::{
-            DrmDevice, DrmDeviceFd, DrmEvent, DrmNode, NodeType,
-            compositor::FrameFlags,
+            DrmDevice, DrmDeviceFd, DrmEvent, DrmEventMetadata, DrmEventTime, DrmNode, NodeType,
+            compositor::{FrameFlags, PrimaryPlaneElement},
             exporter::gbm::GbmFramebufferExporter,
             output::{DrmOutput, DrmOutputManager, DrmOutputRenderElements},
         },
         egl::{EGLContext, EGLDisplay},
         input::InputEvent,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
-        renderer::{ImportDma, ImportMemWl, PresentationMode, gles::GlesRenderer},
+        renderer::{
+            ImportDma, ImportMemWl, PresentationMode,
+            element::{Element, Id, Kind, utils::select_dmabuf_feedback},
+            gles::GlesRenderer,
+        },
         session::{Event as SessionEvent, Session, libseat::LibSeatSession},
         udev::{UdevBackend, UdevEvent, all_gpus, primary_gpu},
     },
@@ -39,8 +43,9 @@ use smithay::{
         rustix::fs::OFlags,
         wayland_server::backend::GlobalId,
     },
+    desktop::{layer_map_for_output, utils::surface_primary_scanout_output},
     utils::{DeviceFd, Transform},
-    wayland::dmabuf::DmabufFeedbackBuilder,
+    wayland::dmabuf::{DmabufFeedback, DmabufFeedbackBuilder},
 };
 use smithay_drm_extras::{
     display_info,
@@ -51,6 +56,7 @@ use tracing::{error, info, warn};
 use super::{Backend, CLEAR, Rendered};
 use crate::{
     cursor::Cursors,
+    present::{self, Planes, Presented},
     render::{IsleElement, NamedCursor},
     state::{Isle, State},
 };
@@ -82,6 +88,14 @@ struct Lit {
     /// Lit again after being off: its first frame is composited, never scanned out
     /// directly, which some NVIDIA cards fault on waking into.
     woken: bool,
+    feedback: Option<Feedback>,
+}
+
+/// The dmabuf feedback for a surface on this output: what Isle renders from, and what
+/// its primary plane scans out first.
+struct Feedback {
+    render: DmabufFeedback,
+    scanout: DmabufFeedback,
 }
 
 struct Device {
@@ -214,11 +228,32 @@ impl Udev {
             .render_frame(renderer, &elements, CLEAR, flags, PresentationMode::VSync)
             .map_err(|e| format!("{e:?}"))?;
         let damaged = !result.is_empty;
+        let planes = Planes {
+            primary: match &result.primary_element {
+                PrimaryPlaneElement::Swapchain(_) => present::Primary::Composited,
+                PrimaryPlaneElement::Element(element) => scanned_out(isle, element.id()),
+            },
+            cursor: if result.cursor_element.is_some() {
+                present::Cursor::Plane
+            } else if elements.iter().any(|e| e.kind() == Kind::Cursor) {
+                present::Cursor::Drawn
+            } else {
+                present::Cursor::None
+            },
+            overlays: result.overlay_elements.len(),
+        };
         let states = result.states;
         if damaged {
             lit.surface.queue_frame(()).map_err(|e| format!("{e:?}"))?;
         }
-        Ok(Rendered { damaged, states })
+        if let Some(feedback) = &lit.feedback {
+            send_feedback(isle, output, feedback, &states);
+        }
+        Ok(Rendered {
+            damaged,
+            states,
+            planes,
+        })
     }
 }
 
@@ -378,10 +413,10 @@ impl State {
         let token = self
             .isle
             .loop_handle
-            .insert_source(drm_events, move |event, _, state| {
+            .insert_source(drm_events, move |event, metadata, state| {
                 let _beat = state.isle.heartbeat.beat("drm");
                 match event {
-                    DrmEvent::VBlank(crtc) => state.drm_vblank(node, crtc),
+                    DrmEvent::VBlank(crtc) => state.drm_vblank(node, crtc, metadata.take()),
                     DrmEvent::Error(err) => error!(%node, "DRM: {err}"),
                 }
             })
@@ -527,7 +562,7 @@ impl State {
             .mode
             .as_deref()
             .and_then(|wanted| pick_mode(connector.modes(), wanted))
-            .unwrap_or(preferred_mode);
+            .unwrap_or_else(|| fastest_at(connector.modes(), preferred_mode));
 
         let (w_mm, h_mm) = connector.size().unwrap_or((0, 0));
         let output = Output::new(
@@ -583,6 +618,7 @@ impl State {
                 return;
             }
         };
+        let feedback = surface_feedback(&surface, renderer, udev.render_node, node == udev.primary);
         device.lit.insert(
             crtc,
             Lit {
@@ -590,6 +626,7 @@ impl State {
                 global,
                 surface,
                 woken: false,
+                feedback,
             },
         );
 
@@ -689,7 +726,8 @@ impl State {
         }
     }
 
-    fn drm_vblank(&mut self, node: DrmNode, crtc: crtc::Handle) {
+    fn drm_vblank(&mut self, node: DrmNode, crtc: crtc::Handle, metadata: Option<DrmEventMetadata>) {
+        let now: Duration = self.isle.clock.now().into();
         let Some(lit) = self
             .udev()
             .devices
@@ -698,11 +736,15 @@ impl State {
         else {
             return;
         };
+        let asynchronous = lit.surface.with_compositor(|c| {
+            c.pending_frame()
+                .is_some_and(|f| f.presentation_mode == PresentationMode::Async)
+        });
         if let Err(err) = lit.surface.frame_submitted() {
             warn!("frame not submitted: {err:?}");
         }
         let output = lit.output.clone();
-        self.on_vblank(&output);
+        self.on_vblank(&output, Some(presented(metadata, now, asynchronous)));
     }
 
     fn session_event(&mut self, event: SessionEvent) {
@@ -845,6 +887,115 @@ impl State {
     }
 }
 
+/// The fastest mode at `preferred`'s size, where an output with no mode set starts.
+fn fastest_at(
+    modes: &[smithay::reexports::drm::control::Mode],
+    preferred: smithay::reexports::drm::control::Mode,
+) -> smithay::reexports::drm::control::Mode {
+    use smithay::reexports::drm::control::ModeFlags;
+    let shapes: Vec<_> = modes
+        .iter()
+        .map(|m| (m.size(), Mode::from(*m).refresh, m.flags().contains(ModeFlags::INTERLACE)))
+        .collect();
+    let preferred_shape = (preferred.size(), Mode::from(preferred).refresh, false);
+    fastest(&shapes, preferred_shape).map_or(preferred, |i| modes[i])
+}
+
+/// Of modes as (size, millihertz, interlaced), the index of the fastest progressive one at
+/// `preferred`'s size.
+fn fastest(modes: &[((u16, u16), i32, bool)], preferred: ((u16, u16), i32, bool)) -> Option<usize> {
+    modes
+        .iter()
+        .enumerate()
+        .filter(|(_, (size, _, interlaced))| *size == preferred.0 && !interlaced)
+        .max_by_key(|(_, (_, refresh, _))| *refresh)
+        .map(|(i, _)| i)
+}
+
+/// When the display says a frame was shown; its clock is the monotonic one Isle uses.
+fn presented(metadata: Option<DrmEventMetadata>, now: Duration, asynchronous: bool) -> Presented {
+    let time = match metadata.map(|m| m.time) {
+        Some(DrmEventTime::Monotonic(time)) if !time.is_zero() && time <= now => Some(time),
+        _ => None,
+    };
+    Presented {
+        time: time.unwrap_or(now),
+        sequence: metadata.map_or(0, |m| m.sequence as u64),
+        hardware: time.is_some(),
+        asynchronous,
+    }
+}
+
+/// The window whose buffer the primary plane carries, by its surface's element id.
+fn scanned_out(isle: &Isle, id: &Id) -> present::Primary {
+    for record in &isle.wm.records {
+        let mut found = false;
+        record.window.with_surfaces(|surface, _| {
+            found |= Id::from_wayland_resource(surface) == *id;
+        });
+        if found {
+            return present::Primary::Window(record.id);
+        }
+    }
+    present::Primary::Surface
+}
+
+/// Render formats in the default tranche; the primary plane's formats that Isle can also
+/// render from, preferred, so a buffer that cannot be scanned out is still drawn.
+fn surface_feedback(
+    surface: &Surface,
+    renderer: &GlesRenderer,
+    render_node: DrmNode,
+    same_device: bool,
+) -> Option<Feedback> {
+    use smithay::{
+        backend::allocator::Modifier,
+        reexports::wayland_protocols::wp::linux_dmabuf::zv1::server::zwp_linux_dmabuf_feedback_v1::TrancheFlags,
+    };
+    let render_formats = renderer.dmabuf_formats();
+    let plane_formats = surface.with_compositor(|c| c.surface().plane_info().formats.clone());
+    let mut scanout: Vec<_> = plane_formats
+        .intersection(&render_formats)
+        .copied()
+        .collect();
+    // A buffer from another device scans out cleanly only when linear.
+    if !same_device {
+        scanout.retain(|f| f.modifier == Modifier::Linear);
+    }
+    let builder = DmabufFeedbackBuilder::new(render_node.dev_id(), render_formats);
+    let scanout = builder
+        .clone()
+        .add_preference_tranche(render_node.dev_id(), TrancheFlags::Scanout, scanout, 4..=u32::MAX)
+        .build()
+        .inspect_err(|err| warn!("no scanout feedback: {err}"))
+        .ok()?;
+    Some(Feedback {
+        render: builder.build().ok()?,
+        scanout,
+    })
+}
+
+/// Tells each surface on `output` which formats to allocate: the scanout tranche first
+/// when its buffer was on a plane, or could have been.
+fn send_feedback(
+    isle: &Isle,
+    output: &Output,
+    feedback: &Feedback,
+    states: &smithay::backend::renderer::element::RenderElementStates,
+) {
+    let select = |surface: &_, _: &_| {
+        select_dmabuf_feedback(surface, states, &feedback.render, &feedback.scanout)
+    };
+    for window in isle.space.elements() {
+        if isle.space.outputs_for_element(window).contains(output) {
+            window.send_dmabuf_feedback(output, surface_primary_scanout_output, select);
+        }
+    }
+    for layer in layer_map_for_output(output).layers() {
+        layer.send_dmabuf_feedback(output, surface_primary_scanout_output, select);
+    }
+}
+
 /// The connector mode a `WIDTHxHEIGHT[@HZ]` setting names, nearest in refresh.
 fn pick_mode(
     modes: &[smithay::reexports::drm::control::Mode],
@@ -877,5 +1028,23 @@ fn transform(setting: isle_settings::schema::Transform) -> Transform {
         T::Flipped90 => Transform::Flipped90,
         T::Flipped180 => Transform::Flipped180,
         T::Flipped270 => Transform::Flipped270,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fastest;
+
+    #[test]
+    fn the_preferred_size_at_its_fastest_progressive_rate() {
+        let modes = [
+            ((3440, 1440), 59_973, false),
+            ((3440, 1440), 143_923, false),
+            ((3440, 1440), 165_000, true),
+            ((2560, 1440), 165_000, false),
+            ((3440, 1440), 99_982, false),
+        ];
+        assert_eq!(fastest(&modes, modes[0]), Some(1));
+        assert_eq!(fastest(&modes[3..4], modes[0]), None);
     }
 }

@@ -2,6 +2,24 @@
 
 ## 2026-10-10
 
+- P12 12.1: presentation and the trace. A vblank's time and sequence are
+  the display's own from the DRM event (Isle's clock only when it gives
+  none, or zero, or a time ahead of now), feedback carries the hardware
+  clock and completion flags, vsync except on an async flip, and
+  `Refresh::Variable` while an output's VRR is on; layer surfaces and X11
+  override-redirect windows get feedback too. Each output keeps a plane
+  trace: per frame, whether the primary plane held Isle's drawing or a
+  window's buffer (by id and app), where the pointer was, overlays, async,
+  VRR and the interval, the last 1024 frames and counters since a reset,
+  read with `isle displays trace <output> [--follow] [--reset]`
+  (`Displays1.Trace`, `ResetTrace`). Each output's surfaces get dmabuf
+  feedback with a scanout tranche of the primary plane's formats Isle can
+  also render, linear only from another device. An output with no mode set
+  lights at its preferred size's fastest progressive rate. The VM's
+  virtio display lit at 75 Hz and traced hardware times, 13.33 ms apart,
+  with flags 7; it offers no dmabufs, so scanout is the host's to see.
+  Three headless tests and three unit tests.
+
 - P12 12.0 done: the user merged alexparlett/smithay#4 and #5, Isle pins
   the merge (`049c787`) and passes vsync to `render_frame`; the workspace's
   581 tests pass.

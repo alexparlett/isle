@@ -26,7 +26,10 @@ use smithay::{
 };
 use tracing::{trace, warn};
 
-use crate::state::{Isle, State};
+use crate::{
+    present::{Planes, Presented, Trace},
+    state::{Isle, State},
+};
 
 #[derive(Debug, Default)]
 pub enum RedrawState {
@@ -53,6 +56,11 @@ pub struct OutputState {
     locked_pending: bool,
     /// The frame on screen was drawn by the lock's path.
     pub locked_shown: bool,
+    /// The planes of the frame waiting for its vblank.
+    pending_planes: Option<Planes>,
+    /// The output's refresh follows its frames.
+    pub vrr: bool,
+    pub trace: Trace,
 }
 
 impl OutputState {
@@ -168,16 +176,36 @@ impl Isle {
         states: &RenderElementStates,
     ) -> OutputPresentationFeedback {
         let mut feedback = OutputPresentationFeedback::new(output);
+        let flags =
+            |surface: &_, _: &_| surface_presentation_feedback_flags_from_states(surface, None, states);
         for window in self.space.elements() {
             if self.space.outputs_for_element(window).contains(output) {
                 window.take_presentation_feedback(
                     &mut feedback,
                     surface_primary_scanout_output,
-                    |surface, _| {
-                        surface_presentation_feedback_flags_from_states(surface, None, states)
-                    },
+                    flags,
                 );
             }
+        }
+        let screen = self.space.output_geometry(output);
+        for window in &self.unmanaged {
+            let geometry = window.x11_surface().map(|x| x.geometry());
+            if let (Some(window_box), Some(screen)) = (geometry, screen)
+                && window_box.overlaps(screen)
+            {
+                window.take_presentation_feedback(
+                    &mut feedback,
+                    |_, _| Some(output.clone()),
+                    flags,
+                );
+            }
+        }
+        for layer in layer_map_for_output(output).layers() {
+            layer.take_presentation_feedback(
+                &mut feedback,
+                surface_primary_scanout_output,
+                flags,
+            );
         }
         feedback
     }
@@ -233,6 +261,7 @@ impl State {
                 .take_presentation_feedback(output, &rendered.states);
             let mut state = OutputState::of(output).borrow_mut();
             state.pending_feedback = Some(feedback);
+            state.pending_planes = Some(rendered.planes);
             state.frames_presented += 1;
             state.locked_pending = self.isle.lock.locked;
             state.redraw = RedrawState::WaitingForVBlank {
@@ -262,7 +291,7 @@ impl State {
                     .loop_handle
                     .insert_source(timer, move |_, _, state| {
                         let _beat = state.isle.heartbeat.beat("headless-vblank");
-                        state.on_vblank(&target);
+                        state.on_vblank(&target, None);
                         TimeoutAction::Drop
                     })
                     .expect("the headless vblank timer");
@@ -329,9 +358,16 @@ impl State {
         self.isle.shell.end_glass(output);
     }
 
-    /// The backend's vblank for `output`: the submitted frame is on screen.
-    pub fn on_vblank(&mut self, output: &Output) {
-        let feedback = {
+    /// The backend's vblank for `output`: the submitted frame is on screen, at the
+    /// display's own time when the backend knows it.
+    pub fn on_vblank(&mut self, output: &Output, presented: Option<Presented>) {
+        let presented = presented.unwrap_or_else(|| Presented {
+            time: self.isle.clock.now().into(),
+            sequence: 0,
+            hardware: false,
+            asynchronous: false,
+        });
+        let (feedback, vrr) = {
             let mut state = OutputState::of(output).borrow_mut();
             match std::mem::take(&mut state.redraw) {
                 RedrawState::WaitingForVBlank { redraw_needed } => {
@@ -350,7 +386,13 @@ impl State {
                     return;
                 }
             }
-            state.pending_feedback.take()
+            if let Some(planes) = state.pending_planes.take() {
+                let vrr = state.vrr;
+                state.trace.push(planes, presented, vrr, |id| {
+                    self.isle.wm.get(id).map(|r| r.app.clone()).unwrap_or_default()
+                });
+            }
+            (state.pending_feedback.take(), state.vrr)
         };
         self.isle.shell.presented(output);
         if self.isle.lock.locked
@@ -367,11 +409,25 @@ impl State {
             self.sleep_ready();
         }
         if let Some(mut feedback) = feedback {
-            feedback.presented(
-                self.isle.clock.now(),
-                Refresh::fixed(refresh_interval(output)),
-                0,
-                wp_presentation_feedback::Kind::Vsync,
+            let interval = refresh_interval(output);
+            let refresh = if vrr {
+                Refresh::Variable(interval)
+            } else {
+                Refresh::Fixed(interval)
+            };
+            let mut kind = wp_presentation_feedback::Kind::empty();
+            if !presented.asynchronous {
+                kind |= wp_presentation_feedback::Kind::Vsync;
+            }
+            if presented.hardware {
+                kind |= wp_presentation_feedback::Kind::HwClock
+                    | wp_presentation_feedback::Kind::HwCompletion;
+            }
+            feedback.presented::<_, smithay::utils::Monotonic>(
+                presented.time,
+                refresh,
+                presented.sequence,
+                kind,
             );
         }
         self.isle.send_frame_callbacks(output);

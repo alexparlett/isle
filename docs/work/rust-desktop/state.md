@@ -408,3 +408,7 @@
 - P12 12.0 done (2026-10-10): alexparlett/smithay#4 (async page flips,
   Smithay #1948 rebased) and #5 (wp_tearing_control_v1) merged and pinned
   (`049c787`); Isle passes `PresentationMode::VSync` until 12.4.
+- P12 12.1 done (2026-10-10): hardware presentation times and flags,
+  feedback for layers and X11 popups, the plane trace (`isle displays
+  trace`), scanout dmabuf feedback, the fastest rate by default. Next: 12.2
+  (the protocols).

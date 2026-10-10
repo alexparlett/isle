@@ -269,6 +269,16 @@ enum Displays {
     Redetect,
     /// Turn the displays off now; any input lights them.
     Sleep,
+    /// What each frame of a display put on its planes, and how often it was scanned out.
+    Trace {
+        output: String,
+        /// Print frames as they are presented until interrupted.
+        #[arg(long)]
+        follow: bool,
+        /// Clear the counters first.
+        #[arg(long)]
+        reset: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -658,6 +668,46 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
         }
         Command::Displays(Displays::Redetect) => DisplaysProxy::new(&bus).await?.redetect().await?,
         Command::Displays(Displays::Sleep) => DisplaysProxy::new(&bus).await?.sleep().await?,
+        Command::Displays(Displays::Trace {
+            output,
+            follow,
+            reset,
+        }) => {
+            let (follow, reset) = (*follow, *reset);
+            let displays = DisplaysProxy::new(&bus).await?;
+            if reset {
+                displays.reset_trace(output).await?;
+            }
+            let trace = displays.trace(output, 0).await?;
+            if cli.json && !follow {
+                print_json(&trace);
+                return Ok(());
+            }
+            let mut last = 0;
+            if !follow {
+                for frame in &trace.recent {
+                    print_frame(frame, cli.json);
+                }
+            } else {
+                last = trace.recent.last().map_or(0, |f| f.frame);
+            }
+            if !cli.json {
+                println!(
+                    "{}: {} frames, {} scanned out, {} async",
+                    trace.output, trace.frames, trace.scanned_out, trace.async_flips
+                );
+            }
+            if follow {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                    let trace = displays.trace(output, last).await?;
+                    for frame in &trace.recent {
+                        print_frame(frame, cli.json);
+                    }
+                    last = trace.recent.last().map_or(last, |f| f.frame);
+                }
+            }
+        }
         Command::Idle => {
             let status: serde_json::Value =
                 serde_json::from_str(&SessionProxy::new(&bus).await?.idle().await?).unwrap_or_default();
@@ -1115,4 +1165,21 @@ fn surface_found(found: bool, name: &str) -> zbus::Result<()> {
 
 fn print_json<T: Serialize>(value: &T) {
     println!("{}", serde_json::to_string_pretty(value).expect("JSON"));
+}
+
+fn print_frame(frame: &isle_ipc::FrameTrace, json: bool) {
+    if json {
+        println!("{}", serde_json::to_string(frame).unwrap_or_default());
+        return;
+    }
+    println!(
+        "{:>8}  {:>8.3} ms  {:<28}  cursor {:<5}{}{}{}",
+        frame.frame,
+        frame.interval_us as f64 / 1000.0,
+        frame.primary,
+        frame.cursor,
+        if frame.asynchronous { "  async" } else { "" },
+        if frame.vrr { "  vrr" } else { "" },
+        if frame.hardware { "" } else { "  (Isle's time)" },
+    );
 }

@@ -20,7 +20,7 @@ use smithay::{
         egl::{EGLContext, EGLDisplay},
         input::InputEvent,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
-        renderer::{ImportDma, ImportMemWl, gles::GlesRenderer},
+        renderer::{ImportDma, ImportMemWl, PresentationMode, gles::GlesRenderer},
         session::{Event as SessionEvent, Session, libseat::LibSeatSession},
         udev::{UdevBackend, UdevEvent, all_gpus, primary_gpu},
     },
@@ -211,7 +211,7 @@ impl Udev {
         };
         let result = lit
             .surface
-            .render_frame(renderer, &elements, CLEAR, flags)
+            .render_frame(renderer, &elements, CLEAR, flags, PresentationMode::VSync)
             .map_err(|e| format!("{e:?}"))?;
         let damaged = !result.is_empty;
         let states = result.states;

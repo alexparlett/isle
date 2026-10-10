@@ -405,7 +405,6 @@
   Picture, night light on the CRTC's gamma LUT with a shader fallback and
   `isle-sun`, the host run part of done. Research in
   `docs/research/rust-desktop/gaming-2026.md`. Phases 12.0–12.9.
-- P12 12.0 (2026-10-10): alexparlett/smithay#4 (async page flips, Smithay
-  #1948 rebased) and #5 (wp_tearing_control_v1) open, waiting for the
-  user's merge; then Isle pins the merge and passes `PresentationMode::VSync`
-  until 12.4.
+- P12 12.0 done (2026-10-10): alexparlett/smithay#4 (async page flips,
+  Smithay #1948 rebased) and #5 (wp_tearing_control_v1) merged and pinned
+  (`049c787`); Isle passes `PresentationMode::VSync` until 12.4.

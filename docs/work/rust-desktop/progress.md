@@ -2,6 +2,10 @@
 
 ## 2026-10-10
 
+- P12 12.0 done: the user merged alexparlett/smithay#4 and #5, Isle pins
+  the merge (`049c787`) and passes vsync to `render_frame`; the workspace's
+  581 tests pass.
+
 - P12 12.0, the fork, waiting for the user's merges. alexparlett/smithay#4
   is Smithay#1948 (async page flips) rebased onto `isle`; its one conflict
   was `handle_flip`, which upstream since made take the prepared frame by

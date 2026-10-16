@@ -104,7 +104,12 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   the main screen. Each instance is a Freya tree driven through
   `freya-embed`, the fork's crate for hosts that own their loop, GL context
   and input. One Skia context on the compositor's EGL context and one font
-  collection serve every surface; each surface owns a texture and an FBO
+  collection serve every surface; a surface closing frees Skia's scratch
+  layers, never its glyphs, masks or programs, whose compiled binaries the
+  driver keeps on disk across sessions. Before the session's apps start, a
+  surface holding one of each thing the shell draws is drawn offscreen
+  once and its glass blurred, so the programs are built before any
+  surface opens; each surface owns a texture and an FBO
   with a stencil buffer, drawn before the output's frame and placed as a
   render element: shell overlays over layer-shell's overlays, the top
   layer over windows and layer-shell's top, the background under all.
@@ -116,7 +121,8 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   shell surface, so pointer, wheel and keys reach surfaces through the
   same handlers as windows; Freya's accessibility tree carries keyboard
   focus and Tab, and each surface's tree is on AT-SPI through an
-  accesskit adapter on its own D-Bus thread. A surface that takes keys
+  accesskit adapter on its own D-Bus thread; its nodes are built only
+  while a screen reader listens, focus always. A surface that takes keys
   takes the keyboard on open and gives it back on close before its
   actions (close, a key) run.
 - **Transitions and glass are drawn by the compositor.** Open and close
@@ -556,32 +562,62 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 
 ## How a frame reaches the screen
 
+- **Clients start after the GPU** (B92). On the console the render GPU
+  opens only when the session is active; linux-dmabuf and syncobj are
+  served then, and only then is Xwayland started and the supervisor told
+  Isle is ready, so the session's apps start. An Xwayland started earlier
+  binds no linux-dmabuf, runs without glamor and draws every X11 window in
+  shared memory, which can never be scanned out. A dmabuf a client did not
+  name a device for is taken as the render node's. A render GPU that fails
+  to open or goes away ends Isle for the supervisor to start again; an
+  output that goes is withdrawn from clients at once and destroyed later.
 - **Smithay assigns the planes; Isle proves it** (B86). A full-screen
   window is drawn bare, so `DrmCompositor` can put its buffer on the
   primary plane; each surface gets dmabuf feedback with a scanout tranche
   of the primary plane's formats Isle can also render, so a game allocates
-  what the plane takes. Overlay planes stay off on NVIDIA. Each output
-  keeps a plane trace (`isle displays trace`): what the primary and cursor
-  planes carried, whether the flip was async, VRR, the interval.
+  what the plane takes, X11 windows Isle leaves alone included; feedback
+  goes after the frame's primary scanout outputs are known. A bare window
+  is a scanout candidate; a clipped one never, since a plane cannot clip.
+  The pointer's image is resampled at a fractional scale to exactly the
+  pixels it covers, so the cursor plane takes it. Overlay planes stay off
+  on NVIDIA. Each output keeps a plane trace (`isle displays trace`): what
+  the primary and cursor planes carried, whether the flip was async, VRR,
+  the interval; a full-screen frame composited logs why.
+- **A buffer is given back after the GPU has read it.** Under explicit
+  sync a buffer's release is signalled when Isle drops it, so a composited
+  frame holds the client buffers its elements sampled, popups and the
+  pointer's surface included, until its vblank, or until the screen goes
+  off or the session leaves; a scanned-out buffer is held by the plane
+  until it is replaced.
 - **Presentation is the display's.** A vblank's hardware time and sequence
   go to wp-presentation with the hardware flags, `Variable` refresh under
   VRR; layers and X11 popups get feedback too. linux-drm-syncobj where the
   device waits on sync points, wp-fifo, wp-commit-timing and
   wp-content-type are served; a commit's buffer is held until readable, a
   fifo barrier passed once its frame is drawn, a timed commit applied for
-  the frame that covers it or at its deadline.
+  the frame that covers it or at its deadline. A frame visits only the
+  surfaces with a barrier or a timed commit outstanding.
 - **VRR is decided per frame** (B87) from the output's setting, its
-  connector (on demand, only at a modeset, or not at all) and whether its
-  full-screen desktop's window has the keyboard. Under VRR a frame that
+  connector (on demand, only at a modeset, or not at all) and whether it
+  shows a full-screen desktop, focused or not. Under VRR a frame that
   would move only the pointer waits up to the panel's slowest refresh for
-  the game's next frame.
+  the game's next frame, but only while the game is drawing; an idle
+  game's pointer moves at once. A refused change is not asked for again
+  until the wanted state changes.
 - **Tearing only for a full-screen game that asks, where allowed** (B88):
   such a frame is rendered async with `ASYNC_SCANOUT_ONLY`, so Smithay
   flips it without vsync only when nothing but the primary plane changed
-  and that plane holds the game's buffer.
+  and that plane holds the game's buffer. With the pointer shown the frame
+  goes with vsync, as an async flip leaves the cursor plane alone.
 - **Input goes before the frame.** The loop flushes clients before it
   draws as well as after, so a key taken in a frame's iteration does not
-  wait for the frame.
+  wait for the frame. A frame asked for by the pointer alone, with no grab
+  or drag, skips gathering what lies behind the shell's glass unless a
+  shell surface drew.
+- **Glass keeps its blur.** A glass shape that moves keeps its blur's
+  textures, and a new one takes those of a shape of its size gone this
+  frame, as a menu remounted for the next title does; the blur's luminance
+  is read back a frame after it is copied, so the loop never waits on it.
 - **Windows out of view are paced** (B89): a hidden game's frame
   callbacks and fifo barriers every 33 ms, any other hidden window's once
   a second.
@@ -602,6 +638,11 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 
 ## Rules the layout enforces
 
+- Anything new the shell draws, a material, a shadow token, an effect or a
+  component in `isle-ui`, goes into the warm-up scene
+  (`isle-shell/src/warm.rs`) in the change that adds it; what the scene
+  leaves out compiles its programs on its first open, a dropped frame.
+  `bench first_menu_draw` shows the first draws.
 - Nothing that can block runs on the main thread. Services, D-Bus, file
   and icon work and search run elsewhere and reach the loop through
   calloop channels; PAM runs in the `isle-auth` process (B9, B67).

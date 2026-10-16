@@ -111,6 +111,54 @@ impl HitShapes {
     }
 }
 
+/// A box's own laid-out area as taking the pointer: the handler goes on the box's `on_sized`,
+/// and `clear` takes the area away while the box is not drawn. For a box sized by its content,
+/// which a `Hit` inside would grow to its parent's room.
+#[derive(Clone)]
+pub struct HitArea {
+    shapes: Option<HitShapes>,
+    id: u64,
+}
+
+impl HitArea {
+    pub fn on_sized(&self) -> impl Fn(Event<SizedEventData>) + 'static {
+        let (shapes, id) = (self.shapes.clone(), self.id);
+        move |e: Event<SizedEventData>| {
+            if let Some(shapes) = &shapes {
+                shapes.shapes.borrow_mut().insert(
+                    id,
+                    GlassShape {
+                        x: e.area.min_x(),
+                        y: e.area.min_y(),
+                        width: e.area.width(),
+                        height: e.area.height(),
+                        radius: 0.0,
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+    }
+
+    pub fn clear(&self) {
+        if let Some(shapes) = &self.shapes {
+            shapes.shapes.borrow_mut().remove(&self.id);
+        }
+    }
+}
+
+pub fn use_hit_area() -> HitArea {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1 << 32);
+    let shapes = use_try_consume::<HitShapes>();
+    let id = use_hook(|| NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+    let area = HitArea { shapes, id };
+    use_drop({
+        let area = area.clone();
+        move || area.clear()
+    });
+    area
+}
+
 /// Marks its parent's box as taking the pointer, for a surface that reports hit shapes.
 #[derive(Clone, PartialEq)]
 pub struct Hit;

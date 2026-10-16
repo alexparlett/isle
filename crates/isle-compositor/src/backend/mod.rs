@@ -22,6 +22,22 @@ use smithay::{
 
 use crate::state::Isle;
 
+/// Withdraws an output's global from clients now and destroys it later: a client binding
+/// it in the meantime would otherwise be killed for naming a global that is gone.
+pub fn retire_output_global(isle: &Isle, global: smithay::reexports::wayland_server::backend::GlobalId) {
+    use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
+    isle.display_handle
+        .disable_global::<crate::state::State>(global.clone());
+    let dh = isle.display_handle.clone();
+    let _ = isle.loop_handle.insert_source(
+        Timer::from_duration(std::time::Duration::from_secs(10)),
+        move |_, _, _| {
+            dh.remove_global::<crate::state::State>(global.clone());
+            TimeoutAction::Drop
+        },
+    );
+}
+
 /// What shows where nothing is drawn: under a full-screen window that does not cover its
 /// output, the wallpaper adding nothing there.
 pub const CLEAR: [f32; 4] = [0.11, 0.11, 0.12, 1.0];
@@ -74,6 +90,19 @@ impl Backend {
         }
     }
 
+    /// The timer-paced backend's frame on `output` is shown: its buffers go back.
+    pub fn frame_shown(&mut self, output: &Output) {
+        if let Backend::Headless(headless) = self {
+            headless.frame_shown(output);
+        }
+    }
+
+    pub fn send_feedback(&self, isle: &Isle, output: &Output, states: &RenderElementStates) {
+        if let Backend::Udev(udev) = self {
+            udev.send_feedback(isle, output, states);
+        }
+    }
+
     /// Turns an output's screen off, or lets its next frame light it again.
     pub fn set_power(&mut self, output: &Output, on: bool) {
         if let Backend::Udev(udev) = self {
@@ -107,6 +136,14 @@ impl Backend {
     /// Whether a timer stands in for vblank: nothing scans the frames out.
     pub fn paces_by_timer(&self) -> bool {
         matches!(self, Backend::Headless(_))
+    }
+
+    /// Whether the renderer is up and its dmabuf formats are served.
+    pub fn renders(&self) -> bool {
+        match self {
+            Backend::Udev(udev) => udev.renders(),
+            Backend::Winit(_) | Backend::Headless(_) => true,
+        }
     }
 
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
@@ -159,7 +196,7 @@ impl Backend {
         output: &Output,
         pointer: bool,
     ) -> Result<GlesTexture, String> {
-        let scale = output.current_scale().integer_scale().max(1) as u32;
+        let scale = output.current_scale().fractional_scale();
         let (renderer, cursor) = match self {
             Backend::Udev(udev) => udev
                 .renderer_with_cursor(isle, scale)
@@ -181,7 +218,7 @@ impl Backend {
         pointer: bool,
         push: &mut dyn FnMut(crate::render::IsleElement),
     ) -> Option<()> {
-        let scale = output.current_scale().integer_scale().max(1) as u32;
+        let scale = output.current_scale().fractional_scale();
         let (renderer, cursor) = match self {
             Backend::Udev(udev) => udev.renderer_with_cursor(isle, scale)?,
             Backend::Winit(winit) => (winit.renderer(), None),
@@ -210,7 +247,9 @@ impl Backend {
         };
         use crate::render::IsleElement;
         let (renderer, named) = match self {
-            Backend::Udev(udev) => udev.renderer_with_cursor(isle, scale).ok_or("no renderer")?,
+            Backend::Udev(udev) => udev
+                .renderer_with_cursor(isle, scale as f64)
+                .ok_or("no renderer")?,
             Backend::Winit(winit) => (winit.renderer(), None),
             Backend::Headless(headless) => (&mut headless.renderer, None),
         };
@@ -275,6 +314,59 @@ impl Backend {
         let renderer = self.renderer_opt().ok_or("no renderer")?;
         read_back(renderer, texture, rect, straight)
     }
+}
+
+/// The client buffers `elements` sample: each client surface Isle can draw, its popups, the
+/// pointer's and the drag's surfaces, whose element is in the frame.
+pub fn sampled_buffers<E: smithay::backend::renderer::element::Element>(
+    isle: &Isle,
+    output: &Output,
+    elements: &[E],
+) -> Vec<smithay::backend::renderer::utils::Buffer> {
+    use smithay::{
+        backend::renderer::{element::Id, utils::RendererSurfaceStateUserData},
+        input::pointer::CursorImageStatus,
+        reexports::wayland_server::protocol::wl_surface::WlSurface,
+        wayland::compositor::{SurfaceData, with_surface_tree_downward},
+    };
+    let ids: std::collections::HashSet<&Id> = elements.iter().map(|e| e.id()).collect();
+    let mut out = Vec::new();
+    // The walks hold each surface's state; it is read here, not locked again.
+    let mut take = |surface: &WlSurface, states: &SurfaceData| {
+        if ids.contains(&Id::from_wayland_resource(surface))
+            && let Some(buffer) = states
+                .data_map
+                .get::<RendererSurfaceStateUserData>()
+                .and_then(|s| s.lock().unwrap().buffer().cloned())
+        {
+            out.push(buffer);
+        }
+    };
+    for record in &isle.wm.records {
+        record.window.with_surfaces(&mut take);
+    }
+    for window in &isle.unmanaged {
+        window.with_surfaces(&mut take);
+    }
+    for layer in smithay::desktop::layer_map_for_output(output).layers() {
+        layer.with_surfaces(&mut take);
+    }
+    let mut tree = |root: &WlSurface| {
+        with_surface_tree_downward(
+            root,
+            (),
+            |_, _, _| smithay::wayland::compositor::TraversalAction::DoChildren(()),
+            |surface, states, _| take(surface, states),
+            |_, _, _| true,
+        );
+    };
+    if let CursorImageStatus::Surface(surface) = &isle.cursor_status {
+        tree(surface);
+    }
+    if let Some(icon) = &isle.dnd_icon {
+        tree(icon);
+    }
+    out
 }
 
 /// `elements`, placed on `output`, drawn into a new texture of the output's mode size.

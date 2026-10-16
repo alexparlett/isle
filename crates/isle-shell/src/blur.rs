@@ -147,12 +147,14 @@ pub struct Blur {
     levels: Vec<GlesTexture>,
     offset: f32,
     probe: GlesTexture,
-    pending: Option<GlesMapping>,
+    /// The last run's luminance read back, and the updates since it was asked for.
+    pending: Option<(GlesMapping, u32)>,
     /// How far the tint has moved toward `glass-tinted` to hold the floor, 0 to 1.
     pub floor: f32,
     /// Times the blur ran.
     pub runs: u64,
     pub used: bool,
+    scale: f64,
     id: Id,
     commit: CommitCounter,
 }
@@ -192,9 +194,18 @@ impl Blur {
             floor: 0.0,
             runs: 0,
             used: true,
+            scale,
             id: Id::new(),
             commit: CommitCounter::default(),
         })
+    }
+
+    /// Moves the backdrop to `loc` on the output; the next update draws all of it again.
+    pub fn relocate(&mut self, loc: Point<i32, Physical>) {
+        self.region.loc = loc;
+        let size = self.region.size;
+        self.tracker = OutputDamageTracker::new(size, self.scale, Transform::Normal);
+        self.used = true;
     }
 
     /// Draws `below`, the elements behind the glass relative to the output, into the backdrop,
@@ -216,8 +227,12 @@ impl Blur {
             }
             return Ok(());
         }
-        if let Some(mapping) = self.pending.take() {
-            match renderer.map_texture(&mapping) {
+        // Mapped an update after it was asked for, once the GPU has surely finished the
+        // copy, so the loop never waits on it.
+        match self.pending.take() {
+            Some((mapping, 0)) => self.pending = Some((mapping, 1)),
+            None => {}
+            Some((mapping, _)) => match renderer.map_texture(&mapping) {
                 Ok(pixels) => {
                     let floor = floor(pixels, theme);
                     if (floor - self.floor).abs() > 1e-3 {
@@ -319,11 +334,10 @@ impl Blur {
             let _ = frame.finish()?;
         }
         let fb = renderer.bind(&mut self.probe)?;
-        self.pending = Some(renderer.copy_framebuffer(
-            &fb,
-            Rectangle::from_size((4, 4).into()),
-            Fourcc::Abgr8888,
-        )?);
+        self.pending = Some((
+            renderer.copy_framebuffer(&fb, Rectangle::from_size((4, 4).into()), Fourcc::Abgr8888)?,
+            0,
+        ));
         Ok(())
     }
 

@@ -1095,7 +1095,7 @@ impl State {
             Target::Window { id, .. } => self.isle.output_of(*id),
         };
         for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
-            self.draw_shell(&output);
+            self.draw_shell(&output, false);
         }
         let pixels = match self.capture_pixels(&target, pointer) {
             Ok(pixels) => pixels,

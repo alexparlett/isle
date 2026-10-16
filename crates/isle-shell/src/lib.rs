@@ -12,6 +12,7 @@ pub mod gallery;
 #[cfg(feature = "probe")]
 pub mod probe;
 mod surface;
+mod warm;
 pub mod transition;
 pub mod preview;
 
@@ -789,7 +790,8 @@ impl Shell {
     }
 
     /// Draws every open surface on `output` whose tree changed, before the output's frame.
-    pub fn draw(&mut self, renderer: &mut GlesRenderer, output: &Output) {
+    /// Draws the surfaces on `output` whose trees changed; true when any did.
+    pub fn draw(&mut self, renderer: &mut GlesRenderer, output: &Output) -> bool {
         for released in self.released.drain(..) {
             released.release(renderer);
         }
@@ -799,7 +801,7 @@ impl Shell {
             .iter()
             .any(|i| i.visible() && &i.output == output)
         {
-            return;
+            return false;
         }
         if self.clip.is_none() {
             match element::compile_clip(renderer) {
@@ -808,8 +810,9 @@ impl Shell {
             }
         }
         let Some(gpu) = Self::gpu(&mut self.gpu, renderer) else {
-            return;
+            return false;
         };
+        let mut drew = false;
         for instance in &mut self.instances {
             // A closing surface keeps the last frame it drew until its exit ends.
             if !instance.open || &instance.output != output {
@@ -883,8 +886,62 @@ impl Shell {
                 .draw(|_| Ok::<_, std::convert::Infallible>(vec![full]));
             instance.drew = true;
             instance.draws += 1;
+            drew = true;
         }
         self.recover();
+        drew
+    }
+
+    /// Draws a surface holding one of each thing the shell draws, offscreen at `scale`, and
+    /// blurs its glass, so their programs are compiled before any surface opens. Returns the
+    /// time it took.
+    pub fn warm_up(&mut self, renderer: &mut GlesRenderer, scale: f64) -> std::time::Duration {
+        let started = std::time::Instant::now();
+        if self.glass_programs.is_none()
+            && let Ok(programs) = blur::Programs::compile(renderer)
+        {
+            self.glass_programs = Some(programs);
+        }
+        let output = Output::new(
+            "warm-up".into(),
+            smithay::output::PhysicalProperties {
+                size: (0, 0).into(),
+                subpixel: smithay::output::Subpixel::Unknown,
+                make: "Isle".into(),
+                model: "warm-up".into(),
+                serial_number: String::new(),
+            },
+        );
+        let place = OutputPlace {
+            output: output.clone(),
+            geometry: Rectangle::from_size((1200, 700).into()),
+            scale,
+        };
+        let mut instance = self.instantiate(Rc::new(warm::WarmUp), &place);
+        instance.open = true;
+        self.build(&mut instance);
+        self.instances.push(instance);
+        self.draw(renderer, &output);
+        let size = Rectangle::<i32, Logical>::from_size((1200, 700).into())
+            .size
+            .to_f64()
+            .to_physical(scale)
+            .to_i32_round();
+        for region in self.glass_regions(&output) {
+            let below: Vec<smithay::backend::renderer::element::solid::SolidColorRenderElement> = Vec::new();
+            self.prepare_glass(renderer, &region, size, below);
+        }
+        if let Some(index) = self.instances.iter().position(|i| i.output == output) {
+            let mut instance = self.instances.remove(index);
+            Self::unmount(&mut instance);
+            if let Some(target) = instance.gl.take() {
+                target.release(renderer);
+            }
+        }
+        if let Some(gpu) = self.gpu.as_mut() {
+            purge_scratch(gpu);
+        }
+        started.elapsed()
     }
 
     /// Moves every transition on `output` on to now, and finishes the closes that ended.
@@ -905,7 +962,7 @@ impl Shell {
             }
         }
         if purge && let Some(gpu) = self.gpu.as_mut() {
-            gpu.purge();
+            purge_scratch(gpu);
         }
     }
 
@@ -1178,23 +1235,35 @@ impl Shell {
         };
         // Twice the blur's reach, so the shape's edge samples what is really beside it.
         let margin = theme.tokens.material_blur as f64 * 2.0;
+        // Not cut to the output: a shape sliding in keeps its size, and so its blur.
         let wanted = blur::physical(
             Rectangle::new(
                 (region.rect.loc.x - margin, region.rect.loc.y - margin).into(),
                 (region.rect.size.w + 2.0 * margin, region.rect.size.h + 2.0 * margin).into(),
             ),
             instance.scale,
-        )
-        .intersection(Rectangle::from_size(output_size));
-        let Some(wanted) = wanted else {
+        );
+        if !wanted.overlaps(Rectangle::from_size(output_size)) {
             return;
-        };
-        if instance
-            .blurs
-            .get(&region.shape)
-            .is_some_and(|b| b.region != wanted)
+        }
+        // A shape that moved keeps its blur; one that is new takes a blur of its size left
+        // unused this pass, as a menu remounted for the next title does.
+        if !instance.blurs.contains_key(&region.shape)
+            && let Some(free) = instance
+                .blurs
+                .iter()
+                .find(|(_, b)| !b.used && b.region.size == wanted.size)
+                .map(|(id, _)| *id)
         {
-            instance.blurs.remove(&region.shape);
+            let blur = instance.blurs.remove(&free).unwrap();
+            instance.blurs.insert(region.shape, blur);
+        }
+        match instance.blurs.get_mut(&region.shape) {
+            Some(b) if b.region.size != wanted.size => {
+                instance.blurs.remove(&region.shape);
+            }
+            Some(b) if b.region.loc != wanted.loc => b.relocate(wanted.loc),
+            _ => {}
         }
         if !instance.blurs.contains_key(&region.shape) {
             let sigma = theme.tokens.material_blur as f64 * instance.scale;
@@ -1335,7 +1404,7 @@ impl Shell {
                     self.released.push(target);
                 }
                 if let Some(gpu) = self.gpu.as_mut() {
-                    gpu.purge();
+                    purge_scratch(gpu);
                 }
             }
             std::task::Wake::wake_by_ref(&instance.wakeup);
@@ -1424,7 +1493,7 @@ impl Shell {
             false
         });
         if purge && let Some(gpu) = self.gpu.as_mut() {
-            gpu.purge();
+            purge_scratch(gpu);
         }
     }
 
@@ -1699,6 +1768,14 @@ impl Drop for Shell {
 }
 
 /// The 50th and 95th percentiles and the largest of `times`.
+/// Frees the layers a closed surface drew with, keeping what any surface reuses: glyph
+/// atlases, shadow masks and compiled programs.
+fn purge_scratch(gpu: &mut Gpu) {
+    use freya::engine::prelude::gpu::PurgeResourceOptions;
+    gpu.context()
+        .purge_unlocked_resources(PurgeResourceOptions::ScratchResourcesOnly);
+}
+
 fn percentiles(times: &[u64]) -> (u64, u64, u64) {
     if times.is_empty() {
         return (0, 0, 0);

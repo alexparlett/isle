@@ -101,6 +101,11 @@ pub struct Isle {
     pub xwm: Option<smithay::xwayland::X11Wm>,
     /// The X display Xwayland serves, kept across its restarts.
     pub xdisplay: Option<u32>,
+    /// Xwayland is started and the supervisor told Isle is up: both wait for the GPU.
+    pub clients_started: bool,
+    /// Why the main loop was stopped, when Isle cannot go on and the supervisor should
+    /// start it again.
+    pub exit_error: Option<String>,
     pub xwayland_deaths: u32,
     pub xwayland_source: Option<smithay::reexports::calloop::RegistrationToken>,
     pub xwayland_shell_state: smithay::wayland::xwayland_shell::XWaylandShellState,
@@ -112,10 +117,19 @@ pub struct Isle {
     /// The warmth last put on the screens.
     pub night_applied: f64,
     pub night_fading: bool,
+    pub frame_phases: crate::redraw::FramePhases,
     /// The surface whose pointer lock or confinement is active.
     pub constrained: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     /// Explicit sync, once a device that can wait on sync points is open.
     pub syncobj_state: Option<smithay::wayland::drm_syncobj::DrmSyncobjState>,
+    /// The surfaces with a fifo barrier or a timed commit outstanding, which each frame
+    /// visits; the others are not walked.
+    pub paced: std::collections::HashMap<
+        smithay::reexports::wayland_server::backend::ObjectId,
+        smithay::reexports::wayland_server::Weak<
+            smithay::reexports::wayland_server::protocol::wl_surface::WlSurface,
+        >,
+    >,
     /// Each surface's armed wait for its next timed commit.
     pub commit_timers: std::collections::HashMap<
         smithay::reexports::wayland_server::backend::ObjectId,
@@ -394,6 +408,7 @@ impl Isle {
         shell.register(island.notice.clone());
         let bar = crate::menubar::BarState::new();
         shell.register(bar.surface.clone());
+        shell.register(bar.menu.clone());
         shell.register(bar.window_menu.clone());
         shell.register(bar.about.clone());
         shell.register(switcher_surface.clone());
@@ -468,6 +483,8 @@ impl Isle {
             wm: Default::default(),
             xwm: None,
             xdisplay: None,
+            clients_started: false,
+            exit_error: None,
             xwayland_deaths: 0,
             xwayland_source: None,
             xwayland_shell_state,
@@ -479,6 +496,8 @@ impl Isle {
             night_timer: None,
             night_applied: crate::night_light::NEUTRAL,
             night_fading: false,
+            frame_phases: Default::default(),
+            paced: Default::default(),
             commit_timers: Default::default(),
             bar_option: None,
             zoom: Default::default(),
@@ -945,6 +964,7 @@ impl State {
         if let Some(app) = &app {
             crate::badges::calm(&mut self.isle.badges, app);
         }
+        tracing::info!(window = window.map(crate::wm::window_id), ?app, "focus");
         let surface = self.isle.focus_window(window);
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         self.focus_keyboard(surface, serial);

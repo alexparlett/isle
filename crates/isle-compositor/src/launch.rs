@@ -142,6 +142,7 @@ impl State {
                     "--",
                 ])
                 .args(&argv)
+                .envs(crate::child_env::vars())
                 .envs(envs.clone())
                 .current_dir(&home)
                 .stdin(std::process::Stdio::null())
@@ -178,6 +179,7 @@ impl State {
                 warn!("systemd-run failed, starting directly: {err}");
                 let direct = tokio::process::Command::new(&argv[0])
                     .args(&argv[1..])
+                    .envs(crate::child_env::vars())
                     .envs(envs)
                     .current_dir(&home)
                     .stdin(std::process::Stdio::null())

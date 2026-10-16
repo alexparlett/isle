@@ -26,6 +26,7 @@ mod island;
 pub mod capture;
 pub mod cast;
 mod centre;
+mod child_env;
 mod clipboard;
 mod control_centre;
 mod control_edit;
@@ -97,6 +98,11 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     {
         unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) };
     }
+    // Read before any thread starts; no child sees it.
+    let ready_fd = std::env::var("ISLE_READY_FD")
+        .ok()
+        .and_then(|fd| fd.parse::<i32>().ok());
+    unsafe { std::env::remove_var("ISLE_READY_FD") };
     let heartbeat = Heartbeat::new();
     crash::install_panic_hook(heartbeat.clone());
     info!("isle-compositor {}", build_info::describe());
@@ -195,12 +201,10 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     state.start_night_light();
 
     // Children connect to Isle, not to the compositor this one may be nested in.
-    unsafe { std::env::set_var("WAYLAND_DISPLAY", &state.isle.socket_name) };
-    let display = xwayland::start(&mut state, None);
-    state.isle.xdisplay = display;
-    if let Some(display) = display {
-        unsafe { std::env::set_var("DISPLAY", format!(":{display}")) };
-    }
+    child_env::set(
+        "WAYLAND_DISPLAY",
+        state.isle.socket_name.to_string_lossy().into_owned(),
+    );
     // Qt asks once per process whether the registrar has an owner, so Isle owns it before
     // any app can start.
     let owned = runtime.block_on(async {
@@ -293,9 +297,15 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     // session's apps can start the frontend.
     *state.isle.portal_appearance.lock().unwrap() = portal::appearance_of(state.isle.shell.theme());
     state.isle.portal = portal::own(&runtime, to_loop.clone(), state.isle.portal_appearance.clone());
-    report_ready(&state.isle.socket_name, display);
+    let mut ready_fd = ready_fd;
+    if !start_clients(&mut state, &mut ready_fd) {
+        info!("Xwayland and the session's apps wait for the GPU");
+    }
 
     event_loop.run(None, &mut state, |state| {
+        if !state.isle.clients_started {
+            start_clients(state, &mut ready_fd);
+        }
         // The space learns which outputs each window overlaps in its refresh, and a
         // redraw reads that.
         state.isle.space.refresh();
@@ -312,19 +322,39 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     if let backend::Backend::Udev(udev) = &mut state.backend {
         udev.restore_gamma();
     }
-    Ok(())
+    match state.isle.exit_error.take() {
+        Some(err) => Err(err.into()),
+        None => Ok(()),
+    }
+}
+
+/// Once the GPU serves dmabufs, starts Xwayland and tells the supervisor Isle is up, so the
+/// session's apps start. Clients read linux-dmabuf and syncobj once, as they start: an
+/// Xwayland started before them runs without glamor and draws every X11 window and game in
+/// shared memory. Returns whether that has happened.
+fn start_clients(state: &mut State, ready_fd: &mut Option<i32>) -> bool {
+    if state.isle.clients_started {
+        return true;
+    }
+    if !state.backend.renders() {
+        return false;
+    }
+    state.isle.clients_started = true;
+    state.warm_up();
+    let display = xwayland::start(state, None);
+    state.isle.xdisplay = display;
+    if let Some(display) = display {
+        child_env::set("DISPLAY", format!(":{display}"));
+    }
+    if let Some(fd) = ready_fd.take() {
+        report_ready(fd, &state.isle.socket_name, display);
+    }
+    true
 }
 
 /// Tells the supervisor the socket is up, on the fd it named in `ISLE_READY_FD`.
-fn report_ready(socket: &std::ffi::OsStr, display: Option<u32>) {
+fn report_ready(fd: i32, socket: &std::ffi::OsStr, display: Option<u32>) {
     use std::{io::Write, os::fd::FromRawFd};
-    let Some(fd) = std::env::var("ISLE_READY_FD")
-        .ok()
-        .and_then(|fd| fd.parse::<i32>().ok())
-    else {
-        return;
-    };
-    unsafe { std::env::remove_var("ISLE_READY_FD") };
     // Safety: the supervisor opened this fd for us alone; it is closed here.
     let mut pipe = unsafe { std::fs::File::from_raw_fd(fd) };
     let _ = writeln!(pipe, "WAYLAND_DISPLAY={}", socket.to_string_lossy());

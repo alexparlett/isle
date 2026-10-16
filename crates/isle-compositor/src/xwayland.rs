@@ -37,10 +37,14 @@ use crate::{
 /// Starts Xwayland on `display`, or the first free display, and returns its number. Its
 /// window manager starts when it is ready; if it dies it is started again on the same display.
 pub fn start(state: &mut State, display: Option<u32>) -> Option<u32> {
+    // Smithay clears Xwayland's environment; X11 cursors follow the session's theme.
+    let cursor = ["XCURSOR_THEME", "XCURSOR_SIZE"]
+        .into_iter()
+        .filter_map(|key| Some((key, std::env::var(key).ok()?)));
     let (xwayland, client) = match XWayland::spawn(
         &state.isle.display_handle,
         display,
-        std::iter::empty::<(String, String)>(),
+        cursor,
         std::iter::empty::<String>(),
         true,
         Stdio::null(),
@@ -102,7 +106,9 @@ fn restart_later(state: &mut State, display: u32) {
         .isle
         .loop_handle
         .insert_source(Timer::from_duration(wait), move |_, _, state| {
-            start(state, Some(display));
+            if start(state, Some(display)).is_none() {
+                restart_later(state, display);
+            }
             TimeoutAction::Drop
         });
 }
@@ -472,7 +478,9 @@ impl XwmHandler for State {
             return;
         };
         let app = self.isle.wm.get(id).map(|r| r.app.clone());
-        if app.is_some() && app == self.isle.front_app() {
+        let granted = app.is_some() && app == self.isle.front_app();
+        tracing::info!(id, ?app, granted, "an X11 window asks to be active");
+        if granted {
             self.activate(id);
         } else {
             self.want_attention(id, false);

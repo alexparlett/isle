@@ -12,6 +12,9 @@ use crate::{
     worker::{Event, ToLoop},
 };
 
+/// The `STEAM_GAME` label of Steam's own windows.
+const STEAM_CLIENT: u32 = 769;
+
 /// The `SteamGameId` Steam gives a process it starts as a game, if it has one.
 fn steam_game_env(pid: i32) -> Option<String> {
     let environ = std::fs::read(format!("/proc/{pid}/environ")).ok()?;
@@ -45,7 +48,11 @@ impl Isle {
             .into_iter()
             .chain(record.ancestors.iter().copied())
             .any(|pid| gamemode.contains(&pid));
-        let steam_window = record.x11().and_then(|x| x.steam_game()).is_some();
+        // Steam labels its own client windows 769, gamescope's id for Steam itself.
+        let steam_window = record
+            .x11()
+            .and_then(|x| x.steam_game())
+            .is_some_and(|id| id != STEAM_CLIENT);
         let game = !matches(&windows.not_games)
             && (matches(&windows.games)
                 || labelled

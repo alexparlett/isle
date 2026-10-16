@@ -221,22 +221,10 @@ impl Isle {
         if let (Some(cursor), Some(at)) = (
             cursor.filter(|_| freeze.mode != Mode::Window),
             pointer.filter(|p| geometry.to_f64().contains(*p)),
-        )
+        ) && let Some(element) =
+            cursor.element(renderer, at - geometry.loc.to_f64(), smithay::utils::Scale::from(scale))
         {
-            let location = at - geometry.loc.to_f64() - cursor.hotspot.to_f64();
-            if let Ok(element) =
-                smithay::backend::renderer::element::memory::MemoryRenderBufferRenderElement::from_buffer(
-                    renderer,
-                    location.to_physical(scale),
-                    cursor.buffer,
-                    None,
-                    None,
-                    None,
-                    Kind::Cursor,
-                )
-            {
-                push(IsleElement::Memory(element));
-            }
+            push(IsleElement::Memory(element));
         }
         self.shell.elements_of(output, "capture-camera", &mut |e| {
             push(IsleElement::Shell(e))
@@ -397,7 +385,7 @@ impl State {
         let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
         let mut screens = Vec::new();
         for output in &outputs {
-            self.draw_shell(output);
+            self.draw_shell(output, false);
             match self.backend.capture_screen(&self.isle, output, false) {
                 Ok(texture) => {
                     let Some(renderer) = self.backend.renderer_opt() else {

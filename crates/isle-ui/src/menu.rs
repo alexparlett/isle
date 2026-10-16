@@ -266,6 +266,20 @@ fn panel_width(theme: &isle_tokens::Theme, entries: &[MenuEntry], pad: f32) -> f
     width.clamp(t.size_menu_min, t.size_menu_max).ceil()
 }
 
+/// The room `entries` take as a menu, and as one with its widest submenu open beside it:
+/// width and rows.
+pub fn extent(theme: &isle_tokens::Theme, entries: &[MenuEntry]) -> (f32, usize) {
+    let t = &theme.tokens;
+    let pad = (t.radius_card - t.radius_row).max(0.0);
+    let (sub_w, sub_rows) = entries
+        .iter()
+        .filter_map(MenuEntry::item)
+        .filter_map(|i| i.submenu.as_ref())
+        .map(|sub| (panel_width(theme, sub, pad), sub.len()))
+        .fold((0.0f32, 0usize), |(w, r), (sw, sr)| (w.max(sw), r.max(sr)));
+    (panel_width(theme, entries, pad) + sub_w, entries.len() + sub_rows)
+}
+
 /// The width of the widest shortcut key in `entries`.
 fn key_slot(theme: &isle_tokens::Theme, entries: &[MenuEntry]) -> f32 {
     let size = text::metrics(theme, text::Style::Body).0;

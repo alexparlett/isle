@@ -335,6 +335,18 @@ async fn an_x11_window_steam_labels_is_a_game() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn steams_own_windows_labelled_769_are_not_games() {
+    let mut isle = Isle::start("games-x11-client").await;
+    let client = isle
+        .x11_client(&["--class", "steam", "--title", "Steam", "--steam-game", "769"])
+        .await;
+    client.wait_for("focus-in").await;
+    let id = isle.wait_for_window("steam").await.id;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(!isle.window(id).await.game);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_launchers_child_is_a_game_and_the_launchers_own_window_is_not() {
     let mut isle = Isle::start("launched").await;
     let _game = isle.client_under("heroic", &["--app-id", "isle.test.Launched"]);

@@ -1464,7 +1464,7 @@ impl Test {
                     .cloned();
                 match target {
                     Some(target) => {
-                        state.draw_shell(&target);
+                        state.draw_shell(&target, false);
                         state.backend.screenshot(&state.isle, &target)
                     }
                     None => Err("no such output".into()),

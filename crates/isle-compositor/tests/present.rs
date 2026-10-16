@@ -276,3 +276,17 @@ async fn nested_gamescope_starts_and_shows_its_game() {
     let log = gamescope.lines.lock().unwrap().join("\n");
     assert!(!log.contains("Fatal") && !log.contains("not supported by the compositor"), "{log}");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_full_screen_game_in_front_is_the_frame_alone() {
+    let mut isle = Isle::start_with("game-alone", "windows {\n    games \"isle.test.Alone\"\n}\n").await;
+    let game = isle.client("isle.test.Alone", "3366ff");
+    let window = isle.wait_for_window("isle.test.Alone").await;
+    isle.windows_proxy().await.focus(window.id).await.unwrap();
+    game.send("fullscreen");
+    game.send("animate");
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    let kinds = isle.test().await.frame_kinds("HEADLESS-1").await.unwrap();
+    eprintln!("KINDS {kinds:?}");
+    assert!(kinds.iter().all(|k| k == "client"), "{kinds:?}");
+}

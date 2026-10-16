@@ -35,6 +35,8 @@ struct Target {
     output: Output,
     global: GlobalId,
     drawn: bool,
+    /// The buffers the last frame was drawn from, held as the hardware backend holds them.
+    in_flight: Vec<smithay::backend::renderer::utils::Buffer>,
 }
 
 impl Headless {
@@ -89,6 +91,9 @@ impl Headless {
         let damaged = result.damage.is_some();
         let states = result.states;
         target.drawn = true;
+        if damaged {
+            target.in_flight = super::sampled_buffers(isle, output, &elements);
+        }
         Ok(Rendered {
             damaged,
             states,
@@ -98,6 +103,12 @@ impl Headless {
             },
             retry_in: None,
         })
+    }
+
+    pub fn frame_shown(&mut self, output: &Output) {
+        if let Some(target) = self.targets.values_mut().find(|t| &t.output == output) {
+            target.in_flight.clear();
+        }
     }
 
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
@@ -150,6 +161,7 @@ impl Headless {
                 output: output.clone(),
                 global,
                 drawn: false,
+                in_flight: Vec::new(),
             },
         );
         let x = isle
@@ -168,7 +180,7 @@ impl Headless {
             return false;
         };
         isle.remove_output(&target.output);
-        isle.display_handle.remove_global::<State>(target.global);
+        super::retire_output_global(isle, target.global);
         true
     }
 }

@@ -159,6 +159,7 @@ async fn external(
     let output = async {
         let mut child = Command::new(&plugin.dialog)
             .args(&args)
+            .envs(crate::child_env::vars())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -268,6 +269,7 @@ async fn own_window(
     let run = async {
         let mut child = Command::new(&plugin.dialog)
             .args(&args)
+            .envs(crate::child_env::vars())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

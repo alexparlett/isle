@@ -71,9 +71,36 @@ pub const CAPTURE_SURFACES: &[&str] = &[
 ];
 
 /// A themed cursor image the backend draws itself, with its hotspot.
+#[derive(Clone, Copy)]
 pub struct NamedCursor<'a> {
     pub buffer: &'a MemoryRenderBuffer,
     pub hotspot: Point<i32, Logical>,
+    /// At a fractional scale: the image's logical size, and all of its pixels.
+    pub size: Option<smithay::utils::Size<i32, Logical>>,
+    pub src: Option<Rectangle<f64, Logical>>,
+}
+
+impl NamedCursor<'_> {
+    /// The cursor drawn with its hotspot at `at`, logical and relative to the output; on
+    /// whole pixels, so it covers exactly its buffer and the cursor plane can take it.
+    pub fn element(
+        &self,
+        renderer: &mut GlesRenderer,
+        at: Point<f64, Logical>,
+        scale: Scale<f64>,
+    ) -> Option<MemoryRenderBufferRenderElement<GlesRenderer>> {
+        let location = (at - self.hotspot.to_f64()).to_physical(scale).to_i32_round::<i32>().to_f64();
+        MemoryRenderBufferRenderElement::from_buffer(
+            renderer,
+            location,
+            self.buffer,
+            None,
+            self.src,
+            self.size,
+            Kind::Cursor,
+        )
+        .ok()
+    }
 }
 
 impl Isle {
@@ -95,7 +122,7 @@ impl Isle {
             kinds.push(e.kind_name());
             push(e)
         };
-        if self.freeze_elements(renderer, output, cursor.as_ref().map(|c| NamedCursor { buffer: c.buffer, hotspot: c.hotspot }), push) {
+        if self.freeze_elements(renderer, output, cursor, push) {
             #[cfg(feature = "test-hooks")]
             self.lock.frame_kinds.borrow_mut().insert(output.name(), kinds);
             return;
@@ -192,19 +219,10 @@ impl Isle {
                 }
             }
             (CursorImageStatus::Named(_), Some(at)) => {
-                if let Some(cursor) = cursor {
-                    let location = at - geometry.loc.to_f64() - cursor.hotspot.to_f64();
-                    if let Ok(element) = MemoryRenderBufferRenderElement::from_buffer(
-                        renderer,
-                        location.to_physical(scale),
-                        cursor.buffer,
-                        None,
-                        None,
-                        None,
-                        Kind::Cursor,
-                    ) {
-                        push(IsleElement::Memory(element));
-                    }
+                if let Some(cursor) = cursor
+                    && let Some(element) = cursor.element(renderer, at - geometry.loc.to_f64(), scale)
+                {
+                    push(IsleElement::Memory(element));
                 }
             }
             _ => {}

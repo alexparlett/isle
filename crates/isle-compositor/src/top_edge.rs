@@ -213,7 +213,8 @@ impl State {
         let revealed = self.isle.bar.output.as_ref() == Some(&name);
         let on_bar = matches!(
             self.isle.seat.get_pointer().and_then(|p| p.current_focus()),
-            Some(crate::focus::Focus::Shell(f)) if self.isle.shell.name_of(&f) == Some("menu-bar")
+            Some(crate::focus::Focus::Shell(f))
+                if matches!(self.isle.shell.name_of(&f), Some("menu-bar" | "bar-menu"))
         ) || (revealed && at.y < t.size_bar_height as f64);
         if revealed {
             if on_bar || in_zone || self.isle.bar.open.is_some() {
@@ -287,7 +288,7 @@ impl State {
                 crate::focus::Focus::Shell(f) => self.isle.shell.name_of(&f),
                 _ => None,
             });
-        if self.isle.bar.output.is_some() && focus_name != Some("menu-bar") {
+        if self.isle.bar.output.is_some() && !matches!(focus_name, Some("menu-bar" | "bar-menu")) {
             let open = self.isle.bar.open.is_some();
             self.hide_bar();
             if open {

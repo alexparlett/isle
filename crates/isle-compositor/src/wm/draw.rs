@@ -781,6 +781,13 @@ impl crate::state::Isle {
         );
         let corners = style.corners.map(|r| (r as f64 * scale) as f32);
         let programs = self.window_programs.as_ref();
+        let clipped = programs.is_some() && style.clip;
+        // A plane cannot clip corners: only a bare window may be put on one.
+        let kind = if clipped {
+            Kind::Unspecified
+        } else {
+            Kind::ScanoutCandidate
+        };
         for element in
             render_elements_from_surface_tree::<_, WaylandSurfaceRenderElement<GlesRenderer>>(
                 renderer,
@@ -788,7 +795,7 @@ impl crate::state::Isle {
                 surface_at,
                 scale,
                 alpha,
-                Kind::Unspecified,
+                kind,
             )
         {
             match programs.filter(|_| style.clip) {

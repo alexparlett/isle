@@ -5,8 +5,7 @@ use std::{collections::HashMap, time::Duration};
 
 use smithay::{
     wayland::dmabuf::get_dmabuf,
-    desktop::{layer_map_for_output, utils::surface_primary_scanout_output},
-    input::pointer::CursorImageStatus,
+    desktop::utils::surface_primary_scanout_output,
     output::Output,
     reexports::{
         calloop::{
@@ -23,7 +22,7 @@ use smithay::{
         },
         commit_timing::CommitTimerBarrierStateUserData,
         drm_syncobj::{DrmSyncobjCachedState, DrmSyncobjHandler, DrmSyncobjState},
-        fifo::FifoBarrierCachedState,
+        fifo::{FifoBarrierCachedState, FifoCachedState},
     },
 };
 use tracing::warn;
@@ -47,7 +46,15 @@ pub fn hold_unready_buffers(surface: &WlSurface) {
                 state.arm_commit_timer(&surface);
             }
         });
-        let (acquire, dmabuf) = with_states(surface, |states| {
+        let (acquire, dmabuf, barrier) = with_states(surface, |states| {
+            // The protocol's own hook, after this one, makes the barrier the request asks for.
+            let barrier = states.cached_state.get::<FifoCachedState>().pending().set_barrier
+                || states
+                    .cached_state
+                    .get::<FifoBarrierCachedState>()
+                    .pending()
+                    .barrier
+                    .is_some();
             let acquire = states
                 .cached_state
                 .get::<DrmSyncobjCachedState>()
@@ -58,8 +65,11 @@ pub fn hold_unready_buffers(surface: &WlSurface) {
                 Some(BufferAssignment::NewBuffer(buffer)) => get_dmabuf(buffer).cloned().ok(),
                 _ => None,
             };
-            (acquire, dmabuf)
+            (acquire, dmabuf, barrier)
         });
+        if barrier {
+            state.isle.paced.insert(surface.id(), surface.downgrade());
+        }
         let Some(client) = surface.client() else {
             return;
         };
@@ -107,7 +117,7 @@ impl State {
     /// surfaces shown nowhere, are passed.
     pub fn pass_fifo_barriers(&mut self, output: &Output) {
         let mut clients = HashMap::new();
-        self.isle.for_each_surface(output, &mut |surface, states| {
+        self.isle.for_each_paced(&mut |surface, states| {
             let on_here = surface_primary_scanout_output(surface, states).is_none_or(|o| &o == output);
             if !on_here {
                 return;
@@ -128,10 +138,10 @@ impl State {
         self.clear_all(clients);
     }
 
-    /// Applies commits timed for the frame about to be drawn on `output`, shown at `target`.
-    pub fn pass_commit_timers(&mut self, output: &Output, target: Duration) {
+    /// Applies commits timed for the frame about to be drawn, shown at `target`.
+    pub fn pass_commit_timers(&mut self, target: Duration) {
         let mut clients = HashMap::new();
-        self.isle.for_each_surface(output, &mut |surface, states| {
+        self.isle.for_each_paced(&mut |surface, states| {
             if let Some(timers) = states.data_map.get::<CommitTimerBarrierStateUserData>()
                 && timers.lock().unwrap().signal_until(Time::<Monotonic>::from(target))
                 && let Some(client) = surface.client()
@@ -155,6 +165,7 @@ impl State {
             return;
         };
         let id = surface.id();
+        self.isle.paced.insert(id.clone(), surface.downgrade());
         if let Some((armed, token)) = self.isle.commit_timers.get(&id) {
             if *armed <= deadline {
                 return;
@@ -290,33 +301,30 @@ impl Isle {
     }
 
     /// Every surface that may be shown on `output`, and every window's shown nowhere.
-    fn for_each_surface(&self, output: &Output, f: &mut dyn FnMut(&WlSurface, &SurfaceData)) {
-        let mut visit = |root: &WlSurface| {
-            with_surface_tree_downward(
-                root,
-                (),
-                |_, _, _| TraversalAction::DoChildren(()),
-                |surface, states, _| f(surface, states),
-                |_, _, _| true,
-            );
-        };
-        for record in &self.wm.records {
-            if let Some(surface) = record.surface() {
-                visit(&surface);
-            }
-        }
-        for window in &self.unmanaged {
-            use smithay::wayland::seat::WaylandFocus;
-            if let Some(surface) = window.wl_surface() {
-                visit(&surface);
-            }
-        }
-        for layer in layer_map_for_output(output).layers() {
-            visit(layer.wl_surface());
-        }
-        if let CursorImageStatus::Surface(surface) = &self.cursor_status {
-            visit(surface);
-        }
+    /// Each surface with a fifo barrier or a timed commit outstanding, dropping those gone
+    /// or with neither left.
+    fn for_each_paced(&mut self, f: &mut dyn FnMut(&WlSurface, &SurfaceData)) {
+        self.paced.retain(|_, weak| {
+            let Ok(surface) = weak.upgrade() else {
+                return false;
+            };
+            with_states(&surface, |states| {
+                f(&surface, states);
+                // A barrier set by a commit still held is in the pending state until it applies.
+                let mut barriers = states.cached_state.get::<FifoBarrierCachedState>();
+                let barrier = barriers.current().barrier.is_some()
+                    || barriers
+                        .pending()
+                        .barrier
+                        .as_ref()
+                        .is_some_and(|b| !b.is_signaled());
+                let timed = states
+                    .data_map
+                    .get::<CommitTimerBarrierStateUserData>()
+                    .is_some_and(|timers| timers.lock().unwrap().next_deadline().is_some());
+                barrier || timed
+            })
+        });
     }
 }
 

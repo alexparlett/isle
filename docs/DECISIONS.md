@@ -1015,3 +1015,20 @@ turns it off at once. Rejected: the CTM (NVIDIA applies it per plane before
 blending), a shader pass (no direct scanout, and a whole extra pass a frame
 in Smithay's renderer), KWin's table (GPL code), a location service.
 
+**B92 · Clients wait for the GPU.** Built after P12's host run. Xwayland
+is started, and the supervisor told Isle is ready, only once linux-dmabuf
+is served, which on the console is when the session first becomes active.
+On the host an Xwayland started 0.3 s before the GPU opened ran without
+glamor: every X11 window in shared memory, games presented by CPU copy, no
+scanout. A render GPU that fails to open or is removed ends Isle for the
+supervisor rather than leaving a blank session. Rejected: a timeout before
+starting Xwayland anyway (a slow session start leaves it without glamor for
+good), restarting Xwayland when the GPU appears (its clients would die),
+niri's start on the first X client (needs xwayland-satellite).
+
+**B93 · The bar's open menu is a surface of its own.** The bar is a band
+the height of the bar and its shadow; the open menu is a placed surface
+under its title, sized from its entries and widest submenu (Help's search
+to the screen's foot), and takes the keyboard while open. The bar was a
+full-screen surface with the menu inside it, so each hover redrew and
+recomposited the whole screen.

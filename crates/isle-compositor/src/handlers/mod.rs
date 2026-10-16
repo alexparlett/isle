@@ -66,6 +66,16 @@ impl SeatHandler for State {
     }
 
     fn cursor_image(&mut self, _seat: &Seat<Self>, image: CursorImageStatus) {
+        let kind = |status: &CursorImageStatus| match status {
+            CursorImageStatus::Hidden => "hidden".to_string(),
+            CursorImageStatus::Named(icon) => format!("{icon:?}"),
+            CursorImageStatus::Surface(_) => "the client's".to_string(),
+        };
+        let (from, to) = (kind(&self.isle.cursor_status), kind(&image));
+        // Smithay calls this with the pointer locked, so the pointer is not asked here.
+        if from != to {
+            tracing::info!(from, to, "cursor");
+        }
         self.isle.cursor_status = image;
         self.backend.update_cursor(&self.isle);
         self.isle.queue_redraw_all();

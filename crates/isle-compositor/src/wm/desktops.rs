@@ -144,6 +144,15 @@ impl Isle {
         (focused == window).then_some(window)
     }
 
+    /// The full-screen window `output` shows, focused or not.
+    pub fn full_screen_shown(&self, output: &Output) -> Option<u64> {
+        let row = self.desktops.rows.get(&Self::output_identity(output))?;
+        match row.desktops.get(row.current)?.kind {
+            Kind::FullScreen { window } => Some(window),
+            _ => None,
+        }
+    }
+
     /// The current desktop of `output`.
     pub fn current_desktop(&mut self, output: &Output) -> u64 {
         let identity = Self::output_identity(output);
@@ -434,7 +443,11 @@ impl State {
             Some((row, _)) if row == identity => desktop_was,
             _ => self.isle.current_desktop(&output),
         };
-        let focused = self.focused_window() == Some(id) || !mapped;
+        // An X11 window may have no surface yet to hold the keyboard; the window last given
+        // focus is it then.
+        let focused = self.focused_window() == Some(id)
+            || !mapped
+            || self.isle.wm.recent.first() == Some(&id);
         let desktop = self
             .isle
             .desktops
@@ -489,6 +502,9 @@ impl State {
         let Some(record) = self.isle.wm.get(id) else {
             return false;
         };
+        if matches!(record.mode, Mode::FullScreen { .. }) {
+            info!(id, "full screen left");
+        }
         let Mode::FullScreen {
             origin,
             restore,

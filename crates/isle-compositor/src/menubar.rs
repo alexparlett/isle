@@ -6,7 +6,7 @@ use std::{collections::HashMap, rc::Rc, time::Instant};
 
 use isle_keys::{chord::Chord, engine::Stroke, profile::Profile};
 use isle_shell::{
-    menubar::{BarAction, BarFrame, MenuBarSurface, Title, TitleKind},
+    menubar::{BarAction, BarFrame, BarMenuModel, BarMenuSurface, MenuBarSurface, Title, TitleKind},
     placed_menu::{About, AboutPanel, MenuModel, WindowMenu},
     prompts::session::Choice,
     transition::Motion,
@@ -68,6 +68,10 @@ pub enum WindowCommand {
 
 pub struct BarState {
     pub surface: Rc<MenuBarSurface>,
+    /// The open menu under its title.
+    pub menu: Rc<BarMenuSurface>,
+    /// Where the open menu's surface is, relative to its output.
+    menu_at: Option<Rectangle<i32, Logical>>,
     pub window_menu: Rc<WindowMenu>,
     pub about: Rc<AboutPanel>,
     /// The output the bar is revealed on.
@@ -102,6 +106,8 @@ impl BarState {
     pub fn new() -> Self {
         Self {
             surface: MenuBarSurface::new(),
+            menu: BarMenuSurface::new(),
+            menu_at: None,
             window_menu: WindowMenu::new(),
             about: AboutPanel::new(),
             output: None,
@@ -885,6 +891,10 @@ impl State {
             self.isle.bar.shown.spring_to(1.0, theme.spring_open());
         }
         self.isle.bar.last = Instant::now();
+        self.isle
+            .bar
+            .surface
+            .set_height(isle_shell::menubar::band_height(&theme));
         self.isle.shell.set_open_on("menu-bar", output, true);
         if by_key || open.is_some() {
             self.focus_bar(output);
@@ -915,6 +925,7 @@ impl State {
         }
         self.isle.bar.open = None;
         self.isle.bar.focused = None;
+        self.close_bar_menu();
         self.unfocus_bar();
         let theme = self.isle.shell.theme().clone();
         let instant =
@@ -955,7 +966,7 @@ impl State {
         let Some(Focus::Shell(focus)) = keyboard.current_focus() else {
             return;
         };
-        if self.isle.shell.name_of(&focus) != Some("menu-bar") {
+        if !matches!(self.isle.shell.name_of(&focus), Some("menu-bar" | "bar-menu")) {
             return;
         }
         match self
@@ -998,7 +1009,6 @@ impl State {
             by_key: self.isle.bar.by_key,
             reserve,
             solid,
-            generation: self.isle.bar.generation,
         };
         let surface = self.isle.bar.surface.clone();
         surface.set_model(&name, frame.clone());
@@ -1007,10 +1017,62 @@ impl State {
                 surface.set(&name, frame.clone());
             }
         });
-        for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
-            if output.name() == name {
-                self.isle.queue_redraw(&output);
-            }
+        let output = self.isle.space.outputs().find(|o| o.name() == name).cloned();
+        if let Some(output) = output {
+            self.isle.queue_redraw(&output);
+            self.sync_bar_menu(&theme, &output, frame);
+        }
+    }
+
+    /// The open menu's surface under its title, opened, moved or closed to match `frame`.
+    fn sync_bar_menu(&mut self, theme: &isle_tokens::Theme, output: &Output, frame: BarFrame) {
+        let Some(open) = frame.open.filter(|i| *i < frame.titles.len()) else {
+            self.close_bar_menu();
+            return;
+        };
+        let Some(screen) = self.isle.space.output_geometry(output) else {
+            return;
+        };
+        let t = &theme.tokens;
+        let labels: Vec<(String, TitleKind)> = frame
+            .titles
+            .iter()
+            .map(|t| (t.label.clone(), t.kind))
+            .collect();
+        let (cells, _) = isle_shell::menubar::layout(theme, &labels, 0.0, frame.reserve);
+        let m = isle_shell::placed_menu::menu_margin(theme);
+        let top = (t.size_bar_height + t.space_xs).round() as i32;
+        let help = isle_shell::menubar::is_help(&frame.titles, open);
+        let size = isle_shell::menubar::bar_menu_size(theme, &frame.titles[open], help, screen.size, top);
+        let x = (cells[open].0.round() as i32 - m)
+            .min(screen.size.w - size.w)
+            .max(0);
+        let geometry = Rectangle::new((x, top - m).into(), size);
+        let model = BarMenuModel {
+            titles: frame.titles,
+            open,
+            solid: frame.solid,
+            by_key: frame.by_key,
+            generation: self.isle.bar.generation,
+        };
+        let menu = self.isle.bar.menu.clone();
+        menu.set_model(model.clone());
+        self.isle.shell.with_root("bar-menu", || menu.set(model));
+        if self.isle.bar.menu_at != Some(geometry) || !self.isle.shell.is_open("bar-menu") {
+            let place = isle_shell::OutputPlace {
+                output: output.clone(),
+                geometry: screen,
+                scale: output.current_scale().fractional_scale(),
+            };
+            self.isle.shell.open_placed("bar-menu", &place, geometry);
+            self.isle.bar.menu_at = Some(geometry);
+            self.open_surface("bar-menu");
+        }
+    }
+
+    fn close_bar_menu(&mut self) {
+        if self.isle.bar.menu_at.take().is_some() && self.isle.shell.is_open("bar-menu") {
+            self.close_surface("bar-menu");
         }
     }
 

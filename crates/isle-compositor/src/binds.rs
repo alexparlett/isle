@@ -372,6 +372,7 @@ pub fn spawn(command: &str) {
             match std::process::Command::new("/bin/sh")
                 .arg("-c")
                 .arg(&command)
+                .envs(crate::child_env::vars())
                 .spawn()
             {
                 Ok(mut child) => {

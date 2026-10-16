@@ -49,7 +49,34 @@ frame callback. Three runs.
 
 ## The host run (tty8, the user's)
 
-Not yet run. What it is for, by acceptance bar:
+First runs, 2026-10-11 (`tools/isle-tty.sh`):
+
+- **Every frame composited, games laggy and tearing.** The trace showed no
+  frame scanned out. Xwayland was ready at 09:01:30.965 and the GPU opened
+  at 09:01:31.228, as the session became active, so Xwayland bound no
+  linux-dmabuf and ran without glamor: Steam's window was four
+  shared-memory buffers of 1702 by 1368 in Xwayland's maps, and games
+  presented by CPU copy, in bands. Fixed by B92; the next run was "much
+  better".
+- **A client buffer could never be scanned out.** The exporter takes only
+  dmabufs from the render node, and Smithay records a dmabuf's node only
+  when a client names one; a dmabuf the renderer imports is now taken as
+  the render node's, as anvil and niri do.
+- **The cursor never reached its plane.** Xcursor images were uploaded as
+  `Abgr8888`; they are `Argb8888`, the cursor plane's format.
+- **Lag on the desktop.** Frames over their refresh with the shell's
+  drawing at 8–37 ms and its dispatch at 54 ms: the bar was a full-screen
+  surface redrawn on each hover (B93), each hover remounted the menu with a
+  fresh blur, and the bar's slide reallocated its blur every frame. The
+  glass gather's client uploads were counted as the shell's drawing; it is
+  now `glass_ms`.
+- **The startup warm-up** (`bench first_menu_draw`, headless on the 5070 Ti,
+  three runs each): the first bar menu's draw 4.8–7.0 ms without it,
+  0.8–1.2 ms with it; the bar's slowest first draw 4.2–5.3 ms, 1.3–1.9 ms.
+  The warm-up takes 76–77 ms, before the session's apps start, with
+  NVIDIA's shader cache already holding the binaries.
+
+What it is for, by acceptance bar:
 
 1. A Proton game and a native Vulkan game full screen for ten minutes:
    `isle displays trace DP-4 --reset`, then `isle displays trace DP-4`

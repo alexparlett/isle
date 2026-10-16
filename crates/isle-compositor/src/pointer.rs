@@ -68,6 +68,7 @@ impl State {
                     constraint.deactivate();
                 }
             });
+            tracing::info!("pointer constraint released");
             self.isle.constrained = None;
         }
         let Some((surface, origin)) = target else {
@@ -88,6 +89,9 @@ impl State {
             }
             true
         });
+        if activated && self.isle.constrained.as_ref() != Some(&surface) {
+            tracing::info!(window = ?self.isle.wm.for_surface(&root(&surface)).map(|r| r.id), "pointer constraint held");
+        }
         if activated {
             self.isle.constrained = Some(surface);
         }

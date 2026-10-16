@@ -145,8 +145,14 @@ impl State {
         // Isle's to draw, so it moves only with a redraw.
         let host_draws = matches!(self.backend, crate::backend::Backend::Winit(_))
             && !matches!(self.isle.cursor_status, CursorImageStatus::Surface(_));
-        if !host_draws {
+        if host_draws {
+            return;
+        }
+        // A grab or a drag moves more than the pointer.
+        if self.isle.seat.get_pointer().is_some_and(|p| p.is_grabbed()) || self.isle.dnd_icon.is_some() {
             self.isle.queue_redraw_all();
+        } else {
+            self.isle.queue_pointer_redraw_all();
         }
     }
 

@@ -1,8 +1,12 @@
 //! The menu bar, on demand: a band across the top of one screen with the system menu, the
-//! front app's name and menus, Window and Help, and the open menu under its title
-//! (`p1/structure/menu-bar.md`, `p1/surfaces/menus.md`).
+//! front app's name and menus, Window and Help; and the open menu under its title, a surface
+//! of its own (`p1/structure/menu-bar.md`, `p1/surfaces/menus.md`).
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use freya::prelude::*;
 use freya_embed::AppComponent;
@@ -13,7 +17,7 @@ use isle_ui::{
 };
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
-use crate::{Action, Actions, Here, Layer, Scope, SurfaceDef};
+use crate::{Action, Actions, Here, Layer, Scope, SurfaceDef, placed_menu::menu_margin};
 
 /// A title in the bar.
 #[derive(Clone, Debug, PartialEq)]
@@ -48,8 +52,6 @@ pub struct BarFrame {
     /// Where the island's reserve starts and ends, in points from the left.
     pub reserve: (f32, f32),
     pub solid: bool,
-    /// Bumped on every opening, so a menu reopened starts fresh.
-    pub generation: u64,
 }
 
 /// What the bar asks of the compositor.
@@ -105,15 +107,27 @@ pub fn layout(
     (out, fold)
 }
 
+/// The band's surface height: the bar and the room its shadow takes under it.
+pub fn band_height(theme: &Theme) -> i32 {
+    let t = &theme.tokens;
+    (t.size_bar_height + isle_ui::shadow_reach(&t.shadow_bar)).ceil() as i32
+}
+
 #[derive(Default)]
 pub struct MenuBarSurface {
     frames: Rc<RefCell<HashMap<String, BarFrame>>>,
     states: Rc<RefCell<HashMap<String, State<BarFrame>>>>,
+    /// `band_height`, set by the compositor as the theme changes.
+    height: Cell<i32>,
 }
 
 impl MenuBarSurface {
     pub fn new() -> Rc<Self> {
         Rc::new(Self::default())
+    }
+
+    pub fn set_height(&self, height: i32) {
+        self.height.set(height);
     }
 
     /// Keeps `frame` for `output`'s next tree; safe anywhere.
@@ -150,7 +164,11 @@ impl SurfaceDef for MenuBarSurface {
     }
 
     fn geometry(&self, output: SSize<i32, Logical>) -> Rectangle<i32, Logical> {
-        Rectangle::from_size(output)
+        let height = match self.height.get() {
+            0 => 64,
+            h => h,
+        };
+        Rectangle::from_size((output.w, height.min(output.h)).into())
     }
 
     fn app(&self) -> AppComponent {
@@ -291,36 +309,6 @@ impl Component for Bar {
                         .into_element()
                 });
 
-        let menu = frame.open.and_then(|i| {
-            let title = frame.titles.get(i)?;
-            let (x, _) = cells.get(i)?;
-            let on_menu = actions.clone();
-            let material = if frame.solid {
-                Material::Solid
-            } else {
-                Material::Glass
-            };
-            let help = title.kind == TitleKind::Menu && title.label == "Help" && i + 1 == frame.titles.len();
-            Some(
-                rect()
-                    .position(Position::new_absolute().left(*x).top(height + t.space_xs))
-                    .key(frame.generation)
-                    .child(Hit)
-                    .child(if help {
-                        HelpMenu {
-                            titles: frame.titles.clone(),
-                            material,
-                        }
-                        .into_element()
-                    } else {
-                        Menu::new(title.menu.clone(), move |e| send(&on_menu, BarAction::Menu(e)))
-                            .material(material)
-                            .first_selected(frame.by_key)
-                            .into_element()
-                    }),
-            )
-        });
-
         let keys = actions.clone();
         let by_key = frame.focused.is_some() && frame.open.is_none();
         rect()
@@ -360,7 +348,6 @@ impl Component for Bar {
                     )
                     .children(title_cells),
             )
-            .maybe_child(menu)
     }
 }
 
@@ -425,6 +412,175 @@ impl Component for HelpMenu {
                         .type_select(false)
                         .first_selected(!q.trim().is_empty()),
                 ),
+            )
+            .into_element()
+    }
+}
+
+/// The bar's open menu: the title it hangs under, and how it was opened.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BarMenuModel {
+    pub titles: Vec<Title>,
+    pub open: usize,
+    pub solid: bool,
+    pub by_key: bool,
+    /// Bumped on every opening, so a menu reopened starts fresh.
+    pub generation: u64,
+}
+
+/// The size the bar's menu surface needs for `title`'s menu below `top` on a `screen`-sized
+/// output, with the margin: the menu and its widest submenu beside it, or Help's search and
+/// its results down to the screen's foot.
+pub fn bar_menu_size(theme: &Theme, title: &Title, help: bool, screen: SSize<i32, Logical>, top: i32) -> SSize<i32, Logical> {
+    let t = &theme.tokens;
+    let m = menu_margin(theme);
+    let foot = (screen.h - top).max(1);
+    let (w, h) = if help {
+        (t.size_menu_search + t.size_menu_max, foot)
+    } else {
+        let (w, rows) = isle_ui::menu::extent(theme, &title.menu);
+        let h = crate::placed_menu::window_menu_size(theme, rows).h;
+        (w, h.min(foot))
+    };
+    (w.ceil() as i32 + 2 * m, h + 2 * m).into()
+}
+
+/// Whether the `open` title of `titles` is Help, which carries the menu search.
+pub fn is_help(titles: &[Title], open: usize) -> bool {
+    titles.get(open).is_some_and(|title| {
+        title.kind == TitleKind::Menu && title.label == "Help" && open + 1 == titles.len()
+    })
+}
+
+#[derive(Default)]
+pub struct BarMenuSurface {
+    model: Rc<RefCell<BarMenuModel>>,
+    state: Rc<RefCell<Option<State<BarMenuModel>>>>,
+}
+
+impl BarMenuSurface {
+    pub fn new() -> Rc<Self> {
+        Rc::new(Self::default())
+    }
+
+    pub fn set_model(&self, model: BarMenuModel) {
+        *self.model.borrow_mut() = model;
+    }
+
+    /// Puts `model` in force; call it in the tree's root scope.
+    pub fn set(&self, model: BarMenuModel) {
+        *self.model.borrow_mut() = model.clone();
+        if let Some(mut state) = *self.state.borrow() {
+            state.set_if_modified(model);
+        }
+    }
+}
+
+impl SurfaceDef for BarMenuSurface {
+    fn name(&self) -> &'static str {
+        "bar-menu"
+    }
+
+    fn layer(&self) -> Layer {
+        Layer::Top
+    }
+
+    fn scope(&self) -> Scope {
+        Scope::Placed
+    }
+
+    fn takes_keyboard(&self) -> bool {
+        true
+    }
+
+    fn geometry(&self, _output: SSize<i32, Logical>) -> Rectangle<i32, Logical> {
+        Rectangle::from_size((1, 1).into())
+    }
+
+    fn app(&self) -> AppComponent {
+        AppComponent::new(BarMenuApp {
+            model: self.model.clone(),
+            state: self.state.clone(),
+        })
+    }
+
+    fn anchor(&self) -> (f64, f64) {
+        (0.0, 0.0)
+    }
+
+    fn hit_shapes(&self) -> bool {
+        true
+    }
+
+    fn transitions(&self) -> bool {
+        false
+    }
+}
+
+#[derive(Clone)]
+struct BarMenuApp {
+    model: Rc<RefCell<BarMenuModel>>,
+    state: Rc<RefCell<Option<State<BarMenuModel>>>>,
+}
+
+impl App for BarMenuApp {
+    fn render(&self) -> impl IntoElement {
+        use_drop({
+            let slot = self.state.clone();
+            move || {
+                *slot.borrow_mut() = None;
+            }
+        });
+        let state = use_hook(|| {
+            let state = State::create(self.model.borrow().clone());
+            *self.state.borrow_mut() = Some(state);
+            state
+        });
+        BarMenu { model: state }
+    }
+}
+
+#[derive(PartialEq)]
+struct BarMenu {
+    model: State<BarMenuModel>,
+}
+
+impl Component for BarMenu {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let model = self.model.read().clone();
+        let actions = Actions::get();
+        // Only the menu takes the pointer; the room round it is the screen's.
+        let area = isle_ui::use_hit_area();
+        let material = if model.solid {
+            Material::Solid
+        } else {
+            Material::Glass
+        };
+        let Some(title) = model.titles.get(model.open) else {
+            area.clear();
+            return rect().into_element();
+        };
+        let help = is_help(&model.titles, model.open);
+        rect()
+            .expanded()
+            .padding(menu_margin(&theme) as f32)
+            .child(
+                rect()
+                    .key(model.generation)
+                    .on_sized(area.on_sized())
+                    .child(if help {
+                        HelpMenu {
+                            titles: model.titles.clone(),
+                            material,
+                        }
+                        .into_element()
+                    } else {
+                        Menu::new(title.menu.clone(), move |e| send(&actions, BarAction::Menu(e)))
+                            .material(material)
+                            .first_selected(model.by_key)
+                            .into_element()
+                    }),
             )
             .into_element()
     }

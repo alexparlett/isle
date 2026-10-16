@@ -1135,3 +1135,33 @@ async fn gaming_cost() {
     println!("after: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
     assert!(!isle.log().contains("panicked"), "a surface panicked");
 }
+
+/// The first draw of the bar's menu after start, and the surfaces' first draws: what the
+/// startup warm-up saves.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn first_menu_draw() {
+    const CTRL: u32 = 29;
+    const F2: u32 = 60;
+    let isle = Isle::start("bench-first-menu").await;
+    let test = isle.test().await;
+    wait_until(|| async { isle.log().contains("shell programs compiled") }).await;
+    let warm = isle
+        .log()
+        .lines()
+        .find(|l| l.contains("shell programs compiled"))
+        .unwrap_or_default()
+        .to_owned();
+    eprintln!("{warm}");
+    test.measure(true).await.unwrap();
+    for code in [CTRL, F2] {
+        test.key(code, true).await.unwrap();
+    }
+    for code in [F2, CTRL] {
+        test.key(code, false).await.unwrap();
+    }
+    wait_until(|| async { surface(&isle, "bar-menu").await.draws > 0 }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    report("first bar menu", &surface(&isle, "bar-menu").await);
+    report("first bar", &surface(&isle, "menu-bar").await);
+}

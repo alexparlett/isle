@@ -545,3 +545,15 @@ async fn under_reduce_transparency_the_glass_is_solid_and_not_blurred() {
     assert_eq!(shot(&isle, "glass-solid").await.at(GLASS.0, GLASS.1), [0x25, 0x26, 0x2b]);
     assert_eq!(probe(&isle).await.glass_runs, 0);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_shell_is_warmed_up_before_clients_start() {
+    let isle = Isle::start("warm-up").await;
+    wait_until(|| async { isle.log().contains("shell programs compiled") }).await;
+    let log = isle.log();
+    assert!(!log.contains("panicked"), "{log}");
+    assert!(!log.contains("no drawing target"), "{log}");
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    let list = shell.list().await.unwrap();
+    assert!(list.iter().all(|s| s.name != "warm-up"), "the warm-up surface is gone");
+}

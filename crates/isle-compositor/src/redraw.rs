@@ -24,7 +24,7 @@ use smithay::{
     },
     wayland::{fractional_scale::with_fractional_scale, presentation::Refresh},
 };
-use tracing::{trace, warn};
+use tracing::{info, trace, warn};
 
 use crate::{
     present::{Planes, Presented, Trace},
@@ -62,6 +62,10 @@ pub struct OutputState {
     pub vrr: bool,
     /// When its last frame reached the screen.
     pub last_shown: Option<Duration>,
+    /// Only the pointer moved since the last frame, so what lies behind glass did not.
+    pub pointer_only: bool,
+    /// The timer sending a held pointer-only frame.
+    retry: Option<smithay::reexports::calloop::RegistrationToken>,
     /// A scanned-out frame asked to tear and was flipped with vsync; said once.
     async_refused: bool,
     pub trace: Trace,
@@ -91,6 +95,7 @@ pub fn refresh_interval(output: &Output) -> Duration {
 impl Isle {
     pub fn queue_redraw(&mut self, output: &Output) {
         let mut state = OutputState::of(output).borrow_mut();
+        state.pointer_only = false;
         state.redraw = match std::mem::take(&mut state.redraw) {
             RedrawState::Idle | RedrawState::Queued => RedrawState::Queued,
             RedrawState::WaitingForVBlank { .. } => RedrawState::WaitingForVBlank {
@@ -101,6 +106,24 @@ impl Isle {
                 RedrawState::WaitingForEstimatedVBlankAndQueued(token)
             }
         };
+    }
+
+    /// A redraw of every output for the pointer alone: one not already asked for by
+    /// anything else may leave the glass as it is.
+    pub fn queue_pointer_redraw_all(&mut self) {
+        let outputs: Vec<_> = self.space.outputs().cloned().collect();
+        for output in &outputs {
+            let fresh = matches!(
+                OutputState::of(output).borrow().redraw,
+                RedrawState::Idle
+                    | RedrawState::WaitingForVBlank { redraw_needed: false }
+                    | RedrawState::WaitingForEstimatedVBlank(_)
+            );
+            self.queue_redraw(output);
+            if fresh {
+                OutputState::of(output).borrow_mut().pointer_only = true;
+            }
+        }
     }
 
     /// Sends frame callbacks to every surface shown on `output`.
@@ -131,7 +154,7 @@ impl Isle {
 
     /// Also tells each surface the fractional scale of the output it is mostly on.
     pub fn update_primary_scanout_output(&self, output: &Output, states: &RenderElementStates) {
-        for window in self.space.elements() {
+        for window in self.space.elements().chain(self.unmanaged.iter()) {
             window.with_surfaces(|surface, surface_states| {
                 let primary = update_surface_primary_scanout_output(
                     surface,
@@ -242,7 +265,8 @@ impl State {
             self.isle.clock.now().into(),
             refresh_interval(output),
         );
-        self.pass_commit_timers(output, target);
+        let started = std::time::Instant::now();
+        self.pass_commit_timers(target);
         self.isle.step_windows(std::time::Instant::now());
         if let Some(renderer) = self.backend.renderer_opt() {
             self.isle.prepare_wallpaper(renderer, output);
@@ -250,9 +274,21 @@ impl State {
         self.watch_island();
         self.isle.step_island(std::time::Instant::now());
         self.step_bar();
+        let stepped = started.elapsed();
         self.dispatch_shell();
-        self.draw_shell(output);
-        let rendered = match self.backend.render(&mut self.isle, output) {
+        let dispatched = started.elapsed();
+        let pointer_only = std::mem::take(&mut OutputState::of(output).borrow_mut().pointer_only);
+        let glass = self.draw_shell(output, pointer_only);
+        let shell_drawn = started.elapsed();
+        let rendered = self.backend.render(&mut self.isle, output);
+        let total = started.elapsed();
+        let drawing = shell_drawn - dispatched;
+        self.isle.frame_phases.note(
+            output,
+            total,
+            [stepped, dispatched - stepped, drawing.saturating_sub(glass), glass, total - shell_drawn],
+        );
+        let rendered = match rendered {
             Ok(rendered) => rendered,
             Err(err) => {
                 warn!(output = output.name(), "rendering failed: {err}");
@@ -262,6 +298,8 @@ impl State {
         };
         self.isle
             .update_primary_scanout_output(output, &rendered.states);
+        self.backend
+            .send_feedback(&self.isle, output, &rendered.states);
         self.cast_frames(output);
         self.copy_frames(output);
 
@@ -301,6 +339,7 @@ impl State {
                     .loop_handle
                     .insert_source(timer, move |_, _, state| {
                         let _beat = state.isle.heartbeat.beat("headless-vblank");
+                        state.backend.frame_shown(&target);
                         state.on_vblank(&target, None);
                         TimeoutAction::Drop
                     })
@@ -315,7 +354,12 @@ impl State {
         // Nothing changed on screen; clients that asked for a frame get one at the
         // estimated vblank rather than at once, or they would spin.
         self.isle.send_frame_callbacks(output);
-        let timer = Timer::from_duration(refresh_interval(output));
+        let wait = {
+            let state = OutputState::of(output).borrow();
+            let shown = state.last_shown.filter(|_| !state.vrr);
+            crate::present::next_vblank_in(refresh_interval(output), shown, self.isle.clock.now().into())
+        };
+        let timer = Timer::from_duration(wait);
         let target = output.clone();
         let token = self
             .isle
@@ -334,10 +378,15 @@ impl State {
         // A pointer-only frame held under VRR goes on its own once the hold is over.
         if let Some(left) = rendered.retry_in {
             let target = output.clone();
-            let _ = self.isle.loop_handle.insert_source(Timer::from_duration(left), move |_, _, state| {
+            let token = self.isle.loop_handle.insert_source(Timer::from_duration(left), move |_, _, state| {
+                OutputState::of(&target).borrow_mut().retry = None;
                 state.isle.queue_redraw(&target);
                 TimeoutAction::Drop
             });
+            let old = std::mem::replace(&mut OutputState::of(output).borrow_mut().retry, token.ok());
+            if let Some(old) = old {
+                self.isle.loop_handle.remove(old);
+            }
         }
         self.pass_fifo_barriers(output);
         // Something still moving that drew nothing visible this frame goes on at the next.
@@ -354,7 +403,14 @@ impl State {
     }
 
     /// Draws the shell surfaces on `output` whose trees changed, before its frame.
-    pub fn draw_shell(&mut self, output: &Output) {
+    /// Compiles the window and shell programs before anything is drawn with them.
+    pub fn warm_up(&mut self) {
+        let scale = self
+            .isle
+            .space
+            .outputs()
+            .next()
+            .map_or(1.0, |o| o.current_scale().fractional_scale());
         let Some(renderer) = self.backend.renderer_opt() else {
             return;
         };
@@ -364,7 +420,27 @@ impl State {
                 Err(err) => warn!("no window corners or shadows: {err}"),
             }
         }
-        self.isle.shell.draw(renderer, output);
+        let took = self.isle.shell.warm_up(renderer, scale);
+        info!(ms = took.as_millis() as u64, "shell programs compiled");
+    }
+
+    /// Draws the shell surfaces that changed, then what lies behind their glass, unless
+    /// only the pointer moved and no surface drew. Returns how long the glass took.
+    pub fn draw_shell(&mut self, output: &Output, pointer_only: bool) -> Duration {
+        let Some(renderer) = self.backend.renderer_opt() else {
+            return Duration::ZERO;
+        };
+        if self.isle.window_programs.is_none() {
+            match crate::wm::draw::Programs::compile(renderer) {
+                Ok(programs) => self.isle.window_programs = Some(programs),
+                Err(err) => warn!("no window corners or shadows: {err}"),
+            }
+        }
+        let drew = self.isle.shell.draw(renderer, output);
+        if pointer_only && !drew {
+            return Duration::ZERO;
+        }
+        let started = std::time::Instant::now();
         let regions = self.isle.shell.glass_regions(output);
         self.isle.shell.begin_glass(output);
         let size = output
@@ -378,6 +454,7 @@ impl State {
             self.isle.shell.prepare_glass(renderer, &region, size, below);
         }
         self.isle.shell.end_glass(output);
+        started.elapsed()
     }
 
     /// The backend's vblank for `output`: the submitted frame is on screen, at the
@@ -459,5 +536,41 @@ impl State {
             );
         }
         self.isle.send_frame_callbacks(output);
+    }
+}
+
+/// Frames that took longer than their refresh, by where the time went, said at most once a
+/// second.
+#[derive(Default)]
+pub struct FramePhases {
+    last_said: Option<std::time::Instant>,
+    slow: u32,
+}
+
+impl FramePhases {
+    /// `shell` is the shell's own drawing; `glass` drawing what lies behind its glass,
+    /// client textures included.
+    fn note(&mut self, output: &Output, total: Duration, [steps, dispatch, shell, glass, render]: [Duration; 5]) {
+        if total <= refresh_interval(output) {
+            return;
+        }
+        self.slow += 1;
+        let now = std::time::Instant::now();
+        if self.last_said.is_some_and(|t| now.duration_since(t) < Duration::from_secs(1)) {
+            return;
+        }
+        self.last_said = Some(now);
+        let ms = |d: Duration| (d.as_secs_f64() * 1e4).round() / 10.0;
+        warn!(
+            output = output.name(),
+            total_ms = ms(total),
+            steps_ms = ms(steps),
+            shell_dispatch_ms = ms(dispatch),
+            shell_draw_ms = ms(shell),
+            glass_ms = ms(glass),
+            render_ms = ms(render),
+            slow_since_last = std::mem::take(&mut self.slow),
+            "a frame over its refresh"
+        );
     }
 }

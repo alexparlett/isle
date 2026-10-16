@@ -52,8 +52,12 @@ async fn the_chooser_opens_from_the_power_key_and_the_chord_and_takes_its_letter
     assert_eq!(s["form"], "chooser Shut Down");
     assert_eq!(s["countdown"], 60);
     client.wait_for("keyboard-leave").await;
-    let kinds = isle.test().await.frame_kinds("HEADLESS-1").await.unwrap();
-    assert!(kinds.iter().any(|k| k == "solid"), "the scrim: {kinds:?}");
+    // The dialog's first frame, with its scrim, may be a refresh after it opens.
+    wait_until(|| async {
+        let kinds = isle.test().await.frame_kinds("HEADLESS-1").await.unwrap();
+        kinds.iter().any(|k| k == "solid")
+    })
+    .await;
 
     armed(&isle).await;
     isle.keep_shot("session-chooser").await;

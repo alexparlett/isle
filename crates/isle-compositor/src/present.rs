@@ -222,15 +222,35 @@ pub fn pointer_hold(min_refresh_hz: Option<u32>) -> Duration {
     }
 }
 
-/// How long a pointer-only frame may still wait, or `None` when it must go now.
-pub fn hold_left(vrr: bool, last_shown: Option<Duration>, now: Duration, hold: Duration) -> Option<Duration> {
-    let last = last_shown.filter(|_| vrr)?;
+/// How long a pointer-only frame may still wait, or `None` when it must go now: up to
+/// `hold` after the full-screen window last drew (`front_drawn`).
+pub fn hold_left(vrr: bool, front_drawn: Option<Duration>, now: Duration, hold: Duration) -> Option<Duration> {
+    let last = front_drawn.filter(|_| vrr)?;
     (last + hold).checked_sub(now).filter(|left| !left.is_zero())
+}
+
+/// How long until the output's next vblank, by the last one (`shown`), or a whole
+/// `interval` when there is none to count from.
+pub fn next_vblank_in(interval: Duration, shown: Option<Duration>, now: Duration) -> Duration {
+    let Some(since) = shown.and_then(|s| now.checked_sub(s)) else {
+        return interval;
+    };
+    let into = Duration::from_nanos((since.as_nanos() % interval.as_nanos().max(1)) as u64);
+    interval - into
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_next_vblank_counts_from_the_last() {
+        let ms = Duration::from_millis;
+        assert_eq!(next_vblank_in(ms(10), None, ms(100)), ms(10));
+        assert_eq!(next_vblank_in(ms(10), Some(ms(100)), ms(103)), ms(7));
+        assert_eq!(next_vblank_in(ms(10), Some(ms(100)), ms(125)), ms(5));
+        assert_eq!(next_vblank_in(ms(10), Some(ms(100)), ms(100)), ms(10));
+    }
 
     #[test]
     fn tearing_needs_the_setting_and_the_front_windows_ask() {

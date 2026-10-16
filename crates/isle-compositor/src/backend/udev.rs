@@ -23,7 +23,7 @@ use smithay::{
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         renderer::{
             ImportDma, ImportMemWl, PresentationMode,
-            element::{Element, Id, Kind, utils::select_dmabuf_feedback},
+            element::{Element, Id, Kind, RenderElementStates, utils::select_dmabuf_feedback},
             gles::GlesRenderer,
         },
         session::{Event as SessionEvent, Session, libseat::LibSeatSession},
@@ -92,8 +92,17 @@ struct Lit {
     feedback: Option<Feedback>,
     vrr: present::VrrCapability,
     gamma: Option<super::gamma::Gamma>,
+    /// The client buffers the frame waiting for its vblank was drawn from. A buffer's
+    /// explicit-sync release is signalled when it is dropped, so these are held until the
+    /// frame is on screen and the GPU has finished reading them.
+    in_flight: Vec<smithay::backend::renderer::utils::Buffer>,
     /// How long a pointer-only frame may wait under VRR.
     pointer_hold: Duration,
+    /// The commit of the full-screen window last drawn, and when a new one was.
+    front_commit: Option<smithay::backend::renderer::utils::CommitCounter>,
+    front_drawn_at: Option<Duration>,
+    /// The VRR state the connector refused, not asked for again until wanted otherwise.
+    vrr_refused: Option<bool>,
 }
 
 /// The dmabuf feedback for a surface on this output: what Isle renders from, and what
@@ -123,6 +132,8 @@ pub struct Udev {
     reprobe: Option<RegistrationToken>,
     /// The render GPU, until the session is first active and it can be opened.
     waiting: Option<(DrmNode, std::path::PathBuf)>,
+    /// linux-dmabuf, served once the render GPU is open.
+    dmabuf_global: Option<smithay::wayland::dmabuf::DmabufGlobal>,
     /// Night light's warmth, in kelvin.
     warmth: f64,
 }
@@ -170,6 +181,7 @@ impl Udev {
                 pointers: Vec::new(),
                 reprobe: None,
                 waiting: None,
+                dmabuf_global: None,
                 warmth: crate::night_light::NEUTRAL,
             },
             notifier,
@@ -188,17 +200,29 @@ impl Udev {
         self.renderer.as_mut()
     }
 
+    /// Whether clients are offered the GPU's buffers: linux-dmabuf is served.
+    pub fn renders(&self) -> bool {
+        self.dmabuf_global.is_some()
+    }
+
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
-        self.renderer
+        let imported = self
+            .renderer
             .as_mut()
-            .is_some_and(|r| r.import_dmabuf(dmabuf, None).is_ok())
+            .is_some_and(|r| r.import_dmabuf(dmabuf, None).is_ok());
+        // The scanout exporter only takes buffers from the render node, and clients almost
+        // never name the device they allocated on; one the renderer imports is taken as its.
+        if imported && dmabuf.node().is_none() {
+            dmabuf.set_node(self.render_node);
+        }
+        imported
     }
 
     /// The renderer with the themed image of the pointer's named cursor at `scale`.
     pub fn renderer_with_cursor(
         &mut self,
         isle: &Isle,
-        scale: u32,
+        scale: f64,
     ) -> Option<(&mut GlesRenderer, Option<NamedCursor<'_>>)> {
         let renderer = self.renderer.as_mut()?;
         let cursor = match &isle.cursor_status {
@@ -206,6 +230,22 @@ impl Udev {
             _ => None,
         };
         Some((renderer, cursor))
+    }
+
+    /// Tells each surface on `output` which formats to allocate, by where `states` put
+    /// it; after the frame's primary scanout outputs are recorded.
+    pub fn send_feedback(&self, isle: &Isle, output: &Output, states: &RenderElementStates) {
+        let Some(id) = output.user_data().get::<OutputId>() else {
+            return;
+        };
+        if let Some(feedback) = self
+            .devices
+            .get(&id.device)
+            .and_then(|d| d.lit.get(&id.crtc))
+            .and_then(|lit| lit.feedback.as_ref())
+        {
+            send_feedback(isle, output, feedback, states);
+        }
     }
 
     pub fn render(&mut self, isle: &mut Isle, output: &Output) -> Result<Rendered, String> {
@@ -219,7 +259,7 @@ impl Udev {
             .get_mut(&id.device)
             .and_then(|d| d.lit.get_mut(&id.crtc))
             .ok_or("the output is gone")?;
-        let scale = output.current_scale().integer_scale().max(1) as u32;
+        let scale = output.current_scale().fractional_scale();
         let cursor = match &isle.cursor_status {
             CursorImageStatus::Named(icon) => self.cursors.get(*icon, scale),
             _ => None,
@@ -231,33 +271,64 @@ impl Udev {
             .output
             .get(&Isle::output_identity(output))
             .map_or(isle_settings::schema::Vrr::Fullscreen, |c| c.vrr);
-        let want = present::wants_vrr(setting, lit.vrr, isle.full_screen_front(output).is_some());
-        let vrr = if lit.vrr == present::VrrCapability::OnDemand {
+        // What is on screen decides, not focus: the switcher over a game leaves VRR on.
+        let shown = isle.full_screen_shown(output);
+        let want = present::wants_vrr(setting, lit.vrr, shown.is_some());
+        let refused = lit.vrr_refused.filter(|r| *r == want);
+        let (vrr, failed) = if lit.vrr == present::VrrCapability::OnDemand {
             lit.surface.with_compositor(|c| {
-                if c.vrr_enabled() != want
-                    && let Err(err) = c.use_vrr(want)
-                {
-                    warn!(output = output.name(), want, "could not change VRR: {err:?}");
-                }
-                c.vrr_enabled()
+                let failed = (c.vrr_enabled() != want && refused.is_none())
+                    .then(|| c.use_vrr(want).err())
+                    .flatten();
+                (c.vrr_enabled(), failed)
             })
         } else {
-            lit.surface.with_compositor(|c| c.vrr_enabled())
+            (lit.surface.with_compositor(|c| c.vrr_enabled()), None)
         };
+        if let Some(err) = failed {
+            warn!(output = output.name(), want, "could not change VRR: {err:?}");
+            lit.vrr_refused = Some(want);
+        } else if refused.is_none() {
+            lit.vrr_refused = None;
+        }
+        // A pointer-only frame waits to ride with the full-screen window's next frame, but
+        // only while that window is drawing; an idle game's pointer moves at once.
+        let now: Duration = isle.clock.now().into();
+        let front_commit = shown
+            .and_then(|id| isle.wm.get(id))
+            .and_then(|r| r.surface())
+            .map(|s| Id::from_wayland_resource(&s))
+            .and_then(|id| elements.iter().find(|e| *e.id() == id))
+            .map(|e| e.current_commit());
+        if front_commit.is_some() && front_commit != lit.front_commit {
+            lit.front_drawn_at = Some(now);
+        }
+        lit.front_commit = front_commit;
         let hold = {
             let mut state = crate::redraw::OutputState::of(output).borrow_mut();
             state.vrr = vrr;
-            present::hold_left(vrr, state.last_shown, isle.clock.now().into(), lit.pointer_hold)
+            let drawing = lit.front_drawn_at.filter(|_| front_commit.is_some());
+            present::hold_left(vrr, drawing, now, lit.pointer_hold)
         };
+        // Any format the plane takes, not only the swapchain's: games draw in their own.
         let mut flags = if std::mem::take(&mut lit.woken) {
             FrameFlags::empty()
         } else {
-            FrameFlags::DEFAULT
+            FrameFlags::DEFAULT | FrameFlags::ALLOW_PRIMARY_PLANE_SCANOUT_ANY
         };
         if hold.is_some() {
             flags |= FrameFlags::SKIP_CURSOR_ONLY_UPDATES;
         }
-        let tear = isle.wants_tearing(output);
+        // Under a full-screen desktop nothing shows through, and a black clear lets the
+        // window's buffer be scanned out though it does not say it is opaque.
+        let clear = if isle.wallpaper_covered(output) {
+            [0.0, 0.0, 0.0, 1.0]
+        } else {
+            CLEAR
+        };
+        // An async flip leaves the cursor plane alone, so with the pointer shown the frame
+        // goes with vsync: its cursor on its plane and the game still scanned out.
+        let tear = isle.wants_tearing(output) && !elements.iter().any(|e| e.kind() == Kind::Cursor);
         if tear {
             flags |= FrameFlags::ASYNC_SCANOUT_ONLY | FrameFlags::ALLOW_PRIMARY_PLANE_SCANOUT_ANY;
         }
@@ -268,9 +339,31 @@ impl Udev {
         };
         let result = lit
             .surface
-            .render_frame(renderer, &elements, CLEAR, flags, mode)
+            .render_frame(renderer, &elements, clear, flags, mode)
             .map_err(|e| format!("{e:?}"))?;
         let damaged = !result.is_empty;
+        if damaged
+            && matches!(result.primary_element, PrimaryPlaneElement::Swapchain(_))
+            && isle.full_screen_front(output).is_some()
+        {
+            explain_composited(renderer, output, &elements, clear, flags);
+        }
+        // Where the display cannot wait on the render's fence, the frame is finished here,
+        // or a half-drawn frame would be scanned out.
+        if damaged
+            && result.needs_sync()
+            && let PrimaryPlaneElement::Swapchain(element) = &result.primary_element
+            && {
+                static SAID: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                if !SAID.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                    info!("composited frames are waited for: the display takes no render fence");
+                }
+                true
+            }
+            && let Err(err) = element.sync.wait()
+        {
+            warn!(output = output.name(), "could not wait for the frame to render: {err:?}");
+        }
         let planes = Planes {
             primary: match &result.primary_element {
                 PrimaryPlaneElement::Swapchain(_) => present::Primary::Composited,
@@ -289,9 +382,9 @@ impl Udev {
         let states = result.states;
         if damaged {
             lit.surface.queue_frame(()).map_err(|e| format!("{e:?}"))?;
-        }
-        if let Some(feedback) = &lit.feedback {
-            send_feedback(isle, output, feedback, &states);
+            if !matches!(planes.primary, present::Primary::Window(_)) {
+                lit.in_flight = super::sampled_buffers(isle, output, &elements);
+            }
         }
         Ok(Rendered {
             damaged,
@@ -357,8 +450,12 @@ impl Udev {
         };
         if on {
             lit.woken = true;
-        } else if let Err(err) = lit.surface.with_compositor(|c| c.clear()) {
-            tracing::warn!(output = output.name(), "could not turn the screen off: {err:?}");
+        } else {
+            if let Err(err) = lit.surface.with_compositor(|c| c.clear()) {
+                tracing::warn!(output = output.name(), "could not turn the screen off: {err:?}");
+            }
+            // No vblank comes to give them back.
+            lit.in_flight.clear();
         }
     }
 }
@@ -383,6 +480,9 @@ pub fn setup(
         info!(%node, "not driving this GPU's outputs; one GPU renders for now");
     }
     udev.waiting = devices.into_iter().find(|(node, _)| *node == primary);
+    if udev.waiting.is_none() {
+        return Err(format!("the render GPU {primary} is not on seat {seat}").into());
+    }
     // A device opened before the session is active cannot become DRM master.
     if udev.session.is_active() {
         state.open_render_gpu()?;
@@ -394,13 +494,20 @@ pub fn setup(
     handle
         .insert_source(udev_backend, move |event, _, state| {
             let _beat = state.isle.heartbeat.beat("udev");
+            // What changed while the session was away is reprobed when it comes back.
+            if !state.udev().session.is_active() {
+                return;
+            }
             match event {
                 UdevEvent::Added { device_id, path } => {
                     if let Ok(node) = DrmNode::from_dev_id(device_id)
                         && node == primary
-                        && let Err(err) = state.device_added(node, &path)
+                        && !state.udev().devices.contains_key(&node)
                     {
-                        error!(%node, "could not open the GPU: {err}");
+                        state.udev().waiting = Some((node, path));
+                        if let Err(err) = state.open_render_gpu() {
+                            error!(%node, "could not open the GPU: {err}");
+                        }
                     }
                 }
                 UdevEvent::Changed { device_id } => {
@@ -442,11 +549,14 @@ pub fn setup(
 
 impl State {
     /// Opens the render GPU, then serves the formats it can import.
+    /// The GPU stays waiting when it fails, to be tried again.
     fn open_render_gpu(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let Some((node, path)) = self.udev().waiting.take() else {
+        let Some((node, path)) = self.udev().waiting.clone() else {
             return Ok(());
         };
-        self.device_added(node, &path)?;
+        if !self.udev().devices.contains_key(&node) {
+            self.device_added(node, &path)?;
+        }
         let udev = self.udev();
         let render_node = udev.render_node;
         let renderer = udev
@@ -457,12 +567,23 @@ impl State {
         let formats = renderer.dmabuf_formats();
         self.isle.shm_state.update_formats(shm);
         let feedback = DmabufFeedbackBuilder::new(render_node.dev_id(), formats).build()?;
-        self.isle
-            .dmabuf_state
-            .create_global_with_default_feedback::<State>(&self.isle.display_handle, &feedback);
         let fd = self.udev().devices[&node].manager.device().device_fd().clone();
         self.isle.serve_syncobj(fd);
+        let global = self
+            .isle
+            .dmabuf_state
+            .create_global_with_default_feedback::<State>(&self.isle.display_handle, &feedback);
+        let udev = self.udev();
+        udev.dmabuf_global = Some(global);
+        udev.waiting = None;
         Ok(())
+    }
+
+    /// Stops the loop and ends Isle with `why`, for its supervisor to start it again.
+    fn give_up(&mut self, why: String) {
+        error!("{why}");
+        self.isle.exit_error = Some(why);
+        self.isle.loop_signal.stop();
     }
 
     fn udev(&mut self) -> &mut Udev {
@@ -588,6 +709,12 @@ impl State {
             self.connector_disconnected(node, crtc);
         }
         self.udev().devices.remove(&node);
+        // The renderer, its textures, linux-dmabuf and syncobj are all the GPU's; a fresh
+        // start opens them again on what is there now.
+        if node == self.udev().primary && self.udev().renderer.is_some() {
+            self.give_up("the render GPU was removed".to_owned());
+            return;
+        }
         self.arm_reprobe();
     }
 
@@ -701,7 +828,7 @@ impl State {
             Ok(surface) => surface,
             Err(err) => {
                 warn!(name, "could not light the output: {err}");
-                isle.display_handle.remove_global::<State>(global);
+                super::retire_output_global(isle, global);
                 return;
             }
         };
@@ -739,7 +866,11 @@ impl State {
                 feedback,
                 vrr,
                 gamma,
+                in_flight: Vec::new(),
                 pointer_hold: present::pointer_hold(min_hz),
+                front_commit: None,
+                front_drawn_at: None,
+                vrr_refused: None,
             },
         );
 
@@ -780,7 +911,7 @@ impl State {
         info!(name = lit.output.name(), "output gone");
         isle.remove_output(&lit.output);
         lit.output.leave_all();
-        isle.display_handle.remove_global::<State>(lit.global);
+        super::retire_output_global(isle, lit.global);
         drop(lit.surface);
         let renderer = udev.renderer.as_mut().unwrap();
         let _ = device
@@ -863,6 +994,7 @@ impl State {
         if let Err(err) = lit.surface.frame_submitted() {
             warn!("frame not submitted: {err:?}");
         }
+        lit.in_flight.clear();
         let output = lit.output.clone();
         self.on_vblank(&output, Some(presented(metadata, now, asynchronous)));
     }
@@ -878,14 +1010,16 @@ impl State {
                 udev.restore_gamma();
                 for device in udev.devices.values_mut() {
                     device.manager.pause();
+                    for lit in device.lit.values_mut() {
+                        lit.in_flight.clear();
+                    }
                 }
             }
             SessionEvent::ActivateSession => {
                 info!("session active");
                 if self.udev().waiting.is_some() {
                     if let Err(err) = self.open_render_gpu() {
-                        error!("could not open the render GPU: {err}");
-                        self.isle.loop_signal.stop();
+                        self.give_up(format!("could not open the render GPU: {err}"));
                     }
                     // Input devices could not be opened while the session was inactive.
                     let udev = self.udev();
@@ -1105,7 +1239,7 @@ fn send_feedback(
     isle: &Isle,
     output: &Output,
     feedback: &Feedback,
-    states: &smithay::backend::renderer::element::RenderElementStates,
+    states: &RenderElementStates,
 ) {
     let select = |surface: &_, _: &_| {
         select_dmabuf_feedback(surface, states, &feedback.render, &feedback.scanout)
@@ -1114,6 +1248,10 @@ fn send_feedback(
         if isle.space.outputs_for_element(window).contains(output) {
             window.send_dmabuf_feedback(output, surface_primary_scanout_output, select);
         }
+    }
+    // Override-redirect and untitled X11 windows: a game may be one.
+    for window in &isle.unmanaged {
+        window.send_dmabuf_feedback(output, surface_primary_scanout_output, select);
     }
     for layer in layer_map_for_output(output).layers() {
         layer.send_dmabuf_feedback(output, surface_primary_scanout_output, select);
@@ -1170,5 +1308,58 @@ mod tests {
         ];
         assert_eq!(fastest(&modes, modes[0]), Some(1));
         assert_eq!(fastest(&modes[3..4], modes[0]), None);
+    }
+}
+
+/// Logs, at most every two seconds, why a full-screen window's frame was drawn rather
+/// than scanned out: each element's storage, buffer, geometry and opacity.
+fn explain_composited<E: smithay::backend::renderer::element::RenderElement<GlesRenderer>>(
+    renderer: &mut GlesRenderer,
+    output: &Output,
+    elements: &[E],
+    clear: [f32; 4],
+    flags: FrameFlags,
+) {
+    use smithay::backend::{allocator::Buffer as _, renderer::element::UnderlyingStorage};
+    static LAST: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+    {
+        let mut last = LAST.lock().unwrap();
+        if last.is_some_and(|t| t.elapsed() < Duration::from_secs(2)) {
+            return;
+        }
+        *last = Some(std::time::Instant::now());
+    }
+    let scale = smithay::utils::Scale::from(output.current_scale().fractional_scale());
+    info!(output = output.name(), count = elements.len(), ?clear, ?flags, "a full-screen frame composited");
+    for (index, e) in elements.iter().enumerate() {
+        let storage = match e.underlying_storage(renderer) {
+            None => "none".to_owned(),
+            Some(UnderlyingStorage::Memory(_)) => "memory".to_owned(),
+            Some(UnderlyingStorage::Wayland(buffer)) => {
+                match smithay::wayland::dmabuf::get_dmabuf(buffer) {
+                    Ok(d) => format!(
+                        "dmabuf {:?} {:?} {}x{} node {:?}",
+                        d.format().code,
+                        d.format().modifier,
+                        d.width(),
+                        d.height(),
+                        d.node()
+                    ),
+                    Err(_) => format!("wayland {:?}", smithay::backend::renderer::buffer_type(buffer)),
+                }
+            }
+        };
+        info!(
+            index,
+            id = ?e.id(),
+            kind = ?e.kind(),
+            geometry = ?e.geometry(scale),
+            src = ?e.src(),
+            opaque = ?e.opaque_regions(scale),
+            alpha = e.alpha(),
+            transform = ?e.transform(),
+            storage,
+            "  element"
+        );
     }
 }

@@ -7,7 +7,6 @@ use smithay::{
     backend::renderer::{
         element::{
             Kind,
-            memory::MemoryRenderBufferRenderElement,
             solid::{SolidColorBuffer, SolidColorRenderElement},
         },
         gles::GlesRenderer,
@@ -214,19 +213,9 @@ impl Isle {
             let pointer = pointer.filter(|_| self.lock.face.awake);
             if let (CursorImageStatus::Named(_), Some(at), Some(cursor)) =
                 (&self.cursor_status, pointer, cursor)
+                && let Some(element) = cursor.element(renderer, at - geometry.loc.to_f64(), scale)
             {
-                let location = at - geometry.loc.to_f64() - cursor.hotspot.to_f64();
-                if let Ok(element) = MemoryRenderBufferRenderElement::from_buffer(
-                    renderer,
-                    location.to_physical(scale),
-                    cursor.buffer,
-                    None,
-                    None,
-                    None,
-                    Kind::Cursor,
-                ) {
-                    push(IsleElement::Memory(element));
-                }
+                push(IsleElement::Memory(element));
             }
             self.shell
                 .elements_of(output, "island", &mut |e| push(IsleElement::Shell(e)));

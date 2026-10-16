@@ -266,3 +266,57 @@ async fn a_submenu_with_nothing_enabled_is_disabled() {
     assert_eq!(item(window, "Full screen tile").unwrap()["enabled"], false);
     assert_eq!(item(window, "Move and resize").unwrap()["enabled"], true);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_click_away_from_an_open_menu_closes_it_and_the_next_click_lands() {
+    let mut isle = Isle::start("bar-click-away").await;
+    let client = isle.client("isle.test.Under", "3366ff");
+    isle.wait_for_window("isle.test.Under").await;
+    let test = isle.test().await;
+    test.pointer_to(300.0, 0.0).await.unwrap();
+    test.pointer_by(0.0, -60.0).await.unwrap();
+    wait_until(|| async { bar(&isle).await["output"] == "HEADLESS-1" }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    // The system menu sits at the bar's leading end.
+    test.pointer_to(20.0, 12.0).await.unwrap();
+    test.button(LEFT, true).await.unwrap();
+    test.button(LEFT, false).await.unwrap();
+    wait_until(|| async { !bar(&isle).await["open"].is_null() }).await;
+
+    client.clear();
+    test.pointer_to(960.0, 600.0).await.unwrap();
+    test.button(LEFT, true).await.unwrap();
+    test.button(LEFT, false).await.unwrap();
+    wait_until(|| async { bar(&isle).await["output"].is_null() }).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(!client.printed("button 272 pressed"), "the click that closed the menu is its own");
+
+    test.button(LEFT, true).await.unwrap();
+    test.button(LEFT, false).await.unwrap();
+    client.wait_for("button 272 pressed").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_bar_is_a_band_and_its_open_menu_a_surface_of_its_own() {
+    let mut isle = Isle::start("bar-surfaces").await;
+    let client = isle.client("isle.test.Typing", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    isle.chord(&[CTRL, F2]).await;
+    wait_until(|| async { bar(&isle).await["open"] == 0 }).await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    let find = |list: &[isle_ipc::SurfaceInfo], name: &str| {
+        list.iter().find(|s| s.name == name && s.open).cloned()
+    };
+    wait_until(|| async { find(&shell.list().await.unwrap(), "bar-menu").is_some() }).await;
+    let list = shell.list().await.unwrap();
+    let band = find(&list, "menu-bar").unwrap();
+    let menu = find(&list, "bar-menu").unwrap();
+    assert!(band.height < 120, "the bar redraws only its band: {}", band.height);
+    assert!(menu.width < band.width / 2, "the menu is not the screen: {}", menu.width);
+
+    // Escape closes the menu and its surface, and the keys go back to the bar.
+    isle.chord(&[ESC]).await;
+    wait_until(|| async { bar(&isle).await["open"].is_null() }).await;
+    wait_until(|| async { find(&shell.list().await.unwrap(), "bar-menu").is_none() }).await;
+    assert!(find(&shell.list().await.unwrap(), "menu-bar").is_some());
+}

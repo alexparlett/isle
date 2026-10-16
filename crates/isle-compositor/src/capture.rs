@@ -349,7 +349,7 @@ impl State {
             other => return Err(format!("no target {other:?}")),
         };
         for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
-            self.draw_shell(&output);
+            self.draw_shell(&output, false);
         }
         let pixels = self.capture_pixels(&target, spec["pointer"].as_bool().unwrap_or(false))?;
         let to = match spec["to"].as_str() {
@@ -374,7 +374,7 @@ impl State {
         reply: tokio::sync::oneshot::Sender<Option<PathBuf>>,
     ) {
         for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
-            self.draw_shell(&output);
+            self.draw_shell(&output, false);
         }
         let pointer = self.isle.settings.capture.show_pointer;
         match self.capture_pixels(&target, pointer) {
@@ -409,7 +409,7 @@ impl State {
             return self.take_for_portal(Target::Window { id, shadow: true }, reply);
         }
         for output in self.isle.space.outputs().cloned().collect::<Vec<_>>() {
-            self.draw_shell(&output);
+            self.draw_shell(&output, false);
         }
         let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
         let mut parts = Vec::new();

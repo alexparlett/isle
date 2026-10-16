@@ -200,6 +200,7 @@ impl State {
         let mut command = Command::new(helper());
         command
             .args(["--node", &node.to_string(), "--fps", &fps.to_string()])
+            .envs(crate::child_env::vars())
             .arg("--out")
             .arg(&recording.path)
             .stdin(Stdio::piped())

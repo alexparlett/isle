@@ -129,3 +129,47 @@ fn a_navigation_row_opens_and_a_disabled_one_does_not() {
     click(&mut test, "Widgets", 0);
     assert_eq!(*opened.borrow(), 1);
 }
+
+#[test]
+fn a_text_field_edits_with_the_macs_keys() {
+    let (mut test, _) = TestingRunner::new(
+        move || {
+            use_provide_context(|| {
+                ThemeContext(State::create(Rc::new(
+                    Source::shipped().theme(&Appearance::default()).unwrap(),
+                )))
+            });
+            let value = use_state(|| "night light".to_owned());
+            let shown = value.read().clone();
+            rect()
+                .expanded()
+                .child(isle_ui::TextField::new(value, "Search"))
+                .child(label().text(format!("value={shown}")))
+        },
+        (600., 300.).into(),
+        |runner| {
+            runner.provide_root_context(|| TargetPlatform::MacOs);
+        },
+        1.,
+    );
+    settle(&mut test);
+    let field = test
+        .find(|node, element| {
+            Paragraph::try_downcast(element).map(|_| node.layout().area.center())
+        })
+        .expect("the field's text");
+    test.click_cursor((f64::from(field.x), f64::from(field.y)));
+    settle(&mut test);
+
+    // Cmd+Right to the line's end, Option+Backspace takes the word before.
+    test.press_key_with_modifiers(Key::Named(NamedKey::ArrowRight), Modifiers::META);
+    test.press_key_with_modifiers(Key::Named(NamedKey::Backspace), Modifiers::ALT);
+    settle(&mut test);
+    assert!(labels(&test).contains(&"value=night ".to_owned()), "{:?}", labels(&test));
+
+    // Cmd+A selects it all; typing replaces it.
+    test.press_key_with_modifiers(Key::Character("a".into()), Modifiers::META);
+    test.write_text("light");
+    settle(&mut test);
+    assert!(labels(&test).contains(&"value=light".to_owned()), "{:?}", labels(&test));
+}

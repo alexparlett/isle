@@ -9,6 +9,7 @@ pub mod menu;
 pub mod search;
 pub mod slider;
 pub mod text;
+mod text_field;
 
 use std::rc::Rc;
 
@@ -23,6 +24,7 @@ pub use glyph::{AppIcon, Glyph, LevelGlyph, glyph_svg};
 pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
 pub use search::SearchField;
 pub use slider::Slider;
+pub use text_field::TextField;
 
 /// The theme every tree reads; a change re-renders whoever read it.
 #[derive(Clone, Copy)]

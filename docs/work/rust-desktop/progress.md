@@ -2,6 +2,12 @@
 
 ## 2026-10-17
 
+- P13 13.2, the text field: `isle-ui::TextField` is Freya's editor (caret,
+  selection, clipboard, undo) dressed in Isle's tokens; with the Mac's
+  conventions declared, Cmd+Right goes to the line's end, Option+Backspace
+  takes a word and Cmd+A selects all (tested headless). The form's controls
+  are tested with `freya-testing` at the pinned revision.
+
 - P13 13.2, the form: `isle-ui::form` has the pane header, the grouped card
   with hairlines, the row (label, description, a control or a navigation
   value and chevron, the found ring, the refused line), the segmented

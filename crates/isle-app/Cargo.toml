@@ -6,7 +6,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-freya = { workspace = true, features = ["winit"] }
+freya = { workspace = true, features = ["winit", "accessibility"] }
 futures-channel = "0.3"
 futures-util.workspace = true
 isle-ipc.workspace = true

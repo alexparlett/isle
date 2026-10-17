@@ -131,7 +131,7 @@ impl Isle {
         if self.lock.locked {
             self.render_locked(output, renderer, cursor, true, push);
         } else {
-            self.render_elements_from(renderer, output, cursor, Stage::Cursor, &[], push);
+            self.render_elements_from(renderer, output, cursor, Stage::Cursor, &[], None, push);
         }
         #[cfg(feature = "test-hooks")]
         self.lock.frame_kinds.borrow_mut().insert(output.name(), kinds);
@@ -155,7 +155,18 @@ impl Isle {
             isle_shell::Layer::Top => Stage::Windows,
             isle_shell::Layer::Background => return,
         };
-        self.render_elements_from(renderer, output, None, from, &[], push);
+        self.render_elements_from(renderer, output, None, from, &[], None, push);
+    }
+
+    /// What lies behind window `id`, front to back, for its backdrop.
+    pub fn render_elements_below_window(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        id: u64,
+        push: &mut dyn FnMut(IsleElement),
+    ) {
+        self.render_elements_from(renderer, output, None, Stage::Windows, &[], Some(id), push);
     }
 
     /// What a picture of `output` holds, front to back: what it shows but the idle dim and
@@ -174,7 +185,7 @@ impl Isle {
             self.render_locked(output, renderer, cursor, true, push);
         } else {
             let from = if pointer { Stage::Cursor } else { Stage::Prompt };
-            self.render_elements_from(renderer, output, cursor, from, CAPTURE_SURFACES, push);
+            self.render_elements_from(renderer, output, cursor, from, CAPTURE_SURFACES, None, push);
         }
     }
 
@@ -185,6 +196,7 @@ impl Isle {
         cursor: Option<NamedCursor<'_>>,
         from: Stage,
         leave: &[&str],
+        under: Option<u64>,
         push: &mut dyn FnMut(IsleElement),
     ) {
         let Some(geometry) = self.space.output_geometry(output) else {
@@ -285,7 +297,7 @@ impl Isle {
         }
 
         // X11 windows left alone, front last, at the place they ask for, over windows.
-        for window in self.unmanaged.iter().rev() {
+        for window in self.unmanaged.iter().rev().filter(|_| under.is_none()) {
             let (Some(x11), Some(surface)) = (window.x11_surface(), {
                 use smithay::wayland::seat::WaylandFocus;
                 window.wl_surface().map(|s| s.into_owned())
@@ -306,7 +318,7 @@ impl Isle {
         }
         let preview = self.zone_preview.as_ref().filter(|p| &p.output == output);
         let output_scale = scale.x;
-        for leaving in self.leaving.iter().filter(|l| &l.output == output) {
+        for leaving in self.leaving.iter().filter(|l| &l.output == output && under.is_none()) {
             let snapshot = &leaving.snapshot;
             let from = Rectangle::new(snapshot.frame.loc - geometry.loc, snapshot.frame.size);
             let mut to = leaving.motion.apply(snapshot.frame);
@@ -318,8 +330,15 @@ impl Isle {
                 output_scale,
             )));
         }
+        // Under a window, only what is below it.
+        let mut hidden = under.is_some();
+        let backdrops = if under.is_none() { self.window_backdrops(output) } else { Vec::new() };
         for window in self.space.elements_for_output(output).rev() {
             let id = crate::wm::window_id(window);
+            if hidden {
+                hidden = under != Some(id);
+                continue;
+            }
             let Some(frame) = self.frame(id) else {
                 continue;
             };
@@ -346,6 +365,16 @@ impl Isle {
             });
             for piece in pieces {
                 push(IsleElement::Window(crate::wm::draw::place(piece, from, to, output_scale)));
+            }
+            if let Some((_, rect)) = backdrops.iter().find(|(b, _)| *b == id)
+                && let Some(glass) = self.shell.backdrop_element(
+                    id,
+                    *rect,
+                    output_scale,
+                    self.shell.theme().tokens.radius_window,
+                )
+            {
+                push(IsleElement::Shell(glass));
             }
             if let Some(morph) = morph {
                 let snapshot = &morph.snapshot;

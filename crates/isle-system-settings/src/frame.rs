@@ -204,7 +204,6 @@ impl Component for Frame {
             .expanded()
             .horizontal()
             .content(Content::flex())
-            .background(colour(t.colour_window))
             .on_mouse_down(move |e: Event<MouseEventData>| match e.button {
                 Some(MouseButton::Back) => nav.back(),
                 Some(MouseButton::Forward) => nav.forward(),
@@ -234,6 +233,9 @@ impl Component for Sidebar {
         let query = self.query.read().clone();
         let results = nav::search(&query);
         let searching = !query.trim().is_empty();
+        // On the compositor's blur the sidebar is glass; solid without it or under Reduce
+        // Transparency.
+        let glass = isle_app::blurs() && !theme.appearance.reduce_transparency;
         let list: Element = if searching {
             results_list(&theme, &query, results, nav).into_element()
         } else {
@@ -242,7 +244,7 @@ impl Component for Sidebar {
         rect()
             .width(Size::px(t.size_sidebar))
             .height(Size::fill())
-            .background(colour(t.colour_sidebar))
+            .background(colour(if glass { t.material_glass } else { t.colour_sidebar }))
             .child(rect().width(Size::fill()).height(Size::px(t.size_toolbar)).toolbar())
             .child(
                 rect()
@@ -501,6 +503,7 @@ impl Component for PaneContent {
         rect()
             .width(Size::flex(1.))
             .height(Size::fill())
+            .background(colour(t.colour_window))
             .child(
                 rect()
                     .width(Size::fill())

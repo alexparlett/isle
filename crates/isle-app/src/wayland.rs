@@ -1,7 +1,8 @@
 //! Protocols winit does not bind, bound on a queue of the app's own against winit's display
 //! and the window's surface (`settings-2026.md` §2): raising the window with an activation
 //! token, naming its menu's address, the compositor's lights over the toolbar
-//! (`isle_titlebar_v1`) and the toolbar's clicks handed to the compositor (`gtk_shell1`).
+//! (`isle_titlebar_v1`), the toolbar's clicks handed to the compositor (`gtk_shell1`) and the
+//! blur behind the sidebar (`ext_background_effect_v1`).
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle};
 use tracing::warn;
@@ -9,7 +10,14 @@ use wayland_backend::client::{Backend, ObjectId};
 use wayland_client::{
     Connection, Dispatch, EventQueue, Proxy, QueueHandle,
     globals::{GlobalListContents, registry_queue_init},
-    protocol::{wl_registry::WlRegistry, wl_seat::WlSeat, wl_surface::WlSurface},
+    protocol::{
+        wl_compositor::WlCompositor, wl_region::WlRegion, wl_registry::WlRegistry, wl_seat::WlSeat,
+        wl_surface::WlSurface,
+    },
+};
+use wayland_protocols::ext::background_effect::v1::client::{
+    ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1,
+    ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1,
 };
 use wayland_protocols::xdg::activation::v1::client::xdg_activation_v1::XdgActivationV1;
 use wayland_protocols_plasma::appmenu::client::{
@@ -71,6 +79,10 @@ wayland_client::delegate_noop!(Globals: ignore GtkShell1);
 wayland_client::delegate_noop!(Globals: ignore GtkSurface1);
 wayland_client::delegate_noop!(Globals: ignore IsleTitlebarManagerV1);
 wayland_client::delegate_noop!(Globals: ignore IsleTitlebarV1);
+wayland_client::delegate_noop!(Globals: ignore ExtBackgroundEffectManagerV1);
+wayland_client::delegate_noop!(Globals: ignore ExtBackgroundEffectSurfaceV1);
+wayland_client::delegate_noop!(Globals: ignore WlCompositor);
+wayland_client::delegate_noop!(Globals: ignore WlRegion);
 
 pub struct Extras {
     /// winit's `wl_display`, for the clipboard's own connection.
@@ -83,12 +95,17 @@ pub struct Extras {
     appmenu: Option<OrgKdeKwinAppmenu>,
     gestures: Option<(GtkSurface1, WlSeat)>,
     _titlebar: Option<IsleTitlebarV1>,
+    backdrop: Option<(ExtBackgroundEffectSurfaceV1, WlCompositor, QueueHandle<Globals>)>,
 }
 
 impl Extras {
     /// Binds what the compositor offers against `window`'s surface, asking for the lights
-    /// at `inset`; `None` off Wayland.
-    pub fn connect(window: &freya::winit::window::Window, inset: (f64, f64)) -> Option<Self> {
+    /// at `inset` and the blur behind `backdrop`; `None` off Wayland.
+    pub fn connect(
+        window: &freya::winit::window::Window,
+        inset: (f64, f64),
+        backdrop: Option<(f64, f64, f64, f64)>,
+    ) -> Option<Self> {
         let display = match window.display_handle().ok()?.as_raw() {
             RawDisplayHandle::Wayland(handle) => handle.display.as_ptr(),
             _ => return None,
@@ -128,8 +145,13 @@ impl Extras {
                 titlebar.set_overlay(inset.0.round() as i32, inset.1.round() as i32);
                 titlebar
             });
+        let effect = globals
+            .bind::<ExtBackgroundEffectManagerV1, _, _>(&qh, 1..=1, ())
+            .ok()
+            .zip(globals.bind::<WlCompositor, _, _>(&qh, 1..=6, ()).ok())
+            .map(|(manager, compositor)| (manager.get_background_effect(&surface, &qh, ()), compositor, qh.clone()));
         let _ = connection.flush();
-        Some(Self {
+        let extras = Self {
             display: display.cast(),
             connection,
             _queue: queue,
@@ -138,7 +160,32 @@ impl Extras {
             appmenu,
             gestures,
             _titlebar: titlebar,
-        })
+            backdrop: effect,
+        };
+        extras.set_backdrop(backdrop);
+        Some(extras)
+    }
+
+    /// Whether the compositor blurs behind the window.
+    pub fn blurs(&self) -> bool {
+        self.backdrop.is_some()
+    }
+
+    /// Asks for the blur behind `rect`, surface-local, from the next commit; none removes it.
+    pub fn set_backdrop(&self, rect: Option<(f64, f64, f64, f64)>) {
+        let Some((effect, compositor, qh)) = &self.backdrop else {
+            return;
+        };
+        match rect {
+            Some((x, y, w, h)) => {
+                let region = compositor.create_region(qh, ());
+                region.add(x.round() as i32, y.round() as i32, w.round() as i32, h.round() as i32);
+                effect.set_blur_region(Some(&region));
+                region.destroy();
+            }
+            None => effect.set_blur_region(None),
+        }
+        let _ = self.connection.flush();
     }
 
     /// Raises the window with a token another launch handed over.

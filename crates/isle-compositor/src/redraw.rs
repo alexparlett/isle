@@ -453,6 +453,13 @@ impl State {
                 .render_elements_below(renderer, output, region.layer, &mut |e| below.push(e));
             self.isle.shell.prepare_glass(renderer, &region, size, below);
         }
+        let scale = output.current_scale().fractional_scale();
+        for (id, rect) in self.isle.window_backdrops(output) {
+            let mut below = Vec::new();
+            self.isle
+                .render_elements_below_window(renderer, output, id, &mut |e| below.push(e));
+            self.isle.shell.prepare_backdrop(renderer, id, output, rect, scale, below);
+        }
         self.isle.shell.end_glass(output);
         started.elapsed()
     }

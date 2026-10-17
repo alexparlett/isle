@@ -75,6 +75,9 @@ use wayland_protocols::ext::image_capture_source::v1::client::{
 };
 use wayland_protocols::wp::linux_dmabuf::zv1::client::{zwp_linux_buffer_params_v1, zwp_linux_dmabuf_v1};
 use wayland_protocols::wp::presentation_time::client::{wp_presentation, wp_presentation_feedback};
+use wayland_protocols::ext::background_effect::v1::client::{
+    ext_background_effect_manager_v1, ext_background_effect_surface_v1,
+};
 use wayland_protocols::wp::fifo::v1::client::{wp_fifo_manager_v1, wp_fifo_v1};
 use wayland_protocols::wp::tearing_control::v1::client::{
     wp_tearing_control_manager_v1, wp_tearing_control_v1,
@@ -171,6 +174,7 @@ struct Client {
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
     titlebars: Option<isle_titlebar_manager_v1::IsleTitlebarManagerV1>,
+    backdrops: Option<ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1>,
     wins: Vec<Win>,
     /// A window drawn again at every frame callback, its colour turning: a stand-in game.
     animating: Option<usize>,
@@ -840,6 +844,19 @@ impl Client {
                 self.draw(index, qh);
                 return;
             }
+            ("blur", _) => {
+                let (Some(manager), Some(compositor)) = (self.backdrops.as_ref(), self.compositor.as_ref()) else {
+                    say(index, "no background effect".into());
+                    return;
+                };
+                let effect = manager.get_background_effect(&self.wins[index].surface, qh, ());
+                let region = compositor.create_region(qh, ());
+                region.add(num(0), num(1), num(2), num(3));
+                effect.set_blur_region(Some(&region));
+                region.destroy();
+                self.draw(index, qh);
+                return;
+            }
             ("titlebar-overlay", _) => {
                 let Some(manager) = self.titlebars.as_ref() else {
                     say(index, "no titlebar manager".into());
@@ -1241,6 +1258,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "org_kde_kwin_appmenu_manager" => state.appmenus = Some(registry.bind(name, 2, qh, ())),
                 "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
                 "isle_titlebar_manager_v1" => state.titlebars = Some(registry.bind(name, 1, qh, ())),
+                "ext_background_effect_manager_v1" => {
+                    state.backdrops = Some(registry.bind(name, 1, qh, ()))
+                }
                 "wp_presentation" => state.presentation = Some(registry.bind(name, 1, qh, ())),
                 "wp_fifo_manager_v1" => state.fifo_manager = Some(registry.bind(name, 1, qh, ())),
                 "wp_tearing_control_manager_v1" => {
@@ -2092,6 +2112,7 @@ fn main() {
         appmenus: None,
         gtk_shell: None,
         titlebars: None,
+        backdrops: None,
         wins: Vec::new(),
         animating: None,
         presentation: None,
@@ -2401,6 +2422,42 @@ impl Dispatch<gtk_shell1::GtkShell1, ()> for Client {
     ) {
         let gtk_shell1::Event::Capabilities { capabilities } = event;
         say(0, format!("gtk capabilities {capabilities}"));
+    }
+}
+
+impl Dispatch<ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1,
+        _: ext_background_effect_manager_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<wayland_client::protocol::wl_region::WlRegion, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &wayland_client::protocol::wl_region::WlRegion,
+        _: wayland_client::protocol::wl_region::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1,
+        _: ext_background_effect_surface_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
     }
 }
 

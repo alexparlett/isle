@@ -369,6 +369,7 @@ impl Isle {
         crate::titlebar_overlay::create_global(&dh);
         let shm_state = ShmState::new::<State>(&dh, vec![]);
         let output_manager_state = OutputManagerState::new_with_xdg_output::<State>(&dh);
+        crate::background_effect::create_global(&dh);
         let data_device_state = DataDeviceState::new::<State>(&dh);
         let primary_selection_state = PrimarySelectionState::new::<State>(&dh);
         let viewporter_state = ViewporterState::new::<State>(&dh);

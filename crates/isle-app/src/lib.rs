@@ -38,6 +38,9 @@ pub struct Spec {
     pub traffic_light_inset: (f64, f64),
     /// It has a settings window, opened by Settings… on Cmd+,.
     pub preferences: bool,
+    /// The window's box the compositor blurs behind, from its top leading corner, in points:
+    /// a sidebar drawn in the glass material.
+    pub backdrop: Option<(f64, f64, f64, f64)>,
 }
 
 /// The desktop's state as the app last heard it, read by any component.
@@ -103,6 +106,15 @@ impl Desktop {
         }
         writes.write().push(write);
     }
+}
+
+/// The compositor blurs behind the window's backdrop.
+#[derive(Clone, Copy)]
+struct Blurs(bool);
+
+/// Whether the backdrop is blurred, so it is drawn in the glass material rather than solid.
+pub fn blurs() -> bool {
+    use_try_consume::<Blurs>().is_some_and(|b| b.0)
 }
 
 /// The session bus the app holds its name on, when it could.
@@ -235,10 +247,12 @@ pub fn run<A: App + 'static>(spec: Spec, app: A) {
     );
 
     let extras: Rc<RefCell<Option<wayland::Extras>>> = Rc::default();
-    let renderer = if std::env::var_os("FREYA_RENDERER").is_some() {
-        RendererPreference::Auto
-    } else {
-        RendererPreference::Software
+    let gpu = std::env::var_os("FREYA_RENDERER").is_some();
+    let renderer = if gpu { RendererPreference::Auto } else { RendererPreference::Software };
+    // The software renderer presents opaque buffers, so only the GPU's can show a blur through.
+    let spec = Spec {
+        backdrop: spec.backdrop.filter(|_| gpu),
+        ..spec
     };
     let root = Root {
         spec: spec.clone(),
@@ -248,12 +262,17 @@ pub fn run<A: App + 'static>(spec: Spec, app: A) {
         extras: extras.clone(),
         inbound: Rc::new(RefCell::new(Some(Box::pin(inbound)))),
     };
-    let window = WindowConfig::new_app(root)
+    let mut window = WindowConfig::new_app(root);
+    if spec.backdrop.is_some() {
+        window = window.with_background(Color::TRANSPARENT);
+    }
+    let window = window
         .with_app_id(spec.id)
         .with_title(spec.title)
         .with_size(spec.size.0, spec.size.1)
         .with_min_size(spec.min_size.0, spec.min_size.1)
         .with_renderer(renderer)
+        .with_transparency(spec.backdrop.is_some())
         .with_window_attributes(move |attributes, _| match token {
             Some(token) => {
                 use freya::winit::{
@@ -265,7 +284,8 @@ pub fn run<A: App + 'static>(spec: Spec, app: A) {
             None => attributes,
         })
         .with_window_handle(move |window| {
-            *extras.borrow_mut() = wayland::Extras::connect(window, spec.traffic_light_inset);
+            *extras.borrow_mut() =
+                wayland::Extras::connect(window, spec.traffic_light_inset, spec.backdrop);
         });
     info!(id = spec.id, "starting");
     launch(LaunchConfig::new().with_window(window));
@@ -319,6 +339,10 @@ impl<A: App + 'static> App for Root<A> {
         use_provide_context(|| self.worker.clone());
         use_provide_context(|| SessionBus(self.menubar.as_ref().map(|(bus, _)| bus.clone())));
         use_provide_context(|| Chrome(self.extras.clone()));
+        use_provide_context(|| {
+            let asked = self.spec.backdrop.is_some();
+            Blurs(asked && self.extras.borrow().as_ref().is_some_and(|e| e.blurs()))
+        });
         use_provide_context(|| GlassShapes {
             draw_tint: true,
             ..Default::default()

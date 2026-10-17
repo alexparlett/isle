@@ -171,6 +171,9 @@ pub struct Shell {
     animated: bool,
     clip: Option<smithay::backend::renderer::gles::GlesTexProgram>,
     glass_programs: Option<blur::Programs>,
+    /// The blur behind each client window that asks for one, by the window's id, with the
+    /// output it was drawn for.
+    backdrops: std::collections::HashMap<u64, (Output, blur::Blur)>,
     /// Waits for the GPU after each draw and times it; for measuring, never in use.
     measure: bool,
     /// Surfaces rebuilt or turned off since the last dispatch, once for each panic.
@@ -194,6 +197,7 @@ impl Shell {
             animated: true,
             clip: None,
             glass_programs: None,
+            backdrops: std::collections::HashMap::new(),
             measure: false,
             panicked: Vec::new(),
             a11y: a11y::Requests::new(ping.clone()),
@@ -1305,6 +1309,11 @@ impl Shell {
                 }
             }
         }
+        for (on, blur) in self.backdrops.values_mut() {
+            if on == output {
+                blur.used = false;
+            }
+        }
     }
 
     pub fn end_glass(&mut self, output: &Output) {
@@ -1313,6 +1322,88 @@ impl Shell {
                 instance.blurs.retain(|_, blur| blur.used);
             }
         }
+        self.backdrops.retain(|_, (on, blur)| on != output || blur.used);
+    }
+
+    /// Draws `below` into the blur behind window `key`'s `rect`, logical and relative to the
+    /// output, and blurs it again if that changed.
+    pub fn prepare_backdrop<E: RenderElement<GlesRenderer>>(
+        &mut self,
+        renderer: &mut GlesRenderer,
+        key: u64,
+        output: &Output,
+        rect: Rectangle<f64, Logical>,
+        scale: f64,
+        below: Vec<E>,
+    ) {
+        if self.glass_programs.is_none() {
+            match blur::Programs::compile(renderer) {
+                Ok(programs) => self.glass_programs = Some(programs),
+                Err(err) => {
+                    warn!("no glass shaders: {err}");
+                    return;
+                }
+            }
+        }
+        let margin = self.theme.tokens.material_blur as f64 * 2.0;
+        let wanted = blur::physical(
+            Rectangle::new(
+                (rect.loc.x - margin, rect.loc.y - margin).into(),
+                (rect.size.w + 2.0 * margin, rect.size.h + 2.0 * margin).into(),
+            ),
+            scale,
+        );
+        match self.backdrops.get_mut(&key) {
+            Some((on, b)) if on != output || b.region.size != wanted.size => {
+                self.backdrops.remove(&key);
+            }
+            Some((_, b)) if b.region.loc != wanted.loc => b.relocate(wanted.loc),
+            _ => {}
+        }
+        if !self.backdrops.contains_key(&key) {
+            let sigma = self.theme.tokens.material_blur as f64 * scale;
+            match blur::Blur::new(renderer, wanted, scale, sigma) {
+                Ok(blur) => {
+                    self.backdrops.insert(key, (output.clone(), blur));
+                }
+                Err(err) => {
+                    warn!(window = key, "no backdrop target: {err}");
+                    return;
+                }
+            }
+        }
+        let programs = self.glass_programs.as_ref().unwrap();
+        let (_, blur) = self.backdrops.get_mut(&key).unwrap();
+        if let Err(err) = blur.update(renderer, programs, below, &self.theme) {
+            warn!(window = key, "backdrop failed: {err}");
+        }
+    }
+
+    /// The blur behind window `key`, untinted: the client draws its own material over it.
+    pub fn backdrop_element(
+        &self,
+        key: u64,
+        rect: Rectangle<f64, Logical>,
+        scale: f64,
+        radius: f32,
+    ) -> Option<ShellElement> {
+        let (_, blur) = self.backdrops.get(&key)?;
+        let program = self.glass_programs.as_ref()?.glass_program().clone();
+        let glass = blur::GlassElement::new(
+            blur,
+            blur::physical(rect, scale),
+            program,
+            radius * scale as f32,
+            &self.theme,
+            1.0,
+            true,
+            1.0,
+        );
+        Some(ShellElement::Glass(RescaleRenderElement::from_element(
+            glass,
+            (0, 0).into(),
+            1.0,
+        )))
     }
 
     /// The output presented a frame: the surfaces drawn into it advance their animations.

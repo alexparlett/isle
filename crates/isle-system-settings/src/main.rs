@@ -23,6 +23,8 @@ const SPEC: Spec = Spec {
     // The lights' 32 point group centred in the 52 point toolbar.
     traffic_light_inset: (0.0, 10.0),
     preferences: false,
+    // The sidebar's width and more than any window's height; the compositor cuts it to the window.
+    backdrop: Some((0.0, 0.0, 220.0, 8192.0)),
 };
 
 struct Settings;

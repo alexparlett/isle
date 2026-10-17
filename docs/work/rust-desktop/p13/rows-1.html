@@ -1,0 +1,484 @@
+<title>Settings rows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../p1/harness/harness.css">
+<link rel="stylesheet" href="../p1/system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+  .hb-qs li + li { margin-top: 6px; }
+</style>
+<script src="../p1/system/phosphor.js"></script>
+<script src="../p1/harness/harness.js"></script>
+<script src="../p1/surfaces/scene.js"></script>
+<script>
+(function () {
+  // P13 phase 13.1: every Settings pane's rows, sheets and sub-pages, drawn from p13/rows.md on P1's kit.
+  const S = Scene, { h } = Isle, { el, sp, row, col, grow, ic, isle, appIcon } = S;
+  const add = (n, ...k) => (n.append(...k.flat(9).filter((x) => x != null && x !== false)), n);
+  const px = (n) => n + "px";
+
+  // ---- Panes ----------------------------------------------------------------------
+  const PANES = {
+    wifi: ["Wi-Fi", "wifi-high", "blue"], bluetooth: ["Bluetooth", "bluetooth", "blue"], network: ["Network", "globe", "blue"], vpn: ["VPN", "isle-vpn", "blue"], energy: ["Energy", "lightning", "orange"],
+    general: ["General", "gear", "grey"], accessibility: ["Accessibility", "person-arms-spread", "blue"], appearance: ["Appearance", "circle-half", "graphite"], apps: ["Apps", "browsers", "indigo"], "control-centre": ["Control Centre", "squares-four", "purple"], desktop: ["Desktop", "app-window", "graphite"], displays: ["Displays", "monitor", "blue"], spotlight: ["Spotlight", "magnifying-glass", "graphite"], wallpaper: ["Wallpaper", "image", "teal"],
+    notifications: ["Notifications", "bell", "red"], sound: ["Sound", "speaker-high", "pink"], focus: ["Focus", "moon", "indigo"],
+    "lock-screen": ["Lock Screen", "lock", "graphite"], privacy: ["Privacy & Security", "hand-palm", "blue"],
+    keyboard: ["Keyboard", "keyboard", "grey"], mouse: ["Mouse", "mouse", "grey"],
+  };
+  const GROUPS = [["wifi", "bluetooth", "network", "vpn", "energy"], ["general", "accessibility", "appearance", "apps", "control-centre", "desktop", "displays", "spotlight", "wallpaper"], ["notifications", "sound", "focus"], ["lock-screen", "privacy"], ["keyboard", "mouse"]];
+  const SUB = {
+    wifi: "Join wireless networks and manage the ones you know.", bluetooth: "Connect headphones, keyboards and other wireless devices.", network: "See how this computer is connected, and each connection's details.", vpn: "Turn your VPN connections on and off.", energy: "Choose how the computer trades speed for power.",
+    general: "About this computer and the system it runs.", accessibility: "Make the screen and keyboard easier to see and use.", appearance: "Choose light or dark, the accent colour and the glass.", apps: "Set how the desktop treats each app's windows and keys.", "control-centre": "Set what the island and Control Centre show.", desktop: "Set how windows tile and fill, and what the screen corners do.", displays: "Arrange and set up the screens you use.", spotlight: "Choose what Spotlight searches and what it keeps.", wallpaper: "Choose the picture behind your windows.",
+    notifications: "Choose which apps can notify you, and how.", sound: "Choose alert sounds, speakers and microphones.", focus: "Choose what interrupts you, and when.",
+    "lock-screen": "Set when the screen dims, turns off and locks.", privacy: "See what apps may do without asking, and take it back.",
+    keyboard: "Set key repeat, layouts, shortcuts and each keyboard's kind.", mouse: "Set pointer speed, scrolling and the primary button.",
+  };
+
+  function tile(id, size) {
+    const g = PANES[id][1], gs = size >= 32 ? 24 : 16;
+    const glyph = g === "isle-vpn" ? isle("vpn", gs) : ic(g, gs, true);
+    glyph.style.color = "#fff";
+    return el("", { width: px(size), height: px(size), borderRadius: px(size / 4), background: "var(--pane-" + PANES[id][2] + ")", display: "grid", placeItems: "center", flex: "none" }, glyph);
+  }
+
+  // ---- Apps and devices --------------------------------------------------------------
+  const APP = {
+    chromium: (n) => appIcon(n, "#5b9cf8", "#1a62d6", "globe"),
+    kitty: (n) => appIcon(n, "#55575e", "#1f2024", "terminal-window"),
+    steam: (n) => appIcon(n, "#2a4a7a", "#14243e", "game-controller"),
+    code: (n) => appIcon(n, "#3aa0f0", "#1b6fc0", "code"),
+    discord: (n) => appIcon(n, "#7a86ff", "#5865f2", "chat-circle"),
+    keepass: (n) => appIcon(n, "#6cc04a", "#3d8a2a", "key"),
+    bitwarden: (n) => appIcon(n, "#3c8dff", "#175ddc", "shield"),
+    elden: (n) => h("span", { style: { width: px(n), height: px(n), borderRadius: px(Math.round(n * 0.22)), background: "linear-gradient(160deg,#d8b45a,#5a3f18 70%,#1e150a)", flex: "none", display: "block" } }),
+    balatro: (n) => h("span", { style: { width: px(n), height: px(n), borderRadius: px(Math.round(n * 0.22)), background: "linear-gradient(160deg,#e0453a,#3b4fa8)", flex: "none", display: "block" } }),
+  };
+  const circ = (g, on, n) => el("", { width: px(n || 24), height: px(n || 24), borderRadius: "50%", display: "grid", placeItems: "center", flex: "none", background: on ? "var(--colour-accent)" : "var(--colour-fill-strong)", color: on ? "var(--colour-on-accent)" : "var(--colour-text)" }, ic(g, Math.round((n || 24) * 0.58), on));
+  const dot = (ok) => h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: ok ? "var(--colour-ok)" : "var(--colour-fill-strong)", flex: "none", display: "inline-block" } });
+  const more = () => ic("dots-three-circle", 18, false, { color: "var(--colour-text-2)" });
+
+  // ---- Controls ---------------------------------------------------------------------
+  const sw = (on, dis) => h("span", { class: "s-switch" + (on ? " on" : "") + (dis ? " is-disabled" : "") });
+  const chk = (on) => h("span", { class: "s-check" + (on ? " on" : "") });
+  function pop(t, o) {
+    o = o || {};
+    const e = h("span", { class: "s-popup", style: { minWidth: px(o.w || 120), justifyContent: "space-between", boxSizing: "border-box", color: o.dim ? "var(--colour-text-disabled)" : undefined } }, t, h("span", { class: "chev" }, ic("caret-up-down", 10, true)));
+    if (o.anchor) e.dataset.anchor = o.anchor;
+    return e;
+  }
+  const seg = (list, i) => el("s-seg", {}, ...list.map((t, j) => sp(j === i ? "on" : "", t)));
+  const end = (x) => (x && x.g ? ic(x.g, 12, false, { color: "var(--colour-text-2)" }) : sp("s-callout s-2", x));
+  function slider(pct, l, r, ticks) {
+    return row({ gap: "var(--space-s)" }, end(l),
+      col({ width: "var(--size-row-slider)", gap: "0" }, el("", { height: "18px", display: "flex", alignItems: "center" }, el("s-slider", { minWidth: "0" }, h("b", { style: { width: pct + "%" } }), h("i", { style: { left: pct + "%" } }))),
+        ticks ? el("s-ticks", { marginTop: "2px" }, ...Array.from({ length: ticks }, () => h("span"))) : null),
+      end(r));
+  }
+  const btn = (t, o) => sp("s-btn" + (o && o.primary ? " primary" : "") + (o && o.danger ? " destructive" : ""), t, o && o.style);
+  const field = (t, w, ph) => el("s-field", { width: w ? px(w) : "var(--size-row-field)" }, sp(ph ? "ph" : "", t));
+  const timeField = (t) => el("s-field", { width: "64px", justifyContent: "center" }, sp("s-num", t));
+  const ACCENTS = ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"];
+  const swatch = (bg, on, mark) => el("", { width: "16px", height: "16px", borderRadius: "50%", background: bg, display: "grid", placeItems: "center", flex: "none" }, mark ? h("span", { style: { width: "6px", height: "6px", borderRadius: "50%", background: on } }) : null);
+  const accents = (sel) => row({ gap: "var(--space-s)" }, ...ACCENTS.map((a) => swatch("var(--accent-" + a + "-fill)", "var(--accent-" + a + "-on)", a === sel)));
+  function pictures(list, i, o) {
+    o = o || {};
+    return row({ gap: "var(--space-l)", alignItems: "flex-start" }, ...list.map((p, j) => col({ gap: "var(--space-xs)", alignItems: "center", width: "64px" },
+      el("", { width: "64px", height: "44px", borderRadius: "var(--radius-control)", background: p.bg, position: "relative", overflow: "hidden", boxShadow: j === i ? "0 0 0 2px var(--colour-" + (o.on || "window-raised") + "), 0 0 0 4px var(--colour-accent)" : "inset 0 0 0 1px var(--colour-hairline)" }, p.inner || null),
+      sp("s-callout", p.name, { color: j === i ? "var(--colour-text)" : "var(--colour-text-2)", whiteSpace: "nowrap" }))));
+  }
+  const meter = (pct) => el("", { width: "var(--size-row-slider)", height: "6px", borderRadius: "3px", background: "var(--colour-fill-strong)", position: "relative", overflow: "hidden" }, h("b", { style: { position: "absolute", left: 0, top: 0, bottom: 0, width: pct + "%", background: "var(--colour-accent)", borderRadius: "3px" } }));
+  const recorder = (chord) => el("", { minWidth: "120px", height: "var(--size-control)", borderRadius: "var(--radius-control)", background: "var(--colour-fill)", display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 var(--space-s)", boxSizing: "border-box" }, sp(chord ? "" : "s-2", chord || "None"));
+  const fileCtl = (name, g) => row({ gap: "var(--space-s)" }, ic(g || "folder", 16, true, { color: "var(--colour-accent-text)" }), sp("", name), btn("Choose…"));
+
+  // ---- Form ---------------------------------------------------------------------------
+  function r(label, ctrl, o) {
+    o = o || {};
+    const hasDesc = !!(o.desc || o.refused);
+    const lab = col({ gap: "var(--space-xxs)", flex: 1, minWidth: 0 },
+      typeof label === "string" ? sp("", label, { color: o.dim ? "var(--colour-text-2)" : "var(--colour-text)" }) : label,
+      o.desc ? sp("s-callout s-2", o.desc) : null,
+      o.refused ? sp("s-callout", o.refused, { color: "var(--colour-danger-text)" }) : null);
+    const trail = [].concat(ctrl || []);
+    if (o.nav !== undefined) { if (o.nav) trail.push(sp("s-2", o.nav)); trail.push(ic("caret-right", 12, false, { color: "var(--colour-text-2)" })); }
+    const t = trail.length ? row({ flex: "none", gap: "var(--space-s)", marginTop: hasDesc ? "-4px" : "0" }, ...trail) : null;
+    const style = { alignItems: hasDesc ? "flex-start" : "center", gap: "var(--space-l)" };
+    if (hasDesc) { style.paddingTop = "var(--space-m)"; style.paddingBottom = "var(--space-m)"; }
+    if (o.sep) Object.assign(style, { borderTop: "1px solid var(--colour-hairline)", marginLeft: "var(--space-m)", paddingLeft: "0" });
+    return el("r", style, o.icon ? row({ gap: "var(--space-s)", flex: "none", alignSelf: hasDesc ? "flex-start" : "center" }, o.icon) : null, lab, t);
+  }
+  const ro = (label, value, o) => r(label, sp("s-2", value, { textAlign: "right", whiteSpace: "pre-line" }), o);
+  function group(title, rows, o) {
+    o = o || {};
+    return el("", { marginTop: o.first ? "var(--space-l)" : "var(--space-xl)" },
+      title ? row({ padding: "0 var(--space-m)", marginBottom: "var(--space-s)", gap: "var(--space-s)" }, sp("s-headline", title), o.titleExtra || null) : null,
+      el("s-group", {}, ...rows));
+  }
+  function list(items, o) {
+    o = o || {};
+    const body = items.length ? items.map((it) => row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)", background: it.sel ? "var(--colour-selection-unfocused)" : "transparent" },
+      it.icon || null, sp("", it.label, { flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }), it.value ? sp("s-2", it.value) : null, it.trail || null))
+      : [el("", { height: "80px", display: "grid", placeItems: "center" }, sp("s-2", o.empty || "None"))];
+    const pm = (g, dim) => el("", { width: "20px", height: "20px", display: "grid", placeItems: "center", color: dim ? "var(--colour-text-disabled)" : "var(--colour-text)" }, ic(g, 12));
+    const foot = o.foot === false ? null : row({ height: "var(--size-control)", background: "var(--colour-window-sunken)", borderTop: "1px solid var(--colour-hairline)", padding: "0 var(--space-xs)", gap: "0", borderRadius: o.last === false ? "0" : "0 0 var(--radius-card) var(--radius-card)" },
+      pm("plus"), el("", { width: "1px", height: "12px", background: "var(--colour-hairline)", margin: "0 2px" }), pm("minus", !items.some((x) => x.sel)));
+    return el("", { borderTop: o.first ? "none" : "1px solid var(--colour-hairline)", paddingTop: "var(--space-xs)", paddingBottom: o.foot === false ? "var(--space-xs)" : "0" }, ...body, foot);
+  }
+  const lead = (node) => el("", { marginTop: "var(--space-l)" }, node);
+  const foot = (...kids) => row({ justifyContent: "flex-end", marginTop: "var(--space-m)", gap: "var(--space-s)" }, ...kids);
+  const header = (id) => row({ gap: "var(--space-m)" }, tile(id, 32), col({ gap: "var(--space-xxs)", minWidth: 0 }, sp("s-title-2", PANES[id][0]), sp("s-2", SUB[id])));
+  const subHeader = (name, sentence, icon) => row({ gap: "var(--space-m)" }, icon || null, col({ gap: "var(--space-xxs)", minWidth: 0 }, sp("s-title-2", name), sp("s-2", sentence)));
+  const sheetTitle = (t, sub) => col({ gap: "var(--space-xxs)" }, sp("s-headline", t), sub ? sp("s-callout s-2", sub) : null);
+  const sheetFoot = (...kids) => row({ gap: "var(--space-s)", marginTop: "var(--space-xs)" }, ...kids);
+
+  // ---- The window ---------------------------------------------------------------------
+  const W = S.W, H = S.H, WX = 1270, WY = 364, WW = 900, WH = 760, BAND = 94;
+  function rowTop(id) { let y = 60; for (const g of GROUPS) { for (const p of g) { if (p === id) return y; y += 28; } y += 12; } return 0; }
+  function sidebar(sel) {
+    const inner = el("", { padding: "0 var(--space-s)", display: "flex", flexDirection: "column" },
+      row({ height: "48px", gap: "var(--space-s)", padding: "0 var(--space-s)", flex: "none" },
+        el("", { width: "32px", height: "32px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", flex: "none" }, sp("s-headline", "AP")),
+        col({ gap: "0" }, sp("s-headline", "Alex Parlett"), sp("s-sub s-2", "alexparlett"))));
+    GROUPS.forEach((g) => { add(inner, el("", { height: "12px", flex: "none" })); g.forEach((id) => add(inner, el("s-side-item" + (id === sel ? " sel focused" : ""), { flex: "none" }, tile(id, 20), sp("", PANES[id][0])))); });
+    const list = el("", { position: "absolute", left: 0, right: 0, top: px(BAND), bottom: 0, overflow: "hidden" }, inner);
+    const band = el("", { position: "absolute", left: 0, right: 0, top: 0, height: px(BAND), background: "var(--colour-sidebar)", zIndex: 1, boxSizing: "border-box" },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-l)" }, S.lights()),
+      el("s-field search", { margin: "0 var(--space-s)", height: "var(--size-control-large)" }, ic("magnifying-glass", 14), sp("ph", "Search")));
+    const side = el("", { position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--size-sidebar)", background: "var(--colour-sidebar)", borderRight: "1px solid var(--colour-hairline)", boxSizing: "border-box" }, list, band);
+    side.scrollFor = (winH) => {
+      const vis = winH - BAND, t = rowTop(sel);
+      if (t + 28 > vis - 8) { inner.style.transform = "translateY(" + -Math.round(t - vis / 3) + "px)"; band.style.borderBottom = "1px solid var(--colour-hairline)"; }
+    };
+    return side;
+  }
+  // o: pane, title, back, body, sheet, sheetWidth, after(win).
+  function place(s, o, st) {
+    const side = sidebar(o.pane);
+    const tb = el("s-toolbar", { padding: "0 var(--space-l)", gap: "var(--space-s)" },
+      ic("caret-left", 20, false, { color: o.back ? "var(--colour-text)" : "var(--colour-text-disabled)" }),
+      ic("caret-right", 20, false, { color: "var(--colour-text-disabled)" }),
+      sp("s-headline", o.title || PANES[o.pane][0], { marginLeft: "var(--space-s)" }));
+    const column = add(el("", { width: "var(--size-form)", margin: "0 auto", padding: "var(--space-xl) 0 var(--space-xxxl)", display: "flex", flexDirection: "column" }), o.body);
+    const main = el("", { marginLeft: "var(--size-sidebar)" }, tb, column);
+    const win = el("s s-window", { left: px(WX), top: px(WY), width: px(WW), minHeight: px(WH) }, side, main);
+    s.append(win);
+    let sheet = null;
+    if (o.sheet) {
+      win.append(el("", { position: "absolute", left: 0, right: 0, top: "var(--size-toolbar)", bottom: 0, background: "var(--colour-scrim)", zIndex: 2 }));
+      sheet = add(el("s-sheet", { position: "absolute", top: "var(--size-toolbar)", left: px((WW - o.sheetWidth) / 2), width: px(o.sheetWidth), height: o.sheetHeight ? px(o.sheetHeight) : undefined, boxSizing: "border-box", zIndex: 3, display: "flex", flexDirection: "column", gap: "var(--space-m)", textAlign: o.alert ? "center" : "left" }), o.sheet);
+      win.append(sheet);
+    }
+    let hh = win.offsetHeight;
+    if (sheet) { const need = 52 + sheet.offsetHeight + 32; if (need > hh) { win.style.minHeight = px(need); hh = need; } }
+    if (o.after) o.after(win);
+    side.scrollFor(hh);
+    const y = hh > H - WY - 40 ? Math.max(24, H - 24 - hh) : WY;
+    win.style.top = px(y);
+    const cy = Math.max(0, y - 50);
+    st.crop = [WX - 110, cy, WW + 220, Math.min(H - cy, hh + 100)];
+  }
+  // A pop-up's menu, drawn in the window and clamped inside it (choice 12).
+  function menuIn(win, x, y, items) {
+    const m = S.menu(x, y, items, { material: "window" });
+    m.style.zIndex = 4;
+    win.append(m);
+    m.style.left = px(Math.max(8, Math.min(x, WW - m.offsetWidth - 8)));
+    return m;
+  }
+  const scene = (id, name, note, build) => ({ id, name, note, render(s) { place(s, build(), this); } });
+
+  // ---- Connections ---------------------------------------------------------------------
+  const lockSig = (g) => [ic("lock-simple", 14, true, { color: "var(--colour-text-2)" }), ic(g || "wifi-high", 16, false, { color: "var(--colour-text-2)" })];
+  const wifi = () => ({ pane: "wifi", body: [header("wifi"),
+    group(null, [r("Wi-Fi", sw(true)), r("Home", btn("Details…"), { icon: circ("wifi-high", true), desc: "Connected" })], { first: true }),
+    group("Known networks", [r("Office", [...lockSig("wifi-medium"), more()]), r("Parents", [...lockSig("wifi-low"), more()])]),
+    group("Other networks", [r("BT-7Q2X", lockSig("wifi-medium")), r("SKY4F21", lockSig("wifi-low")), r("VM6543210", [...lockSig("wifi-low"), btn("Connect")])], { titleExtra: h("span", { class: "s-spinner", style: { width: "12px", height: "12px" } }) }),
+    foot(btn("Join other network…"))] });
+  const wifiDetails = () => Object.assign(wifi(), { sheetWidth: 520, sheet: [
+    row({ gap: "var(--space-m)" }, circ("wifi-high", true, 32), sheetTitle("Home", "Connected")),
+    el("s-group", {}, r("Automatically join this network", sw(true))),
+    el("s-group", {}, ro("IP address", "192.168.1.42"), ro("Router", "192.168.1.1"), ro("DNS servers", "192.168.1.1\n1.1.1.1"), ro("Wi-Fi address", "F4:6A:DD:31:0C:9E"), ro("Security", "WPA3 Personal")),
+    sheetFoot(btn("Forget This Network…", { danger: true }), grow(), btn("Done", { primary: true }))] });
+  const wifiOther = () => Object.assign(wifi(), { sheetWidth: 400, sheet: [
+    sheetTitle("Join other network", "Enter the network's name and security."),
+    el("s-group", {}, r("Network name", field("Name", 180, true)), r("Security", pop("WPA2/WPA3 Personal", { w: 180 }))),
+    sheetFoot(grow(), btn("Cancel"), btn("Join", { primary: true }))] });
+  const bt = () => {
+    const batt = (n) => row({ gap: "var(--space-xs)" }, ic("battery-high", 16, false, { color: "var(--colour-text-2)" }), sp("s-2 s-num", n));
+    return { pane: "bluetooth", body: [header("bluetooth"),
+      group(null, [r("Bluetooth", sw(true), { desc: "Now discoverable as “cachyos-x8664”." })], { first: true }),
+      group("My devices", [r("WH-1000XM5", [batt("80%"), more()], { icon: circ("headphones", true), desc: "Connected" }), r("DualSense Wireless Controller", more(), { icon: circ("game-controller", false), desc: "Not connected" }), r("Keychron K3", more(), { icon: circ("keyboard", false), desc: "Not connected" })]),
+      group("Nearby devices", [r("Galaxy Buds2", btn("Connect"), { icon: circ("headphones", false) }), r("Living Room TV", btn("Connect"), { icon: circ("monitor", false) })], { titleExtra: h("span", { class: "s-spinner", style: { width: "12px", height: "12px" } }) })] };
+  };
+  const network = () => ({ pane: "network", body: [header("network"),
+    group(null, [r("Ethernet", null, { icon: circ("plugs-connected", true), nav: "", desc: "Connected" }), r("Wi-Fi", null, { icon: circ("wifi-high", true), nav: "", desc: "Connected" }), r("VPN", null, { icon: circ("shield", false), nav: "", desc: "Not connected" })], { first: true })] });
+  const ethernet = () => ({ pane: "network", title: "Ethernet", back: true, body: [subHeader("Ethernet", "The wired connection's addresses and speed.", circ("plugs-connected", true, 32)),
+    group(null, [r("Status", row({ gap: "var(--space-s)" }, dot(true), sp("s-2", "Connected"))), ro("Speed", "1 Gb/s"), ro("Configure IPv4", "Using DHCP")], { first: true }),
+    group(null, [ro("IP address", "192.168.1.40"), ro("Subnet mask", "255.255.255.0"), ro("Router", "192.168.1.1"), ro("DNS servers", "192.168.1.1"), ro("Hardware address", "D8:43:AE:1F:62:07")])] });
+  const vpn = () => ({ pane: "vpn", body: [header("vpn"),
+    group(null, [r("Office", [sw(false), more()], { icon: circ("shield", false), desc: "Not connected · WireGuard" }), r("Home lab", [sw(true), more()], { icon: circ("shield", true), desc: "Connected · OpenVPN" })], { first: true })] });
+  const energy = () => ({ pane: "energy", body: [header("energy"),
+    group(null, [r("Energy Mode", seg(["Low Power", "Automatic", "High Power"], 1))], { first: true })] });
+  const energyHeld = () => ({ pane: "energy", body: [header("energy"),
+    group(null, [r("Energy Mode", seg(["Low Power", "Automatic", "High Power"], 2), { desc: "High Power while Game Mode is on." })], { first: true })] });
+
+  // ---- System ----------------------------------------------------------------------------
+  const general = () => ({ pane: "general", body: [header("general"), group(null, [r("About", null, { icon: tile("general", 20), nav: "" })], { first: true })] });
+  const about = () => ({ pane: "general", title: "About", back: true, body: [subHeader("About", "This computer's name, its system and its parts.", el("", { width: "32px", height: "32px", display: "grid", placeItems: "center" }, ic("monitor", 28, false, { color: "var(--colour-text-2)" }))),
+    group(null, [r("Name", field("cachyos-x8664"))], { first: true }),
+    group("System", [ro("System", "CachyOS"), ro("Kernel", "7.2.8-2-cachyos"), ro("Isle", "0.1.0 (125e453)")]),
+    group("Hardware", [ro("Computer", "Micro-Star International MS-7E59"), ro("Processor", "AMD Ryzen 7 9800X3D 8-Core Processor"), ro("Graphics", "NVIDIA GeForce RTX 5070 Ti\nAMD Radeon Graphics"), ro("Memory", "64 GB")]),
+    group("Displays", [ro("AOC U34G2G4R3", "34-inch, 3440 × 1440"), ro("Second screen", "24-inch, 1920 × 1080")])] });
+  const accessibility = () => ({ pane: "accessibility", body: [header("accessibility"),
+    group("Display", [r("Increase contrast", sw(false)), r("Reduce motion", sw(false)), r("Reduce transparency", sw(false)), r("Text size", slider(0, "Default", "Largest", 6))], { first: true }),
+    group("Keyboard", [r("Sticky Keys", sw(false), { desc: "Modifier keys stay down until the next key." }), r("Slow Keys", sw(true), { desc: "A key counts only once held." }), r("Acceptance delay", pop("0.5 s"))])] });
+  const wallGrad = "radial-gradient(70% 90% at 50% -10%, var(--colour-window-raised) 0%, var(--colour-window-sunken) 100%)";
+  const appearance = () => ({ pane: "appearance", body: [header("appearance"),
+    lead(pictures([{ name: "Auto", bg: "linear-gradient(90deg,#ececee 50%,#1e1f23 50%)" }, { name: "Light", bg: "linear-gradient(180deg,#ffffff,#d9d9db)" }, { name: "Dark", bg: "linear-gradient(180deg,#303137,#0f1012)" }], 2, { on: "window" })),
+    group(null, [r("Colour", accents("blue")), r("Glass", slider(30, "Clear", "Tinted"))]),
+    group("Windows", [r("Show title bars on other apps' windows", sw(true))])] });
+  const apps = () => ({ pane: "apps", body: [header("apps"),
+    el("", { marginTop: "var(--space-l)" }, el("s-field search", { width: "100%" }, ic("magnifying-glass", 14), sp("ph", "Search apps"))),
+    group(null, [r("Chromium", null, { icon: APP.chromium(20), nav: "" }), r("Elden Ring", null, { icon: APP.elden(20), nav: "Game" }), r("kitty", null, { icon: APP.kitty(20), nav: "" }), r("Steam", null, { icon: APP.steam(20), nav: "Keeps running" }), r("Visual Studio Code", null, { icon: APP.code(20), nav: "" }), r("Virtual Machine Manager", null, { icon: appIcon(20, "#8a8d93", "#4a4c52", "monitor"), nav: "Sends keys as typed" })], { first: false })] });
+  const appPage = () => ({ pane: "apps", title: "Steam", back: true, body: [subHeader("Steam", "What the desktop does with Steam's windows and keys.", APP.steam(32)),
+    group(null, [r("Keep running after last window", sw(true)), r("Use Mac shortcuts", sw(true), { desc: "Cmd shortcuts become Steam's own." }), r("Treat as a game", seg(["Automatic", "Always", "Never"], 0))], { first: true }),
+    group(null, [r("Notifications", null, { nav: "Temporary banners" })])] });
+  const tiers = (v) => pop(v, { w: 150 });
+  const MODS = [["wifi-high", "Wi-Fi", "Medium"], ["music-note", "Now Playing", "Large"], ["bluetooth", "Bluetooth", "Medium"], ["moon", "Focus", "Medium"], ["shield", "VPN", "Medium"], ["speaker-high", "Sound", "Wide"], ["sun", "Display", "Wide"], ["sun-horizon", "Night Light", "Small"], ["gauge", "Energy Mode", "Small"], ["arrow-circle-up", "Updates", "Medium"], ["battery-high", "Batteries", "Medium"], ["circle-half", "Dark Mode", "Don't show"], ["keyboard", "Keyboard layout", "Don't show"], ["person-arms-spread", "Accessibility", "Don't show"], ["camera", "Screenshot", "Don't show"]];
+  const controlCentre = () => ({ pane: "control-centre", body: [header("control-centre"),
+    group("Island", [r("Clock", btn("Clock Options…")), ...["Wi-Fi", "Bluetooth", "Sound", "VPN", "Focus", "Updates"].map((g) => r(g, tiers("Show when active")))], { first: false }),
+    group("Control Centre", MODS.map(([g, n, v]) => r(n, pop(v, { w: 130 }), { icon: circ(g, false, 22) }))),
+    foot(btn("Edit controls…")),
+    group("Allow in the tray", [r("Steam", sw(true), { icon: APP.steam(20) }), r("Discord", sw(false), { icon: APP.discord(20) })]),
+    foot(btn("Reset Control Centre…"))] });
+  const clockOptions = () => Object.assign(controlCentre(), { sheetWidth: 440, sheet: [
+    sheetTitle("Clock options"),
+    el("s-group", {}, r("Time format", seg(["Automatic", "24-hour", "12-hour"], 0)), r("Show the day of the week", sw(false)), r("Show date", sw(false)), r("Display the time with seconds", sw(false))),
+    sheetFoot(grow(), btn("Done", { primary: true }))] });
+  const desktop = () => ({ pane: "desktop", body: [header("desktop"),
+    group("Windows", [r("Double-click a window's title bar to", pop("Fill")), r("Drag windows to screen edges to tile", sw(true)), r("Tiled windows have margins", sw(true))], { first: false }),
+    foot(btn("Hot Corners…"))] });
+  function hotCorners(o) {
+    o = o || {};
+    const at = (x, y, kids, style) => el("", Object.assign({ position: "absolute", left: px(x), top: px(y) }, style || {}), kids);
+    const cp = (t) => { const p = pop(t, { w: 180 }); p.style.width = "180px"; return p; };
+    const stage = el("", { position: "relative", width: "624px", height: "100px", margin: "var(--space-m) auto" },
+      at(192, 0, null, { width: "240px", height: "100px", borderRadius: "var(--radius-small)", background: wallGrad, boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" }),
+      at(0, 0, cp(o.tl || "—")), at(444, 0, cp(o.tr || "—")), at(0, 76, cp("—")), at(444, 76, cp("Apps")));
+    return Object.assign(desktop(), { sheetWidth: 664, sheet: [stage, sheetFoot(grow(), btn("Done", { primary: true }))], after: o.menu ? (win) => {
+      const sheet = win.querySelector(".s-sheet");
+      menuIn(win, sheet.offsetLeft + stage.offsetLeft + 444 - 25, sheet.offsetTop + stage.offsetTop - 4, [{ label: "Notification Centre", check: "✓", sel: true }, "Apps", "Lock Screen", "Put Display to Sleep", "—", { label: "—" }]);
+    } : null });
+  }
+
+  // ---- Displays ---------------------------------------------------------------------------
+  function arrangement() {
+    const disp = (x, y, w, hh, name, res, o) => el("", { position: "absolute", left: px(x), top: px(y), width: px(w), height: px(hh), borderRadius: "var(--radius-small)", background: "var(--colour-window-raised)", boxShadow: (o.sel ? "0 0 0 2px var(--colour-window-sunken), 0 0 0 4px var(--colour-accent), " : "") + "inset 0 0 0 1px var(--colour-hairline-strong)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" },
+      o.main ? el("", { position: "absolute", left: px(w / 2 - 14), top: "var(--space-xs)", width: "28px", height: "8px", borderRadius: "4px", background: "var(--colour-text)" }) : null,
+      sp("s-headline", name), sp("s-sub s-2", res));
+    return el("", { position: "relative", height: "var(--size-arrangement)", borderRadius: "var(--radius-card)", background: "var(--colour-window-sunken)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" },
+      disp(24, 36, 354, 148, "AOC U34G2G4R3", "3440 × 1440", { main: true, sel: true }), disp(378, 73, 198, 111, "Second screen", "1920 × 1080", {}));
+  }
+  function displays(o) {
+    o = o || {};
+    const scaleRow = o.thumbs ? r("Scale", pictures([200, 175, 150, 125, 100].map((p) => ({ name: p === 100 ? "Default" : p === 200 ? "Larger text" : p + "%", bg: "var(--colour-window-sunken)", inner: el("", { position: "absolute", left: "6px", top: "6px", width: px(Math.round(52 * p / 200)), height: px(Math.round(32 * p / 200)), borderRadius: "3px", background: "var(--colour-fill-strong)", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" }) })), 4))
+      : r("Scale", pop("100%", { anchor: "scale" }));
+    return { pane: "displays", body: [header("displays"), lead(arrangement()),
+      group(null, [r("Main display", pop("AOC U34G2G4R3", { w: 180 }))]),
+      group("AOC U34G2G4R3", [r("Use this display", sw(true)), r("Resolution", pop("3440 × 1440 (default)", { w: 180 })), r("Refresh rate", pop("144 Hz")), scaleRow, r("Rotation", pop("Standard")),
+        r("Brightness", slider(78, { g: "sun-dim" }, { g: "sun" })), r("Variable refresh rate", seg(["Off", "Full screen", "Always"], 1), { desc: "This display supports 48–144 Hz." }), r("Allow tearing in games", sw(true), { desc: "A game that asks is shown without waiting for the display." })]),
+      foot(btn("Detect Displays"), grow(), btn("Advanced…"), btn("Night Light…"))],
+      after: o.menu ? (win) => {
+        const a = win.querySelector('[data-anchor="scale"]');
+        menuIn(win, a.offsetLeft - 25, a.offsetTop - 4, [{ label: "100% (default)", check: "✓", sel: true }, "125%", "150%", "175%", "200%", "—", "Other…"]);
+      } : null };
+  }
+  const keepRevert = () => Object.assign(displays(), { sheetWidth: 320, alert: true, sheet: [
+    col({ gap: "var(--space-xs)", alignItems: "center" }, sp("s-headline", "Keep these display settings?"), sp("s-callout s-2 s-num", "Reverting in 12 seconds.")),
+    row({ gap: "var(--space-s)", marginTop: "var(--space-s)" }, btn("Revert", { style: { flex: 1 } }), btn("Keep", { primary: true, style: { flex: 1 } }))] });
+  const nightLight = () => Object.assign(displays(), { sheetWidth: 520, sheet: [
+    sheetTitle("Night Light", "Warms every screen on a schedule."),
+    el("s-group", {}, r("Schedule", pop("Custom", { w: 160 })), r("From", timeField("22:00")), r("To", timeField("07:00")), r("Turn on until 07:00", sw(false)), r("Warmth", slider(62, "Less warm", "More warm"))),
+    sheetFoot(grow(), btn("Done", { primary: true }))] });
+  const advanced = () => Object.assign(displays(), { sheetWidth: 480, sheet: [
+    sheetTitle("Advanced"),
+    el("s-group", {}, r("Graphics card", pop("Automatic", { w: 200 }), { desc: "Takes effect the next time you log in." })),
+    sheetFoot(grow(), btn("Done", { primary: true }))] });
+
+  // ---- Spotlight and Wallpaper --------------------------------------------------------------
+  const spotlight = () => ({ pane: "spotlight", body: [header("spotlight"),
+    group("Results", [["squares-four", "Apps"], ["lightning", "Actions"], ["calculator", "Calculator"], ["folder", "Files"], ["list", "Menu items"], ["gear", "Settings"], ["app-window", "Windows"], ["globe", "Web search"]].map(([g, n]) => r(n, sw(n !== "Menu items"), { icon: ic(g, 16, false, { color: "var(--colour-text-2)" }) })), { first: false }),
+    group("Favourites", [list([{ icon: APP.code(20), label: "Visual Studio Code" }, { icon: APP.kitty(20), label: "kitty" }, { icon: APP.chromium(20), label: "Chromium" }, { icon: APP.steam(20), label: "Steam" }], { first: true })]),
+    group("Clipboard", [r("Don't keep copies from", null), list([{ icon: APP.keepass(20), label: "KeePassXC" }, { icon: APP.bitwarden(20), label: "Bitwarden" }])]),
+    group("Search", [r("Web search", pop("DuckDuckGo"))]),
+    foot(btn("Search Privacy…"))] });
+  const searchPrivacy = () => Object.assign(spotlight(), { sheetWidth: 520, sheet: [
+    sheetTitle("Search privacy", "Spotlight searches your home folder and these choices."),
+    col({ gap: "var(--space-s)" }, sp("s-headline", "Also search these folders", { paddingLeft: "var(--space-m)" }), el("s-group", {}, list([{ icon: ic("hard-drive", 16, true, { color: "var(--colour-accent-text)" }), label: "/mnt/games" }], { first: true }))),
+    col({ gap: "var(--space-s)" }, sp("s-headline", "Don't search these folders", { paddingLeft: "var(--space-m)" }), el("s-group", {}, list([{ icon: ic("folder", 16, true, { color: "var(--colour-accent-text)" }), label: "~/Development/hyprland/target", sel: true }, { icon: ic("folder", 16, true, { color: "var(--colour-accent-text)" }), label: "~/.local/share/Steam" }], { first: true }))),
+    sheetFoot(grow(), btn("Done", { primary: true }))] });
+  const photo = "linear-gradient(160deg,#27466b 0%,#5d3f6e 45%,#c27a54 85%,#e8b26a 100%)";
+  const wallpaper = () => ({ pane: "wallpaper", body: [header("wallpaper"),
+    lead(col({ gap: "var(--space-xs)", alignItems: "center" }, el("", { width: "100%", height: "250px", borderRadius: "var(--radius-card)", background: photo, boxShadow: "inset 0 0 0 1px var(--colour-hairline)" }), sp("s-callout s-2", "AOC U34G2G4R3"))),
+    group(null, [r("Show on all screens", sw(true))]),
+    group(null, [r("Wallpaper", pictures([{ name: "Frost", bg: wallGrad }, { name: "Colour", bg: "#2b3a4a" }, { name: "Picture", bg: photo }], 2)), r("Folder", fileCtl("Wallpapers")), r("Fit", pop("Fill screen")), r("Colour", row({ gap: "var(--space-s)" }, swatch("#1e1f23", "#fff", true), swatch("#2b3a4a"), swatch("#3d2f45"), swatch("#e8e4dc"), el("", { width: "16px", height: "16px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center" }, ic("plus", 10))), { desc: "Around a fitted or centred picture." })]),
+    group("Dark Mode", [r("Use a different picture in Dark Mode", sw(false))]),
+    group("Folder", [r("Change picture", pop("Every day")), r("Random order", sw(true))])] });
+
+  // ---- Attention ----------------------------------------------------------------------------
+  const notifications = () => ({ pane: "notifications", body: [header("notifications"),
+    group(null, [r("On the lock screen", pop("Show count")), r("Hold banners while a window is full screen", sw(true), { desc: "Banners still show on a screen without one." }), r("Hold banners while sharing your screen", sw(true))], { first: true }),
+    group("Application notifications", [r("Chromium", null, { icon: APP.chromium(20), nav: "", desc: "Temporary banners, sound, badges" }), r("kitty", null, { icon: APP.kitty(20), nav: "", desc: "Temporary banners, sound" }), r("Steam", null, { icon: APP.steam(20), nav: "", desc: "Persistent banners, sound, badges" }), r("Visual Studio Code", null, { icon: APP.code(20), nav: "", desc: "Off" })])] });
+  const notifApp = () => ({ pane: "notifications", title: "Steam", back: true, body: [subHeader("Steam", "How Steam's notifications reach you.", APP.steam(32)),
+    group(null, [r("Allow notifications", sw(true)), r("Banner style", seg(["Temporary", "Persistent"], 1)), r("Play sound", sw(true)), r("Show badges", sw(true)), r("Show over full-screen windows", sw(false))], { first: true })] });
+  const sound = () => ({ pane: "sound", body: [header("sound"),
+    group("Sound effects", [r("Alert sound", pop("New message")), r("Play sound for notifications", sw(true)), r("Play sound when taking a screenshot", sw(true))], { first: false }),
+    group("Output", [list([{ icon: ic("speaker-hifi", 16, false, { color: "var(--colour-text-2)" }), label: "Speakers", value: "Line out", sel: true }, { icon: ic("headphones", 16, false, { color: "var(--colour-text-2)" }), label: "WH-1000XM5", value: "Bluetooth" }, { icon: ic("monitor", 16, false, { color: "var(--colour-text-2)" }), label: "AOC U34G2G4R3", value: "DisplayPort" }], { first: true, foot: false }),
+      r("Output volume", slider(64, { g: "speaker-low" }, { g: "speaker-high" }), { sep: true }), r("Mute", sw(false)), r("Balance", slider(50, "Left", "Right", 3))]),
+    group("Input", [list([{ icon: ic("microphone", 16, false, { color: "var(--colour-text-2)" }), label: "USB microphone", value: "USB", sel: true }, { icon: ic("headphones", 16, false, { color: "var(--colour-text-2)" }), label: "WH-1000XM5", value: "Bluetooth" }], { first: true, foot: false }),
+      r("Input volume", slider(70, { g: "microphone" }, { g: "microphone" }), { sep: true }), r("Input level", meter(36))])] });
+  const modes = [["moon", "Do Not Disturb", "Off", false], ["game-controller", "Game Mode", "When a game is in front", false], ["briefcase", "Work", "On", true]];
+  const focus = () => ({ pane: "focus", body: [header("focus"),
+    group(null, modes.map(([g, n, v, on]) => r(n, null, { icon: circ(g, on), nav: v })), { first: true }),
+    foot(btn("Add Focus…"))] });
+  const focusWork = () => ({ pane: "focus", title: "Work", back: true, body: [subHeader("Work", "What gets through while Work is on.", circ("briefcase", true, 32)),
+    group("Allowed notifications", [list([{ icon: APP.code(20), label: "Visual Studio Code" }, { icon: APP.kitty(20), label: "kitty" }], { first: true })], { first: true }),
+    group(null, [r("Allow time-sensitive notifications", sw(true))]),
+    group("Turn on automatically", [list([{ icon: ic("timer", 16, false, { color: "var(--colour-text-2)" }), label: "Weekdays 09:00–17:00", value: "Time" }, { icon: APP.code(20), label: "While Visual Studio Code is in front", value: "App" }], { first: true })]),
+    foot(btn("Delete Focus", { danger: true }))] });
+  const focusGame = () => ({ pane: "focus", title: "Game Mode", back: true, body: [subHeader("Game Mode", "What gets through while Game Mode is on.", circ("game-controller", false, 32)),
+    group("Allowed notifications", [list([], { first: true, empty: "No apps" })], { first: true }),
+    group(null, [r("Allow time-sensitive notifications", sw(true))]),
+    group("Turn on automatically", [r("When a game is in front", sw(true)), r("Off for these games", null), list([{ icon: APP.balatro(20), label: "Balatro" }])])] });
+  const SYMBOLS = ["moon", "briefcase", "bed", "book-open", "code", "barbell", "car", "music-note", "leaf", "headphones", "laptop", "globe"];
+  const addFocus = () => Object.assign(focus(), { sheetWidth: 400, sheet: [
+    sheetTitle("Add Focus"),
+    el("s-group", {}, r("Name", field("Reading", 180)), el("r", { padding: "var(--space-m)", flexDirection: "column", alignItems: "flex-start", gap: "var(--space-s)", borderTop: "1px solid var(--colour-hairline)", marginLeft: "var(--space-m)", paddingLeft: "0" }, sp("", "Symbol"),
+      el("", { display: "grid", gridTemplateColumns: "repeat(6, 32px)", gap: "var(--space-s)" }, ...SYMBOLS.map((g) => circ(g, g === "book-open", 32))))),
+    sheetFoot(grow(), btn("Cancel"), btn("Add", { primary: true }))] });
+
+  // ---- Security --------------------------------------------------------------------------
+  const lockScreen = () => ({ pane: "lock-screen", body: [header("lock-screen"),
+    group(null, [r("Dim the display after", pop("5 min")), r("Lock after", pop("10 min")), r("Turn display off after", pop("15 min")), r("Lock when the computer sleeps", sw(true))], { first: true })] });
+  const privacy = () => ({ pane: "privacy", body: [header("privacy"),
+    group("Privacy", [r("Screen & System Audio Recording", null, { icon: tile("privacy", 20), nav: "2 apps" }), r("Screenshots", null, { icon: tile("privacy", 20), nav: "1 app" })], { first: false })] });
+  const privacyScreen = () => ({ pane: "privacy", title: "Screen & System Audio Recording", back: true, body: [subHeader("Screen & System Audio Recording", "Apps that may share your screen again without asking."),
+    group(null, [r("Chromium", sw(true), { icon: APP.chromium(20) }), r("Discord", sw(false), { icon: APP.discord(20) })], { first: true })] });
+
+  // ---- Input ------------------------------------------------------------------------------
+  const keyboard = () => ({ pane: "keyboard", body: [header("keyboard"),
+    group(null, [r("Key repeat rate", slider(62, "Slow", "Fast", 9)), r("Delay until repeat", slider(50, "Long", "Short", 8))], { first: true }),
+    group("Keyboards", [r("Keychron Ultra-Link 8K", null, { icon: ic("keyboard", 20, false, { color: "var(--colour-text-2)" }), nav: "Mac (automatic)" }), r("Keychron Link", null, { icon: ic("keyboard", 20, false, { color: "var(--colour-text-2)" }), nav: "Mac (automatic)" })]),
+    foot(btn("Detect…")),
+    group("Text input", [r("Input sources", [sp("s-2", "British – Mac"), btn("Edit…")])]),
+    group(null, [r("Turn on Num Lock at login", sw(true)), r("Use Mac shortcuts in other apps", sw(true), { desc: "Cmd shortcuts become each app's own, as Cmd+C does Ctrl+C." })]),
+    foot(btn("Modifier Keys…"), btn("Keyboard Shortcuts…"))] });
+  const keyboardDevice = () => ({ pane: "keyboard", title: "Keychron Ultra-Link 8K", back: true, body: [subHeader("Keychron Ultra-Link 8K", "How this keyboard's modifier keys work.", el("", { width: "32px", height: "32px", display: "grid", placeItems: "center" }, ic("keyboard", 30, false, { color: "var(--colour-text-2)" }))),
+    group(null, [r("Kind", seg(["Automatic", "Mac", "PC"], 0)), r("Swap Alt and Super", sw(false, true), { desc: "Cmd sits beside the space bar.", dim: true }), r("Keyboard type", pop("Automatic"), { desc: "ISO has a key left of Z." })], { first: true })] });
+  const inputSources = () => Object.assign(keyboard(), { sheetWidth: 480, sheet: [
+    sheetTitle("Input sources", "The first is used at login and on a new keyboard."),
+    el("s-group", {}, list([{ icon: sp("s-callout", "GB", { width: "24px", height: "16px", borderRadius: "3px", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", fontWeight: 600 }), label: "British – Mac", sel: true }], { first: true })),
+    sheetFoot(grow(), btn("Done", { primary: true }))] });
+  const modifierKeys = () => Object.assign(keyboard(), { sheetWidth: 440, sheet: [
+    sheetTitle("Modifier keys", "Applies to every keyboard."),
+    el("s-group", {}, r("Caps Lock key", pop("Caps Lock", { w: 150 }))),
+    sheetFoot(grow(), btn("Done", { primary: true }))] });
+  const CATS = ["Windows", "Tiling", "Desktops", "Spotlight and apps", "Menus and panels", "Screenshots", "Focus", "Session", "Keyboard and displays", "Media"];
+  const WINKEYS = [["Close window", "⌘W"], ["Minimise", "⌘M"], ["Minimise all of the app's windows", "⌥⌘M"], ["Hide", "⌘H"], ["Hide others", "⌥⌘H"], ["Quit", "⌘Q"], ["Enter or leave full screen", "⌃⌘F"], ["Next window of the app", "⌘`"], ["Previous window of the app", "⇧⌘`"], ["Window menu", "⌃⌥Space"], ["Zoom menu", "⌃⌥Z"]];
+  const shortcuts = () => Object.assign(keyboard(), { sheetWidth: 720, sheetHeight: 480, sheet: [
+    row({ gap: "0", alignItems: "stretch", flex: 1, minHeight: 0, borderRadius: "var(--radius-card)", overflow: "hidden", boxShadow: "0 0 0 1px var(--colour-hairline)" },
+      el("", { width: "180px", flex: "none", background: "var(--colour-window-sunken)", padding: "var(--space-s)", boxSizing: "border-box", borderRight: "1px solid var(--colour-hairline)" }, ...CATS.map((c, i) => el("s-side-item" + (i === 0 ? " sel focused" : ""), {}, sp("", c, { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" })))),
+      el("", { flex: 1, background: "var(--colour-window-raised)", padding: "var(--space-xs) 0" }, ...WINKEYS.map(([n, k]) => row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)" }, chk(true), sp("", n, { flex: 1 }), recorder(k))))),
+    sheetFoot(btn("Restore Defaults"), grow(), btn("Done", { primary: true }))] });
+  const mouse = () => ({ pane: "mouse", body: [header("mouse"),
+    group("Keychron Ultra-Link 8K", [r("Tracking speed", slider(50, "Slow", "Fast")), r("Pointer acceleration", sw(false)), r("Natural scrolling", sw(false), { desc: "Content moves with your fingers." }), r("Primary mouse button", seg(["Left", "Right"], 0))], { first: false })] });
+
+  Isle.board({
+    title: "Settings rows",
+    subtitle: "P13 phase 13.1: the 21 panes of System Settings with their rows, sheets and sub-pages, drawn from p13/rows.md on P1's kit at actual size. A pane taller than the 760-point window is drawn at full length; the window scrolls it.",
+    tokens: "../../../../data/tokens/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "connections", name: "Wi-Fi to Energy", sheet: "p13/rows.md", states: [
+        scene("wifi", "Wi-Fi", "The switch, the joined network with Details…, Known networks with a ⋯ menu each (Auto-Join, Forget This Network…), Other networks while scanning, Join other network…. Joining asks through the compositor's prompt.", wifi),
+        scene("wifi-details", "Wi-Fi Details…", "Automatically join, the addresses read only, Forget This Network… and Done; changes apply as made, so no OK or Cancel.", wifiDetails),
+        scene("wifi-other", "Join other network…", "Name and security only: the password is the compositor's prompt (B12), never a field here.", wifiOther),
+        scene("bluetooth", "Bluetooth", "Discoverable only while the pane is shown. My devices with Connect, Rename… and Forget This Device… in each ⋯; Nearby devices pair through the prompt.", bt),
+        scene("network", "Network", "Every connection with its state; Ethernet opens its page, Wi-Fi and VPN open their panes (For the user 5).", network),
+        scene("ethernet", "Ethernet", "A sub-page: the wired connection read only; editing TCP/IP and DNS is P20.", ethernet),
+        scene("vpn", "VPN", "NetworkManager's VPNs, each with a switch and Remove… in its ⋯. The pane shows only while a VPN exists.", vpn),
+        scene("energy", "Energy", "Energy Mode alone, power-profiles-daemon's three profiles under macOS's words (For the user 4).", energy),
+        scene("energy-held", "Energy, Game Mode on", "While Game Mode holds High Power the row says so; a choice made now stands.", energyHeld),
+      ] },
+      { id: "system", name: "General to Desktop", sheet: "p13/rows.md", states: [
+        scene("general", "General", "General opens with About as its one sub-page; the rest come with P20.", general),
+        scene("about", "About", "The name is a field (hostnamed, polkit); the rest is read only, with Copy in each row's context menu.", about),
+        scene("accessibility", "Accessibility", "Display and keyboard settings that exist today; Zoom, the on-screen keyboard and pointer rows come with their packets. Text size stops at the tokens' 1.5.", accessibility),
+        scene("appearance", "Appearance", "Pictures for the appearance, the tokens' eight accents (no picker: an accent must be one tokens.kdl defines), Glass as a slider (For the user 2), other apps' title bars.", appearance),
+        scene("apps", "Apps", "Every app and library game, filtered by the field; a value only where something differs from the default.", apps),
+        scene("app", "An app's page", "Keep running, Mac shortcuts (its entry in keyboard.untranslated-apps) and game marking; Notifications links to its page there.", appPage),
+        scene("control-centre", "Control Centre", "The island's clock and glyph tiers (Battery only with a battery), a pop-up per module saying shown and size (For the user 8), the tray's switches on the new tray-hidden list.", controlCentre),
+        scene("clock", "Clock Options…", "The island's clock: 24-hour is three-way because auto follows the locale.", clockOptions),
+        scene("desktop", "Desktop", "Windows rows with the new edge-tiling switch; Hot Corners… as macOS draws it, a button under the group.", desktop),
+        scene("hot-corners", "Hot Corners…", "The defaults: bottom right Apps, the rest none until Mission Control (P16) takes bottom left.", () => hotCorners()),
+        scene("hot-corners-menu", "Hot Corners… menu", "The actions built today; a modifier held while choosing is shown before the action, here ⌘ on the top left.", () => hotCorners({ tl: "⌘ Lock Screen", tr: "Notification Centre", menu: true })),
+      ] },
+      { id: "displays", name: "Displays", sheet: "p13/rows.md", states: [
+        scene("displays", "Displays", "The map to scale with the island on the main display, Main display with Follow focus, then the selected display's rows. Mode, rotation and enabled keep or revert; scale, VRR and tearing apply at once (For the user 10).", () => displays()),
+        scene("scale", "Scale as steps", "Recommended (For the user 1): 100% to 200% by 25%, the default marked, Other… for a typed value.", () => displays({ menu: true })),
+        scene("scale-thumbs", "Scale as thumbnails", "The alternative: macOS's Larger Text to More Space pictures. At 100% on the ultrawide the default sits at the More Space end.", () => displays({ thumbs: true })),
+        scene("keep", "Keep or revert", "The alert over the compositor's 15-second deadline, at 12 seconds; Keep is the default.", keepRevert),
+        scene("night-light", "Night Light…", "Schedule, From and To for Custom, the manual switch (named for when it ends) and Warmth.", nightLight),
+        scene("advanced", "Advanced…", "The render GPU: Automatic is the boot GPU; each render node by its name.", advanced),
+      ] },
+      { id: "spotlight", name: "Spotlight, Wallpaper", sheet: "p13/rows.md", states: [
+        scene("spotlight", "Spotlight", "A switch per source an unscoped search runs (the new sources-off, For the user 3), the Apps view's favourites in order, apps clipboard history skips, the web search.", spotlight),
+        scene("search-privacy", "Search Privacy…", "Folders searched besides home, and folders left out.", searchPrivacy),
+        scene("wallpaper", "Wallpaper", "A folder chosen, so every row shows: fit, the colour around it, Dark Mode's picture, the change and order. Off Show on all screens, a Screen pop-up picks which screen the rows set.", wallpaper),
+      ] },
+      { id: "attention", name: "Notifications, Sound, Focus", sheet: "p13/rows.md", states: [
+        scene("notifications", "Notifications", "The lock screen's previews, the two holds, then every app that has posted with its summary.", notifications),
+        scene("notification-app", "An app's notifications", "Notifications1's five rules for one app.", notifApp),
+        scene("sound", "Sound", "Alert sound (choosing plays it), the notification and screenshot sounds; output and input as lists with volume, mute, balance and a live level.", sound),
+        scene("focus", "Focus", "Do Not Disturb, Game Mode and the user's modes, each a sub-page; Add Focus….", focus),
+        scene("focus-work", "A mode's page", "Allowed apps, time-sensitive notifications, the schedules; Delete Focus for the user's own modes. People stays absent until a source names senders.", focusWork),
+        scene("focus-game", "Game Mode's page", "Game Mode turns itself on for a game in front, except the games listed.", focusGame),
+        scene("add-focus", "Add Focus…", "A name and one of twelve symbols.", addFocus),
+      ] },
+      { id: "security", name: "Lock Screen, Privacy", sheet: "p13/rows.md", states: [
+        scene("lock-screen", "Lock Screen", "Idle's three steps as duration pop-ups with Never last, and the lock before sleep.", lockScreen),
+        scene("privacy", "Privacy & Security", "One sub-page per kind of permission, as macOS (For the user 9).", privacy),
+        scene("privacy-screen", "Screen recording page", "Each remembered share with a switch; off revokes it.", privacyScreen),
+      ] },
+      { id: "input", name: "Keyboard, Mouse", sheet: "p13/rows.md", states: [
+        scene("keyboard", "Keyboard", "Repeat as stepped sliders; each physical keyboard (xremap and the Steam Controller's puck left out, For the user 7) opens its page; layouts in Input Sources; the global Mac-shortcuts switch.", keyboard),
+        scene("keyboard-device", "A keyboard's page", "Kind, the Alt and Super swap (disabled on a Mac keyboard), and ISO or ANSI.", keyboardDevice),
+        scene("input-sources", "Input Sources…", "Layouts and variants from evdev.xml; the first is the default.", inputSources),
+        scene("modifier-keys", "Modifier Keys…", "Caps Lock as Control, Escape or nothing, through XKB options that apply to every keyboard.", modifierKeys),
+        scene("shortcuts", "Keyboard Shortcuts…", "Only actions built today; a checkbox off writes an empty list. Symbols because the keyboard in front is a Mac one.", shortcuts),
+        scene("mouse", "Mouse", "A group per physical mouse (For the user 6).", mouse),
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 13.1">
+  <h2>For you to answer</h2>
+  <p>The rows, sheets and keys are listed in <code>p13/rows.md</code>. Reply lgtm or name changes. Recommended in each case:</p>
+  <ol>
+    <li><b>Scale</b> is a pop-up of steps, 100% to 200% by 25% with Other…, not macOS's thumbnails, which assume a Retina panel.</li>
+    <li><b>Glass</b> is a slider from Clear to Tinted, as macOS 27, not two choices.</li>
+    <li><b>Spotlight's sources</b> each get a switch (new <code>spotlight.sources-off</code>); a scope still searches a source that is off.</li>
+    <li><b>Energy</b> stays a pane holding Energy Mode alone, since Control Centre and search point at it.</li>
+    <li><b>Network</b> lists every connection with its state; Wi-Fi and VPN rows open their own panes.</li>
+    <li><b>Mouse</b> settings are per device, a group per connected mouse.</li>
+    <li><b>Virtual input devices</b> (xremap, the Steam Controller's puck) are left out of Keyboard and Mouse.</li>
+    <li><b>Control Centre's modules</b> each get a pop-up: Don't show or a size; order stays in Edit controls.</li>
+    <li><b>Privacy &amp; Security</b> has a sub-page per kind of permission, as macOS.</li>
+    <li><b>Scale applies at once</b> without keep-or-revert, as the plan's choice 19 has it; mode, rotation and turning a display off still ask.</li>
+  </ol>
+</section>

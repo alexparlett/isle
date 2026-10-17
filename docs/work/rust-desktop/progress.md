@@ -2,6 +2,15 @@
 
 ## 2026-10-17
 
+- P13 13.1, the rows: every pane's subtitle, groups, rows, sheets and
+  sub-pages in `p13/rows.md`, drawn on `p13/rows-1.html` and published as a
+  private board. The user took every recommendation: scale as a pop-up of
+  steps with Other…, glass as a slider, a switch per Spotlight source
+  (`spotlight.sources-off`), the Energy pane, every connection on Network,
+  a group per mouse, virtual devices left out, a pop-up per Control Centre
+  module, a sub-page per privacy kind, scale applying without
+  keep-or-revert.
+
 - P13 13.9, hot corners: a `hot-corners` section (each corner's action and
   the modifiers it needs; bottom right Apps by default) and the engine
   beside the top edge: a corner where no other screen meets fires after the

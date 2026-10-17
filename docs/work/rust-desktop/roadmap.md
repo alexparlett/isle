@@ -142,7 +142,12 @@ output (GAMMA_LUT or a shader), with Control Centre's Night Light module
 and Game Mode turning it off (given here at P8's review). Intent:
 gaming.md, compositor.md.
 
-**P13 · Settings, core.** Settings › Privacy & Security lists and revokes
+**P13 · Settings, core.** Built 2026-10-17, host run pending:
+`p13-settings.md`, B94–B99. Every Isle app's platform in `isle-app`;
+Settings' 21 panes on the gated rows, the compositor's lights over the app,
+display changes held and reverted by the compositor, the blur behind a
+window, the hot-corner engine, View › Show Changed Settings. Brief:
+Settings › Privacy & Security lists and revokes
 the permission store's `screenshot` and `screencast` entries, as `isle portal
 permissions` does since P11. The Settings app on the app conventions: displays,
 sound, network, Bluetooth, keyboard and shortcuts, appearance, desktop and
@@ -160,8 +165,10 @@ P12. Intent: apps.md.
 
 ## Milestone M2: Isle replaces v1 on the host
 
-**P14 · Session and install.** The package installs `isle-record` beside
-the compositor, `isle.portal` and `isle-portals.conf` (from `data/portal/`),
+**P14 · Session and install.** The package installs `isle-record` and
+`isle-settings` beside the compositor, with Settings' desktop entry and
+D-Bus service file (`data/apps/`), built in software or with `--features
+gpu` as P13's host measure settles (B26), `isle.portal` and `isle-portals.conf` (from `data/portal/`),
 and sees to a user's own `~/.config/xdg-desktop-portal/portals.conf`, which
 outranks the packaged file (v1 left one preferring Hyprland's backend, and
 v1's own `isle.portal` claims the same name); found in P11's VM. The PKGBUILD built from git, installed with
@@ -192,10 +199,10 @@ Files owns `org.freedesktop.FileManager1`, which Spotlight's Show in Files and
 Cmd+Return on a file already call (P10), and a search that Spotlight's "Show
 all in Files" and Cmd+Y on a file reach. Intent: apps.md, platform.md.
 
-**P16 · Mission Control.** The Spaces overview, hot corners (Lock Screen
-and Put Display to Sleep among them, from P9, and the bottom-right corner's
-Apps view, which `isle spotlight apps` opens since P10), trackpad gestures, Split
-View; Stage Manager as a layout module, off by default (B25). Intent: shell.md, compositor.md.
+**P16 · Mission Control.** The Spaces overview, Mission Control's actions
+in the hot corners (the engine, its four actions and Settings' Hot
+Corners… sheet came in P13, B99), trackpad gestures and Settings'
+Trackpad pane, Split View; Stage Manager as a layout module, off by default (B25). Intent: shell.md, compositor.md.
 
 **P17 · Widgets.** Notification Centre moved to P8 at its review. Widgets
 where P1 places them, with the grid editor and the gallery (B24); the provider contract (B14), sandboxed with granted
@@ -209,7 +216,10 @@ gaming.md, apps.md.
 
 **P19 · Monitor, Keychain, Cleaner.** Intent: apps.md.
 
-**P20 · The rest of v1.** Settings' remaining pages, session restore
+**P20 · The rest of v1.** Settings' remaining pages (General's Software
+Update, Storage, Passwords, Date & Time, Language & Region, Login Items and
+Snapshots; Users & Groups, Login Password, Calendars, Printers, Phone;
+TCP/IP and DNS editing; P13's Not in P13), session restore
 with the session dialog's "Reopen windows when logging back in" and the
 crash notice for apps (from P9),
 calendars with Notification Centre's agenda, the providers (vault, with

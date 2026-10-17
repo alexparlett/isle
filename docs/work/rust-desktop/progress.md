@@ -2,6 +2,18 @@
 
 ## 2026-10-17
 
+- P13 13.13–13.15: ext-background-effect-v1 served, a still window's blur
+  region drawn as untinted glass from what lies below it and dropped under
+  Reduce Transparency; Settings' sidebar is glass in a GPU build. Identify,
+  reordering by drag, Focus schedules edited in place, the Keyboard
+  Shortcuts sheet's modifier pop-ups and terminal, and a found row
+  scrolled into view. Headless bar tests (3 to 8) and an idle memory
+  sample; the VM pass, which found the panes' daemon state freezing once
+  the first pane to ask closed (fixed). Closed: ARCHITECTURE's How an app
+  is built and How Settings writes, B94–B99 with B25 and B26 revised,
+  `apps.md`'s conventions answered, the rows in the Settings structure
+  doc, the roadmap. The host run is the user's.
+
 - P13 13.3–13.12, the panes: all 21 drawn on the gated rows, each a
   component over the desktop's values and the daemons' state, every row
   bound to its key or call. Settings writes through `Settings1` (a row

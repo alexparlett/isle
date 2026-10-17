@@ -452,3 +452,18 @@
   live and reverted by the compositor; the index generated from the panes;
   the hot-corner engine with the actions that exist. Research in
   `docs/research/rust-desktop/settings-2026.md`. Phases 13.0–13.15.
+- P13 is built (2026-10-17), host run pending, the user's: `isle-app`
+  under every app (one instance, the desktop's theme and settings followed,
+  writes through `Settings1`, the command table as DBusMenu, the Wayland
+  extras on the window's surface); Settings' 21 panes on the gated rows
+  with View › Show Changed Settings; the compositor's lights over an Isle
+  app (`isle_titlebar_v1`); display changes held and reverted by the
+  compositor; ext-background-effect-v1 served; the hot-corner engine;
+  `spotlight.sources-off`; Identify. Headless, Settings passes `apps.md`
+  bars 3 to 8; idle it is 59.5 MB PSS in software, 151.6 MB on GL (debug).
+  The VM ran every pane against its daemons and a display change that
+  reverted by itself. B94–B99 recorded, B25 and B26 revised, `apps.md`'s
+  conventions and open points answered, the rows in
+  `p1/structure/settings.md`, the roadmap's P13, P14, P16 and P20 entries
+  follow, `p13-settings.md` ends with its outcome. Next: the host run
+  (`docs/research/rust-desktop/p13-settings.md`), then P14.

@@ -1,8 +1,9 @@
 # Architecture
 
 How Isle is put together. The compositor core (P2), the shell runtime
-(P3), windows (P4), keys (P5), the top of the screen (P6), switching (P7)
-and services with notifications and Control Centre (P8) are built; the rest is the planned architecture of the rust-desktop program, each part settled in
+(P3), windows (P4), keys (P5), the top of the screen (P6), switching (P7),
+services with notifications and Control Centre (P8), and the first app,
+Settings, on the platform every app shares (P13) are built; the rest is the planned architecture of the rust-desktop program, each part settled in
 detail by the build packet that makes it (`docs/work/rust-desktop/
 roadmap.md`). What each capability does is in `docs/design/`; why it is
 built this way is in `docs/DECISIONS.md`.
@@ -44,9 +45,10 @@ isle-session                      supervisor: starts the compositor in the
 
 isle                            the command line over the D-Bus API
 Apps, launched on demand        Settings, Files, Monitor, Keychain, Cleaner:
-                                Freya processes on the same component library,
-                                drawn on the GPU (B7, B26); Files also serves the Open and Save panels and Quick
-                                Look (B26)
+                                Freya processes on isle-app and the same component
+                                library, drawn in software unless built with the
+                                GPU (B26, B94); Files also serves the Open and Save
+                                panels and Quick Look (B26)
 Providers                       programs in any language, started by the service
                                 worker, sandboxed with the permissions the user
                                 granted (B14, B28)
@@ -636,6 +638,61 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   next change, and Game Mode's hold decide it; changes fade, but Game Mode
   turns it off at once. Appearance Auto follows the same sun.
 
+## How an app is built
+
+- **On `isle-app`** (B94). An app gives a `Spec` (its reverse-DNS id, which
+  is also its desktop file id, Wayland app id and bus name, its window's
+  size, the lights' inset, its backdrop) and its root component;
+  `isle_app::run` does the rest. A launch first claims the bus name with
+  `org.freedesktop.Application`: when another instance holds it, the
+  launch's URIs and activation token are handed over and the process ends.
+- **The window is `freya-winit`'s,** in software by default (softbuffer's
+  shm buffers) and on the GPU only in a `gpu` build with `FREYA_RENDERER`
+  (B26). What winit does not bind is bound on a second event queue against
+  winit's own display and the window's surface: `xdg_activation_v1` to
+  raise the window, `org_kde_kwin_appmenu` to name its exported menu,
+  `gtk_shell1` to hand the toolbar's double, right and middle clicks to the
+  compositor, `isle_titlebar_v1` to ask for the lights over the content at
+  the app's inset (B95), and `ext_background_effect_v1` for the blur
+  behind the backdrop in a GPU build (B98).
+- **The desktop is read from the compositor and followed:** the theme from
+  `Shell1.Theme()` and `ThemeChanged`, every setting from `Settings1.Values()`
+  and `Changed`, and whether `settings.kdl` and `tokens.kdl` are in force.
+  An app writes through `Settings1` (Set, Reset, Remove); the value reads as
+  set at once and a refusal is kept against its key for the row to show.
+- **One command table** declares every command with its menu, group and
+  chord; the menu bar is exported from it as DBusMenu at `/MenuBar/1`, and
+  its chords are matched in the window, Cmd as `Modifiers::META`. Isle's
+  own apps are never Cmd-translated, so Super arrives as itself.
+- **D-Bus and the daemons run on the app's worker,** a tokio runtime on a
+  thread of its own; the UI thread awaits its results and never blocks.
+- Menus, pop-ups, popovers and sheets draw inside the window (B94).
+
+## How Settings writes
+
+- **A pane is a component over two sources:** the desktop's values, for
+  rows bound to `settings.kdl` keys, and the daemons' state, which the
+  panes follow only once one asks (NetworkManager, BlueZ, PipeWire and
+  power-profiles-daemon through the service crates; displays, keyboards,
+  pointers, Control Centre's modules, Focus and the tray from the
+  compositor; the portal's permissions; the app index). Their copies into
+  the UI live as long as the app. A change to a daemon is an act carried
+  out on the worker (B97).
+- **A display change is the compositor's** (B96). Settings sends
+  `Displays1.Configure` and shows "Keep these display settings?" counting
+  down; the compositor applies the change at once, holds what it replaced,
+  writes the change only on `Keep`, and puts it back at its own deadline,
+  on `Revert`, or when the asking client leaves the bus. Scale and place
+  write at once.
+- **The panes are the record of rows:** each row's id, label, keywords,
+  the key it shows and the sheet or sub-page it is on. Search, the
+  Spotlight index (`data/settings/index.kdl`, generated by
+  `isle-settings --write-index`) and Show Changed Settings read it; a link
+  `isle-settings://<pane>/<row>` opens the row's sheet, rings the row and
+  scrolls to it.
+- **Show Changed Settings** compares the values with the schema's defaults
+  in the app; Reset to Default is `Settings1.Reset` of the row's key.
+
 ## Rules the layout enforces
 
 - Anything new the shell draws, a material, a shadow token, an effect or a
@@ -671,7 +728,7 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 | `settings.kdl` | `~/.config/isle/` | the user's choices, apps' preferences included | the compositor, into the file's own text (B36), or the user by hand | yes |
 | `tokens.kdl` | built into Isle; `~/.config/isle/` over it | design tokens | the user by hand; Isle never writes it | the user's file |
 | `translation.kdl` | built into Isle; `~/.config/isle/` over it | Cmd translation tables (B45) | the user by hand; Isle never writes it | the user's file |
-| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), the capture toolbar's mode, place and portion (`capture`), notifications and their records (`notifications`), what the user turned on or off in Focus (`focus`), Spotlight's use (`usage`) and Run's history (`commands`), session restore, crash history | the compositor and the supervisor | no |
+| state | `~/.local/state/isle/<domain>.json` | window places (`places`), desktops per output (`desktops`), the capture toolbar's mode, place and portion (`capture`), notifications and their records (`notifications`), what the user turned on or off in Focus (`focus`), Spotlight's use (`usage`) and Run's history (`commands`), Settings' pane last shown (`settings-app`), session restore, crash history | the compositor and the supervisor | no |
 | clipboard history | `~/.local/state/isle/clipboard/` | `index.json` and each copy's types as files, mode 0600 | the worker | no |
 | caches | `~/.cache/isle/` | media art (`art`), notifications' images (`notifications`), tray items' pixmaps (`tray`), shots for apps through the portal (`portal`, a day) | the worker | no |
 | shots and recordings | `$XDG_PICTURES_DIR/Screenshots`, `$XDG_VIDEOS_DIR/Recordings` | by macOS's names | the worker, `isle-record` | no |

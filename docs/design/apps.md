@@ -43,9 +43,10 @@ Every Isle app follows these rules.
 
 **Process and lifetime**
 
-1. Each app is its own binary and process, with its own Wayland app id and desktop entry:
-   `isle-settings`, `isle-files`, `isle-monitor`, `isle-keychain`, `isle-cleaner` (D92). The switcher,
-   Spotlight and menu bar show five apps under five names without matching titles (D75).
+1. Each app is its own binary and process: `isle-settings`, `isle-files`, `isle-monitor`,
+   `isle-keychain`, `isle-cleaner` (D92). Its desktop file id, Wayland app id and bus name are one
+   reverse-DNS id, `io.github.alexparlett.Isle.Settings` and so on (B94). The switcher, Spotlight and
+   menu bar show five apps under five names without matching titles (D75).
 2. No app starts with the session. An app is started by its desktop entry, its command line, or D-Bus
    activation of its own well-known bus name (`ui-and-services.md` §1.4: big apps start on demand).
 3. Each app is single-instance. A second launch hands its arguments (a pane, a folder, files) to the
@@ -85,15 +86,17 @@ Every Isle app follows these rules.
 
 **Windows**
 
-15. Each app draws a unified toolbar carrying the traffic lights and asks xdg-decoration for
-    client-side mode, so the compositor draws no title bar over it (B25). Close, minimise and zoom act
-    through the compositor (`xdg_toplevel` close, set_minimized and set_maximized), so they behave as
-    for any other app: minimise shrinks the window toward the island and zoom goes to B8's zones. A double click on the
-    toolbar does what the user's system setting says.
+15. Each app draws a unified toolbar and the compositor draws the traffic lights over it: the app
+    keeps server-side decorations, its content running to the window's top, and names the lights'
+    inset through `isle_titlebar_v1` (B25, B95). The lights are the compositor's, so close, minimise
+    and zoom behave as for any other app: minimise shrinks the window toward the island and zoom goes
+    to B8's zones. The toolbar's double, right and middle clicks are handed to the compositor through
+    `gtk_shell1`'s titlebar gesture and do what the user's system setting says.
 16. Every window resizes from every edge and has a minimum size at which nothing is clipped. The
     About window is the one exception: a small window of fixed size (P1, `conventions.md`).
 17. Translucency is asked of the compositor through `ext-background-effect-v1`; no app blurs behind
-    itself (`ui-and-services.md` §2).
+    itself (`ui-and-services.md` §2). Only a GPU build can show it; in software the material is solid
+    (B98).
 18. A confirmation or other dialog is modal to its window, not to the app. Focus moves into it when it
     opens and back when it closes; Escape and Cmd+. cancel; Return takes the default button (strata
     `docs/UI_CONVENTIONS.md`; the fork's modal boundary).
@@ -136,16 +139,16 @@ Every Isle app follows these rules.
 30. A window with a list or pages to search has its search field on Cmd+F.
 31. Every Freya crate in the workspace pins the fork at one revision, so one `freya-core` links;
     components are tested headlessly with `freya-testing` at that revision (cairn `Cargo.toml`).
-32. Apps render on the GPU by default (B26).
+32. Apps render in software by default, Freya's GPU renderers in a `gpu` build only (B26).
 
-**Open for the app packets**
+**Answered by the Settings packet**
 
-- Whether rule 32 stays: the Settings packet measures an app's PSS and VRAM against acceptance bar 2
-  (B26); a GPU process on NVIDIA starts at about 40 MB PSS of driver mappings (`ui-and-services.md`
-  §1.4).
-- The KDL shape of each app's section of `settings.kdl` (B27).
-- Rule 8 needs a DBusMenu exporter in the fork: winit windows carry no native menu on Linux (strata
-  `docs/PLATFORMS.md`).
+- Rule 32: Settings measured 59.5 MB PSS in software and 151.6 MB on GL, headless and debug; only
+  software passes bar 2 (B26). The host's release measure confirms or reverses it.
+- An app's preferences are its own `app[<id>]` section of `settings.kdl` (B27), declared in the
+  schema like any section.
+- Rule 8's exporter is `isle-menus`' DBusMenu server, which `isle-app` serves from the command table
+  (B94).
 
 ## Features
 

@@ -302,19 +302,25 @@ capabilities). The brainstorm's proposals go to P1 as starting points:
 the island for live activities and OSDs, banners top right, widgets in
 Notification Centre and on the desktop with a "Show widgets" chord.
 
-**B25 · Window chrome.** Isle's own apps draw a unified toolbar with the
-traffic lights. The compositor draws Mac-style server-side title bars, in
+**B25 · Window chrome (revised).** Isle's own apps draw a unified toolbar
+and the compositor draws the traffic lights over it, at the inset the app
+names (B95). The compositor draws Mac-style server-side title bars, in
 Freya, for apps that accept server-side decorations. Stage Manager comes
-later as a layout module (B8), off by default.
+later as a layout module (B8), off by default. This replaces apps drawing
+their own lights, changed by the user during P13.
 
-**B26 · Where things run.** The portal backend (B13) is a bus name owned by
+**B26 · Where things run (revised).** The portal backend (B13) is a bus name owned by
 the compositor's service worker, as v1 owned its FileChooser (v1 D67); it
 hands FileChooser to Files. The Open and Save panels and Quick Look run in
 the Files process, Quick Look as a D-Bus service that Spotlight also
 calls, so nothing file-browsing loads into the compositor. The greeter is
 the compositor in a greeter mode under greetd, reusing the lock screen.
-Apps render on the GPU by default; the Settings packet measures their
-memory before that is final.
+Apps render in software by default, Freya's GPU renderers left out of the
+build: Settings idle measured 59.5 MB PSS in software and 151.6 MB on GL (debug, headless,
+`p13-settings.md`), and only software passes `apps.md`'s 80 MB bar. A
+`gpu` build keeps the GPU renderers behind `FREYA_RENDERER`. The host's
+release measure confirms or reverses this. Revised in P13 from "on the GPU
+by default".
 
 **B27 · Settings in practice.** App preferences are per-app sections of
 `settings.kdl`, written through the compositor (B10's one writer). A write
@@ -1032,3 +1038,61 @@ under its title, sized from its entries and widest submenu (Help's search
 to the screen's foot), and takes the keyboard while open. The bar was a
 full-screen surface with the menu inside it, so each hover redrew and
 recomposited the whole screen.
+
+**B94 · Every app stands on `isle-app`.** Built in P13 with Settings. One
+instance per app through `org.freedesktop.Application` on its reverse-DNS
+id; the theme and every setting read from the compositor and followed;
+writes through `Settings1`; one command table exported as DBusMenu and
+matched in the window; the protocols winit lacks bound on a second queue
+against winit's display and the window's surface; D-Bus and the daemons on
+a worker thread; menus, pop-ups and sheets drawn inside the window, since
+winit has no `xdg_popup`. Rejected: a GTK or Qt app layer (two toolkits),
+GApplication-style single instance over a socket (the desktop entry's
+D-Bus activation needs the bus name anyway).
+
+**B95 · The lights are the compositor's, over an Isle app.** Built in P13.
+An Isle app keeps server-side decorations with no title bar of its own
+drawn: its content runs to the window's top and it names the lights'
+inset with the private `isle_titlebar_v1`, as a Mac app with a full-size
+content view and a traffic-light inset. The compositor draws, hits and
+animates the lights as it does on other windows; `gtk_shell1`'s titlebar
+gesture hands the toolbar's clicks over. Rejected: the app drawing the
+lights (two drawings of one control, B25's first answer), xdg-decoration
+or KDE's decoration protocol alone (they choose a side, not an inset).
+
+**B96 · The compositor owns a display change and its revert.** Built in
+P13. `Displays1.Configure` applies a mode, rotation, scale, place or on
+and off at once, relighting only the connector that needs it, and holds
+what it replaced; `Keep` writes the change to `settings.kdl`; its own
+deadline (`timing.display-revert-ms`), `Revert` or the asking client
+leaving the bus puts it back. The last screen on cannot be turned off. The
+app counts down but is never the guard. Rejected: the app writing and
+reverting (a crashed or frozen app leaves a dark screen), Redetect for
+every change (blanks every screen).
+
+**B97 · Settings follows the daemons only while asked, and the panes are
+its record.** Built in P13. A pane follows a daemon or the compositor once
+it is first shown, and the state is kept for the app's life; a change is an
+act on the worker through the service crates (B11). Each pane declares its
+rows with their ids, labels, keywords, keys and the sheet they are on;
+search, Show Changed Settings and the Spotlight index generated from them
+read that record, and a link opens a row by id. Rejected: a hand-kept
+index (it drifts), following every daemon at launch (wakes Bluetooth and
+scans Wi-Fi for a Settings opened to Appearance).
+
+**B98 · The blur behind a window is ext-background-effect-v1.** Built in
+P13. The compositor serves it: a still window's blur region, cut to the
+window and grown under its content where it stops short of an edge, is
+drawn from what lies below it with the shell's glass pass, untinted, the
+client drawing its material over it, and dropped under Reduce
+Transparency. An app asks for it only in a GPU build, since softbuffer
+presents opaque buffers; Settings' sidebar is glass there and solid in
+software. Rejected: a private protocol (the staging one carries what is
+needed), blurring in the app (it cannot see what is behind it).
+
+**B99 · Hot corners fire on rest, once a visit.** Built in P13. A corner
+where no other screen meets fires its action after the pointer rests
+there for `timing.hover-dwell-ms`, once until it leaves, only with exactly
+its modifiers held, and never with a button down, the pointer grabbed or
+constrained, the menu bar open, the screen locked or a full-screen game in
+front. Rejected: firing on contact (every fling to the corner fires).

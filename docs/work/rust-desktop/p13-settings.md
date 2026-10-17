@@ -558,3 +558,32 @@ The user reviewed the plan on 2026-10-17 and took every recommendation:
 reverse-DNS ids, software rendering pending the host measure, the
 compositor owning a display change's revert, the hot-corner engine now, and
 the host run part of done.
+
+## Outcome
+
+Built 2026-10-17 in phases 13.0–13.15; the host run, part of done, is the
+user's, with its checklist in `docs/research/rust-desktop/p13-settings.md`.
+B94–B99 record the decisions, B25 and B26 are revised, and the rows are in
+`p1/structure/settings.md`. Differences from the plan:
+
+- **The lights are the compositor's** (choice 14, revised by the user
+  mid-packet): `isle_titlebar_v1` names the inset, `gtk_shell1` hands the
+  toolbar's clicks over (B95).
+- **The sidebar's blur needs the GPU build.** softbuffer presents XRGB, so
+  a software window is opaque; an app asks for the blur only when built
+  with `gpu` and run with `FREYA_RENDERER` (B98). Settings' sidebar is
+  solid by default, choice 13's fallback.
+- **`gpu` is a build feature** of `isle-app` and Settings, not only an
+  environment variable: without it Freya's GPU crates are not linked.
+- **Pointers are listed by `Keyboard1.Pointers`**, a call P13 adds:
+  nothing listed them, and the Mouse pane keys its groups by them.
+- **Identify** is in Displays' foot, served as `Displays1.Identify`;
+  the board had no place for it.
+- **A row on a sheet is opened by its sheet's name**, which ends in an
+  ellipsis as its button does; a sub-page is named without one.
+
+Found and fixed on the way: the panes' daemon state froze once the pane
+that first asked for it closed (the VM); `isle search` ignored
+`spotlight.sources-off` while Spotlight honoured it; a user's own Focus
+mode took a symbol that is not bundled and drew nothing; a doubled doc
+comment in the schema.

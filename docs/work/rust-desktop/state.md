@@ -441,3 +441,14 @@
   answered or left to the host run, the roadmap's P12, P13 and P22 entries
   follow, `p12-gaming.md` ends with its outcome. Next: the host run, then
   P13 (Settings, core).
+- P13 planned in `p13-settings.md` (2026-10-17), reviewed: the user took every
+  recommendation.
+  Settings as the first app on a shared `isle-app` crate; 21 panes (the
+  roadmap's and those whose settings exist), rows gated on a board first;
+  software rendering by default pending the host measure; one instance
+  through `org.freedesktop.Application`; the Wayland extras bound on the
+  window's surface; a DBusMenu exporter; the theme from `Shell1`; the store
+  gaining Reset, Remove, Values and empty lists; display changes applied
+  live and reverted by the compositor; the index generated from the panes;
+  the hot-corner engine with the actions that exist. Research in
+  `docs/research/rust-desktop/settings-2026.md`. Phases 13.0–13.15.

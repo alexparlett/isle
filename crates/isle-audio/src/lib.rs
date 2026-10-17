@@ -37,7 +37,75 @@ pub struct Device {
     pub muted: bool,
     pub default: bool,
     pub bluetooth: bool,
+    /// -1, all left, to 1, all right; 0 for a device with no left and right.
+    pub balance: f32,
     channels: u8,
+    /// Each channel's side, for setting the balance.
+    #[serde(skip)]
+    sides: Vec<Side>,
+}
+
+/// Which side a channel sounds from, for the balance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Side {
+    Left,
+    Right,
+    Middle,
+}
+
+fn sides(map: &protocol::ChannelMap) -> Vec<Side> {
+    map.into_iter()
+        .map(|position| {
+            let name = format!("{position:?}");
+            if name.contains("Left") {
+                Side::Left
+            } else if name.contains("Right") {
+                Side::Right
+            } else {
+                Side::Middle
+            }
+        })
+        .collect()
+}
+
+/// PulseAudio's balance of a volume: the quieter side over the louder.
+fn balance(sides: &[Side], volume: &protocol::ChannelVolume) -> f32 {
+    let average = |side| {
+        let levels: Vec<f32> = sides
+            .iter()
+            .zip(volume.channels())
+            .filter(|(s, _)| **s == side)
+            .map(|(_, v)| v.as_u32() as f32)
+            .collect();
+        (!levels.is_empty()).then(|| levels.iter().sum::<f32>() / levels.len() as f32)
+    };
+    match (average(Side::Left), average(Side::Right)) {
+        (Some(l), Some(r)) if l > r && l > 0.0 => -1.0 + r / l,
+        (Some(l), Some(r)) if r > l && r > 0.0 => 1.0 - l / r,
+        _ => 0.0,
+    }
+}
+
+/// The channel volumes for `level` at `balance`: the louder side at the level, the other
+/// lowered by the balance.
+fn balanced(sides: &[Side], level: f32, balance: f32) -> protocol::ChannelVolume {
+    let balance = balance.clamp(-1.0, 1.0);
+    let (left, right) = if balance < 0.0 {
+        (level, level * (1.0 + balance))
+    } else {
+        (level * (1.0 - balance), level)
+    };
+    let mut volume = protocol::ChannelVolume::empty();
+    for side in sides {
+        let value = match side {
+            Side::Left => left,
+            Side::Right => right,
+            Side::Middle => level,
+        };
+        let raw = (value.clamp(0.0, 1.0) * protocol::Volume::NORM.as_u32() as f32).round() as u32;
+        volume.push(protocol::Volume::from_u32_clamped(raw));
+    }
+    volume
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -132,10 +200,12 @@ async fn read(conn: &Conn) -> Result<Audio, Error> {
                   name: &CStr,
                   description: Option<&CStr>,
                   props: &protocol::Props,
-                  volume,
+                  volume: &protocol::ChannelVolume,
+                  map: &protocol::ChannelMap,
                   muted,
                   default: &Option<String>| {
         let name = text(name);
+        let sides = sides(map);
         Device {
             index,
             label: description.map(text).unwrap_or_else(|| name.clone()),
@@ -144,7 +214,9 @@ async fn read(conn: &Conn) -> Result<Audio, Error> {
             volume: level(volume),
             muted,
             bluetooth: prop(props, Prop::DeviceBus).as_deref() == Some("bluetooth"),
+            balance: balance(&sides, volume),
             channels: volume.channels().len() as u8,
+            sides,
         }
     };
     let monitors: Vec<u32> = sources
@@ -162,6 +234,7 @@ async fn read(conn: &Conn) -> Result<Audio, Error> {
                     s.description.as_deref(),
                     &s.props,
                     &s.cvolume,
+                    &s.channel_map,
                     s.muted,
                     &default_sink,
                 )
@@ -177,6 +250,7 @@ async fn read(conn: &Conn) -> Result<Audio, Error> {
                     s.description.as_deref(),
                     &s.props,
                     &s.cvolume,
+                    &s.channel_map,
                     s.muted,
                     &default_source,
                 )
@@ -285,6 +359,23 @@ pub async fn set_volume(target: Target, channels: u8, value: f32) -> Result<(), 
         }
     };
     conn.ack(command).await
+}
+
+/// Sets a device's balance, -1 all left to 1 all right, at its level now.
+pub async fn set_balance(device: &Device, output: bool, value: f32) -> Result<(), Error> {
+    let conn = shared()?;
+    let volume = balanced(&device.sides, device.volume, value);
+    let params = protocol::SetDeviceVolumeParams {
+        device_index: None,
+        device_name: Some(CString::new(device.name.clone())?),
+        volume,
+    };
+    conn.ack(if output {
+        Command::SetSinkVolume(params)
+    } else {
+        Command::SetSourceVolume(params)
+    })
+    .await
 }
 
 pub async fn set_mute(target: Target, mute: bool) -> Result<(), Error> {
@@ -407,6 +498,19 @@ impl Drop for Meter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn balance_reads_and_sets_as_pulseaudio_does() {
+        let stereo = [Side::Left, Side::Right];
+        let centred = balanced(&stereo, 0.8, 0.0);
+        assert_eq!(balance(&stereo, &centred), 0.0);
+        let left = balanced(&stereo, 0.8, -0.5);
+        assert!((balance(&stereo, &left) + 0.5).abs() < 0.01);
+        assert!((level(&left) - 0.8).abs() < 0.001, "the louder side keeps the level");
+        assert_eq!(balance(&[Side::Middle], &balanced(&[Side::Middle], 0.5, 0.7)), 0.0);
+        let surround = sides(&protocol::ChannelMap::stereo());
+        assert_eq!(surround, stereo);
+    }
 
     #[test]
     fn a_volume_reads_as_its_loudest_channel_capped_at_normal() {

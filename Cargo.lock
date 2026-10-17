@@ -3216,6 +3216,7 @@ dependencies = [
  "accesskit",
  "bytes",
  "freya",
+ "freya-testing",
  "isle-search",
  "isle-tokens",
  "zeroize",

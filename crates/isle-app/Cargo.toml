@@ -34,4 +34,4 @@ zbus.workspace = true
 zvariant.workspace = true
 
 [dev-dependencies]
-freya-testing = { git = "https://github.com/alexparlett/freya", rev = "2095bfa03a68f15be82976bcf43113df6b0a4d9f" }
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "8b168e907cc9ce7389867f5a7ebd063b5f5ac81f" }

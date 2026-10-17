@@ -2,6 +2,31 @@
 
 ## 2026-10-17
 
+- P13 13.3–13.12, the panes: all 21 drawn on the gated rows, each a
+  component over the desktop's values and the daemons' state, every row
+  bound to its key or call. Settings writes through `Settings1` (a row
+  reads its new value at once and shows the compositor's refusal under
+  it); the daemons are followed only once a pane asks (NetworkManager,
+  BlueZ, PulseAudio, power-profiles-daemon, the compositor's displays,
+  keyboards, pointers, modules, Focus, the portal's permissions and the
+  app index). Sheets: Hot Corners…, Night Light…, Advanced…, Clock
+  Options…, Input Sources…, Modifier Keys…, Keyboard Shortcuts… with the
+  recorder, Search Privacy…, Add Focus…, Join other network…, Wi-Fi's
+  Details…, the keep-or-revert alert counting down to the compositor's own
+  revert. Displays arranges the screens to scale with the island's mark,
+  snapping a dropped one to its neighbour; a mode, rotation or turning a
+  screen on or off goes through `Displays1.Configure`, a scale applies at
+  once. View › Show Changed Settings marks rows and panes whose value
+  differs from its default; Reset to Default is in a changed row's context
+  menu. The rows are in the panes' record, so search and Spotlight find
+  them and a found row on a sheet opens it. Headless: every pane opens on
+  its defaults; switches, pop-ups, Wi-Fi joining, a display change kept, a
+  scale, a module's size, an app's notification rule, a hot corner and a
+  reset are driven and their writes and calls read back. Not yet: dragging
+  to reorder lists, editing a Focus schedule in place, Identify, the
+  found row scrolled into view, the Desktops shortcuts' modifier pop-ups,
+  the Open panel (typed paths until P15); nothing seen in the VM yet.
+
 - P13 13.1, the rows: every pane's subtitle, groups, rows, sheets and
   sub-pages in `p13/rows.md`, drawn on `p13/rows-1.html` and published as a
   private board. The user took every recommendation: scale as a pop-up of

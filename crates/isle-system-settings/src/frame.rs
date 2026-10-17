@@ -66,14 +66,24 @@ fn asked(request: &Request) -> Option<Location> {
 
 /// Settings' state that every part of the window reads.
 #[derive(Clone, Copy)]
-struct Nav {
+pub struct Nav {
     location: State<Location>,
     history: State<History>,
     memory: State<std::path::PathBuf>,
 }
 
 impl Nav {
-    fn go(&self, to: Location) {
+    pub fn get() -> Self {
+        use_consume::<Nav>()
+    }
+
+    /// Shows `to` in place of what is shown, leaving history as it is: a sheet closing.
+    pub fn replace(&self, to: Location) {
+        let mut location = self.location;
+        location.set(to);
+    }
+
+    pub fn go(&self, to: Location) {
         let (mut location, mut history) = (self.location, self.history);
         let from = location.peek().clone();
         if from == to {
@@ -86,7 +96,7 @@ impl Nav {
         location.set(to);
     }
 
-    fn back(&self) {
+    pub fn back(&self) {
         let (mut location, mut history) = (self.location, self.history);
         let current = location.peek().clone();
         if let Some(to) = history.write().back(current) {
@@ -120,6 +130,7 @@ impl Component for Frame {
             }
         });
         let query = use_state(String::new);
+        let changed = use_provide_context(crate::ui::Changed::new);
         let mut account = use_state(Account::default);
         let worker = worker();
         use_hook(move || {
@@ -154,6 +165,7 @@ impl Component for Frame {
                 .chord(Chord::cmd(']'))
                 .enabled(history.can_forward()),
             Command::new("find", "Find", Menu::Edit, 2).chord(Chord::cmd('f')),
+            Command::new("show-changed", "Show Changed Settings", Menu::View, 8).checked(*changed.shown.read()),
         ];
         commands.extend(
             PANES
@@ -172,6 +184,11 @@ impl Component for Frame {
                 match id.as_str() {
                     "back" => nav.back(),
                     "forward" => nav.forward(),
+                    "show-changed" => {
+                        let mut shown = changed.shown;
+                        let now = *shown.peek();
+                        shown.set(!now);
+                    }
                     other => {
                         if let Some(pane) = other.strip_prefix("pane:") {
                             nav.go(Location::pane(pane));
@@ -302,6 +319,7 @@ fn sidebar_row(
     title: String,
     path: Option<String>,
     selected: bool,
+    marked: bool,
     on_press: impl Fn() + 'static,
 ) -> Element {
     let t = &theme.tokens;
@@ -340,11 +358,29 @@ fn sidebar_row(
                     ))
                 }),
         )
+        .maybe(marked, |el| {
+            el.child(
+                rect()
+                    .width(Size::px(6.))
+                    .height(Size::px(6.))
+                    .corner_radius(3.)
+                    .background(colour(if selected { t.colour_on_accent } else { t.colour_accent }))
+                    .a11y_alt("Changed"),
+            )
+        })
         .into_element()
+}
+
+/// Whether a pane holds a row whose setting differs from its default.
+fn pane_changed(pane: &Pane, values: &std::collections::BTreeMap<String, isle_settings::Value>, changed: &crate::ui::Changed) -> bool {
+    pane.rows.iter().filter_map(|r| r.key).any(|key| changed.differs(values, key))
 }
 
 fn pane_list(theme: &isle_ui::isle_tokens::Theme, shown: &'static str, nav: Nav) -> impl IntoElement {
     let t = &theme.tokens;
+    let changed = consume_context::<crate::ui::Changed>();
+    let marks = *changed.shown.read();
+    let values = consume_context::<Desktop>().values.read().clone();
     let mut groups: Vec<Vec<Element>> = Vec::new();
     let mut last = None;
     for pane in PANES {
@@ -358,6 +394,7 @@ fn pane_list(theme: &isle_ui::isle_tokens::Theme, shown: &'static str, nav: Nav)
             pane.name.to_owned(),
             None,
             pane.id == shown,
+            marks && pane_changed(pane, &values, &changed),
             move || nav.go(Location::pane(pane.id)),
         ));
     }
@@ -406,7 +443,7 @@ fn results_list(
             let to = found.location();
             let selected = to == shown;
             let path = Some(found.path()).filter(|p| !p.is_empty()).or(Some("Settings".into()));
-            sidebar_row(theme, found.pane, found.label().to_owned(), path, selected, move || {
+            sidebar_row(theme, found.pane, found.label().to_owned(), path, selected, false, move || {
                 nav.go(to.clone())
             })
         }))
@@ -495,13 +532,15 @@ impl Component for PaneContent {
                                     .padding((t.space_xl, 0., t.space_xxxl, 0.))
                                     .spacing(t.space_xl)
                                     .map(notice, |el, notice| el.child(notice))
-                                    .child(form::PaneHeader {
-                                        glyph: self.pane.glyph.into(),
-                                        hue: self.pane.hue.colour(t),
-                                        name: self.pane.name.into(),
-                                        subtitle: self.pane.subtitle.into(),
+                                    .maybe(self.location.sub.as_deref().is_none_or(crate::pane::is_sheet), |el| {
+                                        el.child(form::PaneHeader {
+                                            glyph: self.pane.glyph.into(),
+                                            hue: self.pane.hue.colour(t),
+                                            name: self.pane.name.into(),
+                                            subtitle: self.pane.subtitle.into(),
+                                        })
                                     })
-                                    .child(crate::pane_body(self.pane.id, &self.location)),
+                                    .child(crate::pane::body(self.pane.id, &self.location)),
                             ),
                     ),
             )

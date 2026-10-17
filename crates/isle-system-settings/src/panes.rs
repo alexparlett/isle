@@ -110,72 +110,196 @@ const fn pane(
 pub static PANES: &[Pane] = &[
     Pane {
         keywords: &["wireless", "wlan", "network"],
-        ..pane("wi-fi", "Wi-Fi", "wifi-high", Hue::Blue, 1, "Join networks and choose which to remember.")
+        rows: &[
+            RowDef::new("wi-fi", "Wi-Fi").keywords(&["wireless"]),
+            RowDef::new("join-other", "Join other network").within("Join other network…").keywords(&["hidden network"]),
+            RowDef::new("auto-join", "Automatically join this network").within("Details…"),
+        ],
+        ..pane("wi-fi", "Wi-Fi", "wifi-high", Hue::Blue, 1, "Join wireless networks and manage the ones you know.")
     },
-    pane("bluetooth", "Bluetooth", "bluetooth", Hue::Blue, 1, "Connect headphones, keyboards and other devices."),
+    Pane {
+        rows: &[
+            RowDef::new("bluetooth", "Bluetooth").keywords(&["pair", "discoverable"]),
+        ],
+        ..pane("bluetooth", "Bluetooth", "bluetooth", Hue::Blue, 1, "Connect headphones, keyboards and other wireless devices.")
+    },
     Pane {
         keywords: &["ethernet", "wired", "ip address"],
-        ..pane("network", "Network", "globe", Hue::Blue, 1, "See how this computer is connected.")
+        rows: &[
+            RowDef::new("ethernet", "Ethernet").keywords(&["wired", "lan"]),
+            RowDef::new("ip-address", "IP address").within("Ethernet").keywords(&["dhcp", "router", "dns"]),
+        ],
+        ..pane("network", "Network", "globe", Hue::Blue, 1, "See how this computer is connected, and each connection's details.")
     },
-    pane("vpn", "VPN", "isle-vpn", Hue::Blue, 1, "Connect to private networks."),
+    pane("vpn", "VPN", "isle-vpn", Hue::Blue, 1, "Turn your VPN connections on and off."),
     Pane {
         keywords: &["power", "performance", "power profile"],
-        ..pane("energy", "Energy", "lightning", Hue::Orange, 1, "Choose how the computer balances speed and power.")
+        rows: &[
+            RowDef::new("energy-mode", "Energy Mode").keywords(&["low power", "high power", "performance", "power saver"]),
+        ],
+        ..pane("energy", "Energy", "lightning", Hue::Orange, 1, "Choose how the computer trades speed for power.")
     },
     Pane {
         keywords: &["about", "system", "version"],
-        ..pane("general", "General", "gear", Hue::Grey, 2, "Manage this computer's overall settings.")
+        rows: &[
+            RowDef::new("about", "About").keywords(&["version", "system"]),
+            RowDef::new("name", "Name").within("About").keywords(&["hostname", "computer name"]),
+            RowDef::new("processor", "Processor").within("About").keywords(&["cpu"]),
+            RowDef::new("memory", "Memory").within("About").keywords(&["ram"]),
+            RowDef::new("graphics-0", "Graphics").within("About").keywords(&["gpu"]),
+            RowDef::new("kernel", "Kernel").within("About").keywords(&["linux"]),
+        ],
+        ..pane("general", "General", "gear", Hue::Grey, 2, "About this computer and the system it runs.")
     },
-    pane("accessibility", "Accessibility", "person-arms-spread", Hue::Blue, 2, "Adjust the display, keyboard and pointer to suit you."),
+    Pane {
+        rows: &[
+            RowDef::new("increase-contrast", "Increase contrast").key("appearance.increase-contrast"),
+            RowDef::new("reduce-motion", "Reduce motion").key("appearance.reduce-motion").keywords(&["animation"]),
+            RowDef::new("reduce-transparency", "Reduce transparency").key("appearance.reduce-transparency").keywords(&["blur"]),
+            RowDef::new("text-size", "Text size").key("appearance.text-scale").keywords(&["font size", "larger text"]),
+            RowDef::new("sticky-keys", "Sticky Keys").key("keyboard.sticky-keys"),
+            RowDef::new("slow-keys", "Slow Keys").key("keyboard.slow-keys"),
+        ],
+        ..pane("accessibility", "Accessibility", "person-arms-spread", Hue::Blue, 2, "Make the screen and keyboard easier to see and use.")
+    },
     Pane {
         keywords: &["dark mode", "light mode", "theme", "accent"],
-        ..pane("appearance", "Appearance", "circle-half", Hue::Graphite, 2, "Choose how Isle looks.")
+        rows: &[
+            RowDef::new("appearance", "Appearance").key("appearance.mode").keywords(&["dark", "light", "auto"]),
+            RowDef::new("colour", "Colour").key("appearance.accent").keywords(&["accent", "color", "highlight"]),
+            RowDef::new("glass", "Glass").key("appearance.glass").keywords(&["transparency", "tint"]),
+            RowDef::new("title-bars", "Show title bars on other apps' windows").key("windows.title-bars").keywords(&["decorations", "csd"]),
+        ],
+        ..pane("appearance", "Appearance", "circle-half", Hue::Graphite, 2, "Choose light or dark, the accent colour and the glass.")
     },
-    pane("apps", "Apps", "browsers", Hue::Indigo, 2, "Set how the desktop treats each app."),
+    pane("apps", "Apps", "browsers", Hue::Indigo, 2, "Set how the desktop treats each app's windows and keys."),
     Pane {
         keywords: &["island", "status icons", "tray", "menu bar"],
+        rows: &[
+            RowDef::new("clock", "Clock").keywords(&["time", "date"]),
+            RowDef::new("clock-24-hour", "Time format").key("island.clock-24-hour").within("Clock Options…").keywords(&["24-hour", "12-hour"]),
+            RowDef::new("clock-seconds", "Display the time with seconds").key("island.clock-seconds").within("Clock Options…"),
+            RowDef::new("clock-weekday", "Show the day of the week").key("island.clock-weekday").within("Clock Options…"),
+            RowDef::new("clock-date", "Show date").key("island.clock-date").within("Clock Options…"),
+        ],
         ..pane("control-centre", "Control Centre", "squares-four", Hue::Purple, 2, "Set what the island and Control Centre show.")
     },
     Pane {
         keywords: &["windows", "tiling", "hot corners"],
-        ..pane("desktop", "Desktop", "app-window", Hue::Graphite, 2, "Set how windows behave on the desktop.")
+        rows: &[
+            RowDef::new("titlebar-action", "Double-click a window's title bar to").key("windows.titlebar-action").keywords(&["zoom", "fill"]),
+            RowDef::new("edge-tiling", "Drag windows to screen edges to tile").key("windows.edge-tiling").keywords(&["snap", "tiling"]),
+            RowDef::new("tile-margins", "Tiled windows have margins").key("windows.tile-margins").keywords(&["gaps"]),
+            RowDef::new("hot-corners", "Hot Corners").key("hot-corners").within("Hot Corners…").keywords(&["corner", "screen corners"]),
+        ],
+        ..pane("desktop", "Desktop", "app-window", Hue::Graphite, 2, "Set how windows tile and fill, and what the screen corners do.")
     },
     Pane {
         keywords: &["monitor", "screen", "resolution", "refresh rate", "night light"],
+        rows: &[
+            RowDef::new("main-display", "Main display").key("shell.main-screen").keywords(&["primary"]),
+            RowDef::new("resolution", "Resolution").keywords(&["size"]),
+            RowDef::new("refresh-rate", "Refresh rate").keywords(&["hz", "144"]),
+            RowDef::new("scale", "Scale").keywords(&["hidpi", "zoom"]),
+            RowDef::new("rotation", "Rotation").keywords(&["portrait", "rotate"]),
+            RowDef::new("brightness", "Brightness").keywords(&["ddc"]),
+            RowDef::new("vrr", "Variable refresh rate").keywords(&["freesync", "g-sync", "adaptive sync"]),
+            RowDef::new("tearing", "Allow tearing in games").keywords(&["tearing"]),
+            RowDef::new("schedule", "Night Light schedule").key("night-light.schedule").within("Night Light…").keywords(&["night shift", "blue light"]),
+            RowDef::new("warmth", "Warmth").key("night-light.warmth").within("Night Light…").keywords(&["colour temperature"]),
+            RowDef::new("graphics-card", "Graphics card").key("render-device").within("Advanced…").keywords(&["gpu", "render device"]),
+        ],
         ..pane("displays", "Displays", "monitor", Hue::Blue, 2, "Arrange and set up the screens you use.")
     },
     Pane {
         keywords: &["search", "launcher"],
-        ..pane("spotlight", "Spotlight", "magnifying-glass", Hue::Graphite, 2, "Choose what Spotlight searches and shows.")
+        rows: &[
+            RowDef::new("source-menu-items", "Menu items").key("spotlight.sources-off").keywords(&["results"]),
+            RowDef::new("web-search", "Web search").key("spotlight.web-search").keywords(&["search engine", "duckduckgo", "google"]),
+            RowDef::new("favourites", "Favourites").key("spotlight.favourites"),
+            RowDef::new("clipboard", "Don't keep copies from").key("spotlight.clipboard-exclude").keywords(&["clipboard history"]),
+            RowDef::new("search-privacy", "Search Privacy").key("spotlight.files-exclude").within("Search Privacy…").keywords(&["folders", "exclude"]),
+        ],
+        ..pane("spotlight", "Spotlight", "magnifying-glass", Hue::Graphite, 2, "Choose what Spotlight searches and what it keeps.")
     },
     Pane {
         keywords: &["background", "desktop picture"],
+        rows: &[
+            RowDef::new("wallpaper", "Wallpaper").key("wallpaper.source").keywords(&["picture", "background"]),
+            RowDef::new("all-screens", "Show on all screens"),
+            RowDef::new("dark-mode", "Use a different picture in Dark Mode").key("wallpaper.dark-source"),
+            RowDef::new("fit", "Fit").key("wallpaper.fit").keywords(&["fill", "centre"]),
+        ],
         ..pane("wallpaper", "Wallpaper", "image", Hue::Teal, 2, "Choose the picture behind your windows.")
     },
-    pane("notifications", "Notifications", "bell", Hue::Red, 3, "Choose which apps notify you, and how."),
+    Pane {
+        rows: &[
+            RowDef::new("lock-screen", "On the lock screen").key("notifications.lock-screen").keywords(&["previews"]),
+            RowDef::new("hold-full-screen", "Hold banners while a window is full screen").key("notifications.hold-full-screen").keywords(&["games"]),
+            RowDef::new("hold-sharing", "Hold banners while sharing your screen").key("notifications.hold-sharing").keywords(&["screen sharing"]),
+        ],
+        ..pane("notifications", "Notifications", "bell", Hue::Red, 3, "Choose which apps can notify you, and how.")
+    },
     Pane {
         keywords: &["audio", "volume", "speakers", "microphone"],
-        ..pane("sound", "Sound", "speaker-high", Hue::Pink, 3, "Choose where sound plays and how it sounds.")
+        rows: &[
+            RowDef::new("alert-sound", "Alert sound").key("notifications.alert-sound").keywords(&["beep"]),
+            RowDef::new("sounds", "Play sound for notifications").key("notifications.sounds"),
+            RowDef::new("capture-sound", "Play sound when taking a screenshot").key("capture.sound"),
+            RowDef::new("output-volume", "Output volume").keywords(&["speakers", "headphones"]),
+            RowDef::new("balance", "Balance").keywords(&["left", "right"]),
+            RowDef::new("input-volume", "Input volume").keywords(&["microphone", "mic"]),
+        ],
+        ..pane("sound", "Sound", "speaker-high", Hue::Pink, 3, "Choose alert sounds, speakers and microphones.")
     },
     Pane {
         keywords: &["do not disturb", "game mode"],
+        rows: &[
+            RowDef::new("Do Not Disturb", "Do Not Disturb").keywords(&["dnd"]),
+            RowDef::new("Game Mode", "Game Mode").keywords(&["gaming"]),
+        ],
         ..pane("focus", "Focus", "moon", Hue::Indigo, 3, "Choose what interrupts you, and when.")
     },
     Pane {
         keywords: &["idle", "screen saver", "sleep"],
-        ..pane("lock-screen", "Lock Screen", "lock", Hue::Graphite, 4, "Set when the screen dims, locks and turns off.")
+        rows: &[
+            RowDef::new("dim-after", "Dim the display after").key("lock-screen.dim-after").keywords(&["idle", "screen saver"]),
+            RowDef::new("lock-after", "Lock after").key("lock-screen.lock-after").keywords(&["password"]),
+            RowDef::new("display-off-after", "Turn display off after").key("lock-screen.display-off-after").keywords(&["sleep", "blank"]),
+            RowDef::new("lock-on-sleep", "Lock when the computer sleeps").key("lock-screen.lock-on-sleep").keywords(&["suspend"]),
+        ],
+        ..pane("lock-screen", "Lock Screen", "lock", Hue::Graphite, 4, "Set when the screen dims, turns off and locks.")
     },
     Pane {
         keywords: &["permissions", "screen recording", "screenshots"],
-        ..pane("privacy-security", "Privacy & Security", "hand-palm", Hue::Blue, 4, "Review what apps have been allowed to do.")
+        rows: &[
+            RowDef::new("screencast", "Screen & System Audio Recording").keywords(&["screen sharing", "permissions"]),
+            RowDef::new("screenshot", "Screenshots").keywords(&["permissions"]),
+        ],
+        ..pane("privacy-security", "Privacy & Security", "hand-palm", Hue::Blue, 4, "See what apps may do without asking, and take it back.")
     },
     Pane {
         keywords: &["shortcuts", "layout", "input sources", "xkb"],
-        ..pane("keyboard", "Keyboard", "keyboard", Hue::Grey, 6, "Set up your keyboards, layouts and shortcuts.")
+        rows: &[
+            RowDef::new("repeat-rate", "Key repeat rate").key("keyboard.repeat-rate"),
+            RowDef::new("repeat-delay", "Delay until repeat").key("keyboard.repeat-delay"),
+            RowDef::new("input-sources", "Input sources").key("keyboard.layouts").keywords(&["layout", "language", "xkb"]),
+            RowDef::new("numlock", "Turn on Num Lock at login").key("keyboard.numlock"),
+            RowDef::new("translate", "Use Mac shortcuts in other apps").key("keyboard.translate").keywords(&["cmd", "command", "translation"]),
+            RowDef::new("caps-lock", "Caps Lock key").key("keyboard.options").within("Modifier Keys…").keywords(&["escape", "control", "modifier"]),
+            RowDef::new("keyboard-shortcuts", "Keyboard Shortcuts").key("shortcuts").within("Keyboard Shortcuts…").keywords(&["hotkeys", "bindings", "keybinds"]),
+        ],
+        ..pane("keyboard", "Keyboard", "keyboard", Hue::Grey, 6, "Set key repeat, layouts, shortcuts and each keyboard's kind.")
     },
     Pane {
         keywords: &["pointer", "scrolling"],
-        ..pane("mouse", "Mouse", "mouse", Hue::Grey, 6, "Adjust how the pointer moves and scrolls.")
+        rows: &[
+            RowDef::new("speed", "Tracking speed").keywords(&["sensitivity", "pointer speed"]),
+            RowDef::new("acceleration", "Pointer acceleration").keywords(&["accel"]),
+            RowDef::new("natural-scroll", "Natural scrolling").keywords(&["scroll direction"]),
+            RowDef::new("primary-button", "Primary mouse button").keywords(&["left-handed"]),
+        ],
+        ..pane("mouse", "Mouse", "mouse", Hue::Grey, 6, "Set pointer speed, scrolling and the primary button.")
     },
 ];
 

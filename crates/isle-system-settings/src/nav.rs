@@ -101,7 +101,7 @@ impl Found {
     pub fn path(&self) -> String {
         match self.row {
             Some(row) => match row.within {
-                Some(within) => format!("{} › {within}", self.pane.name),
+                Some(within) => format!("{} › {}", self.pane.name, within.trim_end_matches('…')),
                 None => self.pane.name.to_owned(),
             },
             None => String::new(),

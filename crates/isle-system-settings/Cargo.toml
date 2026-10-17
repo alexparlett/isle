@@ -12,12 +12,26 @@ path = "src/main.rs"
 [dependencies]
 freya = { workspace = true, features = ["winit"] }
 isle-app.workspace = true
+isle-apps.workspace = true
+isle-audio.workspace = true
+isle-bluetooth.workspace = true
+isle-bus.workspace = true
+isle-focus.workspace = true
+isle-games.workspace = true
+isle-ipc.workspace = true
+isle-keys.workspace = true
+isle-network.workspace = true
+isle-power.workspace = true
 isle-search.workspace = true
+isle-tokens.workspace = true
 isle-settings.workspace = true
 isle-state.workspace = true
 isle-ui.workspace = true
+futures-util = { workspace = true, features = ["std"] }
 libc.workspace = true
 serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 zbus.workspace = true
 zvariant.workspace = true
@@ -25,4 +39,4 @@ zvariant.workspace = true
 [dev-dependencies]
 freya-testing = { git = "https://github.com/alexparlett/freya", rev = "a8d7a0300ca6dc8f4dde7fdc50bb2f025505b237" }
 isle-app = { workspace = true, features = ["testing"] }
-isle-ipc.workspace = true
+isle-settings.workspace = true

@@ -41,6 +41,7 @@ fn mount(memory: PathBuf, pending: std::rc::Rc<std::cell::RefCell<Option<Box<dyn
     let (mut test, _) = TestingRunner::new(
         move || {
             use_provide_context(|| MemoryDir(memory.clone()));
+            use_provide_context(crate::services::Services::still);
             let desktop = isle_app::provide_for_tests(BTreeMap::new());
             if let Some(act) = pending.borrow_mut().take() {
                 act(desktop);
@@ -61,12 +62,12 @@ type Pending = std::rc::Rc<std::cell::RefCell<Option<Box<dyn Fn(Desktop)>>>>;
 fn it_opens_on_general_then_where_it_was_left() {
     let dir = memory("first");
     let mut test = mount(dir.clone(), Pending::default());
-    assert!(labels(&test).contains(&"Manage this computer's overall settings.".to_owned()));
+    assert!(labels(&test).contains(&"About this computer and the system it runs.".to_owned()));
     click(&mut test, "Sound");
-    assert!(labels(&test).contains(&"Choose where sound plays and how it sounds.".to_owned()));
+    assert!(labels(&test).contains(&"Choose alert sounds, speakers and microphones.".to_owned()));
 
     let test = mount(dir, Pending::default());
-    assert!(labels(&test).contains(&"Choose where sound plays and how it sounds.".to_owned()));
+    assert!(labels(&test).contains(&"Choose alert sounds, speakers and microphones.".to_owned()));
 }
 
 #[test]
@@ -104,7 +105,7 @@ fn a_link_opens_its_pane_and_back_returns() {
     // The toolbar's Back, after the sidebar and its padding.
     test.click_cursor((220. + 20. + 12., 26.));
     settle(&mut test);
-    assert!(labels(&test).contains(&"Manage this computer's overall settings.".to_owned()), "{:?}", labels(&test));
+    assert!(labels(&test).contains(&"About this computer and the system it runs.".to_owned()), "{:?}", labels(&test));
 }
 
 #[test]

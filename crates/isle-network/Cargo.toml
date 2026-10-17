@@ -6,6 +6,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dev-dependencies]
+isle-bus.workspace = true
+isle-fakes.workspace = true
 tokio.workspace = true
 
 [dependencies]

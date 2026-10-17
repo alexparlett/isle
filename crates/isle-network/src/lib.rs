@@ -83,12 +83,37 @@ pub struct Vpn {
     pub active: Option<String>,
 }
 
+/// A Wi-Fi network saved, in range or not.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Known {
+    /// Its saved connection's settings path.
+    pub path: String,
+    pub ssid: String,
+    /// It is joined by itself when in range.
+    pub auto_join: bool,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 pub struct State {
     pub wifi_enabled: bool,
     pub wired: Option<Wired>,
     pub wifi: Option<Wifi>,
     pub vpns: Vec<Vpn>,
+    /// Every Wi-Fi network saved, by name.
+    pub known: Vec<Known>,
+}
+
+/// How a device is connected, as a network's details show it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct Details {
+    pub address: Option<String>,
+    /// The subnet mask, dotted.
+    pub subnet: Option<String>,
+    pub router: Option<String>,
+    pub dns: Vec<String>,
+    pub hardware: Option<String>,
+    /// Megabits a second, for a wire.
+    pub speed: Option<u32>,
 }
 
 impl State {
@@ -105,8 +130,9 @@ async fn props(conn: &Connection, path: &str, interface: &str) -> Result<Props, 
     Ok(Props::read(conn, NM, path, interface).await?)
 }
 
-/// Each saved connection: its settings path, type, id and, for Wi-Fi, its SSID.
-async fn saved(conn: &Connection) -> Result<Vec<(String, String, String, Option<String>)>, Error> {
+/// Each saved connection: its settings path, type, id, for Wi-Fi its SSID, and whether it
+/// joins by itself.
+async fn saved(conn: &Connection) -> Result<Vec<(String, String, String, Option<String>, bool)>, Error> {
     let paths: Vec<OwnedObjectPath> = conn
         .call_method(
             Some(NM),
@@ -145,7 +171,8 @@ async fn saved(conn: &Connection) -> Result<Vec<(String, String, String, Option<
         let ssid = section("802-11-wireless")
             .bytes("ssid")
             .map(|b| String::from_utf8_lossy(&b).into_owned());
-        out.push((path.to_string(), kind, id, ssid));
+        let auto = connection.bool("autoconnect").unwrap_or(true);
+        out.push((path.to_string(), kind, id, ssid, auto));
     }
     Ok(out)
 }
@@ -198,7 +225,7 @@ async fn read(conn: &Connection) -> Result<State, Error> {
                         || p.i64("Flags").unwrap_or(0) & 1 != 0;
                     let known = saved
                         .iter()
-                        .find(|(_, kind, _, s)| {
+                        .find(|(_, kind, _, s, _)| {
                             kind == "802-11-wireless" && s.as_deref() == Some(&ssid)
                         })
                         .map(|(path, ..)| path.clone());
@@ -231,10 +258,22 @@ async fn read(conn: &Connection) -> Result<State, Error> {
             _ => {}
         }
     }
+    state.known = saved
+        .iter()
+        .filter(|(_, kind, ..)| kind == "802-11-wireless")
+        .filter_map(|(path, _, _, ssid, auto)| {
+            Some(Known {
+                path: path.clone(),
+                ssid: ssid.clone()?,
+                auto_join: *auto,
+            })
+        })
+        .collect();
+    state.known.sort_by_key(|k| k.ssid.to_lowercase());
     state.vpns = saved
         .iter()
         .filter(|(_, kind, ..)| kind == "vpn" || kind == "wireguard")
-        .map(|(path, _, id, _)| {
+        .map(|(path, _, id, _, _)| {
             let (active, link) = active
                 .get(path)
                 .map_or((None, Link::Disconnected), |(a, l)| (Some(a.clone()), *l));
@@ -347,6 +386,104 @@ pub async fn disconnect(device: &str) -> Result<(), Error> {
     Ok(())
 }
 
+const SAVED: &str = "org.freedesktop.NetworkManager.Settings.Connection";
+
+/// Forgets a saved connection: its settings and its secrets.
+pub async fn forget(saved: &str) -> Result<(), Error> {
+    let conn = isle_bus::system().await?;
+    conn.call_method(Some(NM), saved, Some(SAVED), "Delete", &()).await?;
+    Ok(())
+}
+
+/// Whether a saved Wi-Fi network is joined by itself, its password kept.
+pub async fn set_auto_join(saved: &str, on: bool) -> Result<(), Error> {
+    type Sections = HashMap<String, HashMap<String, OwnedValue>>;
+    let conn = isle_bus::system().await?;
+    let mut settings: Sections = conn
+        .call_method(Some(NM), saved, Some(SAVED), "GetSettings", &())
+        .await?
+        .body()
+        .deserialize()?;
+    // An update replaces the whole connection; its secrets come back with it or are lost.
+    if settings.contains_key("802-11-wireless-security") {
+        let secrets: Sections = conn
+            .call_method(Some(NM), saved, Some(SAVED), "GetSecrets", &("802-11-wireless-security",))
+            .await?
+            .body()
+            .deserialize()?;
+        for (section, values) in secrets {
+            settings.entry(section).or_default().extend(values);
+        }
+    }
+    settings
+        .entry("connection".into())
+        .or_default()
+        .insert("autoconnect".into(), OwnedValue::from(on));
+    conn.call_method(Some(NM), saved, Some(SAVED), "Update", &(settings,))
+        .await?;
+    Ok(())
+}
+
+/// Joins a network that does not broadcast its name; its password, if it has one, comes
+/// from the secret agent.
+pub async fn join_hidden(device: &str, ssid: &str, secured: bool) -> Result<(), Error> {
+    let conn = isle_bus::system().await?;
+    let mut settings: HashMap<&str, HashMap<&str, Value>> = HashMap::from([
+        ("connection", HashMap::from([("type", Value::from("802-11-wireless")), ("id", Value::from(ssid))])),
+        (
+            "802-11-wireless",
+            HashMap::from([("ssid", Value::from(ssid.as_bytes().to_vec())), ("hidden", Value::from(true))]),
+        ),
+    ]);
+    if secured {
+        settings.insert("802-11-wireless-security", HashMap::from([("key-mgmt", Value::from("wpa-psk"))]));
+    }
+    let options: HashMap<&str, Value> = HashMap::from([("persist", Value::from("disk"))]);
+    conn.call_method(
+        Some(NM),
+        NM_PATH,
+        Some(NM),
+        "AddAndActivateConnection2",
+        &(settings, path(device)?, path("/")?, options),
+    )
+    .await?;
+    Ok(())
+}
+
+/// A prefix length as a dotted mask: 24 is 255.255.255.0.
+fn mask(prefix: u32) -> String {
+    let bits = if prefix == 0 { 0 } else { u32::MAX << (32 - prefix.min(32)) };
+    std::net::Ipv4Addr::from(bits).to_string()
+}
+
+/// How `device` is connected: its address, subnet, router, DNS, hardware address and speed.
+pub async fn details(device: &str) -> Result<Details, Error> {
+    let conn = isle_bus::system().await?;
+    let dev = props(&conn, device, DEVICE).await?;
+    let mut out = Details {
+        hardware: dev.str("HwAddress").filter(|a| !a.is_empty()),
+        ..Default::default()
+    };
+    if dev.i64("DeviceType") == Some(1) {
+        let wired = props(&conn, device, "org.freedesktop.NetworkManager.Device.Wired")
+            .await
+            .unwrap_or_default();
+        out.speed = wired.i64("Speed").filter(|s| *s > 0).map(|s| s as u32);
+    }
+    if let Some(config) = dev.str("Ip4Config").filter(|p| p != "/") {
+        let ip = props(&conn, &config, "org.freedesktop.NetworkManager.IP4Config")
+            .await
+            .unwrap_or_default();
+        if let Some(first) = ip.maps("AddressData").into_iter().next() {
+            out.address = first.str("address");
+            out.subnet = first.i64("prefix").map(|p| mask(p as u32));
+        }
+        out.router = ip.str("Gateway").filter(|g| !g.is_empty());
+        out.dns = ip.maps("NameserverData").iter().filter_map(|n| n.str("address")).collect();
+    }
+    Ok(out)
+}
+
 /// The bars a strength shows as: Phosphor's Wi-Fi level glyph.
 pub fn signal_glyph(strength: u8) -> &'static str {
     match strength {
@@ -376,6 +513,13 @@ mod tests {
         assert_eq!(Link::of(70), Link::Connecting);
         assert_eq!(Link::of(100), Link::Connected);
         assert_eq!(Link::of(120), Link::Failed);
+    }
+
+    #[test]
+    fn prefixes_are_masks() {
+        assert_eq!(mask(24), "255.255.255.0");
+        assert_eq!(mask(20), "255.255.240.0");
+        assert_eq!(mask(0), "0.0.0.0");
     }
 
     #[test]

@@ -46,6 +46,12 @@ struct Model {
     agent: Option<String>,
     /// What a secured network takes.
     password: String,
+    /// Saved connections deleted, by index.
+    deleted: Vec<usize>,
+    /// Saved connections set not to join by themselves, by index.
+    manual: Vec<usize>,
+    /// The settings each Update carried, by index, secrets included.
+    updates: Vec<(usize, HashMap<String, HashMap<String, OwnedValue>>)>,
 }
 
 /// The settings a secured network's request carries, as NetworkManager sends them.
@@ -302,7 +308,9 @@ struct Settings(Shared);
 #[zbus::interface(name = "org.freedesktop.NetworkManager.Settings")]
 impl Settings {
     fn list_connections(&self) -> Vec<OwnedObjectPath> {
-        (0..self.0.lock().unwrap().saved.len())
+        let m = self.0.lock().unwrap();
+        (0..m.saved.len())
+            .filter(|i| !m.deleted.contains(i))
             .map(saved_path)
             .collect()
     }
@@ -326,17 +334,74 @@ impl SavedIface {
             ),
             Saved::Vpn(name) => ("vpn", name, None),
         };
+        let manual = self.0.lock().unwrap().manual.contains(&self.1);
         let mut out = HashMap::from([(
             "connection".to_owned(),
             HashMap::from([
                 ("type".to_owned(), value(Value::from(kind))),
                 ("id".to_owned(), value(Value::from(id))),
+                ("autoconnect".to_owned(), value(Value::from(!manual))),
             ]),
         )]);
         if let Some(wireless) = wireless {
             out.insert("802-11-wireless".to_owned(), wireless);
+            out.insert(
+                "802-11-wireless-security".to_owned(),
+                HashMap::from([("key-mgmt".to_owned(), value(Value::from("wpa-psk")))]),
+            );
         }
         out
+    }
+
+    fn get_secrets(&self, setting: String) -> HashMap<String, HashMap<String, OwnedValue>> {
+        let password = self.0.lock().unwrap().password.clone();
+        HashMap::from([(
+            setting,
+            HashMap::from([("psk".to_owned(), OwnedValue::try_from(Value::from(password)).unwrap())]),
+        )])
+    }
+
+    fn update(&mut self, settings: HashMap<String, HashMap<String, OwnedValue>>) {
+        let mut m = self.0.lock().unwrap();
+        let auto = settings
+            .get("connection")
+            .and_then(|c| c.get("autoconnect"))
+            .and_then(|v| bool::try_from(v).ok())
+            .unwrap_or(true);
+        m.manual.retain(|i| *i != self.1);
+        if !auto {
+            m.manual.push(self.1);
+        }
+        m.updates.push((self.1, settings));
+    }
+
+    async fn delete(&mut self, #[zbus(signal_emitter)] emitter: SignalEmitter<'_>) {
+        self.0.lock().unwrap().deleted.push(self.1);
+        let _ = Manager::state_changed(&emitter, 70).await;
+    }
+}
+
+struct Ip4Config;
+
+#[zbus::interface(name = "org.freedesktop.NetworkManager.IP4Config")]
+impl Ip4Config {
+    #[zbus(property)]
+    fn address_data(&self) -> Vec<HashMap<String, OwnedValue>> {
+        vec![HashMap::from([
+            ("address".to_owned(), OwnedValue::try_from(Value::from("192.168.1.20")).unwrap()),
+            ("prefix".to_owned(), OwnedValue::from(24u32)),
+        ])]
+    }
+    #[zbus(property)]
+    fn gateway(&self) -> String {
+        "192.168.1.1".into()
+    }
+    #[zbus(property)]
+    fn nameserver_data(&self) -> Vec<HashMap<String, OwnedValue>> {
+        vec![HashMap::from([(
+            "address".to_owned(),
+            OwnedValue::try_from(Value::from("192.168.1.1")).unwrap(),
+        )])]
     }
 }
 
@@ -353,6 +418,16 @@ impl Device {
     fn state(&self) -> u32 {
         let m = self.0.lock().unwrap();
         if self.1 { m.wifi_state } else { m.wired_state }
+    }
+
+    #[zbus(property)]
+    fn ip4_config(&self) -> OwnedObjectPath {
+        op(format!("{NM}/IP4Config/1"))
+    }
+
+    #[zbus(property)]
+    fn hw_address(&self) -> String {
+        if self.1 { "aa:bb:cc:dd:ee:02" } else { "aa:bb:cc:dd:ee:01" }.into()
     }
 
     async fn disconnect(&mut self, #[zbus(signal_emitter)] emitter: SignalEmitter<'_>) {
@@ -472,6 +547,9 @@ impl NetworkManager {
             scans: 0,
             agent: None,
             password: "password".into(),
+            deleted: Vec::new(),
+            manual: Vec::new(),
+            updates: Vec::new(),
         }));
         let m = model.lock().unwrap();
         let mut builder = zbus::connection::Builder::address(address)?
@@ -480,7 +558,8 @@ impl NetworkManager {
             .serve_at(WIRED, Device(model.clone(), false))?
             .serve_at(WIFI, Device(model.clone(), true))?
             .serve_at(WIFI, Wireless(model.clone()))?
-            .serve_at(format!("{NM}/AgentManager"), AgentManager(model.clone()))?;
+            .serve_at(format!("{NM}/AgentManager"), AgentManager(model.clone()))?
+            .serve_at(format!("{NM}/IP4Config/1"), Ip4Config)?;
         for i in 0..m.aps.len() {
             builder = builder.serve_at(ap_path(i), AccessPoint(model.clone(), i))?;
         }
@@ -535,6 +614,17 @@ impl NetworkManager {
             .interface::<_, Manager>(NM)
             .await?;
         Manager::state_changed(iface.signal_emitter(), 70).await
+    }
+
+    /// Whether saved connection `i` is deleted.
+    pub fn deleted(&self, i: usize) -> bool {
+        self.model.lock().unwrap().deleted.contains(&i)
+    }
+
+    /// The last settings saved connection `i` was updated with.
+    pub fn updated(&self, i: usize) -> Option<HashMap<String, HashMap<String, OwnedValue>>> {
+        let m = self.model.lock().unwrap();
+        m.updates.iter().rev().find(|(at, _)| *at == i).map(|(_, s)| s.clone())
     }
 
     pub fn scans(&self) -> u32 {

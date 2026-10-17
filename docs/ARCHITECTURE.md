@@ -765,7 +765,8 @@ paru and updated through pacman (B29).
   on unwind (alexparlett/freya#10); Isle pins the `isle/softbuffer-alpha`
   branch over it, which adds accessibility nodes built only while a screen
   reader listens and the software driver's alpha, on softbuffer's
-  unreleased `AlphaMode` pinned by revision (B98). A git-ignored
+  unreleased `AlphaMode` pinned by revision (B98), until
+  alexparlett/freya#11 merges. A git-ignored
   `.cargo/config.toml` may patch it to a local checkout while working on
   the fork.
 

@@ -229,6 +229,8 @@ fn resolve(info: &ThemeInfo) -> Rc<Theme> {
 
 impl<A: App + 'static> App for Root<A> {
     fn render(&self) -> impl IntoElement {
+        // Freya's editing and scrolling follow the Mac's conventions, Cmd its primary.
+        use_provide_context(|| TargetPlatform::MacOs);
         use_provide_context(|| self.worker.clone());
         use_provide_context(|| Chrome(self.extras.clone()));
         use_provide_context(|| GlassShapes {

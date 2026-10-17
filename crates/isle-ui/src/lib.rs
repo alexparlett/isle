@@ -3,6 +3,7 @@
 pub mod button;
 mod controls;
 pub mod field;
+pub mod form;
 mod glyph;
 pub mod menu;
 pub mod search;

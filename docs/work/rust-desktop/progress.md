@@ -2,6 +2,16 @@
 
 ## 2026-10-17
 
+- P13 13.2, the form: `isle-ui::form` has the pane header, the grouped card
+  with hairlines, the row (label, description, a control or a navigation
+  value and chevron, the found ring, the refused line), the segmented
+  control, the pop-up button with its menu attached in the window, the
+  stepper with its unit, the swatches and the rejected-edit notice, drawn
+  as `p1/surfaces/settings.md` has them (a headless shot of a sample pane
+  matches). `isle-app` declares the Mac's conventions to Freya
+  (`TargetPlatform::MacOs` at the root), so its editor takes Cmd as primary,
+  Option by word and Cmd with the arrows to the line's ends.
+
 - P13 13.2, menus and the clipboard: `isle-menus` gains a real DBusMenu
   exporter (`export::MenuBar`: the tree replaced whole and announced, a
   choice back by id), tested against Isle's own reader. `isle-app` has one

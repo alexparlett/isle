@@ -12,6 +12,7 @@ pub enum Style {
     Headline,
     Subheadline,
     Title,
+    Title2,
     Title3,
 }
 
@@ -53,6 +54,11 @@ pub fn metrics(theme: &Theme, style: Style) -> (f32, f32, f32) {
             t.type_style_title_size,
             t.type_style_title_line,
             t.type_style_title_weight,
+        ),
+        Style::Title2 => (
+            t.type_style_title_2_size,
+            t.type_style_title_2_line,
+            t.type_style_title_2_weight,
         ),
         Style::Title3 => (
             t.type_style_title_3_size,

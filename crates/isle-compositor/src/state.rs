@@ -142,6 +142,9 @@ pub struct Isle {
     >,
     /// The window whose bar shows Option's glyphs.
     pub bar_option: Option<u64>,
+    /// A display change in force and not yet kept, and the last change's id.
+    pub display_change: Option<crate::displays::Pending>,
+    pub next_display_change: u64,
     /// Surfaces that asked for a transparent bar, and the lights' inset over each.
     pub titlebar_overlays: std::collections::HashMap<
         smithay::reexports::wayland_server::backend::ObjectId,
@@ -509,6 +512,8 @@ impl Isle {
             paced: Default::default(),
             commit_timers: Default::default(),
             bar_option: None,
+            display_change: None,
+            next_display_change: 0,
             titlebar_overlays: Default::default(),
             zoom: Default::default(),
             zoom_menu,

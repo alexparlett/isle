@@ -218,6 +218,26 @@ pub struct DisplayInfo {
     /// The `vrr` setting: "off", "fullscreen" or "always".
     pub vrr_setting: String,
     pub vrr_on: bool,
+    /// Off by its setting: connected and not lit, its other fields its connector's.
+    pub enabled: bool,
+    /// The `transform` setting's word: "normal", "90" and so on.
+    pub transform: String,
+    /// Every mode the connector offers, its preferred one first.
+    pub modes: Vec<DisplayMode>,
+    pub width_mm: i32,
+    pub height_mm: i32,
+    /// The EDID's refresh range in hertz, zero where it gives none.
+    pub min_hz: u32,
+    pub max_hz: u32,
+}
+
+/// A mode a display offers.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct DisplayMode {
+    pub width: i32,
+    pub height: i32,
+    /// Millihertz.
+    pub refresh: i32,
 }
 
 /// One presented frame of an output (`isle displays trace`).
@@ -517,6 +537,12 @@ pub mod displays {
     )]
     pub trait Displays {
         fn list(&self) -> zbus::Result<Vec<DisplayInfo>>;
+        /// Display changes in force until Keep, as JSON by make, model and serial; the id.
+        fn configure(&self, changes: &str) -> zbus::Result<u64>;
+        /// Writes change `id` into settings.kdl.
+        fn keep(&self, id: u64) -> zbus::Result<bool>;
+        /// Puts back what change `id` replaced.
+        fn revert(&self, id: u64) -> zbus::Result<bool>;
         /// Releases every output and probes the connectors again, as one step.
         fn redetect(&self) -> zbus::Result<()>;
         /// Turns every screen off now.

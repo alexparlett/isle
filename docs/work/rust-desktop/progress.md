@@ -2,6 +2,22 @@
 
 ## 2026-10-17
 
+- P13 13.4, the compositor's half of a display change: `Displays1.Configure`
+  takes each display's new mode, scale, place, rotation or on and off (JSON
+  by make, model and serial) and applies it at once: a mode, a rotation or
+  turning a screen on or off relights that connector alone, the rest is
+  placed and scaled. The compositor holds what it replaced until `Keep`
+  writes the change into `settings.kdl`; its own deadline
+  (`timing.display-revert-ms`, 15 s), `Revert` or the asking client leaving
+  the bus puts it back. The last display that is on cannot be turned off.
+  Lighting reads the effective configuration (a change not yet kept, else
+  the settings). `Displays1.List` now gives each connector's modes, its
+  rotation, its physical size, the EDID's refresh range and whether it is
+  on, listing displays turned off. Headless: a change goes back at its
+  deadline with nothing written; a kept one is written and stays; one goes
+  back when its caller leaves; a display turns off and back, and the last
+  cannot. Not yet on hardware.
+
 - P13 13.3, opening Settings: the compositor's `open_settings(pane, row)`
   launches Settings through its bus name when its entry is installed, else
   the `isle-settings` built beside the compositor, with

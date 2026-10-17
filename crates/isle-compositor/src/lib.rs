@@ -9,6 +9,7 @@ pub mod build_info;
 pub mod crash;
 mod cursor;
 mod desktop_notes;
+mod displays;
 mod dbus;
 mod files;
 mod focus;

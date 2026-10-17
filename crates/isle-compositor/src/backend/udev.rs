@@ -112,10 +112,22 @@ struct Feedback {
     scanout: DmabufFeedback,
 }
 
+/// A connector with a screen on it, lit or turned off by its setting.
+#[derive(Clone)]
+struct Connected {
+    connector: connector::Handle,
+    identity: String,
+    name: String,
+    modes: Vec<isle_ipc::DisplayMode>,
+    size_mm: (u32, u32),
+    hz: (u32, u32),
+}
+
 struct Device {
     manager: Manager,
     scanner: DrmScanner,
     lit: HashMap<crtc::Handle, Lit>,
+    connected: HashMap<crtc::Handle, Connected>,
     nvidia: bool,
     _token: RegistrationToken,
 }
@@ -663,6 +675,7 @@ impl State {
                 manager,
                 scanner: DrmScanner::new(),
                 lit: HashMap::new(),
+                connected: HashMap::new(),
                 nvidia,
                 _token: token,
             },
@@ -751,12 +764,40 @@ impl State {
             .and_then(|i| i.serial())
             .unwrap_or_else(|| "Unknown".into());
         let identity = format!("{make} {model} {serial}");
-        let config = isle
-            .settings
-            .output
-            .get(&identity)
-            .cloned()
-            .unwrap_or_default();
+        let hz = info
+            .as_ref()
+            .and_then(|i| i.edid())
+            .and_then(|edid| {
+                edid.display_descriptors()
+                    .iter()
+                    .find_map(|d| d.range_limits())
+                    .map(|r| (r.min_vert_rate_hz.max(0) as u32, r.max_vert_rate_hz.max(0) as u32))
+            })
+            .unwrap_or((0, 0));
+        let mut modes: Vec<&smithay::reexports::drm::control::Mode> = connector.modes().iter().collect();
+        modes.sort_by_key(|m| !m.mode_type().contains(ModeTypeFlags::PREFERRED));
+        device.connected.insert(
+            crtc,
+            Connected {
+                connector: connector.handle(),
+                identity: identity.clone(),
+                name: name.clone(),
+                modes: modes
+                    .iter()
+                    .map(|m| {
+                        let mode = Mode::from(**m);
+                        isle_ipc::DisplayMode {
+                            width: mode.size.w,
+                            height: mode.size.h,
+                            refresh: mode.refresh,
+                        }
+                    })
+                    .collect(),
+                size_mm: connector.size().unwrap_or((0, 0)),
+                hz,
+            },
+        );
+        let config = isle.effective_output(&identity);
         if !config.enabled {
             info!(name, identity, "output disabled in settings");
             return;
@@ -845,15 +886,7 @@ impl State {
         {
             warn!(name, "could not turn VRR on: {err:?}");
         }
-        let min_hz = info
-            .as_ref()
-            .and_then(|i| i.edid())
-            .and_then(|edid| {
-                edid.display_descriptors()
-                    .iter()
-                    .find_map(|d| d.range_limits())
-                    .map(|r| r.min_vert_rate_hz.max(0) as u32)
-            });
+        let min_hz = Some(hz.0).filter(|hz| *hz > 0);
         info!(name, vrr = vrr.name(), ?min_hz, "refresh range");
         output.user_data().insert_if_missing(|| vrr);
         device.lit.insert(
@@ -898,6 +931,14 @@ impl State {
     }
 
     fn connector_disconnected(&mut self, node: DrmNode, crtc: crtc::Handle) {
+        if let Some(device) = self.udev().devices.get_mut(&node) {
+            device.connected.remove(&crtc);
+        }
+        self.unlight(node, crtc);
+    }
+
+    /// Takes the output on `crtc` off the screen and out of the layout.
+    fn unlight(&mut self, node: DrmNode, crtc: crtc::Handle) {
         let State { backend, isle } = self;
         let Backend::Udev(udev) = backend else {
             return;
@@ -956,6 +997,46 @@ impl State {
             })
             .expect("the reprobe timer");
         self.udev().reprobe = Some(token);
+    }
+
+    /// Lights the display with this identity again from its settings in force, alone:
+    /// off if it is now turned off, in its new mode or rotation if those changed.
+    pub fn relight(&mut self, identity: &str) {
+        let Backend::Udev(udev) = &self.backend else {
+            return;
+        };
+        let found = udev.devices.iter().find_map(|(node, device)| {
+            device
+                .connected
+                .iter()
+                .find(|(_, c)| c.identity == identity)
+                .map(|(crtc, c)| (*node, *crtc, c.connector))
+        });
+        let Some((node, crtc, handle)) = found else {
+            return;
+        };
+        info!(identity, "relighting");
+        self.unlight(node, crtc);
+        let Some(device) = self.udev().devices.get_mut(&node) else {
+            return;
+        };
+        match smithay::reexports::drm::control::Device::get_connector(device.manager.device(), handle, false) {
+            Ok(connector) => self.connector_connected(node, connector, crtc),
+            Err(err) => warn!(identity, "the connector could not be read again: {err}"),
+        }
+        self.arm_reprobe();
+    }
+
+    /// Every connector with a screen on it, lit or not, for `Displays1.List`.
+    pub fn connected_displays(&self) -> Vec<(String, String, Vec<isle_ipc::DisplayMode>, (u32, u32), (u32, u32))> {
+        let Backend::Udev(udev) = &self.backend else {
+            return self.parked_headless();
+        };
+        udev.devices
+            .values()
+            .flat_map(|d| d.connected.values())
+            .map(|c| (c.identity.clone(), c.name.clone(), c.modes.clone(), c.size_mm, c.hz))
+            .collect()
     }
 
     /// Releases every output and probes again as one step (`isle displays redetect`).
@@ -1279,7 +1360,7 @@ fn pick_mode(
         .copied()
 }
 
-fn transform(setting: isle_settings::schema::Transform) -> Transform {
+pub fn transform(setting: isle_settings::schema::Transform) -> Transform {
     use isle_settings::schema::Transform as T;
     match setting {
         T::Normal => Transform::Normal,

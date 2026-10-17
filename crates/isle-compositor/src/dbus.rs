@@ -659,6 +659,8 @@ impl Shell {
 
 struct Displays {
     to_loop: ToLoop,
+    store: SharedStore,
+    events: broadcast::Sender<Event>,
 }
 
 #[interface(name = "io.github.alexparlett.Isle.Displays1")]
@@ -666,8 +668,81 @@ impl Displays {
     async fn list(&self) -> fdo::Result<Vec<DisplayInfo>> {
         Ok(self
             .to_loop
-            .call(|state| state.isle.display_infos())
+            .call(|state| state.display_infos())
             .await?)
+    }
+
+    /// Applies display changes now, as JSON from each display's make, model and serial to
+    /// the fields it sets (`mode`, `scale`, `x`, `y`, `transform`, `enabled`), until Keep;
+    /// the deadline, Revert or the caller leaving the bus put back what was. Returns the
+    /// change's id.
+    async fn configure(
+        &self,
+        changes: String,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+    ) -> fdo::Result<u64> {
+        let edits: std::collections::BTreeMap<String, crate::displays::Edit> =
+            serde_json::from_str(&changes).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
+        let id = self
+            .to_loop
+            .call(move |state| state.configure_displays(edits))
+            .await?
+            .map_err(fdo::Error::InvalidArgs)?;
+        if let Some(sender) = header.sender().map(|s| s.to_owned()) {
+            let (to_loop, connection) = (self.to_loop.clone(), connection.clone());
+            tokio::spawn(async move {
+                let Ok(dbus) = fdo::DBusProxy::new(&connection).await else {
+                    return;
+                };
+                let Ok(mut owners) = dbus.receive_name_owner_changed().await else {
+                    return;
+                };
+                if dbus.get_name_owner(sender.clone().into()).await.is_err() {
+                    to_loop.post(move |state| {
+                        state.revert_displays(id);
+                    });
+                    return;
+                }
+                while let Some(signal) = futures_util::StreamExt::next(&mut owners).await {
+                    let Ok(args) = signal.args() else { continue };
+                    if args.name.as_str() == sender.as_str() && args.new_owner.is_none() {
+                        to_loop.post(move |state| {
+                            state.revert_displays(id);
+                        });
+                        return;
+                    }
+                }
+            });
+        }
+        Ok(id)
+    }
+
+    /// Writes change `id` into settings.kdl; false when it is no longer in force.
+    async fn keep(&self, id: u64) -> fdo::Result<bool> {
+        let Some(writes) = self.to_loop.call(move |state| state.display_writes(id)).await? else {
+            return Ok(false);
+        };
+        let mut store = self.store.lock().await;
+        let mut changed = Vec::new();
+        for (key, value) in writes {
+            let keys = match value {
+                Some(value) => store.set(&key, value),
+                None => store.reset(&key),
+            }
+            .map_err(set_error)?;
+            changed.extend(keys);
+        }
+        if !changed.is_empty() {
+            crate::settings::publish(&self.to_loop, &self.events, store.current().clone(), changed);
+        }
+        self.to_loop.post(move |state| state.displays_kept(id));
+        Ok(true)
+    }
+
+    /// Puts back what change `id` replaced; false when it is no longer in force.
+    async fn revert(&self, id: u64) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.revert_displays(id)).await?)
     }
 
     /// Releases every output and probes the connectors again, as one step.
@@ -1836,6 +1911,8 @@ pub async fn serve(
             DISPLAYS_PATH,
             Displays {
                 to_loop: to_loop.clone(),
+                store: store.clone(),
+                events: events.clone(),
             },
         )?
         .serve_at(

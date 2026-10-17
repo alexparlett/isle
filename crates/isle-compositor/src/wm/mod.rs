@@ -494,46 +494,6 @@ impl Isle {
         crate::redraw::OutputState::of(output).borrow_mut().trace.reset();
         Some(())
     }
-
-    pub fn display_infos(&self) -> Vec<isle_ipc::DisplayInfo> {
-        self.space
-            .outputs()
-            .map(|output| {
-                let properties = output.physical_properties();
-                let mode = output.current_mode();
-                let location = self
-                    .space
-                    .output_geometry(output)
-                    .map(|g| g.loc)
-                    .unwrap_or_default();
-                isle_ipc::DisplayInfo {
-                    name: output.name(),
-                    make: properties.make,
-                    model: properties.model,
-                    serial: properties.serial_number,
-                    width: mode.map_or(0, |m| m.size.w),
-                    height: mode.map_or(0, |m| m.size.h),
-                    refresh: mode.map_or(0, |m| m.refresh),
-                    scale: output.current_scale().fractional_scale(),
-                    x: location.x,
-                    y: location.y,
-                    vrr_capability: output
-                        .user_data()
-                        .get::<crate::present::VrrCapability>()
-                        .map_or("none", |c| c.name())
-                        .into(),
-                    vrr_setting: self
-                        .settings
-                        .output
-                        .get(&Self::output_identity(output))
-                        .map_or(isle_settings::schema::Vrr::Fullscreen, |c| c.vrr)
-                        .as_str()
-                        .into(),
-                    vrr_on: crate::redraw::OutputState::of(output).borrow().vrr,
-                }
-            })
-            .collect()
-    }
 }
 
 impl State {

@@ -202,14 +202,7 @@ impl Isle {
     }
 
     pub fn apply_output_settings(&mut self, output: &Output) {
-        let Some(config) = self
-            .settings
-            .output
-            .get(&Self::output_identity(output))
-            .cloned()
-        else {
-            return;
-        };
+        let config = self.effective_output(&Self::output_identity(output));
         if output.current_scale().fractional_scale() != config.scale {
             output.change_current_state(None, None, Some(Scale::Fractional(config.scale)), None);
         }

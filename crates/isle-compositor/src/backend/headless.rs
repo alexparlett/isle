@@ -27,6 +27,8 @@ pub struct Headless {
     pub renderer: GlesRenderer,
     render_node: Option<DrmNode>,
     targets: HashMap<String, Target>,
+    /// Outputs turned off by a display change: name, make, model, serial and size.
+    parked: HashMap<String, (String, (String, String, String), (i32, i32))>,
 }
 
 struct Target {
@@ -59,6 +61,7 @@ impl Headless {
             renderer,
             render_node,
             targets: HashMap::new(),
+            parked: HashMap::new(),
         })
     }
 
@@ -182,6 +185,76 @@ impl Headless {
         isle.remove_output(&target.output);
         super::retire_output_global(isle, target.global);
         true
+    }
+}
+
+/// `WIDTHxHEIGHT`, with or without `@HZ`.
+fn mode_size(mode: &str) -> Option<(i32, i32)> {
+    let size = mode.split('@').next()?;
+    let (w, h) = size.split_once('x')?;
+    Some((w.parse().ok()?, h.parse().ok()?))
+}
+
+impl State {
+    /// A virtual display lit again from its effective configuration: re-added at its mode's
+    /// size and rotated, or parked while it is turned off.
+    pub fn relight_headless(&mut self, identity: &str) {
+        let config = self.isle.effective_output(identity);
+        let Backend::Headless(headless) = &mut self.backend else {
+            return;
+        };
+        let lit = headless
+            .targets
+            .values()
+            .find(|t| Isle::output_identity(&t.output) == identity)
+            .map(|t| {
+                let p = t.output.physical_properties();
+                let size = t.output.preferred_mode().map_or((1920, 1080), |m| (m.size.w, m.size.h));
+                (t.output.name(), (p.make, p.model, p.serial_number), size)
+            });
+        let record = lit.or_else(|| headless.parked.get(identity).cloned());
+        let Some((name, (make, model, serial), preferred)) = record else {
+            return;
+        };
+        headless.remove_output(&mut self.isle, &name);
+        if !config.enabled {
+            headless
+                .parked
+                .insert(identity.to_owned(), (name, (make, model, serial), preferred));
+            return;
+        }
+        headless.parked.remove(identity);
+        let size = config.mode.as_deref().and_then(mode_size).unwrap_or(preferred);
+        match headless.add_output(&mut self.isle, &name, (&make, &model, &serial), size) {
+            Ok(output) => {
+                output.set_preferred(Mode {
+                    size: preferred.into(),
+                    refresh: 60_000,
+                });
+                output.change_current_state(None, Some(crate::backend::udev::transform(config.transform)), None, None);
+                self.isle.apply_output_settings(&output);
+            }
+            Err(err) => warn!(identity, "could not add the display again: {err}"),
+        }
+    }
+
+    /// The virtual displays turned off, for `Displays1.List`.
+    pub fn parked_headless(&self) -> Vec<(String, String, Vec<isle_ipc::DisplayMode>, (u32, u32), (u32, u32))> {
+        let Backend::Headless(headless) = &self.backend else {
+            return Vec::new();
+        };
+        headless
+            .parked
+            .iter()
+            .map(|(identity, (name, _, size))| {
+                let mode = isle_ipc::DisplayMode {
+                    width: size.0,
+                    height: size.1,
+                    refresh: 60_000,
+                };
+                (identity.clone(), name.clone(), vec![mode], (0, 0), (0, 0))
+            })
+            .collect()
     }
 }
 

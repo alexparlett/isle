@@ -21,7 +21,7 @@ use isle_ui::{GlassShapes, ThemeContext};
 use tracing::{info, warn};
 
 pub use commands::{Chord, Command, Menu};
-pub use desktop::from_owned;
+pub use desktop::{Write, from_owned};
 pub use instance::Request;
 pub use toolbar::ToolbarExt;
 pub use worker::Worker;
@@ -50,6 +50,10 @@ pub struct Desktop {
     pub requests: State<Vec<Request>>,
     /// The app's own commands chosen from its menus or keys, oldest first, for it to take.
     pub commands: State<Vec<String>>,
+    /// Changes to `settings.kdl` not yet sent, oldest first.
+    pub writes: State<Vec<Write>>,
+    /// The last change the compositor refused: its key and why.
+    pub refused: State<Option<(String, String)>>,
 }
 
 impl Desktop {
@@ -61,6 +65,53 @@ impl Desktop {
     pub fn value(&self, key: &str) -> Option<Value> {
         self.values.read().get(key).cloned()
     }
+
+    /// Sets a key; it reads as set at once, and the compositor's answer follows.
+    pub fn set(&self, key: impl Into<String>, value: Value) {
+        let key = key.into();
+        let mut values = self.values;
+        let mut next = (**values.peek()).clone();
+        next.insert(key.clone(), value.clone());
+        values.set(Rc::new(next));
+        self.send(Write::Set(key, value));
+    }
+
+    /// Puts a key back to its default.
+    pub fn reset(&self, key: impl Into<String>) {
+        self.send(Write::Reset(key.into()));
+    }
+
+    /// Deletes a keyed entry and everything in it.
+    pub fn remove(&self, entry: impl Into<String>) {
+        let entry = entry.into();
+        let mut values = self.values;
+        let prefix = format!("{entry}.");
+        let next = values
+            .peek()
+            .iter()
+            .filter(|(k, _)| !k.starts_with(&prefix))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        values.set(Rc::new(next));
+        self.send(Write::Remove(entry));
+    }
+
+    fn send(&self, write: Write) {
+        let (mut writes, mut refused) = (self.writes, self.refused);
+        if refused.peek().as_ref().is_some_and(|(k, _)| k == write.key()) {
+            refused.set(None);
+        }
+        writes.write().push(write);
+    }
+}
+
+/// The session bus the app holds its name on, when it could.
+#[derive(Clone)]
+struct SessionBus(Option<zbus::Connection>);
+
+/// The session bus, for the app's own calls to the desktop.
+pub fn session_bus() -> Option<zbus::Connection> {
+    use_try_consume::<SessionBus>().and_then(|b| b.0)
 }
 
 /// The window's Wayland extras, for the toolbar's clicks.
@@ -86,6 +137,7 @@ pub fn use_commands(commands: Vec<Command>) {
 #[cfg(feature = "testing")]
 pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
     use_provide_context(Worker::start);
+    use_provide_context(|| SessionBus(None));
     use_provide_context(|| Chrome(Rc::default()));
     use_provide_context(|| TargetPlatform::MacOs);
     use_provide_context(GlassShapes::default);
@@ -103,6 +155,8 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
         tokens_status: State::create(None),
         requests: State::create(Vec::new()),
         commands: State::create(Vec::new()),
+        writes: State::create(Vec::new()),
+        refused: State::create(None),
     })
 }
 
@@ -263,6 +317,7 @@ impl<A: App + 'static> App for Root<A> {
         // Freya's editing and scrolling follow the Mac's conventions, Cmd its primary.
         use_provide_context(|| TargetPlatform::MacOs);
         use_provide_context(|| self.worker.clone());
+        use_provide_context(|| SessionBus(self.menubar.as_ref().map(|(bus, _)| bus.clone())));
         use_provide_context(|| Chrome(self.extras.clone()));
         use_provide_context(|| GlassShapes {
             draw_tint: true,
@@ -281,6 +336,8 @@ impl<A: App + 'static> App for Root<A> {
             tokens_status: State::create(None),
             requests: State::create(Vec::new()),
             commands: State::create(Vec::new()),
+            writes: State::create(Vec::new()),
+            refused: State::create(None),
         });
         let table = use_provide_context(|| Table {
             app: State::create(Vec::new()),
@@ -303,6 +360,31 @@ impl<A: App + 'static> App for Root<A> {
                     worker.spawn(async move {
                         if let Err(err) = menubar.update(&bus, MENU_PATH, menus).await {
                             warn!("the menus could not be updated: {err}");
+                        }
+                    });
+                }
+            }
+        });
+        use_side_effect({
+            let worker = self.worker.clone();
+            let bus = self.menubar.as_ref().map(|(bus, _)| bus.clone());
+            move || {
+                if desktop.writes.read().is_empty() {
+                    return;
+                }
+                let mut queue = desktop.writes;
+                let writes = std::mem::take(&mut *queue.write());
+                let Some(bus) = bus.clone() else {
+                    warn!("not on the bus, {} changes are lost", writes.len());
+                    return;
+                };
+                for write in writes {
+                    let job = worker.spawn(desktop::send(bus.clone(), write.clone()));
+                    let mut refused = desktop.refused;
+                    spawn(async move {
+                        if let Ok(Err(why)) = job.await {
+                            warn!(?write, "refused: {why}");
+                            refused.set(Some((write.key().to_owned(), why)));
                         }
                     });
                 }

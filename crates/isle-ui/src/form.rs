@@ -139,6 +139,8 @@ pub struct Row {
     enabled: bool,
     found: bool,
     refused: Option<String>,
+    marked: bool,
+    on_reset: Option<EventHandler<()>>,
 }
 
 impl PartialEq for Row {
@@ -159,6 +161,8 @@ impl Row {
             enabled: true,
             found: false,
             refused: None,
+            marked: false,
+            on_reset: None,
         }
     }
 
@@ -201,6 +205,18 @@ impl Row {
         self.refused = reason;
         self
     }
+
+    /// A dot before the label: the value differs from its default.
+    pub fn marked(mut self, marked: bool) -> Self {
+        self.marked = marked;
+        self
+    }
+
+    /// Reset to Default in the row's context menu.
+    pub fn on_reset(mut self, on_reset: Option<EventHandler<()>>) -> Self {
+        self.on_reset = on_reset;
+        self
+    }
 }
 
 impl Component for Row {
@@ -208,6 +224,7 @@ impl Component for Row {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut pressed = use_state(|| false);
+        let mut menu = use_state(|| false);
         let ink = if self.enabled { t.colour_text } else { t.colour_text_2 };
         let navigates = self.on_open.clone();
         let body = rect()
@@ -246,7 +263,8 @@ impl Component for Row {
             (None, false) => None,
         };
         let enabled = self.enabled;
-        rect()
+        let reset = self.on_reset.clone();
+        let row = rect()
             .width(Size::fill())
             .min_height(Size::px(t.size_row_large))
             .padding(t.space_m)
@@ -280,9 +298,45 @@ impl Component for Row {
                         }
                     })
             })
+            .map(reset.clone(), |el, _| {
+                el.on_pointer_down(move |e: Event<PointerEventData>| {
+                    if e.data().button() == Some(MouseButton::Right) {
+                        menu.set(true);
+                    }
+                })
+            })
+            .maybe(self.marked, |el| {
+                el.child(
+                    rect()
+                        .width(Size::px(6.))
+                        .height(Size::px(6.))
+                        .corner_radius(3.)
+                        .background(colour(t.colour_accent))
+                        .a11y_alt("Changed"),
+                )
+            })
             .map(self.leading.clone(), |el, leading| el.child(leading))
             .child(body)
-            .map(trailing, |el, trailing| el.child(trailing))
+            .map(trailing, |el, trailing| el.child(trailing));
+        let entries: Rc<Vec<MenuEntry>> = Rc::new(vec![MenuEntry::Item(MenuItem::new(0, "Reset to Default"))]);
+        row.maybe_child((*menu.read() && reset.is_some()).then(|| {
+            rect()
+                .position(Position::new_absolute().left(t.space_m).top(t.size_row_large - t.space_xs))
+                .layer(Layer::Overlay)
+                .child(
+                    Menu::new(entries, move |event| match event {
+                        MenuEvent::Chosen(_) => {
+                            menu.set(false);
+                            if let Some(reset) = &reset {
+                                reset.call(());
+                            }
+                        }
+                        MenuEvent::Back => menu.set(false),
+                        _ => {}
+                    })
+                    .material(Material::Window),
+                )
+        }))
     }
 }
 

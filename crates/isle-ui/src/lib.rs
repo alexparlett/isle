@@ -35,6 +35,12 @@ pub fn use_theme() -> Rc<Theme> {
     use_consume::<ThemeContext>().0.read().clone()
 }
 
+/// The theme in force, as `use_theme` but not a hook: for helpers called any number of times
+/// in a render.
+pub fn theme() -> Rc<Theme> {
+    consume_context::<ThemeContext>().0.read().clone()
+}
+
 /// A token colour as Freya draws it.
 pub fn colour(c: Colour) -> Color {
     Color::from_argb((c.a * 255.0).round() as u8, c.r, c.g, c.b)

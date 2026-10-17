@@ -20,6 +20,47 @@ pub enum Update {
     Status(SettingsStatus),
 }
 
+/// A change to `settings.kdl`.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Write {
+    Set(String, Value),
+    Reset(String),
+    Remove(String),
+}
+
+impl Write {
+    pub fn key(&self) -> &str {
+        match self {
+            Write::Set(key, _) | Write::Reset(key) | Write::Remove(key) => key,
+        }
+    }
+}
+
+/// A settings value as the bus carries it.
+pub fn to_bus(value: Value) -> zvariant::Value<'static> {
+    match value {
+        Value::Bool(b) => b.into(),
+        Value::Int(i) => i.into(),
+        Value::Float(f) => f.into(),
+        Value::Str(s) => s.into(),
+        Value::List(l) => l.into(),
+    }
+}
+
+/// Sends one change; the refusal's words when the compositor turns it down.
+pub async fn send(bus: zbus::Connection, write: Write) -> Result<(), String> {
+    let settings = SettingsProxy::new(&bus).await.map_err(|e| e.to_string())?;
+    let result = match write {
+        Write::Set(key, value) => settings.set(&key, &to_bus(value)).await,
+        Write::Reset(key) => settings.reset(&key).await,
+        Write::Remove(entry) => settings.remove(&entry).await,
+    };
+    result.map(|_| ()).map_err(|e| match e {
+        zbus::Error::MethodError(_, Some(message), _) => message,
+        other => other.to_string(),
+    })
+}
+
 /// A value from the bus as the settings store holds it.
 pub fn from_owned(value: &OwnedValue) -> Option<Value> {
     use zvariant::Value as V;

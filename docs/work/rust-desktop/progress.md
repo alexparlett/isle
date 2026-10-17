@@ -2,6 +2,23 @@
 
 ## 2026-10-17
 
+- P13 13.9, hot corners: a `hot-corners` section (each corner's action and
+  the modifiers it needs; bottom right Apps by default) and the engine
+  beside the top edge: a corner where no other screen meets fires after the
+  pointer rests in it (`timing.hover-dwell-ms`), once a visit, never with a
+  button held, the pointer grabbed or constrained, the menu bar open, the
+  screen locked or a full-screen game in front, and only with exactly its
+  modifiers held. The actions built today: Notification Centre, Apps, Lock
+  Screen, Put Display to Sleep; firing the Apps corner again closes what it
+  opened. With it, `windows.edge-tiling` (drag-to-edge tiling, on) and
+  `control-centre.tray-hidden` (items kept out of the tray). Behind the
+  Settings panes, all tested headless: `Notifications1.Apps` (every app
+  that has posted, kept with the records), `Island1.Modules` and
+  `EditControls`, `Displays1.SetBrightness`; saved Wi-Fi networks with
+  auto-join, forget and a device's details in `isle-network`; forget,
+  rename and the adapter's name in `isle-bluetooth`; balance in
+  `isle-audio`; XKB's layouts and variants in `isle-keys`.
+
 - P13 13.4, the compositor's half of a display change: `Displays1.Configure`
   takes each display's new mode, scale, place, rotation or on and off (JSON
   by make, model and serial) and applies it at once: a mode, a rotation or

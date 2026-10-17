@@ -19,6 +19,7 @@ mod force_quit;
 mod games;
 mod grabs;
 mod handlers;
+mod hot_corners;
 mod idle;
 mod image_copy;
 mod input;

@@ -224,6 +224,7 @@ pub struct Isle {
     /// The apps whose banners show, whose attention events wait.
     pub banners_apps: Vec<String>,
     pub top_edge: crate::top_edge::TopEdge,
+    pub hot_corners: crate::hot_corners::HotCorners,
     pub bar: crate::menubar::BarState,
     pub menus: crate::menus::MenuState,
     /// The settings file holds a rejected hand edit: its file, line, column and message.
@@ -563,6 +564,7 @@ impl Isle {
             sleep_waiting: false,
             asleep: false,
             top_edge: Default::default(),
+            hot_corners: Default::default(),
             bar,
             menus: Default::default(),
             settings_error: None,

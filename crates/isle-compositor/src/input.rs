@@ -100,6 +100,7 @@ impl State {
         }
         if !self.isle.lock.locked && !self.pointer_constrained() {
             self.top_edge_motion(delta);
+            self.hot_corner_motion();
         }
     }
 
@@ -110,6 +111,7 @@ impl State {
         self.move_pointer(location, time);
         if !self.isle.lock.locked {
             self.top_edge_motion(location - from);
+            self.hot_corner_motion();
         }
     }
 

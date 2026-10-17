@@ -33,6 +33,8 @@ pub struct Settings {
     #[setting(section)]
     pub control_centre: ControlCentre,
     #[setting(section)]
+    pub hot_corners: HotCorners,
+    #[setting(section)]
     pub wallpaper: Wallpaper,
     /// A screen's own wallpaper, by make, model and serial, in place of `wallpaper`.
     #[setting(keyed)]
@@ -689,7 +691,35 @@ pub struct ControlCentre {
     pub tray_hidden: Vec<String>,
 }
 
-/// The shell's screens.
+/// What each screen corner does when the pointer rests in it (`mission-control.md`, Hot
+/// corners).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct HotCorners {
+    #[setting(default = Corner::None)]
+    pub top_left: Corner,
+    #[setting(default = Corner::None)]
+    pub top_right: Corner,
+    #[setting(default = Corner::None)]
+    pub bottom_left: Corner,
+    #[setting(default = Corner::Apps)]
+    pub bottom_right: Corner,
+    /// The modifiers a corner needs held to fire, as `Cmd` or `Option+Shift`; none by default.
+    pub top_left_modifiers: String,
+    pub top_right_modifiers: String,
+    pub bottom_left_modifiers: String,
+    pub bottom_right_modifiers: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum Corner {
+    None,
+    NotificationCentre,
+    Apps,
+    LockScreen,
+    DisplaySleep,
+}
+
+/// The shell's screens./// The shell's screens.
 #[derive(Clone, Debug, PartialEq, Section)]
 pub struct Shell {
     /// The screen events and Spotlight show on, by make, model and serial; unset follows

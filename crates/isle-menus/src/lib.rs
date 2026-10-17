@@ -2,6 +2,7 @@
 //! registrar or the KDE protocol, or GTK's GMenuModel (`p6-island-and-menus.md` choice 14).
 
 pub mod dbusmenu;
+pub mod export;
 #[cfg(feature = "exporter")]
 pub mod exporter;
 pub mod gmenu;

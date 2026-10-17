@@ -11,6 +11,7 @@ const SPEC: Spec = Spec {
     min_size: (784.0, 564.0),
     // The lights' 32 point group centred in the 52 point toolbar.
     traffic_light_inset: (0.0, 10.0),
+    preferences: false,
 };
 
 struct Settings;

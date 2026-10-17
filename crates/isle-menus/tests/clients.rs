@@ -233,3 +233,69 @@ async fn the_registrar_records_windows_drops_a_sender_that_leaves_and_keeps_its_
         Ok(_) => panic!("the name changed hands"),
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_apps_menu_bar_reads_back_and_its_updates_are_heard() {
+    use isle_menus::export::{Entry, MenuBar, MenuItem};
+
+    let bus = Bus::start();
+    let app = bus.connect().await;
+    let chosen = Arc::new(Mutex::new(Vec::new()));
+    let sink = chosen.clone();
+    let quit = MenuItem {
+        shortcut: Some(vec!["Super".into(), "q".into()]),
+        ..MenuItem::new(11, "Quit System Settings")
+    };
+    let changed = MenuItem {
+        checked: Some(false),
+        ..MenuItem::new(21, "Show Changed Settings")
+    };
+    let top = |changed: MenuItem| {
+        vec![
+            MenuItem {
+                children: vec![
+                    Entry::Item(MenuItem::new(10, "About System Settings")),
+                    Entry::Separator,
+                    Entry::Item(quit.clone()),
+                ],
+                ..MenuItem::new(1, "System Settings")
+            },
+            MenuItem {
+                children: vec![Entry::Item(changed)],
+                ..MenuItem::new(2, "View")
+            },
+        ]
+    };
+    let menubar = MenuBar::new(top(changed.clone()), Arc::new(move |id| sink.lock().unwrap().push(id)));
+    app.object_server().at("/MenuBar/1", menubar.clone()).await.unwrap();
+    let service = app.unique_name().unwrap().to_string();
+    let isle = bus.connect().await;
+
+    let tree = dbusmenu::fetch(&isle, &service, "/MenuBar/1").await.unwrap();
+    assert_eq!(
+        labels(tree.menus[0].children.as_ref().unwrap()),
+        ["About System Settings", "-", "Quit System Settings"]
+    );
+    let item = tree.find(&["System Settings", "Quit System Settings"]).unwrap();
+    assert_eq!(
+        item.shortcut,
+        Some(Shortcut::Keys(vec![vec!["Super".into(), "q".into()]]))
+    );
+    assert_eq!(tree.find(&["View", "Show Changed Settings"]).unwrap().toggle, Toggle::Check(Some(false)));
+
+    let mut updates = dbusmenu::changes(&isle, &service, "/MenuBar/1").await.unwrap();
+    menubar
+        .update(&app, "/MenuBar/1", top(MenuItem { checked: Some(true), ..changed }))
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(2), futures_util::StreamExt::next(&mut updates))
+        .await
+        .expect("a layout update");
+    let tree = dbusmenu::fetch(&isle, &service, "/MenuBar/1").await.unwrap();
+    assert_eq!(tree.find(&["View", "Show Changed Settings"]).unwrap().toggle, Toggle::Check(Some(true)));
+
+    let Activation::DBusMenu { id } = item.activation else { panic!() };
+    dbusmenu::activate(&isle, &service, "/MenuBar/1", id).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(*chosen.lock().unwrap(), vec![11]);
+}

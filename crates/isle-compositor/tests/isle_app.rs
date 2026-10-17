@@ -41,4 +41,15 @@ async fn settings_opens_under_isles_lights_and_stays_one_instance() {
     common::wait_until(|| async { second.exited() }).await;
     app.wait_for_part("Open { uris: [\"isle-settings://displays\"]").await;
     assert_eq!(isle.windows().await.iter().filter(|w| w.app_id == APP).count(), 1);
+
+    // Its own menus, exported over DBusMenu, in Isle's bar; Quit ends it.
+    let menus = isle_ipc::menus::MenusProxy::new(&isle.bus).await.unwrap();
+    common::wait_until(|| async { menus.bar().await.unwrap().contains("Quit System Settings") }).await;
+    let bar = menus.bar().await.unwrap();
+    for title in ["\"System Settings\"", "\"Edit\"", "\"Window\""] {
+        assert!(bar.contains(title), "{title} in {bar}");
+    }
+    assert!(bar.contains("⌘Q"), "Quit's chord as the Mac's: {bar}");
+    assert!(menus.activate(&["System Settings", "Quit System Settings"]).await.unwrap());
+    common::wait_until(|| async { app.exited() }).await;
 }

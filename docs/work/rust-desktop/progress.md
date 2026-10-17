@@ -2,6 +2,20 @@
 
 ## 2026-10-17
 
+- P13 13.2, menus and the clipboard: `isle-menus` gains a real DBusMenu
+  exporter (`export::MenuBar`: the tree replaced whole and announced, a
+  choice back by id), tested against Isle's own reader. `isle-app` has one
+  command table per app: the standard commands (About, Hide, Hide Others,
+  Show All, Quit; Undo to Select All; Minimise, Zoom, Close Window) and the
+  app's own through `use_commands`. The menus are built from it and served
+  on the app's connection, their address given through the appmenu; a key
+  press matching a command runs it, and a chosen item with a chord arrives
+  as that key press, so item and key take one path; the edit commands go
+  to the focused field as keys. Headless, Settings' menus show in Isle's bar
+  with Quit as ⌘Q, and choosing it ends the app. The clipboard goes through
+  the window's own `wl_data_device` (`smithay-clipboard`) in place of
+  arboard, so apps need no data-control; it is checked once a field exists.
+
 - P13 13.2, first part: `isle-app` and the lights over an app. The user
   revised choice 14: an Isle app keeps server-side decorations with a
   transparent bar and names the lights' inset, as a Mac app does, and the

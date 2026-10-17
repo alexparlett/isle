@@ -10,10 +10,12 @@ freya = { workspace = true, features = ["winit"] }
 futures-channel = "0.3"
 futures-util.workspace = true
 isle-ipc.workspace = true
+isle-menus.workspace = true
 isle-settings.workspace = true
 isle-tokens.workspace = true
 isle-ui.workspace = true
 raw-window-handle = "0.6"
+smithay-clipboard = "0.7"
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

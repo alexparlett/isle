@@ -73,6 +73,8 @@ wayland_client::delegate_noop!(Globals: ignore IsleTitlebarManagerV1);
 wayland_client::delegate_noop!(Globals: ignore IsleTitlebarV1);
 
 pub struct Extras {
+    /// winit's `wl_display`, for the clipboard's own connection.
+    pub display: *mut std::ffi::c_void,
     connection: Connection,
     /// Kept for as long as the objects bound on it.
     _queue: EventQueue<Globals>,
@@ -128,6 +130,7 @@ impl Extras {
             });
         let _ = connection.flush();
         Some(Self {
+            display: display.cast(),
             connection,
             _queue: queue,
             surface,

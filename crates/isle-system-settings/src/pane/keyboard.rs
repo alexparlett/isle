@@ -309,7 +309,14 @@ impl Component for Keyboard {
                     .into_element(),
                 ],
             ))
-            .child(form::group(Some("Keyboards".into()), keyboards))
+            .child(form::group(
+                Some("Keyboards".into()),
+                if keyboards.is_empty() {
+                    vec![form::Row::new("No keyboard is connected.").enabled(false).into_element()]
+                } else {
+                    keyboards
+                },
+            ))
             .child(ui::foot(vec![(
                 if *detecting.read() {
                     "Press any key…"

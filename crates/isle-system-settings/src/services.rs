@@ -291,12 +291,13 @@ pub fn use_follow(what: &[Follow]) -> Services {
     services
 }
 
-/// Copies a snapshot channel into a state the panes read.
+/// Copies a snapshot channel into a state the panes read, for as long as the app runs: the
+/// pane that first asked may close before the next one reads it.
 fn forward<T>(mut rx: tokio::sync::watch::Receiver<Snapshot<T>>, mut into: State<Snapshot<T>>)
 where
     T: Clone + PartialEq + Send + Sync + 'static,
 {
-    spawn(async move {
+    spawn_forever(async move {
         loop {
             let snapshot = rx.borrow_and_update().clone();
             if *into.peek() != snapshot {

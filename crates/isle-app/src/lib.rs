@@ -247,7 +247,7 @@ pub fn run<A: App + 'static>(spec: Spec, app: A) {
     );
 
     let extras: Rc<RefCell<Option<wayland::Extras>>> = Rc::default();
-    let gpu = std::env::var_os("FREYA_RENDERER").is_some();
+    let gpu = cfg!(feature = "gpu") && std::env::var_os("FREYA_RENDERER").is_some();
     let renderer = if gpu { RendererPreference::Auto } else { RendererPreference::Software };
     // The software renderer presents opaque buffers, so only the GPU's can show a blur through.
     let spec = Spec {

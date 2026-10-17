@@ -53,6 +53,11 @@ impl Client {
         self.lines.lock().unwrap().iter().any(|l| l == line)
     }
 
+    /// Whether any line so far holds `part`.
+    pub fn printed_part(&self, part: &str) -> bool {
+        self.lines.lock().unwrap().iter().any(|l| l.contains(part))
+    }
+
     /// Forgets what the client printed so far, so a later wait sees only what follows.
     pub fn clear(&self) {
         self.lines.lock().unwrap().clear();

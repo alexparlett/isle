@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+gpu = ["isle-app/gpu"]
+
 [[bin]]
 name = "isle-settings"
 path = "src/main.rs"

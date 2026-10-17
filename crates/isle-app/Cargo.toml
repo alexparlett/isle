@@ -8,6 +8,8 @@ publish.workspace = true
 [features]
 # Contexts for testing an app's components headless.
 testing = []
+# Freya's GPU renderers beside the software one, chosen by FREYA_RENDERER.
+gpu = ["freya/gpu"]
 
 [dependencies]
 freya = { workspace = true, features = ["winit", "accessibility"] }

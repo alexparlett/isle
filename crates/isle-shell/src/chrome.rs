@@ -22,6 +22,8 @@ pub struct BarModel {
     pub full_screen: bool,
     /// Option is held: zoom fills, close and minimise act on the whole app.
     pub option: bool,
+    /// The window asked for a transparent bar: the lights alone, over its own toolbar.
+    pub overlay: bool,
 }
 
 /// One window's bar. The model outlives the tree, so a rebuilt bar shows the same.
@@ -116,7 +118,7 @@ struct Bar {
 /// The lights' hit areas from the leading edge: close's runs to the edge.
 const HITS: [(f32, f32); 3] = [(16.0, 32.0), (4.0, 20.0), (4.0, 20.0)];
 /// Where the lights group ends, from the leading edge.
-const LIGHTS_END: f32 = 68.0;
+pub const LIGHTS_END: f32 = 68.0;
 /// How long between two presses makes a double-click.
 const DOUBLE_CLICK_MS: u128 = 450;
 
@@ -133,7 +135,9 @@ impl Component for Bar {
         let t = &theme.tokens;
         let scale = theme.appearance.text_scale;
 
-        let fill = if model.active {
+        let fill = if model.overlay {
+            isle_tokens::Colour::TRANSPARENT
+        } else if model.active {
             t.colour_titlebar
         } else {
             t.colour_titlebar_inactive
@@ -151,7 +155,9 @@ impl Component for Bar {
         let tw = *title_width.read();
         let after = LIGHTS_END + t.space_m;
         let centred = (w - tw) / 2.0;
-        let title_box = if centred >= after {
+        let title_box = if model.overlay {
+            None
+        } else if centred >= after {
             Some((centred, tw))
         } else {
             let room = w - after - t.space_m;
@@ -345,13 +351,15 @@ impl Component for Bar {
                 )
             })
             .child(group)
-            .child(
-                rect()
-                    .position(Position::new_absolute().left(0.).bottom(0.))
-                    .width(Size::fill())
-                    .height(Size::px(t.stroke_hairline))
-                    .background(isle_ui::colour(t.colour_hairline)),
-            )
+            .maybe(!model.overlay, |el| {
+                el.child(
+                    rect()
+                        .position(Position::new_absolute().left(0.).bottom(0.))
+                        .width(Size::fill())
+                        .height(Size::px(t.stroke_hairline))
+                        .background(isle_ui::colour(t.colour_hairline)),
+                )
+            })
     }
 }
 

@@ -142,6 +142,11 @@ pub struct Isle {
     >,
     /// The window whose bar shows Option's glyphs.
     pub bar_option: Option<u64>,
+    /// Surfaces that asked for a transparent bar, and the lights' inset over each.
+    pub titlebar_overlays: std::collections::HashMap<
+        smithay::reexports::wayland_server::backend::ObjectId,
+        (i32, i32),
+    >,
     pub zoom: crate::wm::ZoomState,
     pub zoom_menu: std::rc::Rc<isle_shell::zones::ZoneSurface>,
     pub zone_panel: std::rc::Rc<isle_shell::zones::ZoneSurface>,
@@ -357,6 +362,7 @@ impl Isle {
         let xdg_activation_state = XdgActivationState::new::<State>(&dh);
         let xdg_foreign_state = XdgForeignState::new::<State>(&dh);
         crate::menus::protocols::create_globals(&dh);
+        crate::titlebar_overlay::create_global(&dh);
         let shm_state = ShmState::new::<State>(&dh, vec![]);
         let output_manager_state = OutputManagerState::new_with_xdg_output::<State>(&dh);
         let data_device_state = DataDeviceState::new::<State>(&dh);
@@ -503,6 +509,7 @@ impl Isle {
             paced: Default::default(),
             commit_timers: Default::default(),
             bar_option: None,
+            titlebar_overlays: Default::default(),
             zoom: Default::default(),
             zoom_menu,
             zone_panel,

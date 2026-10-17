@@ -106,8 +106,8 @@ inherit a platform rather than a precedent.
 
 ### The app platform
 
-4. **A crate for what every app shares: `isle-app`.** The window, the
-   toolbar and traffic lights, the theme from the compositor, single
+4. **A crate for what every app shares: `isle-app`.** The window and its
+   toolbar's drag and double click, the theme from the compositor, single
    instance and activation, the command table with its DBusMenu export,
    Mac editing keys, in-window menus, sheets and popovers, the worker that
    hands results to the UI, and the Wayland extras bound beside winit. The
@@ -181,12 +181,23 @@ inherit a platform rather than a precedent.
     it. Rule 17 needs it for every app; without it the sidebar is solid
     (as under Reduce Transparency), which is the fallback if the cost is
     too high.
-14. **The toolbar's double click follows `windows.titlebar-action`.** The
-    app replaces Freya's double-press-maximise with the setting (fill,
-    minimise or nothing), as every server-side title bar does (B25);
-    dragging and edge resizing use winit's move and resize while the
-    button is down (§4). Isle draws the window's shadow; the app draws
-    none.
+14. **The lights are the compositor's, over the app, as on macOS.** Revised
+    by the user on 2026-10-17, replacing apps drawing their own lights
+    (B25, `apps.md` Conventions 15). An Isle app keeps server-side
+    decorations with a transparent title bar: its content runs to the
+    window's top and it names only the lights' inset, as a Mac app does with
+    a full-size content view and a traffic-light inset. No standard
+    protocol says this (`xdg-decoration` and KDE's only choose a side), so
+    Isle serves its own, `isle_titlebar_v1`: `set_overlay(x, y)`, answered
+    with the lights' group size. The compositor draws the lights alone at
+    that inset, no fill, title or bar height, and takes the pointer over
+    them first; Option, the active state and hover behave as on every other
+    window. `isle-app` binds it beside the appmenu (choice 8); off Isle the
+    app simply wears the compositor's ordinary decorations. The rest of the
+    toolbar is the app's: a press on empty toolbar moves the window through
+    `xdg_toplevel.move`, and a double, middle or secondary click goes to
+    the compositor through `gtk_shell1`'s `titlebar_gesture`, which Isle
+    already serves, so `windows.titlebar-action` is applied in one place.
 
 ### Settings over D-Bus
 
@@ -359,6 +370,8 @@ crates/
   isle-ipc/, isle-cli/    the new calls; `isle settings reset|open`,
                           `isle displays set`
   isle-compositor/src/
+    titlebar_overlay.rs   `isle_titlebar_v1`: the lights over a client
+                          at its inset (new)
     dbus.rs               Settings1, Displays1, Shell1, Island1,
                           Notifications1 additions
     displays.rs           live modesets, the temporary change and its revert
@@ -394,9 +407,9 @@ changes; `settings.md` gains each pane's rows. Runs beside 13.0 and 13.2.
 
 ### 13.2 · `isle-app`
 
-The window on `freya-winit` with the software renderer, client-side
-decorations, the toolbar and traffic lights, drag, resize and the double
-click's setting; the theme from `Shell1`; single instance with
+The window on `freya-winit` with the software renderer and a transparent
+title bar; `isle_titlebar_v1` served, with the lights drawn over the app at
+its inset; drag, and clicks handed over by `gtk_shell1`, on empty toolbar; the theme from `Shell1`; single instance with
 `org.freedesktop.Application`; the second event queue with activation,
 appmenu and the background effect's client half; the command table, its
 menus and the DBusMenu exporter; Mac editing in the field; in-window menus,

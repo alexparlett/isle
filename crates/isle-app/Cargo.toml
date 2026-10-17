@@ -1,0 +1,29 @@
+[package]
+name = "isle-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+freya = { workspace = true, features = ["winit"] }
+futures-channel = "0.3"
+futures-util.workspace = true
+isle-ipc.workspace = true
+isle-settings.workspace = true
+isle-tokens.workspace = true
+isle-ui.workspace = true
+raw-window-handle = "0.6"
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+wayland-backend = { workspace = true, features = ["client_system"] }
+wayland-client.workspace = true
+wayland-protocols.workspace = true
+wayland-protocols-plasma = { workspace = true, features = ["client"] }
+wayland-scanner.workspace = true
+zbus.workspace = true
+zvariant.workspace = true
+
+[dev-dependencies]
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "a8d7a0300ca6dc8f4dde7fdc50bb2f025505b237" }

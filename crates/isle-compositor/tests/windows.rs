@@ -966,6 +966,26 @@ async fn a_server_side_window_wears_isles_bar_and_a_client_side_one_does_not() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_transparent_bar_draws_the_lights_alone_over_the_window() {
+    let mut isle = Isle::start("bar-overlay").await;
+    let (client, w) = barred(&mut isle, "isle.test.Overlay").await;
+    client.send("titlebar-overlay 0 10");
+    client.wait_for("controls 68 32").await;
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let w = isle.window(w.id).await;
+    assert_eq!((w.width, w.height), (400, 300), "no bar height added");
+
+    let (x, y) = (w.x as usize, w.y as usize);
+    let shot = isle.shot("HEADLESS-1", "overlay").await;
+    assert_eq!(shot.at(x + 200, y + 16), RED, "the window's own toolbar shows through");
+    assert_ne!(shot.at(x + 22, y + 26), RED, "the close light at the inset");
+    assert_eq!(shot.at(x + 22, y + 4), RED, "nothing above the inset");
+
+    click(&isle, w.x as f64 + 22.0, w.y as f64 + 26.0).await;
+    client.wait_for("closed").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_lights_close_minimise_and_zoom() {
     let mut isle = Isle::start("lights").await;
     let (_client, w) = barred(&mut isle, "isle.test.Lights").await;

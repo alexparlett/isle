@@ -58,6 +58,21 @@ impl Client {
         self.lines.lock().unwrap().clear();
     }
 
+    /// Waits for a line holding `part`, for a program whose lines carry more than it says.
+    pub async fn wait_for_part(&self, part: &str) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline {
+            if self.lines.lock().unwrap().iter().any(|l| l.contains(part)) {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        panic!(
+            "the client never printed {part:?}; it printed {:?}",
+            self.lines.lock().unwrap()
+        );
+    }
+
     pub async fn wait_for(&self, wanted: &str) {
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {

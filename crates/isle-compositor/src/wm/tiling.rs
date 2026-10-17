@@ -35,7 +35,7 @@ impl Isle {
 
     /// The height of the title bar the compositor draws over `id`, or 0.
     pub fn bar_height(&self, id: u64) -> i32 {
-        if self.wants_bar(id) {
+        if self.wants_bar(id) && self.titlebar_overlay(id).is_none() {
             isle_shell::chrome::bar_height(self.shell.theme())
         } else {
             0

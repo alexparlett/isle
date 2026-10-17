@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="isle_titlebar_v1">
+  <copyright>
+    Isle's own protocol; no other compositor serves it.
+  </copyright>
+
+  <description summary="the compositor's window controls over a client's own toolbar">
+    A window that takes server-side decorations can ask for a transparent title bar, as a
+    macOS window with a full-size content view does: the compositor adds no bar above it and
+    draws only its window controls over the window's own content, at the inset the client
+    names. The client draws everything else, its toolbar included, under them.
+  </description>
+
+  <interface name="isle_titlebar_manager_v1" version="1">
+    <request name="destroy" type="destructor"/>
+
+    <request name="get_titlebar">
+      <description summary="the title bar object for a toplevel's surface">
+        One per surface; the surface must be an xdg_toplevel's.
+      </description>
+      <arg name="id" type="new_id" interface="isle_titlebar_v1"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+  </interface>
+
+  <interface name="isle_titlebar_v1" version="1">
+    <request name="destroy" type="destructor">
+      <description summary="the title bar back to the compositor's ordinary bar"/>
+    </request>
+
+    <request name="set_overlay">
+      <description summary="controls drawn over the window at an inset">
+        The controls' group is placed with its top leading corner at x, y in logical points
+        from the window geometry's top leading corner. The compositor then adds no bar above
+        the window. Takes effect at once and answers with controls.
+      </description>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+    </request>
+
+    <request name="unset_overlay">
+      <description summary="the compositor's ordinary bar again"/>
+    </request>
+
+    <event name="controls">
+      <description summary="the size of the controls' group">
+        In logical points, so the client keeps its own controls clear of it. Sent after each
+        set_overlay and whenever the size changes.
+      </description>
+      <arg name="width" type="uint"/>
+      <arg name="height" type="uint"/>
+    </event>
+  </interface>
+</protocol>

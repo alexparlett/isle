@@ -1,0 +1,15 @@
+[package]
+name = "isle-system-settings"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "isle-settings"
+path = "src/main.rs"
+
+[dependencies]
+freya = { workspace = true, features = ["winit"] }
+isle-app.workspace = true
+isle-ui.workspace = true

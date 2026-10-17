@@ -118,6 +118,21 @@ mod gtk_shell {
 }
 use gtk_shell::{gtk_shell1, gtk_surface1};
 
+#[allow(missing_docs, clippy::all, non_upper_case_globals, non_camel_case_types, unused_imports)]
+mod isle_titlebar {
+    use wayland_client;
+    use wayland_client::protocol::*;
+
+    pub mod __interfaces {
+        use wayland_client::protocol::__interfaces::*;
+        wayland_scanner::generate_interfaces!("../../data/protocols/isle-titlebar-v1.xml");
+    }
+    use self::__interfaces::*;
+
+    wayland_scanner::generate_client_code!("../../data/protocols/isle-titlebar-v1.xml");
+}
+use isle_titlebar::{isle_titlebar_manager_v1, isle_titlebar_v1};
+
 struct Win {
     surface: wl_surface::WlSurface,
     xdg: Option<(xdg_surface::XdgSurface, xdg_toplevel::XdgToplevel)>,
@@ -155,6 +170,7 @@ struct Client {
     pointer: Option<wl_pointer::WlPointer>,
     appmenus: Option<org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager>,
     gtk_shell: Option<gtk_shell1::GtkShell1>,
+    titlebars: Option<isle_titlebar_manager_v1::IsleTitlebarManagerV1>,
     wins: Vec<Win>,
     /// A window drawn again at every frame callback, its colour turning: a stand-in game.
     animating: Option<usize>,
@@ -824,6 +840,15 @@ impl Client {
                 self.draw(index, qh);
                 return;
             }
+            ("titlebar-overlay", _) => {
+                let Some(manager) = self.titlebars.as_ref() else {
+                    say(index, "no titlebar manager".into());
+                    return;
+                };
+                let titlebar = manager.get_titlebar(&self.wins[index].surface, qh, index);
+                titlebar.set_overlay(num(0), num(1));
+                return;
+            }
             ("decoration", Some(t)) => {
                 let Some(manager) = self.decorations.as_ref() else {
                     say(index, "no decoration manager".into());
@@ -1215,6 +1240,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "ext_idle_notifier_v1" => state.idle_notifier = Some(registry.bind(name, 1, qh, ())),
                 "org_kde_kwin_appmenu_manager" => state.appmenus = Some(registry.bind(name, 2, qh, ())),
                 "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
+                "isle_titlebar_manager_v1" => state.titlebars = Some(registry.bind(name, 1, qh, ())),
                 "wp_presentation" => state.presentation = Some(registry.bind(name, 1, qh, ())),
                 "wp_fifo_manager_v1" => state.fifo_manager = Some(registry.bind(name, 1, qh, ())),
                 "wp_tearing_control_manager_v1" => {
@@ -2065,6 +2091,7 @@ fn main() {
         pointer: None,
         appmenus: None,
         gtk_shell: None,
+        titlebars: None,
         wins: Vec::new(),
         animating: None,
         presentation: None,
@@ -2374,6 +2401,32 @@ impl Dispatch<gtk_shell1::GtkShell1, ()> for Client {
     ) {
         let gtk_shell1::Event::Capabilities { capabilities } = event;
         say(0, format!("gtk capabilities {capabilities}"));
+    }
+}
+
+impl Dispatch<isle_titlebar_manager_v1::IsleTitlebarManagerV1, ()> for Client {
+    fn event(
+        _: &mut Self,
+        _: &isle_titlebar_manager_v1::IsleTitlebarManagerV1,
+        _: isle_titlebar_manager_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<isle_titlebar_v1::IsleTitlebarV1, usize> for Client {
+    fn event(
+        _: &mut Self,
+        _: &isle_titlebar_v1::IsleTitlebarV1,
+        event: isle_titlebar_v1::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        let isle_titlebar_v1::Event::Controls { width, height } = event;
+        say(*index, format!("controls {width} {height}"));
     }
 }
 

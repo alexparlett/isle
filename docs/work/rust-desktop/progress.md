@@ -2,6 +2,27 @@
 
 ## 2026-10-17
 
+- P13 13.2, first part: `isle-app` and the lights over an app. The user
+  revised choice 14: an Isle app keeps server-side decorations with a
+  transparent bar and names the lights' inset, as a Mac app does, and the
+  compositor draws the lights alone over its toolbar. No standard protocol
+  says this, so Isle serves `isle_titlebar_v1` (`set_overlay`, answered with
+  the group's size); such a window gets no bar height, its bar surface is
+  placed and drawn at the inset and takes the pointer there first. The
+  toolbar's double, middle and secondary clicks go to the compositor through
+  `gtk_shell1`'s `titlebar_gesture`, so `windows.titlebar-action` lives in
+  one place. `isle-app` has the worker (tokio on its own thread), one
+  instance through `org.freedesktop.Application` (zbus reports a taken name
+  as `NameTaken`, not `Exists`), the theme and every setting followed from
+  `Shell1` and `Settings1`, activation, appmenu, the overlay and gestures
+  bound on a queue of its own against winit's display, the software
+  renderer unless `FREYA_RENDERER` says, and logging. `isle-settings` is a
+  bare window on it so far. Headless: the window opens 900 by 760 under
+  Isle's lights with nothing above them, and a second launch hands its
+  `isle-settings://displays` to the first and exits. Open: Freya's
+  clipboard is arboard, which wants data-control and falls back to X11,
+  and Isle serves no data-control to clients.
+
 - P13 13.0: the store and the theme over D-Bus. `Settings1` gains `Reset`
   (a key, a section or an entry back to its defaults, an optional key
   unset), `Remove` (a keyed entry deleted: a Focus mode, an app's

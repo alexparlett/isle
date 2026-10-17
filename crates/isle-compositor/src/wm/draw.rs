@@ -764,10 +764,11 @@ impl crate::state::Isle {
         }
 
         let frame = self.frame(id).unwrap_or(rect);
+        let bar_at = frame.loc + Point::<i32, Logical>::from(self.titlebar_overlay(id).unwrap_or_default());
         if record.bar.is_some()
             && let Some(bar) = self.shell.attached_element(
                 id,
-                (frame.loc - origin).to_f64().to_physical(scale),
+                (bar_at - origin).to_f64().to_physical(scale),
                 alpha,
             )
         {

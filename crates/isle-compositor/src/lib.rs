@@ -64,6 +64,7 @@ mod portal;
 mod recording;
 mod share;
 mod thumbnail;
+mod titlebar_overlay;
 mod toolbar;
 pub mod tokens;
 mod wallpaper;

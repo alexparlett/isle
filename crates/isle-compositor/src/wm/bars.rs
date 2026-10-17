@@ -52,6 +52,7 @@ impl Isle {
             can_zoom: !fixed,
             full_screen: matches!(record.mode, Mode::FullScreen { .. }),
             option: self.bar_option == Some(id),
+            overlay: self.titlebar_overlay(id).is_some(),
         })
     }
 
@@ -65,11 +66,23 @@ impl Isle {
             output,
             geometry,
         };
-        let bar = Rectangle::new(
-            frame.loc - geometry.loc,
-            (frame.size.w, self.bar_height(id)).into(),
-        );
+        let bar = match self.titlebar_overlay(id) {
+            Some((x, y)) => Rectangle::new(
+                frame.loc - geometry.loc + Point::from((x, y)),
+                self.overlay_size(),
+            ),
+            None => Rectangle::new(
+                frame.loc - geometry.loc,
+                (frame.size.w, self.bar_height(id)).into(),
+            ),
+        };
         Some((place, bar))
+    }
+
+    /// The lights' group a transparent bar draws: their width and a bar's height.
+    fn overlay_size(&self) -> smithay::utils::Size<i32, Logical> {
+        let height = isle_shell::chrome::bar_height(self.shell.theme());
+        (isle_shell::chrome::LIGHTS_END.ceil() as i32, height).into()
     }
 
     /// Keeps `id`'s bar over the top of its frame.
@@ -160,7 +173,11 @@ impl Isle {
             return Some(crate::focus::Focus::Edge { window: id, edges });
         }
         let bar = self.bar_height(id) as f64;
-        if record.bar.is_some() && pos.y < y0 + bar {
+        let over_lights = self.titlebar_overlay(id).is_some_and(|(x, y)| {
+            Rectangle::new((x0 + x as f64, y0 + y as f64).into(), self.overlay_size().to_f64())
+                .contains(pos)
+        });
+        if record.bar.is_some() && (pos.y < y0 + bar || over_lights) {
             return self
                 .shell
                 .attached_focus(id)

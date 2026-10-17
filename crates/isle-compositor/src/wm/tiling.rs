@@ -348,6 +348,10 @@ impl Isle {
     /// Shows, moves or clears the zone preview for a drag of `id` with the pointer at
     /// `pointer`.
     pub fn update_zone_preview(&mut self, id: u64, pointer: Point<f64, Logical>) {
+        if !self.settings.windows.edge_tiling {
+            self.set_zone_preview(id, None);
+            return;
+        }
         let target = self
             .space
             .output_under(pointer)

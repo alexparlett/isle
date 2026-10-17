@@ -266,6 +266,9 @@ pub struct Windows {
     /// Tiled and filled windows keep a margin around and between them.
     #[setting(default = true)]
     pub tile_margins: bool,
+    /// A window dragged to a screen's edge or corner tiles there.
+    #[setting(default = true)]
+    pub edge_tiling: bool,
     /// Apps, by desktop id, that closing their last window hides rather than closes.
     pub keep_running: Vec<String>,
     /// What double-clicking a title bar does.
@@ -682,6 +685,8 @@ pub struct ControlCentre {
     pub modules: Vec<String>,
     /// Tray items in order by their id; items not named follow in the order they came.
     pub tray: Vec<String>,
+    /// Tray items kept out of the tray, by their id.
+    pub tray_hidden: Vec<String>,
 }
 
 /// The shell's screens.

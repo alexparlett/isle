@@ -175,7 +175,15 @@ impl Isle {
             return Vec::new();
         }
         let order = &self.settings.control_centre.tray;
-        let mut items: Vec<&Item> = self.services.tray.state.items.iter().collect();
+        let hidden = &self.settings.control_centre.tray_hidden;
+        let mut items: Vec<&Item> = self
+            .services
+            .tray
+            .state
+            .items
+            .iter()
+            .filter(|item| !hidden.contains(&item.id))
+            .collect();
         items.sort_by_key(|item| {
             order
                 .iter()

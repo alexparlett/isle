@@ -319,6 +319,17 @@ const TOP_LEFT: (i32, i32, i32, i32) = (12, 60, 942, 498);
 const FILL: (i32, i32, i32, i32) = (12, 60, 1896, 1008);
 
 #[tokio::test(flavor = "multi_thread")]
+async fn with_edge_tiling_off_a_drag_to_an_edge_only_moves() {
+    let mut isle = Isle::start_with("edges-off", "windows {\n    edge-tiling #false\n}\n").await;
+    let client = isle.client("isle.test.EdgesOff", "ff0000");
+    let w = isle.wait_for_window("isle.test.EdgesOff").await;
+    client.send("move-on-press");
+    isle.drag(&client, (w.x as f64 + w.width as f64 / 2.0, w.y as f64 + 20.0), (2.0, 540.0)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(isle.window(w.id).await.mode, "floating");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_drag_to_an_edge_tiles_and_the_bottom_edge_does_not() {
     let mut isle = Isle::start("edges").await;
     let client = isle.client("isle.test.Edges", "ff0000");

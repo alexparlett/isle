@@ -138,3 +138,21 @@ async fn items_by_name_keep_their_order_and_register_again_when_the_watcher_retu
     let services = isle.services().await;
     assert_eq!(services["tray"]["available"], true);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_item_hidden_in_settings_stays_out_of_the_tray() {
+    let mut isle = Isle::start("tray-hidden").await;
+    let app = isle.client("isle.test.Tray", "3366ff");
+    app.wait_for("keyboard-enter").await;
+    app.send("tray");
+    app.wait_for("tray registered").await;
+    isle.open_panel(None).await;
+    key(&isle, "Test Tray").await;
+    isle_ipc::settings::SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("control-centre.tray-hidden", &zvariant::Value::from(vec!["test-tray".to_owned()]))
+        .await
+        .unwrap();
+    wait_until(|| async { tray(&isle).await.is_empty() }).await;
+}

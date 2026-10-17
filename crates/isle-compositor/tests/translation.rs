@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use isle_ipc::keyboard::KeyboardProxy;
+use isle_ipc::{keyboard::KeyboardProxy, settings::SettingsProxy};
 use isle_keys::{
     chord::Chord,
     engine::{Ctx, Engine, Out},
@@ -169,6 +169,25 @@ async fn an_untranslated_app_gets_cmd_as_super() {
     viewer.wait_for("sym c released").await;
     assert!(viewer.printed(&format!("key {CMD} pressed")));
     assert!(!viewer.printed(&format!("key {CTRL} pressed")));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn isles_own_apps_get_cmd_as_super_whatever_the_list_says() {
+    let mut isle = Isle::start("translation-own").await;
+    let keys = keys();
+    SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("keyboard.untranslated-apps", &zvariant::Value::from(Vec::<String>::new()))
+        .await
+        .unwrap();
+    let app = isle.client("io.github.alexparlett.Isle.Settings", "3366ff");
+    app.wait_for("keyboard-enter").await;
+    app.clear();
+    type_chord(&isle, &keys, &Chord::parse("Cmd+C").unwrap()).await;
+    app.wait_for("sym c released").await;
+    assert!(app.printed(&format!("key {CMD} pressed")));
+    assert!(!app.printed(&format!("key {CTRL} pressed")));
 }
 
 #[tokio::test(flavor = "multi_thread")]

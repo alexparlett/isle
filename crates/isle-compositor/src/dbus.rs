@@ -1,6 +1,6 @@
 //! The compositor's D-Bus API, served on the worker (`platform.md`, Compositor D-Bus API).
 
-use std::error::Error;
+use std::{collections::HashMap, error::Error};
 
 use isle_ipc::{
     BUS_NAME, DISPLAYS_PATH, DisplayInfo, SESSION_PATH, SETTINGS_PATH, SHELL_PATH, SettingKey,
@@ -615,6 +615,14 @@ impl Shell {
             })
             .await?)
     }
+
+    /// The tokens and appearance in force, for an app's own drawing.
+    async fn theme(&self) -> fdo::Result<isle_ipc::ThemeInfo> {
+        Ok(self.to_loop.call(|state| state.isle.theme_info()).await?)
+    }
+
+    #[zbus(signal)]
+    async fn theme_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
     /// Turns a surface that panicked too often back on, closed.
     async fn restart(&self, name: String) -> fdo::Result<bool> {
@@ -1633,6 +1641,22 @@ fn from_variant(value: &zvariant::Value<'_>) -> fdo::Result<Value> {
     })
 }
 
+fn set_error(err: SetError) -> fdo::Error {
+    match err {
+        SetError::Invalid(message) => fdo::Error::InvalidArgs(message),
+        other => fdo::Error::Failed(other.to_string()),
+    }
+}
+
+impl Settings {
+    fn applied(&self, store: &isle_settings::Store<isle_settings::schema::Settings>, keys: &[String]) {
+        if keys.is_empty() {
+            return;
+        }
+        crate::settings::publish(&self.to_loop, &self.events, store.current().clone(), keys.to_vec());
+    }
+}
+
 #[interface(name = "io.github.alexparlett.Isle.Settings1")]
 impl Settings {
     async fn get(&self, key: String) -> fdo::Result<OwnedValue> {
@@ -1645,20 +1669,38 @@ impl Settings {
         Ok(to_variant(value))
     }
 
+    /// Every key's value in force, defaults included; an unset optional key is absent.
+    async fn values(&self) -> HashMap<String, OwnedValue> {
+        let store = self.store.lock().await;
+        store
+            .values()
+            .into_iter()
+            .map(|(key, value)| (key, to_variant(value)))
+            .collect()
+    }
+
     /// Validates, writes and applies; returns the keys that changed.
     async fn set(&self, key: String, value: zvariant::Value<'_>) -> fdo::Result<Vec<String>> {
         let value = from_variant(&value)?;
         let mut store = self.store.lock().await;
-        let keys = store.set(&key, value).map_err(|err| match err {
-            SetError::Invalid(message) => fdo::Error::InvalidArgs(message),
-            other => fdo::Error::Failed(other.to_string()),
-        })?;
-        crate::settings::publish(
-            &self.to_loop,
-            &self.events,
-            store.current().clone(),
-            keys.clone(),
-        );
+        let keys = store.set(&key, value).map_err(set_error)?;
+        self.applied(&store, &keys);
+        Ok(keys)
+    }
+
+    /// Takes a key, a section or an entry back to its defaults; returns the keys that changed.
+    async fn reset(&self, key: String) -> fdo::Result<Vec<String>> {
+        let mut store = self.store.lock().await;
+        let keys = store.reset(&key).map_err(set_error)?;
+        self.applied(&store, &keys);
+        Ok(keys)
+    }
+
+    /// Deletes a keyed entry such as `focus-mode[Reading]`; returns the keys that changed.
+    async fn remove(&self, entry: String) -> fdo::Result<Vec<String>> {
+        let mut store = self.store.lock().await;
+        let keys = store.remove(&entry).map_err(set_error)?;
+        self.applied(&store, &keys);
         Ok(keys)
     }
 
@@ -1891,6 +1933,10 @@ pub async fn serve(
             Ok(Event::LockChanged) => {
                 let iface = server.interface::<_, Session>(SESSION_PATH).await?;
                 Session::lock_changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::ThemeChanged) => {
+                let iface = server.interface::<_, Shell>(isle_ipc::SHELL_PATH).await?;
+                Shell::theme_changed(iface.signal_emitter()).await?;
             }
             Ok(Event::DisplaysChanged) => {
                 let iface = server.interface::<_, Displays>(DISPLAYS_PATH).await?;

@@ -5,6 +5,8 @@ use std::{fs, time::Duration};
 
 use isle_ipc::{SurfaceInfo, settings::SettingsProxy, shell::ShellProxy};
 
+use futures_util::StreamExt;
+
 mod common;
 
 use common::{Isle, wait_until};
@@ -390,6 +392,35 @@ async fn the_appearance_setting_redraws_the_probe_in_light() {
         .await
         .unwrap();
     wait_until(|| async { shot(&isle, "light").await.at(1100, 364) == [0xff, 0xff, 0xff] }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_app_reads_the_theme_and_hears_each_change() {
+    let isle = Isle::start("shell-theme").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    let mut changes = shell.receive_theme_changed().await.unwrap();
+    let theme = shell.theme().await.unwrap();
+    assert_eq!((theme.mode.as_str(), theme.tokens.as_str()), ("dark", ""));
+
+    let file = isle.dir.join("config/tokens.kdl");
+    let text = "version 1\ncolour { dark { window-raised \"#102030\" } }\n";
+    fs::write(&file, text).unwrap();
+    changes.next().await.unwrap();
+    assert_eq!(shell.theme().await.unwrap().tokens, text);
+
+    fs::write(&file, "version 1\ncolour {\n").unwrap();
+    changes.next().await.unwrap();
+    assert!(!shell.tokens_status().await.unwrap().ok);
+    assert_eq!(shell.theme().await.unwrap().tokens, text, "the last good file stays in force");
+
+    SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("appearance.mode", &zvariant::Value::from("light"))
+        .await
+        .unwrap();
+    changes.next().await.unwrap();
+    assert_eq!(shell.theme().await.unwrap().mode, "light");
 }
 
 #[tokio::test(flavor = "multi_thread")]

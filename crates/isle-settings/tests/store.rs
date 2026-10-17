@@ -256,3 +256,86 @@ fn a_safe_start_ignores_the_file_until_asked_and_writes_nothing_until_then() {
     assert!(store.error().is_none());
     assert_eq!(store.current().keyboard.repeat_rate, 40);
 }
+
+#[test]
+fn a_list_can_be_emptied_and_read_back_empty() {
+    let dir = Dir::new("empty");
+    let mut store: Store<Settings> = Store::open(dir.file());
+    assert_eq!(store.get("windows.games"), Ok(Value::List(vec![])));
+
+    store
+        .set("windows.keep-running", Value::List(vec!["kitty".into()]))
+        .unwrap();
+    let changed = store.set("windows.keep-running", Value::List(vec![])).unwrap();
+    assert_eq!(changed, vec!["windows.keep-running".to_owned()]);
+    assert_eq!(store.get("windows.keep-running"), Ok(Value::List(vec![])));
+
+    let changed = store.set("shortcuts.hide", Value::List(vec![])).unwrap();
+    assert_eq!(changed, vec!["shortcuts.hide".to_owned()]);
+    assert!(store.current().shortcuts.hide.is_empty(), "an empty list turns the action off");
+    let again: Store<Settings> = Store::open(dir.file());
+    assert_eq!(again.current(), store.current());
+}
+
+#[test]
+fn a_reset_takes_the_node_out_and_the_default_back() {
+    let dir = Dir::new("reset");
+    let typed = "// mine\nkeyboard {\n    repeat-rate 40 // quick\n    layouts \"gb\"\n}\noutput \"AOC U34 1\" {\n    mode \"2560x1440\"\n    scale 1.25\n}\n";
+    fs::write(dir.file(), typed).unwrap();
+    let mut store: Store<Settings> = Store::open(dir.file());
+
+    assert_eq!(store.reset("keyboard.repeat-rate").unwrap(), vec!["keyboard.repeat-rate".to_owned()]);
+    assert_eq!(store.get("keyboard.repeat-rate"), Ok(Value::Int(25)));
+    assert_eq!(store.reset("output[AOC U34 1].mode").unwrap(), vec!["output[AOC U34 1].mode".to_owned()]);
+    assert!(store.get("output[AOC U34 1].mode").is_err(), "an optional key is unset again");
+    assert_eq!(
+        fs::read_to_string(dir.file()).unwrap(),
+        "// mine\nkeyboard {\n    layouts \"gb\"\n}\noutput \"AOC U34 1\" {\n    scale 1.25\n}\n"
+    );
+    assert_eq!(store.reset("keyboard.repeat-rate"), Ok(vec![]), "nothing written is nothing to reset");
+    assert_eq!(store.reload(), Reload::Unchanged);
+
+    assert!(matches!(store.reset("keyboard.repeat-speed"), Err(SetError::Invalid(_))));
+    store.reset("keyboard").unwrap();
+    assert_eq!(store.current().keyboard, Settings::default().keyboard);
+}
+
+#[test]
+fn a_reset_that_would_clash_is_refused() {
+    let dir = Dir::new("clash");
+    fs::write(dir.file(), "shortcuts {\n    hide \"Cmd+J\"\n    minimise \"Cmd+H\"\n}\n").unwrap();
+    let mut store: Store<Settings> = Store::open(dir.file());
+    assert!(store.error().is_none());
+    assert!(matches!(store.reset("shortcuts.hide"), Err(SetError::Invalid(_))));
+    assert_eq!(store.current().shortcuts.hide, vec!["Cmd+J".to_owned()]);
+}
+
+#[test]
+fn an_entry_is_removed_whole_and_only_an_entry() {
+    let dir = Dir::new("remove");
+    let mut store: Store<Settings> = Store::open(dir.file());
+    store
+        .set("focus-mode[Reading].allow-apps", Value::List(vec!["kitty".into()]))
+        .unwrap();
+    store.set("notification-app[steam].sound", Value::Bool(false)).unwrap();
+    assert!(store.values().contains_key("focus-mode[Reading].allow-apps"));
+
+    let changed = store.remove("focus-mode[Reading]").unwrap();
+    assert!(changed.contains(&"focus-mode[Reading].allow-apps".to_owned()));
+    assert!(!store.values().keys().any(|k| k.starts_with("focus-mode[Reading]")));
+    assert!(store.values().contains_key("notification-app[steam].sound"));
+
+    assert!(matches!(store.remove("keyboard"), Err(SetError::Invalid(_))));
+    assert!(matches!(store.remove("focus-mode[Reading].symbol"), Err(SetError::Invalid(_))));
+}
+
+#[test]
+fn a_reset_is_refused_while_a_hand_edit_is_broken() {
+    let dir = Dir::new("reset-broken");
+    fs::write(dir.file(), "keyboard {\n    repeat-rate 30\n}\n").unwrap();
+    let mut store: Store<Settings> = Store::open(dir.file());
+    fs::write(dir.file(), "keyboard {\n    repeat-rate \"fast\"\n}\n").unwrap();
+    assert!(matches!(store.reload(), Reload::Rejected(_)));
+    assert!(matches!(store.reset("keyboard.repeat-rate"), Err(SetError::Refused(_))));
+    assert!(matches!(store.remove("output[A]"), Err(SetError::Refused(_))));
+}

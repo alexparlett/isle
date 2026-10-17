@@ -309,7 +309,7 @@ fn section(input: &DeriveInput) -> syn::Result<Tokens> {
         let node = &f.name;
         match &f.kind {
             Kind::Leaf => quote! {
-                if !#krate::Field::to_kdl(&self.#ident).is_empty() {
+                if !#krate::Field::is_unset(&self.#ident) {
                     out.insert(#krate::join(prefix, #node), #krate::Field::to_value(&self.#ident));
                 }
             },
@@ -349,7 +349,11 @@ fn section(input: &DeriveInput) -> syn::Result<Tokens> {
                 });
                 args_arms.push(quote! {
                     [seg] if seg.name == #node && seg.key.is_none() => {
-                        Some(#krate::Field::to_kdl(&self.#ident)).filter(|t| !t.is_empty())
+                        Some(if #krate::Field::is_unset(&self.#ident) {
+                            #krate::Leaf::Unset
+                        } else {
+                            #krate::Leaf::Args(#krate::Field::to_kdl(&self.#ident))
+                        })
                     }
                 });
             }
@@ -446,7 +450,7 @@ fn section(input: &DeriveInput) -> syn::Result<Tokens> {
             }
 
             #[allow(unreachable_patterns)]
-            fn kdl_args(&self, path: &[#krate::Seg]) -> Option<String> {
+            fn kdl_args(&self, path: &[#krate::Seg]) -> Option<#krate::Leaf> {
                 match path {
                     #(#args_arms)*
                     _ => None,

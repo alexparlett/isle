@@ -79,6 +79,10 @@ pub trait Field: Sized + Clone + PartialEq {
     fn number(&self) -> Option<f64> {
         None
     }
+    /// An optional setting left to the compositor: no node in the file, no value.
+    fn is_unset(&self) -> bool {
+        false
+    }
 }
 
 /// The single argument of `node`, or an error.
@@ -293,6 +297,9 @@ impl<T: Field> Field for Option<T> {
     }
     fn number(&self) -> Option<f64> {
         self.as_ref().and_then(T::number)
+    }
+    fn is_unset(&self) -> bool {
+        self.is_none()
     }
 }
 

@@ -54,6 +54,22 @@ pub struct SettingsStatus {
     pub message: String,
 }
 
+/// What an app needs to draw in Isle's look: the user's `tokens.kdl` in force, laid over
+/// the shipped tokens it links, and the appearance settings with Auto already decided.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct ThemeInfo {
+    /// The user's file as last read and in force; empty for the shipped tokens alone.
+    pub tokens: String,
+    /// `dark` or `light`.
+    pub mode: String,
+    pub accent: String,
+    pub glass: f64,
+    pub text_scale: f64,
+    pub increase_contrast: bool,
+    pub reduce_motion: bool,
+    pub reduce_transparency: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct WindowInfo {
     pub id: u64,
@@ -310,6 +326,12 @@ pub mod settings {
         /// Validates, writes and applies; returns the keys that changed. Refused while a
         /// rejected hand edit stands.
         fn set(&self, key: &str, value: &zvariant::Value<'_>) -> zbus::Result<Vec<String>>;
+        /// Takes a key, a section or an entry back to its defaults.
+        fn reset(&self, key: &str) -> zbus::Result<Vec<String>>;
+        /// Deletes a keyed entry such as `focus-mode[Reading]`.
+        fn remove(&self, entry: &str) -> zbus::Result<Vec<String>>;
+        /// Every key's value in force, defaults included; an unset optional key is absent.
+        fn values(&self) -> zbus::Result<std::collections::HashMap<String, zvariant::OwnedValue>>;
         fn schema(&self) -> zbus::Result<Vec<SettingKey>>;
         fn status(&self) -> zbus::Result<SettingsStatus>;
         /// Reads settings.kdl and puts it in force, after a safe start.
@@ -407,6 +429,11 @@ pub mod shell {
         fn cache(&self) -> zbus::Result<(u64, u64)>;
         /// Whether the user's tokens.kdl is in force, or where it went wrong.
         fn tokens_status(&self) -> zbus::Result<SettingsStatus>;
+        /// The tokens and appearance in force, for an app's own drawing.
+        fn theme(&self) -> zbus::Result<ThemeInfo>;
+        /// The theme or the tokens' status changed.
+        #[zbus(signal)]
+        fn theme_changed(&self) -> zbus::Result<()>;
         /// Turns a surface that panicked too often back on, closed.
         fn restart(&self, name: &str) -> zbus::Result<bool>;
         /// The surface's accessibility tree as JSON: each node's id, role, label, value,

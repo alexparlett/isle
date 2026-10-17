@@ -29,6 +29,8 @@ pub enum Event {
     SettingsChanged(Vec<String>),
     /// A hand edit was rejected, or a rejected one was fixed.
     SettingsStatus,
+    /// The tokens, the appearance or the tokens' status changed.
+    ThemeChanged,
     /// Makes the D-Bus service panic, to test its restart.
     #[cfg(feature = "test-hooks")]
     PanicService,

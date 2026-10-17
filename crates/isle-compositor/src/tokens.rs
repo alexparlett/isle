@@ -24,17 +24,18 @@ pub fn tokens_path() -> PathBuf {
     config_dir().join("tokens.kdl")
 }
 
-/// The shipped tokens with the user's file over them, if it has one that reads.
-pub fn load(path: &Path) -> Result<Source, TokenError> {
+/// The shipped tokens with the user's file over them, if it has one that reads, and that
+/// file's text (empty without one).
+pub fn load(path: &Path) -> Result<(Source, String), TokenError> {
     match std::fs::read_to_string(path) {
         Ok(text) => {
             let (source, unknown) = Source::with_user(&text, path)?;
             if !unknown.is_empty() {
                 warn!(?unknown, "tokens.kdl names tokens this Isle does not have");
             }
-            Ok(source)
+            Ok((source, text))
         }
-        Err(_) => Ok(Source::shipped()),
+        Err(_) => Ok((Source::shipped(), String::new())),
     }
 }
 
@@ -136,16 +137,37 @@ impl Isle {
         let theme = theme(&self.tokens, &self.settings);
         // Each tree is woken, and the loop's next dispatch re-renders it.
         self.shell.set_theme(theme);
+        self.notify(crate::worker::Event::ThemeChanged);
+    }
+
+    /// The theme as apps read it from `Shell1.Theme`.
+    pub fn theme_info(&self) -> isle_ipc::ThemeInfo {
+        let a = appearance(&self.settings);
+        isle_ipc::ThemeInfo {
+            tokens: self.tokens_text.clone(),
+            mode: match a.mode {
+                Mode::Dark => "dark",
+                Mode::Light => "light",
+            }
+            .into(),
+            accent: a.accent,
+            glass: a.glass.into(),
+            text_scale: a.text_scale.into(),
+            increase_contrast: a.increase_contrast,
+            reduce_motion: a.reduce_motion,
+            reduce_transparency: a.reduce_transparency,
+        }
     }
 }
 
 impl State {
     /// A reload of the user's file: in force if it reads, else the last good tokens stay.
-    pub fn apply_tokens(&mut self, loaded: Result<Source, TokenError>) {
+    pub fn apply_tokens(&mut self, loaded: Result<(Source, String), TokenError>) {
         match loaded {
-            Ok(source) => {
+            Ok((source, text)) => {
                 info!("tokens reloaded");
                 self.isle.tokens = source;
+                self.isle.tokens_text = text;
                 self.isle.tokens_error = None;
                 self.isle.refresh_theme();
                 self.portal_appearance_changed();
@@ -154,6 +176,7 @@ impl State {
             Err(err) => {
                 warn!("tokens.kdl rejected, the last good tokens stay: {err}");
                 self.isle.tokens_error = Some(err);
+                self.isle.notify(crate::worker::Event::ThemeChanged);
                 self.sync_island();
             }
         }

@@ -35,6 +35,9 @@ const KEY_LEFTMETA: u32 = 125;
 /// Keys Isle sends itself, from the shell's surfaces.
 pub const ISLE_DEVICE: &str = "isle";
 
+/// Isle's own apps take Cmd natively and are never translated (`apps.md` Conventions 12).
+const OWN_APPS: &str = "io.github.alexparlett.Isle.*";
+
 pub struct Device {
     pub id: String,
     pub name: String,
@@ -696,6 +699,8 @@ impl State {
         !keyboard
             .untranslated_apps
             .iter()
+            .map(String::as_str)
+            .chain([OWN_APPS])
             .any(|p| isle_keys::tables::matches(p, &names))
     }
 

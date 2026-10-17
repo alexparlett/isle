@@ -60,6 +60,8 @@ pub struct Isle {
     pub shell: isle_shell::Shell,
     /// The design tokens in force, and why the user's file is not, when it is not.
     pub tokens: isle_tokens::Source,
+    /// The user's tokens.kdl in force, for apps; empty when the shipped tokens stand alone.
+    pub tokens_text: String,
     pub tokens_error: Option<isle_tokens::TokenError>,
     #[cfg(feature = "test-hooks")]
     pub probe: std::rc::Rc<isle_shell::probe::Probe>,
@@ -454,6 +456,7 @@ impl Isle {
             settings,
             shell,
             tokens: isle_tokens::Source::shipped(),
+            tokens_text: String::new(),
             tokens_error: None,
             #[cfg(feature = "test-hooks")]
             probe,

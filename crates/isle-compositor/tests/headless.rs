@@ -9,6 +9,8 @@ use std::{
 
 use isle_ipc::{displays::DisplaysProxy, settings::SettingsProxy, windows::WindowsProxy};
 
+use futures_util::StreamExt;
+
 mod common;
 
 use common::{Isle, wait_until};
@@ -136,6 +138,40 @@ async fn a_broken_hand_edit_keeps_the_last_good_settings_and_refuses_sets() {
         fs::read_to_string(&file).unwrap(),
         "// mine\nkeyboard {\n    repeat-rate 60 // fast\n}\n"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_empty_reset_and_remove_over_the_bus() {
+    let isle = Isle::start("settings-reset").await;
+    let file = isle.dir.join("config/settings.kdl");
+    let settings = SettingsProxy::new(&isle.bus).await.unwrap();
+    let mut changes = settings.receive_changed().await.unwrap();
+
+    let empty = zvariant::Value::from(Vec::<String>::new());
+    assert_eq!(
+        settings.set("shortcuts.hide", &empty).await.unwrap(),
+        vec!["shortcuts.hide".to_owned()]
+    );
+    let signal = changes.next().await.unwrap();
+    assert_eq!(signal.args().unwrap().keys, vec!["shortcuts.hide".to_owned()]);
+    let values = settings.values().await.unwrap();
+    assert_eq!(<Vec<String>>::try_from(values["shortcuts.hide"].clone()).unwrap(), Vec::<String>::new());
+    assert!(values.contains_key("keyboard.repeat-rate"));
+    assert!(!values.contains_key("render-device"), "an unset optional key has no value");
+
+    settings.reset("shortcuts.hide").await.unwrap();
+    let hide = <Vec<String>>::try_from(settings.get("shortcuts.hide").await.unwrap()).unwrap();
+    assert_eq!(hide, vec!["Cmd+H".to_owned()]);
+
+    settings
+        .set("focus-mode[Reading].allow-critical", &zvariant::Value::from(false))
+        .await
+        .unwrap();
+    assert!(fs::read_to_string(&file).unwrap().contains("focus-mode \"Reading\""));
+    settings.remove("focus-mode[Reading]").await.unwrap();
+    assert!(!fs::read_to_string(&file).unwrap().contains("Reading"));
+    assert!(settings.remove("keyboard").await.is_err());
+    assert!(settings.reset("keyboard.no-such-key").await.is_err());
 }
 
 #[tokio::test(flavor = "multi_thread")]

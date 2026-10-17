@@ -253,7 +253,7 @@ pub struct Appearance {
     pub reduce_transparency: bool,
 }
 
-/// Light or dark; `auto` follows the sun once Settings can tell where it is (P13), dark until.
+/// Light or dark; `auto` is dark from sunset to sunrise at the time zone's place (`isle-sun`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
 pub enum AppearanceMode {
     Dark,

@@ -153,11 +153,11 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     let to_loop = worker::ToLoop::new(jobs);
     let runtime = worker::spawn(to_loop.clone(), events.clone(), store.clone());
 
-    let (token_source, token_error) = match tokens::load(&tokens::tokens_path()) {
-        Ok(source) => (source, None),
+    let (token_source, token_text, token_error) = match tokens::load(&tokens::tokens_path()) {
+        Ok((source, text)) => (source, text, None),
         Err(err) => {
             warn!("tokens.kdl rejected, the shipped tokens stand: {err}");
-            (isle_tokens::Source::shipped(), Some(err))
+            (isle_tokens::Source::shipped(), String::new(), Some(err))
         }
     };
     let theme = tokens::theme(&token_source, &initial);
@@ -172,6 +172,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         theme,
     );
     isle.tokens = token_source;
+    isle.tokens_text = token_text;
     isle.tokens_error = token_error;
     isle.keyboards.set_tables(keyboard::load_tables(&keyboard::tables_path()));
     isle.keyboards.system = isle_keys::keymap::Layouts::system();

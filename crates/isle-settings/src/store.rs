@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{Ctx, Section, Value, line_column, parse_path, text};
+use crate::{Ctx, Leaf, Section, Seg, Value, line_column, parse_path, text};
 
 /// Why the file's contents are not in force.
 #[derive(Clone, Debug, PartialEq)]
@@ -156,10 +156,16 @@ impl<S: Section> Store<S> {
     }
 
     pub fn get(&self, key: &str) -> Result<Value, String> {
+        self.values()
+            .remove(key)
+            .ok_or_else(|| format!("`{key}` is not set and has no default"))
+    }
+
+    /// Every key's value in force, defaults included; an optional key left unset has none.
+    pub fn values(&self) -> BTreeMap<String, Value> {
         let mut all = BTreeMap::new();
         self.current.flatten("", &mut all);
-        all.remove(key)
-            .ok_or_else(|| format!("`{key}` is not set and has no default"))
+        all
     }
 
     /// Validates and applies `value`, then writes it into the file. Returns the changed keys.
@@ -172,14 +178,14 @@ impl<S: Section> Store<S> {
         new.set(&path, value)
             .map_err(|e| SetError::Invalid(format!("{key}: {e}")))?;
         new.check().map_err(|e| SetError::Invalid(e.message))?;
-        let args = new
+        let leaf = new
             .kdl_args(&path)
             .ok_or_else(|| SetError::Invalid(format!("`{key}` is not a setting")))?;
-        let doc: kdl::KdlDocument = self
-            .text
-            .parse()
-            .map_err(|e| SetError::Io(format!("the file no longer parses: {e}")))?;
-        let text = text::set_leaf(&self.text, &doc, &path, &args);
+        let doc = self.doc()?;
+        let text = match leaf {
+            Leaf::Args(args) => text::set_leaf(&self.text, &doc, &path, &args),
+            Leaf::Unset => text::remove_node(&self.text, &doc, &path).unwrap_or_else(|| self.text.clone()),
+        };
         match self.parse(&text) {
             Ok(written) if written == new => {}
             _ => {
@@ -188,6 +194,66 @@ impl<S: Section> Store<S> {
                 )));
             }
         }
+        self.write(text, new)
+    }
+
+    /// Takes the node at `key` out of the file: a leaf goes back to its default, or unset
+    /// when it has none; a section or a keyed entry goes back to all its defaults.
+    pub fn reset(&mut self, key: &str) -> Result<Vec<String>, SetError> {
+        if let Some(err) = &self.error {
+            return Err(SetError::Refused(err.clone()));
+        }
+        let path = parse_path(key).map_err(SetError::Invalid)?;
+        if !self.known(&path) {
+            return Err(SetError::Invalid(format!("`{key}` is not a setting")));
+        }
+        let doc = self.doc()?;
+        let Some(text) = text::remove_node(&self.text, &doc, &path) else {
+            return Ok(Vec::new());
+        };
+        let new = self
+            .parse(&text)
+            .map_err(|e| SetError::Invalid(format!("{key}: {}", e.message)))?;
+        self.write(text, new)
+    }
+
+    /// Deletes a keyed entry: a Focus mode, an app's notification rule, a display.
+    pub fn remove(&mut self, entry: &str) -> Result<Vec<String>, SetError> {
+        let path = parse_path(entry).map_err(SetError::Invalid)?;
+        match path.last() {
+            Some(seg) if seg.key.is_some() && seg.name != "app" => self.reset(entry),
+            _ => Err(SetError::Invalid(format!("`{entry}` is not an entry"))),
+        }
+    }
+
+    /// Whether `path` names a key, a section or an entry the schema has.
+    fn known(&self, path: &[Seg]) -> bool {
+        let pattern = path
+            .iter()
+            .map(|seg| match &seg.key {
+                Some(key) if seg.name == "app" => format!("app[{key}]"),
+                Some(_) => format!("{}[*]", seg.name),
+                None => seg.name.clone(),
+            })
+            .collect::<Vec<_>>()
+            .join(".");
+        let mut keys = Vec::new();
+        S::keys("", &mut keys);
+        keys.iter().any(|k| {
+            k.key == pattern
+                || k.key
+                    .strip_prefix(&pattern)
+                    .is_some_and(|rest| rest.starts_with('.'))
+        })
+    }
+
+    fn doc(&self) -> Result<kdl::KdlDocument, SetError> {
+        self.text
+            .parse()
+            .map_err(|e| SetError::Io(format!("the file no longer parses: {e}")))
+    }
+
+    fn write(&mut self, text: String, new: S) -> Result<Vec<String>, SetError> {
         write_atomic(&self.path, &text).map_err(|e| SetError::Io(e.to_string()))?;
         let changed = changed_keys(&self.current, &new);
         self.text = text;

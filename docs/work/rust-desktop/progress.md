@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-17
+
+- P13 13.0: the store and the theme over D-Bus. `Settings1` gains `Reset`
+  (a key, a section or an entry back to its defaults, an optional key
+  unset), `Remove` (a keyed entry deleted: a Focus mode, an app's
+  notification rule) and `Values` (every key in force, defaults included).
+  An empty list is written as a bare node and read back empty, so a
+  shortcut can be turned off and `isle windows game` works on the empty
+  default; a reset that would clash with another shortcut is refused. The
+  file keeps every byte not changed: a removed node takes its line and its
+  comment, or only itself and its `;` from a shared line. `isle settings
+  values|reset|remove`, and `set` with no value empties a list.
+  `Shell1.Theme` gives an app the user's `tokens.kdl` in force and the
+  appearance with Auto decided; `ThemeChanged` fires on a token reload, a
+  rejected file, an appearance change and Auto's turn at sunrise and
+  sunset. Isle's own apps (`io.github.alexparlett.Isle.*`) are never
+  translated whatever `keyboard.untranslated-apps` holds, rather than
+  entered in its default as the plan had it, so editing the list cannot
+  take Cmd from them.
+
 ## 2026-10-10
 
 - P12 closed but for the host run and the fork's third pull request.

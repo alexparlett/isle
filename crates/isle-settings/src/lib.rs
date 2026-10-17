@@ -68,12 +68,21 @@ pub trait Section: Sized + Clone + PartialEq + Default {
     fn flatten(&self, prefix: &str, out: &mut BTreeMap<String, Value>);
     /// Validates `value` for the key at `path` and sets it.
     fn set(&mut self, path: &[Seg], value: Value) -> Result<(), String>;
-    /// The KDL text of the arguments of the leaf at `path`.
-    fn kdl_args(&self, path: &[Seg]) -> Option<String>;
+    /// What the leaf at `path` writes into the file.
+    fn kdl_args(&self, path: &[Seg]) -> Option<Leaf>;
     /// Rules across keys, run after parsing and before a write.
     fn check(&self) -> Result<(), CheckError> {
         Ok(())
     }
+}
+
+/// A leaf as the file holds it.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Leaf {
+    /// The node's arguments as KDL text; empty for an empty list, a bare node.
+    Args(String),
+    /// An optional setting left unset: no node at all.
+    Unset,
 }
 
 /// A cross-field rule broken, at the key that breaks it.

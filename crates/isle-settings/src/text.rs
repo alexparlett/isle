@@ -39,16 +39,17 @@ fn edit(
     if path.len() == 1 {
         let entries = node.entries();
         let skip = usize::from(seg.key.is_some());
-        return match (entries.get(skip), entries.last()) {
-            (Some(first), Some(last)) => {
-                let start = first.span().offset();
-                let end = last.span().offset() + last.span().len();
-                (start, end - start, args.to_owned())
+        let head = match skip {
+            0 => node.name().span(),
+            _ => entries[0].span(),
+        };
+        let head_end = trimmed_end(source, head.offset() + head.len());
+        return match entries.get(skip..).and_then(|e| e.last()) {
+            Some(last) => {
+                let end = trimmed_end(source, last.span().offset() + last.span().len());
+                (head_end, end - head_end, spaced(args))
             }
-            _ => {
-                let name = node.name().span();
-                (name.offset() + name.len(), 0, format!(" {args}"))
-            }
+            None => (head_end, 0, spaced(args)),
         };
     }
 
@@ -64,6 +65,59 @@ fn edit(
             );
             (end, 0, text)
         }
+    }
+}
+
+/// Returns `source` without the node at `path`, its line too when the node had it to
+/// itself; `None` when the file does not hold that node.
+pub fn remove_node(source: &str, doc: &KdlDocument, path: &[Seg]) -> Option<String> {
+    let mut nodes = doc.nodes();
+    let mut found = None;
+    for seg in path {
+        let node = nodes.iter().find(|n| matches(n, seg))?;
+        nodes = node.children().map_or(&[], |c| c.nodes());
+        found = Some(node);
+    }
+    let node = found?;
+    let start = node.span().offset();
+    let end = trimmed_end(source, start + node.span().len());
+    let line_start = source[..start].rfind('\n').map_or(0, |n| n + 1);
+    let alone_before = source[line_start..start].trim().is_empty();
+
+    let rest = &source[end..];
+    let mut after = end + (rest.len() - rest.trim_start_matches([' ', '\t']).len());
+    let ended_by_semicolon = source[after..].starts_with(';');
+    if ended_by_semicolon {
+        after += 1;
+        let rest = &source[after..];
+        after += rest.len() - rest.trim_start_matches([' ', '\t']).len();
+    }
+    let line_end = source[after..].find('\n').map_or(source.len(), |n| after + n);
+    let tail = source[after..line_end].trim();
+
+    let (from, to) = if alone_before && (tail.is_empty() || tail.starts_with("//")) {
+        (line_start, (line_end + 1).min(source.len()))
+    } else if ended_by_semicolon {
+        (start, after)
+    } else {
+        let before = source[..start].trim_end_matches([' ', '\t']);
+        match before.strip_suffix(';') {
+            Some(kept) => (kept.trim_end_matches([' ', '\t']).len(), end),
+            None => (start, end),
+        }
+    };
+    let mut out = String::with_capacity(source.len());
+    out.push_str(&source[..from]);
+    out.push_str(&source[to..]);
+    Some(out)
+}
+
+/// Arguments after a node's name: a space first, or nothing for a bare node.
+fn spaced(args: &str) -> String {
+    if args.is_empty() {
+        String::new()
+    } else {
+        format!(" {args}")
     }
 }
 
@@ -88,7 +142,7 @@ fn nested(path: &[Seg], args: &str, indent: &str) -> String {
         None => seg.name.clone(),
     };
     if path.len() == 1 {
-        return format!("{head} {args}");
+        return format!("{head}{}", spaced(args));
     }
     let inner = format!("{indent}{INDENT}");
     format!(
@@ -167,6 +221,64 @@ mod tests {
                 "40"
             ),
             "// mine\nkeyboard {\n    repeat-rate 40 // fast\n}\n"
+        );
+    }
+
+    fn remove(source: &str, path: &str) -> Option<String> {
+        let doc: KdlDocument = source.parse().unwrap();
+        let out = remove_node(source, &doc, &parse_path(path).unwrap())?;
+        out.parse::<KdlDocument>()
+            .unwrap_or_else(|e| panic!("{out:?} does not parse: {e}"));
+        Some(out)
+    }
+
+    #[test]
+    fn an_empty_list_is_a_bare_node() {
+        assert_eq!(
+            set("windows {\n    keep-running \"kitty\" \"steam\" // mine\n}\n", "windows.keep-running", ""),
+            "windows {\n    keep-running // mine\n}\n"
+        );
+        assert_eq!(
+            set("windows {\n}\n", "windows.keep-running", ""),
+            "windows {\n    keep-running\n}\n"
+        );
+        assert_eq!(
+            set("windows { keep-running; }", "windows.keep-running", "\"kitty\""),
+            "windows { keep-running \"kitty\"; }"
+        );
+        assert_eq!(
+            set("output \"A\" { mode \"3440x1440\" }", "output[A].mode", "\"1920x1080\""),
+            "output \"A\" { mode \"1920x1080\" }"
+        );
+    }
+
+    #[test]
+    fn removing_a_node_takes_its_line_and_comment() {
+        assert_eq!(
+            remove("keyboard {\n    layouts \"us\" // mine\n    repeat-rate 25\n}\n", "keyboard.layouts"),
+            Some("keyboard {\n    repeat-rate 25\n}\n".into())
+        );
+        assert_eq!(
+            remove("// top\noutput \"A\" {\n    scale 1.5\n}\nkeyboard {}\n", "output[A]"),
+            Some("// top\nkeyboard {}\n".into())
+        );
+        assert_eq!(remove("keyboard {}\n", "keyboard.layouts"), None);
+        assert_eq!(remove("output \"A\" {}\n", "output[B]"), None);
+    }
+
+    #[test]
+    fn removing_a_node_from_a_line_keeps_its_neighbours() {
+        assert_eq!(
+            remove("output \"A\" { scale 1.0; vrr \"always\" }\n", "output[A].scale"),
+            Some("output \"A\" { vrr \"always\" }\n".into())
+        );
+        assert_eq!(
+            remove("output \"A\" { scale 1.0; vrr \"always\" }\n", "output[A].vrr"),
+            Some("output \"A\" { scale 1.0 }\n".into())
+        );
+        assert_eq!(
+            remove("keyboard {\n    repeat-rate 25; numlock #true\n}\n", "keyboard.numlock"),
+            Some("keyboard {\n    repeat-rate 25\n}\n".into())
         );
     }
 

@@ -356,12 +356,19 @@ enum Wallpaper {
 enum Settings {
     /// A setting's value in force.
     Get { key: String },
-    /// Set a setting; the value is written as in settings.kdl: 1.25, true, "us".
+    /// Set a setting; the value is written as in settings.kdl: 1.25, true, "us". No value
+    /// empties a list.
     Set {
         key: String,
-        #[arg(num_args = 1.., required = true)]
+        #[arg(num_args = 0..)]
         value: Vec<String>,
     },
+    /// Every key's value in force, defaults included.
+    Values,
+    /// Take a key, a section or an entry back to its defaults.
+    Reset { key: String },
+    /// Delete an entry such as focus-mode[Reading].
+    Remove { entry: String },
     /// Whether settings.kdl is in force, or why not.
     Status,
     /// Every key, its type, default and range.
@@ -1096,24 +1103,41 @@ async fn settings(cli: &Cli, bus: &zbus::Connection, command: &Settings) -> zbus
     match command {
         Settings::Get { key } => {
             let value = proxy.get(key).await?;
-            let text = match &*value {
-                zvariant::Value::Bool(b) => serde_json::json!(b),
-                zvariant::Value::I64(i) => serde_json::json!(i),
-                zvariant::Value::F64(f) => serde_json::json!(f),
-                zvariant::Value::Str(s) => serde_json::json!(s.as_str()),
-                zvariant::Value::Array(a) => serde_json::json!(
-                    a.iter()
-                        .filter_map(|v| v
-                            .downcast_ref::<zvariant::Str>()
-                            .ok()
-                            .map(|s| s.to_string()))
-                        .collect::<Vec<_>>()
-                ),
-                other => serde_json::json!(other.to_string()),
-            };
+            let text = value_json(&value);
             match (&text, cli.json) {
                 (serde_json::Value::String(s), false) => println!("{s}"),
                 _ => println!("{text}"),
+            }
+        }
+        Settings::Values => {
+            let mut values: Vec<_> = proxy.values().await?.into_iter().collect();
+            values.sort_by(|a, b| a.0.cmp(&b.0));
+            if cli.json {
+                let map: serde_json::Map<_, _> =
+                    values.iter().map(|(k, v)| (k.clone(), value_json(v))).collect();
+                print_json(&map);
+            } else {
+                for (key, value) in values {
+                    println!("{key} = {}", value_json(&value));
+                }
+            }
+        }
+        Settings::Reset { key } => {
+            let changed = proxy.reset(key).await?;
+            if cli.json {
+                print_json(&changed);
+            }
+        }
+        Settings::Remove { entry } => {
+            let changed = proxy.remove(entry).await?;
+            if cli.json {
+                print_json(&changed);
+            }
+        }
+        Settings::Set { key, value } if value.is_empty() => {
+            let changed = proxy.set(key, &zvariant::Value::from(Vec::<String>::new())).await?;
+            if cli.json {
+                print_json(&changed);
             }
         }
         Settings::Set { key, value } => {
@@ -1177,6 +1201,22 @@ async fn settings(cli: &Cli, bus: &zbus::Connection, command: &Settings) -> zbus
         }
     }
     Ok(())
+}
+
+fn value_json(value: &zvariant::Value<'_>) -> serde_json::Value {
+    match value {
+        zvariant::Value::Bool(b) => serde_json::json!(b),
+        zvariant::Value::I64(i) => serde_json::json!(i),
+        zvariant::Value::F64(f) => serde_json::json!(f),
+        zvariant::Value::Str(s) => serde_json::json!(s.as_str()),
+        zvariant::Value::Array(a) => serde_json::json!(
+            a.iter()
+                .filter_map(|v| v.downcast_ref::<zvariant::Str>().ok().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        ),
+        zvariant::Value::Value(inner) => value_json(inner),
+        other => serde_json::json!(other.to_string()),
+    }
 }
 
 fn app_found(found: bool, app: &str) -> zbus::Result<()> {

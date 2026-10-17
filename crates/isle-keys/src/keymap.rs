@@ -92,6 +92,64 @@ impl Layouts {
     }
 }
 
+/// A layout XKB offers, with its variants, as the rules' list names them.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Layout {
+    pub name: String,
+    pub description: String,
+    /// Each variant's name and description.
+    pub variants: Vec<(String, String)>,
+}
+
+/// Every layout XKB offers, by description, for choosing one.
+pub fn catalogue() -> Vec<Layout> {
+    let root = std::env::var_os("XKB_CONFIG_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/usr/share/X11/xkb"));
+    std::fs::read_to_string(root.join("rules/evdev.lst"))
+        .map(|text| parse_catalogue(&text))
+        .unwrap_or_default()
+}
+
+/// `! layout` lines read `  gb   English (UK)`; `! variant` lines `  mac   gb: English (UK,
+/// Macintosh)`.
+pub fn parse_catalogue(text: &str) -> Vec<Layout> {
+    let mut section = "";
+    let mut layouts: Vec<Layout> = Vec::new();
+    for line in text.lines() {
+        if let Some(name) = line.strip_prefix("! ") {
+            section = match name.trim() {
+                "layout" => "layout",
+                "variant" => "variant",
+                _ => "",
+            };
+            continue;
+        }
+        let line = line.trim();
+        let Some((name, rest)) = line.split_once(char::is_whitespace) else {
+            continue;
+        };
+        let rest = rest.trim();
+        match section {
+            "layout" => layouts.push(Layout {
+                name: name.to_owned(),
+                description: rest.to_owned(),
+                variants: Vec::new(),
+            }),
+            "variant" => {
+                if let Some((layout, description)) = rest.split_once(": ")
+                    && let Some(found) = layouts.iter_mut().find(|l| l.name == layout)
+                {
+                    found.variants.push((name.to_owned(), description.to_owned()));
+                }
+            }
+            _ => {}
+        }
+    }
+    layouts.sort_by(|a, b| a.description.cmp(&b.description));
+    layouts
+}
+
 /// The layouts XKB has a `mac` variant of, from the rules' list.
 #[derive(Clone, Debug, Default)]
 pub struct MacVariants(HashSet<String>);
@@ -217,6 +275,14 @@ impl KeymapSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_catalogue_reads_layouts_and_their_variants() {
+        let text = "! model\n  pc105  Generic 105-key PC\n\n! layout\n  us   English (US)\n  gb   English (UK)\n\n! variant\n  mac   gb: English (UK, Macintosh)\n  intl  us: English (US, intl., with dead keys)\n\n! option\n  caps:escape  Make Caps Lock an additional Esc\n";
+        let layouts = parse_catalogue(text);
+        assert_eq!(layouts.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), ["gb", "us"]);
+        assert_eq!(layouts[0].variants, [("mac".to_owned(), "English (UK, Macintosh)".to_owned())]);
+    }
 
     const LIST: &str = "! model\n  pc105  Generic 105-key PC\n\n! layout\n  gb  English (UK)\n\n\
                         ! variant\n  mac             gb: English (UK, Macintosh)\n  \

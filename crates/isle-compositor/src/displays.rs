@@ -283,6 +283,29 @@ impl State {
         true
     }
 
+    /// Shows each screen's name on it for a few seconds.
+    pub fn identify_displays(&mut self) {
+        let labels = self
+            .display_infos()
+            .into_iter()
+            .filter(|d| d.enabled)
+            .map(|d| {
+                let label = if d.model.is_empty() { d.name.clone() } else { d.model.clone() };
+                (d.name, label)
+            })
+            .collect();
+        self.isle.identify.set(labels);
+        self.isle.shell.close("identify");
+        self.isle.shell.open("identify");
+        let _ = self.isle.loop_handle.insert_source(
+            Timer::from_duration(std::time::Duration::from_secs(3)),
+            |_, _, state| {
+                state.isle.shell.close("identify");
+                TimeoutAction::Drop
+            },
+        );
+    }
+
     /// Lights a display again from its effective configuration.
     fn relight_display(&mut self, identity: &str) {
         if matches!(self.backend, crate::backend::Backend::Headless(_)) {

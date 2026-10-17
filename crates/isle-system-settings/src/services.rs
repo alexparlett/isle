@@ -124,6 +124,7 @@ pub enum Act {
         level: f64,
     },
     Redetect,
+    Identify,
     ToggleNightLight,
     EditControls,
     Revoke(Permission),
@@ -697,6 +698,12 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
                 .await
                 .map_err(|e| err(&e))?;
             proxy.redetect().await.map_err(|e| err(&e))
+        }
+        Act::Identify => {
+            let proxy = isle_ipc::displays::DisplaysProxy::new(&session()?)
+                .await
+                .map_err(|e| err(&e))?;
+            proxy.identify().await.map_err(|e| err(&e))
         }
         Act::ToggleNightLight => {
             let proxy = isle_ipc::displays::DisplaysProxy::new(&session()?)

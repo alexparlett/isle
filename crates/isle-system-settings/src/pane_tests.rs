@@ -3,7 +3,10 @@
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use freya::prelude::*;
-use freya_testing::{TestingRunner, prelude::{MouseEventName, PlatformEvent}};
+use freya_testing::{
+    TestingRunner,
+    prelude::{MouseEventName, PlatformEvent},
+};
 use isle_app::{Desktop, Request, Write};
 use isle_bus::Snapshot;
 use isle_settings::Value;
@@ -448,17 +451,44 @@ fn a_changed_row_resets_to_its_default_from_its_context_menu() {
         .unwrap();
     let cursor = (f64::from(row.x), f64::from(row.y));
     for name in [MouseEventName::MouseDown, MouseEventName::MouseUp] {
-        test.send_event(PlatformEvent::Mouse { name, cursor: cursor.into(), button: Some(MouseButton::Right) });
+        test.send_event(PlatformEvent::Mouse {
+            name,
+            cursor: cursor.into(),
+            button: Some(MouseButton::Right),
+        });
     }
     settle(&mut test);
     click(&mut test, "Reset to Default");
-    assert!(handles.writes().contains(&Write::Reset("appearance.reduce-motion".into())), "{:?}", handles.writes());
+    assert!(
+        handles
+            .writes()
+            .contains(&Write::Reset("appearance.reduce-motion".into())),
+        "{:?}",
+        handles.writes()
+    );
 
     // An unchanged row offers nothing.
     let (mut test, _) = open("isle-settings://accessibility", |_, _| {});
     for name in [MouseEventName::MouseDown, MouseEventName::MouseUp] {
-        test.send_event(PlatformEvent::Mouse { name, cursor: cursor.into(), button: Some(MouseButton::Right) });
+        test.send_event(PlatformEvent::Mouse {
+            name,
+            cursor: cursor.into(),
+            button: Some(MouseButton::Right),
+        });
     }
     settle(&mut test);
     assert!(!shows(&test, "Reset to Default"));
+}
+
+#[test]
+fn identify_asks_the_compositor() {
+    let (mut test, handles) = open("isle-settings://displays", |_, services| {
+        let mut displays = services.displays;
+        displays.set(Snapshot {
+            available: true,
+            state: vec![display()],
+        });
+    });
+    click(&mut test, "Identify");
+    assert!(handles.acts().contains(&Act::Identify));
 }

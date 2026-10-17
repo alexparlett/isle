@@ -147,6 +147,24 @@ pub const SHORTCUTS: &[(&str, &[(&str, &str)])] = &[
     ),
 ];
 
+/// The modifiers that with 1 to 9 jump to a desktop.
+const JUMPS: &[(&str, &str)] = &[
+    ("Ctrl", "⌃ Control"),
+    ("Option", "⌥ Option"),
+    ("Cmd", "⌘ Command"),
+    ("Ctrl+Option", "⌃⌥ Control-Option"),
+    ("Ctrl+Cmd", "⌃⌘ Control-Command"),
+];
+
+/// The modifiers that with a press anywhere on a window move it.
+const DRAGS: &[(&str, &str)] = &[
+    ("Ctrl+Cmd", "⌃⌘ Control-Command"),
+    ("Option+Cmd", "⌥⌘ Option-Command"),
+    ("Ctrl+Option", "⌃⌥ Control-Option"),
+    ("Cmd", "⌘ Command"),
+    ("Option", "⌥ Option"),
+];
+
 /// A source's name: "British – Mac" for `gb` and `mac`.
 pub fn source_name(catalogue: &[isle_keys::keymap::Layout], layout: &str, variant: &str) -> String {
     let Some(found) = catalogue.iter().find(|l| l.name == layout) else {
@@ -515,6 +533,13 @@ impl Component for InputSources {
             .unwrap_or_default();
         let mut body = vec![
             ui::ListEditor {
+                on_open: None,
+                on_move: Some(EventHandler::new({
+                    let list = list.clone();
+                    move |(from, to): (usize, usize)| {
+                        write_sources(desktop, &ui::moved(&list, from, to))
+                    }
+                })),
                 title: None,
                 items: names,
                 empty: "The system's layout".into(),
@@ -640,6 +665,49 @@ impl Component for Shortcuts {
                     .into_element()
             }),
         );
+        // The category's settings that are not chords.
+        let terminal = use_state(String::new);
+        let extra: Vec<Element> = match name {
+            "Desktops" => vec![
+                r.choice(
+                    "desktop-jump",
+                    "Switch to a desktop with",
+                    "shortcuts.desktop-jump",
+                    JUMPS,
+                )
+                .into_element(),
+                r.choice(
+                    "window-drag",
+                    "Move and resize windows with",
+                    "shortcuts.window-drag",
+                    DRAGS,
+                )
+                .into_element(),
+            ],
+            "Spotlight and apps" => {
+                let current = r.str("shortcuts.terminal-command").unwrap_or_default();
+                vec![
+                    r.row(
+                        "terminal-command",
+                        "Terminal",
+                        Some("shortcuts.terminal-command"),
+                    )
+                    .control(
+                        isle_ui::TextField::new(terminal, "Terminal")
+                            .placeholder(current)
+                            .width(Size::px(200.))
+                            .on_submit(move |text: String| {
+                                let text = text.trim().to_owned();
+                                if !text.is_empty() {
+                                    desktop.set("shortcuts.terminal-command", Value::Str(text));
+                                }
+                            }),
+                    )
+                    .into_element(),
+                ]
+            }
+            _ => Vec::new(),
+        };
         let rows: Vec<Element> = actions
             .iter()
             .map(|(id, label)| {
@@ -731,6 +799,7 @@ impl Component for Shortcuts {
                                         name,
                                     ))
                                     .children(rows)
+                                    .children(extra)
                                     .map(clash.read().clone(), |el, holder| {
                                         el.child(text::line(
                                             &theme,

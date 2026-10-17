@@ -189,6 +189,7 @@ impl Component for ModePage {
         let desktop = r.desktop;
         let name = self.name.clone();
         let mut adding = use_state(|| None::<&'static str>);
+        let mut editing = use_state(|| None::<usize>);
         let app_label = |id: &String| match services.app(id) {
             Some(app) => (app.name, Some(app.icon)),
             None => (id.clone(), Some(None)),
@@ -229,6 +230,8 @@ impl Component for ModePage {
                     ],
                 ))
                 .child(ListEditor {
+                    on_open: None,
+                    on_move: None,
                     title: Some("Off for these games".into()),
                     items,
                     empty: "No games".into(),
@@ -251,10 +254,20 @@ impl Component for ModePage {
             let (skey, wkey) = (field(&name, "schedules"), field(&name, "while-apps"));
             let count = schedules.len();
             ListEditor {
+                on_open: Some(EventHandler::new(move |i: usize| {
+                    if i < count {
+                        editing.set(Some(i));
+                        adding.set(Some("automatic"));
+                    }
+                })),
+                on_move: None,
                 title: Some("Turn on automatically".into()),
                 items,
                 empty: "Never".into(),
-                on_add: EventHandler::new(move |_| adding.set(Some("automatic"))),
+                on_add: EventHandler::new(move |_| {
+                    editing.set(None);
+                    adding.set(Some("automatic"));
+                }),
                 on_remove: EventHandler::new(move |i: usize| {
                     if i < count {
                         let mut next = schedules.clone();
@@ -291,6 +304,8 @@ impl Component for ModePage {
                 &format!("What gets through while {name} is on."),
             ))
             .child(ListEditor {
+                on_open: None,
+                on_move: None,
                 title: Some("Allowed notifications".into()),
                 items: allowed.iter().map(app_label).collect(),
                 empty: "No apps".into(),
@@ -330,6 +345,11 @@ impl Component for ModePage {
                 }),
                 "automatic" => el.child(AddAutomatic {
                     name: name.clone(),
+                    editing: editing.read().and_then(|i| {
+                        r.list(&field(&name, "schedules"))
+                            .get(i)
+                            .map(|s| (i, s.clone()))
+                    }),
                     on_done: EventHandler::new(move |_| adding.set(None)),
                 }),
                 _ => el.child(ui::sheet(
@@ -372,16 +392,53 @@ fn r_list(desktop: isle_app::Desktop, key: &str) -> Vec<String> {
 #[derive(PartialEq)]
 struct AddAutomatic {
     name: String,
+    /// The schedule double-clicked, by its place in the list, to change.
+    editing: Option<(usize, String)>,
     on_done: EventHandler<()>,
+}
+
+/// A schedule's times and days: `09:00-17:00 weekdays`.
+pub fn split_schedule(text: &str) -> (String, String, String) {
+    let mut words = text.split_whitespace();
+    let span = words.next().unwrap_or_default();
+    let (from, to) = span.split_once('-').unwrap_or((span, ""));
+    (
+        from.to_owned(),
+        to.to_owned(),
+        words.next().unwrap_or("every-day").to_owned(),
+    )
 }
 
 impl Component for AddAutomatic {
     fn render(&self) -> impl IntoElement {
         let desktop = isle_app::Desktop::get();
         let mut kind = use_state(|| 0usize);
-        let from = use_state(|| "09:00".to_owned());
-        let to = use_state(|| "17:00".to_owned());
-        let mut days = use_state(|| 1usize);
+        let (first_from, first_to, first_days) = match &self.editing {
+            Some((_, text)) => split_schedule(text),
+            None => ("09:00".into(), "17:00".into(), "weekdays".into()),
+        };
+        let mut choices: Vec<(String, String)> = [
+            ("every-day", "Every day"),
+            ("weekdays", "Weekdays"),
+            ("weekends", "Weekends"),
+        ]
+        .iter()
+        .map(|(v, l)| ((*v).to_owned(), (*l).to_owned()))
+        .collect();
+        if !choices.iter().any(|(v, _)| *v == first_days) {
+            choices.push((
+                first_days.clone(),
+                describe_schedule(&format!("00:00-00:01 {first_days}")).replace(" 00:00–00:01", ""),
+            ));
+        }
+        let start = choices
+            .iter()
+            .position(|(v, _)| *v == first_days)
+            .unwrap_or(1);
+        let from = use_state(move || first_from);
+        let to = use_state(move || first_to);
+        let mut days = use_state(move || start);
+        let editing = self.editing.as_ref().map(|(i, _)| *i);
         let name = self.name.clone();
         let done = self.on_done.clone();
         if *kind.read() == 1 {
@@ -401,12 +458,8 @@ impl Component for AddAutomatic {
             }
             .into_element();
         }
-        const DAYS: [(&str, &str); 3] = [
-            ("every-day", "Every day"),
-            ("weekdays", "Weekdays"),
-            ("weekends", "Weekends"),
-        ];
         let key = field(&name, "schedules");
+        let values: Vec<String> = choices.iter().map(|(v, _)| v.clone()).collect();
         ui::sheet(
             400.,
             vec![
@@ -428,7 +481,7 @@ impl Component for AddAutomatic {
                             .into_element(),
                         form::Row::new("Days")
                             .control(form::PopUp::new(
-                                DAYS.iter().map(|(_, l)| (*l).to_owned()).collect(),
+                                choices.iter().map(|(_, l)| l.clone()).collect(),
                                 *days.read(),
                                 "Days",
                                 move |i: usize| days.set(i),
@@ -441,17 +494,20 @@ impl Component for AddAutomatic {
             vec![
                 ("Cancel".into(), self.on_done.clone()),
                 (
-                    "Add".into(),
+                    if editing.is_some() { "Done" } else { "Add" }.into(),
                     EventHandler::new(move |_| {
                         let schedule = format!(
                             "{}-{} {}",
                             from.peek().trim(),
                             to.peek().trim(),
-                            DAYS[*days.peek()].0
+                            values[*days.peek()]
                         );
                         if isle_focus::Schedule::parse(&schedule).is_ok() {
                             let mut next = r_list(desktop, &key);
-                            next.push(schedule);
+                            match editing.filter(|i| *i < next.len()) {
+                                Some(i) => next[i] = schedule,
+                                None => next.push(schedule),
+                            }
                             desktop.set(key.clone(), Value::List(next));
                             done.call(());
                         }
@@ -555,6 +611,18 @@ mod tests {
         for symbol in SYMBOLS {
             assert!(isle_ui::glyph_svg(symbol, true).is_some(), "{symbol}");
         }
+    }
+
+    #[test]
+    fn a_schedule_splits_into_its_fields() {
+        assert_eq!(
+            split_schedule("22:00-07:00"),
+            ("22:00".into(), "07:00".into(), "every-day".into())
+        );
+        assert_eq!(
+            split_schedule("09:00-17:00 mon,wed"),
+            ("09:00".into(), "17:00".into(), "mon,wed".into())
+        );
     }
 
     #[test]

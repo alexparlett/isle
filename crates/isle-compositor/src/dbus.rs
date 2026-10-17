@@ -818,6 +818,10 @@ impl Displays {
         Ok(self.to_loop.call(|state| state.redetect()).await?)
     }
 
+    async fn identify(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.identify_displays()).await?)
+    }
+
     /// Turns every screen off now; any input lights them.
     async fn sleep(&self) -> fdo::Result<()> {
         Ok(self.to_loop.call(|state| state.displays_sleep()).await?)

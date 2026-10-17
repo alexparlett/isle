@@ -539,6 +539,26 @@ pub struct ListEditor {
     pub empty: String,
     pub on_add: EventHandler<()>,
     pub on_remove: EventHandler<usize>,
+    /// Rows can be dragged into another order: from and to.
+    pub on_move: Option<EventHandler<(usize, usize)>>,
+    /// A row double-clicked, to edit it.
+    pub on_open: Option<EventHandler<usize>>,
+}
+
+/// `list` with the item at `from` moved to `to`.
+pub fn moved<T: Clone>(list: &[T], from: usize, to: usize) -> Vec<T> {
+    let mut next = list.to_vec();
+    if from < next.len() {
+        let item = next.remove(from);
+        next.insert(to.min(next.len()), item);
+    }
+    next
+}
+
+/// Where a row dragged from `from` by `dy` points lands, rows `pitch` apart.
+pub fn drop_index(from: usize, dy: f64, pitch: f64, count: usize) -> usize {
+    let to = from as f64 + dy / pitch.max(1.);
+    (to.round().max(0.) as usize).min(count.saturating_sub(1))
 }
 
 impl Component for ListEditor {
@@ -546,8 +566,16 @@ impl Component for ListEditor {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut selected = use_state(|| None::<usize>);
+        let mut drag = use_state(|| None::<(usize, f64, f64)>);
+        let mut last_press = use_state(|| None::<(usize, std::time::Instant)>);
+        let on_open = self.on_open.clone();
+        let mut pitch = use_state(|| 0f64);
         let count = self.items.len();
         let chosen = selected.read().filter(|i| *i < count);
+        let movable = self.on_move.is_some();
+        let held = *drag.read();
+        let target =
+            held.map(|(from, start, now)| drop_index(from, now - start, *pitch.read(), count));
         let rows: Vec<Element> = if self.items.is_empty() {
             vec![
                 form::Row::new(self.empty.clone())
@@ -560,6 +588,7 @@ impl Component for ListEditor {
                 .enumerate()
                 .map(|(i, (label, icon))| {
                     let on = chosen == Some(i);
+                    let landing = target == Some(i) && held.is_some_and(|(from, ..)| from != i);
                     rect()
                         .key(i)
                         .width(Size::fill())
@@ -569,9 +598,44 @@ impl Component for ListEditor {
                         .cross_align(Alignment::Center)
                         .spacing(t.space_s)
                         .maybe(on, |el| el.background(colour(t.colour_accent)))
+                        .maybe(landing, |el| {
+                            el.border(
+                                Border::new()
+                                    .fill(colour(t.colour_accent))
+                                    .width(t.stroke_found)
+                                    .alignment(BorderAlignment::Inner),
+                            )
+                        })
                         .a11y_role(AccessibilityRole::ListItem)
                         .a11y_alt(label.clone())
-                        .on_press(move |_| selected.set(Some(i)))
+                        .maybe(i == 0, |el| {
+                            el.on_sized(move |e: Event<SizedEventData>| {
+                                let h = f64::from(e.area.height()) + 1.;
+                                if (*pitch.peek() - h).abs() > 0.5 {
+                                    pitch.set(h);
+                                }
+                            })
+                        })
+                        .on_pointer_down(move |e: Event<PointerEventData>| {
+                            if movable {
+                                let y = e.global_location().y;
+                                drag.set(Some((i, y, y)));
+                            }
+                        })
+                        .on_press({
+                            let on_open = on_open.clone();
+                            move |_| {
+                                selected.set(Some(i));
+                                let now = std::time::Instant::now();
+                                let twice = last_press.peek().is_some_and(|(at, when)| {
+                                    at == i && now - when < std::time::Duration::from_millis(400)
+                                });
+                                last_press.set(Some((i, now)));
+                                if twice && let Some(open) = &on_open {
+                                    open.call(i);
+                                }
+                            }
+                        })
                         .map(icon.clone(), |el, icon| el.child(app_icon(icon, 20.)))
                         .child(text::line(
                             &theme,
@@ -611,9 +675,30 @@ impl Component for ListEditor {
                 ))
                 .into_element()
         };
+        let on_move = self.on_move.clone();
         rect()
             .width(Size::fill())
             .spacing(t.space_xs)
+            .on_capture_global_pointer_move(move |e: Event<PointerEventData>| {
+                let held = *drag.peek();
+                if let Some((from, start, _)) = held {
+                    drag.set(Some((from, start, e.global_location().y)));
+                }
+            })
+            .on_global_pointer_up(move |_| {
+                let held = *drag.peek();
+                let Some((from, start, now)) = held else {
+                    return;
+                };
+                drag.set(None);
+                let to = drop_index(from, now - start, *pitch.peek(), count);
+                if to != from
+                    && let Some(on_move) = &on_move
+                {
+                    selected.set(Some(to));
+                    on_move.call((from, to));
+                }
+            })
             .child(form::group(self.title.clone(), rows))
             .child(
                 rect()
@@ -990,6 +1075,15 @@ pub fn sheet(width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_dragged_row_lands_where_it_is_let_go() {
+        assert_eq!(moved(&[1, 2, 3, 4], 0, 2), [2, 3, 1, 4]);
+        assert_eq!(moved(&[1, 2, 3, 4], 3, 0), [4, 1, 2, 3]);
+        assert_eq!(drop_index(0, 90., 45., 4), 2);
+        assert_eq!(drop_index(1, -200., 45., 4), 0);
+        assert_eq!(drop_index(1, 900., 45., 4), 3);
+    }
 
     #[test]
     fn steps_snap_to_the_nearest() {

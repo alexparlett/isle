@@ -463,6 +463,8 @@ impl Component for PaneContent {
         let t = &theme.tokens;
         let nav = use_consume::<Nav>();
         let desktop = Desktop::get();
+        let controller = use_scroll_controller(ScrollConfig::default);
+        let reveal = use_provide_context(|| form::RevealFound(controller));
         let history = nav.history.read().clone();
         let status = desktop.status.read().clone().filter(|s| !s.ok);
         let tokens = desktop
@@ -522,7 +524,7 @@ impl Component for PaneContent {
                     ),
             )
             .child(
-                isle_ui::scroll_area(&theme)
+                isle_ui::scroll_area_controlled(&theme, reveal.0)
                     .width(Size::fill())
                     .height(Size::fill())
                     .child(

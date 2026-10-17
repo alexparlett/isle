@@ -55,6 +55,10 @@ impl Component for PaneHeader {
     }
 }
 
+/// The scroll view a form's found row is scrolled into, given by the form's window.
+#[derive(Clone, Copy)]
+pub struct RevealFound(pub ScrollController);
+
 /// A group of rows on a raised card, hairlines between them, with an optional title above.
 pub fn group(title: Option<String>, rows: Vec<Element>) -> impl IntoElement {
     GroupCard { title, rows }
@@ -225,6 +229,11 @@ impl Component for Row {
         let t = &theme.tokens;
         let mut pressed = use_state(|| false);
         let mut menu = use_state(|| false);
+        let reveal = use_try_consume::<RevealFound>();
+        let mut revealed = use_state(|| false);
+        if !self.found && *revealed.peek() {
+            revealed.set(false);
+        }
         let ink = if self.enabled { t.colour_text } else { t.colour_text_2 };
         let navigates = self.on_open.clone();
         let body = rect()
@@ -279,6 +288,15 @@ impl Component for Row {
             })
             .a11y_alt(self.label.clone())
             .maybe(navigates.is_some() && *pressed.read(), |el| el.background(colour(t.colour_fill)))
+            .map(reveal.filter(|_| self.found), |el, reveal| {
+                el.on_sized(move |e: Event<SizedEventData>| {
+                    if !*revealed.peek() {
+                        revealed.set(true);
+                        let mut controller = reveal.0;
+                        controller.scroll_to_item(e.area);
+                    }
+                })
+            })
             .maybe(self.found, |el| {
                 el.border(
                     Border::new()

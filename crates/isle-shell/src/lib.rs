@@ -48,6 +48,7 @@ pub mod alert;
 pub mod capture;
 pub mod chrome;
 pub mod force_quit;
+pub mod identify;
 pub mod island;
 pub mod lock;
 pub mod menubar;

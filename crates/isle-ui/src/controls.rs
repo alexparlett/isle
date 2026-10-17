@@ -154,10 +154,18 @@ const ARC: &str = r#"<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
 /// A scroll view in the shell's way: no drag scrolling, so a drag can move a slider inside
 /// it, and a thin overlay bar that shows while scrolling.
 pub fn scroll_area(theme: &isle_tokens::Theme) -> ScrollView {
+    styled(theme, ScrollView::new())
+}
+
+/// [`scroll_area`] driven by `controller`, as a form whose found row is scrolled to.
+pub fn scroll_area_controlled(theme: &isle_tokens::Theme, controller: ScrollController) -> ScrollView {
+    styled(theme, ScrollView::new_controlled(controller))
+}
+
+fn styled(theme: &isle_tokens::Theme, view: ScrollView) -> ScrollView {
     let t = &theme.tokens;
     let (rest, held) = (colour(t.colour_text_2), colour(t.colour_text));
-    ScrollView::new()
-        .drag_scrolling(false)
+    view.drag_scrolling(false)
         .scrollbar(move |context: ScrollBarContext| {
             ScrollBar::new(context)
                 .theme(

@@ -514,6 +514,10 @@ impl Component for Displays {
         };
         body = body.child(ui::foot(vec![
             (
+                "Identify".into(),
+                EventHandler::new(move |_| services.act(Act::Identify)),
+            ),
+            (
                 "Detect Displays".into(),
                 EventHandler::new(move |_| services.act(Act::Redetect)),
             ),

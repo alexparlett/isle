@@ -131,6 +131,16 @@ impl Component for Spotlight {
             .spacing(20.)
             .child(form::group(Some("Results".into()), results))
             .child(ListEditor {
+                on_open: None,
+                on_move: Some(EventHandler::new({
+                    let list = r.list("spotlight.favourites");
+                    move |(from, to): (usize, usize)| {
+                        desktop.set(
+                            "spotlight.favourites",
+                            Value::List(ui::moved(&list, from, to)),
+                        )
+                    }
+                })),
                 title: Some("Favourites".into()),
                 items: app_items("spotlight.favourites"),
                 empty: "No favourites".into(),
@@ -138,6 +148,8 @@ impl Component for Spotlight {
                 on_remove: remove("spotlight.favourites", r.list("spotlight.favourites")),
             })
             .child(ListEditor {
+                on_open: None,
+                on_move: None,
                 title: Some("Don't keep copies from".into()),
                 items: app_items("spotlight.clipboard-exclude"),
                 empty: "No apps".into(),
@@ -216,6 +228,8 @@ impl Component for SearchPrivacy {
         let folders = |key: &'static str| {
             let list = r.list(key);
             ListEditor {
+                on_open: None,
+                on_move: None,
                 title: Some(
                     if key == "spotlight.files-include" {
                         "Also search these folders"

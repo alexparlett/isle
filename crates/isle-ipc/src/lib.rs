@@ -551,6 +551,8 @@ pub mod displays {
         fn set_brightness(&self, name: &str, level: f64) -> zbus::Result<bool>;
         /// Releases every output and probes the connectors again, as one step.
         fn redetect(&self) -> zbus::Result<()>;
+        /// Shows each screen's name on it for a few seconds.
+        fn identify(&self) -> zbus::Result<()>;
         /// Turns every screen off now.
         fn sleep(&self) -> zbus::Result<()>;
         /// The output's frames after `since`, with what its planes carried.

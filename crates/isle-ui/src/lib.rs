@@ -18,7 +18,7 @@ pub use isle_tokens;
 use isle_tokens::{Colour, Theme};
 
 pub use button::{Button, LevelBar};
-pub use controls::{Spinner, Switch, scroll_area};
+pub use controls::{Spinner, Switch, scroll_area, scroll_area_controlled};
 pub use field::{CheckRow, Field, FieldText, Secret};
 pub use glyph::{AppIcon, Glyph, LevelGlyph, glyph_svg};
 pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};

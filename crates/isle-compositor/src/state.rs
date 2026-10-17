@@ -168,6 +168,8 @@ pub struct Isle {
     pub force_quit: crate::force_quit::ForceQuitState,
     pub spotlight: crate::spotlight::SpotlightState,
     /// The screen streams Isle produces.
+    /// Each screen's name, shown while Settings identifies the displays.
+    pub identify: std::rc::Rc<isle_shell::identify::IdentifySurface>,
     pub casting: crate::cast::Casting,
     /// ext-image-copy-capture, its sources and the foreign-toplevel list.
     pub image_copy: crate::image_copy::ImageCopy,
@@ -436,6 +438,8 @@ impl Isle {
         shell.register(force_quit.surface.clone());
         let spotlight = crate::spotlight::SpotlightState::new();
         shell.register(spotlight.surface.clone());
+        let identify = isle_shell::identify::IdentifySurface::new();
+        shell.register(identify.clone());
         let capture_readout = isle_shell::capture::readout::ReadoutSurface::new();
         shell.register(capture_readout.clone());
         shell.register(isle_shell::capture::camera::CameraSurface::new());
@@ -534,6 +538,7 @@ impl Isle {
             casting: Default::default(),
             image_copy,
             recording_now: None,
+            identify,
             clicks: Vec::new(),
             portal: None,
             portal_appearance: Default::default(),

@@ -95,3 +95,23 @@ async fn a_display_turns_off_and_back_and_the_last_one_cannot() {
     })
     .await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn identify_names_each_screen_and_goes() {
+    let isle = start("displays-identify").await;
+    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    let open = || async {
+        shell
+            .list()
+            .await
+            .unwrap()
+            .into_iter()
+            .any(|s| s.name == "identify" && s.open)
+    };
+    assert!(!open().await);
+    displays.identify().await.unwrap();
+    wait_until(|| async { open().await }).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    wait_until(|| async { !open().await }).await;
+}

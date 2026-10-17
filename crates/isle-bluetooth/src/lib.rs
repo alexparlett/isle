@@ -20,6 +20,8 @@ const BATTERY: &str = "org.bluez.Battery1";
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Adapter {
     pub path: String,
+    /// The name other devices see it by.
+    pub name: String,
     pub powered: bool,
     pub discovering: bool,
 }
@@ -83,6 +85,7 @@ async fn read(conn: &Connection) -> Result<Bluetooth, Error> {
             let a = Props(a.clone());
             state.adapter = Some(Adapter {
                 path: path.to_string(),
+                name: a.str("Alias").or_else(|| a.str("Name")).unwrap_or_default(),
                 powered: a.bool("Powered").unwrap_or(false),
                 discovering: a.bool("Discovering").unwrap_or(false),
             });
@@ -146,6 +149,29 @@ pub async fn start_discovery(adapter: &str) -> Result<(), Error> {
 
 pub async fn stop_discovery(adapter: &str) -> Result<(), Error> {
     call(adapter, ADAPTER, "StopDiscovery").await
+}
+
+/// Forgets a device: unpaired and removed from the adapter.
+pub async fn forget(adapter: &str, device: &str) -> Result<(), Error> {
+    let conn = isle_bus::system().await?;
+    let device = zbus::zvariant::ObjectPath::try_from(device)?;
+    conn.call_method(Some(BLUEZ), adapter, Some(ADAPTER), "RemoveDevice", &(device,))
+        .await?;
+    Ok(())
+}
+
+/// The name a device is shown by; empty gives it back its own.
+pub async fn rename(device: &str, name: &str) -> Result<(), Error> {
+    let conn = isle_bus::system().await?;
+    conn.call_method(
+        Some(BLUEZ),
+        device,
+        Some("org.freedesktop.DBus.Properties"),
+        "Set",
+        &(DEVICE, "Alias", Value::from(name)),
+    )
+    .await?;
+    Ok(())
 }
 
 pub async fn connect(device: &str) -> Result<(), Error> {

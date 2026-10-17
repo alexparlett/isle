@@ -44,6 +44,25 @@ impl Adapter {
         self.discovering
     }
 
+    #[zbus(property)]
+    fn alias(&self) -> String {
+        "Isle Test".into()
+    }
+
+    async fn remove_device(
+        &mut self,
+        device: zbus::zvariant::ObjectPath<'_>,
+        #[zbus(object_server)] server: &zbus::ObjectServer,
+    ) -> zbus::fdo::Result<()> {
+        let path = device.to_string();
+        let _ = server.remove::<Battery, _>(path.as_str()).await;
+        server
+            .remove::<DeviceIface, _>(path.as_str())
+            .await
+            .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+        Ok(())
+    }
+
     async fn start_discovery(
         &mut self,
         #[zbus(object_server)] server: &zbus::ObjectServer,
@@ -75,6 +94,10 @@ impl DeviceIface {
     #[zbus(property)]
     fn alias(&self) -> String {
         self.0.name.clone()
+    }
+    #[zbus(property)]
+    fn set_alias(&mut self, name: String) {
+        self.0.name = name;
     }
     #[zbus(property)]
     fn icon(&self) -> String {

@@ -2885,6 +2885,7 @@ name = "isle-bluetooth"
 version = "0.1.0"
 dependencies = [
  "isle-bus",
+ "isle-fakes",
  "serde",
  "tokio",
  "tracing",

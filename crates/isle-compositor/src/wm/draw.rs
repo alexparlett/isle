@@ -895,7 +895,8 @@ impl crate::state::Isle {
             .and_then(|f| f.surface().cloned())
             .is_some_and(|s| record.surface().as_ref() == Some(&s));
         // Under Isle's bar the client's top corners are square; the bar rounds the frame's.
-        let corners = if record.bar.is_some() {
+        // An app with the lights over its content has no bar above it to do so.
+        let corners = if record.bar.is_some() && self.titlebar_overlay(id).is_none() {
             [0.0, 0.0, radius, radius]
         } else {
             [radius; 4]

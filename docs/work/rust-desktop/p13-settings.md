@@ -569,10 +569,11 @@ B94–B99 record the decisions, B25 and B26 are revised, and the rows are in
 - **The lights are the compositor's** (choice 14, revised by the user
   mid-packet): `isle_titlebar_v1` names the inset, `gtk_shell1` hands the
   toolbar's clicks over (B95).
-- **The sidebar's blur needs the GPU build.** softbuffer presents XRGB, so
-  a software window is opaque; an app asks for the blur only when built
-  with `gpu` and run with `FREYA_RENDERER` (B98). Settings' sidebar is
-  solid by default, choice 13's fallback.
+- **The sidebar's blur is in software.** softbuffer 0.4.8 presented only
+  XRGB, so at first only a GPU build could show it; after the packet's
+  measure, Freya's software driver moved to softbuffer's unreleased
+  `AlphaMode` and presents premultiplied ARGB, the window's rest declared
+  opaque (B98). Settings idles at 59.8 MB with the sidebar glass.
 - **`gpu` is a build feature** of `isle-app` and Settings, not only an
   environment variable: without it Freya's GPU crates are not linked.
 - **Pointers are listed by `Keyboard1.Pointers`**, a call P13 adds:

@@ -460,7 +460,8 @@
   app (`isle_titlebar_v1`); display changes held and reverted by the
   compositor; ext-background-effect-v1 served; the hot-corner engine;
   `spotlight.sources-off`; Identify. Headless, Settings passes `apps.md`
-  bars 3 to 8; idle it is 59.5 MB PSS in software, 151.6 MB on GL (debug).
+  bars 3 to 8; idle it is 59.8 MB PSS in software with its sidebar glass
+  (Freya's software driver presents ARGB since), 151.6 MB on GL (debug).
   The VM ran every pane against its daemons and a display change that
   reverted by itself. B94–B99 recorded, B25 and B26 revised, `apps.md`'s
   conventions and open points answered, the rows in

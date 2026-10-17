@@ -118,8 +118,6 @@ pub struct Frame;
 
 impl Component for Frame {
     fn render(&self) -> impl IntoElement {
-        let theme = use_theme();
-        let t = &theme.tokens;
         let desktop = Desktop::get();
         let nav = use_provide_context(|| {
             let memory = memory_dir();

@@ -150,3 +150,43 @@ async fn idle_memory() {
         );
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_sidebar_is_glass_in_software() {
+    let Some(bin) = settings_bin() else {
+        eprintln!("skipped: build isle-system-settings first");
+        return;
+    };
+    let mut isle =
+        Isle::start_with("settings-glass", "wallpaper {\n    source \"#e02020\"\n}\n").await;
+    let _app = isle.spawn_logged(&bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    // The blur is drawn as a shell element right behind the window's own.
+    wait_until(|| async {
+        let kinds = isle.test().await.frame_kinds("HEADLESS-1").await.unwrap();
+        let last = kinds.iter().rposition(|k| k == "client").unwrap_or(0);
+        kinds.get(last + 1).is_some_and(|k| k == "shell")
+    })
+    .await;
+    // The wallpaper's red shows through the sidebar and not through the pane.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let shot = isle.shot("HEADLESS-1", "glass").await;
+    if let Some(keep) = std::env::var_os("ISLE_TEST_KEEP") {
+        std::fs::copy(
+            isle.dir.join("glass.png"),
+            PathBuf::from(keep).join("glass.png"),
+        )
+        .unwrap();
+    }
+    let [r, g, _] = shot.at(w.x as usize + 110, w.y as usize + 600);
+    assert!(r > g + 20, "the sidebar takes the red behind it: {r} {g}");
+    let [r, g, _] = shot.at(w.x as usize + 600, w.y as usize + 600);
+    assert!(r.abs_diff(g) < 10, "the pane is opaque: {r} {g}");
+    // Outside the rounded top corner is what is behind the window, as just beside it.
+    let corner = shot.at(w.x as usize + 1, w.y as usize + 1);
+    let beside = shot.at(w.x as usize - 3, w.y as usize + 1);
+    assert!(
+        corner[0].abs_diff(beside[0]) < 24,
+        "the top corner is round: {corner:?} {beside:?}"
+    );
+}

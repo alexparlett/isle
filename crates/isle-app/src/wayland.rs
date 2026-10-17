@@ -172,7 +172,17 @@ impl Extras {
     }
 
     /// Asks for the blur behind `rect`, surface-local, from the next commit; none removes it.
+    /// The rest of the window is declared opaque, so the compositor still skips what it hides.
     pub fn set_backdrop(&self, rect: Option<(f64, f64, f64, f64)>) {
+        if let (Some((x, y, w, h)), Some((_, compositor, qh))) = (rect, &self.backdrop) {
+            // Larger than any window; the compositor cuts a region to its surface.
+            const ALL: i32 = 1 << 15;
+            let opaque = compositor.create_region(qh, ());
+            opaque.add(0, 0, ALL, ALL);
+            opaque.subtract(x.round() as i32, y.round() as i32, w.round() as i32, h.round() as i32);
+            self.surface.set_opaque_region(Some(&opaque));
+            opaque.destroy();
+        }
         let Some((effect, compositor, qh)) = &self.backdrop else {
             return;
         };

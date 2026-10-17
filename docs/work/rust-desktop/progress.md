@@ -2,6 +2,18 @@
 
 ## 2026-10-17
 
+- P13 follow-up: the sidebar's blur in software. Freya's software driver
+  (`alexparlett/freya`, branch `isle/softbuffer-alpha`) presents
+  premultiplied ARGB through softbuffer's unreleased `AlphaMode`, pinned by
+  revision; an Isle app with a backdrop asks for the blur and a transparent
+  window in every build and declares the rest of the window opaque.
+  Settings idles at 59.8 MB PSS with the sidebar glass (151.6 MB on GL).
+  Bar 2 reports private memory beside PSS. Presenting only what changed
+  waits on incremental rendering in Freya and the host's frame times.
+  Found by the user on the glass: an app with the lights over its content
+  kept square top corners, as if a bar above it rounded them; they are
+  rounded now, and the glass test checks the corner.
+
 - P13 13.13–13.15: ext-background-effect-v1 served, a still window's blur
   region drawn as untinted glass from what lies below it and dropped under
   Reduce Transparency; Settings' sidebar is glass in a GPU build. Identify,

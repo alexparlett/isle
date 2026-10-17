@@ -318,8 +318,11 @@ the compositor in a greeter mode under greetd, reusing the lock screen.
 Apps render in software by default, Freya's GPU renderers left out of the
 build: Settings idle measured 59.5 MB PSS in software and 151.6 MB on GL (debug, headless,
 `p13-settings.md`), and only software passes `apps.md`'s 80 MB bar. A
-`gpu` build keeps the GPU renderers behind `FREYA_RENDERER`. The host's
-release measure confirms or reverses this. Revised in P13 from "on the GPU
+`gpu` build keeps the GPU renderers behind `FREYA_RENDERER`, and no app
+is planned to need it. The cost a GPU app adds is mostly its driver's
+libraries, which PSS charges to the few processes that map them; its
+private memory is the fairer measure of what it adds, and `apps.md` bar 2
+reports both. The host's release measure confirms or reverses this. Revised in P13 from "on the GPU
 by default".
 
 **B27 · Settings in practice.** App preferences are per-app sections of
@@ -1085,10 +1088,12 @@ P13. The compositor serves it: a still window's blur region, cut to the
 window and grown under its content where it stops short of an edge, is
 drawn from what lies below it with the shell's glass pass, untinted, the
 client drawing its material over it, and dropped under Reduce
-Transparency. An app asks for it only in a GPU build, since softbuffer
-presents opaque buffers; Settings' sidebar is glass there and solid in
-software. Rejected: a private protocol (the staging one carries what is
-needed), blurring in the app (it cannot see what is behind it).
+Transparency. An app draws in software into premultiplied ARGB buffers
+and declares the rest of its window opaque, as Qt Widgets apps do on
+KWin; Settings idles at 59.8 MB PSS with its sidebar glass, against 151.6
+MB on GL. Rejected: a private protocol (the staging one carries what is
+needed), blurring in the app (it cannot see what is behind it), keeping
+the blur to a GPU build (its driver costs about 90 MB a process).
 
 **B99 · Hot corners fire on rest, once a visit.** Built in P13. A corner
 where no other screen meets fires its action after the pointer rests

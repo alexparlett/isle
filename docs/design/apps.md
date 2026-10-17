@@ -95,8 +95,8 @@ Every Isle app follows these rules.
 16. Every window resizes from every edge and has a minimum size at which nothing is clipped. The
     About window is the one exception: a small window of fixed size (P1, `conventions.md`).
 17. Translucency is asked of the compositor through `ext-background-effect-v1`; no app blurs behind
-    itself (`ui-and-services.md` §2). Only a GPU build can show it; in software the material is solid
-    (B98).
+    itself (`ui-and-services.md` §2). A window with a backdrop draws premultiplied ARGB in software
+    and declares the rest of itself opaque (B98).
 18. A confirmation or other dialog is modal to its window, not to the app. Focus moves into it when it
     opens and back when it closes; Escape and Cmd+. cancel; Return takes the default button (strata
     `docs/UI_CONVENTIONS.md`; the fork's modal boundary).
@@ -447,8 +447,11 @@ Measured on the host, not the VM (D13).
 1. **Cold start.** With a warm cache each app draws its first complete frame within 300 ms of launch,
    and the chooser is on screen within 300 ms of the portal request when Files is not running.
 2. **Idle memory.** Each app with one window, idle for 30 s, is at most 80 MB PSS by `smaps_rollup`,
-   with its VRAM from `nvidia-smi` reported beside it (`ui-and-services.md` OPEN gives the protocol;
-   D92 measured a bare Freya window at 51 MB private).
+   with its private memory (`Private_Clean` and `Private_Dirty`) and its VRAM from `nvidia-smi`
+   reported beside it, sampled in a session with the usual apps open as well as alone
+   (`ui-and-services.md` OPEN gives the protocol; D92 measured a bare Freya window at 51 MB
+   private). Private memory is what an app adds; PSS also charges it a share of libraries few
+   other processes map, which overstates a GPU app (B26).
 3. **Nothing when closed.** Five seconds after an app's last window closes with no work in flight, its
    process is gone.
 4. **Responsive under failure.** With any daemon an app uses stopped or frozen with SIGSTOP, the app

@@ -646,15 +646,17 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   `isle_app::run` does the rest. A launch first claims the bus name with
   `org.freedesktop.Application`: when another instance holds it, the
   launch's URIs and activation token are handed over and the process ends.
-- **The window is `freya-winit`'s,** in software by default (softbuffer's
-  shm buffers) and on the GPU only in a `gpu` build with `FREYA_RENDERER`
-  (B26). What winit does not bind is bound on a second event queue against
+- **The window is `freya-winit`'s,** in software by default, into
+  softbuffer's shm buffers, premultiplied ARGB for a window with a backdrop
+  and opaque otherwise, and on the GPU only in a `gpu` build with
+  `FREYA_RENDERER` (B26). Freya draws the whole window each frame and
+  presents it whole. What winit does not bind is bound on a second event queue against
   winit's own display and the window's surface: `xdg_activation_v1` to
   raise the window, `org_kde_kwin_appmenu` to name its exported menu,
   `gtk_shell1` to hand the toolbar's double, right and middle clicks to the
   compositor, `isle_titlebar_v1` to ask for the lights over the content at
   the app's inset (B95), and `ext_background_effect_v1` for the blur
-  behind the backdrop in a GPU build (B98).
+  behind the backdrop, the rest of the window declared opaque (B98).
 - **The desktop is read from the compositor and followed:** the theme from
   `Shell1.Theme()` and `ThemeChanged`, every setting from `Settings1.Values()`
   and `Changed`, and whether `settings.kdl` and `tokens.kdl` are in force.
@@ -757,10 +759,13 @@ paru and updated through pacman (B29).
   a composited frame on vsync, pinned by its branch's commit until its pull
   request is merged. Its `master` follows upstream; moving Isle to a
   newer upstream is a rebase of `isle` and a revision bump.
-- **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
-  `main`, which carries `freya-embed` (the embedding crate made from the
-  spike's glue), an idle `Timeout` that sleeps, and thread-local contexts
-  restored on unwind (alexparlett/freya#10). A git-ignored
+- **Freya**, through `alexparlett/freya` (B7), pinned by revision: its
+  `main` carries `freya-embed` (the embedding crate made from the spike's
+  glue), an idle `Timeout` that sleeps, and thread-local contexts restored
+  on unwind (alexparlett/freya#10); Isle pins the `isle/softbuffer-alpha`
+  branch over it, which adds accessibility nodes built only while a screen
+  reader listens and the software driver's alpha, on softbuffer's
+  unreleased `AlphaMode` pinned by revision (B98). A git-ignored
   `.cargo/config.toml` may patch it to a local checkout while working on
   the fork.
 

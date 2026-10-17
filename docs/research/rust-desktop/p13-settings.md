@@ -32,8 +32,21 @@ One sample each, debug builds, Settings idle 30 s on a headless Isle,
 
 Against bar 2 (80 MB PSS) only the software paths pass, as
 `settings-2026.md` §8 found for the gallery. VRAM was not read headless.
-The GPU build is the only one that can show the sidebar's blur: softbuffer
-presents XRGB, so a software window is opaque (B98).
+
+The software build first presented XRGB through softbuffer 0.4.8, so only
+the GPU build could show the sidebar's blur. Freya's software driver now
+presents premultiplied ARGB through softbuffer's unreleased `AlphaMode`
+(B98); with the sidebar glass, Settings idles at **59.8 MB** PSS (Pss_Anon
+11.7 MB, Pss_File 45.4 MB, RSS 75.1 MB), the blur costing the app nothing
+and the compositor a few textures.
+
+The GL build's extra 92 MB over software is 60 MB of file-backed pages,
+the driver's libraries and Skia's GPU code, and 35 MB of heap, the context
+and Skia's GPU caches. Vulkan was no cheaper for the gallery (141.6 MB,
+`settings-2026.md` §8). Freya draws the whole window every frame
+(its render pipeline's own TODO), so presenting only what changed waits on
+incremental rendering in Freya; the host's frame times say whether it is
+worth it.
 
 ## The VM
 
@@ -76,4 +89,8 @@ Not done. What it settles:
 3. A real mode change on each screen: reverting by itself, and kept on
    Keep, with NVIDIA's live modeset (the plan's first risk).
 4. Cmd chords in Settings on the Mac keyboard and on the PC keyboard.
-5. The sidebar's blur in the GPU build.
+5. The sidebar's blur over a live window behind it.
+6. Private memory beside PSS for Settings in a session with the usual apps
+   open (bar 2 as revised).
+7. CPU frame time of a pane's crossfade and of a scroll, at the screens'
+   scale, in software: whether presenting only what changed is needed.

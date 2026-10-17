@@ -404,6 +404,37 @@ impl IslandIface {
     async fn status(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.isle.island_status()).await?)
     }
+
+    /// Control Centre's modules, in the gallery's order: id, name, glyph, group, the sizes
+    /// it comes in as `s`, `m`, `l` and `w`, and the Settings pane it belongs to.
+    async fn modules(&self) -> Vec<(String, String, String, String, Vec<String>, String)> {
+        crate::control_edit::CATALOGUE
+            .iter()
+            .map(|e| {
+                (
+                    e.id.into(),
+                    e.name.into(),
+                    e.glyph.into(),
+                    e.group.into(),
+                    e.sizes.iter().map(|s| crate::control_edit::size_letter(*s).into()).collect(),
+                    crate::settings_link::pane_id(e.pane),
+                )
+            })
+            .collect()
+    }
+
+    /// Opens Control Centre in edit mode on the screen with focus.
+    async fn edit_controls(&self) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                if let Some(output) = state.isle.output_with_focus().or_else(|| state.isle.active_output()) {
+                    state.open_control_centre(&output, true, None);
+                    state.edit_action(isle_shell::island::panel::PanelAction::Edit(true));
+                }
+            })
+            .await?)
+    }
 }
 
 #[interface(name = "io.github.alexparlett.Isle.Services1")]

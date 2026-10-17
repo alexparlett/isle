@@ -756,6 +756,10 @@ pub mod island {
     pub trait Island {
         /// Each output's island as JSON: what it shows and its shape's size.
         fn status(&self) -> zbus::Result<String>;
+        /// Control Centre's modules: id, name, glyph, group, sizes and Settings pane.
+        fn modules(&self) -> zbus::Result<Vec<(String, String, String, String, Vec<String>, String)>>;
+        /// Opens Control Centre in edit mode.
+        fn edit_controls(&self) -> zbus::Result<()>;
     }
 }
 

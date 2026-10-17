@@ -191,18 +191,20 @@ fn parse(modules: &[String]) -> Vec<(String, TileSize)> {
         .collect()
 }
 
+/// A size as `control-centre.modules` writes it.
+pub fn size_letter(size: TileSize) -> &'static str {
+    match size {
+        S => "s",
+        M => "m",
+        L => "l",
+        W => "w",
+    }
+}
+
 fn write(arrangement: &[(String, TileSize)]) -> Vec<String> {
     arrangement
         .iter()
-        .map(|(id, size)| {
-            let size = match size {
-                S => "s",
-                M => "m",
-                L => "l",
-                W => "w",
-            };
-            format!("{id}:{size}")
-        })
+        .map(|(id, size)| format!("{id}:{}", size_letter(*size)))
         .collect()
 }
 

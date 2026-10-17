@@ -359,3 +359,14 @@ async fn the_default_arrangement_and_every_page_with_their_sources() {
         isle.panel(serde_json::json!({ "page": null })).await;
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_reads_the_catalogue_and_opens_edit_mode() {
+    let isle = Isle::start("edit-from-settings").await;
+    let island = isle_ipc::island::IslandProxy::new(&isle.bus).await.unwrap();
+    let modules = island.modules().await.unwrap();
+    let wifi = modules.iter().find(|m| m.0 == "wifi").expect("Wi-Fi in the catalogue");
+    assert_eq!((wifi.4.clone(), wifi.5.as_str()), (vec!["s".to_owned(), "m".to_owned()], "wi-fi"));
+    island.edit_controls().await.unwrap();
+    wait_until(|| async { !panel(&isle).await["edit"].is_null() }).await;
+}

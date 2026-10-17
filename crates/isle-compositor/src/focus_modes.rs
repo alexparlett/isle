@@ -96,7 +96,7 @@ impl Isle {
             match modes.iter_mut().find(|m| &m.name == name) {
                 Some(mode) => apply(mode),
                 None => {
-                    let mut mode = Mode::new(name, "circle-dashed");
+                    let mut mode = Mode::new(name, "circle");
                     apply(&mut mode);
                     modes.push(mode);
                 }

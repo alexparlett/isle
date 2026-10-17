@@ -142,6 +142,20 @@ pub async fn set_powered(adapter: &str, on: bool) -> Result<(), Error> {
     Ok(())
 }
 
+/// Lets other devices find the adapter, as while Settings' Bluetooth pane is shown.
+pub async fn set_discoverable(adapter: &str, on: bool) -> Result<(), Error> {
+    let conn = isle_bus::system().await?;
+    conn.call_method(
+        Some(BLUEZ),
+        adapter,
+        Some("org.freedesktop.DBus.Properties"),
+        "Set",
+        &(ADAPTER, "Discoverable", Value::from(on)),
+    )
+    .await?;
+    Ok(())
+}
+
 /// Starts looking for devices; it lasts until stopped or Isle leaves the bus.
 pub async fn start_discovery(adapter: &str) -> Result<(), Error> {
     call(adapter, ADAPTER, "StartDiscovery").await

@@ -719,7 +719,7 @@ pub enum Corner {
     DisplaySleep,
 }
 
-/// The shell's screens./// The shell's screens.
+/// The shell's screens.
 #[derive(Clone, Debug, PartialEq, Section)]
 pub struct Shell {
     /// The screen events and Spotlight show on, by make, model and serial; unset follows
@@ -742,6 +742,9 @@ pub struct Spotlight {
     /// The web search's address, with `{query}` where the query goes.
     #[setting(default = "https://duckduckgo.com/?q={query}".to_owned())]
     pub web_search: String,
+    /// Sources an unscoped search leaves out: `apps`, `actions`, `calculator`, `files`,
+    /// `menu-items`, `settings`, `windows`, `web`. A scope still searches its own.
+    pub sources_off: Vec<String>,
 }
 
 /// Screenshots and recordings: the capture toolbar's Options (`p1/structure/capture.md`).

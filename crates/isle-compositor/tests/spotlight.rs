@@ -740,6 +740,22 @@ async fn search_runs_without_spotlight_and_tab_scopes_to_an_app() {
     wait_until(|| async { status(&isle).await["text"] == "editor" }).await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn a_source_turned_off_leaves_general_search_and_keeps_its_scope() {
+    let isle = Isle::start("spotlight-sources-off").await;
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    let calculates = |json: String| {
+        let found: serde_json::Value = serde_json::from_str(&json).unwrap();
+        found.as_array().unwrap().iter().any(|r| r["group"] == "Calculation")
+    };
+    assert!(calculates(shell.search("2+2", "general").await.unwrap()));
+    let settings = isle_ipc::settings::SettingsProxy::new(&isle.bus).await.unwrap();
+    let off = zvariant::Value::from(vec!["calculator".to_owned()]);
+    settings.set("spotlight.sources-off", &off).await.unwrap();
+    wait_until(|| async { !calculates(shell.search("2+2", "general").await.unwrap()) }).await;
+    assert!(calculates(shell.search("2+2", "calculator").await.unwrap()));
+}
+
 /// Writes Spotlight's look to `$ISLE_SHOT_DIR` for a person to see; run by name.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

@@ -69,6 +69,28 @@ pub enum Group {
     Run,
 }
 
+impl Group {
+    /// Its name in `spotlight.sources-off`, for the groups that can be turned off.
+    pub fn setting_name(self) -> Option<&'static str> {
+        Some(match self {
+            Group::Apps => "apps",
+            Group::Actions => "actions",
+            Group::Calculation => "calculator",
+            Group::Files => "files",
+            Group::MenuItems => "menu-items",
+            Group::Settings => "settings",
+            Group::Windows => "windows",
+            Group::Web => "web",
+            _ => return None,
+        })
+    }
+
+    /// Whether an unscoped search leaves it out, by `spotlight.sources-off`.
+    pub fn off_in(self, scope: &Scope, off: &[String]) -> bool {
+        *scope == Scope::General && self.setting_name().is_some_and(|n| off.iter().any(|o| o == n))
+    }
+}
+
 /// What choosing a row does; the compositor carries it out.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
@@ -266,6 +288,15 @@ mod tests {
         let rows = source.search(&query("fi", 1), &mut cx);
         let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
         assert_eq!(titles, ["Firefox", "Fish", "Files"]);
+    }
+
+    #[test]
+    fn a_source_turned_off_leaves_only_unscoped_searches() {
+        let off = vec!["menu-items".to_owned()];
+        assert!(Group::MenuItems.off_in(&Scope::General, &off));
+        assert!(!Group::Apps.off_in(&Scope::General, &off));
+        assert!(!Group::Apps.off_in(&Scope::Apps, &["apps".to_owned()]));
+        assert!(!Group::Clipboard.off_in(&Scope::General, &["clipboard".to_owned()]));
     }
 
     #[test]

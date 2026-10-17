@@ -503,6 +503,8 @@ pub mod keyboard {
     )]
     pub trait Keyboard {
         fn list(&self) -> zbus::Result<Vec<KeyboardInfo>>;
+        /// Each physical pointing device by the name its settings are kept under.
+        fn pointers(&self) -> zbus::Result<Vec<String>>;
         fn status(&self) -> zbus::Result<KeyboardStatus>;
         /// Sets a keyboard's profile by its name: `mac`, `pc` or `auto`; writes the settings.
         fn set_profile(&self, name: &str, profile: &str) -> zbus::Result<()>;

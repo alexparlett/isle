@@ -726,6 +726,8 @@ impl State {
         spotlight.latest.store(query.generation, Ordering::Relaxed);
         let now = now();
         let mut fast: BTreeMap<Group, Vec<Row>> = BTreeMap::new();
+        let off = self.isle.settings.spotlight.sources_off.clone();
+        let on = |group: Group| !group.off_in(&query.scope, &off);
         {
             let mut cx = Context {
                 matcher: &mut spotlight.matcher,
@@ -733,7 +735,7 @@ impl State {
                 now,
                 latest: None,
             };
-            if spotlight.sources.apps.answers(&query.scope) {
+            if spotlight.sources.apps.answers(&query.scope) && on(Group::Apps) {
                 let rows = spotlight.sources.apps.search(&query, &mut cx);
                 fast.entry(Group::Apps).or_default().extend(rows);
             }
@@ -745,7 +747,7 @@ impl State {
                 .sources
                 .fast
                 .iter()
-                .filter(|s| s.answers(&query.scope))
+                .filter(|s| s.answers(&query.scope) && on(s.group()))
             {
                 let rows = source.search(&query, &mut cx);
                 fast.entry(source.group()).or_default().extend(rows);
@@ -755,7 +757,7 @@ impl State {
             .sources
             .slow
             .iter()
-            .filter(|s| s.answers(&query.scope))
+            .filter(|s| s.answers(&query.scope) && on(s.group()))
             .cloned()
             .collect();
         let Some(model) = spotlight.model.as_mut() else {
@@ -1846,7 +1848,13 @@ impl State {
 
 /// Runs every source that answers `scope` for `text`, fast and slow, without Spotlight open:
 /// `isle search`. The rows as JSON, grouped in the order Spotlight lists them.
-pub fn search_all(sources: Sources, usage: Usage, text: String, scope: Scope) -> String {
+pub fn search_all(
+    sources: Sources,
+    usage: Usage,
+    off: Vec<String>,
+    text: String,
+    scope: Scope,
+) -> String {
     let query = Query {
         text,
         scope,
@@ -1859,17 +1867,19 @@ pub fn search_all(sources: Sources, usage: Usage, text: String, scope: Scope) ->
         now: now(),
         latest: None,
     };
+    let on = |group: Group| !group.off_in(&query.scope, &off);
     let mut rows: Vec<Row> = Vec::new();
-    if sources.apps.answers(&query.scope) {
+    if sources.apps.answers(&query.scope) && on(Group::Apps) {
         rows.extend(sources.apps.search(&query, &mut cx));
     }
     if sources.clipboard.answers(&query.scope) {
         rows.extend(sources.clipboard.search(&query, &mut cx));
     }
-    for source in sources.fast.iter().filter(|s| s.answers(&query.scope)) {
+    let answers = |s: &dyn Source| s.answers(&query.scope) && on(s.group());
+    for source in sources.fast.iter().filter(|s| answers(s.as_ref())) {
         rows.extend(source.search(&query, &mut cx));
     }
-    for source in sources.slow.iter().filter(|s| s.answers(&query.scope)) {
+    for source in sources.slow.iter().filter(|s| answers(s.as_ref())) {
         rows.extend(source.search(&query, &mut cx));
     }
     rows.sort_by_key(|r| r.group);
@@ -1891,7 +1901,11 @@ pub fn search_all(sources: Sources, usage: Usage, text: String, scope: Scope) ->
 
 impl State {
     /// The sources a search would run now, for `isle search`.
-    pub fn search_sources(&mut self) -> (Sources, Usage) {
-        (self.spotlight_sources(), self.isle.spotlight.usage.clone())
+    pub fn search_sources(&mut self) -> (Sources, Usage, Vec<String>) {
+        (
+            self.spotlight_sources(),
+            self.isle.spotlight.usage.clone(),
+            self.isle.settings.spotlight.sources_off.clone(),
+        )
     }
 }

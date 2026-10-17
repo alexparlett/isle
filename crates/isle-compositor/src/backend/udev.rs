@@ -1158,12 +1158,17 @@ impl State {
                     let mut device = device.clone();
                     self.apply_pointer_settings(&mut device);
                     self.udev().pointers.push(device);
+                    self.isle.notify(crate::worker::Event::KeyboardsChanged);
                 }
             }
             InputEvent::DeviceRemoved { device } => {
                 use smithay::backend::input::Device as _;
                 self.keyboard_removed(&device.id());
+                let before = self.udev().pointers.len();
                 self.udev().pointers.retain(|d| d != device);
+                if self.udev().pointers.len() != before {
+                    self.isle.notify(crate::worker::Event::KeyboardsChanged);
+                }
             }
             _ => {}
         }
@@ -1203,6 +1208,28 @@ impl State {
                 ScrollMethod::NoScroll => libinput::ScrollMethod::NoScroll,
             });
         }
+    }
+
+    /// Each physical pointing device by the name its settings are kept under; virtual
+    /// devices and touchpads are left out (`p13/rows.md`, Mouse).
+    pub fn pointer_names(&self) -> Vec<String> {
+        let Backend::Udev(udev) = &self.backend else {
+            return Vec::new();
+        };
+        // The device's own context is libinput's, made from the session's udev.
+        let virtual_device = |d: &libinput::Device| {
+            unsafe { d.udev_device() }
+                .is_some_and(|u| u.syspath().starts_with("/sys/devices/virtual"))
+        };
+        let mut names: Vec<String> = udev
+            .pointers
+            .iter()
+            .filter(|d| !virtual_device(d) && d.config_tap_finger_count() == 0)
+            .map(|d| d.name().into_owned())
+            .collect();
+        names.sort();
+        names.dedup();
+        names
     }
 
     /// Applies pointer settings to every device after they change.

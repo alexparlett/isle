@@ -612,8 +612,10 @@ impl Shell {
     async fn search(&self, query: String, scope: String) -> fdo::Result<String> {
         let scope = isle_search::Scope::parse(&scope)
             .ok_or_else(|| fdo::Error::InvalidArgs(format!("no scope called {scope}")))?;
-        let (sources, usage) = self.to_loop.call(|state| state.search_sources()).await?;
-        tokio::task::spawn_blocking(move || crate::spotlight::search_all(sources, usage, query, scope))
+        let (sources, usage, off) = self.to_loop.call(|state| state.search_sources()).await?;
+        tokio::task::spawn_blocking(move || {
+            crate::spotlight::search_all(sources, usage, off, query, scope)
+        })
             .await
             .map_err(|e| fdo::Error::Failed(e.to_string()))
     }
@@ -899,6 +901,10 @@ impl Keyboard {
 impl Keyboard {
     async fn list(&self) -> fdo::Result<Vec<isle_ipc::KeyboardInfo>> {
         Ok(self.to_loop.call(|state| state.keyboard_infos()).await?)
+    }
+
+    async fn pointers(&self) -> fdo::Result<Vec<String>> {
+        Ok(self.to_loop.call(|state| state.pointer_names()).await?)
     }
 
     async fn status(&self) -> fdo::Result<isle_ipc::KeyboardStatus> {

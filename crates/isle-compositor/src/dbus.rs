@@ -323,6 +323,25 @@ impl NotificationsIface {
         Ok(self.to_loop.call(|state| state.notifications_clear()).await?)
     }
 
+    /// Every app that has posted, by the key its rules are filed under and its name.
+    async fn apps(&self) -> fdo::Result<Vec<(String, String)>> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                state
+                    .isle
+                    .notifications
+                    .senders
+                    .iter()
+                    .map(|(key, name)| {
+                        let named = state.isle.app_name(key);
+                        (key.clone(), if named == *key { name.clone() } else { named })
+                    })
+                    .collect()
+            })
+            .await?)
+    }
+
     #[zbus(signal)]
     async fn changed(emitter: &zbus::object_server::SignalEmitter<'_>) -> zbus::Result<()>;
 }

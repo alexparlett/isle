@@ -105,6 +105,9 @@ pub struct Saved {
     pub entries: Vec<Entry>,
     #[serde(default)]
     pub last_crash: Option<String>,
+    /// Every app that has posted, by its key, with the name it posted under.
+    #[serde(default)]
+    pub senders: std::collections::BTreeMap<String, String>,
 }
 
 impl Domain for Saved {
@@ -130,6 +133,8 @@ pub struct NotificationsState {
     pub last_crash: Option<String>,
     /// Apps whose stack is open in the centre.
     pub expanded: std::collections::HashSet<String>,
+    /// Every app that has posted, for Settings › Notifications.
+    pub senders: std::collections::BTreeMap<String, String>,
     /// Clear All asked once.
     pub clear_armed: bool,
 }
@@ -155,6 +160,7 @@ impl Isle {
         self.notifications.entries = saved.entries;
         self.notifications.next_id = next;
         self.notifications.last_crash = saved.last_crash;
+        self.notifications.senders = saved.senders;
         self.notifications.saver = Some(Saver::spawn(runtime, dir));
         next
     }
@@ -171,6 +177,7 @@ impl Isle {
                     .cloned()
                     .collect(),
                 last_crash: self.notifications.last_crash.clone(),
+                senders: self.notifications.senders.clone(),
             });
         }
     }
@@ -310,6 +317,10 @@ impl State {
         info!(id = n.id, app, ?fate, "notification");
         let id = n.id;
         let isle = &mut self.isle;
+        isle.notifications
+            .senders
+            .entry(app.clone())
+            .or_insert_with(|| n.app_name.clone());
         isle.notifications.next_id = isle.notifications.next_id.max(id + 1);
         if fate == Fate::Held && !isle.notifications.held.contains(&id) {
             isle.notifications.held.push(id);

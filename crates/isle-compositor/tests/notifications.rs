@@ -116,6 +116,21 @@ async fn a_replacement_keeps_its_id_and_what_is_kept_follows_the_rules() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn every_app_that_has_posted_is_listed_once_after_its_notifications_go() {
+    let mut isle = Isle::start("notify-apps").await;
+    let client = isle.client("isle.test.Notifier", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    client.send("notify summary=First");
+    notified(&client).await;
+    client.send("notify summary=Second");
+    notified(&client).await;
+    let notifications = isle_ipc::notifications::NotificationsProxy::new(&isle.bus).await.unwrap();
+    notifications.clear().await.unwrap();
+    let apps = notifications.apps().await.unwrap();
+    assert_eq!(apps.len(), 1, "{apps:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn closing_and_acting_are_signalled_and_the_token_brings_the_app_forward() {
     let mut isle = Isle::start("notify-act").await;
     let app = isle.client("isle.test.Mail", "3366ff");

@@ -812,6 +812,8 @@ pub mod notifications {
         fn invoke(&self, id: u32, key: &str) -> zbus::Result<bool>;
         fn reply(&self, id: u32, text: &str) -> zbus::Result<bool>;
         fn clear(&self) -> zbus::Result<()>;
+        /// Every app that has posted: the key its rules are filed under, and its name.
+        fn apps(&self) -> zbus::Result<Vec<(String, String)>>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

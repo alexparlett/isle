@@ -15,4 +15,4 @@ isle-tokens.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
-freya-testing = { git = "https://github.com/alexparlett/freya", rev = "8b168e907cc9ce7389867f5a7ebd063b5f5ac81f" }
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "996e74a784173cd592e02c36e92759f240ac6d55" }

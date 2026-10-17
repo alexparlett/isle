@@ -66,7 +66,11 @@ impl Source for SettingsSource {
                     false,
                     || {
                         (
-                            Some(format!("Settings › {}", r.pane_label)),
+                            Some(if r.row.is_empty() {
+                                "Settings".to_owned()
+                            } else {
+                                format!("Settings › {}", r.pane_label)
+                            }),
                             None,
                             Icon::Glyph("gear-six"),
                             Item::Setting {
@@ -87,12 +91,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_index_parses_and_ships_empty() {
+    fn the_index_parses_and_the_shipped_one_names_every_pane() {
         let rows = parse(
             r#"row pane="displays" id="scale" label="Scale" pane-label="Displays" also="zoom;size""#,
         );
         assert_eq!(rows[0].label, "Scale");
         assert_eq!(rows[0].also, ["zoom", "size"]);
-        assert!(parse(include_str!("../../../../data/settings/index.kdl")).is_empty());
+        let shipped = parse(include_str!("../../../../data/settings/index.kdl"));
+        assert!(shipped.iter().any(|r| r.pane == "displays" && r.row.is_empty() && r.label == "Displays"));
     }
 }

@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+# Contexts for testing an app's components headless.
+testing = []
+
 [dependencies]
 freya = { workspace = true, features = ["winit", "accessibility"] }
 futures-channel = "0.3"

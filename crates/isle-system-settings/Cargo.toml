@@ -12,4 +12,17 @@ path = "src/main.rs"
 [dependencies]
 freya = { workspace = true, features = ["winit"] }
 isle-app.workspace = true
+isle-search.workspace = true
+isle-settings.workspace = true
+isle-state.workspace = true
 isle-ui.workspace = true
+libc.workspace = true
+serde.workspace = true
+tracing.workspace = true
+zbus.workspace = true
+zvariant.workspace = true
+
+[dev-dependencies]
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "a8d7a0300ca6dc8f4dde7fdc50bb2f025505b237" }
+isle-app = { workspace = true, features = ["testing"] }
+isle-ipc.workspace = true

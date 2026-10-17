@@ -2,6 +2,23 @@
 
 ## 2026-10-17
 
+- P13 13.3, the frame: the panes in the sidebar's order with their glyphs,
+  hues, groups and one-sentence subtitles (provisional until the rows'
+  board) as the record (`panes.rs`); the index Spotlight reads written from
+  it by `isle-settings --write-index`, a test failing when the committed
+  file differs, and a pane found as "Settings". The sidebar has the search
+  field, the account row from AccountsService (initials, or the login when
+  there is no name) and the panes; Up and Down move through them. Search
+  ranks with Spotlight's matcher, panes whose name matches first, keywords
+  finding without showing, and says "No results for …". The toolbar has Back
+  and Forward (and Cmd+[, Cmd+], the mouse's buttons) and the pane's name;
+  the content has the rejected-edit notice for `settings.kdl`, and for
+  `tokens.kdl` on Appearance and Accessibility, then the pane's header. A
+  launch, an activation or `isle-settings://` opens at a pane; the pane last
+  shown is kept in `settings-app.json` and opened next time, General the
+  first. Tested headless (`isle-app`'s `testing` feature gives a tree its
+  contexts), and in a headless Isle a second launch's link opens Displays.
+
 - P13 13.2, the text field: `isle-ui::TextField` is Freya's editor (caret,
   selection, clipboard, undo) dressed in Isle's tokens; with the Mac's
   conventions declared, Cmd+Right goes to the line's end, Option+Backspace

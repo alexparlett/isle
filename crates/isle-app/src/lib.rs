@@ -81,6 +81,37 @@ pub fn use_commands(commands: Vec<Command>) {
     }
 }
 
+/// The contexts `run` gives an app's tree, for testing its components headless: the worker,
+/// the desktop's state as given, the shipped theme and the command table.
+#[cfg(feature = "testing")]
+pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
+    use_provide_context(Worker::start);
+    use_provide_context(|| Chrome(Rc::default()));
+    use_provide_context(|| TargetPlatform::MacOs);
+    use_provide_context(GlassShapes::default);
+    use_provide_context(|| {
+        ThemeContext(State::create(Rc::new(
+            Source::shipped().theme(&Appearance::default()).expect("the shipped tokens resolve"),
+        )))
+    });
+    use_provide_context(|| Table {
+        app: State::create(Vec::new()),
+    });
+    use_provide_context(|| Desktop {
+        values: State::create(Rc::new(desktop_values)),
+        status: State::create(None),
+        tokens_status: State::create(None),
+        requests: State::create(Vec::new()),
+        commands: State::create(Vec::new()),
+    })
+}
+
+/// The app's commands as last declared, for tests.
+#[cfg(feature = "testing")]
+pub fn declared_commands() -> Vec<Command> {
+    use_consume::<Table>().app.read().clone()
+}
+
 /// The path the app's menu bar is served at.
 const MENU_PATH: &str = "/MenuBar/1";
 

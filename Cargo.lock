@@ -3243,8 +3243,18 @@ name = "isle-system-settings"
 version = "0.1.0"
 dependencies = [
  "freya",
+ "freya-testing",
  "isle-app",
+ "isle-ipc",
+ "isle-search",
+ "isle-settings",
+ "isle-state",
  "isle-ui",
+ "libc",
+ "serde",
+ "tracing",
+ "zbus",
+ "zvariant",
 ]
 
 [[package]]

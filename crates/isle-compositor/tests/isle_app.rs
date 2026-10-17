@@ -41,6 +41,11 @@ async fn settings_opens_under_isles_lights_and_stays_one_instance() {
     common::wait_until(|| async { second.exited() }).await;
     app.wait_for_part("Open { uris: [\"isle-settings://displays\"]").await;
     assert_eq!(isle.windows().await.iter().filter(|w| w.app_id == APP).count(), 1);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    isle.shot("HEADLESS-1", "displays").await;
+    if let Some(keep) = std::env::var_os("ISLE_TEST_KEEP") {
+        std::fs::copy(isle.dir.join("displays.png"), PathBuf::from(keep).join("displays.png")).unwrap();
+    }
 
     // Its own menus, exported over DBusMenu, in Isle's bar; Quit ends it.
     let menus = isle_ipc::menus::MenusProxy::new(&isle.bus).await.unwrap();

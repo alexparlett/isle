@@ -68,3 +68,19 @@ async fn a_keyboard_backlight_change_raises_its_osd() {
     })
     .await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn settings_sets_a_screen_and_the_list_reports_it() {
+    let isle = Isle::start("brightness-settings").await;
+    let logind = Logind::start(&isle.system_address()).await.unwrap();
+    let displays = isle_ipc::displays::DisplaysProxy::new(&isle.bus).await.unwrap();
+    assert!(!displays.set_brightness("HEADLESS-1", 0.5).await.unwrap(), "nothing to set yet");
+    isle.test().await.fake_screen("HEADLESS-1", 50, 100).await.unwrap();
+    assert!(displays.set_brightness("HEADLESS-1", 0.25).await.unwrap());
+    wait_until(|| async {
+        logind.brightness().await.last() == Some(&("backlight".into(), "test".into(), 25))
+    })
+    .await;
+    let listed = displays.list().await.unwrap();
+    assert_eq!(listed[0].brightness, 0.25);
+}

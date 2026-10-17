@@ -107,6 +107,13 @@ impl State {
                     height_mm: properties.size.h,
                     min_hz: known.map_or(0, |c| c.4.0),
                     max_hz: known.map_or(0, |c| c.4.1),
+                    brightness: self
+                        .isle
+                        .services
+                        .screens
+                        .get(&output.name())
+                        .and_then(|s| s.level)
+                        .map_or(-1.0, f64::from),
                 }
             })
             .collect();
@@ -137,6 +144,7 @@ impl State {
                 height_mm: size_mm.1 as i32,
                 min_hz: hz.0,
                 max_hz: hz.1,
+                brightness: -1.0,
             });
         }
         infos

@@ -229,6 +229,8 @@ pub struct DisplayInfo {
     /// The EDID's refresh range in hertz, zero where it gives none.
     pub min_hz: u32,
     pub max_hz: u32,
+    /// 0 to 1, or below 0 when Isle cannot set it.
+    pub brightness: f64,
 }
 
 /// A mode a display offers.
@@ -543,6 +545,8 @@ pub mod displays {
         fn keep(&self, id: u64) -> zbus::Result<bool>;
         /// Puts back what change `id` replaced.
         fn revert(&self, id: u64) -> zbus::Result<bool>;
+        /// A display's brightness, 0 to 1, by its connector's name.
+        fn set_brightness(&self, name: &str, level: f64) -> zbus::Result<bool>;
         /// Releases every output and probes the connectors again, as one step.
         fn redetect(&self) -> zbus::Result<()>;
         /// Turns every screen off now.

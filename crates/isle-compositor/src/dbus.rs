@@ -740,6 +740,22 @@ impl Displays {
         Ok(true)
     }
 
+    /// A display's brightness, 0 to 1, by its connector's name; false when Isle cannot set it.
+    async fn set_brightness(&self, name: String, level: f64) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let settable = state.isle.services.screens.get(&name).is_some_and(|s| s.max > 0);
+                if settable {
+                    state.isle.set_brightness(&name, level as f32);
+                    state.isle.refresh_island();
+                    state.isle.notify(crate::worker::Event::DisplaysChanged);
+                }
+                settable
+            })
+            .await?)
+    }
+
     /// Puts back what change `id` replaced; false when it is no longer in force.
     async fn revert(&self, id: u64) -> fdo::Result<bool> {
         Ok(self.to_loop.call(move |state| state.revert_displays(id)).await?)

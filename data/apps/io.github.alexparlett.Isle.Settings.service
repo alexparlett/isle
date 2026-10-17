@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=io.github.alexparlett.Isle.Settings
+Exec=/usr/bin/isle-settings

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=System Settings
+Comment=Change how the desktop and the system work
+Icon=preferences-system
+Exec=isle-settings %u
+DBusActivatable=true
+StartupNotify=true
+Categories=Settings;System;
+Keywords=Preferences;Control Panel;
+MimeType=x-scheme-handler/isle-settings;

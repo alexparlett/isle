@@ -32,6 +32,8 @@ pub enum Command {
     /// The session dialog's confirmation for this action.
     EndSession(isle_shell::prompts::session::Choice),
     ForceQuit,
+    /// System Settings, at a pane when one is named.
+    Settings(Option<&'static str>),
     About,
     Hide,
     HideOthers,
@@ -488,9 +490,9 @@ impl State {
         let mut titles = Vec::new();
 
         let system = vec![
-            b.item("About This Computer", None, None),
+            b.item("About This Computer", Some(Command::Settings(Some("general"))), None),
             MenuEntry::Separator,
-            b.item("System Settings…", None, None),
+            b.item("System Settings…", Some(Command::Settings(None)), None),
             b.item("Software Update…", None, None),
             MenuEntry::Separator,
             b.item(
@@ -1305,6 +1307,9 @@ impl State {
             Command::LockScreen => self.lock("system menu"),
             Command::EndSession(choice) => self.open_session_confirm(choice),
             Command::ForceQuit => self.open_force_quit(),
+            Command::Settings(pane) => {
+                self.open_settings(pane, None);
+            }
             Command::About => self.open_about(&app),
             Command::Hide => {
                 self.set_app_hidden(&app, true);

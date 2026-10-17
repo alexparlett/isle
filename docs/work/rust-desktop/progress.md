@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+- P13 13.3, opening Settings: the compositor's `open_settings(pane, row)`
+  launches Settings through its bus name when its entry is installed, else
+  the `isle-settings` built beside the compositor, with
+  `isle-settings://<pane>[/<row>]`. Control Centre's "… Settings…" and Set
+  up… (its pane names turned to ids), the system menu's About This Computer
+  (General) and System Settings…, Spotlight's settings results, the
+  `settings` shortcut, `Shell1.OpenSettings` and `isle settings open [pane]
+  [row]` all use it. `data/apps/` holds the desktop entry (DBusActivatable,
+  the `isle-settings` scheme) and the D-Bus service file. Headless, Isle
+  starts Settings at Displays and a second open moves the same window.
+
 - P13 13.3, the frame: the panes in the sidebar's order with their glyphs,
   hues, groups and one-sentence subtitles (provisional until the rows'
   board) as the record (`panes.rs`); the index Spotlight reads written from

@@ -369,6 +369,8 @@ enum Settings {
     Reset { key: String },
     /// Delete an entry such as focus-mode[Reading].
     Remove { entry: String },
+    /// Open System Settings, at a pane and row by their ids.
+    Open { pane: Option<String>, row: Option<String> },
     /// Whether settings.kdl is in force, or why not.
     Status,
     /// Every key, its type, default and range.
@@ -1126,6 +1128,15 @@ async fn settings(cli: &Cli, bus: &zbus::Connection, command: &Settings) -> zbus
             let changed = proxy.reset(key).await?;
             if cli.json {
                 print_json(&changed);
+            }
+        }
+        Settings::Open { pane, row } => {
+            let shell = isle_ipc::shell::ShellProxy::new(bus).await?;
+            let opened = shell
+                .open_settings(pane.as_deref().unwrap_or(""), row.as_deref().unwrap_or(""))
+                .await?;
+            if !opened {
+                return Err(zbus::Error::Failure("System Settings is not installed".into()));
             }
         }
         Settings::Remove { entry } => {

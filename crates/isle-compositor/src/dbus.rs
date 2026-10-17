@@ -616,6 +616,17 @@ impl Shell {
             .await?)
     }
 
+    /// System Settings at a pane and row; empty for where it was last.
+    async fn open_settings(&self, pane: String, row: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                let pane = Some(pane.as_str()).filter(|p| !p.is_empty());
+                state.open_settings(pane, Some(row.as_str()))
+            })
+            .await?)
+    }
+
     /// The tokens and appearance in force, for an app's own drawing.
     async fn theme(&self) -> fdo::Result<isle_ipc::ThemeInfo> {
         Ok(self.to_loop.call(|state| state.isle.theme_info()).await?)

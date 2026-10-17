@@ -62,6 +62,7 @@ pub mod state;
 pub mod state_writer;
 mod portal;
 mod recording;
+mod settings_link;
 mod share;
 mod thumbnail;
 mod titlebar_overlay;

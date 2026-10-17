@@ -1154,8 +1154,7 @@ impl State {
 
     /// Settings at a pane and row; Settings comes with P13.
     fn open_settings_at(&mut self, pane: &str, row: &str) {
-        let target = format!("isle-settings://{pane}/{row}");
-        self.launch(crate::launch::Launch::Open(target));
+        self.open_settings(Some(pane), Some(row));
     }
 
     /// The file selected in whatever owns `org.freedesktop.FileManager1`.

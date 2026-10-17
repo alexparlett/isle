@@ -500,6 +500,10 @@ impl State {
                     self.copy_stop(id);
                 }
             }
+            PanelAction::Settings(pane) => {
+                let id = crate::settings_link::pane_id(&pane);
+                self.open_settings(Some(&id), None);
+            }
             other => info!(?other, "not built yet"),
         }
         self.follow_pages();

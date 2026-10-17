@@ -431,6 +431,8 @@ pub mod shell {
         fn tokens_status(&self) -> zbus::Result<SettingsStatus>;
         /// The tokens and appearance in force, for an app's own drawing.
         fn theme(&self) -> zbus::Result<ThemeInfo>;
+        /// System Settings at a pane and row; empty for where it was last.
+        fn open_settings(&self, pane: &str, row: &str) -> zbus::Result<bool>;
         /// The theme or the tokens' status changed.
         #[zbus(signal)]
         fn theme_changed(&self) -> zbus::Result<()>;

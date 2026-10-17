@@ -58,3 +58,20 @@ async fn settings_opens_under_isles_lights_and_stays_one_instance() {
     assert!(menus.activate(&["System Settings", "Quit System Settings"]).await.unwrap());
     common::wait_until(|| async { app.exited() }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn isle_opens_settings_at_a_pane_and_moves_the_running_one() {
+    if settings_bin().is_none() {
+        eprintln!("skipped: build isle-system-settings first");
+        return;
+    }
+    let isle = Isle::start("open-settings").await;
+    let shell = isle_ipc::shell::ShellProxy::new(&isle.bus).await.unwrap();
+    assert!(shell.open_settings("displays", "").await.unwrap());
+    let w = isle.wait_for_window(APP).await;
+    assert!(shell.open_settings("sound", "").await.unwrap());
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    let mine: Vec<_> = isle.windows().await.into_iter().filter(|w| w.app_id == APP).collect();
+    assert_eq!(mine.len(), 1, "one Settings");
+    assert_eq!(mine[0].id, w.id);
+}

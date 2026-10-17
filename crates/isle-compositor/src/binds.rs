@@ -15,6 +15,8 @@ use crate::{state::State, wm::geometry::Zone};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
     Terminal,
+    /// System Settings, where it was last.
+    Settings,
     CloseWindow,
     Quit,
     /// A zone for the focused window; a repeat moves along the zone's cycle.
@@ -127,6 +129,7 @@ fn action_for(id: &'static str) -> Action {
         "log-out" => Action::LogOut,
         "session-chooser" => Action::SessionChooser,
         "force-quit" => Action::ForceQuit,
+        "settings" => Action::Settings,
         "lock" => Action::Lock,
         "redetect-displays" => Action::Redetect,
         "next-layout" => Action::NextLayout,
@@ -264,6 +267,9 @@ impl State {
         info!(?action, "bind");
         match action {
             Action::Terminal => spawn(&self.isle.settings.shortcuts.terminal_command),
+            Action::Settings => {
+                self.open_settings(None, None);
+            }
             Action::CloseWindow => match self.delegate(false) {
                 Some(strokes) => self.send_strokes(&strokes),
                 None => {

@@ -338,17 +338,30 @@ struct Root<A> {
 
 /// The theme for what the compositor said, or the shipped one when its file will not read.
 fn resolve(info: &ThemeInfo) -> Rc<Theme> {
-    let source = if info.tokens.is_empty() {
-        Source::shipped()
-    } else {
-        match Source::with_user(&info.tokens, Path::new("tokens.kdl")) {
-            Ok((source, _)) => source,
-            Err(err) => {
-                warn!("the compositor's tokens do not read here: {err}");
-                Source::shipped()
-            }
+    thread_local! {
+        /// The tokens last read, by their text: a glass or accent change keeps the text.
+        static READ: RefCell<Option<(String, Source)>> = const { RefCell::new(None) };
+    }
+    let source = READ.with_borrow_mut(|read| {
+        if let Some((text, source)) = read.as_ref()
+            && *text == info.tokens
+        {
+            return source.clone();
         }
-    };
+        let source = if info.tokens.is_empty() {
+            Source::shipped()
+        } else {
+            match Source::with_user(&info.tokens, Path::new("tokens.kdl")) {
+                Ok((source, _)) => source,
+                Err(err) => {
+                    warn!("the compositor's tokens do not read here: {err}");
+                    Source::shipped()
+                }
+            }
+        };
+        *read = Some((info.tokens.clone(), source.clone()));
+        source
+    });
     let appearance = Appearance {
         mode: if info.mode == "light" { Mode::Light } else { Mode::Dark },
         accent: info.accent.clone(),

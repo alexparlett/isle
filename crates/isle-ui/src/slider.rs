@@ -189,7 +189,9 @@ impl Component for Slider {
                 let shadow = shadows(&t.shadow_control);
                 el.child(
                     shadow.into_iter().fold(
+                        // Over the fill: Freya orders siblings within a layer by no rule.
                         rect()
+                            .layer(1)
                             .position(
                                 Position::new_absolute()
                                     .left(left)

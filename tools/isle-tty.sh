@@ -86,7 +86,8 @@ if ((build)); then
     flag=()
     [[ $profile == release ]] && flag=(--release)
     cargo build "${flag[@]}" --manifest-path "$REPO/Cargo.toml" \
-        -p isle-session -p isle-compositor -p isle-cli -p isle-auth -p isle-record
+        -p isle-session -p isle-compositor -p isle-cli -p isle-auth -p isle-record \
+        -p isle-system-settings
 fi
 for exe in isle-session isle-compositor isle isle-auth; do
     [[ -x "$bin/$exe" ]] || { echo "isle-tty: $bin/$exe is not built" >&2; exit 1; }

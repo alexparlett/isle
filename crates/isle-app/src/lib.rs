@@ -57,6 +57,22 @@ pub struct Desktop {
     pub writes: State<Vec<Write>>,
     /// The last change the compositor refused: its key and why.
     pub refused: State<Option<(String, String)>>,
+    /// The keys with a change on its way, and the latest change of each that waits for it.
+    pub flight: State<Flight>,
+}
+
+/// Changes sent and not yet answered, one a key at a time.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Flight {
+    pub sending: std::collections::BTreeSet<String>,
+    /// The latest change to a key whose earlier change is still being sent.
+    pub waiting: BTreeMap<String, Write>,
+}
+
+impl Flight {
+    pub fn pending(&self, key: &str) -> bool {
+        self.sending.contains(key) || self.waiting.contains_key(key)
+    }
 }
 
 impl Desktop {
@@ -104,7 +120,29 @@ impl Desktop {
         if refused.peek().as_ref().is_some_and(|(k, _)| k == write.key()) {
             refused.set(None);
         }
-        writes.write().push(write);
+        // A key changed again before the last change left supersedes it, as a slider dragged.
+        let mut queue = writes.write();
+        queue.retain(|w| w.key() != write.key());
+        queue.push(write);
+    }
+
+    /// The compositor's values, with the app's own for the keys whose change is still on its
+    /// way: an answer to an earlier change must not undo a later one.
+    pub fn take_values(&self, mut values: BTreeMap<String, Value>) {
+        let flight = self.flight.peek();
+        let queued = self.writes.peek();
+        let mine = self.values.peek();
+        for key in mine.keys().chain(values.clone().keys()) {
+            if flight.pending(key) || queued.iter().any(|w| w.key() == key) {
+                match mine.get(key) {
+                    Some(v) => values.insert(key.clone(), v.clone()),
+                    None => values.remove(key),
+                };
+            }
+        }
+        drop((flight, queued, mine));
+        let mut state = self.values;
+        state.set(Rc::new(values));
     }
 }
 
@@ -169,6 +207,7 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
         commands: State::create(Vec::new()),
         writes: State::create(Vec::new()),
         refused: State::create(None),
+        flight: State::create(Flight::default()),
     })
 }
 
@@ -357,6 +396,7 @@ impl<A: App + 'static> App for Root<A> {
             commands: State::create(Vec::new()),
             writes: State::create(Vec::new()),
             refused: State::create(None),
+            flight: State::create(Flight::default()),
         });
         let table = use_provide_context(|| Table {
             app: State::create(Vec::new()),
@@ -397,13 +437,28 @@ impl<A: App + 'static> App for Root<A> {
                     warn!("not on the bus, {} changes are lost", writes.len());
                     return;
                 };
+                let mut flight = desktop.flight;
                 for write in writes {
+                    let key = write.key().to_owned();
+                    if flight.peek().sending.contains(&key) {
+                        flight.write().waiting.insert(key, write);
+                        continue;
+                    }
+                    flight.write().sending.insert(key.clone());
                     let job = worker.spawn(desktop::send(bus.clone(), write.clone()));
-                    let mut refused = desktop.refused;
+                    let (mut refused, mut queue) = (desktop.refused, desktop.writes);
                     spawn(async move {
                         if let Ok(Err(why)) = job.await {
                             warn!(?write, "refused: {why}");
-                            refused.set(Some((write.key().to_owned(), why)));
+                            refused.set(Some((key.clone(), why)));
+                        }
+                        let next = {
+                            let mut f = flight.write();
+                            f.sending.remove(&key);
+                            f.waiting.remove(&key)
+                        };
+                        if let Some(next) = next {
+                            queue.write().push(next);
                         }
                     });
                 }
@@ -449,7 +504,7 @@ impl<A: App + 'static> App for Root<A> {
                             desktop.tokens_status.set(Some(status));
                         }
                         Inbound::Update(desktop::Update::Values(values)) => {
-                            desktop.values.set(Rc::new(values));
+                            desktop.take_values(values);
                         }
                         Inbound::Update(desktop::Update::Status(status)) => {
                             desktop.status.set(Some(status));

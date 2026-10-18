@@ -492,3 +492,36 @@ fn identify_asks_the_compositor() {
     click(&mut test, "Identify");
     assert!(handles.acts().contains(&Act::Identify));
 }
+
+fn centre_of(test: &TestingRunner, caption: &str) -> (f64, f64) {
+    let at = test
+        .find(|node, element| {
+            Label::try_downcast(element)
+                .filter(|label| label.text == caption)
+                .map(|_| node.layout().area.center())
+        })
+        .unwrap_or_else(|| panic!("nothing reads {caption:?}"));
+    (f64::from(at.x), f64::from(at.y))
+}
+
+#[test]
+fn a_dragged_slider_sends_its_last_value_once() {
+    let (mut test, handles) = open("isle-settings://appearance", |_, _| {});
+    let (clear, y) = centre_of(&test, "Clear");
+    let (tinted, _) = centre_of(&test, "Tinted");
+    // Along the track between the two words, from its start to its end.
+    let (from, to) = (clear + 30., tinted - 30.);
+    test.press_cursor((from, y));
+    for i in 0..=40 {
+        test.move_cursor((from + (to - from) * f64::from(i) / 40., y));
+    }
+    test.release_cursor((to, y));
+    settle(&mut test);
+    let glass: Vec<Write> = handles
+        .writes()
+        .into_iter()
+        .filter(|w| w.key() == "appearance.glass")
+        .collect();
+    assert_eq!(glass.len(), 1, "{glass:?}");
+    assert!(matches!(&glass[0], Write::Set(_, Value::Float(v)) if *v > 0.9), "{glass:?}");
+}

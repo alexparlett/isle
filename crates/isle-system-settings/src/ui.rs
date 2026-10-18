@@ -256,8 +256,10 @@ impl Rows {
             words: (words.0.to_owned(), words.1.to_owned()),
             ticks: 0,
             on_change: EventHandler::new(move |v: f32| {
-                let v = lo + f64::from(v) * (hi - lo);
-                desktop.set(key, Value::Float((v * 100.).round() / 100.))
+                let v = ((lo + f64::from(v) * (hi - lo)) * 100.).round() / 100.;
+                if desktop.value(key) != Some(Value::Float(v)) {
+                    desktop.set(key, Value::Float(v))
+                }
             }),
         })
     }
@@ -281,8 +283,10 @@ impl Rows {
             words: (words.0.to_owned(), words.1.to_owned()),
             ticks: 0,
             on_change: EventHandler::new(move |v: f32| {
-                let v = lo + f64::from(v) * (hi - lo);
-                desktop.set(key.clone(), Value::Float((v * 100.).round() / 100.))
+                let v = ((lo + f64::from(v) * (hi - lo)) * 100.).round() / 100.;
+                if desktop.value(&key) != Some(Value::Float(v)) {
+                    desktop.set(key.clone(), Value::Float(v))
+                }
             }),
         })
     }
@@ -304,7 +308,10 @@ impl Rows {
             words: (words.0.to_owned(), words.1.to_owned()),
             ticks: steps.len(),
             on_change: EventHandler::new(move |v: f32| {
-                desktop.set(key, Value::Int(steps[step_index(steps.len(), v)]))
+                let step = steps[step_index(steps.len(), v)];
+                if desktop.value(key) != Some(Value::Int(step)) {
+                    desktop.set(key, Value::Int(step))
+                }
             }),
         })
     }

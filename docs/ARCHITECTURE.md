@@ -662,6 +662,10 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   and `Changed`, and whether `settings.kdl` and `tokens.kdl` are in force.
   An app writes through `Settings1` (Set, Reset, Remove); the value reads as
   set at once and a refusal is kept against its key for the row to show.
+  One change a key is in flight at a time, a later one waiting in its place,
+  and while a key's change is on its way the compositor's echo does not
+  overwrite it, so a dragged slider sends only as fast as it is answered; a
+  burst of change signals is read once.
 - **One command table** declares every command with its menu, group and
   chord; the menu bar is exported from it as DBusMenu at `/MenuBar/1`, and
   its chords are matched in the window, Cmd as `Modifiers::META`. Isle's

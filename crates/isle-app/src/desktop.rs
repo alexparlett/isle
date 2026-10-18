@@ -5,7 +5,7 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use futures_channel::mpsc::UnboundedSender;
-use futures_util::StreamExt;
+use futures_util::{FutureExt, StreamExt};
 use isle_ipc::{SettingsStatus, ThemeInfo, settings::SettingsProxy, shell::ShellProxy};
 use isle_settings::Value;
 use tracing::{info, warn};
@@ -124,9 +124,16 @@ async fn follow(bus: &zbus::Connection, updates: &UnboundedSender<Update>) -> zb
     info!("following the compositor");
 
     loop {
+        // A burst of signals, as a dragged slider sends, is read once.
         tokio::select! {
-            Some(_) = theme_changed.next() => theme().await?,
-            Some(_) = changed.next() => values().await?,
+            Some(_) = theme_changed.next() => {
+                while let Some(Some(_)) = theme_changed.next().now_or_never() {}
+                theme().await?
+            }
+            Some(_) = changed.next() => {
+                while let Some(Some(_)) = changed.next().now_or_never() {}
+                values().await?
+            }
             Some(_) = status_changed.next() => {
                 send(Update::Status(settings.status().await?));
             }

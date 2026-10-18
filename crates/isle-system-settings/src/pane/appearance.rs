@@ -45,7 +45,23 @@ impl Component for Appearance {
         let theme = use_theme();
         let r = Rows::new(&self.at);
         let desktop = r.desktop;
-        let swatches = accents(&theme);
+        // Eight themes resolved: kept until the mode or contrast changes, not per glass step.
+        type Swatches = Vec<(String, Color, Color)>;
+        let cache = use_hook(|| {
+            std::rc::Rc::new(std::cell::RefCell::new(None::<((isle_tokens::Mode, bool), Swatches)>))
+        });
+        let key = (theme.appearance.mode, theme.appearance.increase_contrast);
+        let swatches = {
+            let mut cached = cache.borrow_mut();
+            match cached.as_ref() {
+                Some((k, list)) if *k == key => list.clone(),
+                _ => {
+                    let list = accents(&theme);
+                    *cached = Some((key, list.clone()));
+                    list
+                }
+            }
+        };
         let names: Vec<String> = Source::shipped().accents();
         let accent = r.str("appearance.accent").unwrap_or_default();
         let mode = r.str("appearance.mode").unwrap_or_default();

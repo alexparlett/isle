@@ -26,10 +26,14 @@ impl Isle {
         })
     }
 
-    fn bar_model(&self, id: u64) -> Option<BarModel> {
-        let record = self.wm.get(id)?;
-        let (min, max) = record
-            .surface()
+    /// The smallest and largest sizes window `id` asks to be, zero where it sets none.
+    pub fn size_bounds(
+        &self,
+        id: u64,
+    ) -> (smithay::utils::Size<i32, Logical>, smithay::utils::Size<i32, Logical>) {
+        self.wm
+            .get(id)
+            .and_then(|r| r.surface())
             .map(|s| {
                 with_states(&s, |states| {
                     let mut cached = states.cached_state.get::<SurfaceCachedState>();
@@ -37,7 +41,12 @@ impl Isle {
                     (current.min_size, current.max_size)
                 })
             })
-            .unwrap_or_default();
+            .unwrap_or_default()
+    }
+
+    fn bar_model(&self, id: u64) -> Option<BarModel> {
+        let record = self.wm.get(id)?;
+        let (min, max) = self.size_bounds(id);
         let fixed = min.w > 0 && min == max;
         let active = self
             .seat

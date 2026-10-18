@@ -1192,3 +1192,17 @@ async fn with_title_bars_off_clients_are_told_to_draw_their_own() {
         .at((w.x + 300) as usize, (w.y - 16) as usize);
     assert_eq!(above, TITLEBAR, "the bar again");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_that_cannot_grow_fills_to_its_largest_centred() {
+    let mut isle = Isle::start("maxfill").await;
+    let client = isle.client("isle.test.MaxFill", "3366ff");
+    let w = isle.wait_for_window("isle.test.MaxFill").await;
+    client.send("max 600 0");
+    client.send("colour 3366ff");
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let windows = isle.windows_proxy().await;
+    assert!(windows.tile(w.id, "fill").await.unwrap());
+    // The work area is 12 to 1908 across; 600 wide, centred in it.
+    settles(&isle, w.id, "filled", (660, 60, 600, 1008)).await;
+}

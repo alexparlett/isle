@@ -20,6 +20,8 @@ const SPEC: Spec = Spec {
     title: "System Settings",
     size: (900.0, 760.0),
     min_size: (784.0, 564.0),
+    // As macOS's: taller as the screen allows, never wider than it opens.
+    max_size: Some((900.0, 16384.0)),
     // The lights' 32 point group centred in the 52 point toolbar.
     traffic_light_inset: (0.0, 10.0),
     preferences: false,

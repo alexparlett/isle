@@ -100,14 +100,29 @@ impl Isle {
 }
 
 impl State {
-    /// Configures `id` to fill `frame` less its bar, and moves it there.
+    /// Configures `id` to fill `frame` less its bar, and moves it there. A window that
+    /// cannot grow so far takes its largest size, centred in `frame`.
     pub fn set_frame(&mut self, id: u64, frame: Rect) {
-        self.begin_morph(id, frame);
         let bar = self.isle.bar_height(id);
+        let (min, max) = self.isle.size_bounds(id);
+        let fit = |space: i32, min: i32, max: i32| {
+            let size = if max > 0 { space.min(max) } else { space };
+            size.max(min).max(1)
+        };
+        let (w, h) = (fit(frame.size.w, min.w, max.w), fit(frame.size.h - bar, min.h, max.h));
+        let frame = Rect::new(
+            (
+                frame.loc.x + (frame.size.w - w).max(0) / 2,
+                frame.loc.y + (frame.size.h - bar - h).max(0) / 2,
+            )
+                .into(),
+            (w, h + bar).into(),
+        );
+        self.begin_morph(id, frame);
         let Some(record) = self.isle.wm.get(id) else {
             return;
         };
-        record.configure_size((frame.size.w, (frame.size.h - bar).max(1)).into());
+        record.configure_size((w, h).into());
         self.move_window(id, Point::from((frame.loc.x, frame.loc.y + bar)));
     }
 

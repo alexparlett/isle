@@ -3302,6 +3302,7 @@ dependencies = [
  "freya-testing",
  "isle-search",
  "isle-tokens",
+ "png 0.17.16",
  "zeroize",
 ]
 

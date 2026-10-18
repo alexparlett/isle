@@ -93,7 +93,9 @@ Every Isle app follows these rules.
     to B8's zones. The toolbar's double, right and middle clicks are handed to the compositor through
     `gtk_shell1`'s titlebar gesture and do what the user's system setting says.
 16. Every window resizes from every edge and has a minimum size at which nothing is clipped. The
-    About window is the one exception: a small window of fixed size (P1, `conventions.md`).
+    About window is the one exception: a small window of fixed size (P1, `conventions.md`). A
+    window whose content reads worse wider, as Settings' form, has a maximum width too, as macOS's
+    System Settings does; filled or tiled, it takes its largest size centred in the zone.
 17. Translucency is asked of the compositor through `ext-background-effect-v1`; no app blurs behind
     itself (`ui-and-services.md` §2). A window with a backdrop draws premultiplied ARGB in software
     and declares the rest of itself opaque (B98).

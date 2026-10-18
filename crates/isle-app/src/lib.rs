@@ -34,6 +34,8 @@ pub struct Spec {
     pub title: &'static str,
     pub size: (f64, f64),
     pub min_size: (f64, f64),
+    /// The largest it grows to; a filled or tiled window takes this, centred.
+    pub max_size: Option<(f64, f64)>,
     /// The lights' group from the window's top leading corner, in points.
     pub traffic_light_inset: (f64, f64),
     /// It has a settings window, opened by Settings… on Cmd+,.
@@ -297,6 +299,9 @@ pub fn run<A: App + 'static>(spec: Spec, app: A) {
         inbound: Rc::new(RefCell::new(Some(Box::pin(inbound)))),
     };
     let mut window = WindowConfig::new_app(root);
+    if let Some((w, h)) = spec.max_size {
+        window = window.with_max_size(w, h);
+    }
     if spec.backdrop.is_some() {
         window = window.with_background(Color::TRANSPARENT);
     }

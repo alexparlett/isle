@@ -759,14 +759,13 @@ paru and updated through pacman (B29).
   a composited frame on vsync, pinned by its branch's commit until its pull
   request is merged. Its `master` follows upstream; moving Isle to a
   newer upstream is a rebase of `isle` and a revision bump.
-- **Freya**, through `alexparlett/freya` (B7), pinned by revision: its
-  `main` carries `freya-embed` (the embedding crate made from the spike's
-  glue), an idle `Timeout` that sleeps, and thread-local contexts restored
-  on unwind (alexparlett/freya#10); Isle pins the `isle/softbuffer-alpha`
-  branch over it, which adds accessibility nodes built only while a screen
-  reader listens and the software driver's alpha, on softbuffer's
-  unreleased `AlphaMode` pinned by revision (B98), until
-  alexparlett/freya#11 merges. A git-ignored
+- **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
+  `main`, which carries `freya-embed` (the embedding crate made from the
+  spike's glue), an idle `Timeout` that sleeps, and thread-local contexts
+  restored on unwind (alexparlett/freya#10), and accessibility nodes built
+  only while a screen reader listens with the software driver's alpha, on
+  softbuffer's unreleased `AlphaMode` pinned by revision
+  (alexparlett/freya#11, B98). A git-ignored
   `.cargo/config.toml` may patch it to a local checkout while working on
   the fork.
 

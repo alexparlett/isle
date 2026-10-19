@@ -468,3 +468,10 @@
   `p1/structure/settings.md`, the roadmap's P13, P14, P16 and P20 entries
   follow, `p13-settings.md` ends with its outcome. Next: the host run
   (`docs/research/rust-desktop/p13-settings.md`), then P14.
+- P14 split (2026-10-19, the user's choice): P14a installs Isle and makes
+  it a session chosen at tuigreet beside Hyprland, before the parity
+  packets; P14b, the switch (greeter mode, v1 import, theming, `isle
+  setup` in full, updates, a second GPU), moves to M2 just before P21.
+  P14a planned in `p14a-session.md`, reviewed: the user took every
+  recommendation; research in
+  `docs/research/rust-desktop/session-2026.md`.

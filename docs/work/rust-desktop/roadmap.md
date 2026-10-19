@@ -163,32 +163,30 @@ web search). Settings › Displays draws each output's VRR and tearing and the
 Windows marks an app a game or never one, as `isle windows game` does since
 P12. Intent: apps.md.
 
-## Milestone M2: Isle replaces v1 on the host
+## Installed beside v1
 
-**P14 · Session and install.** The package installs `isle-record` and
-`isle-settings` beside the compositor, with Settings' desktop entry and
-D-Bus service file (`data/apps/`), built in software or with `--features
-gpu` as P13's host measure settles (B26), `isle.portal` and `isle-portals.conf` (from `data/portal/`),
-and sees to a user's own `~/.config/xdg-desktop-portal/portals.conf`, which
-outranks the packaged file (v1 left one preferring Hyprland's backend, and
-v1's own `isle.portal` claims the same name); found in P11's VM. The PKGBUILD built from git, installed with
-paru and updated through pacman (B29); the compositor's greeter mode under
-greetd (B26) and session start, Login Items and autostart, crash logs, the
-update path, the dev loop that replaces `isle-dev-sync`; theming installed
-apps from tokens as P1's `system/theming.md` maps them, with Qt apps
-reaching Isle's file panels; the one-time import of v1's preferences, window places
-and launch counts (B27). The package installs `/usr/lib/pam.d/isle`, and the
-greeter is the lock's face with its PAM path (from P9). Scan-out of a second GPU's connectors (moved from
-P2). v1's user units disabled before the host moves over: xremap.service is
-wanted by graphical-session.target, which isle-session.target binds, and
-would rewrite Cmd chords before Isle saw them. The supervisor stops clearing
-the user manager's session variables on exit when another session owns them,
-and v1's and Isle's session logs stop sharing a path (both found in P4's
-host run). Ends with the host booting
-into the new Isle.
+**P14a · Installed, beside Hyprland.** Planned 2026-10-19: `p14a-session.md`.
+P14 split at the user's choice: Isle installed and chosen at sign-in before
+the parity packets, the switch after them (P14b). The package (`isle-git`,
+a PKGBUILD from git, B29) with the six binaries, Settings in software
+(B26), the session entry, `isle.portal` and `isle-portals.conf`, Settings'
+desktop entry and D-Bus service file, `/usr/lib/pam.d/isle`, the NVIDIA
+profile and an i2c `uaccess` rule; the binaries carrying their data and
+their helpers pinned to the running build. tuigreet as greetd's greeter
+until P14b, listing Hyprland and Isle. Isle beside v1: the user's
+`portals.conf` (preferring Hyprland's backend, and outranking the packaged
+file) becomes `hyprland-portals.conf`; xremap.service, wanted by
+graphical-session.target, runs only outside Isle; the supervisor unsets
+only the session variables still holding its values; the lock marker per
+logind session; Isle's logs out of the path v1 writes (both found in P4's
+host run). Login Items' engine over XDG autostart, launched into the
+session scope. `isle setup` with check, apply and undo, and P14a's steps.
+The dev loop that replaces `isle-dev-sync` for the new Isle: the checkout's
+HEAD packaged and installed. Ends with the host signing into Isle from
+tuigreet, and P12's and P13's host runs made on the installed build.
 Intent: platform.md, compositor.md.
 
-## After M2: parity
+## Parity
 
 **P15 · Files.** The capture thumbnail's click opens Quick Look with Markup,
 and its menu gains Show in Files and Markup; FileChooser joins `isle-portal`
@@ -226,6 +224,21 @@ calendars with Notification Centre's agenda, the providers (vault, with
 Spotlight's `*` scope, VPN, snapshots, phone), the dropdown terminal and picture-in-picture, the on-screen
 keyboard (on the lock too), and an audit against the inventory that nothing of v1 is left.
 Intent: all.
+
+## Milestone M2: Isle replaces v1 on the host
+
+**P14b · The switch.** The compositor's greeter mode under greetd (B26),
+the lock's face with its user list and session menu, drawing the look the
+user's session publishes for it (where: `session-2026.md` §1), replacing
+tuigreet; greetd's PAM service as Isle's own file. The one-time import of
+v1's preferences, window places and launch counts (B27). Theming installed
+apps from tokens as P1's `system/theming.md` maps them (`session-2026.md`
+§7 and §8), with Qt apps reaching Isle's file panels (§6). The rest of
+`isle setup`: keyring and fingerprint PAM lines, autologin, groups, the
+bootstrap command. The update path through paru and pacman, and restart
+owed. Scan-out of a second GPU's connectors (moved from P2; §2), if a
+screen is on the iGPU by then. v1's user units disabled. Ends with the host
+booting into the new Isle. Intent: platform.md, compositor.md.
 
 **P21 · Cut-over.** Remove v1's tree (`shell/`, `hypr/`, `plugins/`,
 `native/`, `theme/`) and its tooling; this branch becomes `main`.

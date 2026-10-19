@@ -63,6 +63,9 @@ impl App for Settings {
 }
 
 fn main() {
+    // A maintainer's command, writing into the checkout it was built from; release builds
+    // are installed where there is none.
+    #[cfg(debug_assertions)]
     if std::env::args().nth(1).as_deref() == Some("--write-index") {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/settings/index.kdl");
         std::fs::write(path, panes::index()).expect("data/settings/index.kdl");

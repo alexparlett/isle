@@ -195,18 +195,20 @@ log and its lock, and every change P14a makes on the host can be undone.
     `$XDG_CONFIG_HOME/autostart` over `$XDG_CONFIG_DIRS/autostart` by file
     id, with systemd's generator's rules (`Hidden`, `X-systemd-skip`,
     `TryExec`, `OnlyShowIn` and `NotShowIn` against `Isle`,
-    `X-GNOME-Autostart-Phase` and `-enabled=false`), and launches through
-    the launch path Spotlight uses, in the session's scope (Session start
-    4). Each item's pid and start time are kept under the runtime
-    directory, so a compositor restart starts only items no longer running
-    (v1 D53). The generator itself is not used, and
-    `xdg-desktop-autostart.target` is never pulled in, or every item would
-    start twice: its units run in `app.slice`, outside the session, where
-    NetworkManager, udisks and logind ask an admin password (v1 D17), and
-    with `Restart=no` they stay dead after a compositor crash
-    (`session-2026.md` §3). The start order is Session start 5's: names,
-    environment, `graphical-session.target`, then Login Items. The Login
-    Items pane is P20's.
+    `X-GNOME-Autostart-enabled=false`; `X-GNOME-Autostart-Phase` only
+    changes GNOME's lists), and starts each through the launch path every
+    app takes, in a scope of its own with an activation token. A
+    compositor restart starts only items no longer running: one whose
+    `app-isle-<id>-*.scope` still has processes, or whose bus name is
+    owned when it is `DBusActivatable`, is left (v1 D53). The generator is
+    not used and `xdg-desktop-autostart.target` never pulled in, or every
+    item would start twice: its units start once per target, not per
+    compositor, and with `Restart=no` stay dead after a crash
+    (`session-2026.md` §3). The start order is Session start 5's: Login
+    Items wait on the worker until the user manager names Isle's display
+    and `graphical-session.target` is active (30 seconds at most), so a
+    session that does not carry the manager starts none; isle-tty turns
+    them off with `ISLE_LOGIN_ITEMS=0`. The Login Items pane is P20's.
 
 ### `isle setup`
 

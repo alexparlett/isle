@@ -1078,6 +1078,16 @@ impl Test {
             .map_err(fdo::Error::InvalidArgs)
     }
 
+    /// Starts the Login Items now, as once the session carries the user manager; their ids.
+    async fn login_items(&self) -> fdo::Result<Vec<String>> {
+        let items = crate::autostart::due().await;
+        let ids = items.iter().map(|e| e.id.clone()).collect();
+        self.to_loop
+            .call(move |state| state.start_login_items(items))
+            .await?;
+        Ok(ids)
+    }
+
     /// The lock as JSON: whether locked, the dots typed, the status, failures, pending, and
     /// the minutes left of a lockout.
     async fn lock_status(&self) -> fdo::Result<String> {

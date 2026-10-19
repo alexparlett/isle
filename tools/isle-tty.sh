@@ -17,7 +17,7 @@
 # console comes back here. Coming back needs no password and no keys: a Mac keyboard has no
 # Ctrl+Alt+F-key chord, so the console is switched through logind.
 #
-# xremap is stopped for the run, and the user manager's environment points at Isle; both
+# Login Items are not started: the desktop it runs beside has them. xremap is stopped for the run, and the user manager's environment points at Isle; both
 # are put back when it ends. Its log is ~/.local/state/isle/logs/session.log.
 
 set -euo pipefail
@@ -151,6 +151,7 @@ sudo systemd-run --unit="$unit" --collect \
     --setenv=PATH="$bin:/usr/local/bin:/usr/bin" \
     --setenv=ISLE_COMPOSITOR="$bin/isle-compositor" \
     --setenv=RUST_LOG="$log" \
+    --setenv=ISLE_LOGIN_ITEMS=0 \
     "$bin/isle-session"
 
 session=

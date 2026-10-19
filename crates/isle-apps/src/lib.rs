@@ -2,6 +2,7 @@
 //! resolution of a window's app id to the app it belongs to (`compositor.md` Apps 1).
 
 pub mod appimage;
+pub mod autostart;
 pub mod badges;
 pub mod exec;
 pub mod icons;
@@ -44,6 +45,8 @@ pub struct Entry {
     pub try_exec: Option<String>,
     /// Its `TryExec` program is not installed, so launchers leave it out.
     pub missing: bool,
+    /// As a Login Item, turned off (`X-GNOME-Autostart-enabled=false`, `X-systemd-skip`).
+    pub autostart_off: bool,
     /// The file it was read from.
     pub path: PathBuf,
 }
@@ -326,7 +329,7 @@ impl Index {
 }
 
 /// Whether `program` is an executable file, by path or on `$PATH`.
-fn installed(program: &str) -> bool {
+pub(crate) fn installed(program: &str) -> bool {
     let executable = |p: &Path| {
         fs::metadata(p).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
     };
@@ -500,6 +503,8 @@ pub fn parse_in(id: &str, text: &str, locales: &[String]) -> Option<Entry> {
                         .map(str::to_owned)
                         .collect()
                 }
+                "X-GNOME-Autostart-enabled" => entry.autostart_off |= value == "false",
+                "X-systemd-skip" => entry.autostart_off |= value == "true",
                 "Hidden" if value == "true" => return None,
                 _ => {}
             },

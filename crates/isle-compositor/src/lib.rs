@@ -1,5 +1,6 @@
 //! The compositor: one calloop loop, its backends, outputs, input and shells (B9).
 
+mod autostart;
 pub mod backend;
 mod background_effect;
 mod badges;
@@ -364,6 +365,7 @@ fn start_clients(state: &mut State, ready_fd: &mut Option<i32>) -> bool {
     }
     if let Some(fd) = ready_fd.take() {
         report_ready(fd, &state.isle.socket_name, display);
+        state.start_login_items_when_exported();
     }
     true
 }

@@ -2,6 +2,15 @@
 
 ## 2026-10-19
 
+- P14a 14a.3: Login Items. `isle_apps::autostart` reads the autostart
+  directories by systemd's generator's rules; the compositor starts them
+  through the launch path once the user manager names its display and
+  `graphical-session.target` is up, and after a restart leaves those whose
+  scope still has processes or whose bus name is owned. `Test1.LoginItems`
+  starts them at once for tests; isle-tty runs without them. Correction to
+  the plan: the launch path puts each app in a user scope of its own, not
+  in the logind session's scope, so choice 17 no longer says so.
+
 - P14a 14a.2: the session beside v1. `data/session/isle.desktop`; the
   supervisor's log in `~/.local/state/isle/logs/` and, when its output does
   not reach the journal already, the user journal as `isle-compositor`; the

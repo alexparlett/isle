@@ -614,6 +614,8 @@ pub mod test {
         fn idle_advance(&self, millis: u64) -> zbus::Result<()>;
         /// The lock as JSON.
         fn lock_status(&self) -> zbus::Result<String>;
+        /// Starts the Login Items at once; their ids.
+        fn login_items(&self) -> zbus::Result<Vec<String>>;
         /// What an output's last frame was made of, front to back.
         fn frame_kinds(&self, output: &str) -> zbus::Result<Vec<String>>;
         /// Acts on the banners as their controls would.

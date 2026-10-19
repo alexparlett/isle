@@ -19,10 +19,64 @@ pub enum Launch {
     Open(String),
     /// A shell command line, as Spotlight's Run gives it.
     Command(String),
+    /// A Login Item, by its autostart entry.
+    Item(Box<isle_apps::Entry>),
+}
+
+/// What `entry` runs for `action`, and its activation when it is `DBusActivatable`; `None`
+/// when it has nothing to run.
+fn entry_argv(
+    entry: &isle_apps::Entry,
+    action: Option<&str>,
+    uris: &[String],
+    activate: &mut Option<Activation>,
+) -> Option<Vec<String>> {
+    let app = entry.id.as_str();
+    if entry.dbus_activatable {
+        *activate = Some(Activation {
+            app: app.to_owned(),
+            action: action.map(str::to_owned),
+            uris: uris.to_vec(),
+        });
+    }
+    let exec = match action {
+        Some(id) => entry
+            .actions
+            .iter()
+            .find(|a| a.id == id)
+            .and_then(|a| a.exec.clone()),
+        None => entry.exec.clone(),
+    };
+    let argv = exec.and_then(|exec| {
+        let argv = isle_apps::exec::command(
+            &exec,
+            uris,
+            &entry.name,
+            entry.icon.as_deref(),
+            &entry.path.to_string_lossy(),
+        );
+        if argv.is_none() {
+            warn!(app, exec, "the entry's Exec line does not parse");
+        }
+        argv
+    });
+    match argv {
+        Some(mut argv) => {
+            if entry.terminal {
+                argv.splice(0..0, ["xdg-terminal-exec".to_owned()]);
+            }
+            Some(argv)
+        }
+        None if activate.is_some() => Some(Vec::new()),
+        None => {
+            warn!(app, ?action, "the entry has nothing to run");
+            None
+        }
+    }
 }
 
 /// A unit name's part from `text`: what systemd allows, the rest as `_`.
-fn unit_part(text: &str) -> String {
+pub fn unit_part(text: &str) -> String {
     text.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || "_.".contains(c) {
@@ -45,49 +99,15 @@ impl State {
                     warn!(app, "no desktop entry to start");
                     return false;
                 };
-                if entry.dbus_activatable {
-                    activate = Some(Activation {
-                        app: app.clone(),
-                        action: action.clone(),
-                        uris: uris.clone(),
-                    });
+                match entry_argv(&entry, action.as_deref(), uris, &mut activate) {
+                    Some(argv) => (argv, app.clone()),
+                    None => return false,
                 }
-                let exec = match action {
-                    Some(id) => entry
-                        .actions
-                        .iter()
-                        .find(|a| &a.id == id)
-                        .and_then(|a| a.exec.clone()),
-                    None => entry.exec.clone(),
-                };
-                let argv = exec.and_then(|exec| {
-                    let argv = isle_apps::exec::command(
-                        &exec,
-                        uris,
-                        &entry.name,
-                        entry.icon.as_deref(),
-                        &entry.path.to_string_lossy(),
-                    );
-                    if argv.is_none() {
-                        warn!(app, exec, "the entry's Exec line does not parse");
-                    }
-                    argv
-                });
-                let argv = match argv {
-                    Some(mut argv) => {
-                        if entry.terminal {
-                            argv.splice(0..0, ["xdg-terminal-exec".to_owned()]);
-                        }
-                        argv
-                    }
-                    None if activate.is_some() => Vec::new(),
-                    None => {
-                        warn!(app, ?action, "the entry has nothing to run");
-                        return false;
-                    }
-                };
-                (argv, app.clone())
             }
+            Launch::Item(entry) => match entry_argv(entry, None, &[], &mut activate) {
+                Some(argv) => (argv, entry.id.clone()),
+                None => return false,
+            },
             Launch::Open(target) => (vec!["xdg-open".into(), target.clone()], "xdg-open".into()),
             Launch::Command(line) => (vec!["sh".into(), "-c".into(), line.clone()], "run".into()),
         };
@@ -101,7 +121,7 @@ impl State {
             return false;
         };
         let to_loop = self.isle.to_loop.clone();
-        let scope_app = matches!(what, Launch::App { .. }).then(|| name.clone());
+        let scope_app = matches!(what, Launch::App { .. } | Launch::Item(_)).then(|| name.clone());
         let unit = format!(
             "app-isle-{}-{:08x}.scope",
             unit_part(&name),

@@ -2,6 +2,17 @@
 
 ## 2026-10-19
 
+- P14a 14a.5: `isle setup`. A table of steps, each with a check, an apply
+  and an undo, and a record of what it changed (`setup` in
+  `/var/lib/isle` for root's steps, in the user's state for theirs);
+  `--check` lists due, done, not here and blocked with the reason; the
+  root steps run in one `sudo` or `pkexec` of `isle setup --as-root`;
+  `--undo` reverses only what was recorded and leaves a file changed by
+  hand since. The steps: greetd's greeter as tuigreet, the user's
+  `portals.conf` as `hyprland-portals.conf`, the xremap drop-in. On the
+  host, `--check` finds the portals and xremap steps due and the greeter
+  blocked until greetd-tuigreet is installed.
+
 - P14a 14a.3: Login Items. `isle_apps::autostart` reads the autostart
   directories by systemd's generator's rules; the compositor starts them
   through the launch path once the user manager names its display and

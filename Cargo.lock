@@ -2920,6 +2920,7 @@ dependencies = [
  "humantime",
  "isle-ipc",
  "isle-settings",
+ "isle-state",
  "libc",
  "serde",
  "serde_json",

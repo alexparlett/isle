@@ -1,4 +1,6 @@
-//! `isle`: the command line over the compositor's D-Bus API.
+//! `isle`: the command line over the compositor's D-Bus API, and `isle setup`.
+
+mod setup;
 
 use std::{
     process::ExitCode,
@@ -85,6 +87,18 @@ enum Command {
     Capture(Capture),
     #[command(subcommand)]
     Portal(Portal),
+    /// What installing the package cannot do: list what is due, apply it, or undo it.
+    Setup {
+        /// List what is due and change nothing.
+        #[arg(long)]
+        check: bool,
+        /// Reverse what `isle setup` did.
+        #[arg(long, conflicts_with = "check")]
+        undo: bool,
+        /// The root half: `apply <steps>` or `undo`, run through sudo or pkexec.
+        #[arg(long, num_args = 1.., hide = true)]
+        as_root: Vec<String>,
+    },
     /// Hooks served only by test builds.
     #[command(subcommand, hide = true)]
     Test(Test),
@@ -419,6 +433,14 @@ async fn main() -> ExitCode {
     // Safety: the default disposition; nothing here installs a SIGPIPE handler.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
     let cli = Cli::parse();
+    if let Command::Setup {
+        check,
+        undo,
+        as_root,
+    } = &cli.command
+    {
+        return setup::run(*check, *undo, as_root);
+    }
     match run(&cli).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
@@ -466,6 +488,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 );
             }
         }
+        Command::Setup { .. } => unreachable!("isle setup runs before the bus"),
         Command::Quit => SessionProxy::new(&bus).await?.quit().await?,
         Command::Lock => SessionProxy::new(&bus).await?.lock().await?,
         Command::Windows(command) => {

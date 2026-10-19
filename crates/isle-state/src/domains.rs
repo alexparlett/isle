@@ -30,6 +30,25 @@ impl Domain for Import {
     const VERSION: u32 = 1;
 }
 
+/// What `isle setup` changed, by step, so `--undo` reverses only its own edits.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Setup {
+    pub steps: BTreeMap<String, SetupStep>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SetupStep {
+    /// Unix seconds.
+    pub applied_at: u64,
+    /// What the step needs to put things back, in its own terms.
+    pub undo: BTreeMap<String, String>,
+}
+
+impl Domain for Setup {
+    const NAME: &'static str = "setup";
+    const VERSION: u32 = 1;
+}
+
 /// Each app's main window's box, by app and then by output identity, relative to the
 /// origin of that output's work area.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

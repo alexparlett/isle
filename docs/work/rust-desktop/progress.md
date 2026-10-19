@@ -2,6 +2,17 @@
 
 ## 2026-10-19
 
+- P14a 14a.4 and 14a.6: the package and the VM. `pkg/arch/PKGBUILD` builds
+  `isle-git` (42 MB) with the compositor's Skia built from the crate's
+  sources and Settings' prebuilt; `tools/package.sh` packages HEAD with an
+  incremental target directory. In the guest: installed over v1's unowned
+  `isle.portal`, `isle setup` applied (root half through sudo), tuigreet
+  listing Hyprland and Isle, Isle started by greetd from `/usr/bin` with
+  its environment, target, Login Items and portal backend, a clean quit
+  leaving the manager empty, Hyprland after it on v1's portal file and
+  log, and `isle setup --undo` putting all three back. Results and the
+  host checklist in `docs/research/rust-desktop/p14a-session.md`.
+
 - P14a 14a.5: `isle setup`. A table of steps, each with a check, an apply
   and an undo, and a record of what it changed (`setup` in
   `/var/lib/isle` for root's steps, in the user's state for theirs);

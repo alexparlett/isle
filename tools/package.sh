@@ -36,7 +36,7 @@ cp "$REPO/pkg/arch/PKGBUILD" "$WORK/PKGBUILD"
 cd "$WORK"
 export ISLE_SOURCE="git+file://$REPO#commit=$head"
 export ISLE_TARGET_DIR="$WORK/target"
-makepkg --force --cleanbuild --noconfirm "${makepkg_args[@]}"
+makepkg --force --cleanbuild --syncdeps --noconfirm "${makepkg_args[@]}"
 package="$(makepkg --packagelist | grep -v -- '-debug-' | head -n 1)"
 echo "package: built $package"
 

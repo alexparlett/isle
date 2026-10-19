@@ -1013,9 +1013,7 @@ impl State {
         };
 
         let menus_source = self.spotlight_menu_items();
-        let settings_rows = std::fs::read_to_string(settings_index())
-            .map(|t| settings::parse(&t))
-            .unwrap_or_default();
+        let settings_rows = settings::parse(SETTINGS_INDEX);
         let clipboard = isle_search::sources::clipboard::ClipboardSource {
             clips: self.isle.clipboard.clips(|app| self.isle.app_name(app)),
         };
@@ -1273,14 +1271,8 @@ impl State {
     }
 }
 
-/// Where Settings installs its row index: beside its data, else the checkout's empty one.
-fn settings_index() -> std::path::PathBuf {
-    let installed = std::path::Path::new("/usr/share/isle/settings/index.kdl");
-    if installed.is_file() {
-        return installed.to_owned();
-    }
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/settings/index.kdl")
-}
+/// Settings' rows, generated from its panes and tested against them there.
+const SETTINGS_INDEX: &str = include_str!("../../../data/settings/index.kdl");
 
 /// `text` as one word for `sh`.
 fn shell_quote(text: &str) -> String {

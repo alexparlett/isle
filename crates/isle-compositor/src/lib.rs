@@ -20,6 +20,7 @@ mod force_quit;
 mod games;
 mod grabs;
 mod handlers;
+mod helpers;
 mod hot_corners;
 mod idle;
 mod image_copy;
@@ -111,6 +112,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     let heartbeat = Heartbeat::new();
     crash::install_panic_hook(heartbeat.clone());
     info!("isle-compositor {}", build_info::describe());
+    helpers::pin();
 
     let safe_start = std::env::var("ISLE_SAFE_START").as_deref() == Ok("1");
     let store: isle_settings::Store<isle_settings::schema::Settings> = if safe_start {

@@ -3097,6 +3097,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-package"
+version = "0.1.0"
+
+[[package]]
 name = "isle-polkit"
 version = "0.1.0"
 dependencies = [

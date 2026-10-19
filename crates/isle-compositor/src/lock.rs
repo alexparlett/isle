@@ -123,19 +123,6 @@ pub fn marked() -> bool {
     marker_path().exists()
 }
 
-/// `isle-auth` beside the compositor, else on the path; tests may name their build's.
-fn helper_program() -> PathBuf {
-    #[cfg(feature = "test-hooks")]
-    if let Some(path) = std::env::var_os("ISLE_AUTH_HELPER") {
-        return PathBuf::from(path);
-    }
-    std::env::current_exe()
-        .ok()
-        .map(|exe| exe.with_file_name("isle-auth"))
-        .filter(|path| path.exists())
-        .unwrap_or_else(|| PathBuf::from("isle-auth"))
-}
-
 fn set_marker(locked: bool) {
     let path = marker_path();
     let result = if locked {
@@ -490,7 +477,8 @@ impl State {
         tokio::task::AbortHandle,
     )> {
         let (runtime, to_loop) = (self.isle.worker.clone()?, self.isle.to_loop.clone()?);
-        let program = helper_program();
+        let helper_file = crate::helpers::auth();
+        let (program, found) = (helper_file.program(), helper_file.found.clone());
         #[cfg_attr(not(feature = "test-hooks"), allow(unused_mut))]
         let mut env: Vec<(String, String)> = Vec::new();
         #[cfg(feature = "test-hooks")]
@@ -507,7 +495,7 @@ impl State {
                     match isle_auth::Helper::spawn(&program, &env) {
                         Ok(started) => helper = Some(started),
                         Err(err) => {
-                            warn!(program = %program.display(), "isle-auth did not start: {err}")
+                            warn!(program = %found.display(), "isle-auth did not start: {err}")
                         }
                     }
                 }

@@ -21,6 +21,8 @@ fn main() {
         // Never a core with a password in it, and gone with the compositor.
         libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0);
         libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL, 0, 0, 0);
+        // Started through a descriptor, the kernel names the process by its number.
+        libc::prctl(libc::PR_SET_NAME, c"isle-auth".as_ptr(), 0, 0, 0);
         if libc::getppid() == 1 {
             return;
         }

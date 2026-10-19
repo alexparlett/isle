@@ -95,6 +95,7 @@ impl Helper {
     pub fn spawn(program: &Path, env: &[(&str, &str)]) -> std::io::Result<Self> {
         let mut command = Command::new(program);
         command
+            .arg0("isle-auth")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())

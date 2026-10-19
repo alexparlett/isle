@@ -4,6 +4,7 @@
 
 use std::{
     io::{BufRead, BufReader, Write},
+    os::unix::process::CommandExt,
     path::PathBuf,
     process::{Child, ChildStdin, Command, Stdio},
     time::{Duration, Instant},
@@ -50,25 +51,9 @@ pub struct Recording {
     tick: Option<RegistrationToken>,
 }
 
-/// `isle-record` beside the compositor, else on the path.
-fn helper() -> PathBuf {
-    #[cfg(feature = "test-hooks")]
-    if let Some(path) = std::env::var_os("ISLE_RECORD_HELPER") {
-        return PathBuf::from(path);
-    }
-    std::env::current_exe()
-        .ok()
-        .map(|exe| exe.with_file_name("isle-record"))
-        .filter(|path| path.exists())
-        .unwrap_or_else(|| PathBuf::from("isle-record"))
-}
-
 /// Whether a recorder is installed, for the toolbar's recording modes.
 pub fn available() -> bool {
-    let program = helper();
-    program.is_absolute() && program.exists()
-        || std::env::var_os("PATH")
-            .is_some_and(|path| std::env::split_paths(&path).any(|dir| dir.join(&program).exists()))
+    crate::helpers::record().available()
 }
 
 /// `0:05`, `1:02:03`.
@@ -197,7 +182,8 @@ impl State {
             .output
             .current_mode()
             .map_or(60, |m| (m.refresh as u32).div_ceil(1000).min(60));
-        let mut command = Command::new(helper());
+        let mut command = Command::new(crate::helpers::record().program());
+        command.arg0("isle-record");
         command
             .args(["--node", &node.to_string(), "--fps", &fps.to_string()])
             .envs(crate::child_env::vars())

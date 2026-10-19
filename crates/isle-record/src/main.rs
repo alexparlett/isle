@@ -515,6 +515,8 @@ impl Linker {
 }
 
 fn main() {
+    // Started through a descriptor, the kernel names the process by its number.
+    unsafe { libc::prctl(libc::PR_SET_NAME, c"isle-record".as_ptr(), 0, 0, 0) };
     let args = match args() {
         Ok(args) => args,
         Err(err) => {

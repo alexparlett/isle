@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-10-19
+
+- P14a 14a.1: the binaries stand alone. Settings' row index is compiled
+  into the compositor; `isle-auth` and `isle-record` are opened when the
+  compositor starts and run through that descriptor, so a package
+  installed while Isle runs cannot hand it another build's helper (each
+  names its process itself, as the kernel names it by the descriptor's
+  number). `isle-package` holds the tests that the package and the tree
+  agree, the first that no installed binary reads its build tree. Found:
+  the capture test `a_shot_from_the_toolbar_holds_none_of_it` fails four
+  runs in five with or without this change.
+
 ## 2026-10-17
 
 - P13 follow-up: the sidebar's blur in software. Freya's software driver

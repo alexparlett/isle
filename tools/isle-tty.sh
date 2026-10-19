@@ -74,8 +74,16 @@ go_back() {
     fi
 }
 
+# xremap, stopped while Isle runs, given back to the desktop whichever way it ends.
+restore_xremap() {
+    systemctl --user is-enabled --quiet xremap.service 2>/dev/null \
+        && ! systemctl --user is-active --quiet xremap.service \
+        && systemctl --user start xremap.service || true
+}
+
 if ((back_only)); then
     go_back
+    restore_xremap
     if systemctl is-active --quiet "$unit"; then
         echo "isle-tty: Isle did not quit; \`sudo systemctl stop $unit\` ends it" >&2
     fi
@@ -111,14 +119,14 @@ come_back() {
         [[ -n "${!name:-}" ]] && present+=("$name")
     done
     ((${#present[@]})) && dbus-update-activation-environment --systemd "${present[@]}" || true
-    ((xremap_was_active)) && systemctl --user start xremap.service || true
+    ((xremap_was_active)) && restore_xremap
     if systemctl is-active --quiet "$unit"; then
         echo "isle-tty: Isle is still running on tty$vt; \`sudo systemctl stop $unit\` ends it"
     fi
     echo "isle-tty: back; the log is ~/.local/state/isle/session.log"
 }
 trap come_back EXIT
-trap 'exit 130' INT TERM
+trap 'exit 130' INT TERM HUP
 
 # xremap grabs the keyboards and rewrites Cmd chords before Isle sees them.
 ((xremap_was_active)) && systemctl --user stop xremap.service

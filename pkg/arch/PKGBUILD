@@ -1,0 +1,99 @@
+# Maintainer: Alex Parlett <alexparlett@proton.me>
+#
+# Built from GitHub, or from a checkout by tools/package.sh through ISLE_SOURCE.
+
+pkgname=isle-git
+pkgver=r0.0000000
+pkgrel=1
+pkgdesc='A macOS-style desktop: its own Wayland compositor, shell and apps'
+arch=(x86_64)
+url='https://github.com/alexparlett/isle'
+license=('LicenseRef-Isle' 'MIT')
+depends=(
+  ffmpeg fontconfig freetype2 gcc-libs glibc libdisplay-info libglvnd libinput
+  libpipewire libxkbcommon mesa pam seatd sqlite systemd systemd-libs wayland
+  accountsservice dbus gnome-keyring pipewire-pulse polkit xdg-desktop-portal
+  xdg-desktop-portal-gtk xdg-utils xkeyboard-config xorg-xwayland
+)
+makedepends=(cargo clang git gn ninja python)
+optdepends=(
+  'bluez: Bluetooth'
+  'networkmanager: Wi-Fi, Ethernet and VPN'
+  'power-profiles-daemon: energy modes'
+  'upower: batteries'
+  'gcr-4: the SSH agent'
+  'greetd-tuigreet: signing in to Isle or another desktop'
+  'squashfs-tools: AppImages'
+  'libarchive: AppImages of the older kind'
+  'xdg-terminal-exec: apps that run in a terminal'
+  'inter-font: the interface typeface'
+  'ttf-jetbrains-mono: the monospaced typeface'
+  'noto-fonts-emoji: emoji'
+  'papirus-icon-theme: app icons'
+  'bibata-cursor-theme: the cursor'
+)
+provides=(isle)
+conflicts=(isle)
+backup=(etc/nvidia/nvidia-application-profiles-rc.d/50-isle)
+# makepkg's LTO reaches the C that build scripts compile; Rust's own is the profile's.
+# Symbols stay so a crash record's backtrace names its functions.
+options=(!lto !strip !debug)
+
+# Freya's Skia build script downloads a prebuilt library for its feature set unless pointed
+# at a copy. Settings' set has one; the compositor's, with GL, has none and is built from the
+# Skia sources the crate carries, with the system's gn and ninja.
+_skia_tag=0.100.0-beta.1
+_skia_soft=skia-binaries-c31b06a7031231446314-x86_64-unknown-linux-gnu-jpegd-jpege-svg-textlayout-webpd-webpe.tar.gz
+source=(
+  "isle::${ISLE_SOURCE:-git+https://github.com/alexparlett/isle.git#branch=feature/rust-desktop}"
+  "$_skia_soft::https://github.com/marc2332/rust-skia/releases/download/$_skia_tag/$_skia_soft"
+)
+noextract=("$_skia_soft")
+sha256sums=('SKIP'
+            '23a6e29ffd3178a2ee905f5ec3aefd22f1019a29a28b4651c37b7b33d02cb2df')
+
+pkgver() {
+  cd isle
+  printf 'r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=12 HEAD)"
+}
+
+prepare() {
+  cd isle
+  cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+  cd isle
+  export CARGO_TARGET_DIR="${ISLE_TARGET_DIR:-$srcdir/target}"
+  export SKIA_BINARIES_URL="file://$srcdir/skia-binaries-{key}.tar.gz"
+  [[ -x /usr/bin/gn ]] && export SKIA_GN_COMMAND=/usr/bin/gn
+  [[ -x /usr/bin/ninja ]] && export SKIA_NINJA_COMMAND=/usr/bin/ninja
+  export CARGO_PROFILE_RELEASE_DEBUG=0
+  export CARGO_PROFILE_RELEASE_STRIP=debuginfo
+  # Two builds, so Settings' features are its own and no GPU renderer is linked into it (B26).
+  cargo build --frozen --release \
+    -p isle-compositor -p isle-session -p isle-cli -p isle-auth -p isle-record
+  cargo build --frozen --release -p isle-system-settings
+}
+
+package() {
+  cd isle
+  local target="${ISLE_TARGET_DIR:-$srcdir/target}/release"
+  for bin in isle-compositor isle-session isle isle-auth isle-record isle-settings; do
+    install -Dm755 "$target/$bin" "$pkgdir/usr/bin/$bin"
+  done
+  install -Dm644 data/session/isle.desktop "$pkgdir/usr/share/wayland-sessions/isle.desktop"
+  install -Dm644 data/systemd/isle-session.target "$pkgdir/usr/lib/systemd/user/isle-session.target"
+  install -Dm644 data/portal/isle.portal "$pkgdir/usr/share/xdg-desktop-portal/portals/isle.portal"
+  install -Dm644 data/portal/isle-portals.conf "$pkgdir/usr/share/xdg-desktop-portal/isle-portals.conf"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Settings.desktop \
+    "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Settings.desktop"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Settings.service \
+    "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Settings.service"
+  install -Dm644 data/pam/isle "$pkgdir/usr/lib/pam.d/isle"
+  install -Dm644 data/nvidia/50-isle.json \
+    "$pkgdir/etc/nvidia/nvidia-application-profiles-rc.d/50-isle"
+  install -Dm644 data/udev/70-isle.rules "$pkgdir/usr/lib/udev/rules.d/70-isle.rules"
+  install -Dm644 data/modules/isle.conf "$pkgdir/usr/lib/modules-load.d/isle.conf"
+  install -Dm644 data/icons/phosphor/LICENSE "$pkgdir/usr/share/licenses/$pkgname/phosphor"
+}

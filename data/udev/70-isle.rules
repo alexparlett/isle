@@ -1,0 +1,2 @@
+# Isle sets a monitor's brightness over DDC/CI on its i2c bus, as the signed-in user.
+KERNEL=="i2c-[0-9]*", SUBSYSTEM=="i2c-dev", TAG+="uaccess"

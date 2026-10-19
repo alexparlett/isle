@@ -1,3 +1,5 @@
 [portal]
 DBusName=org.freedesktop.impl.portal.desktop.isle
-Interfaces=org.freedesktop.impl.portal.Access;org.freedesktop.impl.portal.Inhibit;org.freedesktop.impl.portal.ScreenCast;org.freedesktop.impl.portal.Screenshot;org.freedesktop.impl.portal.Settings;
+# FileChooser is v1's, served under Hyprland by its shell on the same name; each desktop's
+# portals file chooses which of these it takes from here.
+Interfaces=org.freedesktop.impl.portal.Access;org.freedesktop.impl.portal.FileChooser;org.freedesktop.impl.portal.Inhibit;org.freedesktop.impl.portal.ScreenCast;org.freedesktop.impl.portal.Screenshot;org.freedesktop.impl.portal.Settings;

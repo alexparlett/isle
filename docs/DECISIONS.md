@@ -1101,3 +1101,47 @@ there for `timing.hover-dwell-ms`, once until it leaves, only with exactly
 its modifiers held, and never with a button down, the pointer grabbed or
 constrained, the menu bar open, the screen locked or a full-screen game in
 front. Rejected: firing on contact (every fling to the corner fires).
+
+**B100 · One package, named by its commit, whose binaries carry their data.**
+Built in P14a. `isle-git` from `pkg/arch/PKGBUILD` holds every binary and
+data file, since the binaries talk to each other and must come from one
+commit; its version is `r<count>.g<hash>`, the hash `isle version`
+reports. Tokens, tables, glyphs and Settings' row index are compiled in,
+so no binary reads a path at run time but the user's overrides. The
+compositor holds `isle-auth` and `isle-record` open from its start and
+runs them through those descriptors, so a package installed under a
+running session cannot hand it another build's helper. Settings is built
+apart, so its features are its own and no GPU renderer is linked into it
+(B26). Rejected: split packages (nothing installs alone), data under
+`/usr/share/isle` (nothing needs to change it without a build).
+
+**B101 · Isle is installed beside v1 before it replaces it.** Built in P14a
+at the user's choice: P14 split at the switch, so host runs are evenings in
+an installed Isle while the parity packets are built. tuigreet chooses the
+session until Isle's greeter mode (P14b). Where Isle and v1 meet, each
+keeps its own: the portal backend file names both desktops' interfaces and
+each desktop's `<desktop>-portals.conf` chooses, the user's `portals.conf`
+becoming `hyprland-portals.conf`; xremap runs only where
+`XDG_CURRENT_DESKTOP` is not Isle; the lock marker is named for the logind
+session; Isle's log is in `logs/`; and the supervisor unsets the user
+manager's variables only while the manager still names its display, and
+only those still holding its values. Rejected: switching at once (Files,
+Mission Control and widgets are P15 to P17), a session choice in v1's
+greeter (P21 deletes it), refusing a second session as niri and
+gnome-session do (isle-tty runs beside Hyprland by design).
+
+**B102 · Login Items are started by Isle.** Built in P14a. The XDG
+autostart entries are read by systemd's generator's rules and started
+through the launch path at every compositor start, once the user manager
+names Isle's display and its graphical target is up; after a restart an
+item whose scope still has processes, or whose bus name is owned, is left.
+Rejected: the generator and `xdg-desktop-autostart.target` (once per
+target, not per compositor; dead after a crash with `Restart=no`; a new
+item needs a reload).
+
+**B103 · `isle setup` is a table of reversible steps.** Built in P14a. Each
+step checks, applies and undoes, and records what it changed (root's in
+`/var/lib/isle`, the user's in their state); `--check` asks nothing,
+`isle setup` runs root's steps in one sudo or pkexec, and `--undo`
+reverses only what was recorded, leaving a file edited by hand since.
+

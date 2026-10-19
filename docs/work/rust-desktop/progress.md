@@ -2,6 +2,12 @@
 
 ## 2026-10-19
 
+- P14a 14a.7: closed but for the host run, the user's. B100–B103;
+  ARCHITECTURE's How Isle is installed, its data table and the supervisor's
+  exit; `platform.md`'s Packaging and Login Items points answered and its
+  P14 references moved to P14a or P14b; the roadmap's P14a built;
+  `p14a-session.md` ends with its outcome.
+
 - P14a 14a.4 and 14a.6: the package and the VM. `pkg/arch/PKGBUILD` builds
   `isle-git` (42 MB) with the compositor's Skia built from the crate's
   sources and Settings' prebuilt; `tools/package.sh` packages HEAD with an

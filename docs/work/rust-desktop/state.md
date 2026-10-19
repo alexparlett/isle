@@ -475,3 +475,13 @@
   P14a planned in `p14a-session.md`, reviewed: the user took every
   recommendation; research in
   `docs/research/rust-desktop/session-2026.md`.
+- P14a is built (2026-10-19), host run pending, the user's: `isle-git` from
+  `pkg/arch/PKGBUILD` and `tools/package.sh`, the binaries carrying their
+  data and their helpers pinned (B100); Isle beside v1 with tuigreet, the
+  portals file per desktop, xremap kept out, the marker per logind
+  session, the logs apart and the manager's variables unset only while
+  Isle owns it (B101); Login Items (B102); `isle setup` (B103). The VM ran
+  it end to end. ARCHITECTURE has How Isle is installed. Next: the host
+  run (`docs/research/rust-desktop/p14a-session.md`), with P12's and P13's
+  on that install, then P15.
+

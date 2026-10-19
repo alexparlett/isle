@@ -165,7 +165,8 @@ P12. Intent: apps.md.
 
 ## Installed beside v1
 
-**P14a · Installed, beside Hyprland.** Planned 2026-10-19: `p14a-session.md`.
+**P14a · Installed, beside Hyprland.** Built 2026-10-19, host run pending:
+`p14a-session.md`, B100–B103.
 P14 split at the user's choice: Isle installed and chosen at sign-in before
 the parity packets, the switch after them (P14b). The package (`isle-git`,
 a PKGBUILD from git, B29) with the six binaries, Settings in software

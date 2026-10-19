@@ -100,7 +100,7 @@ loaded.
 **Settled in P2.** `kdl` 6.7 parses; `knus` reads only KDL v1. A Set is
 written into the file's own text at its value's span, never by printing
 the document, which loses whitespace (B36). No `include`. How v1's keys map
-onto the new schema is P14's import.
+onto the new schema is P14b's import.
 
 ### State
 
@@ -188,7 +188,7 @@ source for both Qt versions. Chromium themes on Wayland only with
 `--qt-version=6` (inventory §16). D73: removing xdg-desktop-portal-gtk would
 take dark mode from every GTK app. Under the GTK 3 platform theme Qt opens
 GTK's own file chooser rather than the portal's, so Qt apps would miss
-Isle's Open and Save panels; P14 tests the alternatives (P1,
+Isle's Open and Save panels; P14b tests the alternatives (P1,
 `system/theming.md`).
 
 **Open for its packet.** The template engine, and targets beyond the floor
@@ -509,8 +509,8 @@ window, found by its xdg-foreign handle or X11 id, and centred on the main
 screen when no window is named or the window goes. Restore tokens are the frontend's; Isle's
 restore data names a screen by its identity and a window by its app and
 title (B84). A user's own `~/.config/xdg-desktop-portal/portals.conf`
-outranks the packaged `isle-portals.conf`, so the install has to see to it
-(P14).
+outranks the packaged `isle-portals.conf`, so `isle setup` renames it
+`hyprland-portals.conf`, read only under Hyprland (B101).
 
 ### Compositor D-Bus API and CLI
 
@@ -648,7 +648,8 @@ nothing behind when removed.
 half-finished change. D22: no installer image. D77, D79: one authorisation.
 D83: what Isle calls arrives with Isle.
 
-**Open for its packet.** The split into packages.
+**Answered in P14a.** One package, `isle-git`, its version the commit
+(B100). The bootstrap command, autologin and the PAM lines are P14b's.
 
 ### Updates
 
@@ -704,8 +705,12 @@ crash, brings back the apps that were open, on their spaces.
 **v1 lessons kept.** D53: by app and space, not by window; what autostart
 starts is not started again. D62: what was open comes back after a restart.
 
-**Open for its packet.** systemd's XDG autostart generator or Isle's own
-launcher.
+**Answered in P14a.** Isle's own launcher with the generator's rules, at
+every compositor start once the session carries the user manager (B102).
+Apps Isle launches, Login Items among them, run in user scopes of their
+own (P6's launch path) rather than in the logind session's scope as item 4
+of Session start has it; polkit finds their session through logind's
+display session for the user.
 
 ### Clipboard history, emoji and symbols
 

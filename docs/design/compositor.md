@@ -106,7 +106,7 @@ app's windows, Cmd+H hides an app, Cmd+Q quits it, Cmd+W closes a window
 
 **Open for its packet.** The app-resolution heuristic for apps whose app id matches no entry, multi-process apps and Flatpak ids. The quit timeout before an app is shown as holding up log out. Whether hidden and other-Space windows are sent xdg-shell's `suspended` state or only throttled frame callbacks.
 
-**Settled in P4.** An app id resolves by desktop id, `StartupWMClass`, case and last dotted part, either way round; an id nothing claims is its own app, and grouping is by app, never by PID. Parked and other-desktop windows get no frame callbacks and are sent `suspended`. Quit sends a close to every window and the polite signal to the app's PIDs once they are gone; log out's timeout is P14's. Pings are sent when the user acts on a window, not on a timer; X11's `_NET_WM_PING` waits.
+**Settled in P4.** An app id resolves by desktop id, `StartupWMClass`, case and last dotted part, either way round; an id nothing claims is its own app, and grouping is by app, never by PID. Parked and other-desktop windows get no frame callbacks and are sent `suspended`. Quit sends a close to every window and the polite signal to the app's PIDs once they are gone; log out's timeout is P14b's. Pings are sent when the user acts on a window, not on a timer; X11's `_NET_WM_PING` waits.
 
 ### Minimise and maximise
 

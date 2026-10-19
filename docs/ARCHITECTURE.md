@@ -89,7 +89,9 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   supervisor then exports the environment and starts
   `isle-session.target`, which binds `graphical-session.target`. After
   three quick deaths it starts the compositor with `ISLE_SAFE_START`,
-  which leaves `settings.kdl` unread until `isle settings use-mine`.
+  which leaves `settings.kdl` unread until `isle settings use-mine`. On a
+  clean exit it unsets what it exported only while the manager still
+  names its display (B101).
 - **Tests drive the real thing.** The `test-hooks` feature, never in a
   package, adds the Test interface: input injected through the same
   handlers as devices, outputs added and removed, frames counted,
@@ -699,6 +701,34 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 - **Show Changed Settings** compares the values with the schema's defaults
   in the app; Reset to Default is `Settings1.Reset` of the row's key.
 
+## How Isle is installed
+
+- **One package** (B100). `pkg/arch/PKGBUILD` builds `isle-git` from
+  GitHub, or from the checkout's HEAD through `tools/package.sh`, which
+  keeps its target directory in `~/.cache/isle/pkg` and installs with
+  `pacman -U`. Two cargo builds: the compositor, supervisor, CLI and
+  helpers together, Settings alone. The compositor's Skia, with GL, is
+  built from the crate's sources with the system's `gn` and `ninja`;
+  Settings' is the prebuilt archive in `source=()`. A test crate,
+  `isle-package`, checks that the PKGBUILD and the tree agree and that no
+  shipped code reads the build tree.
+- **What it installs.** The six binaries; the session entry; the user
+  target; the portal backend file and `isle-portals.conf`; Settings'
+  desktop entry and D-Bus service; `/usr/lib/pam.d/isle`; the NVIDIA
+  profile in `/etc` (the driver reads no `/usr/share` directory); an i2c
+  `uaccess` rule and `i2c-dev` for DDC/CI.
+- **Beside v1** (B101). tuigreet chooses the session. Each desktop's
+  portals file chooses from the one backend file; xremap carries a
+  condition on `XDG_CURRENT_DESKTOP`; the lock marker is named for the
+  logind session; the logs are apart.
+- **Login Items** (B102). `isle_apps::autostart` reads the entries; the
+  compositor waits on the worker until the user manager names its display
+  and `graphical-session.target` is active, then launches the items not
+  still running. isle-tty sets `ISLE_LOGIN_ITEMS=0`.
+- **`isle setup`** (B103). Steps with check, apply and undo and their
+  record; the root half is `isle setup --as-root`, run through sudo or
+  pkexec.
+
 ## Rules the layout enforces
 
 - Anything new the shell draws, a material, a shadow token, an effect or a
@@ -739,7 +769,8 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 | caches | `~/.cache/isle/` | media art (`art`), notifications' images (`notifications`), tray items' pixmaps (`tray`), shots for apps through the portal (`portal`, a day) | the worker | no |
 | shots and recordings | `$XDG_PICTURES_DIR/Screenshots`, `$XDG_VIDEOS_DIR/Recordings` | by macOS's names | the worker, `isle-record` | no |
 | crash records | `~/.local/state/isle/crashes/` | the last ten | the compositor's panic hook and watchdog, then the supervisor | no |
-| session log | `~/.local/state/isle/session.log`, `.old` | this session's and the last | the supervisor | no |
+| session log | `~/.local/state/isle/logs/session.log`, `.old`; the user journal as `isle-compositor` | this session's and the last | the supervisor | no |
+| setup record | `/var/lib/isle/setup.json`, `~/.local/state/isle/setup.json` | what `isle setup` changed, for `--undo` (B103) | `isle setup` | no |
 
 v1's preferences, window places and launch counts are imported once, on
 the first start that finds them (B27).
@@ -747,7 +778,8 @@ the first start that finds them (B27).
 ## Delivery
 
 A PKGBUILD in this repository builds Isle from git; it is installed with
-paru and updated through pacman (B29).
+paru and updated through pacman (B29). How it is built and installed is
+How Isle is installed.
 
 ## Dependencies held as forks
 

@@ -359,3 +359,35 @@ P14 split at the switch, tuigreet until the greeter mode, one `isle-git`
 package with the version its commit, the coexistence fixes, the helpers
 pinned, Isle's own Login Items launcher, `isle setup` in its final shape,
 and the host run part of done.
+
+## Outcome
+
+Built 2026-10-19 in phases 14a.0–14a.7; the host run, part of done, is the
+user's, with its checklist in `docs/research/rust-desktop/p14a-session.md`.
+B100–B103 record the decisions. Differences from the plan:
+
+- **The launch path's scopes are user scopes.** Choice 17 said Login Items
+  run in the logind session's scope; every app Isle launches runs in a
+  scope of its own under the user manager (P6), and polkit finds their
+  session through logind's display session. `platform.md` says so.
+- **The unset is by owner, then by value.** Choice 11 compared values
+  alone; a session started since may hold the same values
+  (`QT_QPA_PLATFORMTHEME=gtk3`), so nothing is unset unless the manager's
+  `WAYLAND_DISPLAY` is still Isle's.
+- **Login Items wait for the manager.** They start once the user manager
+  names Isle's display and `graphical-session.target` is up, so a session
+  that does not carry the manager starts none; isle-tty turns them off.
+- **The compositor's Skia is built from source.** Its feature set has no
+  prebuilt archive; Settings' does. The PKGBUILD builds the two apart,
+  makes `gn`, `ninja` and `python` build dependencies, and keeps symbols
+  (debug info stripped) so crash records name functions.
+- **Additions.** `i2c-dev` loaded at boot beside the `uaccess` rule;
+  `XCURSOR_THEME` and `XCURSOR_SIZE` sent by the compositor through the
+  ready pipe from its tokens; the compositor's log lines without colour
+  codes when not on a terminal; Settings' `--write-index` in debug builds
+  only, since a release build has no checkout.
+
+Found on the way: the capture test `a_shot_from_the_toolbar_holds_none_of_it`
+fails four runs in five with or without P14a (offered as a separate task);
+the guest kept a hand-copied `isle-portals.conf` from P11's run.
+

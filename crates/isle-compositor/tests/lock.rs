@@ -131,7 +131,12 @@ async fn a_window_mapped_while_locked_is_not_given_focus() {
 async fn a_compositor_that_finds_the_marker_starts_locked() {
     let mut isle = Isle::start_prepared("lock-marker", "", |dir| {
         std::fs::create_dir_all(dir.join("runtime/isle")).unwrap();
-        std::fs::write(dir.join("runtime/isle/locked"), "locked\n").unwrap();
+        // The marker of the logind session the test runs in, which the compositor inherits.
+        let marker = match std::env::var("XDG_SESSION_ID") {
+            Ok(id) if !id.is_empty() => format!("locked-{id}"),
+            _ => "locked".to_owned(),
+        };
+        std::fs::write(dir.join("runtime/isle").join(marker), "locked\n").unwrap();
     })
     .await;
     assert!(locked(&isle).await);
@@ -144,4 +149,14 @@ async fn a_compositor_that_finds_the_marker_starts_locked() {
         "{frame:?}"
     );
     assert!(!window.printed("keyboard-enter"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn another_sessions_marker_does_not_lock_this_one() {
+    let isle = Isle::start_prepared("lock-other-marker", "", |dir| {
+        std::fs::create_dir_all(dir.join("runtime/isle")).unwrap();
+        std::fs::write(dir.join("runtime/isle/locked-not-this-one"), "locked\n").unwrap();
+    })
+    .await;
+    assert!(!locked(&isle).await);
 }

@@ -30,7 +30,7 @@ pub struct Cursors {
 }
 
 impl Cursors {
-    /// `XCURSOR_THEME` and `XCURSOR_SIZE`, as toolkits read them; P14 sets them from tokens.
+    /// `XCURSOR_THEME` and `XCURSOR_SIZE`, as toolkits read them, set from the tokens at start.
     pub fn load() -> Self {
         let name = std::env::var("XCURSOR_THEME").unwrap_or_else(|_| "default".into());
         let size = std::env::var("XCURSOR_SIZE")

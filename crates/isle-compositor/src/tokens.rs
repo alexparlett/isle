@@ -24,6 +24,15 @@ pub fn tokens_path() -> PathBuf {
     config_dir().join("tokens.kdl")
 }
 
+/// The cursor theme and size the tokens name.
+pub fn cursor() -> (String, u32) {
+    let source = load(&tokens_path()).map_or_else(|_| Source::shipped(), |(source, _)| source);
+    source
+        .theme(&Appearance::default())
+        .map(|t| (t.tokens.icon_cursor, t.tokens.icon_cursor_size as u32))
+        .unwrap_or_else(|_| ("default".to_owned(), 24))
+}
+
 /// The shipped tokens with the user's file over them, if it has one that reads, and that
 /// file's text (empty without one).
 pub fn load(path: &Path) -> Result<(Source, String), TokenError> {

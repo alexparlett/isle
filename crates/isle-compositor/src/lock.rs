@@ -113,9 +113,14 @@ fn runtime_dir() -> PathBuf {
         .unwrap_or_else(std::env::temp_dir)
 }
 
-/// Present while the session is locked, so a compositor started after a crash starts locked.
+/// Present while the session is locked, so a compositor restarted in the same logind session
+/// starts locked; a new sign-in does not, and v1's `locked` is another file.
 pub fn marker_path() -> PathBuf {
-    runtime_dir().join("isle").join("locked")
+    let name = match std::env::var("XDG_SESSION_ID") {
+        Ok(id) if !id.is_empty() => format!("locked-{id}"),
+        _ => "locked".to_owned(),
+    };
+    runtime_dir().join("isle").join(name)
 }
 
 /// The last compositor left the session locked.

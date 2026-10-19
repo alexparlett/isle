@@ -6,7 +6,10 @@ use std::{
     collections::VecDeque,
     fs,
     io::{BufRead, BufReader, Read, Write},
-    os::{fd::AsRawFd, unix::process::CommandExt, unix::process::ExitStatusExt},
+    os::{
+        fd::AsRawFd,
+        unix::{net::UnixDatagram, process::CommandExt, process::ExitStatusExt},
+    },
     path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Stdio},
     sync::{
@@ -78,6 +81,15 @@ fn session_environment() -> Vec<(String, String)> {
         vars.push(("LIBVA_DRIVER_NAME", "nvidia".to_owned()));
         vars.push(("__GLX_VENDOR_LIBRARY_NAME", "nvidia".to_owned()));
     }
+    if std::env::var_os("SSH_AUTH_SOCK").is_none()
+        && let Some(runtime) = std::env::var_os("XDG_RUNTIME_DIR")
+    {
+        // gcr-ssh-agent.socket's, when it is enabled.
+        let agent = Path::new(&runtime).join("gcr/ssh");
+        if agent.exists() {
+            vars.push(("SSH_AUTH_SOCK", agent.display().to_string()));
+        }
+    }
     if let Some(home) = std::env::var_os("HOME") {
         let local = Path::new(&home).join(".local/bin");
         let path = std::env::var("PATH").unwrap_or_default();
@@ -117,26 +129,115 @@ fn unexport(vars: &[(String, String)]) {
     let _ = Command::new("systemctl")
         .args(["--user", "stop", "isle-session.target"])
         .status();
-    let names: Vec<&str> = vars.iter().map(|(k, _)| k.as_str()).collect();
-    let _ = Command::new("systemctl")
-        .args(["--user", "unset-environment"])
-        .args(&names)
-        .status();
+    let Some(manager) = manager_environment() else {
+        say("could not read the user manager's environment; leaving it as it is");
+        return;
+    };
+    let names = still_ours(vars, &manager);
+    if !names.is_empty() {
+        let _ = Command::new("systemctl")
+            .args(["--user", "unset-environment"])
+            .args(&names)
+            .status();
+    }
+}
+
+/// The user manager's environment, as `KEY=VALUE` entries.
+fn manager_environment() -> Option<Vec<String>> {
+    let out = Command::new("busctl")
+        .args([
+            "--user",
+            "--json=short",
+            "get-property",
+            "org.freedesktop.systemd1",
+            "/org/freedesktop/systemd1",
+            "org.freedesktop.systemd1.Manager",
+            "Environment",
+        ])
+        .output()
+        .ok()
+        .filter(|out| out.status.success())?;
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    let entries = value.get("data")?.as_array()?;
+    entries
+        .iter()
+        .map(|e| e.as_str().map(str::to_owned))
+        .collect()
+}
+
+/// The names to unset at the end: none unless this session exported and the manager's
+/// display is still its own, since a session started since then owns them; then those whose
+/// value is still the one exported.
+fn still_ours<'a>(exported: &'a [(String, String)], manager: &[String]) -> Vec<&'a str> {
+    let set = |name: &str| {
+        manager
+            .iter()
+            .find_map(|e| e.strip_prefix(name)?.strip_prefix('='))
+    };
+    let ours = exported
+        .iter()
+        .find(|(k, _)| k == "WAYLAND_DISPLAY")
+        .is_some_and(|(_, v)| set("WAYLAND_DISPLAY") == Some(v.as_str()));
+    if !ours {
+        return Vec::new();
+    }
+    exported
+        .iter()
+        .filter(|(k, v)| set(k) == Some(v.as_str()))
+        .map(|(k, _)| k.as_str())
+        .collect()
+}
+
+/// The user journal, when the session's output does not already reach it.
+struct Journal(Option<UnixDatagram>);
+
+impl Journal {
+    fn open() -> Self {
+        if std::env::var_os("JOURNAL_STREAM").is_some() {
+            return Self(None);
+        }
+        let socket = UnixDatagram::unbound()
+            .and_then(|s| s.connect("/run/systemd/journal/socket").map(|()| s))
+            .ok();
+        Self(socket)
+    }
+
+    fn send(&self, line: &str) {
+        let Some(socket) = &self.0 else {
+            return;
+        };
+        let priority = if line.contains(" ERROR ") {
+            3
+        } else if line.contains(" WARN ") {
+            4
+        } else {
+            6
+        };
+        let entry = format!(
+            "SYSLOG_IDENTIFIER=isle-compositor\nPRIORITY={priority}\nMESSAGE={}\n",
+            line.replace('\n', " ")
+        );
+        let _ = socket.send(entry.as_bytes());
+    }
 }
 
 struct Log {
     file: Mutex<fs::File>,
+    journal: Journal,
     tail: Mutex<VecDeque<String>>,
 }
 
 impl Log {
-    /// `session.log`, the previous session's kept as `session.log.old`.
+    /// `logs/session.log`, the previous session's kept as `session.log.old`; v1 writes
+    /// `session.log` beside `logs/`.
     fn open(dir: &Path) -> std::io::Result<Self> {
-        fs::create_dir_all(dir)?;
+        let dir = dir.join("logs");
+        fs::create_dir_all(&dir)?;
         let path = dir.join("session.log");
         let _ = fs::rename(&path, dir.join("session.log.old"));
         Ok(Self {
             file: Mutex::new(fs::File::create(path)?),
+            journal: Journal::open(),
             tail: Mutex::new(VecDeque::new()),
         })
     }
@@ -144,6 +245,7 @@ impl Log {
     fn line(&self, line: &str) {
         let _ = writeln!(self.file.lock().unwrap(), "{line}");
         eprintln!("{line}");
+        self.journal.send(line);
         let mut tail = self.tail.lock().unwrap();
         if tail.len() == LOG_TAIL {
             tail.pop_front();
@@ -355,5 +457,56 @@ fn main() -> ExitCode {
             unexport(&exported);
             return ExitCode::SUCCESS;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn exported() -> Vec<(String, String)> {
+        [
+            ("XDG_CURRENT_DESKTOP", "Isle"),
+            ("QT_QPA_PLATFORMTHEME", "gtk3"),
+            ("WAYLAND_DISPLAY", "wayland-1"),
+        ]
+        .map(|(k, v)| (k.to_owned(), v.to_owned()))
+        .to_vec()
+    }
+
+    fn manager(entries: &[&str]) -> Vec<String> {
+        entries.iter().map(|e| e.to_string()).collect()
+    }
+
+    #[test]
+    fn what_is_still_ours_is_unset() {
+        let manager = manager(&[
+            "XDG_CURRENT_DESKTOP=Isle",
+            "QT_QPA_PLATFORMTHEME=qt6ct",
+            "WAYLAND_DISPLAY=wayland-1",
+            "HOME=/home/a",
+        ]);
+        assert_eq!(
+            still_ours(&exported(), &manager),
+            ["XDG_CURRENT_DESKTOP", "WAYLAND_DISPLAY"]
+        );
+    }
+
+    #[test]
+    fn a_session_started_since_keeps_even_the_values_it_shares() {
+        let manager = manager(&[
+            "XDG_CURRENT_DESKTOP=Hyprland",
+            "QT_QPA_PLATFORMTHEME=gtk3",
+            "WAYLAND_DISPLAY=wayland-0",
+        ]);
+        assert!(still_ours(&exported(), &manager).is_empty());
+    }
+
+    #[test]
+    fn a_session_that_never_exported_unsets_nothing() {
+        let mut vars = exported();
+        vars.retain(|(k, _)| k != "WAYLAND_DISPLAY");
+        let manager = manager(&["XDG_CURRENT_DESKTOP=Isle", "QT_QPA_PLATFORMTHEME=gtk3"]);
+        assert!(still_ours(&vars, &manager).is_empty());
     }
 }

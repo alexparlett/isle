@@ -142,9 +142,11 @@ log and its lock, and every change P14a makes on the host can be undone.
     exports the variable before the target starts. The target's
     `Conflicts=xremap.service` stays for a session started beside one.
 11. **The session's variables are unset only where they are still Isle's.**
-    On a clean exit the supervisor reads the user manager's environment and
-    unsets each name whose value is the one it exported; a name another
-    session has set since is left (found in P4's host run). At start Isle
+    On a clean exit the supervisor reads the user manager's environment;
+    if its `WAYLAND_DISPLAY` is still Isle's, it unsets each name whose value
+    is the one it exported, and otherwise nothing, since a session started
+    since owns them, even values both share (`QT_QPA_PLATFORMTHEME=gtk3`).
+    A session that never exported unsets nothing (found in P4's host run). At start Isle
     still exports whatever else holds the manager: isle-tty depends on
     Isle's apps opening in Isle, and puts Hyprland's values back after.
     niri, uwsm and gnome-session refuse a second session instead

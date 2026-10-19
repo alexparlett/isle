@@ -1,3 +1,5 @@
+use std::io::IsTerminal;
+
 use isle_compositor::backend::Kind;
 
 fn main() {
@@ -6,6 +8,7 @@ fn main() {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
+        .with_ansi(std::io::stdout().is_terminal())
         .init();
     let nested =
         std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some();

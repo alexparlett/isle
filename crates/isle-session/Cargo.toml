@@ -9,3 +9,4 @@ publish.workspace = true
 humantime.workspace = true
 isle-state.workspace = true
 libc.workspace = true
+serde_json.workspace = true

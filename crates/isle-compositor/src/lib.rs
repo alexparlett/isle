@@ -109,6 +109,14 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         .ok()
         .and_then(|fd| fd.parse::<i32>().ok());
     unsafe { std::env::remove_var("ISLE_READY_FD") };
+    // Still before any thread: the cursor the tokens name, unless the session chose one.
+    if std::env::var_os("XCURSOR_THEME").is_none() {
+        let (theme, size) = tokens::cursor();
+        unsafe {
+            std::env::set_var("XCURSOR_THEME", theme);
+            std::env::set_var("XCURSOR_SIZE", size.to_string());
+        }
+    }
     let heartbeat = Heartbeat::new();
     crash::install_panic_hook(heartbeat.clone());
     info!("isle-compositor {}", build_info::describe());
@@ -368,5 +376,10 @@ fn report_ready(fd: i32, socket: &std::ffi::OsStr, display: Option<u32>) {
     let _ = writeln!(pipe, "WAYLAND_DISPLAY={}", socket.to_string_lossy());
     if let Some(display) = display {
         let _ = writeln!(pipe, "DISPLAY=:{display}");
+    }
+    for key in ["XCURSOR_THEME", "XCURSOR_SIZE"] {
+        if let Ok(value) = std::env::var(key) {
+            let _ = writeln!(pipe, "{key}={value}");
+        }
     }
 }

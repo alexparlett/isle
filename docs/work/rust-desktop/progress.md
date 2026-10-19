@@ -2,6 +2,17 @@
 
 ## 2026-10-19
 
+- P14a 14a.2: the session beside v1. `data/session/isle.desktop`; the
+  supervisor's log in `~/.local/state/isle/logs/` and, when its output does
+  not reach the journal already, the user journal as `isle-compositor`; the
+  compositor's log lines plain when not on a terminal; the lock marker named
+  for the logind session; the session's variables unset at the end only
+  while the manager's display is still Isle's, and then only those still
+  holding Isle's values; `SSH_AUTH_SOCK` for gcr's agent, and the cursor
+  from the tokens as `XCURSOR_THEME` and `XCURSOR_SIZE`, sent to the
+  supervisor with the display. Found: `a_window_holding_the_keys_gets_them_
+  until_cmd_escape` failed once under the whole suite and passes alone.
+
 - P14a 14a.1: the binaries stand alone. Settings' row index is compiled
   into the compositor; `isle-auth` and `isle-record` are opened when the
   compositor starts and run through that descriptor, so a package

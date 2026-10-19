@@ -175,7 +175,11 @@ async fn a_compositor_killed_while_locked_comes_back_locked() {
         .lock()
         .await
         .unwrap();
-    assert!(session.dir.join("runtime/isle/locked").exists());
+    let marker = match std::env::var("XDG_SESSION_ID") {
+        Ok(id) if !id.is_empty() => format!("locked-{id}"),
+        _ => "locked".to_owned(),
+    };
+    assert!(session.dir.join("runtime/isle").join(marker).exists());
     Command::new("kill")
         .args(["-9", &first.to_string()])
         .status()

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Isle
+Comment=A macOS-style desktop
+Exec=isle-session
+DesktopNames=Isle

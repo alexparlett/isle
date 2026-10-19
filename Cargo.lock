@@ -3190,6 +3190,7 @@ dependencies = [
  "humantime",
  "isle-state",
  "libc",
+ "serde_json",
 ]
 
 [[package]]

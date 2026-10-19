@@ -18,7 +18,7 @@
 # Ctrl+Alt+F-key chord, so the console is switched through logind.
 #
 # xremap is stopped for the run, and the user manager's environment points at Isle; both
-# are put back when it ends. Its log is ~/.local/state/isle/session.log.
+# are put back when it ends. Its log is ~/.local/state/isle/logs/session.log.
 
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -123,7 +123,7 @@ come_back() {
     if systemctl is-active --quiet "$unit"; then
         echo "isle-tty: Isle is still running on tty$vt; \`sudo systemctl stop $unit\` ends it"
     fi
-    echo "isle-tty: back; the log is ~/.local/state/isle/session.log"
+    echo "isle-tty: back; the log is ~/.local/state/isle/logs/session.log"
 }
 trap come_back EXIT
 trap 'exit 130' INT TERM HUP

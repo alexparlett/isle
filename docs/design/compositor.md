@@ -351,7 +351,7 @@ Isle types on the user's behalf reach the right window untouched.
 
 1. While a focused surface holds a keyboard-shortcuts inhibitor (or an X11 client an xwayland-keyboard-grab), all keys pass untranslated and desktop chords are off, except one escape chord that is never inhibited; the user is shown that it is active, and it ends when focus leaves.
 2. Keys from Isle (on-screen keyboard, emoji typing, paste into the previous window) enter as their own source, untranslated, aimed at a named window; paste sends that window's own paste chord (Ctrl+Shift+V in a terminal).
-3. Third-party clients may inject through virtual-keyboard and wlr-virtual-pointer (wlrctl, wtype, an agent driving the desktop). Their keys reach the focus in the client's own keymap, untranslated and past Isle's chords, and never reach the lock; the seat takes Isle's keymap back on the next physical key or when the client's keyboard goes. Their pointer takes the same path as a device.
+3. Third-party clients may inject through virtual-keyboard and wlr-virtual-pointer (wlrctl, wtype, an agent driving the desktop). A virtual keyboard is one of Isle's keyboards: its keys take the chords and reach Spotlight, in its own keymap while it types and Isle's after; one in the seat's keymap is translated like any keyboard, one with its own keymap is not. None reaches the lock and Slow Keys does not slow it. Modifiers it sets as masks rather than keys reach the app but no chord. A virtual pointer takes the same path as a device.
 
 **v1 lessons kept.** D37: v1 typed through `wtype`, a process per key; injection is in-process here.
 

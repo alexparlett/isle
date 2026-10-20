@@ -81,3 +81,67 @@ async fn a_virtual_keyboard_types_in_its_keymap_and_hands_the_seat_back() {
     test.key(30, false).await.unwrap();
     client.wait_for("sym a pressed").await;
 }
+
+/// `wtype` with `args`, to its end.
+async fn wtype(isle: &mut Isle, args: &[&str]) {
+    let wtype = isle.spawn_logged("wtype", args);
+    common::wait_until(|| async { wtype.exited() }).await;
+}
+
+async fn spotlight(isle: &Isle) -> serde_json::Value {
+    serde_json::from_str(&isle.test().await.spotlight().await.unwrap()).unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_virtual_keyboards_chord_opens_spotlight_and_its_keys_type_there() {
+    let mut isle = Isle::start("virtual-spotlight").await;
+    let client = isle.client("isle.test.Front", "3366ff");
+    client.wait_for("keyboard-enter").await;
+
+    wtype(&mut isle, &["-P", "Super_L", "-k", "space", "-p", "Super_L"]).await;
+    common::wait_until(|| async { spotlight(&isle).await["open"] == true }).await;
+    wtype(&mut isle, &["fire"]).await;
+    common::wait_until(|| async { spotlight(&isle).await["text"] == "fire" }).await;
+    assert!(!client.printed("sym f pressed"), "no key reached the window");
+
+    wtype(&mut isle, &["-k", "Escape"]).await;
+    common::wait_until(|| async { spotlight(&isle).await["text"] == "" }).await;
+    wtype(&mut isle, &["-k", "Escape"]).await;
+    common::wait_until(|| async { spotlight(&isle).await["open"] == false }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_virtual_keyboards_own_keymap_is_not_translated() {
+    let mut isle = Isle::start("virtual-untranslated").await;
+    let client = isle.client("isle.test.Front", "3366ff");
+    client.wait_for("keyboard-enter").await;
+
+    // A keyboard's Cmd+C reaches a PC app as Ctrl+C.
+    isle.chord(&[125, 46]).await;
+    client.wait_for("sym Control_L pressed").await;
+    client.clear();
+
+    wtype(&mut isle, &["-P", "Super_L", "-k", "c", "-p", "Super_L"]).await;
+    client.wait_for("sym c released").await;
+    assert!(client.printed("sym Super_L pressed"), "Cmd reached the window as itself");
+    assert!(!client.printed("sym Control_L pressed"), "nothing became Ctrl");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_virtual_keyboard_types_nothing_into_the_lock() {
+    let mut isle = Isle::start("virtual-lock").await;
+    let client = isle.client("isle.test.Behind", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    isle_ipc::session::SessionProxy::new(&isle.bus).await.unwrap().lock().await.unwrap();
+    common::wait_until(|| async { lock_status(&isle).await["locked"] == true }).await;
+
+    wtype(&mut isle, &["abc"]).await;
+    let test = isle.test().await;
+    test.key(45, true).await.unwrap();
+    test.key(45, false).await.unwrap();
+    common::wait_until(|| async { lock_status(&isle).await["dots"] == 1 }).await;
+}
+
+async fn lock_status(isle: &Isle) -> serde_json::Value {
+    serde_json::from_str(&isle.test().await.lock_status().await.unwrap()).unwrap()
+}

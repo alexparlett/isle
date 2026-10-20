@@ -26,6 +26,7 @@ fn keys() -> KeyInfo {
         layout: "us".into(),
         variant: "mac".into(),
         options: String::new(),
+        text: None,
     };
     let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
     KeyInfo::new(&spec.compile(&context).unwrap())

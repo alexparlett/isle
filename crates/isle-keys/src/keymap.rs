@@ -1,7 +1,7 @@
 //! A keyboard's keymap: its XKB names from the user's layouts and the keyboard's profile,
-//! and the keymap compiled to text for the seat.
+//! or a client's own keymap, and the keymap compiled to text for the seat.
 
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use xkbcommon::xkb;
 
@@ -14,6 +14,8 @@ pub struct KeymapSpec {
     pub layout: String,
     pub variant: String,
     pub options: String,
+    /// A virtual keyboard's own keymap as XKB text, which the names do not describe.
+    pub text: Option<Arc<str>>,
 }
 
 /// The layouts the user types, from `keyboard` in settings.
@@ -235,11 +237,23 @@ impl KeymapSpec {
             layout: names.join(","),
             variant: variants.join(","),
             options: layouts.options.join(","),
+            text: None,
+        }
+    }
+
+    /// A client's own keymap, as the XKB text it sent.
+    pub fn from_text(text: Arc<str>) -> Self {
+        KeymapSpec {
+            text: Some(text),
+            ..KeymapSpec::default()
         }
     }
 
     /// `gb(mac)`, `us,de(nodeadkeys)`: the layouts as people write them.
     pub fn describe(&self) -> String {
+        if self.text.is_some() {
+            return "client".to_owned();
+        }
         let variants: Vec<&str> = self.variant.split(',').collect();
         self.layout
             .split(',')
@@ -253,6 +267,14 @@ impl KeymapSpec {
     }
 
     pub fn compile(&self, context: &xkb::Context) -> Option<xkb::Keymap> {
+        if let Some(text) = &self.text {
+            return xkb::Keymap::new_from_string(
+                context,
+                text.to_string(),
+                xkb::KEYMAP_FORMAT_TEXT_V1,
+                xkb::KEYMAP_COMPILE_NO_FLAGS,
+            );
+        }
         xkb::Keymap::new_from_names(
             context,
             "evdev",

@@ -1,17 +1,17 @@
 //! Clients' virtual keyboards and pointers (wlrctl, wtype, an agent driving the desktop).
 
 use smithay::{
-    backend::input::{
-        AbsolutePositionEvent, Event, InputEvent, KeyboardKeyEvent,
-    },
-    input::keyboard::FilterResult,
-    utils::{Logical, Point, Rectangle, SERIAL_COUNTER},
+    backend::input::{AbsolutePositionEvent, Event, InputEvent, KeyState, KeyboardKeyEvent},
+    input::keyboard::KeyboardSource,
+    utils::{Logical, Point, Rectangle},
     wayland::{
-        virtual_keyboard::{VirtualKeyboardBackend, VirtualKeyboardHandler, VirtualKeyboardSpecialEvent},
+        virtual_keyboard::{
+            VirtualKeyboardBackend, VirtualKeyboardDevice, VirtualKeyboardHandler,
+            VirtualKeyboardSpecialEvent,
+        },
         virtual_pointer::{VirtualPointerBackend, VirtualPointerHandler},
     },
 };
-use tracing::warn;
 
 use crate::state::State;
 
@@ -49,58 +49,53 @@ impl State {
     }
 }
 
-/// A virtual keyboard's keys are in its own keymap and reach the focus untranslated, past
-/// Isle's bindings; none reach the lock.
+/// A virtual keyboard is a keyboard of Isle's, by its source; none reaches the lock.
 impl VirtualKeyboardHandler for State {
     fn process_virtual_keyboard_event(&mut self, event: InputEvent<VirtualKeyboardBackend>) {
-        let keyboard = self.isle.seat.get_keyboard().unwrap();
         match event {
+            InputEvent::DeviceAdded { device } => {
+                self.virtual_keyboard_added(&device_id(&device), device.keymap());
+            }
+            InputEvent::Special(VirtualKeyboardSpecialEvent::KeymapChanged { device }) => {
+                self.virtual_keymap_changed(&device_id(&device), device.keymap());
+            }
             InputEvent::Keyboard { event } => {
-                if self.isle.lock.locked {
+                let id = device_id(&event.device());
+                // Its releases still come, so the keys it pressed before the lock let go.
+                if self.isle.lock.locked && event.state() == KeyState::Pressed {
                     return;
                 }
-                self.idle_activity();
-                let device = event.device();
-                // The keymap changes only with nothing held; a physical key brings Isle's back.
-                if let Some(keymap) = device.keymap()
-                    && keyboard.pressed_keys().is_empty()
-                {
-                    if let Err(err) = keyboard.set_keymap_from_string(self, keymap.to_string()) {
-                        warn!(?err, "a virtual keyboard's keymap was refused");
-                        return;
-                    }
-                    self.isle.keyboards.active = None;
-                }
-                keyboard.input_from_source::<(), _>(
-                    device.source(),
-                    self,
-                    event.key_code(),
-                    event.state(),
-                    SERIAL_COUNTER.next_serial(),
-                    event.time(),
-                    |_, _, _| FilterResult::Forward,
-                );
+                let code = event.key_code().raw() - 8;
+                self.on_virtual_key(&id, code, event.state(), event.time());
             }
             InputEvent::Special(VirtualKeyboardSpecialEvent::Modifiers {
+                device,
                 mods_depressed,
                 mods_latched,
                 mods_locked,
                 group,
-                device,
             }) => {
-                // The masks are in the device's keymap, or the seat's when it sent none.
-                if device.keymap().is_none() || self.isle.keyboards.active.is_none() {
+                // The masks are in the device's keymap, so they hold only while it is the seat's.
+                let spec = self.isle.keyboards.get(&device_id(&device)).map(|d| d.spec.clone());
+                if spec.is_some() && self.isle.keyboards.active == spec {
+                    let keyboard = self.isle.seat.get_keyboard().unwrap();
                     keyboard.with_xkb_state(self, |mut context| {
                         context.set_modifier_mask(mods_depressed, mods_latched, mods_locked, group)
                     });
                 }
             }
-            InputEvent::DeviceRemoved { .. } => {
-                if self.isle.keyboards.active.is_none() && keyboard.pressed_keys().is_empty() {
-                    self.restore_seat_keymap();
-                }
+            InputEvent::DeviceRemoved { device } => {
+                self.virtual_keyboard_removed(&device_id(&device));
             }
             _ => {}
         }
+    }
+}
+
+/// Unique among every client's keyboards, where the protocol object's id is not.
+fn device_id(device: &VirtualKeyboardDevice) -> String {
+    match device.source() {
+        KeyboardSource::Auxiliary(n) => format!("virtual-{n}"),
+        KeyboardSource::Physical => "virtual".to_owned(),
     }
 }

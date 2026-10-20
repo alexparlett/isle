@@ -1,5 +1,6 @@
 //! Keyboards: each by its name with its profile and keymap, the seat's keymap following the
-//! keyboard that types, and the PC swap of Alt and Super.
+//! keyboard that types, and the PC swap of Alt and Super. Clients' virtual keyboards are
+//! keyboards too.
 
 pub mod games;
 pub mod inhibit;
@@ -50,6 +51,16 @@ pub struct Device {
     pub spec: KeymapSpec,
     /// Has letter keys: power buttons and the like report as keyboards too.
     pub typing: bool,
+    /// A client's virtual keyboard, and the keymap its codes are in.
+    pub client: Option<Virtual>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Virtual {
+    /// The seat's: the codes are evdev codes, as a physical keyboard's.
+    SeatKeymap,
+    /// The client's own, whose codes mean only what it says; never translated.
+    OwnKeymap,
 }
 
 #[derive(Default)]
@@ -233,8 +244,63 @@ impl State {
             swap,
             spec,
             typing: true,
+            client: None,
         });
         self.isle.notify(Event::KeyboardsChanged);
+    }
+
+    /// A client's virtual keyboard has its keymap: its own, or the seat's when `None`.
+    pub fn virtual_keyboard_added(&mut self, id: &str, keymap: Option<std::sync::Arc<str>>) {
+        let (client, spec) = match keymap {
+            Some(text) => (Virtual::OwnKeymap, KeymapSpec::from_text(text)),
+            None => (Virtual::SeatKeymap, self.seat_spec()),
+        };
+        info!(id, ?client, "virtual keyboard");
+        self.isle.keyboards.compiled(&spec);
+        let profile = self.isle.keyboards.last_profile();
+        self.isle.keyboards.devices.push(Device {
+            id: id.to_owned(),
+            name: "virtual keyboard".to_owned(),
+            hint: None,
+            profile,
+            guessed: false,
+            swap: false,
+            spec,
+            typing: false,
+            client: Some(client),
+        });
+    }
+
+    /// A client's virtual keyboard has a new keymap; it is in force from its next press.
+    pub fn virtual_keymap_changed(&mut self, id: &str, keymap: Option<std::sync::Arc<str>>) {
+        self.virtual_keyboard_removed(id);
+        self.virtual_keyboard_added(id, keymap);
+    }
+
+    /// A client's virtual keyboard is gone; the seat takes Isle's keymap back.
+    pub fn virtual_keyboard_removed(&mut self, id: &str) {
+        let Some(device) = self.isle.keyboards.get(id) else {
+            return;
+        };
+        let spec = device.spec.clone();
+        self.isle.keyboards.devices.retain(|d| d.id != id);
+        if spec.text.is_some() {
+            self.isle.keyboards.keymaps.remove(&spec);
+        }
+        let keyboard = self.isle.seat.get_keyboard().unwrap();
+        if self.isle.keyboards.active.as_ref() == Some(&spec) && keyboard.pressed_keys().is_empty() {
+            self.restore_seat_keymap();
+        }
+    }
+
+    /// A key from a client's virtual keyboard: as a device's, but never slowed by Slow Keys,
+    /// whose delay would drop a client's press and release sent together.
+    pub fn on_virtual_key(&mut self, id: &str, code: u32, key_state: KeyState, time: InputTime) {
+        if key_state == KeyState::Pressed && self.idle_activity() {
+            self.isle.swallowed.insert((id.to_owned(), code));
+            return;
+        }
+        self.key_from_device(id, "virtual keyboard", code, key_state, time);
     }
 
     pub fn keyboard_removed(&mut self, id: &str) {
@@ -260,6 +326,9 @@ impl State {
             .map(|d| (d.name.clone(), d.hint))
             .collect();
         for (i, (name, hint)) in devices.into_iter().enumerate() {
+            if self.isle.keyboards.devices[i].client.is_some() {
+                continue;
+            }
             let (profile, guessed, swap, spec) = self.resolve_keyboard(&name, hint);
             let device = &mut self.isle.keyboards.devices[i];
             device.profile = profile;
@@ -269,6 +338,12 @@ impl State {
         }
         self.isle.keyboards.active = None;
         self.restore_seat_keymap();
+        let seat = self.seat_spec();
+        for device in &mut self.isle.keyboards.devices {
+            if device.client == Some(Virtual::SeatKeymap) {
+                device.spec = seat.clone();
+            }
+        }
         self.isle
             .keyboards
             .engine
@@ -282,15 +357,19 @@ impl State {
         self.isle.notify(Event::KeyboardsChanged);
     }
 
-    /// Gives the seat back Isle's keymap: the keyboard that typed last, else a PC keyboard's.
-    pub fn restore_seat_keymap(&mut self) {
+    /// Isle's keymap for the seat: the keyboard that typed last, else a PC keyboard's.
+    fn seat_spec(&mut self) -> KeymapSpec {
         let last = self.isle.keyboards.last.clone();
-        let spec = last
-            .and_then(|id| self.isle.keyboards.get(&id).map(|d| d.spec.clone()))
+        last.and_then(|id| self.isle.keyboards.get(&id).map(|d| d.spec.clone()))
             .unwrap_or_else(|| {
                 let mac = self.isle.keyboards.mac().clone();
                 KeymapSpec::resolve(&self.layouts(), Profile::Pc, Iso::Guess, &mac)
-            });
+            })
+    }
+
+    /// Gives the seat back Isle's keymap.
+    pub fn restore_seat_keymap(&mut self) {
+        let spec = self.seat_spec();
         self.set_seat_keymap(&spec);
     }
 
@@ -403,6 +482,21 @@ impl State {
             self.keyboard_added(id, name, hint);
         }
         let key = (id.to_owned(), code);
+        let (client, spec) = {
+            let device = self.isle.keyboards.get(id).unwrap();
+            (device.client, device.spec.clone())
+        };
+        // A keymap changes only with nothing held, so no key is released under one it was not
+        // pressed in; it changes before Isle reads the key, which is in this keymap.
+        if key_state == KeyState::Pressed
+            && self.isle.keyboards.active.as_ref() != Some(&spec)
+            && self.isle.seat.get_keyboard().unwrap().pressed_keys().is_empty()
+        {
+            self.set_seat_keymap(&spec);
+        }
+        let own_keymap = client == Some(Virtual::OwnKeymap);
+        // The modes below name keys by evdev code; a client's own keymap reaches them by keysym.
+        let named = if own_keymap { self.standard_code(code) } else { code };
         // The pick and the toolbar take every key but the modifiers, which the engine keeps
         // count of.
         let modifier = (self.picking() || self.isle.toolbar.is_some())
@@ -418,17 +512,17 @@ impl State {
                 .insert_idle(|state| state.pick_modifiers_changed());
         } else if self.isle.toolbar.is_some() && key_state == KeyState::Pressed {
             self.isle.swallowed.insert(key);
-            self.toolbar_key(code);
+            self.toolbar_key(named);
             return;
         } else if self.picking() {
             match key_state {
                 KeyState::Pressed => {
                     self.isle.swallowed.insert(key);
-                    self.pick_key(code, true);
+                    self.pick_key(named, true);
                     return;
                 }
                 KeyState::Released if self.isle.swallowed.remove(&key) => {
-                    self.pick_key(code, false);
+                    self.pick_key(named, false);
                     return;
                 }
                 KeyState::Released => {}
@@ -444,7 +538,7 @@ impl State {
                 self.isle.swallowed.insert(key);
                 return;
             }
-            KeyState::Pressed if self.share_tab_key(code) => {
+            KeyState::Pressed if self.share_tab_key(named) => {
                 self.isle.swallowed.insert(key);
                 return;
             }
@@ -452,20 +546,20 @@ impl State {
                 self.isle.swallowed.insert(key);
                 return;
             }
-            KeyState::Pressed if self.isle.bar.keyboard_move.is_some() && self.keyboard_move_key(code) => {
+            KeyState::Pressed if self.isle.bar.keyboard_move.is_some() && self.keyboard_move_key(named) => {
                 self.isle.swallowed.insert(key);
                 return;
             }
-            KeyState::Pressed if code == 1 && self.top_edge_escape() => {
+            KeyState::Pressed if named == 1 && self.top_edge_escape() => {
                 self.isle.swallowed.insert(key);
                 return;
             }
-            KeyState::Pressed if self.record_keyboard(name, code) => {
+            KeyState::Pressed if client.is_none() && self.record_keyboard(name, code) => {
                 self.isle.swallowed.insert(key);
                 return;
             }
             // logind leaves the power key to Isle, which holds its inhibitor.
-            KeyState::Pressed if code == KEY_POWER => {
+            KeyState::Pressed if named == KEY_POWER => {
                 self.isle.swallowed.insert(key);
                 self.power_key();
                 return;
@@ -480,24 +574,16 @@ impl State {
             self.lock_activity();
         }
         let game = self.focus_is_game();
-        let (swap, spec) = {
-            let device = self.isle.keyboards.get(id).unwrap();
-            // A game gets the keys as labelled (B30).
-            (device.swap && !game, device.spec.clone())
-        };
+        // A game gets the keys as labelled (B30).
+        let swap = self.isle.keyboards.get(id).unwrap().swap && !game;
         let sent = match key_state {
             KeyState::Pressed => {
                 let sent = if swap { swapped(code) } else { code };
                 self.isle.keyboards.held.insert((id.to_owned(), code), sent);
-                let keyboard = self.isle.seat.get_keyboard().unwrap();
-                // A keymap changes only with nothing held, so no key is released under one
-                // it was not pressed in.
-                if self.isle.keyboards.active.as_ref() != Some(&spec)
-                    && keyboard.pressed_keys().is_empty()
-                {
-                    self.set_seat_keymap(&spec);
+                // A virtual keyboard never takes the seat: Isle's keymap comes back after it.
+                if client.is_none() {
+                    self.isle.keyboards.last = Some(id.to_owned());
                 }
-                self.isle.keyboards.last = Some(id.to_owned());
                 sent
             }
             KeyState::Released => self
@@ -507,7 +593,7 @@ impl State {
                 .remove(&(id.to_owned(), code))
                 .unwrap_or(code),
         };
-        let translate = self.translating();
+        let translate = self.translating() && !own_keymap;
         let names = self.focus_names();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let bindings = &self.isle.bindings;
@@ -584,6 +670,28 @@ impl State {
             }
         }
         self.update_bar_option();
+    }
+
+    /// The evdev code of the named key `code` types in the active keymap, or 0 for any other.
+    fn standard_code(&mut self, code: u32) -> u32 {
+        use isle_keys::xkb::keysyms;
+        let sym = self
+            .isle
+            .keyboards
+            .with_engine(false, &[], |_, ctx| ctx.keys.sym(code));
+        match sym.map(|s| s.raw()) {
+            Some(keysyms::KEY_Escape) => 1,
+            Some(keysyms::KEY_Tab) => 15,
+            Some(keysyms::KEY_Return) => 28,
+            Some(keysyms::KEY_space) => 57,
+            Some(keysyms::KEY_KP_Enter) => 96,
+            Some(keysyms::KEY_Up) => 103,
+            Some(keysyms::KEY_Left) => 105,
+            Some(keysyms::KEY_Right) => 106,
+            Some(keysyms::KEY_Down) => 108,
+            Some(keysyms::KEY_XF86PowerOff) => KEY_POWER,
+            _ => 0,
+        }
     }
 
     /// Shift pressed five times: Sticky Keys on or off, written to the settings.

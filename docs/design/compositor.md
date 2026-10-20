@@ -49,7 +49,7 @@ Space, keeping their order.
 
 1. Every toplevel floats. Layout is a trait chosen per Space; the default module is stacking, and no other module is required by this document.
 2. An app's main window opens at its remembered place in its first frame: the box is set before the first configure is answered, so it never appears elsewhere and moves.
-3. A place is recorded only for an app's main window, which is its only titled toplevel, when a move or resize ends; the record is event-driven, not polled.
+3. A place is recorded only for an app's main window, which is its only titled toplevel, when a move or resize ends or a tile, fill or restore is made; the record is event-driven, not polled. A tiled or filled window's place is its floating box and its zone, and it reopens in that zone with the box kept for when it leaves (found on the host after P14a: tiled windows reopened at an older floating box).
 4. Untitled windows, a second titled window (a dialog), PiP, the dropdown terminal and windows recognised as games are never recorded or placed. While Game Mode is on, no places are applied.
 5. A place that is off every output is never recorded and never applied; places are clamped whole onto the output they name, or onto the output with focus when that one is absent.
 6. A window with no place opens at its requested size, or a default proportion of the work area, centred on the output with focus; a dialog opens centred over its parent; a modal dialog (xdg-dialog, X11 transient with modal state) keeps its parent from taking focus.

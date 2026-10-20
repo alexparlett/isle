@@ -161,6 +161,7 @@ impl State {
         };
         self.send_mode_states(id);
         self.set_frame(id, rect);
+        self.isle.record_place_at(id, rect);
         self.isle.notify(crate::worker::Event::WindowsChanged);
         true
     }
@@ -221,6 +222,7 @@ impl State {
         record.mode = Mode::Floating;
         self.send_mode_states(id);
         self.set_frame(id, restore);
+        self.isle.record_place_at(id, restore);
         self.isle.notify(crate::worker::Event::WindowsChanged);
         true
     }

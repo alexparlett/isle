@@ -2,6 +2,13 @@
 
 ## 2026-10-20
 
+- Windows reopened away from where they were left when they had been tiled:
+  a place was recorded only when a move or resize of a floating window
+  ended. A tile, fill or restore now records the place too, the zone kept
+  with the floating box (`Place.zone`), and a main window with a zone
+  reopens in it from its first frame, its box behind it for Restore.
+  `compositor.md` Stacking 3 says so.
+
 - A tiled window filled from its bar went back to the box it had before it
   was tiled, so it jumped (found on the host). A fill now remembers the
   tile it came from and goes back to it; from a floating window it goes

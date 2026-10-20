@@ -106,8 +106,9 @@ impl Isle {
             .any(|r| r.id != id && r.mapped && r.app == record.app && titled(r))
     }
 
-    /// `app`'s box on `output`, or its latest anywhere clamped onto `output`.
-    fn place_for(&self, app: &str, output: &Output) -> Option<Rect> {
+    /// `app`'s box on `output`, or its latest anywhere clamped onto `output`, and the zone it
+    /// was tiled in.
+    fn place_for(&self, app: &str, output: &Output) -> Option<(Rect, Option<geometry::Zone>)> {
         let places = self.places.apps.get(app)?;
         let area = self.work_area(output);
         let place = places
@@ -117,25 +118,37 @@ impl Isle {
             (area.loc.x + place.x, area.loc.y + place.y).into(),
             (place.width, place.height).into(),
         );
-        Some(geometry::clamp_whole(rect, area))
+        let zone = place.zone.as_deref().and_then(geometry::Zone::from_name);
+        Some((geometry::clamp_whole(rect, area), zone))
     }
 
-    /// Remembers `id`'s box if it is a main window wholly on one output.
+    /// Remembers `id`'s box, and its zone when tiled or filled, if it is a main window wholly
+    /// on one output.
     pub fn record_place(&mut self, id: u64) {
+        if let Some(frame) = self.frame(id) {
+            self.record_place_at(id, frame);
+        }
+    }
+
+    /// As `record_place`, for a window being given `frame`, which its client has yet to take.
+    pub fn record_place_at(&mut self, id: u64, frame: Rect) {
         if !self.is_main(id) {
             return;
         }
         let Some(record) = self.wm.get(id) else {
             return;
         };
-        if record.mode != super::Mode::Floating || record.game {
+        if record.game {
             return;
         }
-        let Some(rect) = self.frame(id) else {
-            return;
+        let (rect, zone) = match &record.mode {
+            super::Mode::Floating => (frame, None),
+            super::Mode::Tiled { zone, restore } => (*restore, Some(zone.name())),
+            super::Mode::Filled { restore, .. } => (*restore, Some(geometry::Zone::Fill.name())),
+            super::Mode::FullScreen { .. } => return,
         };
-        let Some(output) = self.output_holding(rect) else {
-            debug!(id, ?rect, "not on one output; its place is not recorded");
+        let Some(output) = self.output_holding(frame) else {
+            debug!(id, ?frame, "not on one output; its place is not recorded");
             return;
         };
         let area = self.work_area(&output);
@@ -147,6 +160,7 @@ impl Isle {
             y: rect.loc.y - area.loc.y,
             width: rect.size.w,
             height: rect.size.h,
+            zone: zone.map(str::to_owned),
             at,
         };
         self.places
@@ -188,9 +202,34 @@ impl State {
         let Some(output) = isle.output_with_focus() else {
             return;
         };
-        let Some(place) = isle.place_for(&app, &output) else {
+        let Some((place, zone)) = isle.place_for(&app, &output) else {
             return;
         };
+        // A window last tiled reopens in its tile, its box kept for when it leaves it.
+        if let Some(zone) = zone
+            && let Some(rect) = isle.zone_rect(id, zone, &output)
+        {
+            let bar = isle.bar_height(id);
+            let size = (rect.size.w, (rect.size.h - bar).max(1));
+            let record = isle.wm.get_mut(id).unwrap();
+            record.mode = if zone == geometry::Zone::Fill {
+                super::Mode::Filled {
+                    restore: place,
+                    tile: None,
+                }
+            } else {
+                super::Mode::Tiled {
+                    zone,
+                    restore: place,
+                }
+            };
+            record.planned = Some(Rectangle::new((rect.loc.x, rect.loc.y + bar).into(), size.into()));
+            if let Some(toplevel) = record.window.toplevel() {
+                toplevel.with_pending_state(|state| state.size = Some(size.into()));
+            }
+            self.send_mode_states(id);
+            return;
+        }
         // The place is the frame's; the client is asked for the part under its bar.
         let bar = isle.bar_height(id);
         let client = Rectangle::new(

@@ -56,12 +56,16 @@ pub struct Places {
     pub apps: BTreeMap<String, BTreeMap<String, Place>>,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Place {
+    /// The window's floating box, which a tile returns it to.
     pub x: i32,
     pub y: i32,
     pub width: i32,
     pub height: i32,
+    /// The zone it was tiled or filled in, by name, which it reopens in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone: Option<String>,
     /// Unix seconds when it was recorded, so the latest of an app's places can stand in for
     /// an output that is absent.
     pub at: u64,

@@ -165,6 +165,32 @@ async fn a_main_window_reopens_at_its_place_from_its_first_frame() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_tiled_main_window_reopens_in_its_tile_with_its_box_behind_it() {
+    let mut isle = Isle::start("placetile").await;
+    let client = isle.client("isle.test.PlaceTile", "ff0000");
+    let window = isle.wait_for_window("isle.test.PlaceTile").await;
+    client.wait_for("keyboard-enter").await;
+    let windows = isle.windows_proxy().await;
+    windows.set_box(window.id, 100, 200, 640, 480).await.unwrap();
+    settles(&isle, window.id, "floating", (100, 200, 640, 480)).await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::LEFT]).await;
+    settles(&isle, window.id, "tiled:left-half", LEFT_HALF).await;
+    let saved = places(&isle).await.expect("places.json");
+    let place = &saved["data"]["apps"]["isle.test.PlaceTile"]["Isle Headless 1"];
+    assert_eq!(place["zone"].as_str(), Some("left-half"), "{place}");
+    assert_eq!((place["x"].as_i64(), place["width"].as_i64()), (Some(100), Some(640)));
+
+    client.send("quit");
+    wait_until(|| async { isle.windows().await.is_empty() }).await;
+    let again = isle.client("isle.test.PlaceTile", "00ff00");
+    let reopened = isle.wait_for_window("isle.test.PlaceTile").await;
+    settles(&isle, reopened.id, "tiled:left-half", LEFT_HALF).await;
+    again.wait_for("configured 942 1008").await;
+    windows.restore(reopened.id).await.unwrap();
+    settles(&isle, reopened.id, "floating", (100, 200, 640, 480)).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_second_window_of_an_app_cascades_and_is_not_recorded() {
     let mut isle = Isle::start("cascade").await;
     let _one = isle.client("isle.test.Cascade", "ff0000");

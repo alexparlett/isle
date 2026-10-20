@@ -395,6 +395,7 @@ impl Isle {
             smithay::wayland::idle_notify::IdleNotifierState::<State>::new(&dh, loop_handle.clone());
         let virtual_keyboard_state =
             smithay::wayland::virtual_keyboard::VirtualKeyboardManagerState::new::<State, _>(&dh, |_| true);
+        smithay::wayland::virtual_pointer::VirtualPointerManagerState::new::<State, _>(&dh, |_| true);
 
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&dh, seat_name);

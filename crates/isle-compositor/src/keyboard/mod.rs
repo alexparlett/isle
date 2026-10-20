@@ -267,16 +267,8 @@ impl State {
             device.swap = swap;
             device.spec = spec;
         }
-        // The keyboard that typed last keeps the seat, else a PC keyboard's keymap.
-        let last = self.isle.keyboards.last.clone();
-        let spec = last
-            .and_then(|id| self.isle.keyboards.get(&id).map(|d| d.spec.clone()))
-            .unwrap_or_else(|| {
-                let mac = self.isle.keyboards.mac().clone();
-                KeymapSpec::resolve(&self.layouts(), Profile::Pc, Iso::Guess, &mac)
-            });
         self.isle.keyboards.active = None;
-        self.set_seat_keymap(&spec);
+        self.restore_seat_keymap();
         self.isle
             .keyboards
             .engine
@@ -288,6 +280,18 @@ impl State {
             .unwrap()
             .change_repeat_info(keyboard.repeat_rate, keyboard.repeat_delay);
         self.isle.notify(Event::KeyboardsChanged);
+    }
+
+    /// Gives the seat back Isle's keymap: the keyboard that typed last, else a PC keyboard's.
+    pub fn restore_seat_keymap(&mut self) {
+        let last = self.isle.keyboards.last.clone();
+        let spec = last
+            .and_then(|id| self.isle.keyboards.get(&id).map(|d| d.spec.clone()))
+            .unwrap_or_else(|| {
+                let mac = self.isle.keyboards.mac().clone();
+                KeymapSpec::resolve(&self.layouts(), Profile::Pc, Iso::Guess, &mac)
+            });
+        self.set_seat_keymap(&spec);
     }
 
     /// Gives the seat the keymap of `spec`, keeping Caps Lock and Num Lock as they were; the

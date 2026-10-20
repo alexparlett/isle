@@ -351,7 +351,7 @@ Isle types on the user's behalf reach the right window untouched.
 
 1. While a focused surface holds a keyboard-shortcuts inhibitor (or an X11 client an xwayland-keyboard-grab), all keys pass untranslated and desktop chords are off, except one escape chord that is never inhibited; the user is shown that it is active, and it ends when focus leaves.
 2. Keys from Isle (on-screen keyboard, emoji typing, paste into the previous window) enter as their own source, untranslated, aimed at a named window; paste sends that window's own paste chord (Ctrl+Shift+V in a terminal).
-3. Third-party clients may inject through virtual-keyboard; their keys are not translated.
+3. Third-party clients may inject through virtual-keyboard and wlr-virtual-pointer (wlrctl, wtype, an agent driving the desktop). Their keys reach the focus in the client's own keymap, untranslated and past Isle's chords, and never reach the lock; the seat takes Isle's keymap back on the next physical key or when the client's keyboard goes. Their pointer takes the same path as a device.
 
 **v1 lessons kept.** D37: v1 typed through `wtype`, a process per key; injection is in-process here.
 
@@ -418,7 +418,7 @@ The mechanics `shell.md`'s surfaces rely on.
 | wp-single-pixel-buffer, wp-alpha-modifier, wp-cursor-shape | cheaper surfaces; cursors without client buffers |
 | pointer-constraints, relative-pointer, pointer-gestures, pointer-warp, tablet | games; forwarded gestures; drawing tablets |
 | keyboard-shortcuts-inhibit, xwayland-shell, xwayland-keyboard-grab | VMs and remote desktops; the X11 WM (B5) |
-| text-input-v3, input-method-v2, virtual-keyboard | input methods; the B21 text-field signal; third-party injection |
+| text-input-v3, input-method-v2, virtual-keyboard, wlr-virtual-pointer | input methods; the B21 text-field signal; third-party injection |
 | idle-inhibit, ext-idle-notify | video players; clients that watch idle |
 | ext-image-capture-source, ext-image-copy-capture, ext-foreign-toplevel-list | standard capture tools (B13) |
 | ext-data-control, primary-selection, ext-background-effect | clipboard managers; primary selection; blur behind apps' glass |

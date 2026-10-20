@@ -72,6 +72,7 @@ mod share;
 mod thumbnail;
 mod titlebar_overlay;
 mod toolbar;
+mod virtual_input;
 pub mod tokens;
 mod wallpaper;
 pub mod watchdog;

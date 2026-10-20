@@ -40,7 +40,7 @@ row pane="control-centre" id="clock-date" label="Show date" pane-label="Control 
 row pane="desktop" id="" label="Desktop" pane-label="Desktop" also="windows;tiling;hot corners"
 row pane="desktop" id="titlebar-action" label="Double-click a window's title bar to" pane-label="Desktop" also="zoom;fill"
 row pane="desktop" id="edge-tiling" label="Drag windows to screen edges to tile" pane-label="Desktop" also="snap;tiling"
-row pane="desktop" id="tile-margins" label="Tiled windows have margins" pane-label="Desktop" also="gaps"
+row pane="desktop" id="tile-margin" label="Margins around tiled windows" pane-label="Desktop" also="gaps;spacing"
 row pane="desktop" id="hot-corners" label="Hot Corners" pane-label="Desktop" also="corner;screen corners"
 row pane="displays" id="" label="Displays" pane-label="Displays" also="monitor;screen;resolution;refresh rate;night light"
 row pane="displays" id="main-display" label="Main display" pane-label="Displays" also="primary"

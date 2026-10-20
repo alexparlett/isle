@@ -409,6 +409,22 @@ async fn tiling_chords_give_their_zones_and_cycle() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn the_margin_is_the_size_chosen() {
+    for (size, half) in [("none", (0, 48, 960, 1032)), ("large", (16, 64, 936, 1000))] {
+        let mut isle = Isle::start_with(
+            &format!("margin-{size}"),
+            &format!("windows {{\n    tile-margin \"{size}\"\n}}\n"),
+        )
+        .await;
+        let client = isle.client("isle.test.Margin", "ff0000");
+        let w = isle.wait_for_window("isle.test.Margin").await;
+        client.wait_for("keyboard-enter").await;
+        isle.chord(&[keys::CTRL, keys::ALT, keys::LEFT]).await;
+        settles(&isle, w.id, "tiled:left-half", half).await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_client_maximises_and_resizes_from_its_left_edge() {
     let mut isle = Isle::start("resize").await;
     let client = isle.client("isle.test.Resize", "ff0000");

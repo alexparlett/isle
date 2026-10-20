@@ -275,15 +275,6 @@
 
   // ---- The margin as a size ------------------------------------------------------------
   const MARGINS = [["None", 0], ["Small", 8], ["Medium", 12], ["Large", 16]];
-  // Two tiles on a screen, at the margin's size scaled to the picture.
-  function tiles(m, chosen) {
-    const gap = Math.round(m / 2), W2 = 120, H2 = 56;
-    const tile2 = (x, w) => el("", { position: "absolute", left: px(x), top: px(gap + 6), width: px(w), height: px(H2 - 2 * gap - 6), borderRadius: px(m ? 3 : 0), background: "var(--colour-window-raised)", boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" });
-    const inner = W2 - 2 * gap, half = (inner - gap) / 2;
-    return el("", { position: "relative", width: px(W2), height: px(H2), borderRadius: "var(--radius-small)", background: wallGrad, boxShadow: chosen ? "0 0 0 2px var(--colour-window), 0 0 0 4px var(--colour-accent)" : "inset 0 0 0 1px var(--colour-hairline)", overflow: "hidden", flex: "none" },
-      el("", { position: "absolute", left: px(W2 / 2 - 10), top: "2px", width: "20px", height: "4px", borderRadius: "2px", background: "var(--colour-text-2)" }),
-      tile2(gap, half), tile2(gap + half + gap, half));
-  }
   function desktopSized(o) {
     o = o || {};
     const choice = o.choice || "Medium";
@@ -291,7 +282,6 @@
     return { pane: "desktop", body: [header("desktop"),
       group("Windows", [r("Double-click a window's title bar to", pop("Fill")), r("Drag windows to screen edges to tile", sw(true)),
         r("Margins around tiled windows", p, { desc: "Space between tiled and filled windows, and around them." })], { first: false }),
-      lead(row({ gap: "var(--space-l)", justifyContent: "center" }, ...MARGINS.map(([n, m]) => col({ gap: "var(--space-xs)", alignItems: "center" }, tiles(m, n === choice), sp("s-callout", n, { color: n === choice ? "var(--colour-text)" : "var(--colour-text-2)" }))))),
       foot(btn("Hot Corners…"))],
       after: o.menu ? (win) => {
         const a = win.querySelector('[data-anchor="margins"]');
@@ -331,7 +321,7 @@
     surfaces: [
       { id: "margins", name: "Desktop: tile margins", sheet: "p13/style.md", states: [
         scene("now", "Today", "The switch that shipped in P13: margins on or off, 12 points when on.", desktop),
-        scene("sized", "As a size", "Recommended: a pop-up of None, Small (8), Medium (12, the default) and Large (16), the tokens space-s, space-m and space-l; the pictures under the group show each and follow the choice.", () => desktopSized()),
+        scene("sized", "As a size", "A pop-up of None, Small (8), Medium (12, the default) and Large (16), the tokens space-s, space-m and space-l.", () => desktopSized()),
         scene("sized-menu", "The pop-up open", "The four sizes in the window's own menu.", () => desktopSized({ menu: true })),
         scene("sized-none", "None", "Tiles meet each other and the screen's edges; the island's strip stays.", () => desktopSized({ choice: "None" })),
       ] },
@@ -350,7 +340,6 @@
   <p>Reply lgtm or name changes. Recommended in each case:</p>
   <ol>
     <li><b>The margin is a size</b>: a pop-up of None, Small, Medium and Large (0, 8, 12, 16), Medium the default, replacing the switch. <code>windows.tile-margins</code> becomes <code>windows.tile-margin</code> with those four values; a file that says <code>#false</code> reads as None.</li>
-    <li><b>Pictures under the group</b> show the four sizes, as macOS shows its choices; or leave them out and keep the row alone.</li>
     <li><b>Advanced… on Appearance</b> shows the tokens file's path and whether it loaded, with Show Shipped Tokens (a read-only copy opened in the editor) and Open in Editor. No token is edited in Settings.</li>
     <li><b>Create in Editor…</b> when there is no file opens the editor at the path, so the file is the user's from its first save.</li>
   </ol>

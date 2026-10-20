@@ -73,11 +73,18 @@ impl Component for Desktop {
                         "windows.edge-tiling",
                     )
                     .into_element(),
-                    r.switch(
-                        "tile-margins",
-                        "Tiled windows have margins",
-                        "windows.tile-margins",
+                    r.choice(
+                        "tile-margin",
+                        "Margins around tiled windows",
+                        "windows.tile-margin",
+                        &[
+                            ("none", "None"),
+                            ("small", "Small"),
+                            ("medium", "Medium"),
+                            ("large", "Large"),
+                        ],
                     )
+                    .description("Space between tiled and filled windows, and around them.")
                     .into_element(),
                 ],
             ))

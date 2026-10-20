@@ -189,7 +189,7 @@ pub static PANES: &[Pane] = &[
         rows: &[
             RowDef::new("titlebar-action", "Double-click a window's title bar to").key("windows.titlebar-action").keywords(&["zoom", "fill"]),
             RowDef::new("edge-tiling", "Drag windows to screen edges to tile").key("windows.edge-tiling").keywords(&["snap", "tiling"]),
-            RowDef::new("tile-margins", "Tiled windows have margins").key("windows.tile-margins").keywords(&["gaps"]),
+            RowDef::new("tile-margin", "Margins around tiled windows").key("windows.tile-margin").keywords(&["gaps", "spacing"]),
             RowDef::new("hot-corners", "Hot Corners").key("hot-corners").within("Hot Corners…").keywords(&["corner", "screen corners"]),
         ],
         ..pane("desktop", "Desktop", "app-window", Hue::Graphite, 2, "Set how windows tile and fill, and what the screen corners do.")

@@ -2,7 +2,8 @@
 
 A P13 follow-up from P14a's host run (2026-10-20), where the tiled windows'
 margins read as gaps. Drawn on `style-1.html`, published as a private
-Artifact; the user answers lgtm or names changes.
+Artifact. Answered 2026-10-20: 1, 3 and 4 as recommended; 2 changed, the
+pop-up alone.
 
 1. **The margin is a size.** Settings › Desktop's "Tiled windows have
    margins" switch becomes "Margins around tiled windows", a pop-up of
@@ -10,8 +11,8 @@ Artifact; the user answers lgtm or names changes.
    default) and `space-l` (16). `windows.tile-margins` becomes
    `windows.tile-margin` with those four values; a file that still says
    `tile-margins #false` reads as None.
-2. **Pictures under the group** show two tiles at each size, the chosen one
-   ringed, as macOS shows its choices.
+2. **No pictures.** Drawn under the group, two tiles at each size, and
+   left out at the gate: the pop-up alone.
 3. **Appearance › Advanced…** shows the tokens file's path and whether it
    loaded (none, how many tokens it changes, or the parse error the
    island's notice gives), with Show Shipped Tokens (a read-only copy

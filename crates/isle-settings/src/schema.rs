@@ -264,10 +264,11 @@ pub enum AppearanceMode {
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]
+#[setting(retired = "tile-margins")]
 pub struct Windows {
-    /// Tiled and filled windows keep a margin around and between them.
-    #[setting(default = true)]
-    pub tile_margins: bool,
+    /// The margin tiled and filled windows keep around and between them.
+    #[setting(default = TileMargin::Medium)]
+    pub tile_margin: TileMargin,
     /// A window dragged to a screen's edge or corner tiles there.
     #[setting(default = true)]
     pub edge_tiling: bool,
@@ -283,6 +284,15 @@ pub struct Windows {
     pub games: Vec<String>,
     /// Apps that are not games though they look like one.
     pub not_games: Vec<String>,
+}
+
+/// The tokens' spacing: none, `space-s`, `space-m` or `space-l`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum TileMargin {
+    None,
+    Small,
+    Medium,
+    Large,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

@@ -71,11 +71,15 @@ impl Isle {
     }
 
     pub fn tile_margin(&self) -> i32 {
-        if self.settings.windows.tile_margins {
-            self.shell.theme().tokens.space_m.round() as i32
-        } else {
-            0
-        }
+        use isle_settings::schema::TileMargin;
+        let tokens = &self.shell.theme().tokens;
+        let space = match self.settings.windows.tile_margin {
+            TileMargin::None => 0.0,
+            TileMargin::Small => tokens.space_s,
+            TileMargin::Medium => tokens.space_m,
+            TileMargin::Large => tokens.space_l,
+        };
+        space.round() as i32
     }
 
     /// The frames of the windows shown on `output` other than `id`.

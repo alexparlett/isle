@@ -551,7 +551,7 @@ The `tokens.kdl` notice shows here and on Accessibility only.
 |---|---|---|---|---|
 | Windows | Double-click a window's title bar to | C · pop-up | Fill, Minimise, No Action | `windows.titlebar-action` (fill, minimise, none) |
 | Windows | Drag windows to screen edges to tile | C · switch | | `windows.edge-tiling` *new*, read by the tiling zones |
-| Windows | Tiled windows have margins | C · switch | | `windows.tile-margins` |
+| Windows | Margins around tiled windows | C · pop-up (None, Small, Medium, Large) | | `windows.tile-margin` |
 | (foot) | "Hot Corners…" | D · button under the group | | the sheet below |
 
 **Hot Corners…** (sheet, 664): the main display's wallpaper at 240 wide in

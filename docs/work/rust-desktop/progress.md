@@ -2,6 +2,12 @@
 
 ## 2026-10-20
 
+- P15 planned and reviewed (`p15-files.md`): every recommendation taken.
+  Evidence in `docs/research/rust-desktop/files-2026.md`: the FileChooser
+  backend at version 4, FileManager1's callers, the thumbnail spec and
+  helpers, listing and mounts at scale from cosmic-files' issues, and v1's
+  browsing engine read again.
+
 - Windows reopened away from where they were left when they had been tiled:
   a place was recorded only when a move or resize of a floating window
   ended. A tile, fill or restore now records the place too, the zone kept

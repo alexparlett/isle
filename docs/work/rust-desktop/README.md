@@ -24,4 +24,7 @@ one at a time.
 - `p10-spotlight.md`: P10, Spotlight.
 - `p11-capture.md`: P11, capture and portals.
 - `p12-gaming.md`: P12, gaming and night light.
+- `p13-settings.md`: P13, Settings, core; its gates in `p13/`.
+- `p14a-session.md`: P14a, installed beside Hyprland.
+- `p15-files.md`: P15, Files.
 - Evidence: `docs/research/rust-desktop/`.

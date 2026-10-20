@@ -484,4 +484,15 @@
   it end to end. ARCHITECTURE has How Isle is installed. Next: the host
   run (`docs/research/rust-desktop/p14a-session.md`), with P12's and P13's
   on that install, then P15.
-
+- P15 planned in `p15-files.md` (2026-10-20), reviewed: the user took every
+  recommendation. One packet, the panels halfway; `isle-fs` (the engine,
+  shared with the Cleaner), `isle-files` and an `isle-thumbnail` helper;
+  `isle-app` for many windows with its own data device for drag and drop
+  and the clipboard; FileChooser handed to Files over `Files1` with an
+  answer signal, the panel a modal child through xdg-foreign and
+  xdg-dialog, grouped under the asking app; `QuickLook1` on Files' name,
+  floating over its caller through `isle_titlebar_v1` version 2; files
+  opened through `isle-apps` rather than `xdg-open`; Files the file manager
+  only in Isle; Trim by re-encoding; Default apps in Settings › Apps;
+  search by walking, no content index. Research in
+  `docs/research/rust-desktop/files-2026.md`. Phases 15.0–15.18.

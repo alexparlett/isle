@@ -189,7 +189,7 @@ Intent: platform.md, compositor.md.
 
 ## Parity
 
-**P15 · Files.** The capture thumbnail's click opens Quick Look with Markup,
+**P15 · Files.** Planned 2026-10-20, reviewed: `p15-files.md`. The capture thumbnail's click opens Quick Look with Markup,
 and its menu gains Show in Files and Markup; FileChooser joins `isle-portal`
 (both left out in P11). Finder-shaped Files with v1's browsing-engine lessons; the
 Open and Save panels, handed FileChooser by the portal backend, and Quick

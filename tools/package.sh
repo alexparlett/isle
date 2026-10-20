@@ -36,12 +36,12 @@ cp "$REPO/pkg/arch/PKGBUILD" "$WORK/PKGBUILD"
 cd "$WORK"
 export ISLE_SOURCE="git+file://$REPO#commit=$head"
 export ISLE_TARGET_DIR="$WORK/target"
-makepkg --force --cleanbuild --syncdeps --noconfirm "${makepkg_args[@]}"
+makepkg --force --cleanbuild --syncdeps "${makepkg_args[@]}"
 package="$(makepkg --packagelist | grep -v -- '-debug-' | head -n 1)"
 echo "package: built $package"
 
 if ((install)); then
     # v1's installer left an isle.portal no package owns; this package's replaces it.
-    sudo pacman -U --noconfirm \
+    sudo pacman -U \
         --overwrite /usr/share/xdg-desktop-portal/portals/isle.portal "$package"
 fi

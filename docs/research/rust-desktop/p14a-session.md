@@ -40,9 +40,10 @@ but not enabled, the package installed and setup applied.
 ## The host run, the user's
 
 1. `sudo pacman -S greetd-tuigreet`.
-2. `tools/package.sh`: installs what the build needs (`--syncdeps`; `gn`
-   is new), builds and installs; the first install replaces v1's unowned
-   `isle.portal`.
+2. `tools/package.sh`: installs what the build needs (`--syncdeps`),
+   builds, and asks before installing; the first install replaces v1's
+   unowned `isle.portal`. A 404 from the mirror means the package database
+   is behind: `sudo pacman -Syu` first.
 3. `isle setup --check`, then `isle setup`: greetd's greeter, the portals
    file, the xremap drop-in. `/etc/pam.d/greetd` already unlocks the
    keyring.

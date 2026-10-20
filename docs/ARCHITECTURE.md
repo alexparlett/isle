@@ -708,7 +708,8 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   keeps its target directory in `~/.cache/isle/pkg` and installs with
   `pacman -U`. Two cargo builds: the compositor, supervisor, CLI and
   helpers together, Settings alone. The compositor's Skia, with GL, is
-  built from the crate's sources with the system's `gn` and `ninja`;
+  built from the crate's sources with the system's `ninja` (and `gn` where
+  installed, else the crate's own);
   Settings' is the prebuilt archive in `source=()`. A test crate,
   `isle-package`, checks that the PKGBUILD and the tree agree and that no
   shipped code reads the build tree.

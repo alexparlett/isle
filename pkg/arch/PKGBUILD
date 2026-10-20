@@ -15,7 +15,7 @@ depends=(
   accountsservice dbus gnome-keyring pipewire-pulse polkit xdg-desktop-portal
   xdg-desktop-portal-gtk xdg-utils xkeyboard-config xorg-xwayland
 )
-makedepends=(cargo clang git gn ninja python)
+makedepends=(cargo clang git ninja python)
 optdepends=(
   'bluez: Bluetooth'
   'networkmanager: Wi-Fi, Ethernet and VPN'
@@ -41,7 +41,7 @@ options=(!lto !strip !debug)
 
 # Freya's Skia build script downloads a prebuilt library for its feature set unless pointed
 # at a copy. Settings' set has one; the compositor's, with GL, has none and is built from the
-# Skia sources the crate carries, with the system's gn and ninja.
+# Skia sources the crate carries, with the system's gn where installed, else the crate's own.
 _skia_tag=0.100.0-beta.1
 _skia_soft=skia-binaries-c31b06a7031231446314-x86_64-unknown-linux-gnu-jpegd-jpege-svg-textlayout-webpd-webpe.tar.gz
 source=(

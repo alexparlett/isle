@@ -379,7 +379,8 @@ B100–B103 record the decisions. Differences from the plan:
   that does not carry the manager starts none; isle-tty turns them off.
 - **The compositor's Skia is built from source.** Its feature set has no
   prebuilt archive; Settings' does. The PKGBUILD builds the two apart,
-  makes `gn`, `ninja` and `python` build dependencies, and keeps symbols
+  makes `ninja` and `python` build dependencies (the system's `gn` used
+  where installed, the crate's own otherwise), and keeps symbols
   (debug info stripped) so crash records name functions.
 - **Additions.** `i2c-dev` loaded at boot beside the `uaccess` rule;
   `XCURSOR_THEME` and `XCURSOR_SIZE` sent by the compositor through the

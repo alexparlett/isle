@@ -91,7 +91,10 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   three quick deaths it starts the compositor with `ISLE_SAFE_START`,
   which leaves `settings.kdl` unread until `isle settings use-mine`. On a
   clean exit it unsets what it exported only while the manager still
-  names its display (B101).
+  names its display (B101). Before each start it compares the loaded
+  NVIDIA kernel module with the installed driver; when they differ, as
+  after an update before a restart, it says so and ends the session
+  instead of restarting a compositor that cannot start.
 - **Tests drive the real thing.** The `test-hooks` feature, never in a
   package, adds the Test interface: input injected through the same
   handlers as devices, outputs added and removed, frames counted,

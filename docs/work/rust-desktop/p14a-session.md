@@ -392,3 +392,10 @@ Found on the way: the capture test `a_shot_from_the_toolbar_holds_none_of_it`
 fails four runs in five with or without P14a (offered as a separate task);
 the guest kept a hand-copied `isle-portals.conf` from P11's run.
 
+Found on the host's first sign-in (2026-10-20): `pacman -Syu` had updated
+the NVIDIA driver without a restart, so every compositor start failed in
+EGL and the supervisor restarted it on a black screen; its crash records
+and log were empty after the reset that followed, never synced. The
+supervisor now ends the session with a message when the loaded module and
+the installed driver differ, and syncs its log and records.
+

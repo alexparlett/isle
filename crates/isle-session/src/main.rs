@@ -221,6 +221,32 @@ impl Journal {
     }
 }
 
+/// The NVIDIA kernel module's version and the installed userspace's, when they differ: after
+/// a driver update and before a restart, EGL refuses the GPU and every start fails.
+fn nvidia_mismatch() -> Option<(String, String)> {
+    let loaded = fs::read_to_string("/proc/driver/nvidia/version").ok()?;
+    let installed = fs::read_dir("/usr/lib")
+        .ok()?
+        .filter_map(Result::ok)
+        .find_map(|e| {
+            let name = e.file_name().into_string().ok()?;
+            name.strip_prefix("libnvidia-glcore.so.").map(str::to_owned)
+        })?;
+    let loaded = driver_version(&loaded)?;
+    (loaded != installed).then_some((loaded, installed))
+}
+
+/// The version in `/proc/driver/nvidia/version`'s first line.
+fn driver_version(text: &str) -> Option<String> {
+    text.lines()
+        .next()?
+        .split_whitespace()
+        .find(|word| {
+            word.contains('.') && word.split('.').all(|part| part.parse::<u32>().is_ok())
+        })
+        .map(str::to_owned)
+}
+
 struct Log {
     file: Mutex<fs::File>,
     journal: Journal,
@@ -251,6 +277,11 @@ impl Log {
             tail.pop_front();
         }
         tail.push_back(line.to_owned());
+    }
+
+    /// On disk, so a session that ends in a reset still leaves its log.
+    fn sync(&self) {
+        let _ = self.file.lock().unwrap().sync_data();
     }
 
     fn take_tail(&self) -> Vec<String> {
@@ -300,6 +331,7 @@ fn record_crash(dir: &Path, pid: u32, status: ExitStatus, tail: &[String]) {
     };
     if let Ok(mut file) = fs::OpenOptions::new().append(true).open(&path) {
         let _ = file.write_all(appendix.as_bytes());
+        let _ = file.sync_all();
     }
     say(format!("crash record: {}", path.display()));
 
@@ -342,7 +374,19 @@ fn main() -> ExitCode {
     let compositor = compositor_path();
     say(format!("compositor: {}", compositor.display()));
 
+    let mut exported_last: Vec<(String, String)> = Vec::new();
     loop {
+        if let Some((loaded, installed)) = nvidia_mismatch() {
+            let line = format!(
+                "the NVIDIA driver loaded is {loaded} and the one installed is {installed}, which \
+                 cannot start against it; restart the computer to use Isle"
+            );
+            say(&line);
+            log.line(&format!("isle-session: {line}"));
+            log.sync();
+            unexport(&exported_last);
+            return ExitCode::FAILURE;
+        }
         let (mut crashes, _) = state.load::<Crashes>();
         let now = now_secs();
         crashes
@@ -414,6 +458,8 @@ fn main() -> ExitCode {
         let _ = out.join();
         let _ = err.join();
         let exported = ready.join().unwrap_or_default();
+        log.sync();
+        exported_last = exported.clone();
         let status = match status {
             Ok(status) => status,
             Err(err) => {
@@ -476,6 +522,15 @@ mod tests {
 
     fn manager(entries: &[&str]) -> Vec<String> {
         entries.iter().map(|e| e.to_string()).collect()
+    }
+
+    #[test]
+    fn the_loaded_driver_is_read_from_its_version_line() {
+        let open = "NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  615.78.08  Release Build  (notroot@)  Wed Oct 14 07:25:17 UTC 2026\nGCC version:  gcc version 15.2.1\n";
+        assert_eq!(driver_version(open).as_deref(), Some("615.78.08"));
+        let closed = "NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.95.05  Tue Sep 23 09:51:37 UTC 2025\n";
+        assert_eq!(driver_version(closed).as_deref(), Some("580.95.05"));
+        assert_eq!(driver_version(""), None);
     }
 
     #[test]

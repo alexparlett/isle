@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-10-20
+
+- P14a host run, first sign-in: a black screen. `pacman -Syu` had updated
+  `nvidia-utils` to 615.78 under a loaded 615.71 module, and EGL refused
+  the GPU on every start (Hyprland and v1's greeter crashed alike). The
+  supervisor now compares `/proc/driver/nvidia/version` with the installed
+  `libnvidia-glcore` before each start and ends the session with the
+  reason when they differ, and syncs its log and crash records, which a
+  reset had left empty.
+
 ## 2026-10-19
 
 - P14a 14a.7: closed but for the host run, the user's. B100–B103;

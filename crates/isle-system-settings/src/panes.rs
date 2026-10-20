@@ -311,7 +311,8 @@ pub fn find(id: &str) -> Option<&'static Pane> {
 pub const FIRST: &str = "general";
 
 /// The index Spotlight reads, one `row` per pane and per row (`isle-search`'s settings
-/// source).
+/// source). Written by `--write-index`, which only debug builds have.
+#[cfg(any(test, debug_assertions))]
 pub fn index() -> String {
     let quote = isle_settings::quote;
     let mut out = String::from(

@@ -132,7 +132,7 @@ impl MoveGrab {
         let id = crate::wm::window_id(&window);
         let initial = data.isle.frame(id)?.loc;
         let unsnap = match data.isle.wm.get(id)?.mode {
-            crate::wm::Mode::Tiled { restore, .. } | crate::wm::Mode::Filled { restore } => {
+            crate::wm::Mode::Tiled { restore, .. } | crate::wm::Mode::Filled { restore, .. } => {
                 Some(restore)
             }
             crate::wm::Mode::Floating => None,

@@ -2,6 +2,11 @@
 
 ## 2026-10-20
 
+- A tiled window filled from its bar went back to the box it had before it
+  was tiled, so it jumped (found on the host). A fill now remembers the
+  tile it came from and goes back to it; from a floating window it goes
+  back to the box as before.
+
 - Settings › Wi-Fi, from the P14a host run: the joined network was missing
   and offered again under Other networks, and a network with two saved
   connections was known twice. The joined network is now the access point

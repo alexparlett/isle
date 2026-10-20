@@ -218,7 +218,10 @@ impl State {
         };
         let bar = self.isle.bar_height(id);
         let record = self.isle.wm.get_mut(id).unwrap();
-        record.mode = super::Mode::Filled { restore };
+        record.mode = super::Mode::Filled {
+            restore,
+            tile: None,
+        };
         record.planned = Some(Rectangle::new(
             (rect.loc.x, rect.loc.y + bar).into(),
             (rect.size.w, rect.size.h - bar).into(),

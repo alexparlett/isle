@@ -1080,6 +1080,23 @@ async fn the_bar_moves_tiles_and_double_clicks_to_fill() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_tile_filled_from_its_bar_goes_back_to_the_tile() {
+    let mut isle = Isle::start("filltile").await;
+    let (client, w) = barred(&mut isle, "isle.test.FillTile").await;
+    client.wait_for("keyboard-enter").await;
+    isle.chord(&[keys::CTRL, keys::ALT, keys::LEFT]).await;
+    settles(&isle, w.id, "tiled:left-half", (12, 92, 942, 976)).await;
+    // The bar sits over the frame's top, which a tile puts at the work area's.
+    let (bx, by) = (212.0, 76.0);
+    click(&isle, bx, by).await;
+    click(&isle, bx, by).await;
+    settles(&isle, w.id, "filled", (12, 92, 1896, 976)).await;
+    click(&isle, bx, by).await;
+    click(&isle, bx, by).await;
+    settles(&isle, w.id, "tiled:left-half", (12, 92, 942, 976)).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_barred_window_resizes_from_the_band_around_its_frame() {
     let mut isle = Isle::start("band").await;
     let (_client, w) = barred(&mut isle, "isle.test.Band").await;

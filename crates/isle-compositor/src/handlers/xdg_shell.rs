@@ -168,6 +168,7 @@ impl XdgShellHandler for State {
             Some((id, false)) => {
                 self.isle.wm.get_mut(id).unwrap().mode = crate::wm::Mode::Filled {
                     restore: Default::default(),
+                    tile: None,
                 };
                 if surface.is_initial_configure_sent() {
                     self.plan_fill(id);

@@ -39,8 +39,11 @@ pub enum Mode {
         zone: geometry::Zone,
         restore: Rectangle<i32, Logical>,
     },
-    /// Maximised: the work area.
-    Filled { restore: Rectangle<i32, Logical> },
+    /// Maximised: the work area. Filled from a tile, it goes back to `tile`.
+    Filled {
+        restore: Rectangle<i32, Logical>,
+        tile: Option<geometry::Zone>,
+    },
     /// On a desktop of its own; it returns to `origin` with `previous` and `restore`.
     FullScreen {
         origin: u64,

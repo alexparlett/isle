@@ -148,13 +148,14 @@ impl State {
         let Some(record) = self.isle.wm.get_mut(id) else {
             return false;
         };
-        let restore = match &record.mode {
-            Mode::Floating => frame,
-            Mode::Tiled { restore, .. } | Mode::Filled { restore } => *restore,
+        let (restore, tile) = match &record.mode {
+            Mode::Floating => (frame, None),
+            Mode::Tiled { restore, zone } => (*restore, Some(*zone)),
+            Mode::Filled { restore, tile } => (*restore, *tile),
             Mode::FullScreen { .. } => return false,
         };
         record.mode = if zone == Zone::Fill {
-            Mode::Filled { restore }
+            Mode::Filled { restore, tile }
         } else {
             Mode::Tiled { zone, restore }
         };
@@ -188,15 +189,23 @@ impl State {
         self.tile(id, next);
     }
 
-    /// Fills `id`, or returns it to its box when it is filled.
+    /// Fills `id`, or returns it to the tile or box it had when it is filled.
     pub fn toggle_fill(&mut self, id: u64) {
-        if matches!(
-            self.isle.wm.get(id).map(|r| &r.mode),
-            Some(Mode::Filled { .. })
-        ) {
-            self.restore_box(id);
-        } else {
-            self.tile(id, Zone::Fill);
+        match self.isle.wm.get(id).map(|r| &r.mode) {
+            Some(Mode::Filled {
+                tile: Some(zone), ..
+            }) => {
+                let zone = *zone;
+                if !self.tile(id, zone) {
+                    self.restore_box(id);
+                }
+            }
+            Some(Mode::Filled { .. }) => {
+                self.restore_box(id);
+            }
+            _ => {
+                self.tile(id, Zone::Fill);
+            }
         }
     }
 
@@ -206,7 +215,7 @@ impl State {
             return false;
         };
         let restore = match record.mode {
-            Mode::Tiled { restore, .. } | Mode::Filled { restore } => restore,
+            Mode::Tiled { restore, .. } | Mode::Filled { restore, .. } => restore,
             Mode::Floating | Mode::FullScreen { .. } => return false,
         };
         record.mode = Mode::Floating;

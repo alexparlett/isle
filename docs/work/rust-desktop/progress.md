@@ -2,6 +2,18 @@
 
 ## 2026-10-20
 
+- Settings › Wi-Fi, from the P14a host run: the joined network was missing
+  and offered again under Other networks, and a network with two saved
+  connections was known twice. The joined network is now the access point
+  in use, found before access points are collapsed by name (the strongest
+  of a name need not be the joined one); a known network is listed once
+  with every saved connection behind it, so Forget and Auto-Join act on
+  them all; known networks in range carry Connect in Known networks and
+  leave Other networks; Connect joins through the saved connection and the
+  access point, where it had sent no access point and a new connection;
+  an open network keeps the lock's place. A fake-NetworkManager test joins
+  the weaker of two access points with two saved connections.
+
 - P13 follow-up from the P14a host run (gate `p13/style.md`, answered: the
   pop-up without pictures). `windows.tile-margin` is None, Small, Medium or
   Large from `space-s`, `space-m` and `space-l`, Medium by default, chosen

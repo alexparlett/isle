@@ -61,9 +61,10 @@ pub enum Follow {
 pub enum Act {
     SetWifi(bool),
     Scan(String),
+    /// A network in range, by its saved connection when it has one.
     Join {
         device: String,
-        ssid: String,
+        network: isle_network::Network,
     },
     JoinHidden {
         device: String,
@@ -632,18 +633,9 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
     match act {
         Act::SetWifi(on) => isle_network::set_wifi(on).await.map_err(|e| err(&e)),
         Act::Scan(device) => isle_network::scan(&device).await.map_err(|e| err(&e)),
-        Act::Join { device, ssid } => {
-            let network = isle_network::Network {
-                path: String::new(),
-                ssid,
-                strength: 0,
-                secured: false,
-                known: None,
-            };
-            isle_network::join(&device, &network)
-                .await
-                .map_err(|e| err(&e))
-        }
+        Act::Join { device, network } => isle_network::join(&device, &network)
+            .await
+            .map_err(|e| err(&e)),
         Act::JoinHidden {
             device,
             ssid,

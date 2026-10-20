@@ -45,8 +45,11 @@ fn signal(strength: u8, secured: bool) -> Element {
     rect()
         .horizontal()
         .spacing(t.space_xs)
-        .maybe(secured, |el| {
-            el.child(Glyph::new("lock-simple", 12., colour(t.colour_text_2)))
+        // An open network keeps the lock's place, so every signal glyph lines up.
+        .child(if secured {
+            Glyph::new("lock-simple", 12., colour(t.colour_text_2)).into_element()
+        } else {
+            rect().width(Size::px(12.)).into_element()
         })
         .child(Glyph::new(
             isle_network::signal_glyph(strength),
@@ -133,7 +136,7 @@ impl Component for WiFi {
         if let Some(current) = wifi
             .current
             .clone()
-            .filter(|_| wifi.link == Link::Connected)
+            .filter(|_| wifi.link != Link::Disconnected)
         {
             let at = at.clone();
             top.push(
@@ -147,43 +150,79 @@ impl Component for WiFi {
                     .into_element(),
             );
         }
+        let joined = wifi
+            .current
+            .as_ref()
+            .filter(|_| wifi.link != Link::Disconnected)
+            .map(|c| c.ssid.clone());
+        let connect = |network: isle_network::Network| {
+            let device = wifi.path.clone();
+            isle_ui::Button::new("Connect").small().on_press(move |_| {
+                services.act(Act::Join {
+                    device: device.clone(),
+                    network: network.clone(),
+                })
+            })
+        };
+        // The joined network is the row above; the rest of the known ones, in range or not.
         let known: Vec<Element> = state
             .known
             .iter()
+            .filter(|k| joined.as_ref() != Some(&k.ssid))
             .map(|k| {
-                let (path, auto) = (k.path.clone(), k.auto_join);
-                r.row(&format!("known:{}", k.ssid), k.ssid.clone(), None)
-                    .control(MoreMenu {
-                        alt: format!("{} options", k.ssid),
-                        items: vec![
-                            ("Auto-Join".into(), auto),
-                            ("Forget This Network…".into(), false),
-                        ],
-                        on_choose: EventHandler::new(move |i: usize| match i {
-                            0 => services.act(Act::AutoJoin {
-                                saved: path.clone(),
-                                on: !auto,
-                            }),
-                            _ => services.act(Act::Forget(path.clone())),
-                        }),
-                    })
-                    .into_element()
+                let (paths, auto) = (k.paths.clone(), k.auto_join);
+                let nearby = wifi.networks.iter().find(|n| n.ssid == k.ssid).map(|n| {
+                    isle_network::Network {
+                        known: Some(k.path.clone()),
+                        ..n.clone()
+                    }
+                });
+                let mut row = r.row(&format!("known:{}", k.ssid), k.ssid.clone(), None);
+                if let Some(n) = &nearby {
+                    row = row.leading(signal(n.strength, n.secured));
+                }
+                let menu = MoreMenu {
+                    alt: format!("{} options", k.ssid),
+                    items: vec![
+                        ("Auto-Join".into(), auto),
+                        ("Forget This Network…".into(), false),
+                    ],
+                    on_choose: EventHandler::new(move |i: usize| {
+                        for saved in &paths {
+                            services.act(match i {
+                                0 => Act::AutoJoin {
+                                    saved: saved.clone(),
+                                    on: !auto,
+                                },
+                                _ => Act::Forget(saved.clone()),
+                            })
+                        }
+                    }),
+                };
+                match nearby {
+                    Some(n) => row.control(
+                        rect()
+                            .horizontal()
+                            .cross_align(Alignment::Center)
+                            .spacing(8.)
+                            .child(connect(n))
+                            .child(menu),
+                    ),
+                    None => row.control(menu),
+                }
+                .into_element()
             })
             .collect();
+        // Networks in range that are neither joined nor known.
         let others: Vec<Element> = wifi
             .networks
             .iter()
-            .filter(|n| wifi.current.as_ref().is_none_or(|c| c.ssid != n.ssid))
+            .filter(|n| joined.as_ref() != Some(&n.ssid))
+            .filter(|n| !state.known.iter().any(|k| k.ssid == n.ssid))
             .map(|n| {
-                let (device, ssid) = (wifi.path.clone(), n.ssid.clone());
                 r.row(&format!("network:{}", n.ssid), n.ssid.clone(), None)
                     .leading(signal(n.strength, n.secured))
-                    .control(isle_ui::Button::new("Connect").small().on_press(move |_| {
-                        services.act(Act::Join {
-                            device: device.clone(),
-                            ssid: ssid.clone(),
-                        })
-                    }))
+                    .control(connect(n.clone()))
                     .into_element()
             })
             .collect();

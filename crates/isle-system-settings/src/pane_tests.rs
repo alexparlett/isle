@@ -236,14 +236,23 @@ fn wifi_state() -> isle_network::State {
             path: "/dev/wlan0".into(),
             link: Link::Connected,
             current: Some(network("Home", 80)),
-            networks: vec![network("Home", 80), network("Café", 40)],
+            networks: vec![network("Office", 60), network("Café", 40)],
         }),
         vpns: Vec::new(),
-        known: vec![Known {
-            path: "/saved/home".into(),
-            ssid: "Home".into(),
-            auto_join: true,
-        }],
+        known: vec![
+            Known {
+                path: "/saved/home".into(),
+                paths: vec!["/saved/home".into()],
+                ssid: "Home".into(),
+                auto_join: true,
+            },
+            Known {
+                path: "/saved/office".into(),
+                paths: vec!["/saved/office".into(), "/saved/office-2".into()],
+                ssid: "Office".into(),
+                auto_join: true,
+            },
+        ],
     }
 }
 
@@ -258,16 +267,22 @@ fn wifi_lists_known_and_nearby_networks_and_joins_one() {
     });
     assert!(shows(&test, "Known networks"));
     assert!(shows(&test, "Café"));
+    // Home is the joined row alone; Office, known and in range, is listed once, under Known.
+    let count = |name: &str| labels(&test).iter().filter(|l| *l == name).count();
+    assert_eq!((count("Home"), count("Office")), (1, 1), "{:?}", labels(&test));
     assert!(
         handles.acts().contains(&Act::Scan("/dev/wlan0".into())),
         "{:?}",
         handles.acts()
     );
     click(&mut test, "Connect");
-    assert!(handles.acts().contains(&Act::Join {
-        device: "/dev/wlan0".into(),
-        ssid: "Café".into()
-    }));
+    assert!(
+        handles.acts().iter().any(|a| matches!(a, Act::Join { device, network }
+            if device == "/dev/wlan0" && network.ssid == "Office"
+                && network.known.as_deref() == Some("/saved/office"))),
+        "{:?}",
+        handles.acts()
+    );
 }
 
 #[test]

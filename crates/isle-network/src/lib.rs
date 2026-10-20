@@ -83,11 +83,14 @@ pub struct Vpn {
     pub active: Option<String>,
 }
 
-/// A Wi-Fi network saved, in range or not.
+/// A Wi-Fi network saved, in range or not, once however many connections NetworkManager
+/// keeps for its name.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Known {
-    /// Its saved connection's settings path.
+    /// The saved connection used to join it: the active one, else the first.
     pub path: String,
+    /// Every saved connection for its name, `path` first, for Forget and Auto-Join.
+    pub paths: Vec<String>,
     pub ssid: String,
     /// It is joined by itself when in range.
     pub auto_join: bool,
@@ -237,17 +240,19 @@ async fn read(conn: &Connection) -> Result<State, Error> {
                         known,
                     });
                 }
+                // The access point in use, before access points are collapsed by name: the
+                // strongest of a name need not be the one joined.
+                let current = current_path
+                    .as_ref()
+                    .and_then(|p| networks.iter().position(|n| &n.path == p))
+                    .map(|i| networks.remove(i));
                 networks.sort_by(|a, b| b.strength.cmp(&a.strength));
-                let mut seen = Vec::new();
+                let mut seen: Vec<String> = current.iter().map(|c| c.ssid.clone()).collect();
                 networks.retain(|n| {
                     let first = !seen.contains(&n.ssid);
                     seen.push(n.ssid.clone());
                     first
                 });
-                let current = current_path
-                    .as_ref()
-                    .and_then(|p| networks.iter().position(|n| &n.path == p))
-                    .map(|i| networks.remove(i));
                 state.wifi = Some(Wifi {
                     path,
                     link,
@@ -258,17 +263,26 @@ async fn read(conn: &Connection) -> Result<State, Error> {
             _ => {}
         }
     }
-    state.known = saved
-        .iter()
-        .filter(|(_, kind, ..)| kind == "802-11-wireless")
-        .filter_map(|(path, _, _, ssid, auto)| {
-            Some(Known {
+    for (path, kind, _, ssid, auto) in &saved {
+        let (Some(ssid), true) = (ssid, kind == "802-11-wireless") else {
+            continue;
+        };
+        let in_use = active.contains_key(path);
+        match state.known.iter_mut().find(|k| &k.ssid == ssid) {
+            Some(known) if in_use => {
+                known.paths.insert(0, path.clone());
+                known.path = path.clone();
+                known.auto_join = *auto;
+            }
+            Some(known) => known.paths.push(path.clone()),
+            None => state.known.push(Known {
                 path: path.clone(),
-                ssid: ssid.clone()?,
+                paths: vec![path.clone()],
+                ssid: ssid.clone(),
                 auto_join: *auto,
-            })
-        })
-        .collect();
+            }),
+        }
+    }
     state.known.sort_by_key(|k| k.ssid.to_lowercase());
     state.vpns = saved
         .iter()
@@ -320,6 +334,11 @@ fn path(p: &str) -> Result<OwnedObjectPath, Error> {
     Ok(OwnedObjectPath::try_from(p.to_owned())?)
 }
 
+/// An access point's path, or `/` for NetworkManager to choose one.
+fn ap_or_any(ap: &str) -> &str {
+    if ap.is_empty() { "/" } else { ap }
+}
+
 /// Joins a network in range: its saved connection if known, else a new one NetworkManager
 /// completes from the access point.
 pub async fn join(device: &str, network: &Network) -> Result<(), Error> {
@@ -331,7 +350,7 @@ pub async fn join(device: &str, network: &Network) -> Result<(), Error> {
                 NM_PATH,
                 Some(NM),
                 "ActivateConnection",
-                &(path(saved)?, path(device)?, path(&network.path)?),
+                &(path(saved)?, path(device)?, path(ap_or_any(&network.path))?),
             )
             .await?;
         }
@@ -343,7 +362,7 @@ pub async fn join(device: &str, network: &Network) -> Result<(), Error> {
                 NM_PATH,
                 Some(NM),
                 "AddAndActivateConnection2",
-                &(settings, path(device)?, path(&network.path)?, options),
+                &(settings, path(device)?, path(ap_or_any(&network.path))?, options),
             )
             .await?;
         }

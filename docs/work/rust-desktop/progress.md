@@ -2,6 +2,17 @@
 
 ## 2026-10-20
 
+- P13 follow-up from the P14a host run (gate `p13/style.md`, answered: the
+  pop-up without pictures). `windows.tile-margin` is None, Small, Medium or
+  Large from `space-s`, `space-m` and `space-l`, Medium by default, chosen
+  on Settings › Desktop; `tile-margins` is retired, so an old line is
+  ignored. Appearance › Advanced… shows the tokens file, whether it loaded
+  and how many tokens it changes (`Source::changed`), with Show Shipped
+  Tokens (a read-only copy in the cache) and Open or Create in Editor,
+  which open the text/plain app through `Windows1.Launch`; Settings never
+  writes the file. Found: `a_panic_anywhere_in_the_probe_rebuilds_it_with_
+  its_model` failed once under the shell suite and passes alone.
+
 - P14a host run, first sign-in: a black screen. `pacman -Syu` had updated
   `nvidia-utils` to 615.78 under a loaded 615.71 module, and EGL refused
   the GPU on every start (Hyprland and v1's greeter crashed alike). The

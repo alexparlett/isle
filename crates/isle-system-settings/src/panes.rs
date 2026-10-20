@@ -169,6 +169,8 @@ pub static PANES: &[Pane] = &[
             RowDef::new("colour", "Colour").key("appearance.accent").keywords(&["accent", "color", "highlight"]),
             RowDef::new("glass", "Glass").key("appearance.glass").keywords(&["transparency", "tint"]),
             RowDef::new("title-bars", "Show title bars on other apps' windows").key("windows.title-bars").keywords(&["decorations", "csd"]),
+            RowDef::new("tokens-file", "Tokens file").within("Advanced…").keywords(&["tokens", "theme", "design tokens", "tokens.kdl"]),
+            RowDef::new("tokens-status", "Status").within("Advanced…").keywords(&["tokens", "theme"]),
         ],
         ..pane("appearance", "Appearance", "circle-half", Hue::Graphite, 2, "Choose light or dark, the accent colour and the glass.")
     },

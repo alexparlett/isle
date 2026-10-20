@@ -51,6 +51,8 @@ pub struct Desktop {
     pub values: State<Rc<BTreeMap<String, Value>>>,
     pub status: State<Option<SettingsStatus>>,
     pub tokens_status: State<Option<SettingsStatus>>,
+    /// The user's `tokens.kdl` as the compositor has it in force; empty for none.
+    pub tokens_text: State<String>,
     /// Requests from launches and activations, oldest first, for the app to take.
     pub requests: State<Vec<Request>>,
     /// The app's own commands chosen from its menus or keys, oldest first, for it to take.
@@ -205,6 +207,7 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
         values: State::create(Rc::new(desktop_values)),
         status: State::create(None),
         tokens_status: State::create(None),
+        tokens_text: State::create(String::new()),
         requests: State::create(Vec::new()),
         commands: State::create(Vec::new()),
         writes: State::create(Vec::new()),
@@ -410,6 +413,7 @@ impl<A: App + 'static> App for Root<A> {
             values: State::create(Rc::default()),
             status: State::create(None),
             tokens_status: State::create(None),
+            tokens_text: State::create(String::new()),
             requests: State::create(Vec::new()),
             commands: State::create(Vec::new()),
             writes: State::create(Vec::new()),
@@ -517,6 +521,9 @@ impl<A: App + 'static> App for Root<A> {
                     match message {
                         Inbound::Update(desktop::Update::Theme(info)) => {
                             theme.0.set(resolve(&info));
+                            if *desktop.tokens_text.peek() != info.tokens {
+                                desktop.tokens_text.set(info.tokens.clone());
+                            }
                         }
                         Inbound::Update(desktop::Update::TokensStatus(status)) => {
                             desktop.tokens_status.set(Some(status));

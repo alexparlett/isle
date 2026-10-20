@@ -1,13 +1,16 @@
-//! Appearance: light or dark, the accent colour, the glass and other apps' title bars.
+//! Appearance: light or dark, the accent colour, the glass, other apps' title bars, and the
+//! Advanced… sheet for the tokens file.
 
 use freya::prelude::*;
 use isle_settings::Value;
 use isle_tokens::{Source, Theme};
 use isle_ui::{colour, form, use_theme};
 
+use super::Nav;
 use crate::{
     nav::Location,
-    ui::{Picture, Pictures, Rows},
+    services::{Act, Services},
+    ui::{self, Picture, Pictures, Rows},
 };
 
 const MODES: [(&str, &str); 3] = [("auto", "Auto"), ("light", "Light"), ("dark", "Dark")];
@@ -92,6 +95,8 @@ impl Component for Appearance {
                 desktop.set("appearance.mode", Value::Str(MODES[i].0.into()))
             }),
         };
+        let (nav, at) = (Nav::get(), self.at.clone());
+        let sheet = self.at.sub.clone();
         rect()
             .width(Size::fill())
             .spacing(20.)
@@ -131,5 +136,104 @@ impl Component for Appearance {
                     .into_element(),
                 ],
             ))
+            .child(ui::foot(vec![(
+                "Advanced…".into(),
+                EventHandler::new({
+                    let at = at.clone();
+                    move |_| super::open(nav, &at, "Advanced…")
+                }),
+            )]))
+            .maybe(sheet.as_deref() == Some("Advanced…"), |el| {
+                el.child(Advanced { at: at.clone() })
+            })
+    }
+}
+
+/// The tokens file: where it is, whether it is in force, and the editor to change it in.
+#[derive(PartialEq)]
+struct Advanced {
+    at: Location,
+}
+
+impl Component for Advanced {
+    fn render(&self) -> impl IntoElement {
+        let r = Rows::new(&self.at);
+        let nav = Nav::get();
+        let services = Services::get();
+        let status = r.desktop.tokens_status.read().clone();
+        let text = r.desktop.tokens_text.read().clone();
+        let path = status.as_ref().map(|s| s.file.clone()).unwrap_or_default();
+        let shown = path.replacen(&std::env::var("HOME").unwrap_or_default(), "~", 1);
+        let (state, detail, refused) = match &status {
+            Some(s) if !s.ok => (
+                "Not loaded",
+                None,
+                Some(format!(
+                    "Line {}: {}. The shipped tokens are in use until the file reads.",
+                    s.line, s.message
+                )),
+            ),
+            _ if text.trim().is_empty() => (
+                "None",
+                Some("The shipped tokens are in use.".to_owned()),
+                None,
+            ),
+            _ => {
+                let n = isle_tokens::Source::changed(&text);
+                let tokens = if n == 1 { "token" } else { "tokens" };
+                ("Loaded", Some(format!("Changes {n} {tokens}.")), None)
+            }
+        };
+        let none = state == "None";
+        let mut status_row = r
+            .info("tokens-status", "Status", state.to_owned())
+            .refused(refused);
+        if let Some(detail) = detail {
+            status_row = status_row.description(detail);
+        }
+        let at = self.at.clone();
+        let editor = path.clone();
+        ui::sheet(
+            520.,
+            vec![
+                ui::alert_text(
+                    "Advanced",
+                    "The look's sizes, colours and timings are design tokens. A file of your \
+                     own changes any of them, and is read each time you save it.",
+                ),
+                form::group(
+                    None,
+                    vec![
+                        r.info("tokens-file", "Tokens file", shown).into_element(),
+                        status_row.into_element(),
+                    ],
+                )
+                .into_element(),
+            ],
+            vec![
+                (
+                    "Show Shipped Tokens".into(),
+                    EventHandler::new(move |_| {
+                        services.act(Act::EditTokens {
+                            path: String::new(),
+                            shipped: true,
+                        })
+                    }),
+                ),
+                (
+                    if none { "Create in Editor…" } else { "Open in Editor" }.into(),
+                    EventHandler::new(move |_| {
+                        services.act(Act::EditTokens {
+                            path: editor.clone(),
+                            shipped: false,
+                        })
+                    }),
+                ),
+                (
+                    "Done".into(),
+                    EventHandler::new(move |_| super::close(nav, &at)),
+                ),
+            ],
+        )
     }
 }

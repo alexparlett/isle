@@ -129,6 +129,12 @@ pub enum Act {
     EditControls,
     Revoke(Permission),
     Hostname(String),
+    /// The user's tokens file at `path` in the text editor, or with `shipped` a read-only
+    /// copy of the shipped tokens; Settings never writes the user's file (B10).
+    EditTokens {
+        path: String,
+        shipped: bool,
+    },
 }
 
 /// The followed state, shared by every pane.
@@ -583,6 +589,42 @@ pub async fn run(bus: Option<zbus::Connection>, act: Act) -> Result<Option<u64>,
     act_on(bus, act).await.map(|()| None)
 }
 
+/// The desktop id of the app that opens plain text, as `xdg-mime` has it.
+async fn text_editor() -> Option<String> {
+    let out = tokio::process::Command::new("xdg-mime")
+        .args(["query", "default", "text/plain"])
+        .output()
+        .await
+        .ok()?;
+    let id = String::from_utf8(out.stdout).ok()?;
+    let id = id.trim().trim_end_matches(".desktop");
+    (!id.is_empty()).then(|| id.to_owned())
+}
+
+/// The shipped tokens written read-only under the cache, to read beside the user's own file.
+fn shipped_copy() -> std::io::Result<String> {
+    use std::os::unix::fs::PermissionsExt;
+    let cache = std::env::var_os("XDG_CACHE_HOME")
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".cache")))
+        .ok_or_else(|| std::io::Error::other("no home folder"))?
+        .join("isle");
+    std::fs::create_dir_all(&cache)?;
+    let path = cache.join("tokens-shipped.kdl");
+    if path.exists() {
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))?;
+    }
+    let text = format!(
+        "// The tokens Isle ships, for reading: a change here does nothing. A token copied into\n\
+         // ~/.config/isle/tokens.kdl and changed there replaces this value.\n\n{}",
+        isle_tokens::SHIPPED
+    );
+    std::fs::write(&path, text)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444))?;
+    Ok(path.display().to_string())
+}
+
 async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
     use isle_audio::Target;
     let err = |e: &dyn std::fmt::Display| e.to_string();
@@ -749,6 +791,29 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
                     .await;
             }
             Ok(())
+        }
+        Act::EditTokens { path, shipped } => {
+            let path = if shipped {
+                shipped_copy().map_err(|e| err(&e))?
+            } else {
+                path
+            };
+            let windows = isle_ipc::windows::WindowsProxy::new(&session()?)
+                .await
+                .map_err(|e| err(&e))?;
+            let uri = format!("file://{}", path.replace('%', "%25").replace(' ', "%20"));
+            let launched = match text_editor().await {
+                Some(app) => windows
+                    .launch(&app, "", &[uri.as_str()])
+                    .await
+                    .map_err(|e| err(&e))?,
+                None => false,
+            };
+            if launched {
+                Ok(())
+            } else {
+                windows.open(&path).await.map(|_| ()).map_err(|e| err(&e))
+            }
         }
         Act::Hostname(name) => {
             let system = zbus::Connection::system().await.map_err(|e| err(&e))?;

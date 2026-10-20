@@ -193,6 +193,23 @@ impl Source {
         Ok((merged, unknown))
     }
 
+    /// How many shipped tokens `text`, a user's file, sets; a token set for both appearances
+    /// counts once. Zero for a file that does not read.
+    pub fn changed(text: &str) -> usize {
+        let Ok(user) = flat::parse(text) else {
+            return 0;
+        };
+        let shipped = Self::shipped();
+        let mut names: Vec<String> = user
+            .iter()
+            .filter(|e| e.path != ["version"] && shipped.entries.iter().any(|s| s.path == e.path))
+            .map(strip)
+            .collect();
+        names.sort();
+        names.dedup();
+        names.len()
+    }
+
     /// The accents the user can choose from, in the file's order.
     pub fn accents(&self) -> Vec<String> {
         flat::accents(&self.entries)
@@ -307,6 +324,13 @@ mod get {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_file_changes_the_tokens_it_names_once_each() {
+        let text = "version 1\nspace { m 16; l 20 }\ncolour { dark { text \"#ffffff\" }; light { text \"#000000\" } }\nnot-a-token 3\n";
+        assert_eq!(Source::changed(text), 3);
+        assert_eq!(Source::changed("space {"), 0);
+    }
+
     use super::*;
 
     fn every_appearance() -> Vec<Appearance> {

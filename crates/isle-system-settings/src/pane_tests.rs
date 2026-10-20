@@ -177,6 +177,49 @@ fn a_spotlight_source_turned_off_is_listed() {
     );
 }
 
+#[test]
+fn advanced_shows_the_tokens_file_and_opens_it_in_the_editor() {
+    let status = |ok: bool| isle_ipc::SettingsStatus {
+        ok,
+        file: "/home/a/.config/isle/tokens.kdl".into(),
+        line: if ok { 0 } else { 3 },
+        column: 0,
+        message: if ok { String::new() } else { "unknown node `spce`".into() },
+    };
+    let (mut test, handles) = open("isle-settings://appearance", move |desktop, _| {
+        let (mut st, mut text) = (desktop.tokens_status, desktop.tokens_text);
+        st.set(Some(status(true)));
+        text.set(String::new());
+    });
+    click(&mut test, "Advanced…");
+    assert!(shows(&test, "The shipped tokens are in use."), "{:?}", labels(&test));
+    click(&mut test, "Create in Editor…");
+    assert!(handles.acts().contains(&Act::EditTokens {
+        path: "/home/a/.config/isle/tokens.kdl".into(),
+        shipped: false,
+    }));
+    click(&mut test, "Show Shipped Tokens");
+    assert!(handles.acts().contains(&Act::EditTokens {
+        path: String::new(),
+        shipped: true,
+    }));
+
+    let (mut test, _) = open("isle-settings://appearance", move |desktop, _| {
+        let (mut st, mut text) = (desktop.tokens_status, desktop.tokens_text);
+        st.set(Some(status(true)));
+        text.set("space { m 16 }\ncolour { dark { text \"#ffffff\" }; light { text \"#000000\" } }\n".into());
+    });
+    click(&mut test, "Advanced…");
+    assert!(shows(&test, "Changes 2 tokens."), "{:?}", labels(&test));
+
+    let (mut test, _) = open("isle-settings://appearance", move |desktop, _| {
+        let mut st = desktop.tokens_status;
+        st.set(Some(status(false)));
+    });
+    click(&mut test, "Advanced…");
+    assert!(shows(&test, "Not loaded"), "{:?}", labels(&test));
+}
+
 fn wifi_state() -> isle_network::State {
     use isle_network::{Known, Link, Network, Wifi};
     let network = |ssid: &str, strength| Network {

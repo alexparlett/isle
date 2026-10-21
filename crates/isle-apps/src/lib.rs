@@ -7,6 +7,7 @@ pub mod badges;
 pub mod exec;
 pub mod icons;
 pub mod metainfo;
+pub mod mime;
 
 use std::{
     collections::HashMap,

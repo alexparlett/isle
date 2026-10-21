@@ -21,6 +21,7 @@ isle-fakes = { path = "crates/isle-fakes" }
 isle-power = { path = "crates/isle-power" }
 isle-disks = { path = "crates/isle-disks" }
 isle-focus = { path = "crates/isle-focus" }
+isle-fs = { path = "crates/isle-fs" }
 isle-games = { path = "crates/isle-games" }
 isle-sun = { path = "crates/isle-sun" }
 isle-system-settings = { path = "crates/isle-system-settings" }

@@ -2,6 +2,22 @@
 
 ## 2026-10-21
 
+- P15 15.2: the engine. `isle-fs` lists a folder on a thread of its own in
+  batches of 512 (`statx` with no automount and no sync, a link's target
+  read for its kind), keeps a folder in order by merging each batch and
+  placing single entries, never rebuilding, and reads touched names again
+  from one inotify instance shared by every view, settled for 100 ms and
+  reported at least every 500 ms. The mount table from mountinfo with each
+  mount's class, and probes that give up on a mount at a deadline with one
+  outstanding per mount. `isle-apps` gains file types from
+  shared-mime-info (`xdg-mime` pinned by revision): by name, cached by
+  extension, by content on request, canonical names, descriptions and
+  icons. 50,000 entries: the first batch in 0.45 ms, all merged in 138 ms
+  (release). Correction to the plan: names sort by Isle's own natural key
+  (case folded, digit runs by value, compared as bytes) rather than
+  `icu_collator`. The stalled-mount fixture is left to the VM, an sshfs
+  mount cut off; the probe's deadline is tested headless.
+
 - P15 15.1: `isle-app` runs above its windows. One inbox on the event loop
   takes launches, menu choices, the compositor's state and settings
   writes; a delegate opens windows for requests (`run_with`), and `run`

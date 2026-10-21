@@ -12,6 +12,8 @@ mod toolbar;
 mod memory;
 mod places;
 mod tab;
+mod thumbnail;
+mod thumbs;
 mod view;
 mod window;
 
@@ -128,6 +130,7 @@ impl Shared {
         let memory = self.memory.borrow().clone();
         std::thread::spawn(move || memory::save(&memory));
     }
+
 
     pub fn open_window(&self, tabs: Vec<(Place, Option<PathBuf>)>, current: usize, token: Option<String>) {
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };

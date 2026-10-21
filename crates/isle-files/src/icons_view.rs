@@ -190,7 +190,12 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
                 .padding(t.space_xs)
                 .corner_radius(t.radius_card)
                 .maybe(selected, |el| el.background(colour(t.colour_fill_strong)))
-                .child(list_view::icon(entry, grid.dark, grid.icon, t.colour_text_2)),
+                .child(crate::thumbnail::Thumbnail {
+                    entry: entry.clone(),
+                    size: grid.icon,
+                    dark: grid.dark,
+                    remote: tab.remote,
+                }),
         )
         .child(
             rect()

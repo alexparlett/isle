@@ -54,6 +54,8 @@ pub struct Tab {
     pub shown: Shown,
     /// The folder shown, as its parent lists it, for the preview of nothing selected.
     pub here: Option<Entry>,
+    /// The place is on a remote mount: no thumbnails, no counts.
+    pub remote: bool,
 }
 
 impl Tab {
@@ -72,6 +74,7 @@ impl Tab {
             slow: false,
             shown: Shown::default(),
             here: None,
+            remote: false,
         }
     }
 
@@ -134,7 +137,7 @@ impl Tab {
 
 /// What the thread reading a tab's place sends it.
 enum Message {
-    Here(Entry),
+    Here(Entry, bool),
     Listed(Listed),
     Changed(Update),
 }
@@ -308,7 +311,9 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
         .spawn(move || match place {
             Place::Folder(dir) => {
                 if let Ok(entry) = Entry::at(&dir) {
-                    let _ = here.unbounded_send(Message::Here(entry));
+                    let table = mounts::read();
+                    let remote = mounts::of(&table, &dir).is_some_and(|m| m.class == Class::Remote);
+                    let _ = here.unbounded_send(Message::Here(entry, remote));
                 }
                 isle_fs::list(&dir, 512, |listed| {
                 if let Listed::Batch(batch) = &listed {
@@ -334,7 +339,10 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             }
             let mut t = tab.write();
             match message {
-                Message::Here(entry) => t.here = Some(entry),
+                Message::Here(entry, remote) => {
+                    t.here = Some(entry);
+                    t.remote = remote;
+                }
                 Message::Listed(Listed::Batch(batch)) => {
                     if again {
                         seen.extend(batch.iter().map(|e| e.path.clone()));
@@ -388,7 +396,7 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
 fn watch(live: &Live, dir: &Path, generation: u64) {
     let Some(tx) = live.0.borrow().sender.clone() else { return };
     let table = mounts::read();
-    if mounts::of(&table, dir).is_some_and(|m| m.class != Class::Local) {
+    if mounts::of(&table, dir).is_some_and(|m| m.class == Class::Remote) {
         return;
     }
     let Some(watcher) = Watcher::get() else { return };

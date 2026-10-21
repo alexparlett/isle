@@ -265,67 +265,25 @@ impl App for FilesWindow {
         use_commands(commands);
 
         let live = handle.live.clone();
-        // A view changed in this tab is the folder's from now on.
-        let set_shown = {
+        let set_shown_here = {
             let shared = shared.clone();
-            move |next: Shown| {
-                let mut tab = tab;
-                let place = {
-                    let mut t = tab.write();
-                    t.shown = next;
-                    t.folder.set_order(next.order());
-                    t.rev += 1;
-                    t.place.clone()
-                };
-                shared.keep_shown(&place, next);
-            }
+            move |next: Shown| set_shown(&shared, tab, next)
         };
         let go = {
             let live = live.clone();
             move |place: Place| tab::go(tab, &live, place, None)
         };
-        let open_new_tab = {
+        let open_new_tab_here = {
             let shared = shared.clone();
-            move |place: Place| {
-                let (mut tabs, mut current) = (tabs, current);
-                let handle = new_tab(&shared, place, None);
-                tab::load(handle.tab, &handle.live, false);
-                let n = {
-                    let mut list = tabs.write();
-                    list.push(handle);
-                    list.len() - 1
-                };
-                current.set(n);
-                shared.remember(key, &tabs.peek(), n);
-            }
+            move |place: Place| open_new_tab(&shared, tabs, current, key, place)
         };
-        let open_items = {
-            let (go, open_new_tab) = (go.clone(), open_new_tab.clone());
-            move |paths: Vec<PathBuf>, in_tabs: bool| {
-                let entries: Vec<_> = {
-                    let t = tab.peek();
-                    paths.iter().filter_map(|p| t.folder.get(p).cloned()).collect()
-                };
-                let dirs: Vec<_> = entries.iter().filter(|e| e.is_dir()).collect();
-                match (dirs.as_slice(), in_tabs) {
-                    ([one], false) => go(Place::Folder(one.path.clone())),
-                    (many, _) => {
-                        for dir in many {
-                            open_new_tab(Place::Folder(dir.path.clone()));
-                        }
-                    }
-                }
-                let files: Vec<_> = entries.iter().filter(|e| !e.is_dir()).collect();
-                if !files.is_empty() {
-                    tracing::info!(n = files.len(), "opening files comes with 15.8");
-                }
-            }
+        let open_items_here = {
+            let (shared, handle) = (shared.clone(), handle.clone());
+            move |paths: Vec<PathBuf>, in_tabs: bool| open_items(&shared, tabs, current, key, &handle, paths, in_tabs)
         };
 
+        // The commands act on the tab current when each is taken, not when the effect began.
         use_side_effect({
-            let (go, open_new_tab, open_items) = (go.clone(), open_new_tab.clone(), open_items.clone());
-            let set_shown = set_shown.clone();
-            let live = live.clone();
             let shared = shared.clone();
             move || {
                 let chosen: Vec<String> = desktop.commands.read().clone();
@@ -335,6 +293,9 @@ impl App for FilesWindow {
                 let mut queue = desktop.commands;
                 queue.write().clear();
                 for id in chosen {
+                    let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+                    let (mut tab, live) = (handle.tab, handle.live.clone());
+                    let go = |place: Place| tab::go(tab, &live, place, None);
                     let fav = |label: &str| {
                         places
                             .peek()
@@ -345,11 +306,11 @@ impl App for FilesWindow {
                     };
                     match id.as_str() {
                         "new-window" => shared.open_window(vec![(shared.new_window_place(), None)], 0, None),
-                        "new-tab" => open_new_tab(shared.new_window_place()),
+                        "new-tab" => open_new_tab(&shared, tabs, current, key, shared.new_window_place()),
                         "close-tab" => close_tab(tabs, current, *current.peek()),
                         "open" | "open-down" => {
                             let selection = tab.peek().selection.clone();
-                            open_items(selection, false);
+                            open_items(&shared, tabs, current, key, &handle, selection, false);
                         }
                         "deselect" => tab.write().deselect(),
                         "toggle-sidebar" => sidebar.toggle(),
@@ -378,7 +339,7 @@ impl App for FilesWindow {
                                 "bigger" => next.step_icons(true),
                                 _ => next.step_icons(false),
                             }
-                            set_shown(next);
+                            set_shown(&shared, tab, next);
                         }
                         "toggle-hidden" => {
                             let mut hidden = shared.hidden;
@@ -423,7 +384,7 @@ impl App for FilesWindow {
         let focused = *Platform::get().is_app_focused.read();
         let rev = tab.read().rev;
         let on_pick = {
-            let open_items = open_items.clone();
+            let open_items = open_items_here.clone();
             move |pick: Pick| {
                 let mut tab = tab;
                 match pick {
@@ -505,7 +466,7 @@ impl App for FilesWindow {
             width: t.size_inspector,
         });
         let on_act = {
-            let (live, set_shown, shared) = (live.clone(), set_shown.clone(), shared.clone());
+            let (live, set_shown, shared) = (live.clone(), set_shown_here.clone(), shared.clone());
             move |act: Act| match act {
                 Act::Back => tab::back(tab, &live),
                 Act::Forward => tab::forward(tab, &live),
@@ -576,7 +537,7 @@ impl App for FilesWindow {
                             }),
                             on_close: EventHandler::new(move |i: usize| close_tab(tabs, current, i)),
                             on_new: EventHandler::new({
-                                let (open_new_tab, shared) = (open_new_tab.clone(), shared.clone());
+                                let (open_new_tab, shared) = (open_new_tab_here.clone(), shared.clone());
                                 move |_| open_new_tab(shared.new_window_place())
                             }),
                         }
@@ -605,6 +566,65 @@ impl App for FilesWindow {
                     })),
             )
             .into_element()
+    }
+}
+
+/// A view changed in a tab is its folder's from now on.
+fn set_shown(shared: &Shared, mut tab: State<Tab>, next: Shown) {
+    let place = {
+        let mut t = tab.write();
+        t.shown = next;
+        t.folder.set_order(next.order());
+        t.rev += 1;
+        t.place.clone()
+    };
+    shared.keep_shown(&place, next);
+}
+
+fn open_new_tab(
+    shared: &Shared,
+    mut tabs: State<Vec<TabHandle>>,
+    mut current: State<usize>,
+    key: isle_app::WindowKey,
+    place: Place,
+) {
+    let handle = new_tab(shared, place, None);
+    tab::load(handle.tab, &handle.live, false);
+    let n = {
+        let mut list = tabs.write();
+        list.push(handle);
+        list.len() - 1
+    };
+    current.set(n);
+    shared.remember(key, &tabs.peek(), n);
+}
+
+/// Opens items of a tab: one folder in place, several (or ⌘) in tabs.
+fn open_items(
+    shared: &Shared,
+    tabs: State<Vec<TabHandle>>,
+    current: State<usize>,
+    key: isle_app::WindowKey,
+    handle: &TabHandle,
+    paths: Vec<PathBuf>,
+    in_tabs: bool,
+) {
+    let entries: Vec<_> = {
+        let t = handle.tab.peek();
+        paths.iter().filter_map(|p| t.folder.get(p).cloned()).collect()
+    };
+    let dirs: Vec<_> = entries.iter().filter(|e| e.is_dir()).collect();
+    match (dirs.as_slice(), in_tabs) {
+        ([one], false) => tab::go(handle.tab, &handle.live, Place::Folder(one.path.clone()), None),
+        (many, _) => {
+            for dir in many {
+                open_new_tab(shared, tabs, current, key, Place::Folder(dir.path.clone()));
+            }
+        }
+    }
+    let files = entries.iter().filter(|e| !e.is_dir()).count();
+    if files > 0 {
+        tracing::info!(n = files, "opening files comes with 15.8");
     }
 }
 

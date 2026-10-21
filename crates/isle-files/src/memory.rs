@@ -61,7 +61,10 @@ pub fn load() -> Memory {
     dir().load::<Memory>().0
 }
 
+/// Saves from any thread, one save at a time, so two never write the same temporary file.
 pub fn save(memory: &Memory) {
+    static ONE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(err) = dir().save(memory) {
         tracing::warn!("Files' windows are not kept: {err}");
     }

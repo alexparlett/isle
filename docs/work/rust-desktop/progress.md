@@ -2,6 +2,25 @@
 
 ## 2026-10-21
 
+- P15 15.5: thumbnails. `isle-thumbnail` (library and helper binary) keeps
+  the freedesktop cache by spec 0.9.0: named by the URI's MD5, valid by
+  `Thumb::URI`, `Thumb::MTime` and `Thumb::Size` read from the PNG's text
+  chunks without decoding, a larger size serving a smaller, failures under
+  `fail/isle-files-<version>/`, written beside and renamed, 0700 and 0600.
+  The helper takes JSON lines on four threads: images through `image` with
+  pixel and memory limits, SVG through `resvg`, a PDF's first page through
+  `hayro`, everything else through the `.thumbnailer` entry that claims
+  its type, each with a ten-second deadline. Files pins the helper by
+  descriptor, queues asks newest first, drops an ask whose cell has gone,
+  keeps at most four with the helper, restarts it if it dies, reads the
+  cache off the window's thread, and holds 48 MB of thumbnails; Icons and
+  the preview draw them fitted and centred, the kind's icon until then.
+  Found and fixed: a window's command effect acted on the tab current when
+  the window first drew, so after a reveal opened a tab, ⌘1 changed the
+  first; commands now act on the tab current when each is taken. Files'
+  saves of its state no longer race each other. tmpfs, the kernel's own
+  filesystems, are local: only Remote mounts lose thumbnails and watching.
+
 - P15 15.4: Icons and Columns, the preview and the bars. ⌘1 Icons (a grid
   that fills the width, the icon on a plate and its name in a capsule when
   selected, sizes 16 to 256 on ⌘+ and ⌘−, item info), ⌘2 List, ⌘3 Columns (a

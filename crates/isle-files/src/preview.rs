@@ -111,7 +111,12 @@ impl Component for Preview {
                 } else {
                     format::size(entry.size)
                 };
-                body.child(list_view::icon(entry, dark, t.size_app_icon_hero, t.colour_text_2))
+                body.child(crate::thumbnail::Thumbnail {
+                    entry: entry.clone(),
+                    size: t.size_inspector - 2. * t.space_l,
+                    dark,
+                    remote: false,
+                })
                     .child(rect().height(Size::px(t.space_m)))
                     .child(
                         label()

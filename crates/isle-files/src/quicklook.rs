@@ -23,6 +23,8 @@ pub struct Open {
     pub key: WindowKey,
     pub items: State<Vec<PathBuf>>,
     pub index: State<usize>,
+    pub marking: State<bool>,
+    pub trimming: State<bool>,
     pub caller: Caller,
 }
 
@@ -31,6 +33,10 @@ pub struct QuickLookWindow {
     pub shared: Rc<Shared>,
     pub items: State<Vec<PathBuf>>,
     pub index: State<usize>,
+    /// Markup is on.
+    pub marking: State<bool>,
+    /// Trim is on.
+    pub trimming: State<bool>,
 }
 
 impl App for QuickLookWindow {
@@ -38,13 +44,19 @@ impl App for QuickLookWindow {
         let theme = use_theme();
         let t = &theme.tokens;
         let shared = self.shared.clone();
-        let (items, mut index) = (self.items, self.index);
+        let (items, mut index, mut marking) = (self.items, self.index, self.marking);
+        // Counts the files Markup wrote, so what shows is read again.
+        let mut written = use_state(|| 0u64);
         let mut indexing = use_state(|| false);
         let count = items.read().len();
         let at = (*index.read()).min(count.saturating_sub(1));
         let path = items.read().get(at).cloned();
         let mut entry = use_state(|| None::<isle_fs::Entry>);
         let mut opener = use_state(|| None::<(String, String)>);
+        let mut editable = use_state(|| false);
+        // Video or audio, which Trim cuts: whether it has pictures.
+        let mut media = use_state(|| None::<bool>);
+        let mut trimming = self.trimming;
         use_side_effect_with_deps(&path, move |path| {
             let Some(path) = path.clone() else { return };
             spawn(async move {
@@ -54,12 +66,17 @@ impl App for QuickLookWindow {
                     let (launches, _) = crate::open::decide(std::slice::from_ref(&read));
                     let index = isle_apps::Index::scan(&isle_apps::Index::data_dirs());
                     let app = launches.into_iter().next().map(|(id, _)| (index.name(&id), id));
-                    (entry, app)
+                    let kind = isle_apps::mimeapps::kind_of(&read);
+                    let editable = crate::markup::editable(&kind);
+                    let media = (kind.starts_with("video/") || kind.starts_with("audio/")).then(|| kind.starts_with("video/"));
+                    (entry, app, editable, media)
                 })
                 .await;
-                if let Some((found, app)) = found {
+                if let Some((found, app, can_mark, kind)) = found {
                     entry.set(found);
                     opener.set(app);
+                    editable.set(can_mark);
+                    media.set(kind);
                 }
             });
         });
@@ -141,6 +158,17 @@ impl App for QuickLookWindow {
                     indexing.toggle()
                 })
             }))
+            .child(icon_button(&theme, "pencil-simple", "Markup", *editable.read(), *marking.read(), move || {
+                let mut marking = marking;
+                marking.toggle();
+            }))
+            .maybe_child(media.read().is_some().then(|| {
+                icon_button(&theme, "scissors", "Trim", true, *trimming.read(), move || {
+                    let mut trimming = trimming;
+                    trimming.toggle();
+                })
+            }))
+            .child(rect().width(Size::px(t.space_l)))
             .maybe_child(open_with);
 
         let facts = rect()
@@ -157,7 +185,30 @@ impl App for QuickLookWindow {
                 }),
             }
             .into_element(),
-            Some(path) => Look { path, facts }.into_element(),
+            Some(path) if *marking.read() && *editable.read() => crate::markup_view::MarkupView {
+                path,
+                on_end: EventHandler::new(move |wrote: bool| {
+                    marking.set(false);
+                    if wrote {
+                        let n = *written.peek();
+                        written.set(n + 1);
+                    }
+                }),
+            }
+            .into_element(),
+            Some(path) if *trimming.read() && media.read().is_some() => crate::trim::TrimView {
+                video: media.read().unwrap_or(false),
+                path,
+                on_end: EventHandler::new(move |wrote: bool| {
+                    trimming.set(false);
+                    if wrote {
+                        let n = *written.peek();
+                        written.set(n + 1);
+                    }
+                }),
+            }
+            .into_element(),
+            Some(path) => rect().key(*written.read()).expanded().child(Look { path, facts }).into_element(),
             None => facts,
         };
         rect()

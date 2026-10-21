@@ -1,7 +1,7 @@
 //! The thumbnail after a shot: shown for a few seconds in the bottom-trailing corner of the
-//! screen shot, held while the pointer is over it; a click opens the file, a flick toward
-//! the edge dismisses it, a drag carries the file out, and its menu moves, copies or trashes
-//! it (`p1/structure/capture.md`, The thumbnail).
+//! screen shot, held while the pointer is over it; a click opens it in Quick Look's Markup or
+//! Trim, a flick toward the edge dismisses it, a drag carries the file out, and its menu moves,
+//! copies, shows or trashes it (`p1/structure/capture.md`, The thumbnail).
 
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
@@ -21,7 +21,6 @@ use crate::{
     backend::Pixels,
     capture::{Kind, destination},
     clipboard::Pick,
-    launch::Launch,
     state::State,
 };
 
@@ -36,6 +35,8 @@ const MENU_SAVE_CLIPBOARD: u64 = 3;
 const MENU_COPY: u64 = 4;
 const MENU_TRASH: u64 = 5;
 const MENU_CLOSE: u64 = 6;
+const MENU_SHOW: u64 = 7;
+const MENU_MARKUP: u64 = 8;
 
 pub struct Thumbnail {
     pub path: PathBuf,
@@ -204,7 +205,9 @@ impl State {
                 let path = thumbnail.path.clone();
                 if d.x.abs().max(d.y.abs()) < SLOP {
                     self.dismiss_thumbnail();
-                    self.launch(Launch::Open(path.to_string_lossy().into_owned()));
+                    // A shot opens in Markup, a recording in Trim.
+                    let mode = if is_still(&path) { "markup" } else { "trim" };
+                    self.quick_look_show(isle_fs::recents::uri(&path), "isle:capture-thumbnail", mode);
                 } else if flicked(d) {
                     self.dismiss_thumbnail();
                 } else {
@@ -263,6 +266,8 @@ impl State {
         let entries = vec![
             MenuEntry::Item(save_to),
             item(MENU_COPY, "Copy"),
+            item(MENU_SHOW, "Show in Files"),
+            item(MENU_MARKUP, "Markup"),
             MenuEntry::Separator,
             item(MENU_TRASH, "Move to Trash"),
             MenuEntry::Separator,
@@ -331,6 +336,15 @@ impl State {
                     self.arm_thumbnail_timer();
                 }
             }
+            MENU_SHOW => {
+                self.dismiss_thumbnail();
+                self.show_in_files(&path);
+            }
+            MENU_MARKUP => {
+                self.dismiss_thumbnail();
+                let mode = if is_still(&path) { "markup" } else { "trim" };
+                self.quick_look_show(isle_fs::recents::uri(&path), "isle:capture-thumbnail", mode);
+            }
             MENU_TRASH => {
                 if let Err(err) = trash(&path) {
                     warn!(path = %path.display(), "could not trash the shot: {err}");
@@ -368,11 +382,18 @@ impl State {
             "copy" => MENU_COPY,
             "trash" => MENU_TRASH,
             "close" => MENU_CLOSE,
+            "show" => MENU_SHOW,
+            "markup" => MENU_MARKUP,
             other => return Err(format!("no item {other}")),
         };
         self.thumbnail_act(id);
         Ok(())
     }
+}
+
+/// A still shot, which opens in Markup, rather than a recording, which opens in Trim.
+fn is_still(path: &std::path::Path) -> bool {
+    path.extension().is_some_and(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "png" | "jpg" | "jpeg" | "webp"))
 }
 
 /// A release travelling toward the screen's trailing or bottom edge, faster across than

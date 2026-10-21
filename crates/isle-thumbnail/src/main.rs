@@ -59,10 +59,37 @@ fn page(args: &[String]) -> std::process::ExitCode {
     }
 }
 
+/// `isle-thumbnail frames FILE COUNT HEIGHT PREFIX`: frames across a video, each written to
+/// `PREFIX-N.png`, for Quick Look's trim strip; prints the length in seconds.
+fn frames(args: &[String]) -> std::process::ExitCode {
+    let [file, count, height, prefix] = args else { return std::process::ExitCode::FAILURE };
+    let (Ok(count), Ok(height)) = (count.parse::<u32>(), height.parse::<u32>()) else {
+        return std::process::ExitCode::FAILURE;
+    };
+    let probed = std::process::Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file])
+        .output();
+    let Some(length) = probed.ok().and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().ok()) else {
+        return std::process::ExitCode::FAILURE;
+    };
+    println!("{length}");
+    for n in 0..count {
+        let at = length * (n as f64 + 0.5) / count as f64;
+        let _ = std::process::Command::new("ffmpeg")
+            .args(["-v", "error", "-ss", &format!("{at:.3}"), "-i", file, "-frames:v", "1"])
+            .args(["-vf", &format!("scale=-2:{height}"), "-y", &format!("{prefix}-{n}.png")])
+            .status();
+    }
+    std::process::ExitCode::SUCCESS
+}
+
 fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(String::as_str) == Some("page") {
         return page(&args[1..]);
+    }
+    if args.first().map(String::as_str) == Some("frames") {
+        return frames(&args[1..]);
     }
     tracing_subscriber::fmt().with_writer(std::io::stderr).init();
     let thumbnailers = Arc::new(make::thumbnailers());

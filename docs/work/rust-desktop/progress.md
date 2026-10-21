@@ -2,6 +2,24 @@
 
 ## 2026-10-21
 
+- P15 15.14: Markup and Trim. Quick Look's toolbar gains Markup (PNG,
+  JPEG and WebP; disabled for other kinds) and Trim (video and audio).
+  Markup's tool row: pen, highlighter, line, arrow, rectangle, ellipse,
+  text, redact, crop, undo, Rotate Left, the eight annotation colours in a
+  popover, Revert and Done. Marks are a vector layer in the image's pixels,
+  drawn as an SVG over the picture with the same fit; Done renders them at
+  full resolution (redactions blurred, crop and turns applied) with
+  `image` and `resvg`, writes the result beside the original, moves the
+  original to the Trash and renames the new file into its place. Trim:
+  a strip of ten frames from `isle-thumbnail`'s new `frames` mode, the kept
+  range dragged from either end with its length, Revert and Done; Done
+  re-encodes the range with ffmpeg (NVENC, else x264, with AAC; audio in
+  its own codec) and replaces the file the same way. `QuickLook1.Show`
+  takes `markup` and `trim`. The capture thumbnail's click opens a shot in
+  Markup and a recording in Trim over the thumbnail, and its menu gains
+  Show in Files and Markup. Not built: the trim bar's playback and
+  playhead, Trim as a file job with progress, asking before closing with
+  unsaved marks, moving or resizing a mark once drawn.
 - P15 15.13: Quick Look. Space and ⌘Y in Files open it on the selection
   and it follows the selection; Escape or Space again close it. Images and
   SVGs fitted and centred, text and code to 256 KiB highlighted with

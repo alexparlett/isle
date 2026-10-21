@@ -10,6 +10,8 @@ mod icons;
 mod icons_view;
 mod info;
 mod look;
+mod markup;
+mod markup_view;
 mod interact;
 mod jobs;
 mod list_view;
@@ -28,6 +30,7 @@ mod scope_bar;
 mod search;
 mod settings_window;
 mod tab;
+mod trim;
 mod thumbnail;
 mod thumbs;
 mod view;
@@ -362,6 +365,12 @@ impl Shared {
     /// Shows `items` in Quick Look, in the window open or a new one, floating over `over`: an
     /// xdg-foreign handle, `wayland:` and one, or `isle:` and a shell surface's name.
     pub fn show_quick_look(&self, items: Vec<PathBuf>, index: usize, caller: quicklook::Caller, over: Option<String>) {
+        self.show_quick_look_in(items, index, caller, over, "none");
+    }
+
+    /// As `show_quick_look`, in Markup or Trim when `mode` names it.
+    pub fn show_quick_look_in(&self, items: Vec<PathBuf>, index: usize, caller: quicklook::Caller, over: Option<String>, mode: &str) {
+        let (markup, trim) = (mode == "markup", mode == "trim");
         if items.is_empty() {
             return;
         }
@@ -369,20 +378,23 @@ impl Shared {
         if let Some(mut open) = open {
             open.items.set(items);
             open.index.set(index);
+            open.marking.set(markup);
+            open.trimming.set(trim);
             open.caller = caller;
             *self.quick_look.borrow_mut() = Some(open);
             return;
         }
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
         let (items, index) = (State::create_global(items), State::create_global(index));
+        let (marking, trimming) = (State::create_global(markup), State::create_global(trim));
         let float = over.filter(|o| !o.is_empty()).map(|o| isle_app::Float {
             over: o.strip_prefix("wayland:").map(str::to_owned).unwrap_or(o),
             on_request: false,
             from: None,
         });
         let spec = WindowSpec::new("Quick Look", (900., 680.), (360., 280.)).lights((0., 10.)).float(float);
-        let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index });
-        *self.quick_look.borrow_mut() = Some(quicklook::Open { key, items, index, caller });
+        let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index, marking, trimming });
+        *self.quick_look.borrow_mut() = Some(quicklook::Open { key, items, index, marking, trimming, caller });
         ql1::VISIBLE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
@@ -567,7 +579,7 @@ impl Delegate for Files {
                 ql1::SHOW => {
                     let Some(show) = params.first().and_then(|j| serde_json::from_str::<ql1::Show>(j).ok()) else { return };
                     let items: Vec<PathBuf> = show.uris.iter().filter_map(|u| path_of(u)).collect();
-                    self.shared.show_quick_look(items, show.index as usize, quicklook::Caller::Bus, Some(show.caller));
+                    self.shared.show_quick_look_in(items, show.index as usize, quicklook::Caller::Bus, Some(show.caller), &show.mode);
                 }
                 ql1::SELECT => {
                     if let Some(open) = self.shared.quick_look_open().filter(|o| o.caller == quicklook::Caller::Bus)

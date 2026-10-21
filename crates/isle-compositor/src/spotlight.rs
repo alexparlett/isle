@@ -465,7 +465,7 @@ impl State {
         self.isle.spotlight.menu = None;
         self.isle.spotlight.preview = None;
         if std::mem::take(&mut self.isle.spotlight.quick_look) {
-            self.quick_look_call("Close", None);
+            self.quick_look_close();
         }
         self.isle.spotlight.drag_from = None;
         self.isle.spotlight.latest.fetch_add(1, Ordering::Relaxed);
@@ -1177,7 +1177,7 @@ impl State {
     }
 
     /// The file selected in whatever owns `org.freedesktop.FileManager1`.
-    fn show_in_files(&mut self, path: &std::path::Path) {
+    pub fn show_in_files(&mut self, path: &std::path::Path) {
         let uri = format!("file://{}", path.display());
         if let Some(worker) = &self.isle.worker {
             worker.spawn(async move {
@@ -1223,35 +1223,10 @@ impl State {
         let open = !self.isle.spotlight.quick_look;
         self.isle.spotlight.quick_look = open;
         if open {
-            self.quick_look_call("Show", Some(isle_fs::recents::uri(path)));
+            self.quick_look_show(isle_fs::recents::uri(path), "isle:spotlight", "none");
         } else {
-            self.quick_look_call("Close", None);
+            self.quick_look_close();
         }
-    }
-
-    /// Calls `QuickLook1`'s `Show` with the file's URI, or `Close`.
-    fn quick_look_call(&self, method: &'static str, uri: Option<String>) {
-        let Some(worker) = &self.isle.worker else {
-            return;
-        };
-        worker.spawn(async move {
-            let Ok(conn) = isle_bus::session().await else {
-                return;
-            };
-            const FILES: &str = "io.github.alexparlett.Isle.Files";
-            const PATH: &str = "/io/github/alexparlett/Isle/QuickLook1";
-            const INTERFACE: &str = "io.github.alexparlett.Isle.QuickLook1";
-            let call = match uri {
-                Some(uri) => {
-                    let body = (vec![uri], 0u32, "isle:spotlight", (0i32, 0i32, 0i32, 0i32), "none", "");
-                    conn.call_method(Some(FILES), PATH, Some(INTERFACE), method, &body).await
-                }
-                None => conn.call_method(Some(FILES), PATH, Some(INTERFACE), method, &()).await,
-            };
-            if let Err(err) = call {
-                warn!("Quick Look: {err}");
-            }
-        });
     }
 
     /// Cmd+Y on a clipboard item: the whole text or the image over the list; on a file, Quick

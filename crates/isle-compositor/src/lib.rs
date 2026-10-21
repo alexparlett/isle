@@ -53,6 +53,7 @@ mod osd;
 mod outputs;
 mod polkit;
 mod processes;
+mod quick_look;
 mod prompts;
 mod screensaver;
 mod services;

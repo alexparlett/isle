@@ -691,3 +691,131 @@ async fn spotlights_cmd_y_shows_quick_look_above_it() {
     isle.chord(&[SUPER, 21]).await;
     wait_until(|| async { looks().await.is_none() }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn markup_draws_an_arrow_and_done_keeps_the_original_in_the_trash() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-markup").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let shot = home.join("Pictures/tall.png");
+    let before = std::fs::read(&shot).unwrap();
+    let uri = format!("file://{}", shot.display());
+    isle.bus
+        .call_method(
+            Some(APP),
+            "/io/github/alexparlett/Isle/QuickLook1",
+            Some("io.github.alexparlett.Isle.QuickLook1"),
+            "Show",
+            &(vec![uri.as_str()], 0u32, "", (0i32, 0i32, 0i32, 0i32), "markup", ""),
+        )
+        .await
+        .unwrap();
+    let look = loop {
+        if let Some(w) = isle.windows().await.into_iter().find(|w| w.title == "Quick Look") {
+            break w;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+
+    // An arrow across the middle of the picture, in red.
+    let (cx, cy) = (look.x as f64 + look.width as f64 / 2., look.y as f64 + look.height as f64 / 2. + 40.);
+    let test = isle.test().await;
+    test.pointer_to(cx - 60., cy - 100.).await.unwrap();
+    test.button(272, true).await.unwrap();
+    for step in 1..=10 {
+        test.pointer_to(cx - 60. + 12. * step as f64, cy - 100. + 20. * step as f64).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    test.button(272, false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.keep_shot("files-markup").await;
+
+    // Done, at the tool row's trailing end.
+    let done = (look.x as f64 + look.width as f64 - 50., look.y as f64 + 52. + 20.);
+    test.pointer_to(done.0, done.1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    let trashed = home.join(".local/share/Trash/files/tall.png");
+    wait_until(|| async { trashed.exists() }).await;
+    assert_eq!(std::fs::read(&trashed).unwrap(), before, "the original is in the Trash");
+    assert_ne!(std::fs::read(&shot).unwrap(), before, "the marked-up picture took its place");
+}
+
+fn length_of(path: &std::path::Path) -> f64 {
+    let out = std::process::Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0"])
+        .arg(path)
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).trim().parse().unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn trim_cuts_a_recording_and_keeps_the_original_in_the_trash() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-trim").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let clip = home.join("Downloads/clip.mp4");
+    let made = std::process::Command::new("ffmpeg")
+        .args(["-v", "error", "-f", "lavfi", "-i", "testsrc=duration=4:size=320x240:rate=10", "-pix_fmt", "yuv420p"])
+        .arg(&clip)
+        .status();
+    if !made.is_ok_and(|s| s.success()) {
+        eprintln!("skipped: no ffmpeg");
+        return;
+    }
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let uri = format!("file://{}", clip.display());
+    isle.bus
+        .call_method(
+            Some(APP),
+            "/io/github/alexparlett/Isle/QuickLook1",
+            Some("io.github.alexparlett.Isle.QuickLook1"),
+            "Show",
+            &(vec![uri.as_str()], 0u32, "", (0i32, 0i32, 0i32, 0i32), "trim", ""),
+        )
+        .await
+        .unwrap();
+    let look = loop {
+        if let Some(w) = isle.windows().await.into_iter().find(|w| w.title == "Quick Look") {
+            break w;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+
+    // The start handle from the strip's leading end to its middle.
+    let y = look.y as f64 + look.height as f64 - 28.;
+    let (left, right) = (look.x as f64 + 60., look.x as f64 + look.width as f64 - 180.);
+    let test = isle.test().await;
+    test.pointer_to(left + 2., y).await.unwrap();
+    test.button(272, true).await.unwrap();
+    for step in 1..=10 {
+        test.pointer_to(left + 2. + (right - left) / 2. * step as f64 / 10., y).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    test.button(272, false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.keep_shot("files-trim").await;
+
+    let done = (look.x as f64 + look.width as f64 - 45., y);
+    test.pointer_to(done.0, done.1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    let trashed = home.join(".local/share/Trash/files/clip.mp4");
+    wait_until(|| async { trashed.exists() }).await;
+    let kept = length_of(&clip);
+    assert!(kept > 1.0 && kept < 3.0, "about half is kept: {kept}");
+}

@@ -605,3 +605,46 @@ async fn a_panel_is_a_sheet_on_the_asking_window() {
     let (response, _) = asked.await.unwrap();
     assert_eq!(response, 0);
 }
+
+const SPACE: u32 = 57;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn quick_look_shows_code_a_pdf_and_a_picture_and_follows_the_selection() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-quick-look").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    std::fs::write(home.join("Development/isle/main.rs"), "fn main() {\n    println!(\"hello\");\n}\n").unwrap();
+    std::fs::write(
+        home.join("Documents/page.pdf"),
+        "%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n",
+    )
+    .unwrap();
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let looks = || async { isle.windows().await.iter().filter(|w| w.app_id == APP && w.title == "Quick Look").count() };
+
+    reveal(&isle, &app, &home.join("Development/isle/main.rs")).await;
+    isle.chord(&[SPACE]).await;
+    wait_until(|| async { looks().await == 1 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+    isle.keep_shot("files-quick-look-code").await;
+    isle.chord(&[ESC]).await;
+    wait_until(|| async { looks().await == 0 }).await;
+
+    reveal(&isle, &app, &home.join("Documents/page.pdf")).await;
+    isle.chord(&[SUPER, 21]).await;
+    wait_until(|| async { looks().await == 1 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+    isle.keep_shot("files-quick-look-pdf").await;
+    isle.chord(&[ESC]).await;
+    wait_until(|| async { looks().await == 0 }).await;
+
+    reveal(&isle, &app, &home.join("Pictures/red.png")).await;
+    isle.chord(&[SPACE]).await;
+    wait_until(|| async { looks().await == 1 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+    isle.keep_shot("files-quick-look-image").await;
+}

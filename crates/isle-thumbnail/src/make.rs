@@ -60,7 +60,13 @@ fn svg(path: &Path, pixels: u32) -> Option<RgbaImage> {
     Some(out)
 }
 
-/// A PDF's first page on white, fitted.
+/// A PDF's page count.
+pub fn pdf_pages(path: &Path) -> Option<usize> {
+    let data = std::fs::read(path).ok()?;
+    Some(hayro::hayro_syntax::Pdf::new(data).ok()?.pages().len())
+}
+
+/// A PDF's page on white, fitted to `pixels`.
 pub fn pdf_page(path: &Path, page: usize, pixels: u32) -> Option<RgbaImage> {
     use hayro::{PixmapSettings, RenderCache, RenderSettings, hayro_interpret::InterpreterSettings, hayro_syntax::Pdf, render};
     let data = std::fs::read(path).ok()?;

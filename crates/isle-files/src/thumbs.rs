@@ -58,13 +58,18 @@ struct Thumbs {
     _pinned: Option<File>,
 }
 
+/// The helper's program: beside Files, or as the environment names it for tests.
+pub fn helper() -> PathBuf {
+    std::env::var_os("ISLE_THUMBNAIL_HELPER")
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_exe().ok().map(|e| e.with_file_name("isle-thumbnail")))
+        .unwrap_or_else(|| PathBuf::from("isle-thumbnail"))
+}
+
 fn thumbs() -> &'static Arc<Thumbs> {
     static THUMBS: OnceLock<Arc<Thumbs>> = OnceLock::new();
     THUMBS.get_or_init(|| {
-        let found = std::env::var_os("ISLE_THUMBNAIL_HELPER")
-            .map(PathBuf::from)
-            .or_else(|| std::env::current_exe().ok().map(|e| e.with_file_name("isle-thumbnail")))
-            .unwrap_or_else(|| PathBuf::from("isle-thumbnail"));
+        let found = helper();
         let pinned = File::open(&found).ok();
         let program = match &pinned {
             Some(file) => PathBuf::from(format!("/proc/self/fd/{}", file.as_raw_fd())),

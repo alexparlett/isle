@@ -9,6 +9,7 @@ mod format;
 mod icons;
 mod icons_view;
 mod info;
+mod look;
 mod interact;
 mod jobs;
 mod list_view;
@@ -21,6 +22,7 @@ mod open;
 mod panel;
 mod places;
 mod prefs;
+mod quicklook;
 mod scope_bar;
 mod search;
 mod settings_window;
@@ -101,6 +103,8 @@ pub struct Shared {
     panels: RefCell<BTreeMap<u64, (WindowKey, String)>>,
     /// Requests waiting for their parent's panel to answer.
     waiting: RefCell<Vec<chooser::Ask>>,
+    /// Quick Look while it is open.
+    quick_look: RefCell<Option<quicklook::Open>>,
 }
 
 impl Shared {
@@ -341,6 +345,66 @@ impl Shared {
         }
     }
 
+    /// Opens Quick Look on `items` at `index`, or closes it when the same caller has it open.
+    pub fn toggle_quick_look(&self, items: Vec<PathBuf>, index: usize, caller: quicklook::Caller) {
+        if self.quick_look.borrow().is_some_and(|q| q.caller == caller) {
+            self.close_quick_look();
+            return;
+        }
+        self.show_quick_look(items, index, caller);
+    }
+
+    /// Shows `items` in Quick Look, in the window open or a new one.
+    pub fn show_quick_look(&self, items: Vec<PathBuf>, index: usize, caller: quicklook::Caller) {
+        if items.is_empty() {
+            return;
+        }
+        let open = *self.quick_look.borrow();
+        if let Some(mut open) = open {
+            open.items.set(items);
+            open.index.set(index);
+            open.caller = caller;
+            *self.quick_look.borrow_mut() = Some(open);
+            return;
+        }
+        let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
+        let (items, index) = (State::create_global(items), State::create_global(index));
+        let spec = WindowSpec::new("Quick Look", (900., 680.), (360., 280.)).lights((0., 10.));
+        let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index });
+        *self.quick_look.borrow_mut() = Some(quicklook::Open { key, items, index, caller });
+    }
+
+    /// Follows the caller's selection while Quick Look is open from it.
+    pub fn quick_look_follow(&self, caller: quicklook::Caller, items: Vec<PathBuf>, index: usize) {
+        let open = *self.quick_look.borrow();
+        let Some(mut open) = open.filter(|o| o.caller == caller) else { return };
+        if items.is_empty() {
+            return;
+        }
+        if *open.items.peek() != items {
+            open.items.set(items);
+        }
+        if *open.index.peek() != index {
+            open.index.set(index);
+        }
+    }
+
+    pub fn close_quick_look(&self) {
+        let open = *self.quick_look.borrow();
+        if let Some(open) = open {
+            self.app().close(open.key);
+        }
+    }
+
+    /// The window has gone, however it closed.
+    pub fn quick_look_closed(&self) {
+        self.quick_look.borrow_mut().take();
+    }
+
+    pub fn quick_look_open(&self) -> Option<quicklook::Open> {
+        *self.quick_look.borrow()
+    }
+
     pub fn set_default_shown(&self, shown: view::Shown) {
         self.memory.borrow_mut().default_view = shown;
         self.save();
@@ -560,6 +624,7 @@ fn main() {
         purged: Cell::new(false),
         panels: RefCell::default(),
         waiting: RefCell::default(),
+        quick_look: RefCell::default(),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         hidden: State::create_global(false),

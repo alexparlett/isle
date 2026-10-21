@@ -211,6 +211,12 @@ impl App for FilesWindow {
                 };
                 drop(t);
                 shared.bring_front(key);
+                // Quick Look follows the selection it was opened on.
+                let cursor = {
+                    let t = handle.tab.peek();
+                    t.cursor.as_ref().and_then(|c| shown.iter().position(|p| p == c)).unwrap_or(0)
+                };
+                shared.quick_look_follow(crate::quicklook::Caller::Window(key), shown.clone(), cursor);
                 let mut selection = shared.selection;
                 if *selection.peek() != shown {
                     selection.set(shown);
@@ -448,6 +454,7 @@ impl App for FilesWindow {
             .enabled(has_selection),
             Command::new("open-with", "Open With…", Menu::File, 1).enabled(has_selection && !in_trash),
             Command::new("get-info", "Get Info", Menu::File, 2).chord(Chord::cmd('i')),
+            Command::new("quick-look", "Quick Look", Menu::File, 2).chord(Chord::cmd('y')).enabled(has_selection),
             Command::new("summary", "Get Summary Info", Menu::File, 2)
                 .chord(Chord::cmd('i').ctrl())
                 .enabled(selected_count > 1),
@@ -675,6 +682,10 @@ impl App for FilesWindow {
                             shared.get_info(items, id == "summary", None);
                         }
                         "inspector" => shared.toggle_inspector(),
+                        "quick-look" => {
+                            let selection = tab.peek().selection.clone();
+                            shared.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));
+                        }
                         "toggle-sidebar" => sidebar.toggle(),
                         "toggle-preview" => preview.toggle(),
                         "toggle-path-bar" => path_bar.toggle(),
@@ -828,6 +839,7 @@ impl App for FilesWindow {
                 })
             }
         });
+        let shared_keys = shared.clone();
         let on_key = move |e: Event<KeyboardEventData>| {
             let m = e.modifiers;
             held.set_if_modified(Held {
@@ -836,6 +848,11 @@ impl App for FilesWindow {
                 option: m.contains(Modifiers::ALT),
             });
             if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) || renaming.peek().is_some() || find.is_focused() {
+                return;
+            }
+            if e.key == Key::Character(" ".into()) {
+                let selection = tab.peek().selection.clone();
+                shared_keys.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));
                 return;
             }
             if e.key == Key::Named(NamedKey::Enter) && *committed.peek() {

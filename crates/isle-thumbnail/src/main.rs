@@ -41,7 +41,29 @@ fn handle(ask: Ask, thumbnailers: &[make::Thumbnailer]) -> Answer {
     Answer { id: ask.id, thumbnail }
 }
 
-fn main() {
+/// `isle-thumbnail page FILE N PIXELS OUT`: one PDF page as a PNG, for Quick Look; prints the
+/// page count. A page that crashes it costs Quick Look only that page.
+fn page(args: &[String]) -> std::process::ExitCode {
+    let [file, n, pixels, out] = args else { return std::process::ExitCode::FAILURE };
+    let path = std::path::Path::new(file);
+    let (Ok(n), Ok(pixels)) = (n.parse::<usize>(), pixels.parse::<u32>()) else {
+        return std::process::ExitCode::FAILURE;
+    };
+    let Some(count) = make::pdf_pages(path) else { return std::process::ExitCode::FAILURE };
+    match make::pdf_page(path, n, pixels).map(|img| img.save(out)) {
+        Some(Ok(())) => {
+            println!("{count}");
+            std::process::ExitCode::SUCCESS
+        }
+        _ => std::process::ExitCode::FAILURE,
+    }
+}
+
+fn main() -> std::process::ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("page") {
+        return page(&args[1..]);
+    }
     tracing_subscriber::fmt().with_writer(std::io::stderr).init();
     let thumbnailers = Arc::new(make::thumbnailers());
     let out = Arc::new(Mutex::new(std::io::stdout()));
@@ -71,4 +93,5 @@ fn main() {
     for worker in workers {
         let _ = worker.join();
     }
+    std::process::ExitCode::SUCCESS
 }

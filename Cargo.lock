@@ -3289,6 +3289,8 @@ dependencies = [
  "futures-util",
  "isle-app",
  "isle-apps",
+ "isle-bus",
+ "isle-disks",
  "isle-fs",
  "isle-ipc",
  "isle-search",

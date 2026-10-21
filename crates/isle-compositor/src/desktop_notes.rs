@@ -133,7 +133,7 @@ impl State {
             .state
             .volumes
             .iter()
-            .filter(|v| !before.contains(&v.path))
+            .filter(|v| !before.contains(&v.path) && (v.removable || v.loop_device))
             .cloned()
             .collect();
         for volume in new {

@@ -20,6 +20,7 @@ mod tab;
 mod thumbnail;
 mod thumbs;
 mod view;
+mod volumes;
 mod window;
 
 use std::{
@@ -70,6 +71,7 @@ pub struct Shared {
     pub jobs: jobs::Jobs,
     /// Items cut and not yet pasted, drawn dimmed.
     pub cut: State<Vec<PathBuf>>,
+    pub locations: volumes::Locations,
 }
 
 impl Shared {
@@ -212,6 +214,7 @@ struct Files {
 impl Delegate for Files {
     fn started(&self, app: &AppHandle) {
         *self.shared.app.borrow_mut() = Some(app.clone());
+        self.shared.locations.follow(app);
         if let Some(bus) = app.bus() {
             app.worker().spawn(fm1::serve(bus, app.requester()));
         }
@@ -294,6 +297,7 @@ fn main() {
         hidden: State::create_global(false),
         jobs: jobs::Jobs::new(),
         cut: State::create_global(Vec::new()),
+        locations: volumes::Locations::new(),
     });
     SHARED.with(|s| *s.borrow_mut() = Some(shared.clone()));
     isle_app::run_with(SPEC, Files { shared });

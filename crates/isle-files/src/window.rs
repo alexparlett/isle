@@ -22,7 +22,7 @@ use crate::{
     preview::Preview,
     tab::{self, Live, Status, Tab},
     jobs::Finished,
-    sheets::{Alert, ConflictSheet, alert_sheet},
+    sheets::{Alert, ConflictSheet, Then, alert_sheet},
     toolbar::{Act, Toolbar},
     view::{GroupBy, Shown, View},
 };
@@ -119,6 +119,7 @@ impl App for FilesWindow {
         // The Return that commits a name is the field's alone.
         let mut committed = use_state(|| false);
         let open_with = use_state(|| None::<crate::open::Offer>);
+        let unlocking = use_state(|| None::<(isle_disks::Volume, Option<String>)>);
         let drag = isle_app::use_drag();
         let surface = isle_app::this_surface();
         let data = shared.app().data();
@@ -159,6 +160,28 @@ impl App for FilesWindow {
                         let mut t = tab.write();
                         t.folder.set_show_hidden(show);
                         t.rev += 1;
+                    }
+                }
+            }
+        });
+
+        // A tab on a volume that has gone moves to the new-window folder rather than closing.
+        let known_points = use_state(Vec::<PathBuf>::new);
+        use_side_effect({
+            let shared = shared.clone();
+            move || {
+                let points: Vec<PathBuf> = shared.locations.volumes.read().iter().filter_map(|v| v.mount_point.as_ref().map(PathBuf::from)).collect();
+                let shares = shared.locations.shares.read().clone();
+                let mut known = known_points;
+                let gone: Vec<PathBuf> = known.peek().iter().filter(|p| !points.contains(p) && !shares.contains(p)).cloned().collect();
+                known.set(points.iter().chain(shares.iter()).cloned().collect());
+                if gone.is_empty() {
+                    return;
+                }
+                for handle in tabs.peek().iter() {
+                    let on_gone = handle.tab.peek().place.folder().is_some_and(|f| gone.iter().any(|g| f.starts_with(g)));
+                    if on_gone {
+                        tab::go(handle.tab, &handle.live, shared.new_window_place(), None);
                     }
                 }
             }
@@ -889,9 +912,22 @@ impl App for FilesWindow {
                 Sidebar {
                     places: places.read().clone(),
                     shown: place.clone(),
+                    volumes: shared.locations.volumes.read().clone(),
+                    shares: shared.locations.shares.read().clone(),
+                    space: shared.locations.space.read().clone(),
+                    dragging: drag.over.read().is_some(),
+                    drop_target,
                     on_go: EventHandler::new({
                         let go = go.clone();
                         move |place: Place| go(place)
+                    }),
+                    on_volume: EventHandler::new({
+                        let shared = shared.clone();
+                        move |volume: isle_disks::Volume| open_volume(&shared, volume, unlocking, alert, tab_go(tabs, current))
+                    }),
+                    on_eject: EventHandler::new({
+                        let shared = shared.clone();
+                        move |volume: isle_disks::Volume| eject(&shared, volume, false, alert)
                     }),
                 }
             }))
@@ -956,6 +992,22 @@ impl App for FilesWindow {
                     })),
             )
             .maybe_child(question.map(|q| ConflictSheet { question: q, jobs }.into_element()))
+            .maybe_child(unlocking.read().clone().map(|(volume, refused)| {
+                let shared = shared.clone();
+                crate::sheets::Unlock {
+                    volume: volume.clone(),
+                    refused,
+                    on_done: EventHandler::new(move |given: Option<(isle_ui::field::Secret, bool)>| {
+                        let mut unlocking = unlocking;
+                        let Some((secret, remember)) = given else {
+                            unlocking.set(None);
+                            return;
+                        };
+                        unlock(&shared, volume.clone(), secret, remember, unlocking, tab_go(tabs, current));
+                    }),
+                }
+                .into_element()
+            }))
             .maybe_child(open_with.read().clone().map(|offer| {
                 let shared = shared.clone();
                 crate::sheets::OpenWith {
@@ -991,16 +1043,114 @@ impl App for FilesWindow {
             }))
             .maybe_child(alert.read().clone().map(|a| {
                 let shared = shared.clone();
-                alert_sheet(a, move |work: Option<Work>| {
+                alert_sheet(a, move |then: Option<Then>| {
                     let mut alert = alert;
                     alert.set(None);
-                    if let Some(work) = work {
-                        start_job(&shared, key, work, &mut alert);
+                    match then {
+                        Some(Then::Job(work)) => start_job(&shared, key, work, &mut alert),
+                        Some(Then::Eject(volume, force)) => eject(&shared, volume, force, alert),
+                        None => {}
                     }
                 })
             }))
             .into_element()
     }
+}
+
+/// Goes to a folder in the current tab, from any thread's callback on the window.
+fn tab_go(tabs: State<Vec<TabHandle>>, current: State<usize>) -> impl Fn(PathBuf) + Clone + 'static {
+    move |folder: PathBuf| {
+        if let Some(handle) = tabs.peek().get(*current.peek()).cloned() {
+            tab::go(handle.tab, &handle.live, Place::Folder(folder), None);
+        }
+    }
+}
+
+/// A volume's row clicked: shown when mounted, mounted first otherwise, unlocked first when
+/// encrypted, with the keyring's passphrase when it has one.
+fn open_volume(
+    shared: &Shared,
+    volume: isle_disks::Volume,
+    unlocking: State<Option<(isle_disks::Volume, Option<String>)>>,
+    alert: State<Option<Alert>>,
+    go: impl Fn(PathBuf) + 'static,
+) {
+    if let Some(point) = &volume.mount_point {
+        go(PathBuf::from(point));
+        return;
+    }
+    let worker = shared.app().worker();
+    spawn(async move {
+        let job = worker.spawn({
+            let volume = volume.clone();
+            async move {
+                if !volume.locked {
+                    return Some(isle_disks::mount(&volume.path).await.map_err(|e| e.to_string()));
+                }
+                let kept = isle_disks::keyring::lookup(&volume.uuid).await.ok().flatten()?;
+                let cleartext = isle_disks::unlock(&volume.path, &kept).await.ok()?;
+                Some(isle_disks::mount(&cleartext).await.map_err(|e| e.to_string()))
+            }
+        });
+        let (mut unlocking, mut alert) = (unlocking, alert);
+        match job.await.ok().flatten() {
+            Some(Ok(point)) => go(PathBuf::from(point)),
+            Some(Err(why)) => alert.set(Some(Alert::message(format!("“{}” couldn't be mounted.", volume.label), why))),
+            None => unlocking.set(Some((volume, None))),
+        }
+    });
+}
+
+/// Unlocks with the passphrase given, keeps it if asked, mounts and shows the volume.
+fn unlock(
+    shared: &Shared,
+    volume: isle_disks::Volume,
+    secret: isle_ui::field::Secret,
+    remember: bool,
+    unlocking: State<Option<(isle_disks::Volume, Option<String>)>>,
+    go: impl Fn(PathBuf) + 'static,
+) {
+    let worker = shared.app().worker();
+    let passphrase = secret.expose().to_owned();
+    spawn(async move {
+        let job = worker.spawn({
+            let volume = volume.clone();
+            async move {
+                let cleartext = isle_disks::unlock(&volume.path, &passphrase).await.map_err(|_| "That passphrase is wrong.".to_owned())?;
+                if remember && let Err(err) = isle_disks::keyring::save(&volume.uuid, &volume.label, &passphrase).await {
+                    tracing::warn!("the passphrase is not kept: {err}");
+                }
+                isle_disks::mount(&cleartext).await.map_err(|e| e.to_string())
+            }
+        });
+        let mut unlocking = unlocking;
+        match job.await {
+            Ok(Ok(point)) => {
+                unlocking.set(None);
+                go(PathBuf::from(point));
+            }
+            Ok(Err(why)) => unlocking.set(Some((volume, Some(why)))),
+            Err(_) => unlocking.set(None),
+        }
+    });
+}
+
+/// Ejects a volume; one in use asks, with Force Eject.
+fn eject(shared: &Shared, volume: isle_disks::Volume, force: bool, alert: State<Option<Alert>>) {
+    let worker = shared.app().worker();
+    spawn(async move {
+        let job = worker.spawn({
+            let volume = volume.clone();
+            async move { isle_disks::eject_with(&volume, force).await.map_err(|e| (isle_disks::is_busy(&e), e.to_string())) }
+        });
+        let mut alert = alert;
+        match job.await {
+            Ok(Ok(())) => {}
+            Ok(Err((true, _))) => alert.set(Some(Alert::in_use(volume))),
+            Ok(Err((false, why))) => alert.set(Some(Alert::message(format!("“{}” couldn't be ejected.", volume.label), why))),
+            Err(_) => {}
+        }
+    });
 }
 
 /// A command a field takes as its key while a name is being edited.
@@ -1059,7 +1209,7 @@ fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str) -> RenameCheck {
             title: "A name that begins with a dot makes the item hidden.".into(),
             message: String::new(),
             items: Vec::new(),
-            buttons: vec![(format!("Use “{name}”"), Some(to(name))), ("Cancel".into(), None)],
+            buttons: vec![(format!("Use “{name}”"), Some(Then::Job(to(name)))), ("Cancel".into(), None)],
         });
     }
     let is_dir = tab.folder.get(path).is_some_and(|e| e.is_dir());
@@ -1071,7 +1221,7 @@ fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str) -> RenameCheck {
             title: format!("Change the extension from “{old_ext}” to “{new_ext}”?"),
             message: String::new(),
             items: Vec::new(),
-            buttons: vec![(format!("Use {new_ext}"), Some(to(name))), (format!("Keep {old_ext}"), Some(to(&kept)))],
+            buttons: vec![(format!("Use {new_ext}"), Some(Then::Job(to(name)))), (format!("Keep {old_ext}"), Some(Then::Job(to(&kept))))],
         });
     }
     RenameCheck::Go(to(name))
@@ -1391,36 +1541,71 @@ impl Component for TabBar {
 struct Sidebar {
     places: Places,
     shown: Place,
+    volumes: Vec<isle_disks::Volume>,
+    shares: Vec<PathBuf>,
+    space: std::collections::HashMap<PathBuf, (u64, u64)>,
+    dragging: bool,
+    drop_target: State<Option<PathBuf>>,
     on_go: EventHandler<Place>,
+    on_volume: EventHandler<isle_disks::Volume>,
+    on_eject: EventHandler<isle_disks::Volume>,
 }
 
 impl Component for Sidebar {
     fn render(&self) -> impl IntoElement {
         let theme = use_theme();
         let t = &theme.tokens;
-        let row = |r: &Row| {
-            let selected = r.place == self.shown;
-            let on_go = self.on_go.clone();
-            let place = r.place.clone();
-            let ink = if selected { t.colour_on_accent } else { t.colour_text };
-            let glyph = if selected { t.colour_on_accent } else { t.colour_accent_text };
+        let dragging = self.dragging;
+        let drop_target = self.drop_target;
+        // A row: its glyph and label, selected while its place is shown, and under a drag the
+        // folder (or the Trash) a drop goes into.
+        let row = |key: String, glyph: &'static str, label: String, selected: bool, dimmed: bool, target: Option<PathBuf>, on_press: Box<dyn Fn()>, trailing: Option<Element>| {
+            let ink = if selected { t.colour_on_accent } else if dimmed { t.colour_text_3 } else { t.colour_text };
+            let glyph_ink = if selected { t.colour_on_accent } else if dimmed { t.colour_text_3 } else { t.colour_accent_text };
+            let ringed = dragging && target.is_some() && drop_target.peek().as_deref() == target.as_deref();
+            let (enter, leave) = (target.clone(), target.clone());
             rect()
-                .key(format!("{:?}", r.place))
+                .key(key)
                 .width(Size::fill())
                 .height(Size::px(t.size_row))
                 .padding((0., t.space_s))
                 .horizontal()
+                .content(Content::flex())
                 .cross_align(Alignment::Center)
                 .spacing(t.space_s)
                 .corner_radius(t.radius_row)
                 .maybe(selected, |el| el.background(colour(t.colour_accent)))
+                .maybe(ringed, |el| el.border(crate::interact::drop_ring(&theme)))
                 .a11y_role(AccessibilityRole::ListItem)
-                .a11y_alt(r.label.clone())
+                .a11y_alt(label.clone())
                 .a11y_builder(move |node| node.set_selected(selected))
-                .on_press(move |_| on_go.call(place.clone()))
-                .child(Glyph::new(r.glyph, t.size_glyph, colour(glyph)))
-                .child(text::line(&theme, text::Style::Body, colour(ink), r.label.clone()))
+                .on_pointer_enter(move |_| {
+                    if dragging && enter.is_some() {
+                        let mut drop_target = drop_target;
+                        drop_target.set(enter.clone());
+                    }
+                })
+                .on_pointer_leave(move |_| {
+                    if leave.is_some() && *drop_target.peek() == leave {
+                        let mut drop_target = drop_target;
+                        drop_target.set(None);
+                    }
+                })
+                .on_press(move |_| on_press())
+                .child(Glyph::new(glyph, t.size_glyph, colour(glyph_ink)))
+                .child(rect().width(Size::flex(1.)).child(text::line(&theme, text::Style::Body, colour(ink), label)))
+                .maybe_child(trailing)
                 .into_element()
+        };
+        let place_row = |r: &Row| {
+            let on_go = self.on_go.clone();
+            let place = r.place.clone();
+            let target = match &r.place {
+                Place::Folder(p) => Some(p.clone()),
+                Place::Trash => Some(PathBuf::from(crate::interact::TRASH)),
+                _ => None,
+            };
+            row(format!("{:?}", r.place), r.glyph, r.label.clone(), r.place == self.shown, false, target, Box::new(move || on_go.call(place.clone())), None)
         };
         let header = |title: &str| {
             rect()
@@ -1436,6 +1621,61 @@ impl Component for Sidebar {
             label: "Recents".into(),
             glyph: "clock-counter-clockwise",
         };
+        let volume_rows = self.volumes.iter().map(|v| {
+            let mounted = v.mount_point.as_ref().map(PathBuf::from);
+            let shown = mounted.as_ref().is_some_and(|m| Place::Folder(m.clone()) == self.shown);
+            let (on_volume, on_eject) = (self.on_volume.clone(), self.on_eject.clone());
+            let (pressed, ejecting) = (v.clone(), v.clone());
+            let glyph = if v.removable || v.loop_device { "usb" } else { "hard-drive" };
+            let space = mounted.as_ref().and_then(|m| self.space.get(m));
+            let full = crate::volumes::nearly_full(space);
+            let mut trailing: Vec<Element> = Vec::new();
+            if let Some(used) = full {
+                trailing.push(
+                    rect()
+                        .width(Size::px(t.size_capacity_mark))
+                        .height(Size::px(4.))
+                        .corner_radius(2.)
+                        .background(colour(t.colour_fill_strong))
+                        .a11y_alt(format!("{} available", crate::format::size(space.map_or(0, |s| s.0))))
+                        .child(rect().width(Size::percent(used * 100.)).height(Size::fill()).corner_radius(2.).background(colour(t.colour_warn)))
+                        .into_element(),
+                );
+            }
+            if mounted.is_some() && (v.removable || v.loop_device) {
+                trailing.push(
+                    rect()
+                        .width(Size::px(t.size_control_small))
+                        .height(Size::px(t.size_control_small))
+                        .center()
+                        .a11y_role(AccessibilityRole::Button)
+                        .a11y_alt(format!("Eject “{}”", v.label))
+                        .on_press(move |e: Event<PressEventData>| {
+                            e.stop_propagation();
+                            on_eject.call(ejecting.clone());
+                        })
+                        .child(Glyph::new("eject", t.size_glyph, colour(if shown { t.colour_on_accent } else { t.colour_text_2 })))
+                        .into_element(),
+                );
+            }
+            let trailing = (!trailing.is_empty()).then(|| rect().horizontal().cross_align(Alignment::Center).spacing(t.space_s).children(trailing).into_element());
+            row(
+                v.path.clone(),
+                glyph,
+                v.label.clone(),
+                shown,
+                mounted.is_none(),
+                mounted.clone(),
+                Box::new(move || on_volume.call(pressed.clone())),
+                trailing,
+            )
+        });
+        let share_rows = self.shares.iter().map(|p| {
+            let on_go = self.on_go.clone();
+            let place = Place::Folder(p.clone());
+            row(p.display().to_string(), "network", crate::volumes::share_name(p), place == self.shown, false, Some(p.clone()), Box::new(move || on_go.call(place.clone())), None)
+        });
+        let (computer, trash) = (self.places.locations.first(), self.places.locations.get(1));
         rect()
             .width(Size::px(t.size_sidebar))
             .height(Size::fill())
@@ -1456,13 +1696,16 @@ impl Component for Sidebar {
                             .width(Size::fill())
                             .padding((t.space_s, t.space_s))
                             .a11y_role(AccessibilityRole::List)
-                            .child(row(&recents))
+                            .child(place_row(&recents))
                             .child(rect().height(Size::px(t.space_m)))
                             .child(header("Favourites"))
-                            .children(self.places.favourites.iter().map(row))
+                            .children(self.places.favourites.iter().map(place_row))
                             .child(rect().height(Size::px(t.space_m)))
                             .child(header("Locations"))
-                            .children(self.places.locations.iter().map(row)),
+                            .children(computer.map(place_row))
+                            .children(volume_rows)
+                            .children(share_rows)
+                            .children(trash.map(place_row)),
                     ),
             )
     }

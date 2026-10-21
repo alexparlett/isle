@@ -302,3 +302,35 @@ async fn a_file_nothing_opens_asks_in_open_with() {
     tokio::time::sleep(std::time::Duration::from_millis(400)).await;
     isle.keep_shot("files-open-with").await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_plugged_stick_is_listed_mounted_by_a_click_and_ejected() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-volumes").await;
+    let udisks = isle_fakes::udisks::UDisks::start(&isle.system_address()).await.unwrap();
+    udisks.plug("STICK").await.unwrap();
+    let (app, _home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.keep_shot("files-stick").await;
+
+    // Locations: the computer, then the stick, under Recents and four Favourites.
+    let y = w.y as f64 + 52. + 8. + 28. + 12. + 24. + 4. * 28. + 12. + 24. + 28. + 14.;
+    let test = isle.test().await;
+    test.pointer_to(w.x as f64 + 100., y).await.unwrap();
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { udisks.mounted("STICK").await }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("files-stick-mounted").await;
+
+    // Its Eject button at the row's trailing end.
+    test.pointer_to(w.x as f64 + 220. - 8. - 8. - 10., y).await.unwrap();
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { !udisks.mounted("STICK").await }).await;
+}

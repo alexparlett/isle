@@ -10,14 +10,22 @@ use isle_ui::{colour, field::CheckRow, text, use_theme};
 
 use crate::{format, jobs::Jobs, jobs::Question};
 
+/// What a button of an alert does beyond closing it.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Then {
+    Job(Work),
+    /// Ejects the volume; `true` even while it is in use.
+    Eject(isle_disks::Volume, bool),
+}
+
 /// An alert waiting on the window.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Alert {
     pub title: String,
     pub message: String,
     pub items: Vec<String>,
-    /// Buttons, the last the default; one with work starts it.
-    pub buttons: Vec<(String, Option<Work>)>,
+    /// Buttons, the last the default.
+    pub buttons: Vec<(String, Option<Then>)>,
 }
 
 impl Alert {
@@ -41,7 +49,7 @@ impl Alert {
             title: format!("Delete {}?", if items.len() == 1 { format!("“{}”", name(&items[0])) } else { format::items(items.len()) }),
             message: "You can't undo this.".into(),
             items: Vec::new(),
-            buttons: vec![("Delete".into(), Some(Work::Delete { items })), ("Cancel".into(), None)],
+            buttons: vec![("Delete".into(), Some(Then::Job(Work::Delete { items }))), ("Cancel".into(), None)],
         }
     }
 
@@ -51,8 +59,26 @@ impl Alert {
             title: format!("Permanently erase {} in the Trash?", format::items(items.len())),
             message: "You can't undo this.".into(),
             items: Vec::new(),
-            buttons: vec![("Empty Trash".into(), Some(Work::EmptyTrash { items })), ("Cancel".into(), None)],
+            buttons: vec![("Empty Trash".into(), Some(Then::Job(Work::EmptyTrash { items }))), ("Cancel".into(), None)],
         }
+    }
+
+    /// A volume in use: Force Eject never the default (`files.md` § Volumes).
+    pub fn in_use(volume: isle_disks::Volume) -> Self {
+        Self {
+            title: format!("“{}” is in use and can't be ejected.", volume.label),
+            message: "Quit the apps using it and try again.".into(),
+            items: Vec::new(),
+            buttons: vec![
+                ("Force Eject".into(), Some(Then::Eject(volume.clone(), true))),
+                ("Cancel".into(), None),
+                ("Try Again".into(), Some(Then::Eject(volume, false))),
+            ],
+        }
+    }
+
+    pub fn message(title: impl Into<String>, message: impl Into<String>) -> Self {
+        Self { title: title.into(), message: message.into(), items: Vec::new(), buttons: vec![("OK".into(), None)] }
     }
 
     pub fn no_space(into: &Path, needed: u64, free: u64) -> Self {
@@ -74,7 +100,7 @@ fn name(p: &Path) -> String {
 }
 
 /// An alert sheet; `on_done` gets the work of the button pressed.
-pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Work>) + Clone + 'static) -> Element {
+pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'static) -> Element {
     let theme = isle_ui::theme();
     let t = &theme.tokens;
     let mut body = vec![isle_ui::alert_text(&alert.title, &alert.message)];
@@ -278,6 +304,56 @@ impl Component for OpenWith {
                         }
                     }),
                 ),
+            ],
+        )
+    }
+}
+
+/// An encrypted volume's passphrase, with Remember in Keychain (`surfaces/files.md` §
+/// Questions and alerts, An encrypted volume).
+#[derive(PartialEq)]
+pub struct Unlock {
+    pub volume: isle_disks::Volume,
+    /// Why the last passphrase was refused.
+    pub refused: Option<String>,
+    /// The passphrase and whether to keep it; `None` cancels.
+    pub on_done: EventHandler<Option<(isle_ui::field::Secret, bool)>>,
+}
+
+impl Component for Unlock {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let text: isle_ui::FieldText = use_hook(Default::default);
+        let mut remember = use_state(|| true);
+        let submit = {
+            let (text, done) = (text.clone(), self.on_done.clone());
+            move || {
+                let secret = isle_ui::field::Secret::new(text.borrow().to_string());
+                done.call(Some((secret, *remember.peek())));
+            }
+        };
+        let on_submit = submit.clone();
+        let mut body = vec![
+            isle_ui::alert_text(&format!("“{}” is encrypted.", self.volume.label), "Enter its passphrase to unlock it."),
+            isle_ui::Field::new(text.clone(), "Passphrase")
+                .secret(true)
+                .error(self.refused.is_some())
+                .auto_focus(true)
+                .on_submit(move |_| on_submit())
+                .into_element(),
+        ];
+        if let Some(why) = &self.refused {
+            body.push(text::line(&theme, text::Style::Callout, colour(t.colour_danger_text), why.clone()).into_element());
+        }
+        body.push(CheckRow::new("Remember in Keychain", *remember.read()).on_toggle(move |on: bool| remember.set(on)).into_element());
+        let cancel = self.on_done.clone();
+        isle_ui::sheet(
+            t.size_form_narrow,
+            body,
+            vec![
+                ("Cancel".into(), EventHandler::new(move |_| cancel.call(None))),
+                ("Unlock".into(), EventHandler::new(move |_| submit())),
             ],
         )
     }

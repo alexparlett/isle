@@ -20,6 +20,8 @@ futures-util = { workspace = true, features = ["std"] }
 isle-app.workspace = true
 isle-apps.workspace = true
 isle-fs.workspace = true
+isle-bus.workspace = true
+isle-disks.workspace = true
 isle-ipc.workspace = true
 isle-settings.workspace = true
 isle-search.workspace = true

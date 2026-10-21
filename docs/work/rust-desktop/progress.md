@@ -2,6 +2,25 @@
 
 ## 2026-10-21
 
+- P15 15.9: volumes. `isle-disks` lists internal volumes that are not the
+  system's beside removable drives and the user's loop images, with size,
+  type, UUID and whether it can be taken out; an encrypted volume shows
+  locked until unlocked, then as its filesystem alone; `Encrypted.Unlock`,
+  a forced unmount for Force Eject, a busy refusal told apart, and the
+  keyring under GNOME's `org.gnome.GVfs.Luks.Password` schema so either
+  desktop unlocks with a kept passphrase. The compositor's drive notice
+  keeps to removable drives. Files' Locations: the computer, each volume
+  (dimmed while unmounted, its Eject button while a removable one is
+  mounted, a capacity mark past nine-tenths full from free space read with
+  a deadline), the network shares the system mounted (cifs, nfs, sshfs,
+  rclone and the like, not the session's own FUSE helpers), and the Trash.
+  A click mounts and shows a volume, unlocks one first with the keyring's
+  passphrase or the passphrase sheet (Remember in Keychain); Eject asks
+  with Force Eject when the volume is in use; a tab on a volume that goes
+  moves to the new-window folder. The sidebar's folders and Trash take
+  drops. Not tested headless: unlocking (the fake UDisks2 has no
+  encrypted volume).
+
 - P15 15.8: opening files. `isle-apps` reads entries' `MimeType` and the
   MIME apps lists in the spec's order, Isle's own list always first
   (`isle-mimeapps.list`), with defaults, added and removed associations

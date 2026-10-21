@@ -253,6 +253,7 @@ impl State {
                         .space
                         .element_under(location)
                         .map(|(w, _)| w.clone());
+                    let window = self.isle.click_focus(window, location);
                     self.set_focus(window.as_ref());
                     if let Some(window) = window {
                         self.ping(crate::wm::window_id(&window));

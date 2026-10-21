@@ -2,6 +2,26 @@
 
 ## 2026-10-21
 
+- P15 15.13: Quick Look. Space and ⌘Y in Files open it on the selection
+  and it follows the selection; Escape or Space again close it. Images and
+  SVGs fitted and centred, text and code to 256 KiB highlighted with
+  syntect's own syntaxes (not bat's), PDF pages from `isle-thumbnail`'s
+  new `page` mode as they scroll in, audio and video through freya-video,
+  archives listed by `bsdtar`, icon and facts for the rest; ‹ › with
+  "i of n", the index sheet (⌘Return), Open with {app}. Files serves
+  `io.github.alexparlett.Isle.QuickLook1` (Show, Select, Close, Shown,
+  Closed, Visible); Spotlight's ⌘Y on a file shows it and ⌘Y again or
+  closing Spotlight closes it. `isle_titlebar_v1` gains version 2's
+  `isle_float_v1` (float over a handle or `isle:` and a shell surface,
+  keyboard none or on request, open from a rectangle): the compositor
+  parents a float to its caller, raised with it and out of the switcher,
+  never focuses it as it maps or on a click below its top band, and draws
+  one over a shell surface above the shell's overlays, so Quick Look sits
+  over Spotlight while Spotlight keeps typing. Not built: a click on
+  Quick Look over Spotlight reaches Spotlight, the zoom from the item's
+  rectangle, fonts as a sample, full screen, Spotlight following `Shown`
+  through a list, and Get Info's and the preview pane's use of the
+  renderers.
 - P15 15.12: the panels. `isle-portal` serves FileChooser (version 4,
   OpenFile, SaveFile, SaveFiles) and hands each request to Files'
   `io.github.alexparlett.Isle.Files1.Choose`, starting Files by D-Bus

@@ -150,6 +150,11 @@ pub struct Isle {
         smithay::reexports::wayland_server::backend::ObjectId,
         (i32, i32),
     >,
+    /// Windows floating over a caller, by their surface (`isle_float_v1`).
+    pub floats: std::collections::HashMap<
+        smithay::reexports::wayland_server::backend::ObjectId,
+        crate::titlebar_overlay::Float,
+    >,
     pub zoom: crate::wm::ZoomState,
     pub zoom_menu: std::rc::Rc<isle_shell::zones::ZoneSurface>,
     pub zone_panel: std::rc::Rc<isle_shell::zones::ZoneSurface>,
@@ -522,6 +527,7 @@ impl Isle {
             display_change: None,
             next_display_change: 0,
             titlebar_overlays: Default::default(),
+            floats: Default::default(),
             zoom: Default::default(),
             zoom_menu,
             zone_panel,

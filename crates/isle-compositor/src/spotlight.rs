@@ -95,6 +95,8 @@ pub struct SpotlightState {
     menu: Option<OpenMenu>,
     /// A clipboard item shown whole over the list.
     preview: Option<isle_shell::spotlight::surface::Preview>,
+    /// Quick Look is open over Spotlight.
+    quick_look: bool,
     /// The tile a press went down on, which a release elsewhere drops.
     drag_from: Option<String>,
     /// How long each search's fast sources took, in microseconds, newest last.
@@ -121,6 +123,7 @@ impl SpotlightState {
             apps_panel: (0., 0.),
             menu: None,
             preview: None,
+            quick_look: false,
             drag_from: None,
             rect: Rectangle::default(),
             search_us: Vec::new(),
@@ -461,6 +464,9 @@ impl State {
         self.isle.spotlight.sources = Sources::default();
         self.isle.spotlight.menu = None;
         self.isle.spotlight.preview = None;
+        if std::mem::take(&mut self.isle.spotlight.quick_look) {
+            self.quick_look_call("Close", None);
+        }
         self.isle.spotlight.drag_from = None;
         self.isle.spotlight.latest.fetch_add(1, Ordering::Relaxed);
         self.stop_spotlight_repeat();
@@ -1211,9 +1217,51 @@ impl State {
         self.launch(crate::launch::Launch::Command(line));
     }
 
-    /// Cmd+Y on a clipboard item: the whole text or the image over the list.
+    /// Cmd+Y on a file: Files' Quick Look over Spotlight, or closed again
+    /// (`p15-files.md` choice 32).
+    fn quick_look(&mut self, path: &std::path::Path) {
+        let open = !self.isle.spotlight.quick_look;
+        self.isle.spotlight.quick_look = open;
+        if open {
+            self.quick_look_call("Show", Some(isle_fs::recents::uri(path)));
+        } else {
+            self.quick_look_call("Close", None);
+        }
+    }
+
+    /// Calls `QuickLook1`'s `Show` with the file's URI, or `Close`.
+    fn quick_look_call(&self, method: &'static str, uri: Option<String>) {
+        let Some(worker) = &self.isle.worker else {
+            return;
+        };
+        worker.spawn(async move {
+            let Ok(conn) = isle_bus::session().await else {
+                return;
+            };
+            const FILES: &str = "io.github.alexparlett.Isle.Files";
+            const PATH: &str = "/io/github/alexparlett/Isle/QuickLook1";
+            const INTERFACE: &str = "io.github.alexparlett.Isle.QuickLook1";
+            let call = match uri {
+                Some(uri) => {
+                    let body = (vec![uri], 0u32, "isle:spotlight", (0i32, 0i32, 0i32, 0i32), "none", "");
+                    conn.call_method(Some(FILES), PATH, Some(INTERFACE), method, &body).await
+                }
+                None => conn.call_method(Some(FILES), PATH, Some(INTERFACE), method, &()).await,
+            };
+            if let Err(err) = call {
+                warn!("Quick Look: {err}");
+            }
+        });
+    }
+
+    /// Cmd+Y on a clipboard item: the whole text or the image over the list; on a file, Quick
+    /// Look.
     fn spotlight_preview(&mut self, row: Row) {
         use isle_shell::spotlight::surface::Preview;
+        if let Item::File(path) = &row.item {
+            self.quick_look(path);
+            return;
+        }
         let Item::Clip(id) = row.item else {
             return;
         };

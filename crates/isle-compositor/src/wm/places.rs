@@ -34,7 +34,8 @@ impl Isle {
                     .iter()
                     .find(|r| r.x11().is_some_and(|x| x.window_id() == parent))
             });
-        let parent = wayland_parent.or(x11_parent).map(|r| r.id);
+        let float_parent = record.and_then(|r| r.surface()).and_then(|s| self.float_parent(&s));
+        let parent = wayland_parent.or(x11_parent).map(|r| r.id).or(float_parent);
         if let Some(record) = self.wm.get_mut(id) {
             record.app = self.apps.resolve(&record.names().0);
             record.parent = parent;
@@ -482,7 +483,10 @@ impl State {
         self.read_process(id);
         self.assign_desktop(id);
         self.isle.sync_space();
-        self.set_focus(Some(&window));
+        // A float leaves the keyboard with its caller.
+        if self.isle.float_of(id).is_none() {
+            self.set_focus(Some(&window));
+        }
         if full_screen {
             self.enter_full_screen(id, false);
         } else {

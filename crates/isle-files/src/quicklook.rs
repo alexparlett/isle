@@ -67,6 +67,10 @@ impl App for QuickLookWindow {
             let shared = shared.clone();
             move || shared.quick_look_closed()
         });
+        use_side_effect({
+            let shared = shared.clone();
+            move || shared.quick_look_at(*index.read())
+        });
 
         let step = move |by: isize| {
             let mut index = index;

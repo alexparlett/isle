@@ -850,6 +850,12 @@ impl App for FilesWindow {
             if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) || renaming.peek().is_some() || find.is_focused() {
                 return;
             }
+            if e.key == Key::Named(NamedKey::Escape)
+                && shared_keys.quick_look_open().is_some_and(|q| q.caller == crate::quicklook::Caller::Window(key))
+            {
+                shared_keys.close_quick_look();
+                return;
+            }
             if e.key == Key::Character(" ".into()) {
                 let selection = tab.peek().selection.clone();
                 shared_keys.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));

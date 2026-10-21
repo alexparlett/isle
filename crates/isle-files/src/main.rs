@@ -22,6 +22,7 @@ mod open;
 mod panel;
 mod places;
 mod prefs;
+mod ql1;
 mod quicklook;
 mod scope_bar;
 mod search;
@@ -351,11 +352,16 @@ impl Shared {
             self.close_quick_look();
             return;
         }
-        self.show_quick_look(items, index, caller);
+        let over = match caller {
+            quicklook::Caller::Window(key) => self.app().export(key),
+            quicklook::Caller::Bus => None,
+        };
+        self.show_quick_look(items, index, caller, over);
     }
 
-    /// Shows `items` in Quick Look, in the window open or a new one.
-    pub fn show_quick_look(&self, items: Vec<PathBuf>, index: usize, caller: quicklook::Caller) {
+    /// Shows `items` in Quick Look, in the window open or a new one, floating over `over`: an
+    /// xdg-foreign handle, `wayland:` and one, or `isle:` and a shell surface's name.
+    pub fn show_quick_look(&self, items: Vec<PathBuf>, index: usize, caller: quicklook::Caller, over: Option<String>) {
         if items.is_empty() {
             return;
         }
@@ -369,9 +375,15 @@ impl Shared {
         }
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
         let (items, index) = (State::create_global(items), State::create_global(index));
-        let spec = WindowSpec::new("Quick Look", (900., 680.), (360., 280.)).lights((0., 10.));
+        let float = over.filter(|o| !o.is_empty()).map(|o| isle_app::Float {
+            over: o.strip_prefix("wayland:").map(str::to_owned).unwrap_or(o),
+            on_request: false,
+            from: None,
+        });
+        let spec = WindowSpec::new("Quick Look", (900., 680.), (360., 280.)).lights((0., 10.)).float(float);
         let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index });
         *self.quick_look.borrow_mut() = Some(quicklook::Open { key, items, index, caller });
+        ql1::VISIBLE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Follows the caller's selection while Quick Look is open from it.
@@ -396,9 +408,29 @@ impl Shared {
         }
     }
 
-    /// The window has gone, however it closed.
+    /// The window has gone, however it closed: a caller over the bus hears which item it
+    /// left on.
     pub fn quick_look_closed(&self) {
-        self.quick_look.borrow_mut().take();
+        ql1::VISIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+        if let Some(open) = self.quick_look.borrow_mut().take()
+            && open.caller == quicklook::Caller::Bus
+        {
+            self.tell_caller(*open.index.peek(), true);
+        }
+    }
+
+    /// The item shown changed: a caller over the bus follows it.
+    pub fn quick_look_at(&self, index: usize) {
+        if self.quick_look.borrow().is_some_and(|o| o.caller == quicklook::Caller::Bus) {
+            self.tell_caller(index, false);
+        }
+    }
+
+    fn tell_caller(&self, index: usize, closed: bool) {
+        let app = self.app();
+        if let Some(bus) = app.bus() {
+            app.worker().spawn(ql1::tell(bus, index as u32, closed));
+        }
     }
 
     pub fn quick_look_open(&self) -> Option<quicklook::Open> {
@@ -483,6 +515,7 @@ impl Delegate for Files {
         self.shared.locations.follow(app);
         if let Some(bus) = app.bus() {
             app.worker().spawn(files1::serve(bus.clone(), app.requester()));
+            app.worker().spawn(ql1::serve(bus.clone(), app.requester()));
             app.worker().spawn(fm1::serve(bus, app.requester()));
         }
     }
@@ -531,6 +564,20 @@ impl Delegate for Files {
             }
             Request::Action { name, params, .. } => match name.as_str() {
                 isle_app::SERVICE => {}
+                ql1::SHOW => {
+                    let Some(show) = params.first().and_then(|j| serde_json::from_str::<ql1::Show>(j).ok()) else { return };
+                    let items: Vec<PathBuf> = show.uris.iter().filter_map(|u| path_of(u)).collect();
+                    self.shared.show_quick_look(items, show.index as usize, quicklook::Caller::Bus, Some(show.caller));
+                }
+                ql1::SELECT => {
+                    if let Some(open) = self.shared.quick_look_open().filter(|o| o.caller == quicklook::Caller::Bus)
+                        && let Some(i) = params.first().and_then(|p| p.parse::<usize>().ok())
+                    {
+                        let mut index = open.index;
+                        index.set(i);
+                    }
+                }
+                ql1::CLOSE => self.shared.close_quick_look(),
                 files1::CHOOSE => {
                     if let Some(ask) = params.first().and_then(|j| serde_json::from_str::<chooser::Ask>(j).ok()) {
                         self.shared.choose(ask);

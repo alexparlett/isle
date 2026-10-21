@@ -11,7 +11,7 @@
     names. The client draws everything else, its toolbar included, under them.
   </description>
 
-  <interface name="isle_titlebar_manager_v1" version="1">
+  <interface name="isle_titlebar_manager_v1" version="2">
     <request name="destroy" type="destructor"/>
 
     <request name="get_titlebar">
@@ -19,6 +19,14 @@
         One per surface; the surface must be an xdg_toplevel's.
       </description>
       <arg name="id" type="new_id" interface="isle_titlebar_v1"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+
+    <request name="get_float" since="2">
+      <description summary="the float object for a toplevel's surface">
+        One per surface, sent before its first commit; the surface must be an xdg_toplevel's.
+      </description>
+      <arg name="id" type="new_id" interface="isle_float_v1"/>
       <arg name="surface" type="object" interface="wl_surface"/>
     </request>
   </interface>
@@ -50,5 +58,42 @@
       <arg name="width" type="uint"/>
       <arg name="height" type="uint"/>
     </event>
+  </interface>
+
+  <interface name="isle_float_v1" version="2">
+    <description summary="a window that floats over another without taking its keyboard">
+      As Quick Look does: the window stays above its caller, goes with the caller's desktop,
+      is no entry of its own in the switcher, and is never given the keyboard as it maps.
+    </description>
+
+    <request name="destroy" type="destructor"/>
+
+    <request name="set_float_over">
+      <description summary="the caller it floats over">
+        An xdg-foreign v2 handle the caller exported, or `isle:` and the name of one of the
+        compositor's own surfaces, as `isle:spotlight`, which the window then draws above.
+        Sent before the first commit.
+      </description>
+      <arg name="handle" type="string"/>
+    </request>
+
+    <enum name="keyboard">
+      <entry name="none" value="0" summary="the keyboard only on a click into its top band"/>
+      <entry name="on_request" value="1" summary="as none, and whenever the window activates itself"/>
+    </enum>
+
+    <request name="set_keyboard">
+      <arg name="keyboard" type="uint" enum="keyboard"/>
+    </request>
+
+    <request name="open_from">
+      <description summary="the rectangle in the caller the window opens from">
+        In logical points from the caller's top leading corner, for the opening zoom.
+      </description>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
   </interface>
 </protocol>

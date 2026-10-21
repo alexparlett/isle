@@ -631,6 +631,12 @@ async fn quick_look_shows_code_a_pdf_and_a_picture_and_follows_the_selection() {
     wait_until(|| async { looks().await == 1 }).await;
     tokio::time::sleep(std::time::Duration::from_millis(700)).await;
     isle.keep_shot("files-quick-look-code").await;
+    // It floats over the window that opened it, which keeps the keyboard.
+    let windows = isle.windows().await;
+    let look = windows.iter().find(|w| w.title == "Quick Look").unwrap();
+    let browser = windows.iter().find(|w| w.app_id == APP && w.title != "Quick Look").unwrap();
+    assert_eq!(look.parent, browser.id);
+    assert!(browser.focused && !look.focused, "{browser:?} {look:?}");
     isle.chord(&[ESC]).await;
     wait_until(|| async { looks().await == 0 }).await;
 
@@ -647,4 +653,41 @@ async fn quick_look_shows_code_a_pdf_and_a_picture_and_follows_the_selection() {
     wait_until(|| async { looks().await == 1 }).await;
     tokio::time::sleep(std::time::Duration::from_millis(700)).await;
     isle.keep_shot("files-quick-look-image").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn spotlights_cmd_y_shows_quick_look_above_it() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start_prepared("files-spotlight-look", "", |dir| {
+        let home = dir.join("home");
+        std::fs::create_dir_all(home.join("notes")).unwrap();
+        std::fs::write(home.join("notes/plan.md"), "# The plan\n\nquarterly numbers\n").unwrap();
+    })
+    .await;
+    let (app, _home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let spotlight = || async { serde_json::from_str::<serde_json::Value>(&isle.test().await.spotlight().await.unwrap()).unwrap() };
+
+    // / scopes to files.
+    isle.chord(&[SUPER, SPACE]).await;
+    wait_until(|| async { spotlight().await["open"] == true }).await;
+    isle.chord(&[53]).await;
+    type_text(&isle, "plan").await;
+    wait_until(|| async {
+        spotlight().await["lines"].as_array().is_some_and(|l| l.iter().any(|l| l["title"] == "plan.md"))
+    })
+    .await;
+    isle.chord(&[SUPER, 21]).await;
+    let looks = || async { isle.windows().await.into_iter().find(|w| w.title == "Quick Look") };
+    wait_until(|| async { looks().await.is_some() }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+    assert_eq!(spotlight().await["open"], true, "Spotlight stays open behind it");
+    assert!(!looks().await.unwrap().focused, "Spotlight keeps the keyboard");
+    isle.keep_shot("files-spotlight-quick-look").await;
+    isle.chord(&[SUPER, 21]).await;
+    wait_until(|| async { looks().await.is_none() }).await;
 }

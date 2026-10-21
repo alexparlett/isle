@@ -30,6 +30,19 @@ pub struct WindowSpec {
     pub token: Option<String>,
     /// Another app's window, by its xdg-foreign handle, this one is a modal child of.
     pub parent: Option<String>,
+    /// The caller it floats over without taking the keyboard, as Quick Look does.
+    pub float: Option<Float>,
+}
+
+/// What a window floats over (`isle_float_v1`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Float {
+    /// An xdg-foreign handle, or `isle:` and a shell surface's name.
+    pub over: String,
+    /// It takes the keyboard when it activates itself.
+    pub on_request: bool,
+    /// The rectangle in the caller it opens from.
+    pub from: Option<(i32, i32, i32, i32)>,
 }
 
 impl WindowSpec {
@@ -43,7 +56,13 @@ impl WindowSpec {
             backdrop: None,
             token: None,
             parent: None,
+            float: None,
         }
+    }
+
+    pub fn float(mut self, float: Option<Float>) -> Self {
+        self.float = float;
+        self
     }
 
     pub fn parent(mut self, handle: Option<String>) -> Self {
@@ -155,6 +174,7 @@ impl<A: App + 'static> Frame<A> {
         let gpu = cfg!(feature = "gpu") && std::env::var_os("FREYA_RENDERER").is_some();
         let renderer = if gpu { RendererPreference::Auto } else { RendererPreference::Software };
         let (lights, backdrop, token, parent) = (spec.lights, spec.backdrop, spec.token.clone(), spec.parent.clone());
+        let float = spec.float.clone();
         let (size, min_size, max_size) = (spec.size, spec.min_size, spec.max_size);
         // winit takes a static title; a window's title is set once and lives as long.
         let title: &'static str = Box::leak(spec.title.clone().into_boxed_str());
@@ -190,7 +210,7 @@ impl<A: App + 'static> Frame<A> {
                 None => attributes,
             })
             .with_window_handle(move |window| {
-                *extras.borrow_mut() = Extras::connect(window, lights, backdrop, parent.as_deref());
+                *extras.borrow_mut() = Extras::connect(window, lights, backdrop, parent.as_deref(), float.as_ref());
             })
     }
 }

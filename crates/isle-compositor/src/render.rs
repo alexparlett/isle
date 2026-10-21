@@ -268,6 +268,26 @@ impl Isle {
         if from <= Stage::Scrim && prompting {
             self.scrim_elements(output, push);
         }
+        // Windows floating over a shell surface, as Quick Look over Spotlight, above it.
+        let over_shell = self.floats_over_shell();
+        if from <= Stage::ShellOverlay && under.is_none() {
+            for &id in over_shell.iter().rev() {
+                let Some(frame) = self.frame(id).filter(|f| f.overlaps(geometry)) else {
+                    continue;
+                };
+                let motion = self.wm.get(id).and_then(|r| r.motion);
+                let (mut to, alpha) = match motion {
+                    Some(motion) => (motion.apply(frame), motion.opacity()),
+                    None => (frame.to_f64(), 1.0),
+                };
+                to.loc -= geometry.loc.to_f64();
+                let from_rect = Rectangle::new(frame.loc - geometry.loc, frame.size);
+                let scale_x = scale.x;
+                self.window_pieces(renderer, id, geometry.loc, scale_x, true, alpha, &mut |p| {
+                    push(IsleElement::Window(crate::wm::draw::place(p, from_rect, to, scale_x)))
+                });
+            }
+        }
         if from <= Stage::ShellOverlay {
             if prompting {
                 let mut without = vec!["island"];
@@ -337,6 +357,9 @@ impl Isle {
             let id = crate::wm::window_id(window);
             if hidden {
                 hidden = under != Some(id);
+                continue;
+            }
+            if over_shell.contains(&id) {
                 continue;
             }
             let Some(frame) = self.frame(id) else {

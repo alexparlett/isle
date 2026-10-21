@@ -63,7 +63,11 @@ mod isle_titlebar {
 }
 
 use gtk_shell::{gtk_shell1::GtkShell1, gtk_surface1::{self, GtkSurface1}};
-use isle_titlebar::{isle_titlebar_manager_v1::IsleTitlebarManagerV1, isle_titlebar_v1::IsleTitlebarV1};
+use isle_titlebar::{
+    isle_float_v1::{IsleFloatV1, Keyboard},
+    isle_titlebar_manager_v1::IsleTitlebarManagerV1,
+    isle_titlebar_v1::IsleTitlebarV1,
+};
 
 pub use gtk_surface1::Gesture;
 
@@ -101,6 +105,7 @@ wayland_client::delegate_noop!(Globals: ignore GtkShell1);
 wayland_client::delegate_noop!(Globals: ignore GtkSurface1);
 wayland_client::delegate_noop!(Globals: ignore IsleTitlebarManagerV1);
 wayland_client::delegate_noop!(Globals: ignore IsleTitlebarV1);
+wayland_client::delegate_noop!(Globals: ignore IsleFloatV1);
 wayland_client::delegate_noop!(Globals: ignore ExtBackgroundEffectManagerV1);
 wayland_client::delegate_noop!(Globals: ignore ExtBackgroundEffectSurfaceV1);
 wayland_client::delegate_noop!(Globals: ignore WlCompositor);
@@ -126,6 +131,7 @@ pub struct Extras {
     appmenu: Option<OrgKdeKwinAppmenu>,
     gestures: Option<(GtkSurface1, WlSeat)>,
     _titlebar: Option<IsleTitlebarV1>,
+    _float: Option<IsleFloatV1>,
     /// Another app's window this one is the modal child of, kept while it is.
     _parent: Option<(ZxdgImportedV2, Option<XdgDialogV1>)>,
     backdrop: Option<(ExtBackgroundEffectSurfaceV1, WlCompositor, QueueHandle<Globals>)>,
@@ -147,6 +153,7 @@ impl Extras {
         lights: Option<(f64, f64)>,
         backdrop: Option<(f64, f64, f64, f64)>,
         parent: Option<&str>,
+        float: Option<&crate::window::Float>,
     ) -> Option<Self> {
         let display = match window.display_handle().ok()?.as_raw() {
             RawDisplayHandle::Wayland(handle) => handle.display.as_ptr(),
@@ -179,13 +186,22 @@ impl Extras {
             .ok()
             .zip(globals.bind::<WlSeat, _, _>(&qh, 1..=9, ()).ok())
             .map(|(shell, seat)| (shell.get_gtk_surface(&surface, &qh, ()), seat));
-        let titlebar = lights
-            .and_then(|inset| Some((inset, globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 1..=1, ()).ok()?)))
-            .map(|(inset, manager)| {
-                let titlebar = manager.get_titlebar(&surface, &qh, ());
-                titlebar.set_overlay(inset.0.round() as i32, inset.1.round() as i32);
-                titlebar
-            });
+        let manager = globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 1..=2, ()).ok();
+        let titlebar = lights.zip(manager.as_ref()).map(|(inset, manager)| {
+            let titlebar = manager.get_titlebar(&surface, &qh, ());
+            titlebar.set_overlay(inset.0.round() as i32, inset.1.round() as i32);
+            titlebar
+        });
+        // Before the first commit, so the compositor never gives the window the keyboard.
+        let float = float.zip(manager.as_ref().filter(|m| m.version() >= 2)).map(|(want, manager)| {
+            let float = manager.get_float(&surface, &qh, ());
+            float.set_float_over(want.over.clone());
+            float.set_keyboard(if want.on_request { Keyboard::OnRequest } else { Keyboard::None });
+            if let Some((x, y, w, h)) = want.from {
+                float.open_from(x, y, w, h);
+            }
+            float
+        });
         let effect = globals
             .bind::<ExtBackgroundEffectManagerV1, _, _>(&qh, 1..=1, ())
             .ok()
@@ -216,6 +232,7 @@ impl Extras {
             appmenu,
             gestures,
             _titlebar: titlebar,
+            _float: float,
             _parent: parent,
             backdrop: effect,
         };

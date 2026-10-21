@@ -146,8 +146,8 @@ fn keyed_nodes_and_app_sections_are_created_where_absent() {
         .unwrap();
     store
         .set(
-            "app[io.github.alexparlett.Isle.Example].show-hidden",
-            Value::Bool(true),
+            "app[io.github.alexparlett.Isle.Files].warn-empty-trash",
+            Value::Bool(false),
         )
         .unwrap();
     store
@@ -159,12 +159,12 @@ fn keyed_nodes_and_app_sections_are_created_where_absent() {
     assert_eq!(
         fs::read_to_string(dir.file()).unwrap(),
         "output \"AOC U34G2G4R3 0\" {\n    scale 1.25\n    vrr \"always\"\n}\n\
-         app \"io.github.alexparlett.Isle.Example\" {\n    show-hidden #true\n}\n\
+         app \"io.github.alexparlett.Isle.Files\" {\n    warn-empty-trash #false\n}\n\
          keyboard {\n    layouts \"gb\" \"fr\"\n}\n"
     );
     let again: Store<Settings> = Store::open(dir.file());
     assert_eq!(again.current(), store.current());
-    assert!(again.current().example_app.show_hidden);
+    assert!(!again.current().files.warn_empty_trash);
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn the_schema_lists_every_key_with_its_default() {
     assert_eq!(vrr.constraint, "off, fullscreen, always");
     assert!(
         keys.iter()
-            .any(|k| k.key == "app[io.github.alexparlett.Isle.Example].sidebar-width")
+            .any(|k| k.key == "app[io.github.alexparlett.Isle.Files].sidebar.trash")
     );
 }
 

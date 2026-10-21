@@ -173,6 +173,27 @@ impl App for FilesWindow {
             }
         });
 
+        // Files' settings as the compositor has them; a change to how names show or sort
+        // draws every tab again.
+        use_side_effect({
+            let shared = shared.clone();
+            move || {
+                let next = crate::prefs::Prefs::read(&desktop);
+                if shared.prefs() == next {
+                    return;
+                }
+                if shared.take_prefs(next) {
+                    for handle in tabs.peek().iter() {
+                        let mut tab = handle.tab;
+                        let mut t = tab.write();
+                        let order = t.shown.order();
+                        t.folder.set_order(order);
+                        t.rev += 1;
+                    }
+                }
+            }
+        });
+
         // The focused window's selection is the one the Inspector shows.
         use_side_effect({
             let shared = shared.clone();
@@ -642,6 +663,7 @@ impl App for FilesWindow {
                             start_rename(selection, renaming, rename_text, rename_error, rename_many);
                         }
                         "find" => find.request_focus(),
+                        "settings" => shared.open_settings(None, None),
                         "get-info" | "summary" => {
                             let t = tab.peek();
                             let items = if t.selection.is_empty() {
@@ -718,7 +740,7 @@ impl App for FilesWindow {
                                     alert.set(Some(Alert::delete(selection.clone())));
                                     None
                                 }
-                                "empty-trash" => {
+                                "empty-trash" if shared.prefs().warn_empty_trash => {
                                     ask_empty_trash(alert);
                                     None
                                 }
@@ -868,7 +890,7 @@ impl App for FilesWindow {
                 let commit = EventHandler::new(move |text: String| {
                     let Some(path) = renaming.peek().clone() else { return };
                     let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
-                    let check = check_rename(&handle.tab.peek(), &path, &text);
+                    let check = check_rename(&handle.tab.peek(), &path, &text, shared.prefs().warn_extension_change);
                     match check {
                         RenameCheck::Cancel => {}
                         RenameCheck::Refused(why) => {
@@ -946,7 +968,16 @@ impl App for FilesWindow {
                         job.stop.store(true, std::sync::atomic::Ordering::SeqCst);
                     }
                 }
-                Act::EmptyTrash => ask_empty_trash(alert),
+                Act::EmptyTrash if shared.prefs().warn_empty_trash => ask_empty_trash(alert),
+                Act::EmptyTrash => {
+                    let shared = shared.clone();
+                    spawn(async move {
+                        if let Some(items) = off_thread(trash_items).await {
+                            let mut alert = alert;
+                            start_job(&shared, key, Work::EmptyTrash { items }, &mut alert);
+                        }
+                    });
+                }
                 Act::Search(text) => {
                     let term = text.trim().to_owned();
                     if term.is_empty() {
@@ -955,7 +986,14 @@ impl App for FilesWindow {
                     let place = tab.peek().place.clone();
                     match place {
                         Place::Search(s) => tab::replace(tab, &live, Place::Search(Box::new(Search { term, name: None, ..*s }))),
-                        other => tab::go(tab, &live, Place::Search(Box::new(search_from(&other, term, Vec::new()))), None),
+                        other => {
+                            let mut search = search_from(&other, term, Vec::new());
+                            if search.folder.is_some() {
+                                search.scope = shared.prefs().scope(shared.last_scope.get());
+                            }
+                            shared.last_scope.set(Some(search.scope));
+                            tab::go(tab, &live, Place::Search(Box::new(search)), None)
+                        }
                     }
                 }
                 Act::EndSearch => {
@@ -967,7 +1005,7 @@ impl App for FilesWindow {
             }
         };
         let on_where = {
-            let live = live.clone();
+            let (live, shared) = (live.clone(), shared.clone());
             move |chosen: Where| {
                 let place = tab.peek().place.clone();
                 match (chosen, place) {
@@ -978,9 +1016,11 @@ impl App for FilesWindow {
                     }
                     (Where::ThisFolder, _) => {}
                     (Where::Search(scope), Place::Search(s)) => {
+                        shared.last_scope.set(Some(scope));
                         tab::replace(tab, &live, Place::Search(Box::new(Search { scope, name: None, ..*s })))
                     }
                     (Where::Search(scope), other) => {
+                        shared.last_scope.set(Some(scope));
                         let mut search = search_from(&other, query.peek().trim().to_owned(), Vec::new());
                         search.scope = scope;
                         tab::go(tab, &live, Place::Search(Box::new(search)), None);
@@ -1059,6 +1099,7 @@ impl App for FilesWindow {
                 Sidebar {
                     places: places.read().clone(),
                     saved: shared.saved.read().clone(),
+                    prefs: shared.prefs(),
                     shown: place.clone(),
                     volumes: shared.locations.volumes.read().clone(),
                     shares: shared.locations.shares.read().clone(),
@@ -1388,7 +1429,7 @@ enum RenameCheck {
 }
 
 /// What a typed name does (`files.md` § Acting on files, Rename).
-fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str) -> RenameCheck {
+fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_extension: bool) -> RenameCheck {
     let name = typed.trim();
     let old = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     if name.is_empty() || name == old {
@@ -1412,7 +1453,7 @@ fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str) -> RenameCheck {
     let is_dir = tab.folder.get(path).is_some_and(|e| e.is_dir());
     let (_, old_ext) = isle_fs::jobs::split_ext(&old);
     let (_, new_ext) = isle_fs::jobs::split_ext(name);
-    if !is_dir && !old_ext.is_empty() && new_ext != old_ext {
+    if warn_extension && !is_dir && !old_ext.is_empty() && new_ext != old_ext {
         let kept = format!("{}{old_ext}", isle_fs::jobs::split_ext(name).0);
         return RenameCheck::Ask(Alert {
             title: format!("Change the extension from “{old_ext}” to “{new_ext}”?"),
@@ -1508,6 +1549,12 @@ fn open_items(
     let dirs: Vec<_> = entries.iter().filter(|e| e.is_dir()).collect();
     match (dirs.as_slice(), in_tabs) {
         ([one], false) => tab::go(handle.tab, &handle.live, Place::Folder(one.path.clone()), None),
+        // ⌘-double-click opens a window instead while General's tabs setting is off.
+        (many, true) if !shared.prefs().open_folders_in_tabs => {
+            for dir in many {
+                shared.open_window(vec![(Place::Folder(dir.path.clone()), None)], 0, None);
+            }
+        }
         (many, _) => {
             for dir in many {
                 open_new_tab(shared, tabs, current, key, Place::Folder(dir.path.clone()));
@@ -1748,6 +1795,7 @@ impl Component for TabBar {
 #[derive(PartialEq)]
 struct Sidebar {
     places: Places,
+    prefs: crate::prefs::Prefs,
     saved: Vec<Search>,
     shown: Place,
     volumes: Vec<isle_disks::Volume>,
@@ -1905,10 +1953,16 @@ impl Component for Sidebar {
                             .width(Size::fill())
                             .padding((t.space_s, t.space_s))
                             .a11y_role(AccessibilityRole::List)
-                            .child(place_row(&recents))
+                            .maybe_child(self.prefs.shows_row("recents").then(|| place_row(&recents)))
                             .child(rect().height(Size::px(t.space_m)))
                             .child(header("Favourites"))
-                            .children(self.places.favourites.iter().map(place_row))
+                            .children(
+                                self.places
+                                    .favourites
+                                    .iter()
+                                    .filter(|r| self.prefs.shows_row(&r.label.to_lowercase()))
+                                    .map(place_row),
+                            )
                             .children(self.saved.iter().map(|s| {
                                 place_row(&Row {
                                     place: Place::Search(Box::new(s.clone())),
@@ -1918,10 +1972,10 @@ impl Component for Sidebar {
                             }))
                             .child(rect().height(Size::px(t.space_m)))
                             .child(header("Locations"))
-                            .children(computer.map(place_row))
-                            .children(volume_rows)
-                            .children(share_rows)
-                            .children(trash.map(place_row)),
+                            .children(computer.filter(|_| self.prefs.shows_row("computer")).map(place_row))
+                            .children(volume_rows.filter(|_| self.prefs.shows_row("volumes")))
+                            .children(share_rows.filter(|_| self.prefs.shows_row("volumes")))
+                            .children(trash.filter(|_| self.prefs.shows_row("trash")).map(place_row)),
                     ),
             )
     }

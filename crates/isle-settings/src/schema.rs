@@ -61,8 +61,8 @@ pub struct Settings {
     pub night_light: NightLight,
     #[setting(section)]
     pub debug: Debug,
-    #[setting(app = "io.github.alexparlett.Isle.Example")]
-    pub example_app: ExampleApp,
+    #[setting(app = "io.github.alexparlett.Isle.Files")]
+    pub files: Files,
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]
@@ -941,11 +941,81 @@ pub struct Debug {
     pub gtk_global_menu: bool,
 }
 
-/// An app's preferences, to show how one is kept (B27); the first real app replaces it.
+/// Files' preferences (`p1/structure/files.md` § Files' settings).
 #[derive(Clone, Debug, PartialEq, Section)]
-pub struct ExampleApp {
+pub struct Files {
+    /// Where a new window opens.
+    #[setting(default = FilesNewWindow::Home)]
+    pub new_window: FilesNewWindow,
+    /// ⌘-double-click on a folder opens it in a tab; off, in a window.
+    #[setting(default = true)]
+    pub open_folders_in_tabs: bool,
+    #[setting(section)]
+    pub sidebar: FilesSidebar,
+    #[setting(default = true)]
+    pub show_extensions: bool,
+    #[setting(default = true)]
+    pub warn_extension_change: bool,
+    #[setting(default = true)]
+    pub warn_empty_trash: bool,
+    /// Items in the Trash longer than thirty days are erased.
     #[setting(default = false)]
-    pub show_hidden: bool,
-    #[setting(default = 280, range = 120..=600)]
-    pub sidebar_width: i32,
+    pub purge_trash: bool,
+    /// Folders before files in every sort.
+    #[setting(default = true)]
+    pub folders_on_top: bool,
+    /// Where Return in the search field searches.
+    #[setting(default = FilesSearchScope::Under)]
+    pub search_scope: FilesSearchScope,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum FilesNewWindow {
+    Home,
+    Desktop,
+    Documents,
+    Downloads,
+    Recents,
+    Computer,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum FilesSearchScope {
+    /// The folder shown, filtered as typed.
+    ThisFolder,
+    /// Everything under the folder shown.
+    Under,
+    Home,
+    /// The scope the last search used.
+    Previous,
+}
+
+/// Files' sidebar rows shown.
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct FilesSidebar {
+    #[setting(default = true)]
+    pub recents: bool,
+    #[setting(default = true)]
+    pub home: bool,
+    #[setting(default = true)]
+    pub applications: bool,
+    #[setting(default = true)]
+    pub desktop: bool,
+    #[setting(default = true)]
+    pub documents: bool,
+    #[setting(default = true)]
+    pub downloads: bool,
+    #[setting(default = true)]
+    pub music: bool,
+    #[setting(default = true)]
+    pub pictures: bool,
+    #[setting(default = true)]
+    pub videos: bool,
+    #[setting(default = true)]
+    pub computer: bool,
+    /// External disks and network shares.
+    #[setting(default = true)]
+    pub volumes: bool,
+    #[setting(default = true)]
+    pub trash: bool,
 }

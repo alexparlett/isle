@@ -51,7 +51,7 @@ impl Shown {
         isle_fs::Order {
             by: self.sort,
             reverse: self.reverse,
-            folders_first: true,
+            folders_first: crate::prefs::folders_on_top(),
         }
     }
 

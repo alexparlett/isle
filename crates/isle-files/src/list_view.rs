@@ -295,7 +295,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                         .child(icon(entry, rows.dark, t.size_app_icon_small, ink_2))
                         .child(match rows.interact.renaming(&entry.path) {
                             Some(rename) => crate::interact::rename_field(&theme, rename, Size::flex(1.)),
-                            None => text::line(&theme, text::Style::Body, colour(ink), entry.name.clone()).into_element(),
+                            None => text::line(&theme, text::Style::Body, colour(ink), crate::prefs::display_name(entry).to_owned()).into_element(),
                         }),
                 )
                 .child(

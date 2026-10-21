@@ -873,7 +873,14 @@ impl State {
                     self.activate_menu_item(id, &path);
                 }
             }
-            Item::Setting { pane, row } => self.open_settings_at(&pane, &row),
+            Item::Setting { app: None, pane, row } => self.open_settings_at(&pane, &row),
+            Item::Setting { app: Some(app), pane, row } => {
+                self.launch(crate::launch::Launch::App {
+                    app,
+                    action: None,
+                    uris: vec![crate::settings_link::uri(&pane, Some(&row))],
+                });
+            }
             Item::File(path) => match how {
                 How::Reveal => self.show_in_files(&path),
                 _ => {
@@ -1013,7 +1020,13 @@ impl State {
         };
 
         let menus_source = self.spotlight_menu_items();
-        let settings_rows = settings::parse(SETTINGS_INDEX);
+        let mut settings_rows = settings::parse(SETTINGS_INDEX);
+        // An app's own rows show while the app is installed.
+        settings_rows.extend(
+            settings::parse(FILES_INDEX)
+                .into_iter()
+                .filter(|r| r.app.as_ref().is_some_and(|(id, _)| self.isle.apps.get(id).is_some())),
+        );
         let clipboard = isle_search::sources::clipboard::ClipboardSource {
             clips: self.isle.clipboard.clips(|app| self.isle.app_name(app)),
         };
@@ -1273,6 +1286,7 @@ impl State {
 
 /// Settings' rows, generated from its panes and tested against them there.
 const SETTINGS_INDEX: &str = include_str!("../../../data/settings/index.kdl");
+const FILES_INDEX: &str = include_str!("../../../data/files/settings-index.kdl");
 
 /// `text` as one word for `sh`.
 fn shell_quote(text: &str) -> String {

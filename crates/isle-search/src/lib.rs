@@ -109,6 +109,8 @@ pub enum Item {
     /// A menu item of the app in front, by its labels from the title down.
     MenuItem(Vec<String>),
     Setting {
+        /// The app whose own settings hold it; none for System Settings.
+        app: Option<String>,
         pane: String,
         row: String,
     },

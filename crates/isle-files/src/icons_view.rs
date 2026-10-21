@@ -221,7 +221,7 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
                         .color(colour(ink))
                         .max_lines(2)
                         .text_overflow(TextOverflow::Ellipsis)
-                        .text(entry.name.clone()),
+                        .text(crate::prefs::display_name(entry).to_owned()),
                 )
                 .into_element(),
         })

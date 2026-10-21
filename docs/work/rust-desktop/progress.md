@@ -2,6 +2,25 @@
 
 ## 2026-10-21
 
+- P15 15.11: Get Info and Files' settings. ⌘I opens a Get Info window per
+  item, ⌃⌘I one summary, ⌥⌘I the Inspector following the focused window's
+  selection; FileManager1's ShowItemProperties opens Get Info. Sections
+  collapse and stay collapsed: General (size on disk, a folder counted),
+  a volume's format and space, an image's dimensions, Name & Extension
+  through the rename job, Comments in `user.xdg.comment`, Open with with
+  Change All…, a preview, Sharing & Permissions with Allow running as a
+  program, editable on the user's own items. Files' preferences replace
+  the schema's example app section as `app[io.github.alexparlett.Isle.Files]`:
+  the new-window folder, folders in tabs or windows on ⌘-double-click,
+  each sidebar row, filename extensions shown, the extension and Empty
+  Trash warnings, the thirty-day Trash purge, folders on top, and the
+  search scope. ⌘, opens the settings window (General, Sidebar, Advanced)
+  with the configuration-error notice and refusals on their rows. The
+  rows are Files' own record; `isle-files --write-index` writes
+  `data/files/settings-index.kdl`, which Spotlight shows as "Files Settings
+  › …" while Files is installed, launching Files with
+  `isle-settings://<pane>/<row>`. Not built: the window titled after its
+  pane, raising the open settings window without a token.
 - P15 15.10: search. ⌘F focuses the toolbar's search field; typing filters
   the place shown at once through `isle-fs`'s `Folder`, which now sets
   aside what a name filter leaves out as it does hidden items. Return

@@ -197,7 +197,7 @@ fn column(
                         .child(list_view::icon(entry, dark, t.size_app_icon_small, t.colour_text_2))
                         .child(rect().width(Size::flex(1.)).child(match interact.renaming(&entry.path) {
                             Some(rename) => crate::interact::rename_field(theme, rename, Size::fill()),
-                            None => text::line(theme, text::Style::Body, colour(ink), entry.name.clone()).into_element(),
+                            None => text::line(theme, text::Style::Body, colour(ink), crate::prefs::display_name(entry).to_owned()).into_element(),
                         }))
                         .maybe_child(entry.is_dir().then(|| {
                             Glyph::new(

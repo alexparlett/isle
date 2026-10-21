@@ -17,8 +17,10 @@ mod transfer;
 mod memory;
 mod open;
 mod places;
+mod prefs;
 mod scope_bar;
 mod search;
+mod settings_window;
 mod tab;
 mod thumbnail;
 mod thumbs;
@@ -83,6 +85,15 @@ pub struct Shared {
     info_collapsed: State<Vec<String>>,
     /// The Inspector's window while it is open.
     inspector: Cell<Option<WindowKey>>,
+    /// Files' settings as the windows last read them.
+    prefs: RefCell<prefs::Prefs>,
+    /// The settings window while it is open, and the pane it shows.
+    settings: Cell<Option<WindowKey>>,
+    settings_at: State<settings_window::At>,
+    /// The scope the last search used, for Use the previous scope.
+    pub last_scope: Cell<Option<search::Scope>>,
+    /// The Trash has been cleared of old items this launch.
+    purged: Cell<bool>,
 }
 
 impl Shared {
@@ -96,9 +107,62 @@ impl Shared {
         n
     }
 
-    /// Where a new window or tab opens (`files.md` § Tabs and windows): Home.
+    /// Where a new window or tab opens (`files.md` § Tabs and windows), as General sets it.
     pub fn new_window_place(&self) -> Place {
-        Place::Folder(places::home().unwrap_or_else(|| PathBuf::from("/")))
+        let home = places::home().unwrap_or_else(|| PathBuf::from("/"));
+        let dir = |key: &str, name: &str| {
+            let config = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".config"));
+            std::fs::read_to_string(config.join("user-dirs.dirs"))
+                .ok()
+                .and_then(|t| places::user_dirs(&t, &home).into_iter().find(|(k, _)| k == key).map(|(_, p)| p))
+                .unwrap_or_else(|| home.join(name))
+        };
+        let place = match self.prefs.borrow().new_window.as_str() {
+            "desktop" => Place::Folder(dir("XDG_DESKTOP_DIR", "Desktop")),
+            "documents" => Place::Folder(dir("XDG_DOCUMENTS_DIR", "Documents")),
+            "downloads" => Place::Folder(dir("XDG_DOWNLOAD_DIR", "Downloads")),
+            "recents" => Place::Recents,
+            "computer" => Place::Computer,
+            _ => Place::Folder(home.clone()),
+        };
+        match place {
+            Place::Folder(p) if !p.is_dir() => Place::Folder(home),
+            other => other,
+        }
+    }
+
+    pub fn prefs(&self) -> prefs::Prefs {
+        self.prefs.borrow().clone()
+    }
+
+    /// Takes the settings as a window read them; whether the views must draw again.
+    pub fn take_prefs(&self, next: prefs::Prefs) -> bool {
+        let redraw = next.apply();
+        if next.purge_trash && !self.purged.replace(true) {
+            std::thread::spawn(purge_trash);
+        }
+        *self.prefs.borrow_mut() = next;
+        redraw
+    }
+
+    /// Opens Files' settings window, or shows `at` in the one open.
+    pub fn open_settings(&self, at: Option<settings_window::At>, token: Option<String>) {
+        let app = self.app();
+        let mut shown = self.settings_at;
+        if let Some(at) = at {
+            shown.set(at);
+        }
+        match self.settings.get().filter(|k| app.windows().contains(k)) {
+            Some(key) => {
+                if let Some(token) = token {
+                    app.activate(key, &token);
+                }
+            }
+            None => {
+                let spec = WindowSpec::new("Files Settings", (560., 520.), (480., 360.)).token(token);
+                self.settings.set(Some(app.open(spec, settings_window::SettingsWindow { at: shown })));
+            }
+        }
     }
 
     pub fn register(&self, key: WindowKey, link: WindowLink) {
@@ -318,7 +382,11 @@ impl Delegate for Files {
                 None => self.shared.open_window(vec![(self.shared.new_window_place(), None)], 0, token),
             },
             Request::Open { uris, .. } => {
-                let (asks, uris): (Vec<_>, Vec<_>) = uris.iter().partition(|u| u.starts_with("isle-open-with:"));
+                let (links, uris): (Vec<_>, Vec<_>) = uris.iter().partition(|u| u.starts_with("isle-settings://"));
+                for at in links.iter().filter_map(|u| settings_window::At::from_uri(u)) {
+                    self.shared.open_settings(Some(at), token.clone());
+                }
+                let (asks, uris): (Vec<_>, Vec<_>) = uris.into_iter().partition(|u| u.starts_with("isle-open-with:"));
                 for path in asks.iter().filter_map(|u| path_of(u.trim_start_matches("isle-open-with:"))) {
                     self.shared.ask(path, token.clone());
                 }
@@ -372,7 +440,27 @@ fn in_isle() -> bool {
         .is_ok_and(|d| d.split(':').any(|d| d.eq_ignore_ascii_case("Isle")))
 }
 
+/// Erases what has been in any Trash for more than thirty days (Advanced's setting).
+fn purge_trash() {
+    let cutoff = jiff::Zoned::now().datetime() - jiff::Span::new().days(30);
+    for trash in isle_fs::trash::all_trashes() {
+        for item in isle_fs::trash::list(&trash) {
+            let old = item.deleted.parse::<jiff::civil::DateTime>().is_ok_and(|d| d < cutoff);
+            if old && let Err(err) = isle_fs::trash::erase(&item) {
+                tracing::warn!("{} is not erased: {err}", item.file.display());
+            }
+        }
+    }
+}
+
 fn main() {
+    // A maintainer's command, writing into the checkout it was built from.
+    #[cfg(debug_assertions)]
+    if std::env::args().nth(1).as_deref() == Some("--write-index") {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/files/settings-index.kdl");
+        std::fs::write(path, prefs::index()).expect("data/files/settings-index.kdl");
+        return;
+    }
     isle_app::init_logging(module_path!());
     if !in_isle() {
         info!("not an Isle session; Files is Isle's");
@@ -387,6 +475,11 @@ fn main() {
         selection: State::create_global(Vec::new()),
         info_collapsed: State::create_global(memory.info_collapsed.clone()),
         inspector: Cell::new(None),
+        prefs: RefCell::new(prefs::Prefs::default()),
+        settings: Cell::new(None),
+        settings_at: State::create_global(settings_window::At { pane: "general".into(), row: None }),
+        last_scope: Cell::new(None),
+        purged: Cell::new(false),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         hidden: State::create_global(false),

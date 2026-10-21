@@ -429,3 +429,35 @@ async fn get_info_opens_a_window_per_item_and_from_file_manager1() {
         .unwrap();
     wait_until(|| async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() == 3 }).await;
 }
+
+const KEY_COMMA: u32 = 51;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn files_settings_open_on_cmd_comma_and_apply_to_the_views() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-settings").await;
+    let (app, _home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+
+    // Hidden extensions and no Trash row, set as Settings sets them.
+    let settings = isle_ipc::settings::SettingsProxy::new(&isle.bus).await.unwrap();
+    for key in ["show-extensions", "sidebar.trash"] {
+        settings
+            .set(&format!("app[{APP}].{key}"), &zbus::zvariant::Value::from(false))
+            .await
+            .unwrap();
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.keep_shot("files-settings-applied").await;
+
+    isle.chord(&[SUPER, KEY_COMMA]).await;
+    app.wait_for_part("id=\"settings\"").await;
+    wait_until(|| async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() == 2 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("files-settings-window").await;
+}

@@ -75,6 +75,8 @@ pub(crate) struct Open {
     pub extras: Rc<RefCell<Option<Extras>>>,
     /// Runs a chosen menu item in the window.
     pub choose: Option<Rc<dyn Fn(i32)>>,
+    /// Closed before it was created: it closes as it opens.
+    pub closing: bool,
 }
 
 pub(crate) struct Inner {
@@ -170,6 +172,7 @@ impl AppHandle {
                 drags: None,
                 extras: extras.clone(),
                 choose: None,
+                closing: false,
             },
         );
         let config = Frame::config(self.clone(), key, spec, extras, app);
@@ -195,7 +198,12 @@ impl AppHandle {
     }
 
     pub fn close(&self, key: WindowKey) {
-        let Some(id) = self.window_id(key) else { return };
+        let Some(id) = self.window_id(key) else {
+            if let Some(open) = self.0.windows.borrow_mut().get_mut(&key) {
+                open.closing = true;
+            }
+            return;
+        };
         if let Some(proxy) = self.0.proxy.borrow().as_ref() {
             let _ = proxy.post_callback(move |ctx| {
                 ctx.windows.remove(&id);
@@ -274,10 +282,17 @@ impl AppHandle {
         choose: Rc<dyn Fn(i32)>,
         drags: UnboundedSender<crate::data::DragEvent>,
     ) {
-        if let Some(open) = self.0.windows.borrow_mut().get_mut(&key) {
-            open.id = Some(id);
-            open.choose = Some(choose);
-            open.drags = Some(drags);
+        let closing = match self.0.windows.borrow_mut().get_mut(&key) {
+            Some(open) => {
+                open.id = Some(id);
+                open.choose = Some(choose);
+                open.drags = Some(drags);
+                open.closing
+            }
+            None => false,
+        };
+        if closing {
+            self.close(key);
         }
     }
 

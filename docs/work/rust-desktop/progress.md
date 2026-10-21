@@ -2,6 +2,19 @@
 
 ## 2026-10-21
 
+- P15 15.17: measures and the VM, in
+  `docs/research/rust-desktop/p15-files.md`. Headless (`files_bars`): bar
+  3 (gone within 5 s of its last window), 4 (answers with no UDisks2), 7
+  (a kill answers a held panel with cancel) and 9 (50,000 entries: first
+  batch at 0 ms, the listing done at 1.5 s, debug) pass; idle memory 87 MB
+  PSS in a debug build, over bar 2's 80 MB, for the host's release build
+  to settle. In the guest: a FileChooser request through the real
+  frontend started Files by activation with the panel alone; cancel and a
+  chosen folder answered; Firefox's ⌘O raised the panel as a sheet on its
+  window; Show in folder, a loop image mounted and ejected from Locations,
+  the drive notice as Files, Quick Look over Files. Found and fixed: a
+  window closed before it was created stayed open (a quick Close left an
+  orphaned panel). Files logs its first batch and the end of each listing.
 - P15 15.15: the shell's ties. The compositor's calls to Files go through
   one place (`files_link.rs`) that encodes the URI and mints an activation
   token: Spotlight's ⌘Return and the tile menu's new Show in Files reveal

@@ -362,6 +362,7 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
     let live = live.clone();
     spawn(async move {
         let mut seen: HashSet<PathBuf> = HashSet::new();
+        let (started, mut first) = (std::time::Instant::now(), true);
         while let Some(message) = rx.next().await {
             if current.load(Ordering::SeqCst) != generation {
                 return;
@@ -376,9 +377,13 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
                     if again {
                         seen.extend(batch.iter().map(|e| e.path.clone()));
                     }
+                    let count = batch.len();
                     t.folder.merge(batch);
                     t.take_reveal();
                     t.rev += 1;
+                    if std::mem::take(&mut first) && !again {
+                        tracing::info!(entries = count, ms = started.elapsed().as_millis() as u64, "first batch");
+                    }
                 }
                 Message::Listed(Listed::Done) => {
                     if again {
@@ -389,6 +394,8 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
                     t.rev += 1;
                     if matches!(t.place, Place::Search(_)) {
                         tracing::info!(found = t.folder.len(), "searched");
+                    } else if !again {
+                        tracing::info!(entries = t.folder.len(), ms = started.elapsed().as_millis() as u64, "listed");
                     }
                     drop(t);
                     if let Some(dir) = &dir {

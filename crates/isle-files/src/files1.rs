@@ -54,7 +54,7 @@ impl Files1 {
         let id = NEXT.fetch_add(1, Ordering::Relaxed);
         let ask = chooser::ask_of(id, kind, &app_id, &parent, &title, &options);
         let json = serde_json::to_string(&ask).map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
-        info!(id, app = app_id, "choose");
+        info!(id, app = app_id, folder = ?ask.current_folder, kind = ?ask.kind, "choose");
         self.requests.send(Request::Action { name: CHOOSE.into(), params: vec![json], token: None });
         Ok(id)
     }

@@ -3,7 +3,7 @@
 use freya::prelude::*;
 use isle_app::Desktop;
 use isle_settings::Value;
-use isle_ui::{Glyph, Slider, Switch, button, colour, form, text, use_theme};
+use isle_ui::{Glyph, Slider, Switch, colour, form, text, use_theme};
 
 use crate::nav::Location;
 
@@ -1002,82 +1002,7 @@ pub fn sub_header(glyph: &str, name: &str, subtitle: &str) -> Element {
         .into_element()
 }
 
-/// An alert's words: its question and what follows.
-pub fn alert_text(title: &str, message: &str) -> Element {
-    let theme = isle_ui::theme();
-    let t = &theme.tokens;
-    rect()
-        .width(Size::fill())
-        .spacing(t.space_s)
-        .child(text::line(
-            &theme,
-            text::Style::Headline,
-            colour(t.colour_text),
-            title,
-        ))
-        .child(
-            label()
-                .font_size(text::metrics(&theme, text::Style::Body).0)
-                .color(colour(t.colour_text_2))
-                .text(message.to_owned()),
-        )
-        .into_element()
-}
-
-/// A sheet over the window: the body, then its buttons trailing, the last the default.
-pub fn sheet(width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<()>)>) -> Element {
-    let theme = isle_ui::theme();
-    let t = &theme.tokens;
-    let count = buttons.len();
-    rect()
-        .position(Position::new_global())
-        .layer(Layer::Overlay)
-        .width(Size::window_percent(100.))
-        .height(Size::window_percent(100.))
-        .background(colour(t.colour_scrim))
-        .cross_align(Alignment::Center)
-        .padding((t.size_toolbar, 0., 0., 0.))
-        .a11y_role(AccessibilityRole::Dialog)
-        .on_press(|e: Event<PressEventData>| e.stop_propagation())
-        .child(
-            rect()
-                .width(Size::px(width))
-                .padding(t.space_xl)
-                .spacing(t.space_l)
-                .corner_radius(t.radius_window)
-                .background(colour(t.colour_window))
-                .maybe(true, |el| {
-                    isle_ui::shadows(&t.shadow_window)
-                        .into_iter()
-                        .fold(el, |el, s| el.shadow(s))
-                })
-                .children(body)
-                .child(
-                    rect()
-                        .width(Size::fill())
-                        .horizontal()
-                        .main_align(Alignment::End)
-                        .spacing(t.space_s)
-                        .children(
-                            buttons
-                                .into_iter()
-                                .enumerate()
-                                .map(|(i, (label, on_press))| {
-                                    let kind = if i + 1 == count {
-                                        button::Kind::Default
-                                    } else {
-                                        button::Kind::Regular
-                                    };
-                                    isle_ui::Button::new(label)
-                                        .kind(kind)
-                                        .on_press(on_press)
-                                        .into_element()
-                                }),
-                        ),
-                ),
-        )
-        .into_element()
-}
+pub use isle_ui::{alert_text, sheet};
 
 #[cfg(test)]
 mod tests {

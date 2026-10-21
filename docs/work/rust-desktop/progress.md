@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-10-21
+
+- P15 15.1: `isle-app` runs above its windows. One inbox on the event loop
+  takes launches, menu choices, the compositor's state and settings
+  writes; a delegate opens windows for requests (`run_with`), and `run`
+  keeps its shape for an app of one window, so Settings is unchanged. Each
+  window has its own menu bar at `/MenuBar/<n>`, Wayland extras (the lights
+  optional), command table and commands; the desktop's state and theme are
+  shared. Holds keep the app running with no window open; the last window
+  or hold gone ends it. LauncherEntry progress for the switcher card; the
+  Go menu. Sheets and alerts move from Settings into `isle-ui`, which
+  gains the popover. Correction to the plan: the virtual list, grid and
+  table are built with Files' views in 15.3 and 15.4, on Freya's
+  `VirtualScrollView` as Spotlight's are, rather than moved first.
+
 ## 2026-10-20
 
 - P15 planned and reviewed (`p15-files.md`): every recommendation taken.

@@ -100,10 +100,10 @@ pub struct Extras {
 
 impl Extras {
     /// Binds what the compositor offers against `window`'s surface, asking for the lights
-    /// at `inset` and the blur behind `backdrop`; `None` off Wayland.
+    /// at their inset when given and the blur behind `backdrop`; `None` off Wayland.
     pub fn connect(
         window: &freya::winit::window::Window,
-        inset: (f64, f64),
+        lights: Option<(f64, f64)>,
         backdrop: Option<(f64, f64, f64, f64)>,
     ) -> Option<Self> {
         let display = match window.display_handle().ok()?.as_raw() {
@@ -137,10 +137,9 @@ impl Extras {
             .ok()
             .zip(globals.bind::<WlSeat, _, _>(&qh, 1..=9, ()).ok())
             .map(|(shell, seat)| (shell.get_gtk_surface(&surface, &qh, ()), seat));
-        let titlebar = globals
-            .bind::<IsleTitlebarManagerV1, _, _>(&qh, 1..=1, ())
-            .ok()
-            .map(|manager| {
+        let titlebar = lights
+            .and_then(|inset| Some((inset, globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 1..=1, ()).ok()?)))
+            .map(|(inset, manager)| {
                 let titlebar = manager.get_titlebar(&surface, &qh, ());
                 titlebar.set_overlay(inset.0.round() as i32, inset.1.round() as i32);
                 titlebar

@@ -12,6 +12,7 @@ pub enum Menu {
     File,
     Edit,
     View,
+    Go,
     Window,
     Help,
 }
@@ -23,6 +24,7 @@ impl Menu {
             Menu::File => "File".into(),
             Menu::Edit => "Edit".into(),
             Menu::View => "View".into(),
+            Menu::Go => "Go".into(),
             Menu::Window => "Window".into(),
             Menu::Help => "Help".into(),
         }

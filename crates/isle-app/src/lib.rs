@@ -4,9 +4,11 @@
 mod clipboard;
 pub mod commands;
 mod desktop;
+mod hub;
 mod instance;
 mod toolbar;
 mod wayland;
+mod window;
 mod worker;
 
 use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
@@ -17,13 +19,15 @@ use futures_util::StreamExt;
 use isle_ipc::{SettingsStatus, ThemeInfo};
 use isle_settings::Value;
 use isle_tokens::{Appearance, Mode, Source, Theme};
-use isle_ui::{GlassShapes, ThemeContext};
+use isle_ui::ThemeContext;
 use tracing::{info, warn};
 
 pub use commands::{Chord, Command, Menu};
 pub use desktop::{Write, from_owned};
 pub use instance::Request;
 pub use toolbar::ToolbarExt;
+pub use hub::{AppHandle, Hold, WindowKey, app};
+pub use window::{WindowSpec, this_window};
 pub use worker::Worker;
 
 /// An app's identity and window.
@@ -152,7 +156,7 @@ impl Desktop {
 
 /// The compositor blurs behind the window's backdrop.
 #[derive(Clone, Copy)]
-struct Blurs(bool);
+pub(crate) struct Blurs(pub bool);
 
 /// Whether the backdrop is blurred, so it is drawn in the glass material rather than solid.
 pub fn blurs() -> bool {
@@ -161,7 +165,7 @@ pub fn blurs() -> bool {
 
 /// The session bus the app holds its name on, when it could.
 #[derive(Clone)]
-struct SessionBus(Option<zbus::Connection>);
+pub(crate) struct SessionBus(pub Option<zbus::Connection>);
 
 /// The session bus, for the app's own calls to the desktop.
 pub fn session_bus() -> Option<zbus::Connection> {
@@ -174,8 +178,8 @@ pub(crate) struct Chrome(pub Rc<RefCell<Option<wayland::Extras>>>);
 
 /// The app's commands beside the standard ones; the menus follow each change.
 #[derive(Clone, Copy)]
-struct Table {
-    app: State<Vec<Command>>,
+pub(crate) struct Table {
+    pub app: State<Vec<Command>>,
 }
 
 /// Declares the app's own commands; call it in the app's root on every render.
@@ -186,24 +190,29 @@ pub fn use_commands(commands: Vec<Command>) {
     }
 }
 
-/// The contexts `run` gives an app's tree, for testing its components headless: the worker,
-/// the desktop's state as given, the shipped theme and the command table.
+fn shipped_theme() -> Rc<Theme> {
+    Rc::new(
+        Source::shipped()
+            .theme(&Appearance::default())
+            .expect("the shipped tokens resolve"),
+    )
+}
+
+/// The contexts `run` gives a window's tree, for testing its components headless: the worker,
+/// the desktop's state as given, the shipped theme, the command table, and an app with no
+/// event loop whose one window is this tree.
 #[cfg(feature = "testing")]
 pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
-    use_provide_context(Worker::start);
+    let worker = use_provide_context(Worker::start);
     use_provide_context(|| SessionBus(None));
     use_provide_context(|| Chrome(Rc::default()));
     use_provide_context(|| TargetPlatform::MacOs);
-    use_provide_context(GlassShapes::default);
-    use_provide_context(|| {
-        ThemeContext(State::create(Rc::new(
-            Source::shipped().theme(&Appearance::default()).expect("the shipped tokens resolve"),
-        )))
-    });
+    use_provide_context(isle_ui::GlassShapes::default);
+    let theme = use_provide_context(|| ThemeContext(State::create(shipped_theme())));
     use_provide_context(|| Table {
         app: State::create(Vec::new()),
     });
-    use_provide_context(|| Desktop {
+    let desktop = use_provide_context(|| Desktop {
         values: State::create(Rc::new(desktop_values)),
         status: State::create(None),
         tokens_status: State::create(None),
@@ -213,7 +222,22 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
         writes: State::create(Vec::new()),
         refused: State::create(None),
         flight: State::create(Flight::default()),
-    })
+    });
+    use_provide_context(|| {
+        let spec = Spec {
+            id: "io.github.alexparlett.Isle.Test",
+            title: "Test",
+            size: (800.0, 600.0),
+            min_size: (400.0, 300.0),
+            max_size: None,
+            traffic_light_inset: (0.0, 0.0),
+            preferences: false,
+            backdrop: None,
+        };
+        AppHandle::new(spec, worker.clone(), None, desktop, theme).0
+    });
+    use_provide_context(|| WindowKey(1));
+    desktop
 }
 
 /// The app's commands as last declared, for tests.
@@ -222,19 +246,9 @@ pub fn declared_commands() -> Vec<Command> {
     use_consume::<Table>().app.read().clone()
 }
 
-/// The path the app's menu bar is served at.
-const MENU_PATH: &str = "/MenuBar/1";
-
 /// The worker, for any component to send work to.
 pub fn worker() -> Worker {
     use_consume::<Worker>()
-}
-
-enum Inbound {
-    Update(desktop::Update),
-    Request(Request),
-    /// A menu item chosen, by its id.
-    Menu(i32),
 }
 
 /// Logs to standard error, plain unless it is a terminal: warnings, and `crate`'s and
@@ -250,16 +264,35 @@ pub fn init_logging(krate: &str) {
         .init();
 }
 
-/// Starts the app, or hands its request to the instance already running and returns.
-pub fn run<A: App + 'static>(spec: Spec, app: A) {
+/// What an app does above its windows.
+pub trait Delegate: 'static {
+    /// A launch, an activation or an action from another process: open or raise windows.
+    fn request(&self, app: &AppHandle, request: Request);
+
+    /// Cmd+Q. True quits now; an app with work in flight asks first and ends itself later
+    /// (`apps.md` Conventions 5).
+    fn quit(&self, app: &AppHandle) -> bool {
+        let _ = app;
+        true
+    }
+}
+
+/// Starts an app with one window, its main, drawing `app`; or hands its request to the
+/// instance already running and returns.
+pub fn run<A: App + Clone + 'static>(spec: Spec, app: A) {
+    run_with(spec.clone(), Single { spec, app })
+}
+
+/// Starts an app whose windows its delegate opens; or hands its request to the instance
+/// already running and returns.
+pub fn run_with(spec: Spec, delegate: impl Delegate) {
     let token = std::env::var("XDG_ACTIVATION_TOKEN").ok();
     // The token is this launch's alone; children never inherit it.
     unsafe { std::env::remove_var("XDG_ACTIVATION_TOKEN") };
-    let first = Request::from_args(std::env::args().skip(1).collect(), token.clone());
+    let first = Request::from_args(std::env::args().skip(1).collect(), token);
 
     let worker = Worker::start();
     let (requests_tx, requests_rx) = unbounded();
-    let (updates_tx, updates_rx) = unbounded();
     let bus = match worker.block_on(instance::claim(spec.id, first.clone(), requests_tx.clone())) {
         Ok(instance::Claim::Handed) => return,
         Ok(instance::Claim::Ours(bus)) => Some(bus),
@@ -269,83 +302,86 @@ pub fn run<A: App + 'static>(spec: Spec, app: A) {
             None
         }
     };
-    let (menu_tx, menu_rx) = unbounded();
-    let menubar = bus.clone().map(|bus| {
-        let menubar = isle_menus::export::MenuBar::new(
-            Vec::new(),
-            std::sync::Arc::new(move |id| {
-                let _ = menu_tx.unbounded_send(id);
-            }),
-        );
-        if let Err(err) = worker.block_on(bus.object_server().at(MENU_PATH, menubar.clone())) {
-            warn!("the menus could not be served: {err}");
-        }
-        (bus, menubar)
-    });
+    let desktop = Desktop {
+        values: State::create_global(Rc::default()),
+        status: State::create_global(None),
+        tokens_status: State::create_global(None),
+        tokens_text: State::create_global(String::new()),
+        requests: State::create_global(Vec::new()),
+        commands: State::create_global(Vec::new()),
+        writes: State::create_global(Vec::new()),
+        refused: State::create_global(None),
+        flight: State::create_global(Flight::default()),
+    };
+    let theme = ThemeContext(State::create_global(shipped_theme()));
+    let (app, inbox) = AppHandle::new(spec.clone(), worker.clone(), bus.clone(), desktop, theme);
+    let (updates_tx, updates_rx) = unbounded();
     if let Some(bus) = bus {
         worker.spawn(desktop::watch(bus, updates_tx));
     }
-    let inbound = futures_util::stream::select(
-        futures_util::stream::select(requests_rx.map(Inbound::Request), menu_rx.map(Inbound::Menu)),
-        updates_rx.map(Inbound::Update),
-    );
-
-    let extras: Rc<RefCell<Option<wayland::Extras>>> = Rc::default();
-    let gpu = cfg!(feature = "gpu") && std::env::var_os("FREYA_RENDERER").is_some();
-    let renderer = if gpu { RendererPreference::Auto } else { RendererPreference::Software };
-    let root = Root {
-        spec: spec.clone(),
-        menubar,
-        app: Rc::new(app),
-        worker: worker.clone(),
-        extras: extras.clone(),
-        inbound: Rc::new(RefCell::new(Some(Box::pin(inbound)))),
-    };
-    let mut window = WindowConfig::new_app(root);
-    if let Some((w, h)) = spec.max_size {
-        window = window.with_max_size(w, h);
-    }
-    if spec.backdrop.is_some() {
-        window = window.with_background(Color::TRANSPARENT);
-    }
-    let window = window
-        .with_app_id(spec.id)
-        .with_title(spec.title)
-        .with_size(spec.size.0, spec.size.1)
-        .with_min_size(spec.min_size.0, spec.min_size.1)
-        .with_renderer(renderer)
-        .with_transparency(spec.backdrop.is_some())
-        .with_window_attributes(move |attributes, _| match token {
-            Some(token) => {
-                use freya::winit::{
-                    platform::startup_notify::WindowAttributesExtStartupNotify,
-                    window::ActivationToken,
-                };
-                attributes.with_activation_token(ActivationToken::from_raw(token))
+    let forward = app.0.inbox.clone();
+    worker.spawn(async move {
+        let mut from = futures_util::stream::select(
+            requests_rx.map(hub::Inbound::Request),
+            updates_rx.map(hub::Inbound::Update),
+        );
+        while let Some(message) = from.next().await {
+            if forward.unbounded_send(message).is_err() {
+                return;
             }
-            None => attributes,
-        })
-        .with_window_handle(move |window| {
-            *extras.borrow_mut() =
-                wayland::Extras::connect(window, spec.traffic_light_inset, spec.backdrop);
-        });
+        }
+    });
+    let delegate: Rc<dyn Delegate> = Rc::new(delegate);
     info!(id = spec.id, "starting");
-    launch(LaunchConfig::new().with_window(window));
+    launch(
+        LaunchConfig::new()
+            .with_exit_on_close(false)
+            .with_future(move |proxy| app.serve(proxy, delegate, inbox)),
+    );
 }
 
-type Inbox = std::pin::Pin<Box<dyn futures_util::Stream<Item = Inbound>>>;
-
-struct Root<A> {
+/// An app of one window: a request raises it, or opens it again once closed, and is left in
+/// `Desktop::requests` for the window to take.
+struct Single<A> {
     spec: Spec,
-    menubar: Option<(zbus::Connection, isle_menus::export::MenuBar)>,
-    app: Rc<A>,
-    worker: Worker,
-    extras: Rc<RefCell<Option<wayland::Extras>>>,
-    inbound: Rc<RefCell<Option<Inbox>>>,
+    app: A,
+}
+
+impl<A: App + Clone + 'static> Delegate for Single<A> {
+    fn request(&self, app: &AppHandle, request: Request) {
+        let token = request.token().map(str::to_owned);
+        let mut requests = app.desktop().requests;
+        requests.write().push(request);
+        match app.windows().first() {
+            Some(&window) => {
+                if let Some(token) = token {
+                    app.activate(window, &token);
+                }
+            }
+            None => {
+                app.open(WindowSpec::main(&self.spec).token(token), self.app.clone());
+            }
+        }
+    }
+}
+
+impl WindowSpec {
+    /// The window an app of one window opens.
+    pub fn main(spec: &Spec) -> Self {
+        Self {
+            title: spec.title.to_owned(),
+            size: spec.size,
+            min_size: spec.min_size,
+            max_size: spec.max_size,
+            lights: Some(spec.traffic_light_inset),
+            backdrop: spec.backdrop,
+            token: None,
+        }
+    }
 }
 
 /// The theme for what the compositor said, or the shipped one when its file will not read.
-fn resolve(info: &ThemeInfo) -> Rc<Theme> {
+pub(crate) fn resolve(info: &ThemeInfo) -> Rc<Theme> {
     thread_local! {
         /// The tokens last read, by their text: a glass or accent change keeps the text.
         static READ: RefCell<Option<(String, Source)>> = const { RefCell::new(None) };
@@ -385,251 +421,4 @@ fn resolve(info: &ThemeInfo) -> Rc<Theme> {
             .theme(&appearance)
             .expect("the shipped tokens resolve")
     }))
-}
-
-impl<A: App + 'static> App for Root<A> {
-    fn render(&self) -> impl IntoElement {
-        // Freya's editing and scrolling follow the Mac's conventions, Cmd its primary.
-        use_provide_context(|| TargetPlatform::MacOs);
-        use_provide_context(|| self.worker.clone());
-        use_provide_context(|| SessionBus(self.menubar.as_ref().map(|(bus, _)| bus.clone())));
-        use_provide_context(|| Chrome(self.extras.clone()));
-        use_provide_context(|| {
-            let asked = self.spec.backdrop.is_some();
-            Blurs(asked && self.extras.borrow().as_ref().is_some_and(|e| e.blurs()))
-        });
-        use_provide_context(|| GlassShapes {
-            draw_tint: true,
-            ..Default::default()
-        });
-        let theme = use_provide_context(|| {
-            ThemeContext(State::create(Rc::new(
-                Source::shipped()
-                    .theme(&Appearance::default())
-                    .expect("the shipped tokens resolve"),
-            )))
-        });
-        let desktop = use_provide_context(|| Desktop {
-            values: State::create(Rc::default()),
-            status: State::create(None),
-            tokens_status: State::create(None),
-            tokens_text: State::create(String::new()),
-            requests: State::create(Vec::new()),
-            commands: State::create(Vec::new()),
-            writes: State::create(Vec::new()),
-            refused: State::create(None),
-            flight: State::create(Flight::default()),
-        });
-        let table = use_provide_context(|| Table {
-            app: State::create(Vec::new()),
-        });
-        let all = use_memo({
-            let spec = self.spec.clone();
-            move || {
-                let mut all = commands::standard(spec.title, spec.preferences);
-                all.extend(table.app.read().iter().cloned());
-                all
-            }
-        });
-        use_side_effect({
-            let menubar = self.menubar.clone();
-            let worker = self.worker.clone();
-            let title = self.spec.title;
-            move || {
-                let menus = commands::menus(title, &all.read());
-                if let Some((bus, menubar)) = menubar.clone() {
-                    worker.spawn(async move {
-                        if let Err(err) = menubar.update(&bus, MENU_PATH, menus).await {
-                            warn!("the menus could not be updated: {err}");
-                        }
-                    });
-                }
-            }
-        });
-        use_side_effect({
-            let worker = self.worker.clone();
-            let bus = self.menubar.as_ref().map(|(bus, _)| bus.clone());
-            move || {
-                if desktop.writes.read().is_empty() {
-                    return;
-                }
-                let mut queue = desktop.writes;
-                let writes = std::mem::take(&mut *queue.write());
-                let Some(bus) = bus.clone() else {
-                    warn!("not on the bus, {} changes are lost", writes.len());
-                    return;
-                };
-                let mut flight = desktop.flight;
-                for write in writes {
-                    let key = write.key().to_owned();
-                    if flight.peek().sending.contains(&key) {
-                        flight.write().waiting.insert(key, write);
-                        continue;
-                    }
-                    flight.write().sending.insert(key.clone());
-                    let job = worker.spawn(desktop::send(bus.clone(), write.clone()));
-                    let (mut refused, mut queue) = (desktop.refused, desktop.writes);
-                    spawn(async move {
-                        if let Ok(Err(why)) = job.await {
-                            warn!(?write, "refused: {why}");
-                            refused.set(Some((key.clone(), why)));
-                        }
-                        let next = {
-                            let mut f = flight.write();
-                            f.sending.remove(&key);
-                            f.waiting.remove(&key)
-                        };
-                        if let Some(next) = next {
-                            queue.write().push(next);
-                        }
-                    });
-                }
-            }
-        });
-        let run = Run {
-            platform: Platform::get(),
-            window: Platform::window_id(),
-            worker: self.worker.clone(),
-            bus: self.menubar.as_ref().map(|(bus, _)| bus.clone()),
-            app_id: self.spec.id,
-            desktop,
-        };
-        use_hook(|| {
-            if let (Some(extras), Some((bus, _))) = (self.extras.borrow().as_ref(), &self.menubar)
-                && let Some(name) = bus.unique_name()
-            {
-                extras.set_menu(name.as_str(), MENU_PATH);
-            }
-            if let Some(extras) = self.extras.borrow().as_ref() {
-                // The display is winit's, alive as long as the window and its app.
-                let provider = unsafe { clipboard::WaylandClipboard::new(extras.display) };
-                GlobalContexts::get().insert_context(freya::clipboard::Clipboard::create(Some(
-                    Box::new(provider),
-                )));
-            }
-        });
-        use_hook(|| {
-            let mut inbound = self.inbound.borrow_mut().take();
-            let extras = self.extras.clone();
-            let run = run.clone();
-            spawn(async move {
-                let Some(inbound) = inbound.as_mut() else {
-                    return;
-                };
-                let (mut theme, mut desktop) = (theme, desktop);
-                while let Some(message) = inbound.next().await {
-                    match message {
-                        Inbound::Update(desktop::Update::Theme(info)) => {
-                            theme.0.set(resolve(&info));
-                            if *desktop.tokens_text.peek() != info.tokens {
-                                desktop.tokens_text.set(info.tokens.clone());
-                            }
-                        }
-                        Inbound::Update(desktop::Update::TokensStatus(status)) => {
-                            desktop.tokens_status.set(Some(status));
-                        }
-                        Inbound::Update(desktop::Update::Values(values)) => {
-                            desktop.take_values(values);
-                        }
-                        Inbound::Update(desktop::Update::Status(status)) => {
-                            desktop.status.set(Some(status));
-                        }
-                        Inbound::Request(request) => {
-                            info!(?request, "asked");
-                            if let (Some(token), Some(extras)) =
-                                (request.token(), extras.borrow().as_ref())
-                            {
-                                extras.activate(token);
-                            }
-                            desktop.requests.write().push(request);
-                        }
-                        Inbound::Menu(id) => {
-                            let command = usize::try_from(id - 1)
-                                .ok()
-                                .and_then(|i| all.peek().get(i).cloned());
-                            if let Some(command) = command.filter(|c| c.enabled) {
-                                run.chosen(&command);
-                            }
-                        }
-                    }
-                }
-            })
-        });
-        rect()
-            .expanded()
-            .on_global_key_down(move |e: Event<KeyboardEventData>| {
-                let command = all.peek().iter().find(|c| {
-                    c.enabled && !c.for_field && c.chord.is_some_and(|k| k.matches(&e.key, e.modifiers))
-                }).cloned();
-                if let Some(command) = command {
-                    run.run(&command.id);
-                }
-            })
-            .child(self.app.render())
-    }
-}
-
-/// Carries out commands, from a menu or a key.
-#[derive(Clone)]
-struct Run {
-    platform: Platform,
-    window: freya::winit::window::WindowId,
-    worker: Worker,
-    bus: Option<zbus::Connection>,
-    app_id: &'static str,
-    desktop: Desktop,
-}
-
-impl Run {
-    /// A menu item: one with a chord arrives as its key press, as the key itself would.
-    fn chosen(&self, command: &Command) {
-        match command.chord {
-            Some(chord) => {
-                let key = Key::Character(chord.key.to_string());
-                let modifiers = chord.modifiers();
-                let _ = self.platform.post_callback(move |window, ctx: &mut RendererContext| {
-                    ctx.send_key_press(Some(window), key, Code::Unidentified, modifiers);
-                });
-            }
-            None => self.run(&command.id),
-        }
-    }
-
-    fn run(&self, id: &str) {
-        info!(id, "command");
-        let window = self.window;
-        match id {
-            "quit" => {
-                let _ = self.platform.post_callback(|_, ctx: &mut RendererContext| ctx.exit());
-            }
-            "close" => self.platform.close_window(window),
-            "minimise" => self.platform.with_window(window, |w| w.set_minimized(true)),
-            "zoom" => self.platform.with_window(window, |w| w.set_maximized(!w.is_maximized())),
-            "hide" | "hide-others" | "show-all" => {
-                let Some(bus) = self.bus.clone() else { return };
-                let (me, id) = (self.app_id, id.to_owned());
-                self.worker.spawn(async move {
-                    let Ok(windows) = isle_ipc::windows::WindowsProxy::new(&bus).await else {
-                        return;
-                    };
-                    let apps = windows.apps().await.unwrap_or_default();
-                    for app in apps {
-                        let mine = app.app == me;
-                        let hide = match id.as_str() {
-                            "hide" => mine.then_some(true),
-                            "hide-others" => (!mine).then_some(true),
-                            _ => Some(false),
-                        };
-                        if let Some(hide) = hide {
-                            let _ = windows.set_app_hidden(&app.app, hide).await;
-                        }
-                    }
-                });
-            }
-            other => {
-                let mut commands = self.desktop.commands;
-                commands.write().push(other.to_owned());
-            }
-        }
-    }
 }

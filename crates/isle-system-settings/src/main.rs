@@ -29,6 +29,7 @@ const SPEC: Spec = Spec {
     backdrop: Some((0.0, 0.0, 220.0, 8192.0)),
 };
 
+#[derive(Clone)]
 struct Settings;
 
 impl App for Settings {

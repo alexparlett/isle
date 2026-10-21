@@ -2,6 +2,15 @@
 
 ## 2026-10-21
 
+- P15 15.16: the package. The PKGBUILD builds `isle-files` and
+  `isle-thumbnail` beside Settings, so no GPU renderer is linked into
+  them, and installs them with Files' desktop entry and the D-Bus
+  activation files for Files and FileManager1 (the latter under Isle's
+  own file name, so another file manager's package does not conflict).
+  `libarchive` becomes a dependency (Compress, Expand and archive
+  listings use `bsdtar`); `udisks2` is optional, for drives and disk
+  images. The package tests allow Files' `--write-index` as Settings'. Not
+  yet run: `makepkg` itself (15.17).
 - P15 15.14: Markup and Trim. Quick Look's toolbar gains Markup (PNG,
   JPEG and WebP; disabled for other kinds) and Trim (video and audio).
   Markup's tool row: pen, highlighter, line, arrow, rectangle, ellipse,

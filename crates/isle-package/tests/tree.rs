@@ -24,6 +24,7 @@ fn no_installed_binary_reads_the_build_tree() {
     let allowed = [
         "crates/isle-preview/",
         "crates/isle-system-settings/src/main.rs",
+        "crates/isle-files/src/main.rs",
     ];
     let mut files = Vec::new();
     for krate in std::fs::read_dir(root().join("crates")).unwrap() {

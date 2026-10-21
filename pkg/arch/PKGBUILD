@@ -12,7 +12,7 @@ license=('LicenseRef-Isle' 'MIT')
 depends=(
   ffmpeg fontconfig freetype2 gcc-libs glibc libdisplay-info libglvnd libinput
   libpipewire libxkbcommon mesa pam seatd sqlite systemd systemd-libs wayland
-  accountsservice dbus gnome-keyring pipewire-pulse polkit xdg-desktop-portal
+  accountsservice dbus gnome-keyring libarchive pipewire-pulse polkit xdg-desktop-portal
   xdg-desktop-portal-gtk xdg-utils xkeyboard-config xorg-xwayland
 )
 makedepends=(cargo clang git ninja python)
@@ -24,7 +24,7 @@ optdepends=(
   'gcr-4: the SSH agent'
   'greetd-tuigreet: signing in to Isle or another desktop'
   'squashfs-tools: AppImages'
-  'libarchive: AppImages of the older kind'
+  'udisks2: drives and disk images in Files'
   'xdg-terminal-exec: apps that run in a terminal'
   'inter-font: the interface typeface'
   'ttf-jetbrains-mono: the monospaced typeface'
@@ -70,16 +70,17 @@ build() {
   [[ -x /usr/bin/ninja ]] && export SKIA_NINJA_COMMAND=/usr/bin/ninja
   export CARGO_PROFILE_RELEASE_DEBUG=0
   export CARGO_PROFILE_RELEASE_STRIP=debuginfo
-  # Two builds, so Settings' features are its own and no GPU renderer is linked into it (B26).
+  # Two builds, so the apps' features are their own and no GPU renderer is linked into them
+  # (B26).
   cargo build --frozen --release \
     -p isle-compositor -p isle-session -p isle-cli -p isle-auth -p isle-record
-  cargo build --frozen --release -p isle-system-settings
+  cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail
 }
 
 package() {
   cd isle
   local target="${ISLE_TARGET_DIR:-$srcdir/target}/release"
-  for bin in isle-compositor isle-session isle isle-auth isle-record isle-settings; do
+  for bin in isle-compositor isle-session isle isle-auth isle-record isle-settings isle-files isle-thumbnail; do
     install -Dm755 "$target/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm644 data/session/isle.desktop "$pkgdir/usr/share/wayland-sessions/isle.desktop"
@@ -90,6 +91,12 @@ package() {
     "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Settings.desktop"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Settings.service \
     "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Settings.service"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Files.desktop \
+    "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Files.desktop"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Files.service \
+    "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Files.service"
+  install -Dm644 data/apps/org.freedesktop.FileManager1.service \
+    "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.FileManager1.service"
   install -Dm644 data/pam/isle "$pkgdir/usr/lib/pam.d/isle"
   install -Dm644 data/nvidia/50-isle.json \
     "$pkgdir/etc/nvidia/nvidia-application-profiles-rc.d/50-isle"

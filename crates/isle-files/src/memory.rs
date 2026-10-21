@@ -1,5 +1,5 @@
 //! What Files remembers between launches, in its `isle-state` domain (`conventions.md`,
-//! What an app remembers): the windows and their tabs.
+//! What an app remembers): the windows and their tabs, views and saved searches.
 
 use std::collections::BTreeMap;
 
@@ -20,6 +20,9 @@ pub struct Memory {
     /// The view of a folder never set (View Options' Use as Defaults).
     #[serde(default)]
     pub default_view: Shown,
+    /// Saved searches, as Favourites lists them.
+    #[serde(default)]
+    pub saved: Vec<crate::search::Search>,
 }
 
 impl Memory {
@@ -27,12 +30,15 @@ impl Memory {
         let found = self.views.iter().rev().find(|(p, _)| p == place).map(|(_, s)| *s);
         found.unwrap_or_else(|| match place {
             // Gatherings show where each item is, so List by default.
-            Place::Recents | Place::Trash => Shown { view: crate::view::View::List, ..self.default_view },
+            Place::Recents | Place::Trash | Place::Search(_) => Shown { view: crate::view::View::List, ..self.default_view },
             _ => self.default_view,
         })
     }
 
     pub fn keep(&mut self, place: &Place, shown: Shown) {
+        if matches!(place, Place::Search(s) if s.name.is_none()) {
+            return;
+        }
         self.views.retain(|(p, _)| p != place);
         self.views.push((place.clone(), shown));
         if self.views.len() > VIEWS {

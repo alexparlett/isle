@@ -334,3 +334,65 @@ async fn a_plugged_stick_is_listed_mounted_by_a_click_and_ejected() {
     test.button(272, false).await.unwrap();
     wait_until(|| async { !udisks.mounted("STICK").await }).await;
 }
+
+const KEY_F: u32 = 33;
+const ESC: u32 = 1;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn search_filters_as_typed_walks_on_return_and_takes_spotlights_query() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-search").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    std::fs::write(home.join("Development/isle/notebook.txt"), "the island\n").unwrap();
+    std::fs::create_dir_all(home.join("Development/isle/target")).unwrap();
+    std::fs::write(home.join("Development/isle/target/notes.o"), "").unwrap();
+    std::fs::write(home.join("Development/isle/.gitignore"), "target\n").unwrap();
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+
+    // ⌘F and typing filter home at once; Return walks everything under it, the ignored
+    // folder left out.
+    isle.chord(&[SUPER, KEY_F]).await;
+    app.wait_for_part("id=\"find\"").await;
+    type_text(&isle, "note").await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("files-search-filter").await;
+    isle.chord(&[ENTER]).await;
+    app.wait_for_part("searched found=2").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.keep_shot("files-search-walk").await;
+    isle.chord(&[ESC]).await;
+
+    // Spotlight's Show all in Files: a tab searching home.
+    let path = "/io/github/alexparlett/Isle/Files";
+    let params = [zbus::zvariant::Value::from("isle"), zbus::zvariant::Value::from("")];
+    let reply = isle
+        .bus
+        .call_method(
+            Some(APP),
+            path,
+            Some("org.freedesktop.Application"),
+            "ActivateAction",
+            &("search", &params[..], std::collections::HashMap::<&str, zbus::zvariant::Value>::new()),
+        )
+        .await;
+    assert!(reply.is_ok(), "{reply:?}");
+    app.wait_for_part("searched found=1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.keep_shot("files-search-spotlight").await;
+
+    // The scope bar's + adds a Kind row, under the tab bar the second tab brought.
+    let test = isle.test().await;
+    let plus = (w.x as f64 + w.width as f64 - 80., w.y as f64 + 52. + 30. + 18.);
+    test.pointer_to(plus.0, plus.1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    app.wait_for_part("searched found=1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.keep_shot("files-search-criteria").await;
+}

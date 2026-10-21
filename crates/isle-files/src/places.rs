@@ -11,6 +11,8 @@ pub enum Place {
     Trash,
     /// The computer: every volume.
     Computer,
+    /// What a search found.
+    Search(Box<crate::search::Search>),
 }
 
 impl Place {
@@ -28,6 +30,7 @@ impl Place {
             Place::Recents => "Recents".into(),
             Place::Trash => "Trash".into(),
             Place::Computer => computer_name(),
+            Place::Search(search) => search.title(),
         }
     }
 }

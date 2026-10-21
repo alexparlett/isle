@@ -16,6 +16,8 @@ mod transfer;
 mod memory;
 mod open;
 mod places;
+mod scope_bar;
+mod search;
 mod tab;
 mod thumbnail;
 mod thumbs;
@@ -72,6 +74,8 @@ pub struct Shared {
     /// Items cut and not yet pasted, drawn dimmed.
     pub cut: State<Vec<PathBuf>>,
     pub locations: volumes::Locations,
+    /// Saved searches, as Favourites lists them.
+    pub saved: State<Vec<search::Search>>,
 }
 
 impl Shared {
@@ -136,6 +140,15 @@ impl Shared {
 
     pub fn keep_shown(&self, place: &Place, shown: view::Shown) {
         self.memory.borrow_mut().keep(place, shown);
+        self.save();
+    }
+
+    /// Saves a search under its name, replacing one of the same name.
+    pub fn save_search(&self, search: search::Search) {
+        let mut saved = self.saved;
+        saved.write().retain(|s| s.name != search.name);
+        saved.write().push(search);
+        self.memory.borrow_mut().saved = saved.peek().clone();
         self.save();
     }
 
@@ -270,6 +283,20 @@ impl Delegate for Files {
                         self.shared.show(Place::Folder(path), None, token.clone());
                     }
                 }
+                // Spotlight's "Show all in Files": the query and a folder's URI, or anything
+                // else for Home.
+                "search" => {
+                    let Some(term) = params.first().filter(|t| !t.trim().is_empty()) else { return };
+                    let folder = params.get(1).and_then(|s| path_of(s)).filter(|p| p.is_dir());
+                    let search = search::Search {
+                        term: term.trim().to_owned(),
+                        scope: if folder.is_some() { search::Scope::Under } else { search::Scope::Home },
+                        folder,
+                        criteria: Vec::new(),
+                        name: None,
+                    };
+                    self.shared.show(Place::Search(Box::new(search)), None, token.clone());
+                }
                 other => info!(action = other, "not built yet"),
             },
         }
@@ -288,11 +315,13 @@ fn main() {
         info!("not an Isle session; Files is Isle's");
         return;
     }
+    let memory = memory::load();
     let shared = Rc::new(Shared {
         app: RefCell::new(None),
         windows: RefCell::default(),
         front: RefCell::default(),
-        memory: RefCell::new(memory::load()),
+        saved: State::create_global(memory.saved.clone()),
+        memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         hidden: State::create_global(false),
         jobs: jobs::Jobs::new(),

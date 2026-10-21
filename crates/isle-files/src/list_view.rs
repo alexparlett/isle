@@ -36,6 +36,7 @@ pub enum Pick {
 const DATE: f32 = 168.;
 const SIZE: f32 = 80.;
 const KIND: f32 = 140.;
+const WHERE: f32 = 160.;
 
 #[derive(Clone, Copy, PartialEq)]
 struct RowClick;
@@ -63,6 +64,8 @@ struct Rows {
     on_pick: EventHandler<Pick>,
     dark: bool,
     interact: crate::interact::Interact,
+    /// A search's results: each item's folder.
+    found: bool,
 }
 
 impl Component for ListView {
@@ -70,9 +73,9 @@ impl Component for ListView {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut tab = self.tab;
-        let (length, order, group) = {
+        let (length, order, group, found) = {
             let t = tab.peek();
-            (t.folder.len(), t.folder.order(), t.shown.group)
+            (t.folder.len(), t.folder.order(), t.shown.group, matches!(t.place, crate::places::Place::Search(_)))
         };
         let lines = group.map(|by| {
             let now = jiff::Timestamp::now().as_second();
@@ -131,6 +134,15 @@ impl Component for ListView {
             .child(header_cell("Name", SortBy::Name, Size::flex(1.), false))
             .child(header_cell("Date Modified", SortBy::Modified, Size::px(DATE), false))
             .child(header_cell("Size", SortBy::Size, Size::px(SIZE), true))
+            .maybe_child(found.then(|| {
+                rect()
+                    .width(Size::px(WHERE))
+                    .height(Size::fill())
+                    .main_align(Alignment::Center)
+                    .a11y_role(AccessibilityRole::ColumnHeader)
+                    .a11y_alt("Where")
+                    .child(text::line(&theme, text::Style::Callout, colour(t.colour_text_2), "Where"))
+            }))
             .child(header_cell("Kind", SortBy::Kind, Size::px(KIND), false));
         let rows = Rows {
             rev: self.rev,
@@ -141,6 +153,7 @@ impl Component for ListView {
             on_pick: self.on_pick.clone(),
             dark: theme.appearance.mode == isle_tokens::Mode::Dark,
             interact: self.interact.clone(),
+            found,
         };
         let on_pick = self.on_pick.clone();
         rect()
@@ -305,6 +318,21 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                             if entry.is_dir() { "--".into() } else { format::size(entry.size) },
                         )),
                 )
+                .maybe_child(rows.found.then(|| {
+                    let folder = entry.path.parent().map(|p| p.to_owned());
+                    rect()
+                        .width(Size::px(WHERE))
+                        .horizontal()
+                        .cross_align(Alignment::Center)
+                        .spacing(t.space_xs)
+                        .child(Glyph::new("folder-simple", t.size_glyph_small, colour(ink_2)))
+                        .child(text::line(
+                            &theme,
+                            text::Style::Body,
+                            colour(ink_2),
+                            folder.as_deref().map(crate::places::folder_name).unwrap_or_default(),
+                        ))
+                }))
                 .child(rect().width(Size::px(KIND)).child(text::line(
                     &theme,
                     text::Style::Body,

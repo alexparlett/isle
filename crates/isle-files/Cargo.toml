@@ -17,6 +17,7 @@ bytes = "1"
 freya = { workspace = true, features = ["winit"] }
 futures-channel = "0.3"
 futures-util = { workspace = true, features = ["std"] }
+ignore = "0.4"
 isle-app.workspace = true
 isle-apps.workspace = true
 isle-fs.workspace = true

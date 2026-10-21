@@ -23,9 +23,12 @@ pub enum Applied {
 pub struct Folder {
     order: Order,
     entries: Vec<Entry>,
-    /// Items whose names begin with a dot, kept aside while hidden files are not shown.
-    hidden: Vec<Entry>,
+    /// Items not shown: names beginning with a dot while hidden files are not shown, and
+    /// names the filter leaves out.
+    aside: Vec<Entry>,
     show_hidden: bool,
+    /// Shows only names holding this, lowercased.
+    filter: Option<String>,
     /// Each entry's place in `entries`, by path.
     at: HashMap<PathBuf, usize>,
 }
@@ -64,38 +67,57 @@ impl Folder {
 
     /// Shows or hides the items whose names begin with a dot.
     pub fn set_show_hidden(&mut self, show: bool) {
-        if show == self.show_hidden {
-            return;
+        if show != self.show_hidden {
+            self.show_hidden = show;
+            self.sort_out();
         }
-        self.show_hidden = show;
-        if show {
-            let hidden = std::mem::take(&mut self.hidden);
-            self.merge(hidden);
-        } else {
-            let (hidden, shown): (Vec<_>, Vec<_>) = std::mem::take(&mut self.entries).into_iter().partition(Entry::hidden);
-            self.hidden = hidden;
-            self.entries = shown;
-            self.at.clear();
-            self.reindex(0);
+    }
+
+    /// Shows only the items whose names hold `filter`, case ignored; `None` shows them all.
+    pub fn set_filter(&mut self, filter: Option<&str>) {
+        let filter = filter.filter(|f| !f.is_empty()).map(str::to_lowercase);
+        if filter != self.filter {
+            self.filter = filter;
+            self.sort_out();
         }
+    }
+
+    pub fn filter(&self) -> Option<&str> {
+        self.filter.as_deref()
+    }
+
+    fn shows(&self, entry: &Entry) -> bool {
+        (self.show_hidden || !entry.hidden()) && self.filter.as_ref().is_none_or(|f| entry.name.to_lowercase().contains(f))
+    }
+
+    /// Divides every item again into those shown and those set aside.
+    fn sort_out(&mut self) {
+        let mut all = std::mem::take(&mut self.entries);
+        all.append(&mut self.aside);
+        let (mut shown, aside): (Vec<_>, Vec<_>) = all.into_iter().partition(|e| self.shows(e));
+        let order = self.order;
+        shown.sort_by(|a, b| order.compare(a, b));
+        self.entries = shown;
+        self.aside = aside;
+        self.at.clear();
+        self.reindex(0);
     }
 
     pub fn shows_hidden(&self) -> bool {
         self.show_hidden
     }
 
-    /// Takes a batch's hidden items aside while they are not shown.
+    /// Takes a batch's items aside while they are not shown.
     fn set_aside(&mut self, batch: &mut Vec<Entry>) {
-        if self.show_hidden {
+        if self.show_hidden && self.filter.is_none() {
             return;
         }
-        let paths: HashSet<PathBuf> = batch.iter().filter(|e| e.hidden()).map(|e| e.path.clone()).collect();
-        if paths.is_empty() {
-            return;
+        let (shown, aside): (Vec<_>, Vec<_>) = std::mem::take(batch).into_iter().partition(|e| self.shows(e));
+        if !aside.is_empty() {
+            let paths: HashSet<&Path> = aside.iter().map(|e| e.path.as_path()).collect();
+            self.aside.retain(|e| !paths.contains(e.path.as_path()));
         }
-        self.hidden.retain(|e| !paths.contains(&e.path));
-        let (hidden, shown): (Vec<_>, Vec<_>) = std::mem::take(batch).into_iter().partition(Entry::hidden);
-        self.hidden.extend(hidden);
+        self.aside.extend(aside);
         *batch = shown;
     }
 
@@ -144,8 +166,8 @@ impl Folder {
     /// Puts one entry in its place, replacing the one at its path; its index.
     pub fn upsert(&mut self, entry: Entry) -> Option<usize> {
         self.remove(&entry.path.clone());
-        if entry.hidden() && !self.show_hidden {
-            self.hidden.push(entry);
+        if !self.shows(&entry) {
+            self.aside.push(entry);
             return None;
         }
         let order = self.order;
@@ -157,7 +179,7 @@ impl Folder {
 
     /// Takes an entry out; where it was.
     pub fn remove(&mut self, path: &Path) -> Option<usize> {
-        self.hidden.retain(|e| e.path != path);
+        self.aside.retain(|e| e.path != path);
         let i = self.at.remove(path)?;
         self.entries.remove(i);
         self.reindex(i);
@@ -167,7 +189,7 @@ impl Folder {
     /// Keeps only the paths listed: the end of a listing read again.
     pub fn keep_only(&mut self, paths: &HashSet<PathBuf>) {
         self.entries.retain(|e| paths.contains(&e.path));
-        self.hidden.retain(|e| paths.contains(&e.path));
+        self.aside.retain(|e| paths.contains(&e.path));
         self.at.clear();
         self.reindex(0);
     }
@@ -251,6 +273,21 @@ mod tests {
         f.remove(Path::new("/x/.git"));
         f.set_show_hidden(true);
         assert_eq!(names(&f), [".cache", "src", ".env"]);
+    }
+
+    #[test]
+    fn a_filter_sets_aside_what_it_leaves_out() {
+        let mut f = Folder::new(Order::default());
+        f.merge(vec![entry("Notes", false), entry("src", true), entry(".notes", false)]);
+        f.set_filter(Some("NOT"));
+        assert_eq!(names(&f), ["Notes"]);
+        f.merge(vec![entry("notebook", false), entry("other", false)]);
+        assert_eq!(f.upsert(entry("x", false)), None);
+        assert_eq!(names(&f), ["notebook", "Notes"]);
+        f.set_show_hidden(true);
+        assert_eq!(names(&f), [".notes", "notebook", "Notes"]);
+        f.set_filter(None);
+        assert_eq!(names(&f), ["src", ".notes", "notebook", "Notes", "other", "x"]);
     }
 
     #[test]

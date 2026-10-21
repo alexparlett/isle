@@ -358,3 +358,44 @@ impl Component for Unlock {
         )
     }
 }
+
+/// Saving a search: its name; `None` cancels (`surfaces/files.md` § Sheets).
+#[derive(PartialEq)]
+pub struct SaveSearch {
+    pub suggested: String,
+    pub on_done: EventHandler<Option<String>>,
+}
+
+impl Component for SaveSearch {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let name = use_state({
+            let suggested = self.suggested.clone();
+            move || suggested
+        });
+        let (done, submit, cancel) = (self.on_done.clone(), self.on_done.clone(), self.on_done.clone());
+        let save = move |typed: String| {
+            let typed = typed.trim().to_owned();
+            if !typed.is_empty() {
+                done.call(Some(typed));
+            }
+        };
+        let save_button = save.clone();
+        isle_ui::sheet(
+            t.size_form_narrow,
+            vec![
+                isle_ui::alert_text("Save Search", ""),
+                isle_ui::TextField::new(name, "Name")
+                    .editing()
+                    .on_submit(move |typed: String| save(typed))
+                    .on_escape(move |_| submit.call(None))
+                    .into_element(),
+            ],
+            vec![
+                ("Cancel".into(), EventHandler::new(move |_| cancel.call(None))),
+                ("Save".into(), EventHandler::new(move |_| save_button(name.peek().clone()))),
+            ],
+        )
+    }
+}

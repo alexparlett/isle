@@ -20,6 +20,8 @@ use crate::{
     list_view::{Held, ListView, Pick},
     places::{self, Place, Places, Row},
     preview::Preview,
+    scope_bar::{ScopeBar, Where},
+    search::{Criterion, Scope, Search},
     tab::{self, Live, Status, Tab},
     jobs::Finished,
     sheets::{Alert, ConflictSheet, Then, alert_sheet},
@@ -120,6 +122,12 @@ impl App for FilesWindow {
         let mut committed = use_state(|| false);
         let open_with = use_state(|| None::<crate::open::Offer>);
         let unlocking = use_state(|| None::<(isle_disks::Volume, Option<String>)>);
+        let mut query = use_state(String::new);
+        let find = use_a11y();
+        let mut saving = use_state(|| false);
+        // The query a move keeps, as the scope bar's This folder keeps the term.
+        let mut keep_query = use_state(|| None::<String>);
+        let mut seen_place = use_state(|| None::<(u64, Place)>);
         let drag = isle_app::use_drag();
         let surface = isle_app::this_surface();
         let data = shared.app().data();
@@ -162,6 +170,35 @@ impl App for FilesWindow {
                         t.rev += 1;
                     }
                 }
+            }
+        });
+
+        // The search field follows the tab and its place; what it holds filters the items shown.
+        use_side_effect(move || {
+            let at = *current.read();
+            let Some(handle) = tabs.read().get(at).cloned() else { return };
+            let mut tab = handle.tab;
+            let here = {
+                let t = tab.read();
+                (t.id, t.place.clone())
+            };
+            if seen_place.peek().as_ref() != Some(&here) {
+                let next = keep_query.write().take().unwrap_or_else(|| match &here.1 {
+                    Place::Search(s) => s.term.clone(),
+                    _ => String::new(),
+                });
+                seen_place.set(Some(here));
+                if *query.peek() != next {
+                    query.set(next);
+                }
+            }
+            let typed = query.read().trim().to_lowercase();
+            let want = (!typed.is_empty()).then_some(typed);
+            if tab.peek().folder.filter() != want.as_deref() {
+                let mut t = tab.write();
+                t.folder.set_filter(want.as_deref());
+                t.prune();
+                t.rev += 1;
             }
         });
 
@@ -302,7 +339,7 @@ impl App for FilesWindow {
                 .map(|r| r.place.clone())
         };
         let in_trash = place == Place::Trash;
-        let editing = renaming.read().is_some();
+        let editing = renaming.read().is_some() || find.is_focused();
         let selected_image = {
             let t = tab.read();
             t.selection.len() == 1
@@ -370,6 +407,7 @@ impl App for FilesWindow {
             Command::new("rename", if selected_count > 1 { format!("Rename {selected_count} Items…") } else { "Rename".into() }, Menu::File, 3)
                 .enabled(has_selection && !in_trash),
             Command::new("new-window", "New Window", Menu::File, 0).chord(Chord::cmd('n')),
+            Command::new("find", "Find", Menu::File, 5).chord(Chord::cmd('f')),
             Command::new("new-tab", "New Tab", Menu::File, 0).chord(Chord::cmd('t')),
             Command::new("open", "Open", Menu::File, 1)
                 .chord(Chord::cmd('o'))
@@ -574,6 +612,7 @@ impl App for FilesWindow {
                             let selection = tab.peek().selection.clone();
                             start_rename(selection, renaming, rename_text, rename_error, rename_many);
                         }
+                        "find" => find.request_focus(),
                         "toggle-sidebar" => sidebar.toggle(),
                         "toggle-preview" => preview.toggle(),
                         "toggle-path-bar" => path_bar.toggle(),
@@ -734,7 +773,7 @@ impl App for FilesWindow {
                 shift: m.contains(Modifiers::SHIFT),
                 option: m.contains(Modifiers::ALT),
             });
-            if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) || renaming.peek().is_some() {
+            if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) || renaming.peek().is_some() || find.is_focused() {
                 return;
             }
             if e.key == Key::Named(NamedKey::Enter) && *committed.peek() {
@@ -868,8 +907,76 @@ impl App for FilesWindow {
                     }
                 }
                 Act::EmptyTrash => ask_empty_trash(alert),
+                Act::Search(text) => {
+                    let term = text.trim().to_owned();
+                    if term.is_empty() {
+                        return;
+                    }
+                    let place = tab.peek().place.clone();
+                    match place {
+                        Place::Search(s) => tab::replace(tab, &live, Place::Search(Box::new(Search { term, name: None, ..*s }))),
+                        other => tab::go(tab, &live, Place::Search(Box::new(search_from(&other, term, Vec::new()))), None),
+                    }
+                }
+                Act::EndSearch => {
+                    find.request_unfocus();
+                    let mut query = query;
+                    query.set(String::new());
+                    end_search(tab, &live);
+                }
             }
         };
+        let on_where = {
+            let live = live.clone();
+            move |chosen: Where| {
+                let place = tab.peek().place.clone();
+                match (chosen, place) {
+                    (Where::ThisFolder, Place::Search(s)) => {
+                        let mut keep_query = keep_query;
+                        keep_query.set(Some(s.term.clone()));
+                        end_search(tab, &live);
+                    }
+                    (Where::ThisFolder, _) => {}
+                    (Where::Search(scope), Place::Search(s)) => {
+                        tab::replace(tab, &live, Place::Search(Box::new(Search { scope, name: None, ..*s })))
+                    }
+                    (Where::Search(scope), other) => {
+                        let mut search = search_from(&other, query.peek().trim().to_owned(), Vec::new());
+                        search.scope = scope;
+                        tab::go(tab, &live, Place::Search(Box::new(search)), None);
+                    }
+                }
+            }
+        };
+        let on_criteria = {
+            let live = live.clone();
+            move |criteria: Vec<Criterion>| {
+                let place = tab.peek().place.clone();
+                match place {
+                    Place::Search(s) => tab::replace(tab, &live, Place::Search(Box::new(Search { criteria, name: None, ..*s }))),
+                    other => {
+                        let search = search_from(&other, query.peek().trim().to_owned(), criteria);
+                        tab::go(tab, &live, Place::Search(Box::new(search)), None);
+                    }
+                }
+            }
+        };
+        let searching = matches!(place, Place::Search(_));
+        let scope_bar = (searching || !query.read().trim().is_empty()).then(|| {
+            let (search, this_folder, folder) = match &place {
+                Place::Search(s) => (Some((**s).clone()), s.folder.is_some(), s.folder.as_deref().map(places::folder_name)),
+                Place::Folder(f) => (None, true, Some(places::folder_name(f))),
+                _ => (None, true, None),
+            };
+            ScopeBar {
+                search,
+                this_folder,
+                folder,
+                on_where: EventHandler::new(on_where),
+                on_criteria: EventHandler::new(on_criteria),
+                on_save: EventHandler::new(move |_| saving.set(true)),
+            }
+        });
 
         rect()
             .expanded()
@@ -911,6 +1018,7 @@ impl App for FilesWindow {
             .maybe_child((*sidebar.read()).then(|| {
                 Sidebar {
                     places: places.read().clone(),
+                    saved: shared.saved.read().clone(),
                     shown: place.clone(),
                     volumes: shared.locations.volumes.read().clone(),
                     shares: shared.locations.shares.read().clone(),
@@ -948,6 +1056,10 @@ impl App for FilesWindow {
                         options,
                         jobs: jobs.list.read().clone(),
                         in_trash: (place == Place::Trash).then_some(count),
+                        query,
+                        find,
+                        searching,
+                        glyph: searching.then_some("magnifying-glass"),
                         on_act: EventHandler::new(on_act),
                     })
                     .maybe_child((tabs.read().len() > 1).then(|| {
@@ -968,6 +1080,7 @@ impl App for FilesWindow {
                             }),
                         }
                     }))
+                    .maybe_child(scope_bar)
                     .child(
                         rect()
                             .width(Size::fill())
@@ -992,6 +1105,25 @@ impl App for FilesWindow {
                     })),
             )
             .maybe_child(question.map(|q| ConflictSheet { question: q, jobs }.into_element()))
+            .maybe_child((*saving.read()).then(|| {
+                let shared = shared.clone();
+                let live = live.clone();
+                let suggested = match &place {
+                    Place::Search(s) => s.name.clone().unwrap_or_else(|| s.term.clone()),
+                    _ => String::new(),
+                };
+                crate::sheets::SaveSearch {
+                    suggested,
+                    on_done: EventHandler::new(move |name: Option<String>| {
+                        saving.set(false);
+                        let (Some(name), Place::Search(s)) = (name, tab.peek().place.clone()) else { return };
+                        let named = Search { name: Some(name), ..*s };
+                        shared.save_search(named.clone());
+                        tab::replace(tab, &live, Place::Search(Box::new(named)));
+                    }),
+                }
+                .into_element()
+            }))
             .maybe_child(unlocking.read().clone().map(|(volume, refused)| {
                 let shared = shared.clone();
                 crate::sheets::Unlock {
@@ -1054,6 +1186,31 @@ impl App for FilesWindow {
                 })
             }))
             .into_element()
+    }
+}
+
+/// A search of `term` from where the tab is: everything under the folder, or Home from a
+/// gathering.
+fn search_from(place: &Place, term: String, criteria: Vec<Criterion>) -> Search {
+    let folder = place.folder().map(PathBuf::from);
+    Search {
+        term,
+        scope: if folder.is_some() { Scope::Under } else { Scope::Home },
+        folder,
+        criteria,
+        name: None,
+    }
+}
+
+/// Leaves a search for the folder it began in, back through history when it came from there.
+fn end_search(tab: State<Tab>, live: &tab::Live) {
+    let Place::Search(search) = tab.peek().place.clone() else { return };
+    let Some(folder) = search.folder.clone() else { return };
+    let to = Place::Folder(folder);
+    if tab.peek().back.last() == Some(&to) {
+        tab::back(tab, live);
+    } else {
+        tab::replace(tab, live, to);
     }
 }
 
@@ -1382,14 +1539,14 @@ fn content(
         )),
         (Status::Gone, _) => Some(format!("“{}” was moved or deleted.", tab.place.title())),
         (Status::Failed(_), _) => Some(format!("“{}” couldn't be read.", tab.place.title())),
-        (Status::Ready, true) => Some(
-            match tab.place {
-                Place::Recents => "No recent files",
-                Place::Trash => "No items in Trash",
-                _ => "No items",
-            }
-            .to_owned(),
-        ),
+        (Status::Ready, true) => Some(match (&tab.place, tab.folder.filter()) {
+            (Place::Search(s), _) if !s.term.is_empty() => format!("No results for “{}”", s.term),
+            (Place::Search(_), _) => "No results".to_owned(),
+            (_, Some(typed)) => format!("No results for “{typed}”"),
+            (Place::Recents, _) => "No recent files".to_owned(),
+            (Place::Trash, _) => "No items in Trash".to_owned(),
+            _ => "No items".to_owned(),
+        }),
         _ => None,
     };
     drop(tab);
@@ -1409,6 +1566,17 @@ fn content(
             )
             .into_element(),
         None => match handle.tab.peek().shown.view {
+            // Columns turns into List while a search stands.
+            View::Columns if matches!(handle.tab.peek().place, Place::Search(_)) => ListView {
+                tab: handle.tab,
+                rev,
+                focused,
+                held,
+                on_pick: on_pick.clone(),
+                controller: handle.scroll,
+                interact,
+            }
+            .into_element(),
             View::List => ListView {
                 tab: handle.tab,
                 rev,
@@ -1540,6 +1708,7 @@ impl Component for TabBar {
 #[derive(PartialEq)]
 struct Sidebar {
     places: Places,
+    saved: Vec<Search>,
     shown: Place,
     volumes: Vec<isle_disks::Volume>,
     shares: Vec<PathBuf>,
@@ -1700,6 +1869,13 @@ impl Component for Sidebar {
                             .child(rect().height(Size::px(t.space_m)))
                             .child(header("Favourites"))
                             .children(self.places.favourites.iter().map(place_row))
+                            .children(self.saved.iter().map(|s| {
+                                place_row(&Row {
+                                    place: Place::Search(Box::new(s.clone())),
+                                    label: s.name.clone().unwrap_or_default(),
+                                    glyph: "list-magnifying-glass",
+                                })
+                            }))
                             .child(rect().height(Size::px(t.space_m)))
                             .child(header("Locations"))
                             .children(computer.map(place_row))

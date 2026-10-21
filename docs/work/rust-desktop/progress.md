@@ -2,6 +2,27 @@
 
 ## 2026-10-21
 
+- P15 15.10: search. ⌘F focuses the toolbar's search field; typing filters
+  the place shown at once through `isle-fs`'s `Folder`, which now sets
+  aside what a name filter leaves out as it does hidden items. Return
+  searches everything under the folder (Home from a gathering): a
+  `Place::Search` walked by `ignore`'s parallel walker, skipping hidden
+  folders unless hidden files show and what `.gitignore` names, streaming
+  batches into the tab, at most 5,000 results. The scope bar (This folder,
+  Everything under “X”, Home, +, Save) and criteria rows (Kind, Last
+  modified, Contents contain) change the search in place; Contents contain
+  runs Spotlight's content match, now `isle_search::files::Contents`, on at
+  most 500 files of 20 MB or less. Results show a Where column in List;
+  Columns is off and shows as List while a search stands. Save names a
+  search in a sheet; saved searches are kept in Files' memory and listed
+  in Favourites, and run again when opened. `ActivateAction("search",
+  [query, folder URI])` opens a search tab for Spotlight's "Show all in
+  Files". Fixed in passing: `isle-apps`' name cache keyed a whole-name
+  glob's answer by its extension, so one `todo.txt` made every `.txt` a
+  Todo.txt file; names a glob other than `*.suffix` matches are now asked
+  of the database each time, the rest cached by everything after their
+  first dot. Not built: Last modified's date range, removing a saved
+  search, Files › Settings' default scope (15.11).
 - P15 15.9: volumes. `isle-disks` lists internal volumes that are not the
   system's beside removable drives and the user's loop images, with size,
   type, UUID and whether it can be taken out; an encrypted volume shows

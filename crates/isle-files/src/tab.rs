@@ -116,7 +116,7 @@ impl Tab {
     }
 
     /// Selection held by path drops what is no longer listed.
-    fn prune(&mut self) {
+    pub fn prune(&mut self) {
         let folder = &self.folder;
         self.selection.retain(|p| folder.position(p).is_some());
         if self.cursor.as_deref().is_some_and(|c| folder.position(c).is_none()) {
@@ -243,6 +243,16 @@ pub fn go(mut tab: State<Tab>, live: &Live, place: Place, reveal: Option<PathBuf
     load(tab, live, false);
 }
 
+/// Moves a tab to `place` in the place of the one shown, as a search changed in its scope bar.
+pub fn replace(mut tab: State<Tab>, live: &Live, place: Place) {
+    {
+        let mut t = tab.write();
+        t.place = place;
+        t.reveal = None;
+    }
+    load(tab, live, false);
+}
+
 pub fn back(mut tab: State<Tab>, live: &Live) {
     {
         let mut t = tab.write();
@@ -306,6 +316,7 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
         }
     };
     let dir = place.folder().map(Path::to_owned);
+    let hidden = tab.peek().folder.shows_hidden();
     std::thread::Builder::new()
         .name("isle-files-list".into())
         .spawn(move || match place {
@@ -324,6 +335,12 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             }
             Place::Recents => gather(crate::places::recents(200), send),
             Place::Computer => gather(volumes(), send),
+            Place::Search(search) => crate::search::run(&search, hidden, |listed| {
+                if let Listed::Batch(batch) = &listed {
+                    warm(batch);
+                }
+                send(listed)
+            }),
             Place::Trash => {
                 let items: Vec<Entry> = isle_fs::trash::all_trashes()
                     .iter()
@@ -370,6 +387,9 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
                     }
                     t.status = Status::Ready;
                     t.rev += 1;
+                    if matches!(t.place, Place::Search(_)) {
+                        tracing::info!(found = t.folder.len(), "searched");
+                    }
                     drop(t);
                     if let Some(dir) = &dir {
                         watch(&live, dir, generation);

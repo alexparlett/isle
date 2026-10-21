@@ -30,6 +30,10 @@ pub enum Act {
     UseAsDefaults,
     StopJob(u64),
     EmptyTrash,
+    /// Return in the search field: search everything under the folder.
+    Search(String),
+    /// Escape in the search field.
+    EndSearch,
 }
 
 pub fn icon_button(
@@ -117,6 +121,13 @@ pub struct Toolbar {
     pub jobs: Vec<JobView>,
     /// In the Trash: its count, for Empty Trash….
     pub in_trash: Option<usize>,
+    /// The search field's text and id; ⌘F focuses it.
+    pub query: State<String>,
+    pub find: AccessibilityId,
+    /// A walk stands: Columns is off.
+    pub searching: bool,
+    /// The title's glyph: the magnifying glass for a search.
+    pub glyph: Option<&'static str>,
     pub on_act: EventHandler<Act>,
 }
 
@@ -131,8 +142,10 @@ impl Component for Toolbar {
         let send = move |a: Act| act.call(a);
         let shown = self.shown;
 
+        let searching = self.searching;
         let segment = |glyph: &'static str, alt: &'static str, view: View| {
             let chosen = shown.view == view;
+            let enabled = !(searching && view == View::Columns);
             let send = send.clone();
             rect()
                 .width(Size::px(36.))
@@ -149,11 +162,23 @@ impl Component for Toolbar {
                 .a11y_builder(move |node| node.set_selected(chosen))
                 .on_press(move |e: Event<PressEventData>| {
                     e.stop_propagation();
-                    send(Act::Shown(Shown { view, ..shown }));
+                    if enabled {
+                        send(Act::Shown(Shown { view, ..shown }));
+                    }
                 })
                 .child(
-                    Glyph::new(glyph, t.size_glyph_large, colour(if chosen { t.colour_text } else { t.colour_text_2 }))
-                        .fill(chosen),
+                    Glyph::new(
+                        glyph,
+                        t.size_glyph_large,
+                        colour(if !enabled {
+                            t.colour_text_disabled
+                        } else if chosen {
+                            t.colour_text
+                        } else {
+                            t.colour_text_2
+                        }),
+                    )
+                    .fill(chosen),
                 )
                 .into_element()
         };
@@ -282,6 +307,16 @@ impl Component for Toolbar {
         };
 
         let (back_send, forward_send, sidebar_send, preview_send) = (send.clone(), send.clone(), send.clone(), send.clone());
+        let search_field = {
+            let (submit, escape) = (send.clone(), send.clone());
+            isle_ui::TextField::new(self.query, "Search")
+                .a11y_id(self.find)
+                .placeholder("Search")
+                .width(Size::px(t.size_toolbar_search))
+                .leading(Glyph::new("magnifying-glass", t.size_glyph_small, colour(t.colour_text_2)))
+                .on_submit(move |text: String| submit(Act::Search(text)))
+                .on_escape(move |_| escape(Act::EndSearch))
+        };
         rect()
             .width(Size::fill())
             .height(Size::px(t.size_toolbar))
@@ -313,7 +348,14 @@ impl Component for Toolbar {
                 rect()
                     .width(Size::flex(1.))
                     .padding((0., 0., 0., t.space_s))
-                    .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), self.title.clone()))
+                    .child(
+                        rect()
+                            .horizontal()
+                            .cross_align(Alignment::Center)
+                            .spacing(t.space_xs)
+                            .maybe_child(self.glyph.map(|g| Glyph::new(g, t.size_glyph, colour(t.colour_text_2))))
+                            .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), self.title.clone())),
+                    )
                     .child(text::line(
                         &theme,
                         text::Style::Subheadline,
@@ -348,6 +390,7 @@ impl Component for Toolbar {
             .child(icon_button(&theme, "sidebar-simple", "Show Preview", true, self.preview, move || {
                 preview_send(Act::TogglePreview)
             }))
+            .child(search_field)
     }
 }
 

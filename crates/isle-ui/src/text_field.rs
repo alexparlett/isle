@@ -17,6 +17,7 @@ pub struct TextField {
     leading: Option<Element>,
     auto_focus: bool,
     select_all: bool,
+    a11y_id: Option<AccessibilityId>,
 }
 
 impl TextField {
@@ -32,6 +33,7 @@ impl TextField {
             leading: None,
             auto_focus: false,
             select_all: false,
+            a11y_id: None,
         }
     }
 
@@ -69,6 +71,12 @@ impl TextField {
         self
     }
 
+    /// The owner's id for the field, so it can focus the field and tell when it has the keys.
+    pub fn a11y_id(mut self, id: AccessibilityId) -> Self {
+        self.a11y_id = Some(id);
+        self
+    }
+
     /// A glyph before the text, as the search field's magnifier.
     pub fn leading(mut self, leading: impl IntoElement) -> Self {
         self.leading = Some(leading.into_element());
@@ -80,7 +88,8 @@ impl Component for TextField {
     fn render(&self) -> impl IntoElement {
         let theme = use_theme();
         let t = &theme.tokens;
-        let a11y = use_a11y();
+        let own = use_a11y();
+        let a11y = self.a11y_id.unwrap_or(own);
         let colours = InputColorsThemePartial::new()
             .background(colour(t.colour_fill))
             .hover_background(colour(t.colour_fill))

@@ -20,11 +20,58 @@ pub const EMPTY: &str = "application/x-zerosize";
 /// The bytes read to sniff a file's type; shared-mime-info's rules look no further.
 const SNIFF: usize = 4096;
 
+/// The globs in the data directories' `globs2` that are not a plain `*.suffix`.
+fn special_globs(dirs: &[PathBuf]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for dir in dirs {
+        let Ok(text) = std::fs::read_to_string(dir.join("mime/globs2")) else { continue };
+        for line in text.lines().filter(|l| !l.starts_with('#')) {
+            let Some(pattern) = line.split(':').nth(2) else { continue };
+            let plain = pattern.strip_prefix("*.").is_some_and(|rest| !rest.contains(['*', '?', '[']));
+            let pattern = pattern.to_lowercase();
+            if !plain && pattern != "__noglobs__" && !out.contains(&pattern) {
+                out.push(pattern);
+            }
+        }
+    }
+    out
+}
+
+/// A shell glob of `*`, `?` and `[…]` against a whole name.
+fn glob_matches(glob: &[u8], name: &[u8]) -> bool {
+    match glob.split_first() {
+        None => name.is_empty(),
+        Some((b'*', rest)) => (0..=name.len()).any(|i| glob_matches(rest, &name[i..])),
+        Some((b'?', rest)) => !name.is_empty() && glob_matches(rest, &name[1..]),
+        Some((b'[', rest)) => {
+            let Some(end) = rest.iter().position(|b| *b == b']') else { return false };
+            let Some((&c, name_rest)) = name.split_first() else { return false };
+            let (set, after) = (&rest[..end], &rest[end + 1..]);
+            let mut hit = false;
+            let mut i = 0;
+            while i < set.len() {
+                if i + 2 < set.len() && set[i + 1] == b'-' {
+                    hit |= (set[i]..=set[i + 2]).contains(&c);
+                    i += 3;
+                } else {
+                    hit |= set[i] == c;
+                    i += 1;
+                }
+            }
+            hit && glob_matches(after, name_rest)
+        }
+        Some((&b, rest)) => name.first() == Some(&b) && glob_matches(rest, &name[1..]),
+    }
+}
+
 /// The database, read once.
 pub struct Types {
     db: SharedMimeInfo,
-    /// A name's type by its lower-cased extension, or by the whole name when it has none.
+    /// A name's type by everything after its first dot, or by the whole name when it has none.
     by_name: Mutex<HashMap<String, Option<String>>>,
+    /// The globs that are not a plain `*.suffix`, lower-cased: a name one matches is asked of
+    /// the database itself, as its answer is not its suffix's.
+    special: OnceLock<Vec<String>>,
     comments: Mutex<HashMap<String, String>>,
     dirs: Vec<PathBuf>,
 }
@@ -50,6 +97,7 @@ impl Types {
         Self {
             db,
             by_name: Mutex::default(),
+            special: OnceLock::new(),
             comments: Mutex::default(),
             dirs,
         }
@@ -62,24 +110,29 @@ impl Types {
 
     /// The type a name says, if it says one.
     pub fn by_name(&self, name: &str) -> Option<String> {
-        let key = match name.rsplit_once('.') {
-            Some((stem, ext)) if !stem.is_empty() && !ext.is_empty() => format!(".{}", ext.to_lowercase()),
+        let lower = name.to_lowercase();
+        let special = self.special.get_or_init(|| special_globs(&self.dirs));
+        let ask = || {
+            self.db
+                .get_mime_types_from_file_name(name)
+                .into_iter()
+                .next()
+                .map(|m| self.canonical(&m))
+                .filter(|m| m != UNKNOWN)
+        };
+        if special.iter().any(|g| glob_matches(g.as_bytes(), lower.as_bytes())) {
+            return ask();
+        }
+        let shown = name.trim_start_matches('.');
+        let key = match shown.split_once('.') {
+            Some((_, rest)) if !rest.is_empty() => format!(".{rest}"),
             _ => name.to_owned(),
         };
         if let Some(known) = self.by_name.lock().unwrap().get(&key) {
             return known.clone();
         }
-        let found = self
-            .db
-            .get_mime_types_from_file_name(name)
-            .into_iter()
-            .next()
-            .map(|m| self.canonical(&m))
-            .filter(|m| m != UNKNOWN);
-        // Only an extension's answer holds for every name that ends in it.
-        if key.starts_with('.') {
-            self.by_name.lock().unwrap().insert(key, found.clone());
-        }
+        let found = ask();
+        self.by_name.lock().unwrap().insert(key, found.clone());
         found
     }
 
@@ -215,6 +268,11 @@ mod tests {
         assert_eq!(types.by_name("notes.md").as_deref(), Some("text/markdown"));
         assert_eq!(types.by_name("Makefile").as_deref(), Some("text/x-makefile"));
         assert_eq!(types.by_name("README"), types.by_name("README"));
+        // A whole-name glob answers for its name alone, never for its suffix.
+        assert_eq!(types.by_name("todo.txt").as_deref(), Some("text/x-todo-txt"));
+        assert_eq!(types.by_name("notebook.txt").as_deref(), Some(PLAIN));
+        assert_eq!(types.by_name("a.tar.gz").as_deref(), Some("application/x-compressed-tar"));
+        assert_eq!(types.by_name("b.gz").as_deref(), Some("application/gzip"));
         assert!(types.is_a("text/markdown", PLAIN));
         assert!(types.is_a("image/png", "image/*"));
         assert!(!types.is_a("image/png", PLAIN));

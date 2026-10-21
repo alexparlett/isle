@@ -472,8 +472,6 @@ impl Source for ContentsSource {
     }
 
     fn search(&self, query: &Query, cx: &mut Context<'_>) -> Vec<Row> {
-        use grep_regex::RegexMatcherBuilder;
-        use grep_searcher::{BinaryDetection, SearcherBuilder, sinks::UTF8};
         let text = query.text.trim();
         if text.chars().count() < 2 {
             return Vec::new();
@@ -482,17 +480,9 @@ impl Source for ContentsSource {
         if cx.stale(query) {
             return Vec::new();
         }
-        let smart = text.chars().all(|c| !c.is_uppercase());
-        let Ok(matcher) = RegexMatcherBuilder::new()
-            .case_insensitive(smart)
-            .build(&regex_escape(text))
-        else {
+        let Some(mut contents) = Contents::new(text) else {
             return Vec::new();
         };
-        let mut searcher = SearcherBuilder::new()
-            .binary_detection(BinaryDetection::quit(0))
-            .line_number(true)
-            .build();
         let files: Vec<PathBuf> = match self.index.read() {
             Ok(index) => index
                 .entries()
@@ -509,16 +499,7 @@ impl Source for ContentsSource {
             if std::fs::metadata(&path).map_or(true, |m| m.len() > CONTENTS_MAX_SIZE) {
                 continue;
             }
-            let mut hit: Option<(u64, String)> = None;
-            let _ = searcher.search_path(
-                &matcher,
-                &path,
-                UTF8(|line, text| {
-                    hit = Some((line, text.trim().chars().take(200).collect()));
-                    Ok(false)
-                }),
-            );
-            if let Some((line, text)) = hit {
+            if let Some((line, text)) = contents.first_hit(&path) {
                 let m = cx.matcher.find("", "").expect("an empty query matches");
                 let detail = format!(
                     "{text} · {}:{line}",
@@ -689,5 +670,38 @@ mod tests {
         );
         assert_eq!(recent_by(&by_app, 10, &["Firefox".into()]), [b]);
         fs::remove_dir_all(root).unwrap();
+    }
+}
+
+/// A plain-text search of files' contents, as Spotlight's Contents and Files' Contents contain
+/// both use: the text as typed, case ignored unless it has a capital, binary files skipped.
+pub struct Contents {
+    matcher: grep_regex::RegexMatcher,
+    searcher: grep_searcher::Searcher,
+}
+
+impl Contents {
+    pub fn new(text: &str) -> Option<Self> {
+        use grep_regex::RegexMatcherBuilder;
+        use grep_searcher::{BinaryDetection, SearcherBuilder};
+        let smart = text.chars().all(|c| !c.is_uppercase());
+        let matcher = RegexMatcherBuilder::new().case_insensitive(smart).build(&regex_escape(text)).ok()?;
+        let searcher = SearcherBuilder::new().binary_detection(BinaryDetection::quit(0)).line_number(true).build();
+        Some(Self { matcher, searcher })
+    }
+
+    /// The first line of `path` holding the text, and its number.
+    pub fn first_hit(&mut self, path: &Path) -> Option<(u64, String)> {
+        use grep_searcher::sinks::UTF8;
+        let mut hit: Option<(u64, String)> = None;
+        let _ = self.searcher.search_path(
+            &self.matcher,
+            path,
+            UTF8(|line, text| {
+                hit = Some((line, text.trim().chars().take(200).collect()));
+                Ok(false)
+            }),
+        );
+        hit
     }
 }

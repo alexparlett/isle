@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 mod common;
 
-use common::{Client, Isle, wait_until};
+use common::{Client, Isle, keys::*, wait_until};
 
 const APP: &str = "io.github.alexparlett.Isle.Files";
 
@@ -75,4 +75,40 @@ async fn files_opens_home_and_reveals_through_file_manager1() {
     let (second, _) = start_files(&mut isle, &bin, &[home.join("Pictures").to_str().unwrap()]);
     wait_until(|| async { second.exited() }).await;
     app.wait_for_part("Pictures").await;
+}
+
+// evdev's codes for the keys these chords use.
+const KEY_1: u32 = 2;
+const KEY_3: u32 = 4;
+const KEY_P: u32 = 25;
+const KEY_SLASH: u32 = 53;
+const DOWN: u32 = 108;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_three_views_the_preview_and_the_status_bar() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-views").await;
+    let (app, _home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let settle = || tokio::time::sleep(std::time::Duration::from_millis(500));
+    settle().await;
+
+    // The first item selected, the preview and the status bar on, then each view.
+    isle.chord(&[DOWN]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_P]).await;
+    isle.chord(&[SUPER, KEY_SLASH]).await;
+    settle().await;
+    isle.keep_shot("files-list").await;
+    isle.chord(&[SUPER, KEY_1]).await;
+    app.wait_for_part("id=\"as-icons\"").await;
+    settle().await;
+    isle.keep_shot("files-icons").await;
+    isle.chord(&[SUPER, KEY_3]).await;
+    app.wait_for_part("id=\"as-columns\"").await;
+    settle().await;
+    isle.keep_shot("files-columns").await;
 }

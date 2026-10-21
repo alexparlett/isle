@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 
 use crate::Entry;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum SortBy {
     #[default]
     Name,

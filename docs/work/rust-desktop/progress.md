@@ -2,6 +2,24 @@
 
 ## 2026-10-21
 
+- P15 15.4: Icons and Columns, the preview and the bars. ⌘1 Icons (a grid
+  that fills the width, the icon on a plate and its name in a capsule when
+  selected, sizes 16 to 256 on ⌘+ and ⌘−, item info), ⌘2 List, ⌘3 Columns (a
+  column per folder chosen, each its own listing, the preview last); groups
+  by kind, date or size with headings (⌃⌘0 and View's Group By), Sort By;
+  the toolbar's view switcher, Group and Sort menu and View Options (⌘J,
+  with Use as Defaults); each folder's view remembered (the last 2,000)
+  with a default for the rest. The preview pane (⇧⌘P): the item's icon,
+  name, kind and size, Created, Modified, Last opened, a folder's count and
+  size counted on a thread of its own, a stack for several. The path bar
+  (⌥⌘P) and the status bar (⌘/) with free space read off the window's
+  thread. Papirus's small icons come from its 22 point set, whose places
+  are in colour. Not built yet: List's disclosure triangles, the header's
+  column menu and column resizing, Columns' keys between columns and its
+  Right Size menu, the status bar's icon slider, and a two-line name
+  centred under its icon (one line centres; Freya centres text within the
+  label's maximum width).
+
 - P15 15.3: the window. `isle-files` (binary `isle-files`, id
   `io.github.alexparlett.Isle.Files`) opens windows from its delegate: the
   sidebar of Recents, Favourites (Home, the xdg-user-dirs folders in

@@ -9,8 +9,10 @@ use std::{
 
 use isle_apps::icons::Icons;
 
-/// The icon theme's sizes Files draws from: list rows at 16 points, larger views at 64.
-pub const SMALL: u32 = 16;
+/// The icon theme's sizes Files draws from: list rows' 16 points from the 22 point set,
+/// whose places are in colour where Papirus's 16 point ones are one-colour symbols; larger
+/// views from 64.
+pub const SMALL: u32 = 22;
 pub const LARGE: u32 = 64;
 
 struct Cache {
@@ -65,8 +67,8 @@ mod tests {
             return;
         }
         let folder = super::cached("inode/directory", true, super::SMALL).unwrap();
-        assert!(folder.ends_with("places/folder.svg"), "{folder:?}");
+        assert!(folder.ends_with("22x22/places/folder.svg"), "{folder:?}");
         let markdown = super::cached("text/markdown", false, super::SMALL).unwrap();
-        assert!(markdown.to_string_lossy().contains("/Papirus/16x16/mimetypes/"), "{markdown:?}");
+        assert!(markdown.to_string_lossy().contains("/Papirus/22x22/mimetypes/"), "{markdown:?}");
     }
 }

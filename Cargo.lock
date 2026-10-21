@@ -3050,6 +3050,7 @@ dependencies = [
  "isle-tokens",
  "isle-ui",
  "jiff",
+ "rustix 1.1.5",
  "serde",
  "tempfile",
  "tokio",
@@ -3072,6 +3073,7 @@ version = "0.1.0"
 dependencies = [
  "isle-apps",
  "rustix 1.1.5",
+ "serde",
  "tempfile",
  "tracing",
 ]

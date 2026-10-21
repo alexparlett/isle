@@ -24,6 +24,7 @@ isle-state.workspace = true
 isle-tokens.workspace = true
 isle-ui.workspace = true
 jiff.workspace = true
+rustix = { version = "1.1", features = ["fs"] }
 serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true

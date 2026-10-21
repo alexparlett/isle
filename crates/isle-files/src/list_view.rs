@@ -8,7 +8,11 @@ use freya::prelude::*;
 use isle_fs::{Entry, Order, SortBy};
 use isle_ui::{AppIcon, Glyph, colour, text, use_theme};
 
-use crate::{format, icons, tab::Tab};
+use crate::{
+    format, icons,
+    tab::Tab,
+    view::{self, Line},
+};
 
 /// The modifiers held as the pointer pressed.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -50,6 +54,8 @@ pub struct ListView {
 #[derive(Clone, PartialEq)]
 struct Rows {
     rev: u64,
+    /// Group headings and items, when the view is grouped; the folder's order otherwise.
+    lines: Option<std::rc::Rc<Vec<Line>>>,
     tab: State<Tab>,
     focused: bool,
     held: State<Held>,
@@ -62,10 +68,15 @@ impl Component for ListView {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut tab = self.tab;
-        let (length, order) = {
+        let (length, order, group) = {
             let t = tab.peek();
-            (t.folder.len(), t.folder.order())
+            (t.folder.len(), t.folder.order(), t.shown.group)
         };
+        let lines = group.map(|by| {
+            let now = jiff::Timestamp::now().as_second();
+            std::rc::Rc::new(view::lines(tab.peek().folder.entries(), Some(by), now))
+        });
+        let length = lines.as_ref().map_or(length, |l| l.len());
         let cells = theme.clone();
         let header_cell = move |title: &'static str, by: SortBy, width: Size, right: bool| {
             let theme = &cells;
@@ -89,6 +100,8 @@ impl Component for ListView {
                     };
                     let mut t = tab.write();
                     t.folder.set_order(next);
+                    t.shown.sort = next.by;
+                    t.shown.reverse = next.reverse;
                     t.rev += 1;
                 })
                 .child(text::line(theme, text::Style::Callout, colour(ink), title))
@@ -119,6 +132,7 @@ impl Component for ListView {
             .child(header_cell("Kind", SortBy::Kind, Size::px(KIND), false));
         let rows = Rows {
             rev: self.rev,
+            lines,
             tab: self.tab,
             focused: self.focused,
             held: self.held,
@@ -147,28 +161,59 @@ impl Component for ListView {
     }
 }
 
+/// A group's heading row (`surfaces/files.md` § Icons view, Group heading).
+pub fn heading(theme: &isle_tokens::Theme, name: &str) -> Element {
+    let t = &theme.tokens;
+    rect()
+        .width(Size::fill())
+        .height(Size::px(t.size_row))
+        .padding((0., t.space_l))
+        .main_align(Alignment::Center)
+        .border(
+            Border::new()
+                .fill(colour(t.colour_hairline))
+                .width(BorderWidth { top: 0., right: 0., bottom: 1., left: 0. })
+                .alignment(BorderAlignment::Inner),
+        )
+        .child(text::line(theme, text::Style::Subheadline, colour(t.colour_text_2), name.to_owned()).font_weight(600))
+        .into_element()
+}
+
+/// The folder's index of a line, if it is an item, and whether it is an odd one.
+fn item_at(rows: &Rows, line: usize) -> Option<(usize, bool)> {
+    match &rows.lines {
+        None => Some((line, line % 2 == 1)),
+        Some(lines) => match lines.get(line)? {
+            Line::Item { index, odd } => Some((*index, *odd)),
+            Line::Heading(_) => None,
+        },
+    }
+}
+
 fn row(item: VirtualItem, rows: &Rows) -> Element {
     let theme = isle_ui::theme();
     let t = &theme.tokens;
+    if let Some(Line::Heading(name)) = rows.lines.as_ref().and_then(|l| l.get(item.index)) {
+        return heading(&theme, name);
+    }
     let tab = rows.tab.peek();
-    let Some(entry) = tab.folder.entries().get(item.index) else {
+    let Some((index, odd)) = item_at(rows, item.index) else {
         return rect().into_element();
     };
+    let Some(entry) = tab.folder.entries().get(index) else {
+        return rect().into_element();
+    };
+    let selected_line = |line: Option<usize>| {
+        line.and_then(|l| item_at(rows, l))
+            .and_then(|(i, _)| tab.folder.entries().get(i))
+            .is_some_and(|e| tab.is_selected(&e.path))
+    };
     let selected = tab.is_selected(&entry.path);
-    let joined_above = item.index > 0
-        && tab
-            .folder
-            .entries()
-            .get(item.index - 1)
-            .is_some_and(|e| tab.is_selected(&e.path));
-    let joined_below = tab
-        .folder
-        .entries()
-        .get(item.index + 1)
-        .is_some_and(|e| tab.is_selected(&e.path));
+    let joined_above = selected_line(item.index.checked_sub(1));
+    let joined_below = selected_line(Some(item.index + 1));
     let fill = if selected {
         Some(if rows.focused { t.colour_accent } else { t.colour_selection_unfocused })
-    } else if item.index % 2 == 1 {
+    } else if odd {
         Some(t.colour_fill)
     } else {
         None

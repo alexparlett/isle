@@ -21,7 +21,7 @@ use isle_fs::{
     watch::{Change, Watch, Watcher},
 };
 
-use crate::{icons, places::Place};
+use crate::{icons, places::Place, view::Shown};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Status {
@@ -50,6 +50,10 @@ pub struct Tab {
     pub reveal: Option<PathBuf>,
     /// The folder is on a mount that answers slowly.
     pub slow: bool,
+    /// How the place is shown.
+    pub shown: Shown,
+    /// The folder shown, as its parent lists it, for the preview of nothing selected.
+    pub here: Option<Entry>,
 }
 
 impl Tab {
@@ -66,6 +70,8 @@ impl Tab {
             cursor: None,
             reveal: None,
             slow: false,
+            shown: Shown::default(),
+            here: None,
         }
     }
 
@@ -128,6 +134,7 @@ impl Tab {
 
 /// What the thread reading a tab's place sends it.
 enum Message {
+    Here(Entry),
     Listed(Listed),
     Changed(Update),
 }
@@ -143,8 +150,21 @@ enum Update {
 #[derive(Clone, Default)]
 pub struct Live(Rc<RefCell<LiveInner>>);
 
+impl Live {
+    pub fn new(shown_for: ShownFor) -> Self {
+        Self(Rc::new(RefCell::new(LiveInner {
+            shown_for: Some(shown_for),
+            ..Default::default()
+        })))
+    }
+}
+
+/// A place's remembered view.
+pub type ShownFor = Rc<dyn Fn(&Place) -> Shown>;
+
 #[derive(Default)]
 struct LiveInner {
+    shown_for: Option<ShownFor>,
     generation: Arc<AtomicU64>,
     watch: Option<Watch>,
     /// The channel to the task applying what is read; closed, the task ends.
@@ -158,6 +178,7 @@ fn warm(entries: &[Entry]) {
         if seen.insert(kind) {
             isle_apps::mime::types().comment(kind);
             icons::warm(kind, icons::SMALL);
+            icons::warm(kind, icons::LARGE);
         }
     }
 }
@@ -256,7 +277,10 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
     let place = {
         let mut t = tab.write();
         if !again {
-            let (order, hidden) = (t.folder.order(), t.folder.shows_hidden());
+            if let Some(shown_for) = live.0.borrow().shown_for.clone() {
+                t.shown = shown_for(&t.place);
+            }
+            let (order, hidden) = (t.shown.order(), t.folder.shows_hidden());
             t.folder = Folder::new(order);
             t.folder.set_show_hidden(hidden);
             t.selection.clear();
@@ -264,10 +288,14 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
         }
         t.status = Status::Loading;
         t.slow = false;
+        if !again {
+            t.here = None;
+        }
         t.rev += 1;
         t.place.clone()
     };
     let current = live.0.borrow().generation.clone();
+    let here = tx.clone();
     let send = {
         let current = current.clone();
         move |listed: Listed| {
@@ -278,12 +306,17 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
     std::thread::Builder::new()
         .name("isle-files-list".into())
         .spawn(move || match place {
-            Place::Folder(dir) => isle_fs::list(&dir, 512, |listed| {
+            Place::Folder(dir) => {
+                if let Ok(entry) = Entry::at(&dir) {
+                    let _ = here.unbounded_send(Message::Here(entry));
+                }
+                isle_fs::list(&dir, 512, |listed| {
                 if let Listed::Batch(batch) = &listed {
                     warm(batch);
                 }
                 send(listed)
-            }),
+            })
+            }
             Place::Recents => gather(crate::places::recents(200), send),
             Place::Computer => gather(volumes(), send),
             Place::Trash => {
@@ -301,6 +334,7 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             }
             let mut t = tab.write();
             match message {
+                Message::Here(entry) => t.here = Some(entry),
                 Message::Listed(Listed::Batch(batch)) => {
                     if again {
                         seen.extend(batch.iter().map(|e| e.path.clone()));

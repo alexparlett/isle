@@ -5,14 +5,20 @@ use std::{path::PathBuf, rc::Rc};
 
 use freya::prelude::*;
 use isle_app::{Chord, ChordKey, Command, Desktop, Menu, ToolbarExt, use_commands};
+use isle_fs::SortBy;
 use isle_ui::{Glyph, colour, text, use_theme};
 
 use crate::{
     Shared, WindowLink,
-    format,
+    bars::{PathBar, StatusBar},
+    columns_view::ColumnsView,
+    icons_view::IconsView,
     list_view::{Held, ListView, Pick},
     places::{self, Place, Places, Row},
+    preview::Preview,
     tab::{self, Live, Status, Tab},
+    toolbar::{Act, Toolbar},
+    view::{GroupBy, Shown, View},
 };
 
 /// What another part of the app asks a window to do.
@@ -56,9 +62,13 @@ fn new_tab(shared: &Shared, place: Place, reveal: Option<PathBuf>) -> TabHandle 
     let mut t = Tab::new(shared.next_tab(), place);
     t.reveal = reveal;
     t.folder.set_show_hidden(*shared.hidden.peek());
+    let memory = crate::SHARED.with(|s| s.borrow().clone());
     TabHandle {
         tab: State::create(t),
-        live: Live::default(),
+        live: match memory {
+            Some(shared) => Live::new(Rc::new(move |place: &Place| shared.shown_for(place))),
+            None => Live::default(),
+        },
         scroll: ScrollController::new(0, 0),
     }
 }
@@ -84,6 +94,10 @@ impl App for FilesWindow {
         let mut held = use_state(Held::default);
         let inbox = use_state(Vec::<Open>::new);
         let mut sidebar = use_state(|| true);
+        let mut preview = use_state(|| false);
+        let mut path_bar = use_state(|| false);
+        let mut status_bar = use_state(|| false);
+        let mut options = use_state(|| false);
 
         use_hook({
             let shared = shared.clone();
@@ -152,9 +166,9 @@ impl App for FilesWindow {
             }
         });
 
-        let (back, forward, place) = {
+        let (back, forward, place, shown) = {
             let t = tab.read();
-            (!t.back.is_empty(), !t.forward.is_empty(), t.place.clone())
+            (!t.back.is_empty(), !t.forward.is_empty(), t.place.clone(), t.shown)
         };
         let has_selection = !tab.read().selection.is_empty();
         let enclosing = place.folder().and_then(|p| p.parent()).map(PathBuf::from);
@@ -176,9 +190,45 @@ impl App for FilesWindow {
             Command::new("deselect", "Deselect All", Menu::Edit, 2)
                 .chord(Chord::cmd('a').option())
                 .enabled(has_selection),
+            Command::new("as-icons", "as Icons", Menu::View, 0)
+                .chord(Chord::cmd('1'))
+                .checked(shown.view == View::Icons),
             Command::new("as-list", "as List", Menu::View, 0)
                 .chord(Chord::cmd('2'))
-                .checked(true),
+                .checked(shown.view == View::List),
+            Command::new("as-columns", "as Columns", Menu::View, 0)
+                .chord(Chord::cmd('3'))
+                .checked(shown.view == View::Columns),
+            Command::new("use-groups", "Use Groups", Menu::View, 1)
+                .chord(Chord::cmd('0').ctrl())
+                .checked(shown.group.is_some()),
+            Command::new("group-kind", "Group By Kind", Menu::View, 1).checked(shown.group == Some(GroupBy::Kind)),
+            Command::new("group-modified", "Group By Date Modified", Menu::View, 1)
+                .checked(shown.group == Some(GroupBy::Modified)),
+            Command::new("group-size", "Group By Size", Menu::View, 1).checked(shown.group == Some(GroupBy::Size)),
+            Command::new("sort-name", "Sort By Name", Menu::View, 2).checked(shown.sort == SortBy::Name),
+            Command::new("sort-kind", "Sort By Kind", Menu::View, 2).checked(shown.sort == SortBy::Kind),
+            Command::new("sort-modified", "Sort By Date Modified", Menu::View, 2)
+                .checked(shown.sort == SortBy::Modified),
+            Command::new("sort-size", "Sort By Size", Menu::View, 2).checked(shown.sort == SortBy::Size),
+            Command::new("view-options", "Show View Options", Menu::View, 5).chord(Chord::cmd('j')),
+            Command::new("bigger", "Bigger Icons", Menu::View, 5)
+                .chord(Chord::cmd('='))
+                .enabled(shown.view == View::Icons),
+            Command::new("smaller", "Smaller Icons", Menu::View, 5)
+                .chord(Chord::cmd('-'))
+                .enabled(shown.view == View::Icons),
+            Command::new("toggle-preview", if *preview.read() { "Hide Preview" } else { "Show Preview" }, Menu::View, 3)
+                .chord(Chord::cmd('p').shift()),
+            Command::new("toggle-path-bar", if *path_bar.read() { "Hide Path Bar" } else { "Show Path Bar" }, Menu::View, 3)
+                .chord(Chord::cmd('p').option()),
+            Command::new(
+                "toggle-status-bar",
+                if *status_bar.read() { "Hide Status Bar" } else { "Show Status Bar" },
+                Menu::View,
+                3,
+            )
+            .chord(Chord::cmd('/')),
             Command::new(
                 "toggle-hidden",
                 if *shared.hidden.read() { "Hide Hidden Files" } else { "Show Hidden Files" },
@@ -215,6 +265,21 @@ impl App for FilesWindow {
         use_commands(commands);
 
         let live = handle.live.clone();
+        // A view changed in this tab is the folder's from now on.
+        let set_shown = {
+            let shared = shared.clone();
+            move |next: Shown| {
+                let mut tab = tab;
+                let place = {
+                    let mut t = tab.write();
+                    t.shown = next;
+                    t.folder.set_order(next.order());
+                    t.rev += 1;
+                    t.place.clone()
+                };
+                shared.keep_shown(&place, next);
+            }
+        };
         let go = {
             let live = live.clone();
             move |place: Place| tab::go(tab, &live, place, None)
@@ -259,6 +324,7 @@ impl App for FilesWindow {
 
         use_side_effect({
             let (go, open_new_tab, open_items) = (go.clone(), open_new_tab.clone(), open_items.clone());
+            let set_shown = set_shown.clone();
             let live = live.clone();
             let shared = shared.clone();
             move || {
@@ -287,6 +353,33 @@ impl App for FilesWindow {
                         }
                         "deselect" => tab.write().deselect(),
                         "toggle-sidebar" => sidebar.toggle(),
+                        "toggle-preview" => preview.toggle(),
+                        "toggle-path-bar" => path_bar.toggle(),
+                        "toggle-status-bar" => status_bar.toggle(),
+                        "view-options" => options.toggle(),
+                        "as-icons" | "as-list" | "as-columns" | "use-groups" | "group-kind" | "group-modified"
+                        | "group-size" | "sort-name" | "sort-kind" | "sort-modified" | "sort-size" | "bigger"
+                        | "smaller" => {
+                            let mut next = tab.peek().shown;
+                            match id.as_str() {
+                                "as-icons" => next.view = View::Icons,
+                                "as-list" => next.view = View::List,
+                                "as-columns" => next.view = View::Columns,
+                                "use-groups" => {
+                                    next.group = if next.group.is_some() { None } else { Some(GroupBy::Kind) }
+                                }
+                                "group-kind" => next.group = Some(GroupBy::Kind),
+                                "group-modified" => next.group = Some(GroupBy::Modified),
+                                "group-size" => next.group = Some(GroupBy::Size),
+                                "sort-name" => next.sort = SortBy::Name,
+                                "sort-kind" => next.sort = SortBy::Kind,
+                                "sort-modified" => next.sort = SortBy::Modified,
+                                "sort-size" => next.sort = SortBy::Size,
+                                "bigger" => next.step_icons(true),
+                                _ => next.step_icons(false),
+                            }
+                            set_shown(next);
+                        }
                         "toggle-hidden" => {
                             let mut hidden = shared.hidden;
                             let now = !*hidden.peek();
@@ -400,6 +493,34 @@ impl App for FilesWindow {
         let body = content(&theme, &handle, rev, focused, held, on_pick);
         let count = tab.read().folder.len();
         let title = place.title();
+        let (selected_items, selected_size) = {
+            let t = tab.read();
+            let items: Vec<_> = t.selection.iter().filter_map(|p| t.folder.get(p).cloned()).collect();
+            let size = items.iter().filter(|e| !e.is_dir()).map(|e| e.size).sum::<u64>();
+            (items, size)
+        };
+        let pane = (*preview.read() && shown.view != View::Columns).then(|| Preview {
+            items: selected_items.clone(),
+            folder: tab.read().here.clone(),
+            width: t.size_inspector,
+        });
+        let on_act = {
+            let (live, set_shown, shared) = (live.clone(), set_shown.clone(), shared.clone());
+            move |act: Act| match act {
+                Act::Back => tab::back(tab, &live),
+                Act::Forward => tab::forward(tab, &live),
+                Act::ShowSidebar => {
+                    let mut sidebar = sidebar;
+                    sidebar.set(true);
+                }
+                Act::TogglePreview => {
+                    let mut preview = preview;
+                    preview.toggle();
+                }
+                Act::Shown(next) => set_shown(next),
+                Act::UseAsDefaults => shared.set_default_shown(tab.peek().shown),
+            }
+        };
 
         rect()
             .expanded()
@@ -431,17 +552,17 @@ impl App for FilesWindow {
                     .height(Size::fill())
                     .content(Content::flex())
                     .background(colour(t.colour_view))
-                    .child(toolbar(&theme, &title, count, back, forward, *sidebar.read(), {
-                        let live = live.clone();
-                        move |action: Nav| match action {
-                            Nav::Back => tab::back(tab, &live),
-                            Nav::Forward => tab::forward(tab, &live),
-                            Nav::Sidebar => {
-                                let mut sidebar = sidebar;
-                                sidebar.toggle();
-                            }
-                        }
-                    }))
+                    .child(Toolbar {
+                        title,
+                        count,
+                        back,
+                        forward,
+                        sidebar: *sidebar.read(),
+                        preview: *preview.read(),
+                        shown,
+                        options,
+                        on_act: EventHandler::new(on_act),
+                    })
                     .maybe_child((tabs.read().len() > 1).then(|| {
                         TabBar {
                             titles: tabs.read().iter().map(|h| h.tab.read().place.title()).collect(),
@@ -460,7 +581,28 @@ impl App for FilesWindow {
                             }),
                         }
                     }))
-                    .child(rect().width(Size::fill()).height(Size::flex(1.)).child(body)),
+                    .child(
+                        rect()
+                            .width(Size::fill())
+                            .height(Size::flex(1.))
+                            .horizontal()
+                            .content(Content::flex())
+                            .child(rect().width(Size::flex(1.)).height(Size::fill()).child(body))
+                            .maybe_child(pane),
+                    )
+                    .maybe_child((*path_bar.read()).then(|| PathBar {
+                        folder: place.folder().map(PathBuf::from),
+                        on_go: EventHandler::new({
+                            let go = go.clone();
+                            move |path: PathBuf| go(Place::Folder(path))
+                        }),
+                    }))
+                    .maybe_child((*status_bar.read()).then(|| StatusBar {
+                        folder: place.folder().map(PathBuf::from),
+                        count,
+                        selected: selected_items.len(),
+                        selected_size,
+                    })),
             )
             .into_element()
     }
@@ -476,13 +618,6 @@ fn close_tab(mut tabs: State<Vec<TabHandle>>, mut current: State<usize>, i: usiz
     if now >= i && now > 0 {
         current.set(now - 1);
     }
-}
-
-#[derive(Clone, Copy)]
-enum Nav {
-    Back,
-    Forward,
-    Sidebar,
 }
 
 /// The folder's content, or why there is none.
@@ -529,87 +664,35 @@ fn content(
                 ),
             )
             .into_element(),
-        None => ListView {
-            tab: handle.tab,
-            rev,
-            focused,
-            held,
-            on_pick: EventHandler::new(on_pick),
-            controller: handle.scroll,
-        }
-        .into_element(),
-    }
-}
-
-fn icon_button(
-    theme: &isle_tokens::Theme,
-    glyph: &'static str,
-    alt: &'static str,
-    enabled: bool,
-    on_press: impl Fn() + 'static,
-) -> Element {
-    let t = &theme.tokens;
-    rect()
-        .width(Size::px(t.size_control_large))
-        .height(Size::px(t.size_control_large))
-        .center()
-        .corner_radius(t.radius_control)
-        .a11y_role(AccessibilityRole::Button)
-        .a11y_alt(alt)
-        .on_press(move |e: Event<PressEventData>| {
-            e.stop_propagation();
-            if enabled {
-                on_press();
+        None => match handle.tab.peek().shown.view {
+            View::List => ListView {
+                tab: handle.tab,
+                rev,
+                focused,
+                held,
+                on_pick: EventHandler::new(on_pick),
+                controller: handle.scroll,
             }
-        })
-        .child(Glyph::new(
-            glyph,
-            t.size_glyph_large,
-            colour(if enabled { t.colour_text_2 } else { t.colour_text_disabled }),
-        ))
-        .into_element()
-}
-
-fn toolbar(
-    theme: &isle_tokens::Theme,
-    title: &str,
-    count: usize,
-    back: bool,
-    forward: bool,
-    sidebar: bool,
-    on_nav: impl Fn(Nav) + Clone + 'static,
-) -> Element {
-    let t = &theme.tokens;
-    let (a, b, c) = (on_nav.clone(), on_nav.clone(), on_nav);
-    rect()
-        .width(Size::fill())
-        .height(Size::px(t.size_toolbar))
-        .padding((0., t.space_l))
-        .horizontal()
-        .cross_align(Alignment::Center)
-        .spacing(t.space_xs)
-        .background(colour(t.colour_window))
-        .border(
-            Border::new()
-                .fill(colour(t.colour_hairline))
-                .width(BorderWidth { top: 0., right: 0., bottom: 1., left: 0. })
-                .alignment(BorderAlignment::Inner),
-        )
-        .toolbar()
-        .maybe_child((!sidebar).then(|| {
-            rect()
-                .padding((0., 0., 0., t.space_xxxl + t.space_xl))
-                .child(icon_button(theme, "sidebar-simple", "Show Sidebar", true, move || c(Nav::Sidebar)))
-        }))
-        .child(icon_button(theme, "caret-left", "Back", back, move || a(Nav::Back)))
-        .child(icon_button(theme, "caret-right", "Forward", forward, move || b(Nav::Forward)))
-        .child(
-            rect()
-                .padding((0., 0., 0., t.space_s))
-                .child(text::line(theme, text::Style::Headline, colour(t.colour_text), title.to_owned()))
-                .child(text::line(theme, text::Style::Subheadline, colour(t.colour_text_2), format::items(count))),
-        )
-        .into_element()
+            .into_element(),
+            View::Icons => IconsView {
+                tab: handle.tab,
+                rev,
+                focused,
+                held,
+                on_pick: EventHandler::new(on_pick),
+                controller: handle.scroll,
+            }
+            .into_element(),
+            View::Columns => ColumnsView {
+                tab: handle.tab,
+                rev,
+                focused,
+                held,
+                on_pick: EventHandler::new(on_pick),
+            }
+            .into_element(),
+        },
+    }
 }
 
 #[derive(PartialEq)]

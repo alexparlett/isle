@@ -1,12 +1,18 @@
 //! Files (`docs/design/apps.md` Files; `p1/structure/files.md`).
 
+mod bars;
+mod columns_view;
 mod fm1;
 mod format;
 mod icons;
+mod icons_view;
 mod list_view;
+mod preview;
+mod toolbar;
 mod memory;
 mod places;
 mod tab;
+mod view;
 mod window;
 
 use std::{
@@ -103,6 +109,21 @@ impl Shared {
         self.save();
     }
 
+    /// A place's remembered view.
+    pub fn shown_for(&self, place: &Place) -> view::Shown {
+        self.memory.borrow().shown(place)
+    }
+
+    pub fn keep_shown(&self, place: &Place, shown: view::Shown) {
+        self.memory.borrow_mut().keep(place, shown);
+        self.save();
+    }
+
+    pub fn set_default_shown(&self, shown: view::Shown) {
+        self.memory.borrow_mut().default_view = shown;
+        self.save();
+    }
+
     fn save(&self) {
         let memory = self.memory.borrow().clone();
         std::thread::spawn(move || memory::save(&memory));
@@ -132,7 +153,7 @@ impl Shared {
 }
 
 thread_local! {
-    static SHARED: RefCell<Option<Rc<Shared>>> = const { RefCell::new(None) };
+    pub(crate) static SHARED: RefCell<Option<Rc<Shared>>> = const { RefCell::new(None) };
 }
 
 /// A `file://` URI's path.

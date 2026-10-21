@@ -6,11 +6,13 @@ mod fm1;
 mod format;
 mod icons;
 mod icons_view;
+mod interact;
 mod jobs;
 mod list_view;
 mod sheets;
 mod preview;
 mod toolbar;
+mod transfer;
 mod memory;
 mod places;
 mod tab;
@@ -65,6 +67,8 @@ pub struct Shared {
     /// Hidden files shown, in every window (`files.md` § The content: views).
     pub hidden: State<bool>,
     pub jobs: jobs::Jobs,
+    /// Items cut and not yet pasted, drawn dimmed.
+    pub cut: State<Vec<PathBuf>>,
 }
 
 impl Shared {
@@ -267,6 +271,7 @@ fn main() {
         next_tab: Cell::new(0),
         hidden: State::create_global(false),
         jobs: jobs::Jobs::new(),
+        cut: State::create_global(Vec::new()),
     });
     SHARED.with(|s| *s.borrow_mut() = Some(shared.clone()));
     isle_app::run_with(SPEC, Files { shared });

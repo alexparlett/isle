@@ -16,6 +16,7 @@ use crate::{
     bars::{PathBar, StatusBar},
     columns_view::ColumnsView,
     icons_view::IconsView,
+    interact::{Interact, Rename, TRASH},
     list_view::{Held, ListView, Pick},
     places::{self, Place, Places, Row},
     preview::Preview,
@@ -106,6 +107,18 @@ impl App for FilesWindow {
         let mut undo_stack = use_state(Vec::<(String, Vec<Step>)>::new);
         let mut alert = use_state(|| None::<Alert>);
         let jobs = shared.jobs;
+        let mut renaming = use_state(|| None::<PathBuf>);
+        let rename_text = use_state(String::new);
+        let mut rename_error = use_state(|| None::<String>);
+        let mut rename_many = use_state(|| None::<Vec<PathBuf>>);
+        let mut drop_target = use_state(|| None::<PathBuf>);
+        let mut press = use_state(|| None::<(PathBuf, f64, f64)>);
+        let mut drag_started = use_state(|| false);
+        // The Return that commits a name is the field's alone.
+        let mut committed = use_state(|| false);
+        let drag = isle_app::use_drag();
+        let surface = isle_app::this_surface();
+        let data = shared.app().data();
 
         use_hook({
             let shared = shared.clone();
@@ -180,6 +193,47 @@ impl App for FilesWindow {
             }
         });
 
+        // A drag from this window ended, dropped or not.
+        use_side_effect(move || {
+            let _ = *drag.ended.read();
+            drag_started.set(false);
+            press.set(None);
+        });
+        // Drops on the window: into the folder under the pointer, or the one shown.
+        use_side_effect({
+            let shared = shared.clone();
+            move || {
+                if drag.dropped.read().is_empty() {
+                    return;
+                }
+                let mut dropped = drag.dropped;
+                let drops = std::mem::take(&mut *dropped.write());
+                let target = drop_target.peek().clone();
+                drop_target.set(None);
+                let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+                let here = handle.tab.peek().place.folder().map(PathBuf::from);
+                for drop in drops {
+                    let (paths, _) = crate::transfer::read(crate::transfer::URIS, &drop.data);
+                    let Some(into) = target.clone().or_else(|| here.clone()) else { continue };
+                    let work = if into.as_os_str() == TRASH {
+                        Work::Trash { items: paths }
+                    } else {
+                        let items: Vec<PathBuf> = paths
+                            .into_iter()
+                            .filter(|p| p.parent() != Some(into.as_path()) && !into.starts_with(p))
+                            .collect();
+                        if items.is_empty() {
+                            continue;
+                        }
+                        // Within one volume an item moves, as Finder's do; across volumes it copies.
+                        let same = drop.own && same_volume(&items[0], &into);
+                        if same { Work::Move { items, into } } else { Work::Copy { items, into } }
+                    };
+                    start_job(&shared, key, work, &mut alert);
+                }
+            }
+        });
+
         // Requests from the app: a tab for a place, the item revealed.
         use_side_effect({
             let shared = shared.clone();
@@ -221,6 +275,14 @@ impl App for FilesWindow {
                 .map(|r| r.place.clone())
         };
         let in_trash = place == Place::Trash;
+        let editing = renaming.read().is_some();
+        let (selected_count, selection_name) = {
+            let t = tab.read();
+            let name = (t.selection.len() == 1)
+                .then(|| t.selection[0].file_name().map(|n| n.to_string_lossy().into_owned()))
+                .flatten();
+            (t.selection.len(), name)
+        };
         let undo_label = undo_stack.read().last().map(|(l, _)| format!("Undo {l}"));
         let commands = vec![
             Command::new("undo", undo_label.clone().unwrap_or_else(|| "Undo".into()), Menu::Edit, 0)
@@ -254,6 +316,24 @@ impl App for FilesWindow {
             Command::new("empty-trash", "Empty Trash…", Menu::File, 4).chord(Chord::cmd_key(ChordKey::Backspace).shift()),
             Command::new("empty-trash-now", "Empty Trash", Menu::File, 4)
                 .chord(Chord::cmd_key(ChordKey::Backspace).shift().option()),
+            field_when(Command::new("copy", "Copy", Menu::Edit, 1).chord(Chord::cmd('c')).enabled(has_selection), editing),
+            field_when(Command::new("cut", "Cut", Menu::Edit, 1).chord(Chord::cmd('x')).enabled(has_selection), editing),
+            field_when(Command::new("paste", "Paste", Menu::Edit, 1).chord(Chord::cmd('v')), editing),
+            field_when(Command::new("select-all", "Select All", Menu::Edit, 1).chord(Chord::cmd('a')), editing),
+            Command::new("paste-move", "Move Item Here", Menu::Edit, 1).chord(Chord::cmd('v').option()),
+            Command::new(
+                "copy-path",
+                match selection_name.as_deref() {
+                    Some(name) => format!("Copy “{name}” as Pathname"),
+                    None => "Copy as Pathname".into(),
+                },
+                Menu::Edit,
+                1,
+            )
+            .chord(Chord::cmd('c').option())
+            .enabled(has_selection),
+            Command::new("rename", if selected_count > 1 { format!("Rename {selected_count} Items…") } else { "Rename".into() }, Menu::File, 3)
+                .enabled(has_selection && !in_trash),
             Command::new("new-window", "New Window", Menu::File, 0).chord(Chord::cmd('n')),
             Command::new("new-tab", "New Tab", Menu::File, 0).chord(Chord::cmd('t')),
             Command::new("open", "Open", Menu::File, 1)
@@ -350,11 +430,6 @@ impl App for FilesWindow {
             let shared = shared.clone();
             move |place: Place| open_new_tab(&shared, tabs, current, key, place)
         };
-        let open_items_here = {
-            let (shared, handle) = (shared.clone(), handle.clone());
-            move |paths: Vec<PathBuf>, in_tabs: bool| open_items(&shared, tabs, current, key, &handle, paths, in_tabs)
-        };
-
         // The commands act on the tab current when each is taken, not when the effect began.
         use_side_effect({
             let shared = shared.clone();
@@ -386,6 +461,56 @@ impl App for FilesWindow {
                             open_items(&shared, tabs, current, key, &handle, selection, false);
                         }
                         "deselect" => tab.write().deselect(),
+                        "select-all" => {
+                            let mut t = tab.write();
+                            t.selection = t.folder.entries().iter().map(|e| e.path.clone()).collect();
+                        }
+                        "copy" | "cut" => {
+                            let selection = tab.peek().selection.clone();
+                            if let Some(data) = shared.app().data() {
+                                data.set_selection(crate::transfer::contents(&selection, id == "cut"));
+                            }
+                            let mut cut = shared.cut;
+                            cut.set(if id == "cut" { selection } else { Vec::new() });
+                        }
+                        "copy-path" => {
+                            let text = tab.peek().selection.iter().map(|p| p.to_string_lossy().into_owned()).collect::<Vec<_>>().join("\n");
+                            if let Some(data) = shared.app().data() {
+                                let bytes = text.into_bytes();
+                                data.set_selection(vec![
+                                    ("text/plain;charset=utf-8".into(), bytes.clone()),
+                                    ("text/plain".into(), bytes),
+                                ]);
+                            }
+                        }
+                        "paste" | "paste-move" => {
+                            let (Some(data), Some(into)) = (shared.app().data(), tab.peek().place.folder().map(PathBuf::from)) else {
+                                continue;
+                            };
+                            let moving = id == "paste-move";
+                            let shared = shared.clone();
+                            spawn(async move {
+                                let read = off_thread(move || data.read_selection(&crate::transfer::READ)).await.flatten();
+                                let Some((kind, bytes)) = read else { return };
+                                let (items, cut) = crate::transfer::read(&kind, &bytes);
+                                if items.is_empty() {
+                                    return;
+                                }
+                                let mut cut_now = shared.cut;
+                                let work = if moving || cut {
+                                    cut_now.set(Vec::new());
+                                    Work::Move { items, into }
+                                } else {
+                                    Work::Copy { items, into }
+                                };
+                                let mut alert = alert;
+                                start_job(&shared, key, work, &mut alert);
+                            });
+                        }
+                        "rename" => {
+                            let selection = tab.peek().selection.clone();
+                            start_rename(selection, renaming, rename_text, rename_error, rename_many);
+                        }
                         "toggle-sidebar" => sidebar.toggle(),
                         "toggle-preview" => preview.toggle(),
                         "toggle-path-bar" => path_bar.toggle(),
@@ -512,29 +637,33 @@ impl App for FilesWindow {
 
         let focused = *Platform::get().is_app_focused.read();
         let rev = tab.read().rev;
-        let on_pick = {
-            let open_items = open_items_here.clone();
-            move |pick: Pick| {
-                let mut tab = tab;
-                match pick {
-                Pick::Nothing => tab.write().deselect(),
-                Pick::Click(path, held) => {
-                    let mut t = tab.write();
-                    if held.cmd {
-                        t.toggle(path);
-                    } else if held.shift {
-                        t.extend_to(&path);
-                    } else {
-                        t.select_only(path);
+        // Made once, as the rename's handlers are, and acting on the tab current when called.
+        let on_pick = use_hook({
+            let shared = shared.clone();
+            move || {
+                EventHandler::new(move |pick: Pick| {
+                    let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+                    let mut tab = handle.tab;
+                    match pick {
+                        Pick::Nothing => tab.write().deselect(),
+                        Pick::Click(path, held) => {
+                            let mut t = tab.write();
+                            if held.cmd {
+                                t.toggle(path);
+                            } else if held.shift {
+                                t.extend_to(&path);
+                            } else {
+                                t.select_only(path);
+                            }
+                        }
+                        Pick::Open(path, held) => {
+                            tab.write().select_only(path.clone());
+                            open_items(&shared, tabs, current, key, &handle, vec![path], held.cmd);
+                        }
                     }
-                }
-                Pick::Open(path, held) => {
-                    tab.write().select_only(path.clone());
-                    open_items(vec![path], held.cmd);
-                }
-                }
+                })
             }
-        };
+        });
         let on_key = move |e: Event<KeyboardEventData>| {
             let m = e.modifiers;
             held.set_if_modified(Held {
@@ -542,7 +671,16 @@ impl App for FilesWindow {
                 shift: m.contains(Modifiers::SHIFT),
                 option: m.contains(Modifiers::ALT),
             });
-            if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) {
+            if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) || renaming.peek().is_some() {
+                return;
+            }
+            if e.key == Key::Named(NamedKey::Enter) && *committed.peek() {
+                committed.set(false);
+                return;
+            }
+            if e.key == Key::Named(NamedKey::Enter) && rename_many.peek().is_none() && alert.peek().is_none() {
+                let selection = tab.peek().selection.clone();
+                start_rename(selection, renaming, rename_text, rename_error, rename_many);
                 return;
             }
             let step: isize = match e.key {
@@ -580,7 +718,49 @@ impl App for FilesWindow {
             });
         };
 
-        let body = content(&theme, &handle, rev, focused, held, on_pick);
+        // Made once, so the rows they reach stay equal while a name is typed: a new handler
+        // each render would rebuild the row and the field with it.
+        let (on_commit, on_cancel) = use_hook({
+            let shared = shared.clone();
+            move || {
+                let commit = EventHandler::new(move |text: String| {
+                    let Some(path) = renaming.peek().clone() else { return };
+                    let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+                    let check = check_rename(&handle.tab.peek(), &path, &text);
+                    match check {
+                        RenameCheck::Cancel => {}
+                        RenameCheck::Refused(why) => {
+                            rename_error.set(Some(why));
+                            return;
+                        }
+                        RenameCheck::Ask(question) => alert.set(Some(question)),
+                        RenameCheck::Go(work) => start_job(&shared, key, work, &mut alert),
+                    }
+                    renaming.set(None);
+                    rename_error.set(None);
+                    committed.set(true);
+                });
+                let cancel = EventHandler::new(move |_: ()| {
+                    renaming.set(None);
+                    rename_error.set(None);
+                });
+                (commit, cancel)
+            }
+        });
+        let interact = Interact {
+            rename: renaming.read().clone().map(|path| Rename {
+                path,
+                text: rename_text,
+                on_commit: on_commit.clone(),
+                on_cancel: on_cancel.clone(),
+                error: rename_error.read().clone(),
+            }),
+            cut: shared.cut.read().clone(),
+            dragging: drag.over.read().is_some(),
+            drop_target,
+            press,
+        };
+        let body = content(&theme, &handle, rev, focused, held, on_pick, interact.clone());
         // A question goes to the window that started its job, or to the front one when that
         // has closed.
         let question = {
@@ -634,6 +814,29 @@ impl App for FilesWindow {
             .content(Content::flex())
             .on_global_key_down(on_key)
             .on_global_key_up(on_key_up)
+            .on_global_pointer_move({
+                let (data, tab) = (data.clone(), tab);
+                move |e: Event<PointerEventData>| {
+                    let Some((path, x0, y0)) = press.peek().clone() else { return };
+                    let at = e.global_location();
+                    if *drag_started.peek() || (at.x - x0).hypot(at.y - y0) < 4. {
+                        return;
+                    }
+                    let (Some(data), Some(surface)) = (data.clone(), surface) else { return };
+                    // A drag carries the selection it starts in, or the item alone.
+                    let items = {
+                        let t = tab.peek();
+                        if t.is_selected(&path) { t.selection.clone() } else { vec![path.clone()] }
+                    };
+                    data.start_drag(surface, crate::transfer::contents(&items, false));
+                    drag_started.set(true);
+                }
+            })
+            .on_global_pointer_up(move |_: Event<PointerEventData>| {
+                if !*drag_started.peek() {
+                    press.set(None);
+                }
+            })
             .on_mouse_down({
                 let live = live.clone();
                 move |e: Event<MouseEventData>| match e.button {
@@ -713,6 +916,19 @@ impl App for FilesWindow {
                     })),
             )
             .maybe_child(question.map(|q| ConflictSheet { question: q, jobs }.into_element()))
+            .maybe_child(rename_many.read().clone().map(|items| {
+                let shared = shared.clone();
+                crate::sheets::RenameMany {
+                    items,
+                    on_done: EventHandler::new(move |work: Option<Work>| {
+                        rename_many.set(None);
+                        if let Some(work) = work {
+                            start_job(&shared, key, work, &mut alert);
+                        }
+                    }),
+                }
+                .into_element()
+            }))
             .maybe_child(alert.read().clone().map(|a| {
                 let shared = shared.clone();
                 alert_sheet(a, move |work: Option<Work>| {
@@ -725,6 +941,80 @@ impl App for FilesWindow {
             }))
             .into_element()
     }
+}
+
+/// A command a field takes as its key while a name is being edited.
+fn field_when(command: Command, editing: bool) -> Command {
+    if editing { command.field() } else { command }
+}
+
+fn same_volume(a: &std::path::Path, b: &std::path::Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let dev = |p: &std::path::Path| p.ancestors().find_map(|a| std::fs::symlink_metadata(a).ok()).map(|m| m.dev());
+    dev(a).is_some() && dev(a) == dev(b)
+}
+
+/// Return on a selection: one item's name opens for editing, several open Rename Many.
+fn start_rename(
+    selection: Vec<PathBuf>,
+    mut renaming: State<Option<PathBuf>>,
+    mut text: State<String>,
+    mut error: State<Option<String>>,
+    mut many: State<Option<Vec<PathBuf>>>,
+) {
+    match selection.as_slice() {
+        [] => {}
+        [one] => {
+            text.set(one.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+            error.set(None);
+            renaming.set(Some(one.clone()));
+        }
+        _ => many.set(Some(selection)),
+    }
+}
+
+enum RenameCheck {
+    Cancel,
+    Refused(String),
+    Ask(Alert),
+    Go(Work),
+}
+
+/// What a typed name does (`files.md` § Acting on files, Rename).
+fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str) -> RenameCheck {
+    let name = typed.trim();
+    let old = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    if name.is_empty() || name == old {
+        return RenameCheck::Cancel;
+    }
+    if name.contains('/') {
+        return RenameCheck::Refused("A name can't contain “/”.".into());
+    }
+    if tab.folder.get(&path.with_file_name(name)).is_some() {
+        return RenameCheck::Refused(format!("“{name}” is already taken. Choose a different name."));
+    }
+    let to = |n: &str| Work::Rename { item: path.to_owned(), to: n.to_owned() };
+    if name.starts_with('.') && !old.starts_with('.') {
+        return RenameCheck::Ask(Alert {
+            title: "A name that begins with a dot makes the item hidden.".into(),
+            message: String::new(),
+            items: Vec::new(),
+            buttons: vec![(format!("Use “{name}”"), Some(to(name))), ("Cancel".into(), None)],
+        });
+    }
+    let is_dir = tab.folder.get(path).is_some_and(|e| e.is_dir());
+    let (_, old_ext) = isle_fs::jobs::split_ext(&old);
+    let (_, new_ext) = isle_fs::jobs::split_ext(name);
+    if !is_dir && !old_ext.is_empty() && new_ext != old_ext {
+        let kept = format!("{}{old_ext}", isle_fs::jobs::split_ext(name).0);
+        return RenameCheck::Ask(Alert {
+            title: format!("Change the extension from “{old_ext}” to “{new_ext}”?"),
+            message: String::new(),
+            items: Vec::new(),
+            buttons: vec![(format!("Use {new_ext}"), Some(to(name))), (format!("Keep {old_ext}"), Some(to(&kept)))],
+        });
+    }
+    RenameCheck::Go(to(name))
 }
 
 /// Starts a job, or says first that it will not fit.
@@ -841,7 +1131,8 @@ fn content(
     rev: u64,
     focused: bool,
     held: State<Held>,
-    on_pick: impl Fn(Pick) + 'static,
+    on_pick: EventHandler<Pick>,
+    interact: Interact,
 ) -> Element {
     let t = &theme.tokens;
     let tab = handle.tab.read();
@@ -884,8 +1175,9 @@ fn content(
                 rev,
                 focused,
                 held,
-                on_pick: EventHandler::new(on_pick),
+                on_pick: on_pick.clone(),
                 controller: handle.scroll,
+                interact,
             }
             .into_element(),
             View::Icons => IconsView {
@@ -893,8 +1185,9 @@ fn content(
                 rev,
                 focused,
                 held,
-                on_pick: EventHandler::new(on_pick),
+                on_pick: on_pick.clone(),
                 controller: handle.scroll,
+                interact,
             }
             .into_element(),
             View::Columns => ColumnsView {
@@ -902,7 +1195,8 @@ fn content(
                 rev,
                 focused,
                 held,
-                on_pick: EventHandler::new(on_pick),
+                on_pick: on_pick.clone(),
+                interact,
             }
             .into_element(),
         },

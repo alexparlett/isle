@@ -1,8 +1,8 @@
 //! What every Isle app stands on: its window, one instance, the desktop's theme and settings
 //! followed live, and the Wayland extras winit does not bind (`apps.md` Conventions).
 
-mod clipboard;
 pub mod commands;
+pub mod data;
 mod desktop;
 mod hub;
 mod instance;
@@ -27,7 +27,7 @@ pub use desktop::{Write, from_owned};
 pub use instance::Request;
 pub use toolbar::ToolbarExt;
 pub use hub::{AppHandle, Hold, Requester, WindowKey, app};
-pub use window::{WindowSpec, this_window};
+pub use window::{Drag, WindowSpec, this_surface, this_window, use_drag};
 pub use worker::Worker;
 
 /// An app's identity and window.
@@ -237,6 +237,11 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
         AppHandle::new(spec, worker.clone(), None, desktop, theme).0
     });
     use_provide_context(|| WindowKey(1));
+    use_provide_context(|| window::Drag {
+        over: State::create(None),
+        dropped: State::create(Vec::new()),
+        ended: State::create(0),
+    });
     desktop
 }
 

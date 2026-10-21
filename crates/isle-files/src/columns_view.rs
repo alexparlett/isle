@@ -23,6 +23,7 @@ pub struct ColumnsView {
     pub focused: bool,
     pub held: State<Held>,
     pub on_pick: EventHandler<Pick>,
+    pub interact: crate::interact::Interact,
 }
 
 /// A column after the first: a folder chosen in the column before it.
@@ -103,7 +104,7 @@ impl Component for ColumnsView {
         let column_views = all.iter().enumerate().map(|(n, &tab)| {
             let on_pick = self.on_pick.clone();
             let held = self.held;
-            column(&theme, tab, n == active && self.focused, dark, move |pick: Pick| {
+            column(&theme, tab, n == active && self.focused, dark, &self.interact, move |pick: Pick| {
                 if n == 0 {
                     on_pick.call(pick);
                     return;
@@ -144,6 +145,7 @@ fn column(
     tab: State<Tab>,
     active: bool,
     dark: bool,
+    interact: &crate::interact::Interact,
     on_pick: impl Fn(Pick) + Clone + 'static,
 ) -> Element {
     let t = &theme.tokens;
@@ -158,6 +160,8 @@ fn column(
             let ink = if selected && active { t.colour_on_accent } else { t.colour_text };
             let path = entry.path.clone();
             let on_pick = on_pick.clone();
+            let pressing = interact.clone();
+            let target = interact.is_target(&entry.path);
             rect()
                 .key(entry.path.to_string_lossy().into_owned())
                 .width(Size::fill())
@@ -172,8 +176,11 @@ fn column(
                         .cross_align(Alignment::Center)
                         .spacing(t.space_s)
                         .corner_radius(t.radius_row)
-                        .opacity(if entry.hidden() { 0.5 } else { 1. })
+                        .opacity(if entry.hidden() || interact.is_cut(&entry.path) { 0.5 } else { 1. })
                         .map(fill, |el, fill| el.background(colour(fill)))
+                        .maybe(target, |el| el.border(crate::interact::drop_ring(theme)))
+                        .on_pointer_enter(interact.target_on_enter(&entry.path, entry.is_dir()))
+                        .on_pointer_leave(interact.target_on_leave(&entry.path))
                         .a11y_role(AccessibilityRole::ListItem)
                         .a11y_alt(entry.name.clone())
                         .a11y_builder(move |node| node.set_selected(selected))
@@ -182,16 +189,16 @@ fn column(
                                 return;
                             }
                             e.stop_propagation();
+                            pressing.press(&path, e.global_location.x, e.global_location.y);
                             let double = EventsCombos::<ColumnClick>::pressed(e.global_location).is_double();
                             let held = Held::default();
                             on_pick(if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) });
                         })
                         .child(list_view::icon(entry, dark, t.size_app_icon_small, t.colour_text_2))
-                        .child(
-                            rect()
-                                .width(Size::flex(1.))
-                                .child(text::line(theme, text::Style::Body, colour(ink), entry.name.clone())),
-                        )
+                        .child(rect().width(Size::flex(1.)).child(match interact.renaming(&entry.path) {
+                            Some(rename) => crate::interact::rename_field(theme, rename, Size::fill()),
+                            None => text::line(theme, text::Style::Body, colour(ink), entry.name.clone()).into_element(),
+                        }))
                         .maybe_child(entry.is_dir().then(|| {
                             Glyph::new(
                                 "caret-right",

@@ -144,3 +144,68 @@ impl Component for ConflictSheet {
         isle_ui::sheet(t.size_alert, body, buttons)
     }
 }
+
+/// Rename Many: one name where `#` is each item's number, a start number, and the first and
+/// last names it makes (`files.md` § Acting on files; v1's D71).
+#[derive(PartialEq)]
+pub struct RenameMany {
+    pub items: Vec<PathBuf>,
+    pub on_done: EventHandler<Option<Work>>,
+}
+
+/// The name an item takes: the pattern with its number, the item's extension kept.
+pub fn many_name(pattern: &str, n: u64, item: &Path) -> String {
+    let pattern = if pattern.contains('#') { pattern.to_owned() } else { format!("{pattern} #") };
+    let name = item.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let ext = if item.is_dir() { "" } else { isle_fs::jobs::split_ext(&name).1 };
+    format!("{}{ext}", pattern.replace('#', &n.to_string()))
+}
+
+impl Component for RenameMany {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let pattern = use_state(|| "Untitled #".to_owned());
+        let start = use_state(|| "1".to_owned());
+        let from: u64 = start.read().trim().parse().unwrap_or(1);
+        let (one, last) = (self.items.first(), self.items.last());
+        let example = match (one, last) {
+            (Some(a), Some(b)) => format!(
+                "{} … {}",
+                many_name(&pattern.read(), from, a),
+                many_name(&pattern.read(), from + self.items.len() as u64 - 1, b)
+            ),
+            _ => String::new(),
+        };
+        let (items, done, cancel) = (self.items.clone(), self.on_done.clone(), self.on_done.clone());
+        let body = vec![
+            isle_ui::alert_text(&format!("Rename {}", format::items(self.items.len())), ""),
+            isle_ui::TextField::new(pattern, "Name").editing().into_element(),
+            rect()
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .spacing(t.space_s)
+                .child(text::line(&theme, text::Style::Body, colour(t.colour_text), "Start numbers at:"))
+                .child(isle_ui::TextField::new(start, "Start number").width(Size::px(80.)))
+                .into_element(),
+            text::line(&theme, text::Style::Callout, colour(t.colour_text_2), example).into_element(),
+        ];
+        isle_ui::sheet(
+            t.size_form_narrow,
+            body,
+            vec![
+                ("Cancel".into(), EventHandler::new(move |_| cancel.call(None))),
+                (
+                    "Rename".into(),
+                    EventHandler::new(move |_| {
+                        done.call(Some(Work::RenameMany {
+                            items: items.clone(),
+                            pattern: pattern.peek().clone(),
+                            start: from,
+                        }))
+                    }),
+                ),
+            ],
+        )
+    }
+}

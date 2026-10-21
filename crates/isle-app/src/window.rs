@@ -8,7 +8,7 @@ use isle_ui::GlassShapes;
 use tracing::warn;
 
 use crate::{
-    Blurs, Chrome, SessionBus, Table, clipboard, commands,
+    Blurs, Chrome, SessionBus, Table, commands,
     hub::{AppHandle, Inbound, WindowKey},
     wayland::Extras,
 };
@@ -62,6 +62,64 @@ impl WindowSpec {
         self.token = token;
         self
     }
+}
+
+/// A drag over the window: where it is and what it carries.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DragOver {
+    pub x: f64,
+    pub y: f64,
+    pub types: Vec<String>,
+}
+
+/// A drop on the window, for the app to take.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Dropped {
+    pub x: f64,
+    pub y: f64,
+    pub data: Vec<u8>,
+    /// The app's own drag.
+    pub own: bool,
+    pub action: crate::data::Action,
+}
+
+/// Drags over the window and what was dropped on it.
+#[derive(Clone, Copy)]
+pub struct Drag {
+    pub over: State<Option<DragOver>>,
+    pub dropped: State<Vec<Dropped>>,
+    /// Counts the ends of the app's own drags.
+    pub ended: State<u64>,
+}
+
+/// The window's drags.
+pub fn use_drag() -> Drag {
+    use_consume::<Drag>()
+}
+
+#[derive(Clone, Copy)]
+struct ThisSurface(Option<u32>);
+
+/// The window's surface, for starting a drag from it.
+pub fn this_surface() -> Option<u32> {
+    use_try_consume::<ThisSurface>().and_then(|s| s.0)
+}
+
+/// Moves Freya's pointer during a drag, which reaches the window as the data device's
+/// motion rather than as pointer events, so its hover follows the drag.
+fn pointer(platform: &Platform, x: f64, y: f64, name: freya_core::integration::MouseEventName) {
+    use freya_core::integration::PlatformEvent;
+    use freya_winit::renderer::{NativeEvent, NativeWindowEvent, NativeWindowEventAction};
+    let _ = platform.post_callback(move |window, ctx: &mut RendererContext| {
+        ctx.send_native_event(NativeEvent::Window(NativeWindowEvent {
+            window_id: window,
+            action: NativeWindowEventAction::PlatformEvent(PlatformEvent::Mouse {
+                name,
+                cursor: (x, y).into(),
+                button: None,
+            }),
+        }));
+    });
 }
 
 /// The window an element is in, as its app knows it.
@@ -238,11 +296,19 @@ impl<A: App + 'static> App for Frame<A> {
             window: Platform::window_id(),
             desktop,
         };
+        let drag = use_provide_context(|| Drag {
+            over: State::create(None),
+            dropped: State::create(Vec::new()),
+            ended: State::create(0),
+        });
+        use_provide_context(|| ThisSurface(self.extras.borrow().as_ref().map(|e| e.surface_id())));
         use_hook(|| {
+            let (window, platform) = (run.window, run.platform.clone());
             let run = run.clone();
+            let (drags, mut incoming) = futures_channel::mpsc::unbounded();
             app.opened(
                 key,
-                run.window,
+                window,
                 Rc::new(move |id| {
                     let command = usize::try_from(id - 1)
                         .ok()
@@ -251,16 +317,36 @@ impl<A: App + 'static> App for Frame<A> {
                         run.chosen(&command);
                     }
                 }),
+                drags,
             );
-            if !app.0.clipboard.replace(true)
-                && let Some(extras) = self.extras.borrow().as_ref()
-            {
-                // The display is winit's, alive as long as the app.
-                let provider = unsafe { clipboard::WaylandClipboard::new(extras.display) };
-                GlobalContexts::get().insert_context(freya::clipboard::Clipboard::create(Some(
-                    Box::new(provider),
-                )));
+            if let Some(extras) = self.extras.borrow().as_ref() {
+                app.start_data(extras.display);
             }
+            spawn(async move {
+                use futures_util::StreamExt;
+                let (mut over, mut dropped, mut ended) = (drag.over, drag.dropped, drag.ended);
+                while let Some(event) = incoming.next().await {
+                    use crate::data::DragEvent as E;
+                    match event {
+                        E::Enter { x, y, types, .. } => {
+                            over.set(Some(DragOver { x, y, types }));
+                            pointer(&platform, x, y, freya_core::integration::MouseEventName::MouseMove);
+                        }
+                        E::Motion { x, y, .. } => {
+                            if let Some(o) = over.write().as_mut() {
+                                (o.x, o.y) = (x, y);
+                            }
+                            pointer(&platform, x, y, freya_core::integration::MouseEventName::MouseMove);
+                        }
+                        E::Leave { .. } => over.set(None),
+                        E::Drop { x, y, data, own, action, .. } => {
+                            over.set(None);
+                            dropped.write().push(Dropped { x, y, data, own, action });
+                        }
+                        E::Ended { .. } => *ended.write() += 1,
+                    }
+                }
+            });
         });
         use_drop({
             let app = app.clone();
@@ -288,7 +374,7 @@ impl<A: App + 'static> App for Frame<A> {
 
 /// Carries out commands, from a menu or a key.
 #[derive(Clone)]
-struct Run {
+pub(crate) struct Run {
     app: AppHandle,
     key: WindowKey,
     platform: Platform,

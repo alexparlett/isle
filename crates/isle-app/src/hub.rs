@@ -70,6 +70,8 @@ pub(crate) enum Inbound {
 /// A window as the app keeps it.
 pub(crate) struct Open {
     pub id: Option<WindowId>,
+    /// Drags over the window, from the data device.
+    pub drags: Option<UnboundedSender<crate::data::DragEvent>>,
     pub extras: Rc<RefCell<Option<Extras>>>,
     /// Runs a chosen menu item in the window.
     pub choose: Option<Rc<dyn Fn(i32)>>,
@@ -86,8 +88,8 @@ pub(crate) struct Inner {
     pub inbox: UnboundedSender<Inbound>,
     next: Cell<u64>,
     holds: Cell<usize>,
-    /// The clipboard is set up once, by the first window.
-    pub clipboard: Cell<bool>,
+    /// The data device, started by the first window on winit's display.
+    pub data: RefCell<Option<crate::data::Data>>,
     delegate: RefCell<Option<Rc<dyn Delegate>>>,
     /// Tasks of the app's own, run beside the inbox for the app's life.
     tasks: UnboundedSender<Task>,
@@ -121,7 +123,7 @@ impl AppHandle {
             inbox,
             next: Cell::new(1),
             holds: Cell::new(0),
-            clipboard: Cell::new(false),
+            data: RefCell::new(None),
             delegate: RefCell::new(None),
             tasks,
             spawned: RefCell::new(Some(spawned)),
@@ -165,6 +167,7 @@ impl AppHandle {
             key,
             Open {
                 id: None,
+                drags: None,
                 extras: extras.clone(),
                 choose: None,
             },
@@ -256,11 +259,66 @@ impl AppHandle {
         });
     }
 
-    pub(crate) fn opened(&self, key: WindowKey, id: WindowId, choose: Rc<dyn Fn(i32)>) {
+    pub(crate) fn opened(
+        &self,
+        key: WindowKey,
+        id: WindowId,
+        choose: Rc<dyn Fn(i32)>,
+        drags: UnboundedSender<crate::data::DragEvent>,
+    ) {
         if let Some(open) = self.0.windows.borrow_mut().get_mut(&key) {
             open.id = Some(id);
             open.choose = Some(choose);
+            open.drags = Some(drags);
         }
+    }
+
+    /// The app's data device: the selection in any type, and drags.
+    pub fn data(&self) -> Option<crate::data::Data> {
+        self.0.data.borrow().clone()
+    }
+
+    /// Starts the data device on winit's display, once, and hands each drag event to the
+    /// window it is over.
+    pub(crate) fn start_data(&self, display: *mut std::ffi::c_void) {
+        if self.0.data.borrow().is_some() {
+            return;
+        }
+        // The display is winit's, alive as long as the app.
+        let Some((data, mut events)) = (unsafe { crate::data::Data::start(display) }) else {
+            warn!("no data device: no clipboard of files and no drags");
+            return;
+        };
+        *self.0.data.borrow_mut() = Some(data.clone());
+        GlobalContexts::get().insert_context(freya::clipboard::Clipboard::create(Some(Box::new(
+            crate::data::Clipboard(data),
+        ))));
+        let app = self.clone();
+        self.spawn(async move {
+            // The window a drag was last over, for its end.
+            let mut over: Option<u32> = None;
+            while let Some(event) = events.next().await {
+                use crate::data::DragEvent as E;
+                let surface = match &event {
+                    E::Enter { surface, .. } | E::Motion { surface, .. } | E::Drop { surface, .. } => Some(*surface),
+                    E::Leave { surface } => Some(*surface).filter(|s| *s != 0).or(over),
+                    E::Ended { .. } => None,
+                };
+                over = match &event {
+                    E::Leave { .. } | E::Drop { .. } => None,
+                    _ => surface.or(over),
+                };
+                let windows = app.0.windows.borrow();
+                for open in windows.values() {
+                    let mine = open.extras.borrow().as_ref().map(|e| e.surface_id());
+                    if surface.is_none() || surface == mine {
+                        if let Some(tx) = &open.drags {
+                            let _ = tx.unbounded_send(event.clone());
+                        }
+                    }
+                }
+            }
+        });
     }
 
     pub(crate) fn closed(&self, key: WindowKey) {

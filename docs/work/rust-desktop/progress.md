@@ -2,6 +2,28 @@
 
 ## 2026-10-21
 
+- P15 15.7: rename, the file clipboard and drag and drop. `isle-app` gains
+  its own `wl_data_device` on a thread and queue of its own beside winit's
+  (smithay-client-toolkit 0.20, no calloop), replacing smithay-clipboard:
+  the selection in any type, text for Freya's fields through it, drags out
+  and onto the app's windows. A drag over a window reaches it as the data
+  device's motion, not pointer events, so the window is fed Freya pointer
+  moves and its hover follows the drag; drops arrive as `Dropped` with the
+  data in the type asked for. Files: Return renames in place (a name
+  already taken refused under the field, a leading dot and a changed
+  extension asking first), several selected open Rename Many with `#` and
+  a start number; ⌘C and ⌘X put files on the clipboard as
+  `x-special/gnome-copied-files`, `text/uri-list` and text, ⌘V copies or
+  (after ⌘X) moves, ⌥⌘V moves, ⌥⌘C copies the pathname; cut items are
+  dimmed; a drag of the selection starts past four points, a folder under
+  it takes the drop ring, and a drop moves within one volume and copies
+  across. Found and fixed: handlers made anew each render rebuilt every
+  row; the rename's and pick's are made once and act on the current tab.
+  Not built yet: a drag image, spring-loading, the sidebar, tabs and path
+  bar as drop targets, ⌥ and ⌘ during a drag, the cut item's dashed
+  outline, and the extension left out of the rename's selection (the whole
+  name is selected).
+
 - P15 15.6: jobs, undo and the Trash. `isle-fs` runs every job of
   `apps.md` Files 4–9 on the caller's thread. Copies go by reflink, the
   kernel's copy in 8 MB steps, or streaming, written to a part file and

@@ -23,6 +23,7 @@ pub struct IconsView {
     pub held: State<Held>,
     pub on_pick: EventHandler<Pick>,
     pub controller: ScrollController,
+    pub interact: crate::interact::Interact,
 }
 
 /// One line of the grid: a group's heading or a row of cells, by the folder's indexes.
@@ -45,6 +46,7 @@ struct Grid {
     cell: f32,
     gap: f32,
     info: bool,
+    interact: crate::interact::Interact,
 }
 
 /// Cuts the folder's lines into rows of `columns` cells, a group starting its own row.
@@ -107,6 +109,7 @@ impl Component for IconsView {
             cell,
             gap,
             info: shown.item_info,
+            interact: self.interact.clone(),
         };
         let on_pick = self.on_pick.clone();
         rect()
@@ -157,6 +160,8 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
     let capsule = if grid.focused { t.colour_accent } else { t.colour_selection_unfocused };
     let ink = if selected && grid.focused { t.colour_on_accent } else { t.colour_text };
     let path = entry.path.clone();
+    let interact = grid.interact.clone();
+    let target = grid.interact.is_target(&entry.path);
     let body = text::metrics(theme, text::Style::Body);
     let (on_pick, held) = (grid.on_pick.clone(), grid.held);
     let info = if !grid.info {
@@ -172,15 +177,18 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
         .padding((t.space_s, 0.))
         .cross_align(Alignment::Center)
         .spacing(t.space_xs)
-        .opacity(if entry.hidden() { 0.5 } else { 1. })
+        .opacity(if entry.hidden() || grid.interact.is_cut(&entry.path) { 0.5 } else { 1. })
         .a11y_role(AccessibilityRole::GridCell)
         .a11y_alt(entry.name.clone())
         .a11y_builder(move |node| node.set_selected(selected))
+        .on_pointer_enter(grid.interact.target_on_enter(&entry.path, entry.is_dir()))
+        .on_pointer_leave(grid.interact.target_on_leave(&entry.path))
         .on_mouse_down(move |e: Event<MouseEventData>| {
             if e.button != Some(MouseButton::Left) {
                 return;
             }
             e.stop_propagation();
+            interact.press(&path, e.global_location.x, e.global_location.y);
             let held = *held.peek();
             let double = EventsCombos::<CellClick>::pressed(e.global_location).is_double();
             on_pick.call(if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) });
@@ -189,7 +197,8 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
             rect()
                 .padding(t.space_xs)
                 .corner_radius(t.radius_card)
-                .maybe(selected, |el| el.background(colour(t.colour_fill_strong)))
+                .maybe(selected || target, |el| el.background(colour(t.colour_fill_strong)))
+                .maybe(target, |el| el.border(crate::interact::drop_ring(theme)))
                 .child(crate::thumbnail::Thumbnail {
                     entry: entry.clone(),
                     size: grid.icon,
@@ -197,8 +206,9 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
                     remote: tab.remote,
                 }),
         )
-        .child(
-            rect()
+        .child(match grid.interact.renaming(&entry.path) {
+            Some(rename) => crate::interact::rename_field(theme, rename, Size::px(grid.cell)),
+            None => rect()
                 .padding((1., t.space_xs))
                 .corner_radius(t.radius_small)
                 .maybe(selected, |el| el.background(colour(capsule)))
@@ -212,8 +222,9 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
                         .max_lines(2)
                         .text_overflow(TextOverflow::Ellipsis)
                         .text(entry.name.clone()),
-                ),
-        )
+                )
+                .into_element(),
+        })
         .maybe_child(info.map(|info| text::line(theme, text::Style::Subheadline, colour(t.colour_text_2), info)))
         .into_element()
 }

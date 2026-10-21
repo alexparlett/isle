@@ -13,6 +13,9 @@ gpu = ["freya/gpu"]
 
 [dependencies]
 freya = { workspace = true, features = ["winit", "accessibility"] }
+# For the pointer events a drag over a window is turned into.
+freya-core = { git = "https://github.com/alexparlett/freya", rev = "ce0e9fe46ab7f60faa818091cdb588c20d3bb6d9" }
+freya-winit = { git = "https://github.com/alexparlett/freya", rev = "ce0e9fe46ab7f60faa818091cdb588c20d3bb6d9" }
 futures-channel = "0.3"
 futures-util.workspace = true
 isle-ipc.workspace = true
@@ -21,7 +24,8 @@ isle-settings.workspace = true
 isle-tokens.workspace = true
 isle-ui.workspace = true
 raw-window-handle = "0.6"
-smithay-clipboard = "0.7"
+smithay-client-toolkit = { version = "0.20", default-features = false }
+rustix = { version = "1.1", features = ["event", "pipe"] }
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

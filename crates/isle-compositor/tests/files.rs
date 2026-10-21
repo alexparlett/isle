@@ -217,3 +217,70 @@ async fn move_to_trash_undo_and_duplicate() {
     wait_until(|| async { home.join("todo copy.txt").exists() }).await;
     isle.keep_shot("files-after-jobs").await;
 }
+
+const ENTER: u32 = 28;
+const KEY_C: u32 = 46;
+const KEY_V: u32 = 47;
+const KEY_O: u32 = 24;
+
+/// Types lower-case letters, digits' row and dots by their evdev codes.
+async fn type_text(isle: &Isle, text: &str) {
+    for c in text.chars() {
+        let code = match c {
+            'a' => 30, 'b' => 48, 'c' => 46, 'd' => 32, 'e' => 18, 'f' => 33, 'g' => 34, 'h' => 35,
+            'i' => 23, 'j' => 36, 'k' => 37, 'l' => 38, 'm' => 50, 'n' => 49, 'o' => 24, 'p' => 25,
+            'q' => 16, 'r' => 19, 's' => 31, 't' => 20, 'u' => 22, 'v' => 47, 'w' => 17, 'x' => 45,
+            'y' => 21, 'z' => 44, '.' => 52, _ => continue,
+        };
+        isle.chord(&[code]).await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rename_in_place_copy_paste_and_drag_onto_a_folder() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-rename").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // A drag from todo.txt's row onto Downloads' moves it there: Home's rows are Development,
+    // Documents, Downloads, Pictures, notes.md, todo.txt under a 52 point toolbar and a 24
+    // point header.
+    let row = |i: f64| (w.x as f64 + 400., w.y as f64 + 52. + 24. + 28. * i + 14.);
+    let test = isle.test().await;
+    let (from, to) = (row(5.), row(2.));
+    test.pointer_to(from.0, from.1).await.unwrap();
+    test.button(272, true).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    for step in 1..=8 {
+        let f = step as f64 / 8.;
+        test.pointer_to(from.0, from.1 + (to.1 - from.1) * f).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(40)).await;
+    }
+    isle.keep_shot("files-dragging").await;
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { home.join("Downloads/todo.txt").exists() && !home.join("todo.txt").exists() }).await;
+
+    // Return opens the name; a new name with its extension renames at once.
+    reveal(&isle, &app, &home.join("notes.md")).await;
+    isle.chord(&[ENTER]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    type_text(&isle, "ideas.md").await;
+    isle.keep_shot("files-renaming").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { home.join("ideas.md").exists() && !home.join("notes.md").exists() }).await;
+
+    // ⌘C, Documents, ⌘V: a copy.
+    reveal(&isle, &app, &home.join("ideas.md")).await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    app.wait_for_part("id=\"go-documents\"").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async { home.join("Documents/ideas.md").exists() && home.join("ideas.md").exists() }).await;
+}

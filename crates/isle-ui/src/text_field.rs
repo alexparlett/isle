@@ -13,7 +13,10 @@ pub struct TextField {
     width: Size,
     enabled: bool,
     on_submit: Option<EventHandler<String>>,
+    on_escape: Option<EventHandler<()>>,
     leading: Option<Element>,
+    auto_focus: bool,
+    select_all: bool,
 }
 
 impl TextField {
@@ -25,8 +28,24 @@ impl TextField {
             width: Size::fill(),
             enabled: true,
             on_submit: None,
+            on_escape: None,
             leading: None,
+            auto_focus: false,
+            select_all: false,
         }
+    }
+
+    /// Takes the keyboard when it appears, its text selected: a name being edited in place.
+    pub fn editing(mut self) -> Self {
+        self.auto_focus = true;
+        self.select_all = true;
+        self
+    }
+
+    /// Escape in the field.
+    pub fn on_escape(mut self, f: impl Into<EventHandler<()>>) -> Self {
+        self.on_escape = Some(f.into());
+        self
     }
 
     pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
@@ -94,6 +113,17 @@ impl Component for TextField {
         }
         if let Some(leading) = self.leading.clone() {
             input = input.leading(leading);
+        }
+        if self.auto_focus {
+            input = input.auto_focus(true).select_all_on_init(self.select_all);
+        }
+        if let Some(on_escape) = self.on_escape.clone() {
+            input = input.on_pre_key_down(move |e: Event<KeyboardEventData>| {
+                if e.key == Key::Named(NamedKey::Escape) {
+                    on_escape.call(());
+                }
+                true
+            });
         }
         rect().a11y_alt(self.alt.clone()).width(self.width.clone()).child(input)
     }

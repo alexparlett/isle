@@ -85,7 +85,7 @@ wayland_client::delegate_noop!(Globals: ignore WlCompositor);
 wayland_client::delegate_noop!(Globals: ignore WlRegion);
 
 pub struct Extras {
-    /// winit's `wl_display`, for the clipboard's own connection.
+    /// winit's `wl_display`, for the data device's own connection.
     pub display: *mut std::ffi::c_void,
     connection: Connection,
     /// Kept for as long as the objects bound on it.
@@ -163,6 +163,11 @@ impl Extras {
         };
         extras.set_backdrop(backdrop);
         Some(extras)
+    }
+
+    /// The window's surface, as the data device's events name it.
+    pub fn surface_id(&self) -> u32 {
+        self.surface.id().protocol_id()
     }
 
     /// Whether the compositor blurs behind the window.

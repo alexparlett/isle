@@ -48,6 +48,7 @@ pub struct ListView {
     pub held: State<Held>,
     pub on_pick: EventHandler<Pick>,
     pub controller: ScrollController,
+    pub interact: crate::interact::Interact,
 }
 
 /// What a row's builder reads; equal while the tab has not moved.
@@ -61,6 +62,7 @@ struct Rows {
     held: State<Held>,
     on_pick: EventHandler<Pick>,
     dark: bool,
+    interact: crate::interact::Interact,
 }
 
 impl Component for ListView {
@@ -138,6 +140,7 @@ impl Component for ListView {
             held: self.held,
             on_pick: self.on_pick.clone(),
             dark: theme.appearance.mode == isle_tokens::Mode::Dark,
+            interact: self.interact.clone(),
         };
         let on_pick = self.on_pick.clone();
         rect()
@@ -221,7 +224,9 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
     let on_accent = selected && rows.focused;
     let ink = if on_accent { t.colour_on_accent } else { t.colour_text };
     let ink_2 = if on_accent { t.colour_on_accent } else { t.colour_text_2 };
-    let dim = entry.hidden();
+    let dim = entry.hidden() || rows.interact.is_cut(&entry.path);
+    let target = rows.interact.is_target(&entry.path);
+    let interact = rows.interact.clone();
     let r = t.radius_row;
     // A run of selected rows joins into one shape, rounded only at its ends.
     let (top, bottom) = (
@@ -247,14 +252,18 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                 .spacing(t.space_l)
                 .corner_radius(radius)
                 .map(fill, |el, fill| el.background(colour(fill)))
+                .maybe(target, |el| el.border(crate::interact::drop_ring(&theme)))
                 .a11y_role(AccessibilityRole::Row)
                 .a11y_alt(entry.name.clone())
                 .a11y_builder(move |node| node.set_selected(selected))
+                .on_pointer_enter(rows.interact.target_on_enter(&entry.path, entry.is_dir()))
+                .on_pointer_leave(rows.interact.target_on_leave(&entry.path))
                 .on_mouse_down(move |e: Event<MouseEventData>| {
                     if e.button != Some(MouseButton::Left) {
                         return;
                     }
                     e.stop_propagation();
+                    interact.press(&path, e.global_location.x, e.global_location.y);
                     let held = *held.peek();
                     let double = EventsCombos::<RowClick>::pressed(e.global_location).is_double();
                     on_pick.call(if double {
@@ -271,7 +280,10 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                         .spacing(t.space_s)
                         .opacity(if dim { 0.5 } else { 1. })
                         .child(icon(entry, rows.dark, t.size_app_icon_small, ink_2))
-                        .child(text::line(&theme, text::Style::Body, colour(ink), entry.name.clone())),
+                        .child(match rows.interact.renaming(&entry.path) {
+                            Some(rename) => crate::interact::rename_field(&theme, rename, Size::flex(1.)),
+                            None => text::line(&theme, text::Style::Body, colour(ink), entry.name.clone()).into_element(),
+                        }),
                 )
                 .child(
                     rect().width(Size::px(DATE)).child(text::line(

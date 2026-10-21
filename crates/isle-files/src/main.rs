@@ -14,6 +14,7 @@ mod preview;
 mod toolbar;
 mod transfer;
 mod memory;
+mod open;
 mod places;
 mod tab;
 mod thumbnail;
@@ -154,6 +155,23 @@ impl Shared {
         app.open(spec, FilesWindow { shared, tabs, current });
     }
 
+    /// Asks Open With for a file in the front window, opening one at its folder if none is open.
+    fn ask(&self, path: PathBuf, token: Option<String>) {
+        let front = self.front.borrow().last().copied();
+        match front.and_then(|k| self.windows.borrow().get(&k).copied().map(|l| (k, l))) {
+            Some((key, mut link)) => {
+                link.inbox.write().push(Open::OpenWith(path));
+                if let Some(token) = token {
+                    self.app().activate(key, &token);
+                }
+            }
+            None => {
+                let folder = path.parent().map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/"));
+                self.open_window(vec![(Place::Folder(folder), Some(path))], 0, token);
+            }
+        }
+    }
+
     /// Shows a place in a new tab of the front window, or a new window when none is open.
     fn show(&self, place: Place, reveal: Option<PathBuf>, token: Option<String>) {
         let front = self.front.borrow().last().copied();
@@ -225,6 +243,10 @@ impl Delegate for Files {
                 None => self.shared.open_window(vec![(self.shared.new_window_place(), None)], 0, token),
             },
             Request::Open { uris, .. } => {
+                let (asks, uris): (Vec<_>, Vec<_>) = uris.iter().partition(|u| u.starts_with("isle-open-with:"));
+                for path in asks.iter().filter_map(|u| path_of(u.trim_start_matches("isle-open-with:"))) {
+                    self.shared.ask(path, token.clone());
+                }
                 for path in uris.iter().filter_map(|u| path_of(u)) {
                     if path.is_dir() {
                         self.shared.show(Place::Folder(path), None, token.clone());

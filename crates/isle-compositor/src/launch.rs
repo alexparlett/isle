@@ -15,8 +15,11 @@ pub enum Launch {
         action: Option<String>,
         uris: Vec<String>,
     },
-    /// A link or file in the app that handles it.
+    /// A link or file in the app that handles it, as Isle's lists say (`p15-files.md`
+    /// choice 12): a file nothing opens by itself asks in Files' Open With.
     Open(String),
+    /// A link or file through `xdg-open`, when Isle's lists name no app for it.
+    XdgOpen(String),
     /// A shell command line, as Spotlight's Run gives it.
     Command(String),
     /// A Login Item, by its autostart entry.
@@ -75,6 +78,55 @@ fn entry_argv(
     }
 }
 
+/// Files' id, whose Open With is asked for a file nothing opens by itself.
+const FILES: &str = "io.github.alexparlett.Isle.Files";
+
+/// How `target` opens: in the app Isle's lists name, in Files' Open With, or through
+/// `xdg-open` when Isle has nothing to say about it.
+fn decide_open(target: &str, apps: &isle_apps::Index) -> Launch {
+    use isle_apps::mimeapps::{self, Opening};
+    let lists = mimeapps::read_lists();
+    let path = match target.strip_prefix("file://") {
+        Some(rest) => Some(std::path::PathBuf::from(percent_decode(rest))),
+        None if target.starts_with('/') => Some(std::path::PathBuf::from(target)),
+        None => None,
+    };
+    let Some(path) = path else {
+        return match mimeapps::handler_for_url(target, &lists, apps) {
+            Some(app) => Launch::App { app, action: None, uris: vec![target.to_owned()] },
+            None => Launch::XdgOpen(target.to_owned()),
+        };
+    };
+    let uri = format!("file://{}", path.display());
+    match mimeapps::opening(&path, &lists, apps) {
+        Opening::App(app) => Launch::App { app, action: None, uris: vec![uri] },
+        Opening::Ask if apps.get(FILES).is_some() => Launch::App {
+            app: FILES.into(),
+            action: None,
+            uris: vec![format!("isle-open-with:{uri}")],
+        },
+        Opening::Ask => Launch::XdgOpen(target.to_owned()),
+    }
+}
+
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%'
+            && let Some(b) = s.get(i + 1..i + 3).and_then(|h| u8::from_str_radix(h, 16).ok())
+        {
+            out.push(b);
+            i += 3;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 /// A unit name's part from `text`: what systemd allows, the rest as `_`.
 pub fn unit_part(text: &str) -> String {
     text.chars()
@@ -108,7 +160,23 @@ impl State {
                 Some(argv) => (argv, entry.id.clone()),
                 None => return false,
             },
-            Launch::Open(target) => (vec!["xdg-open".into(), target.clone()], "xdg-open".into()),
+            Launch::Open(target) => {
+                // The lists and the file are read off the loop; the launch comes back to it.
+                let (Some(runtime), apps, Some(to_loop)) = (self.isle.worker.clone(), self.isle.apps.clone(), self.isle.to_loop.clone()) else {
+                    return false;
+                };
+                let target = target.clone();
+                runtime.spawn(async move {
+                    let decided = tokio::task::spawn_blocking(move || decide_open(&target, &apps)).await;
+                    if let Ok(next) = decided {
+                        to_loop.post(move |state| {
+                            state.launch(next);
+                        });
+                    }
+                });
+                return true;
+            }
+            Launch::XdgOpen(target) => (vec!["xdg-open".into(), target.clone()], "xdg-open".into()),
             Launch::Command(line) => (vec!["sh".into(), "-c".into(), line.clone()], "run".into()),
         };
 

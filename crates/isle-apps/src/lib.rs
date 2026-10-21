@@ -8,6 +8,7 @@ pub mod exec;
 pub mod icons;
 pub mod metainfo;
 pub mod mime;
+pub mod mimeapps;
 
 use std::{
     collections::HashMap,
@@ -37,6 +38,8 @@ pub struct Entry {
     pub terminal: bool,
     /// The entry's extra actions: New Window, New Private Window and the like.
     pub actions: Vec<EntryAction>,
+    /// The file types it opens (`MimeType`).
+    pub mime_types: Vec<String>,
     pub only_show_in: Vec<String>,
     pub not_show_in: Vec<String>,
     /// Started over D-Bus (`org.freedesktop.Application`) on the bus name that is its id.
@@ -484,6 +487,7 @@ pub fn parse_in(id: &str, text: &str, locales: &[String]) -> Option<Entry> {
                 "GenericName" => entry.generic_name = Some(unescape(&value)),
                 "Keywords" => entry.keywords = list(&value),
                 "Categories" => entry.categories = list(&value),
+                "MimeType" => entry.mime_types = list(&value),
                 "OnlyShowIn" => entry.only_show_in = list(&value),
                 "NotShowIn" => entry.not_show_in = list(&value),
                 "DBusActivatable" => entry.dbus_activatable = value == "true",

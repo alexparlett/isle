@@ -9,3 +9,6 @@ publish.workspace = true
 tracing.workspace = true
 mime = "0.3"
 xdg-mime = { git = "https://github.com/ebassi/xdg-mime-rs", rev = "f8efb3fb1fad582539e2af7d1e9fbc9613dcc7d9" }
+
+[dev-dependencies]
+tempfile = "3"

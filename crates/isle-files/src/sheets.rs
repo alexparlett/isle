@@ -209,3 +209,76 @@ impl Component for RenameMany {
         )
     }
 }
+
+/// Open With: the apps for the file's type, the default first, or every app; Always Open
+/// With makes the choice the type's default (`files.md` § Acting on files, Open With).
+#[derive(PartialEq)]
+pub struct OpenWith {
+    pub offer: crate::open::Offer,
+    /// The app chosen, whether it is now the default, the type and the file; `None` cancels.
+    pub on_done: EventHandler<Option<(String, bool, String, PathBuf)>>,
+}
+
+impl Component for OpenWith {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let mut all = use_state(|| false);
+        let mut always = use_state(|| false);
+        let mut chosen = use_state(|| self.offer.apps.first().map(|a| a.id.clone()));
+        let showing = if *all.read() || self.offer.apps.is_empty() { &self.offer.all } else { &self.offer.apps };
+        let rows: Vec<Element> = showing
+            .iter()
+            .map(|app| {
+                let selected = chosen.read().as_deref() == Some(app.id.as_str());
+                let id = app.id.clone();
+                rect()
+                    .key(app.id.clone())
+                    .width(Size::fill())
+                    .height(Size::px(t.size_row))
+                    .padding((0., t.space_s))
+                    .main_align(Alignment::Center)
+                    .corner_radius(t.radius_row)
+                    .maybe(selected, |el| el.background(colour(t.colour_accent)))
+                    .a11y_role(AccessibilityRole::ListItem)
+                    .a11y_alt(app.name.clone())
+                    .on_press(move |_| chosen.set(Some(id.clone())))
+                    .child(text::line(
+                        &theme,
+                        text::Style::Body,
+                        colour(if selected { t.colour_on_accent } else { t.colour_text }),
+                        app.name.clone(),
+                    ))
+                    .into_element()
+            })
+            .collect();
+        let name = self.offer.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let body = vec![
+            isle_ui::alert_text(&format!("Choose an app to open “{name}”."), ""),
+            isle_ui::scroll_area(&theme)
+                .width(Size::fill())
+                .height(Size::px(8. * t.size_row))
+                .child(rect().width(Size::fill()).children(rows))
+                .into_element(),
+            CheckRow::new("Show all apps", *all.read()).on_toggle(move |on: bool| all.set(on)).into_element(),
+            CheckRow::new("Always open with", *always.read()).on_toggle(move |on: bool| always.set(on)).into_element(),
+        ];
+        let (done, cancel) = (self.on_done.clone(), self.on_done.clone());
+        let (kind, path) = (self.offer.kind.clone(), self.offer.path.clone());
+        isle_ui::sheet(
+            t.size_form_narrow,
+            body,
+            vec![
+                ("Cancel".into(), EventHandler::new(move |_| cancel.call(None))),
+                (
+                    "Open".into(),
+                    EventHandler::new(move |_| {
+                        if let Some(app) = chosen.peek().clone() {
+                            done.call(Some((app, *always.peek(), kind.clone(), path.clone())));
+                        }
+                    }),
+                ),
+            ],
+        )
+    }
+}

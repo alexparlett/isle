@@ -35,6 +35,7 @@ fn start_files(isle: &mut Isle, bin: &str, args: &[&str]) -> (Client, PathBuf) {
     }
     std::fs::write(home.join("Development/isle/Cargo.toml"), "[workspace]\n").unwrap();
     write_png(&home.join("Pictures/red.png"), 400, 300, [220, 40, 40]);
+    std::fs::write(home.join("Downloads/blob.bin"), [0u8, 159, 146, 150, 1, 2, 3]).unwrap();
     write_png(&home.join("Pictures/tall.png"), 100, 300, [40, 160, 60]);
     let env = |k: &str, v: &std::path::Path| format!("{k}={}", v.display());
     let vars = [
@@ -283,4 +284,21 @@ async fn rename_in_place_copy_paste_and_drag_onto_a_folder() {
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     isle.chord(&[SUPER, KEY_V]).await;
     wait_until(|| async { home.join("Documents/ideas.md").exists() && home.join("ideas.md").exists() }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_file_nothing_opens_asks_in_open_with() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-open-with").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    reveal(&isle, &app, &home.join("Downloads/blob.bin")).await;
+    isle.chord(&[SUPER, KEY_O]).await;
+    app.wait_for_part("open with path=").await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("files-open-with").await;
 }

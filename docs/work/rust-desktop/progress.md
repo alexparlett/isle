@@ -2,6 +2,25 @@
 
 ## 2026-10-21
 
+- P15 15.8: opening files. `isle-apps` reads entries' `MimeType` and the
+  MIME apps lists in the spec's order, Isle's own list always first
+  (`isle-mimeapps.list`), with defaults, added and removed associations
+  over the types entries declare, a type's parents after it (Markdown
+  offered the text editors); writes a default into `mimeapps.list` as GTK
+  does. A file opens in its default, text falls back to the text editor,
+  and a program or AppImage with no app asks rather than runs. The
+  compositor's `Launch::Open` (Spotlight, the thumbnail, notifications,
+  `isle apps open`) now resolves this way off the loop, links by their
+  scheme handler, a file nothing opens going to Files' Open With
+  (`isle-open-with:` handed to Files), and `xdg-open` only when Isle's
+  lists name nothing. Files opens files through the compositor's launch
+  path, asks with the Open With sheet (Show all apps, Always open with),
+  opens a terminal in a folder (`shortcuts.terminal-command`, in a scope of
+  its own), sets an image as the wallpaper (`wallpaper.source`), and calls
+  an AppImage "Application (AppImage)". Not built yet: Open With as a
+  submenu of a context menu (context menus come later in P15), and Files
+  adding what it opens to the recently-used list.
+
 - P15 15.7: rename, the file clipboard and drag and drop. `isle-app` gains
   its own `wl_data_device` on a thread and queue of its own beside winit's
   (smithay-client-toolkit 0.20, no calloop), replacing smithay-clipboard:

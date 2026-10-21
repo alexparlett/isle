@@ -317,6 +317,9 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
 
 /// The words Kind shows.
 pub fn kind(entry: &Entry) -> String {
+    if entry.name.to_lowercase().ends_with(".appimage") {
+        return "Application (AppImage)".into();
+    }
     match entry.mime.as_deref() {
         Some(isle_apps::mime::DIRECTORY) => "Folder".into(),
         Some(mime) => isle_apps::mime::types().comment(mime),

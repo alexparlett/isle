@@ -3118,6 +3118,7 @@ name = "isle-apps"
 version = "0.1.0"
 dependencies = [
  "mime",
+ "tempfile",
  "tracing",
  "xdg-mime",
 ]
@@ -3289,7 +3290,9 @@ dependencies = [
  "isle-app",
  "isle-apps",
  "isle-fs",
+ "isle-ipc",
  "isle-search",
+ "isle-settings",
  "isle-state",
  "isle-thumbnail",
  "isle-tokens",

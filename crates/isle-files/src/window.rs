@@ -32,6 +32,8 @@ use crate::{
 pub enum Open {
     /// A tab at the place, the item revealed in it.
     Tab(Place, Option<PathBuf>),
+    /// Open With for a file nothing opens by itself.
+    OpenWith(PathBuf),
 }
 
 /// One tab as the window keeps it.
@@ -116,6 +118,7 @@ impl App for FilesWindow {
         let mut drag_started = use_state(|| false);
         // The Return that commits a name is the field's alone.
         let mut committed = use_state(|| false);
+        let open_with = use_state(|| None::<crate::open::Offer>);
         let drag = isle_app::use_drag();
         let surface = isle_app::this_surface();
         let data = shared.app().data();
@@ -244,6 +247,7 @@ impl App for FilesWindow {
                 let mut queue = inbox;
                 for open in std::mem::take(&mut *queue.write()) {
                     match open {
+                        Open::OpenWith(path) => ask_open_with(path, open_with),
                         Open::Tab(place, reveal) => {
                             let handle = new_tab(&shared, place, reveal);
                             tab::load(handle.tab, &handle.live, false);
@@ -276,6 +280,11 @@ impl App for FilesWindow {
         };
         let in_trash = place == Place::Trash;
         let editing = renaming.read().is_some();
+        let selected_image = {
+            let t = tab.read();
+            t.selection.len() == 1
+                && t.folder.get(&t.selection[0]).and_then(|e| e.mime.as_deref()).is_some_and(|m| m.starts_with("image/"))
+        };
         let (selected_count, selection_name) = {
             let t = tab.read();
             let name = (t.selection.len() == 1)
@@ -332,6 +341,9 @@ impl App for FilesWindow {
             )
             .chord(Chord::cmd('c').option())
             .enabled(has_selection),
+            Command::new("open-with", "Open With…", Menu::File, 1).enabled(has_selection && !in_trash),
+            Command::new("open-terminal", "Open in terminal", Menu::File, 1).enabled(place.folder().is_some()),
+            Command::new("set-wallpaper", "Set as wallpaper", Menu::File, 3).enabled(selected_image),
             Command::new("rename", if selected_count > 1 { format!("Rename {selected_count} Items…") } else { "Rename".into() }, Menu::File, 3)
                 .enabled(has_selection && !in_trash),
             Command::new("new-window", "New Window", Menu::File, 0).chord(Chord::cmd('n')),
@@ -458,7 +470,7 @@ impl App for FilesWindow {
                         "close-tab" => close_tab(tabs, current, *current.peek()),
                         "open" | "open-down" => {
                             let selection = tab.peek().selection.clone();
-                            open_items(&shared, tabs, current, key, &handle, selection, false);
+                            open_items(&shared, tabs, current, key, &handle, selection, false, open_with);
                         }
                         "deselect" => tab.write().deselect(),
                         "select-all" => {
@@ -506,6 +518,34 @@ impl App for FilesWindow {
                                 let mut alert = alert;
                                 start_job(&shared, key, work, &mut alert);
                             });
+                        }
+                        "open-with" => {
+                            if let Some(first) = tab.peek().selection.first().cloned() {
+                                ask_open_with(first, open_with);
+                            }
+                        }
+                        "open-terminal" => {
+                            let t = tab.peek();
+                            // The selected folder, or the folder shown.
+                            let folder = t
+                                .selection
+                                .first()
+                                .filter(|p| t.folder.get(p).is_some_and(|e| e.is_dir()))
+                                .cloned()
+                                .or_else(|| t.place.folder().map(PathBuf::from));
+                            drop(t);
+                            let command = match desktop.value("shortcuts.terminal-command") {
+                                Some(isle_settings::Value::Str(c)) if !c.is_empty() => c,
+                                _ => "kitty".to_owned(),
+                            };
+                            if let Some(folder) = folder {
+                                crate::open::terminal(&folder, &command);
+                            }
+                        }
+                        "set-wallpaper" => {
+                            if let Some(image) = tab.peek().selection.first() {
+                                desktop.set("wallpaper.source", isle_settings::Value::Str(image.to_string_lossy().into_owned()));
+                            }
                         }
                         "rename" => {
                             let selection = tab.peek().selection.clone();
@@ -658,7 +698,7 @@ impl App for FilesWindow {
                         }
                         Pick::Open(path, held) => {
                             tab.write().select_only(path.clone());
-                            open_items(&shared, tabs, current, key, &handle, vec![path], held.cmd);
+                            open_items(&shared, tabs, current, key, &handle, vec![path], held.cmd, open_with);
                         }
                     }
                 })
@@ -916,6 +956,26 @@ impl App for FilesWindow {
                     })),
             )
             .maybe_child(question.map(|q| ConflictSheet { question: q, jobs }.into_element()))
+            .maybe_child(open_with.read().clone().map(|offer| {
+                let shared = shared.clone();
+                crate::sheets::OpenWith {
+                    offer,
+                    on_done: EventHandler::new(move |chosen: Option<(String, bool, String, PathBuf)>| {
+                        let mut open_with = open_with;
+                        open_with.set(None);
+                        let Some((app, always, kind, path)) = chosen else { return };
+                        if always
+                            && let Err(err) = isle_apps::mimeapps::set_default(&[&kind], &app, false)
+                        {
+                            tracing::warn!("the default is not kept: {err}");
+                        }
+                        if let Some(bus) = shared.app().bus() {
+                            spawn(crate::open::launch(bus, app, vec![isle_thumbnail::uri(&path)]));
+                        }
+                    }),
+                }
+                .into_element()
+            }))
             .maybe_child(rename_many.read().clone().map(|items| {
                 let shared = shared.clone();
                 crate::sheets::RenameMany {
@@ -1092,6 +1152,7 @@ fn open_items(
     handle: &TabHandle,
     paths: Vec<PathBuf>,
     in_tabs: bool,
+    open_with: State<Option<crate::open::Offer>>,
 ) {
     let entries: Vec<_> = {
         let t = handle.tab.peek();
@@ -1106,10 +1167,38 @@ fn open_items(
             }
         }
     }
-    let files = entries.iter().filter(|e| !e.is_dir()).count();
-    if files > 0 {
-        tracing::info!(n = files, "opening files comes with 15.8");
+    // An item in the Trash is put back or dragged out to be opened.
+    let files: Vec<PathBuf> = entries.iter().filter(|e| !e.is_dir() && e.trashed.is_none()).map(|e| e.path.clone()).collect();
+    if !files.is_empty() {
+        open_files(shared, files, open_with);
     }
+}
+
+/// Opens files in their apps, asking with Open With for the first nothing opens by itself.
+fn open_files(shared: &Shared, files: Vec<PathBuf>, open_with: State<Option<crate::open::Offer>>) {
+    let bus = shared.app().bus();
+    spawn(async move {
+        let Some((launches, ask)) = off_thread(move || crate::open::decide(&files)).await else { return };
+        if let Some(bus) = bus {
+            for (app, uris) in launches {
+                crate::open::launch(bus.clone(), app, uris).await;
+            }
+        }
+        if let Some(first) = ask.into_iter().next() {
+            ask_open_with(first, open_with);
+        }
+    });
+}
+
+/// Shows Open With for one file, once its apps are read.
+fn ask_open_with(path: PathBuf, open_with: State<Option<crate::open::Offer>>) {
+    spawn(async move {
+        if let Some(offer) = off_thread(move || crate::open::offer(&path)).await {
+            tracing::info!(path = %offer.path.display(), kind = offer.kind, apps = offer.apps.len(), "open with");
+            let mut open_with = open_with;
+            open_with.set(Some(offer));
+        }
+    });
 }
 
 fn close_tab(mut tabs: State<Vec<TabHandle>>, mut current: State<usize>, i: usize) {

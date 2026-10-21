@@ -2,6 +2,14 @@
 
 ## 2026-10-21
 
+- P15 15.18, the close, host run pending: ARCHITECTURE gains How Files
+  lists a folder, How a file job runs, How the panels answer and How Quick
+  Look floats, and the app section many windows and the data device;
+  B104–B111 record the packet's decisions; `apps.md`'s and `platform.md`'s
+  open points are answered; the roadmap and state name P15 built;
+  `p15-files.md` ends with its outcome. The host run on the installed
+  package is the user's, its checklist in
+  `docs/research/rust-desktop/p15-files.md`.
 - P15 15.17: measures and the VM, in
   `docs/research/rust-desktop/p15-files.md`. Headless (`files_bars`): bar
   3 (gone within 5 s of its last window), 4 (answers with no UDisks2), 7

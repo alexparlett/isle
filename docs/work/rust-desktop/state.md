@@ -496,3 +496,13 @@
   only in Isle; Trim by re-encoding; Default apps in Settings › Apps;
   search by walking, no content index. Research in
   `docs/research/rust-desktop/files-2026.md`. Phases 15.0–15.18.
+- P15 is built (2026-10-21), host run pending, the user's: Files on
+  `isle-fs` (B104) with the thumbnail helper (B105), jobs that lose nothing
+  and undo (B106), opening through Isle's lists (B107), search by walking,
+  Get Info and Files' settings indexed for Spotlight; the panels handed
+  over `Files1` (B108) as modal children of the asking window (B109);
+  Quick Look on `QuickLook1`, floating through `isle_float_v1` (B110), with
+  Markup and Trim (B111); the shell's ties, Default apps, `isle setup`'s
+  folder step, and the package. Measures and the VM in
+  `docs/research/rust-desktop/p15-files.md`. Next: the host run on the
+  installed package, then P16.

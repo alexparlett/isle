@@ -47,8 +47,9 @@ isle                            the command line over the D-Bus API
 Apps, launched on demand        Settings, Files, Monitor, Keychain, Cleaner:
                                 Freya processes on isle-app and the same component
                                 library, drawn in software unless built with the
-                                GPU (B26, B94); Files also serves the Open and Save
-                                panels and Quick Look (B26)
+                                GPU (B26, B94); Files also serves FileManager1,
+                                the Open and Save panels and Quick Look, with
+                                isle-thumbnail as its helper (B26, B105)
 Providers                       programs in any language, started by the service
                                 worker, sandboxed with the permissions the user
                                 granted (B14, B28)
@@ -674,7 +675,15 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 - **One command table** declares every command with its menu, group and
   chord; the menu bar is exported from it as DBusMenu at `/MenuBar/1`, and
   its chords are matched in the window, Cmd as `Modifiers::META`. Isle's
-  own apps are never Cmd-translated, so Super arrives as itself.
+  own apps are never Cmd-translated, so Super arrives as itself. An app of
+  many windows exports each window's menu at `/MenuBar/<n>`, and the focused
+  window's table is the one in force.
+- **Many windows, one data device.** `isle_app::app()` opens and closes
+  windows of any kind; a window may be another app's modal child (an
+  imported xdg-foreign handle and xdg-dialog) or float over a caller
+  (`isle_float_v1`), and can export its own handle. The clipboard and drag
+  and drop are `isle-app`'s own data device on its own queue, so a drag is a
+  Wayland drag inside the window too.
 - **D-Bus and the daemons run on the app's worker,** a tokio runtime on a
   thread of its own; the UI thread awaits its results and never blocks.
 - Menus, pop-ups, popovers and sheets draw inside the window (B94).
@@ -703,6 +712,102 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   scrolls to it.
 - **Show Changed Settings** compares the values with the schema's defaults
   in the app; Reset to Default is `Settings1.Reset` of the row's key.
+
+## How Files lists a folder
+
+- **The engine is `isle-fs`,** with no UI, shared with the Cleaner (B104).
+  A listing reads the folder with `getdents` and one `statx` an entry,
+  never mounting an automount point or waking a network server, on a
+  thread of its own, and sends batches of 512; the first screen draws
+  before the last entry is read. The type an entry's name says comes with
+  it; its content is sniffed only when the name says nothing.
+- **The model changes by rows.** A tab's `Folder` merges each batch in its
+  order and takes single entries in and out, keyed by path, so the
+  selection, the scroll and the rows on screen keep their places while a
+  folder fills or changes. Hidden items and the names a typed filter
+  leaves out are set aside, not dropped. A search is a place too, walked by
+  `ignore`'s parallel walker and streamed into the same model.
+- **One inotify watcher serves the process.** A watched change reads the
+  touched names again off the window's thread; an overflow lists the
+  folder again over what is shown. A folder on a remote mount is not
+  watched and is read again when shown.
+- **Mounts are read from the mount table and probed with deadlines,** so a
+  share that never answers costs its row, never the window. Locations
+  follows UDisks2 through `isle-disks` for drives and loop images and the
+  table for the shares the system mounted.
+- **Thumbnails come from a helper process,** `isle-thumbnail`, into the
+  freedesktop cache, four at a time, so a file that crashes a decoder costs
+  a restart of the helper (B105). The helper also renders PDF pages and
+  video frames for Quick Look.
+
+## How a file job runs
+
+- **A job is a `Work` run on a thread of its own** (B106): copy, move,
+  duplicate, trash, put back, erase, empty, new folder, rename, compress,
+  expand, undo. It reports progress and asks through a channel; the window
+  that started it answers its question in a sheet, or the front window if
+  that one has closed, and the jobs button and the switcher card show it.
+- **Nothing is lost before what replaces it is in place.** A copy writes a
+  part file and renames it in with `RENAME_NOREPLACE`; a replace exchanges
+  first with `RENAME_EXCHANGE` and trashes the old; Markup and Trim write
+  beside the original, trash it, and rename the new file in. Within one
+  filesystem a copy clones first.
+- **Undo is a list of steps** a job records as it goes (made, moved,
+  trashed), kept per window; a step that overwrote or erased something ends
+  the window's undo there.
+- **The Trash is Isle's own, by the freedesktop spec,** per volume: the
+  home trash on the home filesystem, `.Trash-$uid` at a volume's top
+  elsewhere.
+- **Opening a file is Isle's** (B107): `isle-apps` resolves the MIME apps
+  lists, Isle's own first, over the entries' types and the file's type's
+  parents; a script or program never runs by opening it, and a file nothing
+  opens asks in Open With. The compositor's launch path resolves the same
+  way, so Spotlight, the dock and Files agree.
+
+## How the panels answer
+
+- **The portal backend hands the request to Files** (B108). `isle-portal`'s
+  FileChooser holds the frontend's reply, exports the Request and calls
+  `io.github.alexparlett.Isle.Files1.Choose` on Files' name, which D-Bus
+  activation starts as a service with no window; Files answers once with
+  an `Answered` signal. The Request's Close calls `Cancel`, and Files
+  leaving the bus answers cancel, so every request has exactly one answer
+  and no D-Bus timeout answers for the user. `Files1` takes calls only from
+  the backend's owner.
+- **The panel is a modal child of the asking window** (B109). Files opens
+  its window with the request's `wayland:` handle: `isle-app` imports it
+  with xdg-foreign v2 and marks the window modal with xdg-dialog before its
+  first commit, and the compositor hangs it as a sheet under the parent's
+  bar and counts it under the parent's app. A request with no parent, or
+  an X11 parent, gets a window of its own. One panel per parent; a second
+  request waits.
+- **What it answers.** Open, Save collapsed and expanded, SaveFiles as a
+  folder; filters by glob and by MIME type with wildcards, choices, the
+  current filter and `writable`. A chosen file joins `recently-used.xbel`.
+  The folder, view and Save's expanded state are kept per app.
+- **Isle's own apps ask the same way,** through `isle_app::portal`, with
+  their window exported for the sheet: Settings' Wallpaper Choose….
+
+## How Quick Look floats
+
+- **Quick Look is Files' window,** one at a time, shown by Space or ⌘Y in
+  Files and by `io.github.alexparlett.Isle.QuickLook1` for Spotlight and the
+  capture thumbnail; it follows its caller's selection and tells a caller
+  over the bus which item shows and when it closed.
+- **It floats over its caller without its keyboard** (B110). `isle-app`
+  asks for an `isle_float_v1` object (`isle_titlebar_v1` version 2) before
+  the window's first commit, naming the caller by an xdg-foreign handle or
+  as `isle:` and a shell surface's name. The compositor parents it to the
+  caller's window, raised with it and out of the switcher, never focuses it
+  as it maps, and moves the keyboard to it only on a click into its top
+  band; a float over a shell surface is drawn above the shell's overlays,
+  so Quick Look sits over Spotlight while Spotlight keeps typing.
+- **The renderers read off the window's thread:** images through Skia,
+  text and code highlighted by syntect, PDF pages from the helper as they
+  scroll in, audio and video through freya-video, archives by `bsdtar`,
+  icon and facts for the rest. Markup draws its marks as an SVG layer in
+  the image's pixels and renders them at full resolution on Done; Trim
+  re-encodes the kept range with ffmpeg (B111).
 
 ## How Isle is installed
 

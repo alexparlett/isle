@@ -620,3 +620,39 @@ apps' own surfaces beyond the panels, Spotlight and the thumbnail.
 - **The folder handler step.** If `isle-mimeapps.list` is missed,
   `xdg-open` of a folder in Isle opens v1's Files window under Isle.
   `isle setup --check` lists it.
+
+## Outcome
+
+Built 2026-10-21 in phases 15.0–15.17; 15.18's host run, part of done, is
+the user's, with its checklist in `docs/research/rust-desktop/p15-files.md`.
+B104–B111 record the decisions; ARCHITECTURE gains How Files lists a
+folder, How a file job runs, How the panels answer and How Quick Look
+floats; `apps.md`'s and `platform.md`'s open points are answered.
+Differences from the plan:
+
+- **An X11 parent's panel is a window of its own** (choice 22): an
+  Xwayland surface cannot be an xdg-foreign parent and the compositor has
+  no way to export one, so the worker hands Files no handle for it.
+- **A started-by-activation Files opens no window**: its service files run
+  `isle-files --gapplication-service`, which `isle-app` takes as a request
+  for nothing, as GApplication does.
+- **Quick Look over Spotlight is drawn above the shell's overlays** but a
+  click on it still reaches Spotlight; Files' own windows and panels are
+  floated over as planned.
+- **Syntax highlighting uses syntect's own syntaxes,** not bat's (choice 28).
+- **The on-demand bar's Files** names Files with the fallback menus; its
+  key-translation group is for other file managers and is left alone.
+- **The thumbnail helper gained `page` and `frames` modes** for Quick Look's
+  PDF pages and Trim's strip.
+
+Found and fixed on the way: `isle-apps`' name cache keyed a whole-name
+glob's answer by its extension, so one `todo.txt` made every `.txt` a
+Todo.txt file; a window closed before it was created stayed open (a quick
+Close of a portal request left an orphaned panel, found in the VM).
+
+Not built, carried in `progress.md`: the panel's parent closing does not
+yet cancel; the panel's size per app; Quick Look's zoom from the item, full
+screen and fonts; the trim bar's playback and Trim as a job with progress;
+asking before closing unsaved Markup; Last modified's date range; removing
+a saved search; Get Info's and the preview pane's use of the renderers.
+

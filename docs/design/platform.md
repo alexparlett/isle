@@ -496,8 +496,10 @@ and Isle's file browser.
 compositor. D67: the reply is held, and the chooser closes nothing else.
 D27: the pointer stays out of a shot unless asked for.
 
-**Open for its packet.** The interface between the worker and Files for a
-FileChooser request.
+**Answered in P15.** The worker calls `io.github.alexparlett.Isle.Files1.Choose`
+on Files' name and hears one `Answered` signal; Close calls `Cancel`, and
+Files leaving the bus answers cancel (B108). The panel is a modal child of
+the asking window through xdg-foreign and xdg-dialog (B109).
 
 **Answered in P11.** Non-interactive screenshots are the frontend's own
 check: Isle serves Access, so the permission store's `screenshot` table asks

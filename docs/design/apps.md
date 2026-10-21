@@ -313,8 +313,10 @@ replacement order, partial undo, `#` renames, bsdtar. D73: the folder handler re
 D74: searches are narrowed and kept. D76: favourite order is the user's. D82: AppImages by folder, read
 without running. D75, D92: one app id for every Files window.
 
-**Open for its packet.** An index for content search (`macos-model.md` OPEN, file indexing). Who
-watches `~/Applications` while Files is not running. Quick Look's D-Bus name.
+**Answered in P15.** No content index: Files searches by walking, its Contents criterion reading
+files as Spotlight's Contents switch does, at most 500 (B76 stands). The compositor's app index
+watches `~/Applications`, so it is watched with Files not running. Quick Look is
+`io.github.alexparlett.Isle.QuickLook1` on Files' name (B110).
 
 ### Monitor
 

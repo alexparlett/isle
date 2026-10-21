@@ -1145,3 +1145,67 @@ step checks, applies and undoes, and records what it changed (root's in
 `isle setup` runs root's steps in one sudo or pkexec, and `--undo`
 reverses only what was recorded, leaving a file edited by hand since.
 
+**B104 · Files' engine is `isle-fs`, streamed and changed by rows.** Built
+in P15. A listing streams batches from `getdents` and `statx`, never
+mounting or waking a server; a tab's model merges batches and takes single
+entries by path, so nothing on screen is rebuilt; one inotify watcher serves
+the process; mounts are probed with deadlines. The crate has no UI, so the
+Cleaner shares it. Rejected: GIO (its mounts and monitors are the daemons
+v1 spent lessons on), a model rebuilt per change (the selection and scroll
+jump, v1 1b50dce).
+
+**B105 · Thumbnails are made by a helper process into the shared cache.**
+Built in P15. `isle-thumbnail` reads asks on standard input and writes the
+freedesktop cache with four threads, through `image`, resvg, hayro and the
+system's `.thumbnailer` entries; it also renders PDF pages and video frames
+for Quick Look. A file that crashes a decoder costs a restart of the
+helper, never Files. Rejected: decoding in Files (one bad file takes the
+window), a cache of Isle's own (other apps' thumbnails go unused).
+
+**B106 · File jobs replace nothing before the replacement is in place.**
+Built in P15. Copies write part files and rename in with
+`RENAME_NOREPLACE`, replacements exchange and trash the old, and each job
+records the steps its undo takes back; the Trash is Isle's own, by the
+spec, per volume. A job asks through a channel and its window answers in a
+sheet. Rejected: the `trash` crate (no per-volume topdirs, no put back),
+removing before writing (v1's D70).
+
+**B107 · Opening a file is resolved by Isle, everywhere.** Built in P15.
+`isle-apps` reads the MIME apps lists, `isle-mimeapps.list` first, over the
+entries' types and the type's parents, and the compositor's launch path and
+Files use it alike; a program or script is never run by opening it, and a
+file nothing opens asks in Files' Open With. Rejected: `xdg-open` (it
+hands Isle's choice to whatever desktop it guesses), GIO's resolution.
+
+**B108 · FileChooser is handed to Files over a private interface.** Built
+in P15. The portal backend calls `Files1.Choose`, starting Files by D-Bus
+activation as a service with no window, and waits for one `Answered`
+signal, the Request's Close (`Cancel`), or Files leaving the bus. `Files1`
+takes calls only from the backend's owner. Rejected: a held method reply (a
+D-Bus timeout would answer for the user), browsing in the compositor (B26).
+
+**B109 · A panel is a modal child of the asking window, under its app.**
+Built in P15. Files imports the request's `wayland:` handle with
+xdg-foreign v2 and marks the window modal with xdg-dialog before its first
+commit; the compositor hangs it as a sheet and counts a dialog on another
+app's window under that app in the switcher. An X11 parent's panel is a
+window of its own, since an Xwayland surface cannot be an xdg-foreign
+parent. Rejected: a private parenting protocol (the standard pair serves
+every Wayland caller), the panel as a window of Files' own in the switcher.
+
+**B110 · Quick Look floats over its caller through `isle_float_v1`.**
+Built in P15. `isle_titlebar_v1` version 2 gives a toplevel a float object
+naming its caller (an xdg-foreign handle, or `isle:` and a shell surface);
+the compositor parents it, never focuses it as it maps or on a click below
+its top band, and draws a float over a shell surface above the shell's
+overlays. Rejected: an xdg-dialog child (it takes the keyboard and dims the
+caller), a layer-shell surface (no title bar, no window management).
+
+**B111 · Markup and Trim write beside the original and trash it.** Built in
+P15. Marks are a vector layer in the image's pixels, rendered at full
+resolution with resvg on Done; Trim re-encodes the kept range with ffmpeg
+(NVENC, else x264, with AAC) so the cut is exact. The new file is written
+beside the original, the original moved to the Trash and the new renamed
+into its place, so Put Back recovers it. Rejected: a stream copy (it cuts
+at keyframes, seconds off the handles), editing in place.
+

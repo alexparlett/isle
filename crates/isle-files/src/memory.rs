@@ -26,6 +26,18 @@ pub struct Memory {
     /// Get Info's sections closed.
     #[serde(default)]
     pub info_collapsed: Vec<String>,
+    /// The Open and Save panels, by the app asking.
+    #[serde(default)]
+    pub panels: BTreeMap<String, PanelMemory>,
+}
+
+/// What a panel keeps for one app.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PanelMemory {
+    pub folder: Option<std::path::PathBuf>,
+    pub view: Option<crate::view::View>,
+    /// Save shows the browser.
+    pub expanded: bool,
 }
 
 impl Memory {

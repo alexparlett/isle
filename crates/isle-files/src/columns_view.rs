@@ -176,7 +176,7 @@ fn column(
                         .cross_align(Alignment::Center)
                         .spacing(t.space_s)
                         .corner_radius(t.radius_row)
-                        .opacity(if entry.hidden() || interact.is_cut(&entry.path) { 0.5 } else { 1. })
+                        .opacity(if interact.is_dimmed(entry) { 0.5 } else { 1. })
                         .map(fill, |el, fill| el.background(colour(fill)))
                         .maybe(target, |el| el.border(crate::interact::drop_ring(theme)))
                         .on_pointer_enter(interact.target_on_enter(&entry.path, entry.is_dir()))

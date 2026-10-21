@@ -461,3 +461,147 @@ async fn files_settings_open_on_cmd_comma_and_apply_to_the_views() {
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     isle.keep_shot("files-settings-window").await;
 }
+
+/// A FileChooser call as the portal frontend makes it; blocks until the panel answers.
+async fn file_chooser(
+    frontend: zbus::Connection,
+    method: &'static str,
+    handle: &'static str,
+    options: std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
+) -> (u32, std::collections::HashMap<String, zbus::zvariant::OwnedValue>) {
+    let reply = frontend
+        .call_method(
+            Some("org.freedesktop.impl.portal.desktop.isle"),
+            "/org/freedesktop/portal/desktop",
+            Some("org.freedesktop.impl.portal.FileChooser"),
+            method,
+            &(zbus::zvariant::ObjectPath::try_from(handle).unwrap(), "isle.test.App", "", "", options),
+        )
+        .await
+        .unwrap();
+    reply.body().deserialize().unwrap()
+}
+
+fn owned<'a>(v: impl Into<zbus::zvariant::Value<'a>>) -> zbus::zvariant::OwnedValue {
+    v.into().try_to_owned().unwrap()
+}
+
+fn bytes_of(path: &std::path::Path) -> Vec<u8> {
+    use std::os::unix::ffi::OsStrExt;
+    let mut b = path.as_os_str().as_bytes().to_vec();
+    b.push(0);
+    b
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_portal_hands_open_and_save_to_files_panels() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-panels").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let frontend = zbus::connection::Builder::address(isle.bus_address().as_str()).unwrap().build().await.unwrap();
+    frontend.request_name("org.freedesktop.portal.Desktop").await.unwrap();
+    let panels = || async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() };
+
+    // A folder request: Return chooses the folder shown.
+    let mut options = std::collections::HashMap::new();
+    options.insert("directory".to_owned(), owned(true));
+    options.insert("current_folder".to_owned(), owned(bytes_of(&home.join("Pictures"))));
+    let asked = tokio::spawn(file_chooser(frontend.clone(), "OpenFile", "/org/freedesktop/portal/desktop/request/1_1/a", options));
+    app.wait_for_part("choose").await;
+    wait_until(|| async { panels().await == 2 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.keep_shot("files-panel-open").await;
+    isle.chord(&[ENTER]).await;
+    let (response, results) = asked.await.unwrap();
+    assert_eq!(response, 0);
+    let uris: Vec<String> = results["uris"].try_clone().unwrap().try_into().unwrap();
+    assert!(uris[0].ends_with("/Pictures"), "{uris:?}");
+    wait_until(|| async { panels().await == 1 }).await;
+
+    // Save with a name: Return in the name field answers with the path.
+    let mut options = std::collections::HashMap::new();
+    options.insert("current_name".to_owned(), owned("shot.png"));
+    options.insert("current_folder".to_owned(), owned(bytes_of(&home.join("Pictures"))));
+    let asked = tokio::spawn(file_chooser(frontend.clone(), "SaveFile", "/org/freedesktop/portal/desktop/request/1_1/b", options));
+    wait_until(|| async { panels().await == 2 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.keep_shot("files-panel-save").await;
+    isle.chord(&[ENTER]).await;
+    let (response, results) = asked.await.unwrap();
+    assert_eq!(response, 0);
+    let uris: Vec<String> = results["uris"].try_clone().unwrap().try_into().unwrap();
+    assert!(uris[0].ends_with("/Pictures/shot.png"), "{uris:?}");
+
+    // Escape cancels.
+    let asked = tokio::spawn(file_chooser(frontend.clone(), "OpenFile", "/org/freedesktop/portal/desktop/request/1_1/c", Default::default()));
+    wait_until(|| async { panels().await == 2 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.chord(&[ESC]).await;
+    assert_eq!(asked.await.unwrap().0, 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_panel_is_a_sheet_on_the_asking_window() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-panel-sheet").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let asking = isle.client("isle.test.Red", "ff0000");
+    asking.wait_for("keyboard-enter").await;
+    asking.send("export");
+    let handle = loop {
+        let line = asking.lines.lock().unwrap().iter().find_map(|l| l.strip_prefix("exported ").map(str::to_owned));
+        if let Some(handle) = line {
+            break handle;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+    let parent = isle.wait_for_window("isle.test.Red").await.id;
+    isle.windows_proxy().await.set_box(parent, 200, 100, 1400, 860).await.unwrap();
+    wait_until(|| async { isle.window(parent).await.width == 1400 }).await;
+    let frontend = zbus::connection::Builder::address(isle.bus_address().as_str()).unwrap().build().await.unwrap();
+    frontend.request_name("org.freedesktop.portal.Desktop").await.unwrap();
+
+    let mut options = std::collections::HashMap::new();
+    options.insert("directory".to_owned(), owned(true));
+    options.insert("current_folder".to_owned(), owned(bytes_of(&home.join("Documents"))));
+    let parent_handle: &'static str = Box::leak(format!("wayland:{handle}").into_boxed_str());
+    let asked = tokio::spawn(async move {
+        frontend
+            .call_method(
+                Some("org.freedesktop.impl.portal.desktop.isle"),
+                "/org/freedesktop/portal/desktop",
+                Some("org.freedesktop.impl.portal.FileChooser"),
+                "OpenFile",
+                &(zbus::zvariant::ObjectPath::try_from("/org/freedesktop/portal/desktop/request/1_1/s").unwrap(), "isle.test.Red", parent_handle, "Choose a folder", options),
+            )
+            .await
+            .unwrap()
+            .body()
+            .deserialize::<(u32, std::collections::HashMap<String, zbus::zvariant::OwnedValue>)>()
+            .unwrap()
+    });
+    let sheet = loop {
+        let found = isle.windows().await.into_iter().find(|w| w.app_id == APP && w.parent == parent);
+        if let Some(found) = found {
+            break found;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    let host = isle.window(parent).await;
+    assert!(sheet.x > host.x && sheet.x + sheet.width < host.x + host.width, "{sheet:?} inside {host:?}");
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("files-panel-sheet").await;
+    isle.chord(&[ENTER]).await;
+    let (response, _) = asked.await.unwrap();
+    assert_eq!(response, 0);
+}

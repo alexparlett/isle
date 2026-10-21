@@ -6,6 +6,7 @@ pub mod data;
 mod desktop;
 mod hub;
 mod instance;
+pub mod portal;
 mod toolbar;
 mod wayland;
 mod window;
@@ -24,7 +25,7 @@ use tracing::{info, warn};
 
 pub use commands::{Chord, ChordKey, Command, Menu};
 pub use desktop::{Write, from_owned};
-pub use instance::Request;
+pub use instance::{Request, SERVICE};
 pub use toolbar::ToolbarExt;
 pub use hub::{AppHandle, Hold, Requester, WindowKey, app};
 pub use window::{Drag, WindowSpec, this_surface, this_window, use_drag};
@@ -386,6 +387,7 @@ impl WindowSpec {
             lights: Some(spec.traffic_light_inset),
             backdrop: spec.backdrop,
             token: None,
+            parent: None,
         }
     }
 }

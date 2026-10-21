@@ -9,6 +9,7 @@ pub mod jobs;
 pub mod list;
 pub mod mounts;
 pub mod order;
+pub mod recents;
 pub mod trash;
 pub mod watch;
 

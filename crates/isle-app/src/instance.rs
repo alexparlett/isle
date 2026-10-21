@@ -20,9 +20,16 @@ pub enum Request {
     Action { name: String, params: Vec<String>, token: Option<String> },
 }
 
+/// The action a start by D-Bus activation asks for: nothing shown, the bus call it was
+/// started for to follow (GApplication's `--gapplication-service`).
+pub const SERVICE: &str = "service";
+
 impl Request {
     /// The request a command line makes: URIs to open, or the app activated.
     pub fn from_args(args: Vec<String>, token: Option<String>) -> Self {
+        if args == ["--gapplication-service"] {
+            return Request::Action { name: SERVICE.into(), params: Vec::new(), token };
+        }
         if args.is_empty() {
             Request::Activate { token }
         } else {

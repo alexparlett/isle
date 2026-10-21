@@ -204,6 +204,14 @@ impl AppHandle {
     }
 
     /// Raises the window with a token another launch handed over.
+    /// A window's xdg-foreign handle, `wayland:<handle>` as portals take it.
+    pub fn export(&self, key: WindowKey) -> Option<String> {
+        let windows = self.0.windows.borrow();
+        let open = windows.get(&key)?;
+        let extras = open.extras.borrow();
+        extras.as_ref()?.export().map(|h| format!("wayland:{h}"))
+    }
+
     pub fn activate(&self, key: WindowKey, token: &str) {
         if let Some(open) = self.0.windows.borrow().get(&key)
             && let Some(extras) = open.extras.borrow().as_ref()

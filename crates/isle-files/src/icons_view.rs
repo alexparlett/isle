@@ -177,7 +177,7 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
         .padding((t.space_s, 0.))
         .cross_align(Alignment::Center)
         .spacing(t.space_xs)
-        .opacity(if entry.hidden() || grid.interact.is_cut(&entry.path) { 0.5 } else { 1. })
+        .opacity(if grid.interact.is_dimmed(entry) { 0.5 } else { 1. })
         .a11y_role(AccessibilityRole::GridCell)
         .a11y_alt(entry.name.clone())
         .a11y_builder(move |node| node.set_selected(selected))

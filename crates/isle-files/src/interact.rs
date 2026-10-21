@@ -30,11 +30,34 @@ pub struct Interact {
     pub drop_target: State<Option<PathBuf>>,
     /// A button went down on this item: a drag may start from it.
     pub press: State<Option<(PathBuf, f64, f64)>>,
+    /// In a panel: what can be chosen; the rest is dimmed.
+    pub chooses: Option<Choosable>,
+}
+
+/// What a panel can choose.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Choosable {
+    pub filter: Option<crate::chooser::Filter>,
+    pub folders_only: bool,
+}
+
+impl Choosable {
+    pub fn allows(&self, entry: &isle_fs::Entry) -> bool {
+        if self.folders_only {
+            return entry.is_dir();
+        }
+        self.filter.as_ref().is_none_or(|f| f.passes(&entry.name, entry.mime.as_deref(), entry.is_dir()))
+    }
 }
 
 impl Interact {
     pub fn is_cut(&self, path: &Path) -> bool {
         self.cut.iter().any(|p| p == path)
+    }
+
+    /// Drawn dimmed: hidden, cut, or not what the panel can choose.
+    pub fn is_dimmed(&self, entry: &isle_fs::Entry) -> bool {
+        entry.hidden() || self.is_cut(&entry.path) || self.chooses.as_ref().is_some_and(|c| !c.allows(entry))
     }
 
     pub fn renaming(&self, path: &Path) -> Option<&Rename> {

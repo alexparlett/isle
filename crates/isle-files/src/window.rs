@@ -68,7 +68,7 @@ pub async fn off_thread<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'stati
     rx.await.ok()
 }
 
-fn new_tab(shared: &Shared, place: Place, reveal: Option<PathBuf>) -> TabHandle {
+pub(crate) fn new_tab(shared: &Shared, place: Place, reveal: Option<PathBuf>) -> TabHandle {
     let mut t = Tab::new(shared.next_tab(), place);
     t.reveal = reveal;
     t.folder.set_show_hidden(*shared.hidden.peek());
@@ -923,6 +923,7 @@ impl App for FilesWindow {
             dragging: drag.over.read().is_some(),
             drop_target,
             press,
+            chooses: None,
         };
         let body = content(&theme, &handle, rev, focused, held, on_pick, interact.clone());
         // A question goes to the window that started its job, or to the front one when that
@@ -1100,6 +1101,8 @@ impl App for FilesWindow {
                     places: places.read().clone(),
                     saved: shared.saved.read().clone(),
                     prefs: shared.prefs(),
+                    width: t.size_sidebar,
+                    under_toolbar: true,
                     shown: place.clone(),
                     volumes: shared.locations.volumes.read().clone(),
                     shares: shared.locations.shares.read().clone(),
@@ -1608,7 +1611,7 @@ fn close_tab(mut tabs: State<Vec<TabHandle>>, mut current: State<usize>, i: usiz
 }
 
 /// The folder's content, or why there is none.
-fn content(
+pub(crate) fn content(
     theme: &isle_tokens::Theme,
     handle: &TabHandle,
     rev: u64,
@@ -1793,19 +1796,22 @@ impl Component for TabBar {
 }
 
 #[derive(PartialEq)]
-struct Sidebar {
-    places: Places,
-    prefs: crate::prefs::Prefs,
-    saved: Vec<Search>,
-    shown: Place,
-    volumes: Vec<isle_disks::Volume>,
-    shares: Vec<PathBuf>,
-    space: std::collections::HashMap<PathBuf, (u64, u64)>,
-    dragging: bool,
-    drop_target: State<Option<PathBuf>>,
-    on_go: EventHandler<Place>,
-    on_volume: EventHandler<isle_disks::Volume>,
-    on_eject: EventHandler<isle_disks::Volume>,
+pub(crate) struct Sidebar {
+    pub places: Places,
+    pub prefs: crate::prefs::Prefs,
+    pub saved: Vec<Search>,
+    pub shown: Place,
+    pub volumes: Vec<isle_disks::Volume>,
+    pub shares: Vec<PathBuf>,
+    pub space: std::collections::HashMap<PathBuf, (u64, u64)>,
+    pub dragging: bool,
+    pub drop_target: State<Option<PathBuf>>,
+    pub on_go: EventHandler<Place>,
+    pub on_volume: EventHandler<isle_disks::Volume>,
+    pub on_eject: EventHandler<isle_disks::Volume>,
+    pub width: f32,
+    /// Leaves the window's toolbar band clear at its top.
+    pub under_toolbar: bool,
 }
 
 impl Component for Sidebar {
@@ -1934,7 +1940,7 @@ impl Component for Sidebar {
         });
         let (computer, trash) = (self.places.locations.first(), self.places.locations.get(1));
         rect()
-            .width(Size::px(t.size_sidebar))
+            .width(Size::px(self.width))
             .height(Size::fill())
             .background(colour(t.colour_sidebar))
             .border(
@@ -1943,7 +1949,7 @@ impl Component for Sidebar {
                     .width(BorderWidth { top: 0., right: 1., bottom: 0., left: 0. })
                     .alignment(BorderAlignment::Inner),
             )
-            .child(rect().width(Size::fill()).height(Size::px(t.size_toolbar)).toolbar())
+            .maybe_child(self.under_toolbar.then(|| rect().width(Size::fill()).height(Size::px(t.size_toolbar)).toolbar()))
             .child(
                 isle_ui::scroll_area(&theme)
                     .width(Size::fill())

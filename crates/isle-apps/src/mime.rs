@@ -37,6 +37,11 @@ fn special_globs(dirs: &[PathBuf]) -> Vec<String> {
     out
 }
 
+/// A shell glob against a whole name, case ignored, as file choosers' filters match.
+pub fn matches_glob(glob: &str, name: &str) -> bool {
+    glob_matches(glob.to_lowercase().as_bytes(), name.to_lowercase().as_bytes())
+}
+
 /// A shell glob of `*`, `?` and `[…]` against a whole name.
 fn glob_matches(glob: &[u8], name: &[u8]) -> bool {
     match glob.split_first() {

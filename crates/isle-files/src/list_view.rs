@@ -237,7 +237,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
     let on_accent = selected && rows.focused;
     let ink = if on_accent { t.colour_on_accent } else { t.colour_text };
     let ink_2 = if on_accent { t.colour_on_accent } else { t.colour_text_2 };
-    let dim = entry.hidden() || rows.interact.is_cut(&entry.path);
+    let dim = rows.interact.is_dimmed(entry);
     let target = rows.interact.is_target(&entry.path);
     let interact = rows.interact.clone();
     let r = t.radius_row;

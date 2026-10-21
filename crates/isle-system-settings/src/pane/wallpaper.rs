@@ -59,6 +59,32 @@ impl Component for Wallpaper {
         let theme = isle_ui::theme();
         let t = &theme.tokens;
         let mut asking = use_state(|| None::<&'static str>);
+        let (app, window) = (isle_app::app(), isle_app::this_window());
+        // Files' panel through the portal; with no portal, the path is typed.
+        let choose = move |what: &'static str, target: String| {
+            let mut asking = asking;
+            let Some(bus) = app.bus() else {
+                asking.set(Some(what));
+                return;
+            };
+            let parent = app.export(window).unwrap_or_default();
+            spawn(async move {
+                let wanted = isle_app::portal::Wanted {
+                    title: if what == "dark" { "Choose a Dark Mode picture".into() } else { "Choose a picture".into() },
+                    types: vec![("Images".into(), vec!["image/*".into()])],
+                    folder: dirs_pictures(),
+                    ..Default::default()
+                };
+                match isle_app::portal::choose_file(&bus, &parent, wanted).await {
+                    Ok(Some(path)) => desktop.set(target, Value::Str(path.display().to_string())),
+                    Ok(None) => {}
+                    Err(err) => {
+                        tracing::warn!("no file chooser: {err}");
+                        asking.set(Some(what));
+                    }
+                }
+            });
+        };
         let displays: Vec<isle_ipc::DisplayInfo> = services
             .displays
             .read()
@@ -211,7 +237,10 @@ impl Component for Wallpaper {
                     source.clone()
                 })
                 .control(
-                    isle_ui::Button::new("Choose…").on_press(move |_| asking.set(Some("source"))),
+                    isle_ui::Button::new("Choose…").on_press({
+                        let (choose, target) = (choose.clone(), source_key.clone());
+                        move |_| choose("source", target.clone())
+                    }),
                 )
                 .into_element(),
             );
@@ -295,7 +324,10 @@ impl Component for Wallpaper {
                 r.row("dark-picture", "Dark Mode picture", Some(&dark_key))
                     .description(dark.clone())
                     .control(
-                        isle_ui::Button::new("Choose…").on_press(move |_| asking.set(Some("dark"))),
+                        isle_ui::Button::new("Choose…").on_press({
+                            let (choose, target) = (choose.clone(), dark_key.clone());
+                            move |_| choose("dark", target.clone())
+                        }),
                     )
                     .into_element(),
             );
@@ -403,4 +435,10 @@ mod tests {
         assert_eq!(hex("#ff0000"), Some(Color::from_rgb(255, 0, 0)));
         assert_eq!(hex("red"), None);
     }
+}
+
+/// The user's Pictures folder, where a picture is first looked for.
+fn dirs_pictures() -> Option<std::path::PathBuf> {
+    let home = std::path::PathBuf::from(std::env::var_os("HOME")?);
+    Some(home.join("Pictures")).filter(|p| p.is_dir())
 }

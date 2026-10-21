@@ -28,6 +28,8 @@ pub struct WindowSpec {
     pub backdrop: Option<(f64, f64, f64, f64)>,
     /// The activation token the launch that asked for it carried.
     pub token: Option<String>,
+    /// Another app's window, by its xdg-foreign handle, this one is a modal child of.
+    pub parent: Option<String>,
 }
 
 impl WindowSpec {
@@ -40,7 +42,13 @@ impl WindowSpec {
             lights: None,
             backdrop: None,
             token: None,
+            parent: None,
         }
+    }
+
+    pub fn parent(mut self, handle: Option<String>) -> Self {
+        self.parent = handle;
+        self
     }
 
     pub fn lights(mut self, inset: (f64, f64)) -> Self {
@@ -146,7 +154,7 @@ impl<A: App + 'static> Frame<A> {
         let id = app.spec().id;
         let gpu = cfg!(feature = "gpu") && std::env::var_os("FREYA_RENDERER").is_some();
         let renderer = if gpu { RendererPreference::Auto } else { RendererPreference::Software };
-        let (lights, backdrop, token) = (spec.lights, spec.backdrop, spec.token.clone());
+        let (lights, backdrop, token, parent) = (spec.lights, spec.backdrop, spec.token.clone(), spec.parent.clone());
         let (size, min_size, max_size) = (spec.size, spec.min_size, spec.max_size);
         // winit takes a static title; a window's title is set once and lives as long.
         let title: &'static str = Box::leak(spec.title.clone().into_boxed_str());
@@ -182,7 +190,7 @@ impl<A: App + 'static> Frame<A> {
                 None => attributes,
             })
             .with_window_handle(move |window| {
-                *extras.borrow_mut() = Extras::connect(window, lights, backdrop);
+                *extras.borrow_mut() = Extras::connect(window, lights, backdrop, parent.as_deref());
             })
     }
 }

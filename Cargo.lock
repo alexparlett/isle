@@ -3435,6 +3435,7 @@ dependencies = [
 name = "isle-portal"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "tokio",
  "tracing",
  "zbus",

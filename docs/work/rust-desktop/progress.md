@@ -2,6 +2,32 @@
 
 ## 2026-10-21
 
+- P15 15.12: the panels. `isle-portal` serves FileChooser (version 4,
+  OpenFile, SaveFile, SaveFiles) and hands each request to Files'
+  `io.github.alexparlett.Isle.Files1.Choose`, starting Files by D-Bus
+  activation (retried while it comes up) and waiting for its one
+  `Answered` signal, the Request's Close (Files1.Cancel) or Files leaving
+  the bus; `Files1` takes calls only from the backend's owner, and
+  `isle-portals.conf` gives FileChooser to Isle. A start by activation is
+  `--gapplication-service` and opens no window. `isle-app` imports a
+  `wayland:` parent with xdg-foreign and marks the window modal with
+  xdg-dialog, so the compositor hangs the panel as a sheet; an app can
+  export its own window's handle, and `isle_app::portal::choose_file`
+  asks the portal as any app does. The compositor counts a dialog on
+  another app's window under that app in the switcher. The panel: Open
+  with the sidebar, the three views, the folder pop-up, search, filters
+  (by glob and by MIME type, wildcards included) dimming what cannot be
+  chosen, choices as checkboxes and pop-ups, New Folder, Return and
+  Escape; a folder request chooses the folder shown; Save collapsed (Save
+  As, Where, Format changing the extension) and expanded into the
+  browser, remembered per app with the folder and view; SaveFiles chooses
+  a folder; a taken name asks Replace in the panel. Answers carry `uris`,
+  `choices`, `current_filter` and `writable`; a chosen file joins
+  `recently-used.xbel`. Settings › Wallpaper's Choose… opens the panel,
+  falling back to typing a path with no portal. Not built: an X11
+  parent's panel is a window of its own (an Xwayland surface cannot be an
+  xdg-foreign parent), the parent closing does not yet cancel, the panel's
+  size per app, and the sheet still carries the compositor's title bar.
 - P15 15.11: Get Info and Files' settings. ⌘I opens a Get Info window per
   item, ⌃⌘I one summary, ⌥⌘I the Inspector following the focused window's
   selection; FileManager1's ShowItemProperties opens Get Info. Sections

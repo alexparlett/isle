@@ -92,14 +92,28 @@ impl Isle {
         Some(self.wm.for_surface(focus.surface()?)?.app.clone())
     }
 
+    /// The app a window counts under: its own, or for a dialog on another app's window, as
+    /// Files' panels are, the app it hangs from (`p15-files.md` choice 23).
+    pub fn owner_app<'a>(&'a self, record: &'a super::Record) -> &'a str {
+        let mut top = record;
+        for _ in 0..8 {
+            match top.parent.and_then(|p| self.wm.get(p)) {
+                Some(parent) => top = parent,
+                None => break,
+            }
+        }
+        &top.app
+    }
+
     /// Apps with a window, most recently used first.
     pub fn apps_by_recency(&self) -> Vec<String> {
         let mut apps: Vec<String> = Vec::new();
         let recent = self.wm.recent.iter().filter_map(|id| self.wm.get(*id));
         let rest = self.wm.records.iter().rev();
         for record in recent.chain(rest) {
-            if record.mapped && !apps.contains(&record.app) {
-                apps.push(record.app.clone());
+            let app = self.owner_app(record);
+            if record.mapped && !apps.iter().any(|a| a == app) {
+                apps.push(app.to_owned());
             }
         }
         apps
@@ -123,7 +137,7 @@ impl Isle {
     pub fn background_apps(&self) -> Vec<String> {
         self.processes
             .seen()
-            .filter(|app| !self.wm.records.iter().any(|r| r.mapped && &r.app == *app))
+            .filter(|app| !self.wm.records.iter().any(|r| r.mapped && self.owner_app(r) == app.as_str()))
             .cloned()
             .collect()
     }
@@ -153,7 +167,7 @@ impl Isle {
                     .wm
                     .records
                     .iter()
-                    .filter(|r| r.mapped && r.app == app && !r.parked)
+                    .filter(|r| r.mapped && self.owner_app(r) == app && !r.parked)
                     .collect();
                 let toplevels = windows.iter().filter(|r| r.parent.is_none());
                 let entry = self.badges.get(&app);

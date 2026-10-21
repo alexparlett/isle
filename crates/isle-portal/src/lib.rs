@@ -4,6 +4,7 @@
 //! the compositor provides; nothing here knows the compositor.
 
 pub mod access;
+pub mod filechooser;
 pub mod inhibit;
 pub mod request;
 pub mod screencast;
@@ -85,6 +86,7 @@ pub async fn serve(conn: &Connection, handlers: Handlers) -> zbus::Result<bool> 
     server
         .at(PATH, inhibit::InhibitIface::new(handlers.inhibit))
         .await?;
+    server.at(PATH, filechooser::FileChooserIface).await?;
     match conn
         .request_name_with_flags(BUS_NAME, RequestNameFlags::DoNotQueue.into())
         .await

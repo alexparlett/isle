@@ -9,7 +9,7 @@ use tracing::warn;
 use wayland_backend::client::{Backend, ObjectId};
 use wayland_client::{
     Connection, Dispatch, EventQueue, Proxy, QueueHandle,
-    globals::{GlobalListContents, registry_queue_init},
+    globals::{GlobalList, GlobalListContents, registry_queue_init},
     protocol::{
         wl_compositor::WlCompositor, wl_region::WlRegion, wl_registry::WlRegistry, wl_seat::WlSeat,
         wl_surface::WlSurface,
@@ -20,6 +20,16 @@ use wayland_protocols::ext::background_effect::v1::client::{
     ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1,
 };
 use wayland_protocols::xdg::activation::v1::client::xdg_activation_v1::XdgActivationV1;
+use wayland_protocols::xdg::{
+    dialog::v1::client::{xdg_dialog_v1::XdgDialogV1, xdg_wm_dialog_v1::XdgWmDialogV1},
+    foreign::zv2::client::{
+        zxdg_exported_v2::{self, ZxdgExportedV2},
+        zxdg_exporter_v2::ZxdgExporterV2,
+        zxdg_imported_v2::ZxdgImportedV2,
+        zxdg_importer_v2::ZxdgImporterV2,
+    },
+    shell::client::xdg_toplevel::XdgToplevel,
+};
 use wayland_protocols_plasma::appmenu::client::{
     org_kde_kwin_appmenu::OrgKdeKwinAppmenu, org_kde_kwin_appmenu_manager::OrgKdeKwinAppmenuManager,
 };
@@ -57,7 +67,19 @@ use isle_titlebar::{isle_titlebar_manager_v1::IsleTitlebarManagerV1, isle_titleb
 
 pub use gtk_surface1::Gesture;
 
-struct Globals;
+/// The queue's state: what an export's handle event brought.
+#[derive(Default)]
+struct Globals {
+    handle: Option<String>,
+}
+
+impl Dispatch<ZxdgExportedV2, ()> for Globals {
+    fn event(state: &mut Self, _: &ZxdgExportedV2, event: zxdg_exported_v2::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        if let zxdg_exported_v2::Event::Handle { handle } = event {
+            state.handle = Some(handle);
+        }
+    }
+}
 
 impl Dispatch<WlRegistry, GlobalListContents> for Globals {
     fn event(
@@ -83,19 +105,38 @@ wayland_client::delegate_noop!(Globals: ignore ExtBackgroundEffectManagerV1);
 wayland_client::delegate_noop!(Globals: ignore ExtBackgroundEffectSurfaceV1);
 wayland_client::delegate_noop!(Globals: ignore WlCompositor);
 wayland_client::delegate_noop!(Globals: ignore WlRegion);
+wayland_client::delegate_noop!(Globals: ignore ZxdgImporterV2);
+wayland_client::delegate_noop!(Globals: ignore ZxdgExporterV2);
+wayland_client::delegate_noop!(Globals: ignore ZxdgImportedV2);
+wayland_client::delegate_noop!(Globals: ignore XdgWmDialogV1);
+wayland_client::delegate_noop!(Globals: ignore XdgDialogV1);
+wayland_client::delegate_noop!(Globals: ignore XdgToplevel);
 
 pub struct Extras {
     /// winit's `wl_display`, for the data device's own connection.
     pub display: *mut std::ffi::c_void,
     connection: Connection,
     /// Kept for as long as the objects bound on it.
-    _queue: EventQueue<Globals>,
+    queue: std::cell::RefCell<EventQueue<Globals>>,
+    globals: GlobalList,
+    /// The window exported for other apps' dialogs, and its handle.
+    exported: std::cell::RefCell<Option<(ZxdgExportedV2, String)>>,
     surface: WlSurface,
     activation: Option<XdgActivationV1>,
     appmenu: Option<OrgKdeKwinAppmenu>,
     gestures: Option<(GtkSurface1, WlSeat)>,
     _titlebar: Option<IsleTitlebarV1>,
+    /// Another app's window this one is the modal child of, kept while it is.
+    _parent: Option<(ZxdgImportedV2, Option<XdgDialogV1>)>,
     backdrop: Option<(ExtBackgroundEffectSurfaceV1, WlCompositor, QueueHandle<Globals>)>,
+}
+
+/// winit's `xdg_toplevel` for the window.
+fn toplevel(window: &freya::winit::window::Window, connection: &Connection) -> Option<XdgToplevel> {
+    use freya::winit::platform::wayland::WindowExtWayland;
+    let ptr = window.xdg_toplevel()?;
+    let id = unsafe { ObjectId::from_ptr(XdgToplevel::interface(), ptr.as_ptr().cast()) }.ok()?;
+    XdgToplevel::from_id(connection, id).ok()
 }
 
 impl Extras {
@@ -105,6 +146,7 @@ impl Extras {
         window: &freya::winit::window::Window,
         lights: Option<(f64, f64)>,
         backdrop: Option<(f64, f64, f64, f64)>,
+        parent: Option<&str>,
     ) -> Option<Self> {
         let display = match window.display_handle().ok()?.as_raw() {
             RawDisplayHandle::Wayland(handle) => handle.display.as_ptr(),
@@ -149,20 +191,53 @@ impl Extras {
             .ok()
             .zip(globals.bind::<WlCompositor, _, _>(&qh, 1..=6, ()).ok())
             .map(|(manager, compositor)| (manager.get_background_effect(&surface, &qh, ()), compositor, qh.clone()));
+        // Before the first buffer, so the compositor places the window as its parent's sheet.
+        let parent = parent.and_then(|handle| {
+            let importer = globals.bind::<ZxdgImporterV2, _, _>(&qh, 1..=1, ()).ok()?;
+            let imported = importer.import_toplevel(handle.to_owned(), &qh, ());
+            imported.set_parent_of(&surface);
+            let dialog = toplevel(window, &connection).and_then(|toplevel| {
+                let wm = globals.bind::<XdgWmDialogV1, _, _>(&qh, 1..=1, ()).ok()?;
+                let dialog = wm.get_xdg_dialog(&toplevel, &qh, ());
+                dialog.set_modal();
+                Some(dialog)
+            });
+            Some((imported, dialog))
+        });
         let _ = connection.flush();
         let extras = Self {
             display: display.cast(),
             connection,
-            _queue: queue,
+            queue: std::cell::RefCell::new(queue),
+            globals,
+            exported: std::cell::RefCell::default(),
             surface,
             activation,
             appmenu,
             gestures,
             _titlebar: titlebar,
+            _parent: parent,
             backdrop: effect,
         };
         extras.set_backdrop(backdrop);
         Some(extras)
+    }
+
+    /// The window's xdg-foreign handle, for another app's dialog on it, as a portal's
+    /// `parent_window` names it; exported once and kept.
+    pub fn export(&self) -> Option<String> {
+        if let Some((_, handle)) = self.exported.borrow().as_ref() {
+            return Some(handle.clone());
+        }
+        let mut queue = self.queue.borrow_mut();
+        let qh = queue.handle();
+        let exporter = self.globals.bind::<ZxdgExporterV2, _, _>(&qh, 1..=1, ()).ok()?;
+        let exported = exporter.export_toplevel(&self.surface, &qh, ());
+        let mut state = Globals::default();
+        queue.roundtrip(&mut state).ok()?;
+        let handle = state.handle?;
+        *self.exported.borrow_mut() = Some((exported, handle.clone()));
+        Some(handle)
     }
 
     /// The window's surface, as the data device's events name it.

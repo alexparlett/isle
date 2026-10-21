@@ -1,7 +1,9 @@
 //! Files (`docs/design/apps.md` Files; `p1/structure/files.md`).
 
 mod bars;
+mod chooser;
 mod columns_view;
+mod files1;
 mod fm1;
 mod format;
 mod icons;
@@ -16,6 +18,7 @@ mod toolbar;
 mod transfer;
 mod memory;
 mod open;
+mod panel;
 mod places;
 mod prefs;
 mod scope_bar;
@@ -94,6 +97,10 @@ pub struct Shared {
     pub last_scope: Cell<Option<search::Scope>>,
     /// The Trash has been cleared of old items this launch.
     purged: Cell<bool>,
+    /// The panels open, by their request.
+    panels: RefCell<BTreeMap<u64, (WindowKey, String)>>,
+    /// Requests waiting for their parent's panel to answer.
+    waiting: RefCell<Vec<chooser::Ask>>,
 }
 
 impl Shared {
@@ -275,6 +282,65 @@ impl Shared {
         }
     }
 
+    pub fn panel_memory(&self, app: &str) -> memory::PanelMemory {
+        self.memory.borrow().panels.get(app).cloned().unwrap_or_default()
+    }
+
+    pub fn keep_panel(&self, app: &str, kept: memory::PanelMemory) {
+        self.memory.borrow_mut().panels.insert(app.to_owned(), kept);
+        self.save();
+    }
+
+    /// Shows a request's panel, or holds it while its parent has one open.
+    pub fn choose(&self, ask: chooser::Ask) {
+        let busy = !ask.parent.is_empty() && self.panels.borrow().values().any(|(_, p)| *p == ask.parent);
+        if busy {
+            self.waiting.borrow_mut().push(ask);
+            return;
+        }
+        let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
+        let sizes = panel::sizes();
+        let save = ask.kind == chooser::Kind::Save && !self.panel_memory(&ask.app_id).expanded;
+        let size = if save { sizes.save } else { sizes.open };
+        let title = match (ask.title.is_empty(), ask.kind) {
+            (false, _) => ask.title.clone(),
+            (true, chooser::Kind::Open) => "Open".into(),
+            (true, _) => "Save".into(),
+        };
+        // An X11 parent cannot be an xdg-foreign parent: its panel is a window of its own.
+        let handle = ask.parent.strip_prefix("wayland:").map(str::to_owned);
+        let spec = WindowSpec::new(title, size, sizes.min).parent(handle);
+        let (id, parent) = (ask.id, ask.parent.clone());
+        let key = self.app().open(spec, panel::PanelWindow { shared, ask });
+        self.panels.borrow_mut().insert(id, (key, parent));
+    }
+
+    /// Answers a request once, closes its panel and shows the next its parent holds.
+    pub fn answer_choose(&self, id: u64, answer: chooser::Answer) {
+        let open = self.panels.borrow_mut().remove(&id);
+        let held = {
+            let mut waiting = self.waiting.borrow_mut();
+            waiting.iter().position(|a| a.id == id).map(|i| waiting.remove(i))
+        };
+        if open.is_none() && held.is_none() {
+            return;
+        }
+        let app = self.app();
+        if let Some(bus) = app.bus() {
+            app.worker().spawn(files1::answer(bus, id, answer));
+        }
+        if let Some((key, parent)) = open {
+            app.close(key);
+            let next = {
+                let mut waiting = self.waiting.borrow_mut();
+                waiting.iter().position(|a| a.parent == parent).map(|i| waiting.remove(i))
+            };
+            if let Some(next) = next {
+                self.choose(next);
+            }
+        }
+    }
+
     pub fn set_default_shown(&self, shown: view::Shown) {
         self.memory.borrow_mut().default_view = shown;
         self.save();
@@ -352,6 +418,7 @@ impl Delegate for Files {
         *self.shared.app.borrow_mut() = Some(app.clone());
         self.shared.locations.follow(app);
         if let Some(bus) = app.bus() {
+            app.worker().spawn(files1::serve(bus.clone(), app.requester()));
             app.worker().spawn(fm1::serve(bus, app.requester()));
         }
     }
@@ -399,6 +466,17 @@ impl Delegate for Files {
                 }
             }
             Request::Action { name, params, .. } => match name.as_str() {
+                isle_app::SERVICE => {}
+                files1::CHOOSE => {
+                    if let Some(ask) = params.first().and_then(|j| serde_json::from_str::<chooser::Ask>(j).ok()) {
+                        self.shared.choose(ask);
+                    }
+                }
+                files1::CANCEL => {
+                    if let Some(id) = params.first().and_then(|p| p.parse().ok()) {
+                        self.shared.answer_choose(id, chooser::Answer::cancelled());
+                    }
+                }
                 fm1::SHOW_ITEMS => {
                     for path in params.iter().filter_map(|u| path_of(u)) {
                         let parent = path.parent().map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/"));
@@ -480,6 +558,8 @@ fn main() {
         settings_at: State::create_global(settings_window::At { pane: "general".into(), row: None }),
         last_scope: Cell::new(None),
         purged: Cell::new(false),
+        panels: RefCell::default(),
+        waiting: RefCell::default(),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         hidden: State::create_global(false),

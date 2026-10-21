@@ -14,6 +14,7 @@ use isle_ui::{
 
 use crate::{
     format,
+    jobs::{JobState, JobView},
     view::{GroupBy, ICON_STEPS, Shown, View},
 };
 
@@ -27,6 +28,8 @@ pub enum Act {
     /// The view changed: by the switcher, the Group and Sort menu or View Options.
     Shown(Shown),
     UseAsDefaults,
+    StopJob(u64),
+    EmptyTrash,
 }
 
 pub fn icon_button(
@@ -111,6 +114,9 @@ pub struct Toolbar {
     pub shown: Shown,
     /// ⌘J asks for View Options from the menu.
     pub options: State<bool>,
+    pub jobs: Vec<JobView>,
+    /// In the Trash: its count, for Empty Trash….
+    pub in_trash: Option<usize>,
     pub on_act: EventHandler<Act>,
 }
 
@@ -119,6 +125,7 @@ impl Component for Toolbar {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut sorting = use_state(|| false);
+        let mut jobs_open = use_state(|| false);
         let mut options = self.options;
         let act = self.on_act.clone();
         let send = move |a: Act| act.call(a);
@@ -317,8 +324,189 @@ impl Component for Toolbar {
             .child(view_options)
             .child(group_sort)
             .child(rect().width(Size::flex(1.)))
+            .maybe_child((!self.jobs.is_empty()).then(|| {
+                let open = *jobs_open.read();
+                Popover::new(
+                    jobs_button(&theme, &self.jobs, open, move || {
+                        let mut jobs_open = jobs_open;
+                        jobs_open.toggle()
+                    }),
+                    open,
+                    move |_| jobs_open.set(false),
+                )
+                    .alt("File jobs")
+                    .children(self.jobs.iter().map(|j| job_row(&theme, j, send.clone())))
+                    .into_element()
+            }))
+            .maybe_child(self.in_trash.map(|n| {
+                let send = send.clone();
+                isle_ui::Button::new("Empty Trash…")
+                    .enabled(n > 0)
+                    .on_press(move |_| send(Act::EmptyTrash))
+                    .into_element()
+            }))
             .child(icon_button(&theme, "sidebar-simple", "Show Preview", true, self.preview, move || {
                 preview_send(Act::TogglePreview)
             }))
     }
+}
+
+/// The jobs button: a ring filling with the running total, a dot while one waits, a warning
+/// once one failed (`surfaces/files.md` § The toolbar, Jobs button).
+fn jobs_button(theme: &isle_tokens::Theme, jobs: &[JobView], open: bool, on_press: impl Fn() + 'static) -> Element {
+    let t = &theme.tokens;
+    let waiting = jobs.iter().any(|j| j.state == JobState::Waiting);
+    let failed = jobs.iter().all(|j| matches!(j.state, JobState::Failed(_)));
+    let running: Vec<_> = jobs.iter().filter(|j| matches!(j.state, JobState::Running | JobState::Waiting)).collect();
+    let share = if running.is_empty() {
+        1.
+    } else {
+        running
+            .iter()
+            .map(|j| {
+                let p = j.progress;
+                if p.total_bytes > 0 {
+                    p.bytes as f32 / p.total_bytes as f32
+                } else if p.total_items > 0 {
+                    p.items as f32 / p.total_items as f32
+                } else {
+                    0.
+                }
+            })
+            .sum::<f32>()
+            / running.len() as f32
+    };
+    let alt = format!(
+        "File jobs: {} running{}{}",
+        running.len(),
+        if waiting { ", waiting for you" } else { "" },
+        if failed { ", failed" } else { "" }
+    );
+    let ring = t.size_progress_ring;
+    let mark = if failed && running.is_empty() {
+        isle_ui::Glyph::new("warning-circle", t.size_glyph_large, colour(t.colour_danger_text)).fill(true).into_element()
+    } else {
+        rect()
+            .width(Size::px(ring))
+            .height(Size::px(ring))
+            .child(ring_svg(ring, share, colour(t.colour_fill_strong), colour(t.colour_accent)))
+            .maybe_child(waiting.then(|| {
+                rect()
+                    .position(Position::new_absolute().right(-1.).top(-1.))
+                    .width(Size::px(t.size_mark))
+                    .height(Size::px(t.size_mark))
+                    .corner_radius(t.size_mark / 2.)
+                    .background(colour(t.colour_warn))
+            }))
+            .into_element()
+    };
+    rect()
+        .width(Size::px(t.size_control_large))
+        .height(Size::px(t.size_control_large))
+        .center()
+        .corner_radius(t.radius_control)
+        .maybe(open, |el| el.background(colour(t.colour_control_pressed)))
+        .a11y_role(AccessibilityRole::Button)
+        .a11y_alt(alt)
+        .on_press(move |e: Event<PressEventData>| {
+            e.stop_propagation();
+            on_press();
+        })
+        .child(mark)
+        .into_element()
+}
+
+/// A job's row in the popover: what it does, its bar, how far, and its stop button.
+fn job_row(theme: &isle_tokens::Theme, job: &JobView, send: impl Fn(Act) + 'static) -> Element {
+    let t = &theme.tokens;
+    let p = job.progress;
+    let share = if p.total_bytes > 0 {
+        p.bytes as f32 / p.total_bytes as f32
+    } else if p.total_items > 0 {
+        p.items as f32 / p.total_items as f32
+    } else {
+        0.
+    };
+    let line = match &job.state {
+        JobState::Waiting => "Waiting".to_owned(),
+        JobState::Done => "Done".to_owned(),
+        JobState::Failed(why) => why.clone(),
+        JobState::Running if p.total_bytes > 0 => {
+            let elapsed = job.started.elapsed().as_secs_f64();
+            let left = if share > 0.01 { elapsed / share as f64 - elapsed } else { 0. };
+            let about = if left < 60. { "less than a minute".to_owned() } else { format!("{} minutes", (left / 60.).ceil()) };
+            format!("{} of {}, about {about}", format::size(p.bytes), format::size(p.total_bytes))
+        }
+        JobState::Running => format!("{} of {}", p.items, p.total_items),
+    };
+    let id = job.id;
+    let ink = match job.state {
+        JobState::Waiting => t.colour_warn_text,
+        JobState::Failed(_) => t.colour_danger_text,
+        _ => t.colour_text_2,
+    };
+    rect()
+        .width(Size::px(t.size_jobs - 2. * t.space_m))
+        .padding((t.space_s, 0.))
+        .spacing(t.space_xs)
+        .child(text::line(theme, text::Style::Body, colour(t.colour_text), job.title.clone()))
+        .child(
+            rect()
+                .width(Size::fill())
+                .horizontal()
+                .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .spacing(t.space_s)
+                .child(
+                    rect()
+                        .width(Size::flex(1.))
+                        .height(Size::px(6.))
+                        .corner_radius(3.)
+                        .background(colour(t.colour_fill_strong))
+                        .child(
+                            rect()
+                                .width(Size::percent(share.clamp(0., 1.) * 100.))
+                                .height(Size::fill())
+                                .corner_radius(3.)
+                                .background(colour(if job.state == JobState::Waiting { t.colour_text_3 } else { t.colour_accent })),
+                        ),
+                )
+                .child(
+                    rect()
+                        .width(Size::px(20.))
+                        .height(Size::px(20.))
+                        .center()
+                        .a11y_role(AccessibilityRole::Button)
+                        .a11y_alt("Stop")
+                        .on_press(move |_| send(Act::StopJob(id)))
+                        .child(isle_ui::Glyph::new("x-circle", 16., colour(t.colour_text_2)).fill(true)),
+                ),
+        )
+        .child(text::line(theme, text::Style::Subheadline, colour(ink), line))
+        .into_element()
+}
+
+/// A progress ring: its track and the share done from twelve o'clock, 2 points wide.
+fn ring_svg(size: f32, share: f32, track: Color, fill: Color) -> Element {
+    let hex = |c: Color| format!("#{:02x}{:02x}{:02x}", c.r(), c.g(), c.b());
+    let alpha = |c: Color| c.a() as f32 / 255.;
+    let r = size / 2. - 1.;
+    let c = size / 2.;
+    let share = share.clamp(0., 0.9999);
+    let angle = share * std::f32::consts::TAU;
+    let (x, y) = (c + r * angle.sin(), c - r * angle.cos());
+    let large = if share > 0.5 { 1 } else { 0 };
+    let svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}"><circle cx="{c}" cy="{c}" r="{r}" fill="none" stroke="{}" stroke-opacity="{}" stroke-width="2"/><path d="M {c} {} A {r} {r} 0 {large} 1 {x} {y}" fill="none" stroke="{}" stroke-width="2" stroke-linecap="round"/></svg>"#,
+        hex(track),
+        alpha(track),
+        c - r,
+        hex(fill),
+    );
+    let key = format!("ring-{size}-{:.3}", share);
+    SvgViewer::new((key, bytes::Bytes::from(svg)))
+        .show_loader(false)
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .into_element()
 }

@@ -230,7 +230,8 @@ impl Command {
         self
     }
 
-    fn field(mut self) -> Self {
+    /// The focused text field takes it as its key press, as the edit commands are.
+    pub fn field(mut self) -> Self {
         self.for_field = true;
         self
     }

@@ -415,67 +415,9 @@ fn move_into(path: &std::path::Path, folder: &std::path::Path) -> std::io::Resul
     }
 }
 
-/// Moves `path` into the home trash as the freedesktop.org trash specification lays it out.
+/// Moves `path` to its volume's trash, as Files does.
 pub fn trash(path: &std::path::Path) -> std::io::Result<()> {
-    let data = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-        .ok_or_else(|| std::io::Error::other("no home"))?;
-    let trash = data.join("Trash");
-    let (files, info) = (trash.join("files"), trash.join("info"));
-    std::fs::create_dir_all(&files)?;
-    std::fs::create_dir_all(&info)?;
-    let original = std::path::absolute(path)?;
-    let name = path
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned();
-    let mut n = 1;
-    loop {
-        let candidate = if n == 1 {
-            name.clone()
-        } else {
-            format!("{name}.{n}")
-        };
-        let record = info.join(format!("{candidate}.trashinfo"));
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&record)
-        {
-            Ok(mut file) => {
-                use std::io::Write;
-                let when = jiff::Zoned::now().strftime("%Y-%m-%dT%H:%M:%S").to_string();
-                writeln!(
-                    file,
-                    "[Trash Info]\nPath={}\nDeletionDate={when}",
-                    encode_path(&original)
-                )?;
-                if let Err(err) = std::fs::rename(path, files.join(&candidate)) {
-                    let _ = std::fs::remove_file(&record);
-                    return Err(err);
-                }
-                return Ok(());
-            }
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
-            Err(err) => return Err(err),
-        }
-    }
-}
-
-/// A path as a trash record keeps it: bytes outside the unreserved set percent-encoded.
-fn encode_path(path: &std::path::Path) -> String {
-    use std::os::unix::ffi::OsStrExt;
-    let mut out = String::new();
-    for &b in path.as_os_str().as_bytes() {
-        if b.is_ascii_alphanumeric() || b"/-_.~".contains(&b) {
-            out.push(b as char);
-        } else {
-            out.push_str(&format!("%{b:02X}"));
-        }
-    }
-    out
+    isle_fs::trash::trash(path).map(|_| ())
 }
 
 #[cfg(test)]
@@ -488,13 +430,5 @@ mod tests {
         assert!(flicked((3.0, 40.0).into()));
         assert!(!flicked((-40.0, 5.0).into()));
         assert!(!flicked((10.0, -40.0).into()));
-    }
-
-    #[test]
-    fn trash_paths_are_percent_encoded() {
-        assert_eq!(
-            encode_path(std::path::Path::new("/home/a/Screenshot 2026.png")),
-            "/home/a/Screenshot%202026.png"
-        );
     }
 }

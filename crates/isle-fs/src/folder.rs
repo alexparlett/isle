@@ -222,6 +222,7 @@ mod tests {
             uid: 0,
             mime: None,
             key: natural_key(name),
+            trashed: None,
         }
     }
 

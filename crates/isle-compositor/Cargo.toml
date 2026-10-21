@@ -50,6 +50,7 @@ isle-bus.workspace = true
 isle-power.workspace = true
 isle-disks.workspace = true
 isle-focus.workspace = true
+isle-fs.workspace = true
 isle-games.workspace = true
 isle-sun.workspace = true
 isle-search.workspace = true

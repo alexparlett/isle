@@ -325,7 +325,19 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             Place::Recents => gather(crate::places::recents(200), send),
             Place::Computer => gather(volumes(), send),
             Place::Trash => {
-                send(Listed::Done);
+                let items: Vec<Entry> = isle_fs::trash::all_trashes()
+                    .iter()
+                    .flat_map(isle_fs::trash::list)
+                    .filter_map(|t| {
+                        let mut entry = Entry::at(&t.file).ok()?;
+                        entry.trashed = Some(std::sync::Arc::new(t));
+                        Some(entry)
+                    })
+                    .collect();
+                warm(&items);
+                if send(Listed::Batch(items)) {
+                    send(Listed::Done);
+                }
             }
         })
         .ok();

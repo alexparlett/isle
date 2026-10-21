@@ -3208,6 +3208,7 @@ dependencies = [
  "isle-disks",
  "isle-fakes",
  "isle-focus",
+ "isle-fs",
  "isle-games",
  "isle-ipc",
  "isle-keys",

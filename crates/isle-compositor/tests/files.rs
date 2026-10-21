@@ -168,3 +168,52 @@ async fn pictures_show_their_thumbnails_in_icons() {
     }
     assert!(red, "the red picture is drawn as itself");
 }
+
+const BACKSPACE: u32 = 14;
+const KEY_Z: u32 = 44;
+const KEY_D: u32 = 32;
+
+async fn reveal(isle: &Isle, app: &Client, path: &std::path::Path) {
+    let uri = format!("file://{}", path.display());
+    isle.bus
+        .call_method(
+            Some("org.freedesktop.FileManager1"),
+            "/org/freedesktop/FileManager1",
+            Some("org.freedesktop.FileManager1"),
+            "ShowItems",
+            &(vec![uri.as_str()], ""),
+        )
+        .await
+        .unwrap();
+    app.wait_for_part("show-items").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn move_to_trash_undo_and_duplicate() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-jobs").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let todo = home.join("todo.txt");
+    reveal(&isle, &app, &todo).await;
+
+    isle.chord(&[SUPER, BACKSPACE]).await;
+    app.wait_for_part("id=\"move-to-trash\"").await;
+    let trashed = home.join(".local/share/Trash/files/todo.txt");
+    wait_until(|| async { trashed.exists() && !todo.exists() }).await;
+    assert!(home.join(".local/share/Trash/info/todo.txt.trashinfo").exists(), "its info written");
+
+    isle.chord(&[SUPER, KEY_Z]).await;
+    app.wait_for_part("id=\"undo\"").await;
+    wait_until(|| async { todo.exists() && !trashed.exists() }).await;
+
+    reveal(&isle, &app, &todo).await;
+    isle.chord(&[SUPER, KEY_D]).await;
+    wait_until(|| async { home.join("todo copy.txt").exists() }).await;
+    isle.keep_shot("files-after-jobs").await;
+}

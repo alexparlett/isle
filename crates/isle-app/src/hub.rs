@@ -89,7 +89,12 @@ pub(crate) struct Inner {
     /// The clipboard is set up once, by the first window.
     pub clipboard: Cell<bool>,
     delegate: RefCell<Option<Rc<dyn Delegate>>>,
+    /// Tasks of the app's own, run beside the inbox for the app's life.
+    tasks: UnboundedSender<Task>,
+    spawned: RefCell<Option<UnboundedReceiver<Task>>>,
 }
+
+type Task = std::pin::Pin<Box<dyn std::future::Future<Output = ()>>>;
 
 /// The running app, for its delegate and any of its components.
 #[derive(Clone)]
@@ -104,6 +109,7 @@ impl AppHandle {
         theme: ThemeContext,
     ) -> (Self, UnboundedReceiver<Inbound>) {
         let (inbox, rx) = unbounded();
+        let (tasks, spawned) = unbounded();
         let inner = Inner {
             spec,
             worker,
@@ -117,6 +123,8 @@ impl AppHandle {
             holds: Cell::new(0),
             clipboard: Cell::new(false),
             delegate: RefCell::new(None),
+            tasks,
+            spawned: RefCell::new(Some(spawned)),
         };
         (Self(Rc::new(inner)), rx)
     }
@@ -135,6 +143,12 @@ impl AppHandle {
 
     pub fn bus(&self) -> Option<zbus::Connection> {
         self.0.bus.clone()
+    }
+
+    /// Runs `task` on the event loop for as long as it takes, whatever windows close: work
+    /// that outlives the window that started it.
+    pub fn spawn(&self, task: impl std::future::Future<Output = ()> + 'static) {
+        let _ = self.0.tasks.unbounded_send(Box::pin(task));
     }
 
     /// Hands requests to the delegate from any thread: the app's own D-Bus objects.
@@ -273,7 +287,19 @@ impl AppHandle {
         delegate.started(&self);
         let mut desktop = self.0.desktop;
         let mut theme = self.0.theme;
-        while let Some(message) = inbox.next().await {
+        let mut spawned = self.0.spawned.borrow_mut().take().expect("served once");
+        let mut tasks = futures_util::stream::FuturesUnordered::<Task>::new();
+        loop {
+            let next = std::future::poll_fn(|cx| {
+                use std::task::Poll;
+                while let Poll::Ready(Some(task)) = spawned.poll_next_unpin(cx) {
+                    tasks.push(task);
+                }
+                while let Poll::Ready(Some(())) = tasks.poll_next_unpin(cx) {}
+                inbox.poll_next_unpin(cx)
+            })
+            .await;
+            let Some(message) = next else { break };
             match message {
                 Inbound::Update(desktop::Update::Theme(info)) => {
                     theme.0.set(crate::resolve(&info));

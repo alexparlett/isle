@@ -6,7 +6,9 @@ mod fm1;
 mod format;
 mod icons;
 mod icons_view;
+mod jobs;
 mod list_view;
+mod sheets;
 mod preview;
 mod toolbar;
 mod memory;
@@ -62,10 +64,11 @@ pub struct Shared {
     next_tab: Cell<u64>,
     /// Hidden files shown, in every window (`files.md` § The content: views).
     pub hidden: State<bool>,
+    pub jobs: jobs::Jobs,
 }
 
 impl Shared {
-    fn app(&self) -> AppHandle {
+    pub fn app(&self) -> AppHandle {
         self.app.borrow().clone().expect("the app has started")
     }
 
@@ -93,6 +96,14 @@ impl Shared {
             self.memory.borrow_mut().windows.remove(&key.number());
             self.save();
         }
+    }
+
+    pub fn window_keys(&self) -> Vec<WindowKey> {
+        self.windows.borrow().keys().copied().collect()
+    }
+
+    pub fn front_window(&self) -> Option<WindowKey> {
+        self.front.borrow().last().copied()
     }
 
     pub fn bring_front(&self, key: WindowKey) {
@@ -255,6 +266,7 @@ fn main() {
         memory: RefCell::new(memory::load()),
         next_tab: Cell::new(0),
         hidden: State::create_global(false),
+        jobs: jobs::Jobs::new(),
     });
     SHARED.with(|s| *s.borrow_mut() = Some(shared.clone()));
     isle_app::run_with(SPEC, Files { shared });

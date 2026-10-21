@@ -708,6 +708,8 @@ mod tests {
     #[test]
     fn a_copy_lands_whole_and_undoes_to_the_trash() {
         let base = tempfile::tempdir().unwrap();
+        // The home trash, on the same filesystem as the test's folder.
+        fs::create_dir_all(base.path().join("data")).unwrap();
         unsafe { std::env::set_var("XDG_DATA_HOME", base.path().join("data")) };
         let (src, dst) = tree(base.path());
         let report = run(

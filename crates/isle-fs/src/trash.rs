@@ -51,14 +51,23 @@ fn uid() -> u32 {
     rustix::process::getuid().as_raw()
 }
 
+/// The device of `path`, or of its nearest folder that exists: a home trash not made yet
+/// is still on home's filesystem.
 fn device(path: &Path) -> Option<u64> {
-    fs::symlink_metadata(path).ok().map(|m| m.dev())
+    path.ancestors().find_map(|p| fs::symlink_metadata(p).ok()).map(|m| m.dev())
 }
 
 /// The trash `path` goes to.
 pub fn trash_for(path: &Path, table: &[Mount]) -> io::Result<TrashDir> {
-    let home = home_trash();
-    let home_dev = device(&data_home());
+    trash_for_in(path, table, &data_home())
+}
+
+fn trash_for_in(path: &Path, table: &[Mount], data_home: &Path) -> io::Result<TrashDir> {
+    let home = TrashDir {
+        root: data_home.join("Trash"),
+        top: None,
+    };
+    let home_dev = device(data_home);
     let dev = device(path.parent().unwrap_or(path));
     if dev.is_some() && dev == home_dev {
         return Ok(home);
@@ -302,6 +311,16 @@ mod tests {
 
         erase(&second).unwrap();
         assert!(list(&trash).is_empty());
+    }
+
+    #[test]
+    fn a_home_trash_not_made_yet_is_still_homes() {
+        let base = tempfile::tempdir().unwrap();
+        let data = base.path().join("not-yet/share");
+        let file = base.path().join("x");
+        fs::write(&file, "").unwrap();
+        let table = crate::mounts::read();
+        assert_eq!(trash_for_in(&file, &table, &data).unwrap(), TrashDir { root: data.join("Trash"), top: None });
     }
 
     #[test]

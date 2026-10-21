@@ -5,7 +5,10 @@ use std::{path::PathBuf, rc::Rc};
 
 use freya::prelude::*;
 use isle_app::{Chord, ChordKey, Command, Desktop, Menu, ToolbarExt, use_commands};
-use isle_fs::SortBy;
+use isle_fs::{
+    SortBy,
+    jobs::{Step, Undo, Work},
+};
 use isle_ui::{Glyph, colour, text, use_theme};
 
 use crate::{
@@ -17,6 +20,8 @@ use crate::{
     places::{self, Place, Places, Row},
     preview::Preview,
     tab::{self, Live, Status, Tab},
+    jobs::Finished,
+    sheets::{Alert, ConflictSheet, alert_sheet},
     toolbar::{Act, Toolbar},
     view::{GroupBy, Shown, View},
 };
@@ -98,6 +103,9 @@ impl App for FilesWindow {
         let mut path_bar = use_state(|| false);
         let mut status_bar = use_state(|| false);
         let mut options = use_state(|| false);
+        let mut undo_stack = use_state(Vec::<(String, Vec<Step>)>::new);
+        let mut alert = use_state(|| None::<Alert>);
+        let jobs = shared.jobs;
 
         use_hook({
             let shared = shared.clone();
@@ -136,6 +144,38 @@ impl App for FilesWindow {
                         t.folder.set_show_hidden(show);
                         t.rev += 1;
                     }
+                }
+            }
+        });
+
+        // A job's end: its undo joins this window's stack, its failures one alert.
+        use_side_effect(move || {
+            let mine: Vec<Finished> = jobs.finished.read().iter().filter(|f| f.window == key).cloned().collect();
+            if mine.is_empty() {
+                return;
+            }
+            let mut finished = jobs.finished;
+            finished.write().retain(|f| f.window != key);
+            for f in mine {
+                match &f.report.undo {
+                    Some(Undo::Steps(steps)) if !steps.is_empty() => {
+                        undo_stack.write().push((f.undo_label.clone(), steps.clone()))
+                    }
+                    // A step that replaced something ends the stack there.
+                    Some(Undo::CantUndo) => undo_stack.write().clear(),
+                    _ => {}
+                }
+                if !f.report.failed.is_empty() {
+                    alert.set(Some(Alert::failures(&f.report.failed)));
+                }
+            }
+        });
+        // The Trash and Recents are gatherings no watch follows; each job's end reads them again.
+        use_side_effect(move || {
+            let _ = *jobs.ended.read();
+            for handle in tabs.peek().iter() {
+                if matches!(handle.tab.peek().place, Place::Trash | Place::Recents) {
+                    tab::load(handle.tab, &handle.live, true);
                 }
             }
         });
@@ -180,7 +220,40 @@ impl App for FilesWindow {
                 .find(|r| r.label == label)
                 .map(|r| r.place.clone())
         };
+        let in_trash = place == Place::Trash;
+        let undo_label = undo_stack.read().last().map(|(l, _)| format!("Undo {l}"));
         let commands = vec![
+            Command::new("undo", undo_label.clone().unwrap_or_else(|| "Undo".into()), Menu::Edit, 0)
+                .chord(Chord::cmd('z'))
+                .enabled(undo_label.is_some()),
+            Command::new("new-folder", "New Folder", Menu::File, 0)
+                .chord(Chord::cmd('n').shift())
+                .enabled(place.folder().is_some()),
+            Command::new("new-folder-with-items", "New Folder with Items", Menu::File, 0)
+                .chord(Chord::cmd('n').ctrl())
+                .enabled(has_selection && place.folder().is_some()),
+            Command::new("duplicate", "Duplicate", Menu::File, 3)
+                .chord(Chord::cmd('d'))
+                .enabled(has_selection && !in_trash),
+            Command::new("make-alias", "Make Alias", Menu::File, 3)
+                .chord(Chord::cmd('a').ctrl())
+                .enabled(has_selection && !in_trash),
+            Command::new("compress", "Compress", Menu::File, 3).enabled(has_selection && !in_trash),
+            Command::new("expand", "Expand", Menu::File, 3).enabled(has_selection && !in_trash),
+            Command::new(
+                if in_trash { "put-back" } else { "move-to-trash" },
+                if in_trash { "Put Back" } else { "Move to Trash" },
+                Menu::File,
+                4,
+            )
+            .chord(Chord::cmd_key(ChordKey::Backspace))
+            .enabled(has_selection),
+            Command::new("delete-now", "Delete Immediately…", Menu::File, 4)
+                .chord(Chord::cmd_key(ChordKey::Backspace).option())
+                .enabled(has_selection),
+            Command::new("empty-trash", "Empty Trash…", Menu::File, 4).chord(Chord::cmd_key(ChordKey::Backspace).shift()),
+            Command::new("empty-trash-now", "Empty Trash", Menu::File, 4)
+                .chord(Chord::cmd_key(ChordKey::Backspace).shift().option()),
             Command::new("new-window", "New Window", Menu::File, 0).chord(Chord::cmd('n')),
             Command::new("new-tab", "New Tab", Menu::File, 0).chord(Chord::cmd('t')),
             Command::new("open", "Open", Menu::File, 1)
@@ -341,6 +414,62 @@ impl App for FilesWindow {
                             }
                             set_shown(&shared, tab, next);
                         }
+                        "undo" => {
+                            if let Some((label, steps)) = undo_stack.write().pop() {
+                                jobs.start(&shared.app(), key, Work::Undo { steps }, format!("Undoing {label}"), String::new());
+                            }
+                        }
+                        "new-folder" | "new-folder-with-items" | "duplicate" | "make-alias" | "compress" | "expand"
+                        | "move-to-trash" | "put-back" | "delete-now" | "empty-trash" | "empty-trash-now" => {
+                            let t = tab.peek();
+                            let selection: Vec<PathBuf> = t.selection.clone();
+                            let here = t.place.folder().map(PathBuf::from);
+                            let trashed: Vec<_> = selection
+                                .iter()
+                                .filter_map(|p| t.folder.get(p)?.trashed.as_deref().cloned())
+                                .collect();
+                            drop(t);
+                            let work = match id.as_str() {
+                                "new-folder" => here.map(|into| Work::NewFolder { into, name: "untitled folder".into(), with: Vec::new() }),
+                                "new-folder-with-items" => here.map(|into| Work::NewFolder {
+                                    into,
+                                    name: "New Folder With Items".into(),
+                                    with: selection.clone(),
+                                }),
+                                "duplicate" => Some(Work::Duplicate { items: selection.clone() }),
+                                "compress" => Some(Work::Compress { items: selection.clone() }),
+                                "expand" => selection.first().cloned().map(|archive| Work::Expand { archive }),
+                                "move-to-trash" => Some(Work::Trash { items: selection.clone() }),
+                                "put-back" => Some(Work::PutBack { items: trashed.clone() }),
+                                "make-alias" => {
+                                    for item in &selection {
+                                        make_alias(item);
+                                    }
+                                    None
+                                }
+                                "delete-now" => {
+                                    alert.set(Some(Alert::delete(selection.clone())));
+                                    None
+                                }
+                                "empty-trash" => {
+                                    ask_empty_trash(alert);
+                                    None
+                                }
+                                _ => {
+                                    let shared = shared.clone();
+                                    spawn(async move {
+                                        if let Some(items) = off_thread(trash_items).await {
+                                            let mut alert = alert;
+                                            start_job(&shared, key, Work::EmptyTrash { items }, &mut alert);
+                                        }
+                                    });
+                                    None
+                                }
+                            };
+                            if let Some(work) = work {
+                                start_job(&shared, key, work, &mut alert);
+                            }
+                        }
                         "toggle-hidden" => {
                             let mut hidden = shared.hidden;
                             let now = !*hidden.peek();
@@ -452,6 +581,16 @@ impl App for FilesWindow {
         };
 
         let body = content(&theme, &handle, rev, focused, held, on_pick);
+        // A question goes to the window that started its job, or to the front one when that
+        // has closed.
+        let question = {
+            let open = shared.window_keys();
+            jobs.questions
+                .read()
+                .iter()
+                .find(|q| q.window == key || (!open.contains(&q.window) && shared.front_window() == Some(key)))
+                .cloned()
+        };
         let count = tab.read().folder.len();
         let title = place.title();
         let (selected_items, selected_size) = {
@@ -480,6 +619,12 @@ impl App for FilesWindow {
                 }
                 Act::Shown(next) => set_shown(next),
                 Act::UseAsDefaults => shared.set_default_shown(tab.peek().shown),
+                Act::StopJob(id) => {
+                    if let Some(job) = shared.jobs.list.peek().iter().find(|j| j.id == id) {
+                        job.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+                Act::EmptyTrash => ask_empty_trash(alert),
             }
         };
 
@@ -522,6 +667,8 @@ impl App for FilesWindow {
                         preview: *preview.read(),
                         shown,
                         options,
+                        jobs: jobs.list.read().clone(),
+                        in_trash: (place == Place::Trash).then_some(count),
                         on_act: EventHandler::new(on_act),
                     })
                     .maybe_child((tabs.read().len() > 1).then(|| {
@@ -565,7 +712,54 @@ impl App for FilesWindow {
                         selected_size,
                     })),
             )
+            .maybe_child(question.map(|q| ConflictSheet { question: q, jobs }.into_element()))
+            .maybe_child(alert.read().clone().map(|a| {
+                let shared = shared.clone();
+                alert_sheet(a, move |work: Option<Work>| {
+                    let mut alert = alert;
+                    alert.set(None);
+                    if let Some(work) = work {
+                        start_job(&shared, key, work, &mut alert);
+                    }
+                })
+            }))
             .into_element()
+    }
+}
+
+/// Starts a job, or says first that it will not fit.
+fn start_job(shared: &Shared, key: isle_app::WindowKey, work: Work, alert: &mut State<Option<Alert>>) {
+    let probe = work.clone();
+    let short = isle_fs::jobs::short_of_space(&probe);
+    if let Some((needed, free, into)) = short {
+        alert.set(Some(Alert::no_space(&into, needed, free)));
+        return;
+    }
+    let (title, undo_label) = crate::jobs::title(&work);
+    shared.jobs.start(&shared.app(), key, work, title, undo_label);
+}
+
+/// Everything in every trash; reads them, so call it off the window's thread.
+fn trash_items() -> Vec<isle_fs::trash::Trashed> {
+    isle_fs::trash::all_trashes().iter().flat_map(isle_fs::trash::list).collect()
+}
+
+/// Asks before emptying, once the Trash is counted.
+fn ask_empty_trash(alert: State<Option<Alert>>) {
+    spawn(async move {
+        if let Some(items) = off_thread(trash_items).await {
+            let mut alert = alert;
+            alert.set(Some(Alert::empty_trash(items)));
+        }
+    });
+}
+
+/// A link to an item beside it, "{name} alias" (`files.md` § Acting on files).
+fn make_alias(item: &std::path::Path) {
+    let (Some(dir), Some(name)) = (item.parent(), item.file_name()) else { return };
+    let link = isle_fs::jobs::free_name(dir, &format!("{} alias", name.to_string_lossy()), false);
+    if let Err(err) = std::os::unix::fs::symlink(item, &link) {
+        tracing::warn!("no alias of {}: {err}", item.display());
     }
 }
 

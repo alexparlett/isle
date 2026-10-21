@@ -2,6 +2,33 @@
 
 ## 2026-10-21
 
+- P15 15.6: jobs, undo and the Trash. `isle-fs` runs every job of
+  `apps.md` Files 4–9 on the caller's thread. Copies go by reflink, the
+  kernel's copy in 8 MB steps, or streaming, written to a part file and
+  renamed in with `RENAME_NOREPLACE`, or exchanged with what they replace
+  and the old dropped. Moves go by rename, across devices by copy then
+  removal. Name conflicts are asked through the job's control (Keep Both,
+  Replace, Merge for folders, Apply to all); failures are gathered; undo is
+  recorded as the job goes (a replace or an erase can't be undone). The
+  Trash follows the spec per volume (info first with `O_EXCL`, paths
+  relative under a volume's top, Put Back refusing to overwrite and
+  following a remounted volume). Files runs each job on a thread of its own
+  and follows it from an app-level task (`isle-app` gains `AppHandle::spawn`
+  for work that outlives its window), holding the app open. The jobs
+  button and popover, the switcher card's progress, the conflict and
+  failures sheets, the space check, Undo naming its job (an app's command
+  now replaces a standard one of its id), the Trash view with Put Back,
+  Delete Immediately… and Empty Trash… (both asking), Duplicate, New Folder
+  and New Folder with Items, Make Alias, Compress and Expand. The capture
+  thumbnail's Move to Trash goes through `isle-fs`. Found and fixed: a home
+  trash not made yet counted as another volume, so items went to
+  `$top/.Trash-$uid`; the tests had put files in the host's
+  `/tmp/.Trash-1000`, removed. Not built yet: Redo, the notification when no
+  Files window is in front, items being written shown dimmed with their
+  bar, the window's attention request on a question and a window of its
+  own for a question with none open, Replace leading and Merge under ⌥ in
+  the conflict sheet (Merge is its own button), the 30-day removal.
+
 - P15 15.5: thumbnails. `isle-thumbnail` (library and helper binary) keeps
   the freedesktop cache by spec 0.9.0: named by the URI's MD5, valid by
   `Thumb::URI`, `Thumb::MTime` and `Thumb::Size` read from the PNG's text

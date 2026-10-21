@@ -165,8 +165,14 @@ impl<A: App + 'static> App for Frame<A> {
         let all = use_memo({
             let spec = app.spec().clone();
             move || {
-                let mut all = commands::standard(spec.title, spec.preferences);
-                all.extend(table.app.read().iter().cloned());
+                // An app's command of a standard one's id takes its place: Files' Undo names the
+                // job it undoes.
+                let app = table.app.read();
+                let mut all: Vec<_> = commands::standard(spec.title, spec.preferences)
+                    .into_iter()
+                    .map(|c| app.iter().find(|a| a.id == c.id).cloned().unwrap_or(c))
+                    .collect();
+                all.extend(app.iter().filter(|a| !all.iter().any(|c| c.id == a.id)).cloned().collect::<Vec<_>>());
                 all
             }
         });

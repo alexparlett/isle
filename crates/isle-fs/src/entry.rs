@@ -37,6 +37,8 @@ pub struct Entry {
     /// read when the name says nothing.
     pub mime: Option<Arc<str>>,
     pub key: Box<[u8]>,
+    /// For an item in the Trash: where it came from and when.
+    pub trashed: Option<Arc<crate::trash::Trashed>>,
 }
 
 /// What `statx` is asked for: the type and the columns.
@@ -115,6 +117,7 @@ impl Entry {
             mode: u32::from(st.stx_mode) & 0o7777,
             uid: st.stx_uid,
             mime,
+            trashed: None,
         }
     }
 }

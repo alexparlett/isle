@@ -610,15 +610,11 @@ impl State {
                     return;
                 };
                 self.close_control_centre();
-                let target = if id == "files" {
-                    std::path::Path::new(&file)
-                        .parent()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or(file)
+                if id == "files" {
+                    self.show_in_files(std::path::Path::new(&file));
                 } else {
-                    file
-                };
-                self.launch(crate::launch::Launch::Open(target));
+                    self.launch(crate::launch::Launch::Open(file));
+                }
             }
             other => warn!(other, "no such notice action"),
         }

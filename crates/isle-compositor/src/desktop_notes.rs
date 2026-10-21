@@ -98,7 +98,7 @@ impl State {
                     },
                     |state, point| {
                         if let Ok(point) = point {
-                            state.launch(Launch::Open(point));
+                            state.show_folder_in_files(std::path::Path::new(&point));
                         }
                     },
                 );
@@ -142,8 +142,10 @@ impl State {
                 actions.push(("mount", "Mount"));
             }
             actions.push(("eject", "Eject"));
+            // Files' own notice once it is installed, as Finder's would be.
+            let files = if self.files_installed() { crate::files_link::FILES } else { "org.gnome.Nautilus" };
             self.post_desktop(
-                "org.gnome.Nautilus",
+                files,
                 "Files",
                 format!("{} connected", volume.label),
                 String::new(),

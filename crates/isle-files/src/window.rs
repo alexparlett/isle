@@ -57,6 +57,8 @@ pub struct FilesWindow {
     pub shared: Rc<Shared>,
     pub tabs: Vec<(Place, Option<PathBuf>)>,
     pub current: usize,
+    /// The search field takes the keyboard once the window shows.
+    pub find: bool,
 }
 
 /// Runs `f` on a thread of its own and hands its answer back.
@@ -128,6 +130,13 @@ impl App for FilesWindow {
         // The query a move keeps, as the scope bar's This folder keeps the term.
         let mut keep_query = use_state(|| None::<String>);
         let mut seen_place = use_state(|| None::<(u64, Place)>);
+        let mut found_field = use_state(|| !self.find);
+        use_side_effect(move || {
+            if !*found_field.read() {
+                found_field.set(true);
+                find.request_focus();
+            }
+        });
         let drag = isle_app::use_drag();
         let surface = isle_app::this_surface();
         let data = shared.app().data();

@@ -819,3 +819,29 @@ async fn trim_cuts_a_recording_and_keeps_the_original_in_the_trash() {
     let kept = length_of(&clip);
     assert!(kept > 1.0 && kept < 3.0, "about half is kept: {kept}");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_files_shortcuts_action_opens_a_search_window() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-find").await;
+    let (app, _) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let none: Vec<zbus::zvariant::Value> = Vec::new();
+    isle.bus
+        .call_method(
+            Some(APP),
+            "/io/github/alexparlett/Isle/Files",
+            Some("org.freedesktop.Application"),
+            "ActivateAction",
+            &("find", none, std::collections::HashMap::<&str, zbus::zvariant::Value>::new()),
+        )
+        .await
+        .unwrap();
+    wait_until(|| async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() == 2 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("files-find").await;
+}

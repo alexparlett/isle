@@ -2,6 +2,23 @@
 
 ## 2026-10-21
 
+- P15 15.15: the shell's ties. The compositor's calls to Files go through
+  one place (`files_link.rs`) that encodes the URI and mints an activation
+  token: Spotlight's ⌘Return and the tile menu's new Show in Files reveal
+  through FileManager1, the Files scope gains "Show all in Files" (the
+  query as a search of Home in a Files window), and both show only while
+  Files is installed. The drive notice posts as Files and its click mounts
+  and shows the volume through FileManager1; the island's settings-error
+  Show in Files selects the file. With no window focused the on-demand bar
+  names Files and shows its fallback menus without starting it.
+  `shortcuts.files` is built and defaults to ⌥⌘Space: a new Files window
+  with its search field focused (Files' `find` action), listed in Settings'
+  Keyboard Shortcuts. Settings › Apps gains Default apps (web browser,
+  mail, text editor through `mimeapps.list`; the terminal writes
+  `shortcuts.terminal-command`, which Files' Open in terminal reads),
+  indexed for Spotlight. `isle setup` gains `files-folders`, giving folders
+  to Files in `isle-mimeapps.list` where Files is installed, with undo.
+  Files' D-Bus activation starts it as a service with no window.
 - P15 15.16: the package. The PKGBUILD builds `isle-files` and
   `isle-thumbnail` beside Settings, so no GPU renderer is linked into
   them, and installs them with Files' desktop entry and the D-Bus

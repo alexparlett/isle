@@ -125,6 +125,41 @@ impl Source for WebSource {
     }
 }
 
+/// The Files scope's last row while Files is installed: the query as a search in a Files
+/// window (`p15-files.md` choice 32). Its action names the query after `files:show-all:`.
+#[derive(Clone, Debug, Default)]
+pub struct ShowAllInFiles;
+
+pub const SHOW_ALL: &str = "files:show-all:";
+
+impl Source for ShowAllInFiles {
+    fn group(&self) -> Group {
+        Group::Files
+    }
+
+    fn answers(&self, scope: &Scope) -> bool {
+        matches!(scope, Scope::Files { .. })
+    }
+
+    fn search(&self, query: &Query, cx: &mut Context<'_>) -> Vec<Row> {
+        let text = query.text.trim();
+        if text.is_empty() {
+            return Vec::new();
+        }
+        plain(
+            cx,
+            "files:show-all".into(),
+            Group::Files,
+            "Show all in Files".into(),
+            None,
+            Icon::Glyph("magnifying-glass"),
+            Item::Action(format!("{SHOW_ALL}{text}")),
+        )
+        .into_iter()
+        .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

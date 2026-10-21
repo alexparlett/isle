@@ -363,6 +363,7 @@ impl Isle {
             return (app.clone(), self.app_name(&app));
         }
         let files = [
+            crate::files_link::FILES,
             "org.gnome.Nautilus",
             "org.kde.dolphin",
             "thunar",

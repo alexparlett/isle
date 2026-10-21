@@ -1,4 +1,4 @@
-//! Apps: every app and library game, each with its own page.
+//! Apps: the default apps, then every app and library game, each with its own page.
 
 use freya::prelude::*;
 use isle_settings::Value;
@@ -92,6 +92,7 @@ impl Component for Apps {
                         colour(t.colour_text_2),
                     )),
             )
+            .child(super::default_apps::DefaultApps { at: self.at.clone() })
             .child(if rows.is_empty() {
                 ui::missing("No apps")
             } else {

@@ -461,10 +461,15 @@ impl Shared {
 
 
     pub fn open_window(&self, tabs: Vec<(Place, Option<PathBuf>)>, current: usize, token: Option<String>) {
+        self.open_window_with(tabs, current, token, false);
+    }
+
+    /// As `open_window`, its search field taking the keyboard when `find`.
+    pub fn open_window_with(&self, tabs: Vec<(Place, Option<PathBuf>)>, current: usize, token: Option<String>, find: bool) {
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
         let app = self.app();
         let spec = WindowSpec::main(app.spec()).token(token);
-        app.open(spec, FilesWindow { shared, tabs, current });
+        app.open(spec, FilesWindow { shared, tabs, current, find });
     }
 
     /// Asks Open With for a file in the front window, opening one at its folder if none is open.
@@ -576,6 +581,9 @@ impl Delegate for Files {
             }
             Request::Action { name, params, .. } => match name.as_str() {
                 isle_app::SERVICE => {}
+                // shortcuts.files: a new window with its search field focused, as Finder's
+                // search window.
+                "find" => self.shared.open_window_with(vec![(self.shared.new_window_place(), None)], 0, token.clone(), true),
                 ql1::SHOW => {
                     let Some(show) = params.first().and_then(|j| serde_json::from_str::<ql1::Show>(j).ok()) else { return };
                     let items: Vec<PathBuf> = show.uris.iter().filter_map(|u| path_of(u)).collect();

@@ -4,6 +4,7 @@ mod accessibility;
 mod appearance;
 mod apps;
 mod control_centre;
+mod default_apps;
 mod desktop;
 mod displays;
 mod energy;

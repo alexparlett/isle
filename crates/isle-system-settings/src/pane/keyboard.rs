@@ -76,6 +76,7 @@ pub const SHORTCUTS: &[(&str, &[(&str, &str)])] = &[
             ("switcher-back", "App switcher, from the end"),
             ("terminal", "Open a terminal"),
             ("settings", "Open System Settings"),
+            ("files", "Open a Files search window"),
             ("force-quit", "Force Quit"),
         ],
     ),

@@ -55,6 +55,7 @@ enum MenuCommand {
     RemoveFavourite(String),
     KeepRunning(String, bool),
     ShowInLauncher(String),
+    ShowInFiles(std::path::PathBuf),
     /// An emoji's variant, put in as the emoji is.
     Insert(String),
     Quit(String),
@@ -1039,7 +1040,8 @@ impl State {
         Sources {
             apps: apps_source,
             clipboard,
-            fast: vec![
+            fast: {
+                let mut fast: Vec<Box<dyn isle_search::Source>> = vec![
                 Box::new(actions::ActionsSource {
                     actions: action_list,
                     entry_actions,
@@ -1059,7 +1061,12 @@ impl State {
                 Box::new(isle_search::sources::run::WebSource {
                     template: self.isle.settings.spotlight.web_search.clone(),
                 }),
-            ],
+                ];
+                if self.files_installed() {
+                    fast.push(Box::new(isle_search::sources::run::ShowAllInFiles));
+                }
+                fast
+            },
             slow: match &self.isle.files {
                 Some(index) => vec![
                     Arc::new(isle_search::files::FilesSource {
@@ -1145,6 +1152,11 @@ impl State {
             "sleep" => self.isle.suspend(),
             "restart" => self.open_session_confirm(Choice::Restart),
             "shut-down" => self.open_session_confirm(Choice::ShutDown),
+            _ if id.starts_with(isle_search::sources::run::SHOW_ALL) => {
+                let query = id[isle_search::sources::run::SHOW_ALL.len()..].to_owned();
+                self.close_spotlight();
+                self.show_all_in_files(query);
+            }
             "dark-mode" => {
                 let dark = self.isle.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
                 self.isle.write_setting(
@@ -1174,30 +1186,6 @@ impl State {
     /// Settings at a pane and row; Settings comes with P13.
     fn open_settings_at(&mut self, pane: &str, row: &str) {
         self.open_settings(Some(pane), Some(row));
-    }
-
-    /// The file selected in whatever owns `org.freedesktop.FileManager1`.
-    pub fn show_in_files(&mut self, path: &std::path::Path) {
-        let uri = format!("file://{}", path.display());
-        if let Some(worker) = &self.isle.worker {
-            worker.spawn(async move {
-                let Ok(conn) = isle_bus::session().await else {
-                    return;
-                };
-                let call = conn
-                    .call_method(
-                        Some("org.freedesktop.FileManager1"),
-                        "/org/freedesktop/FileManager1",
-                        Some("org.freedesktop.FileManager1"),
-                        "ShowItems",
-                        &(vec![uri], ""),
-                    )
-                    .await;
-                if let Err(err) = call {
-                    warn!("could not show a file: {err}");
-                }
-            });
-        }
     }
 
     /// Spotlight's Run: in a scope of its own, or in the user's terminal with Cmd+Return;
@@ -1436,6 +1424,11 @@ impl State {
                     .collect(),
             );
         }
+        if let Item::File(path) = &row.item
+            && self.files_installed()
+        {
+            options.push(MenuEntry::Item(item("Show in Files", MenuCommand::ShowInFiles(path.clone()))));
+        }
         if matches!(row.item, Item::Answer(_) | Item::File(_) | Item::Emoji(_)) {
             options.push(MenuEntry::Item(item(
                 "Copy",
@@ -1542,6 +1535,11 @@ impl State {
     fn spotlight_menu_command(&mut self, command: MenuCommand) -> Vec<Effect> {
         match command {
             MenuCommand::Choose(row) => vec![Effect::Choose(row, How::Default)],
+            MenuCommand::ShowInFiles(path) => {
+                self.close_spotlight();
+                self.show_in_files(&path);
+                Vec::new()
+            }
             MenuCommand::EntryAction { app, action } => {
                 self.close_spotlight();
                 self.launch(crate::launch::Launch::App {

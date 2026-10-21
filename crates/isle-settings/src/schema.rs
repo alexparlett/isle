@@ -430,7 +430,8 @@ pub struct Shortcuts {
     pub settings: Vec<String>,
     /// Open Monitor.
     pub monitor: Vec<String>,
-    /// Open a Files window.
+    /// Open a Files window with its search field focused.
+    #[setting(default = vec!["Option+Cmd+Space".to_owned()])]
     pub files: Vec<String>,
     /// The menu bar, with focus on its first menu.
     #[setting(default = vec!["Ctrl+F2".to_owned()])]

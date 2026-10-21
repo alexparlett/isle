@@ -102,6 +102,14 @@ pub const STEPS: &[Step] = &[
         undo: portals::undo,
     },
     Step {
+        id: "files-folders",
+        who: Who::User,
+        what: "folders open in Files under Isle, in isle-mimeapps.list",
+        check: files_folders::check,
+        apply: files_folders::apply,
+        undo: files_folders::undo,
+    },
+    Step {
         id: "xremap",
         who: Who::User,
         what: "xremap runs in every session but Isle's",
@@ -210,6 +218,64 @@ mod portals {
             return Err("a new portals.conf has been written since; left as it is".into());
         }
         std::fs::rename(&hyprland, &mine).map_err(|e| e.to_string())
+    }
+}
+
+mod files_folders {
+    use super::*;
+
+    const LINE: &str = "inode/directory=io.github.alexparlett.Isle.Files.desktop";
+    const GROUP: &str = "[Default Applications]";
+
+    fn list(env: &Env) -> PathBuf {
+        env.config_home.join("isle-mimeapps.list")
+    }
+
+    pub fn check(env: &Env) -> Check {
+        if !env.at("usr/share/applications/io.github.alexparlett.Isle.Files.desktop").exists() {
+            return Check::NotHere;
+        }
+        match std::fs::read_to_string(list(env)) {
+            Ok(text) if text.lines().any(|l| l.trim() == LINE) => Check::Done,
+            _ => Check::Due,
+        }
+    }
+
+    /// `text` with folders given to Files under its `[Default Applications]`.
+    fn with_line(text: &str) -> String {
+        let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
+        lines.retain(|l| !l.trim_start().starts_with("inode/directory="));
+        match lines.iter().position(|l| l.trim() == GROUP) {
+            Some(at) => lines.insert(at + 1, LINE.into()),
+            None => {
+                if lines.last().is_some_and(|l| !l.trim().is_empty()) {
+                    lines.push(String::new());
+                }
+                lines.push(GROUP.into());
+                lines.push(LINE.into());
+            }
+        }
+        lines.join("\n") + "\n"
+    }
+
+    pub fn apply(env: &Env) -> Result<Undo, String> {
+        let path = list(env);
+        let before = std::fs::read_to_string(&path).ok();
+        std::fs::create_dir_all(&env.config_home).map_err(|e| e.to_string())?;
+        write(&path, &with_line(before.as_deref().unwrap_or("")))?;
+        let mut undo = Undo::new();
+        if let Some(before) = before {
+            undo.insert("before".into(), before);
+        }
+        Ok(undo)
+    }
+
+    pub fn undo(env: &Env, undo: &Undo) -> Result<(), String> {
+        let path = list(env);
+        match undo.get("before") {
+            Some(before) => write(&path, before),
+            None => std::fs::remove_file(&path).map_err(|e| e.to_string()),
+        }
     }
 }
 
@@ -538,6 +604,17 @@ mod tests {
             (step("portals").check)(&scratch.env()),
             Check::Blocked(_)
         ));
+    }
+
+    #[test]
+    fn folders_go_to_files_only_where_it_is_installed_and_come_back() {
+        let scratch = Scratch::new("files-folders");
+        assert_eq!((step("files-folders").check)(&scratch.env()), Check::NotHere);
+        scratch.put("root/usr/share/applications/io.github.alexparlett.Isle.Files.desktop", "");
+        let list = scratch.0.join("config/isle-mimeapps.list");
+        round_trip(&scratch, "files-folders", &[&list]);
+        scratch.put("config/isle-mimeapps.list", "[Default Applications]\ninode/directory=org.gnome.Nautilus.desktop\ntext/plain=zed.desktop\n");
+        round_trip(&scratch, "files-folders", &[&list]);
     }
 
     #[test]

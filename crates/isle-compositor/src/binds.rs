@@ -17,6 +17,8 @@ pub enum Action {
     Terminal,
     /// System Settings, where it was last.
     Settings,
+    /// A new Files window with its search field focused.
+    Files,
     CloseWindow,
     Quit,
     /// A zone for the focused window; a repeat moves along the zone's cycle.
@@ -130,6 +132,7 @@ fn action_for(id: &'static str) -> Action {
         "session-chooser" => Action::SessionChooser,
         "force-quit" => Action::ForceQuit,
         "settings" => Action::Settings,
+        "files" => Action::Files,
         "lock" => Action::Lock,
         "redetect-displays" => Action::Redetect,
         "next-layout" => Action::NextLayout,
@@ -267,6 +270,13 @@ impl State {
         info!(?action, "bind");
         match action {
             Action::Terminal => spawn(&self.isle.settings.shortcuts.terminal_command),
+            Action::Files => {
+                self.launch(crate::launch::Launch::App {
+                    app: crate::files_link::FILES.into(),
+                    action: Some("find".into()),
+                    uris: Vec::new(),
+                });
+            }
             Action::Settings => {
                 self.open_settings(None, None);
             }

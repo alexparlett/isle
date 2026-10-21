@@ -174,7 +174,16 @@ pub static PANES: &[Pane] = &[
         ],
         ..pane("appearance", "Appearance", "circle-half", Hue::Graphite, 2, "Choose light or dark, the accent colour and the glass.")
     },
-    pane("apps", "Apps", "browsers", Hue::Indigo, 2, "Set how the desktop treats each app's windows and keys."),
+    Pane {
+        keywords: &["default apps", "default browser", "default terminal"],
+        rows: &[
+            RowDef::new("default-browser", "Web browser").keywords(&["browser", "default apps", "links"]),
+            RowDef::new("default-mail", "Mail").keywords(&["email", "default apps", "mailto"]),
+            RowDef::new("default-editor", "Text editor").keywords(&["editor", "default apps", "text files"]),
+            RowDef::new("default-terminal", "Terminal").key("shortcuts.terminal-command").keywords(&["terminal", "default apps", "console"]),
+        ],
+        ..pane("apps", "Apps", "browsers", Hue::Indigo, 2, "Set the default apps, and how the desktop treats each app's windows and keys.")
+    },
     Pane {
         keywords: &["island", "status icons", "tray", "menu bar"],
         rows: &[

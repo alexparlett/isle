@@ -28,6 +28,13 @@ use crate::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WindowKey(pub(crate) u64);
 
+impl WindowKey {
+    /// Its number, unique for the app's life.
+    pub fn number(self) -> u64 {
+        self.0
+    }
+}
+
 /// Keeps the app running with no window open while it is held; dropped, it lets go.
 pub struct Hold(Rc<Inner>);
 
@@ -35,6 +42,16 @@ impl Drop for Hold {
     fn drop(&mut self) {
         self.0.holds.set(self.0.holds.get() - 1);
         AppHandle(self.0.clone()).end_if_idle();
+    }
+}
+
+/// Sends requests to the app's delegate, from any thread.
+#[derive(Clone)]
+pub struct Requester(UnboundedSender<Inbound>);
+
+impl Requester {
+    pub fn send(&self, request: Request) {
+        let _ = self.0.unbounded_send(Inbound::Request(request));
     }
 }
 
@@ -118,6 +135,11 @@ impl AppHandle {
 
     pub fn bus(&self) -> Option<zbus::Connection> {
         self.0.bus.clone()
+    }
+
+    /// Hands requests to the delegate from any thread: the app's own D-Bus objects.
+    pub fn requester(&self) -> Requester {
+        Requester(self.0.inbox.clone())
     }
 
     /// Opens a window drawing `app`; it counts as open from now.
@@ -248,6 +270,7 @@ impl AppHandle {
     ) {
         *self.0.proxy.borrow_mut() = Some(proxy);
         *self.0.delegate.borrow_mut() = Some(delegate.clone());
+        delegate.started(&self);
         let mut desktop = self.0.desktop;
         let mut theme = self.0.theme;
         while let Some(message) = inbox.next().await {

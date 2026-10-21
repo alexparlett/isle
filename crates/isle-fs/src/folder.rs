@@ -1,8 +1,11 @@
-//! A folder's entries in their order, changed by batches and by single entries, never
+//! A folder's entries, or a gathering's from many folders, in their order, changed by batches and by single entries, never
 //! rebuilt: what is shown keeps its place, its selection and its scroll (`p15-files.md`
 //! choice 9).
 
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    path::{Path, PathBuf},
+};
 
 use crate::{Entry, Order};
 
@@ -20,8 +23,11 @@ pub enum Applied {
 pub struct Folder {
     order: Order,
     entries: Vec<Entry>,
-    /// Each entry's place in `entries`, by name.
-    at: HashMap<String, usize>,
+    /// Items whose names begin with a dot, kept aside while hidden files are not shown.
+    hidden: Vec<Entry>,
+    show_hidden: bool,
+    /// Each entry's place in `entries`, by path.
+    at: HashMap<PathBuf, usize>,
 }
 
 impl Folder {
@@ -48,12 +54,49 @@ impl Folder {
         self.order
     }
 
-    pub fn position(&self, name: &str) -> Option<usize> {
-        self.at.get(name).copied()
+    pub fn position(&self, path: &Path) -> Option<usize> {
+        self.at.get(path).copied()
     }
 
-    pub fn get(&self, name: &str) -> Option<&Entry> {
-        self.position(name).map(|i| &self.entries[i])
+    pub fn get(&self, path: &Path) -> Option<&Entry> {
+        self.position(path).map(|i| &self.entries[i])
+    }
+
+    /// Shows or hides the items whose names begin with a dot.
+    pub fn set_show_hidden(&mut self, show: bool) {
+        if show == self.show_hidden {
+            return;
+        }
+        self.show_hidden = show;
+        if show {
+            let hidden = std::mem::take(&mut self.hidden);
+            self.merge(hidden);
+        } else {
+            let (hidden, shown): (Vec<_>, Vec<_>) = std::mem::take(&mut self.entries).into_iter().partition(Entry::hidden);
+            self.hidden = hidden;
+            self.entries = shown;
+            self.at.clear();
+            self.reindex(0);
+        }
+    }
+
+    pub fn shows_hidden(&self) -> bool {
+        self.show_hidden
+    }
+
+    /// Takes a batch's hidden items aside while they are not shown.
+    fn set_aside(&mut self, batch: &mut Vec<Entry>) {
+        if self.show_hidden {
+            return;
+        }
+        let paths: HashSet<PathBuf> = batch.iter().filter(|e| e.hidden()).map(|e| e.path.clone()).collect();
+        if paths.is_empty() {
+            return;
+        }
+        self.hidden.retain(|e| !paths.contains(&e.path));
+        let (hidden, shown): (Vec<_>, Vec<_>) = std::mem::take(batch).into_iter().partition(Entry::hidden);
+        self.hidden.extend(hidden);
+        *batch = shown;
     }
 
     /// Sorts again by another order.
@@ -67,17 +110,18 @@ impl Folder {
     }
 
     /// Merges a batch, sorted on its own and then into the rest in one pass; an entry whose
-    /// name is here already replaces it.
+    /// path is here already replaces it.
     pub fn merge(&mut self, mut batch: Vec<Entry>) {
+        self.set_aside(&mut batch);
         let order = self.order;
         {
-            let replaced: std::collections::HashSet<&str> = batch
+            let replaced: HashSet<&Path> = batch
                 .iter()
-                .filter(|e| self.at.contains_key(&e.name))
-                .map(|e| e.name.as_str())
+                .filter(|e| self.at.contains_key(&e.path))
+                .map(|e| e.path.as_path())
                 .collect();
             if !replaced.is_empty() {
-                self.entries.retain(|e| !replaced.contains(e.name.as_str()));
+                self.entries.retain(|e| !replaced.contains(e.path.as_path()));
             }
         }
         batch.sort_by(|a, b| order.compare(a, b));
@@ -97,27 +141,33 @@ impl Folder {
         self.reindex(0);
     }
 
-    /// Puts one entry in its place, replacing the one of its name; its index.
-    pub fn upsert(&mut self, entry: Entry) -> usize {
-        self.remove(&entry.name);
+    /// Puts one entry in its place, replacing the one at its path; its index.
+    pub fn upsert(&mut self, entry: Entry) -> Option<usize> {
+        self.remove(&entry.path.clone());
+        if entry.hidden() && !self.show_hidden {
+            self.hidden.push(entry);
+            return None;
+        }
         let order = self.order;
         let i = self.entries.partition_point(|e| order.compare(e, &entry).is_lt());
         self.entries.insert(i, entry);
         self.reindex(i);
-        i
+        Some(i)
     }
 
-    /// Takes an entry out by name; where it was.
-    pub fn remove(&mut self, name: &str) -> Option<usize> {
-        let i = self.at.remove(name)?;
+    /// Takes an entry out; where it was.
+    pub fn remove(&mut self, path: &Path) -> Option<usize> {
+        self.hidden.retain(|e| e.path != path);
+        let i = self.at.remove(path)?;
         self.entries.remove(i);
         self.reindex(i);
         Some(i)
     }
 
-    /// Keeps only the names listed: the end of a listing read again.
-    pub fn keep_only(&mut self, names: &std::collections::HashSet<String>) {
-        self.entries.retain(|e| names.contains(&e.name));
+    /// Keeps only the paths listed: the end of a listing read again.
+    pub fn keep_only(&mut self, paths: &HashSet<PathBuf>) {
+        self.entries.retain(|e| paths.contains(&e.path));
+        self.hidden.retain(|e| paths.contains(&e.path));
         self.at.clear();
         self.reindex(0);
     }
@@ -132,13 +182,13 @@ impl Folder {
             Change::Overflow => Applied::Reread,
             Change::Touched(names) => {
                 for name in names {
-                    let shown = name.to_string_lossy();
-                    match crate::Entry::at(&dir.join(name)) {
+                    let path = dir.join(name);
+                    match crate::Entry::at(&path) {
                         Ok(entry) => {
                             self.upsert(entry);
                         }
                         Err(_) => {
-                            self.remove(&shown);
+                            self.remove(&path);
                         }
                     }
                 }
@@ -149,7 +199,7 @@ impl Folder {
 
     fn reindex(&mut self, from: usize) {
         for (i, e) in self.entries.iter().enumerate().skip(from) {
-            self.at.insert(e.name.clone(), i);
+            self.at.insert(e.path.clone(), i);
         }
     }
 }
@@ -185,7 +235,21 @@ mod tests {
         f.merge(vec![entry("b10", false), entry("src", true), entry("a", false)]);
         f.merge(vec![entry("b2", false), entry("docs", true)]);
         assert_eq!(names(&f), ["docs", "src", "a", "b2", "b10"]);
-        assert_eq!(f.position("b2"), Some(3));
+        assert_eq!(f.position(Path::new("/x/b2")), Some(3));
+    }
+
+    #[test]
+    fn hidden_items_wait_aside_until_shown() {
+        let mut f = Folder::new(Order::default());
+        f.merge(vec![entry(".git", true), entry("src", true), entry(".env", false)]);
+        assert_eq!(names(&f), ["src"]);
+        assert_eq!(f.upsert(entry(".cache", true)), None);
+        f.set_show_hidden(true);
+        assert_eq!(names(&f), [".cache", ".git", "src", ".env"]);
+        f.set_show_hidden(false);
+        f.remove(Path::new("/x/.git"));
+        f.set_show_hidden(true);
+        assert_eq!(names(&f), [".cache", "src", ".env"]);
     }
 
     #[test]
@@ -196,7 +260,7 @@ mod tests {
         grown.size = 9;
         f.merge(vec![grown]);
         assert_eq!(names(&f), ["a", "b"]);
-        assert_eq!(f.get("a").unwrap().size, 9);
+        assert_eq!(f.get(Path::new("/x/a")).unwrap().size, 9);
     }
 
     #[test]
@@ -210,7 +274,7 @@ mod tests {
         let touched = crate::watch::Change::Touched(["a".into(), "b".into(), "c".into()].into());
         assert_eq!(f.apply(dir.path(), &touched), Applied::Done);
         assert_eq!(names(&f), ["a", "b"]);
-        assert_eq!(f.get("a").unwrap().size, 5);
+        assert_eq!(f.get(&dir.path().join("a")).unwrap().size, 5);
         std::fs::remove_file(dir.path().join("a")).unwrap();
         f.apply(dir.path(), &crate::watch::Change::Touched(["a".into()].into()));
         assert_eq!(names(&f), ["b"]);
@@ -220,10 +284,10 @@ mod tests {
     fn single_changes_keep_the_index() {
         let mut f = Folder::new(Order::default());
         f.merge(vec![entry("a", false), entry("c", false)]);
-        assert_eq!(f.upsert(entry("b", false)), 1);
-        assert_eq!(f.position("c"), Some(2));
-        assert_eq!(f.remove("a"), Some(0));
-        assert_eq!(f.position("c"), Some(1));
-        assert_eq!(f.remove("zz"), None);
+        assert_eq!(f.upsert(entry("b", false)), Some(1));
+        assert_eq!(f.position(Path::new("/x/c")), Some(2));
+        assert_eq!(f.remove(Path::new("/x/a")), Some(0));
+        assert_eq!(f.position(Path::new("/x/c")), Some(1));
+        assert_eq!(f.remove(Path::new("/x/zz")), None);
     }
 }

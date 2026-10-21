@@ -3035,6 +3035,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-files"
+version = "0.1.0"
+dependencies = [
+ "freya",
+ "freya-testing",
+ "futures-channel",
+ "futures-util",
+ "isle-app",
+ "isle-apps",
+ "isle-fs",
+ "isle-search",
+ "isle-state",
+ "isle-tokens",
+ "isle-ui",
+ "jiff",
+ "serde",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "zbus",
+ "zvariant",
+]
+
+[[package]]
 name = "isle-focus"
 version = "0.1.0"
 dependencies = [

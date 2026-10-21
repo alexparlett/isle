@@ -37,9 +37,9 @@ fn fifty_thousand_entries_arrive_in_batches_and_merge_in_order() {
     assert!(first * 10 < all, "the first batch, {first:?}, comes well before the end, {all:?}");
     let names: Vec<&str> = folder.entries().iter().take(4).map(|e| e.name.as_str()).collect();
     assert_eq!(names, ["zz-folder", "file0.txt", "file1.txt", "file2.txt"]);
-    assert_eq!(folder.position("file10.txt"), Some(11));
+    assert_eq!(folder.position(&dir.path().join("file10.txt")), Some(11));
     assert_eq!(
-        folder.get("file9.txt").unwrap().mime.as_deref(),
+        folder.get(&dir.path().join("file9.txt")).unwrap().mime.as_deref(),
         isle_apps::mime::types().by_name("a.txt").as_deref()
     );
 }
@@ -67,9 +67,9 @@ fn a_link_to_a_folder_opens_as_one_and_a_broken_link_is_marked() {
     while let Ok(Listed::Batch(b)) = rx.recv() {
         folder.merge(b);
     }
-    assert!(folder.get("alias").unwrap().is_dir());
+    assert!(folder.get(&dir.path().join("alias")).unwrap().is_dir());
     assert_eq!(
-        folder.get("broken").unwrap().kind,
+        folder.get(&dir.path().join("broken")).unwrap().kind,
         isle_fs::Kind::Link { to_dir: false, broken: true }
     );
 }

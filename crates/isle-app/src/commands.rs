@@ -31,6 +31,59 @@ impl Menu {
     }
 }
 
+/// The key of a chord: what it types without Shift, `,` or `q`, or a key that types nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChordKey {
+    Char(char),
+    Up,
+    Down,
+    Left,
+    Right,
+    Return,
+    Space,
+    Backspace,
+    Delete,
+    Tab,
+    Escape,
+}
+
+impl ChordKey {
+    /// The key press it is.
+    pub fn key(self) -> Key {
+        use freya::prelude::NamedKey;
+        match self {
+            ChordKey::Char(c) => Key::Character(c.to_string()),
+            ChordKey::Space => Key::Character(" ".into()),
+            ChordKey::Up => Key::Named(NamedKey::ArrowUp),
+            ChordKey::Down => Key::Named(NamedKey::ArrowDown),
+            ChordKey::Left => Key::Named(NamedKey::ArrowLeft),
+            ChordKey::Right => Key::Named(NamedKey::ArrowRight),
+            ChordKey::Return => Key::Named(NamedKey::Enter),
+            ChordKey::Backspace => Key::Named(NamedKey::Backspace),
+            ChordKey::Delete => Key::Named(NamedKey::Delete),
+            ChordKey::Tab => Key::Named(NamedKey::Tab),
+            ChordKey::Escape => Key::Named(NamedKey::Escape),
+        }
+    }
+
+    /// XKB's name for it.
+    fn name(self) -> String {
+        match self {
+            ChordKey::Char(c) => key_name(c),
+            ChordKey::Up => "Up".into(),
+            ChordKey::Down => "Down".into(),
+            ChordKey::Left => "Left".into(),
+            ChordKey::Right => "Right".into(),
+            ChordKey::Return => "Return".into(),
+            ChordKey::Space => "space".into(),
+            ChordKey::Backspace => "BackSpace".into(),
+            ChordKey::Delete => "Delete".into(),
+            ChordKey::Tab => "Tab".into(),
+            ChordKey::Escape => "Escape".into(),
+        }
+    }
+}
+
 /// A chord as the app's keys and menus name it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Chord {
@@ -38,12 +91,15 @@ pub struct Chord {
     pub shift: bool,
     pub option: bool,
     pub ctrl: bool,
-    /// The character the key types without Shift, `,` or `q`.
-    pub key: char,
+    pub key: ChordKey,
 }
 
 impl Chord {
     pub const fn cmd(key: char) -> Self {
+        Self::cmd_key(ChordKey::Char(key))
+    }
+
+    pub const fn cmd_key(key: ChordKey) -> Self {
         Self {
             cmd: true,
             shift: false,
@@ -53,12 +109,24 @@ impl Chord {
         }
     }
 
+    /// A key alone, with no modifier: Space for Quick Look, Return to rename.
+    pub const fn bare(key: ChordKey) -> Self {
+        Self {
+            cmd: false,
+            ..Self::cmd_key(key)
+        }
+    }
+
     pub const fn shift(self) -> Self {
         Self { shift: true, ..self }
     }
 
     pub const fn option(self) -> Self {
         Self { option: true, ..self }
+    }
+
+    pub const fn ctrl(self) -> Self {
+        Self { ctrl: true, ..self }
     }
 
     /// DBusMenu's names for it, as Qt writes them and Isle's menu bar reads them.
@@ -73,7 +141,7 @@ impl Chord {
         .filter(|(held, _)| *held)
         .map(|(_, name)| name.to_owned())
         .collect();
-        names.push(key_name(self.key));
+        names.push(self.key.name());
         names
     }
 
@@ -91,9 +159,9 @@ impl Chord {
         let wanted = self.modifiers();
         let held = modifiers & (Modifiers::META | Modifiers::SHIFT | Modifiers::ALT | Modifiers::CONTROL);
         held == wanted
-            && match key {
-                Key::Character(c) => c.to_lowercase() == self.key.to_lowercase().to_string(),
-                _ => false,
+            && match (key, self.key) {
+                (Key::Character(c), ChordKey::Char(k)) => c.to_lowercase() == k.to_lowercase().to_string(),
+                (pressed, named) => *pressed == named.key(),
             }
     }
 }

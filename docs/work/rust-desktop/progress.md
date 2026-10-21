@@ -2,6 +2,30 @@
 
 ## 2026-10-21
 
+- P15 15.3: the window. `isle-files` (binary `isle-files`, id
+  `io.github.alexparlett.Isle.Files`) opens windows from its delegate: the
+  sidebar of Recents, Favourites (Home, the xdg-user-dirs folders in
+  macOS's order, GTK's bookmarks) and Locations (the computer, Trash), the
+  toolbar with back, forward and the folder's title and count, tabs with
+  their bar, and List view over a virtual list (Name, Date Modified, Size,
+  Kind; sort by header; stripes; joined selection; ⌘- and ⇧-click; the
+  arrows). Each tab lists on its own thread, reads touched names again
+  from the shared watcher, and holds its selection by path; hidden files
+  wait aside until ⇧⌘. shows them in every window. The Go menu's places,
+  back, forward and ⌘↑ ⌘↓; windows and tabs reopen at launch from the
+  `files` state domain. FileManager1's ShowItems and ShowFolders become a
+  tab in the front window with the item selected, and a second launch
+  hands its folder over; off an Isle session Files takes no name and
+  leaves. The desktop entry (`inode/directory`, Isle only) and the two
+  D-Bus service files. `isle-app`'s chords gain named keys and Control;
+  `isle-apps`' icon lookup gains file types and places (Papirus's
+  mimetypes and places); the folder model is keyed by path, for
+  gatherings. 32 Phosphor glyphs added from `@phosphor-icons/core` 2.1.1
+  for Files' places and later phases. Gaps for later phases: opening files
+  (15.8), Isle's own folder icons (Papirus's stand in), names cut at their
+  end rather than the middle, and the tab bar cutting tabs past its
+  minimum width rather than scrolling.
+
 - P15 15.2: the engine. `isle-fs` lists a folder on a thread of its own in
   batches of 512 (`statx` with no automount and no sync, a link's target
   read for its kind), keeps a folder in order by merging each batch and

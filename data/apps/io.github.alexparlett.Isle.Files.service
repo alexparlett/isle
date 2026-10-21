@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=io.github.alexparlett.Isle.Files
+Exec=/usr/bin/isle-files

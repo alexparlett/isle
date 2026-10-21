@@ -295,7 +295,7 @@ impl Run {
     fn chosen(&self, command: &commands::Command) {
         match command.chord {
             Some(chord) => {
-                let key = Key::Character(chord.key.to_string());
+                let key = chord.key.key();
                 let modifiers = chord.modifiers();
                 let _ = self.platform.post_callback(move |window, ctx: &mut RendererContext| {
                     ctx.send_key_press(Some(window), key, Code::Unidentified, modifiers);

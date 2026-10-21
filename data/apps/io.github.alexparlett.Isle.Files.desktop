@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Files
+Comment=Browse, find, move and open files
+Icon=system-file-manager
+Exec=isle-files %U
+DBusActivatable=true
+StartupNotify=true
+Categories=System;FileTools;FileManager;
+Keywords=Finder;Folder;Directory;Browse;
+MimeType=inode/directory;
+OnlyShowIn=Isle;

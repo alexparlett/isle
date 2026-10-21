@@ -1,0 +1,36 @@
+[package]
+name = "isle-files"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+gpu = ["isle-app/gpu"]
+
+[[bin]]
+name = "isle-files"
+path = "src/main.rs"
+
+[dependencies]
+freya = { workspace = true, features = ["winit"] }
+futures-channel = "0.3"
+futures-util = { workspace = true, features = ["std"] }
+isle-app.workspace = true
+isle-apps.workspace = true
+isle-fs.workspace = true
+isle-search.workspace = true
+isle-state.workspace = true
+isle-tokens.workspace = true
+isle-ui.workspace = true
+jiff.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zbus.workspace = true
+zvariant.workspace = true
+
+[dev-dependencies]
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "ce0e9fe46ab7f60faa818091cdb588c20d3bb6d9" }
+isle-app = { workspace = true, features = ["testing"] }
+tempfile = "3"

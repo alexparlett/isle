@@ -47,6 +47,8 @@ pub struct Icons {
     found: HashMap<(String, u32), Option<PathBuf>>,
     /// Status and panel icons as well as apps', as tray items name them.
     status: bool,
+    /// File type and place icons instead of apps', as Files names them.
+    files: bool,
 }
 
 impl Icons {
@@ -57,6 +59,15 @@ impl Icons {
             themes: HashMap::new(),
             found: HashMap::new(),
             status: false,
+            files: false,
+        }
+    }
+
+    /// Papirus for files: their types' icons and folders'.
+    pub fn files(dark: bool) -> Self {
+        Self {
+            files: true,
+            ..Self::papirus(dark)
         }
     }
 
@@ -118,7 +129,7 @@ impl Icons {
                 .iter()
                 .map(|b| b.join(name).join("index.theme"))
                 .find_map(|p| fs::read_to_string(p).ok())
-                .map(|text| parse_index(&text, self.status));
+                .map(|text| parse_index(&text, self.status, self.files));
             self.themes.insert(name.to_owned(), theme);
         }
         self.themes.get(name).and_then(Option::as_ref)
@@ -163,7 +174,7 @@ impl Icons {
 }
 
 /// The app directories of an `index.theme`, and what it inherits.
-fn parse_index(text: &str, status: bool) -> Theme {
+fn parse_index(text: &str, status: bool, files: bool) -> Theme {
     let mut theme = Theme::default();
     let mut group = String::new();
     let mut dirs: Vec<String> = Vec::new();
@@ -211,7 +222,10 @@ fn parse_index(text: &str, status: bool) -> Theme {
             || context == "Panel"
             || dir.ends_with("/status")
             || dir.ends_with("/panel");
-        if *scaled || !(app || (status && status_dir)) {
+        let file_dir = !dir.contains("symbolic")
+            && (context == "MimeTypes" || context == "Places" || dir.ends_with("/mimetypes") || dir.ends_with("/places"));
+        let wanted = if files { file_dir } else { app || (status && status_dir) };
+        if *scaled || !wanted {
             continue;
         }
         let nominal = if dir.starts_with("scalable") {

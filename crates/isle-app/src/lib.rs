@@ -22,11 +22,11 @@ use isle_tokens::{Appearance, Mode, Source, Theme};
 use isle_ui::ThemeContext;
 use tracing::{info, warn};
 
-pub use commands::{Chord, Command, Menu};
+pub use commands::{Chord, ChordKey, Command, Menu};
 pub use desktop::{Write, from_owned};
 pub use instance::Request;
 pub use toolbar::ToolbarExt;
-pub use hub::{AppHandle, Hold, WindowKey, app};
+pub use hub::{AppHandle, Hold, Requester, WindowKey, app};
 pub use window::{WindowSpec, this_window};
 pub use worker::Worker;
 
@@ -266,6 +266,11 @@ pub fn init_logging(krate: &str) {
 
 /// What an app does above its windows.
 pub trait Delegate: 'static {
+    /// Once, before the first request: serve the app's own objects on its bus.
+    fn started(&self, app: &AppHandle) {
+        let _ = app;
+    }
+
     /// A launch, an activation or an action from another process: open or raise windows.
     fn request(&self, app: &AppHandle, request: Request);
 

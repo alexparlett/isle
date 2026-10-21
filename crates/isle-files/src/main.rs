@@ -6,6 +6,7 @@ mod fm1;
 mod format;
 mod icons;
 mod icons_view;
+mod info;
 mod interact;
 mod jobs;
 mod list_view;
@@ -76,6 +77,12 @@ pub struct Shared {
     pub locations: volumes::Locations,
     /// Saved searches, as Favourites lists them.
     pub saved: State<Vec<search::Search>>,
+    /// The front window's selection, which the Inspector follows.
+    pub selection: State<Vec<PathBuf>>,
+    /// Get Info's sections closed, in every Get Info window.
+    info_collapsed: State<Vec<String>>,
+    /// The Inspector's window while it is open.
+    inspector: Cell<Option<WindowKey>>,
 }
 
 impl Shared {
@@ -150,6 +157,58 @@ impl Shared {
         saved.write().push(search);
         self.memory.borrow_mut().saved = saved.peek().clone();
         self.save();
+    }
+
+    pub fn collapsed_info(&self) -> Vec<String> {
+        self.info_collapsed.read().clone()
+    }
+
+    pub fn toggle_info_section(&self, title: &str) {
+        let mut collapsed = self.info_collapsed;
+        let mut list = collapsed.write();
+        match list.iter().position(|c| c == title) {
+            Some(i) => {
+                list.remove(i);
+            }
+            None => list.push(title.to_owned()),
+        }
+        self.memory.borrow_mut().info_collapsed = list.clone();
+        drop(list);
+        self.save();
+    }
+
+    /// Get Info for each item, or one summary of them all.
+    pub fn get_info(&self, items: Vec<PathBuf>, summary: bool, token: Option<String>) {
+        let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
+        let app = self.app();
+        let open = |of: info::InfoOf| {
+            let spec = WindowSpec::new(of.title(), (300., 620.), (260., 320.)).token(token.clone());
+            app.open(spec, info::InfoWindow { shared: shared.clone(), of })
+        };
+        if summary && items.len() > 1 {
+            open(info::InfoOf::Summary(items));
+        } else {
+            for item in items {
+                open(info::InfoOf::One(item));
+            }
+        }
+    }
+
+    /// Opens the Inspector, or closes it when it is open.
+    pub fn toggle_inspector(&self) {
+        let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
+        let app = self.app();
+        match self.inspector.get().filter(|k| app.windows().contains(k)) {
+            Some(key) => {
+                app.close(key);
+                self.inspector.set(None);
+            }
+            None => {
+                let of = info::InfoOf::Inspector;
+                let spec = WindowSpec::new(of.title(), (300., 620.), (260., 320.));
+                self.inspector.set(Some(app.open(spec, info::InfoWindow { shared, of })));
+            }
+        }
     }
 
     pub fn set_default_shown(&self, shown: view::Shown) {
@@ -297,6 +356,10 @@ impl Delegate for Files {
                     };
                     self.shared.show(Place::Search(Box::new(search)), None, token.clone());
                 }
+                fm1::SHOW_PROPERTIES => {
+                    let items = params.iter().filter_map(|u| path_of(u)).collect();
+                    self.shared.get_info(items, false, token.clone());
+                }
                 other => info!(action = other, "not built yet"),
             },
         }
@@ -321,6 +384,9 @@ fn main() {
         windows: RefCell::default(),
         front: RefCell::default(),
         saved: State::create_global(memory.saved.clone()),
+        selection: State::create_global(Vec::new()),
+        info_collapsed: State::create_global(memory.info_collapsed.clone()),
+        inspector: Cell::new(None),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         hidden: State::create_global(false),

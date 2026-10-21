@@ -173,6 +173,30 @@ impl App for FilesWindow {
             }
         });
 
+        // The focused window's selection is the one the Inspector shows.
+        use_side_effect({
+            let shared = shared.clone();
+            move || {
+                if !*Platform::get().is_app_focused.read() {
+                    return;
+                }
+                let at = *current.read();
+                let Some(handle) = tabs.read().get(at).cloned() else { return };
+                let t = handle.tab.read();
+                let shown = if t.selection.is_empty() {
+                    t.place.folder().map(PathBuf::from).into_iter().collect()
+                } else {
+                    t.selection.clone()
+                };
+                drop(t);
+                shared.bring_front(key);
+                let mut selection = shared.selection;
+                if *selection.peek() != shown {
+                    selection.set(shown);
+                }
+            }
+        });
+
         // The search field follows the tab and its place; what it holds filters the items shown.
         use_side_effect(move || {
             let at = *current.read();
@@ -402,6 +426,11 @@ impl App for FilesWindow {
             .chord(Chord::cmd('c').option())
             .enabled(has_selection),
             Command::new("open-with", "Open With…", Menu::File, 1).enabled(has_selection && !in_trash),
+            Command::new("get-info", "Get Info", Menu::File, 2).chord(Chord::cmd('i')),
+            Command::new("summary", "Get Summary Info", Menu::File, 2)
+                .chord(Chord::cmd('i').ctrl())
+                .enabled(selected_count > 1),
+            Command::new("inspector", "Show Inspector", Menu::File, 2).chord(Chord::cmd('i').option()),
             Command::new("open-terminal", "Open in terminal", Menu::File, 1).enabled(place.folder().is_some()),
             Command::new("set-wallpaper", "Set as wallpaper", Menu::File, 3).enabled(selected_image),
             Command::new("rename", if selected_count > 1 { format!("Rename {selected_count} Items…") } else { "Rename".into() }, Menu::File, 3)
@@ -613,6 +642,17 @@ impl App for FilesWindow {
                             start_rename(selection, renaming, rename_text, rename_error, rename_many);
                         }
                         "find" => find.request_focus(),
+                        "get-info" | "summary" => {
+                            let t = tab.peek();
+                            let items = if t.selection.is_empty() {
+                                t.place.folder().map(PathBuf::from).into_iter().collect()
+                            } else {
+                                t.selection.clone()
+                            };
+                            drop(t);
+                            shared.get_info(items, id == "summary", None);
+                        }
+                        "inspector" => shared.toggle_inspector(),
                         "toggle-sidebar" => sidebar.toggle(),
                         "toggle-preview" => preview.toggle(),
                         "toggle-path-bar" => path_bar.toggle(),

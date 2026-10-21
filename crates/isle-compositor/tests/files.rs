@@ -396,3 +396,36 @@ async fn search_filters_as_typed_walks_on_return_and_takes_spotlights_query() {
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     isle.keep_shot("files-search-criteria").await;
 }
+
+const KEY_I: u32 = 23;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn get_info_opens_a_window_per_item_and_from_file_manager1() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-info").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    reveal(&isle, &app, &home.join("Pictures/red.png")).await;
+    isle.chord(&[SUPER, KEY_I]).await;
+    app.wait_for_part("id=\"get-info\"").await;
+    wait_until(|| async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() == 2 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.keep_shot("files-get-info").await;
+
+    let uri = format!("file://{}", home.join("notes.md").display());
+    isle.bus
+        .call_method(
+            Some("org.freedesktop.FileManager1"),
+            "/org/freedesktop/FileManager1",
+            Some("org.freedesktop.FileManager1"),
+            "ShowItemProperties",
+            &(vec![uri.as_str()], ""),
+        )
+        .await
+        .unwrap();
+    wait_until(|| async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() == 3 }).await;
+}

@@ -23,6 +23,9 @@ pub struct Memory {
     /// Saved searches, as Favourites lists them.
     #[serde(default)]
     pub saved: Vec<crate::search::Search>,
+    /// Get Info's sections closed.
+    #[serde(default)]
+    pub info_collapsed: Vec<String>,
 }
 
 impl Memory {

@@ -21,13 +21,13 @@ pub struct Preview {
 
 /// A folder's size and count, counted on a thread of its own.
 #[derive(Clone, Debug, Default, PartialEq)]
-struct Counted {
-    path: PathBuf,
-    items: usize,
-    bytes: u64,
+pub struct Counted {
+    pub path: PathBuf,
+    pub items: usize,
+    pub bytes: u64,
 }
 
-fn count(path: PathBuf) -> Counted {
+pub fn count(path: PathBuf) -> Counted {
     let (mut items, mut bytes) = (0usize, 0u64);
     if let Ok(read) = std::fs::read_dir(&path) {
         items = read.count();

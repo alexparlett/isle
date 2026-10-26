@@ -74,6 +74,8 @@ pub struct GlassRegion {
     instance: u64,
     shape: u64,
     pub layer: Layer,
+    /// The surface's name.
+    pub surface: &'static str,
     /// Relative to the output.
     rect: Rectangle<f64, Logical>,
 }
@@ -1202,6 +1204,7 @@ impl Shell {
                     instance: instance.id,
                     shape: *id,
                     layer: instance.def.layer(),
+                    surface: instance.def.name(),
                     rect: Rectangle::new(
                         (
                             instance.geometry.loc.x as f64 + shape.x as f64,

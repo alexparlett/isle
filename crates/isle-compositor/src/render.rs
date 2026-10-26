@@ -29,6 +29,12 @@ enum Stage {
     ShellOverlay,
     LayerOverlay,
     ShellTop,
+    /// Mission Control's scene, in place of the windows: its front surface, the tiles, its
+    /// back surface, the veil.
+    MissionFront,
+    MissionTiles,
+    MissionBack,
+    MissionVeil,
     Windows,
 }
 
@@ -154,6 +160,24 @@ impl Isle {
             isle_shell::Layer::Prompt => Stage::Scrim,
             isle_shell::Layer::Top => Stage::Windows,
             isle_shell::Layer::Background => return,
+        };
+        self.render_elements_from(renderer, output, None, from, &[], None, push);
+    }
+
+    /// What lies behind the glass of surface `name` in `layer`: Mission Control's surfaces
+    /// see its own scene behind them.
+    pub fn render_elements_below_surface(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        layer: isle_shell::Layer,
+        name: &str,
+        push: &mut dyn FnMut(IsleElement),
+    ) {
+        let from = match name {
+            "mission-front" if !self.lock.locked => Stage::MissionTiles,
+            "mission-back" if !self.lock.locked => Stage::MissionVeil,
+            _ => return self.render_elements_below(renderer, output, layer, push),
         };
         self.render_elements_from(renderer, output, None, from, &[], None, push);
     }
@@ -312,10 +336,57 @@ impl Isle {
             push_layers(&layers, Layer::Overlay, renderer, scale, push);
             push_layers(&layers, Layer::Top, renderer, scale, push);
         }
+        let mission = self.mission_on(output) && under.is_none();
         if from <= Stage::ShellTop {
-            shell(isle_shell::Layer::Top, push);
+            if mission {
+                let mut without = vec!["mission-back", "mission-front"];
+                without.extend_from_slice(leave);
+                self.shell.elements_without(output, isle_shell::Layer::Top, &without, &mut |e| {
+                    push(IsleElement::Shell(e))
+                });
+            } else {
+                shell(isle_shell::Layer::Top, push);
+            }
+        }
+        if mission {
+            if from <= Stage::MissionFront {
+                self.shell
+                    .elements_of(output, "mission-front", &mut |e| push(IsleElement::Shell(e)));
+            }
+            if from <= Stage::MissionTiles {
+                self.mission_tiles(renderer, output, push);
+            }
+            if from <= Stage::MissionBack {
+                self.shell
+                    .elements_of(output, "mission-back", &mut |e| push(IsleElement::Shell(e)));
+            }
+            if from <= Stage::MissionVeil {
+                self.mission_veil(output, push);
+            }
+        } else {
+            self.render_windows(renderer, output, geometry, scale, leave, under, push);
         }
 
+        push_layers(&layers, Layer::Bottom, renderer, scale, push);
+        push_layers(&layers, Layer::Background, renderer, scale, push);
+        shell(isle_shell::Layer::Background, push);
+        self.wallpaper_elements(output, &mut |e| push(IsleElement::Wallpaper(e)));
+    }
+
+    /// The windows at their places, with what is drawn among them: unmanaged X11 windows
+    /// over them, snapshots of windows going, sheets, backdrops, morphs and the zone preview.
+    #[allow(clippy::too_many_arguments)]
+    fn render_windows(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        geometry: Rectangle<i32, Logical>,
+        scale: Scale<f64>,
+        leave: &[&str],
+        under: Option<u64>,
+        push: &mut dyn FnMut(IsleElement),
+    ) {
+        let over_shell = self.floats_over_shell();
         // X11 windows left alone, front last, at the place they ask for, over windows.
         for window in self.unmanaged.iter().rev().filter(|_| under.is_none()) {
             let (Some(x11), Some(surface)) = (window.x11_surface(), {
@@ -424,10 +495,6 @@ impl Isle {
             }
         }
 
-        push_layers(&layers, Layer::Bottom, renderer, scale, push);
-        push_layers(&layers, Layer::Background, renderer, scale, push);
-        shell(isle_shell::Layer::Background, push);
-        self.wallpaper_elements(output, &mut |e| push(IsleElement::Wallpaper(e)));
     }
 }
 

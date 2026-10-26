@@ -2,6 +2,23 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.4, Mission Control drawn. `mission-back` (the bar with live
+  miniatures, the + tile, the tray, App Exposé's header) and
+  `mission-front` (icons, the selection ring, titles, badges, cluster
+  names) on every screen; between them the compositor draws the windows as
+  tiles in its own pass, from their real places by the opening's progress,
+  over the veil (render.rs gains Mission Control's stages, the window
+  drawing moved to `render_windows`). Glass behind the two surfaces samples
+  the scene behind them. Miniatures are a desktop's wallpaper and windows
+  rendered small into images (`WindowPiece::Wallpaper`), tray thumbnails
+  the switcher's previews; both redrawn a few at a time when windows draw.
+  The pointer, buttons, wheel and keys are read for the model while it is
+  open; the keyboard is taken from windows. ⌃↑ and ⌃↓ build
+  `mission-control` and `app-expose`; the bottom-left corner and
+  `mission-control` / `stage-manager` settings sections exist. The lock,
+  Spotlight and the switcher close it. `Test1.mission`; five headless
+  tests (the tiles drawn where the model puts them, a click choosing, keys
+  kept from windows, App Exposé, a drop on +).
 - P16 16.3, Mission Control's model, pure, in `isle-shell::mission::model`
   beside the switcher's (the plan put it in the compositor; the switcher's
   precedent keeps it testable without one): screens fed in as desktops and

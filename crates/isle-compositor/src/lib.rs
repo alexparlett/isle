@@ -47,6 +47,7 @@ mod spotlight;
 mod night_light;
 mod steam;
 mod switcher;
+mod mission;
 mod vpn_secrets;
 mod top_edge;
 mod osd;
@@ -330,6 +331,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
         state.isle.space.refresh();
         state.isle.popups.cleanup();
         state.switcher_after_dispatch();
+        state.mission_after_dispatch();
         state.sync_foreign_toplevels();
         state.idle_after_dispatch();
         // Input this iteration reaches clients before a frame is drawn, not after.

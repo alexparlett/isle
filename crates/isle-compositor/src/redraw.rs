@@ -268,6 +268,7 @@ impl State {
         let started = std::time::Instant::now();
         self.pass_commit_timers(target);
         self.isle.step_windows(std::time::Instant::now());
+        self.step_mission(std::time::Instant::now());
         if let Some(renderer) = self.backend.renderer_opt() {
             self.isle.prepare_wallpaper(renderer, output);
         }
@@ -326,6 +327,7 @@ impl State {
                 || self.isle.dimming()
                 || self.isle.scrim_fading()
                 || self.isle.windows_moving(output)
+                || self.isle.mission_moving(output)
                 || self.isle.wallpapers.fading(&Isle::output_identity(output))
                 || self.isle.island_moving(output)
                 || self.bar_moving()
@@ -394,6 +396,7 @@ impl State {
             || self.isle.dimming()
                 || self.isle.scrim_fading()
             || self.isle.windows_moving(output)
+                || self.isle.mission_moving(output)
             || self.isle.wallpapers.fading(&Isle::output_identity(output))
             || self.isle.island_moving(output)
             || self.bar_moving()
@@ -449,8 +452,9 @@ impl State {
             .unwrap_or_default();
         for region in regions {
             let mut below = Vec::new();
-            self.isle
-                .render_elements_below(renderer, output, region.layer, &mut |e| below.push(e));
+            self.isle.render_elements_below_surface(renderer, output, region.layer, region.surface, &mut |e| {
+                below.push(e)
+            });
             self.isle.shell.prepare_glass(renderer, &region, size, below);
         }
         let scale = output.current_scale().fractional_scale();

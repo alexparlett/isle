@@ -641,6 +641,7 @@ smithay::backend::renderer::element::render_elements! {
     Solid = smithay::backend::renderer::element::solid::SolidColorRenderElement,
     Bar = isle_shell::ShellElement,
     Snapshot = smithay::backend::renderer::element::texture::TextureRenderElement<smithay::backend::renderer::gles::GlesTexture>,
+    Wallpaper = crate::wallpaper::WallpaperElement,
 }
 
 /// A window piece drawn with the frame `from` moved and scaled onto `to`.

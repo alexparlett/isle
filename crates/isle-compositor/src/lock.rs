@@ -271,6 +271,7 @@ impl State {
         }
         set_marker(true);
         info!(why, "locked");
+        self.finish_mission();
         self.isle.lock.return_window = self.focused_window();
         for output in self.isle.space.outputs() {
             crate::redraw::OutputState::of(output).borrow_mut().locked_shown = false;

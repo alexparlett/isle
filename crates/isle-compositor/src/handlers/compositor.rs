@@ -58,6 +58,9 @@ impl CompositorHandler for State {
                     if let Some(switcher) = self.isle.switcher.as_mut() {
                         switcher.stale.insert(id);
                     }
+                    if let Some(mission) = self.isle.mission.as_mut() {
+                        mission.stale.insert(id);
+                    }
                     let record = self.isle.wm.get_mut(id).unwrap();
                     if record.record_at_size == Some(window.geometry().size) {
                         record.record_at_size = None;

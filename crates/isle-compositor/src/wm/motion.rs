@@ -43,6 +43,11 @@ pub struct Style {
 }
 
 impl Style {
+    /// Whether windows move at all now.
+    pub fn animated(&self) -> bool {
+        self.animated
+    }
+
     pub fn of(isle: &Isle) -> Self {
         let theme = isle.shell.theme();
         Self {

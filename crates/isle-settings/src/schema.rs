@@ -35,6 +35,10 @@ pub struct Settings {
     #[setting(section)]
     pub hot_corners: HotCorners,
     #[setting(section)]
+    pub mission_control: MissionControl,
+    #[setting(section)]
+    pub stage_manager: StageManager,
+    #[setting(section)]
     pub wallpaper: Wallpaper,
     /// A screen's own wallpaper, by make, model and serial, in place of `wallpaper`.
     #[setting(keyed)]
@@ -710,7 +714,7 @@ pub struct HotCorners {
     pub top_left: Corner,
     #[setting(default = Corner::None)]
     pub top_right: Corner,
-    #[setting(default = Corner::None)]
+    #[setting(default = Corner::MissionControl)]
     pub bottom_left: Corner,
     #[setting(default = Corner::Apps)]
     pub bottom_right: Corner,
@@ -724,10 +728,37 @@ pub struct HotCorners {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
 pub enum Corner {
     None,
+    MissionControl,
+    AppWindows,
+    Desktop,
     NotificationCentre,
     Apps,
     LockScreen,
     DisplaySleep,
+}
+
+/// Mission Control's own settings (`p1/structure/settings.md`, Desktop).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct MissionControl {
+    /// A desktop left for another moves to just after it in the row.
+    pub rearrange_desktops: bool,
+    /// Each app's windows laid out together.
+    pub group_by_app: bool,
+}
+
+/// Stage Manager's settings; it is turned on per desktop from Mission Control.
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct StageManager {
+    /// The recent apps' column stays shown; off, a push at the leading edge shows it.
+    pub recent_apps: bool,
+    #[setting(default = StageWindows::AllAtOnce)]
+    pub windows: StageWindows,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum StageWindows {
+    AllAtOnce,
+    OneAtATime,
 }
 
 /// The shell's screens.

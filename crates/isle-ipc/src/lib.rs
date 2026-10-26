@@ -660,6 +660,8 @@ pub mod test {
         fn transitions(&self, on: bool) -> zbus::Result<()>;
         /// Turns window motion off or on, apart from the shell's transitions.
         fn window_motion(&self, on: bool) -> zbus::Result<()>;
+        /// Mission Control's model as JSON, or `null` while it is closed.
+        fn mission(&self) -> zbus::Result<String>;
         /// What is moving now, as JSON: `moving` and `morphing` window ids, `leaving` count.
         fn motions(&self) -> zbus::Result<String>;
         /// The X display once Xwayland's window manager runs, else -1.

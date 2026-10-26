@@ -4,6 +4,7 @@
 mod apps;
 mod bars;
 pub mod desktops;
+mod split;
 pub mod draw;
 pub mod motion;
 pub mod geometry;
@@ -312,6 +313,11 @@ impl Isle {
     pub fn notify(&self, event: Event) {
         if matches!(event, Event::WindowsChanged) && self.switcher.is_some() {
             self.switcher_dirty.set(true);
+        }
+        if matches!(event, Event::WindowsChanged | Event::DesktopsChanged)
+            && self.mission.as_ref().is_some_and(|m| m.open())
+        {
+            self.mission_dirty.set(true);
         }
         if matches!(event, Event::WindowsChanged) {
             self.idle.windows_changed.set(true);

@@ -1531,6 +1531,11 @@ impl Test {
             .await?)
     }
 
+    /// Mission Control's model as JSON, or `null` while it is closed.
+    async fn mission(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.mission_json()).await?)
+    }
+
     /// What is moving now, as JSON: windows with a motion, windows morphing to a new frame,
     /// and how many snapshots of windows already gone are still drawn.
     async fn motions(&self) -> fdo::Result<String> {

@@ -410,6 +410,7 @@ impl State {
             return;
         };
         self.cancel_switcher();
+        self.finish_mission();
         self.close_session_dialog();
         self.close_force_quit();
         self.close_toolbar();

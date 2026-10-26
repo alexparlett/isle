@@ -3,7 +3,9 @@
 use std::collections::BTreeMap;
 
 use isle_state::{Loaded, StateDir, domains::Desktops as SavedDesktops};
-use smithay::{output::Output, reexports::wayland_protocols::xdg::shell::server::xdg_toplevel};
+use smithay::{
+    output::Output, reexports::wayland_protocols::xdg::shell::server::xdg_toplevel, utils::Point,
+};
 use tracing::{info, warn};
 
 use super::Mode;
@@ -247,7 +249,7 @@ impl State {
         true
     }
 
-    fn after_switch(&mut self, output: &Output) {
+    pub(crate) fn after_switch(&mut self, output: &Output) {
         self.isle.sync_space();
         let on_output: Vec<u64> = self
             .isle
@@ -382,6 +384,63 @@ impl State {
         }
         self.switch_desktop(&output, index);
         self.activate(id);
+        true
+    }
+
+    /// Moves `id` to desktop `index` of `output`'s row, leaving the view where it is; on
+    /// another output it keeps its place from the screen's top left, kept on screen.
+    pub fn place_on_desktop(&mut self, id: u64, output: &Output, index: usize) -> bool {
+        let Some(record) = self.isle.wm.get(id) else {
+            return false;
+        };
+        if matches!(record.mode, Mode::FullScreen { .. }) || record.parent.is_some() {
+            return false;
+        }
+        let identity = Isle::output_identity(output);
+        let row = self.isle.desktops.ensure_row(&identity);
+        let Some(target) = row.desktops.get(index).filter(|d| d.kind == Kind::Normal) else {
+            return false;
+        };
+        let target = target.id;
+        let from = self.isle.output_of(id);
+        if from.as_ref() != Some(output)
+            && let (Some(from), Some(loc)) = (from, self.isle.wm.get(id).map(|r| {
+                self.isle.space.element_location(&r.window).unwrap_or(r.rect.loc)
+            }))
+            && let (Some(was), Some(now)) = (
+                self.isle.space.output_geometry(&from),
+                self.isle.space.output_geometry(output),
+            )
+        {
+            let size = self.isle.frame(id).map_or((0, 0).into(), |f| f.size);
+            let rel = loc - was.loc;
+            let x = rel.x.clamp(0, (now.size.w - size.w).max(0));
+            let y = rel.y.clamp(0, (now.size.h - size.h).max(0));
+            self.isle.move_window(id, now.loc + Point::from((x, y)));
+        }
+        self.isle.wm.get_mut(id).unwrap().desktop = target;
+        for child in self.dialogs_of(id) {
+            self.isle.wm.get_mut(child).unwrap().desktop = target;
+        }
+        info!(id, index, "placed on a desktop");
+        self.after_switch(output);
+        true
+    }
+
+    /// Moves desktop `from` of `output`'s row to `to`, the view staying on the desktop it
+    /// shows.
+    pub fn reorder_desktop(&mut self, output: &Output, from: usize, to: usize) -> bool {
+        let identity = Isle::output_identity(output);
+        let row = self.isle.desktops.ensure_row(&identity);
+        if from >= row.desktops.len() || to >= row.desktops.len() || from == to {
+            return false;
+        }
+        let shown = row.desktops[row.current].id;
+        let desktop = row.desktops.remove(from);
+        row.desktops.insert(to, desktop);
+        row.current = row.desktops.iter().position(|d| d.id == shown).unwrap_or(0);
+        self.isle.desktops.save();
+        self.isle.notify(Event::DesktopsChanged);
         true
     }
 

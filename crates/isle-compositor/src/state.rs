@@ -262,6 +262,13 @@ pub struct Isle {
     pub dnd_icon: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     /// Cmd+Tab's switcher while its chord is held.
     pub switcher: Option<crate::switcher::SwitcherState>,
+    pub mission: Option<crate::mission::MissionState>,
+    pub mission_back: std::rc::Rc<isle_shell::mission::MissionSurface>,
+    pub mission_front: std::rc::Rc<isle_shell::mission::MissionSurface>,
+    /// The windows or desktops changed while Mission Control is open.
+    pub mission_dirty: std::cell::Cell<bool>,
+    /// Buttons pressed while Mission Control was open, whose releases are its own too.
+    pub mission_buttons: std::collections::HashSet<u32>,
     pub switcher_surface: std::rc::Rc<isle_shell::switcher::SwitcherSurface>,
     /// The windows changed since the switcher last read them.
     pub switcher_dirty: std::cell::Cell<bool>,
@@ -435,6 +442,10 @@ impl Isle {
         shell.register(bar.window_menu.clone());
         shell.register(bar.about.clone());
         shell.register(switcher_surface.clone());
+        let mission_back = isle_shell::mission::MissionSurface::back();
+        let mission_front = isle_shell::mission::MissionSurface::front();
+        shell.register(mission_back.clone());
+        shell.register(mission_front.clone());
         let lock = crate::lock::LockState::default();
         shell.register(lock.face.surface.clone());
         shell.register(lock.face.minimal.clone());
@@ -597,6 +608,11 @@ impl Isle {
             switcher: None,
             switcher_surface,
             switcher_dirty: Default::default(),
+            mission: None,
+            mission_back,
+            mission_front,
+            mission_dirty: Default::default(),
+            mission_buttons: Default::default(),
             #[cfg(feature = "test-hooks")]
             switcher_drawn_count: 0,
             #[cfg(feature = "test-hooks")]

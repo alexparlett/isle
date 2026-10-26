@@ -152,6 +152,9 @@ impl State {
         info!(?which, ?action, "hot corner");
         match action {
             Corner::None => {}
+            Corner::MissionControl => self.toggle_mission(false),
+            Corner::AppWindows => self.toggle_mission(true),
+            Corner::Desktop => {}
             Corner::NotificationCentre => {
                 if self.isle.centre_open() {
                     self.close_control_centre();

@@ -542,6 +542,10 @@ impl State {
                 self.isle.swallowed.insert(key);
                 return;
             }
+            KeyState::Pressed if self.mission_key_pressed(code) => {
+                self.isle.swallowed.insert(key);
+                return;
+            }
             KeyState::Pressed if self.isle.spotlight.open() && self.spotlight_key(code) => {
                 self.isle.swallowed.insert(key);
                 return;

@@ -70,6 +70,11 @@ impl State {
         if self.idle_activity() {
             return;
         }
+        if self.isle.mission.as_ref().is_some_and(|m| m.open()) && !self.isle.lock.locked {
+            let (x, y) = frame.axis;
+            self.mission_axis(if x.abs() > y.abs() { x } else { y });
+            return;
+        }
         let pointer = self.isle.seat.get_pointer().unwrap();
         pointer.axis(self, frame);
         pointer.frame(self);
@@ -118,6 +123,11 @@ impl State {
     fn move_pointer(&mut self, location: Point<f64, Logical>, time: InputTime) {
         if self.picking() {
             self.pick_pointer_to(location);
+            return;
+        }
+        if self.isle.mission.as_ref().is_some_and(|m| m.open()) && !self.isle.lock.locked {
+            self.mission_pointer_to(location);
+            self.isle.queue_pointer_redraw_all();
             return;
         }
         let under = self.isle.surface_under(location);
@@ -185,6 +195,21 @@ impl State {
             return;
         }
         if !self.isle.lock.locked && self.thumbnail_button(button, button_state) {
+            return;
+        }
+        // Mission Control's presses and their releases are its own.
+        if !self.isle.lock.locked
+            && (self.isle.mission.as_ref().is_some_and(|m| m.open())
+                || (button_state == ButtonState::Released && self.isle.mission_buttons.contains(&button)))
+        {
+            if button_state == ButtonState::Pressed {
+                self.isle.mission_buttons.insert(button);
+            } else {
+                self.isle.mission_buttons.remove(&button);
+            }
+            if self.isle.mission.as_ref().is_some_and(|m| m.open()) {
+                self.mission_button(button, button_state == ButtonState::Pressed);
+            }
             return;
         }
         if self.isle.toolbar.is_some() && self.toolbar_button(button, button_state) {

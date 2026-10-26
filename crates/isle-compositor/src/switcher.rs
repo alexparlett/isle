@@ -136,6 +136,7 @@ impl State {
             return;
         }
         self.set_prompt_aside();
+        self.finish_mission();
         self.close_session_dialog();
         self.close_force_quit();
         self.close_spotlight();

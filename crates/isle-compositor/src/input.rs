@@ -130,6 +130,9 @@ impl State {
             self.isle.queue_pointer_redraw_all();
             return;
         }
+        if self.divider_drag_to(location) {
+            return;
+        }
         let under = self.isle.surface_under(location);
         let pointer = self.isle.seat.get_pointer().unwrap();
         pointer.motion(
@@ -196,6 +199,22 @@ impl State {
         }
         if !self.isle.lock.locked && self.thumbnail_button(button, button_state) {
             return;
+        }
+        // Split View's divider takes its own presses and their releases.
+        if !self.isle.lock.locked && button == 0x110 && !self.mission_reads_input() {
+            match button_state {
+                ButtonState::Pressed
+                    if self.divider_press(self.isle.seat.get_pointer().unwrap().current_location()) =>
+                {
+                    self.isle.shortcut_buttons.insert(button);
+                    return;
+                }
+                ButtonState::Released if self.divider_release() => {
+                    self.isle.shortcut_buttons.remove(&button);
+                    return;
+                }
+                _ => {}
+            }
         }
         // A button bound as a shortcut runs it, and the window never sees the press.
         if button_state == ButtonState::Pressed

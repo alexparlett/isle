@@ -2,6 +2,23 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.9, Split View: a `Kind::Split` desktop of two panes beside
+  `FullScreen`, each pane's window full screen with its origin (so the
+  island and bar hide, the desktop sits right of its origin and goes when
+  it ends) but told it is tiled on every edge, not full screen. Entered from
+  the zoom menu's two new thumbnails, the Window menu's Full screen tile
+  (now enabled; disabled for a window too wide for half the screen),
+  `split-left` and `split-right`, `Desktops1.Split`, and a drop on a
+  full-screen desktop in Mission Control. The chooser is a Mission Control
+  mode (`Mode::Chooser`): the free half veiled, the origin's other windows
+  laid out in it, a misfit at 40% with "Doesn't fit in Split View" and
+  skipped by the keys, "No other windows fit" when none does; Escape puts
+  the first window back. The divider is the compositor's: 8 points and a
+  grip, dragged live and held to each pane's minimum, a double click back to
+  halves. Swap sides and Replace window… in both menus. A pane leaving full
+  screen or closing leaves the other full screen alone. Not built: dragging
+  a pane's bar onto the other to swap, and the divider's resize pointer.
+  Four headless tests and the panes' own.
 - P16 16.8, the routes: `mission-control`, `app-expose` and `show-desktop`
   built, with ⌃ and ⌘ on the Mission Control key as App Exposé and Show
   Desktop; `split-left` and `split-right` in the table, unbound. Mouse

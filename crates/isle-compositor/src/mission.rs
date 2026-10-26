@@ -189,6 +189,7 @@ impl Isle {
                     kind: match d.kind {
                         DesktopKind::Normal => DeskKind::Normal,
                         DesktopKind::FullScreen { window } => DeskKind::FullScreen(window),
+                        DesktopKind::Split { left, right, .. } => DeskKind::Split(left, right),
                     },
                     // Back to front, as the registry stacks them; one on every desktop is on
                     // the one in view.
@@ -243,16 +244,26 @@ impl Isle {
         let Some(geometry) = self.space.output_geometry(output) else {
             return;
         };
+        // Split View's chooser veils only the free half.
+        let (at, size) = match mission.model.mode() {
+            Mode::Chooser { left, first, .. } if self.output_of(*first).as_ref() == Some(output) => {
+                let half = (geometry.size.w - model::DIVIDER as i32) / 2;
+                let x = if *left { half + model::DIVIDER as i32 } else { 0 };
+                (Point::from((x, 0)), smithay::utils::Size::from((geometry.size.w - half - model::DIVIDER as i32, geometry.size.h)))
+            }
+            Mode::Chooser { .. } => return,
+            _ => (Point::from((0, 0)), geometry.size),
+        };
         let mut veils = mission.veil.borrow_mut();
         let buffer = veils.entry(output.name()).or_default();
         buffer.update(
-            geometry.size,
+            size,
             crate::wallpaper::premultiplied(self.shell.theme().tokens.colour_veil),
         );
         let scale = Scale::from(output.current_scale().fractional_scale());
         push(IsleElement::Solid(SolidColorRenderElement::from_buffer(
             buffer,
-            (0, 0),
+            at.to_physical_precise_round(scale),
             scale,
             mission.progress.value().clamp(0.0, 1.0) as f32,
             Kind::Unspecified,
@@ -338,7 +349,11 @@ impl Isle {
         }
         let expose_app = match mission.model.mode() {
             Mode::Expose(app) => Some(app.clone()),
-            Mode::MissionControl => None,
+            Mode::MissionControl | Mode::Chooser { .. } => None,
+        };
+        let first = match mission.model.mode() {
+            Mode::Chooser { first, .. } => Some(*first),
+            _ => None,
         };
         let skip = |id: u64| {
             mission
@@ -356,7 +371,15 @@ impl Isle {
             match layout.tile(id) {
                 Some(t) => {
                     if let Some(r) = real(id) {
-                        draw(id, r.lerp(&t.rect, p), 1.0, true, push);
+                        // A misfit is offered dimmed.
+                        let alpha = if mission.model.misfit(id) { 0.4 } else { 1.0 };
+                        draw(id, r.lerp(&t.rect, p), alpha, true, push);
+                    }
+                }
+                // The chooser's first window keeps its half.
+                None if first == Some(id) => {
+                    if let Some(r) = real(id) {
+                        draw(id, r, 1.0, false, push);
                     }
                 }
                 // App Exposé fades the other apps' windows in place as it opens.
@@ -736,6 +759,21 @@ impl State {
         for effect in effects {
             info!(?effect, "mission control");
             match effect {
+                Effect::Dismiss | Effect::Choose(_)
+                    if matches!(self.isle.mission.as_ref().map(|m| m.model.mode()), Some(Mode::Chooser { .. })) =>
+                {
+                    let Some(Mode::Chooser { first, .. }) = self.isle.mission.as_ref().map(|m| m.model.mode().clone()) else {
+                        continue;
+                    };
+                    self.finish_mission();
+                    match effect {
+                        Effect::Choose(other) => {
+                            self.choose_split(first, other);
+                        }
+                        _ => self.cancel_split(first),
+                    }
+                    return;
+                }
                 Effect::Dismiss => self.close_mission(After::Nothing),
                 Effect::Choose(id) => self.close_mission(After::Activate(id)),
                 Effect::Restore(id) => {
@@ -1098,7 +1136,7 @@ impl State {
                         .app_icon(app, 128)
                         .map(|p| p.to_string_lossy().into_owned()),
                 )),
-                Mode::MissionControl => None,
+                Mode::MissionControl | Mode::Chooser { .. } => None,
             };
             let clusters = layout
                 .clusters
@@ -1158,6 +1196,13 @@ impl State {
                     clusters,
                     solid,
                     looking: mission.model.looking(),
+                    chooser: matches!(mission.model.mode(), Mode::Chooser { .. }),
+                    misfits: layout
+                        .tiles
+                        .iter()
+                        .map(|t| t.window)
+                        .filter(|id| mission.model.misfit(*id))
+                        .collect(),
                 },
             ));
         }
@@ -1227,6 +1272,7 @@ impl State {
             "mode": match mission.model.mode() {
                 Mode::MissionControl => serde_json::Value::Null,
                 Mode::Expose(app) => serde_json::Value::String(app.clone()),
+                Mode::Chooser { first, .. } => serde_json::json!({ "chooser": first }),
             },
             "screens": screens,
             "selection": mission.model.selection().map(|t| format!("{t:?}")),

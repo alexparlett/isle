@@ -5,7 +5,7 @@ mod apps;
 mod bars;
 pub mod desktops;
 pub mod show_desktop;
-mod split;
+pub mod split;
 pub mod draw;
 pub mod motion;
 pub mod geometry;
@@ -705,7 +705,9 @@ impl State {
         self.isle.notify(Event::WindowsChanged);
         self.isle.pings.retain(|(_, i)| *i != id);
         self.finish_quits();
-        if let Some((desktop, origin)) = full_screen {
+        if let Some((desktop, origin)) = full_screen
+            && !self.split_lost(desktop, id)
+        {
             self.full_screen_window_gone(desktop, origin);
         }
         let keyboard = self.isle.seat.get_keyboard().unwrap();
@@ -737,7 +739,9 @@ impl State {
         self.close_alert(id);
         self.isle.queue_redraw_for_window(&window);
         self.isle.space.unmap_elem(&window);
-        if let Some((desktop, origin)) = full_screen {
+        if let Some((desktop, origin)) = full_screen
+            && !self.split_lost(desktop, id)
+        {
             self.full_screen_window_gone(desktop, origin);
         }
         self.isle.notify(Event::WindowsChanged);

@@ -333,6 +333,7 @@ impl State {
                 .find(|d| d.id == current)
                 .and_then(|d| match d.kind {
                     super::desktops::Kind::FullScreen { window } => Some(window),
+                    super::desktops::Kind::Split { left, right, .. } => Some(if left != 0 { left } else { right }),
                     _ => None,
                 });
         let desktop = match full_screen.and_then(|w| self.isle.wm.get(w)) {

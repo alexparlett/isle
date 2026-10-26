@@ -347,7 +347,7 @@ impl Isle {
         let full_screen = self.desktops.rows.get(&identity).is_some_and(|row| {
             row.desktops
                 .get(row.current)
-                .is_some_and(|d| matches!(d.kind, crate::wm::desktops::Kind::FullScreen { .. }))
+                .is_some_and(|d| matches!(d.kind, crate::wm::desktops::Kind::FullScreen { .. } | crate::wm::desktops::Kind::Split { .. }))
         });
         full_screen && !self.island.revealed.contains(&output.name())
     }

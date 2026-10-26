@@ -61,6 +61,9 @@ pub struct ScreenFrame {
     /// Solid and still: Game Mode or Reduce Transparency.
     pub solid: bool,
     pub looking: Option<u64>,
+    /// Split View's chooser is open: candidates too wide for the half, and no closing.
+    pub chooser: bool,
+    pub misfits: Vec<u64>,
 }
 
 impl ScreenFrame {
@@ -688,7 +691,9 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
             screen: 0,
             window: tile.window,
         };
-        let picked = frame.picked_any(&target);
+        let misfit = frame.misfits.contains(&tile.window);
+        let picked = frame.picked_any(&target) && !misfit;
+        let hovered_misfit = misfit && frame.hover.as_ref().is_some_and(|h| same(h, &target));
         let radius = (t.radius_window * (r.w / 1000.0)).max(t.radius_small);
         if picked {
             root = root.child(ring(theme, &r, radius));
@@ -706,8 +711,24 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
                             .left(r.centre().0 - w / 2.0)
                             .top(r.bottom() - 24.0),
                     )
+                    .opacity(if misfit { 0.4 } else { 1.0 })
                     .child(icon(theme, face, 48.0)),
             );
+        }
+        if hovered_misfit {
+            let y = r.bottom() + 24.0 + t.space_xs;
+            root = root.child(capsule(
+                theme,
+                r.centre().0,
+                y,
+                t.size_control,
+                r.w.max(t.size_menu_max),
+                frame.solid,
+                vec![
+                    text::line(theme, text::Style::Body, colour(t.colour_text_2), "Doesn't fit in Split View")
+                        .into_element(),
+                ],
+            ));
         }
         if picked && let Some(face) = face {
             let y = r.bottom()
@@ -733,6 +754,9 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
                     .into_element(),
                 ],
             ));
+        }
+        if frame.chooser {
+            continue;
         }
         if let Some(Badge::Close { window, .. }) = &frame.badge
             && *window == tile.window

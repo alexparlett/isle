@@ -387,6 +387,9 @@ impl Isle {
         push: &mut dyn FnMut(IsleElement),
     ) {
         let over_shell = self.floats_over_shell();
+        if under.is_none() {
+            self.divider_elements(output, push);
+        }
         // X11 windows left alone, front last, at the place they ask for, over windows.
         for window in self.unmanaged.iter().rev().filter(|_| under.is_none()) {
             let (Some(x11), Some(surface)) = (window.x11_surface(), {

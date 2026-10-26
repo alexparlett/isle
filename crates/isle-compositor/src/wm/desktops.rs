@@ -25,6 +25,13 @@ pub enum Kind {
     FullScreen {
         window: u64,
     },
+    /// Two windows sharing a screen, left then right, a pane 0 while it is chosen; the
+    /// divider at `fraction` of the width.
+    Split {
+        left: u64,
+        right: u64,
+        fraction: f64,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -49,7 +56,7 @@ pub struct Desktops {
 }
 
 impl Desktops {
-    fn new_desktop(&mut self, kind: Kind) -> Desktop {
+    pub(crate) fn new_desktop(&mut self, kind: Kind) -> Desktop {
         self.next_id += 1;
         Desktop {
             id: self.next_id,
@@ -212,6 +219,7 @@ impl Isle {
                 let (kind, window) = match desktop.kind {
                     Kind::Normal => ("desktop", 0),
                     Kind::FullScreen { window } => ("full-screen", window),
+                    Kind::Split { left, .. } => ("split", left),
                 };
                 out.push(isle_ipc::DesktopInfo {
                     output: output.name(),
@@ -482,7 +490,7 @@ impl State {
         }
     }
 
-    fn dialogs_of(&self, id: u64) -> Vec<u64> {
+    pub(crate) fn dialogs_of(&self, id: u64) -> Vec<u64> {
         let mut out = Vec::new();
         let mut take = vec![id];
         while let Some(next) = take.pop() {
@@ -601,6 +609,30 @@ impl State {
         let desktop = record.desktop;
         let viewing = self.isle.desktops.is_current(desktop);
         let output = self.isle.output_of_desktop(desktop);
+        // Out of a pair, the other stays full screen alone and this one goes home.
+        let paired = self.isle.desktops.locate(desktop).is_some_and(|(identity, index)| {
+            matches!(
+                self.isle.desktops.rows[identity].desktops[index].kind,
+                Kind::Split { left, right, .. } if left != 0 && right != 0
+            )
+        });
+        if paired {
+            self.split_lost(desktop, id);
+            let record = self.isle.wm.get_mut(id).unwrap();
+            record.mode = *previous;
+            record.desktop = origin;
+            for child in self.dialogs_of(id) {
+                self.isle.wm.get_mut(child).unwrap().desktop = origin;
+            }
+            self.send_pane_states(id, false);
+            self.send_mode_states(id);
+            self.set_frame(id, restore);
+            self.isle.sync_space();
+            if let Some(output) = output {
+                self.after_switch(&output);
+            }
+            return true;
+        }
         let target = self.remove_full_screen_desktop(desktop, origin);
         let record = self.isle.wm.get_mut(id).unwrap();
         record.mode = *previous;
@@ -681,7 +713,7 @@ impl State {
         }
     }
 
-    fn send_full_screen(&self, id: u64, on: bool) {
+    pub(crate) fn send_full_screen(&self, id: u64, on: bool) {
         if let Some(x11) = self.isle.wm.get(id).and_then(|r| r.x11()) {
             let _ = x11.set_fullscreen(on);
             return;

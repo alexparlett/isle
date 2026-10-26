@@ -127,6 +127,20 @@ pub enum Mode {
     MissionControl,
     /// App Exposé of one app.
     Expose(String),
+    /// Split View's chooser: `first` has one half, the candidates are offered in the other.
+    Chooser {
+        first: u64,
+        left: bool,
+        candidates: Vec<u64>,
+    },
+}
+
+/// The gap between Split View's panes, in points.
+pub const DIVIDER: f32 = 8.0;
+
+/// Whether `window` fits half of `screen` beside a divider.
+pub fn fits_half(screen: &Screen, window: &Window) -> bool {
+    window.min_width <= (screen.width - DIVIDER) / 2.0
 }
 
 /// Sizes from the tokens.
@@ -561,7 +575,42 @@ fn layout_screen(
     let shown =
         |w: &&Window| !w.minimised && !w.hidden && desk.is_some_and(|d| d.windows.contains(&w.id));
     let mut out = ScreenLayout::default();
+    if let Mode::Chooser {
+        first,
+        left,
+        candidates,
+    } = mode
+    {
+        // Only the screen the first window shares; the others show nothing of it.
+        if screen.window(*first).is_none() {
+            return out;
+        }
+        let half = (screen.width - DIVIDER) / 2.0;
+        let x = if *left { half + DIVIDER } else { 0.0 };
+        let area = Rect::new(
+            x + m.space_xxxl,
+            m.strip,
+            half - 2.0 * m.space_xxxl,
+            screen.height - m.strip - m.space_xxxl,
+        );
+        out.spread = area;
+        let items: Vec<(u64, Rect)> = candidates
+            .iter()
+            .filter_map(|id| screen.window(*id))
+            .map(|w| (w.id, w.rect))
+            .collect();
+        out.tiles = spread(&items, area, m.tile_reserve, m.space_xxl);
+        if !candidates
+            .iter()
+            .filter_map(|id| screen.window(*id))
+            .any(|w| fits_half(screen, w))
+        {
+            out.empty = Some(Rect::new(area.centre().0 - 60.0, area.centre().1 - 12.0, 120.0, 24.0));
+        }
+        return out;
+    }
     let (top, tray_out) = match mode {
+        Mode::Chooser { .. } => unreachable!(),
         Mode::MissionControl => {
             let b = bar(screen, m, scroll);
             let top = b.panel.bottom();
@@ -651,7 +700,7 @@ fn layout_screen(
         .filter(shown)
         .filter(|w| match mode {
             Mode::Expose(app) => &w.app == app,
-            Mode::MissionControl => true,
+            Mode::MissionControl | Mode::Chooser { .. } => true,
         })
         .collect();
     let stage = desk.is_some_and(|d| d.stage);
@@ -1022,6 +1071,15 @@ impl Mission {
             return Vec::new();
         };
         let mut out = Vec::new();
+        if matches!(self.mode, Mode::Chooser { .. }) {
+            // The keys skip what does not fit.
+            for t in &l.tiles {
+                if !self.misfit(t.window) {
+                    out.push((Target::Tile { screen, window: t.window }, t.rect));
+                }
+            }
+            return out;
+        }
         if let Some(bar) = &l.bar {
             for item in &bar.items {
                 let t = match item.desk {
@@ -1157,7 +1215,22 @@ impl Mission {
     }
 
     /// What choosing `t` does.
+    /// A candidate too wide for Split View's half: shown, never chosen.
+    pub fn misfit(&self, window: u64) -> bool {
+        matches!(self.mode, Mode::Chooser { .. })
+            && self
+                .screens
+                .iter()
+                .find_map(|s| s.window(window).map(|w| !fits_half(s, w)))
+                .unwrap_or(false)
+    }
+
     fn choose(&self, t: &Target) -> Vec<Effect> {
+        if let Target::Tile { window, .. } = t
+            && self.misfit(*window)
+        {
+            return Vec::new();
+        }
         match t {
             Target::Tile { window, .. } => vec![Effect::Choose(*window)],
             Target::Tray { window, .. } => vec![Effect::Restore(*window)],
@@ -1205,7 +1278,7 @@ impl Mission {
             Key::Escape => vec![Effect::Dismiss],
             Key::MissionControl => match self.mode {
                 Mode::Expose(_) => vec![Effect::Overview],
-                Mode::MissionControl => vec![Effect::Dismiss],
+                Mode::MissionControl | Mode::Chooser { .. } => vec![Effect::Dismiss],
             },
             Key::Left | Key::Right | Key::Up | Key::Down if first => Vec::new(),
             Key::Left => {
@@ -1241,7 +1314,7 @@ impl Mission {
                         (None, _) => vec![Effect::Expose(self.apps[0].clone())],
                     }
                 }
-                Mode::MissionControl => {
+                Mode::MissionControl | Mode::Chooser { .. } => {
                     let t = self.cycle(key == Key::Tab);
                     select(self, t)
                 }
@@ -2181,6 +2254,33 @@ mod tests {
         m.set_mode(Mode::Expose("kitty".into()));
         assert_eq!(m.key(Key::Tab), vec![Effect::Expose("firefox".into())]);
         assert_eq!(m.key(Key::MissionControl), vec![Effect::Overview]);
+    }
+
+    #[test]
+    fn the_chooser_offers_the_free_half_and_skips_misfits() {
+        let mut s = ultrawide(seven());
+        s.windows[0].rect = Rect::new(0.0, 0.0, 1716.0, 1440.0);
+        s.windows[6].min_width = 2000.0;
+        let mut m = open(vec![s]);
+        m.set_mode(Mode::Chooser {
+            first: 1,
+            left: true,
+            candidates: vec![2, 3, 7],
+        });
+        let l = &m.layouts()[0];
+        assert!(l.bar.is_none() && l.tray.is_none());
+        assert_eq!(l.tiles.len(), 3);
+        assert!(l.tiles.iter().all(|t| t.rect.x >= 1724.0));
+        assert!(m.misfit(7) && !m.misfit(2));
+        m.key(Key::Right);
+        for _ in 0..4 {
+            m.key(Key::Tab);
+            assert!(!matches!(m.selection(), Some(Target::Tile { window: 7, .. })));
+        }
+        let r = m.layouts()[0].tile(7).unwrap().rect;
+        let (x, y) = r.centre();
+        m.press(0, x, y, BUTTON_LEFT);
+        assert_eq!(m.release(0, x, y, BUTTON_LEFT), vec![]);
     }
 
     #[test]

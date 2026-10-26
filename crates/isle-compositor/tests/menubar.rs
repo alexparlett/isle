@@ -263,7 +263,16 @@ async fn a_submenu_with_nothing_enabled_is_disabled() {
     client.wait_for("keyboard-enter").await;
     let b = bar(&isle).await;
     let window = title(&b, "Window").unwrap();
-    assert_eq!(item(window, "Full screen tile").unwrap()["enabled"], false);
+    assert_eq!(item(window, "Full screen tile").unwrap()["enabled"], true);
+    // Too wide for half the screen: neither side is offered.
+    client.send("min 1200 300");
+    wait_until(|| async {
+        let b = bar(&isle).await;
+        title(&b, "Window").is_some_and(|w| item(w, "Full screen tile").is_some_and(|i| i["enabled"] == false))
+    })
+    .await;
+    let b = bar(&isle).await;
+    let window = title(&b, "Window").unwrap();
     assert_eq!(item(window, "Move and resize").unwrap()["enabled"], true);
 }
 

@@ -19,6 +19,12 @@ pub enum ZoneAction {
     Choose(String),
     Restore,
     FullScreen,
+    /// Split View with this window on the left of the screen, or the right.
+    Split { left: bool },
+    /// In Split View: the panes change sides.
+    Swap,
+    /// In Split View: this pane is chosen again.
+    Replace,
     /// To another display, by its place in the menu's list.
     Display(usize),
 }
@@ -42,6 +48,8 @@ pub struct ZoneModel {
     pub selected: Option<String>,
     pub can_restore: bool,
     pub full_screen: bool,
+    /// The window is a pane of Split View.
+    pub split_pane: bool,
     /// The other displays' names.
     pub displays: Vec<String>,
     /// Opened by a chord: it takes the keyboard.
@@ -213,6 +221,9 @@ pub fn menu_size(model: &ZoneModel, theme: &Theme) -> SSize<i32, Logical> {
         h += row(theme);
     }
     h += t.space_m + label_line(theme) + t.space_xs + t.size_zone_thumbnail;
+    if model.split_pane {
+        h += 2.0 * row(theme);
+    }
     h += model.displays.len() as f32 * row(theme);
     h += pad;
     ((grid.width + 2. * pad).ceil() as i32, h.ceil() as i32).into()
@@ -528,20 +539,56 @@ impl Component for Zones {
                     .child(rect().height(Size::px(t.space_m - t.space_xs)))
                     .child(section("Full screen"))
                     .child({
-                        let actions = actions.clone();
+                        // Full screen, then Split View's two sides, as macOS's three
+                        // thumbnails.
                         let tw = (t.size_zone_thumbnail * model.aspect).round();
-                        rect()
-                            .width(Size::px(tw))
-                            .height(Size::px(t.size_zone_thumbnail))
-                            .corner_radius(t.radius_control)
-                            .background(isle_ui::colour(t.colour_fill_strong))
-                            .a11y_role(AccessibilityRole::Button)
-                            .a11y_alt(if model.full_screen {
-                                "Exit Full Screen"
-                            } else {
-                                "Enter Full Screen"
-                            })
-                            .on_press(move |_| actions.send(Action::Zone(ZoneAction::FullScreen)))
+                        let thumb = |alt: &'static str, action: ZoneAction, half: Option<bool>| {
+                            let actions = actions.clone();
+                            let w = (tw / 2.0 - 1.0).floor();
+                            rect()
+                                .width(Size::px(tw))
+                                .height(Size::px(t.size_zone_thumbnail))
+                                .corner_radius(t.radius_control)
+                                .overflow(Overflow::Clip)
+                                .background(isle_ui::colour(match half {
+                                    None => t.colour_fill_strong,
+                                    Some(_) => t.colour_fill,
+                                }))
+                                .direction(Direction::Horizontal)
+                                .main_align(match half {
+                                    Some(false) => Alignment::End,
+                                    _ => Alignment::Start,
+                                })
+                                .maybe(half.is_some(), |el| {
+                                    el.child(
+                                        rect()
+                                            .width(Size::px(w))
+                                            .height(Size::fill())
+                                            .background(isle_ui::colour(t.colour_fill_strong)),
+                                    )
+                                })
+                                .a11y_role(AccessibilityRole::Button)
+                                .a11y_alt(alt)
+                                .on_press(move |_| actions.send(Action::Zone(action.clone())))
+                        };
+                        let mut row = rect()
+                            .direction(Direction::Horizontal)
+                            .spacing(t.space_s)
+                            .child(thumb(
+                                if model.full_screen { "Exit Full Screen" } else { "Enter Full Screen" },
+                                ZoneAction::FullScreen,
+                                None,
+                            ));
+                        if !model.full_screen {
+                            row = row
+                                .child(thumb("Left of screen", ZoneAction::Split { left: true }, Some(true)))
+                                .child(thumb("Right of screen", ZoneAction::Split { left: false }, Some(false)));
+                        }
+                        row
+                    })
+                    .maybe(model.split_pane, |el| {
+                        el.child(menu_row("Swap sides".into(), ZoneAction::Swap))
+                            .child(menu_row("Replace window…".into(), ZoneAction::Replace))
                     })
                     .children(model.displays.iter().enumerate().map(|(i, name)| {
                         menu_row(format!("Move to {name}"), ZoneAction::Display(i)).into_element()

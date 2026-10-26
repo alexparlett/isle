@@ -65,6 +65,9 @@ impl Isle {
             current,
             selected: None,
             full_screen: matches!(record.map(|r| &r.mode), Some(Mode::FullScreen { .. })),
+            split_pane: self
+                .split_shown(output)
+                .is_some_and(|(_, l, r, _)| l != 0 && r != 0 && (l == id || r == id)),
             displays: self
                 .space
                 .outputs()
@@ -170,6 +173,20 @@ impl State {
             ZoneAction::FullScreen => {
                 self.close_zoom_menu();
                 self.toggle_full_screen(id);
+            }
+            ZoneAction::Split { left } => {
+                self.close_zoom_menu();
+                self.begin_split(id, left);
+            }
+            ZoneAction::Swap => {
+                self.close_zoom_menu();
+                if let Some(output) = self.isle.output_of(id) {
+                    self.swap_split(&output);
+                }
+            }
+            ZoneAction::Replace => {
+                self.close_zoom_menu();
+                self.replace_pane(id);
             }
             ZoneAction::Display(index) => {
                 self.close_zoom_menu();

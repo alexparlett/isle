@@ -57,6 +57,10 @@ pub enum WindowCommand {
     Tile(Zone),
     Restore,
     FullScreen,
+    /// Split View on the left of the screen, or the right.
+    Split(bool),
+    Swap,
+    Replace,
     ToDesktop(usize),
     NewDesktop,
     ToDisplay(i32),
@@ -718,13 +722,23 @@ impl State {
             chord(self, "restore"),
         ));
         out.push(Row::sub("Move and resize", sub));
+        // A window too wide for half the screen is not offered Split View.
+        let fits = !full_screen
+            && self.isle.output_of(id).and_then(|o| self.isle.space.output_geometry(&o)).is_some_and(|g| {
+                self.isle.size_bounds(id).0.w <= (g.size.w - isle_shell::mission::model::DIVIDER as i32) / 2
+            });
         out.push(Row::sub(
             "Full screen tile",
             vec![
-                Row::new("Left of screen", None, None),
-                Row::new("Right of screen", None, None),
+                Row::new("Left of screen", fits.then(|| w(WindowCommand::Split(true))).flatten(), chord(self, "split-left")),
+                Row::new("Right of screen", fits.then(|| w(WindowCommand::Split(false))).flatten(), chord(self, "split-right")),
             ],
         ));
+        let pane = self.isle.output_of(id).and_then(|o| self.isle.split_shown(&o)).is_some_and(|(_, l, r, _)| l != 0 && r != 0 && (l == id || r == id));
+        if pane {
+            out.push(Row::new("Swap sides", w(WindowCommand::Swap), None));
+            out.push(Row::new("Replace window…", w(WindowCommand::Replace), None));
+        }
         out.push(Row::new(
             if full_screen {
                 "Exit Full Screen"
@@ -1363,6 +1377,15 @@ impl State {
                 self.restore_box(id);
             }
             WindowCommand::FullScreen => self.toggle_full_screen(id),
+            WindowCommand::Split(left) => {
+                self.begin_split(id, left);
+            }
+            WindowCommand::Swap => {
+                if let Some(output) = self.isle.output_of(id) {
+                    self.swap_split(&output);
+                }
+            }
+            WindowCommand::Replace => self.replace_pane(id),
             WindowCommand::ToDesktop(index) => {
                 self.move_to_desktop(id, index);
             }

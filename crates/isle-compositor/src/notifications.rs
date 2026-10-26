@@ -243,7 +243,12 @@ impl Isle {
         self.desktops.rows.get(&identity).is_some_and(|row| {
             row.desktops
                 .get(row.current)
-                .is_some_and(|d| matches!(d.kind, crate::wm::desktops::Kind::FullScreen { .. }))
+                .is_some_and(|d| {
+                    matches!(
+                        d.kind,
+                        crate::wm::desktops::Kind::FullScreen { .. } | crate::wm::desktops::Kind::Split { .. }
+                    )
+                })
         })
     }
 

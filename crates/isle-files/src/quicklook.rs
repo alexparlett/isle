@@ -177,7 +177,7 @@ impl App for QuickLookWindow {
         let facts = rect()
             .expanded()
             .center()
-            .child(Preview { items: entry.read().clone().into_iter().collect(), folder: None, width: 360., pane: false })
+            .child(Preview { items: entry.read().clone().into_iter().collect(), folder: None, width: 360., pane: false, action: None })
             .into_element();
         let body = match path {
             Some(_) if *indexing.read() => IndexSheet {

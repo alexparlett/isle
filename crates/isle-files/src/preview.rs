@@ -19,6 +19,8 @@ pub struct Preview {
     pub width: f32,
     /// Drawn as the window's pane, edged and filled; bare in Quick Look.
     pub pane: bool,
+    /// The button under one item's facts: Markup for an image, Put Back in the Trash.
+    pub action: Option<(&'static str, EventHandler<()>)>,
 }
 
 /// A folder's size and count, counted on a thread of its own.
@@ -156,6 +158,13 @@ impl Component for Preview {
                     .child(fact(&theme, "Modified", format::date(entry.modified, &now)))
                     .child(fact(&theme, "Last opened", format::date(entry.accessed, &now)))
                     .maybe_child(entry.is_dir().then(|| fact(&theme, "Size", size)))
+                    .maybe_child(self.action.clone().map(|(label, on_press)| {
+                        rect()
+                            .width(Size::fill())
+                            .padding((t.space_l, 0., 0., 0.))
+                            .center()
+                            .child(isle_ui::Button::new(label).on_press(on_press))
+                    }))
             }
             (None, n) => {
                 let total: u64 = self.items.iter().filter(|e| !e.is_dir()).map(|e| e.size).sum();

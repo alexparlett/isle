@@ -994,11 +994,26 @@ impl App for FilesWindow {
             let size = items.iter().filter(|e| !e.is_dir()).map(|e| e.size).sum::<u64>();
             (items, size)
         };
+        let action = match selected_items.as_slice() {
+            [_] if place == Place::Trash => Some(("Put Back", EventHandler::new(move |_| {
+                let mut commands = desktop.commands;
+                commands.write().push("put-back".into());
+            }))),
+            [one] if one.mime.as_deref().is_some_and(crate::markup::editable) => {
+                let (shared, path) = (shared.clone(), one.path.clone());
+                Some(("Markup", EventHandler::new(move |_| {
+                    let over = shared.app().export(key);
+                    shared.show_quick_look_in(vec![path.clone()], 0, crate::quicklook::Caller::Window(key), over, "markup");
+                })))
+            }
+            _ => None,
+        };
         let pane = (*preview.read() && shown.view != View::Columns).then(|| Preview {
             items: selected_items.clone(),
             folder: tab.read().here.clone(),
             width: t.size_inspector,
             pane: true,
+            action,
         });
         let on_act = {
             let (live, set_shown, shared) = (live.clone(), set_shown_here.clone(), shared.clone());
@@ -1194,7 +1209,13 @@ impl App for FilesWindow {
                         query,
                         find,
                         searching,
-                        glyph: searching.then_some("magnifying-glass"),
+                        glyph: match place {
+                            _ if searching => Some("magnifying-glass"),
+                            Place::Trash => Some("trash"),
+                            Place::Recents => Some("clock-counter-clockwise"),
+                            _ => None,
+                        },
+                        proxy: tab.read().here.clone(),
                         on_act: EventHandler::new(on_act),
                     })
                     .maybe_child((tabs.read().len() > 1).then(|| {

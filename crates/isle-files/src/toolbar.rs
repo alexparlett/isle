@@ -128,6 +128,8 @@ pub struct Toolbar {
     pub searching: bool,
     /// The title's glyph: the magnifying glass for a search.
     pub glyph: Option<&'static str>,
+    /// The folder shown, whose icon is the title's proxy when there is no glyph.
+    pub proxy: Option<isle_fs::Entry>,
     pub on_act: EventHandler<Act>,
 }
 
@@ -353,7 +355,16 @@ impl Component for Toolbar {
                             .horizontal()
                             .cross_align(Alignment::Center)
                             .spacing(t.space_xs)
-                            .maybe_child(self.glyph.map(|g| Glyph::new(g, t.size_glyph, colour(t.colour_text_2))))
+                            .maybe_child(match (self.glyph, &self.proxy) {
+                                (Some(g), _) => Some(Glyph::new(g, t.size_glyph, colour(t.colour_text_2)).into_element()),
+                                (None, Some(folder)) => Some(crate::list_view::icon(
+                                    folder,
+                                    theme.appearance.mode == isle_tokens::Mode::Dark,
+                                    t.size_app_icon_small,
+                                    t.colour_text_2,
+                                )),
+                                (None, None) => None,
+                            })
                             .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), self.title.clone())),
                     )
                     .child(text::line(

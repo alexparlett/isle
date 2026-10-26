@@ -236,13 +236,16 @@ const PAGE_WIDTH: f32 = 720.;
 
 impl Component for Pages {
     fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
         let data = (self.path.clone(), self.count);
-        VirtualScrollView::new_with_data(data, |item: VirtualItem, (path, _): &(PathBuf, usize)| {
+        let pages = VirtualScrollView::new_with_data(data, |item: VirtualItem, (path, _): &(PathBuf, usize)| {
             Page { path: path.clone(), index: item.index }.into_element()
         })
         .length(self.count)
         .item_size(PAGE_WIDTH * 1.32)
-        .expanded()
+        .expanded();
+        // White pages stand out on the sunken ground.
+        rect().expanded().background(colour(theme.tokens.colour_window_sunken)).child(pages)
     }
 }
 

@@ -487,6 +487,9 @@ impl Component for OneItem {
                         colour(t.colour_text_2),
                         "Change All… opens every document like this one in it.".to_owned(),
                     )
+                    .width(Size::fill())
+                    .max_lines(None)
+                    .text_overflow(TextOverflow::Clip)
                     .into_element(),
                     isle_ui::Button::new("Change All…")
                         .small()

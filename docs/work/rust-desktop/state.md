@@ -506,3 +506,14 @@
   folder step, and the package. Measures and the VM in
   `docs/research/rust-desktop/p15-files.md`. Next: the host run on the
   installed package, then P16.
+- P16 planned in `p16-mission-control.md` (2026-10-26), reviewed: the user
+  took every recommendation, then deferred trackpad gestures, the Trackpad
+  pane and pointer-gestures to a packet of their own (the host has no
+  trackpad). One packet with Stage Manager last and cuttable; the switch
+  keeps its slide at the token's distance; Mission Control's model and
+  keys the compositor's, its windows drawn in the compositor's pass
+  between two shell surfaces (B54 revised); Show
+  Desktop by real moves; Split View as a full-screen desktop of two panes;
+  B8's layout trait with Stage; the corner dwell at 250 ms (B99 revised); a
+  rows board at 16.1. Research in
+  `docs/research/rust-desktop/mission-control-2026.md`. Phases 16.0–16.14.

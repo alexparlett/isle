@@ -27,4 +27,6 @@ one at a time.
 - `p13-settings.md`: P13, Settings, core; its gates in `p13/`.
 - `p14a-session.md`: P14a, installed beside Hyprland.
 - `p15-files.md`: P15, Files.
+- `p16-mission-control.md`: P16, Mission Control, gestures, Split View and
+  Stage Manager.
 - Evidence: `docs/research/rust-desktop/`.

@@ -209,6 +209,17 @@ Trackpad gestures and Settings' Trackpad pane moved to the Trackpad packet
 at P16's review, since the host has no trackpad. Intent: shell.md,
 compositor.md.
 
+**P15b · Files, finished.** Planned and reviewed 2026-10-26:
+`p15b-files.md`. P15 was called built with Files crashing, multi-select
+and Columns' Back broken and no context menus; an audit against P1's
+sheets and a VM pass with real input found about 110 gaps. P15b builds
+what the sheets already say, in four tiers: breaking bugs and data loss;
+selection, keys, tabs, Go to Folder and context menus; the sidebar, views,
+panels and jobs; the low items, cuttable to P20. Proved by real input in
+the VM and a day of use on the host, closed by a walk of the sheet's
+Keyboard, Pointer, Acting, States and Copy sections. Before P17. Intent:
+apps.md.
+
 **P17 · Widgets.** Notification Centre moved to P8 at its review. Widgets
 where P1 places them, with the grid editor and the gallery (B24); the provider contract (B14), sandboxed with granted
 permissions (B28); the isle-widgets registry as providers. Intent:

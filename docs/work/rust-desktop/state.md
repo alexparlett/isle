@@ -529,3 +529,13 @@
   for a trackpad (B117), a packet after cut-over. Release: both surfaces
   under 2 ms p95 with twenty live windows. Next: the host run
   (`docs/research/rust-desktop/p16-mission-control.md`), then P17.
+- P15b planned in `p15b-files.md` (2026-10-26), reviewed: the user took
+  every recommendation, the context-menu board included. P15
+  left Files crashing, with multi-select, Columns' Back and Show Hidden
+  Files broken and no context menus; an audit and a VM pass with real
+  input found about 110 gaps against P1's sheets (the `Files spec gaps`
+  artifact). Four tiers, the last cuttable; context menus in the window
+  behind a board gate (`Files context menus`); every tab's State owned by
+  the window; modifiers on Freya's mouse events in the user's fork;
+  `window.rs` split first; closed by a walk of the sheet. Phases
+  15b.0–15b.14. Next: 15b.1, then the rest of P15b before P17.

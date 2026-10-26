@@ -2,6 +2,13 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.6, App Exposé and the tray: ⌃↓ and ⌃↓ from Mission Control, Tab
+  to the next app by recency, the set-apart row of the app's minimised,
+  hidden and other-desktop windows on the focused screen, the tray's
+  Minimised then Hidden groups with live thumbnails (a hidden app's at half
+  strength over a well), restoring from either by a click or Return.
+  Found and fixed: icons, rings and badges sat under the clipped images,
+  which draw in a layer of their own. Ten headless tests.
 - P16 16.5, acting in Mission Control: choose, close (W, Delete, the
   badge, a middle click), Space to look at the real place, the window menu
   opened by a tile and taking the input while it is up, drags to a

@@ -231,6 +231,9 @@ impl Component for Screen {
     }
 }
 
+/// Over the miniatures and thumbnails, which draw in a layer of their own for their clip.
+const ABOVE: freya::prelude::Layer = freya::prelude::Layer::Relative(2);
+
 /// A rect placed at `r` in the screen.
 fn at(r: &Rect) -> freya::prelude::Rect {
     rect()
@@ -338,6 +341,7 @@ fn capsule(
 fn badge(theme: &Theme, x: f32, y: f32, glyph: &str) -> freya::prelude::Rect {
     let t = &theme.tokens;
     rect()
+        .layer(ABOVE)
         .position(Position::new_absolute().left(x - 10.0).top(y - 10.0))
         .width(Size::px(20.0))
         .height(Size::px(20.0))
@@ -438,6 +442,7 @@ fn back(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> E
                     if face.current {
                         p = p.child(
                             at(&grown(&m, t.stroke_focus_offset + t.stroke_found))
+                                .layer(ABOVE)
                                 .corner_radius(
                                     t.radius_control + t.stroke_focus_offset + t.stroke_found,
                                 )
@@ -628,6 +633,7 @@ fn back(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> E
                 }
                 p = p.child(
                     rect()
+                        .layer(ABOVE)
                         .position(
                             Position::new_absolute()
                                 .left(s.x + s.w / 2.0 - 16.0)
@@ -646,12 +652,15 @@ fn back(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> E
 fn ring(theme: &Theme, r: &Rect, radius: f32) -> freya::prelude::Rect {
     let t = &theme.tokens;
     let by = t.stroke_focus_offset + t.stroke_focus_ring;
-    at(&grown(r, by)).corner_radius(radius + by).border(
-        Border::new()
-            .fill(colour(t.colour_accent))
-            .width(t.stroke_focus_ring)
-            .alignment(BorderAlignment::Inner),
-    )
+    at(&grown(r, by))
+        .layer(ABOVE)
+        .corner_radius(radius + by)
+        .border(
+            Border::new()
+                .fill(colour(t.colour_accent))
+                .width(t.stroke_focus_ring)
+                .alignment(BorderAlignment::Inner),
+        )
 }
 
 /// Targets compared without their screen: each screen's frame holds only its own.

@@ -316,3 +316,97 @@ async fn rearranging_puts_the_desktop_left_after_the_one_activated() {
     })
     .await;
 }
+
+const TAB: u32 = 15;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_tray_holds_minimised_then_hidden_windows_and_a_click_restores() {
+    let mut isle = Isle::start("mission-tray").await;
+    let _a = isle.client("isle.test.A", "ff0000");
+    let a = isle.wait_for_window("isle.test.A").await.id;
+    let _b = isle.client("isle.test.B", "00ff00");
+    isle.wait_for_window("isle.test.B").await;
+    let _c = isle.client("isle.test.C", "0000ff");
+    let c = isle.wait_for_window("isle.test.C").await.id;
+    let windows = isle.windows_proxy().await;
+    assert!(windows.minimise(a).await.unwrap());
+    assert!(windows.set_app_hidden("isle.test.C", true).await.unwrap());
+
+    let m = open(&isle).await;
+    let tray = m["screens"][0]["tray"].as_array().unwrap().clone();
+    assert_eq!(tray.len(), 2, "{m}");
+    assert_eq!(tray[0]["head"], "Minimised");
+    assert_eq!(tray[0]["windows"][0], a);
+    assert_eq!(tray[1]["head"], "Hidden");
+    assert_eq!(tray[1]["windows"][0], c);
+    assert_eq!(m["screens"][0]["tiles"].as_array().unwrap().len(), 1);
+    wait_until(|| async { mission(&isle).await["thumbs"] == 2 }).await;
+    // The minimised window's thumbnail is drawn in its slot.
+    let slot = &tray[0]["slots"][0];
+    let shot = isle.shot("HEADLESS-1", "tray").await;
+    let mid = shot.at(
+        (slot[0].as_f64().unwrap() + slot[2].as_f64().unwrap() / 2.0) as usize,
+        (slot[1].as_f64().unwrap() + slot[3].as_f64().unwrap() / 2.0) as usize,
+    );
+    assert!(mid[0] > 200 && mid[1] < 60, "the red thumbnail: {mid:?}");
+
+    let (x, y) = (
+        slot[0].as_f64().unwrap() + slot[2].as_f64().unwrap() / 2.0,
+        slot[1].as_f64().unwrap() + slot[3].as_f64().unwrap() / 2.0,
+    );
+    let test = isle.test().await;
+    test.pointer_to(x, y).await.unwrap();
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { mission(&isle).await.is_null() }).await;
+    let w = isle.window(a).await;
+    assert!(!w.minimised && w.focused);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn app_expose_sets_apart_other_desktops_and_tab_moves_to_the_next_app() {
+    let mut isle = Isle::start("mission-expose-row").await;
+    let _o = isle.client("isle.test.Other", "00ff00");
+    isle.wait_for_window("isle.test.Other").await;
+    let _k1 = isle.client("isle.test.K", "ff0000");
+    isle.wait_for_window("isle.test.K").await;
+    let _k2 = isle.client("isle.test.K", "aa0000");
+    let ks = || async {
+        isle.windows()
+            .await
+            .into_iter()
+            .filter(|w| w.app == "isle.test.K")
+            .map(|w| w.id)
+            .collect::<Vec<_>>()
+    };
+    wait_until(|| async { ks().await.len() == 2 }).await;
+    let (first, second) = {
+        let k = ks().await;
+        (k[0], k[1])
+    };
+    let proxy = isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    proxy.add("").await.unwrap();
+    assert!(proxy.move_window(second, 2).await.unwrap());
+    proxy.switch("", 1).await.unwrap();
+    isle.windows_proxy().await.focus(first).await.unwrap();
+    wait_until(|| async { isle.window(first).await.focused }).await;
+
+    isle.chord(&[CTRL, DOWN]).await;
+    wait_until(|| async { mission(&isle).await["mode"] == "isle.test.K" }).await;
+    let m = mission(&isle).await;
+    let tiles: Vec<u64> = m["screens"][0]["tiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["window"].as_u64().unwrap())
+        .collect();
+    assert_eq!(tiles, vec![first]);
+    let row = m["screens"][0]["tray"].as_array().unwrap();
+    assert_eq!(row[0]["head"], "Desktop(2)");
+    assert_eq!(row[0]["windows"][0], second);
+
+    isle.chord(&[TAB]).await;
+    wait_until(|| async { mission(&isle).await["mode"] == "isle.test.Other" }).await;
+}

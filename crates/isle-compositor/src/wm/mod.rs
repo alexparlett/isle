@@ -426,9 +426,9 @@ impl Isle {
             for window in &order {
                 self.space.raise_element(window, false);
             }
-            self.restack_x11();
             changed = true;
         }
+        self.restack_x11();
         self.sync_bars();
         if changed {
             self.queue_redraw_all();

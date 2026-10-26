@@ -103,6 +103,8 @@ pub struct Isle {
     pub xwm: Option<smithay::xwayland::X11Wm>,
     /// The X display Xwayland serves, kept across its restarts.
     pub xdisplay: Option<u32>,
+    /// The X11 windows by id, bottom to top, as X11 last stacked them.
+    pub x11_order: Vec<u64>,
     /// Xwayland is started and the supervisor told Isle is up: both wait for the GPU.
     pub clients_started: bool,
     /// Why the main loop was stopped, when Isle cannot go on and the supervisor should
@@ -507,6 +509,7 @@ impl Isle {
             wm: Default::default(),
             xwm: None,
             xdisplay: None,
+            x11_order: Vec::new(),
             clients_started: false,
             exit_error: None,
             xwayland_deaths: 0,

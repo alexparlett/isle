@@ -635,3 +635,18 @@ async fn an_svg_icon_fills_its_plate_and_a_hidden_apps_is_dimmed() {
         "the hidden app's icon dimmed: {hidden:?}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cmd_q_quits_a_full_screen_game() {
+    let mut isle = Isle::start("quitgame").await;
+    let game = isle.client("steam_app_1", "3366ff");
+    let id = isle.wait_for_window("steam_app_1").await.id;
+    wait_until(|| async { isle.window(id).await.game }).await;
+    game.send("fullscreen");
+    wait_until(|| async { isle.window(id).await.mode == "fullscreen" }).await;
+    wait_until(|| async { isle.window(id).await.focused }).await;
+    game.clear();
+    isle.chord(&[CMD, Q]).await;
+    game.wait_for("closed").await;
+    assert!(!game.printed(&format!("key {Q} pressed")), "the chord is Isle's, not the game's");
+}

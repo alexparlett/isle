@@ -341,3 +341,46 @@ async fn quitting_steam_asks_steam_rather_than_closing_its_window() {
     assert!(!client.printed("closed"));
     assert!(isle.log().contains("quit through Steam"));
 }
+
+/// Cmd+Tab from a full-screen game holding the pointer, as Wine's ClipCursor does, to Steam:
+/// the game is told it lost focus and lets the pointer go, and Steam takes the click.
+#[tokio::test(flavor = "multi_thread")]
+async fn cmd_tab_from_a_game_holding_the_pointer_leaves_steam_usable() {
+    const CMD: u32 = 125;
+    const TAB: u32 = 15;
+    const LEFT: u32 = 0x110;
+    let mut isle = Isle::start("game-grab").await;
+    let steam = isle
+        .x11_client(&["--class", "steam", "--title", "Steam", "--colour", "0000ff", "--size", "800x600"])
+        .await;
+    let steam_window = window(&isle, "steam").await;
+    let game = isle
+        .x11_client(&[
+            "--class", "steam_app_9", "--title", "Game", "--steam-game", "9", "--size", "1920x1080",
+            "--no-decorations", "--ungrab-on-focus-out",
+        ])
+        .await;
+    let game_window = window(&isle, "steam_app_9").await;
+    wait_until(|| async { isle.window(game_window.id).await.game }).await;
+    game.send("fullscreen");
+    wait_until(|| async { isle.window(game_window.id).await.mode == "fullscreen" }).await;
+    wait_until(|| async { isle.window(game_window.id).await.focused }).await;
+    game.send("grab");
+    game.wait_for("grab held").await;
+
+    steam.clear();
+    isle.chord(&[CMD, TAB]).await;
+    wait_until(|| async { isle.window(steam_window.id).await.focused }).await;
+    game.wait_for("focus-out").await;
+    steam.wait_for("focus-in").await;
+
+    let s = isle.window(steam_window.id).await;
+    let test = isle.test().await;
+    test.pointer_to((s.x + s.width / 2) as f64, (s.y + s.height / 2) as f64)
+        .await
+        .unwrap();
+    test.button(LEFT, true).await.unwrap();
+    test.button(LEFT, false).await.unwrap();
+    // Xwayland gives the click to Steam only if X11 stacks it over the game left behind.
+    steam.wait_for("button 1 pressed").await;
+}

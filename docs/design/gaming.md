@@ -136,7 +136,7 @@ Open for its packet: whether games and Steam inhibit idle through `org.freedeskt
 The user gets: a game receives keys as pressed. Ctrl is crouch, not copy, and only a short escape set of Isle's shortcuts survives (B30).
 
 1. Isle translates no Cmd chord in a game window (B21), whether or not Game Mode is on.
-2. While a game window is in front, Isle's desktop shortcuts shrink to a fixed escape set: Cmd+Tab, Mission Control, lock, and the screenshot chords Shift+Cmd+3, 4 and 5 (with or without Ctrl) and Cmd+Ctrl+Escape (B30; P1 `capture.md`). Every other chord, Force Quit and the Game Mode shortcut among them, and Super alone reach the game.
+2. While a game window is in front, Isle's desktop shortcuts shrink to a fixed escape set: Cmd+Q, Cmd+Tab, Mission Control, lock, and the screenshot chords Shift+Cmd+3, 4 and 5 (with or without Ctrl) and Cmd+Ctrl+Escape (B30; P1 `capture.md`). Every other chord, Force Quit and the Game Mode shortcut among them, and Super alone reach the game.
 3. Alt chords, Alt+Tab among them, reach the game: on a Mac-profile keyboard Alt is the Option key; on a PC-profile keyboard the Alt and Super swap is suspended in game windows, so Alt is the key labelled Alt (B30).
 4. Modifiers held when focus leaves a game are released to it first (B21).
 5. Keys Isle injects (the on-screen keyboard) are its own source and never translated (B21).

@@ -622,19 +622,24 @@ fn x11_button(button: u32) -> u32 {
 }
 
 impl crate::state::Isle {
-    /// Keeps X11's stacking order the registry's, so Xwayland knows what covers what.
+    /// Keeps X11's stacking order the registry's, windows out of view below those shown:
+    /// Xwayland routes a click by X11's stacking, so a game left on top elsewhere takes it.
     pub fn restack_x11(&mut self) {
         let Some(xwm) = self.xwm.as_mut() else {
             return;
         };
-        let windows: Vec<X11Surface> = self
-            .wm
-            .records
-            .iter()
-            .filter_map(|r| r.x11().cloned())
-            .collect();
-        if let Err(err) = xwm.update_stacking_order_upwards(windows.iter()) {
-            warn!("X11 stacking: {err}");
+        let in_space: Vec<&Window> = self.space.elements().collect();
+        let mut records: Vec<&crate::wm::Record> =
+            self.wm.records.iter().filter(|r| r.x11().is_some()).collect();
+        records.sort_by_key(|r| (in_space.contains(&&r.window), r.keep_on_top));
+        let order: Vec<u64> = records.iter().map(|r| r.id).collect();
+        if order == self.x11_order {
+            return;
+        }
+        let windows: Vec<X11Surface> = records.iter().filter_map(|r| r.x11().cloned()).collect();
+        match xwm.update_stacking_order_upwards(windows.iter()) {
+            Ok(()) => self.x11_order = order,
+            Err(err) => warn!("X11 stacking: {err}"),
         }
     }
 }

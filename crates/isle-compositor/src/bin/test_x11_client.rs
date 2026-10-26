@@ -346,7 +346,14 @@ fn main() {
                     conn.flush().unwrap();
                 }
                 Event::FocusIn(e) => say(index(e.event), "focus-in".into()),
-                Event::FocusOut(e) => say(index(e.event), "focus-out".into()),
+                Event::FocusOut(e) => {
+                    say(index(e.event), "focus-out".into());
+                    // As Wine lets ClipCursor go when the window loses focus.
+                    if flag("--ungrab-on-focus-out") {
+                        conn.ungrab_pointer(x11rb::CURRENT_TIME).unwrap();
+                        conn.flush().unwrap();
+                    }
+                }
                 Event::KeyPress(e) => {
                     say(index(e.event), format!("key {} pressed", e.detail));
                     // Ctrl+V asks for the clipboard's text, printed when it comes.
@@ -451,6 +458,27 @@ fn main() {
                             say(wins.len() - 1, "created".into());
                         }
                         "move-on-press" => move_on_press = true,
+                        // Confines the pointer to the window, as Wine's ClipCursor does.
+                        "grab" => {
+                            use x11rb::protocol::xproto::{GrabMode, GrabStatus};
+                            let status = conn
+                                .grab_pointer(
+                                    false,
+                                    win,
+                                    EventMask::BUTTON_PRESS
+                                        | EventMask::BUTTON_RELEASE
+                                        | EventMask::POINTER_MOTION,
+                                    GrabMode::ASYNC,
+                                    GrabMode::ASYNC,
+                                    win,
+                                    x11rb::NONE,
+                                    x11rb::CURRENT_TIME,
+                                )
+                                .unwrap()
+                                .reply()
+                                .map(|r| r.status);
+                            say(0, format!("grab {}", if matches!(status, Ok(GrabStatus::SUCCESS)) { "held" } else { "refused" }));
+                        }
                         "urgent" | "calm" => {
                             let mut hints = x11rb::properties::WmHints::new();
                             hints.urgent = line.trim() == "urgent";

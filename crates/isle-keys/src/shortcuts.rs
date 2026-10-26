@@ -24,7 +24,7 @@ pub const SHORTCUTS: &[Shortcut] = &[
     Shortcut { id: "minimise-app", packet: None, escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "hide", packet: None, escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "hide-others", packet: None, escape: false, locked: false, repeats: false, holds: false },
-    Shortcut { id: "quit-app", packet: None, escape: false, locked: false, repeats: false, holds: false },
+    Shortcut { id: "quit-app", packet: None, escape: true, locked: false, repeats: false, holds: false },
     Shortcut { id: "full-screen", packet: None, escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "tile-left", packet: None, escape: false, locked: false, repeats: false, holds: false },
     Shortcut { id: "tile-right", packet: None, escape: false, locked: false, repeats: false, holds: false },

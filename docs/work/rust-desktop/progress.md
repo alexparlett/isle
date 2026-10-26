@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-10-26
+
+- P12 host-run fixes: ⌘Q joins the escape set a game in front leaves to
+  Isle, so a game that took it can be quit (B30, `gaming.md`); X11 windows
+  out of view are stacked below those shown, since Xwayland routes a click
+  by X11's stacking and a full-screen game left on another desktop took
+  Steam's clicks after ⌘Tab. The X11 test client gains a pointer grab let
+  go on focus out, as Wine's ClipCursor is.
+
 ## 2026-10-21
 
 - P15 15.18, the close, host run pending: ARCHITECTURE gains How Files

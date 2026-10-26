@@ -201,16 +201,53 @@ fn gather(paths: Vec<PathBuf>, send: impl Fn(Listed) -> bool) {
     }
 }
 
-/// The local volumes, for the computer's view.
-fn volumes() -> Vec<PathBuf> {
+/// As `gather`, each entry shown by its name in `names`.
+fn gather_named(paths: Vec<PathBuf>, names: Vec<String>, send: impl Fn(Listed) -> bool) {
+    let entries: Vec<Entry> = paths
+        .iter()
+        .zip(names)
+        .filter_map(|(p, name)| Entry::at(p).ok().map(|e| Entry { name, ..e }))
+        .collect();
+    warm(&entries);
+    if send(Listed::Batch(entries)) {
+        send(Listed::Done);
+    }
+}
+
+/// The local volumes, for the computer's view, each with its name: its filesystem's
+/// label, its folder's name, or System for the root.
+fn volumes() -> Vec<(PathBuf, String)> {
     let table = mounts::read();
+    let labels = labels();
     let mut seen = HashSet::new();
     table
         .iter()
         .filter(|m| m.class == Class::Local && !m.point.starts_with("/boot") && !m.point.starts_with("/var"))
         // A btrfs device is mounted once per subvolume; its first mount stands for it.
         .filter(|m| seen.insert(m.source.clone()))
-        .map(|m| m.point.clone())
+        .map(|m| {
+            let device = std::fs::canonicalize(&m.source).unwrap_or_else(|_| PathBuf::from(&m.source));
+            let name = labels
+                .iter()
+                .find(|(d, _)| *d == device)
+                .map(|(_, l)| l.clone())
+                .or_else(|| m.point.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .unwrap_or_else(|| "System".into());
+            (m.point.clone(), name)
+        })
+        .collect()
+}
+
+/// Each labelled device and its label, from udev's links.
+fn labels() -> Vec<(PathBuf, String)> {
+    let Ok(dir) = std::fs::read_dir("/dev/disk/by-label") else { return Vec::new() };
+    dir.flatten()
+        .filter_map(|link| {
+            let device = std::fs::canonicalize(link.path()).ok()?;
+            // udev writes a space in a label as `\x20`.
+            let label = link.file_name().to_string_lossy().replace("\\x20", " ");
+            Some((device, label))
+        })
         .collect()
 }
 
@@ -340,7 +377,10 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             })
             }
             Place::Recents => gather(crate::places::recents(200), send),
-            Place::Computer => gather(volumes(), send),
+            Place::Computer => {
+                let (points, names): (Vec<PathBuf>, Vec<String>) = volumes().into_iter().unzip();
+                gather_named(points, names, send)
+            }
             Place::Search(search) => crate::search::run(&search, hidden, |listed| {
                 if let Listed::Batch(batch) = &listed {
                     warm(batch);

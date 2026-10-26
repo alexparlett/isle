@@ -83,13 +83,10 @@ impl SurfaceDef for StageSurface {
         false
     }
 
-    /// The leading edge, inset `space-l`, from under the strip down.
+    /// The whole output, as Mission Control's: a closed instance with a box of its own
+    /// costs the output a frame. The tree places the column inside it.
     fn geometry(&self, output: SSize<i32, Logical>) -> Rectangle<i32, Logical> {
-        let margin = 16;
-        Rectangle::new(
-            (margin, 48 + margin).into(),
-            (ENTRY.0 as i32, (output.h - 48 - 2 * margin).max(1)).into(),
-        )
+        Rectangle::from_size(output)
     }
 
     fn app(&self) -> AppComponent {
@@ -155,7 +152,11 @@ impl Component for Column {
             }
             let hovered = frame.hover == Some(i);
             let mut stack = rect()
-                .position(Position::new_absolute().left(0.0).top(top))
+                .position(
+                    Position::new_absolute()
+                        .left(t.space_l)
+                        .top(t.size_strip + t.space_l + top),
+                )
                 .width(Size::px(ENTRY.0))
                 .height(Size::px(ENTRY.1 + 16.0));
             // Up to two windows behind, each `space-xs` up and along.

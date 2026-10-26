@@ -35,12 +35,18 @@ tiles cost no shell draw: they are the compositor's own pass. Opening holds
 given back on closing. Whether a 144 Hz output drops a frame is the host's
 to show.
 
-Found by the suite: a closed shell instance with a box of its own cost the
-output a stray frame (the probe's settle test caught it after Stage
-Manager's column was registered); the column now covers its output as
-Mission Control's surfaces do. The shell's behaviour itself is left as it
-is; a surface with an offset box that is closed should cost nothing, and a
-later packet that adds one will meet it.
+Flaky tests, not P16's faults:
+
+- `shell::an_animating_probe_draws_every_frame_and_stops_with_it` sometimes
+  sees one frame between one and two seconds after the output settled. A
+  bisect first pinned it on Stage Manager's column having a box of its own,
+  and the column was given the whole output (`c59324c`, harmless, as
+  Mission Control's surfaces have); afterwards it would not fail again with
+  either box, alone or under load, in eleven runs, so the bisect had read a
+  load-dependent flake as a cause.
+- `capture::a_shot_from_the_toolbar_holds_none_of_it` fails only under the
+  whole workspace's load (its live shot can land before the bar draws) and
+  passes alone.
 
 ## The VM
 

@@ -167,7 +167,7 @@ later than the rest of this document and is off by default (B25).
 1. Stage Manager is a layout module chosen per Space and off by default; the recent apps are shown by a shell surface (`shell.md`) fed with the compositor's app and window list and live textures, in a column at the leading edge of the work area that stays hidden until the pointer presses that edge unless the user shows it.
 2. With it on, the front app's windows have the work area and other apps' windows are parked, each app reachable in one step; activating an app swaps it in. A set keeps the user's arrangement; it is centred only the first time it is staged.
 
-**Settled in P16.** The layout trait answers the work area, parked windows and sets (B116); Stage Manager is turned on from the desktop's menu in Mission Control and saved with the row. Not built: windows dropped into sets and entries dragged onto the stage.
+**Settled in P16.** The layout trait answers the work area, parked windows and sets (B116); Stage Manager is turned on for a desktop from its menu in Mission Control or from Settings › Desktop (the desktop with focus), and saved with the row. Not built: windows dropped into sets and entries dragged onto the stage.
 
 ### Picture-in-picture
 

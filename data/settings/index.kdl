@@ -51,6 +51,7 @@ row pane="desktop" id="rearrange-desktops" label="Automatically rearrange deskto
 row pane="desktop" id="group-by-app" label="Group windows by application" pane-label="Desktop" also="mission control;expose"
 row pane="desktop" id="mission-shortcuts" label="Mission Control shortcuts" pane-label="Desktop" also="mouse button;app expose;show desktop"
 row pane="desktop" id="hot-corners" label="Hot Corners" pane-label="Desktop" also="corner;screen corners"
+row pane="desktop" id="stage" label="Stage Manager" pane-label="Desktop" also="stage;recent apps"
 row pane="desktop" id="recent-apps" label="Show recent apps" pane-label="Desktop" also="stage manager;strip"
 row pane="desktop" id="stage-windows" label="Show windows from an application" pane-label="Desktop" also="stage manager"
 row pane="displays" id="" label="Displays" pane-label="Displays" also="monitor;screen;resolution;refresh rate;night light"

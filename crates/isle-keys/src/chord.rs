@@ -91,7 +91,13 @@ const ALIASES: &[(&str, u32)] = &[
     ("↓", keysyms::KEY_Down),
 ];
 
+/// Keys with no character and no plain keysym name, written in words of their own.
+const NAMED: &[(&str, u32)] = &[("Mission Control key", keysyms::KEY_XF86LaunchA)];
+
 fn key_from_name(name: &str) -> Option<Keysym> {
+    if let Some((_, sym)) = NAMED.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)) {
+        return Some(Keysym::from(*sym));
+    }
     let lower = name.to_lowercase();
     if let Some((_, sym)) = ALIASES.iter().find(|(n, _)| *n == lower) {
         return Some(Keysym::from(*sym));
@@ -235,6 +241,9 @@ impl ButtonChord {
 
 /// A key's name for people: a printable key as its character, upper case for letters.
 pub fn key_name(sym: Keysym) -> String {
+    if let Some((name, _)) = NAMED.iter().find(|(_, s)| *s == sym.raw()) {
+        return (*name).to_owned();
+    }
     if let Some((name, _)) = ALIASES
         .iter()
         .find(|(n, s)| *s == sym.raw() && n.chars().all(|c| c.is_ascii_lowercase()))
@@ -247,6 +256,14 @@ pub fn key_name(sym: Keysym) -> String {
         Some(c) if !c.is_control() && c != ' ' => c.to_uppercase().collect(),
         _ => xkb::keysym_get_name(sym),
     }
+}
+
+/// A stored shortcut, a button's or a key's, in words; as stored when it reads as neither.
+pub fn shortcut_words(text: &str) -> String {
+    ButtonChord::parse(text)
+        .map(|b| b.words())
+        .or_else(|| Chord::parse(text).map(|c| c.words()))
+        .unwrap_or_else(|| text.to_owned())
 }
 
 impl fmt::Display for Chord {
@@ -304,5 +321,15 @@ mod tests {
         assert_eq!(ButtonChord::parse("Button6").unwrap().button, 0x115);
         assert!(ButtonChord::parse("Ctrl+Left").is_none());
         assert!(Chord::parse("Back").is_none());
+    }
+
+    #[test]
+    fn the_mission_control_key_reads_in_words_and_back() {
+        let c = Chord::parse("Ctrl+XF86LaunchA").unwrap();
+        assert_eq!(c.words(), "Ctrl+Mission Control key");
+        assert_eq!(Chord::parse(&c.words()), Some(c));
+        assert_eq!(shortcut_words("XF86LaunchA"), "Mission Control key");
+        assert_eq!(shortcut_words("Ctrl+Back"), "Ctrl+Back");
+        assert_eq!(shortcut_words("Cmd+F3"), "Cmd+F3");
     }
 }

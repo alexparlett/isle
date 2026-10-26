@@ -236,6 +236,8 @@ impl Component for Screen {
 
 /// Over the miniatures and thumbnails, which draw in a layer of their own for their clip.
 const ABOVE: freya::prelude::Layer = freya::prelude::Layer::Relative(2);
+/// A badge over the ring of the target it sits on.
+const BADGE: freya::prelude::Layer = freya::prelude::Layer::Relative(3);
 
 /// A rect placed at `r` in the screen.
 fn at(r: &Rect) -> freya::prelude::Rect {
@@ -301,50 +303,86 @@ fn icon(theme: &Theme, face: Option<&WindowFace>, size: f32) -> Element {
 }
 
 /// The capsule a title or a name sits in.
-fn capsule(
-    theme: &Theme,
+fn capsule(cx: f32, y: f32, h: f32, max: f32, solid: bool, kids: Vec<Element>) -> Element {
+    Capsule {
+        cx,
+        y,
+        h,
+        max,
+        solid,
+        kids,
+    }
+    .into_element()
+}
+
+#[derive(PartialEq)]
+struct Capsule {
     cx: f32,
     y: f32,
     h: f32,
     max: f32,
     solid: bool,
     kids: Vec<Element>,
-) -> freya::prelude::Rect {
-    let t = &theme.tokens;
-    // A full-width row centres the capsule on `cx` whatever its width.
-    let span = max.max(1.0);
-    rect()
-        .position(Position::new_absolute().left(cx - span / 2.0).top(y))
-        .width(Size::px(span))
-        .height(Size::px(h))
-        .direction(Direction::Horizontal)
-        .main_align(Alignment::Center)
-        .child(
-            rect()
-                .height(Size::px(h))
-                .padding((0.0, t.space_s))
-                .corner_radius(h / 2.0)
-                .direction(Direction::Horizontal)
-                .cross_align(Alignment::Center)
-                .spacing(t.space_xs)
-                .background(if solid {
-                    colour(t.material_solid)
-                } else {
-                    Color::TRANSPARENT
-                })
-                .map(Some(shadows(&t.shadow_control)), |el, list| {
-                    list.into_iter().fold(el, |el, s| el.shadow(s))
-                })
-                .maybe(!solid, |el| el.child(Glass::new(h / 2.0).front()))
-                .children(kids),
-        )
+}
+
+impl Component for Capsule {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        // A fill placed absolutely in an auto-sized box takes the room the box had, so the
+        // glass is given the capsule's measured width.
+        let mut width = use_state(|| 0.0f32);
+        let (h, solid) = (self.h, self.solid);
+        let w = *width.read();
+        // A full-width row centres the capsule on `cx` whatever its width.
+        let span = self.max.max(1.0);
+        rect()
+            .position(Position::new_absolute().left(self.cx - span / 2.0).top(self.y))
+            .width(Size::px(span))
+            .height(Size::px(h))
+            .direction(Direction::Horizontal)
+            .main_align(Alignment::Center)
+            .maybe(!solid && w > 0.0, |el| {
+                el.child(
+                    rect()
+                        .position(Position::new_absolute().left((span - w) / 2.0).top(0.0))
+                        .width(Size::px(w))
+                        .height(Size::px(h))
+                        .child(Glass::new(h / 2.0).front()),
+                )
+            })
+            .child(
+                rect()
+                    .height(Size::px(h))
+                    .padding((0.0, t.space_s))
+                    .corner_radius(h / 2.0)
+                    .direction(Direction::Horizontal)
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_xs)
+                    .background(if solid {
+                        colour(t.material_solid)
+                    } else {
+                        Color::TRANSPARENT
+                    })
+                    .map(Some(shadows(&t.shadow_control)), |el, list| {
+                        list.into_iter().fold(el, |el, s| el.shadow(s))
+                    })
+                    .on_sized(move |e: Event<SizedEventData>| {
+                        let w = e.area.width().ceil();
+                        if *width.peek() != w {
+                            width.set(w);
+                        }
+                    })
+                    .children(self.kids.clone()),
+            )
+    }
 }
 
 /// A badge's circle centred on `(x, y)`.
 fn badge(theme: &Theme, x: f32, y: f32, glyph: &str) -> freya::prelude::Rect {
     let t = &theme.tokens;
     rect()
-        .layer(ABOVE)
+        .layer(BADGE)
         .position(Position::new_absolute().left(x - 10.0).top(y - 10.0))
         .width(Size::px(20.0))
         .height(Size::px(20.0))
@@ -360,7 +398,7 @@ fn badge(theme: &Theme, x: f32, y: f32, glyph: &str) -> freya::prelude::Rect {
             list.into_iter().fold(el, |el, s| el.shadow(s))
         })
         .center()
-        .child(Glyph::new(glyph, 12.0, colour(t.colour_text)).fill(true))
+        .child(Glyph::new(glyph, 12.0, colour(t.colour_text)))
 }
 
 fn image_in(handle: &PreviewImage, r: &Rect, radius: f32, alpha: f32) -> freya::prelude::Rect {
@@ -553,7 +591,6 @@ fn back(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> E
             ..Default::default()
         };
         root = root.child(capsule(
-            theme,
             h.centre().0,
             h.y,
             h.h,
@@ -718,7 +755,6 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
         if hovered_misfit {
             let y = r.bottom() + 24.0 + t.space_xs;
             root = root.child(capsule(
-                theme,
                 r.centre().0,
                 y,
                 t.size_control,
@@ -738,7 +774,6 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
                     24.0 + t.space_xs
                 };
             root = root.child(capsule(
-                theme,
                 r.centre().0,
                 y,
                 t.size_control,
@@ -778,7 +813,6 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
             ..Default::default()
         };
         root = root.child(capsule(
-            theme,
             cluster.centre_x,
             cluster.top,
             t.size_control_large,
@@ -798,7 +832,6 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
             "No other windows fit"
         };
         root = root.child(capsule(
-            theme,
             e.centre().0,
             e.y,
             t.size_control,
@@ -821,7 +854,6 @@ fn front(theme: &Theme, frame: &ScreenFrame, mut root: freya::prelude::Rect) -> 
                     && let Some(face) = frame.window(*id)
                 {
                     root = root.child(capsule(
-                        theme,
                         slot.centre().0,
                         tray.panel.y - t.space_xs - t.size_control,
                         t.size_control,

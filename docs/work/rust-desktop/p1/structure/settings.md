@@ -555,9 +555,9 @@ The `tokens.kdl` notice shows here and on Accessibility only.
 | Mission Control | Automatically rearrange desktops based on most recent use | C · switch, off | | `mission-control.rearrange-desktops` (P16) |
 | Mission Control | Group windows by application | C · switch, off | | `mission-control.group-by-app` (P16) |
 | (foot) | "Shortcuts…", "Hot Corners…" | D · buttons under the Mission Control group | | the sheets below |
+| Stage Manager | Stage Manager | C · switch, "On for this desktop. Each desktop keeps its own."; the desktop with focus, through `Desktops1.SetStage` | | (per desktop) |
 | Stage Manager | Show recent apps | C · switch, off, "Off, the apps show when the pointer presses the screen's left edge." | | `stage-manager.recent-apps` (P16) |
 | Stage Manager | Show windows from an application | C · pop-up | All at once, One at a time | `stage-manager.windows` (P16): `all-at-once`, `one-at-a-time` |
-| (foot) | "Turn Stage Manager on for a desktop from its menu in Mission Control." | callout | | |
 
 No "Click wallpaper to reveal desktop" row (P16 gate 16.1): on a Stage
 Manager desktop a click on the wallpaper shows it; on a stacking desktop it

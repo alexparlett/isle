@@ -115,6 +115,10 @@ pub struct DesktopInfo {
     /// The full-screen window's id, or 0.
     pub window: u64,
     pub windows: u32,
+    /// Stage Manager is on for it.
+    pub stage: bool,
+    /// The current desktop of the output with focus.
+    pub focus: bool,
 }
 
 /// An app with windows, or running in the background, as the switcher sees it; most

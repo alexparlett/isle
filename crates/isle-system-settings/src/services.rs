@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use freya::prelude::*;
 use futures_util::StreamExt;
 use isle_bus::{Publisher, Snapshot};
-use isle_ipc::{DisplayInfo, KeyboardInfo};
+use isle_ipc::{DesktopInfo, DisplayInfo, KeyboardInfo};
 use tracing::warn;
 
 /// A Control Centre module as `Island1.Modules` gives it.
@@ -54,6 +54,7 @@ pub enum Follow {
     Permissions,
     NightLight,
     Focus,
+    Desktops,
 }
 
 /// Something a pane asks a daemon or the compositor to do.
@@ -136,6 +137,12 @@ pub enum Act {
         path: String,
         shipped: bool,
     },
+    /// Stage Manager on or off for a desktop, by its output and its place from 1.
+    SetStage {
+        output: String,
+        index: u32,
+        on: bool,
+    },
 }
 
 /// The followed state, shared by every pane.
@@ -159,6 +166,7 @@ pub struct Services {
     pub focus: State<Snapshot<Option<String>>>,
     /// Night light's state as `Displays1.NightLight` gives it.
     pub night_light: State<Snapshot<serde_json::Value>>,
+    pub desktops: State<Snapshot<Vec<DesktopInfo>>>,
     /// The display change in force and not yet kept, by its id.
     pub display_change: State<Option<u64>>,
     /// Changes asked for and not yet sent, oldest first.
@@ -197,6 +205,7 @@ impl Services {
             permissions: State::create(Snapshot::default()),
             focus: State::create(Snapshot::default()),
             night_light: State::create(Snapshot::default()),
+            desktops: State::create(Snapshot::default()),
             display_change: State::create(None),
             acts: State::create(Vec::new()),
             started: State::create(BTreeSet::new()),
@@ -243,6 +252,7 @@ impl Services {
             Follow::Permissions => session(&worker, bus, self.permissions, permissions),
             Follow::NightLight => session(&worker, bus, self.night_light, night_light),
             Follow::Focus => session(&worker, bus, self.focus, focus),
+            Follow::Desktops => session(&worker, bus, self.desktops, desktops),
         }
     }
 }
@@ -424,6 +434,17 @@ fn focus(
             Ok(status["active"].as_str().map(str::to_owned))
         })
         .await
+    })
+}
+
+fn desktops(
+    bus: zbus::Connection,
+    publisher: Publisher<Vec<DesktopInfo>>,
+) -> futures_util::future::BoxFuture<'static, zbus::Result<()>> {
+    Box::pin(async move {
+        let proxy = isle_ipc::desktops::DesktopsProxy::new(&bus).await?;
+        let changed = proxy.receive_changed().await?;
+        each_change(&publisher, changed, || proxy.list()).await
     })
 }
 
@@ -806,6 +827,15 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
             } else {
                 windows.open(&path).await.map(|_| ()).map_err(|e| err(&e))
             }
+        }
+        Act::SetStage { output, index, on } => {
+            isle_ipc::desktops::DesktopsProxy::new(&session()?)
+                .await
+                .map_err(|e| err(&e))?
+                .set_stage(&output, index, on)
+                .await
+                .map(|_| ())
+                .map_err(|e| err(&e))
         }
         Act::Hostname(name) => {
             let system = zbus::Connection::system().await.map_err(|e| err(&e))?;

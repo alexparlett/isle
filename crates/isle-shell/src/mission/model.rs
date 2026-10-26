@@ -1526,6 +1526,18 @@ impl Mission {
             })
     }
 
+    /// What the pointer is on: the hovered target while the point is on its badge, which
+    /// straddles the target's corner, else what lies under the point.
+    fn under(&self, screen: usize, x: f32, y: f32) -> Option<Target> {
+        if let Some(h) = &self.hover
+            && h.screen() == screen
+            && self.badge_at(h, x, y).is_some()
+        {
+            return Some(h.clone());
+        }
+        self.hit(screen, x, y)
+    }
+
     /// The badge under a point, on the hovered target: 20 across with a 24 hit box, centred
     /// on its top leading corner.
     fn badge_at(&self, hover: &Target, x: f32, y: f32) -> Option<Badge> {
@@ -1669,7 +1681,7 @@ impl Mission {
             self.drag = Some(drag);
             return Vec::new();
         }
-        self.hover = self.hit(screen, x, y);
+        self.hover = self.under(screen, x, y);
         self.badge = self.hover.clone().and_then(|h| self.badge_at(&h, x, y));
         if let Some(h) = &self.hover {
             self.selection = Some(h.clone());
@@ -1684,7 +1696,7 @@ impl Mission {
 
     pub fn press(&mut self, screen: usize, x: f32, y: f32, button: u32) -> Vec<Effect> {
         self.pointer_move(screen, x, y);
-        match (self.hit(screen, x, y), button) {
+        match (self.under(screen, x, y), button) {
             (Some(t), _) => {
                 self.pressed = Some((t, (x, y), screen, button));
             }
@@ -1712,7 +1724,7 @@ impl Mission {
                 _ => Vec::new(),
             };
         }
-        let here = self.hit(screen, x, y);
+        let here = self.under(screen, x, y);
         match (pressed, button) {
             (Some((t, _, _, BUTTON_LEFT)), BUTTON_LEFT) if Some(&t) == here.as_ref() => {
                 if let Some(badge) = self.badge_at(&t, x, y) {
@@ -2118,11 +2130,33 @@ mod tests {
             m.release(0, r.x + 2.0, r.y + 2.0, BUTTON_LEFT),
             vec![Effect::CloseWindow(3)]
         );
+        // Off the tile but on the badge's outer part, the tile keeps the hover and the badge.
+        m.pointer_move(0, r.x - 8.0, r.y - 8.0);
+        assert!(matches!(m.badge(), Some(Badge::Close { window: 3, .. })));
+        m.press(0, r.x - 8.0, r.y - 8.0, BUTTON_LEFT);
+        assert_eq!(
+            m.release(0, r.x - 8.0, r.y - 8.0, BUTTON_LEFT),
+            vec![Effect::CloseWindow(3)]
+        );
+        // Straight onto the outer part with no hover first is the wallpaper's.
+        m.pointer_leave();
+        m.pointer_move(0, r.x - 8.0, r.y - 8.0);
+        assert!(m.badge().is_none());
         let mini = m.layouts()[0].bar.as_ref().unwrap().items[0].miniature;
         m.pointer_move(0, mini.x + 1.0, mini.y + 1.0);
         m.press(0, mini.x + 1.0, mini.y + 1.0, BUTTON_LEFT);
         assert_eq!(
             m.release(0, mini.x + 1.0, mini.y + 1.0, BUTTON_LEFT),
+            vec![Effect::RemoveDesktop {
+                screen: 0,
+                index: 0
+            }]
+        );
+        m.pointer_move(0, mini.x - 8.0, mini.y - 8.0);
+        assert!(matches!(m.badge(), Some(Badge::Remove { index: 0, .. })));
+        m.press(0, mini.x - 8.0, mini.y - 8.0, BUTTON_LEFT);
+        assert_eq!(
+            m.release(0, mini.x - 8.0, mini.y - 8.0, BUTTON_LEFT),
             vec![Effect::RemoveDesktop {
                 screen: 0,
                 index: 0

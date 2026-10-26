@@ -730,7 +730,7 @@ impl Component for Shortcuts {
                 let shown = if *recording.read() == Some(*id) {
                     "Type a shortcut…".to_owned()
                 } else if on {
-                    chords.join(", ")
+                    chords.iter().map(|c| isle_keys::chord::shortcut_words(c)).collect::<Vec<_>>().join(", ")
                 } else {
                     "None".to_owned()
                 };

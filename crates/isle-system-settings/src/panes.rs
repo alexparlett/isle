@@ -205,6 +205,7 @@ pub static PANES: &[Pane] = &[
             RowDef::new("group-by-app", "Group windows by application").key("mission-control.group-by-app").keywords(&["mission control", "expose"]),
             RowDef::new("mission-shortcuts", "Mission Control shortcuts").within("Shortcuts…").keywords(&["mouse button", "app expose", "show desktop"]),
             RowDef::new("hot-corners", "Hot Corners").key("hot-corners").within("Hot Corners…").keywords(&["corner", "screen corners"]),
+            RowDef::new("stage", "Stage Manager").keywords(&["stage", "recent apps"]),
             RowDef::new("recent-apps", "Show recent apps").key("stage-manager.recent-apps").keywords(&["stage manager", "strip"]),
             RowDef::new("stage-windows", "Show windows from an application").key("stage-manager.windows").keywords(&["stage manager"]),
         ],

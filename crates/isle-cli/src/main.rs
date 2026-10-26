@@ -663,6 +663,8 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                                 format!("Split View: {} window(s)", d.windows)
                             } else if d.window > 0 {
                                 format!("full screen: window {}", d.window)
+                            } else if d.stage {
+                                format!("Stage Manager: {} window(s)", d.windows)
                             } else {
                                 format!("{} window(s)", d.windows)
                             };

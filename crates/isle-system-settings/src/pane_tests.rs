@@ -583,3 +583,41 @@ fn a_dragged_slider_sends_its_last_value_once() {
     assert_eq!(glass.len(), 1, "{glass:?}");
     assert!(matches!(&glass[0], Write::Set(_, Value::Float(v)) if *v > 0.9), "{glass:?}");
 }
+
+#[test]
+fn stage_manager_turns_on_for_the_desktop_with_focus() {
+    let (mut test, handles) = open("isle-settings://desktop", |_, services| {
+        let mut desktops = services.desktops;
+        let desktop = |index, focus| isle_ipc::DesktopInfo {
+            output: "DP-4".into(),
+            index,
+            current: focus,
+            kind: "desktop".into(),
+            window: 0,
+            windows: 1,
+            stage: false,
+            focus,
+        };
+        desktops.set(Snapshot {
+            available: true,
+            state: vec![desktop(1, false), desktop(2, true)],
+        });
+    });
+    // The group's heading reads the same; the switch's row is the last.
+    let row = test
+        .find_many(|node, element| {
+            Label::try_downcast(element)
+                .filter(|label| label.text == "Stage Manager")
+                .map(|_| node.layout().area)
+        })
+        .pop()
+        .unwrap();
+    let x = (900. - 220.) / 2. + 220. + 600. / 2. - 30.;
+    test.click_cursor((x as f64, f64::from(row.center().y)));
+    settle(&mut test);
+    assert!(handles.acts().contains(&Act::SetStage {
+        output: "DP-4".into(),
+        index: 2,
+        on: true,
+    }));
+}

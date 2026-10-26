@@ -234,6 +234,7 @@ impl Isle {
 
     pub fn desktop_infos(&self) -> Vec<isle_ipc::DesktopInfo> {
         let mut out = Vec::new();
+        let focused = self.output_with_focus();
         for output in self.space.outputs() {
             let identity = Self::output_identity(output);
             let Some(row) = self.desktops.rows.get(&identity) else {
@@ -257,6 +258,8 @@ impl Isle {
                         .iter()
                         .filter(|r| r.mapped && r.desktop == desktop.id)
                         .count() as u32,
+                    stage: desktop.layout.is_stage(),
+                    focus: row.current == i && focused.as_ref() == Some(output),
                 });
             }
         }

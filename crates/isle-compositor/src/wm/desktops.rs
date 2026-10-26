@@ -239,11 +239,11 @@ impl State {
             return true;
         }
         let step = if index > row.current { 1 } else { -1 };
-        self.slide_out(output, step);
+        self.slide_out(output, step, None);
         let row = self.isle.desktops.ensure_row(&identity);
         row.current = index;
         self.after_switch(output);
-        self.slide_in(output, step);
+        self.slide_in(output, step, None);
         true
     }
 
@@ -448,6 +448,9 @@ impl State {
         let focused = self.focused_window() == Some(id)
             || !mapped
             || self.isle.wm.recent.first() == Some(&id);
+        if focused && origin == self.isle.current_desktop(&output) {
+            self.slide_out(&output, 1, Some(id));
+        }
         let desktop = self
             .isle
             .desktops
@@ -475,6 +478,11 @@ impl State {
             self.isle.wm.get_mut(child).unwrap().desktop = desktop_id;
         }
         info!(id, borderless, "full screen");
+        // The view moves first, so the window is shown on its new desktop as it grows.
+        if focused {
+            self.isle.desktops.rows.get_mut(&identity).unwrap().current = at;
+        }
+        self.isle.sync_space();
         if !borderless {
             self.send_full_screen(id, true);
             let area = self.isle.space.output_geometry(&output).unwrap_or_default();
@@ -485,9 +493,6 @@ impl State {
                 record.configure_size(area.size);
             }
             self.isle.move_window(id, area.loc);
-        }
-        if focused {
-            self.isle.desktops.rows.get_mut(&identity).unwrap().current = at;
         }
         self.after_switch(&output);
         if focused {
@@ -528,19 +533,24 @@ impl State {
                 self.isle.wm.get_mut(child).unwrap().desktop = target;
             }
         }
-        if !borderless {
-            self.send_full_screen(id, false);
-            self.send_mode_states(id);
-            self.set_frame(id, restore);
-        }
+        // The view moves back first, so the window is shown on its origin as it shrinks.
         if viewing
             && let Some((identity, index)) = target.and_then(|t| self.isle.desktops.locate(t))
         {
             let identity = identity.to_owned();
             self.isle.desktops.rows.get_mut(&identity).unwrap().current = index;
         }
+        self.isle.sync_space();
+        if !borderless {
+            self.send_full_screen(id, false);
+            self.send_mode_states(id);
+            self.set_frame(id, restore);
+        }
         if let Some(output) = output {
             self.after_switch(&output);
+            if viewing {
+                self.slide_in(&output, -1, Some(id));
+            }
         }
         true
     }
@@ -575,6 +585,9 @@ impl State {
         }
         if let Some(output) = output {
             self.after_switch(&output);
+            if viewing {
+                self.slide_in(&output, -1, None);
+            }
         }
     }
 

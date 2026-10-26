@@ -2,6 +2,14 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.2, the switch: windows travel the token's `motion-switch-distance`
+  (80) on the `switch` spring, not a hardcoded 120. Full screen joins the
+  switch: going full screen, the rest of the desktop slides away while the
+  window grows in place; leaving, the desktop slides back while it shrinks.
+  Found and fixed: going full screen and leaving it never animated, since
+  the window moved to its new desktop before that desktop was shown and
+  the morph asks for a shown window. `Test1.motions` reports what is
+  moving; all 471 compositor tests pass.
 - P16 16.1, the gate: two boards, both passed as drawn. The rows
   (`p16/rows-1.html`, `p16/rows.md`, folded into
   `p1/structure/settings.md`): Desktop's Mission Control and Stage Manager

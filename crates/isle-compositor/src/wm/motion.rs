@@ -22,8 +22,6 @@ use tracing::warn;
 use super::geometry::Rect;
 use crate::state::{Isle, State};
 
-/// How far windows travel in a desktop switch, in points: a short slide with a crossfade.
-const SWITCH_DISTANCE: f64 = 120.0;
 /// How long a frame waits for its client's new size before it shows what it has.
 const MORPH_WAIT: Duration = Duration::from_millis(250);
 
@@ -36,6 +34,8 @@ pub struct Style {
     exit: isle_tokens::Spring,
     moving: isle_tokens::Spring,
     switch: isle_tokens::Spring,
+    /// How far windows travel in a desktop switch, in points.
+    switch_distance: f64,
     show: Duration,
     crossfade: Duration,
     from_scale: f64,
@@ -56,6 +56,7 @@ impl Style {
             exit: theme.spring_exit(),
             moving: theme.spring_move(),
             switch: theme.spring_switch(),
+            switch_distance: theme.tokens.motion_switch_distance as f64,
             show: isle_tokens::Theme::millis(theme.tokens.motion_fade_ms),
             crossfade: isle_tokens::Theme::millis(theme.tokens.motion_fade_ms),
             from_scale: theme.tokens.motion_window_scale as f64,
@@ -401,8 +402,9 @@ impl State {
     }
 
     /// Before the view on `output` moves along its row by `step`: the windows shown now slide
-    /// out and fade, drawn from their last frames.
-    pub fn slide_out(&mut self, output: &Output, step: i32) {
+    /// out and fade, drawn from their last frames. `except` is a window going full screen,
+    /// which grows in place instead.
+    pub fn slide_out(&mut self, output: &Output, step: i32, except: Option<u64>) {
         let style = Style::of(&self.isle);
         if !style.animated {
             return;
@@ -413,7 +415,9 @@ impl State {
             .records
             .iter()
             .filter(|r| {
-                self.isle.wm.is_shown(r.id) && self.isle.output_of(r.id).as_ref() == Some(output)
+                Some(r.id) != except
+                    && self.isle.wm.is_shown(r.id)
+                    && self.isle.output_of(r.id).as_ref() == Some(output)
             })
             .map(|r| r.id)
             .collect();
@@ -425,7 +429,7 @@ impl State {
             motion.aim(
                 &style,
                 style.switch,
-                (0.0, 1.0, -step as f64 * SWITCH_DISTANCE, 0.0),
+                (0.0, 1.0, -step as f64 * style.switch_distance, 0.0),
             );
             self.isle.leaving.push(Leaving {
                 output: output.clone(),
@@ -435,8 +439,9 @@ impl State {
         }
     }
 
-    /// After the view moved: the windows now shown slide in from the other side.
-    pub fn slide_in(&mut self, output: &Output, step: i32) {
+    /// After the view moved: the windows now shown slide in from the other side, but for
+    /// `except`, a window leaving full screen, which shrinks in place instead.
+    pub fn slide_in(&mut self, output: &Output, step: i32, except: Option<u64>) {
         let style = Style::of(&self.isle);
         if !style.animated {
             return;
@@ -447,12 +452,14 @@ impl State {
             .records
             .iter()
             .filter(|r| {
-                self.isle.wm.is_shown(r.id) && self.isle.output_of(r.id).as_ref() == Some(output)
+                Some(r.id) != except
+                    && self.isle.wm.is_shown(r.id)
+                    && self.isle.output_of(r.id).as_ref() == Some(output)
             })
             .map(|r| r.id)
             .collect();
         for id in ids {
-            let motion = WindowMotion::at(0.0, 1.0, step as f64 * SWITCH_DISTANCE, 0.0);
+            let motion = WindowMotion::at(0.0, 1.0, step as f64 * style.switch_distance, 0.0);
             self.start_motion(id, motion, style.switch, &style);
         }
     }

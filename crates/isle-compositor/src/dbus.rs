@@ -1531,6 +1531,32 @@ impl Test {
             .await?)
     }
 
+    /// What is moving now, as JSON: windows with a motion, windows morphing to a new frame,
+    /// and how many snapshots of windows already gone are still drawn.
+    async fn motions(&self) -> fdo::Result<String> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                let ids = |f: fn(&crate::wm::Record) -> bool| {
+                    state
+                        .isle
+                        .wm
+                        .records
+                        .iter()
+                        .filter(|r| f(r))
+                        .map(|r| r.id)
+                        .collect::<Vec<_>>()
+                };
+                serde_json::json!({
+                    "moving": ids(|r| r.motion.is_some()),
+                    "morphing": ids(|r| r.morph.is_some()),
+                    "leaving": state.isle.leaving.len(),
+                })
+                .to_string()
+            })
+            .await?)
+    }
+
     /// Bytes the allocator has handed out and not had back, from glibc's `mallinfo2`.
     fn malloc_in_use(&self) -> u64 {
         // Safety: mallinfo2 only reads the allocator's counters.

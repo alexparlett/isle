@@ -892,6 +892,46 @@ async fn windows_have_round_corners_and_a_shadow_deeper_while_active() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn going_full_screen_grows_in_place_while_its_desktop_slides_away() {
+    let mut isle = Isle::start("fullscreen-switch").await;
+    let test = isle.test().await;
+    let _other = isle.client("isle.test.Other", "00ff00");
+    let other = isle.wait_for_window("isle.test.Other").await.id;
+    let client = isle.client("isle.test.Full", "ff0000");
+    let full = isle.wait_for_window("isle.test.Full").await.id;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    test.window_motion(true).await.unwrap();
+    let motions = || async {
+        serde_json::from_str::<serde_json::Value>(&test.motions().await.unwrap()).unwrap()
+    };
+    let has = |v: &serde_json::Value, key: &str, id: u64| {
+        v[key].as_array().unwrap().iter().any(|x| x.as_u64() == Some(id))
+    };
+
+    let until = |key: &'static str, id: u64| async move {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let seen = motions().await;
+            if has(&seen, key, id) {
+                return seen;
+            }
+            assert!(std::time::Instant::now() < deadline, "never {key} {id}: {seen}");
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    };
+
+    client.send("fullscreen");
+    let seen = until("morphing", full).await;
+    assert!(!has(&seen, "moving", full), "the window grows, not slides: {seen}");
+    assert!(seen["leaving"].as_u64().unwrap() >= 1, "its desktop slides away: {seen}");
+
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    client.send("unfullscreen");
+    let seen = until("moving", other).await;
+    assert!(!has(&seen, "moving", full), "the window shrinks, not slides: {seen}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_closing_window_fades_from_its_last_frame_then_costs_nothing() {
     let mut isle = Isle::start("closing").await;
     let test = isle.test().await;

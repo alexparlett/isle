@@ -660,6 +660,8 @@ pub mod test {
         fn transitions(&self, on: bool) -> zbus::Result<()>;
         /// Turns window motion off or on, apart from the shell's transitions.
         fn window_motion(&self, on: bool) -> zbus::Result<()>;
+        /// What is moving now, as JSON: `moving` and `morphing` window ids, `leaving` count.
+        fn motions(&self) -> zbus::Result<String>;
         /// The X display once Xwayland's window manager runs, else -1.
         fn x_display(&self) -> zbus::Result<i32>;
         /// Bytes the allocator has handed out and not had back, from glibc's `mallinfo2`.

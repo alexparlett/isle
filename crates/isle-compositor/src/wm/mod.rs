@@ -521,7 +521,7 @@ impl State {
                 .find(|o| Isle::output_identity(o) == identity)
                 .cloned();
             if let Some(output) = &output {
-                self.slide_out(output, step);
+                self.slide_out(output, step, None);
             }
             self.isle.desktops.rows.get_mut(&identity).unwrap().current = index;
             self.isle.notify(Event::DesktopsChanged);
@@ -535,7 +535,7 @@ impl State {
         }
         self.isle.sync_space();
         if let Some((output, step)) = slide {
-            self.slide_in(&output, step);
+            self.slide_in(&output, step, None);
         }
         let window = self.isle.window_by_id(id);
         self.set_focus(window.as_ref());

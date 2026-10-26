@@ -403,10 +403,13 @@ the gestures marked deferred there.
 
 ### 16.1 · The rows and chords (gate)
 
-One board (`p16/rows.html`, published as a private Artifact): Desktop's
+Two boards, published as private Artifacts. `p16/rows-1.html`: Desktop's
 Mission Control and Stage Manager groups, the Keyboard Shortcuts rows, the
-mouse buttons, the Split View chords, the corner dwell. The answers go into
-`p1/structure/settings.md`.
+mouse buttons, the Split View chords; the answers go into
+`p1/structure/settings.md`. `p16/mission-control-1.html`: the surfaces
+themselves, P1's board scenes drawn for the first time with the spread laid
+out by choice 8's algorithm, added at the user's ask since wave C drew only
+three states.
 
 ### 16.2 · The switch
 
@@ -551,7 +554,8 @@ at `timing.corner-dwell-ms` (B99 revised), and a board at 16.1 for the rows
 and chords P1 did not lay out. Asked afterwards, the user deferred trackpad
 gestures, since the host is a desktop with no trackpad (choice 2): the
 gestures, pointer-gestures, the Trackpad pane and the finger-held switch
-leave P16 for a packet of their own.
+leave P16 for a packet of their own. Gate 16.1 passed the same day: both
+boards (`p16/rows-1.html`, `p16/mission-control-1.html`) taken as drawn.
 
 ## Outcome
 

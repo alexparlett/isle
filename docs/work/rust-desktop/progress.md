@@ -2,6 +2,14 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.1, the gate: two boards, both passed as drawn. The rows
+  (`p16/rows-1.html`, `p16/rows.md`, folded into
+  `p1/structure/settings.md`): Desktop's Mission Control and Stage Manager
+  groups, the Shortcuts… sheet with mouse buttons stored as chords, the
+  corners' three new actions with bottom left Mission Control, the
+  shortcuts' new rows. The surfaces (`p16/mission-control-1.html`): P1's
+  board scenes drawn for the first time, the spread laid out by choice 8's
+  algorithm.
 - P16 16.0, the note and the record: `mission-control-2026.md` with the
   plan; the roadmap's P16 entry, and a Trackpad packet after cut-over for
   the gestures and the Trackpad pane P16 deferred. P1's later sheets win

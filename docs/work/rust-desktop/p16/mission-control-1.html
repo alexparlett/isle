@@ -1,0 +1,586 @@
+<title>Mission Control surfaces</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../p1/harness/harness.css">
+<link rel="stylesheet" href="../p1/system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+  .hb-qs li + li { margin-top: 6px; }
+</style>
+<script src="../p1/system/phosphor.js"></script>
+<script src="../p1/harness/harness.js"></script>
+<script src="../p1/surfaces/scene.js"></script>
+<script>
+(function () {
+  // P16 phase 16.1: Mission Control, App Exposé, Show Desktop, Split View and Stage Manager, drawn from p1/surfaces/mission-control.md.
+  const S = Scene, { h } = Isle, { el, sp, row, col, ic, appIcon } = S;
+  const px = (n) => n + "px";
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  let W = 3440, H = 1440, wallBg = "", solid = false;
+  const STRIP = 48, MH = 112, MH_MIN = 64, GAP = 24, RESERVE = 52;
+  const SPRING = { move: [480, 44], exit: [560, 47], open: [420, 41], switch: [300, 35] };
+
+  const abs = (x, y, w, hh, style, ...kids) => el("", Object.assign({ position: "absolute", left: px(x), top: px(y), width: w != null ? px(w) : undefined, height: hh != null ? px(hh) : undefined }, style || {}), ...kids);
+  const glass = (x, y, w, hh, style, ...kids) => el("s-glass", Object.assign({ position: "absolute", left: px(x), top: px(y), width: w != null ? px(w) : undefined, height: hh != null ? px(hh) : undefined, color: "var(--colour-text)" }, solid ? { background: "var(--material-solid)", backdropFilter: "none", WebkitBackdropFilter: "none" } : {}, style || {}), ...kids);
+
+  // ---- Apps --------------------------------------------------------------------------
+  const GAME_ART = "radial-gradient(60% 70% at 70% 30%, #e8c66a 0%, #9a6a24 35%, #3a2510 70%, #120c06 100%)";
+  const gameCover = (hh) => h("span", { style: { width: px(Math.round(hh * 2 / 3)), height: px(hh), borderRadius: px(Math.max(2, Math.round(hh / 12))), background: "linear-gradient(170deg,#e8c66a,#6a4318 60%,#1e140a)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)", flex: "none", display: "block" } });
+  const APPS = {
+    kitty: { name: "kitty", c: ["#55575e", "#1f2024"], g: "terminal-window", body: "term" },
+    firefox: { name: "Firefox", c: ["#ff9a3c", "#e6572c"], g: "globe", body: "web" },
+    zed: { name: "Zed", c: ["#4a8cff", "#2251c9"], g: "code", body: "code" },
+    files: { name: "Files", c: ["#5fb4ff", "#2f7cf6"], g: "folder", body: "files" },
+    discord: { name: "Discord", c: ["#7a86ff", "#5865f2"], g: "chat-circle", body: "chat" },
+    settings: { name: "System Settings", c: ["#9a9aa0", "#5b5b60"], g: "gear", body: "settings" },
+    steam: { name: "Steam", c: ["#2a4a7a", "#14243e"], g: "game-controller", body: "store" },
+    mail: { name: "Mail", c: ["#4aa3ff", "#1f6fe0"], g: "envelope", body: "mail" },
+    music: { name: "Music", c: ["#ff5f7a", "#d6264a"], g: "music-note", body: "music" },
+    keepass: { name: "KeePassXC", c: ["#6cc04a", "#3d8a2a"], g: "lock-simple", body: "mail" },
+    elden: { name: "Elden Ring", game: true, body: "game" },
+  };
+  const icon = (app, n) => APPS[app].game ? gameCover(n) : appIcon(n, APPS[app].c[0], APPS[app].c[1], APPS[app].g);
+
+  // ---- A window at its real size: title bar and a body standing in for its texture ----------
+  const bar8 = (w, c, hh, style) => el("", Object.assign({ height: px(hh || 8), width: w, borderRadius: px((hh || 8) / 2), background: c || "var(--colour-fill-strong)", flex: "none" }, style || {}));
+  const fill = (style, ...k) => el("", Object.assign({ position: "absolute", left: 0, right: 0, top: "var(--size-titlebar)", bottom: 0, overflow: "hidden" }, style), ...k);
+  function bodyOf(kind) {
+    const lines = (spec, gap) => el("", { display: "flex", flexDirection: "column", gap: px(gap || 12) }, ...spec.map(([w, c, hh]) => bar8(w, c, hh)));
+    switch (kind) {
+      case "term": return fill({ background: "var(--colour-view)", padding: "18px 22px" }, lines([["34%", "var(--term-blue)", 10], ["58%", "var(--colour-text-3)", 10], ["46%", "var(--colour-text-3)", 10], ["24%", "var(--term-green)", 10], ["52%", "var(--colour-text-3)", 10], ["66%", "var(--colour-text-3)", 10], ["30%", "var(--term-blue)", 10], ["40%", "var(--colour-text-3)", 10]], 14));
+      case "web": return fill({ background: "var(--colour-view)" },
+        el("", { height: "44px", display: "flex", alignItems: "center", gap: "12px", padding: "0 16px", background: "var(--colour-window)", borderBottom: "1px solid var(--colour-hairline)" }, bar8("18px", null, 18), bar8("60%", "var(--colour-fill)", 26)),
+        el("", { padding: "32px 48px", display: "flex", flexDirection: "column", gap: "16px" }, el("", { height: "220px", borderRadius: "12px", background: "linear-gradient(120deg,#3b5bdb,#7048e8 60%,#c2255c)" }), bar8("44%", "var(--colour-text-2)", 22), lines([["92%"], ["88%"], ["94%"], ["60%"]]), el("", { display: "flex", gap: "16px" }, ...[0, 1, 2].map(() => el("", { flex: 1, height: "120px", borderRadius: "10px", background: "var(--colour-fill)" })))));
+      case "code": return fill({ display: "flex" }, el("", { width: "22%", background: "var(--colour-sidebar)", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }, ...["70%", "56%", "64%", "48%", "72%", "40%", "60%"].map((w) => bar8(w))),
+        el("", { flex: 1, background: "var(--colour-view)", padding: "18px 24px" }, lines([["30%", "var(--term-magenta)"], ["52%", "var(--term-blue)"], ["64%", "var(--colour-text-3)"], ["44%", "var(--term-green)"], ["70%", "var(--colour-text-3)"], ["36%", "var(--term-yellow)"], ["58%", "var(--colour-text-3)"], ["26%", "var(--term-magenta)"], ["62%", "var(--colour-text-3)"], ["48%", "var(--term-blue)"]], 14)));
+      case "files": return fill({ display: "flex" }, el("", { width: "24%", background: "var(--colour-sidebar)", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }, ...["50%", "66%", "58%", "72%", "44%", "62%"].map((w) => bar8(w))),
+        el("", { flex: 1, background: "var(--colour-view)", padding: "24px", display: "grid", gridTemplateColumns: "repeat(auto-fill, 96px)", gap: "24px", alignContent: "start" }, ...Array.from({ length: 12 }, (_, i) => el("", { display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }, appIcon(64, i % 4 === 3 ? "#d9dadd" : "#5fb4ff", i % 4 === 3 ? "#b8babd" : "#2f7cf6", i % 4 === 3 ? "file-text" : "folder"), bar8("70%", null, 8)))));
+      case "chat": return fill({ display: "flex", background: "#313338" }, el("", { width: "72px", background: "#1e1f22", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", paddingTop: "12px" }, ...[0, 1, 2, 3, 4].map((i) => el("", { width: "44px", height: "44px", borderRadius: i ? "50%" : "14px", background: ["#5865f2", "#3ba55c", "#faa61a", "#eb459e", "#4e5058"][i] }))),
+        el("", { width: "220px", background: "#2b2d31", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }, ...["60%", "72%", "50%", "66%", "58%"].map((w) => bar8(w, "#4e5058"))),
+        el("", { flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "18px" }, ...[0, 1, 2, 3, 4].map((i) => el("", { display: "flex", gap: "12px" }, el("", { width: "36px", height: "36px", borderRadius: "50%", background: ["#eb459e", "#5865f2", "#3ba55c", "#faa61a", "#5865f2"][i], flex: "none" }), el("", { flex: 1, display: "flex", flexDirection: "column", gap: "8px" }, bar8("20%", "#b5bac1"), bar8(["70%", "54%", "80%", "40%", "62%"][i], "#4e5058"))))));
+      case "settings": return fill({ display: "flex" }, el("", { width: "30%", background: "var(--colour-sidebar)", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }, ...[0, 1, 2, 3, 4, 5, 6].map((i) => el("", { display: "flex", gap: "8px", alignItems: "center" }, el("", { width: "20px", height: "20px", borderRadius: "5px", background: ["#2f7cf6", "#2f7cf6", "#8e8e93", "#5b5b60", "#af52de", "#5b5b60", "#2f7cf6"][i] }), bar8(["50%", "60%", "44%", "56%", "62%", "48%", "40%"][i])))),
+        el("", { flex: 1, background: "var(--colour-window)", padding: "28px", display: "flex", flexDirection: "column", gap: "18px" }, bar8("30%", "var(--colour-text-2)", 16), ...[3, 2, 3].map((n) => el("", { borderRadius: "10px", background: "var(--colour-window-raised)", padding: "0 16px" }, ...Array.from({ length: n }, (_, j) => el("", { height: "40px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: j ? "1px solid var(--colour-hairline)" : "none" }, bar8("40%"), bar8("32px", "var(--colour-accent)", 18)))))));
+      case "store": return fill({ background: "#1b2838", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }, el("", { height: "40%", borderRadius: "8px", background: "linear-gradient(120deg,#0e1c2c,#2a475e 60%,#66c0f4)" }), el("", { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px", flex: 1 }, ...Array.from({ length: 8 }, (_, i) => el("", { borderRadius: "6px", background: ["#c94b4b", "#4b79c9", "#c9a94b", "#4bc98a"][i % 4], opacity: 0.8 }))));
+      case "mail": return fill({ display: "flex" }, el("", { width: "34%", background: "var(--colour-window)", borderRight: "1px solid var(--colour-hairline)" }, ...Array.from({ length: 8 }, (_, i) => el("", { padding: "14px 18px", display: "flex", flexDirection: "column", gap: "8px", borderBottom: "1px solid var(--colour-hairline)", background: i === 1 ? "var(--colour-accent)" : "transparent" }, bar8("40%", i === 1 ? "rgba(255,255,255,0.8)" : "var(--colour-text-2)"), bar8("80%", i === 1 ? "rgba(255,255,255,0.4)" : null)))),
+        el("", { flex: 1, background: "var(--colour-view)", padding: "28px" }, lines([["36%", "var(--colour-text-2)", 16], ["90%"], ["86%"], ["92%"], ["70%"], ["88%"], ["40%"]], 14)));
+      case "music": return fill({ background: "var(--colour-window)", padding: "24px", display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "20px", alignContent: "start" }, ...Array.from({ length: 10 }, (_, i) => el("", { aspectRatio: "1", borderRadius: "8px", background: ["linear-gradient(135deg,#c05a8a,#4a3a9a)", "linear-gradient(135deg,#f7b733,#fc4a1a)", "linear-gradient(135deg,#43cea2,#185a9d)", "linear-gradient(135deg,#ee9ca7,#ffdde1)", "linear-gradient(135deg,#232526,#414345)"][i % 5] })));
+      case "game": return el("", { position: "absolute", inset: 0, background: GAME_ART, display: "flex", alignItems: "flex-end", padding: "6%" }, sp("", "ELDEN RING", { fontSize: "96px", letterSpacing: "0.2em", color: "rgba(255,240,200,0.85)", fontWeight: 300 }));
+    }
+    return fill({ background: "var(--colour-window)" });
+  }
+  function windowDom(win, o) {
+    o = o || {};
+    const A = APPS[win.app];
+    const d = el("s-window", { position: "absolute", left: 0, top: 0, width: px(win.w), height: px(win.h), boxShadow: "none", borderRadius: o.square ? "0" : "var(--radius-window)" });
+    if (A.body !== "game" && !o.bare) d.append(el("", { height: "var(--size-titlebar)", display: "flex", alignItems: "center", padding: "0 var(--space-l)", position: "relative", background: "var(--colour-titlebar)", borderBottom: "1px solid var(--colour-hairline)" }, S.lights(), sp("s-headline", win.title, { position: "absolute", left: "110px", right: "110px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" })));
+    const b = bodyOf(A.body);
+    if (o.bare) b.style.top = "0";
+    d.append(b);
+    return d;
+  }
+  function scaled(win, k, o) { const d = windowDom(win, o); d.style.transform = "scale(" + k + ")"; d.style.transformOrigin = "0 0"; return d; }
+
+  // ---- Windows of the desktops, in 3440 × 1440 points, scaled to the screen drawn --------
+  const D2 = [
+    { id: 1, app: "kitty", title: "~/Development/isle — fish", x: 80, y: 110, w: 1100, h: 680 },
+    { id: 2, app: "firefox", title: "Mission Control — Isle docs", x: 760, y: 170, w: 1560, h: 1000 },
+    { id: 3, app: "zed", title: "layout.rs — isle", x: 2020, y: 96, w: 1340, h: 880 },
+    { id: 4, app: "files", title: "Development", x: 240, y: 720, w: 1080, h: 660 },
+    { id: 5, app: "discord", title: "#isle — Discord", x: 2260, y: 650, w: 1100, h: 720 },
+    { id: 6, app: "settings", title: "Desktop", x: 1500, y: 560, w: 860, h: 760 },
+    { id: 7, app: "steam", title: "Steam", x: 1140, y: 260, w: 1240, h: 820 },
+  ];
+  const D1 = [{ id: 11, app: "kitty", title: "cargo test — fish", x: 200, y: 140, w: 1300, h: 900 }, { id: 12, app: "firefox", title: "crates.io", x: 1600, y: 200, w: 1600, h: 1080 }];
+  const D3 = [{ id: 21, app: "zed", title: "notes.md — isle", x: 400, y: 120, w: 1500, h: 1100 }, { id: 22, app: "discord", title: "#general — Discord", x: 2000, y: 300, w: 1200, h: 800 }];
+  const MINI = [{ id: 31, app: "mail", title: "Inbox — Mail", x: 600, y: 200, w: 1300, h: 860 }, { id: 32, app: "zed", title: "roadmap.md — isle", x: 900, y: 160, w: 1400, h: 900 }, { id: 33, app: "kitty", title: "htop", x: 300, y: 300, w: 900, h: 560 }];
+  const HIDDEN = [{ id: 41, app: "music", title: "Library — Music", x: 500, y: 200, w: 1200, h: 800 }, { id: 42, app: "music", title: "Now Playing — Music", x: 1900, y: 400, w: 700, h: 500 }];
+  const FF_FS = { id: 51, app: "firefox", title: "YouTube — Firefox", x: 0, y: 0, w: 3440, h: 1440 };
+  const GAME = { id: 52, app: "elden", title: "Elden Ring", x: 0, y: 0, w: 3440, h: 1440 };
+  const SPLIT = [{ id: 53, app: "zed", title: "main.rs — isle", x: 0, y: 0, w: 1716, h: 1440 }, { id: 54, app: "kitty", title: "cargo run — fish", x: 1724, y: 0, w: 1716, h: 1440 }];
+  function fit(list) {
+    const sx = W / 3440, sy = H / 1440;
+    return list.map((w) => Object.assign({}, w, { x: Math.round(w.x * sx), y: Math.round(w.y * sy), w: Math.round(w.w * sx), h: Math.round(w.h * sy) }));
+  }
+
+  // ---- The spread's layout: rows by centre y, then centre x; every row count tried --------
+  function layout(wins, area, o) {
+    o = o || {};
+    const reserve = o.reserve != null ? o.reserve : RESERVE, gx = o.gap || GAP, gy = GAP;
+    const n = wins.length;
+    if (!n) return [];
+    if (n === 1 && wins[0].w <= area.w && wins[0].h + reserve <= area.h && !o.centre) {
+      const w = wins[0];
+      return [{ win: w, x: clamp(w.x, area.x, area.x + area.w - w.w), y: clamp(w.y, area.y, area.y + area.h - w.h - reserve), w: w.w, h: w.h }];
+    }
+    let best = null;
+    for (let rows = 1; rows <= Math.min(n, 8); rows++) {
+      const byY = wins.slice().sort((a, b) => (a.y + a.h / 2) - (b.y + b.h / 2));
+      const ideal = wins.reduce((t, w) => t + w.w, 0) / rows;
+      const R = [];
+      let cur = [], cw = 0;
+      for (const w of byY) {
+        if (cur.length && cw + w.w / 2 > ideal && R.length < rows - 1) { R.push(cur); cur = []; cw = 0; }
+        cur.push(w); cw += w.w;
+      }
+      R.push(cur);
+      R.forEach((r) => r.sort((a, b) => (a.x + a.w / 2) - (b.x + b.w / 2)));
+      let sx = Infinity;
+      for (const r of R) sx = Math.min(sx, (area.w - gx * (r.length - 1)) / r.reduce((t, w) => t + w.w, 0));
+      const sy = (area.h - gy * (R.length - 1) - reserve * R.length) / R.reduce((t, r) => t + Math.max(...r.map((w) => w.h)), 0);
+      const scale = Math.min(sx, sy, 1);
+      if (scale <= 0) continue;
+      const used = wins.reduce((t, w) => t + w.w * w.h, 0) * scale * scale / (area.w * area.h);
+      const score = scale + 0.1 * used;
+      if (!best || score > best.score) best = { score, R, scale };
+    }
+    const { R, scale } = best;
+    const rowH = R.map((r) => Math.max(...r.map((w) => w.h)) * scale);
+    const total = rowH.reduce((a, b) => a + b, 0) + reserve * R.length + gy * (R.length - 1);
+    let y = area.y + (area.h - total) / 2;
+    const out = [];
+    R.forEach((r, i) => {
+      const rw = r.reduce((t, w) => t + w.w * scale, 0) + gx * (r.length - 1);
+      const slack = area.w - rw;
+      const realCx = r.reduce((t, w) => t + w.x + w.w / 2, 0) / r.length;
+      let x = area.x + slack / 2 + clamp((realCx - (area.x + area.w / 2)) * 0.5, -slack / 2, slack / 2);
+      r.forEach((w) => { const tw = w.w * scale, th = w.h * scale; out.push({ win: w, x, y: y + (rowH[i] - th) / 2, w: tw, h: th }); x += tw + gx; });
+      y += rowH[i] + reserve + gy;
+    });
+    return out;
+  }
+  // Group by application: each app's windows as one cluster in a row, the clusters laid out as windows are.
+  function groupedLayout(wins, area, keyOf) {
+    const groups = new Map();
+    wins.forEach((w) => { const k = keyOf(w); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(w); });
+    const clusters = [...groups.entries()].map(([k, ws]) => {
+      const w = ws.reduce((t, x) => t + x.w, 0) + 200 * (ws.length - 1), hh = Math.max(...ws.map((x) => x.h));
+      return { key: k, ws, w, h: hh, x: ws.reduce((t, x) => t + x.x, 0) / ws.length, y: ws.reduce((t, x) => t + x.y, 0) / ws.length };
+    });
+    const placed = layout(clusters, area, { reserve: 46, gap: 48, centre: true });
+    const tiles = [], caps = [];
+    placed.forEach((c) => {
+      const k = c.w / c.win.w;
+      let x = c.x;
+      c.win.ws.forEach((w) => { tiles.push({ win: w, x, y: c.y + (c.h - w.h * k) / 2, w: w.w * k, h: w.h * k }); x += w.w * k + 16; tiles[tiles.length - 1].x = x - w.w * k - 16; });
+      const span = c.win.ws.reduce((t, w) => t + w.w * k, 0) + 16 * (c.win.ws.length - 1);
+      caps.push({ key: c.win.key, cx: c.x + span / 2, y: c.y + c.h + 8 });
+    });
+    return { tiles, caps };
+  }
+
+  // ---- Pieces ----------------------------------------------------------------------------
+  const badge = (g, x, y) => el("", { position: "absolute", left: px(x != null ? x : -10), top: px(y != null ? y : -10), width: "20px", height: "20px", borderRadius: "50%", background: "var(--material-solid)", boxShadow: "var(--shadow-control), inset 0 0 0 1px var(--colour-hairline)", display: "grid", placeItems: "center", color: "var(--colour-text)", zIndex: 3 }, ic(g, 12, true));
+  const capsuleStyle = () => Object.assign({ position: "absolute", height: "24px", borderRadius: "12px", padding: "0 var(--space-s)", display: "flex", alignItems: "center", whiteSpace: "nowrap", boxShadow: "var(--shadow-control)", color: "var(--colour-text)", transform: "translateX(-50%)" }, solid ? { background: "var(--material-solid)", backdropFilter: "none", WebkitBackdropFilter: "none" } : {});
+  function capsule(cx, y, text, o) {
+    o = o || {};
+    return el("s-glass", Object.assign(capsuleStyle(), { left: px(cx), top: px(y), maxWidth: px(Math.max(o.max || 0, 480)), zIndex: 4 }), sp("", text, { overflow: "hidden", textOverflow: "ellipsis", color: o.quiet ? "var(--colour-text-2)" : "var(--colour-text)" }));
+  }
+  function pointer(x, y, kind) {
+    const svg = kind === "no" ? '<svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="10" fill="#fff" stroke="#000" stroke-width="1.5"/><circle cx="13" cy="13" r="6.5" fill="none" stroke="#d00" stroke-width="2.6"/><path d="M8.5 17.5l9-9" stroke="#d00" stroke-width="2.6"/></svg>'
+      : kind === "resize" ? '<svg width="30" height="20" viewBox="0 0 30 20"><path d="M2 10l6-6v4h14V4l6 6-6 6v-4H8v4z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>'
+      : '<svg width="22" height="30" viewBox="0 0 22 30"><path d="M2 2v22l6-5 4 9 4-2-4-9h8z" fill="#000" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    const e = abs(x, y, null, null, { zIndex: 9, pointerEvents: "none" });
+    e.innerHTML = svg;
+    return e;
+  }
+  function island(s) {
+    s.append(el("s s-island", { left: px(W / 2), top: "var(--size-island-top)", transform: "translateX(-50%)", gap: "var(--space-s)", padding: "0 var(--space-m)", boxShadow: "var(--shadow-menu)", justifyContent: "center", zIndex: 8 }, S.clock()));
+  }
+  const veil = (s, a) => s.append(abs(0, 0, W, H, { background: "var(--colour-veil)", opacity: a == null ? 1 : a }));
+
+  // A tile: the window scaled into its rectangle, the icon on its lower edge, and the hover pieces.
+  function tile(s, win, r, o) {
+    o = o || {};
+    const k = r.w / win.w;
+    const rad = o.square ? 0 : Math.max(4, 10 * k);
+    const g = abs(r.x, r.y, r.w, r.h, { zIndex: o.z || 2, opacity: o.alpha != null ? o.alpha : 1 });
+    const lift = o.ring || o.hover || o.lift;
+    const clip = abs(0, 0, r.w, r.h, { borderRadius: px(rad), overflow: "hidden", background: "var(--colour-window)", boxShadow: o.square ? "none" : lift ? "var(--shadow-window)" : "var(--shadow-window-inactive)", outline: o.ring ? "var(--stroke-focus-ring) solid var(--colour-accent)" : "none", outlineOffset: "var(--stroke-focus-offset)", opacity: o.dim || 1 });
+    if (o.frame) clip.append(abs(0, 0, r.w, r.h, { display: "grid", placeItems: "center", background: "var(--colour-window)" }, icon(win.app, 48)));
+    if (!o.frame || o.fadeIn) { const d = scaled(win, k, o); if (o.fadeIn) d.style.opacity = o.fadeIn; clip.append(d); }
+    g.append(clip);
+    if (!o.noIcon) { const iw = APPS[win.app].game ? 32 : 48; g.append(abs(r.w / 2 - iw / 2, r.h - 24, iw, 48, { opacity: o.iconAlpha != null ? o.iconAlpha : o.dim || 1 }, icon(win.app, 48))); }
+    if (o.hover) g.append(badge("x"));
+    s.append(g);
+    if (o.title) s.append(capsule(r.x + r.w / 2, r.y + r.h + 28, o.title === true ? win.title : o.title, { max: r.w, quiet: o.quiet }));
+    return g;
+  }
+
+  // A desktop's miniature: the wallpaper and its windows at their places.
+  function miniature(d, mw, mh) {
+    const k = mw / W;
+    const m = el("", { position: "relative", width: px(mw), height: px(mh), borderRadius: "var(--radius-control)", overflow: "hidden", background: wallBg, flex: "none" });
+    if (d.kind === "game") m.append(abs(0, 0, mw, mh, { background: GAME_ART }));
+    else if (d.kind === "fs") m.append(scaled(Object.assign({}, d.wins[0], { w: W, h: H }), k, { bare: true, square: true }));
+    else if (d.kind === "split") {
+      m.style.background = "var(--colour-window-sunken)";
+      const half = (W - 8) / 2;
+      d.wins.forEach((w, i) => { const c = abs(i ? (half + 8) * k : 0, 0, half * k, mh, { overflow: "hidden" }); c.append(scaled(Object.assign({}, w, { w: half, h: H }), k, { square: true })); m.append(c); });
+    } else fit(d.wins).forEach((w) => { const c = abs(w.x * k, w.y * k, w.w * k, w.h * k, { borderRadius: px(Math.max(1, 10 * k)), overflow: "hidden" }); c.append(scaled(w, k)); m.append(c); });
+    if (d.dropHalf) m.append(abs(d.dropHalf === "left" ? 2 : mw / 2, 2, mw / 2 - 2, mh - 4, { background: "var(--colour-fill-strong)", boxShadow: "inset 0 0 0 var(--stroke-hairline) var(--colour-hairline-strong)", borderRadius: "var(--radius-small)" }));
+    if (d.current) Object.assign(m.style, { outline: "var(--stroke-found) solid var(--colour-text)", outlineOffset: "var(--stroke-focus-offset)", overflow: "hidden" });
+    return m;
+  }
+  function spaceLabel(d) {
+    const kids = [];
+    if (d.kind === "fs") kids.push(icon(d.wins[0].app, 16));
+    if (d.kind === "game") kids.push(gameCover(16));
+    if (d.kind === "split") kids.push(row({ gap: "2px" }, icon(d.wins[0].app, 16), icon(d.wins[1].app, 16)));
+    kids.push(sp("s-callout", d.label, { color: d.current ? "var(--colour-text)" : "var(--colour-text-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }));
+    return row({ gap: "var(--space-xs)", height: "15px", maxWidth: "100%", justifyContent: "center" }, ...kids);
+  }
+  // The Spaces bar: miniatures, then the + tile; shrinks to 64 tall, then scrolls.
+  function spacesBar(s, desks, o) {
+    o = o || {};
+    const n = desks.length, maxW = W - 64;
+    const mwOf = (mh) => Math.round(mh * W / H);
+    const widthAt = (mh) => 24 + n * mwOf(mh) + (n - 1) * 16 + (o.full ? 0 : 16 + mh);
+    let mh = MH;
+    while (mh > MH_MIN && widthAt(mh) > maxW) mh--;
+    const over = widthAt(mh) > maxW, bw = Math.min(widthAt(mh), maxW), barH = 12 + mh + 4 + 15 + 12, bx = (W - bw) / 2, mw = mwOf(mh);
+    const panel = glass(bx, STRIP, bw, barH, { borderRadius: "var(--radius-panel)", boxShadow: "var(--shadow-panel)", overflow: over ? "hidden" : "visible", opacity: o.alpha != null ? o.alpha : 1, zIndex: 5 });
+    const shift = over ? -(o.scroll || 0) : 0;
+    const items = [];
+    desks.forEach((d, i) => {
+      const x = 12 + i * (mw + 16) + shift;
+      const it = abs(x, 12, mw, mh + 19, { display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" });
+      if (d.plate) Object.assign(it.style, { background: "var(--colour-fill-strong)", boxShadow: "0 0 0 4px var(--colour-fill-strong)", borderRadius: "var(--radius-card)" });
+      it.append(miniature(d, mw, mh), spaceLabel(d));
+      if (d.remove) it.append(badge("x"));
+      if (d.exit) it.append(badge("arrows-in-simple"));
+      panel.append(it);
+      items.push({ x: bx + x, y: STRIP + 12, w: mw, h: mh });
+    });
+    if (!o.full) {
+      const x = 12 + n * (mw + 16) + shift;
+      panel.append(abs(x, 12, mh, mh, { borderRadius: "var(--radius-control)", background: o.plusHover ? "var(--colour-fill-strong)" : "var(--colour-fill)", display: "grid", placeItems: "center", color: o.plusHover ? "var(--colour-text)" : "var(--colour-text-2)" }, ic("plus", 20)));
+      items.push({ plus: true, x: bx + x, y: STRIP + 12, w: mh, h: mh });
+    }
+    if (over) panel.append(abs(bw * 0.06, barH - 6, bw * 0.55, 3, { borderRadius: "2px", background: "var(--colour-fill-strong)" }));
+    s.append(panel);
+    return { bottom: STRIP + barH, items, mh, mw };
+  }
+  // The tray, and App Exposé's set-apart row: groups of live thumbnails along the foot.
+  function trayRow(s, groups, o) {
+    o = o || {};
+    groups = groups.filter((g) => g.items.length);
+    if (!groups.length) return null;
+    const widths = groups.map((g) => g.items.length * 192 + (g.items.length - 1) * 16);
+    const tw = 24 + widths.reduce((a, b) => a + b, 0) + 24 * (groups.length - 1), th = 138;
+    const tx = (W - tw) / 2, ty = H - 16 - th + (o.rise || 0);
+    const p = glass(tx, ty, tw, th, { borderRadius: "var(--radius-panel)", boxShadow: "var(--shadow-panel)", opacity: o.alpha != null ? o.alpha : 1, zIndex: 5 });
+    let x = 12, hoverAt = null;
+    groups.forEach((g, gi) => {
+      if (gi) { p.append(abs(x + 11.5, 12 + 18, 1, 80, { background: "var(--colour-hairline)" })); x += 24; }
+      p.append(abs(x, 12, null, 14, { font: "600 var(--type-style-subheadline-size, 11px)/14px var(--type-family, inherit)", color: "var(--colour-text-2)", whiteSpace: "nowrap" }, g.head));
+      g.items.forEach((it) => {
+        const slot = abs(x, 30, 192, 80, it.hidden ? { background: "var(--colour-fill)", borderRadius: "var(--radius-small)" } : {});
+        const k = Math.min(192 / it.win.w, 80 / it.win.h), w = it.win.w * k, hh = it.win.h * k;
+        const t = abs((192 - w) / 2, (80 - hh) / 2, w, hh, { borderRadius: "var(--radius-small)", overflow: "hidden", boxShadow: "var(--shadow-window-inactive)", opacity: it.hidden ? 0.5 : 1, outline: it.hover ? "var(--stroke-focus-ring) solid var(--colour-accent)" : "none", outlineOffset: "var(--stroke-focus-offset)" });
+        t.append(scaled(it.win, k));
+        slot.append(t, abs(80, 64, 32, 32, {}, icon(it.win.app, 32)));
+        p.append(slot);
+        if (it.hover) hoverAt = { cx: tx + x + 96, title: it.win.title };
+        x += 208;
+      });
+      x -= 16;
+    });
+    s.append(p);
+    if (hoverAt) s.append(capsule(hoverAt.cx, ty - 4 - 24, hoverAt.title));
+    return { top: ty };
+  }
+  const spreadArea = (top, trayTop) => ({ x: 32, y: top + 24, w: W - 64, h: (trayTop != null ? trayTop - 24 : H - 32) - (top + 24) });
+
+  // ---- Mission Control, assembled ------------------------------------------------------------
+  const DESKS = () => [
+    { label: "Desktop 1", wins: D1 }, { label: "Desktop 2", wins: D2, current: true }, { label: "Desktop 3", wins: D3 },
+    { label: "Firefox", kind: "fs", wins: [FF_FS] }, { label: "Elden Ring", kind: "game", wins: [GAME] }];
+  function mission(s, ctx, o) {
+    o = o || {};
+    W = ctx.screen.w; H = ctx.screen.h; solid = !!o.solid;
+    wallBg = s.parentNode.querySelector(".screen-wall").style.background;
+    const p = o.p != null ? o.p : 1;
+    veil(s, p);
+    const desks = o.desks || DESKS();
+    const bar = spacesBar(s, desks, { alpha: p, plusHover: o.plusHover, scroll: o.scroll });
+    const groups = o.tray || [{ head: "Minimised", items: MINI.slice(0, 2).map((w) => ({ win: fit([w])[0] })) }, { head: "Hidden", items: [{ win: fit([HIDDEN[0]])[0], hidden: true }] }];
+    const tr = trayRow(s, groups, { alpha: p });
+    const wins = fit(o.wins || D2);
+    const area = spreadArea(bar.bottom, tr ? tr.top : null);
+    let tiles, caps = [];
+    if (o.grouped) { const g = groupedLayout(wins, area, o.grouped); tiles = g.tiles; caps = g.caps; }
+    else tiles = layout(wins, area);
+    tiles.forEach((t) => {
+      if (o.dragging && t.win.id === o.dragging.id) return;
+      const r = p < 1 ? { x: lerp(t.win.x, t.x, p), y: lerp(t.win.y, t.y, p), w: lerp(t.win.w, t.w, p), h: lerp(t.win.h, t.h, p) } : t;
+      const hov = o.hover === t.win.id, sel = o.select === t.win.id;
+      const st = (o.tileState || {})[t.win.id] || {};
+      tile(s, t.win, r, Object.assign({ ring: hov || sel, hover: hov, title: (hov || sel) ? true : null, noIcon: !!o.grouped, iconAlpha: clamp(2 * p - 1, 0, 1) }, st));
+    });
+    caps.forEach((c) => {
+      const a = typeof c.key === "string" && APPS[c.key] ? APPS[c.key] : null;
+      const label = o.capLabel ? o.capLabel(c.key) : a.name;
+      const app = o.capIcon ? o.capIcon(c.key) : c.key;
+      s.append(el("s-glass", Object.assign(capsuleStyle(), { left: px(c.cx), top: px(c.y), height: "30px", borderRadius: "15px", gap: "var(--space-xs)" }), icon(app, 16), sp("s-headline", label)));
+    });
+    island(s);
+    return { bar, tiles, area };
+  }
+
+  // ---- Scenes ---------------------------------------------------------------------------------
+  const sc = (id, name, note, render, crop) => ({ id, name, note, crop, render });
+  function dragScene(s, ctx, target) {
+    const dragged = fit(D2).find((w) => w.id === 6);
+    const desks = DESKS();
+    if (target === "split") desks.push({ label: "Zed and kitty", kind: "split", wins: SPLIT });
+    if (target === "desktop") desks[2].plate = true;
+    if (target === "fs") desks[3].dropHalf = "right";
+    const m = mission(s, ctx, { desks, dragging: dragged, plusHover: target === "plus" });
+    const it = target === "desktop" ? m.bar.items[2] : target === "plus" ? m.bar.items[m.bar.items.length - 1] : target === "fs" ? m.bar.items[3] : m.bar.items[5];
+    const k = 2 * m.bar.mh / H;
+    const w = dragged.w * k, hh = dragged.h * k;
+    const cx = it.x + it.w * (target === "fs" ? 0.75 : 0.5), cy = it.y + it.h * 0.55;
+    tile(s, dragged, { x: cx - w / 2, y: cy - hh * 0.3, w, h: hh }, { lift: true, noIcon: true, z: 7 });
+    s.append(pointer(cx - 2, cy - 2, target === "split" ? "no" : null));
+  }
+  function exposeScene(s, ctx, o) {
+    o = o || {};
+    W = ctx.screen.w; H = ctx.screen.h; solid = false;
+    wallBg = s.parentNode.querySelector(".screen-wall").style.background;
+    veil(s);
+    const app = "kitty";
+    const hx = W / 2;
+    s.append(el("s-glass", Object.assign(capsuleStyle(), { left: px(hx), top: px(STRIP + 24), height: "40px", borderRadius: "20px", padding: "0 var(--space-m) 0 var(--space-xs)", gap: "var(--space-s)", zIndex: 5 }), icon(app, 32), sp("s-title-3", "kitty")));
+    const top = STRIP + 24 + 40;
+    if (o.empty) {
+      s.append(capsule(W / 2, top + (H - top) / 2 - 12, "No windows", { quiet: true }));
+      island(s);
+      return;
+    }
+    const kittyWins = fit([D2[0], { id: 61, app: "kitty", title: "cargo test — fish", x: 1400, y: 200, w: 1200, h: 760 }, { id: 62, app: "kitty", title: "ssh isle-vm", x: 500, y: 760, w: 1000, h: 560 }, { id: 63, app: "kitty", title: "nvim tokens.kdl", x: 2100, y: 600, w: 1100, h: 700 }]);
+    const tr = trayRow(s, [{ head: "Minimised", items: [{ win: fit([MINI[2]])[0] }] }, { head: "Desktop 3", items: [{ win: fit([{ id: 64, app: "kitty", title: "journalctl -f", x: 0, y: 0, w: 1200, h: 800 }])[0] }] }]);
+    layout(kittyWins, spreadArea(top, tr.top)).forEach((t, i) => tile(s, t.win, t, i === 1 ? { ring: true, title: true } : {}));
+    island(s);
+  }
+  function splitScene(s, ctx, mode) {
+    W = ctx.screen.w; H = ctx.screen.h; solid = false;
+    wallBg = s.parentNode.querySelector(".screen-wall").style.background;
+    const half = Math.round((W - 8) / 2);
+    const left = { id: 70, app: "zed", title: "main.rs — isle", x: 0, y: 0, w: half, h: H };
+    if (mode === "chooser" || mode === "none") {
+      s.append(abs(0, 0, W, H, { background: "var(--colour-window-sunken)" }));
+      tile(s, left, { x: 0, y: 0, w: half, h: H }, { square: true, noIcon: true });
+      s.append(abs(half + 8, 0, W - half - 8, H, { background: wallBg }));
+      s.append(abs(half + 8, 0, W - half - 8, H, { background: "var(--colour-veil)" }));
+      const area = { x: half + 8 + 32, y: STRIP, w: W - half - 8 - 64, h: H - STRIP - 32 };
+      if (mode === "none") { s.append(capsule(area.x + area.w / 2, area.y + area.h / 2 - 12, "No other windows fit", { quiet: true })); return; }
+      const cands = fit([D2[0], D2[1], D2[3], D2[4], Object.assign({}, D2[6], { w: 2600, title: "Steam — Big Picture" })]);
+      layout(cands, area).forEach((t) => {
+        const misfit = t.win.id === 7;
+        tile(s, t.win, t, misfit ? { dim: 0.4, noIcon: false, title: "Doesn't fit in Split View", quiet: true } : t.win.id === 2 ? { ring: true, title: true } : {});
+        if (misfit) s.append(pointer(t.x + t.w * 0.6, t.y + t.h * 0.5, "no"));
+      });
+      return;
+    }
+    const right = { id: 71, app: "firefox", title: "docs.rs — smithay", x: 0, y: 0, w: W - half - 8, h: H };
+    tile(s, left, { x: 0, y: 0, w: half, h: H }, { square: true, noIcon: true });
+    s.append(abs(half, 0, 8, H, { background: "var(--colour-window-sunken)" }, abs(2, H / 2 - 16, 4, 32, { borderRadius: "2px", background: mode === "hover" ? "var(--colour-text-2)" : "var(--colour-hairline-strong)" })));
+    tile(s, right, { x: half + 8, y: 0, w: W - half - 8, h: H }, { square: true, noIcon: true });
+    if (mode === "hover") s.append(pointer(half - 11, H / 2 + 40, "resize"));
+  }
+  // Stage Manager: the column of sets at the leading edge, the front set beside it.
+  const SETS = [
+    [{ app: "firefox", title: "crates.io", w: 1500, h: 1000 }, { app: "firefox", title: "GitHub", w: 1400, h: 900 }],
+    [{ app: "discord", title: "#isle — Discord", w: 1100, h: 720 }],
+    [{ app: "files", title: "Development", w: 1080, h: 660 }, { app: "files", title: "Downloads", w: 1000, h: 640 }, { app: "files", title: "Pictures", w: 1000, h: 640 }],
+    [{ app: "mail", title: "Inbox — Mail", w: 1300, h: 860 }],
+    [{ app: "steam", title: "Steam", w: 1240, h: 820 }],
+  ];
+  function stageColumn(s, x0, o) {
+    o = o || {};
+    SETS.forEach((set, i) => {
+      const top = STRIP + 16 + i * 140;
+      const front = set[0], k = Math.min(160 / front.w, 100 / front.h);
+      const g = abs(x0, top, 160, 100, { zIndex: 4 });
+      set.slice(0, 3).reverse().forEach((w, j, arr) => {
+        const back = arr.length - 1 - j, ww = w.w * k, hh = w.h * k;
+        const c = abs((160 - ww) / 2 + back * 4, (100 - hh) / 2 - back * 4, ww, hh, { borderRadius: "var(--radius-small)", overflow: "hidden", boxShadow: o.hover === i && back === 0 ? "var(--shadow-window)" : "var(--shadow-window-inactive)" });
+        c.append(scaled(Object.assign({ id: 900 + i * 10 + back, x: 0, y: 0 }, w), k));
+        g.append(c);
+      });
+      g.append(abs(64, 84, 32, 32, {}, icon(front.app, 32)));
+      s.append(g);
+      if (o.hover === i) s.append(capsule(x0 + 80, top + 100 + 16 + 4, APPS[front.app].name));
+    });
+  }
+  function stageScene(s, ctx, mode) {
+    W = ctx.screen.w; H = ctx.screen.h; solid = false;
+    wallBg = s.parentNode.querySelector(".screen-wall").style.background;
+    if (mode === "mc") {
+      const all = [];
+      [[{ app: "zed", title: "layout.rs — isle", w: 1340, h: 880 }, { app: "kitty", title: "cargo test — fish", w: 1100, h: 680 }]].concat(SETS.slice(0, 4)).forEach((set, i) => set.forEach((w, j) => all.push(Object.assign({ id: 800 + i * 10 + j, set: i, x: 400 + i * 500 + j * 120, y: 200 + (i % 2) * 400 + j * 60 }, w))));
+      const names = ["Zed and kitty", "Firefox", "Discord", "Files", "Mail"];
+      const icons = ["zed", "firefox", "discord", "files", "mail"];
+      mission(s, ctx, { wins: all, grouped: (w) => w.set, capLabel: (k) => names[k], capIcon: (k) => icons[k], tray: [] });
+      return;
+    }
+    const reserve = mode === "hidden" ? 0 : 192;
+    const front = fit([{ id: 81, app: "zed", title: "layout.rs — isle", x: 0, y: 0, w: 1500, h: 1000 }, { id: 82, app: "kitty", title: "cargo test — fish", x: 0, y: 0, w: 1000, h: 640 }]);
+    const ax = reserve + 0, aw = W - reserve;
+    front[0].x = Math.round(ax + (aw - front[0].w) / 2 - 220); front[0].y = Math.round(STRIP + (H - STRIP - front[0].h) / 2);
+    front[1].x = front[0].x + front[0].w - 300; front[1].y = front[0].y + 380;
+    front.forEach((w, i) => { const g = abs(w.x, w.y, w.w, w.h, { borderRadius: "var(--radius-window)", overflow: "hidden", boxShadow: i ? "var(--shadow-window)" : "var(--shadow-window-inactive)" }); g.append(windowDom(w)); s.append(g); });
+    if (mode === "hidden") { stageColumn(s, 16, { hover: 2 }); s.append(pointer(4, STRIP + 16 + 2 * 140 + 60)); }
+    else stageColumn(s, 16, { hover: mode === "hover" ? 1 : null });
+    island(s);
+  }
+  // Show Desktop: every window to its nearest of the left, right or bottom edge, 24 of it left showing.
+  function showDesktopRects(wins) {
+    return wins.map((w) => {
+      const cx = w.x + w.w / 2, cy = w.y + w.h / 2;
+      const dl = cx, dr = W - cx, db = H - cy;
+      if (db <= dl && db <= dr) return { x: w.x, y: H - 24 };
+      return dl <= dr ? { x: 24 - w.w, y: w.y } : { x: W - 24, y: w.y };
+    });
+  }
+  function desktopWindows(s, wins, o) {
+    o = o || {};
+    wins.forEach((w, i) => {
+      const off = o.off ? o.off[i] : { x: w.x, y: w.y };
+      const g = abs(off.x + (o.dx || 0), off.y, w.w, w.h, { borderRadius: "var(--radius-window)", overflow: "hidden", boxShadow: i === wins.length - 1 ? "var(--shadow-window)" : "var(--shadow-window-inactive)", opacity: o.alpha != null ? o.alpha : 1 });
+      g.append(windowDom(w));
+      s.append(g);
+    });
+  }
+  function showDesktop(s, ctx, p) {
+    W = ctx.screen.w; H = ctx.screen.h;
+    const wins = fit(D2);
+    const to = showDesktopRects(wins);
+    desktopWindows(s, wins, { off: wins.map((w, i) => ({ x: lerp(w.x, to[i].x, p), y: lerp(w.y, to[i].y, p) })) });
+    island(s);
+  }
+
+  // ---- Motion: each loops on the harness's spring, out and back ---------------------------------
+  function loop(s, ctx, draw, o) {
+    o = o || {};
+    const stage = abs(0, 0, ctx.screen.w, ctx.screen.h);
+    s.append(stage);
+    const frame = (p) => { stage.replaceChildren(); draw(stage, p); };
+    const fade = (from, to, done) => { const t0 = performance.now(); const step = (now) => { if (!stage.isConnected) return; const t = Math.min(1, (now - t0) / 120); frame(lerp(from, to, t)); if (t < 1) requestAnimationFrame(step); else done(); }; requestAnimationFrame(step); };
+    const run = (from, to, sp, done) => {
+      if (ctx.flags.reduceMotion) return fade(from, to, done);
+      ctx.spring({ from, to, stiffness: sp[0], damping: sp[1] }, (p, end) => { frame(p); if (end) done(); });
+    };
+    const again = () => setTimeout(() => { if (!stage.isConnected) return; run(0, 1, o.in || SPRING.move, () => setTimeout(() => { if (!stage.isConnected) return; run(1, 0, o.out || SPRING.exit, again); }, 900)); }, 700);
+    frame(0);
+    again();
+  }
+  function openMotion(s, ctx) {
+    loop(s, ctx, (st, p) => {
+      if (ctx.flags.reduceMotion) {
+        W = ctx.screen.w; H = ctx.screen.h;
+        desktopWindows(st, fit(D2), { alpha: 1 - p });
+        const layer = abs(0, 0, W, H, { opacity: p });
+        st.append(layer);
+        mission(layer, ctx, {});
+        return;
+      }
+      if (p < 0.001) { W = ctx.screen.w; H = ctx.screen.h; desktopWindows(st, fit(D2)); island(st); return; }
+      mission(st, ctx, { p });
+    });
+  }
+  function switchMotion(s, ctx) {
+    loop(s, ctx, (st, p) => {
+      W = ctx.screen.w; H = ctx.screen.h;
+      if (ctx.flags.reduceMotion) { desktopWindows(st, fit(D2), { alpha: 1 - p }); desktopWindows(st, fit(D3), { alpha: p }); }
+      else { desktopWindows(st, fit(D2), { dx: -80 * p, alpha: 1 - p }); desktopWindows(st, fit(D3), { dx: 80 * (1 - p), alpha: p }); }
+      island(st);
+    }, { in: SPRING.switch, out: SPRING.switch });
+  }
+  function showDesktopMotion(s, ctx) {
+    loop(s, ctx, (st, p) => {
+      if (ctx.flags.reduceMotion) { W = ctx.screen.w; H = ctx.screen.h; desktopWindows(st, fit(D2), { alpha: 1 - p }); const l = abs(0, 0, W, H, { opacity: p }); st.append(l); showDesktop(l, ctx, 1); return; }
+      showDesktop(st, ctx, p);
+    }, { in: SPRING.move, out: SPRING.move });
+  }
+
+  // ---- Many --------------------------------------------------------------------------------
+  function manyWins() {
+    const apps = ["kitty", "firefox", "zed", "files", "discord", "settings", "steam", "mail"];
+    return Array.from({ length: 24 }, (_, i) => ({ id: 300 + i, app: apps[i % 8], title: APPS[apps[i % 8]].name + " " + (i + 1), x: (i * 397) % 2600, y: 60 + ((i * 233) % 900), w: 800 + ((i * 137) % 700), h: 520 + ((i * 89) % 400) }));
+  }
+  const manyDesks = (n) => Array.from({ length: n }, (_, i) => ({ label: "Desktop " + (i + 1), wins: i % 3 === 0 ? D1 : i % 3 === 1 ? D3 : D2.slice(0, 3), current: i === 1 }));
+
+  Isle.board({
+    title: "Mission Control surfaces",
+    subtitle: "P16 phase 16.1: Mission Control, App Exposé, Show Desktop, Split View and Stage Manager, drawn from p1/surfaces/mission-control.md on P1's kit. The spread is laid out by the algorithm P16 builds (plan choice 8), so the tiles land where the compositor would put them. Every scene draws for the 1920 × 1080 screen too.",
+    tokens: "../../../../data/tokens/tokens.kdl",
+    wallpaper: "haze",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "mc", name: "Mission Control", sheet: "p1/surfaces/mission-control.md", states: [
+        sc("open", "Open", "Seven windows on Desktop 2 of three, beside a full-screen Firefox and a game. The wallpaper under the veil, the Spaces bar as glass under the island's strip with the current desktop ringed in colour-text, the spread never larger than real, each icon on its tile's lower edge, the tray of minimised and hidden windows. No ring until the pointer moves or a key is pressed.", (s, ctx) => mission(s, ctx)),
+        sc("bar", "Spaces bar", "A composite of the bar's states: Desktop 1 hovered (the plate and Remove), the current desktop's neutral ring, a full-screen Space with Exit Full Screen, a Split View pair by both names, a game by its cover, the + tile hovered.", (s, ctx) => mission(s, ctx, { desks: [{ label: "Desktop 1", wins: D1, plate: true, remove: true }, { label: "Desktop 2", wins: D2, current: true }, { label: "Desktop 3", wins: D3 }, { label: "Firefox", kind: "fs", wins: [FF_FS], exit: true }, { label: "Zed and kitty", kind: "split", wins: SPLIT }, { label: "Elden Ring", kind: "game", wins: [GAME] }], plusHover: true }), [500, 0, 2440, 300]),
+        sc("hover", "Hover", "The hovered tile: the accent ring (the screen's one accent mark), the active shadow, its title in a capsule under the icon, the close badge on its top leading corner.", (s, ctx) => mission(s, ctx, { hover: 2 })),
+        sc("keyboard", "Keyboard selection", "A selection made by the arrows: the ring and title, no close badge (W, Delete and ⌘W close).", (s, ctx) => mission(s, ctx, { select: 3 })),
+        sc("tray", "Tray", "Three minimised windows, then a hairline, then a hidden app's two at half strength over a well. A hovered thumbnail rings and its title sits above the tray, never on its glass. The tray's ends stop short of the bottom corners.", (s, ctx) => mission(s, ctx, { tray: [{ head: "Minimised", items: fit(MINI).map((w, i) => ({ win: w, hover: i === 1 })) }, { head: "Hidden", items: fit(HIDDEN).map((w) => ({ win: w, hidden: true })) }] }), [520, 1060, 2400, 380]),
+        sc("grouped", "Group windows by application", "With the setting on: each app's windows as one cluster, no icons on the tiles, the app's name in a capsule under the cluster.", (s, ctx) => mission(s, ctx, { wins: D2.concat(fit([{ id: 91, app: "kitty", title: "htop", x: 300, y: 600, w: 900, h: 560 }, { id: 92, app: "firefox", title: "GitHub", x: 1800, y: 400, w: 1400, h: 900 }])), grouped: (w) => w.app })),
+        sc("many", "Many windows", "Twenty-four windows: the tiles shrink to fit in more rows; titles still only on the ringed tile.", (s, ctx) => mission(s, ctx, { wins: manyWins(), hover: 305 })),
+        sc("many-desktops", "Many desktops", "Fourteen desktops: the miniatures shrink together toward 64 tall, labels keep their size.", (s, ctx) => mission(s, ctx, { desks: manyDesks(14) }), [0, 0, 3440, 300]),
+        sc("scroll", "Too many to fit", "Sixteen desktops at 64 tall still overflow: the row scrolls inside the panel, the + tile goes at the limit.", (s, ctx) => mission(s, ctx, { desks: manyDesks(16), scroll: 260 }), [0, 0, 3440, 300]),
+        sc("loading", "Loading and protected", "Tiles appear at once as opaque frames with their icon; textures fade in over them (Discord at half way). KeePassXC's surface is protected: its frame and icon stay.", (s, ctx) => mission(s, ctx, { wins: D2.slice(0, 4).concat(fit([{ id: 95, app: "keepass", title: "Passwords — KeePassXC", x: 2240, y: 650, w: 1000, h: 700 }, D2[4]])), tileState: { 4: { frame: true }, 95: { frame: true }, 5: { frame: true, fadeIn: 0.5 }, 3: { frame: true } } })),
+        sc("game", "Over a full-screen game", "Opened by ⌃↑ over Elden Ring: every material solid, no blur and no motion; the spread holds the game's one tile.", (s, ctx) => mission(s, ctx, { solid: true, desks: DESKS().map((d) => Object.assign(d, { current: d.kind === "game" })), wins: [GAME], tray: [] })),
+      ] },
+      { id: "drag", name: "Dragging", sheet: "p1/surfaces/mission-control.md", states: [
+        sc("desktop", "Onto a desktop", "System Settings dragged from the spread: over the bar it shrinks to twice a miniature's scale; Desktop 3 under it takes the plate; its place in the spread stays empty.", (s, ctx) => dragScene(s, ctx, "desktop"), [400, 0, 2640, 700]),
+        sc("plus", "Onto the + tile", "Over the + tile: the well fills and its glyph brightens; the drop gives the window a desktop of its own.", (s, ctx) => dragScene(s, ctx, "plus"), [400, 0, 2640, 700]),
+        sc("fs", "Onto a full-screen Space", "Over the full-screen Firefox: the half the window would take is drawn in the zone preview's form; the drop makes a Split View.", (s, ctx) => dragScene(s, ctx, "fs"), [400, 0, 2640, 700]),
+        sc("refused", "Refused", "Over a Split View Space: nothing is marked and the pointer says no.", (s, ctx) => dragScene(s, ctx, "split"), [400, 0, 2640, 700]),
+      ] },
+      { id: "expose", name: "App Exposé", sheet: "p1/surfaces/mission-control.md", states: [
+        sc("expose", "kitty", "⌃↓ with kitty in front: the header capsule, kitty's four windows on this desktop, the set-apart row of its minimised window and its window on Desktop 3. No bar; other apps' windows are not drawn. A Hidden group joins when the app is hidden.", (s, ctx) => exposeScene(s, ctx)),
+        sc("empty", "No windows", "An app with no windows anywhere.", (s, ctx) => exposeScene(s, ctx, { empty: true })),
+      ] },
+      { id: "show", name: "Show Desktop", sheet: "p1/structure/window-chrome.md", states: [
+        sc("shown", "Shown", "⌘F3: every window moved to its nearest of the left, right or bottom edge, keeping its size, 24 of it left showing. A click on a sliver, ⌘F3 again, activating a window or a new window puts them all back.", (s, ctx) => showDesktop(s, ctx, 1)),
+        sc("motion", "Motion", "Out and back on motion-move, straight lines. With Reduce motion on, a crossfade.", (s, ctx) => showDesktopMotion(s, ctx)),
+      ] },
+      { id: "split", name: "Split View", sheet: "p1/surfaces/mission-control.md", states: [
+        sc("chooser", "Choosing", "Zed sent to the left of the screen: the free half shows the wallpaper under the veil with Desktop 2's other windows laid out as the spread. Steam is too wide for the half: 40%, no ring, its line says why, the pointer says no.", (s, ctx) => splitScene(s, ctx, "chooser")),
+        sc("none", "Nothing fits", "No other window fits the half.", (s, ctx) => splitScene(s, ctx, "none")),
+        sc("panes", "Panes", "Zed and Firefox edge to edge with square corners and no shadows; the 8-point divider with its grip.", (s, ctx) => splitScene(s, ctx, "panes"), [1320, 400, 800, 640]),
+        sc("divider", "Divider hovered", "The grip darkens and the pointer is col-resize; dragging moves both panes, stopping at either's minimum; a double-click returns them to halves.", (s, ctx) => splitScene(s, ctx, "hover"), [1320, 400, 800, 640]),
+      ] },
+      { id: "stage", name: "Stage Manager", sheet: "p1/surfaces/mission-control.md", states: [
+        sc("shown", "Recent apps shown", "Show recent apps on: the column at the leading edge, no panel, five sets as stacks with their icons; the front set (Zed and kitty) in the work area beside it, which keeps the column's 192.", (s, ctx) => stageScene(s, ctx, "shown")),
+        sc("hover", "Entry hovered", "A hovered entry: its front window lifts and its app's name shows. No ring: the column is not a selection.", (s, ctx) => stageScene(s, ctx, "hover"), [0, 0, 1400, 900]),
+        sc("revealed", "Revealed at the edge", "Show recent apps off (the default): the stage has the whole width, and a push into the left edge brings the column over the windows.", (s, ctx) => stageScene(s, ctx, "hidden")),
+        sc("mc", "In Mission Control", "Mission Control on a Stage Manager desktop spreads every window, clustered by set, each set named.", (s, ctx) => stageScene(s, ctx, "mc")),
+      ] },
+      { id: "motion", name: "Motion", sheet: "p1/surfaces/mission-control.md", states: [
+        sc("open", "Open and close", "Each window travels from its real place to its tile on motion-move while the veil, bar and tray fade in place and the icons follow at 2p − 1; closing reverses on motion-exit. With Reduce motion on, a crossfade.", (s, ctx) => openMotion(s, ctx)),
+        sc("switch", "Desktop switch", "⌃→: Desktop 2's windows travel 80 away fading out while Desktop 3's arrive from 80 fading in, on motion-switch; the wallpaper and the island stay still.", (s, ctx) => switchMotion(s, ctx)),
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 16.1, Mission Control">
+  <h2>For you to answer</h2>
+  <p>P1 decided all of this at gates 2 and 5 (<code>p1/structure/mission-control.md</code>, <code>p1/surfaces/mission-control.md</code>); this is the first time most of it has been drawn. Reply lgtm or name what to change. Worth a look in particular:</p>
+  <ol>
+    <li><b>The spread's arrangement</b>: rows, each window kept near its side of the screen, never larger than real. The alternative is macOS's looser placement, which keeps positions better and packs worse.</li>
+    <li><b>The bar always at full size</b> with live miniatures, rather than macOS's names that grow only when the pointer reaches the top.</li>
+    <li><b>The tray</b> of minimised and hidden windows along the foot, which macOS does not have (its Dock holds them).</li>
+    <li><b>Closing from the tiles</b>: the close badge on hover, W or Delete from the keys.</li>
+    <li><b>Show Desktop's slivers</b>: 24 points of each window left at the edges.</li>
+    <li><b>Split View's chooser</b> in the free half, and misfits shown dimmed with a reason rather than left out.</li>
+    <li><b>Stage Manager's column</b> hidden until the left edge is pushed, unlike macOS's default.</li>
+    <li><b>The desktop switch</b>: the short 80-point slide with a crossfade (gate 2's choice), not a full-width slide.</li>
+  </ol>
+</section>

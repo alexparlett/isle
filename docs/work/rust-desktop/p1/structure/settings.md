@@ -552,17 +552,35 @@ The `tokens.kdl` notice shows here and on Accessibility only.
 | Windows | Double-click a window's title bar to | C · pop-up | Fill, Minimise, No Action | `windows.titlebar-action` (fill, minimise, none) |
 | Windows | Drag windows to screen edges to tile | C · switch | | `windows.edge-tiling` *new*, read by the tiling zones |
 | Windows | Margins around tiled windows | C · pop-up (None, Small, Medium, Large) | | `windows.tile-margin` |
-| (foot) | "Hot Corners…" | D · button under the group | | the sheet below |
+| Mission Control | Automatically rearrange desktops based on most recent use | C · switch, off | | `mission-control.rearrange-desktops` (P16) |
+| Mission Control | Group windows by application | C · switch, off | | `mission-control.group-by-app` (P16) |
+| (foot) | "Shortcuts…", "Hot Corners…" | D · buttons under the Mission Control group | | the sheets below |
+| Stage Manager | Show recent apps | C · switch, off, "Off, the apps show when the pointer presses the screen's left edge." | | `stage-manager.recent-apps` (P16) |
+| Stage Manager | Show windows from an application | C · pop-up | All at once, One at a time | `stage-manager.windows` (P16): `all-at-once`, `one-at-a-time` |
+| (foot) | "Turn Stage Manager on for a desktop from its menu in Mission Control." | callout | | |
+
+No "Click wallpaper to reveal desktop" row (P16 gate 16.1): on a Stage
+Manager desktop a click on the wallpaper shows it; on a stacking desktop it
+does nothing.
+
+**Shortcuts…** (sheet, 560; "Mission Control shortcuts", "A modifier held
+while choosing a mouse button is needed with it."): Mission Control,
+Application windows and Show Desktop, each a keyboard recorder (the same
+list Keyboard Shortcuts edits) and a mouse pop-up of —, Back, Forward,
+Button 6, Button 7, Button 8, none by default. A button is stored as
+another chord in the action's list (`"Ctrl+Back"`). Drawn on
+`p16/rows-1.html`.
 
 **Hot Corners…** (sheet, 664): the main display's wallpaper at 240 wide in
 its shape, a pop-up at each corner outside it, "Done".
 
 | Row | Kind · control | Choices | Bound to |
 |---|---|---|---|
-| Top left, top right, bottom left, bottom right | C · pop-up each; a modifier held while the menu is open is required to fire, shown before the action ("⌘ Apps") | Notification Centre, Apps, Lock Screen, Put Display to Sleep, — (Mission Control, Application Windows, Desktop, Widgets join with P16, P17) | `hot-corners.top-left` … `hot-corners.bottom-right` *new*, each `none`, `notification-centre`, `apps`, `lock-screen` or `display-sleep`; `hot-corners.<corner>-modifiers` *new* ("Cmd", "Option+Shift") |
+| Top left, top right, bottom left, bottom right | C · pop-up each; a modifier held while the menu is open is required to fire, shown before the action ("⌘ Apps") | Mission Control, Application Windows, Desktop (P16), Notification Centre, Apps, Lock Screen, Put Display to Sleep, — (Widgets joins with P17) | `hot-corners.top-left` … `hot-corners.bottom-right` *new*, each `none`, `mission-control`, `app-windows`, `desktop`, `notification-centre`, `apps`, `lock-screen` or `display-sleep`; `hot-corners.<corner>-modifiers` *new* ("Cmd", "Option+Shift") |
 
-Defaults: bottom right Apps, the rest none; bottom left becomes Mission
-Control with P16 (`dock.md` For the user 3).
+Defaults: bottom left Mission Control (P16), bottom right Apps, the top
+corners none (`dock.md` For the user 3). A corner fires after
+`timing.corner-dwell-ms` (250).
 
 ##### Displays
 
@@ -799,8 +817,8 @@ packets. A checkbox off writes an empty list.
 | Category | Actions (`shortcuts.<id>`) |
 |---|---|
 | Windows | Close window, Minimise, Minimise all of the app's windows, Hide, Hide others, Quit, Enter or leave full screen, Next window of the app, Previous window of the app, Window menu, Zoom menu |
-| Tiling | Left half, Right half, Centre, Fill, Restore, Top left, Top right, Bottom left, Bottom right, Fill beside, Move to next display, Move to previous display |
-| Desktops | Desktop to the left, Desktop to the right, Carry window left, Carry window right; "Switch to a desktop with" (pop-up of modifiers, `shortcuts.desktop-jump`); "Move and resize windows with" (`shortcuts.window-drag`) |
+| Tiling | Left half, Right half, Centre, Fill, Restore, Top left, Top right, Bottom left, Bottom right, Fill beside, Full screen tile left and right (`split-left`, `split-right`, P16, empty by default), Move to next display, Move to previous display |
+| Desktops | Mission Control (⌃↑ and the Mission Control key), Application windows (⌃↓), Show Desktop (⌘F3) (P16), Desktop to the left, Desktop to the right, Carry window left, Carry window right; "Switch to a desktop with" (pop-up of modifiers, `shortcuts.desktop-jump`); "Move and resize windows with" (`shortcuts.window-drag`) |
 | Spotlight and apps | Spotlight, Apps, Emoji, App switcher, App switcher, from the end, Open a terminal, Open System Settings, Force Quit; "Terminal" (text field, `shortcuts.terminal-command`) |
 | Menus and panels | Control Centre, Notification Centre, Menu bar, Search menus |
 | Screenshots | Screenshot of the screen, of a portion, the capture toolbar, each also "to the clipboard"; Pick a colour; Stop recording |

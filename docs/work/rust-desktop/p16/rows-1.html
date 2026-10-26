@@ -1,0 +1,315 @@
+<title>Mission Control rows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../p1/harness/harness.css">
+<link rel="stylesheet" href="../p1/system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+  .hb-qs li + li { margin-top: 6px; }
+</style>
+<script src="../p1/system/phosphor.js"></script>
+<script src="../p1/harness/harness.js"></script>
+<script src="../p1/surfaces/scene.js"></script>
+<script>
+(function () {
+  // P16 phase 16.1: the Settings rows Mission Control, Stage Manager and Split View add, drawn from p16/rows.md on P13's kit.
+  const S = Scene, { h } = Isle, { el, sp, row, col, grow, ic, isle, appIcon } = S;
+  const add = (n, ...k) => (n.append(...k.flat(9).filter((x) => x != null && x !== false)), n);
+  const px = (n) => n + "px";
+
+  // ---- Panes ----------------------------------------------------------------------
+  const PANES = {
+    wifi: ["Wi-Fi", "wifi-high", "blue"], bluetooth: ["Bluetooth", "bluetooth", "blue"], network: ["Network", "globe", "blue"], vpn: ["VPN", "isle-vpn", "blue"], energy: ["Energy", "lightning", "orange"],
+    general: ["General", "gear", "grey"], accessibility: ["Accessibility", "person-arms-spread", "blue"], appearance: ["Appearance", "circle-half", "graphite"], apps: ["Apps", "browsers", "indigo"], "control-centre": ["Control Centre", "squares-four", "purple"], desktop: ["Desktop", "app-window", "graphite"], displays: ["Displays", "monitor", "blue"], spotlight: ["Spotlight", "magnifying-glass", "graphite"], wallpaper: ["Wallpaper", "image", "teal"],
+    notifications: ["Notifications", "bell", "red"], sound: ["Sound", "speaker-high", "pink"], focus: ["Focus", "moon", "indigo"],
+    "lock-screen": ["Lock Screen", "lock", "graphite"], privacy: ["Privacy & Security", "hand-palm", "blue"],
+    keyboard: ["Keyboard", "keyboard", "grey"], mouse: ["Mouse", "mouse", "grey"],
+  };
+  const GROUPS = [["wifi", "bluetooth", "network", "vpn", "energy"], ["general", "accessibility", "appearance", "apps", "control-centre", "desktop", "displays", "spotlight", "wallpaper"], ["notifications", "sound", "focus"], ["lock-screen", "privacy"], ["keyboard", "mouse"]];
+  const SUB = {
+    wifi: "Join wireless networks and manage the ones you know.", bluetooth: "Connect headphones, keyboards and other wireless devices.", network: "See how this computer is connected, and each connection's details.", vpn: "Turn your VPN connections on and off.", energy: "Choose how the computer trades speed for power.",
+    general: "About this computer and the system it runs.", accessibility: "Make the screen and keyboard easier to see and use.", appearance: "Choose light or dark, the accent colour and the glass.", apps: "Set how the desktop treats each app's windows and keys.", "control-centre": "Set what the island and Control Centre show.", desktop: "Set how windows tile and fill, and what the screen corners do.", displays: "Arrange and set up the screens you use.", spotlight: "Choose what Spotlight searches and what it keeps.", wallpaper: "Choose the picture behind your windows.",
+    notifications: "Choose which apps can notify you, and how.", sound: "Choose alert sounds, speakers and microphones.", focus: "Choose what interrupts you, and when.",
+    "lock-screen": "Set when the screen dims, turns off and locks.", privacy: "See what apps may do without asking, and take it back.",
+    keyboard: "Set key repeat, layouts, shortcuts and each keyboard's kind.", mouse: "Set pointer speed, scrolling and the primary button.",
+  };
+
+  function tile(id, size) {
+    const g = PANES[id][1], gs = size >= 32 ? 24 : 16;
+    const glyph = g === "isle-vpn" ? isle("vpn", gs) : ic(g, gs, true);
+    glyph.style.color = "#fff";
+    return el("", { width: px(size), height: px(size), borderRadius: px(size / 4), background: "var(--pane-" + PANES[id][2] + ")", display: "grid", placeItems: "center", flex: "none" }, glyph);
+  }
+
+  // ---- Apps and devices --------------------------------------------------------------
+  const APP = {
+    chromium: (n) => appIcon(n, "#5b9cf8", "#1a62d6", "globe"),
+    kitty: (n) => appIcon(n, "#55575e", "#1f2024", "terminal-window"),
+    steam: (n) => appIcon(n, "#2a4a7a", "#14243e", "game-controller"),
+    code: (n) => appIcon(n, "#3aa0f0", "#1b6fc0", "code"),
+    discord: (n) => appIcon(n, "#7a86ff", "#5865f2", "chat-circle"),
+    keepass: (n) => appIcon(n, "#6cc04a", "#3d8a2a", "key"),
+    bitwarden: (n) => appIcon(n, "#3c8dff", "#175ddc", "shield"),
+    elden: (n) => h("span", { style: { width: px(n), height: px(n), borderRadius: px(Math.round(n * 0.22)), background: "linear-gradient(160deg,#d8b45a,#5a3f18 70%,#1e150a)", flex: "none", display: "block" } }),
+    balatro: (n) => h("span", { style: { width: px(n), height: px(n), borderRadius: px(Math.round(n * 0.22)), background: "linear-gradient(160deg,#e0453a,#3b4fa8)", flex: "none", display: "block" } }),
+  };
+  const circ = (g, on, n) => el("", { width: px(n || 24), height: px(n || 24), borderRadius: "50%", display: "grid", placeItems: "center", flex: "none", background: on ? "var(--colour-accent)" : "var(--colour-fill-strong)", color: on ? "var(--colour-on-accent)" : "var(--colour-text)" }, ic(g, Math.round((n || 24) * 0.58), on));
+  const dot = (ok) => h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: ok ? "var(--colour-ok)" : "var(--colour-fill-strong)", flex: "none", display: "inline-block" } });
+  const more = () => ic("dots-three-circle", 18, false, { color: "var(--colour-text-2)" });
+
+  // ---- Controls ---------------------------------------------------------------------
+  const sw = (on, dis) => h("span", { class: "s-switch" + (on ? " on" : "") + (dis ? " is-disabled" : "") });
+  const chk = (on) => h("span", { class: "s-check" + (on ? " on" : "") });
+  function pop(t, o) {
+    o = o || {};
+    const e = h("span", { class: "s-popup", style: { minWidth: px(o.w || 120), justifyContent: "space-between", boxSizing: "border-box", color: o.dim ? "var(--colour-text-disabled)" : undefined } }, t, h("span", { class: "chev" }, ic("caret-up-down", 10, true)));
+    if (o.anchor) e.dataset.anchor = o.anchor;
+    return e;
+  }
+  const seg = (list, i) => el("s-seg", {}, ...list.map((t, j) => sp(j === i ? "on" : "", t)));
+  const end = (x) => (x && x.g ? ic(x.g, 12, false, { color: "var(--colour-text-2)" }) : sp("s-callout s-2", x));
+  function slider(pct, l, r, ticks) {
+    return row({ gap: "var(--space-s)" }, end(l),
+      col({ width: "var(--size-row-slider)", gap: "0" }, el("", { height: "18px", display: "flex", alignItems: "center" }, el("s-slider", { minWidth: "0" }, h("b", { style: { width: pct + "%" } }), h("i", { style: { left: pct + "%" } }))),
+        ticks ? el("s-ticks", { marginTop: "2px" }, ...Array.from({ length: ticks }, () => h("span"))) : null),
+      end(r));
+  }
+  const btn = (t, o) => sp("s-btn" + (o && o.primary ? " primary" : "") + (o && o.danger ? " destructive" : ""), t, o && o.style);
+  const field = (t, w, ph) => el("s-field", { width: w ? px(w) : "var(--size-row-field)" }, sp(ph ? "ph" : "", t));
+  const timeField = (t) => el("s-field", { width: "64px", justifyContent: "center" }, sp("s-num", t));
+  const ACCENTS = ["blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"];
+  const swatch = (bg, on, mark) => el("", { width: "16px", height: "16px", borderRadius: "50%", background: bg, display: "grid", placeItems: "center", flex: "none" }, mark ? h("span", { style: { width: "6px", height: "6px", borderRadius: "50%", background: on } }) : null);
+  const accents = (sel) => row({ gap: "var(--space-s)" }, ...ACCENTS.map((a) => swatch("var(--accent-" + a + "-fill)", "var(--accent-" + a + "-on)", a === sel)));
+  function pictures(list, i, o) {
+    o = o || {};
+    return row({ gap: "var(--space-l)", alignItems: "flex-start" }, ...list.map((p, j) => col({ gap: "var(--space-xs)", alignItems: "center", width: "64px" },
+      el("", { width: "64px", height: "44px", borderRadius: "var(--radius-control)", background: p.bg, position: "relative", overflow: "hidden", boxShadow: j === i ? "0 0 0 2px var(--colour-" + (o.on || "window-raised") + "), 0 0 0 4px var(--colour-accent)" : "inset 0 0 0 1px var(--colour-hairline)" }, p.inner || null),
+      sp("s-callout", p.name, { color: j === i ? "var(--colour-text)" : "var(--colour-text-2)", whiteSpace: "nowrap" }))));
+  }
+  const meter = (pct) => el("", { width: "var(--size-row-slider)", height: "6px", borderRadius: "3px", background: "var(--colour-fill-strong)", position: "relative", overflow: "hidden" }, h("b", { style: { position: "absolute", left: 0, top: 0, bottom: 0, width: pct + "%", background: "var(--colour-accent)", borderRadius: "3px" } }));
+  const recorder = (chord) => el("", { minWidth: "120px", height: "var(--size-control)", borderRadius: "var(--radius-control)", background: "var(--colour-fill)", display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 var(--space-s)", boxSizing: "border-box" }, sp(chord ? "" : "s-2", chord || "None"));
+  const fileCtl = (name, g) => row({ gap: "var(--space-s)" }, ic(g || "folder", 16, true, { color: "var(--colour-accent-text)" }), sp("", name), btn("Choose…"));
+
+  // ---- Form ---------------------------------------------------------------------------
+  function r(label, ctrl, o) {
+    o = o || {};
+    const hasDesc = !!(o.desc || o.refused);
+    const lab = col({ gap: "var(--space-xxs)", flex: 1, minWidth: 0 },
+      typeof label === "string" ? sp("", label, { color: o.dim ? "var(--colour-text-2)" : "var(--colour-text)" }) : label,
+      o.desc ? sp("s-callout s-2", o.desc) : null,
+      o.refused ? sp("s-callout", o.refused, { color: "var(--colour-danger-text)" }) : null);
+    const trail = [].concat(ctrl || []);
+    if (o.nav !== undefined) { if (o.nav) trail.push(sp("s-2", o.nav)); trail.push(ic("caret-right", 12, false, { color: "var(--colour-text-2)" })); }
+    const t = trail.length ? row({ flex: "none", gap: "var(--space-s)", marginTop: hasDesc ? "-4px" : "0" }, ...trail) : null;
+    const style = { alignItems: hasDesc ? "flex-start" : "center", gap: "var(--space-l)" };
+    if (hasDesc) { style.paddingTop = "var(--space-m)"; style.paddingBottom = "var(--space-m)"; }
+    if (o.sep) Object.assign(style, { borderTop: "1px solid var(--colour-hairline)", marginLeft: "var(--space-m)", paddingLeft: "0" });
+    return el("r", style, o.icon ? row({ gap: "var(--space-s)", flex: "none", alignSelf: hasDesc ? "flex-start" : "center" }, o.icon) : null, lab, t);
+  }
+  const ro = (label, value, o) => r(label, sp("s-2", value, { textAlign: "right", whiteSpace: "pre-line" }), o);
+  function group(title, rows, o) {
+    o = o || {};
+    return el("", { marginTop: o.first ? "var(--space-l)" : "var(--space-xl)" },
+      title ? row({ padding: "0 var(--space-m)", marginBottom: "var(--space-s)", gap: "var(--space-s)" }, sp("s-headline", title), o.titleExtra || null) : null,
+      el("s-group", {}, ...rows));
+  }
+  function list(items, o) {
+    o = o || {};
+    const body = items.length ? items.map((it) => row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)", background: it.sel ? "var(--colour-selection-unfocused)" : "transparent" },
+      it.icon || null, sp("", it.label, { flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }), it.value ? sp("s-2", it.value) : null, it.trail || null))
+      : [el("", { height: "80px", display: "grid", placeItems: "center" }, sp("s-2", o.empty || "None"))];
+    const pm = (g, dim) => el("", { width: "20px", height: "20px", display: "grid", placeItems: "center", color: dim ? "var(--colour-text-disabled)" : "var(--colour-text)" }, ic(g, 12));
+    const foot = o.foot === false ? null : row({ height: "var(--size-control)", background: "var(--colour-window-sunken)", borderTop: "1px solid var(--colour-hairline)", padding: "0 var(--space-xs)", gap: "0", borderRadius: o.last === false ? "0" : "0 0 var(--radius-card) var(--radius-card)" },
+      pm("plus"), el("", { width: "1px", height: "12px", background: "var(--colour-hairline)", margin: "0 2px" }), pm("minus", !items.some((x) => x.sel)));
+    return el("", { borderTop: o.first ? "none" : "1px solid var(--colour-hairline)", paddingTop: "var(--space-xs)", paddingBottom: o.foot === false ? "var(--space-xs)" : "0" }, ...body, foot);
+  }
+  const lead = (node) => el("", { marginTop: "var(--space-l)" }, node);
+  const foot = (...kids) => row({ justifyContent: "flex-end", marginTop: "var(--space-m)", gap: "var(--space-s)" }, ...kids);
+  const header = (id) => row({ gap: "var(--space-m)" }, tile(id, 32), col({ gap: "var(--space-xxs)", minWidth: 0 }, sp("s-title-2", PANES[id][0]), sp("s-2", SUB[id])));
+  const subHeader = (name, sentence, icon) => row({ gap: "var(--space-m)" }, icon || null, col({ gap: "var(--space-xxs)", minWidth: 0 }, sp("s-title-2", name), sp("s-2", sentence)));
+  const sheetTitle = (t, sub) => col({ gap: "var(--space-xxs)" }, sp("s-headline", t), sub ? sp("s-callout s-2", sub) : null);
+  const sheetFoot = (...kids) => row({ gap: "var(--space-s)", marginTop: "var(--space-xs)" }, ...kids);
+
+  // ---- The window ---------------------------------------------------------------------
+  const W = S.W, H = S.H, WX = 1270, WY = 364, WW = 900, WH = 760, BAND = 94;
+  function rowTop(id) { let y = 60; for (const g of GROUPS) { for (const p of g) { if (p === id) return y; y += 28; } y += 12; } return 0; }
+  function sidebar(sel) {
+    const inner = el("", { padding: "0 var(--space-s)", display: "flex", flexDirection: "column" },
+      row({ height: "48px", gap: "var(--space-s)", padding: "0 var(--space-s)", flex: "none" },
+        el("", { width: "32px", height: "32px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", flex: "none" }, sp("s-headline", "AP")),
+        col({ gap: "0" }, sp("s-headline", "Alex Parlett"), sp("s-sub s-2", "alexparlett"))));
+    GROUPS.forEach((g) => { add(inner, el("", { height: "12px", flex: "none" })); g.forEach((id) => add(inner, el("s-side-item" + (id === sel ? " sel focused" : ""), { flex: "none" }, tile(id, 20), sp("", PANES[id][0])))); });
+    const list = el("", { position: "absolute", left: 0, right: 0, top: px(BAND), bottom: 0, overflow: "hidden" }, inner);
+    const band = el("", { position: "absolute", left: 0, right: 0, top: 0, height: px(BAND), background: "var(--colour-sidebar)", zIndex: 1, boxSizing: "border-box" },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-l)" }, S.lights()),
+      el("s-field search", { margin: "0 var(--space-s)", height: "var(--size-control-large)" }, ic("magnifying-glass", 14), sp("ph", "Search")));
+    const side = el("", { position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--size-sidebar)", background: "var(--colour-sidebar)", borderRight: "1px solid var(--colour-hairline)", boxSizing: "border-box" }, list, band);
+    side.scrollFor = (winH) => {
+      const vis = winH - BAND, t = rowTop(sel);
+      if (t + 28 > vis - 8) { inner.style.transform = "translateY(" + -Math.round(t - vis / 3) + "px)"; band.style.borderBottom = "1px solid var(--colour-hairline)"; }
+    };
+    return side;
+  }
+  // o: pane, title, back, body, sheet, sheetWidth, after(win).
+  function place(s, o, st) {
+    const side = sidebar(o.pane);
+    const tb = el("s-toolbar", { padding: "0 var(--space-l)", gap: "var(--space-s)" },
+      ic("caret-left", 20, false, { color: o.back ? "var(--colour-text)" : "var(--colour-text-disabled)" }),
+      ic("caret-right", 20, false, { color: "var(--colour-text-disabled)" }),
+      sp("s-headline", o.title || PANES[o.pane][0], { marginLeft: "var(--space-s)" }));
+    const column = add(el("", { width: "var(--size-form)", margin: "0 auto", padding: "var(--space-xl) 0 var(--space-xxxl)", display: "flex", flexDirection: "column" }), o.body);
+    const main = el("", { marginLeft: "var(--size-sidebar)" }, tb, column);
+    const win = el("s s-window", { left: px(WX), top: px(WY), width: px(WW), minHeight: px(WH) }, side, main);
+    s.append(win);
+    let sheet = null;
+    if (o.sheet) {
+      win.append(el("", { position: "absolute", left: 0, right: 0, top: "var(--size-toolbar)", bottom: 0, background: "var(--colour-scrim)", zIndex: 2 }));
+      sheet = add(el("s-sheet", { position: "absolute", top: "var(--size-toolbar)", left: px((WW - o.sheetWidth) / 2), width: px(o.sheetWidth), height: o.sheetHeight ? px(o.sheetHeight) : undefined, boxSizing: "border-box", zIndex: 3, display: "flex", flexDirection: "column", gap: "var(--space-m)", textAlign: o.alert ? "center" : "left" }), o.sheet);
+      win.append(sheet);
+    }
+    let hh = win.offsetHeight;
+    if (sheet) { const need = 52 + sheet.offsetHeight + 32; if (need > hh) { win.style.minHeight = px(need); hh = need; } }
+    if (o.after) o.after(win);
+    side.scrollFor(hh);
+    const y = hh > H - WY - 40 ? Math.max(24, H - 24 - hh) : WY;
+    win.style.top = px(y);
+    const cy = Math.max(0, y - 50);
+    st.crop = [WX - 110, cy, WW + 220, Math.min(H - cy, hh + 100)];
+  }
+  // A pop-up's menu, drawn in the window and clamped inside it (choice 12).
+  function menuIn(win, x, y, items) {
+    const m = S.menu(x, y, items, { material: "window" });
+    m.style.zIndex = 4;
+    win.append(m);
+    m.style.left = px(Math.max(8, Math.min(x, WW - m.offsetWidth - 8)));
+    return m;
+  }
+  const scene = (id, name, note, build) => ({ id, name, note, render(s) { place(s, build(), this); } });
+
+  const wallGrad = "radial-gradient(70% 90% at 50% -10%, var(--colour-window-raised) 0%, var(--colour-window-sunken) 100%)";
+
+  // ---- Desktop ------------------------------------------------------------------------------
+  const desktop = (o) => {
+    o = o || {};
+    return { pane: "desktop", body: [header("desktop"),
+      group("Windows", [r("Double-click a window's title bar to", pop("Fill")), r("Drag windows to screen edges to tile", sw(true)), r("Tiled windows have margins", sw(true))], { first: false }),
+      group("Mission Control", [
+        r("Automatically rearrange desktops based on most recent use", sw(!!o.rearrange)),
+        r("Group windows by application", sw(!!o.grouped)),
+      ], { titleExtra: null }),
+      foot(btn("Shortcuts…"), btn("Hot Corners…")),
+      group("Stage Manager", [
+        r("Show recent apps", sw(!!o.recent), { desc: "Off, the apps show when the pointer presses the screen's left edge." }),
+        r("Show windows from an application", pop(o.oneAtATime ? "One at a time" : "All at once", { w: 140 })),
+      ]),
+      el("", { padding: "var(--space-s) var(--space-m) 0" }, sp("s-callout s-2", "Turn Stage Manager on for a desktop from its menu in Mission Control.")),
+    ] };
+  };
+
+  // Shortcuts…: macOS's Mission Control shortcuts, a keyboard and a mouse route per action.
+  const MC = [["Mission Control", "⌃↑, F3", "—"], ["Application windows", "⌃↓", "—"], ["Show Desktop", "⌘F3", "—"]];
+  function mcShortcuts(o) {
+    o = o || {};
+    const rows = MC.map(([n, k, m], i) => {
+      const mouseVal = o.mouse && i === 0 ? o.mouse : m;
+      const p = pop(mouseVal, { w: 150, anchor: i === 0 ? "m0" : null });
+      return row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-m)" },
+        sp("", n, { flex: 1 }), recorder(k), p);
+    });
+    const heads = row({ padding: "0 var(--space-m)", gap: "var(--space-m)" }, grow(), sp("s-callout s-2", "Keyboard", { width: "120px", textAlign: "right" }), sp("s-callout s-2", "Mouse", { width: "150px" }));
+    return Object.assign(desktop(), { sheetWidth: 560, sheet: [
+      sheetTitle("Mission Control shortcuts", "A modifier held while choosing a mouse button is needed with it."),
+      heads,
+      el("s-group", {}, ...rows),
+      sheetFoot(grow(), btn("Done", { primary: true }))],
+      after: o.menu ? (win) => {
+        const a = win.querySelector('[data-anchor="m0"]');
+        const ar = a.getBoundingClientRect(), wr = win.getBoundingClientRect(), k = wr.width / win.offsetWidth;
+        menuIn(win, (ar.left - wr.left) / k - 5, (ar.top - wr.top) / k - 6, [{ label: "—", check: "✓", sel: !o.mouse }, "—", "Back", "Forward", "Button 6", "Button 7", "Button 8"]);
+      } : null });
+  }
+
+  function hotCorners(o) {
+    o = o || {};
+    const at = (x, y, kids, style) => el("", Object.assign({ position: "absolute", left: px(x), top: px(y) }, style || {}), kids);
+    const cp = (t) => { const p = pop(t, { w: 180 }); p.style.width = "180px"; return p; };
+    const stage = el("", { position: "relative", width: "624px", height: "100px", margin: "var(--space-m) auto" },
+      at(192, 0, null, { width: "240px", height: "100px", borderRadius: "var(--radius-small)", background: wallGrad, boxShadow: "inset 0 0 0 1px var(--colour-hairline-strong)" }),
+      at(0, 0, cp(o.tl || "—")), at(444, 0, cp(o.tr || "—")), at(0, 76, cp(o.bl || "Mission Control")), at(444, 76, cp("Apps")));
+    return Object.assign(desktop(), { sheetWidth: 664, sheet: [stage, sheetFoot(grow(), btn("Done", { primary: true }))], after: o.menu ? (win) => {
+      const sheet = win.querySelector(".s-sheet");
+      menuIn(win, sheet.offsetLeft + stage.offsetLeft - 25, sheet.offsetTop + stage.offsetTop + 76 - 4, [{ label: "Mission Control", check: "✓", sel: true }, "Application Windows", "Desktop", "Notification Centre", "Apps", "Lock Screen", "Put Display to Sleep", "—", { label: "—" }]);
+    } : null });
+  }
+
+  // ---- Keyboard Shortcuts… -------------------------------------------------------------------
+  const CATS = ["Windows", "Tiling", "Desktops", "Spotlight and apps", "Menus and panels", "Screenshots", "Focus", "Session", "Keyboard and displays", "Media"];
+  const keyboard = () => ({ pane: "keyboard", body: [header("keyboard"),
+    group(null, [r("Key repeat rate", slider(62, "Slow", "Fast", 9)), r("Delay until repeat", slider(50, "Long", "Short", 8))], { first: true }),
+    group("Keyboards", [r("Keychron Ultra-Link 8K", null, { icon: ic("keyboard", 20, false, { color: "var(--colour-text-2)" }), nav: "Mac (automatic)" })]),
+    foot(btn("Modifier Keys…"), btn("Keyboard Shortcuts…"))] });
+  const newMark = () => sp("s-callout", "new", { color: "var(--colour-accent-text)", marginLeft: "var(--space-xs)" });
+  function shortcutRows(rows) {
+    return rows.map((x) => {
+      if (x.choice) return row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)" }, el("", { width: "16px", flex: "none" }), sp("", x.choice, { flex: 1 }), pop(x.value, { w: 90 }));
+      const [n, k, on, isNew] = x;
+      return row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)" }, chk(on), sp("", n), isNew ? newMark() : null, grow(), recorder(k));
+    });
+  }
+  function shortcuts(cat, rows) {
+    return Object.assign(keyboard(), { sheetWidth: 720, sheetHeight: 560, sheet: [
+      row({ gap: "0", alignItems: "stretch", flex: 1, minHeight: 0, borderRadius: "var(--radius-card)", overflow: "hidden", boxShadow: "0 0 0 1px var(--colour-hairline)" },
+        el("", { width: "180px", flex: "none", background: "var(--colour-window-sunken)", padding: "var(--space-s)", boxSizing: "border-box", borderRight: "1px solid var(--colour-hairline)" }, ...CATS.map((c) => el("s-side-item" + (c === cat ? " sel focused" : ""), {}, sp("", c, { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" })))),
+        el("", { flex: 1, background: "var(--colour-window-raised)", padding: "var(--space-xs) 0", overflow: "hidden" }, ...shortcutRows(rows))),
+      sheetFoot(btn("Restore Defaults"), grow(), btn("Done", { primary: true }))] });
+  }
+  const DESKTOPS = [
+    ["Mission Control", "⌃↑, F3", true, true], ["Application windows", "⌃↓", true, true], ["Show Desktop", "⌘F3", true, true],
+    ["Desktop to the left", "⌃←", true], ["Desktop to the right", "⌃→", true], ["Carry window left", "⌃⇧⌘←", true], ["Carry window right", "⌃⇧⌘→", true],
+    { choice: "Switch to a desktop with", value: "⌃" }, { choice: "Move and resize windows with", value: "⌃⌘" }];
+  const TILING = [["Left half", "⌃⌥←", true], ["Right half", "⌃⌥→", true], ["Centre", "⌃⌥C", true], ["Fill", "⌃⌥F", true], ["Restore", "⌃⌥R", true],
+    ["Top left", "⌃⌥U", true], ["Top right", "⌃⌥I", true], ["Bottom left", "⌃⌥J", true], ["Bottom right", "⌃⌥K", true],
+    ["Fill beside", "⌃⌥B", true], ["Full screen tile left", "", false, true], ["Full screen tile right", "", false, true], ["Move to next display", "⌃⌥⌘→", true], ["Move to previous display", "⌃⌥⌘←", true]];
+
+  Isle.board({
+    title: "Mission Control rows",
+    subtitle: "P16 phase 16.1: the Settings rows Mission Control, Stage Manager and Split View add, drawn from p16/rows.md on P13's kit at actual size. Rows P13 built are drawn as they are; new rows are marked in the sheet.",
+    tokens: "../../../../data/tokens/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "desktop", name: "Desktop", sheet: "p16/rows.md", states: [
+        scene("desktop", "Desktop", "Windows as P13 built it; Mission Control's two settings, both off as macOS has them now; Shortcuts… and Hot Corners… under that group, as macOS draws them; Stage Manager's two rows, Show recent apps off unlike macOS (P1). No Click-wallpaper row.", () => desktop()),
+        scene("desktop-on", "Desktop, settings on", "Both Mission Control settings on, Stage Manager one window at a time with its strip shown.", () => desktop({ rearrange: true, grouped: true, recent: true, oneAtATime: true })),
+        scene("mc-shortcuts", "Shortcuts…", "A keyboard and a mouse route per action. The keyboard column is the same setting as Keyboard Shortcuts' row; the mouse column is none by default, since side buttons are a browser's back and forward.", () => mcShortcuts()),
+        scene("mc-shortcuts-menu", "Shortcuts… mouse menu", "The buttons a mouse can give beyond left, right and middle. A modifier held while choosing is shown before the button, as the corners do.", () => mcShortcuts({ menu: true })),
+        scene("mc-shortcuts-set", "Shortcuts… with a button", "Mission Control on Ctrl with Back: the button alone stays the browser's back.", () => mcShortcuts({ mouse: "⌃ Back" })),
+        scene("hot-corners", "Hot Corners…", "The defaults now: bottom left Mission Control (B19), bottom right Apps, the top corners none for the menu bar. A corner fires after a 250 ms rest.", () => hotCorners()),
+        scene("hot-corners-menu", "Hot Corners… menu", "The three new actions lead, in copy.md's order; Widgets joins with P17.", () => hotCorners({ menu: true })),
+      ] },
+      { id: "shortcuts", name: "Keyboard Shortcuts", sheet: "p16/rows.md", states: [
+        scene("desktops", "Desktops", "Mission Control (Ctrl+↑ and the Mission Control key), Application windows and Show Desktop lead the category, as macOS's Mission Control group does.", () => shortcuts("Desktops", DESKTOPS)),
+        scene("tiling", "Tiling", "Split View's two chords after Fill beside, off by default: the zoom menu, the Window menu and a drop in Mission Control reach it, and every free chord is someone's.", () => shortcuts("Tiling", TILING)),
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 16.1">
+  <h2>For you to answer</h2>
+  <p>The rows and keys are listed in <code>p16/rows.md</code>. Reply lgtm or name changes. Recommended in each case:</p>
+  <ol>
+    <li><b>Mission Control's two settings</b> are switches in Desktop, both off: rearranging desktops by use, and grouping windows by app.</li>
+    <li><b>Stage Manager's options</b> are always in Desktop, with a line saying it is turned on per desktop from Mission Control. Show recent apps is off; windows from an app show all at once.</li>
+    <li><b>No "Click wallpaper to reveal desktop" row.</b> On a Stage Manager desktop a click on the wallpaper shows it; on an ordinary desktop it does nothing.</li>
+    <li><b>Shortcuts…</b> has a keyboard and a mouse column per action. The keyboard column is the same setting as Keyboard Shortcuts'; the mouse column offers Back, Forward and buttons 6 to 8, with a held modifier, none by default.</li>
+    <li><b>A mouse button is stored as another chord</b> in the same <code>shortcuts</code> list as the keys (<code>"Ctrl+Back"</code>), so one action has one list.</li>
+    <li><b>The hot corners</b> gain Mission Control, Application Windows and Desktop, leading the menu; bottom left becomes Mission Control.</li>
+    <li><b>Keyboard Shortcuts › Desktops</b> gains Mission Control, Application windows and Show Desktop at the top.</li>
+    <li><b>Split View's chords</b> are "Full screen tile left" and "right" in Tiling, off by default.</li>
+  </ol>
+</section>

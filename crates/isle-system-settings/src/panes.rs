@@ -196,12 +196,17 @@ pub static PANES: &[Pane] = &[
         ..pane("control-centre", "Control Centre", "squares-four", Hue::Purple, 2, "Set what the island and Control Centre show.")
     },
     Pane {
-        keywords: &["windows", "tiling", "hot corners"],
+        keywords: &["windows", "tiling", "hot corners", "mission control", "stage manager", "spaces"],
         rows: &[
             RowDef::new("titlebar-action", "Double-click a window's title bar to").key("windows.titlebar-action").keywords(&["zoom", "fill"]),
             RowDef::new("edge-tiling", "Drag windows to screen edges to tile").key("windows.edge-tiling").keywords(&["snap", "tiling"]),
             RowDef::new("tile-margin", "Margins around tiled windows").key("windows.tile-margin").keywords(&["gaps", "spacing"]),
+            RowDef::new("rearrange-desktops", "Automatically rearrange desktops based on most recent use").key("mission-control.rearrange-desktops").keywords(&["spaces", "mission control"]),
+            RowDef::new("group-by-app", "Group windows by application").key("mission-control.group-by-app").keywords(&["mission control", "expose"]),
+            RowDef::new("mission-shortcuts", "Mission Control shortcuts").within("Shortcuts…").keywords(&["mouse button", "app expose", "show desktop"]),
             RowDef::new("hot-corners", "Hot Corners").key("hot-corners").within("Hot Corners…").keywords(&["corner", "screen corners"]),
+            RowDef::new("recent-apps", "Show recent apps").key("stage-manager.recent-apps").keywords(&["stage manager", "strip"]),
+            RowDef::new("stage-windows", "Show windows from an application").key("stage-manager.windows").keywords(&["stage manager"]),
         ],
         ..pane("desktop", "Desktop", "app-window", Hue::Graphite, 2, "Set how windows tile and fill, and what the screen corners do.")
     },

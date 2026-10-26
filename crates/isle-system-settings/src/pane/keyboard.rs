@@ -53,6 +53,8 @@ pub const SHORTCUTS: &[(&str, &[(&str, &str)])] = &[
             ("tile-bottom-left", "Bottom left"),
             ("tile-bottom-right", "Bottom right"),
             ("tile-beside", "Fill beside"),
+            ("split-left", "Full screen tile left"),
+            ("split-right", "Full screen tile right"),
             ("next-display", "Move to next display"),
             ("previous-display", "Move to previous display"),
         ],
@@ -60,6 +62,9 @@ pub const SHORTCUTS: &[(&str, &[(&str, &str)])] = &[
     (
         "Desktops",
         &[
+            ("mission-control", "Mission Control"),
+            ("app-expose", "Application windows"),
+            ("show-desktop", "Show Desktop"),
             ("desktop-left", "Desktop to the left"),
             ("desktop-right", "Desktop to the right"),
             ("carry-left", "Carry window left"),
@@ -729,6 +734,11 @@ impl Component for Shortcuts {
                 } else {
                     "None".to_owned()
                 };
+                let buttons: Vec<String> = chords
+                    .iter()
+                    .filter(|c| isle_keys::chord::ButtonChord::parse(c).is_some())
+                    .cloned()
+                    .collect();
                 let record = {
                     let (bus, worker, key) = (bus.clone(), worker.clone(), key.clone());
                     let id: &'static str = id;
@@ -740,18 +750,17 @@ impl Component for Shortcuts {
                             proxy.record().await.ok()
                         });
                         let key = key.clone();
+                        let buttons = buttons.clone();
                         spawn(async move {
                             let got = job.await.ok().flatten();
                             recording.set(None);
                             if let Some(got) = got.filter(|g| !g.cancelled) {
-                                desktop.set(
-                                    key,
-                                    Value::List(if got.chord.is_empty() {
-                                        Vec::new()
-                                    } else {
-                                        vec![got.chord]
-                                    }),
-                                );
+                                // A mouse button set in Desktop's Shortcuts… stays.
+                                let mut list: Vec<String> = buttons;
+                                if !got.chord.is_empty() {
+                                    list.insert(0, got.chord);
+                                }
+                                desktop.set(key, Value::List(list));
                                 clash.set(Some(got.holder).filter(|h| !h.is_empty()));
                             }
                         });

@@ -2,6 +2,15 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.10, Settings: Desktop gains the Mission Control group (the two
+  switches; Shortcuts… and Hot Corners… under it) and the Stage Manager
+  group with its line; the Shortcuts… sheet lists each action's keys and a
+  mouse-button pop-up, a held modifier joining the button. The corners'
+  menu leads with Mission Control, Application Windows and Desktop.
+  Keyboard Shortcuts gains Mission Control, Application windows and Show
+  Desktop in Desktops, and Full screen tile left and right in Tiling; a
+  recorded key keeps a mouse button set beside it. The index has the new
+  rows. Seen headless in the compositor with the built Settings.
 - P16 16.9, Split View: a `Kind::Split` desktop of two panes beside
   `FullScreen`, each pane's window full screen with its origin (so the
   island and bar hide, the desktop sits right of its origin and goes when

@@ -1,4 +1,5 @@
-//! Desktop: how windows tile and fill, and the Hot Corners… sheet.
+//! Desktop: how windows tile and fill, Mission Control and Stage Manager, and the
+//! Shortcuts… and Hot Corners… sheets.
 
 use freya::prelude::*;
 use isle_settings::Value;
@@ -32,7 +33,10 @@ const CORNERS: [(&str, &str, &str); 4] = [
 ];
 
 /// What a corner can do, and the item each reads as.
-const ACTIONS: [(&str, &str); 5] = [
+const ACTIONS: [(&str, &str); 8] = [
+    ("mission-control", "Mission Control"),
+    ("app-windows", "Application Windows"),
+    ("desktop", "Desktop"),
     ("notification-centre", "Notification Centre"),
     ("apps", "Apps"),
     ("lock-screen", "Lock Screen"),
@@ -88,15 +92,60 @@ impl Component for Desktop {
                     .into_element(),
                 ],
             ))
-            .child(crate::ui::foot(vec![(
-                "Hot Corners…".into(),
-                EventHandler::new({
-                    let at = at.clone();
-                    move |_| super::open(nav, &at, "Hot Corners…")
-                }),
-            )]))
+            .child(form::group(
+                Some("Mission Control".into()),
+                vec![
+                    r.switch(
+                        "rearrange-desktops",
+                        "Automatically rearrange desktops based on most recent use",
+                        "mission-control.rearrange-desktops",
+                    )
+                    .into_element(),
+                    r.switch(
+                        "group-by-app",
+                        "Group windows by application",
+                        "mission-control.group-by-app",
+                    )
+                    .into_element(),
+                ],
+            ))
+            .child(crate::ui::foot(vec![
+                (
+                    "Shortcuts…".into(),
+                    EventHandler::new({
+                        let at = at.clone();
+                        move |_| super::open(nav, &at, "Shortcuts…")
+                    }),
+                ),
+                (
+                    "Hot Corners…".into(),
+                    EventHandler::new({
+                        let at = at.clone();
+                        move |_| super::open(nav, &at, "Hot Corners…")
+                    }),
+                ),
+            ]))
+            .child(form::group(
+                Some("Stage Manager".into()),
+                vec![
+                    r.switch("recent-apps", "Show recent apps", "stage-manager.recent-apps")
+                        .description("Off, the apps show when the pointer presses the screen's left edge.")
+                        .into_element(),
+                    r.choice(
+                        "stage-windows",
+                        "Show windows from an application",
+                        "stage-manager.windows",
+                        &[("all-at-once", "All at once"), ("one-at-a-time", "One at a time")],
+                    )
+                    .into_element(),
+                ],
+            ))
+            .child(StageNote {})
             .maybe(self.at.sub.as_deref() == Some("Hot Corners…"), |el| {
                 el.child(HotCorners { at: at.clone() })
+            })
+            .maybe(self.at.sub.as_deref() == Some("Shortcuts…"), |el| {
+                el.child(MissionShortcuts { at: at.clone() })
             })
     }
 }
@@ -202,6 +251,139 @@ impl Component for HotCorners {
                     .child(side(tl, bl, Alignment::End))
                     .child(screen)
                     .child(side(tr, br, Alignment::Start))
+                    .into_element(),
+            ],
+            vec![(
+                "Done".into(),
+                EventHandler::new(move |_| super::close(nav, &at)),
+            )],
+        )
+    }
+}
+
+#[derive(PartialEq)]
+struct StageNote {}
+
+impl Component for StageNote {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        rect().padding((0., t.space_m)).child(isle_ui::text::line(
+            &theme,
+            isle_ui::text::Style::Callout,
+            colour(t.colour_text_2),
+            "Turn Stage Manager on for a desktop from its menu in Mission Control.",
+        ))
+    }
+}
+
+/// The actions Mission Control's Shortcuts… sheet sets, by shortcut id.
+const MISSION_SHORTCUTS: [(&str, &str); 3] = [
+    ("mission-control", "Mission Control"),
+    ("app-expose", "Application windows"),
+    ("show-desktop", "Show Desktop"),
+];
+
+/// The mouse buttons a shortcut may take, in the pop-up's order after "—".
+const BUTTONS: [(&str, &str); 5] = [
+    ("Back", "Back"),
+    ("Forward", "Forward"),
+    ("Button6", "Button 6"),
+    ("Button7", "Button 7"),
+    ("Button8", "Button 8"),
+];
+
+/// Mission Control's shortcuts: each action's keys as Keyboard Shortcuts sets them, and a
+/// mouse button with any modifiers held while it is chosen.
+#[derive(PartialEq)]
+struct MissionShortcuts {
+    at: Location,
+}
+
+impl Component for MissionShortcuts {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let r = Rows::new(&self.at);
+        let nav = Nav::get();
+        let mut held = use_state(Modifiers::empty);
+        let rows: Vec<Element> = MISSION_SHORTCUTS
+            .iter()
+            .map(|(id, label)| {
+                let key = format!("shortcuts.{id}");
+                let chords = r.list(&key);
+                let (buttons, keys): (Vec<String>, Vec<String>) = chords
+                    .iter()
+                    .cloned()
+                    .partition(|c| isle_keys::chord::ButtonChord::parse(c).is_some());
+                let current = buttons.first().and_then(|b| isle_keys::chord::ButtonChord::parse(b));
+                let selected = current
+                    .and_then(|c| isle_keys::chord::BUTTONS.iter().position(|(_, code)| *code == c.button))
+                    .map_or(0, |i| i + 1);
+                let symbols = current.map(|c| {
+                    modifier_symbols(&[
+                        (c.mods.ctrl, "Ctrl"),
+                        (c.mods.option, "Option"),
+                        (c.mods.shift, "Shift"),
+                        (c.mods.cmd, "Cmd"),
+                    ]
+                    .iter()
+                    .filter(|(on, _)| *on)
+                    .map(|(_, w)| *w)
+                    .collect::<Vec<_>>()
+                    .join("+"))
+                });
+                let labels: Vec<String> = std::iter::once("—".to_owned())
+                    .chain(BUTTONS.iter().enumerate().map(|(i, (_, l))| match &symbols {
+                        Some(s) if i + 1 == selected && !s.is_empty() => format!("{s} {l}"),
+                        _ => (*l).to_owned(),
+                    }))
+                    .collect();
+                let desktop = r.desktop;
+                let keys_shown = if keys.is_empty() { "None".to_owned() } else { keys.join(", ") };
+                let set_key = key.clone();
+                let popup = form::PopUp::new(labels, selected, *label, move |i: usize| {
+                    let mut list = keys.clone();
+                    if i > 0 {
+                        let mods = modifier_words(*held.peek());
+                        let name = BUTTONS[i - 1].0;
+                        list.push(if mods.is_empty() { name.to_owned() } else { format!("{mods}+{name}") });
+                    }
+                    desktop.set(set_key.clone(), Value::List(list));
+                });
+                r.row(id, *label, Some(&key))
+                    .control(
+                        rect()
+                            .horizontal()
+                            .cross_align(Alignment::Center)
+                            .spacing(t.space_m)
+                            .child(isle_ui::text::line(
+                                &theme,
+                                isle_ui::text::Style::Body,
+                                colour(t.colour_text_2),
+                                keys_shown,
+                            ))
+                            .child(popup),
+                    )
+                    .into_element()
+            })
+            .collect();
+        let at = self.at.clone();
+        crate::ui::sheet(
+            560.,
+            vec![
+                isle_ui::text::line(
+                    &theme,
+                    isle_ui::text::Style::Callout,
+                    colour(t.colour_text_2),
+                    "A modifier held while choosing a mouse button is needed with it.",
+                )
+                .into_element(),
+                rect()
+                    .width(Size::fill())
+                    .on_global_key_down(move |e: Event<KeyboardEventData>| held.set(e.modifiers))
+                    .on_global_key_up(move |e: Event<KeyboardEventData>| held.set(e.modifiers))
+                    .child(form::group(Some("Mission Control shortcuts".into()), rows))
                     .into_element(),
             ],
             vec![(

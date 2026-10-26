@@ -141,6 +141,16 @@ async fn the_switcher_and_the_lock_close_it() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_window_given_the_keyboard_closes_it() {
+    let mut isle = Isle::start("spotlight-window").await;
+    open_and_type(&isle, &[F]).await;
+    wait_until(|| async { status(&isle).await["open"] == true }).await;
+    let window = isle.client("isle.test.Late", "3366ff");
+    window.wait_for("keyboard-enter").await;
+    wait_until(|| async { status(&isle).await["open"] == false }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_prompt_takes_the_keys_and_gives_them_back() {
     let isle = Isle::start("spotlight-prompt").await;
     open_and_type(&isle, &[F]).await;

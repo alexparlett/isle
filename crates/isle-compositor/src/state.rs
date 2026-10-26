@@ -982,6 +982,10 @@ impl State {
     /// Gives `window` the keyboard, or clears it; a window with a modal dialog gives it to
     /// the dialog.
     pub fn set_focus(&mut self, window: Option<&Window>) {
+        // A window taking the keyboard dismisses Spotlight, which would stay up deaf.
+        if window.is_some() && self.isle.spotlight.open() {
+            self.close_spotlight();
+        }
         let modal = window
             .and_then(|w| self.isle.wm.modal_of(crate::wm::window_id(w)))
             .and_then(|id| self.isle.window_by_id(id));

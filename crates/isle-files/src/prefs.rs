@@ -28,6 +28,8 @@ pub enum Control {
 pub struct RowDef {
     pub id: &'static str,
     pub label: &'static str,
+    /// Read only by the index, which debug builds write.
+    #[cfg_attr(not(any(test, debug_assertions)), allow(dead_code))]
     pub keywords: &'static [&'static str],
     /// The key under Files' section.
     pub key: &'static str,
@@ -38,6 +40,7 @@ pub struct PaneDef {
     pub id: &'static str,
     pub name: &'static str,
     pub glyph: &'static str,
+    #[cfg_attr(not(any(test, debug_assertions)), allow(dead_code))]
     pub keywords: &'static [&'static str],
     pub rows: &'static [RowDef],
 }

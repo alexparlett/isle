@@ -8,6 +8,18 @@
   by X11's stacking and a full-screen game left on another desktop took
   Steam's clicks after ⌘Tab. The X11 test client gains a pointer grab let
   go on focus out, as Wine's ClipCursor is.
+- P15 visual pass in the VM, every Files surface in light and dark. Fixed:
+  a QuickLook1 or Files1 call that started Files was lost (the objects are
+  now served before the name is taken); sheets ignored Escape and the next
+  command's sheet drew over the last (Escape presses Cancel, a sheet holds
+  the window's commands); FileManager1 reveals stacked duplicate tabs;
+  Spotlight stayed up deaf when a window took the keyboard; Quick Look's
+  SVGs without a viewBox, unpadded text, blank audio and edged facts card;
+  Computer listing the root as "/"; the rename field and a disabled
+  default button unreadable on accent; collapsed Save too tall and its
+  Replace sheet clipped; alert titles cut instead of wrapped. Added the
+  title's proxy icon and the preview's Markup and Put Back. Names are still
+  cut at the end, not in the middle as `surfaces/files.md` says.
 
 ## 2026-10-21
 

@@ -179,6 +179,60 @@ impl Chord {
     }
 }
 
+/// A mouse button beyond the left, right and middle ones, with modifiers: a shortcut's
+/// pointer route (`p1/structure/mission-control.md`, Mouse routes).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ButtonChord {
+    pub mods: Mods,
+    /// The evdev code.
+    pub button: u32,
+}
+
+/// The buttons a shortcut may take, by name and evdev code.
+pub const BUTTONS: &[(&str, u32)] = &[
+    ("Back", 0x113),
+    ("Forward", 0x114),
+    ("Button6", 0x115),
+    ("Button7", 0x116),
+    ("Button8", 0x117),
+];
+
+impl ButtonChord {
+    /// `Back`, `Ctrl+Forward`, `Button6`; never a key.
+    pub fn parse(text: &str) -> Option<ButtonChord> {
+        let text = text.trim();
+        let (mod_part, name) = match text.rfind('+') {
+            Some(i) => (&text[..i], &text[i + 1..]),
+            None => ("", text),
+        };
+        let button = BUTTONS
+            .iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(name.trim()) || n.replace("Button", "Button ").eq_ignore_ascii_case(name.trim()))?
+            .1;
+        Some(ButtonChord {
+            mods: Mods::parse(mod_part)?,
+            button,
+        })
+    }
+
+    pub fn words(&self) -> String {
+        let mut parts = Vec::new();
+        for (on, word) in [
+            (self.mods.ctrl, "Ctrl"),
+            (self.mods.option, "Option"),
+            (self.mods.shift, "Shift"),
+            (self.mods.cmd, "Cmd"),
+        ] {
+            if on {
+                parts.push(word);
+            }
+        }
+        let name = BUTTONS.iter().find(|(_, b)| *b == self.button).map_or("Button", |(n, _)| n);
+        parts.push(name);
+        parts.join("+")
+    }
+}
+
 /// A key's name for people: a printable key as its character, upper case for letters.
 pub fn key_name(sym: Keysym) -> String {
     if let Some((name, _)) = ALIASES
@@ -239,5 +293,16 @@ mod tests {
         assert!(Chord::parse("Hyper+Q").is_none());
         assert!(Chord::parse("Cmd+Nonsense").is_none());
         assert!(Chord::parse("").is_none());
+    }
+
+    #[test]
+    fn buttons_read_with_modifiers_and_never_as_keys() {
+        let b = ButtonChord::parse("Ctrl+Back").unwrap();
+        assert!(b.mods.ctrl && !b.mods.cmd);
+        assert_eq!(b.button, 0x113);
+        assert_eq!(b.words(), "Ctrl+Back");
+        assert_eq!(ButtonChord::parse("Button6").unwrap().button, 0x115);
+        assert!(ButtonChord::parse("Ctrl+Left").is_none());
+        assert!(Chord::parse("Back").is_none());
     }
 }

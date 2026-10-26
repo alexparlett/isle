@@ -115,6 +115,14 @@ impl Desktops {
 }
 
 impl Isle {
+    /// Where `app`'s new windows open: `all`, a desktop's number, or nothing set.
+    pub fn assignment(&self, app: &str) -> Option<String> {
+        self.settings.windows.assign.iter().find_map(|e| {
+            let (a, to) = e.rsplit_once(':')?;
+            (a == app || self.apps.resolve(a) == app).then(|| to.to_owned())
+        })
+    }
+
     pub fn load_desktops(&mut self, runtime: &tokio::runtime::Handle) {
         let dir = StateDir::new(StateDir::default_dir());
         let (saved, loaded) = dir.load::<SavedDesktops>();
@@ -425,6 +433,18 @@ impl State {
         info!(id, index, "placed on a desktop");
         self.after_switch(output);
         true
+    }
+
+    /// Assigns `app`'s new windows to every desktop (`all`), to a desktop by its number from
+    /// 1, or to none.
+    pub fn assign_app(&mut self, app: &str, to: Option<&str>) {
+        let mut list = self.isle.settings.windows.assign.clone();
+        list.retain(|e| e.rsplit_once(':').is_none_or(|(a, _)| a != app));
+        if let Some(to) = to {
+            list.push(format!("{app}:{to}"));
+        }
+        self.isle
+            .write_setting("windows.assign", isle_settings::Value::List(list));
     }
 
     /// Moves desktop `from` of `output`'s row to `to`, the view staying on the desktop it

@@ -305,6 +305,25 @@ impl State {
         let Some(output) = self.isle.output_of(id) else {
             return;
         };
+        // An app assigned to every desktop, or to one of this screen's.
+        let app = self.isle.owner_app(record).to_owned();
+        match self.isle.assignment(&app).as_deref() {
+            Some("all") => {
+                self.isle.wm.get_mut(id).unwrap().desktop = 0;
+                return;
+            }
+            Some(n) => {
+                let identity = Isle::output_identity(&output);
+                let target = n.parse::<usize>().ok().and_then(|n| {
+                    self.isle.desktops.ensure_row(&identity).desktops.get(n.checked_sub(1)?).filter(|d| d.kind == super::desktops::Kind::Normal).map(|d| d.id)
+                });
+                if let Some(target) = target {
+                    self.isle.wm.get_mut(id).unwrap().desktop = target;
+                    return;
+                }
+            }
+            None => {}
+        }
         let current = self.isle.current_desktop(&output);
         let identity = Isle::output_identity(&output);
         let row = &self.isle.desktops.rows[&identity];

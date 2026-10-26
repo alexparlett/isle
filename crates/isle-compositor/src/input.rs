@@ -197,6 +197,18 @@ impl State {
         if !self.isle.lock.locked && self.thumbnail_button(button, button_state) {
             return;
         }
+        // A button bound as a shortcut runs it, and the window never sees the press.
+        if button_state == ButtonState::Pressed
+            && !self.isle.lock.locked
+            && let Some(bound) = self.isle.bindings.lookup_button(self.held_mods(), button)
+        {
+            self.isle.shortcut_buttons.insert(button);
+            self.run_action(bound.action);
+            return;
+        }
+        if button_state == ButtonState::Released && self.isle.shortcut_buttons.remove(&button) {
+            return;
+        }
         // Mission Control's presses and their releases are its own.
         if !self.isle.lock.locked
             && (self.mission_reads_input()

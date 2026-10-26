@@ -410,3 +410,67 @@ async fn app_expose_sets_apart_other_desktops_and_tab_moves_to_the_next_app() {
     isle.chord(&[TAB]).await;
     wait_until(|| async { mission(&isle).await["mode"] == "isle.test.Other" }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_bottom_left_corner_opens_mission_control_and_closes_it_again() {
+    let mut isle = Isle::start("mission-corner").await;
+    let _a = isle.client("isle.test.A", "ff0000");
+    isle.wait_for_window("isle.test.A").await;
+    let test = isle.test().await;
+    test.pointer_to(0.0, 1079.0).await.unwrap();
+    wait_until(|| async { !mission(&isle).await.is_null() }).await;
+    test.pointer_to(900.0, 500.0).await.unwrap();
+    test.pointer_to(0.0, 1079.0).await.unwrap();
+    wait_until(|| async { mission(&isle).await.is_null() }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_mouse_button_bound_opens_it_and_never_reaches_the_window() {
+    let mut isle = Isle::start_with(
+        "mission-button",
+        "shortcuts {\n    mission-control \"Ctrl+Up\" \"Back\"\n}\n",
+    )
+    .await;
+    let client = isle.client("isle.test.A", "ff0000");
+    let a = isle.wait_for_window("isle.test.A").await;
+    let test = isle.test().await;
+    test.pointer_to((a.x + 50) as f64, (a.y + 50) as f64)
+        .await
+        .unwrap();
+    test.button(0x113, true).await.unwrap();
+    test.button(0x113, false).await.unwrap();
+    wait_until(|| async { !mission(&isle).await.is_null() }).await;
+    assert!(
+        !client
+            .lines
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|l| l.starts_with("button 275")),
+        "the window saw the button"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_app_assigned_to_every_desktop_shows_on_each() {
+    let mut isle = Isle::start_with(
+        "mission-assign",
+        "windows {\n    assign \"isle.test.Everywhere:all\"\n}\n",
+    )
+    .await;
+    let proxy = isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    proxy.add("").await.unwrap();
+    let _a = isle.client("isle.test.Everywhere", "ff0000");
+    let a = isle.wait_for_window("isle.test.Everywhere").await.id;
+    proxy.switch("", 2).await.unwrap();
+    wait_until(|| async { desktops(&isle).await[1].current }).await;
+    proxy.mission_control().await.unwrap();
+    wait_until(|| async {
+        mission(&isle).await["screens"][0]["tiles"]
+            .as_array()
+            .is_some_and(|t| t.iter().any(|t| t["window"] == a))
+    })
+    .await;
+}

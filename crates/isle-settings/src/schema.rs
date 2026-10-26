@@ -288,6 +288,9 @@ pub struct Windows {
     pub games: Vec<String>,
     /// Apps that are not games though they look like one.
     pub not_games: Vec<String>,
+    /// Apps whose new windows open on a given desktop, as `app:all` for every desktop or
+    /// `app:2` for the second desktop of the screen they open on.
+    pub assign: Vec<String>,
 }
 
 /// The tokens' spacing: none, `space-s`, `space-m` or `space-l`.
@@ -361,6 +364,10 @@ pub struct Shortcuts {
     /// Fill the widest space beside the other windows.
     #[setting(default = vec!["Ctrl+Option+B".to_owned()])]
     pub tile_beside: Vec<String>,
+    /// The front window full screen, sharing it on the left with a window chosen.
+    pub split_left: Vec<String>,
+    /// The same on the right.
+    pub split_right: Vec<String>,
     /// Move the window to the next display.
     #[setting(default = vec!["Ctrl+Option+Cmd+Right".to_owned()])]
     pub next_display: Vec<String>,
@@ -405,10 +412,10 @@ pub struct Shortcuts {
     #[setting(default = vec!["Ctrl+Up".to_owned(), "XF86LaunchA".to_owned()])]
     pub mission_control: Vec<String>,
     /// The front app's windows, spread out.
-    #[setting(default = vec!["Ctrl+Down".to_owned()])]
+    #[setting(default = vec!["Ctrl+Down".to_owned(), "Ctrl+XF86LaunchA".to_owned()])]
     pub app_expose: Vec<String>,
     /// Show the desktop.
-    #[setting(default = vec!["Cmd+F3".to_owned()])]
+    #[setting(default = vec!["Cmd+F3".to_owned(), "Cmd+XF86LaunchA".to_owned()])]
     pub show_desktop: Vec<String>,
     /// The app switcher; it commits when Cmd is released.
     #[setting(default = vec!["Cmd+Tab".to_owned()])]
@@ -575,6 +582,8 @@ impl Shortcuts {
             ("tile-bottom-left", &self.tile_bottom_left),
             ("tile-bottom-right", &self.tile_bottom_right),
             ("tile-beside", &self.tile_beside),
+            ("split-left", &self.split_left),
+            ("split-right", &self.split_right),
             ("next-display", &self.next_display),
             ("previous-display", &self.previous_display),
             ("zoom-menu", &self.zoom_menu),

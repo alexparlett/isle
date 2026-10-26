@@ -266,6 +266,34 @@ enum Desktops {
         #[arg(long)]
         off: bool,
     },
+    /// Open Mission Control, or close it.
+    MissionControl,
+    /// App Exposé of an app, by its id, or of the front app.
+    Expose {
+        #[arg(default_value = "")]
+        app: String,
+    },
+    /// Show the desktop, or put the windows back.
+    ShowDesktop {
+        #[arg(long, default_value = "")]
+        output: String,
+    },
+    /// Move a desktop along its row, by places from 1.
+    Reorder {
+        from: u32,
+        to: u32,
+        #[arg(long, default_value = "")]
+        output: String,
+    },
+    /// Start Split View with a window on the left, or on the right with --right.
+    Split {
+        id: u64,
+        #[arg(long)]
+        right: bool,
+    },
+    /// Open an app's new windows on every desktop (all), a desktop by number, or anywhere
+    /// (none).
+    Assign { app: String, to: String },
 }
 
 #[derive(Subcommand)]
@@ -655,6 +683,27 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     if !proxy.set_full_screen(*id, !off).await? {
                         return refused("no change");
                     }
+                }
+                Desktops::MissionControl => proxy.mission_control().await?,
+                Desktops::Expose { app } => proxy.app_expose(app).await?,
+                Desktops::ShowDesktop { output } => {
+                    if !proxy.show_desktop(output).await? {
+                        return refused("no such display");
+                    }
+                }
+                Desktops::Reorder { from, to, output } => {
+                    if !proxy.reorder(output, *from, *to).await? {
+                        return refused("no such desktops");
+                    }
+                }
+                Desktops::Split { id, right } => {
+                    if !proxy.split(*id, !right).await? {
+                        return refused("that window cannot share the screen");
+                    }
+                }
+                Desktops::Assign { app, to } => {
+                    let to = if to == "none" { "" } else { to.as_str() };
+                    proxy.assign(app, to).await?
                 }
             }
         }

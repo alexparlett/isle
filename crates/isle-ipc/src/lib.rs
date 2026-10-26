@@ -488,6 +488,19 @@ pub mod desktops {
         fn move_window(&self, id: u64, index: u32) -> zbus::Result<bool>;
         /// Puts a window into full screen on a desktop of its own, or back.
         fn set_full_screen(&self, id: u64, on: bool) -> zbus::Result<bool>;
+        /// Opens Mission Control, or closes it.
+        fn mission_control(&self) -> zbus::Result<()>;
+        /// App Exposé of an app, or of the front app when empty.
+        fn app_expose(&self, app: &str) -> zbus::Result<()>;
+        /// Shows the desktop of an output, or puts its windows back.
+        fn show_desktop(&self, output: &str) -> zbus::Result<bool>;
+        /// Moves a desktop along its row, by places from 1.
+        fn reorder(&self, output: &str, from: u32, to: u32) -> zbus::Result<bool>;
+        /// Starts Split View with a window on the left or right of its screen.
+        fn split(&self, id: u64, left: bool) -> zbus::Result<bool>;
+        /// An app's new windows open on every desktop (`all`), a desktop by its number, or
+        /// anywhere (empty).
+        fn assign(&self, app: &str, to: &str) -> zbus::Result<()>;
         #[zbus(signal)]
         fn changed(&self) -> zbus::Result<()>;
     }

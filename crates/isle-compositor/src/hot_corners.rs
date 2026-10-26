@@ -103,7 +103,7 @@ impl State {
         if self.isle.corner_setting(which).0 == Corner::None {
             return;
         }
-        let ms = self.isle.shell.theme().tokens.timing_hover_dwell_ms;
+        let ms = self.isle.shell.theme().tokens.timing_corner_dwell_ms;
         self.isle.hot_corners.rest = self
             .isle
             .loop_handle

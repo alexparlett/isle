@@ -271,6 +271,8 @@ pub struct Isle {
     pub mission_dirty: std::cell::Cell<bool>,
     /// Buttons pressed while Mission Control was open, whose releases are its own too.
     pub mission_buttons: std::collections::HashSet<u32>,
+    /// Buttons whose press ran a shortcut, whose releases go nowhere either.
+    pub shortcut_buttons: std::collections::HashSet<u32>,
     pub switcher_surface: std::rc::Rc<isle_shell::switcher::SwitcherSurface>,
     /// The windows changed since the switcher last read them.
     pub switcher_dirty: std::cell::Cell<bool>,
@@ -616,6 +618,7 @@ impl Isle {
             mission_front,
             mission_dirty: Default::default(),
             mission_buttons: Default::default(),
+            shortcut_buttons: Default::default(),
             #[cfg(feature = "test-hooks")]
             switcher_drawn_count: 0,
             #[cfg(feature = "test-hooks")]

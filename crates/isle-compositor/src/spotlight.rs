@@ -54,6 +54,8 @@ enum MenuCommand {
     AddFavourite(String),
     RemoveFavourite(String),
     KeepRunning(String, bool),
+    /// An app's desktop: `all`, a desktop's number, or none.
+    Assign(String, Option<String>),
     ShowInLauncher(String),
     ShowInFiles(std::path::PathBuf),
     /// An emoji's variant, put in as the emoji is.
@@ -1393,8 +1395,35 @@ impl State {
                 MenuCommand::KeepRunning(app.clone(), !on),
             )
             .mark(if on { Mark::Check } else { Mark::None });
+            let assigned = self.isle.assignment(app);
+            let this = self
+                .isle
+                .output_with_focus()
+                .and_then(|o| {
+                    let identity = crate::state::Isle::output_identity(&o);
+                    self.isle.desktops.rows.get(&identity).map(|r| r.current + 1)
+                })
+                .unwrap_or(1);
+            let check = |on: bool| if on { Mark::Check } else { Mark::None };
+            let assign = item("Assign To", MenuCommand::Category(None)).submenu(vec![
+                MenuEntry::Item(
+                    item("All Desktops", MenuCommand::Assign(app.clone(), Some("all".into())))
+                        .mark(check(assigned.as_deref() == Some("all"))),
+                ),
+                MenuEntry::Item(
+                    item(
+                        &format!("This Desktop (Desktop {this})"),
+                        MenuCommand::Assign(app.clone(), Some(this.to_string())),
+                    )
+                    .mark(check(assigned.as_deref() == Some(this.to_string().as_str()))),
+                ),
+                MenuEntry::Item(
+                    item("None", MenuCommand::Assign(app.clone(), None)).mark(check(assigned.is_none())),
+                ),
+            ]);
             options.push(MenuEntry::Item(
-                item("Options", MenuCommand::Category(None)).submenu(vec![MenuEntry::Item(keep)]),
+                item("Options", MenuCommand::Category(None))
+                    .submenu(vec![MenuEntry::Item(keep), MenuEntry::Item(assign)]),
             ));
         }
         if let Item::Game(key) = &row.item
@@ -1570,6 +1599,10 @@ impl State {
                 }
                 self.isle
                     .write_setting("windows.keep-running", isle_settings::Value::List(list));
+                Vec::new()
+            }
+            MenuCommand::Assign(app, to) => {
+                self.assign_app(&app, to.as_deref());
                 Vec::new()
             }
             MenuCommand::ShowInLauncher(key) => {

@@ -539,6 +539,61 @@ impl Desktops {
             .await?)
     }
 
+    async fn mission_control(&self) -> fdo::Result<()> {
+        Ok(self.to_loop.call(|state| state.toggle_mission(false)).await?)
+    }
+
+    /// App Exposé of `app`, or of the front app when empty.
+    async fn app_expose(&self, app: String) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| match app.is_empty() {
+                true => state.toggle_mission(true),
+                false => state.open_mission(isle_shell::mission::model::Mode::Expose(app)),
+            })
+            .await?)
+    }
+
+    async fn show_desktop(&self, output: String) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| match output_named(state, &output) {
+                Some(o) if state.isle.desktop_shown(&o) => {
+                    state.put_desktop_back(&o);
+                    true
+                }
+                Some(o) => {
+                    state.show_desktop(&o);
+                    true
+                }
+                None => false,
+            })
+            .await?)
+    }
+
+    async fn reorder(&self, output: String, from: u32, to: u32) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| match output_named(state, &output) {
+                Some(o) if from > 0 && to > 0 => {
+                    state.reorder_desktop(&o, from as usize - 1, to as usize - 1)
+                }
+                _ => false,
+            })
+            .await?)
+    }
+
+    async fn split(&self, id: u64, left: bool) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(move |state| state.begin_split(id, left)).await?)
+    }
+
+    async fn assign(&self, app: String, to: String) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| state.assign_app(&app, (!to.is_empty()).then_some(to.as_str())))
+            .await?)
+    }
+
     #[zbus(signal)]
     async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }

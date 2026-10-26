@@ -9,6 +9,7 @@ use crate::{CheckError, schema::Settings};
 pub fn check(settings: &Settings) -> Result<(), CheckError> {
     let shortcuts = &settings.shortcuts;
     let mut bound: HashMap<Chord, &str> = HashMap::new();
+    let mut buttons: HashMap<isle_keys::chord::ButtonChord, &str> = HashMap::new();
     let mut bind = |chord: Chord, id: &'static str| match bound.insert(chord, id) {
         Some(other) if other != id => Err(CheckError {
             message: format!("{chord} is bound to both {other} and {id}"),
@@ -18,6 +19,18 @@ pub fn check(settings: &Settings) -> Result<(), CheckError> {
     };
     for (id, chords) in shortcuts.chords() {
         for text in chords {
+            // A mouse button is a chord too.
+            if let Some(button) = isle_keys::chord::ButtonChord::parse(text) {
+                match buttons.insert(button, id) {
+                    Some(other) if other != id => {
+                        return Err(CheckError {
+                            message: format!("{} is bound to both {other} and {id}", button.words()),
+                            key: format!("shortcuts.{id}"),
+                        });
+                    }
+                    _ => continue,
+                }
+            }
             let chord = Chord::parse(text).ok_or_else(|| CheckError {
                 message: format!("`{text}` is not a chord"),
                 key: format!("shortcuts.{id}"),

@@ -196,6 +196,7 @@ pub struct Bound {
 #[derive(Default)]
 pub struct Bindings {
     chords: HashMap<Chord, &'static Shortcut>,
+    buttons: HashMap<isle_keys::chord::ButtonChord, &'static Shortcut>,
     /// The modifiers that with 1 to 9 jump to a desktop.
     jump: Mods,
     /// The modifiers that make a press a window drag.
@@ -208,19 +209,23 @@ impl Bindings {
     pub fn new(settings: &isle_settings::schema::Settings, layouts: usize) -> Self {
         let shortcuts = &settings.shortcuts;
         let mut chords = HashMap::new();
+        let mut buttons = HashMap::new();
         for (id, texts) in shortcuts.chords() {
             let Some(shortcut) = isle_keys::shortcuts::find(id) else {
                 warn!(id, "a shortcut with no action");
                 continue;
             };
             for text in texts {
-                if let Some(chord) = Chord::parse(text) {
+                if let Some(button) = isle_keys::chord::ButtonChord::parse(text) {
+                    buttons.insert(button, shortcut);
+                } else if let Some(chord) = Chord::parse(text) {
                     chords.insert(chord, shortcut);
                 }
             }
         }
         Bindings {
             chords,
+            buttons,
             jump: Mods::parse(&shortcuts.desktop_jump).unwrap_or_default(),
             drag: Mods::parse(&shortcuts.window_drag).unwrap_or_default(),
             layouts,
@@ -234,6 +239,16 @@ impl Bindings {
         }
         let digit = (keysyms::KEY_1..=keysyms::KEY_9).contains(&chord.sym.raw());
         (!self.jump.is_empty() && chord.mods == self.jump && digit).then_some("desktop-jump")
+    }
+
+    /// The action bound to a mouse button with `mods` held, if any.
+    pub fn lookup_button(&self, mods: Mods, button: u32) -> Option<Bound> {
+        let shortcut = self.buttons.get(&isle_keys::chord::ButtonChord { mods, button })?;
+        Some(Bound {
+            action: action_for(shortcut.id),
+            shortcut: Some(shortcut),
+            mods,
+        })
     }
 
     /// The action bound to a physical chord, if any.

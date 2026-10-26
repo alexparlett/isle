@@ -19,3 +19,12 @@ impl State {
         false
     }
 }
+
+impl State {
+    /// The zoom menu, the Window menu, a chord or `Desktops1.Split`: `id` full screen on one
+    /// side, the chooser in the other half.
+    pub fn begin_split(&mut self, id: u64, left: bool) -> bool {
+        debug!(id, left, "split view asked");
+        false
+    }
+}

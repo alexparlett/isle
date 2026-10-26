@@ -2,6 +2,19 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.8, the routes: `mission-control`, `app-expose` and `show-desktop`
+  built, with ⌃ and ⌘ on the Mission Control key as App Exposé and Show
+  Desktop; `split-left` and `split-right` in the table, unbound. Mouse
+  buttons as chords (`ButtonChord`: Back, Forward, Button6 to 8 with
+  modifiers) in the same lists, refused when bound twice, run on press and
+  kept from windows. The corners gain Mission Control, Application Windows
+  and Desktop, bottom left Mission Control by default, firing after
+  `timing.corner-dwell-ms` (250; B99 revised at the close); a corner again
+  closes what it opened. Spotlight's actions gain the three. Assign To in
+  the Apps view's and an app result's Options (`windows.assign`, `app:all`
+  or `app:<n>`), honoured as windows map. `Desktops1` gains
+  MissionControl, AppExpose, ShowDesktop, Reorder, Split and Assign;
+  `isle desktops` the same. Three headless tests.
 - P16 16.7, Show Desktop: ⌘F3 and the Desktop corner move every window of
   the output's desktop to its nearest of the left, right or bottom edge,
   keeping its size, `size-sliver` (24) of it left showing, on

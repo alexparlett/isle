@@ -2,6 +2,16 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.3, Mission Control's model, pure, in `isle-shell::mission::model`
+  beside the switcher's (the plan put it in the compositor; the switcher's
+  precedent keeps it testable without one): screens fed in as desktops and
+  windows, a layout per screen (the bar shrinking to 64 then scrolling,
+  the spread by choice 8's rows, clusters by app or set, the tray and App
+  Exposé's set-apart row), the selection shown from the first key, arrows
+  kept in their band and crossing screens, Tab, Return, Space, W and
+  Delete, the ⌃ moves, the pointer's hover, badges, clicks and drags with
+  their drop places (a desktop, +, another screen, Split View, refused),
+  answering with effects. Twenty tests at both screen sizes.
 - P16 16.2, the switch: windows travel the token's `motion-switch-distance`
   (80) on the `switch` spring, not a hardcoded 120. Full screen joins the
   switch: going full screen, the rest of the desktop slides away while the

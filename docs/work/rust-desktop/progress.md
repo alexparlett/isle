@@ -2,6 +2,13 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.7, Show Desktop: ⌘F3 and the Desktop corner move every window of
+  the output's desktop to its nearest of the left, right or bottom edge,
+  keeping its size, `size-sliver` (24) of it left showing, on
+  `motion-move`; really moved, so a sliver takes clicks. ⌘F3 again, a click
+  on a sliver, any activation, a window mapping, and Mission Control
+  opening put them back; a switch away keeps the desktop shown for coming
+  back. Two headless tests and the placement's own.
 - P16 16.6, App Exposé and the tray: ⌃↓ and ⌃↓ from Mission Control, Tab
   to the next app by recency, the set-apart row of the app's minimised,
   hidden and other-desktop windows on the focused screen, the tray's

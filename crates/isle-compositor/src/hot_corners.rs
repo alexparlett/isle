@@ -154,7 +154,7 @@ impl State {
             Corner::None => {}
             Corner::MissionControl => self.toggle_mission(false),
             Corner::AppWindows => self.toggle_mission(true),
-            Corner::Desktop => {}
+            Corner::Desktop => self.toggle_show_desktop(),
             Corner::NotificationCentre => {
                 if self.isle.centre_open() {
                     self.close_control_centre();

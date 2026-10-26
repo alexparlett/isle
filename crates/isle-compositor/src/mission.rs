@@ -478,6 +478,16 @@ impl State {
         self.cancel_switcher();
         self.close_spotlight();
         self.close_menu_bar_group();
+        let shown: Vec<Output> = self
+            .isle
+            .space
+            .outputs()
+            .filter(|o| self.isle.desktop_shown(o))
+            .cloned()
+            .collect();
+        for output in shown {
+            self.put_desktop_back(&output);
+        }
         if self.isle.island.panel.is_some() {
             self.close_control_centre();
         }

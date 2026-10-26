@@ -44,6 +44,7 @@ pub enum Action {
     JumpDesktop(usize),
     /// Mission Control, or App Exposé of the front app.
     Mission { expose: bool },
+    ShowDesktop,
     /// Spotlight, or its Apps view, or its emoji.
     Spotlight(Opening),
     CarryWindow(i32),
@@ -127,6 +128,7 @@ fn action_for(id: &'static str) -> Action {
         "carry-right" => Action::CarryWindow(1),
         "mission-control" => Action::Mission { expose: false },
         "app-expose" => Action::Mission { expose: true },
+        "show-desktop" => Action::ShowDesktop,
         "terminal" => Action::Terminal,
         "spotlight" => Action::Spotlight(Opening::General),
         "apps" => Action::Spotlight(Opening::Apps),
@@ -361,6 +363,7 @@ impl State {
             }
             Action::Recorded(chord) => self.finish_recording(chord),
             Action::Mission { expose } => self.toggle_mission(expose),
+            Action::ShowDesktop => self.toggle_show_desktop(),
             Action::Lock => self.lock("chord"),
             Action::Spotlight(opening) => self.toggle_spotlight(match opening {
                 Opening::General => isle_search::Scope::General,

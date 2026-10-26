@@ -4,6 +4,7 @@
 mod apps;
 mod bars;
 pub mod desktops;
+pub mod show_desktop;
 mod split;
 pub mod draw;
 pub mod motion;
@@ -512,6 +513,7 @@ impl State {
         let Some((app, desktop)) = self.isle.wm.get(id).map(|r| (r.app.clone(), r.desktop)) else {
             return false;
         };
+        self.desktop_touched(id);
         // Its desktop comes into view, sliding as a switch does.
         let mut slide = None;
         if let Some((identity, index)) = self.isle.desktops.locate(desktop)

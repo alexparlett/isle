@@ -279,6 +279,9 @@ impl State {
                         .element_under(location)
                         .map(|(w, _)| w.clone());
                     let window = self.isle.click_focus(window, location);
+                    if let Some(window) = &window {
+                        self.desktop_touched(crate::wm::window_id(window));
+                    }
                     self.set_focus(window.as_ref());
                     if let Some(window) = window {
                         self.ping(crate::wm::window_id(&window));

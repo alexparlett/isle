@@ -251,6 +251,8 @@ pub struct Isle {
     >,
     /// Windows drawn from their last frame while they go.
     pub leaving: Vec<crate::wm::motion::Leaving>,
+    /// Outputs whose desktop is shown aside, by identity.
+    pub shown_desktops: std::collections::HashMap<String, crate::wm::show_desktop::Shown>,
     /// Windows move; the Test interface turns it off so screenshots need not wait.
     pub window_motion: bool,
     /// The desktop entries, which name apps.
@@ -599,6 +601,7 @@ impl Isle {
             window_programs: None,
             shadow_cache: Default::default(),
             leaving: Vec::new(),
+            shown_desktops: Default::default(),
             scrims: Default::default(),
             window_motion: true,
             apps: Default::default(),

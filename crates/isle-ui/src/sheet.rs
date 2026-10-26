@@ -12,9 +12,15 @@ pub fn alert_text(title: &str, message: &str) -> Element {
     rect()
         .width(Size::fill())
         .spacing(t.space_s)
-        .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), title))
+        .child(
+            text::line(&theme, text::Style::Headline, colour(t.colour_text), title)
+                .width(Size::fill())
+                .max_lines(None)
+                .text_overflow(TextOverflow::Clip),
+        )
         .child(
             label()
+                .width(Size::fill())
                 .font_size(text::metrics(&theme, text::Style::Body).0)
                 .color(colour(t.colour_text_2))
                 .text(message.to_owned()),
@@ -23,11 +29,16 @@ pub fn alert_text(title: &str, message: &str) -> Element {
 }
 
 /// A sheet over the window under its toolbar: the body, then its buttons trailing, the last
-/// the default.
+/// the default. Escape presses the one labelled Cancel or Stop, or the only one.
 pub fn sheet(width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<()>)>) -> Element {
     let theme = theme();
     let t = &theme.tokens;
     let count = buttons.len();
+    let cancel = buttons
+        .iter()
+        .find(|(label, _)| label == "Cancel" || label == "Stop")
+        .or(if count == 1 { buttons.first() } else { None })
+        .map(|(_, on_press)| on_press.clone());
     rect()
         .position(Position::new_global())
         .layer(Layer::Overlay)
@@ -38,6 +49,14 @@ pub fn sheet(width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<
         .padding((t.size_toolbar, 0., 0., 0.))
         .a11y_role(AccessibilityRole::Dialog)
         .on_press(|e: Event<PressEventData>| e.stop_propagation())
+        // Escape presses Cancel, after the window's own handlers have seen the sheet up.
+        .on_global_key_down(move |e: Event<KeyboardEventData>| {
+            if e.key == Key::Named(NamedKey::Escape)
+                && let Some(cancel) = cancel.clone()
+            {
+                spawn(async move { cancel.call(()) });
+            }
+        })
         .child(
             rect()
                 .width(Size::px(width))

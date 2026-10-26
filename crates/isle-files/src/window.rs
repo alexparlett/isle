@@ -368,6 +368,14 @@ impl App for FilesWindow {
                 for open in std::mem::take(&mut *queue.write()) {
                     match open {
                         Open::OpenWith(path) => ask_open_with(path, open_with),
+                        // A tab already showing the place is chosen rather than another added.
+                        Open::Tab(place, reveal) if let Some(n) = tabs.peek().iter().position(|h| h.tab.peek().place == place) => {
+                            if let Some(path) = reveal {
+                                let mut tab = tabs.peek()[n].tab;
+                                tab.write().reveal(path);
+                            }
+                            current.set(n);
+                        }
                         Open::Tab(place, reveal) => {
                             let handle = new_tab(&shared, place, reveal);
                             tab::load(handle.tab, &handle.live, false);
@@ -579,7 +587,17 @@ impl App for FilesWindow {
                 }
                 let mut queue = desktop.commands;
                 queue.write().clear();
+                // A sheet holds the window: only what opens another window gets past it.
+                let sheet_up = alert.peek().is_some()
+                    || rename_many.peek().is_some()
+                    || open_with.peek().is_some()
+                    || unlocking.peek().is_some()
+                    || *saving.peek()
+                    || jobs.questions.peek().iter().any(|q| q.window == key);
                 for id in chosen {
+                    if sheet_up && !matches!(id.as_str(), "new-window" | "settings") {
+                        continue;
+                    }
                     let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
                     let (mut tab, live) = (handle.tab, handle.live.clone());
                     let go = |place: Place| tab::go(tab, &live, place, None);
@@ -980,6 +998,7 @@ impl App for FilesWindow {
             items: selected_items.clone(),
             folder: tab.read().here.clone(),
             width: t.size_inspector,
+            pane: true,
         });
         let on_act = {
             let (live, set_shown, shared) = (live.clone(), set_shown_here.clone(), shared.clone());

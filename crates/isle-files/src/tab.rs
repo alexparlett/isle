@@ -124,6 +124,12 @@ impl Tab {
         }
     }
 
+    /// Selects `path` now, or once it has arrived.
+    pub fn reveal(&mut self, path: PathBuf) {
+        self.reveal = Some(path);
+        self.take_reveal();
+    }
+
     /// The item to reveal, selected once it has arrived.
     fn take_reveal(&mut self) {
         if let Some(path) = self.reveal.clone()

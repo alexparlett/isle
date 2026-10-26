@@ -286,7 +286,7 @@ impl App for PanelWindow {
         let on_key = {
             let (accept, cancel) = (accept.clone(), cancel.clone());
             move |e: Event<KeyboardEventData>| match e.key {
-                Key::Named(NamedKey::Escape) => cancel(),
+                Key::Named(NamedKey::Escape) if replacing.peek().is_none() => cancel(),
                 Key::Named(NamedKey::Enter) if replacing.peek().is_none() => accept(),
                 _ => {}
             }

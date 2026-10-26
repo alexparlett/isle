@@ -31,6 +31,9 @@ pub use hub::{AppHandle, Hold, Requester, WindowKey, app};
 pub use window::{Drag, Float, WindowSpec, this_surface, this_window, use_drag};
 pub use worker::Worker;
 
+/// A future serving one of the app's objects on its bus.
+pub type Serving = std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>;
+
 /// An app's identity and window.
 #[derive(Clone, Debug)]
 pub struct Spec {
@@ -235,7 +238,7 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
             preferences: false,
             backdrop: None,
         };
-        AppHandle::new(spec, worker.clone(), None, desktop, theme).0
+        AppHandle::new(spec, worker.clone(), None, unbounded().0, desktop, theme).0
     });
     use_provide_context(|| WindowKey(1));
     use_provide_context(|| window::Drag {
@@ -272,7 +275,14 @@ pub fn init_logging(krate: &str) {
 
 /// What an app does above its windows.
 pub trait Delegate: 'static {
-    /// Once, before the first request: serve the app's own objects on its bus.
+    /// The app's own objects on its bus, served before it takes its name so that a call
+    /// that started it finds them.
+    fn serve(&self, bus: &zbus::Connection, requests: &Requester) -> Vec<Serving> {
+        let _ = (bus, requests);
+        Vec::new()
+    }
+
+    /// Once, before the first request.
     fn started(&self, app: &AppHandle) {
         let _ = app;
     }
@@ -304,7 +314,9 @@ pub fn run_with(spec: Spec, delegate: impl Delegate) {
 
     let worker = Worker::start();
     let (requests_tx, requests_rx) = unbounded();
-    let bus = match worker.block_on(instance::claim(spec.id, first.clone(), requests_tx.clone())) {
+    let requester = Requester(requests_tx.clone());
+    let serve = |bus: &zbus::Connection| delegate.serve(bus, &requester);
+    let bus = match worker.block_on(instance::claim(spec.id, first.clone(), requests_tx.clone(), serve)) {
         Ok(instance::Claim::Handed) => return,
         Ok(instance::Claim::Ours(bus)) => Some(bus),
         Err(err) => {
@@ -325,7 +337,7 @@ pub fn run_with(spec: Spec, delegate: impl Delegate) {
         flight: State::create_global(Flight::default()),
     };
     let theme = ThemeContext(State::create_global(shipped_theme()));
-    let (app, inbox) = AppHandle::new(spec.clone(), worker.clone(), bus.clone(), desktop, theme);
+    let (app, inbox) = AppHandle::new(spec.clone(), worker.clone(), bus.clone(), requests_tx.clone(), desktop, theme);
     let (updates_tx, updates_rx) = unbounded();
     if let Some(bus) = bus {
         worker.spawn(desktop::watch(bus, updates_tx));

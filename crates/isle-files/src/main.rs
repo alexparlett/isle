@@ -45,7 +45,7 @@ use std::{
 };
 
 use freya::prelude::*;
-use isle_app::{AppHandle, Delegate, Request, Spec, WindowKey, WindowSpec};
+use isle_app::{AppHandle, Delegate, Request, Requester, Spec, WindowKey, WindowSpec};
 use tracing::info;
 
 use crate::{
@@ -527,12 +527,17 @@ struct Files {
 }
 
 impl Delegate for Files {
+    fn serve(&self, bus: &zbus::Connection, requests: &Requester) -> Vec<isle_app::Serving> {
+        vec![
+            Box::pin(files1::serve(bus.clone(), requests.clone())),
+            Box::pin(ql1::serve(bus.clone(), requests.clone())),
+        ]
+    }
+
     fn started(&self, app: &AppHandle) {
         *self.shared.app.borrow_mut() = Some(app.clone());
         self.shared.locations.follow(app);
         if let Some(bus) = app.bus() {
-            app.worker().spawn(files1::serve(bus.clone(), app.requester()));
-            app.worker().spawn(ql1::serve(bus.clone(), app.requester()));
             app.worker().spawn(fm1::serve(bus, app.requester()));
         }
     }

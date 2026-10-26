@@ -47,11 +47,11 @@ impl Drop for Hold {
 
 /// Sends requests to the app's delegate, from any thread.
 #[derive(Clone)]
-pub struct Requester(UnboundedSender<Inbound>);
+pub struct Requester(pub(crate) UnboundedSender<Request>);
 
 impl Requester {
     pub fn send(&self, request: Request) {
-        let _ = self.0.unbounded_send(Inbound::Request(request));
+        let _ = self.0.unbounded_send(request);
     }
 }
 
@@ -88,6 +88,8 @@ pub(crate) struct Inner {
     pub proxy: RefCell<Option<LaunchProxy>>,
     pub windows: RefCell<BTreeMap<WindowKey, Open>>,
     pub inbox: UnboundedSender<Inbound>,
+    /// Requests from other processes, forwarded to the inbox.
+    requests: UnboundedSender<Request>,
     next: Cell<u64>,
     holds: Cell<usize>,
     /// The data device, started by the first window on winit's display.
@@ -109,6 +111,7 @@ impl AppHandle {
         spec: Spec,
         worker: Worker,
         bus: Option<zbus::Connection>,
+        requests: UnboundedSender<Request>,
         desktop: Desktop,
         theme: ThemeContext,
     ) -> (Self, UnboundedReceiver<Inbound>) {
@@ -123,6 +126,7 @@ impl AppHandle {
             proxy: RefCell::new(None),
             windows: RefCell::default(),
             inbox,
+            requests,
             next: Cell::new(1),
             holds: Cell::new(0),
             data: RefCell::new(None),
@@ -157,7 +161,7 @@ impl AppHandle {
 
     /// Hands requests to the delegate from any thread: the app's own D-Bus objects.
     pub fn requester(&self) -> Requester {
-        Requester(self.0.inbox.clone())
+        Requester(self.0.requests.clone())
     }
 
     /// Opens a window drawing `app`; it counts as open from now.

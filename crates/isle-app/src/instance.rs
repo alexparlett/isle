@@ -115,18 +115,20 @@ trait RunningApp {
     ) -> zbus::Result<()>;
 }
 
-/// Serves the app's object, then asks for its name; if another instance has it, hands
-/// `first` to that instance.
+/// Serves the app's object and `serve`'s, then asks for its name; if another instance
+/// has it, hands `first` to that instance.
 pub async fn claim(
     id: &str,
     first: Request,
     requests: UnboundedSender<Request>,
+    serve: impl FnOnce(&zbus::Connection) -> Vec<crate::Serving>,
 ) -> zbus::Result<Claim> {
     let path = object_path(id);
     let bus = zbus::connection::Builder::session()?
         .serve_at(path.as_str(), Application { requests: requests.clone() })?
         .build()
         .await?;
+    futures_util::future::join_all(serve(&bus)).await;
     let taken = match bus
         .request_name_with_flags(id, RequestNameFlags::DoNotQueue.into())
         .await

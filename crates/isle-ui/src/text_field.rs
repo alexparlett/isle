@@ -90,10 +90,12 @@ impl Component for TextField {
         let t = &theme.tokens;
         let own = use_a11y();
         let a11y = self.a11y_id.unwrap_or(own);
+        // A name edited in place is opaque over the selected row under it.
+        let fill = colour(if self.select_all { t.colour_view } else { t.colour_fill });
         let colours = InputColorsThemePartial::new()
-            .background(colour(t.colour_fill))
-            .hover_background(colour(t.colour_fill))
-            .focus_background(colour(t.colour_fill))
+            .background(fill)
+            .hover_background(fill)
+            .focus_background(fill)
             .color(colour(t.colour_text))
             .placeholder_color(colour(t.colour_text_3))
             .border_fill(colour(t.colour_hairline_strong))

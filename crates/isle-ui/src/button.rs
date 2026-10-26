@@ -106,6 +106,8 @@ impl Component for Button {
         };
         let fill = match (self.kind, *pressed.read(), *hover.read()) {
             _ if !enabled && self.kind == Kind::Plain => Color::TRANSPARENT,
+            // A default button that cannot be pressed loses its accent, as a regular one.
+            _ if !enabled && self.kind == Kind::Default => colour(t.colour_control),
             (Kind::Default, true, _) => mix(accent, inverse, t.accent_pressed_mix),
             (Kind::Default, false, true) => mix(accent, inverse, t.accent_hover_mix),
             (Kind::Default, false, false) => accent,

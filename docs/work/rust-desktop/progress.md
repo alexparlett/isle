@@ -2,6 +2,13 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.11, the layout trait (B8): `wm::layout::Layout` answers a
+  desktop's work area, which of its windows are parked and which set each
+  belongs to; `Stacking` answers as the code always has, and each desktop
+  carries its `Arrangement`, Stacking by default. The work area comes
+  through the desktop in view; a record gains `staged_out`, which
+  `shown()` honours. The `desktops` domain saves which plain desktops Stage
+  Manager arranges. The window suite passes unchanged.
 - P16 16.10, Settings: Desktop gains the Mission Control group (the two
   switches; Shortcuts… and Hot Corners… under it) and the Stage Manager
   group with its line; the Shortcuts… sheet lists each action's keys and a

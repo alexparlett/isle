@@ -75,6 +75,9 @@ pub struct Place {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Desktops {
     pub counts: BTreeMap<String, u32>,
+    /// The places among each row's plain desktops, from 0, that Stage Manager arranges.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub stage: BTreeMap<String, Vec<u32>>,
 }
 
 impl Domain for Desktops {

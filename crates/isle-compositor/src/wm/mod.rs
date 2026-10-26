@@ -4,6 +4,8 @@
 mod apps;
 mod bars;
 pub mod desktops;
+pub mod layout;
+pub mod stage;
 pub mod show_desktop;
 pub mod split;
 pub mod draw;
@@ -126,11 +128,13 @@ pub struct Record {
     pub big_picture: bool,
     /// Minimised by its app in place of closing, so listed nowhere (Big Picture).
     pub parked: bool,
+    /// Parked by its desktop's arrangement: a Stage Manager set not on the stage.
+    pub staged_out: bool,
 }
 
 impl Record {
     pub fn shown(&self) -> bool {
-        self.mapped && !self.minimised && !self.hidden
+        self.mapped && !self.minimised && !self.hidden && !self.staged_out
     }
 
     /// Its Wayland surface; an X11 window has one once Xwayland has associated it.
@@ -371,6 +375,7 @@ impl Isle {
             content_game: false,
             big_picture: false,
             parked: false,
+            staged_out: false,
         });
         id
     }

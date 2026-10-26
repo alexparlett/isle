@@ -38,6 +38,7 @@ pub enum Kind {
 pub struct Desktop {
     pub id: u64,
     pub kind: Kind,
+    pub layout: super::layout::Arrangement,
 }
 
 /// One output's desktops, by the output's identity.
@@ -61,6 +62,7 @@ impl Desktops {
         Desktop {
             id: self.next_id,
             kind,
+            layout: Default::default(),
         }
     }
 
@@ -74,7 +76,16 @@ impl Desktops {
                 .copied()
                 .unwrap_or(1)
                 .clamp(1, MAX_DESKTOPS as u32);
-            let desktops = (0..count).map(|_| self.new_desktop(Kind::Normal)).collect();
+            let staged = self.saved.stage.get(identity).cloned().unwrap_or_default();
+            let desktops = (0..count)
+                .map(|i| {
+                    let mut d = self.new_desktop(Kind::Normal);
+                    if staged.contains(&i) {
+                        d.layout = super::layout::Arrangement::Stage(Default::default());
+                    }
+                    d
+                })
+                .collect();
             self.rows.insert(
                 identity.to_owned(),
                 Row {
@@ -114,6 +125,19 @@ impl Desktops {
                 .filter(|d| d.kind == Kind::Normal)
                 .count() as u32;
             self.saved.counts.insert(identity.clone(), normal);
+            let staged: Vec<u32> = row
+                .desktops
+                .iter()
+                .filter(|d| d.kind == Kind::Normal)
+                .enumerate()
+                .filter(|(_, d)| d.layout.is_stage())
+                .map(|(i, _)| i as u32)
+                .collect();
+            if staged.is_empty() {
+                self.saved.stage.remove(identity);
+            } else {
+                self.saved.stage.insert(identity.clone(), staged);
+            }
         }
         if let Some(saver) = &self.saver {
             saver.save(self.saved.clone());

@@ -58,7 +58,12 @@ impl Isle {
         let geometry = self.space.output_geometry(output).unwrap_or_default();
         let mut free = smithay::desktop::layer_map_for_output(output).non_exclusive_zone();
         free.loc += geometry.loc;
-        geometry::work_area(geometry, free, self.strip())
+        let area = geometry::work_area(geometry, free, self.strip());
+        let row = self.desktops.rows.get(&Self::output_identity(output));
+        match row.and_then(|r| r.desktops.get(r.current)) {
+            Some(desktop) => desktop.layout.layout().work_area(area),
+            None => area,
+        }
     }
 
     /// The height kept clear along each output's top for the island.

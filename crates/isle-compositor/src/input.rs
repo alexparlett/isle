@@ -70,7 +70,7 @@ impl State {
         if self.idle_activity() {
             return;
         }
-        if self.isle.mission.as_ref().is_some_and(|m| m.open()) && !self.isle.lock.locked {
+        if self.mission_reads_input() {
             let (x, y) = frame.axis;
             self.mission_axis(if x.abs() > y.abs() { x } else { y });
             return;
@@ -125,7 +125,7 @@ impl State {
             self.pick_pointer_to(location);
             return;
         }
-        if self.isle.mission.as_ref().is_some_and(|m| m.open()) && !self.isle.lock.locked {
+        if self.mission_reads_input() {
             self.mission_pointer_to(location);
             self.isle.queue_pointer_redraw_all();
             return;
@@ -199,7 +199,7 @@ impl State {
         }
         // Mission Control's presses and their releases are its own.
         if !self.isle.lock.locked
-            && (self.isle.mission.as_ref().is_some_and(|m| m.open())
+            && (self.mission_reads_input()
                 || (button_state == ButtonState::Released && self.isle.mission_buttons.contains(&button)))
         {
             if button_state == ButtonState::Pressed {
@@ -207,7 +207,7 @@ impl State {
             } else {
                 self.isle.mission_buttons.remove(&button);
             }
-            if self.isle.mission.as_ref().is_some_and(|m| m.open()) {
+            if self.mission_reads_input() {
                 self.mission_button(button, button_state == ButtonState::Pressed);
             }
             return;

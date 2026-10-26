@@ -194,3 +194,125 @@ async fn a_tile_dropped_on_the_plus_tile_gets_a_desktop_of_its_own() {
     assert_eq!(m["screens"][0]["current"], 0);
     assert_eq!(m["screens"][0]["tiles"].as_array().unwrap().len(), 1);
 }
+
+const RIGHT: u32 = 106;
+const SPACE: u32 = 57;
+const W: u32 = 17;
+
+async fn desktops(isle: &Isle) -> Vec<isle_ipc::DesktopInfo> {
+    isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .list()
+        .await
+        .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn space_shows_the_selection_at_its_real_place_and_w_closes_it() {
+    let mut isle = Isle::start("mission-look").await;
+    let _red = isle.client("isle.test.Red", "ff0000");
+    let red = isle.wait_for_window("isle.test.Red").await;
+    let green = isle.client("isle.test.Green", "00ff00");
+    let gw = isle.wait_for_window("isle.test.Green").await;
+    wait_until(|| async { isle.window(gw.id).await.focused }).await;
+
+    open(&isle).await;
+    // The first key shows the selection on the window that had focus.
+    isle.chord(&[RIGHT]).await;
+    wait_until(|| async {
+        mission(&isle).await["selection"]
+            .as_str()
+            .is_some_and(|s| s.contains(&gw.id.to_string()))
+    })
+    .await;
+    isle.chord(&[SPACE]).await;
+    wait_until(|| async { mission(&isle).await["looking"] == gw.id }).await;
+    let shot = isle.shot("HEADLESS-1", "looking").await;
+    let at = shot.at(
+        (gw.x + gw.width / 2) as usize,
+        (gw.y + gw.height / 2) as usize,
+    );
+    assert_eq!(at, [0, 255, 0], "the window is back at its place");
+    isle.chord(&[SPACE]).await;
+    wait_until(|| async { mission(&isle).await["looking"].is_null() }).await;
+
+    isle.chord(&[W]).await;
+    green.wait_for("closed").await;
+    let _ = red;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_desktop_is_removed_by_its_badge_and_ctrl_arrows_switch_while_open() {
+    let mut isle = Isle::start("mission-desks").await;
+    let _red = isle.client("isle.test.Red", "ff0000");
+    isle.wait_for_window("isle.test.Red").await;
+    isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .add("")
+        .await
+        .unwrap();
+    wait_until(|| async { desktops(&isle).await.len() == 2 }).await;
+
+    open(&isle).await;
+    isle.chord(&[CTRL, RIGHT]).await;
+    wait_until(|| async { mission(&isle).await["screens"][0]["current"] == 1 }).await;
+    assert!(!mission(&isle).await.is_null(), "still open");
+    assert_eq!(
+        mission(&isle).await["screens"][0]["tiles"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
+    // Desktop 1's Remove badge on its top leading corner.
+    let m = mission(&isle).await;
+    let mini = &m["screens"][0]["bar"]["items"][0]["miniature"];
+    let (x, y) = (
+        mini[0].as_f64().unwrap() + 1.0,
+        mini[1].as_f64().unwrap() + 1.0,
+    );
+    let test = isle.test().await;
+    test.pointer_to(x, y).await.unwrap();
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { desktops(&isle).await.len() == 1 }).await;
+    // Its window joined the desktop left.
+    wait_until(|| async {
+        mission(&isle).await["screens"][0]["tiles"]
+            .as_array()
+            .is_some_and(|t| t.len() == 1)
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rearranging_puts_the_desktop_left_after_the_one_activated() {
+    let mut isle = Isle::start_with(
+        "mission-rearrange",
+        "mission-control {\n    rearrange-desktops #true\n}\n",
+    )
+    .await;
+    let _a = isle.client("isle.test.A", "ff0000");
+    let a = isle.wait_for_window("isle.test.A").await.id;
+    let _b = isle.client("isle.test.B", "00ff00");
+    let b = isle.wait_for_window("isle.test.B").await.id;
+    let proxy = isle_ipc::desktops::DesktopsProxy::new(&isle.bus)
+        .await
+        .unwrap();
+    proxy.add("").await.unwrap();
+    proxy.add("").await.unwrap();
+    // Desktops1 counts from 1.
+    assert!(proxy.move_window(b, 3).await.unwrap());
+    proxy.switch("", 1).await.unwrap();
+    wait_until(|| async { desktops(&isle).await[0].current }).await;
+
+    isle.windows_proxy().await.focus(b).await.unwrap();
+    wait_until(|| async {
+        let rows = desktops(&isle).await;
+        rows[1].current && isle.window(b).await.desktop == 2 && isle.window(a).await.desktop == 3
+    })
+    .await;
+}

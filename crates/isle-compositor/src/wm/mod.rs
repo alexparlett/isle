@@ -529,7 +529,19 @@ impl State {
             if let Some(output) = &output {
                 self.slide_out(output, step, None);
             }
-            self.isle.desktops.rows.get_mut(&identity).unwrap().current = index;
+            let row = self.isle.desktops.rows.get_mut(&identity).unwrap();
+            row.current = index;
+            // Automatic rearranging: the desktop left goes to just after the one shown, when
+            // both are plain desktops.
+            if self.isle.settings.mission_control.rearrange_desktops
+                && row.desktops[current].kind == desktops::Kind::Normal
+                && row.desktops[index].kind == desktops::Kind::Normal
+            {
+                let left = row.desktops.remove(current);
+                let shown = row.desktops.iter().position(|d| d.id == desktop).unwrap_or(0);
+                row.desktops.insert(shown + 1, left);
+                row.current = shown;
+            }
             self.isle.notify(Event::DesktopsChanged);
             slide = output.map(|o| (o, step));
         }

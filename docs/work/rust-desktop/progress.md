@@ -2,6 +2,15 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.5, acting in Mission Control: choose, close (W, Delete, the
+  badge, a middle click), Space to look at the real place, the window menu
+  opened by a tile and taking the input while it is up, drags to a
+  desktop, + or another screen, reordering and removing desktops (the
+  view staying on the desktop it shows; only counts are saved, as windows
+  are not), ⌃←/→ switching while open, grouping by app, and
+  `mission-control.rearrange-desktops`: an activation that changes desktop
+  puts the desktop left just after the one shown, plain desktops only.
+  Eight headless tests.
 - P16 16.4, Mission Control drawn. `mission-back` (the bar with live
   miniatures, the + tile, the tray, App Exposé's header) and
   `mission-front` (icons, the selection ring, titles, badges, cluster

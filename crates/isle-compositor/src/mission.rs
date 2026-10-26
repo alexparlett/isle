@@ -620,8 +620,16 @@ impl State {
     }
 
     /// A key while it is open; true when Mission Control took it.
+    /// Mission Control reads the pointer and keys: it is open, and no window menu opened from
+    /// it is.
+    pub fn mission_reads_input(&self) -> bool {
+        self.isle.mission.as_ref().is_some_and(|m| m.open())
+            && !self.isle.lock.locked
+            && !self.isle.shell.is_open("window-menu")
+    }
+
     pub fn mission_key_pressed(&mut self, code: u32) -> bool {
-        if !self.isle.mission.as_ref().is_some_and(|m| m.open()) {
+        if !self.mission_reads_input() {
             return false;
         }
         let (role, sym) = self.isle.keyboards.with_engine(false, &[], |_, ctx| {
@@ -768,7 +776,20 @@ impl State {
                     }
                 }
                 Effect::Look(_) => {}
-                Effect::WindowMenu(id) => self.open_window_menu(id, None, true),
+                Effect::WindowMenu(id) => {
+                    // By its tile, where the window is seen.
+                    let at = self.isle.mission.as_ref().and_then(|m| {
+                        m.model.layouts().iter().zip(&m.outputs).find_map(|(l, o)| {
+                            let t = l.tile(id)?;
+                            let g = self.isle.space.output_geometry(o)?;
+                            Some(Point::from((
+                                g.loc.x + t.rect.x as i32,
+                                g.loc.y + t.rect.y as i32,
+                            )))
+                        })
+                    });
+                    self.open_window_menu(id, at, at.is_none());
+                }
                 Effect::DeskMenu { .. } => {}
                 Effect::Expose(app) => self.mission_mode(Mode::Expose(app)),
                 Effect::Overview => self.mission_mode(Mode::MissionControl),

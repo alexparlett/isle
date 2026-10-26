@@ -17,6 +17,8 @@ pub struct Preview {
     /// The folder shown, previewed when nothing is selected.
     pub folder: Option<Entry>,
     pub width: f32,
+    /// Drawn as the window's pane, edged and filled; bare in Quick Look.
+    pub pane: bool,
 }
 
 /// A folder's size and count, counted on a thread of its own.
@@ -178,13 +180,14 @@ impl Component for Preview {
         rect()
             .width(Size::px(self.width))
             .height(Size::fill())
-            .background(colour(t.colour_window))
-            .border(
-                Border::new()
-                    .fill(colour(t.colour_hairline))
-                    .width(BorderWidth { top: 0., right: 0., bottom: 0., left: 1. })
-                    .alignment(BorderAlignment::Inner),
-            )
+            .maybe(self.pane, |pane| {
+                pane.background(colour(t.colour_window)).border(
+                    Border::new()
+                        .fill(colour(t.colour_hairline))
+                        .width(BorderWidth { top: 0., right: 0., bottom: 0., left: 1. })
+                        .alignment(BorderAlignment::Inner),
+                )
+            })
             .a11y_role(AccessibilityRole::Complementary)
             .a11y_alt("Preview")
             .child(isle_ui::scroll_area(&theme).width(Size::fill()).height(Size::fill()).child(body))

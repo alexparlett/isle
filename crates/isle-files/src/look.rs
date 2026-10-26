@@ -30,10 +30,10 @@ pub type Line = Vec<((u8, u8, u8), String)>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Shown {
     Image(Bytes),
-    Svg(Bytes),
     Text(Vec<Line>),
     Pdf(usize),
-    Media,
+    /// Audio, or video when true.
+    Media(bool),
     Listing(Vec<String>),
     /// Its icon and facts.
     Facts,
@@ -86,7 +86,7 @@ pub fn read(path: &Path, dark: bool) -> Shown {
     let types = isle_apps::mime::types();
     let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
     if mime == "image/svg+xml" {
-        return std::fs::read(path).map(|b| Shown::Svg(Bytes::from(b))).unwrap_or(Shown::Facts);
+        return std::fs::read(path).ok().and_then(|b| svg_png(&b)).map(Shown::Image).unwrap_or(Shown::Facts);
     }
     if mime.starts_with("image/") && size <= IMAGE_LIMIT {
         return std::fs::read(path).map(|b| Shown::Image(Bytes::from(b))).unwrap_or(Shown::Facts);
@@ -95,7 +95,7 @@ pub fn read(path: &Path, dark: bool) -> Shown {
         return pdf_pages(path).map(Shown::Pdf).unwrap_or(Shown::Facts);
     }
     if mime.starts_with("video/") || mime.starts_with("audio/") {
-        return Shown::Media;
+        return Shown::Media(mime.starts_with("video/"));
     }
     if is_archive(&mime) {
         let listed = std::process::Command::new("bsdtar").arg("-tf").arg(path).stderr(std::process::Stdio::null()).output();
@@ -114,6 +114,20 @@ pub fn read(path: &Path, dark: bool) -> Shown {
     }
     Shown::Facts
 }
+
+/// An SVG drawn at `SVG_PIXELS` along its longer side, as PNG, so that it scales and centres
+/// as any image does.
+fn svg_png(data: &[u8]) -> Option<Bytes> {
+    let tree = resvg::usvg::Tree::from_data(data, &resvg::usvg::Options::default()).ok()?;
+    let size = tree.size();
+    let scale = SVG_PIXELS / size.width().max(size.height());
+    let (w, h) = ((size.width() * scale).round().max(1.) as u32, (size.height() * scale).round().max(1.) as u32);
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(w, h)?;
+    resvg::render(&tree, resvg::tiny_skia::Transform::from_scale(scale, scale), &mut pixmap.as_mut());
+    pixmap.encode_png().ok().map(Bytes::from)
+}
+
+const SVG_PIXELS: f32 = 1600.;
 
 /// The PDF's page count, from the helper, which also renders page one to be sure it reads.
 fn pdf_pages(path: &Path) -> Option<usize> {
@@ -165,13 +179,9 @@ impl Component for Look {
         let body: Element = match now {
             None => rect().expanded().into_element(),
             Some(Shown::Image(bytes)) => ImageViewer::new(bytes).expanded().aspect_ratio(AspectRatio::Min).image_cover(ImageCover::Center).into_element(),
-            Some(Shown::Svg(bytes)) => SvgViewer::new((self.path.to_string_lossy().into_owned(), bytes))
-                .show_loader(false)
-                .expanded()
-                .into_element(),
             Some(Shown::Text(lines)) => TextView { lines }.into_element(),
             Some(Shown::Pdf(count)) => Pages { path: self.path.clone(), count }.into_element(),
-            Some(Shown::Media) => Media { path: self.path.clone() }.into_element(),
+            Some(Shown::Media(video)) => Media { path: self.path.clone(), video }.into_element(),
             Some(Shown::Listing(names)) => {
                 let lines = names.into_iter().map(|n| vec![((140, 140, 140), n)]).collect();
                 TextView { lines }.into_element()
@@ -193,7 +203,7 @@ impl Component for TextView {
         let size = text::metrics(&theme, text::Style::Callout).0;
         let lines = std::rc::Rc::new(self.lines.clone());
         let length = lines.len();
-        VirtualScrollView::new_with_data(lines, move |item: VirtualItem, lines: &std::rc::Rc<Vec<Line>>| {
+        let lines = VirtualScrollView::new_with_data(lines, move |item: VirtualItem, lines: &std::rc::Rc<Vec<Line>>| {
             let runs = lines.get(item.index).cloned().unwrap_or_default();
             rect()
                 .width(Size::fill())
@@ -210,7 +220,8 @@ impl Component for TextView {
         })
         .length(length)
         .item_size(size * 1.5)
-        .expanded()
+        .expanded();
+        rect().expanded().padding((theme.tokens.space_m, 0.)).child(lines)
     }
 }
 
@@ -267,6 +278,7 @@ impl Component for Page {
 #[derive(PartialEq)]
 struct Media {
     path: PathBuf,
+    video: bool,
 }
 
 impl Component for Media {
@@ -298,7 +310,8 @@ impl Component for Media {
                     .width(Size::fill())
                     .height(Size::flex(1.))
                     .center()
-                    .maybe_child(player.frame().map(|frame| image(frame).expanded().aspect_ratio(AspectRatio::Min).image_cover(ImageCover::Center))),
+                    .maybe_child(player.frame().map(|frame| image(frame).expanded().aspect_ratio(AspectRatio::Min).image_cover(ImageCover::Center)))
+                    .maybe_child((!self.video).then(|| Glyph::new("music-notes", t.size_app_icon_hero, colour(t.colour_text_3)))),
             )
             .child(
                 rect()

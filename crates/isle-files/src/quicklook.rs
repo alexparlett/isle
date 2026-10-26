@@ -63,6 +63,9 @@ impl App for QuickLookWindow {
                 let read = path.clone();
                 let found = off_thread(move || {
                     let entry = isle_fs::Entry::at(&read).ok();
+                    if let Some(mime) = entry.as_ref().and_then(|e| e.mime.as_deref()) {
+                        crate::icons::warm(mime, crate::icons::LARGE);
+                    }
                     let (launches, _) = crate::open::decide(std::slice::from_ref(&read));
                     let index = isle_apps::Index::scan(&isle_apps::Index::data_dirs());
                     let app = launches.into_iter().next().map(|(id, _)| (index.name(&id), id));
@@ -174,7 +177,7 @@ impl App for QuickLookWindow {
         let facts = rect()
             .expanded()
             .center()
-            .child(Preview { items: entry.read().clone().into_iter().collect(), folder: None, width: 360. })
+            .child(Preview { items: entry.read().clone().into_iter().collect(), folder: None, width: 360., pane: false })
             .into_element();
         let body = match path {
             Some(_) if *indexing.read() => IndexSheet {

@@ -135,6 +135,7 @@ impl Component for ColumnsView {
                         items,
                         folder: None,
                         width: t.size_inspector,
+                        pane: true,
                     })),
             )
     }

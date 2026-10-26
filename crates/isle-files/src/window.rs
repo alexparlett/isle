@@ -1678,8 +1678,9 @@ pub(crate) fn content(
             .center()
             .background(colour(t.colour_view))
             .child(
-                rect().max_width(Size::px(400.)).child(
+                rect().width(Size::fill()).max_width(Size::px(400.)).child(
                     label()
+                        .width(Size::fill())
                         .font_size(isle_ui::text::metrics(theme, text::Style::Body).0)
                         .color(colour(t.colour_text_2))
                         .text_align(TextAlign::Center)

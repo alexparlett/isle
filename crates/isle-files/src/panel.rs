@@ -26,8 +26,20 @@ pub struct Sizes {
     pub min: (f64, f64),
 }
 
-/// Save collapsed is only as tall as its rows.
-const SAVE_HEIGHT: f64 = 236.;
+/// Save collapsed is only as tall as its rows: the name, Where and the buttons, and the
+/// row of formats and choices when the app gives any.
+const SAVE_HEIGHT: f64 = 153.;
+const OPTIONS_HEIGHT: f64 = 48.;
+
+/// Save collapsed's height for `ask`.
+pub fn save_height(ask: &Ask) -> f64 {
+    SAVE_HEIGHT + if has_options(ask) { OPTIONS_HEIGHT } else { 0. }
+}
+
+/// Whether the panel shows formats or the app's choices.
+fn has_options(ask: &Ask) -> bool {
+    (!ask.filters.is_empty() && !ask.directory) || !ask.choices.is_empty()
+}
 
 pub fn sizes() -> &'static Sizes {
     static SIZES: std::sync::OnceLock<Sizes> = std::sync::OnceLock::new();
@@ -37,7 +49,7 @@ pub fn sizes() -> &'static Sizes {
         Sizes {
             open: (t.size_chooser_width as f64, t.size_chooser_height as f64),
             save: (t.size_chooser_save as f64, SAVE_HEIGHT),
-            min: (t.size_chooser_save as f64, 200.),
+            min: (t.size_chooser_save as f64, SAVE_HEIGHT),
         }
     })
 }
@@ -317,8 +329,9 @@ impl App for PanelWindow {
             Kind::SaveFiles => true,
         };
 
+        let collapsed = (sizes().save.0, save_height(&ask));
         let resize = move |open: bool| {
-            let (w, h) = if open { sizes().open } else { sizes().save };
+            let (w, h) = if open { sizes().open } else { collapsed };
             Platform::get().with_window(Platform::window_id(), move |window| {
                 let _ = window.request_inner_size(freya::winit::dpi::LogicalSize::new(w, h));
             });
@@ -385,6 +398,7 @@ impl App for PanelWindow {
                     .into_element()
             }
         });
+        let has_options = has_options(&ask);
         let options_row = rect()
             .width(Size::fill())
             .horizontal()
@@ -487,8 +501,8 @@ impl App for PanelWindow {
                         })))
                         .child(expand_button(false)),
                 )
-                .child(rect().height(Size::px(t.space_s)))
-                .child(options_row)
+                .maybe_child(has_options.then(|| rect().height(Size::px(t.space_s))))
+                .maybe_child(has_options.then_some(options_row))
                 .child(rect().height(Size::px(t.space_l)))
                 .child(buttons)
                 .into_element()
@@ -628,7 +642,9 @@ impl App for PanelWindow {
                 [one] => format!("An item named “{one}” already exists in “{place}”."),
                 many => format!("{} items with these names already exist in “{place}”.", many.len()),
             };
-            isle_ui::sheet(
+            // Collapsed Save has no toolbar band to hang the sheet under.
+            isle_ui::sheet_under(
+                if saving_collapsed { 0. } else { t.size_toolbar },
                 t.size_alert,
                 vec![isle_ui::alert_text(&title, "Replacing it overwrites it.")],
                 vec![

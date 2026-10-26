@@ -309,7 +309,7 @@ impl Shared {
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
         let sizes = panel::sizes();
         let save = ask.kind == chooser::Kind::Save && !self.panel_memory(&ask.app_id).expanded;
-        let size = if save { sizes.save } else { sizes.open };
+        let size = if save { (sizes.save.0, panel::save_height(&ask)) } else { sizes.open };
         let title = match (ask.title.is_empty(), ask.kind) {
             (false, _) => ask.title.clone(),
             (true, chooser::Kind::Open) => "Open".into(),

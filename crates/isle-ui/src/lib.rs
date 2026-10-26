@@ -24,7 +24,7 @@ pub use field::{CheckRow, Field, FieldText, Secret};
 pub use glyph::{AppIcon, Glyph, LevelGlyph, glyph_svg};
 pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
 pub use search::SearchField;
-pub use sheet::{Popover, alert_text, sheet};
+pub use sheet::{Popover, alert_text, sheet, sheet_under};
 pub use slider::Slider;
 pub use text_field::TextField;
 

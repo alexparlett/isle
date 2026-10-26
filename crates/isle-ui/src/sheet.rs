@@ -31,6 +31,11 @@ pub fn alert_text(title: &str, message: &str) -> Element {
 /// A sheet over the window under its toolbar: the body, then its buttons trailing, the last
 /// the default. Escape presses the one labelled Cancel or Stop, or the only one.
 pub fn sheet(width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<()>)>) -> Element {
+    sheet_under(theme().tokens.size_toolbar, width, body, buttons)
+}
+
+/// As `sheet`, hung `top` below the window's top edge.
+pub fn sheet_under(top: f32, width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<()>)>) -> Element {
     let theme = theme();
     let t = &theme.tokens;
     let count = buttons.len();
@@ -46,7 +51,7 @@ pub fn sheet(width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<
         .height(Size::window_percent(100.))
         .background(colour(t.colour_scrim))
         .cross_align(Alignment::Center)
-        .padding((t.size_toolbar, 0., 0., 0.))
+        .padding((top, 0., 0., 0.))
         .a11y_role(AccessibilityRole::Dialog)
         .on_press(|e: Event<PressEventData>| e.stop_propagation())
         // Escape presses Cancel, after the window's own handlers have seen the sheet up.

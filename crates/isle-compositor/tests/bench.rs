@@ -1165,3 +1165,58 @@ async fn first_menu_draw() {
     report("first bar menu", &surface(&isle, "bar-menu").await);
     report("first bar", &surface(&isle, "menu-bar").await);
 }
+
+/// P16's measure: Mission Control open over twenty live windows on a 3440 by 1440 output,
+/// the windows redrawing; its two surfaces' draws, the frames over their refresh, memory.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn mission_control_cost() {
+    const CTRL: u32 = 29;
+    const UP: u32 = 103;
+    let mut isle = Isle::start("cost-mission").await;
+    let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+    let test = isle.test().await;
+    test.add_output("BIG", "Isle", "Bench", "1", 3440, 1440).await.unwrap();
+    test.remove_output("HEADLESS-1").await.unwrap();
+    let mut clients = Vec::new();
+    for i in 0..20 {
+        let app = format!("isle.test.App{i:02}");
+        let size = if i % 3 == 0 { "1800x1000" } else { "1100x700" };
+        clients.push(isle.client_with(&["--app-id", &app, "--size", size, "--colour", "3366ff"]));
+        isle.wait_for_window(&app).await;
+    }
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let snap = |what: &str| {
+        let (rss, own) = memory(pid);
+        println!("{what}: RSS {rss:.0} MB, own {own:.0} MB, VRAM {:?} MiB", vram(pid));
+    };
+    snap("rest, twenty windows");
+    test.window_motion(true).await.unwrap();
+    test.measure(true).await.unwrap();
+    let slow_before = isle.log().matches("a frame over its refresh").count();
+    let frames_before = test.frames("BIG").await.unwrap();
+    let started = Instant::now();
+    for round in 0..5 {
+        isle.chord(&[CTRL, UP]).await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        if round == 0 {
+            snap("open");
+        }
+        for frame in 0..30 {
+            for (i, c) in clients.iter().enumerate() {
+                c.send(&format!("colour {:06x}", (frame * 8 + i * 12) % 0xff * 0x010101));
+            }
+            tokio::time::sleep(Duration::from_millis(16)).await;
+        }
+        isle.chord(&[CTRL, UP]).await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    let elapsed = started.elapsed().as_secs_f64();
+    let frames = test.frames("BIG").await.unwrap() - frames_before;
+    let slow = isle.log().matches("a frame over its refresh").count() - slow_before;
+    snap("closed");
+    report("mission-back, five opens", &surface(&isle, "mission-back").await);
+    report("mission-front, five opens", &surface(&isle, "mission-front").await);
+    eprintln!("frames: {frames} in {elapsed:.1} s, over their refresh (logged at most once a second): {slow}");
+    assert!(!isle.log().contains("panicked"), "a surface panicked");
+}

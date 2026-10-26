@@ -198,7 +198,8 @@ Files owns `org.freedesktop.FileManager1`, which Spotlight's Show in Files and
 Cmd+Return on a file already call (P10), and a search that Spotlight's "Show
 all in Files" and Cmd+Y on a file reach. Intent: apps.md, platform.md.
 
-**P16 · Mission Control.** Planned 2026-10-26: `p16-mission-control.md`.
+**P16 · Mission Control.** Built 2026-10-26, host run pending:
+`p16-mission-control.md`, B112–B118.
 Mission Control on every screen with its Spaces bar, spread and tray, App
 Exposé, Show Desktop, Mission Control's actions in the hot corners (the
 engine, its four actions and Settings' Hot Corners… sheet came in P13,

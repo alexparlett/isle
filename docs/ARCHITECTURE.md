@@ -172,8 +172,22 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   loop an index; a window's app id or X11 class resolves to an entry or
   stays its own app. The close path, quit and hide act on apps.
 - **Desktops.** Each output has a row by its identity; a full-screen window
-  gets a desktop right of its origin. Windows on an output that goes join
-  the current desktop of the one they move to and return to their own.
+  gets a desktop right of its origin, and Split View's pair one desktop
+  between them, each pane full screen with its origin but told it is tiled.
+  Windows on an output that goes join the current desktop of the one they
+  move to and return to their own. The switch slides the windows
+  `motion-switch-distance` with a crossfade; a window going full screen or
+  leaving it grows or shrinks in place while the rest of its desktop slides.
+- **A desktop's layout.** Each desktop carries an arrangement behind
+  `wm::layout::Layout` (B8): its work area, which of its windows are parked
+  and which set each is in. Stacking is every desktop's by default; Stage
+  Manager (`wm::stage`) keeps sets, the front one on the stage and the
+  others parked (`staged_out`: unmapped and suspended), and keeps the
+  column's width clear while the column shows. Which desktops Stage Manager
+  arranges is saved with the row.
+- **Show Desktop.** Every window of an output's desktop is really moved to
+  its nearest side or foot edge, a sliver left showing, its frame kept to
+  put it back; so the slivers take clicks and X11's stacking stays true.
 - **Drawing and motion.** Each window's surfaces are drawn through a texture
   program that clips them to the frame's corners, over a shadow drawn by a
   pixel shader per token layer. Motion is drawn by the compositor on the
@@ -186,6 +200,34 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 - **Xwayland.** Smithay's window manager runs Isle's X11 policy (B42); the
   X server starts with the compositor and again if it dies, on the same
   display.
+
+## How Mission Control draws
+
+- **One model, fed and answered.** `isle_shell::mission::model` knows no
+  compositor: it is given every output's row of desktops and windows, lays
+  out each screen (the bar, the spread, the tray, App Exposé's set-apart row,
+  Split View's chooser), and turns keys, pointer moves, presses and drags
+  into effects the compositor carries out. Any change of windows or desktops
+  while it is open refreshes it.
+- **The windows are the tiles.** The compositor draws each window of the
+  spread in its own pass, its pieces placed from the window's real frame to
+  its tile by the opening's progress (B112): live, never copied. Its two
+  shell surfaces per screen sit either side of them in the stack:
+  `mission-back` (the bar's glass, miniatures, the tray, the header) under
+  the tiles and `mission-front` (icons, the selection ring, titles, badges)
+  over them, over a veil on the wallpaper. Glass behind either surface
+  samples the scene behind it, not the windows at their places.
+- **Small things are images.** A desktop's miniature (its wallpaper and
+  windows scaled) and a tray thumbnail are rendered into textures and copied
+  into Skia images (B54), drawn again a few at a time when their windows
+  draw; windows off the desktop in view show their last buffers.
+- **Input is the model's.** While it is open the compositor reads the
+  pointer, buttons, wheel and keys for the model and gives windows none; the
+  front surface takes the keyboard so typing reaches no window. A window
+  menu opened from a tile takes the input until it closes.
+- **Closing.** A choice is acted on at once (the window raised, the switch
+  begun) and the tiles travel home on `motion-exit`; the lock, Spotlight and
+  the switcher remove it at once.
 
 ## How keys are read
 

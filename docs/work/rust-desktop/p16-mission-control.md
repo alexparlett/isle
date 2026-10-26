@@ -559,4 +559,34 @@ boards (`p16/rows-1.html`, `p16/mission-control-1.html`) taken as drawn.
 
 ## Outcome
 
-Not yet built.
+Built 2026-10-26 in phases 16.0–16.13; 16.14's host run, part of done, is
+the user's, with its checklist in `docs/research/rust-desktop/p16-mission-control.md`.
+B112–B118 record the decisions, B54 and B99 are revised; ARCHITECTURE
+gains How Mission Control draws, and How windows are kept its desktops'
+layouts, Split View and Show Desktop; `shell.md`'s and `compositor.md`'s
+points are settled or marked for the Trackpad packet. Differences from the
+plan:
+
+- **The model is in `isle-shell`** beside the switcher's, not in the
+  compositor (choice 7): pure and tested without one, as B53's is.
+- **Split View's chooser is a Mission Control mode** (`Mode::Chooser`), so
+  the free half reuses the spread, the misfits and the empty capsule.
+- **A desktop's saved state** gains which plain desktops Stage Manager
+  arranges; the order of desktops is not saved, since windows are not.
+- **The Shortcuts… sheet shows each action's keys as text** and edits only
+  the mouse button; the keys are recorded in Keyboard Shortcuts, which now
+  keeps a button beside a recorded key.
+- **Full screen tile is disabled** for a window too wide for half the
+  screen, so the menu offers only what will work.
+
+Found and fixed on the way: going full screen and leaving it never
+animated (the window moved to a desktop not yet shown before its morph);
+icons, rings and badges sat under clipped images, which draw in a layer of
+their own.
+
+Not built, carried in `progress.md`: dragging a pane's bar onto the other
+to swap (Swap sides does it); the divider's resize pointer; windows dropped
+into Stage Manager's sets and entries dragged onto the stage; the column's
+once-a-second redraw (entries are redrawn as sets change); a dialog drawn
+on its parent's tile; Mission Control's keyboard routes inside the
+Shortcuts… sheet (Keyboard Shortcuts edits them).

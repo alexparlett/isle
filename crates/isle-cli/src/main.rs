@@ -659,7 +659,9 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                     } else {
                         for d in desktops {
                             let mark = if d.current { "*" } else { " " };
-                            let what = if d.window > 0 {
+                            let what = if d.kind == "split" {
+                                format!("Split View: {} window(s)", d.windows)
+                            } else if d.window > 0 {
                                 format!("full screen: window {}", d.window)
                             } else {
                                 format!("{} window(s)", d.windows)

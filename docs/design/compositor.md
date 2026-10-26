@@ -143,7 +143,7 @@ own beside the one it came from, as on macOS.
 
 **Open for its packet.** Whether Space count is fixed (1…9) or dynamic with chords for the first nine. What a removed output's Spaces become.
 
-**Settled in P4.** Dynamic, up to sixteen per output; Ctrl+1…9 past the end adds desktops up to the number until Mission Control (P16) adds them. A removed output's windows join the current desktop of the output they move to and return to their own; its row is kept for its return.
+**Settled in P4.** Dynamic, up to sixteen per output; Ctrl+1…9 past the end adds desktops up to the number, and Mission Control's + adds them (P16). A removed output's windows join the current desktop of the output they move to and return to their own; its row is kept for its return.
 
 ### Split View
 
@@ -156,6 +156,8 @@ Split View.
 4. Leaving full screen for one window returns it to its origin Space; the other stays in its full-screen Space alone.
 5. Two panes only: no third column on an ultrawide, where the zones divide a desktop in thirds.
 
+**Settled in P16.** A desktop of its own whose two windows are each full screen with their origin, told they are tiled; the chooser is a Mission Control mode; the divider the compositor's, held to each pane's minimum (B115). Not built: dragging a pane's bar onto the other to swap them (the menus' Swap sides does).
+
 ### Stage Manager
 
 macOS Stage Manager (a strip of recent apps beside one front app) is a
@@ -164,6 +166,8 @@ later than the rest of this document and is off by default (B25).
 
 1. Stage Manager is a layout module chosen per Space and off by default; the recent apps are shown by a shell surface (`shell.md`) fed with the compositor's app and window list and live textures, in a column at the leading edge of the work area that stays hidden until the pointer presses that edge unless the user shows it.
 2. With it on, the front app's windows have the work area and other apps' windows are parked, each app reachable in one step; activating an app swaps it in. A set keeps the user's arrangement; it is centred only the first time it is staged.
+
+**Settled in P16.** The layout trait answers the work area, parked windows and sets (B116); Stage Manager is turned on from the desktop's menu in Mission Control and saved with the row. Not built: windows dropped into sets and entries dragged onto the stage.
 
 ### Picture-in-picture
 
@@ -289,7 +293,7 @@ every gesture also has a key and a mouse route, since the host is a desktop.
 
 **v1 lessons kept.** D27: hardware cursors keep the pointer out of screenshots; on NVIDIA this needs the open driver. Inventory §3.1: v1's three-finger gestures were discrete triggers for Mission Control only.
 
-**Open for its packet.** Hot-corner detection across outputs whose corners meet. Edge-start swipes (Notification Centre) need finger positions libinput's gesture events do not carry (macos-model.md OPEN); deferred with 6 and 7.
+**Open for its packet.** Edge-start swipes (Notification Centre) need finger positions libinput's gesture events do not carry (macos-model.md OPEN); deferred with 6 and 7 to the Trackpad packet (B117). Hot corners where outputs meet: settled in P13 (B99).
 
 ### Keyboards and per-device profiles
 

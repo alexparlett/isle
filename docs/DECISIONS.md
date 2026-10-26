@@ -306,7 +306,7 @@ Notification Centre and on the desktop with a "Show widgets" chord.
 and the compositor draws the traffic lights over it, at the inset the app
 names (B95). The compositor draws Mac-style server-side title bars, in
 Freya, for apps that accept server-side decorations. Stage Manager comes
-later as a layout module (B8), off by default. This replaces apps drawing
+later as a layout module (B8), off by default; built in P16 (B116). This replaces apps drawing
 their own lights, changed by the user during P13.
 
 **B26 · Where things run (revised).** The portal backend (B13) is a bus name owned by
@@ -647,8 +647,9 @@ for a focused shell surface stand in the way; focus moves once per press.
 Shift only picks the direction. Rejected: a shell surface with the keyboard,
 which needs each of those undone.
 
-**B54 · Previews are compositor drawings that trees draw.** Built in P7, and
-the path Mission Control (P16) takes. The compositor draws a window's pieces
+**B54 · Previews are compositor drawings that trees draw (revised).** Built
+in P7; Mission Control's miniatures and tray thumbnails take this path, its
+spread does not (B112). The compositor draws a window's pieces
 into a texture at the size the tree shows it, and the shell copies it on the
 GPU into an image Skia owns, so a tree can put marks and icons over it and
 the image outlives the texture. Previews exist only while a surface shows
@@ -1096,12 +1097,16 @@ MB on GL. Rejected: a private protocol (the staging one carries what is
 needed), blurring in the app (it cannot see what is behind it), keeping
 the blur to a GPU build (its driver costs about 90 MB a process).
 
-**B99 · Hot corners fire on rest, once a visit.** Built in P13. A corner
-where no other screen meets fires its action after the pointer rests
-there for `timing.hover-dwell-ms`, once until it leaves, only with exactly
+**B99 · Hot corners fire on rest, once a visit (revised).** Built in P13;
+the rest lengthened in P16. A corner where no other screen meets fires its
+action after the pointer rests there for `timing.corner-dwell-ms` (250),
+once until it leaves, only with exactly
 its modifiers held, and never with a button down, the pointer grabbed or
 constrained, the menu bar open, the screen locked or a full-screen game in
-front. Rejected: firing on contact (every fling to the corner fires).
+front. Firing it again while what it opened is open closes it. Rejected:
+firing on contact (every fling to the corner fires), the 120 ms hover dwell
+once Mission Control took the bottom-left corner (a stray pass on the
+ultrawide cost a screen-wide motion).
 
 **B100 · One package, named by its commit, whose binaries carry their data.**
 Built in P14a. `isle-git` from `pkg/arch/PKGBUILD` holds every binary and
@@ -1209,4 +1214,61 @@ resolution with resvg on Done; Trim re-encodes the kept range with ffmpeg
 beside the original, the original moved to the Trash and the new renamed
 into its place, so Put Back recovers it. Rejected: a stream copy (it cuts
 at keyframes, seconds off the handles), editing in place.
+
+**B112 · Mission Control's windows are drawn by the compositor.** Built in
+P16. The spread's tiles are the windows' own pieces placed from their real
+frames to their tiles by the opening's progress, in the compositor's pass,
+between two shell surfaces per screen: the bar, tray and header behind, the
+icons, rings, titles and badges in front, over a veil. Rejected: the
+switcher's path for the tiles (B54: twenty windows copied or re-rendered at
+every size of the opening would miss bar 5), one surface over the windows
+(the bar's glass would sit over the tiles it labels).
+
+**B113 · Mission Control's model is pure, its input the compositor's.**
+Built in P16. `isle_shell::mission::model` lays out every screen and turns
+keys, the pointer and drags into effects, as the switcher's model does
+(B53); the compositor feeds it the registry and desktops and carries the
+effects out. While it is open no window sees the pointer or a key. Rejected:
+the trees reading the pointer (the tiles are not theirs), a model in the
+compositor (untestable without one).
+
+**B114 · Show Desktop moves the windows.** Built in P16. Each window of the
+output's desktop goes to its nearest side or foot edge, keeping its size,
+a `size-sliver` of it on screen, its frame kept; the chord again, a click
+on a sliver, any activation or a new window puts them back. Rejected:
+offsetting the drawing (input and X11's stacking would disagree with what
+is seen).
+
+**B115 · Split View is a full-screen desktop of two tiled panes.** Built in
+P16. A `Split` desktop holds two windows, each full screen with its origin
+so every full-screen rule holds, but configured to its half with the tiled
+states, not the full-screen one, so it keeps its chrome. The chooser is a
+Mission Control mode over the free half; the divider is the compositor's.
+A pane leaving or closing leaves the other full screen alone. Rejected: two
+tiles on a plain desktop (no desktop of their own, the bar and island over
+them), telling panes they are full screen (they would drop their chrome).
+
+**B116 · A desktop's layout is a trait; Stage Manager parks sets.** Built in
+P16, B8's trait made real. `wm::layout::Layout` answers a desktop's work
+area, parked windows and sets; stacking answers as before and Stage
+Manager keeps the front set on the stage, parks the others (unmapped and
+suspended) and keeps the column's width clear while it shows. Which
+desktops it arranges is saved. Rejected: Stage Manager as rules on
+stacking (every window rule would branch on it).
+
+**B117 · Trackpad gestures wait for a trackpad.** Decided at P16's review.
+The host is a desktop with no trackpad, so the gestures, pointer-gestures
+for clients and the Trackpad pane moved to a Trackpad packet after
+cut-over; the switch and Mission Control's opening are each one progress
+on one spring, so following the fingers is a change in one place. Rejected:
+building them in P16 (code never run here, proved only through a fake
+touchpad, and a finger-held switch that moved when the current desktop
+changes).
+
+**B118 · A mouse button is a shortcut's chord.** Built in P16. Back,
+Forward and buttons 6 to 8, with modifiers, are written in an action's
+chord list beside its keys (`Ctrl+Back`), refused when bound twice, run on
+press and kept from windows; the left, right and middle buttons never are.
+Rejected: a list of buttons apart from the keys (two places for one
+action's routes).
 

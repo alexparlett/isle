@@ -2,7 +2,7 @@
 
 - Branch: `feature/rust-desktop`. v1's docs, canvas and screenshots are
   removed here and remain on `main`.
-- Decisions: B1–B91 locked, the full text in `docs/DECISIONS.md` (B2
+- Decisions: B1–B118 locked, the full text in `docs/DECISIONS.md` (B2
   revised to v1 parity; B17 the macOS north star). The brainstorm is
   complete.
 - Shell UI spike done (`spike-shell-ui.md`; results in
@@ -517,3 +517,15 @@
   B8's layout trait with Stage; the corner dwell at 250 ms (B99 revised); a
   rows board at 16.1. Research in
   `docs/research/rust-desktop/mission-control-2026.md`. Phases 16.0–16.14.
+- P16 is built (2026-10-26), host run pending, the user's: gate 16.1 passed
+  on two boards (the rows, and Mission Control's surfaces drawn for the
+  first time). Mission Control on every screen, its windows drawn by the
+  compositor between two shell surfaces (B112), its model pure and its
+  input the compositor's (B113); App Exposé and the tray; Show Desktop by
+  real moves (B114); Split View as a desktop of two tiled panes with the
+  chooser as a Mission Control mode (B115); the layout trait with Stage
+  Manager (B116); mouse buttons as chords (B118); the corners' new actions
+  at a 250 ms rest (B99 revised); Settings' new rows. Trackpad gestures wait
+  for a trackpad (B117), a packet after cut-over. Release: both surfaces
+  under 2 ms p95 with twenty live windows. Next: the host run
+  (`docs/research/rust-desktop/p16-mission-control.md`), then P17.

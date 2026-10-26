@@ -280,7 +280,8 @@ v1 lessons kept
 
 Open for its packet
 - An edge swipe for Notification Centre needs touch positions libinput's gesture events do not carry (`macos-model.md` OPEN); deferred with the gestures (9).
-- Split View and Stage Manager (a later layout module, off by default, B25) are compositor.md's; how Mission Control shows them follows from there.
+
+**Settled in P16.** Mission Control's windows are drawn by the compositor between two shell surfaces per screen, its model pure and its input the compositor's (B112, B113). Show Desktop moves the windows (B114). A Split View desktop shows as "{app} and {app}" and refuses drops; its chooser is Mission Control over the free half (B115). Mission Control on a Stage Manager desktop clusters by set (B116). A mouse button can be a route (B118). The gestures of 9 wait for a trackpad (B117).
 
 ### Notification Centre
 

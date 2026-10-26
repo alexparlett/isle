@@ -2,6 +2,25 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.14, the close, host run pending: ARCHITECTURE gains How Mission
+  Control draws, and How windows are kept its desktops' layouts, Split View
+  and Show Desktop; B112–B118 record the packet's decisions, B54 and B99
+  are revised, B25 notes Stage Manager built; `shell.md`'s and
+  `compositor.md`'s points are settled or left to the Trackpad packet; the
+  roadmap and state name P16 built; `p16-mission-control.md` ends with its
+  outcome. The host run is the user's, its checklist in
+  `docs/research/rust-desktop/p16-mission-control.md`.
+- P16 16.13, measures and the VM, in
+  `docs/research/rust-desktop/p16-mission-control.md`: in release,
+  `mission-back` draws at p95 1.70 ms and `mission-front` at 0.16 ms with
+  twenty live windows on 3440×1440 (bar 5); 62 MiB VRAM while open, given
+  back. The guest ran Mission Control, App Exposé, Show Desktop, Split View
+  and Stage Manager on kitty, GTK 4 Demo and Firefox. Found and fixed:
+  Stage Manager's column, a closed instance with a box of its own, cost
+  the output a stray frame (it now covers the output); `isle desktops
+  list` named a Split View desktop full screen. The whole workspace passes
+  but for `capture`'s toolbar shot, which flakes only under the full run's
+  load and passes alone.
 - P16 16.12, Stage Manager: `wm::stage::Stage` as the second layout, turned
   on per desktop from the desktop's menu in Mission Control (a secondary
   click on its miniature: Stage Manager checked, Remove desktop),

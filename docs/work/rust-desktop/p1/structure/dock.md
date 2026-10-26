@@ -36,7 +36,7 @@ replace it.
 | Desktop-entry actions and the LauncherEntry quicklist | Spotlight: listed under the app's result and in its tile's menu in the Apps grid | `spotlight.md` |
 | Hide, Hide others, Quit, Force quit | The switcher's held-app keys (H, Q), the app menu (Cmd+H, Cmd+Option+H, Cmd+Q), the Force Quit dialog (Cmd+Option+Esc) | `switcher.md`, `menu-bar.md` |
 | Stop running in background | Q on the app's background entry in the switcher; the Force Quit dialog lists background apps too | `switcher.md` |
-| Show all windows | App Exposé (Ctrl+↓), or ↓ in the switcher | `mission-control.md`, `switcher.md` |
+| Show all windows | App Exposé (Ctrl+↓), or the switcher's window row | `mission-control.md`, `switcher.md` |
 | Open at login, Show in Files, Assign to desktop | The app tile's menu in the Apps grid; Open at login also in Settings › General › Login items | `spotlight.md`, Settings (batch 2) |
 | Keep running after last window (the B20 policy) | Settings › Apps, per app; and the app's menu in the on-demand menu bar, as an item Isle adds, if `menu-bar.md` takes it | Settings, `menu-bar.md` |
 | Dropping files on an app | Files' Open With; or Cmd+Tab while dragging brings the app forward and the drop lands in its window (`switcher.md`, During a drag) | `files.md`; `switcher.md` |

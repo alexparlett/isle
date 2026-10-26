@@ -283,7 +283,7 @@ Each surface's look, states and motion, by wave. The full specs are in
   v1's soft push in edit mode; the gallery as tinted glass; consent in the
   prompt frame; one provider row everywhere.
 - **Mission Control** (`mission-control.md`): the wallpaper under a veil,
-  a glass Spaces bar with the current desktop ringed in the accent, tiles
+  a glass Spaces bar with the current desktop ringed in `colour-text`, tiles
   with their icons, a tray for minimised and hidden windows; windows
   travel from their real places; a desktop switch is an 80-point slide
   with a crossfade; hot corners show nothing of their own.

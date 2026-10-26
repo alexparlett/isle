@@ -1,5 +1,19 @@
 # Progress
 
+## 2026-10-26 (P16)
+
+- P16 16.0, the note and the record: `mission-control-2026.md` with the
+  plan; the roadmap's P16 entry, and a Trackpad packet after cut-over for
+  the gestures and the Trackpad pane P16 deferred. P1's later sheets win
+  where the record disagreed: the current desktop is ringed in
+  `colour-text` (DESIGN.md, the surfaces-c board); App Exposé is not
+  opened from the switcher (`shell.md`, `dock.md`); the thumb-and-three
+  pinch opens the Apps view and a Split View desktop refuses drops
+  (`shell.md`, `compositor.md`); Mission Control opens on every screen, an
+  exception to Shell runtime 14. The gestures are marked deferred in
+  `shell.md` and `compositor.md`. MC-02 needed nothing: the spec already
+  keeps the drop forms out of glass.
+
 ## 2026-10-26
 
 - P12 host-run fixes: ⌘Q joins the escape set a game in front leaves to

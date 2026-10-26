@@ -57,7 +57,7 @@ desktop with it.
 11. When a surface closes, keyboard focus returns to the window that had it before any action the surface started (raise, paste, type) is delivered to that window (D63).
 12. Every surface is fully usable from the keyboard; the focus ring shows for keyboard input only. No surface takes controller input (B22). Every surface exposes an accessibility tree through Freya's AccessKit integration.
 13. No client surface, layer-shell overlays included, stacks above the lock screen, a system prompt or the capture tool (B28).
-14. Each screen can carry the always-on surfaces. One screen is the main screen (chosen, or following focus); a transient event, Spotlight or a dialog appears on one screen, never on all (D49; inventory §3.7 Primary monitor).
+14. Each screen can carry the always-on surfaces. One screen is the main screen (chosen, or following focus); a transient event, Spotlight or a dialog appears on one screen, never on all (D49; inventory §3.7 Primary monitor). Mission Control is the exception: it opens on every screen at once, as macOS's does (`p1/structure/mission-control.md`).
 15. Every surface can run outside the compositor in a `freya-winit` window with hot reload, fed by recorded or fake service state (B7's live-iteration condition).
 16. Every surface can be opened, driven and read through the compositor's CLI, which is the test surface (inventory §13).
 
@@ -261,7 +261,7 @@ macOS's Mission Control (every window of the current desktop spread out, the des
 App Exposé for one app's windows), reached by keys, hot corners and trackpad gestures. Mouse routes
 come first, since the host is a desktop.
 
-1. Mission Control opens from Ctrl+↑, a three-finger swipe up, a hot corner or the Mission Control key; App Exposé from Ctrl+↓, a three-finger swipe down or ↓ in the switcher.
+1. Mission Control opens from Ctrl+↑, a three-finger swipe up, a hot corner or the Mission Control key; App Exposé from Ctrl+↓ or a three-finger swipe down. The switcher's own window row replaces macOS's ↓ in the switcher (`p1/structure/mission-control.md`).
 2. Every window of the current desktop is shown at once, so any can be picked. "Group windows by application" is a setting.
 3. Every desktop and full-screen space is shown and can be switched to, and a desktop can be added.
 4. A window is closed with its close button, W, Delete or a middle click; dragged onto another desktop, it moves there; dragged onto a new desktop, it gets one. Desktops are reordered and removed there too.
@@ -269,7 +269,7 @@ come first, since the host is a desktop.
 6. Arrows, Tab and Return work throughout; Escape or the opening gesture reversed closes it.
 7. Window images are the compositor's own textures and exist only while Mission Control is open (B13, D55).
 8. Each screen corner can run Mission Control, App Exposé, Show Desktop, Notification Centre, Spotlight's Apps view, the widgets dashboard, Lock Screen, Put Display to Sleep, or nothing, optionally only with a modifier held. A corner fires once per visit, after the pointer rests in it, and never over a full-screen game. By default the bottom-left corner runs Mission Control and the bottom-right Spotlight's Apps view (B19).
-9. Gestures: three fingers up for Mission Control, down for App Exposé, left and right between desktops, pinch out for Show Desktop. Each drives its surface's progress with the fingers and settles on release; each has a key and a pointer equivalent.
+9. Gestures: three fingers up for Mission Control, down for App Exposé, left and right between desktops, thumb and three fingers spread for Show Desktop and pinched for Spotlight's Apps view. Each drives its surface's progress with the fingers and settles on release; each has a key and a pointer equivalent. Deferred to a trackpad packet of its own, since the host has no trackpad (`p16-mission-control.md` choice 2).
 
 v1 lessons kept
 - D19: Mission Control is drawn from window images; their motion is a P1 proposal.
@@ -279,7 +279,7 @@ v1 lessons kept
 - D56, D76: screens come and go behind a KVM; corners follow the real screen list.
 
 Open for its packet
-- An edge swipe for Notification Centre needs touch positions libinput's gesture events do not carry (`macos-model.md` OPEN).
+- An edge swipe for Notification Centre needs touch positions libinput's gesture events do not carry (`macos-model.md` OPEN); deferred with the gestures (9).
 - Split View and Stage Manager (a later layout module, off by default, B25) are compositor.md's; how Mission Control shows them follows from there.
 
 ### Notification Centre

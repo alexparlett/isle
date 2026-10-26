@@ -198,10 +198,15 @@ Files owns `org.freedesktop.FileManager1`, which Spotlight's Show in Files and
 Cmd+Return on a file already call (P10), and a search that Spotlight's "Show
 all in Files" and Cmd+Y on a file reach. Intent: apps.md, platform.md.
 
-**P16 · Mission Control.** The Spaces overview, Mission Control's actions
-in the hot corners (the engine, its four actions and Settings' Hot
-Corners… sheet came in P13, B99), trackpad gestures and Settings'
-Trackpad pane, Split View; Stage Manager as a layout module, off by default (B25). Intent: shell.md, compositor.md.
+**P16 · Mission Control.** Planned 2026-10-26: `p16-mission-control.md`.
+Mission Control on every screen with its Spaces bar, spread and tray, App
+Exposé, Show Desktop, Mission Control's actions in the hot corners (the
+engine, its four actions and Settings' Hot Corners… sheet came in P13,
+B99) with mouse buttons as routes, Split View; Stage Manager as a layout
+module, off by default (B25), last and cuttable to a packet of its own.
+Trackpad gestures and Settings' Trackpad pane moved to the Trackpad packet
+at P16's review, since the host has no trackpad. Intent: shell.md,
+compositor.md.
 
 **P17 · Widgets.** Notification Centre moved to P8 at its review. Widgets
 where P1 places them, with the grid editor and the gallery (B24); the provider contract (B14), sandboxed with granted
@@ -245,6 +250,16 @@ booting into the new Isle. Intent: platform.md, compositor.md.
 `native/`, `theme/`) and its tooling; this branch becomes `main`.
 
 ## After cut-over
+
+**Trackpad.** Started when a trackpad is used; from P16 at its review.
+libinput's swipe, pinch and hold events claimed or forwarded through
+pointer-gestures; the desktop switch and Mission Control's opening held by
+the fingers and committed by projected end (`mission-control-2026.md` §2,
+§4); swipes between desktops with three or four fingers, App Exposé, Show
+Desktop and the Apps view by pinch; Settings' Trackpad pane with the
+touchpad's tap and scroll-method rows. The edge swipe for Notification
+Centre stays out: libinput's gestures carry no position. Intent: shell.md
+Mission Control 9, compositor.md Pointer 6–7.
 
 **P22 · HDR.** Shots, streams and the colour pick from HDR outputs (P11's
 are 8-bit sRGB). Night light shares the CRTC's colour pipeline with HDR

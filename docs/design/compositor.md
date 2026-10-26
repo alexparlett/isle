@@ -150,7 +150,7 @@ own beside the one it came from, as on macOS.
 Two windows share a full-screen Space with a divider between them, as macOS
 Split View.
 
-1. Split View is entered from the zoom button's menu ("tile to the left or right of the screen"), by chord, or by dragging a window onto a full-screen Space in Mission Control.
+1. Split View is entered from the zoom button's menu ("tile to the left or right of the screen"), by chord, or by dragging a window onto a full-screen Space in Mission Control. A Split View Space refuses drops.
 2. The other half is chosen from the origin Space's other windows, offered in the free half; a window whose minimum width does not fit the half is not offered, and cancelling returns the first window to its box and removes the Space.
 3. The divider moves both windows; it stops at either window's minimum size.
 4. Leaving full screen for one window returns it to its origin Space; the other stays in its full-screen Space alone.
@@ -282,12 +282,14 @@ every gesture also has a key and a mouse route, since the host is a desktop.
 3. A modifier drag moves a window and a modifier right-drag resizes it; the chord is in the shortcut set. Middle-click paste is off by default.
 4. The pointer is drawn on the cursor plane, so captures leave it out unless asked; the compositor falls back to drawing it when the plane is unavailable.
 5. Hot corners: a pointer dwelling in an output's corner, with an optional modifier, triggers the action set for it (the actions are the shell's); a pointer pushing the top edge reveals the island inside its zone and the menu bar outside it, by a dwell instead over a game, as v1's game-mode hot zone did. Nothing is revealed from the bottom edge.
-6. Three fingers up open Mission Control and down open App Exposé; three or four fingers sideways move between Spaces (the count is a setting); thumb and three fingers spread shows the desktop.
+6. Three fingers up open Mission Control and down open App Exposé; three or four fingers sideways move between Spaces (the count is a setting); thumb and three fingers spread shows the desktop and pinched opens Spotlight's Apps view.
 7. A gesture tracks the fingers one to one and commits by distance or velocity at release, otherwise springs back; gestures the desktop does not use reach the focused client through pointer-gestures.
+
+6 and 7 are deferred to a trackpad packet of their own, since the host has no trackpad (`p16-mission-control.md` choice 2).
 
 **v1 lessons kept.** D27: hardware cursors keep the pointer out of screenshots; on NVIDIA this needs the open driver. Inventory §3.1: v1's three-finger gestures were discrete triggers for Mission Control only.
 
-**Open for its packet.** Hot-corner detection across outputs whose corners meet. Edge-start swipes (Notification Centre) need finger positions libinput's gesture events do not carry (macos-model.md OPEN).
+**Open for its packet.** Hot-corner detection across outputs whose corners meet. Edge-start swipes (Notification Centre) need finger positions libinput's gesture events do not carry (macos-model.md OPEN); deferred with 6 and 7.
 
 ### Keyboards and per-device profiles
 

@@ -822,8 +822,8 @@ physical pointing device; with one, it reads as one set.
 | {device} | Primary mouse button | C · segmented | Left, Right | `pointer.<name>.left-handed` |
 | Missing | "No mouse is connected." | state | | |
 
-`tap` and `scroll-method` are touchpad settings and come with Trackpad
-(P16).
+`tap` and `scroll-method` are touchpad settings and come with the Trackpad
+packet (moved from P16 at its review).
 
 #### Outside every pane
 

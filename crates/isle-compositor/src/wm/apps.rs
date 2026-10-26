@@ -56,7 +56,8 @@ pub async fn watch(to_loop: ToLoop) -> Result<(), Box<dyn Error + Send + Sync>> 
 
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-        if event.is_ok() {
+        // Reading a watched file is itself an event; only changes count.
+        if event.is_ok_and(|e| !matches!(e.kind, notify::EventKind::Access(_))) {
             let _ = tx.send(());
         }
     })?;

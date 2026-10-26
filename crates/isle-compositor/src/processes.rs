@@ -198,7 +198,8 @@ pub async fn watch_scope(to_loop: crate::worker::ToLoop, dir: PathBuf) {
     use notify::Watcher;
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-        if event.is_ok() {
+        // Reading a watched file is itself an event; only changes count.
+        if event.is_ok_and(|e| !matches!(e.kind, notify::EventKind::Access(_))) {
             let _ = tx.send(());
         }
     });

@@ -496,6 +496,8 @@ pub mod desktops {
         fn show_desktop(&self, output: &str) -> zbus::Result<bool>;
         /// Moves a desktop along its row, by places from 1.
         fn reorder(&self, output: &str, from: u32, to: u32) -> zbus::Result<bool>;
+        /// Stage Manager on or off for a desktop, by its place from 1.
+        fn set_stage(&self, output: &str, index: u32, on: bool) -> zbus::Result<bool>;
         /// Starts Split View with a window on the left or right of its screen.
         fn split(&self, id: u64, left: bool) -> zbus::Result<bool>;
         /// An app's new windows open on every desktop (`all`), a desktop by its number, or

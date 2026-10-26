@@ -49,6 +49,9 @@ use crate::{
 const IMAGES_PER_PASS: usize = 4;
 const IMAGE_INTERVAL: Duration = Duration::from_millis(100);
 
+const DESK_MENU_STAGE: u64 = 1;
+const DESK_MENU_REMOVE: u64 = 2;
+
 /// What happens once Mission Control has closed.
 #[derive(Clone, Debug, PartialEq)]
 enum After {
@@ -177,7 +180,7 @@ impl Isle {
                         hidden: r.hidden,
                         game: r.game,
                         min_width: self.size_bounds(r.id).0.w as f32,
-                        set: None,
+                        set: self.stage_set_of(r.id),
                     })
                 })
                 .collect();
@@ -201,7 +204,7 @@ impl Isle {
                         .filter(|r| r.desktop == d.id || (r.desktop == 0 && Some(d.id) == current))
                         .map(|r| r.id)
                         .collect(),
-                    stage: false,
+                    stage: d.layout.is_stage(),
                 })
                 .collect();
             screens.push(Screen {
@@ -838,12 +841,88 @@ impl State {
                     });
                     self.open_window_menu(id, at, at.is_none());
                 }
-                Effect::DeskMenu { .. } => {}
+                Effect::DeskMenu { screen, index } => self.open_desk_menu(screen, index),
                 Effect::Expose(app) => self.mission_mode(Mode::Expose(app)),
                 Effect::Overview => self.mission_mode(Mode::MissionControl),
             }
         }
         self.refresh_mission();
+    }
+
+    /// A desktop's menu by its miniature: Stage Manager, and Remove desktop.
+    fn open_desk_menu(&mut self, screen: usize, index: usize) {
+        use isle_ui::{MenuEntry, MenuItem, menu::Mark};
+        let Some(mission) = &self.isle.mission else {
+            return;
+        };
+        let (Some(output), Some(s), Some(layout)) = (
+            mission.outputs.get(screen).cloned(),
+            mission.model.screens().get(screen),
+            mission.model.layouts().get(screen),
+        ) else {
+            return;
+        };
+        let Some(desk) = s.desks.get(index) else {
+            return;
+        };
+        let plain = s.desks.iter().filter(|d| !d.full_screen()).count();
+        let mut stage = MenuItem::new(DESK_MENU_STAGE, "Stage Manager");
+        stage.mark = if desk.stage { Mark::Check } else { Mark::None };
+        stage.enabled = !desk.full_screen();
+        let mut remove = MenuItem::new(DESK_MENU_REMOVE, "Remove desktop");
+        remove.enabled = !desk.full_screen() && plain > 1;
+        let at = layout
+            .bar
+            .as_ref()
+            .and_then(|b| b.items.iter().find(|i| i.desk == Some(index)))
+            .map(|i| (i.miniature.x as i32, (i.label.y + i.label.h) as i32))
+            .unwrap_or((0, 0));
+        let Some(g) = self.isle.space.output_geometry(&output) else {
+            return;
+        };
+        self.isle.desk_menu = Some((output.clone(), index));
+        self.open_menu_at(
+            vec![MenuEntry::Item(stage), MenuEntry::Separator, MenuEntry::Item(remove)],
+            &output,
+            Point::from((g.loc.x + at.0, g.loc.y + at.1)),
+        );
+    }
+
+    /// The window menu's surface chose for a desktop's menu; false when the menu is not its.
+    pub fn desk_menu_event(&mut self, event: &isle_ui::MenuEvent) -> bool {
+        let Some((output, index)) = self.isle.desk_menu.clone() else {
+            return false;
+        };
+        match event {
+            isle_ui::MenuEvent::Chosen(id) => {
+                self.isle.desk_menu = None;
+                self.close_surface("window-menu");
+                let identity = Isle::output_identity(&output);
+                let staged = self
+                    .isle
+                    .desktops
+                    .rows
+                    .get(&identity)
+                    .and_then(|r| r.desktops.get(index))
+                    .is_some_and(|d| d.layout.is_stage());
+                match *id {
+                    DESK_MENU_STAGE => {
+                        self.set_stage(&output, index, !staged);
+                    }
+                    DESK_MENU_REMOVE => {
+                        self.remove_desktop(&output, index);
+                    }
+                    _ => {}
+                }
+                self.refresh_mission();
+            }
+            isle_ui::MenuEvent::Back => {
+                self.isle.desk_menu = None;
+                self.close_surface("window-menu");
+            }
+            _ => {}
+        }
+        true
     }
 
     /// A window dropped or carried to a desktop, a new one, or another screen.

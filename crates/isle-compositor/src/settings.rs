@@ -172,6 +172,12 @@ impl State {
         if touched("pointer[") {
             self.reapply_pointer_settings();
         }
+        if touched("stage-manager") {
+            self.apply_stage_all();
+        }
+        if touched("mission-control") {
+            self.refresh_mission();
+        }
         if touched("windows.title-bars") && changed.is_some() {
             self.renegotiate_decorations();
             self.isle.sync_bars();

@@ -113,6 +113,8 @@ pub enum Action {
     Menu(isle_ui::MenuEvent),
     /// From the switcher's panel.
     Switcher(crate::switcher::SwitcherAction),
+    /// From Stage Manager's column.
+    Stage(crate::stage::StageAction),
     /// From Spotlight.
     Spotlight(crate::spotlight::SpotlightAction),
     /// From the notification banners.

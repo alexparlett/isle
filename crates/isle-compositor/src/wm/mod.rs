@@ -562,6 +562,7 @@ impl State {
         if let Some((output, step)) = slide {
             self.slide_in(&output, step, None);
         }
+        self.stage_activated(id);
         let window = self.isle.window_by_id(id);
         self.set_focus(window.as_ref());
         true
@@ -702,6 +703,7 @@ impl State {
             self.app_windowless(&app);
         }
         self.isle.wm.recent.retain(|r| *r != id);
+        self.stage_window_gone(id);
         for record in &mut self.isle.wm.records {
             if record.parent == Some(id) {
                 record.parent = None;

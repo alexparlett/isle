@@ -508,6 +508,7 @@ impl State {
         self.read_process(id);
         self.assign_desktop(id);
         self.desktop_touched(id);
+        self.stage_mapped(id);
         self.isle.sync_space();
         // A float leaves the keyboard with its caller.
         if self.isle.float_of(id).is_none() {

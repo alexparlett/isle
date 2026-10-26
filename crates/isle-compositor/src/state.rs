@@ -270,6 +270,10 @@ pub struct Isle {
     pub mission_front: std::rc::Rc<isle_shell::mission::MissionSurface>,
     /// The windows or desktops changed while Mission Control is open.
     pub mission_dirty: std::cell::Cell<bool>,
+    /// A desktop's menu open from Mission Control: its output and place.
+    pub desk_menu: Option<(smithay::output::Output, usize)>,
+    pub stage_surface: std::rc::Rc<isle_shell::stage::StageSurface>,
+    pub stage_reveal: crate::wm::stage::Reveal,
     /// Buttons pressed while Mission Control was open, whose releases are its own too.
     pub mission_buttons: std::collections::HashSet<u32>,
     /// Buttons whose press ran a shortcut, whose releases go nowhere either.
@@ -451,6 +455,8 @@ impl Isle {
         let mission_front = isle_shell::mission::MissionSurface::front();
         shell.register(mission_back.clone());
         shell.register(mission_front.clone());
+        let stage_surface = isle_shell::stage::StageSurface::new();
+        shell.register(stage_surface.clone());
         let lock = crate::lock::LockState::default();
         shell.register(lock.face.surface.clone());
         shell.register(lock.face.minimal.clone());
@@ -619,6 +625,9 @@ impl Isle {
             mission_back,
             mission_front,
             mission_dirty: Default::default(),
+            desk_menu: None,
+            stage_surface,
+            stage_reveal: Default::default(),
             mission_buttons: Default::default(),
             shortcut_buttons: Default::default(),
             #[cfg(feature = "test-hooks")]
@@ -965,6 +974,7 @@ impl State {
                 isle_shell::Action::MenuBar(action) => self.menu_bar_action(action),
                 isle_shell::Action::Menu(event) => self.window_menu_event(event),
                 isle_shell::Action::Switcher(action) => self.switcher_pointer(action),
+                isle_shell::Action::Stage(action) => self.stage_action(action),
                 isle_shell::Action::Banner(action) => self.banner_action(action),
                 isle_shell::Action::Lock(action) => self.lock_action(action),
                 isle_shell::Action::Prompt(action) => self.prompt_action(action),

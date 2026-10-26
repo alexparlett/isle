@@ -53,6 +53,7 @@ pub mod island;
 pub mod lock;
 pub mod menubar;
 pub mod mission;
+pub mod stage;
 pub mod placed_menu;
 pub mod prompts;
 pub mod spotlight;

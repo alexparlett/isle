@@ -2,6 +2,22 @@
 
 ## 2026-10-26 (P16)
 
+- P16 16.12, Stage Manager: `wm::stage::Stage` as the second layout, turned
+  on per desktop from the desktop's menu in Mission Control (a secondary
+  click on its miniature: Stage Manager checked, Remove desktop),
+  `Desktops1.SetStage` and `isle desktops stage`. Each app's windows a set,
+  the most recent in front; the other sets parked (`staged_out`, unmapped
+  and suspended); activating a window, a window mapping, or a click on a
+  column entry swaps its set in; a set staged for the first time is
+  centred in the area beside the column, after which its place is the
+  user's; one at a time stages only the set's most recent window. The
+  column is a `stage` surface at the leading edge, each entry its set's
+  windows as images with the app's icon, shown with Show recent apps or by
+  a push into the edge held for the hover dwell, and gone as the pointer
+  leaves. Mission Control on a Stage desktop clusters by set. Not built:
+  dropping windows into sets and dragging entries onto the stage, and the
+  entries' once-a-second redraw (they are redrawn as sets change). Two
+  headless tests.
 - P16 16.11, the layout trait (B8): `wm::layout::Layout` answers a
   desktop's work area, which of its windows are parked and which set each
   belongs to; `Stacking` answers as the code always has, and each desktop

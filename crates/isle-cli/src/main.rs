@@ -291,6 +291,14 @@ enum Desktops {
         #[arg(long)]
         right: bool,
     },
+    /// Turn Stage Manager on for a desktop, by its place from 1, or off with --off.
+    Stage {
+        index: u32,
+        #[arg(long)]
+        off: bool,
+        #[arg(long, default_value = "")]
+        output: String,
+    },
     /// Open an app's new windows on every desktop (all), a desktop by number, or anywhere
     /// (none).
     Assign { app: String, to: String },
@@ -699,6 +707,11 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 Desktops::Split { id, right } => {
                     if !proxy.split(*id, !right).await? {
                         return refused("that window cannot share the screen");
+                    }
+                }
+                Desktops::Stage { index, off, output } => {
+                    if !proxy.set_stage(output, *index, !off).await? {
+                        return refused("no change");
                     }
                 }
                 Desktops::Assign { app, to } => {

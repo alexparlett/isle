@@ -117,7 +117,7 @@ impl Desktops {
         row.desktops.get(row.current).map(|d| d.id)
     }
 
-    fn save(&mut self) {
+    pub(crate) fn save(&mut self) {
         for (identity, row) in &self.rows {
             let normal = row
                 .desktops

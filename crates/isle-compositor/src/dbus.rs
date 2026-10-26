@@ -587,6 +587,16 @@ impl Desktops {
         Ok(self.to_loop.call(move |state| state.begin_split(id, left)).await?)
     }
 
+    async fn set_stage(&self, output: String, index: u32, on: bool) -> fdo::Result<bool> {
+        Ok(self
+            .to_loop
+            .call(move |state| match output_named(state, &output) {
+                Some(o) if index > 0 => state.set_stage(&o, index as usize - 1, on),
+                _ => false,
+            })
+            .await?)
+    }
+
     async fn assign(&self, app: String, to: String) -> fdo::Result<()> {
         Ok(self
             .to_loop

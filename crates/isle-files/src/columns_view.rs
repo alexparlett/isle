@@ -130,6 +130,7 @@ impl Component for ColumnsView {
                     return;
                 }
                 match pick {
+                    Pick::Open(path, held) if is_dir(&path) && (held.cmd || held.option) => on_pick.call(Pick::Open(path, held)),
                     Pick::Click(path, _) | Pick::Open(path, _) if is_dir(&path) => on_go.call((path, None)),
                     Pick::Click(path, _) => on_go.call((folder.clone(), Some(path))),
                     Pick::Open(path, held) => {
@@ -181,6 +182,7 @@ fn column(
             let path = entry.path.clone();
             let on_pick = on_pick.clone();
             let pressing = interact.clone();
+            let dir = entry.is_dir();
             let target = interact.is_target(&entry.path);
             rect()
                 .key(entry.path.to_string_lossy().into_owned())
@@ -205,6 +207,12 @@ fn column(
                         .a11y_alt(entry.name.clone())
                         .a11y_builder(move |node| node.set_selected(selected))
                         .on_mouse_down(move |e: Event<MouseEventData>| {
+                            // A middle click opens a folder in a new tab.
+                            if e.button == Some(MouseButton::Middle) && dir {
+                                e.stop_propagation();
+                                on_pick(Pick::Open(path.clone(), Held::NEW_TAB));
+                                return;
+                            }
                             if e.button != Some(MouseButton::Left) {
                                 return;
                             }

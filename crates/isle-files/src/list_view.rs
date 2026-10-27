@@ -23,6 +23,9 @@ pub struct Held {
 }
 
 impl Held {
+    /// As ⌘ held: a folder opens in a new tab.
+    pub const NEW_TAB: Held = Held { cmd: true, shift: false, option: false };
+
     pub fn of(m: Modifiers) -> Self {
         Self { cmd: m.contains(Modifiers::META), shift: m.contains(Modifiers::SHIFT), option: m.contains(Modifiers::ALT) }
     }
@@ -148,6 +151,26 @@ impl Component for ListView {
                     .child(text::line(&theme, text::Style::Callout, colour(t.colour_text_2), "Where"))
             }))
             .child(header_cell("Kind", SortBy::Kind, Size::px(KIND), false));
+        let bander = crate::band::use_band(self.controller);
+        let hits = {
+            let (lines, row_height) = (lines.clone(), t.size_row);
+            move |(_, top, _, bottom): (f32, f32, f32, f32)| -> Vec<PathBuf> {
+                let t = tab.peek();
+                let first = (top / row_height).floor().max(0.) as usize;
+                let last = ((bottom / row_height).floor().max(0.) as usize).min(length.saturating_sub(1));
+                (first..=last)
+                    .filter(|_| length > 0)
+                    .filter_map(|line| match &lines {
+                        None => Some(line),
+                        Some(lines) => match lines.get(line)? {
+                            Line::Item { index, .. } => Some(*index),
+                            Line::Heading(_) => None,
+                        },
+                    })
+                    .filter_map(|i| t.folder.entries().get(i).map(|e| e.path.clone()))
+                    .collect()
+            }
+        };
         let rows = Rows {
             rev: self.rev,
             lines,
@@ -158,7 +181,6 @@ impl Component for ListView {
             interact: self.interact.clone(),
             found,
         };
-        let on_pick = self.on_pick.clone();
         rect()
             .expanded()
             .content(Content::flex())
@@ -169,7 +191,20 @@ impl Component for ListView {
                 rect()
                     .width(Size::fill())
                     .height(Size::flex(1.))
-                    .on_mouse_down(move |_| on_pick.call(Pick::Nothing))
+                    .on_sized(move |e: Event<SizedEventData>| bander.sized(e.area))
+                    .on_mouse_down(move |e: Event<MouseEventData>| {
+                        if e.button == Some(MouseButton::Left) {
+                            bander.begin(tab, &e);
+                        }
+                    })
+                    .on_global_pointer_move(move |e: Event<PointerEventData>| {
+                        if bander.dragging() {
+                            let at = e.global_location();
+                            bander.drag(tab, (at.x, at.y), &hits);
+                        }
+                    })
+                    .on_global_pointer_up(move |_| bander.end())
+                    .maybe_child(bander.overlay(&theme))
                     .child(
                         VirtualScrollView::new_with_data_controlled(rows, row, self.controller)
                             .length(length)
@@ -253,6 +288,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
     let now = format::now();
     let path = entry.path.clone();
     let on_pick = rows.on_pick.clone();
+    let dir = entry.is_dir();
     rect()
         .key(entry.path.to_string_lossy().into_owned())
         .width(Size::fill())
@@ -275,6 +311,12 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                 .on_pointer_enter(rows.interact.target_on_enter(&entry.path, entry.is_dir()))
                 .on_pointer_leave(rows.interact.target_on_leave(&entry.path))
                 .on_mouse_down(move |e: Event<MouseEventData>| {
+                    // A middle click opens a folder in a new tab.
+                    if e.button == Some(MouseButton::Middle) && dir {
+                        e.stop_propagation();
+                        on_pick.call(Pick::Open(path.clone(), Held::NEW_TAB));
+                        return;
+                    }
                     if e.button != Some(MouseButton::Left) {
                         return;
                     }

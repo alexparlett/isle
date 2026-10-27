@@ -873,6 +873,7 @@ async fn the_files_shortcuts_action_opens_a_search_window() {
 }
 
 const KEY_N: u32 = 49;
+const KEY_H: u32 = 35;
 const KEY_A: u32 = 30;
 const KEY_DOT: u32 = 52;
 const KEY_LEFTBRACE: u32 = 26;
@@ -1152,5 +1153,81 @@ async fn markup_takes_the_keyboard_and_asks_before_closing_with_changes() {
     isle.chord(&[ENTER]).await;
     wait_until(|| async { look().await.is_none() }).await;
     assert_ne!(std::fs::read(&shot).unwrap(), before, "Save wrote the text");
+    assert!(!app.printed_part("panicked"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_band_selects_new_items_are_named_in_place_and_middle_and_option_clicks_open() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-band").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let test = isle.test().await;
+
+    // A band from the empty space under the rows up to notes.md takes notes.md and todo.txt.
+    let (from, to) = (list_row(&w, 8.), list_row(&w, 4.));
+    test.pointer_to(from.0, from.1).await.unwrap();
+    test.button(272, true).await.unwrap();
+    for step in 1..=10 {
+        let y = from.1 + (to.1 - from.1) * step as f64 / 10.;
+        test.pointer_to(from.0 - 3. * step as f64, y).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    isle.keep_shot("files-band").await;
+    test.button(272, false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    app.wait_for_part("id=\"go-documents\"").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async { home.join("Documents/notes.md").exists() && home.join("Documents/todo.txt").exists() }).await;
+    assert!(!home.join("Documents/Pictures").exists(), "the band stopped at notes.md");
+
+    // New Folder opens its name: typed and Return names it.
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Documents/untitled folder").exists() }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    type_text(&isle, "made").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { home.join("Documents/made").is_dir() }).await;
+
+    // New file the same.
+    isle.chord(&[SUPER, ALT, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Documents/untitled").exists() }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    type_text(&isle, "fresh").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { home.join("Documents/fresh").is_file() }).await;
+
+    // Home again; a middle click on Development opens it in a tab, where New Folder makes its
+    // folder.
+    isle.chord(&[SUPER, SHIFT, KEY_H]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let dev = list_row(&w, 0.);
+    test.pointer_to(dev.0, dev.1).await.unwrap();
+    test.button(274, true).await.unwrap();
+    test.button(274, false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("files-middle-click").await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Development/untitled folder").exists() }).await;
+    isle.chord(&[ESC]).await;
+
+    // ⌥-double-click a folder: it opens in a window of its own and this one closes.
+    isle.chord(&[SUPER, SHIFT, KEY_H]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let docs = (list_row(&w, 1.).0, list_row(&w, 1.).1 + 30.);
+    click(&isle, docs, &[ALT], 2).await;
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    let browsers = isle.windows().await.into_iter().filter(|x| x.app_id == APP).count();
+    assert_eq!(browsers, 1, "the window closed as the folder opened");
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Documents/untitled folder").exists() }).await;
     assert!(!app.printed_part("panicked"));
 }

@@ -1,5 +1,6 @@
 //! Files (`docs/design/apps.md` Files; `p1/structure/files.md`).
 
+mod band;
 mod bars;
 mod chooser;
 mod columns_view;

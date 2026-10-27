@@ -108,13 +108,55 @@ impl Component for IconsView {
             info: shown.item_info,
             interact: self.interact.clone(),
         };
-        let on_pick = self.on_pick.clone();
+        let bander = crate::band::use_band(self.controller);
+        let tab = self.tab;
+        // Each cell's span in the grid, as the lines lay them out.
+        let hits = {
+            let (lines, pad) = (lines.clone(), t.space_l);
+            move |band: (f32, f32, f32, f32)| -> Vec<std::path::PathBuf> {
+                let t = tab.peek();
+                let mut top = 0.;
+                let mut covered = Vec::new();
+                for line in lines.iter() {
+                    match line {
+                        GridLine::Heading(_) => top += heading,
+                        GridLine::Cells(cells) => {
+                            for (k, &i) in cells.iter().enumerate() {
+                                let left = pad + k as f32 * (cell + gap);
+                                if crate::band::meets(band, (left, top, left + cell, top + row_height))
+                                    && let Some(e) = t.folder.entries().get(i)
+                                {
+                                    covered.push(e.path.clone());
+                                }
+                            }
+                            top += row_height;
+                        }
+                    }
+                }
+                covered
+            }
+        };
         rect()
             .expanded()
             .background(colour(t.colour_view))
             .a11y_role(AccessibilityRole::Grid)
-            .on_sized(move |e: Event<SizedEventData>| width.set_if_modified(e.area.width()))
-            .on_mouse_down(move |_| on_pick.call(Pick::Nothing))
+            .on_sized(move |e: Event<SizedEventData>| {
+                width.set_if_modified(e.area.width());
+                bander.sized(e.area);
+            })
+            .on_mouse_down(move |e: Event<MouseEventData>| {
+                if e.button == Some(MouseButton::Left) {
+                    bander.begin(tab, &e);
+                }
+            })
+            .on_global_pointer_move(move |e: Event<PointerEventData>| {
+                if bander.dragging() {
+                    let at = e.global_location();
+                    bander.drag(tab, (at.x, at.y), &hits);
+                }
+            })
+            .on_global_pointer_up(move |_| bander.end())
+            .maybe_child(bander.overlay(&theme))
             .child(
                 VirtualScrollView::new_with_data_controlled(data, grid_line, self.controller)
                     .length(lines.len())
@@ -161,6 +203,7 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
     let target = grid.interact.is_target(&entry.path);
     let body = text::metrics(theme, text::Style::Body);
     let on_pick = grid.on_pick.clone();
+    let dir = entry.is_dir();
     let info = if !grid.info {
         None
     } else if entry.is_dir() {
@@ -181,6 +224,12 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
         .on_pointer_enter(grid.interact.target_on_enter(&entry.path, entry.is_dir()))
         .on_pointer_leave(grid.interact.target_on_leave(&entry.path))
         .on_mouse_down(move |e: Event<MouseEventData>| {
+            // A middle click opens a folder in a new tab.
+            if e.button == Some(MouseButton::Middle) && dir {
+                e.stop_propagation();
+                on_pick.call(Pick::Open(path.clone(), Held::NEW_TAB));
+                return;
+            }
             if e.button != Some(MouseButton::Left) {
                 return;
             }

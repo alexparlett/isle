@@ -220,6 +220,8 @@ pub struct Command {
     pub checked: Option<bool>,
     /// The focused field takes it as a key press: the edit commands.
     pub for_field: bool,
+    /// Shown in a submenu of this name, where the first command under it stands.
+    pub submenu: Option<String>,
 }
 
 impl Command {
@@ -233,6 +235,7 @@ impl Command {
             enabled: true,
             checked: None,
             for_field: false,
+            submenu: None,
         }
     }
 
@@ -254,6 +257,12 @@ impl Command {
     /// The focused text field takes it as its key press, as the edit commands are.
     pub fn field(mut self) -> Self {
         self.for_field = true;
+        self
+    }
+
+    /// Shows it in the submenu `label`.
+    pub fn under(mut self, label: impl Into<String>) -> Self {
+        self.submenu = Some(label.into());
         self
     }
 }
@@ -302,12 +311,32 @@ pub fn menus(app: &str, commands: &[Command]) -> Vec<MenuItem> {
                     children.push(Entry::Separator);
                 }
                 last_group = Some(command.group);
-                children.push(Entry::Item(MenuItem {
+                let item = Entry::Item(MenuItem {
                     enabled: command.enabled,
                     checked: command.checked,
                     shortcut: command.chord.map(|c| c.dbusmenu()),
                     ..MenuItem::new(i as i32 + 1, command.label.clone())
-                }));
+                });
+                let Some(label) = &command.submenu else {
+                    children.push(item);
+                    continue;
+                };
+                // A submenu's id is past every command's, so it never runs one.
+                let held = children.iter_mut().find_map(|e| match e {
+                    Entry::Item(m) if m.id > commands.len() as i32 && m.label == *label => Some(m),
+                    _ => None,
+                });
+                match held {
+                    Some(submenu) => {
+                        submenu.enabled |= command.enabled;
+                        submenu.children.push(item);
+                    }
+                    None => children.push(Entry::Item(MenuItem {
+                        enabled: command.enabled,
+                        children: vec![item],
+                        ..MenuItem::new(commands.len() as i32 + 1 + i as i32, label.clone())
+                    })),
+                }
             }
             MenuItem {
                 children,
@@ -320,6 +349,33 @@ pub fn menus(app: &str, commands: &[Command]) -> Vec<MenuItem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_submenu_gathers_its_commands_where_the_first_stands() {
+        let commands = vec![
+            Command::new("a", "A", Menu::File, 0),
+            Command::new("t1", "Empty File", Menu::File, 0).under("New file"),
+            Command::new("t2", "Letter", Menu::File, 0).under("New file"),
+            Command::new("b", "B", Menu::File, 0),
+        ];
+        let file = &menus("Files", &commands)[0];
+        let labels: Vec<&str> = file
+            .children
+            .iter()
+            .map(|e| match e {
+                Entry::Item(m) => m.label.as_str(),
+                Entry::Separator => "-",
+            })
+            .collect();
+        assert_eq!(labels, ["A", "New file", "B"]);
+        let Entry::Item(submenu) = &file.children[1] else { panic!() };
+        let ids: Vec<i32> = submenu.children.iter().filter_map(|e| match e {
+            Entry::Item(m) => Some(m.id),
+            Entry::Separator => None,
+        }).collect();
+        assert_eq!(ids, [2, 3], "each item runs its own command");
+        assert!(submenu.id > 4);
+    }
 
     #[test]
     fn no_chord_is_on_two_commands() {

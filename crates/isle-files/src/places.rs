@@ -90,6 +90,29 @@ const USER_DIRS: [(&str, &str, &str); 6] = [
     ("XDG_VIDEOS_DIR", "Videos", "film-strip"),
 ];
 
+/// The templates folder: `XDG_TEMPLATES_DIR`, or `~/Templates`.
+pub fn templates_dir() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME").map(PathBuf::from)?;
+    let config = config_home().unwrap_or_else(|| home.join(".config"));
+    let dirs = std::fs::read_to_string(config.join("user-dirs.dirs")).map(|t| user_dirs(&t, &home)).unwrap_or_default();
+    let found = dirs.into_iter().find(|(k, _)| k == "XDG_TEMPLATES_DIR").map(|(_, p)| p);
+    Some(found.unwrap_or_else(|| home.join("Templates")))
+}
+
+/// The templates New file offers, by name; hidden files left out.
+pub fn templates() -> Vec<PathBuf> {
+    let Some(dir) = templates_dir() else { return Vec::new() };
+    let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+        .map(|e| e.path())
+        .collect();
+    found.sort_by_key(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()));
+    found
+}
+
 /// `user-dirs.dirs`'s folders by their keys, `$HOME` expanded.
 pub fn user_dirs(text: &str, home: &Path) -> Vec<(String, PathBuf)> {
     text.lines()

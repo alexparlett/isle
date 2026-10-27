@@ -117,7 +117,7 @@ impl App for FilesWindow {
         let mut alert = use_state(|| None::<Alert>);
         let jobs = shared.jobs;
         let mut renaming = use_state(|| None::<PathBuf>);
-        let rename_text = use_state(String::new);
+        let mut rename_text = use_state(String::new);
         let mut rename_error = use_state(|| None::<String>);
         let mut rename_many = use_state(|| None::<Vec<PathBuf>>);
         let mut drop_target = use_state(|| None::<PathBuf>);
@@ -307,6 +307,16 @@ impl App for FilesWindow {
                 if !f.report.failed.is_empty() {
                     alert.set(Some(Alert::failures(&f.report.failed, f.verb)));
                 }
+                // A new folder or file is selected with its name open.
+                if let ("created", [made]) = (f.verb, f.report.made.as_slice())
+                    && let Some(handle) = tabs.peek().get(*current.peek()).cloned()
+                {
+                    let mut tab = handle.tab;
+                    tab.write().reveal(made.clone());
+                    rename_text.set(made.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+                    rename_error.set(None);
+                    renaming.set(Some(made.clone()));
+                }
             }
         });
         // The Trash and Recents are gatherings no watch follows; each job's end reads them again.
@@ -463,6 +473,16 @@ impl App for FilesWindow {
                             } else {
                                 t.select_only(path);
                             }
+                        }
+                        // ⌥ opens and closes the window, a folder in a window of its own.
+                        Pick::Open(path, held) if held.option && !held.cmd => {
+                            let dir = tab.peek().folder.get(&path).map(|e| e.is_dir());
+                            if dir.unwrap_or_else(|| path.is_dir()) {
+                                shared.open_window(vec![(Place::Folder(path), None)], 0, None);
+                            } else {
+                                open_items(&shared, tabs, current, key, &handle, vec![path], false, open_with);
+                            }
+                            shared.app().close(key);
                         }
                         Pick::Open(path, held) => {
                             tab.write().select_only(path.clone());

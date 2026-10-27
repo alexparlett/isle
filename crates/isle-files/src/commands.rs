@@ -79,7 +79,22 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         (t.selection.len(), name)
     };
     let undo_label = undo_stack.read().last().map(|(l, _)| format!("Undo {l}"));
-    vec![
+    let can_make = place.folder().is_some() && !in_trash;
+    let templates = if can_make { crate::places::templates() } else { Vec::new() };
+    // With templates New file is a submenu: an empty file, then each template.
+    let mut new_file = vec![
+        Command::new("new-file", if templates.is_empty() { "New file" } else { "Empty File" }, Menu::File, 0)
+            .chord(Chord::cmd('n').option().shift())
+            .enabled(can_make),
+    ];
+    for (i, template) in templates.iter().enumerate() {
+        let name = template.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        new_file.push(Command::new(format!("new-file:{i}"), name, Menu::File, 0));
+    }
+    if !templates.is_empty() {
+        new_file = new_file.into_iter().map(|c| c.under("New file")).collect();
+    }
+    let mut table = vec![
         Command::new("undo", undo_label.clone().unwrap_or_else(|| "Undo".into()), Menu::Edit, 0)
             .chord(Chord::cmd('z'))
             .enabled(undo_label.is_some()),
@@ -219,7 +234,10 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("go-applications", "Applications", Menu::Go, 1)
             .chord(Chord::cmd('a').shift())
             .enabled(fav("Applications").is_some()),
-    ]
+    ];
+    let at = table.iter().position(|c| c.id == "new-folder").map_or(0, |i| i + 1);
+    table.splice(at..at, new_file);
+    table
 }
 
 /// Carries out the commands chosen since last, each on the tab current when it is taken.
@@ -390,6 +408,18 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                 if let Some((label, steps)) = undo_stack.write().pop() {
                     jobs.start(&shared.app(), key, Work::Undo { steps }, format!("Undoing {label}"), String::new());
                 }
+            }
+            id if id == "new-file" || id.starts_with("new-file:") => {
+                let Some(into) = tab.peek().place.folder().map(PathBuf::from) else { continue };
+                let template = id
+                    .strip_prefix("new-file:")
+                    .and_then(|i| i.parse::<usize>().ok())
+                    .and_then(|i| crate::places::templates().into_iter().nth(i));
+                let name = template
+                    .as_deref()
+                    .and_then(|t| t.file_name())
+                    .map_or_else(|| "untitled".to_owned(), |n| n.to_string_lossy().into_owned());
+                start_job(shared, key, Work::NewFile { into, name, template }, &mut alert);
             }
             "new-folder" | "new-folder-with-items" | "duplicate" | "make-alias" | "compress" | "expand"
             | "move-to-trash" | "put-back" | "delete-now" | "empty-trash" | "empty-trash-now" => {

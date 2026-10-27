@@ -142,7 +142,7 @@ rebind.
 |---|---|---|
 | ⌘N, ⌘T, ⌘O | New window, new tab, open | App |
 | ⌘W, ⇧⌘W, ⌥⌘W | Close tab or window; close window; close all | App |
-| ⌘Q | Quit, asking first when work is in flight (Conventions 5) | App |
+| ⌘Q | Quit; work in flight finishes first (Conventions 5) | App |
 | ⌘, | The app's settings window | App |
 | ⌘Z, ⇧⌘Z | Undo, redo | App |
 | ⌘X, ⌘C, ⌘V, ⌘A | Cut, copy, paste, select all | App |
@@ -169,7 +169,7 @@ in `window-chrome.md`; this sheet says when each is used.
 | Form | Used for | Behaviour |
 |---|---|---|
 | **Sheet** | A task that must finish or be cancelled before its window goes on: a form (new key, rename many, add a VPN), Files' Open and Save panels in Isle's apps, an item's details to edit (a Wi-Fi network's Details…) | Modal to its window only; Cancel and the action at its foot, the default trailing; never Cancel and Done beside Back (HIG, `design-macos.md` §3.1). One sheet at a time: a step inside a task replaces the sheet's content with a Back, rather than stacking a second sheet |
-| **Alert** | A confirmation or a failure the user must read: something that cannot be undone, quitting with work in flight, a failed action | A sheet with a title, at most one line of text (a length for the copy: it wraps, never cut) and up to three buttons (`window-chrome.md`). A "Don't ask again" box only on a confirmation the user may sensibly silence, and the app's settings can turn it back on. With no window open, the alert is a small window of its own, centred |
+| **Alert** | A confirmation or a failure the user must read: something that cannot be undone, quitting with work in flight, a failed action | A sheet with a title, at most one line of text (a length for the copy: it wraps, never cut) and up to three buttons (`window-chrome.md`). A "Don't ask again" box only on a confirmation the user may sensibly silence, and the app's settings can turn it back on. With no window open, a file job's question or failure is asked in its app's progress window (Files' Copy window) |
 | **Popover** | Quick detail or a small edit about one control or item: a colour, a date, a row's info | Anchored to what opened it; not modal; changes apply as made, so it has no OK or Cancel; closes on Escape, a click outside, or the opening control again; one open at a time. Drawn on the window's raised material, never glass (`design-v1-lessons.md` § Files and the other windows) |
 | **Window** | Something worth keeping open beside others: Get Info, a process inspector, About, the app's settings | A window of the app, placed by the compositor (B8), with its own lights; in the switcher's window row and the Window menu |
 
@@ -325,9 +325,10 @@ through the compositor (B27; Conventions 19).
   tab (`apps.md` Files 17).
 - **The last window closing** ends the app unless work is in flight
   (Conventions 4); B20's keep-running list does not apply to Isle's apps.
-- **Quitting with work in flight** (Conventions 5): an alert on the front
-  window naming the work ("Copying 3 items to “Backup”"), "Quitting stops
-  it.", with Cancel (default) and Quit.
+- **Quitting with work in flight** (Conventions 5): the windows close and
+  the work carries on, its progress on the switcher card; the app quits when
+  it ends (B119). An app whose work would be lost by quitting, as an
+  unsaved document, asks instead.
 
 ### The About window
 
@@ -353,7 +354,7 @@ App › About {app} opens Isle's About window for the app, the same panel
 | Loading | The frame at once; content as it arrives; a progress mark only after a wait |
 | Error | Inline in the affected place; a failed action as an alert |
 | Configuration error | The notice at the top of every settings pane; desktop-setting rows disabled (`settings.md`) |
-| Work in flight | Progress in the window and on the switcher card; Quit asks first |
+| Work in flight | Progress in the window and on the switcher card; Quit waits for it |
 | With a sheet | The window's content dimmed; the lights work except close, which waits on the sheet (`window-chrome.md`) |
 | Narrow window | The toolbar folds in the order above; the sidebar collapses; the window never shrinks below the size that holds its largest sheet (Conventions 16) |
 | Overflowing content | Content scrolls under the toolbar, which turns solid; the sidebar scrolls on its own |

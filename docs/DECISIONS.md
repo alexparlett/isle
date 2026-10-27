@@ -1272,3 +1272,17 @@ press and kept from windows; the left, right and middle buttons never are.
 Rejected: a list of buttons apart from the keys (two places for one
 action's routes).
 
+**B119 · Files is Finder-shaped in what it says and when it asks.** Decided
+in P15b at its board (`Files alerts and Copy`). Alerts take macOS 11's
+compact form, the app icon over centred words, in every Isle app, as
+`window-chrome.md` had them and the build had not. ⌘Q never asks about
+work in flight: the windows close, the work finishes and the app quits;
+work that would be lost, as an unsaved document, still asks. A job with no
+Files window is shown, asked and reported in the Copy window, Finder's,
+not in a titled alert window. Files' strings are Finder's, failures reading
+"The operation can't be completed because …"; two deviations: a name
+clash defaults to Keep Both, never overwriting on Return, and a name
+beginning with a dot is allowed after asking. Rejected: asking before
+quitting (built in 15b.3 and taken out: it stopped work Finder would
+finish), and an alert as a window of its own with a title bar and lights.
+

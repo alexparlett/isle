@@ -54,8 +54,9 @@ Every Isle app follows these rules.
 4. An app exits when its last window closes and no work is in flight. Work in flight is a file job, a
    removal, a key generation or an update hand-off: the process stays while it runs, with progress on
    its switcher card (B19; `macos-model.md` §3 Dock row). Isle's apps are not on B20's keep-running list.
-5. Cmd+Q in an Isle app is the app's own Quit item, so an app with work in flight says what quitting
-   stops and lets the user cancel.
+5. Cmd+Q in an Isle app is the app's own Quit item: its windows close and work in flight finishes
+   before the app quits, as Finder never stops a copy for a closed window (B119). Work quitting would
+   lose, as an unsaved document, asks first.
 6. An app quit with windows open reopens them with the same content (pane, folder, tabs, view) on its
    next launch (D62). Settings › Desktop's "Close windows when quitting an app", macOS's switch, is off
    by default; on, a relaunched app opens fresh. Where a window sits is the compositor's remembered

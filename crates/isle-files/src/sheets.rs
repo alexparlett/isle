@@ -16,11 +16,9 @@ pub enum Then {
     Job(Work),
     /// Ejects the volume; `true` even while it is in use.
     Eject(isle_disks::Volume, bool),
-    /// Stops the jobs running and quits.
-    Quit,
 }
 
-/// An alert waiting on the window.
+/// An alert waiting on the window, in Finder's words.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Alert {
     pub title: String,
@@ -31,45 +29,55 @@ pub struct Alert {
 }
 
 impl Alert {
-    pub fn failures(failed: &[(PathBuf, String)]) -> Self {
-        let shared_reason = failed.iter().all(|(_, why)| *why == failed[0].1);
+    /// A job's failures; `verb` is what the job did to its items: "copied", "moved".
+    pub fn failures(failed: &[(PathBuf, String)], verb: &str) -> Self {
         let n = failed.len();
         Self {
             title: if n == 1 {
-                format!("“{}” couldn't be copied.", name(&failed[0].0))
+                format!("The operation can't be completed because {}.", failed[0].1)
             } else {
-                format!("{n} items couldn't be copied.")
+                format!("The operation can't be completed because {n} items couldn't be {verb}.")
             },
-            message: if shared_reason { failed[0].1.clone() } else { String::new() },
-            items: failed.iter().take(20).map(|(p, _)| name(p)).collect(),
-            buttons: vec![("Done".into(), None)],
+            message: String::new(),
+            items: if n == 1 { Vec::new() } else { failed.iter().take(20).map(|(p, _)| name(p)).collect() },
+            buttons: vec![("OK".into(), None)],
         }
     }
 
     pub fn delete(items: Vec<PathBuf>) -> Self {
+        let (title, message) = match items.as_slice() {
+            [one] => (
+                format!("Are you sure you want to delete “{}”?", name(one)),
+                "This item will be deleted immediately. You can't undo this action.",
+            ),
+            many => (
+                format!("Are you sure you want to delete these {} items?", many.len()),
+                "These items will be deleted immediately. You can't undo this action.",
+            ),
+        };
         Self {
-            title: format!("Delete {}?", if items.len() == 1 { format!("“{}”", name(&items[0])) } else { format::items(items.len()) }),
-            message: "You can't undo this.".into(),
+            title,
+            message: message.into(),
             items: Vec::new(),
-            buttons: vec![("Cancel".into(), None), ("Delete".into(), Some(Then::Job(Work::Delete { items })))],
+            buttons: vec![("Delete".into(), Some(Then::Job(Work::Delete { items }))), ("Cancel".into(), None)],
         }
     }
 
     /// Asks before erasing the Trash's `items`, read off the window's thread.
     pub fn empty_trash(items: Vec<isle_fs::trash::Trashed>) -> Self {
         Self {
-            title: format!("Permanently erase {} in the Trash?", format::items(items.len())),
-            message: "You can't undo this.".into(),
+            title: "Are you sure you want to permanently erase the items in the Trash?".into(),
+            message: "You can't undo this action.".into(),
             items: Vec::new(),
-            buttons: vec![("Cancel".into(), None), ("Empty Trash".into(), Some(Then::Job(Work::EmptyTrash { items })))],
+            buttons: vec![("Empty Trash".into(), Some(Then::Job(Work::EmptyTrash { items }))), ("Cancel".into(), None)],
         }
     }
 
-    /// A volume in use: Force Eject never the default (`files.md` § Volumes).
+    /// A volume in use: Try Again the default, Force Eject never (`files.md` § Volumes).
     pub fn in_use(volume: isle_disks::Volume) -> Self {
         Self {
-            title: format!("“{}” is in use and can't be ejected.", volume.label),
-            message: "Quit the apps using it and try again.".into(),
+            title: format!("The disk “{}” wasn't ejected because one or more programs may be using it.", volume.label),
+            message: "To eject the disk immediately, click the Force Eject button.".into(),
             items: Vec::new(),
             buttons: vec![
                 ("Force Eject".into(), Some(Then::Eject(volume.clone(), true))),
@@ -79,120 +87,110 @@ impl Alert {
         }
     }
 
-    /// Quitting with work in flight (`conventions.md`, Conventions 5): Cancel the default.
-    pub fn quit(work: &str) -> Self {
-        Self {
-            title: work.to_owned(),
-            message: "Quitting stops it.".into(),
-            items: Vec::new(),
-            buttons: vec![("Quit".into(), Some(Then::Quit)), ("Cancel".into(), None)],
-        }
-    }
-
     pub fn message(title: impl Into<String>, message: impl Into<String>) -> Self {
         Self { title: title.into(), message: message.into(), items: Vec::new(), buttons: vec![("OK".into(), None)] }
     }
 
-    pub fn no_space(into: &Path, needed: u64, free: u64) -> Self {
+    /// A job that will not fit: `what` names its item, or "The items" for several.
+    pub fn no_space(what: &str, verb: &str, short: u64) -> Self {
         Self {
-            title: format!("“{}” doesn't have enough space.", crate::places::folder_name(into)),
-            message: format!(
-                "{} is needed and {} is available. Free up space or choose another location.",
-                format::size(needed),
-                format::size(free)
-            ),
+            title: format!("{what} can't be {verb} because there isn't enough free space."),
+            message: format!("You need an additional {} of free space.", format::size(short)),
             items: Vec::new(),
             buttons: vec![("OK".into(), None)],
         }
     }
 }
 
-fn name(p: &Path) -> String {
+pub fn name(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string())
 }
 
-/// An alert's words and buttons; `on_done` gets the work of the button pressed.
-#[allow(clippy::type_complexity)]
-pub fn alert_parts(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'static) -> (Vec<Element>, Vec<(String, EventHandler<()>)>) {
+/// An alert as a sheet; `on_done` gets the work of the button pressed.
+pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'static) -> Element {
     let theme = isle_ui::theme();
     let t = &theme.tokens;
-    let mut body = vec![isle_ui::alert_text(&alert.title, &alert.message)];
-    if !alert.items.is_empty() {
-        body.push(
-            rect()
-                .width(Size::fill())
-                .max_height(Size::px(5. * t.size_row))
-                .padding(t.space_s)
-                .corner_radius(t.radius_control)
-                .background(colour(t.colour_window_sunken))
-                .children(alert.items.iter().map(|i| text::line(&theme, text::Style::Body, colour(t.colour_text), i.clone()).into_element()))
-                .into_element(),
-        );
-    }
-    let buttons = alert
+    let items = (!alert.items.is_empty()).then(|| {
+        rect()
+            .width(Size::fill())
+            .max_height(Size::px(5. * t.size_row))
+            .padding(t.space_s)
+            .corner_radius(t.radius_control)
+            .background(colour(t.colour_window_sunken))
+            .children(alert.items.iter().map(|i| text::line(&theme, text::Style::Callout, colour(t.colour_text), i.clone()).into_element()))
+            .into_element()
+    });
+    let buttons: Vec<isle_ui::AlertButton> = alert
         .buttons
         .into_iter()
         .map(|(label, work)| {
+            // What erases or forces is never the default and reads as dangerous.
+            let destructive = matches!(work, Some(Then::Job(Work::Delete { .. } | Work::EmptyTrash { .. })) | Some(Then::Eject(_, true)));
             let done = on_done.clone();
-            (label, EventHandler::new(move |_| done(work.clone())))
+            isle_ui::AlertButton { label, on_press: EventHandler::new(move |_| done(work.clone())), destructive }
         })
         .collect();
-    (body, buttons)
+    isle_ui::alert(&alert.title, &alert.message, items.into_iter().collect(), buttons)
 }
 
-/// An alert sheet; `on_done` gets the work of the button pressed.
-pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'static) -> Element {
-    let (body, buttons) = alert_parts(alert, on_done);
-    isle_ui::sheet(isle_ui::theme().tokens.size_alert, body, buttons)
-}
-
-/// The name-taken question (`files.md` § File jobs, A question).
+/// The name-taken question in Finder's words (`files.md` § File jobs, A question): Keep
+/// Both the default, which ⌥ turns into Merge when both are folders.
 #[derive(PartialEq)]
 pub struct ConflictSheet {
     pub question: Question,
     pub jobs: Jobs,
-    /// Drawn as a window of its own, there being no Files window to hang it from.
-    pub alone: bool,
 }
 
 impl Component for ConflictSheet {
     fn render(&self) -> impl IntoElement {
-        let theme = use_theme();
-        let t = &theme.tokens;
         let mut all = use_state(|| false);
+        let mut option = use_state(|| false);
         let c = &self.question.conflict;
-        let newer = match c.existing_newer {
-            Some(true) => "The one already there is newer.",
-            Some(false) => "The one you're copying is newer.",
-            None => "",
-        };
         let (job, jobs) = (self.question.job, self.jobs);
         let answer = move |choice: Choice| {
             let all = *all.peek();
             EventHandler::new(move |_| jobs.answer(job, Answer { choice, all }))
         };
-        let mut body = vec![isle_ui::alert_text(
-            &format!("An item named “{}” already exists in “{}”.", c.name, crate::places::folder_name(&c.folder)),
-            newer,
-        )];
-        if c.more {
-            body.push(
-                CheckRow::new("Apply to all", *all.read())
-                    .on_toggle(move |on: bool| all.set(on))
-                    .into_element(),
-            );
-        }
-        let mut buttons = vec![("Replace".to_owned(), answer(Choice::Replace)), ("Stop".to_owned(), answer(Choice::Stop))];
-        if c.folders {
-            buttons.push(("Merge".to_owned(), answer(Choice::Merge)));
-        }
-        buttons.push(("Keep Both".to_owned(), answer(Choice::KeepBoth)));
-        if self.alone {
-            isle_ui::alert_window(body, buttons)
+        let (title, message) = conflict_words(c);
+        let extra = c.more.then(|| CheckRow::new("Apply to all", *all.read()).on_toggle(move |on: bool| all.set(on)).into_element());
+        let last: (String, EventHandler<()>) = if c.folders && *option.read() {
+            ("Merge".to_owned(), answer(Choice::Merge))
         } else {
-            isle_ui::sheet(t.size_alert, body, buttons)
-        }
+            ("Keep Both".to_owned(), answer(Choice::KeepBoth))
+        };
+        let buttons = vec![
+            ("Stop".to_owned(), answer(Choice::Stop)).into(),
+            isle_ui::AlertButton::destructive("Replace", answer(Choice::Replace)),
+            last.into(),
+        ];
+        let is_option = |e: &Event<KeyboardEventData>| matches!(e.key, Key::Named(NamedKey::Alt));
+        rect()
+            .on_global_key_down(move |e: Event<KeyboardEventData>| {
+                if is_option(&e) {
+                    option.set_if_modified(true);
+                }
+            })
+            .on_global_key_up(move |e: Event<KeyboardEventData>| {
+                if is_option(&e) {
+                    option.set_if_modified(false);
+                }
+            })
+            .child(isle_ui::alert(&title, &message, extra.into_iter().collect(), buttons))
     }
+}
+
+/// A name clash's title and question, as Finder words them.
+pub fn conflict_words(c: &isle_fs::jobs::Conflict) -> (String, String) {
+    let (item, other) = match c.existing_newer {
+        Some(true) => ("A newer item", "the older one"),
+        Some(false) => ("An older item", "the newer one"),
+        None => ("An item", "the one"),
+    };
+    let doing = if c.moving { "moving" } else { "copying" };
+    (
+        format!("{item} named “{}” already exists in this location.", c.name),
+        format!("Do you want to replace it with {other} you're {doing}?"),
+    )
 }
 
 /// Rename Many: one name where `#` is each item's number, a start number, and the first and
@@ -229,7 +227,7 @@ impl Component for RenameMany {
         };
         let (items, done, cancel) = (self.items.clone(), self.on_done.clone(), self.on_done.clone());
         let body = vec![
-            isle_ui::alert_text(&format!("Rename {}", format::items(self.items.len())), ""),
+            isle_ui::alert_text(&format!("Rename {} Items", self.items.len()), ""),
             isle_ui::TextField::new(pattern, "Name").editing().into_element(),
             rect()
                 .horizontal()
@@ -304,14 +302,14 @@ impl Component for OpenWith {
             .collect();
         let name = self.offer.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let body = vec![
-            isle_ui::alert_text(&format!("Choose an app to open “{name}”."), ""),
+            isle_ui::alert_text(&format!("Choose an application to open the document “{name}”."), ""),
             isle_ui::scroll_area(&theme)
                 .width(Size::fill())
                 .height(Size::px(8. * t.size_row))
                 .child(rect().width(Size::fill()).children(rows))
                 .into_element(),
-            CheckRow::new("Show all apps", *all.read()).on_toggle(move |on: bool| all.set(on)).into_element(),
-            CheckRow::new("Always open with", *always.read()).on_toggle(move |on: bool| always.set(on)).into_element(),
+            CheckRow::new("Show all applications", *all.read()).on_toggle(move |on: bool| all.set(on)).into_element(),
+            CheckRow::new("Always Open With", *always.read()).on_toggle(move |on: bool| always.set(on)).into_element(),
         ];
         let (done, cancel) = (self.on_done.clone(), self.on_done.clone());
         let (kind, path) = (self.offer.kind.clone(), self.offer.path.clone());
@@ -359,8 +357,8 @@ impl Component for Unlock {
         };
         let on_submit = submit.clone();
         let mut body = vec![
-            isle_ui::alert_text(&format!("“{}” is encrypted.", self.volume.label), "Enter its passphrase to unlock it."),
-            isle_ui::Field::new(text.clone(), "Passphrase")
+            isle_ui::alert_text(&format!("Enter a password to unlock the disk “{}”.", self.volume.label), ""),
+            isle_ui::Field::new(text.clone(), "Password")
                 .secret(true)
                 .error(self.refused.is_some())
                 .auto_focus(true)
@@ -370,7 +368,7 @@ impl Component for Unlock {
         if let Some(why) = &self.refused {
             body.push(text::line(&theme, text::Style::Callout, colour(t.colour_danger_text), why.clone()).into_element());
         }
-        body.push(CheckRow::new("Remember in Keychain", *remember.read()).on_toggle(move |on: bool| remember.set(on)).into_element());
+        body.push(CheckRow::new("Remember this password in my keychain", *remember.read()).on_toggle(move |on: bool| remember.set(on)).into_element());
         let cancel = self.on_done.clone();
         isle_ui::sheet(
             t.size_form_narrow,

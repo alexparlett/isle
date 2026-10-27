@@ -352,19 +352,13 @@ impl Component for ModePage {
                     }),
                     on_done: EventHandler::new(move |_| adding.set(None)),
                 }),
-                _ => el.child(ui::sheet(
-                    360.,
-                    vec![ui::alert_text(
-                        &format!("Delete {name}?"),
-                        "Its rules go with it. Notifications it held come through again.",
-                    )],
+                _ => el.child(ui::alert(
+                    &format!("Are you sure you want to delete the Focus “{name}”?"),
+                    "Its rules go with it. Notifications it held come through again.",
+                    Vec::new(),
                     vec![
-                        (
-                            "Cancel".into(),
-                            EventHandler::new(move |_| adding.set(None)),
-                        ),
-                        (
-                            "Delete".into(),
+                        isle_ui::AlertButton::destructive(
+                            "Delete",
                             EventHandler::new({
                                 let name = name.clone();
                                 move |_| {
@@ -374,6 +368,7 @@ impl Component for ModePage {
                                 }
                             }),
                         ),
+                        ("Cancel".to_owned(), EventHandler::new(move |_| adding.set(None))).into(),
                     ],
                 )),
             })

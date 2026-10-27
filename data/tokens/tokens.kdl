@@ -230,7 +230,7 @@ space { xxs 2; xs 4; s 8; m 12; l 16; xl 20; xxl 24; xxxl 32 }
 
 // Nested corners are concentric: a child's radius is its parent's less the
 // padding between them, never below `small`.
-radius { window 10; panel 18; card 10; control 6; row 5; small 4 }
+radius { window 10; panel 18; alert 12; card 10; control 6; row 5; small 4 }
 
 stroke { hairline 1; focus-ring 3; focus-offset 1; progress 2; found 2; graph 2; kind 3 }
 
@@ -268,6 +268,9 @@ size {
     traffic-light 12
     zone-thumbnail 44
     alert 320
+    // macOS 11's compact alert: its width and the app icon above its words.
+    alert-compact 260
+    alert-icon 56
     title-minimum 48
     resize-band 8
     minimise-target 96

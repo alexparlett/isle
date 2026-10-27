@@ -704,9 +704,11 @@ impl State {
         }
         self.isle.wm.recent.retain(|r| *r != id);
         self.stage_window_gone(id);
+        // A window's sheets and dialogs go with it, another app's file panel included.
         for record in &mut self.isle.wm.records {
             if record.parent == Some(id) {
                 record.parent = None;
+                record.send_close();
             }
         }
         self.isle.notify(Event::WindowsChanged);

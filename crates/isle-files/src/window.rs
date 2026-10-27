@@ -305,7 +305,7 @@ impl App for FilesWindow {
                     _ => {}
                 }
                 if !f.report.failed.is_empty() {
-                    alert.set(Some(Alert::failures(&f.report.failed)));
+                    alert.set(Some(Alert::failures(&f.report.failed, f.verb)));
                 }
             }
         });
@@ -852,7 +852,7 @@ impl App for FilesWindow {
                         selected_size,
                     })),
             )
-            .maybe_child(question.map(|q| ConflictSheet { question: q, jobs, alone: false }.into_element()))
+            .maybe_child(question.map(|q| ConflictSheet { question: q, jobs }.into_element()))
             .maybe_child((*saving.read()).then(|| {
                 let shared = shared.clone();
                 let live = live.clone();
@@ -929,7 +929,6 @@ impl App for FilesWindow {
                     match then {
                         Some(Then::Job(work)) => start_job(&shared, key, work, &mut alert),
                         Some(Then::Eject(volume, force)) => eject(&shared, volume, force, alert),
-                        Some(Then::Quit) => shared.quit_now(),
                         None => {}
                     }
                 })
@@ -951,11 +950,11 @@ pub(crate) fn content(
     let tab = handle.tab.read();
     let message = match (&tab.status, tab.folder.is_empty()) {
         (Status::Failed(isle_fs::ListError::Denied), _) => Some(format!(
-            "You don't have permission to see the contents of “{}”.",
+            "The folder “{}” can't be opened because you don't have permission to see its contents.",
             tab.place.title()
         )),
-        (Status::Gone, _) => Some(format!("“{}” was moved or deleted.", tab.place.title())),
-        (Status::Failed(_), _) => Some(format!("“{}” couldn't be read.", tab.place.title())),
+        (Status::Gone, _) => Some(format!("The folder “{}” can't be found.", tab.place.title())),
+        (Status::Failed(_), _) => Some(format!("The folder “{}” can't be opened.", tab.place.title())),
         (Status::Ready, true) => Some(match (&tab.place, tab.folder.filter()) {
             (Place::Search(s), _) if !s.term.is_empty() => format!("No results for “{}”", s.term),
             (Place::Search(_), _) => "No results".to_owned(),
@@ -966,11 +965,16 @@ pub(crate) fn content(
         }),
         _ => None,
     };
+    // A folder gone offers the nearest folder still there.
+    let enclosing = (tab.status == Status::Gone)
+        .then(|| tab.place.folder().and_then(|f| f.ancestors().skip(1).find(|a| a.is_dir()).map(PathBuf::from)))
+        .flatten();
     drop(tab);
     match message {
         Some(message) => rect()
             .expanded()
             .center()
+            .spacing(t.space_m)
             .background(colour(t.colour_view))
             .child(
                 rect().width(Size::fill()).max_width(Size::px(400.)).child(
@@ -982,6 +986,10 @@ pub(crate) fn content(
                         .text(message),
                 ),
             )
+            .maybe_child(enclosing.map(|up| {
+                let (tab, live) = (handle.tab, handle.live.clone());
+                isle_ui::Button::new("Go to Enclosing Folder").on_press(move |_| tab::go(tab, &live, Place::Folder(up.clone()), None))
+            }))
             .into_element(),
         None => match handle.tab.peek().shown.view {
             // Columns turns into List while a search stands.

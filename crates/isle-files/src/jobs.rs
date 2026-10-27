@@ -69,6 +69,8 @@ impl PartialEq for Question {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Finished {
     pub window: WindowKey,
+    /// What the job did to its items, as its failures say: "copied".
+    pub verb: &'static str,
     /// The verb Undo names: "Move to Trash", "Copy of 3 Items".
     pub undo_label: String,
     pub report: Report,
@@ -153,6 +155,7 @@ impl Jobs {
 
     /// Starts a job for `window`; it runs whatever windows close, holding the app open.
     pub fn start(self, app: &AppHandle, window: WindowKey, work: Work, title: String, undo_label: String) {
+        let verb = verb(&work);
         let id = NEXT.with(|n| {
             n.set(n.get() + 1);
             n.get()
@@ -200,11 +203,8 @@ impl Jobs {
                             job.state = JobState::Waiting;
                         }
                         questions.write().push(Question { job: id, window, conflict, reply });
-                        // With no Files window open, the question is a window of its own.
-                        if let Some(shared) = crate::SHARED.with(|s| s.borrow().clone())
-                            && shared.window_keys().is_empty()
-                        {
-                            shared.ask_alone(crate::alone::Alone::Question(id));
+                        if let Some(shared) = crate::SHARED.with(|s| s.borrow().clone()) {
+                            shared.copy_window_check();
                         }
                     }
                     Message::End(id, report) => {
@@ -218,9 +218,12 @@ impl Jobs {
                         }
                         let undoable = matches!(&report.undo, Some(Undo::Steps(s)) if !s.is_empty());
                         if failed || undoable || report.undo == Some(Undo::CantUndo) {
-                            finished.write().push(Finished { window, undo_label: undo_label.clone(), report });
+                            finished.write().push(Finished { window, verb, undo_label: undo_label.clone(), report });
                         }
                         *ended.write() += 1;
+                        if failed && let Some(shared) = crate::SHARED.with(|s| s.borrow().clone()) {
+                            shared.copy_window_check();
+                        }
                         app.progress(Self::total(&list.peek()));
                         // A finished row stays a moment, then goes.
                         async_sleep(Duration::from_millis(2000)).await;
@@ -259,6 +262,22 @@ pub async fn async_sleep(duration: Duration) {
     let _ = rx.await;
 }
 
+/// What a job does to its items, as its failures say: "couldn't be copied".
+pub fn verb(work: &Work) -> &'static str {
+    match work {
+        Work::Copy { .. } | Work::Duplicate { .. } => "copied",
+        Work::Move { .. } => "moved",
+        Work::Trash { .. } => "moved to the Trash",
+        Work::PutBack { .. } => "put back",
+        Work::Delete { .. } | Work::EmptyTrash { .. } => "deleted",
+        Work::NewFolder { .. } | Work::NewFile { .. } => "created",
+        Work::Rename { .. } | Work::RenameMany { .. } => "renamed",
+        Work::Compress { .. } => "compressed",
+        Work::Expand { .. } => "expanded",
+        Work::Undo { .. } => "undone",
+    }
+}
+
 /// The words a job's row and its notification use.
 pub fn title(work: &Work) -> (String, String) {
     let n = |items: &[PathBuf]| crate::format::items(items.len());
@@ -271,12 +290,12 @@ pub fn title(work: &Work) -> (String, String) {
         Work::PutBack { items } => (format!("Putting back {}", crate::format::items(items.len())), "Put Back".into()),
         Work::Delete { items } => (format!("Deleting {}", n(items)), "Delete".into()),
         Work::EmptyTrash { .. } => ("Emptying the Trash".into(), "Empty Trash".into()),
-        Work::NewFolder { .. } => ("Making a folder".into(), "New Folder".into()),
-        Work::NewFile { .. } => ("Making a file".into(), "New File".into()),
-        Work::Rename { .. } => ("Renaming".into(), "Rename".into()),
+        Work::NewFolder { .. } => ("Creating a folder".into(), "New Folder".into()),
+        Work::NewFile { .. } => ("Creating a file".into(), "New File".into()),
+        Work::Rename { item, .. } => (format!("Renaming “{}”", crate::sheets::name(item)), "Rename".into()),
         Work::RenameMany { items, .. } => (format!("Renaming {}", n(items)), "Rename".into()),
         Work::Compress { items } => (format!("Compressing {}", n(items)), "Compress".into()),
-        Work::Expand { .. } => ("Expanding".into(), "Expand".into()),
+        Work::Expand { archive } => (format!("Expanding “{}”", crate::sheets::name(archive)), "Expand".into()),
         Work::Undo { .. } => ("Undoing".into(), String::new()),
     }
 }

@@ -64,6 +64,8 @@ pub enum Undo {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Conflict {
     pub name: String,
+    /// The job moves rather than copies.
+    pub moving: bool,
     pub folder: PathBuf,
     /// Both are folders, so Merge is offered.
     pub folders: bool,
@@ -155,13 +157,16 @@ impl Run<'_> {
 }
 
 /// Why an error happened, in the copy's words.
-fn why(e: &io::Error) -> String {
+/// Why an item failed, as the clause after Finder's "The operation can't be completed
+/// because".
+fn why(e: &io::Error, item: &Path) -> String {
+    let name = item.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| item.display().to_string());
     match e.kind() {
-        io::ErrorKind::PermissionDenied => "You don't have permission.".into(),
-        io::ErrorKind::NotFound => "It was moved or deleted.".into(),
-        io::ErrorKind::StorageFull => "There isn't enough space.".into(),
-        io::ErrorKind::ReadOnlyFilesystem => "The volume is read only.".into(),
-        _ => e.to_string(),
+        io::ErrorKind::PermissionDenied => format!("you don't have permission to access “{name}”"),
+        io::ErrorKind::NotFound => format!("“{name}” can't be found"),
+        io::ErrorKind::StorageFull => "there isn't enough free space".into(),
+        io::ErrorKind::ReadOnlyFilesystem => "the disk is read-only".into(),
+        _ => format!("an unexpected error occurred ({e})"),
     }
 }
 
@@ -273,7 +278,7 @@ enum Target {
     Stop,
 }
 
-fn target(run: &mut Run, src: &Path, into: &Path, more: bool) -> Target {
+fn target(run: &mut Run, src: &Path, into: &Path, more: bool, moving: bool) -> Target {
     let name = src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let dest = into.join(&name);
     let Ok(there) = fs::symlink_metadata(&dest) else {
@@ -284,6 +289,7 @@ fn target(run: &mut Run, src: &Path, into: &Path, more: bool) -> Target {
     let existing_newer = here.and_then(|h| Some(there.modified().ok()? > h.modified().ok()?));
     let choice = run.ask(Conflict {
         name,
+        moving,
         folder: into.to_owned(),
         folders,
         existing_newer,
@@ -305,11 +311,11 @@ fn copy_items(run: &mut Run, items: &[PathBuf], into: &Path) {
             return;
         }
         if into.starts_with(src) && into != src.parent().unwrap_or(src) {
-            run.fail(src, "A folder can't be copied into itself.");
+            run.fail(src, "a folder can't be copied into itself");
             continue;
         }
         let more = n + 1 < items.len();
-        let done = match target(run, src, into, more) {
+        let done = match target(run, src, into, more, false) {
             Target::Stop => {
                 run.report.stopped = true;
                 return;
@@ -336,7 +342,7 @@ fn copy_items(run: &mut Run, items: &[PathBuf], into: &Path) {
                 run.report.stopped = true;
                 return;
             }
-            Err(e) => run.fail(src, why(&e)),
+            Err(e) => run.fail(src, why(&e, src)),
         }
         run.item_done();
     }
@@ -349,14 +355,14 @@ fn move_items(run: &mut Run, items: &[PathBuf], into: &Path) {
             return;
         }
         if into.starts_with(src) {
-            run.fail(src, "A folder can't be moved into itself.");
+            run.fail(src, "a folder can't be moved into itself");
             continue;
         }
         if src.parent() == Some(into) {
             continue;
         }
         let more = n + 1 < items.len();
-        let done = match target(run, src, into, more) {
+        let done = match target(run, src, into, more, true) {
             Target::Stop => {
                 run.report.stopped = true;
                 return;
@@ -401,7 +407,7 @@ fn move_items(run: &mut Run, items: &[PathBuf], into: &Path) {
                 run.report.stopped = true;
                 return;
             }
-            Err(e) => run.fail(src, why(&e)),
+            Err(e) => run.fail(src, why(&e, src)),
         }
         run.item_done();
     }
@@ -478,7 +484,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                         run.report.stopped = true;
                         break;
                     }
-                    Err(e) => run.fail(src, why(&e)),
+                    Err(e) => run.fail(src, why(&e, src)),
                 }
             }
         }
@@ -494,7 +500,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                         run.report.made.push(t.file.clone());
                         run.steps.push(Step::Trashed(t));
                     }
-                    Err(e) => run.fail(item, why(&e)),
+                    Err(e) => run.fail(item, why(&e, item)),
                 }
                 run.item_done();
             }
@@ -509,9 +515,9 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                         run.steps.push(Step::Made(back));
                     }
                     Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                        run.fail(&item.original, "Something with its name is there now.")
+                        run.fail(&item.original, "an item with its name is already where it came from")
                     }
-                    Err(e) => run.fail(&item.original, why(&e)),
+                    Err(e) => run.fail(&item.original, why(&e, &item.original)),
                 }
                 run.item_done();
             }
@@ -520,7 +526,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
             run.cant_undo = true;
             for item in &items {
                 if let Err(e) = trash::remove_tree(item) {
-                    run.fail(item, why(&e));
+                    run.fail(item, why(&e, item));
                 }
                 run.item_done();
             }
@@ -530,7 +536,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
             run.progress.total_items = items.len() as u64;
             for item in &items {
                 if let Err(e) = trash::erase(item) {
-                    run.fail(&item.file, why(&e));
+                    run.fail(&item.file, why(&e, &item.file));
                 }
                 run.item_done();
             }
@@ -546,7 +552,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                         run.report.made.retain(|p| *p == dest);
                     }
                 }
-                Err(e) => run.fail(&dest, why(&e)),
+                Err(e) => run.fail(&dest, why(&e, &dest)),
             }
         }
         Work::NewFile { into, name, template } => {
@@ -560,7 +566,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                     run.steps.push(Step::Made(dest.clone()));
                     run.report.made.push(dest);
                 }
-                Err(e) => run.fail(&dest, why(&e)),
+                Err(e) => run.fail(&dest, why(&e, &dest)),
             }
         }
         Work::Rename { item, to } => {
@@ -570,7 +576,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                     run.steps.push(Step::Moved { now: dest.clone(), was: item.clone() });
                     run.report.made.push(dest);
                 }
-                Err(e) => run.fail(&item, why(&e)),
+                Err(e) => run.fail(&item, why(&e, &item)),
             }
         }
         Work::RenameMany { items, pattern, start } => {
@@ -585,7 +591,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                         run.steps.push(Step::Moved { now: dest.clone(), was: item.clone() });
                         run.report.made.push(dest);
                     }
-                    Err(e) => run.fail(item, why(&e)),
+                    Err(e) => run.fail(item, why(&e, item)),
                 }
                 run.item_done();
             }
@@ -610,7 +616,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                 }
                 Err(e) => {
                     let _ = fs::remove_file(&part);
-                    run.fail(&dest, why(&e));
+                    run.fail(&dest, why(&e, &dest));
                 }
             }
         }
@@ -629,7 +635,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                 }
                 Err(e) => {
                     let _ = trash::remove_tree(&part);
-                    run.fail(&archive, why(&e));
+                    run.fail(&archive, why(&e, &archive));
                 }
             }
         }
@@ -646,7 +652,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                         Step::Made(p) | Step::Moved { now: p, .. } => p.clone(),
                         Step::Trashed(t) => t.original.clone(),
                     };
-                    run.fail(&item, why(&e));
+                    run.fail(&item, why(&e, &item));
                 }
             }
             return run.report;

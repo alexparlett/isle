@@ -556,7 +556,7 @@ impl Component for Displays {
     }
 }
 
-/// "Keep these display settings?", counting down to the compositor's own revert.
+/// "Do you want to keep these display settings?", counting down to the compositor's own revert.
 #[derive(PartialEq)]
 struct KeepOrRevert {
     id: u64,
@@ -597,12 +597,10 @@ impl Component for KeepOrRevert {
                 change.set(None);
             })
         };
-        ui::sheet(
-            320.,
-            vec![ui::alert_text(
-                "Keep these display settings?",
-                &format!("Reverting in {} seconds.", (*left.read()).max(0)),
-            )],
+        ui::alert(
+            "Do you want to keep these display settings?",
+            &format!("Reverting to the previous settings in {} seconds.", (*left.read()).max(0)),
+            Vec::new(),
             vec![("Revert".into(), done(false)), ("Keep".into(), done(true))],
         )
     }

@@ -73,5 +73,6 @@ fn main() {
         return;
     }
     isle_app::init_logging(module_path!());
+    isle_ui::set_alert_icon(isle_apps::icons::Icons::papirus(false).lookup("preferences-system", 64));
     isle_app::run(SPEC, Settings);
 }

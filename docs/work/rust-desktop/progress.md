@@ -2,6 +2,19 @@
 
 ## 2026-10-27
 
+- P15b 15b.3, Finder's alerts and the Copy window (B119): every Isle alert
+  is macOS 11's compact form, 260 wide with the app's icon, centred text,
+  two buttons sharing the width or three and more stacked; a destructive
+  button (Delete, Empty Trash, Replace, Reset) draws red and is never the
+  default. ⌘Q asks nothing: Files closes its windows and quits once its jobs
+  finish. With jobs running and no Files window open, Finder's Copy window
+  shows them, and a name clash asks inside its row (Keep Both the default,
+  ⌥ turns it to Merge for folders). The compositor closes a window's sheets
+  and dialogs with it, so another app's file panel answers cancel when that
+  app goes. Strings are Finder's throughout, failures included ("The
+  operation can't be completed because …"). Proved in the VM: the clash
+  alert, ⌘Q leaving the Copy window with the question, Return keeping both
+  and Files exiting.
 - P15b 15b.3, nothing lost, first half: undoing Put Back trashes the item
   again with its info, where it moved it into the Trash's files unseen;
   undoing a move across filesystems copies back. ⌘Q with a job running asks

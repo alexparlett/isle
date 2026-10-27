@@ -79,7 +79,7 @@ pub(crate) fn open_volume(
         let (mut unlocking, mut alert) = (unlocking, alert);
         match job.await.ok().flatten() {
             Some(Ok(point)) => go(PathBuf::from(point)),
-            Some(Err(why)) => alert.set(Some(Alert::message(format!("“{}” couldn't be mounted.", volume.label), why))),
+            Some(Err(why)) => alert.set(Some(Alert::message(format!("The disk “{}” couldn't be opened.", volume.label), why))),
             None => unlocking.set(Some((volume, None))),
         }
     });
@@ -100,7 +100,7 @@ pub(crate) fn unlock(
         let job = worker.spawn({
             let volume = volume.clone();
             async move {
-                let cleartext = isle_disks::unlock(&volume.path, &passphrase).await.map_err(|_| "That passphrase is wrong.".to_owned())?;
+                let cleartext = isle_disks::unlock(&volume.path, &passphrase).await.map_err(|_| "The password is incorrect.".to_owned())?;
                 if remember && let Err(err) = isle_disks::keyring::save(&volume.uuid, &volume.label, &passphrase).await {
                     tracing::warn!("the passphrase is not kept: {err}");
                 }
@@ -131,7 +131,7 @@ pub(crate) fn eject(shared: &Shared, volume: isle_disks::Volume, force: bool, al
         match job.await {
             Ok(Ok(())) => {}
             Ok(Err((true, _))) => alert.set(Some(Alert::in_use(volume))),
-            Ok(Err((false, why))) => alert.set(Some(Alert::message(format!("“{}” couldn't be ejected.", volume.label), why))),
+            Ok(Err((false, why))) => alert.set(Some(Alert::message(format!("The disk “{}” couldn't be ejected.", volume.label), why))),
             Err(_) => {}
         }
     });
@@ -185,13 +185,13 @@ pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_
         return RenameCheck::Refused("A name can't contain “/”.".into());
     }
     if tab.folder.get(&path.with_file_name(name)).is_some() {
-        return RenameCheck::Refused(format!("“{name}” is already taken. Choose a different name."));
+        return RenameCheck::Refused(format!("The name “{name}” is already taken. Please choose a different name."));
     }
     let to = |n: &str| Work::Rename { item: path.to_owned(), to: n.to_owned() };
     if name.starts_with('.') && !old.starts_with('.') {
         return RenameCheck::Ask(Alert {
-            title: "A name that begins with a dot makes the item hidden.".into(),
-            message: String::new(),
+            title: "Are you sure you want to use a name that begins with a dot?".into(),
+            message: "Names that begin with a dot are hidden.".into(),
             items: Vec::new(),
             buttons: vec![("Cancel".into(), None), (format!("Use “{name}”"), Some(Then::Job(to(name))))],
         });
@@ -202,8 +202,8 @@ pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_
     if warn_extension && !is_dir && !old_ext.is_empty() && new_ext != old_ext {
         let kept = format!("{}{old_ext}", isle_fs::jobs::split_ext(name).0);
         return RenameCheck::Ask(Alert {
-            title: format!("Change the extension from “{old_ext}” to “{new_ext}”?"),
-            message: String::new(),
+            title: format!("Are you sure you want to change the extension from “{old_ext}” to “{new_ext}”?"),
+            message: "If you make this change, your document may open in a different application.".into(),
             items: Vec::new(),
             buttons: vec![(format!("Use {new_ext}"), Some(Then::Job(to(name)))), (format!("Keep {old_ext}"), Some(Then::Job(to(&kept))))],
         });
@@ -215,8 +215,16 @@ pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_
 pub(crate) fn start_job(shared: &Shared, key: isle_app::WindowKey, work: Work, alert: &mut State<Option<Alert>>) {
     let probe = work.clone();
     let short = isle_fs::jobs::short_of_space(&probe);
-    if let Some((needed, free, into)) = short {
-        alert.set(Some(Alert::no_space(&into, needed, free)));
+    if let Some((needed, free, _)) = short {
+        let items: &[PathBuf] = match &probe {
+            Work::Copy { items, .. } | Work::Move { items, .. } | Work::Duplicate { items } => items,
+            _ => &[],
+        };
+        let what = match items {
+            [one] => format!("“{}”", crate::sheets::name(one)),
+            _ => "The items".into(),
+        };
+        alert.set(Some(Alert::no_space(&what, crate::jobs::verb(&work), needed.saturating_sub(free))));
         return;
     }
     let (title, undo_label) = crate::jobs::title(&work);

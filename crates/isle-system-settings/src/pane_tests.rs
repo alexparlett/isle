@@ -365,13 +365,13 @@ fn displays_shows_the_selected_screens_rows_and_asks_to_keep_a_change() {
     change.set(Some(7));
     settle(&mut test);
     assert!(
-        shows(&test, "Keep these display settings?"),
+        shows(&test, "Do you want to keep these display settings?"),
         "{:?}",
         labels(&test)
     );
     click(&mut test, "Keep");
     assert!(handles.acts().contains(&Act::Keep(7)));
-    assert!(!shows(&test, "Keep these display settings?"));
+    assert!(!shows(&test, "Do you want to keep these display settings?"));
 }
 
 #[test]
@@ -389,7 +389,7 @@ fn a_scale_applies_at_once_without_asking() {
         "output[Dell U2723 1].scale".into(),
         Value::Float(1.5)
     )));
-    assert!(!shows(&test, "Keep these display settings?"));
+    assert!(!shows(&test, "Do you want to keep these display settings?"));
 }
 
 #[test]

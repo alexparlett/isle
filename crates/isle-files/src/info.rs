@@ -518,12 +518,10 @@ impl Component for OneItem {
             let app = f.apps.get(*chosen_app.read()).cloned();
             let (kind, changed) = (f.kind.clone(), self.changed.clone());
             let name = app.as_ref().map(|a| a.name.clone()).unwrap_or_default();
-            isle_ui::sheet(
-                t.size_form_narrow,
-                vec![isle_ui::alert_text(
-                    &format!("Change all similar documents to open with {name}?"),
-                    "This change applies to every document of this kind.",
-                )],
+            isle_ui::alert(
+                &format!("Are you sure you want to change all similar documents to open with the application “{name}”?"),
+                "This change will apply to all documents of this kind.",
+                Vec::new(),
                 vec![
                     ("Cancel".into(), EventHandler::new(move |_| asking.set(false))),
                     (

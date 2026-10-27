@@ -1002,7 +1002,7 @@ pub fn sub_header(glyph: &str, name: &str, subtitle: &str) -> Element {
         .into_element()
 }
 
-pub use isle_ui::{alert_text, sheet};
+pub use isle_ui::{alert, alert_text, sheet};
 
 #[cfg(test)]
 mod tests {

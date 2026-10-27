@@ -604,6 +604,32 @@ async fn a_panel_is_a_sheet_on_the_asking_window() {
     isle.chord(&[ENTER]).await;
     let (response, _) = asked.await.unwrap();
     assert_eq!(response, 0);
+
+    // Asked again, then the asking app goes: the panel answers cancel and goes with it.
+    let frontend = zbus::connection::Builder::address(isle.bus_address().as_str()).unwrap().build().await.unwrap();
+    frontend.request_name("org.freedesktop.portal.Desktop").await.unwrap();
+    let mut options = std::collections::HashMap::new();
+    options.insert("directory".to_owned(), owned(true));
+    let asked = tokio::spawn(async move {
+        frontend
+            .call_method(
+                Some("org.freedesktop.impl.portal.desktop.isle"),
+                "/org/freedesktop/portal/desktop",
+                Some("org.freedesktop.impl.portal.FileChooser"),
+                "OpenFile",
+                &(zbus::zvariant::ObjectPath::try_from("/org/freedesktop/portal/desktop/request/1_1/t").unwrap(), "isle.test.Red", parent_handle, "Choose a folder", options),
+            )
+            .await
+            .unwrap()
+            .body()
+            .deserialize::<(u32, std::collections::HashMap<String, zbus::zvariant::OwnedValue>)>()
+            .unwrap()
+    });
+    wait_until(|| async { isle.windows().await.into_iter().any(|w| w.app_id == APP && w.parent == parent) }).await;
+    std::process::Command::new("kill").arg(asking.pid().to_string()).status().unwrap();
+    let (response, _) = asked.await.unwrap();
+    assert_eq!(response, 1, "cancelled");
+    wait_until(|| async { !isle.windows().await.into_iter().any(|w| w.app_id == APP && w.parent == parent) }).await;
 }
 
 const SPACE: u32 = 57;
@@ -1013,22 +1039,21 @@ async fn hidden_files_shown_are_kept_across_launches() {
     wait_until(|| async { home.join("Documents/.hidden").exists() }).await;
 }
 
-const KEY_W: u32 = 17;
 const KEY_Q: u32 = 16;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_question_outlives_its_window_and_quit_asks_while_it_waits() {
+async fn a_question_outlives_its_window_in_the_copy_window_and_quit_waits_for_it() {
     let Some(bin) = files_bin() else {
         eprintln!("skipped: build isle-files first");
         return;
     };
-    let mut isle = Isle::start("files-alone").await;
+    let mut isle = Isle::start("files-copy-window").await;
     let (app, home) = start_files(&mut isle, &bin, &[]);
     isle.wait_for_window(APP).await;
     app.wait_for_part("serving FileManager1").await;
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    // A copy onto a taken name waits on its question, shown as a sheet.
+    // A copy onto a taken name waits on its question, shown as an alert on the window.
     std::fs::write(home.join("Documents/notes.md"), "old\n").unwrap();
     reveal(&isle, &app, &home.join("notes.md")).await;
     isle.chord(&[SUPER, KEY_C]).await;
@@ -1036,26 +1061,17 @@ async fn a_question_outlives_its_window_and_quit_asks_while_it_waits() {
     tokio::time::sleep(std::time::Duration::from_millis(400)).await;
     isle.chord(&[SUPER, KEY_V]).await;
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("files-question-alert").await;
 
-    // The window closes; the question becomes a window of its own and the app stays.
-    isle.chord(&[SUPER, KEY_W]).await;
-    wait_until(|| async {
-        let ws: Vec<_> = isle.windows().await.into_iter().filter(|w| w.app_id == APP).collect();
-        ws.len() == 1 && ws[0].height < 300
-    })
-    .await;
-    isle.keep_shot("files-alone-question").await;
-    assert!(!app.exited());
-
-    // ⌘Q asks in a window of its own; Escape cancels, and the app keeps running.
+    // ⌘Q closes the window; with the question waiting, the Copy window asks it.
     isle.chord(&[SUPER, KEY_Q]).await;
-    wait_until(|| async { isle.windows().await.into_iter().filter(|w| w.app_id == APP).count() == 2 }).await;
-    isle.keep_shot("files-alone-quit").await;
-    isle.chord(&[ESC]).await;
-    wait_until(|| async { isle.windows().await.into_iter().filter(|w| w.app_id == APP).count() == 1 }).await;
+    wait_until(|| async { isle.windows().await.into_iter().any(|w| w.app_id == APP && w.title == "Copy") }).await;
+    assert_eq!(isle.windows().await.into_iter().filter(|w| w.app_id == APP).count(), 1, "only the Copy window");
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("files-copy-window").await;
     assert!(!app.exited());
 
-    // Return in the question takes its default, Keep Both; with nothing left, Files ends.
+    // Return takes Keep Both; the job ends and Files with it.
     isle.chord(&[ENTER]).await;
     wait_until(|| async { home.join("Documents/notes 2.md").exists() }).await;
     wait_until(|| async { app.exited() }).await;

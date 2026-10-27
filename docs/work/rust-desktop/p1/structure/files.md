@@ -482,10 +482,10 @@ Finder's panes:
 | Error: no permission | "You don't have permission to see the contents of “{folder}”." in the content |
 | Error: folder gone | "“{folder}” was moved or deleted." with Go to Enclosing Folder; tabs on an ejected volume move to the new-window folder |
 | Slow volume | A network folder that answers slowly shows the frame and the mark after the wait; the window keeps answering (`apps.md` acceptance bar 4) |
-| Work in flight | Writing items dimmed with bars; the jobs button; the switcher card's progress; ⌘Q asks (`conventions.md`) |
+| Work in flight | Writing items dimmed with bars; the jobs button; the switcher card's progress; ⌘Q closes the windows and Files quits when the work ends (`conventions.md`) |
 | A job waiting | Its question as a sheet; Files marked in the switcher and the island's attention event while not in front |
 | A job failed part way | One alert at the end listing the failures |
-| No window, job running | Files stays running with its background mark and progress in the switcher; activating it opens a window with the jobs popover open |
+| No window, job running | Files stays running with its progress in the switcher; a second on, the Copy window opens (Finder's): each job's progress and Stop, a name clash asked in its row, a failure told there. After ⌘Q it opens only to ask or to report a failure |
 | No window focused | The on-demand bar shows Files' name and fallback menus without starting Files (`menu-bar.md` For the user 1) |
 | Narrow window | The toolbar folds; the preview, then the sidebar, collapse; a panel clamps to its parent down to its minimum |
 | Quick Look open | Its window over the caller; the caller keeps the keyboard |
@@ -677,13 +677,13 @@ in sentence case.
 | Titles and counts | "{n} items", "1 item", "{n} items, {free} available", "Searching “{folder}”", "{n} of {total}"; the jobs button "File jobs: {n} running", "…, waiting for you", "…, failed" |
 | Search | "This folder", "Everything under “{folder}”", "Home", "Kind", "Last modified", "Contents contain", "Save" |
 | Empty | "No items", "No recent files", "No items in Trash", "No results for “{query}”" |
-| Errors | "You don't have permission to see the contents of “{folder}”.", "“{folder}” was moved or deleted.", "Go to Enclosing Folder", "“{name}” is already taken. Choose a different name.", "“{volume}” doesn't have enough space." with "{needed} is needed and {free} is available." and "Free up space or choose another location.", "{n} items couldn't be copied.", "“{volume}” is in use and can't be ejected." with "Quit the apps using it and try again." |
-| Jobs | "Copying {n} items to “{folder}”", "Moving {n} items to “{folder}”", "Waiting", "{n} of {total}, about {time}", notification "Copied {n} items to “{folder}”", "Copied {n} of {total} items to “{folder}”", "Show", "Try Again", "Done" |
-| Name taken | "An item named “{name}” already exists in “{folder}”.", "Apply to all", "Stop", "Keep Both", "Merge", "Replace" |
-| Trash | "Permanently erase {n} items in the Trash?", "You can't undo this.", "Empty Trash", "Empty Trash…", "Delete {n} items" |
-| Rename asks | "A name that begins with a dot makes the item hidden.", "Change the extension from “.{old}” to “.{new}”?", "Keep .{old}", "Use .{new}" |
-| Volumes | "Eject", "Force Eject", "Try Again", "Remember in Keychain" |
-| Panels | "Open", "Choose", "Save", "Cancel", "Save As:", "Where:", "Format:", "Show:", "New Folder", "An item named “{name}” already exists in “{folder}”.", "Replacing it overwrites it.", "Replace" |
+| Errors | "The folder “{folder}” can't be opened because you don't have permission to see its contents.", "The folder “{folder}” can't be found.", "Go to Enclosing Folder", "The name “{name}” is already taken. Please choose a different name.", "“{name}” can't be {copied} because there isn't enough free space." with "You need an additional {size} of free space.", "The operation can't be completed because {reason}.", "The operation can't be completed because {n} items couldn't be {copied}.", "The disk “{volume}” wasn't ejected because one or more programs may be using it." with "To eject the disk immediately, click the Force Eject button.", "The disk “{volume}” couldn't be opened.", "The disk “{volume}” couldn't be ejected." (B119) |
+| Jobs | "Copying {n} items to “{folder}”", "Moving {n} items to “{folder}”", "Creating a folder", "Renaming “{name}”", "Expanding “{name}”", "Waiting…", "{done} of {total} — About {n} minutes", the Copy window "Copy", notification "Copied {n} items to “{folder}”", "Copied {n} of {total} items to “{folder}”", "Show", "Try Again", "OK" |
+| Name taken | "A newer item named “{name}” already exists in this location." (or "An older item", "An item") with "Do you want to replace it with the older one you're copying?" (moving), "Apply to all", "Stop", "Replace", "Keep Both" (default), ⌥ "Merge" for folders |
+| Trash | "Are you sure you want to permanently erase the items in the Trash?", "You can't undo this action.", "Empty Trash", "Empty Trash…", "Are you sure you want to delete “{name}”?" with "This item will be deleted immediately. You can't undo this action.", "Are you sure you want to delete these {n} items?" |
+| Rename asks | "Are you sure you want to use a name that begins with a dot?" with "Names that begin with a dot are hidden.", "Are you sure you want to change the extension from “.{old}” to “.{new}”?" with "If you make this change, your document may open in a different application.", "Keep .{old}" (default), "Use .{new}" |
+| Volumes | "Eject", "Force Eject", "Try Again", "Enter a password to unlock the disk “{volume}”.", "Password", "Remember this password in my keychain", "The password is incorrect." |
+| Panels | "Open", "Choose", "Save", "Cancel", "Save As:", "Where:", "Format:", "Show:", "New Folder", "“{name}” already exists. Do you want to replace it?" with "A file or folder with the same name already exists in the folder {folder}. Replacing it will overwrite its current contents.", "Replace" |
 | Quick Look | "Open with {app}", "Markup", "Rotate Left", "Trim", "Done", "Revert", "Don't Save", "Save" |
 | Preview | "Information", "Calculating…" |
 | Get Info | "{name} Info", "General", "More Info", "Name & Extension", "Comments", "Open with", "Change All…", "Preview", "Sharing & Permissions", "Read & Write", "Read only", "No access", "Allow running as a program" |

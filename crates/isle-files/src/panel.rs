@@ -42,12 +42,6 @@ fn has_options(ask: &Ask) -> bool {
     (!ask.filters.is_empty() && !ask.directory) || !ask.choices.is_empty()
 }
 
-/// An alert's width, for an alert that is a window of its own.
-pub fn alert_width() -> f64 {
-    let theme = isle_tokens::Source::shipped().theme(&isle_tokens::Appearance::default()).expect("the shipped tokens resolve");
-    theme.tokens.size_alert as f64
-}
-
 pub fn sizes() -> &'static Sizes {
     static SIZES: std::sync::OnceLock<Sizes> = std::sync::OnceLock::new();
     SIZES.get_or_init(|| {
@@ -644,18 +638,25 @@ impl App for PanelWindow {
         let replace = replacing.read().clone().map(|(names, paths)| {
             let finish = finish.clone();
             let place = folder.as_deref().map(places::folder_name).unwrap_or_default();
-            let title = match names.as_slice() {
-                [one] => format!("An item named “{one}” already exists in “{place}”."),
-                many => format!("{} items with these names already exist in “{place}”.", many.len()),
+            let (title, message) = match names.as_slice() {
+                [one] => (
+                    format!("“{one}” already exists. Do you want to replace it?"),
+                    format!("A file or folder with the same name already exists in the folder {place}. Replacing it will overwrite its current contents."),
+                ),
+                many => (
+                    format!("{} items already exist. Do you want to replace them?", many.len()),
+                    format!("Items with the same names already exist in the folder {place}. Replacing them will overwrite their current contents."),
+                ),
             };
-            // Collapsed Save has no toolbar band to hang the sheet under.
-            isle_ui::sheet_under(
+            // Collapsed Save has no toolbar band to hang the alert under.
+            isle_ui::alert_under(
                 if saving_collapsed { 0. } else { t.size_toolbar },
-                t.size_alert,
-                vec![isle_ui::alert_text(&title, "Replacing it overwrites it.")],
+                &title,
+                &message,
+                Vec::new(),
                 vec![
-                    ("Replace".into(), EventHandler::new(move |_| finish(paths.clone()))),
-                    ("Cancel".into(), EventHandler::new(move |_| replacing.set(None))),
+                    isle_ui::AlertButton::destructive("Replace", EventHandler::new(move |_| finish(paths.clone()))),
+                    ("Cancel".to_owned(), EventHandler::new(move |_| replacing.set(None))).into(),
                 ],
             )
         });

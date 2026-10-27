@@ -1,9 +1,9 @@
 //! Files (`docs/design/apps.md` Files; `p1/structure/files.md`).
 
-mod alone;
 mod bars;
 mod chooser;
 mod columns_view;
+mod copy_window;
 mod commands;
 mod files1;
 mod fm1;
@@ -97,6 +97,10 @@ pub struct Shared {
     pub saved: State<Vec<search::Search>>,
     /// The front window's selection, which the Inspector follows.
     pub selection: State<Vec<PathBuf>>,
+    /// The Copy window, while it is open.
+    copy: Cell<Option<WindowKey>>,
+    /// ⌘Q was pressed with work in flight: Files quits when it ends.
+    quitting: Cell<bool>,
     /// Get Info's sections closed, in every Get Info window.
     info_collapsed: State<Vec<String>>,
     /// The Inspector's window while it is open.
@@ -205,60 +209,48 @@ impl Shared {
             self.save();
             return;
         }
-        // The last window gone, a question it was showing gets a window of its own.
-        let waiting: Vec<u64> = self.jobs.questions.peek().iter().map(|q| q.job).collect();
-        for job in waiting {
-            self.ask_alone(alone::Alone::Question(job));
-        }
+        self.copy_window_check();
     }
 
-    /// Whether ⌘Q quits now: with work in flight it asks on the front window, or in a window
-    /// of its own with none open, and quits from there (`conventions.md`, Conventions 5).
-    pub fn quit_asks(&self) -> bool {
-        let running: Vec<String> = self
-            .jobs
-            .list
-            .peek()
-            .iter()
-            .filter(|j| matches!(j.state, jobs::JobState::Running | jobs::JobState::Waiting))
-            .map(|j| j.title.clone())
-            .collect();
-        let Some(first) = running.first() else { return true };
-        let work = match running.len() {
-            1 => first.clone(),
-            n => format!("{first}, and {} more", n - 1),
-        };
-        let alert = sheets::Alert::quit(&work);
-        let front = self.front_window().and_then(|k| self.windows.borrow().get(&k).copied());
-        match front {
-            Some(mut link) => link.inbox.write().push(Open::Alert(alert)),
-            None => self.ask_alone(alone::Alone::Alert(alert)),
+    /// Whether ⌘Q quits now. With work in flight the windows close and Files quits when
+    /// the last job ends; the Copy window comes back only to ask or to report a failure.
+    pub fn quit_when_done(&self) -> bool {
+        let busy = self.jobs.list.peek().iter().any(|j| matches!(j.state, jobs::JobState::Running | jobs::JobState::Waiting));
+        if !busy {
+            return true;
+        }
+        self.quitting.set(true);
+        let app = self.app();
+        for key in app.windows() {
+            app.close(key);
         }
         false
     }
 
-    /// Stops every job running and quits.
-    pub fn quit_now(&self) {
-        for job in self.jobs.list.peek().iter() {
-            job.stop.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    /// Opens the Copy window a second after jobs are left with no Files window to show
+    /// them, unless one has come back or the jobs have ended.
+    pub fn copy_window_check(&self) {
+        let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
+        if !self.copy_window_wanted() {
+            return;
         }
-        self.app().exit();
+        self.app().spawn(async move {
+            jobs::async_sleep(std::time::Duration::from_secs(1)).await;
+            if shared.copy_window_wanted() {
+                let height = copy_window::height(&shared.jobs.list.peek(), &shared.jobs.questions.peek());
+                let spec = WindowSpec::new("Copy", (copy_window::WIDTH, height), (360., 60.));
+                let key = shared.app().open(spec, copy_window::CopyWindow { shared: shared.clone() });
+                shared.copy.set(Some(key));
+            }
+        });
     }
 
-    /// Opens an alert or a job's question as a window of its own.
-    pub fn ask_alone(&self, what: alone::Alone) {
-        let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
-        let width = panel::alert_width();
-        let height = match &what {
-            alone::Alone::Alert(_) => 125.,
-            // Apply to all takes a row of its own when more names are taken.
-            alone::Alone::Question(job) => {
-                let more = self.jobs.questions.peek().iter().any(|q| q.job == *job && q.conflict.more);
-                if more { 185. } else { 150. }
-            }
-        };
-        let spec = WindowSpec::new("Files", (width, height), (width, height));
-        self.app().open(spec, alone::AloneWindow { shared, what });
+    fn copy_window_wanted(&self) -> bool {
+        let app = self.app();
+        let open = self.copy.get().is_some_and(|k| app.windows().contains(&k));
+        let list = self.jobs.list.peek();
+        let asks = !self.jobs.questions.peek().is_empty() || list.iter().any(|j| matches!(j.state, jobs::JobState::Failed(_)));
+        !open && self.window_keys().is_empty() && !list.is_empty() && (!self.quitting.get() || asks)
     }
 
     pub fn window_keys(&self) -> Vec<WindowKey> {
@@ -616,7 +608,7 @@ impl Delegate for Files {
     }
 
     fn quit(&self, _: &AppHandle) -> bool {
-        self.shared.quit_asks()
+        self.shared.quit_when_done()
     }
 
     fn request(&self, app: &AppHandle, request: Request) {
@@ -753,6 +745,7 @@ fn main() {
         return;
     }
     isle_app::init_logging(module_path!());
+    isle_ui::set_alert_icon(isle_apps::icons::Icons::papirus(false).lookup("system-file-manager", 64));
     if !in_isle() {
         info!("not an Isle session; Files is Isle's");
         return;
@@ -777,6 +770,8 @@ fn main() {
         hidden: State::create_global(memory.hidden),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
+        copy: Cell::new(None),
+        quitting: Cell::new(false),
         jobs: jobs::Jobs::new(),
         cut: State::create_global(Vec::new()),
         locations: volumes::Locations::new(),

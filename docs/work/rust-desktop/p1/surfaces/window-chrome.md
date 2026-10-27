@@ -155,14 +155,15 @@ apart, default trailing in `colour-accent`.
 flush under the parent's bar, centred, `shadow-window`; the parent's
 content under `colour-scrim`, bar clear; it moves with the parent.
 
-**Alert.** A sheet 320 wide (more at large text), its content centred:
-title `type-style-headline` in `colour-text`, one line of informative text
-in `type-style-callout`, `colour-text-2`, `space-xs` under it, wrapping,
-never cut: "one line" is a length for the copy, not a clip; buttons
-`space-l` below, side by side and equal width, default trailing. A
-destructive button uses `colour-danger-text` and is never default. A
-caution glyph (Phosphor `warning`, 32, `colour-warn`) only above the title
-of an alert about what cannot be undone.
+**Alert.** macOS 11's compact alert (B119): a sheet `size-alert-compact`
+(260) wide on `colour-window-raised`, `radius-alert`, its content centred:
+the app's icon at `size-alert-icon` (56); the title in
+`type-style-headline`, `colour-text`, wrapping; the informative text in
+`type-style-callout`, `colour-text-2`, wrapping, never cut; a check box
+(Apply to all) under them, leading; then the buttons across the width. Two
+buttons share it, default trailing; three or more stack, the default
+first and Cancel or Stop last. Return presses the default, Escape Cancel.
+A destructive button uses `colour-danger-text` and is never default.
 
 - Not responding, on close: drawn by the compositor as this alert on the
   frozen window: "{app} is not responding", "You will lose any unsaved

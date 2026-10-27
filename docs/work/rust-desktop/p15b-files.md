@@ -132,9 +132,10 @@ and shortcut. Polish comes after those, and is cuttable.
 
 14. **Nothing is lost silently.** Undoing Put Back writes the
     `.trashinfo` back; undoing a move across volumes copies and deletes; ⌘Q
-    with a job running asks (Delegate::quit); a question with no Files
-    window opens a small window of its own; closing the parent app cancels
-    its panel; closing Quick Look with unsaved Markup asks Don't Save,
+    with a job running closes the windows and lets it finish, and a job with
+    no Files window shows in the Copy window (B119, revised at the board
+    `Files alerts and Copy` from asking first); closing the parent app
+    cancels its panel; closing Quick Look with unsaved Markup asks Don't Save,
     Cancel, Save; Markup takes the keyboard while on, so its text tool
     types and ⌘Z undoes a stroke.
 

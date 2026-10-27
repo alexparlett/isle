@@ -182,22 +182,13 @@ impl Component for ControlCentre {
                 el.child(ClockOptions { at: at.clone() })
             })
             .maybe(sheet.as_deref() == Some("Reset Control Centre…"), |el| {
-                el.child(ui::sheet(
-                    360.,
-                    vec![ui::alert_text(
-                        "Reset Control Centre?",
-                        "The island and Control Centre go back to how they first were.",
-                    )],
+                el.child(ui::alert(
+                    "Are you sure you want to reset Control Centre?",
+                    "The island and Control Centre go back to how they first were.",
+                    Vec::new(),
                     vec![
-                        (
-                            "Cancel".into(),
-                            EventHandler::new({
-                                let at = at.clone();
-                                move |_| super::close(nav, &at)
-                            }),
-                        ),
-                        (
-                            "Reset".into(),
+                        isle_ui::AlertButton::destructive(
+                            "Reset",
                             EventHandler::new({
                                 let at = at.clone();
                                 move |_| {
@@ -208,6 +199,14 @@ impl Component for ControlCentre {
                                 }
                             }),
                         ),
+                        (
+                            "Cancel".to_owned(),
+                            EventHandler::new({
+                                let at = at.clone();
+                                move |_| super::close(nav, &at)
+                            }),
+                        )
+                            .into(),
                     ],
                 ))
             })

@@ -101,10 +101,21 @@ fn hex((r, g, b): Rgb) -> String {
     format!("#{r:02x}{g:02x}{b:02x}")
 }
 
+/// A mark's line width on a `width` by `height` image.
+fn line_of(width: f32, height: f32) -> f32 {
+    (width.max(height) / 320.).max(2.)
+}
+
+/// Text's size on a `width` by `height` image.
+pub fn text_size(width: f32, height: f32) -> f32 {
+    line_of(width, height) * 9.
+}
+
 /// The marks as an SVG over a `width` by `height` image; `preview` draws redactions as frosted
-/// boxes and the crop as a veil outside it, which Done renders for real instead.
+/// boxes and the crop as a veil outside it, which Done renders for real instead, and leaves
+/// text to the view, as Freya's SVGs have no fonts.
 pub fn svg(edits: &Edits, width: f32, height: f32, preview: bool) -> String {
-    let line = (width.max(height) / 320.).max(2.);
+    let line = line_of(width, height);
     let mut out = format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">"#
     );
@@ -139,8 +150,9 @@ pub fn svg(edits: &Edits, width: f32, height: f32, preview: bool) -> String {
                     _ => format!(r#"<line x1="{}" y1="{}" x2="{}" y2="{}" {stroke} stroke-linecap="round"/>"#, from.0, from.1, to.0, to.1),
                 });
             }
+            Mark::Text { .. } if preview => {}
             Mark::Text { colour, at, text } => {
-                let size = line * 9.;
+                let size = text_size(width, height);
                 let escaped = text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
                 out.push_str(&format!(
                     r#"<text x="{}" y="{}" font-family="Inter, sans-serif" font-size="{size}" font-weight="600" fill="{}">{escaped}</text>"#,

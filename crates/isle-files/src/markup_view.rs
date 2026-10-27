@@ -10,6 +10,7 @@ use isle_ui::{Glyph, Popover, colour, text, use_theme};
 
 use crate::{
     markup::{self, Edits, Mark, Point, Rgb, TOOLS, Tool},
+    quicklook::Leave,
     window::off_thread,
 };
 
@@ -36,8 +37,14 @@ fn png(image: &DynamicImage) -> Option<Bytes> {
 #[derive(PartialEq)]
 pub struct MarkupView {
     pub path: PathBuf,
+    /// Set while there are changes not yet saved.
+    pub dirty: State<bool>,
+    /// Asks whether to save the changes before this.
+    pub leaving: State<Option<Leave>>,
     /// Markup ended: true once Done wrote the file.
     pub on_end: EventHandler<bool>,
+    /// The question was answered with Save or Don't Save.
+    pub on_leave: EventHandler<Leave>,
 }
 
 impl Component for MarkupView {
@@ -66,10 +73,21 @@ impl Component for MarkupView {
         let mut ink = use_state(|| palette[0].0);
         let mut picking = use_state(|| false);
         let mut drawing = use_state(|| None::<Mark>);
-        let mut writing = use_state(|| None::<Point>);
+        // Where text goes, in the image and on the canvas.
+        let mut writing = use_state(|| None::<(Point, (f32, f32))>);
+        // Pressed with the Text tool; the field opens on release, which would blur it.
+        let mut placing = use_state(|| None::<(Point, (f32, f32))>);
         let typed = use_state(String::new);
         let mut area = use_state(|| (0f32, 0f32, 0f32, 0f32));
         let saving = use_state(|| false);
+        let (mut dirty, mut leaving) = (self.dirty, self.leaving);
+        use_side_effect(move || {
+            let changed = !edits.read().is_empty();
+            if *dirty.peek() != changed {
+                dirty.set(changed);
+            }
+        });
+        use_drop(move || dirty.set(false));
         use_hook({
             let path = self.path.clone();
             move || {
@@ -104,7 +122,8 @@ impl Component for MarkupView {
             let started = match *tool.peek() {
                 Tool::Pen | Tool::Highlighter => Some(Mark::Stroke { tool: *tool.peek(), colour, points: vec![at] }),
                 Tool::Text => {
-                    writing.set(Some(at));
+                    let (ax, ay, _, _) = *area.peek();
+                    placing.set(Some((at, (e.global_location.x as f32 - ax, e.global_location.y as f32 - ay))));
                     None
                 }
                 Tool::Redact | Tool::Crop => Some(Mark::Redact { from: at, to: at }),
@@ -126,6 +145,10 @@ impl Component for MarkupView {
             }
         };
         let finish = move |_: Event<PointerEventData>| {
+            if let Some(place) = placing.write().take() {
+                writing.set(Some(place));
+                return;
+            }
             let Some(done) = drawing.write().take() else { return };
             let mut next = edits.peek().clone();
             match (done, *tool.peek()) {
@@ -163,16 +186,17 @@ impl Component for MarkupView {
                 }
             });
         };
-        let done = {
-            let (path, on_end) = (self.path.clone(), self.on_end.clone());
-            move || {
+        // Writes the changes, then ends Markup and does what waited on them.
+        let save = {
+            let (path, on_end, on_leave) = (self.path.clone(), self.on_end.clone(), self.on_leave.clone());
+            move |then: Option<Leave>| {
                 let mut saving = saving;
                 if edits.peek().is_empty() {
                     on_end.call(false);
                     return;
                 }
                 // Done renders from the file, the turns with the marks.
-                let (all, original, on_end) = (edits.peek().clone(), path.clone(), on_end.clone());
+                let (all, original, on_end, on_leave) = (edits.peek().clone(), path.clone(), on_end.clone(), on_leave.clone());
                 saving.set(true);
                 spawn(async move {
                     let wrote = off_thread(move || {
@@ -183,11 +207,31 @@ impl Component for MarkupView {
                     .await;
                     saving.set(false);
                     match wrote {
-                        Some(Ok(())) => on_end.call(true),
+                        Some(Ok(())) => {
+                            on_end.call(true);
+                            if let Some(then) = then {
+                                on_leave.call(then);
+                            }
+                        }
                         Some(Err(err)) => tracing::warn!("Markup was not saved: {err}"),
                         None => {}
                     }
                 });
+            }
+        };
+
+        let undo = move || {
+            let mut edits = edits;
+            let mut next = edits.peek().clone();
+            if next.marks.pop().is_none() {
+                next.crop = None;
+            }
+            edits.set(next);
+        };
+        let on_key = move |e: Event<KeyboardEventData>| {
+            let typing = writing.peek().is_some() || leaving.peek().is_some();
+            if !typing && e.modifiers == Modifiers::META && e.key == Key::Character("z".into()) {
+                undo();
             }
         };
 
@@ -260,14 +304,7 @@ impl Component for MarkupView {
             )
             .children(TOOLS.into_iter().map(tool_button))
             .child(rect().width(Size::px(t.space_l)))
-            .child(crate::toolbar::icon_button(&theme, "arrow-counter-clockwise", "Undo", !edits.read().is_empty(), false, move || {
-                let mut edits = edits;
-                let mut next = edits.peek().clone();
-                if next.marks.pop().is_none() {
-                    next.crop = None;
-                }
-                edits.set(next);
-            }))
+            .child(crate::toolbar::icon_button(&theme, "arrow-counter-clockwise", "Undo", !edits.read().is_empty(), false, undo))
             .child(crate::toolbar::icon_button(&theme, "arrow-arc-left", "Rotate Left", true, false, rotate))
             .child(rect().width(Size::px(t.space_l)))
             .child(colour_picker)
@@ -277,7 +314,10 @@ impl Component for MarkupView {
                 isle_ui::Button::new(if *saving.read() { "Saving…" } else { "Done" })
                     .kind(isle_ui::button::Kind::Default)
                     .enabled(!*saving.read())
-                    .on_press(move |_| done()),
+                    .on_press({
+                        let save = save.clone();
+                        move |_| save(None)
+                    }),
             );
 
         let canvas = base.read().clone().map(|current| {
@@ -289,6 +329,27 @@ impl Component for MarkupView {
                 h.finish().to_string()
             };
             let fill = || rect().position(Position::new_absolute().top(0.).left(0.)).width(Size::fill()).height(Size::fill());
+            // Text marks as labels where the SVG would put them, its `y` their baseline.
+            let (_, _, aw, ah) = *area.read();
+            let (w, h) = current.size;
+            let scale = (aw / w).min(ah / h);
+            let (ox, oy) = ((aw - w * scale) / 2., (ah - h * scale) / 2.);
+            let size = markup::text_size(w, h) * scale;
+            let words = preview.marks.iter().filter_map(|mark| {
+                let Mark::Text { colour: (r, g, b), at, text } = mark else { return None };
+                Some(
+                    label()
+                        .position(Position::new_absolute().left(ox + at.0 * scale).top(oy + at.1 * scale - size * 0.8))
+                        .layer(Layer::Overlay)
+                        .font_family("Inter")
+                        .font_size(size)
+                        .font_weight(600)
+                        .line_height(1.)
+                        .color(Color::from_rgb(*r, *g, *b))
+                        .text(text.clone())
+                        .into_element(),
+                )
+            });
             rect()
                 .expanded()
                 .on_sized(move |e: Event<SizedEventData>| {
@@ -300,9 +361,10 @@ impl Component for MarkupView {
                 .on_global_pointer_up(finish)
                 .child(fill().child(ImageViewer::new(current.shown.clone()).expanded().aspect_ratio(AspectRatio::Min).image_cover(ImageCover::Center)))
                 .child(fill().layer(Layer::Overlay).child(SvgViewer::new((key, Bytes::from(layer))).show_loader(false).expanded()))
+                .children(words)
                 .into_element()
         });
-        let text_entry = (*writing.read()).map(|at| {
+        let text_entry = (*writing.read()).map(|(at, (x, y))| {
             let submit = move |text: String| {
                 let text = text.trim().to_owned();
                 if !text.is_empty() {
@@ -314,8 +376,9 @@ impl Component for MarkupView {
                 let mut typed = typed;
                 typed.set(String::new());
             };
+            let (_, _, aw, ah) = *area.read();
             rect()
-                .position(Position::new_absolute().top(t.space_l).left(t.space_l))
+                .position(Position::new_absolute().top(y.min(ah - 80.).max(0.)).left(x.min(aw - 280.).max(0.)))
                 .layer(Layer::Overlay)
                 .padding(t.space_s)
                 .corner_radius(t.radius_card)
@@ -330,9 +393,28 @@ impl Component for MarkupView {
                 )
                 .into_element()
         });
+        let asking = (*leaving.read()).map(|then| {
+            let name = self.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let on_leave = self.on_leave.clone();
+            isle_ui::alert(
+                &format!("Do you want to save the changes made to the document “{name}”?"),
+                "Your changes will be lost if you don't save them.",
+                Vec::new(),
+                vec![
+                    ("Don't Save".to_owned(), EventHandler::new(move |_| on_leave.call(then))),
+                    ("Cancel".to_owned(), EventHandler::new(move |_| leaving.set(None))),
+                    ("Save".to_owned(), EventHandler::new(move |_| {
+                        leaving.set(None);
+                        save(Some(then));
+                    })),
+                ],
+            )
+        });
         rect()
             .expanded()
             .content(Content::flex())
+            .on_global_key_down(on_key)
+            .maybe_child(asking)
             .child(row)
             .child(rect().width(Size::fill()).height(Size::flex(1.)).padding(t.space_l).child(rect().expanded().maybe_child(canvas).maybe_child(text_entry)))
     }

@@ -2,6 +2,16 @@
 
 ## 2026-10-27
 
+- P15b 15b.3, Markup: it takes the keyboard while on, so Space and the
+  arrows no longer close or step Quick Look under it, ⌘Z undoes a mark, and
+  the Text tool's field opens where it is clicked and keeps its focus (it
+  opened on the press and lost it on the release). Text shows on the canvas
+  as it will be saved. Closing Quick Look, turning Markup off or quitting
+  with changes asks "Do you want to save the changes made to the document
+  …?", Save the default, Don't Save, Cancel. Apps can now guard a window's
+  close (`AppHandle::guard_close`, Freya's close veto), which ⌘W and the
+  close button honour. Proved in the VM: a stroke undone, Space ignored,
+  "hello" typed and saved after Cancel then Return.
 - P15b 15b.3, Finder's alerts and the Copy window (B119): every Isle alert
   is macOS 11's compact form, 260 wide with the app's icon, centred text,
   two buttons sharing the width or three and more stacked; a destructive

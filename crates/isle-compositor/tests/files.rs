@@ -1040,6 +1040,7 @@ async fn hidden_files_shown_are_kept_across_launches() {
 }
 
 const KEY_Q: u32 = 16;
+const KEY_W: u32 = 17;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_question_outlives_its_window_in_the_copy_window_and_quit_waits_for_it() {
@@ -1075,5 +1076,81 @@ async fn a_question_outlives_its_window_in_the_copy_window_and_quit_waits_for_it
     isle.chord(&[ENTER]).await;
     wait_until(|| async { home.join("Documents/notes 2.md").exists() }).await;
     wait_until(|| async { app.exited() }).await;
+    assert!(!app.printed_part("panicked"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn markup_takes_the_keyboard_and_asks_before_closing_with_changes() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-markup-keys").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let shot = home.join("Pictures/tall.png");
+    let before = std::fs::read(&shot).unwrap();
+    let uri = format!("file://{}", shot.display());
+    let look = || async { isle.windows().await.into_iter().find(|w| w.title == "Quick Look") };
+    let show = || async {
+        isle.bus
+            .call_method(
+                Some(APP),
+                "/io/github/alexparlett/Isle/QuickLook1",
+                Some("io.github.alexparlett.Isle.QuickLook1"),
+                "Show",
+                &(vec![uri.as_str()], 0u32, "", (0i32, 0i32, 0i32, 0i32), "markup", ""),
+            )
+            .await
+            .unwrap();
+        wait_until(|| async { look().await.is_some() }).await;
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        look().await.unwrap()
+    };
+    let test = isle.test().await;
+
+    // An arrow, then ⌘Z: nothing is left to save, so ⌘W closes at once.
+    let w = show().await;
+    let (cx, cy) = (w.x as f64 + w.width as f64 / 2., w.y as f64 + w.height as f64 / 2. + 40.);
+    test.pointer_to(cx - 60., cy - 60.).await.unwrap();
+    test.button(272, true).await.unwrap();
+    for step in 1..=10 {
+        test.pointer_to(cx - 60. + 10. * step as f64, cy - 60. + 10. * step as f64).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    test.button(272, false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.chord(&[SUPER, KEY_Z]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.chord(&[SUPER, KEY_W]).await;
+    wait_until(|| async { look().await.is_none() }).await;
+
+    // Space leaves Markup open; the Text tool takes typing.
+    let w = show().await;
+    isle.chord(&[SPACE]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(look().await.is_some(), "Space does not close Quick Look while Markup is on");
+    let text_tool = (w.x as f64 + 16. + 6. * 34. + 15., w.y as f64 + 52. + 20.);
+    click(&isle, text_tool, &[], 1).await;
+    click(&isle, (w.x as f64 + w.width as f64 / 2., w.y as f64 + w.height as f64 / 2.), &[], 1).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    type_text(&isle, "hi").await;
+    isle.chord(&[ENTER]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+    // With the text unsaved ⌘W asks; Escape is Cancel, Return is Save.
+    isle.chord(&[SUPER, KEY_W]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    assert!(look().await.is_some(), "closing asks first");
+    isle.keep_shot("files-markup-ask").await;
+    isle.chord(&[ESC]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(look().await.is_some(), "Cancel keeps Quick Look");
+    isle.chord(&[SUPER, KEY_W]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { look().await.is_none() }).await;
+    assert_ne!(std::fs::read(&shot).unwrap(), before, "Save wrote the text");
     assert!(!app.printed_part("panicked"));
 }

@@ -17,6 +17,17 @@ pub enum Caller {
     Bus,
 }
 
+/// What waits on the answer to saving Markup's changes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Leave {
+    /// Markup turned off.
+    Markup,
+    /// Quick Look closed.
+    Close,
+    /// Files quit.
+    Quit,
+}
+
 /// The open Quick Look: its window, its items and the one shown.
 #[derive(Clone, Copy, PartialEq)]
 pub struct Open {
@@ -25,7 +36,22 @@ pub struct Open {
     pub index: State<usize>,
     pub marking: State<bool>,
     pub trimming: State<bool>,
+    /// Markup has changes not yet saved.
+    pub dirty: State<bool>,
+    /// Asking whether to save them before this.
+    pub leaving: State<Option<Leave>>,
     pub caller: Caller,
+}
+
+impl Open {
+    /// Asks about unsaved Markup before `then`; false while it asks.
+    pub fn may_leave(mut self, then: Leave) -> bool {
+        if !*self.dirty.peek() {
+            return true;
+        }
+        self.leaving.set(Some(then));
+        false
+    }
 }
 
 #[derive(Clone)]
@@ -37,6 +63,8 @@ pub struct QuickLookWindow {
     pub marking: State<bool>,
     /// Trim is on.
     pub trimming: State<bool>,
+    pub dirty: State<bool>,
+    pub leaving: State<Option<Leave>>,
 }
 
 impl App for QuickLookWindow {
@@ -45,6 +73,7 @@ impl App for QuickLookWindow {
         let t = &theme.tokens;
         let shared = self.shared.clone();
         let (items, mut index, mut marking) = (self.items, self.index, self.marking);
+        let (dirty, leaving) = (self.dirty, self.leaving);
         // Counts the files Markup wrote, so what shows is read again.
         let mut written = use_state(|| 0u64);
         let mut indexing = use_state(|| false);
@@ -92,10 +121,12 @@ impl App for QuickLookWindow {
             move || shared.quick_look_at(*index.read())
         });
 
+        // Markup and Trim hold the item they work on.
+        let busy = *marking.read() || *trimming.read();
         let step = move |by: isize| {
             let mut index = index;
             let n = items.peek().len();
-            if n > 1 {
+            if n > 1 && !*marking.peek() && !*trimming.peek() {
                 let next = (*index.peek() as isize + by).rem_euclid(n as isize) as usize;
                 index.set(next);
             }
@@ -104,9 +135,11 @@ impl App for QuickLookWindow {
             let shared = shared.clone();
             move || shared.close_quick_look()
         };
+        // Markup and Trim take the keyboard while on.
         let on_key = {
             let close = close.clone();
             move |e: Event<KeyboardEventData>| match &e.key {
+                _ if *marking.peek() || *trimming.peek() => {}
                 Key::Named(NamedKey::Escape) => close(),
                 Key::Character(c) if c == " " => close(),
                 Key::Named(NamedKey::ArrowLeft) | Key::Named(NamedKey::ArrowUp) => step(-1),
@@ -143,8 +176,8 @@ impl App for QuickLookWindow {
                     .alignment(BorderAlignment::Inner),
             )
             .toolbar()
-            .maybe_child((count > 1).then(|| icon_button(&theme, "caret-left", "Previous", true, false, move || step(-1))))
-            .maybe_child((count > 1).then(|| icon_button(&theme, "caret-right", "Next", true, false, move || step(1))))
+            .maybe_child((count > 1).then(|| icon_button(&theme, "caret-left", "Previous", !busy, false, move || step(-1))))
+            .maybe_child((count > 1).then(|| icon_button(&theme, "caret-right", "Next", !busy, false, move || step(1))))
             .maybe_child((count > 1).then(|| {
                 text::line(&theme, text::Style::Callout, colour(t.colour_text_2), format!("{} of {count}", at + 1)).into_element()
             }))
@@ -156,14 +189,20 @@ impl App for QuickLookWindow {
                     .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), name)),
             )
             .maybe_child((count > 1).then(|| {
-                icon_button(&theme, "squares-four", "Index Sheet", true, *indexing.read(), move || {
+                icon_button(&theme, "squares-four", "Index Sheet", !busy, *indexing.read(), move || {
                     let mut indexing = indexing;
                     indexing.toggle()
                 })
             }))
-            .child(icon_button(&theme, "pencil-simple", "Markup", *editable.read(), *marking.read(), move || {
-                let mut marking = marking;
-                marking.toggle();
+            .child(icon_button(&theme, "pencil-simple", "Markup", *editable.read(), *marking.read(), {
+                let shared = shared.clone();
+                move || {
+                    let mut marking = marking;
+                    let open = shared.quick_look_open();
+                    if !*marking.peek() || open.is_none_or(|o| o.may_leave(Leave::Markup)) {
+                        marking.toggle();
+                    }
+                }
             }))
             .maybe_child(media.read().is_some().then(|| {
                 icon_button(&theme, "scissors", "Trim", true, *trimming.read(), move || {
@@ -190,12 +229,18 @@ impl App for QuickLookWindow {
             .into_element(),
             Some(path) if *marking.read() && *editable.read() => crate::markup_view::MarkupView {
                 path,
+                dirty,
+                leaving,
                 on_end: EventHandler::new(move |wrote: bool| {
                     marking.set(false);
                     if wrote {
                         let n = *written.peek();
                         written.set(n + 1);
                     }
+                }),
+                on_leave: EventHandler::new({
+                    let shared = shared.clone();
+                    move |then: Leave| shared.leave_quick_look(then)
                 }),
             }
             .into_element(),

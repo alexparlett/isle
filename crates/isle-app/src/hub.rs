@@ -77,6 +77,8 @@ pub(crate) struct Open {
     pub choose: Option<Rc<dyn Fn(i32)>>,
     /// Closed before it was created: it closes as it opens.
     pub closing: bool,
+    /// Asked before the person closes the window; false keeps it open.
+    pub guard: Option<Rc<dyn Fn() -> bool>>,
 }
 
 pub(crate) struct Inner {
@@ -177,6 +179,7 @@ impl AppHandle {
                 extras: extras.clone(),
                 choose: None,
                 closing: false,
+                guard: None,
             },
         );
         let config = Frame::config(self.clone(), key, spec, extras, app);
@@ -215,7 +218,27 @@ impl AppHandle {
         }
     }
 
-    /// Raises the window with a token another launch handed over.
+    /// Asks `guard` before the person closes the window, by its close button or ⌘W; a guard
+    /// that returns false keeps it open and closes it itself once it has its answer.
+    pub fn guard_close(&self, key: WindowKey, guard: impl Fn() -> bool + 'static) {
+        if let Some(open) = self.0.windows.borrow_mut().get_mut(&key) {
+            open.guard = Some(Rc::new(guard));
+        }
+    }
+
+    /// Whether the window's guard lets it close now.
+    pub fn may_close(&self, key: WindowKey) -> bool {
+        let guard = self.0.windows.borrow().get(&key).and_then(|w| w.guard.clone());
+        guard.is_none_or(|guard| guard())
+    }
+
+    /// Closes the window unless its guard keeps it open.
+    pub fn request_close(&self, key: WindowKey) {
+        if self.may_close(key) {
+            self.close(key);
+        }
+    }
+
     /// A window's xdg-foreign handle, `wayland:<handle>` as portals take it.
     pub fn export(&self, key: WindowKey) -> Option<String> {
         let windows = self.0.windows.borrow();
@@ -224,6 +247,7 @@ impl AppHandle {
         extras.as_ref()?.export().map(|h| format!("wayland:{h}"))
     }
 
+    /// Raises the window with a token another launch handed over.
     pub fn activate(&self, key: WindowKey, token: &str) {
         if let Some(open) = self.0.windows.borrow().get(&key)
             && let Some(extras) = open.extras.borrow().as_ref()

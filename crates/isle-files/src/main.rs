@@ -212,9 +212,13 @@ impl Shared {
         self.copy_window_check();
     }
 
-    /// Whether ⌘Q quits now. With work in flight the windows close and Files quits when
+    /// Whether ⌘Q quits now. Unsaved Markup asks first; with work in flight the windows close and Files quits when
     /// the last job ends; the Copy window comes back only to ask or to report a failure.
     pub fn quit_when_done(&self) -> bool {
+        let open = *self.quick_look.borrow();
+        if open.is_some_and(|o| !o.may_leave(quicklook::Leave::Quit)) {
+            return false;
+        }
         let busy = self.jobs.list.peek().iter().any(|j| matches!(j.state, jobs::JobState::Running | jobs::JobState::Waiting));
         if !busy {
             return true;
@@ -445,14 +449,17 @@ impl Shared {
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
         let (items, index) = (State::create_global(items), State::create_global(index));
         let (marking, trimming) = (State::create_global(markup), State::create_global(trim));
+        let (dirty, leaving) = (State::create_global(false), State::create_global(None));
         let float = over.filter(|o| !o.is_empty()).map(|o| isle_app::Float {
             over: o.strip_prefix("wayland:").map(str::to_owned).unwrap_or(o),
             on_request: false,
             from: None,
         });
         let spec = WindowSpec::new("Quick Look", (900., 680.), (360., 280.)).lights((0., 10.)).float(float);
-        let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index, marking, trimming });
-        *self.quick_look.borrow_mut() = Some(quicklook::Open { key, items, index, marking, trimming, caller });
+        let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index, marking, trimming, dirty, leaving });
+        let open = quicklook::Open { key, items, index, marking, trimming, dirty, leaving, caller };
+        self.app().guard_close(key, move || open.may_leave(quicklook::Leave::Close));
+        *self.quick_look.borrow_mut() = Some(open);
         ql1::VISIBLE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
@@ -460,7 +467,7 @@ impl Shared {
     pub fn quick_look_follow(&self, caller: quicklook::Caller, items: Vec<PathBuf>, index: usize) {
         let open = *self.quick_look.borrow();
         let Some(mut open) = open.filter(|o| o.caller == caller) else { return };
-        if items.is_empty() {
+        if items.is_empty() || *open.marking.peek() || *open.trimming.peek() {
             return;
         }
         if *open.items.peek() != items {
@@ -474,7 +481,23 @@ impl Shared {
     pub fn close_quick_look(&self) {
         let open = *self.quick_look.borrow();
         if let Some(open) = open {
-            self.app().close(open.key);
+            self.app().request_close(open.key);
+        }
+    }
+
+    /// Markup's changes are saved or let go: does what waited on them.
+    pub fn leave_quick_look(&self, then: quicklook::Leave) {
+        let open = *self.quick_look.borrow();
+        let Some(mut open) = open else { return };
+        open.dirty.set(false);
+        open.leaving.set(None);
+        match then {
+            quicklook::Leave::Markup => open.marking.set(false),
+            quicklook::Leave::Close => self.app().close(open.key),
+            quicklook::Leave::Quit => {
+                self.app().close(open.key);
+                self.app().quit();
+            }
         }
     }
 

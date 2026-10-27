@@ -179,6 +179,7 @@ impl<A: App + 'static> Frame<A> {
         let (size, min_size, max_size) = (spec.size, spec.min_size, spec.max_size);
         // winit takes a static title; a window's title is set once and lives as long.
         let title: &'static str = Box::leak(spec.title.clone().into_boxed_str());
+        let guarded = app.clone();
         let frame = Frame {
             app,
             key,
@@ -200,6 +201,10 @@ impl<A: App + 'static> Frame<A> {
             .with_min_size(min_size.0, min_size.1)
             .with_renderer(renderer)
             .with_transparency(backdrop.is_some())
+            .with_on_close(move |_, _| match guarded.may_close(key) {
+                true => CloseDecision::Close,
+                false => CloseDecision::KeepOpen,
+            })
             .with_window_attributes(move |attributes, _| match token {
                 Some(token) => {
                     use freya::winit::{
@@ -431,7 +436,7 @@ impl Run {
         let window = self.window;
         match id {
             "quit" => self.app.quit(),
-            "close" => self.app.close(self.key),
+            "close" => self.app.request_close(self.key),
             "minimise" => self.platform.with_window(window, |w| w.set_minimized(true)),
             "zoom" => self.platform.with_window(window, |w| w.set_maximized(!w.is_maximized())),
             "hide" | "hide-others" | "show-all" => {

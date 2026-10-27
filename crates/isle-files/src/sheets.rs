@@ -16,6 +16,8 @@ pub enum Then {
     Job(Work),
     /// Ejects the volume; `true` even while it is in use.
     Eject(isle_disks::Volume, bool),
+    /// Stops the jobs running and quits.
+    Quit,
 }
 
 /// An alert waiting on the window.
@@ -49,7 +51,7 @@ impl Alert {
             title: format!("Delete {}?", if items.len() == 1 { format!("“{}”", name(&items[0])) } else { format::items(items.len()) }),
             message: "You can't undo this.".into(),
             items: Vec::new(),
-            buttons: vec![("Delete".into(), Some(Then::Job(Work::Delete { items }))), ("Cancel".into(), None)],
+            buttons: vec![("Cancel".into(), None), ("Delete".into(), Some(Then::Job(Work::Delete { items })))],
         }
     }
 
@@ -59,7 +61,7 @@ impl Alert {
             title: format!("Permanently erase {} in the Trash?", format::items(items.len())),
             message: "You can't undo this.".into(),
             items: Vec::new(),
-            buttons: vec![("Empty Trash".into(), Some(Then::Job(Work::EmptyTrash { items }))), ("Cancel".into(), None)],
+            buttons: vec![("Cancel".into(), None), ("Empty Trash".into(), Some(Then::Job(Work::EmptyTrash { items })))],
         }
     }
 
@@ -74,6 +76,16 @@ impl Alert {
                 ("Cancel".into(), None),
                 ("Try Again".into(), Some(Then::Eject(volume, false))),
             ],
+        }
+    }
+
+    /// Quitting with work in flight (`conventions.md`, Conventions 5): Cancel the default.
+    pub fn quit(work: &str) -> Self {
+        Self {
+            title: work.to_owned(),
+            message: "Quitting stops it.".into(),
+            items: Vec::new(),
+            buttons: vec![("Quit".into(), Some(Then::Quit)), ("Cancel".into(), None)],
         }
     }
 
@@ -99,8 +111,9 @@ fn name(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string())
 }
 
-/// An alert sheet; `on_done` gets the work of the button pressed.
-pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'static) -> Element {
+/// An alert's words and buttons; `on_done` gets the work of the button pressed.
+#[allow(clippy::type_complexity)]
+pub fn alert_parts(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'static) -> (Vec<Element>, Vec<(String, EventHandler<()>)>) {
     let theme = isle_ui::theme();
     let t = &theme.tokens;
     let mut body = vec![isle_ui::alert_text(&alert.title, &alert.message)];
@@ -119,13 +132,18 @@ pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'stati
     let buttons = alert
         .buttons
         .into_iter()
-        .rev()
         .map(|(label, work)| {
             let done = on_done.clone();
             (label, EventHandler::new(move |_| done(work.clone())))
         })
         .collect();
-    isle_ui::sheet(t.size_alert, body, buttons)
+    (body, buttons)
+}
+
+/// An alert sheet; `on_done` gets the work of the button pressed.
+pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'static) -> Element {
+    let (body, buttons) = alert_parts(alert, on_done);
+    isle_ui::sheet(isle_ui::theme().tokens.size_alert, body, buttons)
 }
 
 /// The name-taken question (`files.md` § File jobs, A question).
@@ -133,6 +151,8 @@ pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'stati
 pub struct ConflictSheet {
     pub question: Question,
     pub jobs: Jobs,
+    /// Drawn as a window of its own, there being no Files window to hang it from.
+    pub alone: bool,
 }
 
 impl Component for ConflictSheet {
@@ -167,7 +187,11 @@ impl Component for ConflictSheet {
             buttons.push(("Merge".to_owned(), answer(Choice::Merge)));
         }
         buttons.push(("Keep Both".to_owned(), answer(Choice::KeepBoth)));
-        isle_ui::sheet(t.size_alert, body, buttons)
+        if self.alone {
+            isle_ui::alert_window(body, buttons)
+        } else {
+            isle_ui::sheet(t.size_alert, body, buttons)
+        }
     }
 }
 

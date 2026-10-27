@@ -42,6 +42,12 @@ fn has_options(ask: &Ask) -> bool {
     (!ask.filters.is_empty() && !ask.directory) || !ask.choices.is_empty()
 }
 
+/// An alert's width, for an alert that is a window of its own.
+pub fn alert_width() -> f64 {
+    let theme = isle_tokens::Source::shipped().theme(&isle_tokens::Appearance::default()).expect("the shipped tokens resolve");
+    theme.tokens.size_alert as f64
+}
+
 pub fn sizes() -> &'static Sizes {
     static SIZES: std::sync::OnceLock<Sizes> = std::sync::OnceLock::new();
     SIZES.get_or_init(|| {

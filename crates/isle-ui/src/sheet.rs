@@ -34,16 +34,64 @@ pub fn sheet(width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<
     sheet_under(theme().tokens.size_toolbar, width, body, buttons)
 }
 
+/// The button Escape presses: the one labelled Cancel or Stop, or the only one.
+fn cancel_of(buttons: &[(String, EventHandler<()>)]) -> Option<EventHandler<()>> {
+    buttons
+        .iter()
+        .find(|(label, _)| label == "Cancel" || label == "Stop")
+        .or(if buttons.len() == 1 { buttons.first() } else { None })
+        .map(|(_, on_press)| on_press.clone())
+}
+
+/// An alert's buttons trailing, the last the default.
+fn button_row(t: &isle_tokens::Tokens, buttons: Vec<(String, EventHandler<()>)>) -> Element {
+    let count = buttons.len();
+    rect()
+        .width(Size::fill())
+        .horizontal()
+        .main_align(Alignment::End)
+        .spacing(t.space_s)
+        .children(buttons.into_iter().enumerate().map(|(i, (label, on_press))| {
+            let kind = if i + 1 == count { button::Kind::Default } else { button::Kind::Regular };
+            crate::Button::new(label).kind(kind).on_press(on_press).into_element()
+        }))
+        .into_element()
+}
+
+/// An alert as a small window of its own, for an app with no window to hang a sheet from
+/// (`conventions.md`, Alert): the body, then the buttons; Return presses the default and
+/// Escape Cancel.
+pub fn alert_window(body: Vec<Element>, buttons: Vec<(String, EventHandler<()>)>) -> Element {
+    let theme = theme();
+    let t = &theme.tokens;
+    let cancel = cancel_of(&buttons);
+    let default = buttons.last().map(|(_, on_press)| on_press.clone());
+    rect()
+        .expanded()
+        .padding(t.space_xl)
+        .spacing(t.space_l)
+        .background(colour(t.colour_window))
+        .a11y_role(AccessibilityRole::AlertDialog)
+        .on_global_key_down(move |e: Event<KeyboardEventData>| {
+            let pressed = match e.key {
+                Key::Named(NamedKey::Escape) => cancel.clone(),
+                Key::Named(NamedKey::Enter) => default.clone(),
+                _ => None,
+            };
+            if let Some(pressed) = pressed {
+                spawn(async move { pressed.call(()) });
+            }
+        })
+        .children(body)
+        .child(button_row(t, buttons))
+        .into_element()
+}
+
 /// As `sheet`, hung `top` below the window's top edge.
 pub fn sheet_under(top: f32, width: f32, body: Vec<Element>, buttons: Vec<(String, EventHandler<()>)>) -> Element {
     let theme = theme();
     let t = &theme.tokens;
-    let count = buttons.len();
-    let cancel = buttons
-        .iter()
-        .find(|(label, _)| label == "Cancel" || label == "Stop")
-        .or(if count == 1 { buttons.first() } else { None })
-        .map(|(_, on_press)| on_press.clone());
+    let cancel = cancel_of(&buttons);
     rect()
         .position(Position::new_global())
         .layer(Layer::Overlay)
@@ -75,24 +123,7 @@ pub fn sheet_under(top: f32, width: f32, body: Vec<Element>, buttons: Vec<(Strin
                         .fold(el, |el, s| el.shadow(s))
                 })
                 .children(body)
-                .child(
-                    rect()
-                        .width(Size::fill())
-                        .horizontal()
-                        .main_align(Alignment::End)
-                        .spacing(t.space_s)
-                        .children(buttons.into_iter().enumerate().map(|(i, (label, on_press))| {
-                            let kind = if i + 1 == count {
-                                button::Kind::Default
-                            } else {
-                                button::Kind::Regular
-                            };
-                            crate::Button::new(label)
-                                .kind(kind)
-                                .on_press(on_press)
-                                .into_element()
-                        })),
-                ),
+                .child(button_row(t, buttons)),
         )
         .into_element()
 }

@@ -193,7 +193,7 @@ pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_
             title: "A name that begins with a dot makes the item hidden.".into(),
             message: String::new(),
             items: Vec::new(),
-            buttons: vec![(format!("Use “{name}”"), Some(Then::Job(to(name)))), ("Cancel".into(), None)],
+            buttons: vec![("Cancel".into(), None), (format!("Use “{name}”"), Some(Then::Job(to(name))))],
         });
     }
     let is_dir = tab.folder.get(path).is_some_and(|e| e.is_dir());

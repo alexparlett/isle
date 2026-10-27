@@ -1012,3 +1012,52 @@ async fn hidden_files_shown_are_kept_across_launches() {
     isle.chord(&[SUPER, KEY_V]).await;
     wait_until(|| async { home.join("Documents/.hidden").exists() }).await;
 }
+
+const KEY_W: u32 = 17;
+const KEY_Q: u32 = 16;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_question_outlives_its_window_and_quit_asks_while_it_waits() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-alone").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // A copy onto a taken name waits on its question, shown as a sheet.
+    std::fs::write(home.join("Documents/notes.md"), "old\n").unwrap();
+    reveal(&isle, &app, &home.join("notes.md")).await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // The window closes; the question becomes a window of its own and the app stays.
+    isle.chord(&[SUPER, KEY_W]).await;
+    wait_until(|| async {
+        let ws: Vec<_> = isle.windows().await.into_iter().filter(|w| w.app_id == APP).collect();
+        ws.len() == 1 && ws[0].height < 300
+    })
+    .await;
+    isle.keep_shot("files-alone-question").await;
+    assert!(!app.exited());
+
+    // ⌘Q asks in a window of its own; Escape cancels, and the app keeps running.
+    isle.chord(&[SUPER, KEY_Q]).await;
+    wait_until(|| async { isle.windows().await.into_iter().filter(|w| w.app_id == APP).count() == 2 }).await;
+    isle.keep_shot("files-alone-quit").await;
+    isle.chord(&[ESC]).await;
+    wait_until(|| async { isle.windows().await.into_iter().filter(|w| w.app_id == APP).count() == 1 }).await;
+    assert!(!app.exited());
+
+    // Return in the question takes its default, Keep Both; with nothing left, Files ends.
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { home.join("Documents/notes 2.md").exists() }).await;
+    wait_until(|| async { app.exited() }).await;
+    assert!(!app.printed_part("panicked"));
+}

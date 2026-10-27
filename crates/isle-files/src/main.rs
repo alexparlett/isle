@@ -1,5 +1,6 @@
 //! Files (`docs/design/apps.md` Files; `p1/structure/files.md`).
 
+mod alone;
 mod bars;
 mod chooser;
 mod columns_view;
@@ -202,7 +203,62 @@ impl Shared {
         if !self.windows.borrow().is_empty() {
             self.memory.borrow_mut().windows.remove(&key.number());
             self.save();
+            return;
         }
+        // The last window gone, a question it was showing gets a window of its own.
+        let waiting: Vec<u64> = self.jobs.questions.peek().iter().map(|q| q.job).collect();
+        for job in waiting {
+            self.ask_alone(alone::Alone::Question(job));
+        }
+    }
+
+    /// Whether ⌘Q quits now: with work in flight it asks on the front window, or in a window
+    /// of its own with none open, and quits from there (`conventions.md`, Conventions 5).
+    pub fn quit_asks(&self) -> bool {
+        let running: Vec<String> = self
+            .jobs
+            .list
+            .peek()
+            .iter()
+            .filter(|j| matches!(j.state, jobs::JobState::Running | jobs::JobState::Waiting))
+            .map(|j| j.title.clone())
+            .collect();
+        let Some(first) = running.first() else { return true };
+        let work = match running.len() {
+            1 => first.clone(),
+            n => format!("{first}, and {} more", n - 1),
+        };
+        let alert = sheets::Alert::quit(&work);
+        let front = self.front_window().and_then(|k| self.windows.borrow().get(&k).copied());
+        match front {
+            Some(mut link) => link.inbox.write().push(Open::Alert(alert)),
+            None => self.ask_alone(alone::Alone::Alert(alert)),
+        }
+        false
+    }
+
+    /// Stops every job running and quits.
+    pub fn quit_now(&self) {
+        for job in self.jobs.list.peek().iter() {
+            job.stop.0.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+        self.app().exit();
+    }
+
+    /// Opens an alert or a job's question as a window of its own.
+    pub fn ask_alone(&self, what: alone::Alone) {
+        let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
+        let width = panel::alert_width();
+        let height = match &what {
+            alone::Alone::Alert(_) => 125.,
+            // Apply to all takes a row of its own when more names are taken.
+            alone::Alone::Question(job) => {
+                let more = self.jobs.questions.peek().iter().any(|q| q.job == *job && q.conflict.more);
+                if more { 185. } else { 150. }
+            }
+        };
+        let spec = WindowSpec::new("Files", (width, height), (width, height));
+        self.app().open(spec, alone::AloneWindow { shared, what });
     }
 
     pub fn window_keys(&self) -> Vec<WindowKey> {
@@ -557,6 +613,10 @@ impl Delegate for Files {
         if let Some(bus) = app.bus() {
             app.worker().spawn(fm1::serve(bus, app.requester()));
         }
+    }
+
+    fn quit(&self, _: &AppHandle) -> bool {
+        self.shared.quit_asks()
     }
 
     fn request(&self, app: &AppHandle, request: Request) {

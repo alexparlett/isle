@@ -36,6 +36,8 @@ pub enum Open {
     Tab(Place, Option<PathBuf>),
     /// Open With for a file nothing opens by itself.
     OpenWith(PathBuf),
+    /// An alert the app raises on its front window, as quitting with work in flight.
+    Alert(Alert),
 }
 
 /// One tab as the window keeps it.
@@ -369,6 +371,7 @@ impl App for FilesWindow {
                 for open in std::mem::take(&mut *queue.write()) {
                     match open {
                         Open::OpenWith(path) => ask_open_with(path, open_with),
+                        Open::Alert(raised) => alert.set(Some(raised)),
                         // A tab already showing the place is chosen rather than another added.
                         Open::Tab(place, reveal) if let Some(n) = tabs.peek().iter().position(|h| h.tab.peek().place == place) => {
                             if let Some(path) = reveal {
@@ -849,7 +852,7 @@ impl App for FilesWindow {
                         selected_size,
                     })),
             )
-            .maybe_child(question.map(|q| ConflictSheet { question: q, jobs }.into_element()))
+            .maybe_child(question.map(|q| ConflictSheet { question: q, jobs, alone: false }.into_element()))
             .maybe_child((*saving.read()).then(|| {
                 let shared = shared.clone();
                 let live = live.clone();
@@ -926,6 +929,7 @@ impl App for FilesWindow {
                     match then {
                         Some(Then::Job(work)) => start_job(&shared, key, work, &mut alert),
                         Some(Then::Eject(volume, force)) => eject(&shared, volume, force, alert),
+                        Some(Then::Quit) => shared.quit_now(),
                         None => {}
                     }
                 })

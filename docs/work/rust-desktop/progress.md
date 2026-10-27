@@ -2,6 +2,17 @@
 
 ## 2026-10-27
 
+- P15b 15b.3, nothing lost, first half: undoing Put Back trashes the item
+  again with its info, where it moved it into the Trash's files unseen;
+  undoing a move across filesystems copies back. ⌘Q with a job running asks
+  ("Copying 1 item to “Documents”", "Quitting stops it.", Cancel the
+  default), on the front window or in a window of its own; the compositor
+  now hands ⌘Q and ⌘W to Isle's own apps instead of closing their windows.
+  A job's question with no Files window open, or whose window closes, is a
+  small window of its own (`isle_ui::alert_window`). Alert buttons read in
+  the order they are listed with the last the default: the extension
+  alert's default is Keep .{old} and the in-use volume's Try Again, as the
+  sheet says.
 - P15b 15b.2, `window.rs` split with no change in behaviour: from 2,061
   lines to about 1,000. The command table and what each command does move
   to `commands.rs`, behind a `Win` of the window's state; the sidebar and

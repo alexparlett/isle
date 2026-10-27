@@ -200,6 +200,12 @@ impl Jobs {
                             job.state = JobState::Waiting;
                         }
                         questions.write().push(Question { job: id, window, conflict, reply });
+                        // With no Files window open, the question is a window of its own.
+                        if let Some(shared) = crate::SHARED.with(|s| s.borrow().clone())
+                            && shared.window_keys().is_empty()
+                        {
+                            shared.ask_alone(crate::alone::Alone::Question(id));
+                        }
                     }
                     Message::End(id, report) => {
                         let failed = !report.failed.is_empty();

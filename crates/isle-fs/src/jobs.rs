@@ -200,6 +200,21 @@ fn rename(from: &Path, to: &Path, flags: RenameFlags) -> io::Result<()> {
     renameat_with(CWD, from, CWD, to, flags).map_err(io::Error::from)
 }
 
+/// Moves `now` back to `was`, which must be free: renamed, or across filesystems copied and
+/// the copy at `now` removed.
+fn move_back(now: &Path, was: &Path) -> io::Result<()> {
+    match rename(now, was, RenameFlags::NOREPLACE) {
+        Err(e) if e.raw_os_error() == Some(rustix::io::Errno::XDEV.raw_os_error()) => {
+            if was.symlink_metadata().is_ok() {
+                return Err(io::ErrorKind::AlreadyExists.into());
+            }
+            copy_tree(now, was)?;
+            trash::remove_tree(now)
+        }
+        done => done,
+    }
+}
+
 /// Copies a file, folder or link to the new path `to`, without progress.
 pub fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
     copy_with(from, to, &mut |_| true)
@@ -490,7 +505,8 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                 match trash::put_back(item) {
                     Ok(back) => {
                         run.report.made.push(back.clone());
-                        run.steps.push(Step::Moved { now: back, was: item.file.clone() });
+                        // Undone by trashing it again, which writes its info as a move back would not.
+                        run.steps.push(Step::Made(back));
                     }
                     Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
                         run.fail(&item.original, "Something with its name is there now.")
@@ -622,10 +638,7 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                 let done = match &step {
                     Step::Made(path) => trash::trash(path).map(|_| ()),
                     // A merge removes the folder it emptied; undoing it makes the folder again.
-                    Step::Moved { now, was } => was
-                        .parent()
-                        .map_or(Ok(()), fs::create_dir_all)
-                        .and_then(|_| rename(now, was, RenameFlags::NOREPLACE)),
+                    Step::Moved { now, was } => was.parent().map_or(Ok(()), fs::create_dir_all).and_then(|_| move_back(now, was)),
                     Step::Trashed(t) => trash::put_back(t).map(|_| ()),
                 };
                 if let Err(e) = done {
@@ -723,6 +736,46 @@ mod tests {
         let undone = run(Work::Undo { steps }, &Fixed::new(Choice::Stop));
         assert!(undone.failed.is_empty(), "{:?}", undone.failed);
         assert!(names(&dst).is_empty());
+    }
+
+    #[test]
+    fn undoing_put_back_trashes_it_again_with_its_info() {
+        let base = tempfile::tempdir().unwrap();
+        fs::create_dir_all(base.path().join("data")).unwrap();
+        unsafe { std::env::set_var("XDG_DATA_HOME", base.path().join("data")) };
+        let note = base.path().join("note.txt");
+        fs::write(&note, "n").unwrap();
+        let trashed = trash::trash_into(&note, &trash::home_trash()).unwrap();
+        let report = run(Work::PutBack { items: vec![trashed] }, &Fixed::new(Choice::Stop));
+        assert!(note.exists());
+        let Some(Undo::Steps(steps)) = report.undo else { panic!() };
+        let undone = run(Work::Undo { steps }, &Fixed::new(Choice::Stop));
+        assert!(undone.failed.is_empty(), "{:?}", undone.failed);
+        assert!(!note.exists());
+        let listed = trash::list(&trash::home_trash());
+        assert!(listed.iter().any(|t| t.original == note), "listed in the Trash: {listed:?}");
+    }
+
+    #[test]
+    fn a_move_across_filesystems_undoes_by_copying_back() {
+        use std::os::unix::fs::MetadataExt;
+        let here = tempfile::tempdir().unwrap();
+        let Ok(there) = tempfile::tempdir_in("/dev/shm") else { return };
+        let dev = |p: &Path| fs::metadata(p).unwrap().dev();
+        if dev(here.path()) == dev(there.path()) {
+            return;
+        }
+        let was = here.path().join("folder");
+        fs::create_dir_all(was.join("inner")).unwrap();
+        fs::write(was.join("inner/b.txt"), "b").unwrap();
+        let report = run(Work::Move { items: vec![was.clone()], into: there.path().to_owned() }, &Fixed::new(Choice::Stop));
+        assert!(report.failed.is_empty(), "{:?}", report.failed);
+        assert!(!was.exists());
+        let Some(Undo::Steps(steps)) = report.undo else { panic!() };
+        let undone = run(Work::Undo { steps }, &Fixed::new(Choice::Stop));
+        assert!(undone.failed.is_empty(), "{:?}", undone.failed);
+        assert_eq!(fs::read_to_string(was.join("inner/b.txt")).unwrap(), "b");
+        assert!(!there.path().join("folder").exists());
     }
 
     #[test]

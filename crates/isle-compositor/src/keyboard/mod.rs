@@ -841,6 +841,10 @@ impl State {
         }
         let names = self.focus_names();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        // Isle's own apps take ⌘Q and ⌘W themselves, to ask first or to close a tab.
+        if isle_keys::tables::matches(OWN_APPS, &names) {
+            return Stroke::parse(if quit { "Cmd+Q" } else { "Cmd+W" }).map(|s| vec![s]);
+        }
         let app = self.isle.keyboards.tables().for_app(&names);
         let strokes = if quit { app.quit } else { app.close };
         strokes.map(<[Stroke]>::to_vec)

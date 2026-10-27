@@ -845,3 +845,170 @@ async fn the_files_shortcuts_action_opens_a_search_window() {
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     isle.keep_shot("files-find").await;
 }
+
+const KEY_N: u32 = 49;
+const KEY_A: u32 = 30;
+const KEY_DOT: u32 = 52;
+const KEY_LEFTBRACE: u32 = 26;
+const UP: u32 = 103;
+
+/// Presses at `at` with `mods` held, as a person clicks: the keys down first, released after.
+async fn click(isle: &Isle, at: (f64, f64), mods: &[u32], times: usize) {
+    let test = isle.test().await;
+    test.pointer_to(at.0, at.1).await.unwrap();
+    for m in mods {
+        test.key(*m, true).await.unwrap();
+    }
+    for _ in 0..times {
+        test.button(272, true).await.unwrap();
+        test.button(272, false).await.unwrap();
+    }
+    for m in mods.iter().rev() {
+        test.key(*m, false).await.unwrap();
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+}
+
+/// Home's rows in List: Development, Documents, Downloads, Pictures, notes.md, todo.txt,
+/// under a 52 point toolbar and a 24 point header.
+fn list_row(w: &isle_ipc::WindowInfo, i: f64) -> (f64, f64) {
+    (w.x as f64 + 400., w.y as f64 + 52. + 24. + 28. * i + 14.)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cmd_and_shift_clicks_select_several() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-multi").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // notes.md, then ⌘-click todo.txt: both copied.
+    click(&isle, list_row(&w, 4.), &[], 1).await;
+    click(&isle, list_row(&w, 5.), &[SUPER], 1).await;
+    isle.keep_shot("files-cmd-click").await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    app.wait_for_part("id=\"go-documents\"").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async { home.join("Documents/notes.md").exists() && home.join("Documents/todo.txt").exists() }).await;
+
+    // Back home, Downloads then ⇧-click notes.md: Downloads, Pictures and notes.md.
+    isle.chord(&[SUPER, KEY_LEFTBRACE]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    click(&isle, list_row(&w, 2.), &[], 1).await;
+    click(&isle, list_row(&w, 4.), &[SHIFT], 1).await;
+    isle.keep_shot("files-shift-click").await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    std::fs::remove_file(home.join("Documents/notes.md")).unwrap();
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async {
+        home.join("Documents/Downloads/blob.bin").exists()
+            && home.join("Documents/Pictures/red.png").exists()
+            && home.join("Documents/notes.md").exists()
+    })
+    .await;
+    assert!(!home.join("Documents/Development").exists(), "the range starts at Downloads");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_tab_opened_by_a_click_outlives_its_view() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-tab-scope").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // ⌘-double-click Development: a tab made in List's handler. Icons unmounts List; going
+    // up and making a folder use the tab after.
+    click(&isle, list_row(&w, 0.), &[SUPER], 2).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("files-tab-opened").await;
+    isle.chord(&[SUPER, KEY_1]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.chord(&[SUPER, UP]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("files-tab-up").await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("untitled folder").exists() }).await;
+    assert!(!app.exited(), "Files is still running");
+    assert!(!app.printed_part("panicked"), "no panic");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn columns_move_the_tab_and_back_follows() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-columns").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    isle.chord(&[SUPER, KEY_3]).await;
+    app.wait_for_part("id=\"as-columns\"").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // Development chosen in the first column is the tab's folder; isle chosen in the next
+    // is, still in Columns. New Folder makes its folder in each.
+    let column_row = |i: f64| (w.x as f64 + 220. + 120., w.y as f64 + 52. + 4. + 28. * i + 14.);
+    click(&isle, column_row(0.), &[], 1).await;
+    click(&isle, (column_row(0.).0 + 240., column_row(0.).1), &[], 1).await;
+    isle.keep_shot("files-columns-chosen").await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Development/isle/untitled folder").exists() }).await;
+
+    // Back walks the choices: Development, then Home.
+    isle.chord(&[ESC]).await;
+    isle.chord(&[SUPER, KEY_LEFTBRACE]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Development/untitled folder").exists() }).await;
+    isle.chord(&[ESC]).await;
+    isle.chord(&[SUPER, KEY_LEFTBRACE]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("untitled folder").exists() }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn hidden_files_shown_are_kept_across_launches() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-hidden").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.chord(&[SUPER, SHIFT, KEY_DOT]).await;
+    app.wait_for_part("id=\"toggle-hidden\"").await;
+    let kept = isle.dir.join("files-state/isle/files.json");
+    wait_until(|| async { std::fs::read_to_string(&kept).is_ok_and(|j| j.contains("\"hidden\": true")) }).await;
+    std::process::Command::new("kill").arg(app.pid().to_string()).status().unwrap();
+    wait_until(|| async { app.exited() }).await;
+
+    // Started again, ⌘A takes .hidden with the rest.
+    let (again, _) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    again.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.chord(&[SUPER, KEY_A]).await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async { home.join("Documents/.hidden").exists() }).await;
+}

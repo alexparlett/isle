@@ -17,7 +17,7 @@ use crate::{
     columns_view::ColumnsView,
     icons_view::IconsView,
     interact::{Interact, Rename, TRASH},
-    list_view::{Held, ListView, Pick},
+    list_view::{ListView, Pick},
     places::{self, Place, Places, Row},
     preview::Preview,
     scope_bar::{ScopeBar, Where},
@@ -70,19 +70,20 @@ pub async fn off_thread<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'stati
     rx.await.ok()
 }
 
-pub(crate) fn new_tab(shared: &Shared, place: Place, reveal: Option<PathBuf>) -> TabHandle {
+/// A tab owned by `scope`, the window's: a tab made in a view's handler would go with the view.
+pub(crate) fn new_tab(shared: &Shared, place: Place, reveal: Option<PathBuf>, scope: ScopeId) -> TabHandle {
     let mut t = Tab::new(shared.next_tab(), place);
     t.reveal = reveal;
     t.folder.set_show_hidden(*shared.hidden.peek());
     let memory = crate::SHARED.with(|s| s.borrow().clone());
-    TabHandle {
+    run_in_scope(scope, || TabHandle {
         tab: State::create(t),
         live: match memory {
-            Some(shared) => Live::new(Rc::new(move |place: &Place| shared.shown_for(place))),
+            Some(shared) => Live::new(Rc::new(move |place: &Place| shared.shown_for(place)), Some(scope)),
             None => Live::default(),
         },
         scroll: ScrollController::new(0, 0),
-    }
+    })
 }
 
 impl App for FilesWindow {
@@ -92,18 +93,18 @@ impl App for FilesWindow {
         let shared = self.shared.clone();
         let key = isle_app::this_window();
         let desktop = Desktop::get();
+        let scope = current_scope_id();
         let mut tabs = use_state({
             let (shared, start) = (shared.clone(), self.tabs.clone());
             move || {
                 start
                     .into_iter()
-                    .map(|(place, reveal)| new_tab(&shared, place, reveal))
+                    .map(|(place, reveal)| new_tab(&shared, place, reveal, scope))
                     .collect::<Vec<_>>()
             }
         });
         let mut current = use_state(|| self.current.min(self.tabs.len().saturating_sub(1)));
         let mut places = use_state(Places::default);
-        let mut held = use_state(Held::default);
         let inbox = use_state(Vec::<Open>::new);
         let mut sidebar = use_state(|| true);
         let mut preview = use_state(|| false);
@@ -147,7 +148,7 @@ impl App for FilesWindow {
                 for handle in tabs.peek().iter() {
                     tab::load(handle.tab, &handle.live, false);
                 }
-                shared.register(key, WindowLink { inbox });
+                shared.register(key, WindowLink { inbox, scope });
                 spawn(async move {
                     if let Some(read) = off_thread(places::read).await {
                         places.set(read);
@@ -377,7 +378,7 @@ impl App for FilesWindow {
                             current.set(n);
                         }
                         Open::Tab(place, reveal) => {
-                            let handle = new_tab(&shared, place, reveal);
+                            let handle = new_tab(&shared, place, reveal, scope);
                             tab::load(handle.tab, &handle.live, false);
                             let n = {
                                 let mut list = tabs.write();
@@ -798,9 +799,8 @@ impl App for FilesWindow {
                             }
                         }
                         "toggle-hidden" => {
-                            let mut hidden = shared.hidden;
-                            let now = !*hidden.peek();
-                            hidden.set(now);
+                            let show = !*shared.hidden.peek();
+                            shared.set_hidden(show);
                         }
                         "back" => tab::back(tab, &live),
                         "forward" => tab::forward(tab, &live),
@@ -869,11 +869,6 @@ impl App for FilesWindow {
         let shared_keys = shared.clone();
         let on_key = move |e: Event<KeyboardEventData>| {
             let m = e.modifiers;
-            held.set_if_modified(Held {
-                cmd: m.contains(Modifiers::META),
-                shift: m.contains(Modifiers::SHIFT),
-                option: m.contains(Modifiers::ALT),
-            });
             if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) || renaming.peek().is_some() || find.is_focused() {
                 return;
             }
@@ -923,14 +918,6 @@ impl App for FilesWindow {
                 t.select_only(path);
             }
         };
-        let on_key_up = move |e: Event<KeyboardEventData>| {
-            let m = e.modifiers;
-            held.set_if_modified(Held {
-                cmd: m.contains(Modifiers::META),
-                shift: m.contains(Modifiers::SHIFT),
-                option: m.contains(Modifiers::ALT),
-            });
-        };
 
         // Made once, so the rows they reach stay equal while a name is typed: a new handler
         // each render would rebuild the row and the field with it.
@@ -975,7 +962,7 @@ impl App for FilesWindow {
             press,
             chooses: None,
         };
-        let body = content(&theme, &handle, rev, focused, held, on_pick, interact.clone());
+        let body = content(&theme, &handle, rev, focused, on_pick, interact.clone());
         // A question goes to the window that started its job, or to the front one when that
         // has closed.
         let question = {
@@ -1130,7 +1117,6 @@ impl App for FilesWindow {
             .horizontal()
             .content(Content::flex())
             .on_global_key_down(on_key)
-            .on_global_key_up(on_key_up)
             .on_global_pointer_move({
                 let (data, tab) = (data.clone(), tab);
                 move |e: Event<PointerEventData>| {
@@ -1595,7 +1581,8 @@ fn open_new_tab(
     key: isle_app::WindowKey,
     place: Place,
 ) {
-    let handle = new_tab(shared, place, None);
+    let Some(scope) = shared.window_scope(key) else { return };
+    let handle = new_tab(shared, place, None, scope);
     tab::load(handle.tab, &handle.live, false);
     let n = {
         let mut list = tabs.write();
@@ -1617,9 +1604,10 @@ fn open_items(
     in_tabs: bool,
     open_with: State<Option<crate::open::Offer>>,
 ) {
+    // An item not in the tab's listing yet, as one opened from a column before the last.
     let entries: Vec<_> = {
         let t = handle.tab.peek();
-        paths.iter().filter_map(|p| t.folder.get(p).cloned()).collect()
+        paths.iter().filter_map(|p| t.folder.get(p).cloned().or_else(|| isle_fs::Entry::at(p).ok())).collect()
     };
     let dirs: Vec<_> = entries.iter().filter(|e| e.is_dir()).collect();
     match (dirs.as_slice(), in_tabs) {
@@ -1688,7 +1676,6 @@ pub(crate) fn content(
     handle: &TabHandle,
     rev: u64,
     focused: bool,
-    held: State<Held>,
     on_pick: EventHandler<Pick>,
     interact: Interact,
 ) -> Element {
@@ -1734,7 +1721,6 @@ pub(crate) fn content(
                 tab: handle.tab,
                 rev,
                 focused,
-                held,
                 on_pick: on_pick.clone(),
                 controller: handle.scroll,
                 interact,
@@ -1744,7 +1730,6 @@ pub(crate) fn content(
                 tab: handle.tab,
                 rev,
                 focused,
-                held,
                 on_pick: on_pick.clone(),
                 controller: handle.scroll,
                 interact,
@@ -1754,7 +1739,6 @@ pub(crate) fn content(
                 tab: handle.tab,
                 rev,
                 focused,
-                held,
                 on_pick: on_pick.clone(),
                 controller: handle.scroll,
                 interact,
@@ -1764,8 +1748,11 @@ pub(crate) fn content(
                 tab: handle.tab,
                 rev,
                 focused,
-                held,
                 on_pick: on_pick.clone(),
+                on_go: EventHandler::new({
+                    let (tab, live) = (handle.tab, handle.live.clone());
+                    move |(folder, reveal): (PathBuf, Option<PathBuf>)| tab::go(tab, &live, Place::Folder(folder), reveal)
+                }),
                 interact,
             }
             .into_element(),

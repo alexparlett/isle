@@ -144,6 +144,7 @@ fn pointer(platform: &Platform, x: f64, y: f64, name: freya_core::integration::M
                 name,
                 cursor: (x, y).into(),
                 button: None,
+                modifiers: Modifiers::empty(),
             }),
         }));
     });
@@ -389,7 +390,7 @@ impl<A: App + 'static> App for Frame<A> {
                     .find(|c| {
                         c.enabled
                             && !c.for_field
-                            && c.chord.is_some_and(|k| k.matches(&e.key, e.modifiers))
+                            && c.chord.is_some_and(|k| k.matches(&e.key, e.code, e.modifiers))
                     })
                     .cloned();
                 if let Some(command) = command {

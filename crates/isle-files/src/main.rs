@@ -70,6 +70,8 @@ const SPEC: Spec = Spec {
 #[derive(Clone, Copy)]
 pub struct WindowLink {
     pub inbox: State<Vec<Open>>,
+    /// The window's scope, which owns its tabs.
+    pub scope: ScopeId,
 }
 
 /// What the app keeps above its windows.
@@ -183,6 +185,10 @@ impl Shared {
     pub fn register(&self, key: WindowKey, link: WindowLink) {
         self.windows.borrow_mut().insert(key, link);
         self.bring_front(key);
+    }
+
+    pub fn window_scope(&self, key: WindowKey) -> Option<ScopeId> {
+        self.windows.borrow().get(&key).map(|l| l.scope)
     }
 
     pub fn unregister(&self, key: WindowKey) {
@@ -454,6 +460,13 @@ impl Shared {
         self.save();
     }
 
+    pub fn set_hidden(&self, show: bool) {
+        let mut hidden = self.hidden;
+        hidden.set(show);
+        self.memory.borrow_mut().hidden = show;
+        self.save();
+    }
+
     fn save(&self) {
         let memory = self.memory.borrow().clone();
         std::thread::spawn(move || memory::save(&memory));
@@ -697,9 +710,9 @@ fn main() {
         panels: RefCell::default(),
         waiting: RefCell::default(),
         quick_look: RefCell::default(),
+        hidden: State::create_global(memory.hidden),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
-        hidden: State::create_global(false),
         jobs: jobs::Jobs::new(),
         cut: State::create_global(Vec::new()),
         locations: volumes::Locations::new(),

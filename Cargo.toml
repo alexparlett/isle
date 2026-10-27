@@ -46,8 +46,8 @@ isle-tray = { path = "crates/isle-tray" }
 isle-ui = { path = "crates/isle-ui" }
 
 # The fork (B7); `.cargo/config.toml`, git-ignored, may patch it to a local checkout.
-freya = { git = "https://github.com/alexparlett/freya", rev = "ce0e9fe46ab7f60faa818091cdb588c20d3bb6d9", default-features = false }
-freya-embed = { git = "https://github.com/alexparlett/freya", rev = "ce0e9fe46ab7f60faa818091cdb588c20d3bb6d9" }
+freya = { git = "https://github.com/alexparlett/freya", rev = "a8b6d09f7c4b1cd10e93c4fdcd0f49d41f3dd548", default-features = false }
+freya-embed = { git = "https://github.com/alexparlett/freya", rev = "a8b6d09f7c4b1cd10e93c4fdcd0f49d41f3dd548" }
 accesskit = "0.24"
 accesskit_unix = "0.22"
 

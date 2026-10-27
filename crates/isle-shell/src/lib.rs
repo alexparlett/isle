@@ -650,6 +650,7 @@ impl Shell {
 
     /// The pointer moved to `at`, relative to the surface.
     pub fn pointer_motion(&mut self, focus: &ShellFocus, at: Point<f64, Logical>) {
+        let modifiers = self.modifiers;
         self.feed(focus, |instance| {
             let at = at.to_physical(instance.scale);
             instance.pointer = (at.x, at.y);
@@ -657,6 +658,7 @@ impl Shell {
                 name: MouseEventName::MouseMove,
                 cursor: instance.pointer.into(),
                 button: None,
+                modifiers,
             }]
         });
     }
@@ -671,6 +673,7 @@ impl Shell {
             0x114 => MouseButton::Forward,
             other => MouseButton::Other(other as u16),
         };
+        let modifiers = self.modifiers;
         self.feed(focus, |instance| {
             vec![PlatformEvent::Mouse {
                 name: if pressed {
@@ -680,6 +683,7 @@ impl Shell {
                 },
                 cursor: instance.pointer.into(),
                 button: Some(button),
+                modifiers,
             }]
         });
     }

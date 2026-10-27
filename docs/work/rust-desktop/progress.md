@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-27
+
+- P15b 15b.1, the breaking bugs: a tab made from a click (⌘-double-click,
+  middle click, +) belonged to the view whose handler made it and was
+  dropped with it, so the next navigation panicked; tabs and their
+  reading tasks are now made in the window's scope through Freya's new
+  `run_in_scope`. ⌘-click and ⇧-click read the click's own modifiers,
+  which Freya's mouse events now carry (the fork's `isle/mouse-modifiers`,
+  pinned at a8b6d09); Columns ignored them entirely. Choosing a folder in
+  Columns makes it the tab's place, so the title, the path bar and Back
+  follow, and the window stays in Columns. Show Hidden Files is kept in
+  `files.json`. Shifted punctuation chords (⇧⌘.) never matched and now match
+  by key. Four interaction tests drive the pointer; checked in the VM by
+  real input with the journal clean.
+- P15b 15b.0: P15's outcome amended, the interaction audit recorded.
+
 ## 2026-10-26 (P16)
 
 - P16 16.14, the close, host run pending: ARCHITECTURE gains How Mission

@@ -20,7 +20,6 @@ pub struct IconsView {
     pub tab: State<Tab>,
     pub rev: u64,
     pub focused: bool,
-    pub held: State<Held>,
     pub on_pick: EventHandler<Pick>,
     pub controller: ScrollController,
     pub interact: crate::interact::Interact,
@@ -39,7 +38,6 @@ struct Grid {
     lines: Rc<Vec<GridLine>>,
     tab: State<Tab>,
     focused: bool,
-    held: State<Held>,
     on_pick: EventHandler<Pick>,
     dark: bool,
     icon: f32,
@@ -102,7 +100,6 @@ impl Component for IconsView {
             lines: lines.clone(),
             tab: self.tab,
             focused: self.focused,
-            held: self.held,
             on_pick: self.on_pick.clone(),
             dark: theme.appearance.mode == isle_tokens::Mode::Dark,
             icon,
@@ -163,7 +160,7 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
     let interact = grid.interact.clone();
     let target = grid.interact.is_target(&entry.path);
     let body = text::metrics(theme, text::Style::Body);
-    let (on_pick, held) = (grid.on_pick.clone(), grid.held);
+    let on_pick = grid.on_pick.clone();
     let info = if !grid.info {
         None
     } else if entry.is_dir() {
@@ -189,7 +186,7 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
             }
             e.stop_propagation();
             interact.press(&path, e.global_location.x, e.global_location.y);
-            let held = *held.peek();
+            let held = Held::of(e.modifiers);
             let double = EventsCombos::<CellClick>::pressed(e.global_location).is_double();
             on_pick.call(if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) });
         })

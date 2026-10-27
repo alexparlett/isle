@@ -1,7 +1,7 @@
-//! Columns view: a column per level from the folder shown, each opened by the folder chosen
-//! in the one before, the preview last (`p1/surfaces/files.md` § Columns view).
+//! Columns view: a column per folder from the first column's down to the tab's, the
+//! preview last (`p1/surfaces/files.md` § Columns view).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use freya::prelude::*;
 use isle_ui::{Glyph, colour, text, use_theme};
@@ -21,12 +21,13 @@ pub struct ColumnsView {
     pub tab: State<Tab>,
     pub rev: u64,
     pub focused: bool,
-    pub held: State<Held>,
     pub on_pick: EventHandler<Pick>,
+    /// Moves the tab to a folder, revealing an item in it.
+    pub on_go: EventHandler<(PathBuf, Option<PathBuf>)>,
     pub interact: crate::interact::Interact,
 }
 
-/// A column after the first: a folder chosen in the column before it.
+/// A column before the last: a folder on the way from the first column to the tab's.
 #[derive(Clone)]
 struct Column {
     path: PathBuf,
@@ -40,86 +41,103 @@ impl PartialEq for Column {
     }
 }
 
-/// The one folder selected in a column, which the next column shows.
-fn chosen_folder(tab: &Tab) -> Option<PathBuf> {
-    match tab.selection.as_slice() {
-        [one] => tab.folder.get(one).filter(|e| e.is_dir()).map(|e| e.path.clone()),
-        _ => None,
+/// The folders from `root` down to `place`, both included, or None when `place` is not
+/// under `root`.
+fn chain(root: &Path, place: &Path) -> Option<Vec<PathBuf>> {
+    let rest = place.strip_prefix(root).ok()?;
+    let mut folders = vec![root.to_owned()];
+    for part in rest.components() {
+        let next = folders.last().unwrap().join(part);
+        folders.push(next);
     }
+    Some(folders)
 }
 
 impl Component for ColumnsView {
     fn render(&self) -> impl IntoElement {
         let theme = use_theme();
         let t = &theme.tokens;
+        let tab = self.tab;
+        let place = tab.read().place.folder().map(PathBuf::from);
+        let mut root = use_state(|| place.clone());
         let mut columns = use_state(Vec::<Column>::new);
-        let root = self.tab;
 
-        // The chain follows each column's chosen folder; a column whose folder is still
-        // chosen keeps its listing.
-        let _rev = root.read().rev;
-        let mut chain = Vec::new();
-        let mut next = chosen_folder(&root.read());
-        let existing = columns.read().clone();
-        for column in &existing {
-            match &next {
-                Some(path) if *path == column.path => {
-                    chain.push(column.clone());
-                    next = chosen_folder(&column.tab.read());
-                }
-                _ => break,
+        // The tab's place is the last column; the columns before it run down from the first
+        // column's folder, which moves to the place when the place leaves it.
+        let _rev = tab.read().rev;
+        let folders = match (&*root.peek(), &place) {
+            (Some(r), Some(p)) => chain(r, p),
+            _ => None,
+        };
+        let folders = match folders {
+            Some(folders) => folders,
+            None => {
+                root.set(place.clone());
+                place.iter().cloned().collect()
             }
-        }
-        let mut grown = false;
-        while let Some(path) = next.take() {
-            let mut fresh = Tab::new(0, Place::Folder(path.clone()));
-            fresh.folder.set_show_hidden(root.peek().folder.shows_hidden());
-            let column = Column {
-                path,
-                tab: State::create(fresh),
-                _live: Live::default(),
+        };
+        let before = &folders[..folders.len().saturating_sub(1)];
+        let existing = columns.peek().clone();
+        let mut chain_now = Vec::new();
+        for (n, path) in before.iter().enumerate() {
+            let column = match existing.iter().find(|c| c.path == *path) {
+                Some(column) => column.clone(),
+                None => {
+                    let mut fresh = Tab::new(0, Place::Folder(path.clone()));
+                    fresh.folder.set_show_hidden(tab.peek().folder.shows_hidden());
+                    let column = Column { path: path.clone(), tab: State::create(fresh), _live: Live::default() };
+                    tab::load(column.tab, &column._live, false);
+                    column
+                }
             };
-            tab::load(column.tab, &column._live, false);
-            chain.push(column);
-            grown = true;
+            // A column shows the folder the next one lists as chosen.
+            let chosen = folders[n + 1].clone();
+            if column.tab.peek().selection != [chosen.clone()] {
+                let mut listing = column.tab;
+                listing.write().select_only(chosen);
+            }
+            chain_now.push(column);
         }
-        if grown || chain.len() != existing.len() {
-            columns.set(chain.clone());
+        if chain_now != existing {
+            columns.set(chain_now.clone());
         }
 
-        // The deepest column with a selection is the one the keys and the accent are in.
-        let all: Vec<State<Tab>> = std::iter::once(root).chain(chain.iter().map(|c| c.tab)).collect();
-        let active = all
+        // The last column with a selection is the one the keys and the accent are in.
+        let all: Vec<(State<Tab>, PathBuf)> = chain_now
             .iter()
-            .rposition(|tab| !tab.read().selection.is_empty())
-            .unwrap_or(0);
-        let last = all.last().copied().unwrap_or(root);
+            .map(|c| (c.tab, c.path.clone()))
+            .chain(place.clone().map(|p| (tab, p)))
+            .collect();
+        let last = all.len().saturating_sub(1);
+        let active = all.iter().rposition(|(t, _)| !t.read().selection.is_empty()).unwrap_or(last);
         let preview = {
-            let tab = last.read();
-            let items: Vec<_> = tab.selection.iter().filter_map(|p| tab.folder.get(p).cloned()).collect();
+            let t = tab.read();
+            let items: Vec<_> = t.selection.iter().filter_map(|p| t.folder.get(p).cloned()).collect();
             (!items.is_empty() && items.iter().all(|e| !e.is_dir())).then_some(items)
         };
 
         let dark = theme.appearance.mode == isle_tokens::Mode::Dark;
-        let column_views = all.iter().enumerate().map(|(n, &tab)| {
-            let on_pick = self.on_pick.clone();
-            let held = self.held;
-            column(&theme, tab, n == active && self.focused, dark, &self.interact, move |pick: Pick| {
-                if n == 0 {
-                    on_pick.call(pick);
+        let column_views = all.iter().enumerate().map(|(n, (listing, folder))| {
+            let (on_pick, on_go, listing, folder) = (self.on_pick.clone(), self.on_go.clone(), *listing, folder.clone());
+            column(&theme, listing, n == active && self.focused, dark, &self.interact, move |pick: Pick| {
+                let is_dir = |path: &Path| listing.peek().folder.get(path).is_some_and(|e| e.is_dir());
+                if n == last {
+                    match pick {
+                        // A plain click on a folder opens it in the next column.
+                        Pick::Click(path, held) if !held.cmd && !held.shift && is_dir(&path) => on_go.call((path, None)),
+                        pick => on_pick.call(pick),
+                    }
                     return;
                 }
-                let mut tab = tab;
                 match pick {
-                    Pick::Click(path, held) if held.cmd => tab.write().toggle(path),
-                    Pick::Click(path, _) => tab.write().select_only(path),
+                    Pick::Click(path, _) | Pick::Open(path, _) if is_dir(&path) => on_go.call((path, None)),
+                    Pick::Click(path, _) => on_go.call((folder.clone(), Some(path))),
                     Pick::Open(path, held) => {
-                        tab.write().select_only(path.clone());
+                        on_go.call((folder.clone(), Some(path.clone())));
                         on_pick.call(Pick::Open(path, held));
                     }
-                    Pick::Nothing => tab.write().deselect(),
+                    Pick::Nothing => on_go.call((folder.clone(), None)),
                 }
-                let _ = held;
             })
         });
         ScrollView::new()
@@ -193,7 +211,7 @@ fn column(
                             e.stop_propagation();
                             pressing.press(&path, e.global_location.x, e.global_location.y);
                             let double = EventsCombos::<ColumnClick>::pressed(e.global_location).is_double();
-                            let held = Held::default();
+                            let held = Held::of(e.modifiers);
                             on_pick(if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) });
                         })
                         .child(list_view::icon(entry, dark, t.size_app_icon_small, t.colour_text_2))

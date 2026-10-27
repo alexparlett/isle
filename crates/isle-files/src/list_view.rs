@@ -22,6 +22,12 @@ pub struct Held {
     pub option: bool,
 }
 
+impl Held {
+    pub fn of(m: Modifiers) -> Self {
+        Self { cmd: m.contains(Modifiers::META), shift: m.contains(Modifiers::SHIFT), option: m.contains(Modifiers::ALT) }
+    }
+}
+
 /// A press on an item, as the view's owner acts on it.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Pick {
@@ -46,7 +52,6 @@ pub struct ListView {
     pub tab: State<Tab>,
     pub rev: u64,
     pub focused: bool,
-    pub held: State<Held>,
     pub on_pick: EventHandler<Pick>,
     pub controller: ScrollController,
     pub interact: crate::interact::Interact,
@@ -60,7 +65,6 @@ struct Rows {
     lines: Option<std::rc::Rc<Vec<Line>>>,
     tab: State<Tab>,
     focused: bool,
-    held: State<Held>,
     on_pick: EventHandler<Pick>,
     dark: bool,
     interact: crate::interact::Interact,
@@ -149,7 +153,6 @@ impl Component for ListView {
             lines,
             tab: self.tab,
             focused: self.focused,
-            held: self.held,
             on_pick: self.on_pick.clone(),
             dark: theme.appearance.mode == isle_tokens::Mode::Dark,
             interact: self.interact.clone(),
@@ -249,7 +252,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
     let radius = CornerRadius::new(top, top, bottom, bottom);
     let now = format::now();
     let path = entry.path.clone();
-    let (on_pick, held) = (rows.on_pick.clone(), rows.held);
+    let on_pick = rows.on_pick.clone();
     rect()
         .key(entry.path.to_string_lossy().into_owned())
         .width(Size::fill())
@@ -277,7 +280,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                     }
                     e.stop_propagation();
                     interact.press(&path, e.global_location.x, e.global_location.y);
-                    let held = *held.peek();
+                    let held = Held::of(e.modifiers);
                     let double = EventsCombos::<RowClick>::pressed(e.global_location).is_double();
                     on_pick.call(if double {
                         Pick::Open(path.clone(), held)

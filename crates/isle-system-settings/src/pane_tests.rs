@@ -513,6 +513,7 @@ fn a_changed_row_resets_to_its_default_from_its_context_menu() {
             name,
             cursor: cursor.into(),
             button: Some(MouseButton::Right),
+            modifiers: Modifiers::empty(),
         });
     }
     settle(&mut test);
@@ -532,6 +533,7 @@ fn a_changed_row_resets_to_its_default_from_its_context_menu() {
             name,
             cursor: cursor.into(),
             button: Some(MouseButton::Right),
+            modifiers: Modifiers::empty(),
         });
     }
     settle(&mut test);

@@ -29,6 +29,9 @@ pub struct Memory {
     /// The Open and Save panels, by the app asking.
     #[serde(default)]
     pub panels: BTreeMap<String, PanelMemory>,
+    /// Hidden files shown (View › Show Hidden Files).
+    #[serde(default)]
+    pub hidden: bool,
 }
 
 /// What a panel keeps for one app.

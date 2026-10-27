@@ -2,7 +2,7 @@
 //! from it. A chosen item with a chord arrives as that chord's key press, so the item and the
 //! key take one path; one without a chord is run directly.
 
-use freya::prelude::{Key, Modifiers};
+use freya::prelude::{Code, Key, Modifiers};
 use isle_menus::export::{Entry, MenuItem};
 
 /// The menus in the order the bar shows them; App is titled with the app's name.
@@ -155,15 +155,36 @@ impl Chord {
     }
 
     /// Whether a key press is this chord.
-    pub fn matches(&self, key: &Key, modifiers: Modifiers) -> bool {
+    pub fn matches(&self, key: &Key, code: Code, modifiers: Modifiers) -> bool {
         let wanted = self.modifiers();
         let held = modifiers & (Modifiers::META | Modifiers::SHIFT | Modifiers::ALT | Modifiers::CONTROL);
         held == wanted
             && match (key, self.key) {
-                (Key::Character(c), ChordKey::Char(k)) => c.to_lowercase() == k.to_lowercase().to_string(),
+                (Key::Character(c), ChordKey::Char(k)) => {
+                    // Shift turns punctuation into another character (⇧. types >): its key is it.
+                    c.to_lowercase() == k.to_lowercase().to_string() || (self.shift && code_of(k) == Some(code))
+                }
                 (pressed, named) => *pressed == named.key(),
             }
     }
+}
+
+/// The key that types punctuation `c` unshifted.
+fn code_of(c: char) -> Option<Code> {
+    Some(match c {
+        ',' => Code::Comma,
+        '.' => Code::Period,
+        '/' => Code::Slash,
+        ';' => Code::Semicolon,
+        '\'' => Code::Quote,
+        '[' => Code::BracketLeft,
+        ']' => Code::BracketRight,
+        '-' => Code::Minus,
+        '=' => Code::Equal,
+        '`' => Code::Backquote,
+        '\\' => Code::Backslash,
+        _ => return None,
+    })
 }
 
 /// XKB's name for a key that types `c`.
@@ -331,8 +352,11 @@ mod tests {
     #[test]
     fn a_chord_matches_its_key_press_and_no_other() {
         let redo = Chord::cmd('z').shift();
-        assert!(redo.matches(&Key::Character("Z".into()), Modifiers::META | Modifiers::SHIFT));
-        assert!(!redo.matches(&Key::Character("z".into()), Modifiers::META));
-        assert!(!Chord::cmd('q').matches(&Key::Character("q".into()), Modifiers::CONTROL));
+        assert!(redo.matches(&Key::Character("Z".into()), Code::KeyZ, Modifiers::META | Modifiers::SHIFT));
+        assert!(!redo.matches(&Key::Character("z".into()), Code::KeyZ, Modifiers::META));
+        assert!(!Chord::cmd('q').matches(&Key::Character("q".into()), Code::KeyQ, Modifiers::CONTROL));
+        let hidden = Chord::cmd('.').shift();
+        assert!(hidden.matches(&Key::Character(">".into()), Code::Period, Modifiers::META | Modifiers::SHIFT));
+        assert!(!hidden.matches(&Key::Character(">".into()), Code::Comma, Modifiers::META | Modifiers::SHIFT));
     }
 }

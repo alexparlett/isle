@@ -10,7 +10,7 @@ use crate::{
     Shared,
     chooser::{Answer, Ask, Kind, SUCCESS},
     interact::{Choosable, Interact},
-    list_view::{Held, Pick},
+    list_view::Pick,
     memory::PanelMemory,
     places::{self, Place, Places},
     tab::{self, Live},
@@ -105,7 +105,7 @@ impl App for PanelWindow {
                             shown.view = view;
                         }
                         shown
-                    })),
+                    }), Some(current_scope_id())),
                     scroll: ScrollController::new(0, 0),
                 };
                 tab::load(handle.tab, &handle.live, false);
@@ -121,7 +121,6 @@ impl App for PanelWindow {
                 }
             });
         });
-        let held = use_state(Held::default);
         let query = use_state(String::new);
         let mut filter_at = use_state(|| ask.current_filter.unwrap_or(0));
         let mut values = use_state({
@@ -589,7 +588,7 @@ impl App for PanelWindow {
                 width: t.size_sidebar_min,
                 under_toolbar: false,
             };
-            let body = content(&theme, &handle, rev, focused, held, on_pick, interact);
+            let body = content(&theme, &handle, rev, focused, on_pick, interact);
             let foot = rect()
                 .width(Size::fill())
                 .padding((t.space_m, t.space_l))

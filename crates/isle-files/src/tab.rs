@@ -160,9 +160,10 @@ enum Update {
 pub struct Live(Rc<RefCell<LiveInner>>);
 
 impl Live {
-    pub fn new(shown_for: ShownFor) -> Self {
+    pub fn new(shown_for: ShownFor, scope: Option<ScopeId>) -> Self {
         Self(Rc::new(RefCell::new(LiveInner {
             shown_for: Some(shown_for),
+            scope,
             ..Default::default()
         })))
     }
@@ -174,6 +175,8 @@ pub type ShownFor = Rc<dyn Fn(&Place) -> Shown>;
 #[derive(Default)]
 struct LiveInner {
     shown_for: Option<ShownFor>,
+    /// The scope the tab belongs to, which its reading task lives in.
+    scope: Option<ScopeId>,
     generation: Arc<AtomicU64>,
     watch: Option<Watch>,
     /// The channel to the task applying what is read; closed, the task ends.
@@ -334,7 +337,12 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
         let mut t = tab.write();
         if !again {
             if let Some(shown_for) = live.0.borrow().shown_for.clone() {
+                // A folder chosen in Columns stays in Columns, whatever it last showed as.
+                let columns = t.shown.view == crate::view::View::Columns;
                 t.shown = shown_for(&t.place);
+                if columns && t.place.folder().is_some() {
+                    t.shown.view = crate::view::View::Columns;
+                }
             }
             let (order, hidden) = (t.shown.order(), t.folder.shows_hidden());
             t.folder = Folder::new(order);
@@ -405,8 +413,10 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
         })
         .ok();
 
+    let scope = live.0.borrow().scope;
     let live = live.clone();
-    spawn(async move {
+    // In the tab's own scope: a load started from a view's click outlives the view.
+    spawn_in_scope(async move {
         let mut seen: HashSet<PathBuf> = HashSet::new();
         let (started, mut first) = (std::time::Instant::now(), true);
         while let Some(message) = rx.next().await {
@@ -474,7 +484,7 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
                 }
             }
         }
-    });
+    }, scope);
 }
 
 /// Watches a folder on a local disk; a remote folder is read again when shown instead.

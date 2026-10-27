@@ -16,7 +16,8 @@ use crate::{
     tab::{self, Live},
     toolbar::icon_button,
     view::View,
-    window::{Sidebar, TabHandle, content, off_thread},
+    sidebar::Sidebar,
+    window::{TabHandle, content, off_thread},
 };
 
 /// The panel's sizes from the shipped tokens, which do not change with the appearance.

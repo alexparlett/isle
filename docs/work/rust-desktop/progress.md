@@ -2,6 +2,11 @@
 
 ## 2026-10-27
 
+- P15b 15b.2, `window.rs` split with no change in behaviour: from 2,061
+  lines to about 1,000. The command table and what each command does move
+  to `commands.rs`, behind a `Win` of the window's state; the sidebar and
+  the tab bar to their own files; the helpers the commands and handlers
+  share to `ops.rs`.
 - P15b 15b.1, the breaking bugs: a tab made from a click (⌘-double-click,
   middle click, +) belonged to the view whose handler made it and was
   dropped with it, so the next navigation panicked; tabs and their

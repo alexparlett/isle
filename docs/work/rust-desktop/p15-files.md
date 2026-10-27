@@ -656,3 +656,12 @@ screen and fonts; the trim bar's playback and Trim as a job with progress;
 asking before closing unsaved Markup; Last modified's date range; removing
 a saved search; Get Info's and the preview pane's use of the renderers.
 
+
+Amended 2026-10-27: this outcome was written as built when Files was not
+usable. On the installed package it crashed (tabs owned by the view that
+made them), ⌘-click and ⇧-click did not select, Columns' Back did not
+follow, Show Hidden Files was forgotten, and there were no context menus.
+An audit of the code against P1's sheets and a VM pass with real input
+found about 110 gaps, ranked in the artifact `Files spec gaps`
+(https://claude.ai/artifact/BiXt1zTa2rvAVqCzqRaAVi). P15b
+(`p15b-files.md`) builds them.

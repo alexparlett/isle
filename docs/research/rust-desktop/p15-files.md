@@ -97,3 +97,14 @@ Not done. What it settles:
 4. A day of use: copies across the drives, the Trash, a USB stick and an
    encrypted one, the panels from Firefox, Zed, Steam and an Electron app,
    Quick Look and Markup on screenshots.
+
+## The interaction audit, 2026-10-27
+
+The VM pass above drove Files through menus and D-Bus and took
+screenshots; it never clicked as a person does, so it missed what the user
+found in minutes. A second pass drove real pointer and keys
+(`dev/vm-ix.py`, git-ignored) and an audit walked the sheets against the
+code: about 110 gaps, 4 breaking (the crash, multi-select, Columns' Back,
+hidden files forgotten), ranked in the artifact `Files spec gaps`
+(https://claude.ai/artifact/BiXt1zTa2rvAVqCzqRaAVi). P15b's proof is by
+real input for that reason.

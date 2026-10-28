@@ -25,6 +25,7 @@ mod preview;
 mod toolbar;
 mod transfer;
 mod memory;
+mod notify;
 mod menus;
 mod open;
 mod ops;
@@ -102,6 +103,8 @@ pub struct Shared {
     pub mounting: State<Vec<String>>,
     /// The preview pane's width as dragged.
     pub preview_width: State<Option<f32>>,
+    /// The Files window in front, if one is: a job's end is its report then.
+    pub focused: Cell<Option<WindowKey>>,
     pub jobs: jobs::Jobs,
     /// Items cut and not yet pasted, drawn dimmed.
     pub cut: State<Vec<PathBuf>>,
@@ -124,7 +127,8 @@ pub struct Shared {
     settings: Cell<Option<WindowKey>>,
     settings_at: State<settings_window::At>,
     /// The scope the last search used, for Use the previous scope.
-    pub last_scope: Cell<Option<search::Scope>>,
+    /// The scope last chosen, none for This folder; unset until one is.
+    pub last_scope: Cell<Option<Option<search::Scope>>>,
     /// The Trash has been cleared of old items this launch.
     purged: Cell<bool>,
     /// The panels open, by their request.
@@ -216,6 +220,9 @@ impl Shared {
     pub fn unregister(&self, key: WindowKey) {
         self.windows.borrow_mut().remove(&key);
         self.front.borrow_mut().retain(|k| *k != key);
+        if self.focused.get() == Some(key) {
+            self.focused.set(None);
+        }
         // The last window's tabs are kept to open again at the next launch.
         if !self.windows.borrow().is_empty() {
             self.memory.borrow_mut().windows.remove(&key.number());
@@ -878,6 +885,7 @@ fn main() {
         places_rev: State::create_global(0),
         mounting: State::create_global(Vec::new()),
         preview_width: State::create_global(memory.preview_width),
+        focused: Cell::new(None),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         copy: Cell::new(None),

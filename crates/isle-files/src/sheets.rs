@@ -30,6 +30,15 @@ pub struct Alert {
 
 impl Alert {
     /// A job's failures; `verb` is what the job did to its items: "copied", "moved".
+    /// As `failures`, with Try Again running `retry` over the items that failed.
+    pub fn failures_again(failed: &[(PathBuf, String)], verb: &str, retry: Option<Work>) -> Self {
+        let mut alert = Self::failures(failed, verb);
+        if let Some(work) = retry {
+            alert.buttons = vec![("Try Again".into(), Some(Then::Job(work))), ("Done".into(), None)];
+        }
+        alert
+    }
+
     pub fn failures(failed: &[(PathBuf, String)], verb: &str) -> Self {
         let n = failed.len();
         Self {

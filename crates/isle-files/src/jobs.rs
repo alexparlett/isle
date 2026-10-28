@@ -110,6 +110,44 @@ pub struct Finished {
     pub undo_label: String,
     pub doing: Doing,
     pub report: Report,
+    /// The job again over the items that failed, for Try Again.
+    pub retry: Option<Work>,
+}
+
+/// `work` again over only the items in `failed`; none for work that cannot be retried so.
+pub fn retry_of(work: &Work, failed: &[(PathBuf, String)]) -> Option<Work> {
+    let paths: Vec<PathBuf> = failed.iter().map(|(p, _)| p.clone()).collect();
+    let pick = |items: &[PathBuf]| -> Vec<PathBuf> { items.iter().filter(|i| paths.iter().any(|p| p.starts_with(i) || *p == **i)).cloned().collect() };
+    let again = match work {
+        Work::Copy { items, into } => Work::Copy { items: pick(items), into: into.clone() },
+        Work::Move { items, into } => Work::Move { items: pick(items), into: into.clone() },
+        Work::Trash { items } => Work::Trash { items: pick(items) },
+        Work::Delete { items } => Work::Delete { items: pick(items) },
+        Work::Duplicate { items } => Work::Duplicate { items: pick(items) },
+        _ => return None,
+    };
+    match &again {
+        Work::Copy { items, .. } | Work::Move { items, .. } | Work::Trash { items } | Work::Delete { items } | Work::Duplicate { items } if !items.is_empty() => Some(again),
+        _ => None,
+    }
+}
+
+/// What a notification says of a job ended unseen: "Copied 3 items to “Documents”", or
+/// "Copied 2 of 3 items…"; none for work that has nothing to say.
+pub fn ended_unseen(work: &Work, failed: usize) -> Option<(String, PathBuf)> {
+    let (verb, items, into) = match work {
+        Work::Copy { items, into } => ("Copied", items.len(), into),
+        Work::Move { items, into } => ("Moved", items.len(), into),
+        _ => return None,
+    };
+    let folder = crate::places::folder_name(into);
+    let done = items.saturating_sub(failed);
+    let count = if failed == 0 {
+        crate::format::items(items)
+    } else {
+        format!("{done} of {}", crate::format::items(items))
+    };
+    Some((format!("{verb} {count} to “{folder}”"), into.clone()))
 }
 
 enum Message {
@@ -212,6 +250,7 @@ impl Jobs {
             started: Instant::now(),
             stop: StopFlag(stop.clone()),
         });
+        let again = work.clone();
         let (tx, mut rx) = unbounded();
         let control = ThreadControl {
             id,
@@ -244,6 +283,8 @@ impl Jobs {
                             job.state = JobState::Waiting;
                         }
                         questions.write().push(Question { job: id, window, conflict, reply });
+                        // While another app is in front, the window asks for the user.
+                        app.attention(window);
                         if let Some(shared) = crate::SHARED.with(|s| s.borrow().clone()) {
                             shared.copy_window_check();
                         }
@@ -258,8 +299,18 @@ impl Jobs {
                             };
                         }
                         let undoable = matches!(&report.undo, Some(Undo::Steps(s)) if !s.is_empty());
+                        let shared = crate::SHARED.with(|s| s.borrow().clone());
+                        // With no Files window in front, a notification is the report.
+                        if shared.as_ref().is_some_and(|s| s.focused.get().is_none())
+                            && !report.stopped
+                            && let Some((summary, into)) = ended_unseen(&again, report.failed.len())
+                            && let Some(bus) = app.bus()
+                        {
+                            app.worker().spawn(crate::notify::finished(bus, summary, into));
+                        }
+                        let retry = retry_of(&again, &report.failed);
                         if failed || undoable || report.undo == Some(Undo::CantUndo) {
-                            finished.write().push(Finished { window, verb, undo_label: undo_label.clone(), doing, report });
+                            finished.write().push(Finished { window, verb, undo_label: undo_label.clone(), doing, report, retry });
                         }
                         *ended.write() += 1;
                         if failed && let Some(shared) = crate::SHARED.with(|s| s.borrow().clone()) {

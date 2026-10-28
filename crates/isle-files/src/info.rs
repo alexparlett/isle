@@ -103,7 +103,8 @@ pub struct Facts {
     pub group: String,
     pub mine: bool,
     pub comment: String,
-    pub dimensions: Option<(u32, u32)>,
+    /// What its kind has: dimensions, duration, pages.
+    pub more: Vec<(&'static str, String)>,
     pub volume: Option<VolumeFacts>,
     /// Open With's apps for its type, the default first, and the type.
     pub apps: Vec<crate::open::Choice>,
@@ -155,12 +156,7 @@ pub fn read_facts(path: &Path) -> Option<Facts> {
             available: stat.f_bavail * stat.f_frsize,
         })
     });
-    let dimensions = entry
-        .mime
-        .as_deref()
-        .filter(|m| m.starts_with("image/"))
-        .and_then(|_| imagesize::size(path).ok())
-        .map(|d| (d.width as u32, d.height as u32));
+    let more = if entry.is_dir() { Vec::new() } else { crate::preview::kind_facts(path, entry.mime.as_deref().unwrap_or("")) };
     let (apps, kind) = if entry.is_dir() {
         (Vec::new(), String::new())
     } else {
@@ -173,7 +169,7 @@ pub fn read_facts(path: &Path) -> Option<Facts> {
         group: name_of("/etc/group", meta.gid()),
         mine: meta.uid() == rustix::process::getuid().as_raw(),
         comment: comment(path),
-        dimensions,
+        more,
         volume,
         apps,
         kind,
@@ -359,6 +355,9 @@ impl Component for OneItem {
         });
         let mut chosen_app = use_state(|| 0usize);
         let mut asking = use_state(|| false);
+        // A rename refused, with why, or asking first.
+        let refused = use_state(|| None::<String>);
+        let renaming = use_state(|| None::<crate::sheets::Alert>);
         let counted_now = counted.read().clone().filter(|c| c.path == entry.path);
         let kind = list_view::kind(entry);
         let shared = &self.shared;
@@ -417,27 +416,35 @@ impl Component for OneItem {
                 ],
             ));
         }
-        if let Some((w, h)) = f.dimensions {
-            sections.push(section(&theme, shared, "More Info", &self.collapsed, vec![fact(&theme, "Dimensions", format!("{w} × {h}"))]));
+        if !f.more.is_empty() {
+            let rows = f.more.iter().map(|(label, value)| fact(&theme, label, value.clone())).collect();
+            sections.push(section(&theme, shared, "More Info", &self.collapsed, rows));
         }
 
         let rename = {
             let (shared, path, changed) = (shared.clone(), entry.path.clone(), self.changed.clone());
+            let dir = entry.is_dir();
+            // The checks a rename in place makes: a slash, a name taken, a leading dot, a
+            // changed extension.
             move |typed: String| {
-                let typed = typed.trim().to_owned();
-                let current = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-                if typed.is_empty() || typed == current || typed.contains('/') {
-                    return;
+                use crate::ops::RenameCheck;
+                let check = crate::ops::check_rename_with(&path, &typed, dir, |p| p.exists(), shared.prefs().warn_extension_change);
+                match check {
+                    RenameCheck::Cancel => return,
+                    RenameCheck::Refused(why) => {
+                        let mut refused = refused;
+                        refused.set(Some(why));
+                        return;
+                    }
+                    RenameCheck::Ask(question) => {
+                        let mut renaming = renaming;
+                        renaming.set(Some(question));
+                        return;
+                    }
+                    RenameCheck::Go(work) => start_rename(&shared, work),
                 }
-                if let Some(key) = shared.front_window() {
-                    shared.jobs.start(
-                        &shared.app(),
-                        key,
-                        isle_fs::jobs::Work::Rename { item: path.clone(), to: typed },
-                        "Renaming".into(),
-                        "Rename".into(),
-                    );
-                }
+                let mut refused = refused;
+                refused.set(None);
                 changed.call(());
             }
         };
@@ -446,7 +453,14 @@ impl Component for OneItem {
             shared,
             "Name & Extension",
             &self.collapsed,
-            vec![isle_ui::TextField::new(name, "Name").on_submit(rename).into_element()],
+            vec![
+                isle_ui::TextField::new(name, "Name").on_submit(rename).into_element(),
+                rect()
+                    .maybe_child(refused.read().clone().map(|why| {
+                        crate::interact::refusal(&theme, why)
+                    }))
+                    .into_element(),
+            ],
         ));
         let save_note = {
             let (path, changed) = (entry.path.clone(), self.changed.clone());
@@ -539,7 +553,18 @@ impl Component for OneItem {
                 ],
             )
         });
-        rect().width(Size::fill()).children(sections).maybe_child(ask)
+        let rename_ask = renaming.read().clone().map(|question| {
+            let (shared, changed) = (shared.clone(), self.changed.clone());
+            crate::sheets::alert_sheet(question, move |then| {
+                let mut renaming = renaming;
+                renaming.set(None);
+                if let Some(crate::sheets::Then::Job(work)) = then {
+                    start_rename(&shared, work);
+                    changed.call(());
+                }
+            })
+        });
+        rect().width(Size::fill()).children(sections).maybe_child(ask).maybe_child(rename_ask)
     }
 }
 
@@ -660,5 +685,13 @@ mod tests {
         let facts = read_facts(&file).unwrap();
         assert!(facts.mine);
         assert!(facts.on_disk >= facts.entry.size);
+    }
+}
+
+/// Starts a rename from Get Info, as a job of the front Files window.
+fn start_rename(shared: &crate::Shared, work: isle_fs::jobs::Work) {
+    if let Some(key) = shared.front_window() {
+        let (title, label) = crate::jobs::title(&work);
+        shared.jobs.start(&shared.app(), key, work, title, label);
     }
 }

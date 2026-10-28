@@ -412,6 +412,26 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
         t.place.clone()
     };
     let current = live.0.borrow().generation.clone();
+    // A listing with nothing yet after the progress delay shows its mark.
+    {
+        let current = current.clone();
+        let wait = std::time::Duration::from_millis(isle_ui::theme().tokens.timing_progress_delay_ms as u64);
+        spawn(async move {
+            crate::jobs::async_sleep(wait).await;
+            if current.load(Ordering::SeqCst) != generation {
+                return;
+            }
+            let waiting = {
+                let t = tab.peek();
+                t.status == Status::Loading && t.folder.is_empty()
+            };
+            if waiting {
+                let mut t = tab.write();
+                t.slow = true;
+                t.rev += 1;
+            }
+        });
+    }
     let here = tx.clone();
     let send = {
         let current = current.clone();

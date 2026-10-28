@@ -205,6 +205,18 @@ pub(crate) enum RenameCheck {
 
 /// What a typed name does (`files.md` § Acting on files, Rename).
 pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_extension: bool) -> RenameCheck {
+    let is_dir = tab.folder.get(path).is_some_and(|e| e.is_dir());
+    check_rename_with(path, typed, is_dir, |p| tab.folder.get(p).is_some(), warn_extension)
+}
+
+/// As `check_rename`, `taken` saying whether a name is in use: Get Info asks the disk.
+pub(crate) fn check_rename_with(
+    path: &std::path::Path,
+    typed: &str,
+    is_dir: bool,
+    taken: impl Fn(&std::path::Path) -> bool,
+    warn_extension: bool,
+) -> RenameCheck {
     let name = typed.trim();
     let old = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     if name.is_empty() || name == old {
@@ -213,7 +225,7 @@ pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_
     if name.contains('/') {
         return RenameCheck::Refused("A name can't contain “/”.".into());
     }
-    if tab.folder.get(&path.with_file_name(name)).is_some() {
+    if taken(&path.with_file_name(name)) {
         return RenameCheck::Refused(format!("The name “{name}” is already taken. Please choose a different name."));
     }
     let to = |n: &str| Work::Rename { item: path.to_owned(), to: n.to_owned() };
@@ -225,7 +237,6 @@ pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_
             buttons: vec![("Cancel".into(), None), (format!("Use “{name}”"), Some(Then::Job(to(name))))],
         });
     }
-    let is_dir = tab.folder.get(path).is_some_and(|e| e.is_dir());
     let (_, old_ext) = isle_fs::jobs::split_ext(&old);
     let (_, new_ext) = isle_fs::jobs::split_ext(name);
     if warn_extension && !is_dir && !old_ext.is_empty() && new_ext != old_ext {

@@ -327,7 +327,7 @@ impl App for FilesWindow {
                     _ => {}
                 }
                 if !f.report.failed.is_empty() {
-                    alert.set(Some(Alert::failures(&f.report.failed, f.verb)));
+                    alert.set(Some(Alert::failures_again(&f.report.failed, f.verb, f.retry.clone())));
                 }
                 // A new folder or file is selected with its name open.
                 if let ("created", [made]) = (f.verb, f.report.made.as_slice())
@@ -574,6 +574,17 @@ impl App for FilesWindow {
         });
 
         let focused = *Platform::get().is_app_focused.read();
+        // Which Files window is in front, for a job ending unseen.
+        use_side_effect_with_deps(&focused, {
+            let shared = shared.clone();
+            move |focused| {
+                if *focused {
+                    shared.focused.set(Some(key));
+                } else if shared.focused.get() == Some(key) {
+                    shared.focused.set(None);
+                }
+            }
+        });
         let rev = tab.read().rev;
         // Made once, as the rename's handlers are, and acting on the tab current when called.
         let on_pick = use_hook({
@@ -878,6 +889,10 @@ impl App for FilesWindow {
                     }
                 }
                 Act::UseAsDefaults => shared.set_default_shown(tab.peek().shown),
+                Act::ClearJob(id) => {
+                    let mut list = shared.jobs.list;
+                    list.write().retain(|j| j.id != id);
+                }
                 Act::StopJob(id) => {
                     if let Some(job) = shared.jobs.list.peek().iter().find(|j| j.id == id) {
                         job.stop.store(true, std::sync::atomic::Ordering::SeqCst);
@@ -904,9 +919,11 @@ impl App for FilesWindow {
                         other => {
                             let mut search = search_from(&other, term, Vec::new());
                             if search.folder.is_some() {
-                                search.scope = shared.prefs().scope(shared.last_scope.get());
+                                // This folder keeps filtering the folder shown; Return walks nothing.
+                                let Some(scope) = shared.prefs().scope(shared.last_scope.get()) else { return };
+                                search.scope = scope;
                             }
-                            shared.last_scope.set(Some(search.scope));
+                            shared.last_scope.set(Some(Some(search.scope)));
                             tab::go(tab, &live, Place::Search(Box::new(search)), None)
                         }
                     }
@@ -925,17 +942,18 @@ impl App for FilesWindow {
                 let place = tab.peek().place.clone();
                 match (chosen, place) {
                     (Where::ThisFolder, Place::Search(s)) => {
+                        shared.last_scope.set(Some(None));
                         let mut keep_query = keep_query;
                         keep_query.set(Some(s.term.clone()));
                         end_search(tab, &live);
                     }
-                    (Where::ThisFolder, _) => {}
+                    (Where::ThisFolder, _) => shared.last_scope.set(Some(None)),
                     (Where::Search(scope), Place::Search(s)) => {
-                        shared.last_scope.set(Some(scope));
+                        shared.last_scope.set(Some(Some(scope)));
                         tab::replace(tab, &live, Place::Search(Box::new(Search { scope, name: None, ..*s })))
                     }
                     (Where::Search(scope), other) => {
-                        shared.last_scope.set(Some(scope));
+                        shared.last_scope.set(Some(Some(scope)));
                         let mut search = search_from(&other, query.peek().trim().to_owned(), Vec::new());
                         search.scope = scope;
                         tab::go(tab, &live, Place::Search(Box::new(search)), None);
@@ -1307,6 +1325,16 @@ pub(crate) fn content(
         }),
         _ => None,
     };
+    // A listing slow to start shows a spinner in place of nothing.
+    if tab.status == Status::Loading && tab.slow && tab.folder.is_empty() {
+        drop(tab);
+        return rect()
+            .expanded()
+            .center()
+            .background(colour(t.colour_view))
+            .child(isle_ui::Spinner::new(t.size_glyph_large, "Loading"))
+            .into_element();
+    }
     // A folder gone offers the nearest folder still there.
     let enclosing = (tab.status == Status::Gone)
         .then(|| tab.place.folder().and_then(|f| f.ancestors().skip(1).find(|a| a.is_dir()).map(PathBuf::from)))

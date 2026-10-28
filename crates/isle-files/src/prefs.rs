@@ -242,11 +242,14 @@ impl Prefs {
     }
 
     /// The scope Return searches in, given the last one used.
-    pub fn scope(&self, previous: Option<Scope>) -> Scope {
+    /// Where Return in the search field looks: under the folder, Home, or none for the
+    /// folder shown, filtered as it stands.
+    pub fn scope(&self, previous: Option<Option<Scope>>) -> Option<Scope> {
         match self.search_scope.as_str() {
-            "home" => Scope::Home,
-            "previous" => previous.unwrap_or(Scope::Under),
-            _ => Scope::Under,
+            "this-folder" => None,
+            "home" => Some(Scope::Home),
+            "previous" => previous.unwrap_or(Some(Scope::Under)),
+            _ => Some(Scope::Under),
         }
     }
 }

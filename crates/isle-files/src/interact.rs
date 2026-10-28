@@ -129,6 +129,17 @@ pub fn name_part(name: &str, dir: bool) -> std::ops::Range<usize> {
     }
 }
 
+/// A refused name's reason, as a callout.
+pub fn refusal(theme: &isle_tokens::Theme, why: String) -> Element {
+    let t = &theme.tokens;
+    rect()
+        .padding((3., t.space_s))
+        .corner_radius(t.radius_small)
+        .background(colour(t.colour_window_raised))
+        .child(isle_ui::text::line(theme, isle_ui::text::Style::Callout, colour(t.colour_text), why))
+        .into_element()
+}
+
 /// The name field over an item's name, with its refusal under it when there is one.
 pub fn rename_field(theme: &isle_tokens::Theme, rename: &Rename, width: Size) -> Element {
     let t = &theme.tokens;

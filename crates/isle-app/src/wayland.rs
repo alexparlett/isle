@@ -302,6 +302,15 @@ impl Extras {
         }
     }
 
+    /// Asks for the user's attention while another app is in front: the switcher marks the
+    /// app and the island shows its attention event.
+    pub fn attention(&self) {
+        if let Some((surface, _)) = &self.gestures {
+            surface.present(0);
+            let _ = self.connection.flush();
+        }
+    }
+
     /// Hands a click on the toolbar to the compositor, which does what the user set for it.
     pub fn gesture(&self, gesture: Gesture) {
         if let Some((surface, seat)) = &self.gestures {

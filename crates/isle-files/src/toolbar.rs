@@ -34,6 +34,8 @@ pub enum Act {
     Search(String),
     /// Escape in the search field.
     EndSearch,
+    /// A failed job's row cleared.
+    ClearJob(u64),
     /// More (…): the selection's menu, or the folder's, hung at this point.
     More((f32, f32)),
     /// ⌘-click or a secondary click on the title: the path menu, hung at this point.
@@ -158,6 +160,26 @@ impl Component for Toolbar {
         let mut more_at = use_state(|| (0f32, 0f32));
         let mut title_hover = use_state(|| false);
         let mut search_open = use_state(|| false);
+        // A job shows only once it has run past the delay, or asks, or fails: a short one never.
+        let delay = std::time::Duration::from_millis(theme.tokens.timing_job_delay_ms as u64);
+        let shown_jobs: Vec<JobView> = self
+            .jobs
+            .iter()
+            .filter(|j| j.state != JobState::Running || j.started.elapsed() >= delay)
+            .cloned()
+            .collect();
+        let mut beat = use_state(|| 0u32);
+        let pending = self.jobs.iter().any(|j| j.state == JobState::Running && j.started.elapsed() < delay);
+        use_side_effect_with_deps(&(pending, self.jobs.len()), move |&(pending, _)| {
+            if pending {
+                spawn(async move {
+                    crate::jobs::async_sleep(delay).await;
+                    let next = beat.peek().wrapping_add(1);
+                    beat.set(next);
+                });
+            }
+        });
+        let _ = *beat.read();
         let find_focus = use_focus(self.find);
         let gap = theme.tokens.space_xs;
         let mut jobs_open = use_state(|| false);
@@ -504,10 +526,10 @@ impl Component for Toolbar {
             .child(view_options)
             .maybe_child((!centre_folded).then_some(group_sort))
             .child(rect().width(Size::flex(1.)))
-            .maybe_child((!self.jobs.is_empty()).then(|| {
+            .maybe_child((!shown_jobs.is_empty()).then(|| {
                 let open = *jobs_open.read();
                 Popover::new(
-                    jobs_button(&theme, &self.jobs, open, move || {
+                    jobs_button(&theme, &shown_jobs, open, move || {
                         let mut jobs_open = jobs_open;
                         jobs_open.toggle()
                     }),
@@ -515,7 +537,7 @@ impl Component for Toolbar {
                     move |_| jobs_open.set(false),
                 )
                     .alt("File jobs")
-                    .children(self.jobs.iter().map(|j| job_row(&theme, j, send.clone())))
+                    .children(shown_jobs.iter().map(|j| job_row(&theme, j, send.clone())))
                     .into_element()
             }))
             .maybe_child(self.in_trash.map(|n| {
@@ -636,6 +658,7 @@ fn job_row(theme: &isle_tokens::Theme, job: &JobView, send: impl Fn(Act) + 'stat
         JobState::Running => format!("{} of {}", p.items, p.total_items),
     };
     let id = job.id;
+    let failed = matches!(job.state, JobState::Failed(_));
     let ink = match job.state {
         JobState::Waiting => t.colour_warn_text,
         JobState::Failed(_) => t.colour_danger_text,
@@ -673,8 +696,8 @@ fn job_row(theme: &isle_tokens::Theme, job: &JobView, send: impl Fn(Act) + 'stat
                         .height(Size::px(20.))
                         .center()
                         .a11y_role(AccessibilityRole::Button)
-                        .a11y_alt("Stop")
-                        .on_press(move |_| send(Act::StopJob(id)))
+                        .a11y_alt(if failed { "Clear" } else { "Stop" })
+                        .on_press(move |_| send(if failed { Act::ClearJob(id) } else { Act::StopJob(id) }))
                         .child(isle_ui::Glyph::new("x-circle", 16., colour(t.colour_text_2)).fill(true)),
                 ),
         )

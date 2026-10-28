@@ -2,6 +2,20 @@
 
 ## 2026-10-28
 
+- P15b 15b.12, jobs, search and states: a copy or move ending while no
+  Files window is in front tells so in a notification ("Copied 3 items to
+  “Documents”", "Copied 2 of 3 items…", Show opening the folder); a
+  question asks for attention (`gtk_surface1.present`, isle-app's
+  `attention`); a job's failures offer Try Again over the items that
+  failed, Done the default; the jobs button waits `timing-job-delay-ms`
+  before showing a running job, and a failed row clears. Search's Return
+  keeps This folder when that is the scope (the setting read This folder as
+  Everything under), and choosing This folder is remembered as the last
+  scope. A listing with nothing after `timing-progress-delay-ms` shows a
+  spinner. Get Info's name field makes rename-in-place's checks (slash,
+  taken, leading dot, extension), and More Info carries the kind's facts.
+  Proved: Try Again by a compositor test, the notification in the VM by
+  real input.
 - P15b 15b.11, the panels: their own File, View and Go menus with Files'
   keys (New Folder, Quick Look ⌘Y, ⌘F, ⌘1–3, ⇧⌘. per panel, Back,
   Forward, Enclosing Folder, the places, Go to Folder ⇧⌘G); Space opens

@@ -1905,3 +1905,41 @@ async fn test_click_panel(isle: &Isle, at: (f64, f64)) {
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
     click(isle, at, &[], 1).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_failed_copy_offers_try_again() {
+    use std::os::unix::fs::PermissionsExt;
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-try-again").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let locked = home.join("Documents");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
+
+    reveal(&isle, &app, &home.join("notes.md")).await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    pause(500).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    pause(1200).await;
+    isle.keep_shot("files-try-again").await;
+
+    // The folder writable again, Try Again (the leading button) copies.
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let try_again = (w.x as f64 + w.width as f64 / 2. - 62., w.y as f64 + 52. + TRY_AGAIN_Y);
+    let test = isle.test().await;
+    test.pointer_to(try_again.0, try_again.1).await.unwrap();
+    pause(200).await;
+    click(&isle, try_again, &[], 1).await;
+    wait_until(|| async { locked.join("notes.md").exists() }).await;
+    assert!(!app.printed_part("panicked"));
+}
+
+/// Try Again's height under the toolbar in a one-failure alert.
+const TRY_AGAIN_Y: f64 = 150.;

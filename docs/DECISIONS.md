@@ -1286,3 +1286,15 @@ beginning with a dot is allowed after asking. Rejected: asking before
 quitting (built in 15b.3 and taken out: it stopped work Finder would
 finish), and an alert as a window of its own with a title bar and lights.
 
+
+**B120 · Finder's keys and sheet win over v1's where they meet.** Decided
+by the user at P15b's walk (2026-10-28). v1's Ctrl+1, 2 and 3 are not
+kept: the compositor's Ctrl+1…9 go to desktops, as macOS's do. v1's Alt
+with the arrows is not kept: Files' table gives ⌥↑ and ⌥↓ to first and
+last and List's ⌥→ to opening every folder under it, as Finder;
+Backspace stands in for ⌘↑ and ⌘[ ⌘] stay. Open With's Other… opens on
+the type's apps with every app one tick away, as Finder's Recommended and
+All Applications, rather than on every app. v1's other keys are kept as
+second chords (`isle_app::Command::also`). Rejected: Alt arrows in Icons
+only (one key meaning two things by view), and Ctrl+digits taken back from
+the desktops while Files is in front.

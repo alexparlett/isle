@@ -116,8 +116,8 @@ Pointer, Acting on files, States and Copy against the build, by four
 read-only passes over the code and the interaction tests, then the gaps
 built in 15b.14 or named here. **Built** lines are proved by a compositor
 test driven by real input or a VM pass by real input, named where one
-phase carries it; **cut** names the packet; **declined** gives the reason
-for the user to accept.
+phase carries it; **cut** names the packet; **declined** gives the reason,
+each accepted by the user (B120).
 
 ### Keyboard
 

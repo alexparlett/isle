@@ -324,9 +324,10 @@ and its clamp to a narrow parent; Escape and ⌘Tab during a drag; the band
 and the writing bar in Columns; volume rename; Increase Contrast's
 borders; rows growing at the largest text size; Reduce Motion's fades;
 the Trash sound; Spotlight's Trash; context menus past the window's edge.
-Declined, for the user to accept: v1's Ctrl+1, 2 and 3 (desktops), v1's
-Alt with the arrows (Finder's ⌥ arrows in the same table), Other…'s sheet
-opening on every app (Finder's recommended list, all one tick away).
+Declined, and accepted by the user (B120): v1's Ctrl+1, 2 and 3
+(desktops), v1's Alt with the arrows (Finder's ⌥ arrows in the same
+table), Other…'s sheet opening on every app (Finder's recommended list,
+all one tick away).
 The Freya fork's `2cf6468f` is pinned: an app's event loop ends quietly at
 a session's end, where every Isle app panicked. Still to come: the user's
 day on the host.

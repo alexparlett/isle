@@ -3426,6 +3426,7 @@ dependencies = [
  "isle-portal",
  "isle-power",
  "isle-prompter",
+ "isle-providers",
  "isle-search",
  "isle-settings",
  "isle-shell",

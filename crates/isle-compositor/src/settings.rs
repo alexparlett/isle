@@ -158,6 +158,7 @@ impl State {
         }
         if touched("widget[") || touched("island") {
             self.refresh_weather();
+            self.run_providers();
             self.put_dashboard_frame();
         }
         if touched("windows.games") || touched("windows.not-games") {

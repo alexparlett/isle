@@ -38,6 +38,7 @@ image.workspace = true
 pipewire = { version = "0.10", features = ["v0_3_33"] }
 rustix = { version = "1.1", features = ["fs"] }
 isle-sysinfo.workspace = true
+isle-providers.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 # The CRTC gamma blob, which the drm crate cannot make from a slice.
 drm-ffi = "0.9"

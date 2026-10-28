@@ -38,6 +38,36 @@ pub enum Body {
     System(Vec<SeriesView>),
     Weather(WeatherView),
     Timer(TimerView),
+    /// One line at the top of its place with what it needs, as an empty widget's: a
+    /// provider failing, not allowed or not installed.
+    Strip {
+        glyph: Option<String>,
+        line: String,
+        /// A small button's label and the row it sends.
+        button: Option<(String, String)>,
+    },
+    Provider(ProviderView),
+}
+
+/// A provider's widget: its title line and its template's answer.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProviderView {
+    pub title: Option<String>,
+    /// "Updated {time}" once it is stale.
+    pub updated: Option<String>,
+    pub data: ProviderData,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ProviderData {
+    Text(String),
+    Number { value: String, unit: Option<String>, label: Option<String> },
+    Gauge { value: f32, label: Option<String>, text: Option<String> },
+    Sparkline { values: Vec<f64>, value: Option<String> },
+    Graph(Vec<(String, Vec<f64>)>),
+    /// Label, value, glyph.
+    List(Vec<(String, Option<String>, Option<String>)>),
+    Card { title: String, body: Option<String>, image: Option<std::path::PathBuf> },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -623,6 +653,31 @@ fn widget(
         });
     let chrome = frame.edit.then(|| edit_chrome(theme, width, height, selected));
     let body: Element = match &w.body {
+        Body::Strip { glyph, line, button } => {
+            return place
+                .maybe_child(chrome)
+                .child(ring(
+                    plate(theme, frame.solid, t.radius_panel)
+                        .width(Size::fill())
+                        .height(Size::px(t.size_row_large))
+                        .padding((0., t.space_m))
+                        .horizontal()
+                        .content(Content::flex())
+                        .cross_align(Alignment::Center)
+                        .spacing(t.space_s)
+                        .a11y_alt(line.clone())
+                        .maybe_child(glyph.clone().map(|g| Glyph::new(g, 16., colour(t.colour_text)).into_element()))
+                        .child(rect().width(Size::flex(1.)).child(text::line(theme, text::Style::Body, colour(t.colour_text), line.clone())))
+                        .maybe_child(button.clone().map(|(label, row)| {
+                            let (actions, id) = (actions.clone(), w.id.clone());
+                            Button::new(label)
+                                .small()
+                                .on_press(move |_| send(&actions, DashboardAction::Row { id: id.clone(), row: row.clone() }))
+                                .into_element()
+                        })),
+                ))
+                .into_element();
+        }
         Body::Empty(line) => {
             return place
                 .maybe_child(chrome)
@@ -656,6 +711,7 @@ fn widget(
         Body::System(series) => system(theme, w, series),
         Body::Weather(view) => weather(theme, w, view),
         Body::Timer(view) => timer(theme, w, view, actions),
+        Body::Provider(view) => provider(theme, w, view),
         Body::Controls(modules) => {
             let inner = width - 2.0 * t.space_s;
             crate::island::panel::ModuleTiles { modules: modules.clone(), width: inner }.into_element()
@@ -1604,4 +1660,158 @@ fn timer(theme: &Theme, w: &WidgetView, v: &TimerView, actions: &Actions) -> Ele
                 .child(icon("arrow-counter-clockwise", "reset", "Reset")),
         )
         .into_element()
+}
+
+fn provider(theme: &Theme, w: &WidgetView, v: &ProviderView) -> Element {
+    let t = &theme.tokens;
+    let (ink, ink_2) = (colour(t.colour_text), colour(t.colour_text_2));
+    let (iw, ih) = inner(theme, w);
+    let title = (v.title.is_some() || v.updated.is_some()).then(|| {
+        rect()
+            .width(Size::fill())
+            .horizontal()
+            .content(Content::flex())
+            .child(rect().width(Size::flex(1.)).maybe_child(v.title.clone().map(|n| {
+                text::line(theme, text::Style::Subheadline, ink_2, n).font_weight(600).into_element()
+            })))
+            .maybe_child(v.updated.clone().map(|u| text::line(theme, text::Style::Footnote, ink_2, u).into_element()))
+            .into_element()
+    });
+    let room = ih - if title.is_some() { t.type_style_subheadline_line + t.space_xs } else { 0.0 };
+    let body: Element = match &v.data {
+        ProviderData::Text(text_) => label()
+            .width(Size::fill())
+            .height(Size::px(room))
+            .font_size(t.type_style_body_size)
+            .color(ink)
+            .text_overflow(TextOverflow::Ellipsis)
+            .text(text_.clone())
+            .into_element(),
+        ProviderData::Number { value, unit, label } => rect()
+            .child(text::line(
+                theme,
+                if w.at.h >= 2 { text::Style::Figure } else { text::Style::Title },
+                ink,
+                value.clone(),
+            ))
+            .maybe_child(
+                (unit.is_some() || label.is_some()).then(|| {
+                    let words = [unit.clone(), label.clone()].into_iter().flatten().collect::<Vec<_>>().join(" ");
+                    text::line(theme, text::Style::Subheadline, ink_2, words).into_element()
+                }),
+            )
+            .into_element(),
+        ProviderData::Gauge { value, label, text: words } => {
+            let r = 22.0;
+            let around = std::f32::consts::TAU * r;
+            let svg = format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="24" cy="24" r="{r}" fill="none" stroke="{}" stroke-width="4"/><circle cx="24" cy="24" r="{r}" fill="none" stroke="{}" stroke-width="4" stroke-linecap="round" stroke-dasharray="{:.2} {:.2}" transform="rotate(-90 24 24)"/></svg>"#,
+                css(t.colour_fill_strong, 1.0),
+                css(t.colour_text, 1.0),
+                around * value.clamp(0.0, 1.0),
+                around,
+            );
+            let shown = words.clone().unwrap_or_else(|| format!("{:.0}%", value * 100.0));
+            rect()
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .spacing(t.space_m)
+                .child(svg_view(svg, 48., 48., format!("{} {shown}", label.clone().unwrap_or_default())))
+                .child(
+                    rect()
+                        .child(text::line(theme, text::Style::Title3, ink, shown))
+                        .maybe_child(label.clone().map(|l| text::line(theme, text::Style::Subheadline, ink_2, l).into_element())),
+                )
+                .into_element()
+        }
+        ProviderData::Sparkline { values, value } => {
+            let gh = (room - if value.is_some() { t.type_style_title_3_line } else { 0.0 }).max(8.0);
+            rect()
+                .maybe_child(value.clone().map(|v| text::line(theme, text::Style::Title3, ink, v).into_element()))
+                .child(line_graph(values, iw, gh, t.colour_text, None))
+                .into_element()
+        }
+        ProviderData::Graph(series) => {
+            let gh = room.max(8.0);
+            let mut layer = rect().width(Size::px(iw)).height(Size::px(gh));
+            for (i, (label, values)) in series.iter().enumerate() {
+                layer = layer.child(
+                    rect()
+                        .position(Position::new_absolute().left(0.).top(0.))
+                        .child(line_graph(values, iw, gh, series_colour(theme, i), Some(label))),
+                );
+            }
+            layer.into_element()
+        }
+        ProviderData::List(items) => {
+            let (shown, more) = list_rows(items, rows_in(room, t.size_row, t.space_xs));
+            rect()
+                .spacing(t.space_xs)
+                .children(shown.iter().map(|(label, value, glyph)| {
+                    rect()
+                        .height(Size::px(t.size_row))
+                        .width(Size::fill())
+                        .horizontal()
+                        .content(Content::flex())
+                        .cross_align(Alignment::Center)
+                        .spacing(t.space_s)
+                        .maybe_child(glyph.clone().map(|g| Glyph::new(g, 16., ink_2).into_element()))
+                        .child(rect().width(Size::flex(1.)).child(text::line(theme, text::Style::Body, ink, label.clone())))
+                        .maybe_child(value.clone().map(|v| text::line(theme, text::Style::Body, ink_2, v).into_element()))
+                        .into_element()
+                }))
+                .maybe_child((more > 0).then(|| {
+                    text::line(theme, text::Style::Callout, ink_2, format!("{more} more")).into_element()
+                }))
+                .into_element()
+        }
+        ProviderData::Card { title, body, image } => rect()
+            .horizontal()
+            .content(Content::flex())
+            .spacing(t.space_m)
+            .maybe_child(image.clone().map(|path| {
+                rect()
+                    .width(Size::px(room.min(96.)))
+                    .height(Size::px(room.min(96.)))
+                    .corner_radius(t.radius_control)
+                    .overflow(Overflow::Clip)
+                    .child(ImageViewer::new(path).width(Size::px(room.min(96.))).height(Size::px(room.min(96.))))
+                    .into_element()
+            }))
+            .child(
+                rect()
+                    .width(Size::flex(1.))
+                    .child(text::line(theme, text::Style::Headline, ink, title.clone()))
+                    .maybe_child(body.clone().map(|b| {
+                        label()
+                            .width(Size::fill())
+                            .font_size(t.type_style_callout_size)
+                            .color(ink_2)
+                            .text_overflow(TextOverflow::Ellipsis)
+                            .max_lines(((room - t.type_style_headline_line) / t.type_style_callout_line).floor().max(1.0) as usize)
+                            .text(b)
+                            .into_element()
+                    })),
+            )
+            .into_element(),
+    };
+    rect().expanded().spacing(t.space_xs).maybe_child(title).child(body).into_element()
+}
+
+/// A 1.5 line over its area, scaled to its own range.
+fn line_graph(values: &[f64], width: f32, height: f32, c: isle_tokens::Colour, label: Option<&String>) -> Element {
+    let (lo, hi) = values.iter().fold((f64::MAX, f64::MIN), |(lo, hi), v| (lo.min(*v), hi.max(*v)));
+    let span = (hi - lo).max(f64::EPSILON);
+    let n = values.len().max(2);
+    let points: Vec<(f32, f32)> = values
+        .iter()
+        .enumerate()
+        .map(|(i, v)| (i as f32 / (n - 1) as f32 * width, height - (((v - lo) / span) as f32) * (height - 2.0) - 1.0))
+        .collect();
+    let line: String = points.iter().map(|(x, y)| format!("{x:.1},{y:.1}")).collect::<Vec<_>>().join(" ");
+    let svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.1} {height:.1}"><polyline points="{line}" fill="none" stroke="{}" stroke-width="1.5" stroke-linejoin="round"/></svg>"#,
+        css(c, 1.0),
+    );
+    svg_view(svg, width, height, label.cloned().unwrap_or_default())
 }

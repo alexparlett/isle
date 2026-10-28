@@ -3,7 +3,7 @@
 
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -56,6 +56,10 @@ pub struct DashboardState {
     sampler: std::sync::Arc<std::sync::Mutex<Option<isle_sysinfo::Sampler>>>,
     sample_tick: Option<RegistrationToken>,
     pub timer_tick: Option<RegistrationToken>,
+    /// Providers on disk, by id, read as the dashboard opens.
+    pub providers: BTreeMap<String, crate::providers::Installed>,
+    pub running: crate::providers::Runs,
+    pub answers: crate::providers::Answers,
     /// The `widgets` domain: last data, timers, sources.
     pub memory: isle_state::domains::Widgets,
     saver: Option<crate::state_writer::Saver<isle_state::domains::Widgets>>,
@@ -118,6 +122,7 @@ const MENU_EDIT_ONE: u64 = 1;
 const MENU_REMOVE: u64 = 2;
 const MENU_EDIT: u64 = 3;
 const MENU_CLOSE: u64 = 4;
+const MENU_TRY_AGAIN: u64 = 5;
 const MENU_SIZE: u64 = 100;
 
 /// How far a press travels before it is a drag, in points.
@@ -137,6 +142,9 @@ impl DashboardState {
             sampler: Default::default(),
             sample_tick: None,
             timer_tick: None,
+            providers: BTreeMap::new(),
+            running: Default::default(),
+            answers: Default::default(),
             memory: Default::default(),
             saver: None,
             floors: RefCell::default(),
@@ -441,6 +449,126 @@ impl Isle {
         rows
     }
 
+    /// A provider's settings from its manifest, its title line's switch first.
+    fn provider_form(&self, id: &str) -> Vec<FormRow> {
+        use isle_providers::manifest::SettingType;
+        use isle_settings::Value;
+        let stored = self.settings.widget.get(id);
+        let value = |key: &str| stored.and_then(|o| o.get(key)).cloned();
+        let mut rows = vec![FormRow {
+            key: "title".into(),
+            label: "Show name".into(),
+            control: Control::Toggle(value("title") != Some(Value::Bool(false))),
+        }];
+        let Some(p) = self.provider_of(id) else {
+            return rows;
+        };
+        for s in &p.manifest.settings {
+            let default = s.default.clone().unwrap_or(serde_json::Value::Null);
+            let control = match s.kind {
+                SettingType::Toggle => Control::Toggle(match value(&s.key) {
+                    Some(Value::Bool(b)) => b,
+                    _ => default.as_bool().unwrap_or(false),
+                }),
+                SettingType::Choice => {
+                    let chosen = match value(&s.key) {
+                        Some(Value::Str(v)) => v,
+                        _ => default.as_str().unwrap_or("").to_owned(),
+                    };
+                    Control::Choice {
+                        options: s.options.clone(),
+                        selected: s.options.iter().position(|o| *o == chosen).unwrap_or(0),
+                    }
+                }
+                SettingType::Number => {
+                    let (min, max) = (s.min.unwrap_or(0), s.max.unwrap_or(1000));
+                    Control::Number {
+                        value: match value(&s.key) {
+                            Some(Value::Int(i)) => i,
+                            _ => default.as_i64().unwrap_or(min),
+                        }
+                        .clamp(min, max),
+                        min,
+                        max,
+                    }
+                }
+                SettingType::Text => Control::Text(match value(&s.key) {
+                    Some(Value::Str(v)) => v,
+                    _ => default.as_str().unwrap_or("").to_owned(),
+                }),
+            };
+            rows.push(FormRow {
+                key: s.key.clone(),
+                label: s.label.clone(),
+                control,
+            });
+        }
+        rows
+    }
+
+    /// A provider widget's body: its answer, or the line for why there is none.
+    fn provider_body(&self, id: &str, name: &str) -> Body {
+        use crate::providers::Standing;
+        use isle_providers::Data;
+        use isle_shell::dashboard::surface::{ProviderData, ProviderView};
+        let strip = |glyph: Option<&str>, line: String, button: Option<(&str, &str)>| Body::Strip {
+            glyph: glyph.map(str::to_owned),
+            line,
+            button: button.map(|(l, r)| (l.to_owned(), r.to_owned())),
+        };
+        let installed = match self.standing(id) {
+            Standing::NotInstalled => {
+                return strip(None, format!("“{name}” isn't installed."), Some(("Remove", "remove")));
+            }
+            Standing::NotAllowed(_) => {
+                return strip(None, format!("“{name}” isn't allowed to run."), Some(("Allow…", "allow")));
+            }
+            Standing::Runs(p) => p,
+        };
+        let error = self.dashboard.answers.get(id).and_then(|a| a.error.clone());
+        let Some((data, at)) = self.provider_data(id) else {
+            return match error {
+                Some(reason) => strip(Some("warning-circle"), reason, None),
+                None => Body::Title,
+            };
+        };
+        let interval = installed.manifest.interval.unwrap_or(60);
+        let age = now_secs().saturating_sub(at);
+        let updated = (!installed.manifest.stream && age > 2 * interval).then(|| {
+            let when = jiff::Timestamp::from_second(at as i64)
+                .map(|t| t.to_zoned(jiff::tz::TimeZone::system()).strftime("%H:%M").to_string())
+                .unwrap_or_default();
+            format!("Updated {when}")
+        });
+        let titled = !self
+            .settings
+            .widget
+            .get(id)
+            .and_then(|w| w.get("title"))
+            .is_some_and(|v| *v == isle_settings::Value::Bool(false));
+        let data = match data {
+            Data::Text { text } => ProviderData::Text(text),
+            Data::Number { value, unit, label } => ProviderData::Number { value, unit, label },
+            Data::Gauge { value, label, text } => ProviderData::Gauge { value, label, text },
+            Data::Sparkline { values, value } => ProviderData::Sparkline { values, value },
+            Data::Graph { series } => ProviderData::Graph(series.into_iter().map(|s| (s.label, s.values)).collect()),
+            Data::List { items } => ProviderData::List(items.into_iter().map(|i| (i.label, i.value, i.glyph)).collect()),
+            Data::Card { title, body, image } => ProviderData::Card {
+                title,
+                body,
+                // Only a picture in its own folders is drawn.
+                image: image
+                    .map(|i| installed.folder.join(i))
+                    .filter(|p| p.starts_with(&installed.folder) && p.is_file()),
+            },
+        };
+        Body::Provider(ProviderView {
+            title: titled.then(|| name.to_owned()),
+            updated,
+            data,
+        })
+    }
+
     /// A System widget's four series from the samples so far.
     fn series_views(&self, id: &str) -> Vec<SeriesView> {
         use isle_shell::dashboard::catalogue::{SERIES, SettingKind, builtin};
@@ -537,7 +665,7 @@ impl Isle {
             .iter()
             .map(|p| {
                 let kind = kind_of(&p.id);
-                let name = catalogue::builtin(kind).map_or(kind, |b| b.name).to_owned();
+                let name = self.widget_name(&p.id);
                 let empty = |line: &str| Body::Empty(line.to_owned());
                 let body = match kind {
                     "clock" => Body::Clock(self.clock_view(&p.id)),
@@ -559,7 +687,7 @@ impl Isle {
                     "timer" => Body::Timer(self.timer_view(&p.id)),
                     "system" if self.dashboard.system.is_empty() => Body::Title,
                     "system" => Body::System(self.series_views(&p.id)),
-                    _ => Body::Title,
+                    _ => self.provider_body(&p.id, &name),
                 };
                 WidgetView {
                     id: p.id.clone(),
@@ -614,9 +742,12 @@ impl Isle {
         let Some(placed) = on.and_then(|id| open.layout.get(id)) else {
             return vec![item(MENU_EDIT, "Edit widgets"), item(MENU_CLOSE, "Close widgets")];
         };
-        let name = widget_name(&placed.id);
+        let name = self.widget_name(&placed.id);
         let mut entries = vec![item(MENU_EDIT_ONE, &format!("Edit “{name}”…")), MenuEntry::Separator];
-        for (i, (w, h)) in sizes_of(&placed.id).all.iter().enumerate() {
+        if self.dashboard.answers.get(&placed.id).is_some_and(|a| a.error.is_some() || a.stopped) {
+            entries.insert(0, item(MENU_TRY_AGAIN, "Try Again"));
+        }
+        for (i, (w, h)) in self.widget_sizes(&placed.id).all.iter().enumerate() {
             let mut size = MenuItem::new(MENU_SIZE + i as u64, format!("{w} × {h}"));
             if (placed.at.w, placed.at.h) == (*w, *h) {
                 size.mark = isle_ui::menu::Mark::Check;
@@ -636,6 +767,12 @@ impl Isle {
         use isle_settings::Value;
         use isle_shell::dashboard::catalogue::SettingKind;
         let stored = self.settings.widget.get(id);
+        if catalogue::builtin(kind_of(id)).is_none() {
+            return FormView {
+                id: id.to_owned(),
+                rows: self.provider_form(id),
+            };
+        }
         let rows = catalogue::builtin(kind_of(id))
             .map_or(&[][..], |b| b.settings)
             .iter()
@@ -705,6 +842,7 @@ impl Isle {
             "menu": open.and_then(|o| o.menu.as_ref()).map(|m| m.on.clone()),
             "form": open.and_then(|o| o.form.clone()),
             "dragging": open.and_then(|o| o.press.as_ref()).is_some_and(|p| p.moved),
+            "running": self.dashboard.running.len(),
             "backdrop": self.dashboard.backdrop.value(),
             "shown_on": self.dashboard.shown_on.clone(),
         })
@@ -712,13 +850,31 @@ impl Isle {
     }
 }
 
-fn widget_name(id: &str) -> String {
-    let kind = kind_of(id);
-    catalogue::builtin(kind).map_or(kind, |b| b.name).to_owned()
-}
+impl Isle {
+    /// A placed widget's name: a built-in's, or its provider's.
+    pub fn widget_name(&self, id: &str) -> String {
+        let kind = kind_of(id);
+        match (catalogue::builtin(kind), self.provider_of(id)) {
+            (Some(b), _) => b.name.to_owned(),
+            (None, Some(p)) => p.manifest.name.clone(),
+            _ => kind.to_owned(),
+        }
+    }
 
-fn sizes_of(id: &str) -> Sizes {
-    catalogue::builtin(kind_of(id)).map_or_else(|| Sizes::new(&[(2, 2)], (2, 2)), |b| b.sizes())
+    /// The sizes a placed widget comes in.
+    pub fn widget_sizes(&self, id: &str) -> Sizes {
+        if let Some(b) = catalogue::builtin(kind_of(id)) {
+            return b.sizes();
+        }
+        match self.provider_of(id) {
+            Some(p) => {
+                let all = p.manifest.cells();
+                let default = isle_providers::manifest::size(&p.manifest.default).unwrap_or(all[0]);
+                Sizes::new(&all, default)
+            }
+            None => Sizes::new(&[(2, 1)], (2, 1)),
+        }
+    }
 }
 
 /// What a widget shows, for the Test interface.
@@ -737,6 +893,8 @@ fn body_summary(body: &Body) -> serde_json::Value {
         Body::Controls(modules) => json!({ "controls": modules.iter().map(|m| &m.id).collect::<Vec<_>>() }),
         Body::Weather(w) => json!({ "weather": w.place, "now": w.now }),
         Body::Timer(t) => json!({ "timer": t.time, "state": format!("{:?}", t.state) }),
+        Body::Strip { line, .. } => json!({ "strip": line }),
+        Body::Provider(p) => json!({ "provider": format!("{:?}", p.data), "updated": p.updated }),
         Body::System(series) => json!({ "system": series.iter().map(|s| (&s.label, &s.value)).collect::<Vec<_>>() }),
     }
 }
@@ -779,6 +937,7 @@ impl State {
         if self.isle.island.panel.is_some() {
             self.close_control_centre();
         }
+        self.isle.dashboard.providers = crate::providers::scan();
         let identity = Isle::output_identity(output);
         let extent = self.isle.dashboard_extent(output);
         let layout = self.isle.dashboard_layout(&identity, &extent);
@@ -849,6 +1008,7 @@ impl State {
         if let Some(token) = self.isle.dashboard.sample_tick.take() {
             self.isle.loop_handle.remove(token);
         }
+        self.isle.dashboard.running.clear();
         let theme = self.isle.shell.theme().clone();
         let still = !self.isle.shell.animated()
             || theme.appearance.reduce_motion
@@ -1184,14 +1344,22 @@ impl State {
 
     /// Option+Cmd+arrows: Right and Down grow it, Left and Up shrink it, through its sizes.
     fn dashboard_resize_by(&mut self, dx: i32, dy: i32) {
+        let Some(placed) = self
+            .isle
+            .dashboard
+            .open
+            .as_ref()
+            .and_then(|o| o.selected.as_ref().and_then(|id| o.layout.get(id)))
+            .cloned()
+        else {
+            return;
+        };
+        let sizes = self.isle.widget_sizes(&placed.id);
         let Some(open) = self.isle.dashboard.open.as_mut() else {
             return;
         };
         open.ring = true;
-        let Some(placed) = open.selected.as_ref().and_then(|id| open.layout.get(id)).cloned() else {
-            return;
-        };
-        let Some(size) = sizes_of(&placed.id).step((placed.at.w, placed.at.h), dx, dy) else {
+        let Some(size) = sizes.step((placed.at.w, placed.at.h), dx, dy) else {
             return;
         };
         let before = open.layout.clone();
@@ -1253,7 +1421,7 @@ impl State {
         };
         open.selected = Some(id.to_owned());
         open.menu = None;
-        let has = catalogue::builtin(kind_of(id)).is_some_and(|b| !b.settings.is_empty());
+        let has = catalogue::builtin(kind_of(id)).is_none_or(|b| !b.settings.is_empty());
         open.form = has.then(|| id.to_owned());
         self.put_dashboard_frame();
     }
@@ -1261,6 +1429,9 @@ impl State {
     fn dashboard_form_set(&mut self, id: &str, key: &str, value: FormValue) {
         use isle_settings::Value;
         use isle_shell::dashboard::catalogue::SettingKind;
+        if catalogue::builtin(kind_of(id)).is_none() {
+            return self.provider_form_set(id, key, value);
+        }
         let Some(setting) = catalogue::builtin(kind_of(id))
             .and_then(|b| b.settings.iter().find(|s| s.key == key))
         else {
@@ -1321,10 +1492,11 @@ impl State {
                         self.dashboard_open_form(&id);
                     }
                     (MENU_REMOVE, Some(id)) => self.dashboard_remove(&id),
+                    (MENU_TRY_AGAIN, Some(id)) => self.provider_try_again(&id),
                     (MENU_EDIT, _) => self.dashboard_edit(true),
                     (MENU_CLOSE, _) => self.close_dashboard(),
                     (n, Some(id)) if n >= MENU_SIZE => {
-                        if let Some(size) = sizes_of(&id).all.get((n - MENU_SIZE) as usize).copied() {
+                        if let Some(size) = self.isle.widget_sizes(&id).all.get((n - MENU_SIZE) as usize).copied() {
                             self.dashboard_resize_to(&id, size);
                         }
                     }
@@ -1462,6 +1634,10 @@ impl State {
         let Some(point) = self.dashboard_point(location) else {
             return true;
         };
+        let sizes = {
+            let id = &self.isle.dashboard.open.as_ref().unwrap().press.as_ref().unwrap().id;
+            self.isle.widget_sizes(id)
+        };
         let open = self.isle.dashboard.open.as_mut().unwrap();
         let press = open.press.as_mut().unwrap();
         press.at = point;
@@ -1500,7 +1676,7 @@ impl State {
                 if bottom {
                     y1 = cy.max(y0 + 1);
                 }
-                let (w, h) = sizes_of(&press.id).nearest(x1 - x0, y1 - y0);
+                let (w, h) = sizes.nearest(x1 - x0, y1 - y0);
                 let x = if left { from.x + from.w - w } else { from.x };
                 let y = if top { from.y + from.h - h } else { from.y };
                 let dir = if w > from.w {
@@ -1667,6 +1843,8 @@ impl State {
                     self.switch_desktop(&output, index);
                 }
             }
+            (_, "remove") => self.dashboard_remove(id),
+            (_, "try-again") => self.provider_try_again(id),
             ("timer", "start") => self.timer_start(id),
             ("timer", "pause") => self.timer_pause(id),
             ("timer", "reset") => self.timer_reset(id),
@@ -1842,8 +2020,48 @@ impl State {
 impl State {
     /// Starts what the widgets shown read: volumes, samples, forecasts.
     pub fn dashboard_feeds(&mut self) {
+        self.run_providers();
         self.read_dashboard_storage();
         self.arm_dashboard_sampling();
         self.refresh_weather();
+    }
+}
+
+impl State {
+    /// A provider's setting written as its manifest types it; it runs again with it.
+    fn provider_form_set(&mut self, id: &str, key: &str, value: FormValue) {
+        use isle_providers::manifest::SettingType;
+        use isle_settings::Value;
+        let value = if key == "title" {
+            match value {
+                FormValue::Bool(b) => Value::Bool(b),
+                _ => return,
+            }
+        } else {
+            let Some(setting) = self
+                .isle
+                .provider_of(id)
+                .and_then(|p| p.manifest.settings.iter().find(|s| s.key == key))
+                .cloned()
+            else {
+                return;
+            };
+            match (setting.kind, value) {
+                (SettingType::Toggle, FormValue::Bool(b)) => Value::Bool(b),
+                (SettingType::Choice, FormValue::Index(i)) => match setting.options.get(i) {
+                    Some(o) => Value::Str(o.clone()),
+                    None => return,
+                },
+                (SettingType::Number, FormValue::Int(n)) => {
+                    Value::Int(n.clamp(setting.min.unwrap_or(i64::MIN), setting.max.unwrap_or(i64::MAX)))
+                }
+                (SettingType::Text, FormValue::Text(t)) => Value::Str(t),
+                _ => return,
+            }
+        };
+        self.isle.write_setting(&format!("widget[{id}].{key}"), value);
+        if key != "title" {
+            self.isle.dashboard.running.remove(id);
+        }
     }
 }

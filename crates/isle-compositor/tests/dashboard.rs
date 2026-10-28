@@ -407,3 +407,63 @@ async fn picture_of_the_feeds() {
     wait_until(|| async { status(&isle).await["bodies"]["weather#1"]["weather"] == "London" }).await;
     isle.keep_shot("dashboard-feeds").await;
 }
+
+/// A provider folder at `dir` answering `script`'s output.
+fn provider_folder(dir: &std::path::Path, id: &str, script: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::create_dir_all(dir).unwrap();
+    std::fs::write(dir.join("run.sh"), format!("#!/bin/sh\n{script}\n")).unwrap();
+    std::fs::set_permissions(dir.join("run.sh"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(
+        dir.join("widget.json"),
+        format!(
+            r#"{{"id":"{id}","name":"{id} widget","version":"1.0.0","sizes":["2x1","4x2"],"default":"2x1","template":"text","exec":["./run.sh"],"interval":60}}"#
+        ),
+    )
+    .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn providers_run_while_shown_and_say_why_when_they_cannot() {
+    let isle = Isle::start_prepared(
+        "dashboard-providers",
+        "dashboard-output \"Isle Headless 1\" {\n    widgets \"hello#1 0 0 2 1\" \"shared#1 2 0 2 1\" \"gone#1 4 0 2 1\" \"broken#1 6 0 2 1\"\n}\n",
+        |dir| {
+            let own = dir.join("config/widgets");
+            provider_folder(&own.join("hello"), "hello", r#"echo '{"text":"hello"}'"#);
+            provider_folder(&own.join("broken"), "broken", "echo 'The key is wrong' >&2; exit 1");
+            let installed = dir.join("data/isle/widgets/shared");
+            provider_folder(&installed, "shared", r#"echo '{"text":"shared"}'"#);
+            std::fs::write(
+                installed.join(".isle-install.json"),
+                r#"{"source":"https://example.com/widgets","version":"1.0.0"}"#,
+            )
+            .unwrap();
+        },
+    )
+    .await;
+    isle.test().await.transitions(false).await.unwrap();
+    chord(&isle).await;
+    wait_until(|| async {
+        let b = status(&isle).await["bodies"].clone();
+        b["hello#1"]["provider"].as_str().is_some_and(|p| p.contains("hello"))
+            && b["broken#1"]["strip"] == "The key is wrong"
+    })
+    .await;
+    let bodies = status(&isle).await["bodies"].clone();
+    assert_eq!(bodies["shared#1"]["strip"], "“shared widget” isn't allowed to run.");
+    assert_eq!(bodies["gone#1"]["strip"], "“gone” isn't installed.");
+    assert_eq!(status(&isle).await["running"], 2, "the two that may run");
+
+    // Closed, nothing runs.
+    isle.test().await.dashboard_act("close").await.unwrap();
+    wait_until(|| async { status(&isle).await["running"] == 0 }).await;
+
+    // Remove takes the missing one out.
+    chord(&isle).await;
+    wait_until(|| async { status(&isle).await["open"] == true }).await;
+    isle.test().await.dashboard_act("row gone#1 remove").await.unwrap();
+    wait_until(|| async { status(&isle).await["bodies"]["gone#1"].is_null() }).await;
+    // The last answer is drawn first when it opens again.
+    assert!(status(&isle).await["bodies"]["hello#1"]["provider"].as_str().is_some_and(|p| p.contains("hello")));
+}

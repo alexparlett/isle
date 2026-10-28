@@ -2,6 +2,23 @@
 
 ## 2026-10-28
 
+- P17 17.8, providers' widgets: installed providers (from sources, under
+  `~/.local/share/isle/widgets/`, with `.isle-install.json`) and the
+  user's own (`~/.config/isle/widgets/`) read as the dashboard opens, the
+  user's winning a clash and none taking a built-in's id. Each placed one
+  that may run runs on the worker while the dashboard shows: on its
+  interval, or as a stream restarted with a doubling backoff and left
+  stopped after five deaths in a minute; closing stops every one. Settings,
+  size and instance go on stdin; answers are kept in the `widgets` domain
+  and drawn first next time. The seven templates drawn (number, gauge as
+  System's ring in `colour-text`, sparkline, graph in series colours, list
+  as Notifications' rows, card with a picture from its own folder only,
+  text), the provider's name as a title line its form can turn off,
+  "Updated {time}" once older than twice its interval. Strips: the
+  failure's reason with `warning-circle`, "“{widget}” isn't allowed to
+  run." with Allow… (its panel is 17.10's), "“{widget}” isn't installed."
+  with Remove. Try Again in a failing one's menu. A provider's settings
+  form from its manifest; a change runs it again. One compositor test.
 - P17 17.7, the runner and the sandbox: `isle-providers`. The manifest
   (`widget.json`, v1's without QML: id, name, version, sizes in cells,
   template, `exec` or `script`, an interval of five seconds or more or

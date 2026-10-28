@@ -458,6 +458,13 @@ impl State {
                 self.remove_provider(&id);
             }
             "allow" => self.ask_allow(key),
+            // Change…: the one place grants change, after the dashboard closes.
+            "permissions" => {
+                let id = key.split_once('@').map_or(key, |(id, _)| id).to_owned();
+                self.close_dashboard();
+                self.open_settings(Some("privacy-security"), Some(&format!("provider:{id}")));
+                return;
+            }
             other => tracing::info!(key, action = other, "a gallery button not built yet"),
         }
         self.put_dashboard_frame();

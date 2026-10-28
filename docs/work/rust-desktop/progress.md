@@ -2,6 +2,17 @@
 
 ## 2026-10-28
 
+- P17 17.11, grants: Settings › Privacy & Security › Providers lists
+  every provider on disk by name and kind, each a page with what it runs,
+  its source and that source's allow switch, and a switch per declared
+  permission in the grant rows' words and glyphs, writing
+  `provider[*].granted`; `isle-settings://privacy-security/provider:<id>`
+  opens one. Details' Change… closes the dashboard and opens it there. A
+  grant changed anywhere restarts that provider's runs with the new
+  grants, so a revoked one is denied inside the sandbox while it runs on.
+  The providers scan moved into `isle_providers::installed`, and gix
+  behind its `sources` feature, which only the compositor turns on, so
+  Settings does not build it. Spotlight's index gains Providers.
 - P17 17.10, sources and installing: `isle_providers::sources` through
   gitoxide: a shallow bare clone under `~/.cache/isle/widget-sources/`,
   fetched again with an explicit refspec (a bare clone records none),

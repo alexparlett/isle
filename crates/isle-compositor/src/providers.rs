@@ -3,77 +3,22 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::{Duration, Instant},
 };
 
-use isle_providers::{Data, Grant, Manifest, run::Runner};
+use isle_providers::{Data, Grant, run::Runner};
 use tokio::task::JoinHandle;
 
 use crate::state::{Isle, State};
 
-/// A provider found on disk.
-#[derive(Clone, Debug)]
-pub struct Installed {
-    pub manifest: Manifest,
-    pub folder: PathBuf,
-    /// The source it came from; none for the user's own.
-    pub source: Option<String>,
-    pub version_commit: Option<String>,
-}
+pub use isle_providers::installed::{Installed, installed_folder};
 
-/// Where installs from sources go: `~/.local/share/isle/widgets/<id>/`.
-pub fn installed_folder() -> PathBuf {
-    let data = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).unwrap_or_else(|| {
-        PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local/share")
-    });
-    data.join("isle/widgets")
-}
-
-#[derive(serde::Deserialize)]
-struct InstallNote {
-    source: String,
-    #[serde(default)]
-    commit: Option<String>,
-}
-
-/// Every provider in the two folders, the user's own winning a clash of ids; a folder whose
-/// manifest has problems is left out.
+/// Every provider on disk but those taking a built-in's id.
 pub fn scan() -> BTreeMap<String, Installed> {
-    let mut out = BTreeMap::new();
-    let read = |dir: &Path, own: bool, out: &mut BTreeMap<String, Installed>| {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            return;
-        };
-        for entry in entries.flatten() {
-            let folder = entry.path();
-            let Ok(manifest) = Manifest::load(&folder) else {
-                continue;
-            };
-            if isle_shell::dashboard::catalogue::builtin(&manifest.id).is_some() {
-                continue;
-            }
-            let note: Option<InstallNote> = std::fs::read_to_string(folder.join(".isle-install.json"))
-                .ok()
-                .and_then(|t| serde_json::from_str(&t).ok());
-            let (source, version_commit) = match (own, note) {
-                (false, Some(n)) => (Some(n.source), n.commit),
-                _ => (None, None),
-            };
-            out.insert(
-                manifest.id.clone(),
-                Installed {
-                    manifest,
-                    folder,
-                    source,
-                    version_commit,
-                },
-            );
-        }
-    };
-    read(&installed_folder(), false, &mut out);
-    read(&isle_providers::manifest::own_folder(), true, &mut out);
-    out
+    let mut all = isle_providers::installed::scan();
+    all.retain(|id, _| isle_shell::dashboard::catalogue::builtin(id).is_none());
+    all
 }
 
 /// A running provider widget.

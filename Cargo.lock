@@ -4793,6 +4793,7 @@ dependencies = [
  "isle-keys",
  "isle-network",
  "isle-power",
+ "isle-providers",
  "isle-search",
  "isle-settings",
  "isle-state",

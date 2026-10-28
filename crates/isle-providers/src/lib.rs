@@ -2,10 +2,12 @@
 //! B28; `platform.md` Providers).
 
 pub mod grant;
+pub mod installed;
 pub mod manifest;
 pub mod proxy;
 pub mod run;
 pub mod sandbox;
+#[cfg(feature = "sources")]
 pub mod sources;
 pub mod template;
 

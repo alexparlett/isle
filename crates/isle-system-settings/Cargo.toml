@@ -30,6 +30,7 @@ isle-tokens.workspace = true
 isle-settings.workspace = true
 isle-state.workspace = true
 isle-ui.workspace = true
+isle-providers.workspace = true
 futures-util = { workspace = true, features = ["std"] }
 libc.workspace = true
 serde.workspace = true

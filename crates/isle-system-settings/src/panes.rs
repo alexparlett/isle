@@ -292,6 +292,7 @@ pub static PANES: &[Pane] = &[
         rows: &[
             RowDef::new("screencast", "Screen & System Audio Recording").keywords(&["screen sharing", "permissions"]),
             RowDef::new("screenshot", "Screenshots").keywords(&["permissions"]),
+            RowDef::new("providers", "Providers").keywords(&["widgets", "grants", "permissions", "sandbox"]),
         ],
         ..pane("privacy-security", "Privacy & Security", "hand-palm", Hue::Blue, 4, "See what apps may do without asking, and take it back.")
     },

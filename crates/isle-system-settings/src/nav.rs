@@ -38,6 +38,16 @@ impl Location {
         let found = crate::panes::find(pane)?;
         let row = row.filter(|r| !r.is_empty());
         let def = row.and_then(|r| found.rows.iter().find(|d| d.id == r));
+        // A provider's own page, which no fixed row names.
+        if def.is_none()
+            && let Some(sub) = row.filter(|r| r.starts_with("provider:"))
+        {
+            return Some(Self {
+                pane: found.id.to_owned(),
+                sub: Some(sub.to_owned()),
+                row: None,
+            });
+        }
         Some(Self {
             pane: found.id.to_owned(),
             sub: def.and_then(|d| d.within).map(str::to_owned),
@@ -173,6 +183,15 @@ mod tests {
         assert_eq!(Location::from_uri("isle-settings://displays"), Some(Location::pane("displays")));
         assert_eq!(Location::from_uri("isle-settings://displays/"), Some(Location::pane("displays")));
         assert_eq!(Location::from_uri("isle-settings://printers"), None);
+        assert_eq!(
+            Location::from_uri("isle-settings://privacy-security/provider:hn"),
+            Some(Location {
+                pane: "privacy-security".into(),
+                sub: Some("provider:hn".into()),
+                row: None,
+            }),
+            "a provider's page opens from its link"
+        );
         assert_eq!(Location::from_uri("https://displays"), None);
     }
 

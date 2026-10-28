@@ -6,6 +6,8 @@ use std::{cell::Cell, path::PathBuf, rc::Rc};
 use freya::prelude::*;
 use isle_ui::{Glyph, colour, field::CheckRow, form::PopUp, text, use_theme};
 
+use isle_app::{Chord, ChordKey, Command, Menu};
+
 use crate::{
     Shared,
     chooser::{Answer, Ask, Kind, SUCCESS},
@@ -123,6 +125,10 @@ impl App for PanelWindow {
             });
         });
         let query = use_state(String::new);
+        let key = isle_app::this_window();
+        let desktop = isle_app::Desktop::get();
+        let mut going = use_state(|| None::<String>);
+        let (find, name_id) = (use_a11y(), use_a11y());
         let mut filter_at = use_state(|| ask.current_filter.unwrap_or(0));
         let mut values = use_state({
             let ask = ask.clone();
@@ -317,14 +323,37 @@ impl App for PanelWindow {
         let opening = ask.kind == Kind::Open;
         let on_key = {
             let (accept, cancel) = (accept.clone(), cancel.clone());
-            move |e: Event<KeyboardEventData>| match e.key {
-                Key::Named(NamedKey::Escape) if replacing.peek().is_none() => cancel(),
-                Key::Named(NamedKey::Enter) if replacing.peek().is_none() => accept(),
-                // Save's name field has the keys; Open's list takes them.
-                _ if opening && replacing.peek().is_none() => {
-                    crate::keys::act(tab, &e, *layout.peek(), typed);
+            let live_keys = handle.live.clone();
+            let shared = shared.clone();
+            move |e: Event<KeyboardEventData>| {
+                if replacing.peek().is_some() || going.peek().is_some() {
+                    return;
                 }
-                _ => {}
+                // The name field or the search field has the keys while focused.
+                let typing = name_id.is_focused() || find.is_focused();
+                let plain = !e.modifiers.intersects(Modifiers::META | Modifiers::CONTROL);
+                match &e.key {
+                    // Escape in search clears it and leaves a search's results; elsewhere cancels.
+                    Key::Named(NamedKey::Escape) if find.is_focused() => {
+                        let mut query = query;
+                        query.set(String::new());
+                        find.request_unfocus();
+                        if matches!(tab.peek().place, Place::Search(_)) {
+                            tab::back(tab, &live_keys);
+                        }
+                    }
+                    Key::Named(NamedKey::Escape) => cancel(),
+                    Key::Named(NamedKey::Enter) if !find.is_focused() => accept(),
+                    Key::Character(c) if plain && !typing && c == " " && !typed.peek().going(std::time::Instant::now()) => {
+                        let selection = tab.peek().selection.clone();
+                        shared.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));
+                    }
+                    Key::Character(c) if plain && !typing && (c == "/" || c == "~") => going.set(Some(c.clone())),
+                    _ if !typing && (opening || *expanded.peek()) => {
+                        crate::keys::act(tab, &e, *layout.peek(), typed);
+                    }
+                    _ => {}
+                }
             }
         };
 
@@ -443,6 +472,97 @@ impl App for PanelWindow {
                 tab.write().reveal = Some(made);
             }
         };
+
+        // The panel's menus and keys, carried out on its tab.
+        {
+            let t = tab.read();
+            isle_app::use_commands(panel_commands(t.shown.view, !t.selection.is_empty(), t.folder.shows_hidden(), !t.back.is_empty(), !t.forward.is_empty()));
+        }
+        use_side_effect({
+            let (shared, live, new_folder) = (shared.clone(), handle.live.clone(), new_folder.clone());
+            move || {
+                let chosen: Vec<String> = desktop.commands.read().clone();
+                if chosen.is_empty() {
+                    return;
+                }
+                let mut queue = desktop.commands;
+                queue.write().clear();
+                let (mut tab, at) = (tab, tab);
+                let go = |place: Place| tab::go(at, &live, place, None);
+                let fav = |label: &str| places.peek().favourites.iter().find(|r| r.label == label).map(|r| r.place.clone());
+                for id in chosen {
+                    match id.as_str() {
+                        "new-folder" => new_folder(),
+                        "quick-look" => {
+                            let selection = tab.peek().selection.clone();
+                            shared.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));
+                        }
+                        "find" => find.request_focus(),
+                        "as-icons" | "as-list" | "as-columns" => {
+                            let view = match id.as_str() {
+                                "as-icons" => View::Icons,
+                                "as-list" => View::List,
+                                _ => View::Columns,
+                            };
+                            let mut t = tab.write();
+                            t.shown.view = view;
+                            t.rev += 1;
+                        }
+                        "toggle-hidden" => {
+                            let mut t = tab.write();
+                            let show = !t.folder.shows_hidden();
+                            t.folder.set_show_hidden(show);
+                            t.prune();
+                            t.rev += 1;
+                        }
+                        "back" => tab::back(tab, &live),
+                        "forward" => tab::forward(tab, &live),
+                        "enclosing" => {
+                            let up = tab.peek().place.folder().and_then(|f| f.parent().map(PathBuf::from));
+                            if let Some(up) = up {
+                                go(Place::Folder(up));
+                            }
+                        }
+                        "go-recents" => go(Place::Recents),
+                        "go-home" => {
+                            if let Some(home) = places::home() {
+                                go(Place::Folder(home));
+                            }
+                        }
+                        "go-documents" | "go-desktop" | "go-downloads" => {
+                            let label = match id.as_str() {
+                                "go-documents" => "Documents",
+                                "go-desktop" => "Desktop",
+                                _ => "Downloads",
+                            };
+                            if let Some(place) = fav(label) {
+                                go(place);
+                            }
+                        }
+                        "go-to-folder" => going.set(Some(String::new())),
+                        _ => {}
+                    }
+                }
+            }
+        });
+        // A file dragged from Files onto the panel: its folder shown, the file selected.
+        let drag = isle_app::use_drag();
+        use_side_effect({
+            let live = handle.live.clone();
+            move || {
+                if drag.dropped.read().is_empty() {
+                    return;
+                }
+                let mut dropped = drag.dropped;
+                let drops = std::mem::take(&mut *dropped.write());
+                let first = drops.iter().find_map(|d| crate::transfer::read(crate::transfer::URIS, &d.data).0.into_iter().next());
+                if let Some(path) = first
+                    && let Some(folder) = path.parent()
+                {
+                    tab::go(tab, &live, Place::Folder(folder.to_owned()), Some(path.clone()));
+                }
+            }
+        });
         let buttons = rect()
             .width(Size::fill())
             .horizontal()
@@ -467,6 +587,7 @@ impl App for PanelWindow {
         let save_field = |width: f32| {
             let accept = accept.clone();
             isle_ui::TextField::new(name, "Save As")
+                .a11y_id(name_id)
                 .editing_part(crate::interact::name_part(&name.peek(), false))
                 .width(Size::px(width))
                 .on_submit(move |_: String| accept())
@@ -588,9 +709,23 @@ impl App for PanelWindow {
                 .child(rect().width(Size::flex(1.)))
                 .child(
                     isle_ui::TextField::new(query, "Search")
+                        .a11y_id(find)
                         .placeholder("Search")
                         .width(Size::px(t.size_toolbar_search))
-                        .leading(Glyph::new("magnifying-glass", t.size_glyph_small, colour(t.colour_text_2))),
+                        .leading(Glyph::new("magnifying-glass", t.size_glyph_small, colour(t.colour_text_2)))
+                        .on_submit({
+                            let live = live.clone();
+                            // Return searches everything under the folder.
+                            move |text: String| {
+                                let term = text.trim().to_owned();
+                                let place = tab.peek().place.clone();
+                                if term.is_empty() || place.folder().is_none() {
+                                    return;
+                                }
+                                let search = crate::ops::search_from(&place, term, Vec::new());
+                                tab::go(tab, &live, Place::Search(Box::new(search)), None);
+                            }
+                        }),
                 );
             let sidebar = Sidebar {
                 places: places.read().clone(),
@@ -701,11 +836,53 @@ impl App for PanelWindow {
             )
         });
 
+        let go_to = going.read().clone().map(|start| {
+            let live = handle.live.clone();
+            crate::go_to::GoToFolder {
+                start,
+                from: tab.peek().place.folder().map(PathBuf::from),
+                recent: shared.recent_folders(),
+                on_done: EventHandler::new(move |to: Option<PathBuf>| {
+                    going.set(None);
+                    let Some(to) = to else { return };
+                    match (to.is_dir(), to.parent()) {
+                        (true, _) => tab::go(tab, &live, Place::Folder(to), None),
+                        (false, Some(folder)) => tab::go(tab, &live, Place::Folder(folder.to_owned()), Some(to.clone())),
+                        (false, None) => {}
+                    }
+                }),
+            }
+            .into_element()
+        });
         rect()
             .expanded()
             .background(colour(t.colour_window))
             .on_global_key_down(on_key)
             .child(body)
+            .maybe_child(go_to)
             .maybe_child(replace)
     }
+}
+
+/// The panel's commands: the Go, View and File keys a Files window has that a panel needs.
+fn panel_commands(view: View, has_selection: bool, hidden: bool, back: bool, forward: bool) -> Vec<Command> {
+    vec![
+        Command::new("new-folder", "New Folder", Menu::File, 0).chord(Chord::cmd('n').shift()),
+        Command::new("quick-look", "Quick Look", Menu::File, 1).chord(Chord::cmd('y')).enabled(has_selection),
+        Command::new("find", "Find", Menu::File, 2).chord(Chord::cmd('f')),
+        Command::new("as-icons", "as Icons", Menu::View, 0).chord(Chord::cmd('1')).checked(view == View::Icons),
+        Command::new("as-list", "as List", Menu::View, 0).chord(Chord::cmd('2')).checked(view == View::List),
+        Command::new("as-columns", "as Columns", Menu::View, 0).chord(Chord::cmd('3')).checked(view == View::Columns),
+        Command::new("toggle-hidden", if hidden { "Hide Hidden Files" } else { "Show Hidden Files" }, Menu::View, 1)
+            .chord(Chord::cmd('.').shift()),
+        Command::new("back", "Back", Menu::Go, 0).chord(Chord::cmd('[')).enabled(back),
+        Command::new("forward", "Forward", Menu::Go, 0).chord(Chord::cmd(']')).enabled(forward),
+        Command::new("enclosing", "Enclosing Folder", Menu::Go, 0).chord(Chord::cmd_key(ChordKey::Up)),
+        Command::new("go-recents", "Recents", Menu::Go, 1).chord(Chord::cmd('f').shift()),
+        Command::new("go-documents", "Documents", Menu::Go, 1).chord(Chord::cmd('o').shift()),
+        Command::new("go-desktop", "Desktop", Menu::Go, 1).chord(Chord::cmd('d').shift()),
+        Command::new("go-downloads", "Downloads", Menu::Go, 1).chord(Chord::cmd('l').option()),
+        Command::new("go-home", "Home", Menu::Go, 1).chord(Chord::cmd('h').shift()),
+        Command::new("go-to-folder", "Go to Folder…", Menu::Go, 2).chord(Chord::cmd('g').shift()),
+    ]
 }

@@ -60,7 +60,10 @@ impl Pick {
     }
 }
 
-/// The hit band over a column's trailing edge that drags its width.
+/// The Name column's least width.
+const NAME_MIN: f32 = 240.;
+
+/// The hit band over a column's leading edge that drags its width.
 const DIVIDER: f32 = 8.;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -132,8 +135,10 @@ impl Component for ListView {
             let sorted = sort == Some(order.by);
             let ink = if sorted { t.colour_text } else { t.colour_text_2 };
             let on_pick = on_pick_sort.clone();
+            let name = divider.is_none();
             rect()
                 .width(width)
+                .maybe(name, |el| el.min_width(Size::px(NAME_MIN)))
                 .height(Size::fill())
                 .horizontal()
                 .content(Content::flex())
@@ -475,6 +480,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                 .child(
                     rect()
                         .width(Size::flex(1.))
+                        .min_width(Size::px(NAME_MIN))
                         .horizontal()
                         .cross_align(Alignment::Center)
                         .spacing(t.space_s)

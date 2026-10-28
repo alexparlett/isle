@@ -2,6 +2,16 @@
 
 ## 2026-10-28
 
+- P15b 15b.11, the panels: their own File, View and Go menus with Files'
+  keys (New Folder, Quick Look ⌘Y, ⌘F, ⌘1–3, ⇧⌘. per panel, Back,
+  Forward, Enclosing Folder, the places, Go to Folder ⇧⌘G); Space opens
+  Quick Look on the selection, `/` or `~` Go to Folder; the list takes the
+  keys unless the name or search field has them, so Save's expanded
+  browser moves too; Return in search searches under the folder, Escape
+  there clears it and leaves the results; a file dropped from Files shows
+  its folder with it chosen. List's Name keeps 240 points. Proved by real
+  input in a compositor test. Not here: List scrolling sideways when its
+  columns overflow a narrow panel.
 - P15b 15b.10, last part: the preview's leading edge drags its width, kept;
   past three facts it shows Show More; the kind's facts are read on a
   worker (an image's dimensions, a recording's duration by `ffprobe`, a

@@ -1816,3 +1816,92 @@ async fn the_preview_widens_shows_more_and_aliases_carry_a_badge() {
     isle.keep_shot("files-preview-alias").await;
     assert!(!app.printed_part("panicked"));
 }
+
+const KEY_DOT_: u32 = 52;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_open_panel_takes_files_keys_go_to_folder_quick_look_and_hidden_files() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-panel-keys").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let frontend = zbus::connection::Builder::address(isle.bus_address().as_str()).unwrap().build().await.unwrap();
+    frontend.request_name("org.freedesktop.portal.Desktop").await.unwrap();
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let looks = || async { isle.windows().await.iter().filter(|w| w.app_id == APP && w.title == "Quick Look").count() };
+
+    let mut options = std::collections::HashMap::new();
+    options.insert("current_folder".to_owned(), owned(bytes_of(&home)));
+    let asked = tokio::spawn(file_chooser(frontend.clone(), "OpenFile", "/org/freedesktop/portal/desktop/request/1_1/k", options));
+    app.wait_for_part("choose").await;
+    pause(800).await;
+
+    // ⇧⌘. shows .hidden; typing "." selects it.
+    isle.chord(&[SUPER, SHIFT, KEY_DOT_]).await;
+    pause(400).await;
+    isle.keep_shot("files-panel-hidden").await;
+
+    // ⇧⌘G, "pic", Tab, Return: Pictures; typing "red" selects red.png; Space shows it in
+    // Quick Look and again hides it.
+    isle.chord(&[SUPER, SHIFT, KEY_G]).await;
+    pause(400).await;
+    type_text(&isle, "pic").await;
+    pause(400).await;
+    isle.chord(&[TAB]).await;
+    isle.chord(&[ENTER]).await;
+    pause(600).await;
+    type_text(&isle, "red").await;
+    // A Space within a second of typing joins the name typed.
+    pause(1200).await;
+    isle.chord(&[SPACE]).await;
+    wait_until(|| async { looks().await == 1 }).await;
+    isle.keep_shot("files-panel-quick-look").await;
+    isle.chord(&[SPACE]).await;
+    wait_until(|| async { looks().await == 0 }).await;
+    pause(300).await;
+
+    // ⌘F, "tall", Return: a search under Pictures finds tall.png; Escape leaves it.
+    isle.chord(&[SUPER, KEY_F]).await;
+    pause(300).await;
+    type_text(&isle, "tall").await;
+    isle.chord(&[ENTER]).await;
+    pause(800).await;
+    isle.keep_shot("files-panel-search").await;
+    isle.chord(&[ESC]).await;
+    pause(500).await;
+    assert_eq!(asked.is_finished(), false, "Escape in search keeps the panel");
+
+    // notes.md dragged from the Files window onto the panel: its folder shown, it chosen;
+    // Return opens it.
+    let all = isle.windows().await;
+    let files = all.iter().find(|x| x.app_id == APP && x.title != "Open").unwrap().clone();
+    let panel = all.iter().find(|x| x.app_id == APP && x.title == "Open").unwrap().clone();
+    let boxes = isle.windows_proxy().await;
+    boxes.set_box(files.id, 0, 100, 900, 700).await.unwrap();
+    boxes.set_box(panel.id, 960, 100, 900, 600).await.unwrap();
+    pause(600).await;
+    let from = (260., 100. + 52. + 24. + 28. * 4. + 14.);
+    drag_via(&isle, from, &[], (1400., 400.), &[]).await;
+    pause(600).await;
+    isle.keep_shot("files-panel-dropped").await;
+    let panel_at = (1400., 650.);
+    test_click_panel(&isle, panel_at).await;
+    isle.chord(&[ENTER]).await;
+    let (response, results) = tokio::time::timeout(std::time::Duration::from_secs(10), asked).await.expect("the panel answers").unwrap();
+    assert_eq!(response, 0);
+    let uris: Vec<String> = results["uris"].try_clone().unwrap().try_into().unwrap();
+    assert!(uris[0].ends_with("/notes.md"), "{uris:?}");
+    assert!(!app.printed_part("panicked"));
+}
+
+/// A click on the panel's empty foot, bringing it to the front without choosing anything.
+async fn test_click_panel(isle: &Isle, at: (f64, f64)) {
+    let test = isle.test().await;
+    test.pointer_to(at.0, at.1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    click(isle, at, &[], 1).await;
+}

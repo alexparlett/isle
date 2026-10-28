@@ -649,6 +649,29 @@ impl Shell {
             .await?)
     }
 
+    /// Opens the widgets dashboard as `how` says: `open`, `edit`; `close` closes it.
+    async fn widgets(&self, how: String) -> fdo::Result<bool> {
+        if !matches!(how.as_str(), "open" | "edit" | "close") {
+            return Err(fdo::Error::InvalidArgs(format!("no way to open widgets called {how}")));
+        }
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                match how.as_str() {
+                    "close" => state.close_dashboard(),
+                    edit => {
+                        if state.isle.dashboard.open.is_none() {
+                            state.toggle_dashboard(None, edit == "edit", false);
+                        } else if edit == "edit" {
+                            state.dashboard_edit(true);
+                        }
+                    }
+                }
+                state.isle.dashboard.open.is_some()
+            })
+            .await?)
+    }
+
     /// Opens Spotlight as `how` says: `open`, `apps`, `emoji`; `close` closes it.
     async fn spotlight(&self, how: String) -> fdo::Result<bool> {
         let scope = match how.as_str() {
@@ -1223,6 +1246,34 @@ impl Test {
     /// Spotlight's model as JSON.
     async fn spotlight(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.isle.spotlight_status()).await?)
+    }
+
+    /// The dashboard's model as JSON.
+    async fn dashboard(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.dashboard_status()).await?)
+    }
+
+    /// Does what the pointer would on the dashboard: `close`, `edit`, `done`, `open {id}`,
+    /// `session {lock|sleep|restart|shut-down|log-out}`.
+    async fn dashboard_act(&self, action: String) -> fdo::Result<()> {
+        use isle_shell::{dashboard::surface::DashboardAction, prompts::session::Choice};
+        let action = match action.split_once(' ').unwrap_or((action.as_str(), "")) {
+            ("close", _) => DashboardAction::Close,
+            ("edit", _) => DashboardAction::Edit,
+            ("done", _) => DashboardAction::Done,
+            ("gallery", _) => DashboardAction::Gallery,
+            ("open", id) => DashboardAction::Open(id.to_owned()),
+            ("session", choice) => DashboardAction::Session(match choice {
+                "lock" => Choice::Lock,
+                "sleep" => Choice::Sleep,
+                "restart" => Choice::Restart,
+                "shut-down" => Choice::ShutDown,
+                "log-out" => Choice::LogOut,
+                _ => return Err(fdo::Error::InvalidArgs(action.clone())),
+            }),
+            _ => return Err(fdo::Error::InvalidArgs(action.clone())),
+        };
+        Ok(self.to_loop.call(move |state| state.dashboard_action(action)).await?)
     }
 
     /// Does what the pointer would in Spotlight: `hover {key}`, `click {key}`, `quick {n}`.

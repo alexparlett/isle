@@ -30,3 +30,5 @@ action "desktop-right" title="Next Desktop" glyph="caret-right" also="space righ
 action "mission-control" title="Mission Control" glyph="squares-four" also="expose;spaces;desktops;overview"
 action "app-expose" title="App Exposé" glyph="app-window" also="application windows;app windows;expose"
 action "show-desktop" title="Show Desktop" glyph="desktop" also="desktop;hide windows"
+action "dashboard" title="Widgets" glyph="grid-four" also="dashboard;widget"
+action "edit-widgets" title="Edit widgets" glyph="grid-four" also="dashboard;widget gallery;add widget"

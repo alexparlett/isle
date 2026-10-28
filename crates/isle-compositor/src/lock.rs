@@ -235,7 +235,7 @@ impl Isle {
             1.0,
             Kind::Unspecified,
         )));
-        self.softened_elements(output, &mut |e| push(IsleElement::Wallpaper(e)));
+        self.softened_elements(output, 1.0, &mut |e| push(IsleElement::Wallpaper(e)));
         // Opaque whatever the wallpaper is doing, so nothing from before shows through.
         push(IsleElement::Solid(SolidColorRenderElement::from_buffer(
             floor_buffer,
@@ -272,6 +272,7 @@ impl State {
         set_marker(true);
         info!(why, "locked");
         self.finish_mission();
+        self.close_dashboard();
         self.isle.lock.return_window = self.focused_window();
         for output in self.isle.space.outputs() {
             crate::redraw::OutputState::of(output).borrow_mut().locked_shown = false;

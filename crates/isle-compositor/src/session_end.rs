@@ -2,6 +2,7 @@
 //! them and the lock's power row, which quits every app and then logs out, restarts or shuts
 //! down (`p9-lock-and-prompts.md` choice 22).
 
+use crate::overlays::Overlay;
 use std::{
     rc::Rc,
     time::{Duration, Instant},
@@ -173,11 +174,7 @@ impl State {
             return;
         };
         info!(?form, "session dialog");
-        self.cancel_switcher();
-        self.close_force_quit();
-        self.close_spotlight();
-        self.close_toolbar();
-        self.close_menu_bar_group();
+        self.close_overlays(Overlay::SessionDialog);
         let theme = self.isle.shell.theme().clone();
         let screen = self.isle.space.output_geometry(&output).unwrap_or_default();
         let size = SessionSurface::size_for(&theme);

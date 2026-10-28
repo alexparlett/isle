@@ -446,6 +446,9 @@ pub mod shell {
         /// Spotlight opened as `how` says (`open`, `apps`, `emoji`) or closed (`close`);
         /// whether it is open after.
         fn spotlight(&self, how: &str) -> zbus::Result<bool>;
+        /// The widgets dashboard opened (`open`), opened in edit mode (`edit`) or closed
+        /// (`close`); whether it is open after.
+        fn widgets(&self, how: &str) -> zbus::Result<bool>;
         /// Spotlight's rows for a query in a scope, as JSON.
         fn search(&self, query: &str, scope: &str) -> zbus::Result<String>;
         /// False when no surface has that name.
@@ -619,6 +622,9 @@ pub mod test {
         /// Spotlight's model as JSON.
         fn spotlight(&self) -> zbus::Result<String>;
         fn spotlight_act(&self, action: &str) -> zbus::Result<()>;
+        /// The dashboard's model as JSON.
+        fn dashboard(&self) -> zbus::Result<String>;
+        fn dashboard_act(&self, action: &str) -> zbus::Result<()>;
         /// Starts a library game by its key (`steam:570`) as Spotlight does.
         fn launch_game(&self, key: &str) -> zbus::Result<bool>;
         /// Runs a command line as Spotlight's Run does.

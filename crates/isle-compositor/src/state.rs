@@ -174,6 +174,7 @@ pub struct Isle {
     pub session: crate::session_end::SessionState,
     pub force_quit: crate::force_quit::ForceQuitState,
     pub spotlight: crate::spotlight::SpotlightState,
+    pub dashboard: crate::dashboard::DashboardState,
     /// The screen streams Isle produces.
     /// Each screen's name, shown while Settings identifies the displays.
     pub identify: std::rc::Rc<isle_shell::identify::IdentifySurface>,
@@ -468,6 +469,8 @@ impl Isle {
         shell.register(force_quit.surface.clone());
         let spotlight = crate::spotlight::SpotlightState::new();
         shell.register(spotlight.surface.clone());
+        let dashboard = crate::dashboard::DashboardState::new();
+        shell.register(dashboard.surface.clone());
         let identify = isle_shell::identify::IdentifySurface::new();
         shell.register(identify.clone());
         let capture_readout = isle_shell::capture::readout::ReadoutSurface::new();
@@ -589,6 +592,7 @@ impl Isle {
             capture_state: Default::default(),
             capture_saver: None,
             spotlight,
+            dashboard,
             emoji_drawable: Default::default(),
             files: None,
             files_reach: None,
@@ -981,6 +985,7 @@ impl State {
                 isle_shell::Action::Session(action) => self.session_action(action),
                 isle_shell::Action::ForceQuit(action) => self.force_quit_action(action),
                 isle_shell::Action::Spotlight(action) => self.spotlight_action(action),
+                isle_shell::Action::Dashboard(action) => self.dashboard_action(action),
                 isle_shell::Action::Toolbar(action) => self.toolbar_action(action),
                 isle_shell::Action::Picker(action) => self.picker_action(action),
                 isle_shell::Action::Alert(action) => {

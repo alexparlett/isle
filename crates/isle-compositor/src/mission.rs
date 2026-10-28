@@ -3,6 +3,7 @@
 //! thumbnails, and the tiles drawn in the compositor's own pass (`p16-mission-control.md`
 //! choices 7 to 13).
 
+use crate::overlays::Overlay;
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
@@ -501,9 +502,7 @@ impl State {
         if self.isle.mission.is_some() {
             self.finish_mission();
         }
-        self.cancel_switcher();
-        self.close_spotlight();
-        self.close_menu_bar_group();
+        self.close_overlays(Overlay::Mission);
         let shown: Vec<Output> = self
             .isle
             .space

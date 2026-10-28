@@ -1,6 +1,7 @@
 //! Force Quit on the loop: the panel of running apps with its sheet, and the alert hung on a
 //! frozen window when close is pressed (`p9-lock-and-prompts.md` choice 23).
 
+use crate::overlays::Overlay;
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
@@ -194,11 +195,7 @@ impl State {
         let Some(output) = self.isle.main_output() else {
             return;
         };
-        self.cancel_switcher();
-        self.close_session_dialog();
-        self.close_spotlight();
-        self.close_toolbar();
-        self.close_menu_bar_group();
+        self.close_overlays(Overlay::ForceQuit);
         // Each window is asked again, so "Not responding" is current.
         let ids: Vec<u64> = self
             .isle

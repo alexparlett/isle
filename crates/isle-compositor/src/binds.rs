@@ -49,6 +49,8 @@ pub enum Action {
     Split(bool),
     /// Spotlight, or its Apps view, or its emoji.
     Spotlight(Opening),
+    /// The widgets dashboard.
+    Dashboard,
     CarryWindow(i32),
     /// The kernel's VT keys: Ctrl+Option+F1 to F12.
     SwitchVt(i32),
@@ -139,6 +141,7 @@ fn action_for(id: &'static str) -> Action {
         "spotlight" => Action::Spotlight(Opening::General),
         "apps" => Action::Spotlight(Opening::Apps),
         "emoji" => Action::Spotlight(Opening::Emoji),
+        "dashboard" => Action::Dashboard,
         "log-out-now" => Action::Quit,
         "log-out" => Action::LogOut,
         "session-chooser" => Action::SessionChooser,
@@ -423,6 +426,7 @@ impl State {
                 Opening::Apps => isle_search::Scope::Apps,
                 Opening::Emoji => isle_search::Scope::Emoji,
             }),
+            Action::Dashboard => self.toggle_dashboard(None, false, false),
             Action::ShootScreens { copy } => self.shoot_screens(copy),
             Action::Pick { copy } => self.open_pick(crate::freeze::Purpose::Shot { copy }),
             Action::Toolbar { copy } => self.open_toolbar(copy),

@@ -319,7 +319,12 @@ impl Isle {
     /// The softened form of `output`'s wallpaper with its wash, front to back, for the lock
     /// (`surfaces/wallpaper.md`). A picture is drawn from its quarter-size blur; the drawn
     /// backdrop and a colour hold no shapes, so they are drawn as they are.
-    pub fn softened_elements(&self, output: &Output, push: &mut dyn FnMut(WallpaperElement)) {
+    pub fn softened_elements(
+        &self,
+        output: &Output,
+        alpha: f32,
+        push: &mut dyn FnMut(WallpaperElement),
+    ) {
         let identity = Self::output_identity(output);
         let Some(screen) = self.wallpapers.screens.get(&identity) else {
             return;
@@ -338,7 +343,7 @@ impl Isle {
             wash,
             (0, 0),
             scale,
-            1.0,
+            alpha,
             Kind::Unspecified,
         )));
         match (&screen.front, &screen.softened) {
@@ -346,7 +351,7 @@ impl Isle {
                 push(WallpaperElement::Picture(TextureRenderElement::from_texture_buffer(
                     (0.0, 0.0),
                     softened,
-                    None,
+                    Some(alpha),
                     None,
                     Some(logical),
                     Kind::Unspecified,
@@ -356,21 +361,21 @@ impl Isle {
                 push(WallpaperElement::Picture(TextureRenderElement::from_texture_buffer(
                     (0.0, 0.0),
                     picture,
-                    None,
+                    Some(alpha),
                     None,
                     Some(logical),
                     Kind::Unspecified,
                 )))
             }
             (Some(Layer::Frost(element)), _) => {
-                push(WallpaperElement::Backdrop(element.with_alpha(1.0)))
+                push(WallpaperElement::Backdrop(element.with_alpha(alpha)))
             }
             (Some(Layer::Solid(buffer)), _) => {
                 push(WallpaperElement::Solid(SolidColorRenderElement::from_buffer(
                     buffer,
                     (0, 0),
                     scale,
-                    1.0,
+                    alpha,
                     Kind::Unspecified,
                 )))
             }

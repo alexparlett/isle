@@ -292,6 +292,27 @@ impl Isle {
         if from <= Stage::Scrim && prompting {
             self.scrim_elements(output, push);
         }
+        // The dashboard covers its screen as the lock does: the island and its own surface
+        // over its backdrop, and once that is opaque, nothing under it.
+        let dashboard = self.dashboard_backdrop(output).filter(|_| under.is_none());
+        if let Some(alpha) = dashboard {
+            if from <= Stage::ShellOverlay {
+                if !prompting {
+                    self.shell
+                        .elements_of(output, "island", &mut |e| push(IsleElement::Shell(e)));
+                }
+                if !leave.contains(&"dashboard") {
+                    self.shell
+                        .elements_of(output, "dashboard", &mut |e| push(IsleElement::Shell(e)));
+                }
+            }
+            if from <= Stage::LayerOverlay {
+                self.dashboard_backdrop_elements(output, alpha, push);
+            }
+            if alpha >= 1.0 {
+                return;
+            }
+        }
         // Windows floating over a shell surface, as Quick Look over Spotlight, above it.
         let over_shell = self.floats_over_shell();
         if from <= Stage::ShellOverlay && under.is_none() {
@@ -313,8 +334,8 @@ impl Isle {
             }
         }
         if from <= Stage::ShellOverlay {
-            if prompting {
-                let mut without = vec!["island"];
+            if prompting || dashboard.is_some() {
+                let mut without = vec!["island", "dashboard"];
                 without.extend_from_slice(leave);
                 self.shell.elements_without(
                     output,

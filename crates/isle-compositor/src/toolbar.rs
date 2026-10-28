@@ -3,6 +3,7 @@
 //! the portion, the lifted window and the marked screen are compositor elements, never in a
 //! shot.
 
+use crate::overlays::Overlay;
 use std::{cell::RefCell, collections::HashMap, time::Duration};
 
 use isle_shell::capture::toolbar::{Bar, Control, Mode, ToolbarAction, ToolbarSurface};
@@ -443,11 +444,7 @@ impl State {
             return;
         }
         self.close_pick();
-        self.cancel_switcher();
-        self.close_session_dialog();
-        self.close_force_quit();
-        self.close_spotlight();
-        self.close_menu_bar_group();
+        self.close_overlays(Overlay::Toolbar);
         let Some(output) = self
             .isle
             .output_under_pointer()

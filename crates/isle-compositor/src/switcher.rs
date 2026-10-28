@@ -1,6 +1,7 @@
 //! Cmd+Tab: the hold, the keys read while it lasts, and the commit (`p7-switcher.md`
 //! choices 1 to 6). The switcher never takes the seat's focus.
 
+use crate::overlays::Overlay;
 use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
@@ -136,12 +137,7 @@ impl State {
             return;
         }
         self.set_prompt_aside();
-        self.finish_mission();
-        self.close_session_dialog();
-        self.close_force_quit();
-        self.close_spotlight();
-        self.close_toolbar();
-        self.close_menu_bar_group();
+        self.close_overlays(Overlay::Switcher);
         let output = self
             .isle
             .output_with_focus()

@@ -2,6 +2,7 @@
 //! the keystroke's frame and the slow ones on the worker; what a choice does once focus has gone
 //! back (`p10-spotlight.md` choices 1–4).
 
+use crate::overlays::Overlay;
 use std::{
     collections::BTreeMap,
     rc::Rc,
@@ -411,12 +412,7 @@ impl State {
         let Some(output) = self.isle.main_output() else {
             return;
         };
-        self.cancel_switcher();
-        self.finish_mission();
-        self.close_session_dialog();
-        self.close_force_quit();
-        self.close_toolbar();
-        self.close_menu_bar_group();
+        self.close_overlays(Overlay::Spotlight);
         self.isle.spotlight.previous = self.focused_window();
         self.isle.spotlight.sources = self.spotlight_sources();
         let columns = self.isle.shell.theme().tokens.limit_apps_columns as usize;
@@ -982,7 +978,7 @@ impl State {
                     format!("{}{}", hint.modifiers, hint.key)
                 })
         };
-        const COMMANDS: [&str; 4] = ["sleep", "restart", "shut-down", "dark-mode"];
+        const COMMANDS: [&str; 5] = ["sleep", "restart", "shut-down", "dark-mode", "edit-widgets"];
         let mut action_list: Vec<actions::Action> = actions::catalogue()
             .iter()
             .filter(|a| COMMANDS.contains(&a.id.as_str()) || crate::binds::built(&a.id))
@@ -1160,6 +1156,7 @@ impl State {
                 self.close_spotlight();
                 self.show_all_in_files(query);
             }
+            "edit-widgets" => self.toggle_dashboard(None, true, false),
             "dark-mode" => {
                 let dark = self.isle.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
                 self.isle.write_setting(

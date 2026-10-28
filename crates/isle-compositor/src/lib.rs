@@ -44,6 +44,8 @@ mod menus;
 mod network_secrets;
 mod notifications;
 mod spotlight;
+mod dashboard;
+mod overlays;
 mod night_light;
 mod steam;
 mod switcher;

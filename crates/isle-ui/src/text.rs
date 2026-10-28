@@ -8,6 +8,8 @@ pub enum Style {
     Body,
     Callout,
     Clock,
+    /// A widget's one large figure: the time, a temperature.
+    Figure,
     Footnote,
     Headline,
     Subheadline,
@@ -34,6 +36,11 @@ pub fn metrics(theme: &Theme, style: Style) -> (f32, f32, f32) {
             t.type_style_clock_size,
             t.type_style_clock_line,
             t.type_style_clock_weight,
+        ),
+        Style::Figure => (
+            t.type_style_figure_size,
+            t.type_style_figure_line,
+            t.type_style_figure_weight,
         ),
         Style::Footnote => (
             t.type_style_footnote_size,

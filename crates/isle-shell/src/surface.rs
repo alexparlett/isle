@@ -117,6 +117,8 @@ pub enum Action {
     Stage(crate::stage::StageAction),
     /// From Spotlight.
     Spotlight(crate::spotlight::SpotlightAction),
+    /// From the widgets dashboard.
+    Dashboard(crate::dashboard::surface::DashboardAction),
     /// From the notification banners.
     Banner(crate::banners::BannerAction),
     /// From the lock's face.

@@ -269,6 +269,7 @@ impl State {
         self.pass_commit_timers(target);
         self.isle.step_windows(std::time::Instant::now());
         self.step_mission(std::time::Instant::now());
+        self.step_dashboard(std::time::Instant::now());
         if let Some(renderer) = self.backend.renderer_opt() {
             self.isle.prepare_wallpaper(renderer, output);
         }

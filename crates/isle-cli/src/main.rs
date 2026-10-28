@@ -75,6 +75,8 @@ enum Command {
     Shell(Shell),
     /// Open Spotlight (`open`, `apps`, `emoji`) or close it (`close`).
     Spotlight { how: String },
+    #[command(subcommand)]
+    Widgets(Widgets),
     /// Spotlight's rows for a query, without opening it.
     Search {
         query: String,
@@ -427,6 +429,18 @@ enum Settings {
     Schema,
     /// Put settings.kdl in force after Isle started on the defaults.
     UseMine,
+}
+
+/// The widgets dashboard.
+#[derive(Subcommand)]
+enum Widgets {
+    /// Open the dashboard on the screen with the focused window.
+    Open {
+        /// In edit mode.
+        #[arg(long)]
+        edit: bool,
+    },
+    Close,
 }
 
 #[derive(Subcommand)]
@@ -1112,6 +1126,16 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 }
             }
         },
+        Command::Widgets(Widgets::Open { edit }) => {
+            let how = if *edit { "edit" } else { "open" };
+            let open = ShellProxy::new(&bus).await?.widgets(how).await?;
+            if cli.json {
+                print_json(&open);
+            }
+        }
+        Command::Widgets(Widgets::Close) => {
+            ShellProxy::new(&bus).await?.widgets("close").await?;
+        }
         Command::Spotlight { how } => {
             let open = ShellProxy::new(&bus).await?.spotlight(how).await?;
             if cli.json {

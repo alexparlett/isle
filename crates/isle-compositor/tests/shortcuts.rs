@@ -83,6 +83,7 @@ const DISRUPTIVE: &[&str] = &[
     "spotlight",
     "apps",
     "emoji",
+    "dashboard",
     "next-display",
     "previous-display",
     "desktop-left",

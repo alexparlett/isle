@@ -349,7 +349,8 @@ impl Isle {
                 .get(row.current)
                 .is_some_and(|d| matches!(d.kind, crate::wm::desktops::Kind::FullScreen { .. } | crate::wm::desktops::Kind::Split { .. }))
         });
-        full_screen && !self.island.revealed.contains(&output.name())
+        (full_screen && !self.island.revealed.contains(&output.name()))
+            || self.dashboard_open_on(output)
     }
 
     /// Moves every shape on to `now`; true while any still moves.

@@ -2,6 +2,16 @@
 
 ## 2026-10-28
 
+- P17 17.2, the grid: `isle_shell::dashboard::grid`, pure. The extent per
+  screen from the tokens (38 × 14 from x 56, y 101 on the ultrawide; 21 ×
+  10 on 1920×1080, as P1 measured), the default block centred where P1 put
+  it (or each widget at the free place nearest the top centre where it
+  does not fit), the soft push from the pre-drag layout cascading in the
+  drag's direction and refused at the edge, resizing through a widget's
+  sizes, the place for a click's add, undo and redo, and the layout read
+  from `settings.kdl`'s lines keeping what it can. The model lives in the
+  shell crate beside Mission Control's, so the surface shares its types.
+  Ten unit tests.
 - P17 17.1, settings and state: `isle_settings::Open`, a section of any
   keys and values checked by its reader, so a provider's manifest names its
   own settings (a one-item list reads back as a string, since the file

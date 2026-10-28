@@ -47,6 +47,7 @@ pub use surface::{Action, Actions, Here, Layer, Scope, SurfaceDef, WindowAction}
 pub mod alert;
 pub mod capture;
 pub mod chrome;
+pub mod dashboard;
 pub mod force_quit;
 pub mod identify;
 pub mod island;

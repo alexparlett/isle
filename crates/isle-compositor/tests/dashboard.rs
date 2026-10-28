@@ -171,6 +171,9 @@ async fn edit_mode_moves_pushes_resizes_removes_and_undoes() {
     isle.test().await.transitions(false).await.unwrap();
     let shell = ShellProxy::new(&isle.bus).await.unwrap();
     assert!(shell.widgets("edit").await.unwrap());
+    // The gallery covers the leading columns these presses land on.
+    isle.test().await.dashboard_act("gallery").await.unwrap();
+    wait_until(|| async { status(&isle).await["gallery"].is_null() }).await;
     let test = isle.test().await;
     assert_eq!(line_of(&layout(&isle).await, "clock#1"), "clock#1 2 4 2 2");
 
@@ -253,6 +256,9 @@ async fn a_drag_past_the_edge_is_refused_and_returns() {
     isle.test().await.transitions(false).await.unwrap();
     let shell = ShellProxy::new(&isle.bus).await.unwrap();
     assert!(shell.widgets("edit").await.unwrap());
+    // The gallery covers the leading columns these presses land on.
+    isle.test().await.dashboard_act("gallery").await.unwrap();
+    wait_until(|| async { status(&isle).await["gallery"].is_null() }).await;
     let before = layout(&isle).await;
     assert_eq!(before.len(), 6);
     let test = isle.test().await;

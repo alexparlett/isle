@@ -156,6 +156,9 @@ impl State {
         if touched("keyboard") {
             self.apply_keyboard_settings();
         }
+        if touched("widget[") || touched("island") {
+            self.put_dashboard_frame();
+        }
         if touched("windows.games") || touched("windows.not-games") {
             self.isle.refresh_games();
         }

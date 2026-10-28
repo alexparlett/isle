@@ -622,6 +622,28 @@ impl State {
 }
 
 impl Isle {
+    /// Takes an entry out of `settings.kdl` from the loop: `widget[clock#2]`.
+    pub fn remove_setting(&self, entry: &str) {
+        let (Some(store), Some(runtime), Some(to_loop)) = (
+            self.settings_store.clone(),
+            self.worker.clone(),
+            self.to_loop.clone(),
+        ) else {
+            return;
+        };
+        let events = self.events.clone();
+        let entry = entry.to_owned();
+        runtime.spawn(async move {
+            let mut store = store.lock().await;
+            match store.remove(&entry) {
+                Ok(keys) => {
+                    crate::settings::publish(&to_loop, &events, store.current().clone(), keys)
+                }
+                Err(err) => warn!(entry, "could not remove: {err}"),
+            }
+        });
+    }
+
     /// Writes a setting from the loop, through the store on the worker.
     pub fn write_setting(&self, key: &str, value: isle_settings::Value) {
         let (Some(store), Some(runtime), Some(to_loop)) = (

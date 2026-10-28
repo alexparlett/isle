@@ -3,7 +3,25 @@
 
 use super::grid::Sizes;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// A setting a widget's form shows (`settings.md`'s control types).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Setting {
+    pub key: &'static str,
+    pub label: &'static str,
+    pub kind: SettingKind,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SettingKind {
+    Toggle(bool),
+    /// Values and their labels, the first the default.
+    Choice(&'static [(&'static str, &'static str)]),
+    Number { min: i64, max: i64, default: i64 },
+    /// Empty by default; what it means empty is the widget's.
+    Text,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Builtin {
     pub kind: &'static str,
     pub name: &'static str,
@@ -12,6 +30,7 @@ pub struct Builtin {
     pub several: bool,
     /// Its group in the gallery.
     pub group: &'static str,
+    pub settings: &'static [Setting],
 }
 
 impl Builtin {
@@ -21,18 +40,27 @@ impl Builtin {
 }
 
 pub const BUILTINS: &[Builtin] = &[
-    Builtin { kind: "clock", name: "Clock", sizes: &[(2, 1), (2, 2), (4, 2)], default: (2, 2), several: true, group: "Time and calendar" },
-    Builtin { kind: "calendar", name: "Calendar", sizes: &[(2, 2), (4, 2), (4, 4)], default: (4, 2), several: true, group: "Time and calendar" },
-    Builtin { kind: "timer", name: "Timer", sizes: &[(2, 1), (2, 2)], default: (2, 2), several: true, group: "Time and calendar" },
-    Builtin { kind: "weather", name: "Weather", sizes: &[(2, 1), (2, 2), (4, 2), (4, 4)], default: (2, 2), several: true, group: "Weather" },
-    Builtin { kind: "media", name: "Media", sizes: &[(2, 2), (4, 1), (4, 2)], default: (4, 1), several: false, group: "Media" },
-    Builtin { kind: "system", name: "System", sizes: &[(2, 1), (2, 2), (4, 1), (4, 2), (6, 2)], default: (2, 2), several: true, group: "System" },
-    Builtin { kind: "storage", name: "Storage", sizes: &[(4, 1), (4, 2)], default: (4, 1), several: false, group: "System" },
-    Builtin { kind: "devices", name: "Devices", sizes: &[(2, 1), (2, 2), (4, 2)], default: (2, 1), several: false, group: "Devices" },
-    Builtin { kind: "desktops", name: "Desktops", sizes: &[(4, 1), (4, 2), (6, 2)], default: (4, 1), several: false, group: "Desktop" },
-    Builtin { kind: "controls", name: "Controls", sizes: &[(4, 2), (4, 3), (4, 4)], default: (4, 2), several: true, group: "Desktop" },
-    Builtin { kind: "session", name: "Session", sizes: &[(4, 1), (4, 2)], default: (4, 2), several: false, group: "Desktop" },
-    Builtin { kind: "notifications", name: "Notifications", sizes: &[(2, 1), (2, 2), (2, 4)], default: (2, 2), several: false, group: "Desktop" },
+    Builtin { kind: "clock", name: "Clock", sizes: &[(2, 1), (2, 2), (4, 2)], default: (2, 2), several: true, group: "Time and calendar", settings: CLOCK },
+    Builtin { kind: "calendar", name: "Calendar", sizes: &[(2, 2), (4, 2), (4, 4)], default: (4, 2), several: true, group: "Time and calendar", settings: &[] },
+    Builtin { kind: "timer", name: "Timer", sizes: &[(2, 1), (2, 2)], default: (2, 2), several: true, group: "Time and calendar", settings: &[] },
+    Builtin { kind: "weather", name: "Weather", sizes: &[(2, 1), (2, 2), (4, 2), (4, 4)], default: (2, 2), several: true, group: "Weather", settings: &[] },
+    Builtin { kind: "media", name: "Media", sizes: &[(2, 2), (4, 1), (4, 2)], default: (4, 1), several: false, group: "Media", settings: &[] },
+    Builtin { kind: "system", name: "System", sizes: &[(2, 1), (2, 2), (4, 1), (4, 2), (6, 2)], default: (2, 2), several: true, group: "System", settings: &[] },
+    Builtin { kind: "storage", name: "Storage", sizes: &[(4, 1), (4, 2)], default: (4, 1), several: false, group: "System", settings: &[] },
+    Builtin { kind: "devices", name: "Devices", sizes: &[(2, 1), (2, 2), (4, 2)], default: (2, 1), several: false, group: "Devices", settings: &[] },
+    Builtin { kind: "desktops", name: "Desktops", sizes: &[(4, 1), (4, 2), (6, 2)], default: (4, 1), several: false, group: "Desktop", settings: &[] },
+    Builtin { kind: "controls", name: "Controls", sizes: &[(4, 2), (4, 3), (4, 4)], default: (4, 2), several: true, group: "Desktop", settings: &[] },
+    Builtin { kind: "session", name: "Session", sizes: &[(4, 1), (4, 2)], default: (4, 2), several: false, group: "Desktop", settings: &[] },
+    Builtin { kind: "notifications", name: "Notifications", sizes: &[(2, 1), (2, 2), (2, 4)], default: (2, 2), several: false, group: "Desktop", settings: &[] },
+];
+
+const CLOCK: &[Setting] = &[
+    Setting { key: "zone", label: "Time zone", kind: SettingKind::Text },
+    Setting {
+        key: "face",
+        label: "Face",
+        kind: SettingKind::Choice(&[("digital", "Digital"), ("analogue", "Analogue")]),
+    },
 ];
 
 pub fn builtin(kind: &str) -> Option<&'static Builtin> {

@@ -9,7 +9,11 @@ use std::{
 use freya::prelude::*;
 use freya_embed::AppComponent;
 use isle_tokens::Theme;
-use isle_ui::{Button, Glyph, colour, focus_ring, shadows, text, use_theme};
+use isle_ui::{
+    Button, Glyph, Menu, MenuEntry, MenuEvent, Switch, TextField, colour, focus_ring,
+    form::{PopUp, Stepper},
+    menu::Material, shadows, text, use_theme,
+};
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
 use super::grid::{Cells, Extent};
@@ -43,6 +47,63 @@ pub struct WidgetView {
     pub body: Body,
 }
 
+/// The widget lifted by a drag, at the pointer.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Lifted {
+    pub id: String,
+    /// Its top left in points.
+    pub x: f32,
+    pub y: f32,
+}
+
+/// Where a drag or resize will land.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Ghost {
+    pub at: Cells,
+    pub refused: bool,
+}
+
+/// A menu open on the dashboard: a widget's, a gap's.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MenuView {
+    pub entries: Rc<Vec<MenuEntry>>,
+    pub x: f32,
+    pub y: f32,
+    pub by_key: bool,
+}
+
+/// A widget's settings popover.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FormView {
+    pub id: String,
+    pub rows: Vec<FormRow>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FormRow {
+    pub key: String,
+    pub label: String,
+    pub control: Control,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Control {
+    Toggle(bool),
+    Choice { options: Vec<String>, selected: usize },
+    Number { value: i64, min: i64, max: i64 },
+    Text(String),
+}
+
+/// A value set in a widget's form.
+#[derive(Clone, Debug, PartialEq)]
+pub enum FormValue {
+    Bool(bool),
+    /// The chosen option's place.
+    Index(usize),
+    Int(i64),
+    Text(String),
+}
+
 /// What the dashboard shows now.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Frame {
@@ -54,6 +115,10 @@ pub struct Frame {
     pub ring: bool,
     /// Plates solid: Game Mode or Reduce Transparency.
     pub solid: bool,
+    pub lifted: Option<Lifted>,
+    pub ghost: Option<Ghost>,
+    pub menu: Option<MenuView>,
+    pub form: Option<FormView>,
 }
 
 impl Default for Frame {
@@ -72,6 +137,10 @@ impl Default for Frame {
             selected: None,
             ring: false,
             solid: false,
+            lifted: None,
+            ghost: None,
+            menu: None,
+            form: None,
         }
     }
 }
@@ -87,6 +156,10 @@ pub enum DashboardAction {
     /// A click on a widget's body.
     Open(String),
     Session(Choice),
+    Menu(MenuEvent),
+    Form { id: String, key: String, value: FormValue },
+    /// The popover dismissed.
+    FormClosed,
 }
 
 #[derive(Default)]
@@ -217,8 +290,23 @@ impl Component for Root {
         let frame = self.frame.read().clone();
         let actions = Actions::get();
         let mut root = rect().expanded().a11y_role(AccessibilityRole::Grid).a11y_alt("Widgets");
+        if frame.edit {
+            root = root.child(cells(&theme, &frame));
+        }
+        if let Some(ghost) = frame.ghost {
+            root = root.child(ghost_view(&theme, &frame.extent, ghost));
+        }
+        let lifted = frame.lifted.as_ref().map(|l| l.id.clone());
         for w in &frame.widgets {
-            root = root.child(widget(&theme, &frame, w, &actions));
+            if lifted.as_deref() == Some(w.id.as_str()) {
+                continue;
+            }
+            root = root.child(widget(&theme, &frame, w, None, &actions));
+        }
+        if let Some(l) = &frame.lifted
+            && let Some(w) = frame.widgets.iter().find(|w| w.id == l.id)
+        {
+            root = root.child(widget(&theme, &frame, w, Some((l.x, l.y)), &actions));
         }
         if frame.widgets.is_empty() {
             root = root.child(
@@ -234,13 +322,180 @@ impl Component for Root {
                     )),
             );
         }
-        root.child(controls(&theme, &frame, &actions))
+        root = root.child(controls(&theme, &frame, &actions));
+        if let Some(form) = &frame.form
+            && let Some(w) = frame.widgets.iter().find(|w| w.id == form.id)
+        {
+            root = root.child(form_view(&theme, &frame.extent, w.at, form, &actions));
+        }
+        if let Some(menu) = &frame.menu {
+            let on_menu = actions.clone();
+            root = root.child(
+                rect()
+                    .position(Position::new_absolute().left(menu.x).top(menu.y))
+                    .child(
+                        Menu::new(menu.entries.clone(), move |e: MenuEvent| {
+                            send(&on_menu, DashboardAction::Menu(e))
+                        })
+                        .material(Material::Solid)
+                        .first_selected(menu.by_key),
+                    ),
+            );
+        }
+        root
     }
 }
 
-fn widget(theme: &Theme, frame: &Frame, w: &WidgetView, actions: &Actions) -> Element {
+/// Every free cell, so places can be read in edit mode.
+fn cells(theme: &Theme, frame: &Frame) -> Element {
+    let t = &theme.tokens;
+    let e = &frame.extent;
+    let taken = |x: i32, y: i32| frame.widgets.iter().any(|w| w.at.contains(x, y));
+    let mut layer = rect().position(Position::new_absolute().left(0.).top(0.)).expanded();
+    for y in 0..e.rows {
+        for x in 0..e.cols {
+            if taken(x, y) {
+                continue;
+            }
+            let (px, py, w, h) = e.rect(Cells::new(x, y, 1, 1));
+            layer = layer.child(
+                rect()
+                    .position(Position::new_absolute().left(px).top(py))
+                    .width(Size::px(w))
+                    .height(Size::px(h))
+                    .corner_radius(t.radius_control)
+                    .background(colour(t.colour_fill)),
+            );
+        }
+    }
+    layer.into_element()
+}
+
+fn ghost_view(theme: &Theme, e: &Extent, ghost: Ghost) -> Element {
+    let t = &theme.tokens;
+    let (x, y, w, h) = e.rect(ghost.at);
+    let edge = if ghost.refused { t.colour_danger } else { t.colour_hairline_strong };
+    rect()
+        .position(Position::new_absolute().left(x).top(y))
+        .width(Size::px(w))
+        .height(Size::px(h))
+        .corner_radius(t.radius_panel)
+        .maybe(!ghost.refused, |el| el.background(colour(t.colour_fill)))
+        .border(
+            Border::new()
+                .fill(colour(edge))
+                .width(t.stroke_hairline)
+                .alignment(BorderAlignment::Inner),
+        )
+        .center()
+        .maybe_child(
+            ghost
+                .refused
+                .then(|| Glyph::new("prohibit", 24., colour(t.colour_text))),
+        )
+        .into_element()
+}
+
+fn form_view(theme: &Theme, e: &Extent, at: Cells, form: &FormView, actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (x, y, w, _) = e.rect(at);
+    let width = 240.0;
+    // Beside the trailing edge, or the leading one where the screen ends first.
+    let right_room = e.x + e.cols as f32 * e.pitch() - (x + w + t.space_s);
+    let left = if right_room >= width { x + w + t.space_s } else { x - t.space_s - width };
+    let rows = form.rows.iter().map(|row| {
+        let (actions, id, key) = (actions.clone(), form.id.clone(), row.key.clone());
+        let set = move |value: FormValue| {
+            send(
+                &actions,
+                DashboardAction::Form {
+                    id: id.clone(),
+                    key: key.clone(),
+                    value,
+                },
+            )
+        };
+        let control: Element = match &row.control {
+            Control::Toggle(on) => {
+                Switch::new(*on, row.label.clone(), move |on| set(FormValue::Bool(on))).into_element()
+            }
+            Control::Choice { options, selected } => PopUp::new(
+                options.clone(),
+                *selected,
+                row.label.clone(),
+                move |i| set(FormValue::Index(i)),
+            )
+            .into_element(),
+            Control::Number { value, min, max } => {
+                Stepper::new(*value, (*min, *max), row.label.clone(), move |v| set(FormValue::Int(v)))
+                    .into_element()
+            }
+            Control::Text(text) => TextFieldRow {
+                value: text.clone(),
+                alt: row.label.clone(),
+                on_submit: EventHandler::new(move |v: String| set(FormValue::Text(v))),
+            }
+            .into_element(),
+        };
+        rect()
+            .width(Size::fill())
+            .horizontal()
+            .cross_align(Alignment::Center)
+            .spacing(t.space_s)
+            .child(
+                rect().width(Size::flex(1.)).child(text::line(
+                    theme,
+                    text::Style::Body,
+                    colour(t.colour_text),
+                    row.label.clone(),
+                )),
+            )
+            .child(control)
+            .into_element()
+    });
+    rect()
+        .position(Position::new_absolute().left(left).top(y))
+        .width(Size::px(width))
+        .padding(t.space_m)
+        .spacing(t.space_s)
+        .corner_radius(t.radius_card)
+        .background(colour(t.material_solid))
+        .map(Some(shadows(&t.shadow_menu)), |el, list| {
+            list.into_iter().fold(el, |el, s| el.shadow(s))
+        })
+        .a11y_role(AccessibilityRole::Dialog)
+        .children(rows)
+        .into_element()
+}
+
+/// A text setting, sent when Return is pressed in it.
+#[derive(Clone, PartialEq)]
+struct TextFieldRow {
+    value: String,
+    alt: String,
+    on_submit: EventHandler<String>,
+}
+
+impl Component for TextFieldRow {
+    fn render(&self) -> impl IntoElement {
+        let value = use_state(|| self.value.clone());
+        let submit = self.on_submit.clone();
+        rect()
+            .width(Size::px(120.))
+            .child(TextField::new(value, self.alt.clone()).on_submit(move |v: String| submit.call(v)))
+    }
+}
+
+fn widget(
+    theme: &Theme,
+    frame: &Frame,
+    w: &WidgetView,
+    lifted: Option<(f32, f32)>,
+    actions: &Actions,
+) -> Element {
     let t = &theme.tokens;
     let (x, y, width, height) = frame.extent.rect(w.at);
+    let (x, y) = lifted.unwrap_or((x, y));
     let selected = frame.selected.as_deref() == Some(w.id.as_str());
     let place = rect()
         .position(Position::new_absolute().left(x).top(y))
@@ -256,9 +511,20 @@ fn widget(theme: &Theme, frame: &Frame, w: &WidgetView, actions: &Actions) -> El
             send(&actions, DashboardAction::Open(id.clone()));
         }
     };
+    let place = place
+        .maybe(lifted.is_some(), |el| {
+            el.map(Some(shadows(&t.shadow_panel)), |el, list| {
+                list.into_iter().fold(el, |el, s| el.shadow(s))
+            })
+        })
+        .maybe(frame.edit && matches!(w.body, Body::Empty(_)), |el| {
+            el.corner_radius(t.radius_panel).background(colour(t.colour_fill))
+        });
+    let chrome = frame.edit.then(|| edit_chrome(theme, width, height, selected));
     let body: Element = match &w.body {
         Body::Empty(line) => {
             return place
+                .maybe_child(chrome)
                 .child(ring(
                     plate(theme, frame.solid, t.radius_panel)
                         .width(Size::fill())
@@ -290,6 +556,63 @@ fn widget(theme: &Theme, frame: &Frame, w: &WidgetView, actions: &Actions) -> El
                 .on_press(open)
                 .child(body),
         ))
+        .maybe_child(chrome)
+        .into_element()
+}
+
+/// The remove badge and the resize handles over a widget in edit mode; the compositor reads
+/// presses on them by their places.
+fn edit_chrome(theme: &Theme, width: f32, height: f32, selected: bool) -> Element {
+    let t = &theme.tokens;
+    let ink = colour(if selected { t.colour_text } else { t.colour_text_2 });
+    let handle = |w: f32, h: f32, left: f32, top: f32| {
+        rect()
+            .position(Position::new_absolute().left(left).top(top))
+            .width(Size::px(w))
+            .height(Size::px(h))
+            .corner_radius(w.min(h) / 2.0)
+            .background(ink)
+            .into_element()
+    };
+    let long = t.size_control_small;
+    rect()
+        .position(Position::new_absolute().left(0.).top(0.))
+        .width(Size::px(width))
+        .height(Size::px(height))
+        .layer(freya::prelude::Layer::Overlay)
+        .child(
+            rect()
+                .position(Position::new_absolute().left(5.).top(5.))
+                .width(Size::px(20.))
+                .height(Size::px(20.))
+                .corner_radius(10.)
+                .background(colour(t.material_solid))
+                .map(Some(shadows(&t.shadow_control)), |el, list| {
+                    list.into_iter().fold(el, |el, s| el.shadow(s))
+                })
+                .border(
+                    Border::new()
+                        .fill(colour(t.colour_hairline))
+                        .width(t.stroke_hairline)
+                        .alignment(BorderAlignment::Inner),
+                )
+                .center()
+                .a11y_role(AccessibilityRole::Button)
+                .a11y_alt("Remove widget")
+                .child(Glyph::new("minus", 12., colour(t.colour_text))),
+        )
+        .child(handle(4., long, width - 8., (height - long) / 2.))
+        .child(handle(4., long, 4., (height - long) / 2.))
+        .child(handle(long, 4., (width - long) / 2., 4.))
+        .child(handle(long, 4., (width - long) / 2., height - 8.))
+        .child(
+            rect()
+                .position(Position::new_absolute().left(width - 16.).top(height - 16.))
+                .width(Size::px(12.))
+                .height(Size::px(12.))
+                .border(Border::new().fill(ink).width(3.).alignment(BorderAlignment::Inner))
+                .corner_radius(t.radius_control),
+        )
         .into_element()
 }
 

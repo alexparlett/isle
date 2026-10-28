@@ -135,6 +135,10 @@ impl State {
         if self.divider_drag_to(location) {
             return;
         }
+        if self.dashboard_pointer_to(location) {
+            self.isle.queue_pointer_redraw_all();
+            return;
+        }
         let under = self.isle.surface_under(location);
         let pointer = self.isle.seat.get_pointer().unwrap();
         pointer.motion(
@@ -242,6 +246,14 @@ impl State {
             }
             if self.mission_reads_input() {
                 self.mission_button(button, button_state == ButtonState::Pressed);
+            }
+            return;
+        }
+        if self.dashboard_button(button, button_state == ButtonState::Pressed) {
+            if button_state == ButtonState::Pressed {
+                self.isle.taken_buttons.insert(button);
+            } else {
+                self.isle.taken_buttons.remove(&button);
             }
             return;
         }

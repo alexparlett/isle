@@ -141,3 +141,133 @@ async fn the_wallpapers_menu_opens_it_in_edit_mode() {
     wait_until(|| async { status(&isle).await["edit"] == true }).await;
     assert_eq!(status(&isle).await["output"], "HEADLESS-1");
 }
+
+/// The point at the middle of cell `(x, y)` on the 1920×1080 headless output, whose grid is
+/// 21 × 10 from (44, 97).
+fn cell(x: i32, y: i32) -> (f64, f64) {
+    (44.0 + 88.0 * x as f64 + 36.0, 97.0 + 88.0 * y as f64 + 36.0)
+}
+
+async fn layout(isle: &Isle) -> Vec<String> {
+    status(isle).await["layout"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l.as_str().unwrap().to_owned())
+        .collect()
+}
+
+fn line_of<'a>(layout: &'a [String], id: &str) -> &'a str {
+    layout.iter().find(|l| l.starts_with(&format!("{id} "))).map(String::as_str).unwrap_or("")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn edit_mode_moves_pushes_resizes_removes_and_undoes() {
+    const LEFT_BUTTON: u32 = 0x110;
+    const RIGHT_BUTTON: u32 = 0x111;
+    const Z: u32 = 44;
+    const DELETE: u32 = 111;
+    let isle = Isle::start("dashboard-edit").await;
+    isle.test().await.transitions(false).await.unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    assert!(shell.widgets("edit").await.unwrap());
+    let test = isle.test().await;
+    assert_eq!(line_of(&layout(&isle).await, "clock#1"), "clock#1 2 4 2 2");
+
+    // Dragged two cells right by its body, the clock pushes the calendar along.
+    let (x, y) = cell(2, 4);
+    test.pointer_to(x + 20.0, y + 20.0).await.unwrap();
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    for step in 1..=8 {
+        test.pointer_to(x + 20.0 + 22.0 * step as f64, y + 20.0).await.unwrap();
+    }
+    wait_until(|| async { status(&isle).await["dragging"] == true }).await;
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { line_of(&layout(&isle).await, "clock#1") == "clock#1 4 4 2 2" }).await;
+    let after = layout(&isle).await;
+    assert_eq!(line_of(&after, "calendar#1"), "calendar#1 6 4 4 2", "{after:?}");
+    let file = isle.dir.join("config/settings.kdl");
+    wait_until(|| async {
+        std::fs::read_to_string(&file).is_ok_and(|t| t.contains("\"clock#1 4 4 2 2\""))
+    })
+    .await;
+
+    // Cmd+Z puts every widget back.
+    isle.chord(&[SUPER, Z]).await;
+    wait_until(|| async { line_of(&layout(&isle).await, "clock#1") == "clock#1 2 4 2 2" }).await;
+    assert_eq!(line_of(&layout(&isle).await, "calendar#1"), "calendar#1 4 4 4 2");
+    isle.chord(&[SUPER, SHIFT, Z]).await;
+    wait_until(|| async { line_of(&layout(&isle).await, "clock#1") == "clock#1 4 4 2 2" }).await;
+
+    // Moved there, the clock cannot grow: the push would leave the grid.
+    isle.chord(&[ALT, SUPER, RIGHT]).await;
+    wait_until(|| async { status(&isle).await["ring"] == true }).await;
+    assert_eq!(line_of(&layout(&isle).await, "clock#1"), "clock#1 4 4 2 2");
+    // Back where it was, Option+Cmd+Right grows it to its next size, pushing.
+    isle.chord(&[SUPER, Z]).await;
+    wait_until(|| async { line_of(&layout(&isle).await, "clock#1") == "clock#1 2 4 2 2" }).await;
+    isle.chord(&[ALT, SUPER, RIGHT]).await;
+    wait_until(|| async { line_of(&layout(&isle).await, "clock#1") == "clock#1 2 4 4 2" }).await;
+    assert_eq!(line_of(&layout(&isle).await, "calendar#1"), "calendar#1 6 4 4 2");
+
+    // A click on the selected widget opens its settings; Escape closes them.
+    let (x, y) = cell(3, 4);
+    test.pointer_to(x, y).await.unwrap();
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { status(&isle).await["form"] == "clock#1" }).await;
+    press(&isle, ESCAPE).await;
+    wait_until(|| async { status(&isle).await["form"].is_null() }).await;
+    assert_eq!(status(&isle).await["edit"], true, "Escape left the form, not edit mode");
+
+    // Its menu by a secondary click; Escape closes it.
+    test.button(RIGHT_BUTTON, true).await.unwrap();
+    test.button(RIGHT_BUTTON, false).await.unwrap();
+    wait_until(|| async { status(&isle).await["menu"] == "clock#1" }).await;
+    press(&isle, ESCAPE).await;
+    wait_until(|| async { status(&isle).await["menu"].is_null() }).await;
+
+    // Delete removes the selection; the badge removes another.
+    press(&isle, DELETE).await;
+    wait_until(|| async { line_of(&layout(&isle).await, "clock#1").is_empty() }).await;
+    let weather = line_of(&layout(&isle).await, "weather#1").to_owned();
+    let parts: Vec<i32> = weather.split(' ').skip(1).map(|n| n.parse().unwrap()).collect();
+    test.pointer_to(44.0 + 88.0 * parts[0] as f64 + 15.0, 97.0 + 88.0 * parts[1] as f64 + 15.0)
+        .await
+        .unwrap();
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { line_of(&layout(&isle).await, "weather#1").is_empty() }).await;
+    assert_eq!(layout(&isle).await.len(), 6);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_drag_past_the_edge_is_refused_and_returns() {
+    const LEFT_BUTTON: u32 = 0x110;
+    // One free column at the row's end: a push of two cells cannot fit.
+    let isle = Isle::start_with(
+        "dashboard-refused",
+        "dashboard-output \"Isle Headless 1\" {\n    widgets \"media#1 0 0 4 1\" \"storage#1 4 0 4 1\" \"desktops#1 8 0 4 1\" \"session#1 12 0 4 1\" \"clock#1 16 0 2 1\" \"notifications#1 18 0 2 1\"\n}\n",
+    )
+    .await;
+    isle.test().await.transitions(false).await.unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    assert!(shell.widgets("edit").await.unwrap());
+    let before = layout(&isle).await;
+    assert_eq!(before.len(), 6);
+    let test = isle.test().await;
+    let (x, y) = cell(1, 0);
+    test.pointer_to(x, y).await.unwrap();
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    for step in 1..=8 {
+        test.pointer_to(x + 22.0 * step as f64, y).await.unwrap();
+    }
+    wait_until(|| async { status(&isle).await["dragging"] == true }).await;
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { status(&isle).await["dragging"] == false }).await;
+    assert_eq!(before, layout(&isle).await, "a refused place leaves everything where it was");
+    // One cell has room.
+    isle.chord(&[SUPER, RIGHT]).await;
+    wait_until(|| async { line_of(&layout(&isle).await, "media#1") == "media#1 1 0 4 1" }).await;
+    assert_eq!(line_of(&layout(&isle).await, "notifications#1"), "notifications#1 19 0 2 1");
+}

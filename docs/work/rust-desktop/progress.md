@@ -2,6 +2,26 @@
 
 ## 2026-10-28
 
+- P17 17.4, edit mode: cells, badges and handles drawn; the compositor
+  hit-tests its own model for presses on a widget, its badge, edges and
+  corner in edit mode (as the divider's), so the surface's controls still
+  take theirs. A press that travels lifts the widget with the ghost under
+  it and the rest drawn where the push would put them, refused past the
+  grid's edge (the ghost's `colour-danger` edge and `prohibit`); a release
+  commits or leaves everything as it was. Resizing from any edge or the
+  corner lands on the nearest of the widget's sizes. The badge, Delete and
+  the menu's Remove widget remove; Cmd+arrows nudge, Option+Cmd+arrows step
+  through sizes, Cmd+Z and Shift+Cmd+Z walk the edits. A click on the
+  selected widget, Return, or Edit “{widget}”… opens its settings popover,
+  built from the built-ins' forms in `catalogue.rs` (Clock's zone and
+  face first), its writes to `widget[*]`; a zone jiff does not know is
+  left as it was. Secondary click and Shift+F10 or the menu key open a
+  widget's or the gap's menu inside the surface (the window menu's layer
+  is under the dashboard). Every edit is written to
+  `dashboard-output[*].widgets` as it is made; leaving edit mode takes out
+  the settings of widgets no screen holds. Not yet: the neighbours'
+  `motion-move` flow and the drop's ease (cuts for now). Two compositor
+  tests by real pointer and keys.
 - P17 17.3, the dashboard opens: `dashboard`, a placed Overlay surface
   covering its screen, the model in the compositor (`dashboard.rs`). Its
   pass is the lock's: the island (covered: privacy marks or nothing) and

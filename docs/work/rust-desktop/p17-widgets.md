@@ -237,7 +237,8 @@ run nothing at all while closed.
 
 22. **Sources through gitoxide** (`gix` 0.90, the user's choice at review)
     on the worker's blocking pool, with its reqwest and rustls transport,
-    the HTTP stack already in the tree: a bare shallow clone (depth 1)
+    the HTTP stack already in the tree (moved to reqwest 0.13 with gix in
+    17.10, so there is one): a bare shallow clone (depth 1)
     under `~/.cache/isle/widget-sources/`, fetched hourly and on opening
     Browse, with a time limit; a failed fetch keeps the last good index
     (`structure/widgets.md` Error). Nothing is checked out: the index and a

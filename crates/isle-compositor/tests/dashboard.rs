@@ -543,3 +543,98 @@ async fn the_gallery_searches_adds_by_key_and_click_and_takes_widgets_back() {
     test.button(LEFT_BUTTON, false).await.unwrap();
     wait_until(|| async { line_of(&layout(&isle).await, "weather#2").is_empty() }).await;
 }
+
+fn git(dir: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("git")
+        .args(["-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main"])
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+/// A source with one provider, `hn`, at `version`, declaring `connect` hosts.
+fn write_source(repo: &std::path::Path, version: &str, hosts: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    let w = repo.join("widgets/hn");
+    std::fs::create_dir_all(&w).unwrap();
+    std::fs::write(w.join("run.sh"), "#!/bin/sh\necho '{\"text\":\"stories\"}'\n").unwrap();
+    std::fs::set_permissions(w.join("run.sh"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(
+        w.join("widget.json"),
+        format!(r#"{{"id":"hn","name":"Hacker News","version":"{version}","author":{{"name":"Alex"}},"sizes":["2x1"],"default":"2x1","template":"text","exec":["./run.sh"],"interval":60,"permissions":{{"connect":[{hosts}]}}}}"#),
+    )
+    .unwrap();
+    std::fs::write(repo.join("providers.json"), r#"{"name":"Test widgets","format":2,"widgets":[{"id":"hn","path":"widgets/hn"}]}"#).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_source_is_browsed_and_its_widget_installed_updated_and_removed_with_consent() {
+    let repo = std::env::temp_dir().join(format!("isle-dashboard-source-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&repo);
+    std::fs::create_dir_all(&repo).unwrap();
+    git(&repo, &["init", "-q"]);
+    write_source(&repo, "1.0.0", r#""news.example.com""#);
+    git(&repo, &["add", "."]);
+    git(&repo, &["commit", "-qm", "one"]);
+    let url = format!("file://{}", repo.display());
+    let isle = Isle::start_with("dashboard-source", &format!("widgets {{\n    sources \"{url}\"\n}}\n")).await;
+    isle.test().await.transitions(false).await.unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    assert!(shell.widgets("edit").await.unwrap());
+    let test = isle.test().await;
+    test.dashboard_act("gallery-section 2").await.unwrap();
+    wait_until(|| async { status(&isle).await["browse"][&url]["Ok"][0] == "hn" }).await;
+    let key = format!("hn@{url}");
+
+    // Install asks first, armed after a moment, naming what it runs and may reach.
+    test.dashboard_act(&format!("gallery-button {key} install")).await.unwrap();
+    wait_until(|| async { status(&isle).await["consent"]["title"] == "Install “Hacker News”?" }).await;
+    let consent = status(&isle).await["consent"].clone();
+    assert_eq!(consent["permissions"][0], "Connect to news.example.com");
+    test.dashboard_act("consent confirm").await.unwrap();
+    assert!(!status(&isle).await["consent"].is_null(), "not before it is armed");
+    wait_until(|| async { status(&isle).await["consent"]["armed"] == true }).await;
+    test.dashboard_act("consent confirm").await.unwrap();
+    wait_until(|| async { status(&isle).await["providers"][0] == "hn" }).await;
+    let file = isle.dir.join("config/settings.kdl");
+    wait_until(|| async {
+        std::fs::read_to_string(&file).is_ok_and(|t| t.contains("connect:news.example.com") && t.contains("allowed #true"))
+    })
+    .await;
+
+    // Placed, it runs.
+    test.dashboard_act("gallery-section 0").await.unwrap();
+    test.dashboard_act("gallery-press hn").await.unwrap();
+    test.button(0x110, false).await.unwrap();
+    wait_until(|| async {
+        status(&isle).await["bodies"]["hn#1"]["provider"].as_str().is_some_and(|p| p.contains("stories"))
+    })
+    .await;
+
+    // An update asking for one more host asks for that one only.
+    write_source(&repo, "1.1.0", r#""news.example.com","api.example.com""#);
+    git(&repo, &["commit", "-qam", "two"]);
+    // Opening Browse again fetches it.
+    test.dashboard_act("gallery-section 0").await.unwrap();
+    test.dashboard_act("gallery-section 2").await.unwrap();
+    wait_until(|| async { status(&isle).await["updates"][0] == "hn" }).await;
+    test.dashboard_act(&format!("gallery-button {key} update")).await.unwrap();
+    wait_until(|| async {
+        let c = status(&isle).await["consent"].clone();
+        c["title"] == "Update “Hacker News”?" && c["permissions"].as_array().is_some_and(|p| p.len() == 1)
+    })
+    .await;
+    assert_eq!(status(&isle).await["consent"]["permissions"][0], "Connect to api.example.com");
+    wait_until(|| async { status(&isle).await["consent"]["armed"] == true }).await;
+    test.dashboard_act("consent confirm").await.unwrap();
+    let installed = isle.dir.join("data/isle/widgets/hn/widget.json");
+    wait_until(|| async { std::fs::read_to_string(&installed).is_ok_and(|t| t.contains("1.1.0")) }).await;
+
+    // Remove takes it out; its widget says so.
+    test.dashboard_act(&format!("gallery-button {key} remove")).await.unwrap();
+    wait_until(|| async { status(&isle).await["providers"].as_array().is_some_and(|p| p.is_empty()) }).await;
+    wait_until(|| async { status(&isle).await["bodies"]["hn#1"]["strip"] == "“hn” isn't installed." }).await;
+    let _ = std::fs::remove_dir_all(&repo);
+}

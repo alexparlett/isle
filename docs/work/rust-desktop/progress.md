@@ -2,6 +2,28 @@
 
 ## 2026-10-28
 
+- P17 17.10, sources and installing: `isle_providers::sources` through
+  gitoxide: a shallow bare clone under `~/.cache/isle/widget-sources/`,
+  fetched again with an explicit refspec (a bare clone records none),
+  `providers.json` and each listed `widget.json` read from the fetched
+  tree with no checkout (entries that leave the source or do not read are
+  left out and named), an install written from the tree through staging
+  and swapped in whole with `.isle-install.json`, symbolic links left out.
+  reqwest moved to 0.13 in `isle-media` and the compositor so gix shares
+  it. In the dashboard: Browse fetches on the worker each time it opens,
+  with a minute's limit, the last good index kept on failure; items with
+  author and version, a permission summary and Install or Update;
+  Installed counts updates and offers them; Details gains Install,
+  Update, Remove and, for one's own provider with ungranted permissions,
+  Allow…. The consent panel (prompts' frame over the screen's scrim,
+  armed after `timing-prompt-arm-ms`, Return and Escape): installing
+  grants the declared permissions and allows the source; an update asking
+  for more asks for those alone; a turned-off source's Allow… and one's
+  own Allow… use it too. Sources lists each address with when it was last
+  updated or its failure, the allow switch, Remove, and + with an address
+  field. Tests' compositors keep their clones in their own directory. One
+  compositor test against a local git source; gix's fetch, read, install
+  and update unit-tested; a live Open-Meteo check stays `--ignored`.
 - P17 17.9, the gallery: opens with edit mode and Add widgets shows or
   hides it, a solid sidebar over the grid's leading columns. Search typed
   into the compositor's model while the gallery has the keyboard (Tab,

@@ -7,7 +7,7 @@ use isle_ui::{Button, Glyph, colour, focus_ring, shadows, text};
 
 use super::{
     grid::Extent,
-    surface::{DashboardAction, DetailsView, Frame, GalleryView, ItemView, send, widget},
+    surface::{ConsentView, DashboardAction, DetailsView, Frame, GalleryView, ItemView, SourcesView, send, widget},
 };
 use crate::surface::Actions;
 
@@ -16,9 +16,10 @@ const SECTIONS: [&str; 3] = ["Installed", "Yours", "Browse"];
 pub(super) fn view(theme: &Theme, g: &GalleryView, actions: &Actions) -> Element {
     let t = &theme.tokens;
     let inner = t.size_panel - 2.0 * t.space_l;
-    let body: Element = match &g.details {
-        Some(d) => details(theme, d, actions),
-        None => list(theme, g, inner, actions),
+    let body: Element = match (&g.details, &g.sources) {
+        (Some(d), _) => details(theme, d, actions),
+        (None, Some(s)) => sources(theme, s, actions),
+        _ => list(theme, g, inner, actions),
     };
     rect()
         .position(Position::new_absolute().left(t.space_l).top(t.size_strip + t.space_l).bottom(t.space_l))
@@ -160,6 +161,7 @@ fn item_view(theme: &Theme, item: &ItemView, inner: f32, actions: &Actions) -> E
         menu: None,
         form: None,
         gallery: None,
+        consent: None,
     };
     let picture = rect()
         .width(Size::px(width))
@@ -307,5 +309,167 @@ fn details(theme: &Theme, d: &DetailsView, actions: &Actions) -> Element {
         .spacing(t.space_s)
         .child(back)
         .child(isle_ui::scroll_area(theme).width(Size::fill()).height(Size::fill()).child(content))
+        .into_element()
+}
+
+fn button(actions: &Actions, label: &str, key: &str, action: &str) -> Button {
+    let (actions, key, action) = (actions.clone(), key.to_owned(), action.to_owned());
+    Button::new(label.to_owned())
+        .on_press(move |_| send(&actions, DashboardAction::GalleryButton { key: key.clone(), action: action.clone() }))
+}
+
+fn sources(theme: &Theme, s: &SourcesView, actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (ink, ink_2) = (colour(t.colour_text), colour(t.colour_text_2));
+    let back = {
+        let actions = actions.clone();
+        Button::icon("caret-left", "Back")
+            .on_press(move |_| send(&actions, DashboardAction::GalleryButton { key: String::new(), action: "sources-back".into() }))
+    };
+    let rows = s.rows.iter().map(|row| {
+        let (actions, url, allowed) = (actions.clone(), row.url.clone(), row.allowed);
+        rect()
+            .width(Size::fill())
+            .padding(t.space_s)
+            .spacing(t.space_xs)
+            .corner_radius(t.radius_card)
+            .background(colour(t.colour_fill))
+            .child(text::line(theme, text::Style::Body, ink, isle_ui::text::cut_middle(&row.url, 44)))
+            .child(
+                rect()
+                    .horizontal()
+                    .spacing(t.space_xs)
+                    .cross_align(Alignment::Center)
+                    .maybe_child(row.error.then(|| Glyph::new("warning-circle", 12., ink).into_element()))
+                    .child(text::line(theme, text::Style::Subheadline, if row.error { ink } else { ink_2 }, row.line.clone())),
+            )
+            .child(
+                rect()
+                    .width(Size::fill())
+                    .horizontal()
+                    .content(Content::flex())
+                    .cross_align(Alignment::Center)
+                    .child(rect().width(Size::flex(1.)).child(text::line(theme, text::Style::Callout, ink, "Allow widgets from this source to run")))
+                    .child(isle_ui::Switch::new(allowed, "Allow widgets from this source to run", {
+                        let (actions, url) = (actions.clone(), url.clone());
+                        move |on: bool| {
+                            send(&actions, DashboardAction::GalleryButton {
+                                key: url.clone(),
+                                action: if on { "allow-on" } else { "allow-off" }.into(),
+                            })
+                        }
+                    })),
+            )
+            .child(
+                Button::new("Remove")
+                    .small()
+                    .on_press(move |_| send(&actions, DashboardAction::GalleryButton { key: url.clone(), action: "remove-source".into() })),
+            )
+            .into_element()
+    });
+    rect()
+        .expanded()
+        .spacing(t.space_s)
+        .child(back)
+        .child(text::line(theme, text::Style::Title3, ink, "Sources"))
+        .children(rows)
+        .child(if s.adding {
+            AddSource {}.into_element()
+        } else {
+            button(actions, "+", "", "add").into_element()
+        })
+        .into_element()
+}
+
+/// The field a new source's address is typed into; Return adds it.
+#[derive(Clone, PartialEq)]
+struct AddSource {}
+
+impl Component for AddSource {
+    fn render(&self) -> impl IntoElement {
+        let value = use_state(String::new);
+        let actions = Actions::get();
+        isle_ui::TextField::new(value, "Address")
+            .editing()
+            .on_submit(move |url: String| {
+                send(&actions, DashboardAction::GalleryButton { key: url, action: "add-source".into() })
+            })
+    }
+}
+
+pub(super) fn consent(theme: &Theme, c: &ConsentView, actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (ink, ink_2) = (colour(t.colour_text), colour(t.colour_text_2));
+    let (cancel, confirm) = (actions.clone(), actions.clone());
+    let panel = rect()
+        .width(Size::px(t.size_panel))
+        .padding(t.space_xl)
+        .spacing(t.space_s)
+        .corner_radius(t.radius_panel)
+        .background(colour(t.material_solid))
+        .map(Some(shadows(&t.shadow_panel)), |el, list| list.into_iter().fold(el, |el, s| el.shadow(s)))
+        .cross_align(Alignment::Center)
+        .a11y_role(AccessibilityRole::AlertDialog)
+        .a11y_alt(c.title.clone())
+        .child(Glyph::new("plug", 48., ink))
+        .child(text::line(theme, text::Style::Title3, ink, c.title.clone()))
+        .maybe_child(c.command.clone().map(|cmd| {
+            rect()
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .child(text::line(theme, text::Style::Callout, ink_2, "It runs "))
+                .child(label().font_family(t.type_mono.clone()).font_size(t.type_style_callout_size).color(ink).text(cmd))
+                .child(text::line(theme, text::Style::Callout, ink_2, "."))
+                .into_element()
+        }))
+        .maybe_child((!c.permissions.is_empty()).then(|| {
+            rect()
+                .width(Size::fill())
+                .spacing(t.space_xs)
+                .child(text::line(theme, text::Style::Subheadline, ink_2, c.ask.clone()).font_weight(600))
+                .child(
+                    rect()
+                        .width(Size::fill())
+                        .padding(t.space_s)
+                        .corner_radius(t.radius_small)
+                        .background(colour(t.colour_fill))
+                        .children(c.permissions.iter().map(|(glyph, words)| {
+                            rect()
+                                .height(Size::px(t.size_row))
+                                .horizontal()
+                                .cross_align(Alignment::Center)
+                                .spacing(t.space_s)
+                                .child(Glyph::new(glyph.clone(), 16., ink_2))
+                                .child(text::line(theme, text::Style::Body, ink, words.clone()))
+                                .into_element()
+                        })),
+                )
+                .into_element()
+        }))
+        .maybe_child(c.source.clone().map(|s| text::line(theme, text::Style::Subheadline, ink_2, s).into_element()))
+        .maybe_child(c.also.clone().map(|a| {
+            label().width(Size::fill()).font_size(t.type_style_callout_size).color(ink).text(a).into_element()
+        }))
+        .child(
+            rect()
+                .horizontal()
+                .spacing(t.space_s)
+                .child(Button::new("Cancel").on_press(move |_| send(&cancel, DashboardAction::ConsentCancel)))
+                .child(
+                    Button::new(c.confirm.clone())
+                        .kind(if c.armed { isle_ui::button::Kind::Default } else { isle_ui::button::Kind::Regular })
+                        .enabled(c.armed)
+                        .on_press(move |_| send(&confirm, DashboardAction::ConsentConfirm)),
+                ),
+        );
+    rect()
+        .position(Position::new_absolute().left(0.).top(0.))
+        .expanded()
+        .background(colour(t.colour_scrim))
+        .layer(freya::prelude::Layer::Overlay)
+        .padding((0., 0., 0., 0.))
+        .cross_align(Alignment::Center)
+        .child(rect().height(Size::percent(20.)))
+        .child(panel)
         .into_element()
 }

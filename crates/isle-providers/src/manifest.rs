@@ -114,8 +114,19 @@ impl Manifest {
         if problems.is_empty() { Ok(manifest) } else { Err(problems) }
     }
 
+    /// Reads a manifest's text, checked as if its folder held `has`'s files.
+    pub fn read(text: &str, has: impl Fn(&str) -> bool) -> Result<Manifest, Vec<String>> {
+        let manifest: Manifest = serde_json::from_str(text).map_err(|e| vec![format!("widget.json: {e}")])?;
+        let problems = manifest.problems_with(has);
+        if problems.is_empty() { Ok(manifest) } else { Err(problems) }
+    }
+
     /// Everything wrong with it, in words an author can act on.
     pub fn problems(&self, folder: &Path) -> Vec<String> {
+        self.problems_with(|file| folder.join(file).is_file())
+    }
+
+    fn problems_with(&self, has: impl Fn(&str) -> bool) -> Vec<String> {
         let mut out = Vec::new();
         let slug = |s: &str| {
             !s.is_empty() && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
@@ -142,7 +153,7 @@ impl Manifest {
             _ => out.push("It names exec or script, one of them".into()),
         }
         if let Some(script) = &self.script
-            && !folder.join(script).is_file()
+            && !has(script)
         {
             out.push(format!("Its script {script} is not in its folder"));
         }
@@ -176,6 +187,12 @@ impl Manifest {
         out.extend(p.system_bus.iter().cloned().map(Grant::SystemBus));
         out.extend(p.run.iter().cloned().map(Grant::Run));
         out
+    }
+
+    /// Whether `other` is a later version than this one.
+    pub fn older_than(&self, other: &Manifest) -> bool {
+        let parts = |v: &str| -> Vec<u64> { v.split('.').filter_map(|p| p.parse().ok()).collect() };
+        parts(&self.version) < parts(&other.version)
     }
 
     pub fn cells(&self) -> Vec<(i32, i32)> {

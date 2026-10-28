@@ -48,6 +48,7 @@ mod dashboard;
 mod weather;
 mod timer;
 mod providers;
+mod widget_sources;
 mod overlays;
 mod night_light;
 mod steam;

@@ -156,6 +156,11 @@ impl State {
         if touched("keyboard") {
             self.apply_keyboard_settings();
         }
+        if touched("widgets.") || touched("widget-source[") || touched("provider[") {
+            self.isle.dashboard.running.clear();
+            self.run_providers();
+            self.put_dashboard_frame();
+        }
         if touched("widget[") || touched("island") {
             self.refresh_weather();
             self.run_providers();

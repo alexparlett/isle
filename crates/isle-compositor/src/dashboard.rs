@@ -60,6 +60,9 @@ pub struct DashboardState {
     pub providers: BTreeMap<String, crate::providers::Installed>,
     pub running: crate::providers::Runs,
     pub answers: crate::providers::Answers,
+    /// Each source's last good index, or why there is none.
+    pub browse: BTreeMap<String, Result<isle_providers::sources::Index, String>>,
+    pub fetching: std::collections::HashSet<String>,
     /// The `widgets` domain: last data, timers, sources.
     pub memory: isle_state::domains::Widgets,
     saver: Option<crate::state_writer::Saver<isle_state::domains::Widgets>>,
@@ -83,6 +86,7 @@ pub struct Open {
     /// The widget whose settings popover is open.
     pub form: Option<String>,
     pub gallery: Option<Gallery>,
+    pub consent: Option<crate::widget_sources::Consent>,
 }
 
 /// The gallery's state in edit mode.
@@ -95,6 +99,8 @@ pub struct Gallery {
     pub focused: bool,
     pub selected: usize,
     pub details: Option<String>,
+    /// Sources in its place; true while an address is being added.
+    pub sources: Option<bool>,
 }
 
 /// A press held on a widget in edit mode: a move or a resize once it travels.
@@ -164,6 +170,8 @@ impl DashboardState {
             providers: BTreeMap::new(),
             running: Default::default(),
             answers: Default::default(),
+            browse: BTreeMap::new(),
+            fetching: Default::default(),
             memory: Default::default(),
             saver: None,
             floors: RefCell::default(),
@@ -738,6 +746,7 @@ impl Isle {
         });
         let form = open.form.as_ref().map(|id| self.dashboard_form(id));
         let gallery = open.gallery.as_ref().map(|g| self.gallery_view(open, g));
+        let consent = open.consent.as_ref().map(|c| self.consent_view(c));
         let mut frame = Frame {
             extent: open.extent,
             widgets,
@@ -750,6 +759,7 @@ impl Isle {
             menu,
             form,
             gallery,
+            consent,
         };
         // A widget dragged from the gallery is drawn under the pointer.
         if let Some(p) = dragging.filter(|p| p.adding.is_some())
@@ -889,6 +899,13 @@ impl Isle {
             "form": open.and_then(|o| o.form.clone()),
             "dragging": open.and_then(|o| o.press.as_ref()).is_some_and(|p| p.moved),
             "running": self.dashboard.running.len(),
+            "updates": self.updates().iter().map(|u| u.0.clone()).collect::<Vec<_>>(),
+            "consent": open.and_then(|o| o.consent.as_ref()).map(|c| {
+                let v = self.consent_view(c);
+                serde_json::json!({ "title": v.title, "armed": v.armed, "permissions": v.permissions.iter().map(|p| &p.1).collect::<Vec<_>>() })
+            }),
+            "browse": self.dashboard.browse.iter().map(|(u, r)| (u.clone(), r.as_ref().map(|i| i.widgets.iter().map(|l| l.id.clone()).collect::<Vec<_>>()).map_err(Clone::clone))).collect::<BTreeMap<_, _>>(),
+            "providers": self.dashboard.providers.keys().cloned().collect::<Vec<_>>(),
             "gallery": open.and_then(|o| o.gallery.as_ref()).map(|g| {
                 let view = self.gallery_view(open.unwrap(), g);
                 serde_json::json!({
@@ -1012,6 +1029,7 @@ impl State {
             menu: None,
             form: None,
             gallery: edit.then(Gallery::default),
+            consent: None,
         });
         let screen = self.isle.space.output_geometry(output).unwrap_or_default();
         self.isle.dashboard.surface.set_size(screen.size);
@@ -1162,6 +1180,9 @@ impl State {
             | DashboardAction::GallerySecondary(_)
             | DashboardAction::GalleryDetails(_)
             | DashboardAction::GalleryButton { .. } => self.gallery_action(action),
+            DashboardAction::ConsentConfirm | DashboardAction::ConsentCancel => {
+                crate::widget_sources::consent_action(self, &action);
+            }
             DashboardAction::Open(id) => self.dashboard_open_widget(&id),
             DashboardAction::Menu(event) => self.dashboard_menu_event(event),
             DashboardAction::Row { id, row } => self.dashboard_row(&id, &row),
@@ -1212,6 +1233,15 @@ impl State {
             .keyboards
             .with_engine(false, &[], |_, ctx| ctx.keys.sym(code))
             .map_or(0, |s| s.raw());
+        if let Some(c) = open.consent.as_ref() {
+            let armed = c.armed;
+            match sym {
+                keysyms::KEY_Escape => self.consent_answer(false),
+                keysyms::KEY_Return | keysyms::KEY_KP_Enter if armed => self.consent_answer(true),
+                _ => {}
+            }
+            return true;
+        }
         // An open menu and the form take their own keys; Escape closes the form.
         if open.menu.is_some() {
             return false;
@@ -1994,6 +2024,7 @@ impl State {
                 }
             }
             (_, "remove") => self.dashboard_remove(id),
+            (_, "allow") => self.ask_allow(id),
             (_, "try-again") => self.provider_try_again(id),
             ("timer", "start") => self.timer_start(id),
             ("timer", "pause") => self.timer_pause(id),
@@ -2246,6 +2277,22 @@ impl Isle {
                 }
                 out.extend(by_source);
             }
+            2 => {
+                for url in &self.settings.widgets.sources {
+                    let Some(Ok(index)) = self.dashboard.browse.get(url) else {
+                        continue;
+                    };
+                    let keys: Vec<String> = index
+                        .widgets
+                        .iter()
+                        .filter(|l| matches(&l.manifest.name))
+                        .map(|l| format!("{}@{url}", l.id))
+                        .collect();
+                    if !keys.is_empty() {
+                        out.push((index.name.clone(), keys));
+                    }
+                }
+            }
             1 => {
                 let keys: Vec<String> = self
                     .dashboard
@@ -2275,35 +2322,44 @@ impl Isle {
                 items: keys
                     .into_iter()
                     .map(|key| {
-                        let preview = format!("{key}#preview");
-                        let sizes = self.widget_sizes(&preview);
-                        let name = self.widget_name(&preview);
-                        let several = catalogue::builtin(&key).map_or_else(
-                            || self.dashboard.providers.get(&key).is_some_and(|p| p.manifest.multiple),
-                            |b| b.several,
-                        );
-                        let added = !several && open.layout.widgets.iter().any(|p| p.kind() == key);
-                        let no_room = !added && open.layout.place_for(sizes.default, &open.extent).is_none();
-                        let line = if no_room {
-                            format!("No room for “{name}”. Remove or resize a widget to make space.")
-                        } else {
-                            sizes.all.iter().map(|(w, h)| format!("{w} × {h}")).collect::<Vec<_>>().join(", ")
-                        };
-                        let item = ItemView {
-                            picture: WidgetView {
-                                id: preview.clone(),
-                                body: self.widget_body(&preview, &name, &open.output),
-                                name: name.clone(),
-                                at: Cells::new(0, 0, sizes.default.0, sizes.default.1),
-                            },
-                            key,
-                            name,
-                            line,
-                            added,
-                            no_room,
-                            selected: g.focused && index == g.selected,
-                            button: None,
-                            permissions: Vec::new(),
+                        let updates = self.updates();
+                        let item = match key.split_once('@') {
+                            Some((id, url)) => self.browse_item(&key, id, url, g.focused && index == g.selected),
+                            None => {
+                                let preview = format!("{key}#preview");
+                                let sizes = self.widget_sizes(&preview);
+                                let name = self.widget_name(&preview);
+                                let several = catalogue::builtin(&key).map_or_else(
+                                    || self.dashboard.providers.get(&key).is_some_and(|p| p.manifest.multiple),
+                                    |b| b.several,
+                                );
+                                let added = !several && open.layout.widgets.iter().any(|p| p.kind() == key);
+                                let no_room = !added && open.layout.place_for(sizes.default, &open.extent).is_none();
+                                let line = if no_room {
+                                    format!("No room for “{name}”. Remove or resize a widget to make space.")
+                                } else {
+                                    sizes.all.iter().map(|(w, h)| format!("{w} × {h}")).collect::<Vec<_>>().join(", ")
+                                };
+                                ItemView {
+                                    picture: WidgetView {
+                                        id: preview.clone(),
+                                        body: self.widget_body(&preview, &name, &open.output),
+                                        name: name.clone(),
+                                        at: Cells::new(0, 0, sizes.default.0, sizes.default.1),
+                                    },
+                                    button: updates
+                                        .iter()
+                                        .any(|(i, _, _)| *i == key)
+                                        .then(|| ("Update".to_owned(), "update".to_owned())),
+                                    key,
+                                    name,
+                                    line,
+                                    added,
+                                    no_room,
+                                    selected: g.focused && index == g.selected,
+                                    permissions: Vec::new(),
+                                }
+                            }
                         };
                         index += 1;
                         item
@@ -2322,7 +2378,7 @@ impl Isle {
             focused: g.focused,
             details: g.details.as_ref().map(|key| self.details_view(key)),
             groups,
-            updates: 0,
+            updates: self.updates().len(),
             top: match g.section {
                 1 => Some(("New widget…".to_owned(), "new".to_owned())),
                 2 => Some(("Sources…".to_owned(), "sources".to_owned())),
@@ -2330,11 +2386,82 @@ impl Isle {
             },
             note,
             faded: false,
+            sources: g.sources.map(|adding| self.sources_view(adding)),
+        }
+    }
+
+    fn browse_item(&self, key: &str, id: &str, url: &str, selected: bool) -> isle_shell::dashboard::surface::ItemView {
+        use isle_shell::dashboard::surface::ItemView;
+        let listing = self.listing(url, id);
+        let (name, line, size, permissions) = match &listing {
+            Some(l) => {
+                let m = &l.manifest;
+                let size = isle_providers::manifest::size(&m.default).unwrap_or((2, 1));
+                let mut permissions: Vec<(String, String)> = Vec::new();
+                for g in &m.declared() {
+                    if !permissions.iter().any(|(glyph, _)| glyph == g.glyph()) {
+                        permissions.push((g.glyph().to_owned(), g.words()));
+                    }
+                }
+                let byline = [m.author.name.clone(), m.version.clone()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
+                (m.name.clone(), byline, size, permissions)
+            }
+            None => (id.to_owned(), String::new(), (2, 1), Vec::new()),
+        };
+        let installed = self.dashboard.providers.get(id).filter(|p| p.source.as_deref() == Some(url));
+        let button = match (installed, &listing) {
+            (None, Some(_)) => Some(("Install".to_owned(), "install".to_owned())),
+            (Some(p), Some(l)) if p.manifest.older_than(&l.manifest) => Some(("Update".to_owned(), "update".to_owned())),
+            _ => None,
+        };
+        ItemView {
+            picture: WidgetView {
+                id: format!("{key}#preview"),
+                name: name.clone(),
+                at: Cells::new(0, 0, size.0, size.1),
+                body: Body::Title,
+            },
+            key: key.to_owned(),
+            name,
+            line,
+            added: false,
+            no_room: false,
+            selected,
+            button,
+            permissions,
         }
     }
 
     fn details_view(&self, key: &str) -> isle_shell::dashboard::surface::DetailsView {
         use isle_shell::dashboard::surface::DetailsView;
+        if let Some((id, url)) = key.split_once('@')
+            && let Some(listing) = self.listing(url, id)
+        {
+            let m = &listing.manifest;
+            let installed = self.dashboard.providers.get(id).filter(|p| p.source.as_deref() == Some(url));
+            let granted = self.granted(id);
+            let buttons = match installed {
+                None => vec![("Install".to_owned(), "install".to_owned())],
+                Some(p) if p.manifest.older_than(m) => vec![("Update".to_owned(), "update".to_owned()), ("Remove".to_owned(), "remove".to_owned())],
+                Some(_) => vec![("Remove".to_owned(), "remove".to_owned())],
+            };
+            return DetailsView {
+                key: key.to_owned(),
+                name: m.name.clone(),
+                description: m.description.clone(),
+                byline: [m.author.name.clone(), m.version.clone(), m.license.clone()]
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(" · "),
+                source: Some(source_name(url)),
+                sizes: m.sizes.iter().map(|s| s.replace('x', " × ")).collect::<Vec<_>>().join(", "),
+                command: Some(m.command()),
+                permissions: m.declared().iter().map(|g| (g.glyph().to_owned(), g.words(), granted.contains(g))).collect(),
+                buttons,
+                readme: None,
+            };
+        }
         let preview = format!("{key}#preview");
         let sizes = self.widget_sizes(&preview).all.iter().map(|(w, h)| format!("{w} × {h}")).collect::<Vec<_>>().join(", ");
         match self.dashboard.providers.get(key) {
@@ -2358,7 +2485,16 @@ impl Isle {
                         .iter()
                         .map(|g| (g.glyph().to_owned(), g.words(), granted.contains(g)))
                         .collect(),
-                    buttons: Vec::new(),
+                    buttons: match &p.source {
+                        Some(_) if self.updates().iter().any(|(i, _, _)| i == key) => {
+                            vec![("Update".to_owned(), "update".to_owned()), ("Remove".to_owned(), "remove".to_owned())]
+                        }
+                        Some(_) => vec![("Remove".to_owned(), "remove".to_owned())],
+                        None if m.declared().iter().any(|g| !granted.contains(g)) => {
+                            vec![("Allow…".to_owned(), "allow".to_owned())]
+                        }
+                        None => Vec::new(),
+                    },
                     readme: std::fs::read_to_string(p.folder.join("README.md")).ok(),
                 }
             }
@@ -2445,6 +2581,11 @@ impl State {
                     g.section = i.min(2);
                     g.selected = 0;
                     g.details = None;
+                    g.sources = None;
+                }
+                // Browse is fetched each time it opens (`structure/widgets.md` The gallery).
+                if i == 2 {
+                    self.refresh_sources(true);
                 }
             }
             DashboardAction::GalleryDetails(key) => {
@@ -2461,6 +2602,11 @@ impl State {
                         at: point.unwrap_or((0.0, 0.0)),
                         by_key: false,
                     });
+                }
+            }
+            DashboardAction::GalleryPress(key) if key.contains('@') => {
+                if let Some(g) = open.gallery.as_mut() {
+                    g.details = Some(key);
                 }
             }
             DashboardAction::GalleryPress(key) => {
@@ -2490,7 +2636,7 @@ impl State {
                 });
             }
             DashboardAction::GalleryButton { key, action } => {
-                tracing::info!(key, action, "a gallery button not built yet");
+                return self.gallery_button(&key, &action);
             }
             _ => {}
         }

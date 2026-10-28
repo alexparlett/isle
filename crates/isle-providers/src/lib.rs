@@ -6,6 +6,7 @@ pub mod manifest;
 pub mod proxy;
 pub mod run;
 pub mod sandbox;
+pub mod sources;
 pub mod template;
 
 pub use grant::Grant;

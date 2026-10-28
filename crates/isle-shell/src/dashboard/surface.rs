@@ -249,6 +249,7 @@ pub struct GalleryView {
     pub note: Option<String>,
     /// Faded while a widget is dragged from it.
     pub faded: bool,
+    pub sources: Option<SourcesView>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -289,6 +290,38 @@ pub struct DetailsView {
     pub readme: Option<String>,
 }
 
+/// The consent panel: installing, new permissions, allowing a source or one's own
+/// (`p1/surfaces/widgets.md` The consent panel).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConsentView {
+    pub title: String,
+    pub command: Option<String>,
+    pub ask: String,
+    /// Glyph and words.
+    pub permissions: Vec<(String, String)>,
+    pub source: Option<String>,
+    pub also: Option<String>,
+    pub confirm: String,
+    /// The armed moment has passed: the confirm acts and takes the accent.
+    pub armed: bool,
+}
+
+/// Sources, in the gallery's place.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SourcesView {
+    pub rows: Vec<SourceRow>,
+    pub adding: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SourceRow {
+    pub url: String,
+    /// "Last updated {time}", or the failure.
+    pub line: String,
+    pub error: bool,
+    pub allowed: bool,
+}
+
 /// What the dashboard shows now.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Frame {
@@ -305,6 +338,7 @@ pub struct Frame {
     pub menu: Option<MenuView>,
     pub form: Option<FormView>,
     pub gallery: Option<GalleryView>,
+    pub consent: Option<ConsentView>,
 }
 
 impl Default for Frame {
@@ -328,6 +362,7 @@ impl Default for Frame {
             menu: None,
             form: None,
             gallery: None,
+            consent: None,
         }
     }
 }
@@ -357,6 +392,8 @@ pub enum DashboardAction {
     GalleryDetails(Option<String>),
     /// A button in the gallery: Install, Update, Remove, Change…, New widget…, Sources….
     GalleryButton { key: String, action: String },
+    ConsentConfirm,
+    ConsentCancel,
 }
 
 #[derive(Default)]
@@ -527,6 +564,9 @@ impl Component for Root {
             && let Some(w) = frame.widgets.iter().find(|w| w.id == form.id)
         {
             root = root.child(form_view(&theme, &frame.extent, w.at, form, &actions));
+        }
+        if let Some(consent) = &frame.consent {
+            root = root.child(super::gallery::consent(&theme, consent, &actions));
         }
         if let Some(menu) = &frame.menu {
             let on_menu = actions.clone();

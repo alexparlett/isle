@@ -159,6 +159,7 @@ impl Isle {
             .env("ISLE_CONFIG_DIR", dir.join("config"))
             .env("XDG_STATE_HOME", dir.join("state"))
             .env("ISLE_NO_NETWORK", "1")
+            .env("ISLE_CACHE_DIR", dir.join("cache"))
             .env("XDG_DATA_HOME", dir.join("data"))
             .env("XDG_DATA_DIRS", dir.join("data-system"))
             .env("HOME", dir.join("home"))

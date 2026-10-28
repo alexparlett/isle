@@ -219,6 +219,15 @@ mod tests {
         }
     }"#;
 
+    /// Reaches Open-Meteo itself: `cargo test -- --ignored live_forecast`.
+    #[tokio::test]
+    #[ignore]
+    async fn live_forecast() {
+        let (name, lat, lon) = find("London").await.unwrap();
+        let json = fetch(lat, lon, false).await.unwrap();
+        assert!(parse(&json, &name, "", false, 1, true).is_some(), "{json}");
+    }
+
     #[test]
     fn an_answer_becomes_now_the_next_hours_and_days() {
         let f = parse(ANSWER, "London", "", false, 1, true).unwrap();

@@ -1265,6 +1265,13 @@ impl Test {
             ("open", id) => DashboardAction::Open(id.to_owned()),
             ("gallery-press", key) => DashboardAction::GalleryPress(key.to_owned()),
             ("gallery-details", key) => DashboardAction::GalleryDetails(Some(key.to_owned())),
+            ("gallery-section", n) => DashboardAction::GallerySection(n.parse().unwrap_or(0)),
+            ("gallery-button", rest) => {
+                let (key, action) = rest.rsplit_once(' ').ok_or_else(|| fdo::Error::InvalidArgs(action.clone()))?;
+                DashboardAction::GalleryButton { key: key.to_owned(), action: action.to_owned() }
+            }
+            ("consent", "confirm") => DashboardAction::ConsentConfirm,
+            ("consent", _) => DashboardAction::ConsentCancel,
             ("row", rest) => {
                 let (id, row) = rest.split_once(' ').ok_or_else(|| fdo::Error::InvalidArgs(action.clone()))?;
                 DashboardAction::Row { id: id.to_owned(), row: row.to_owned() }

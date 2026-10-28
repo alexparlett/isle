@@ -9,7 +9,7 @@ publish.workspace = true
 base64 = "0.22"
 futures-util.workspace = true
 isle-bus.workspace = true
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 serde.workspace = true
 tokio.workspace = true
 zbus.workspace = true

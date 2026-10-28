@@ -215,6 +215,19 @@ fn item_view(theme: &Theme, item: &ItemView, inner: f32, actions: &Actions) -> E
                         .width(Size::flex(1.))
                         .child(text::line(theme, text::Style::Body, ink, item.name.clone()))
                         .child(line)
+                        .maybe_child((!item.tools.is_empty()).then(|| {
+                            rect()
+                                .horizontal()
+                                .spacing(t.space_xs)
+                                .children(item.tools.iter().map(|(label, action)| {
+                                    let (actions, key, action) = (actions.clone(), item.key.clone(), action.clone());
+                                    Button::new(label.clone())
+                                        .small()
+                                        .on_press(move |_| send(&actions, DashboardAction::GalleryButton { key: key.clone(), action: action.clone() }))
+                                        .into_element()
+                                }))
+                                .into_element()
+                        }))
                         .maybe_child((!item.permissions.is_empty()).then(|| {
                             rect()
                                 .horizontal()

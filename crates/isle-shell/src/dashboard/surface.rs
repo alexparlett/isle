@@ -272,6 +272,8 @@ pub struct ItemView {
     pub button: Option<(String, String)>,
     /// A browse item's permissions: glyphs, the first in words.
     pub permissions: Vec<(String, String)>,
+    /// Yours' small buttons under its name: label and action.
+    pub tools: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

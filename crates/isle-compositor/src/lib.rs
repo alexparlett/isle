@@ -49,6 +49,7 @@ mod weather;
 mod timer;
 mod providers;
 mod widget_sources;
+mod author;
 mod overlays;
 mod night_light;
 mod steam;

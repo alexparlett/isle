@@ -101,6 +101,8 @@ pub struct Gallery {
     pub details: Option<String>,
     /// Sources in its place; true while an address is being added.
     pub sources: Option<bool>,
+    /// What Yours' tools last said of each widget.
+    pub told: HashMap<String, String>,
 }
 
 /// A press held on a widget in edit mode: a move or a resize once it travels.
@@ -148,6 +150,7 @@ const MENU_CLOSE: u64 = 4;
 const MENU_TRY_AGAIN: u64 = 5;
 const MENU_ADD: u64 = 6;
 const MENU_DETAILS: u64 = 7;
+const MENU_SHOW: u64 = 8;
 const MENU_SIZE: u64 = 100;
 
 /// How far a press travels before it is a drag, in points.
@@ -792,8 +795,13 @@ impl Isle {
 
     fn dashboard_menu_entries(&self, open: &Open, on: Option<&str>) -> Vec<MenuEntry> {
         let item = |id, label: &str| MenuEntry::Item(MenuItem::new(id, label));
-        if on.is_some_and(|o| o.starts_with("gallery:")) {
-            return vec![item(MENU_ADD, "Add"), item(MENU_DETAILS, "Details")];
+        if let Some(key) = on.and_then(|o| o.strip_prefix("gallery:")) {
+            let mut entries = vec![item(MENU_ADD, "Add"), item(MENU_DETAILS, "Details")];
+            if self.dashboard.providers.get(key).is_some_and(|p| p.source.is_none()) {
+                entries.push(MenuEntry::Separator);
+                entries.push(item(MENU_SHOW, "Show in Files"));
+            }
+            return entries;
         }
         let Some(placed) = on.and_then(|id| open.layout.get(id)) else {
             return vec![item(MENU_EDIT, "Edit widgets"), item(MENU_CLOSE, "Close widgets")];
@@ -913,6 +921,7 @@ impl Isle {
                     "query": g.query,
                     "focused": g.focused,
                     "details": g.details,
+                    "told": g.told,
                     "items": view.groups.iter().flat_map(|gr| gr.items.iter().map(|i| (i.key.clone(), i.added, i.no_room))).collect::<Vec<_>>(),
                 })
             }),
@@ -1614,6 +1623,12 @@ impl State {
                     match item {
                         MENU_ADD => self.gallery_add(&key),
                         MENU_DETAILS => self.gallery_action(DashboardAction::GalleryDetails(Some(key))),
+                        MENU_SHOW => {
+                            if let Some(folder) = self.isle.dashboard.providers.get(&key).map(|p| p.folder.clone()) {
+                                self.close_dashboard();
+                                self.show_folder_in_files(&folder);
+                            }
+                        }
                         _ => self.put_dashboard_frame(),
                     }
                     return;
@@ -2335,7 +2350,10 @@ impl Isle {
                                 );
                                 let added = !several && open.layout.widgets.iter().any(|p| p.kind() == key);
                                 let no_room = !added && open.layout.place_for(sizes.default, &open.extent).is_none();
-                                let line = if no_room {
+                                let told = g.told.get(&key).cloned();
+                                let line = if let Some(told) = told {
+                                    told
+                                } else if no_room {
                                     format!("No room for “{name}”. Remove or resize a widget to make space.")
                                 } else {
                                     sizes.all.iter().map(|(w, h)| format!("{w} × {h}")).collect::<Vec<_>>().join(", ")
@@ -2358,6 +2376,14 @@ impl Isle {
                                     no_room,
                                     selected: g.focused && index == g.selected,
                                     permissions: Vec::new(),
+                                    tools: if g.section == 1 {
+                                        vec![
+                                            ("Check widget".to_owned(), "check".to_owned()),
+                                            ("Update picture".to_owned(), "picture".to_owned()),
+                                        ]
+                                    } else {
+                                        Vec::new()
+                                    },
                                 }
                             }
                         };
@@ -2429,6 +2455,7 @@ impl Isle {
             selected,
             button,
             permissions,
+            tools: Vec::new(),
         }
     }
 

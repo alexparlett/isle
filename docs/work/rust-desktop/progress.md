@@ -2,6 +2,15 @@
 
 ## 2026-10-28
 
+- P17 17.14, Yours, in part: New widget… writes a text widget from a
+  template (Python answering once a minute, README, CHANGELOG) into
+  `~/.config/isle/widgets/my-widget[-n]/`, closes the dashboard and opens
+  its `widget.json`; Check widget says Ready or its first problem under
+  its name; Update picture cuts the placed widget out of its screen's
+  shot into `screenshots/card.png`; Show in Files in its menu. Not built:
+  Tag release… (git init, commit and tag through gix, which needs a tree
+  built from the folder), for the user to keep here or cut to P20. One
+  compositor test.
 - P17 17.13, Settings and the record: Settings › Desktop gains Widgets
   with Edit widgets… (`Shell1.Widgets("edit")`) and Reset to default…
   (an alert, then every screen's `dashboard-output` entry taken out); the

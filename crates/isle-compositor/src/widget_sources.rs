@@ -458,6 +458,23 @@ impl State {
                 self.remove_provider(&id);
             }
             "allow" => self.ask_allow(key),
+            "new" => {
+                self.new_widget();
+                return;
+            }
+            "check" | "picture" => {
+                let said = match action {
+                    "check" => self
+                        .isle
+                        .provider_of(key)
+                        .map_or_else(|| "It isn't installed".to_owned(), |p| crate::author::check(&p.folder)),
+                    _ => self.update_picture(key),
+                };
+                self.isle.dashboard.providers = crate::providers::scan();
+                if let Some(g) = self.isle.dashboard.open.as_mut().and_then(|o| o.gallery.as_mut()) {
+                    g.told.insert(key.to_owned(), said);
+                }
+            }
             // Change…: the one place grants change, after the dashboard closes.
             "permissions" => {
                 let id = key.split_once('@').map_or(key, |(id, _)| id).to_owned();

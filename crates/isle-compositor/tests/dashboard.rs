@@ -638,3 +638,40 @@ async fn a_source_is_browsed_and_its_widget_installed_updated_and_removed_with_c
     wait_until(|| async { status(&isle).await["bodies"]["hn#1"]["strip"] == "“hn” isn't installed." }).await;
     let _ = std::fs::remove_dir_all(&repo);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn yours_checks_pictures_and_starts_a_widget_from_a_template() {
+    let mut own = std::path::PathBuf::new();
+    let isle = Isle::start_prepared(
+        "dashboard-yours",
+        "dashboard-output \"Isle Headless 1\" {\n    widgets \"hello#1 6 2 2 1\"\n}\n",
+        |dir| {
+            own = dir.join("config/widgets");
+            provider_folder(&own.join("hello"), "hello", r#"echo '{"text":"hello"}'"#);
+        },
+    )
+    .await;
+    isle.test().await.transitions(false).await.unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    assert!(shell.widgets("edit").await.unwrap());
+    let test = isle.test().await;
+    test.dashboard_act("gallery-section 1").await.unwrap();
+    wait_until(|| async {
+        status(&isle).await["bodies"]["hello#1"]["provider"].as_str().is_some_and(|p| p.contains("hello"))
+    })
+    .await;
+    test.dashboard_act("gallery-button hello check").await.unwrap();
+    wait_until(|| async { status(&isle).await["gallery"]["told"]["hello"] == "Ready" }).await;
+    test.dashboard_act("gallery-button hello picture").await.unwrap();
+    wait_until(|| async { status(&isle).await["gallery"]["told"]["hello"] == "Picture updated" }).await;
+    let card = own.join("hello/screenshots/card.png");
+    let decoder = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(&card).unwrap()));
+    let info = decoder.read_info().unwrap().info().clone();
+    assert_eq!((info.width, info.height), (160, 72), "the 2 × 1 widget, at scale 1");
+
+    test.dashboard_act("gallery-button x new").await.unwrap();
+    wait_until(|| async { status(&isle).await["open"] == false }).await;
+    let made = own.join("my-widget");
+    assert!(made.join("widget.json").is_file());
+    assert!(isle_providers::Manifest::load(&made).is_ok(), "the template passes its own check");
+}

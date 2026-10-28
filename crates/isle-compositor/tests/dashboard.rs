@@ -119,3 +119,25 @@ async fn locking_closes_it_and_the_island_is_covered_over_it() {
     press(&isle, DOWN).await;
     assert_eq!(status(&isle).await["open"], false);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_wallpapers_menu_opens_it_in_edit_mode() {
+    const RIGHT_BUTTON: u32 = 0x111;
+    const RETURN: u32 = 28;
+    let isle = Isle::start("dashboard-wallpaper").await;
+    isle.test().await.transitions(false).await.unwrap();
+    let test = isle.test().await;
+    test.pointer_to(900.0, 700.0).await.unwrap();
+    test.button(RIGHT_BUTTON, true).await.unwrap();
+    test.button(RIGHT_BUTTON, false).await.unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    wait_until(|| async {
+        shell.list().await.unwrap().iter().any(|s| s.name == "window-menu" && s.open)
+    })
+    .await;
+    press(&isle, DOWN).await;
+    press(&isle, DOWN).await;
+    press(&isle, RETURN).await;
+    wait_until(|| async { status(&isle).await["edit"] == true }).await;
+    assert_eq!(status(&isle).await["output"], "HEADLESS-1");
+}

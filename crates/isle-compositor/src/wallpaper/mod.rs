@@ -2,6 +2,7 @@
 //! the stack (`p6-island-and-menus.md` choices 1 and 2).
 
 mod backdrop;
+pub mod menu;
 pub mod decode;
 
 use std::{
@@ -147,6 +148,8 @@ pub struct Wallpapers {
     next_request: u64,
     /// Each screen's wash over its softened form, by the output's identity.
     washes: std::cell::RefCell<HashMap<String, SolidColorBuffer>>,
+    /// The output whose wallpaper's menu is the one open in the window menu's surface.
+    pub menu: Option<String>,
 }
 
 /// One screen's wallpaper as the bus reports it.

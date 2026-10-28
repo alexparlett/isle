@@ -1454,6 +1454,7 @@ impl State {
         };
         let entries = b.rows(items);
         bar.window_menu_for = Some(id);
+        self.isle.wallpapers.menu = None;
         bar.generation += 1;
         let rows = entries.len();
         let model = MenuModel {
@@ -1506,6 +1507,7 @@ impl State {
         let bar = &mut self.isle.bar;
         bar.window_commands.clear();
         bar.window_menu_for = None;
+        self.isle.wallpapers.menu = None;
         bar.generation += 1;
         let rows = entries.len();
         let model = MenuModel {
@@ -1537,7 +1539,11 @@ impl State {
     }
 
     pub fn window_menu_event(&mut self, event: MenuEvent) {
-        if self.thumbnail_menu_event(&event) || self.toolbar_menu_event(&event) || self.desk_menu_event(&event) {
+        if self.thumbnail_menu_event(&event)
+            || self.toolbar_menu_event(&event)
+            || self.desk_menu_event(&event)
+            || self.wallpaper_menu_event(&event)
+        {
             return;
         }
         match event {

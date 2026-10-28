@@ -2,6 +2,25 @@
 
 ## 2026-10-28
 
+- P17 17.3, the dashboard opens: `dashboard`, a placed Overlay surface
+  covering its screen, the model in the compositor (`dashboard.rs`). Its
+  pass is the lock's: the island (covered: privacy marks or nothing) and
+  the surface over `material-lock-wash`, the softened wallpaper and a
+  floor, with nothing under it once the backdrop is opaque; the backdrop
+  fades with `motion-fade-ms` in and `motion-exit-fade-ms` out, cut under
+  Reduce Motion and Game Mode. Routes: Ctrl+Option+Cmd+W, the Widgets
+  corner (the corner that opened it closes it), Spotlight's Widgets and
+  Edit widgets, the wallpaper's new menu (Wallpaper Settings…, Edit
+  widgets), `Shell1.Widgets` and `isle widgets open [--edit]|close`.
+  Keys: Escape out of edit mode then closed, E, arrows by position, Home
+  and End, with the ring only after a key. Locking closes it; Session's
+  circles ask as the system menu does. One overlay at a time is now
+  `close_overlays` (spotlight, mission, switcher, Force Quit, the session
+  dialog, the toolbar, the dashboard), each opener's tests unchanged; the
+  shortcuts test treats the dashboard chord as disruptive, as Spotlight.
+  Built with Clock and Session; the rest show their names until 17.5.
+  Phosphor's weather glyphs, `prohibit` and `grid-four` vendored. Four
+  compositor tests.
 - P17 17.2, the grid: `isle_shell::dashboard::grid`, pure. The extent per
   screen from the tokens (38 × 14 from x 56, y 101 on the ultrawide; 21 ×
   10 on 1920×1080, as P1 measured), the default block centred where P1 put

@@ -316,8 +316,10 @@ impl State {
                         self.desktop_touched(crate::wm::window_id(window));
                     }
                     self.set_focus(window.as_ref());
-                    if let Some(window) = window {
-                        self.ping(crate::wm::window_id(&window));
+                    match window {
+                        Some(window) => self.ping(crate::wm::window_id(&window)),
+                        None if button == 0x111 => self.open_wallpaper_menu(location),
+                        None => {}
                     }
                 }
             }

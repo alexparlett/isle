@@ -292,10 +292,12 @@ impl App for PanelWindow {
                     }
                 }
                 Pick::Nothing => tab.write().deselect(),
+                Pick::Menu(..) | Pick::Header(_) => {}
             }
         });
 
         let layout = use_state(crate::keys::Layout::default);
+        let cursor_at = use_state(|| None::<(f32, f32)>);
         let typed = use_state(crate::keys::Typed::default);
         let opening = ask.kind == Kind::Open;
         let on_key = {
@@ -319,6 +321,8 @@ impl App for PanelWindow {
             press,
             chooses: Some(chooses.clone()),
             layout,
+            ringed: Vec::new(),
+            cursor_at,
         };
         let focused = *Platform::get().is_app_focused.read();
         let rev = tab.read().rev;
@@ -594,6 +598,7 @@ impl App for PanelWindow {
                     }
                 }),
                 on_eject: EventHandler::new(|_| {}),
+                on_menu: EventHandler::new(|_| {}),
                 width: t.size_sidebar_min,
                 under_toolbar: false,
             };

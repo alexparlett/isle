@@ -10,6 +10,8 @@ pub(crate) struct TabBar {
     pub(crate) on_select: EventHandler<usize>,
     pub(crate) on_close: EventHandler<usize>,
     pub(crate) on_new: EventHandler<()>,
+    /// A secondary click on a tab, at a point in the window.
+    pub(crate) on_menu: EventHandler<(usize, (f32, f32))>,
 }
 
 impl Component for TabBar {
@@ -69,6 +71,7 @@ impl Component for TabBar {
                                 let selected = i == self.current;
                                 let (on_select, on_close) = (self.on_select.clone(), self.on_close.clone());
                                 let closing = self.on_close.clone();
+                            let on_menu = self.on_menu.clone();
                                 rect()
                                     .key(i)
                                     .width(Size::px(width))
@@ -84,6 +87,8 @@ impl Component for TabBar {
                                     .on_mouse_down(move |e: Event<MouseEventData>| {
                                         if e.button == Some(MouseButton::Middle) {
                                             on_close.call(i);
+                                        } else if e.button == Some(MouseButton::Right) {
+                                            on_menu.call((i, (e.global_location.x as f32, e.global_location.y as f32)));
                                         }
                                     })
                                     .maybe_child((*hover.read() == Some(i)).then(|| {

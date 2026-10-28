@@ -22,7 +22,7 @@ pub use button::{Button, LevelBar};
 pub use controls::{Spinner, Switch, scroll_area, scroll_area_controlled};
 pub use field::{CheckRow, Field, FieldText, Secret};
 pub use glyph::{AppIcon, Glyph, LevelGlyph, glyph_svg};
-pub use menu::{Menu, MenuEntry, MenuEvent, MenuItem};
+pub use menu::{ContextMenu, Menu, MenuEntry, MenuEvent, MenuItem};
 pub use search::SearchField;
 pub use sheet::{AlertButton, Popover, alert, alert_text, alert_under, set_alert_icon, sheet};
 pub use slider::Slider;

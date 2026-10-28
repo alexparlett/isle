@@ -16,6 +16,11 @@ pub fn key(name: &str) -> String {
     format!("app[{APP}].{name}")
 }
 
+/// Whether `id` is one of the sidebar's own rows, turned on and off in Settings.
+pub fn sidebar_row(id: &str) -> bool {
+    PANES.iter().find(|p| p.id == "sidebar").is_some_and(|p| p.rows.iter().any(|r| r.id == id))
+}
+
 /// What a row edits.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Control {

@@ -151,6 +151,15 @@ pub fn add_bookmark(folder: &Path) -> std::io::Result<()> {
     std::fs::write(file, out)
 }
 
+/// Takes `folder` out of GTK's bookmarks.
+pub fn remove_bookmark(folder: &Path) -> std::io::Result<()> {
+    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or(std::io::ErrorKind::NotFound)?;
+    let file = config_home().unwrap_or_else(|| home.join(".config")).join("gtk-3.0/bookmarks");
+    let text = std::fs::read_to_string(&file)?;
+    let kept: Vec<&str> = text.lines().filter(|line| bookmarks(line).first().is_none_or(|(p, _)| p != folder)).collect();
+    std::fs::write(file, kept.join("\n") + "\n")
+}
+
 /// GTK's bookmarks: a `file://` URI and an optional label per line.
 pub fn bookmarks(text: &str) -> Vec<(PathBuf, Option<String>)> {
     text.lines()

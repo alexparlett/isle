@@ -564,6 +564,23 @@ folder is read again each time it is shown.
   Enclosing Folder, Get Info, Remove from Sidebar, Rename, Eject, Empty
   Trash), a column header (the columns shown), a column divider (Right
   Size).
+- **Context menus** (the board `Files context menus`, answered
+  2026-10-26) are drawn in the window on `colour-window-raised`, flipped
+  to stay inside it; a press outside or Escape closes them. An item
+  outside the selection is acted on alone and takes the accent ring while
+  its menu is open, the selection kept. An item's menu: Open, Open With
+  (a submenu: the default app marked "(default)", the others, Other…) or
+  Open in New Tab and Open in New Window for a folder; Move to Trash; Get
+  Info, Rename, Compress, Duplicate, Make Alias, Quick Look; Copy and Copy
+  as Pathname; no Cut. Several items take counts in their labels ("Rename
+  3 Items…", "Copy 3 Items") and add New Folder with Selection. Isle's
+  extras close the menu where they apply: Open in Terminal, Set as
+  Wallpaper, Expand. A trashed item's menu: Put Back, Delete
+  Immediately…, Get Info, Quick Look, Copy. The background's: New Folder,
+  New File (a submenu with templates), Get Info, Paste Item, Use Groups,
+  Group By, Sort By, Show View Options, Open in Terminal; in the Trash,
+  Empty Trash… and the view rows. The Menu key and ⇧F10 open the
+  selection's menu under the cursor's item, its first row selected.
 - **Drag** carries the items under the pointer, or the selection they
   are part of (`conventions.md`, Drag and drop): onto a folder in any view,
   a tab, the path bar, a sidebar place (into it), between two Favourites

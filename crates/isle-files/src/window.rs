@@ -122,6 +122,10 @@ impl App for FilesWindow {
         let mut rename_many = use_state(|| None::<Vec<PathBuf>>);
         // Go to Folder's sheet, with what its field starts with.
         let mut going = use_state(|| None::<String>);
+        // The context menu open, and the items its command acts on in place of the selection.
+        let mut context = use_state(|| None::<crate::menus::Open>);
+        let acting = use_state(|| None::<Vec<PathBuf>>);
+        let cursor_at = use_state(|| None::<(f32, f32)>);
         let layout = use_state(crate::keys::Layout::default);
         let typed = use_state(crate::keys::Typed::default);
         let mut drop_target = use_state(|| None::<PathBuf>);
@@ -431,6 +435,7 @@ impl App for FilesWindow {
             rename_error,
             rename_many,
             going,
+            acting,
             open_with,
             unlocking,
             saving,
@@ -493,12 +498,23 @@ impl App for FilesWindow {
                             tab.write().select_only(path.clone());
                             open_items(&shared, tabs, current, key, &handle, vec![path], held.cmd, open_with);
                         }
+                        Pick::Menu(target, at) => crate::menus::open_for(tab, target, at, false, context),
+                        Pick::Header(at) => {
+                            let hidden = tab.peek().shown.hidden;
+                            let columns: Vec<_> = crate::menus::Column::ALL.into_iter().filter(|c| hidden.get(*c)).collect();
+                            context.set(Some(crate::menus::header(&columns, at)));
+                        }
                     }
                 })
             }
         });
         let shared_keys = shared.clone();
+        let menu_fallback = (t.size_sidebar + t.space_l, t.size_toolbar + t.space_l);
         let on_key = move |e: Event<KeyboardEventData>| {
+            // An open context menu has the keys.
+            if context.peek().is_some() {
+                return;
+            }
             let m = e.modifiers;
             // Escape ends a rename whose field has lost the keys.
             if e.key == Key::Named(NamedKey::Escape) && renaming.peek().is_some() {
@@ -539,6 +555,15 @@ impl App for FilesWindow {
             if e.key == Key::Named(NamedKey::Enter) && rename_many.peek().is_none() && alert.peek().is_none() {
                 let selection = tab.peek().selection.clone();
                 start_rename(selection, renaming, rename_text, rename_error, rename_many);
+                return;
+            }
+            // The Menu key or ⇧F10: the selection's menu, or the folder's, under the cursor's item.
+            let menu_key = e.key == Key::Named(NamedKey::ContextMenu)
+                || (e.key == Key::Named(NamedKey::F10) && m.contains(Modifiers::SHIFT));
+            if menu_key {
+                let at = cursor_at.peek().unwrap_or(menu_fallback);
+                let target = tab.peek().cursor.clone().filter(|c| tab.peek().is_selected(c));
+                crate::menus::open_for(tab, target, at, true, context);
                 return;
             }
             // In Columns ← goes back a column, the folder chosen, and → into the folder chosen.
@@ -610,6 +635,8 @@ impl App for FilesWindow {
             press,
             chooses: None,
             layout,
+            cursor_at,
+            ringed: context.read().as_ref().and_then(|o| o.items.clone()).filter(|items| *items != tab.peek().selection).unwrap_or_default(),
         };
         let body = content(&theme, &handle, rev, focused, on_pick, interact.clone());
         // A question goes to the window that started its job, or to the front one when that
@@ -818,6 +845,9 @@ impl App for FilesWindow {
                         let shared = shared.clone();
                         move |volume: isle_disks::Volume| open_volume(&shared, volume, unlocking, alert, tab_go(tabs, current))
                     }),
+                    on_menu: EventHandler::new(move |(side, at): (crate::menus::Side, (f32, f32))| {
+                        context.set(Some(crate::menus::sidebar(&side, at)));
+                    }),
                     on_eject: EventHandler::new({
                         let shared = shared.clone();
                         move |volume: isle_disks::Volume| eject(&shared, volume, false, alert)
@@ -865,6 +895,9 @@ impl App for FilesWindow {
                                 }
                             }),
                             on_close: EventHandler::new(move |i: usize| close_tab(tabs, current, i)),
+                            on_menu: EventHandler::new(move |(i, at): (usize, (f32, f32))| {
+                                context.set(Some(crate::menus::tab(i, tabs.peek().len(), at)));
+                            }),
                             on_new: EventHandler::new({
                                 let (open_new_tab, shared) = (open_new_tab_here.clone(), shared.clone());
                                 move |_| open_new_tab(shared.new_window_place())
@@ -985,6 +1018,22 @@ impl App for FilesWindow {
                 }
                 .into_element()
             }))
+            .maybe_child(context.read().clone().map(|open| {
+                let shared = shared.clone();
+                let (entries, at, keyboard) = (open.entries.clone(), open.at, open.keyboard);
+                isle_ui::ContextMenu::new(entries, at, move |event: isle_ui::MenuEvent| match event {
+                    isle_ui::MenuEvent::Chosen(id) => {
+                        context.set(None);
+                        if let Some(act) = open.acts.get(id as usize) {
+                            crate::commands::run_menu(win, &shared, &open, act);
+                        }
+                    }
+                    isle_ui::MenuEvent::Back => context.set(None),
+                    _ => {}
+                })
+                .first_selected(keyboard)
+                .into_element()
+            }))
             .maybe_child(alert.read().clone().map(|a| {
                 let shared = shared.clone();
                 alert_sheet(a, move |then: Option<Then>| {
@@ -1040,6 +1089,15 @@ pub(crate) fn content(
             .center()
             .spacing(t.space_m)
             .background(colour(t.colour_view))
+            // An empty folder still has its background's menu.
+            .on_mouse_down({
+                let on_pick = on_pick.clone();
+                move |e: Event<MouseEventData>| {
+                    if let Some(menu) = Pick::menu_of(&e, None) {
+                        on_pick.call(menu);
+                    }
+                }
+            })
             .child(
                 rect().width(Size::fill()).max_width(Size::px(400.)).child(
                     label()

@@ -737,3 +737,95 @@ mod tests {
         assert_eq!(type_select(&menu, None, "x"), None);
     }
 }
+
+/// A menu's height as `entries` lay it out.
+pub fn height(theme: &isle_tokens::Theme, entries: &[MenuEntry]) -> f32 {
+    let t = &theme.tokens;
+    let pad = (t.radius_card - t.radius_row).max(0.0);
+    let rows: f32 = tidy(entries)
+        .iter()
+        .map(|e| match e {
+            MenuEntry::Separator => 9.0,
+            _ => t.size_menu_row,
+        })
+        .sum();
+    rows + 2.0 * pad
+}
+
+/// Where a menu of `size` opens at `at` inside `room`: its top-leading corner on the point,
+/// flipped to whichever side fits, kept `margin` from the edges.
+pub fn place(at: (f32, f32), size: (f32, f32), room: (f32, f32), margin: f32) -> (f32, f32) {
+    let fit = |at: f32, size: f32, room: f32| {
+        let flipped = if at + size + margin > room { at - size } else { at };
+        flipped.min(room - size - margin).max(margin)
+    };
+    (fit(at.0, size.0, room.0), fit(at.1, size.1, room.1))
+}
+
+/// A context menu in a window: `entries` at `at`, in the window's coordinates, on the window's
+/// material, flipped to stay inside it. A press outside closes it, as Escape does, with
+/// [`MenuEvent::Back`].
+#[derive(Clone, PartialEq)]
+pub struct ContextMenu {
+    entries: Rc<Vec<MenuEntry>>,
+    at: (f32, f32),
+    on_event: EventHandler<MenuEvent>,
+    first_selected: bool,
+}
+
+impl ContextMenu {
+    pub fn new(entries: Rc<Vec<MenuEntry>>, at: (f32, f32), on_event: impl Into<EventHandler<MenuEvent>>) -> Self {
+        Self { entries, at, on_event: on_event.into(), first_selected: false }
+    }
+
+    /// Opened from the keyboard: its first row selected.
+    pub fn first_selected(mut self, first: bool) -> Self {
+        self.first_selected = first;
+        self
+    }
+}
+
+impl Component for ContextMenu {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let mut room = use_state(|| (0f32, 0f32));
+        let size = (extent(&theme, &self.entries).0, height(&theme, &self.entries));
+        let (x, y) = place(self.at, size, *room.read(), t.space_s);
+        let (back, closing) = (self.on_event.clone(), self.on_event.clone());
+        rect()
+            .position(Position::new_global().top(0.).left(0.))
+            .layer(Layer::Overlay)
+            .width(Size::window_percent(100.))
+            .height(Size::window_percent(100.))
+            .on_sized(move |e: Event<SizedEventData>| room.set_if_modified((e.area.width(), e.area.height())))
+            .on_mouse_down(move |e: Event<MouseEventData>| {
+                e.stop_propagation();
+                closing.call(MenuEvent::Back);
+            })
+            .maybe_child((room.read().0 > 0.).then(|| {
+                rect()
+                    .position(Position::new_absolute().left(x).top(y))
+                    .on_mouse_down(|e: Event<MouseEventData>| e.stop_propagation())
+                    .child(
+                        Menu::new(self.entries.clone(), back)
+                            .material(Material::Window)
+                            .first_selected(self.first_selected),
+                    )
+            }))
+    }
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+
+    #[test]
+    fn a_context_menu_flips_to_the_side_that_fits() {
+        let room = (800., 600.);
+        assert_eq!(place((100., 100.), (220., 300.), room, 8.), (100., 100.));
+        assert_eq!(place((700., 100.), (220., 300.), room, 8.), (480., 100.), "flipped left");
+        assert_eq!(place((100., 500.), (220., 300.), room, 8.), (100., 200.), "flipped up");
+        assert_eq!(place((100., 200.), (220., 590.), room, 8.), (100., 8.), "kept inside");
+    }
+}

@@ -171,9 +171,14 @@ impl Component for IconsView {
                 height.set_if_modified(e.area.height());
                 bander.sized(e.area);
             })
-            .on_mouse_down(move |e: Event<MouseEventData>| {
-                if e.button == Some(MouseButton::Left) {
-                    bander.begin(tab, &e);
+            .on_mouse_down({
+                let on_pick = self.on_pick.clone();
+                move |e: Event<MouseEventData>| {
+                    if let Some(menu) = Pick::menu_of(&e, None) {
+                        on_pick.call(menu);
+                    } else if e.button == Some(MouseButton::Left) {
+                        bander.begin(tab, &e);
+                    }
                 }
             })
             .on_global_pointer_move(move |e: Event<PointerEventData>| {
@@ -227,7 +232,7 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
     let ink = if selected && grid.focused { t.colour_on_accent } else { t.colour_text };
     let path = entry.path.clone();
     let interact = grid.interact.clone();
-    let target = grid.interact.is_target(&entry.path);
+    let target = grid.interact.is_target(&entry.path) || grid.interact.ringed.contains(&entry.path);
     let body = text::metrics(theme, text::Style::Body);
     let on_pick = grid.on_pick.clone();
     let dir = entry.is_dir();
@@ -246,11 +251,17 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
         .spacing(t.space_xs)
         .opacity(if grid.interact.is_dimmed(entry) { 0.5 } else { 1. })
         .a11y_role(AccessibilityRole::GridCell)
+        .maybe(tab.cursor.as_deref() == Some(entry.path.as_path()), |el| el.on_sized(grid.interact.cursor_sized()))
         .a11y_alt(entry.name.clone())
         .a11y_builder(move |node| node.set_selected(selected))
         .on_pointer_enter(grid.interact.target_on_enter(&entry.path, entry.is_dir()))
         .on_pointer_leave(grid.interact.target_on_leave(&entry.path))
         .on_mouse_down(move |e: Event<MouseEventData>| {
+            if let Some(menu) = Pick::menu_of(&e, Some(path.clone())) {
+                e.stop_propagation();
+                on_pick.call(menu);
+                return;
+            }
             // A middle click opens a folder in a new tab.
             if e.button == Some(MouseButton::Middle) && dir {
                 e.stop_propagation();

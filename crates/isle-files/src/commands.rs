@@ -38,6 +38,8 @@ pub(crate) struct Win {
     pub rename_error: State<Option<String>>,
     pub rename_many: State<Option<Vec<PathBuf>>>,
     pub going: State<Option<String>>,
+    /// The items a context menu's command acts on in place of the selection.
+    pub acting: State<Option<Vec<PathBuf>>>,
     pub open_with: State<Option<crate::open::Offer>>,
     pub unlocking: State<Option<(isle_disks::Volume, Option<String>)>>,
     pub saving: State<bool>,
@@ -309,6 +311,79 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
     table
 }
 
+/// Carries out a context menu's row `act`.
+pub(crate) fn run_menu(win: Win, shared: &Rc<Shared>, open: &crate::menus::Open, act: &crate::menus::Act) {
+    use crate::menus::Act;
+    let Win { key, tabs, mut current, mut places, mut acting, mut desktop, alert, .. } = win;
+    let place_of = |path: &std::path::Path| {
+        if path == std::path::Path::new(crate::interact::TRASH) { Place::Trash } else { Place::Folder(path.to_owned()) }
+    };
+    match act {
+        Act::Command(id) => {
+            acting.set(open.items.clone());
+            desktop.commands.write().push(id.clone());
+        }
+        Act::OpenWith(app) => {
+            let (Some(bus), Some(items)) = (shared.app().bus(), open.items.clone()) else { return };
+            spawn(crate::open::launch(bus, app.clone(), items.iter().map(|p| isle_thumbnail::uri(p)).collect()));
+        }
+        Act::OpenInTab(path) => open_new_tab(shared, tabs, current, key, place_of(path)),
+        Act::OpenInWindow(path) => shared.open_window(vec![(place_of(path), None)], 0, None),
+        Act::ShowEnclosing(path) => {
+            let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+            if let Some(parent) = path.parent() {
+                tab::go(handle.tab, &handle.live, Place::Folder(parent.to_owned()), Some(path.clone()));
+            }
+        }
+        Act::RemoveFromSidebar(place, label) => {
+            // A place of the sidebar's own turns off in Settings; a bookmark is dropped.
+            let id = label.to_lowercase();
+            if crate::prefs::sidebar_row(&id) {
+                desktop.set(crate::prefs::key(&format!("sidebar.{id}")), isle_settings::Value::Bool(false));
+                return;
+            }
+            let Some(folder) = place.folder().map(PathBuf::from) else { return };
+            spawn(async move {
+                let read = off_thread(move || {
+                    if let Err(err) = places::remove_bookmark(&folder) {
+                        tracing::warn!("{} was not removed from the sidebar: {err}", folder.display());
+                    }
+                    places::read()
+                });
+                if let Some(read) = read.await {
+                    places.set(read);
+                }
+            });
+        }
+        Act::Eject(volume) => eject(shared, volume.clone(), false, alert),
+        Act::NewTab => open_new_tab(shared, tabs, current, key, shared.new_window_place()),
+        Act::CloseTab(i) if tabs.peek().len() <= 1 => {
+            let _ = i;
+            shared.app().request_close(key);
+        }
+        Act::CloseTab(i) => close_tab(tabs, current, *i),
+        Act::CloseOtherTabs(i) => {
+            let mut tabs = tabs;
+            let kept = tabs.peek().get(*i).cloned();
+            if let Some(kept) = kept {
+                tabs.set(vec![kept]);
+                current.set(0);
+                shared.remember(key, &tabs.peek(), 0);
+            }
+        }
+        Act::MoveTab(i) => {
+            current.set(*i);
+            desktop.commands.write().push("move-tab".into());
+        }
+        Act::Column(column) => {
+            let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+            let mut next = handle.tab.peek().shown;
+            next.hidden.toggle(*column);
+            set_shown(shared, handle.tab, next);
+        }
+    }
+}
+
 /// The volume ⌘E ejects: the one selected, else the one the folder shown is on.
 fn ejectable(shared: &Shared, tab: &crate::tab::Tab) -> Option<isle_disks::Volume> {
     let volumes = shared.locations.volumes.read();
@@ -327,7 +402,7 @@ fn ejectable(shared: &Shared, tab: &crate::tab::Tab) -> Option<isle_disks::Volum
 
 /// Carries out the commands chosen since last, each on the tab current when it is taken.
 pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
-    let Win { key, tabs, current, places, mut sidebar, mut preview, mut path_bar, mut status_bar, mut options, mut history, mut alert, renaming, rename_text, rename_error, rename_many, mut going, open_with, unlocking, saving, find, desktop } = win;
+    let Win { key, tabs, current, places, mut sidebar, mut preview, mut path_bar, mut status_bar, mut options, mut history, mut alert, renaming, rename_text, rename_error, rename_many, mut going, mut acting, open_with, unlocking, saving, find, desktop } = win;
     let jobs = shared.jobs;
     let chosen: Vec<String> = desktop.commands.read().clone();
     if chosen.is_empty() {
@@ -345,10 +420,17 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
         || jobs.questions.peek().iter().any(|q| q.window == key);
     for id in chosen {
         if sheet_up && !matches!(id.as_str(), "new-window" | "settings") {
+            acting.write().take();
             continue;
         }
         let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
         let (mut tab, live) = (handle.tab, handle.live.clone());
+        // A context menu's command acts on its items, the selection put back after.
+        let mut menu_tab = tab;
+        let kept = acting.write().take().map(|items| {
+            let place = menu_tab.peek().place.clone();
+            (place, std::mem::replace(&mut menu_tab.write().selection, items))
+        });
         let go = |place: Place| tab::go(tab, &live, place, None);
         let fav = |label: &str| {
             places
@@ -358,320 +440,327 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                 .find(|r| r.label == label)
                 .map(|r| r.place.clone())
         };
-        match id.as_str() {
-            "new-window" => shared.open_window(vec![(shared.new_window_place(), None)], 0, None),
-            "new-tab" => open_new_tab(&shared, tabs, current, key, shared.new_window_place()),
-            "close-tab" if tabs.peek().len() <= 1 => shared.app().request_close(key),
-            "close-tab" => {
-                let at = *current.peek();
-                close_tab(tabs, current, at);
-            }
-            "close-all" => {
-                let app = shared.app();
-                for window in shared.window_keys() {
-                    app.request_close(window);
+        'run: {
+            match id.as_str() {
+                "new-window" => shared.open_window(vec![(shared.new_window_place(), None)], 0, None),
+                "new-tab" => open_new_tab(&shared, tabs, current, key, shared.new_window_place()),
+                "close-tab" if tabs.peek().len() <= 1 => shared.app().request_close(key),
+                "close-tab" => {
+                    let at = *current.peek();
+                    close_tab(tabs, current, at);
                 }
-            }
-            "show-tab-bar" => {
-                let show = !*shared.tab_bar.peek();
-                shared.set_tab_bar(show);
-            }
-            "previous-tab" | "next-tab" => {
-                let n = tabs.peek().len();
-                if n > 1 {
-                    let by = if id == "next-tab" { 1 } else { n - 1 };
-                    let to = (*current.peek() + by) % n;
-                    let mut current = current;
-                    current.set(to);
-                    shared.remember(key, &tabs.peek(), to);
-                }
-            }
-            "move-tab" if tabs.peek().len() > 1 => {
-                let at = *current.peek();
-                let place = tab.peek().place.clone();
-                close_tab(tabs, current, at);
-                shared.remember(key, &tabs.peek(), *current.peek());
-                shared.open_window(vec![(place, None)], 0, None);
-            }
-            "open" | "open-down" => {
-                let selection = tab.peek().selection.clone();
-                open_items(&shared, tabs, current, key, &handle, selection, false, open_with);
-            }
-            "deselect" => tab.write().deselect(),
-            "select-all" => {
-                let mut t = tab.write();
-                t.selection = t.folder.entries().iter().map(|e| e.path.clone()).collect();
-            }
-            "copy" | "cut" => {
-                let selection = tab.peek().selection.clone();
-                if let Some(data) = shared.app().data() {
-                    data.set_selection(crate::transfer::contents(&selection, id == "cut"));
-                }
-                let mut cut = shared.cut;
-                cut.set(if id == "cut" { selection } else { Vec::new() });
-            }
-            "copy-path" => {
-                let text = tab.peek().selection.iter().map(|p| p.to_string_lossy().into_owned()).collect::<Vec<_>>().join("\n");
-                if let Some(data) = shared.app().data() {
-                    let bytes = text.into_bytes();
-                    data.set_selection(vec![
-                        ("text/plain;charset=utf-8".into(), bytes.clone()),
-                        ("text/plain".into(), bytes),
-                    ]);
-                }
-            }
-            "paste" | "paste-move" => {
-                let (Some(data), Some(into)) = (shared.app().data(), tab.peek().place.folder().map(PathBuf::from)) else {
-                    continue;
-                };
-                let moving = id == "paste-move";
-                let shared = shared.clone();
-                spawn(async move {
-                    let read = off_thread(move || data.read_selection(&crate::transfer::READ)).await.flatten();
-                    let Some((kind, bytes)) = read else { return };
-                    let (items, cut) = crate::transfer::read(&kind, &bytes);
-                    if items.is_empty() {
-                        return;
+                "close-all" => {
+                    let app = shared.app();
+                    for window in shared.window_keys() {
+                        app.request_close(window);
                     }
-                    let mut cut_now = shared.cut;
-                    let work = if moving || cut {
-                        cut_now.set(Vec::new());
-                        Work::Move { items, into }
-                    } else {
-                        Work::Copy { items, into }
+                }
+                "show-tab-bar" => {
+                    let show = !*shared.tab_bar.peek();
+                    shared.set_tab_bar(show);
+                }
+                "previous-tab" | "next-tab" => {
+                    let n = tabs.peek().len();
+                    if n > 1 {
+                        let by = if id == "next-tab" { 1 } else { n - 1 };
+                        let to = (*current.peek() + by) % n;
+                        let mut current = current;
+                        current.set(to);
+                        shared.remember(key, &tabs.peek(), to);
+                    }
+                }
+                "move-tab" if tabs.peek().len() > 1 => {
+                    let at = *current.peek();
+                    let place = tab.peek().place.clone();
+                    close_tab(tabs, current, at);
+                    shared.remember(key, &tabs.peek(), *current.peek());
+                    shared.open_window(vec![(place, None)], 0, None);
+                }
+                "open" | "open-down" => {
+                    let selection = tab.peek().selection.clone();
+                    open_items(&shared, tabs, current, key, &handle, selection, false, open_with);
+                }
+                "deselect" => tab.write().deselect(),
+                "select-all" => {
+                    let mut t = tab.write();
+                    t.selection = t.folder.entries().iter().map(|e| e.path.clone()).collect();
+                }
+                "copy" | "cut" => {
+                    let selection = tab.peek().selection.clone();
+                    if let Some(data) = shared.app().data() {
+                        data.set_selection(crate::transfer::contents(&selection, id == "cut"));
+                    }
+                    let mut cut = shared.cut;
+                    cut.set(if id == "cut" { selection } else { Vec::new() });
+                }
+                "copy-path" => {
+                    let text = tab.peek().selection.iter().map(|p| p.to_string_lossy().into_owned()).collect::<Vec<_>>().join("\n");
+                    if let Some(data) = shared.app().data() {
+                        let bytes = text.into_bytes();
+                        data.set_selection(vec![
+                            ("text/plain;charset=utf-8".into(), bytes.clone()),
+                            ("text/plain".into(), bytes),
+                        ]);
+                    }
+                }
+                "paste" | "paste-move" => {
+                    let (Some(data), Some(into)) = (shared.app().data(), tab.peek().place.folder().map(PathBuf::from)) else {
+                        break 'run;
                     };
-                    let mut alert = alert;
-                    start_job(&shared, key, work, &mut alert);
-                });
-            }
-            "open-with" => {
-                if let Some(first) = tab.peek().selection.first().cloned() {
-                    ask_open_with(first, open_with);
-                }
-            }
-            "go-to-folder" => going.set(Some(String::new())),
-            id if id.starts_with("recent-folder:") => {
-                let at = id["recent-folder:".len()..].parse::<usize>().ok();
-                if let Some(folder) = at.and_then(|i| shared.recent_folders().into_iter().nth(i)) {
-                    go(Place::Folder(folder));
-                }
-            }
-            "show-original" => {
-                let one = tab.peek().selection.first().cloned();
-                let Some(alias) = one else { continue };
-                let Ok(to) = std::fs::read_link(&alias) else { continue };
-                let target = alias.parent().map_or(to.clone(), |dir| dir.join(&to));
-                if let Some(folder) = target.parent() {
-                    tab::go(tab, &live, Place::Folder(folder.to_owned()), Some(target.clone()));
-                }
-            }
-            "add-to-sidebar" => {
-                let t = tab.peek();
-                let folder = match t.selection.as_slice() {
-                    [one] if t.folder.get(one).is_some_and(|e| e.is_dir()) => Some(one.clone()),
-                    [] => t.place.folder().map(PathBuf::from),
-                    _ => None,
-                };
-                drop(t);
-                let Some(folder) = folder else { continue };
-                let mut places = places;
-                spawn(async move {
-                    let read = off_thread(move || {
-                        if let Err(err) = places::add_bookmark(&folder) {
-                            tracing::warn!("{} was not added to the sidebar: {err}", folder.display());
+                    let moving = id == "paste-move";
+                    let shared = shared.clone();
+                    spawn(async move {
+                        let read = off_thread(move || data.read_selection(&crate::transfer::READ)).await.flatten();
+                        let Some((kind, bytes)) = read else { return };
+                        let (items, cut) = crate::transfer::read(&kind, &bytes);
+                        if items.is_empty() {
+                            return;
                         }
-                        places::read()
+                        let mut cut_now = shared.cut;
+                        let work = if moving || cut {
+                            cut_now.set(Vec::new());
+                            Work::Move { items, into }
+                        } else {
+                            Work::Copy { items, into }
+                        };
+                        let mut alert = alert;
+                        start_job(&shared, key, work, &mut alert);
                     });
-                    if let Some(read) = read.await {
-                        places.set(read);
+                }
+                "open-with" => {
+                    if let Some(first) = tab.peek().selection.first().cloned() {
+                        ask_open_with(first, open_with);
                     }
-                });
-            }
-            "eject" => {
-                if let Some(volume) = ejectable(shared, &tab.peek()) {
-                    crate::ops::eject(shared, volume, false, alert);
                 }
-            }
-            "open-terminal" => {
-                let t = tab.peek();
-                // The selected folder, or the folder shown.
-                let folder = t
-                    .selection
-                    .first()
-                    .filter(|p| t.folder.get(p).is_some_and(|e| e.is_dir()))
-                    .cloned()
-                    .or_else(|| t.place.folder().map(PathBuf::from));
-                drop(t);
-                let command = match desktop.value("shortcuts.terminal-command") {
-                    Some(isle_settings::Value::Str(c)) if !c.is_empty() => c,
-                    _ => "kitty".to_owned(),
-                };
-                if let Some(folder) = folder {
-                    crate::open::terminal(&folder, &command);
-                }
-            }
-            "set-wallpaper" => {
-                if let Some(image) = tab.peek().selection.first() {
-                    desktop.set("wallpaper.source", isle_settings::Value::Str(image.to_string_lossy().into_owned()));
-                }
-            }
-            "rename" => {
-                let selection = tab.peek().selection.clone();
-                start_rename(selection, renaming, rename_text, rename_error, rename_many);
-            }
-            "find" => find.request_focus(),
-            "settings" => shared.open_settings(None, None),
-            "get-info" | "summary" => {
-                let t = tab.peek();
-                let items = if t.selection.is_empty() {
-                    t.place.folder().map(PathBuf::from).into_iter().collect()
-                } else {
-                    t.selection.clone()
-                };
-                drop(t);
-                shared.get_info(items, id == "summary", None);
-            }
-            "inspector" => shared.toggle_inspector(),
-            "quick-look" => {
-                let selection = tab.peek().selection.clone();
-                shared.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));
-            }
-            "toggle-sidebar" => sidebar.toggle(),
-            "toggle-preview" => preview.toggle(),
-            "toggle-path-bar" => path_bar.toggle(),
-            "toggle-status-bar" => status_bar.toggle(),
-            "view-options" => options.toggle(),
-            "as-icons" | "as-list" | "as-columns" | "use-groups" | "group-kind" | "group-modified"
-            | "group-size" | "sort-name" | "sort-kind" | "sort-modified" | "sort-size" | "bigger"
-            | "smaller" => {
-                let mut next = tab.peek().shown;
-                match id.as_str() {
-                    "as-icons" => next.view = View::Icons,
-                    "as-list" => next.view = View::List,
-                    "as-columns" => next.view = View::Columns,
-                    "use-groups" => {
-                        next.group = if next.group.is_some() { None } else { Some(GroupBy::Kind) }
+                "go-to-folder" => going.set(Some(String::new())),
+                id if id.starts_with("recent-folder:") => {
+                    let at = id["recent-folder:".len()..].parse::<usize>().ok();
+                    if let Some(folder) = at.and_then(|i| shared.recent_folders().into_iter().nth(i)) {
+                        go(Place::Folder(folder));
                     }
-                    "group-kind" => next.group = Some(GroupBy::Kind),
-                    "group-modified" => next.group = Some(GroupBy::Modified),
-                    "group-size" => next.group = Some(GroupBy::Size),
-                    "sort-name" => next.sort = SortBy::Name,
-                    "sort-kind" => next.sort = SortBy::Kind,
-                    "sort-modified" => next.sort = SortBy::Modified,
-                    "sort-size" => next.sort = SortBy::Size,
-                    "bigger" => next.step_icons(true),
-                    _ => next.step_icons(false),
                 }
-                set_shown(&shared, tab, next);
-            }
-            "undo" => {
-                let last = history.write().undo.pop();
-                if let Some((label, steps)) = last {
-                    jobs.start_doing(&shared.app(), key, Work::Undo { steps }, format!("Undoing {label}"), label, crate::jobs::Doing::Undo);
+                "show-original" => {
+                    let one = tab.peek().selection.first().cloned();
+                    let Some(alias) = one else { break 'run };
+                    let Ok(to) = std::fs::read_link(&alias) else { break 'run };
+                    let target = alias.parent().map_or(to.clone(), |dir| dir.join(&to));
+                    if let Some(folder) = target.parent() {
+                        tab::go(tab, &live, Place::Folder(folder.to_owned()), Some(target.clone()));
+                    }
                 }
-            }
-            "redo" => {
-                let last = history.write().redo.pop();
-                if let Some((label, steps)) = last {
-                    jobs.start_doing(&shared.app(), key, Work::Undo { steps }, format!("Redoing {label}"), label, crate::jobs::Doing::Redo);
-                }
-            }
-            id if id == "new-file" || id.starts_with("new-file:") => {
-                let Some(into) = tab.peek().place.folder().map(PathBuf::from) else { continue };
-                let template = id
-                    .strip_prefix("new-file:")
-                    .and_then(|i| i.parse::<usize>().ok())
-                    .and_then(|i| crate::places::templates().into_iter().nth(i));
-                let name = template
-                    .as_deref()
-                    .and_then(|t| t.file_name())
-                    .map_or_else(|| "untitled".to_owned(), |n| n.to_string_lossy().into_owned());
-                start_job(shared, key, Work::NewFile { into, name, template }, &mut alert);
-            }
-            "new-folder" | "new-folder-with-items" | "duplicate" | "make-alias" | "compress" | "expand"
-            | "move-to-trash" | "put-back" | "delete-now" | "empty-trash" | "empty-trash-now" => {
-                let t = tab.peek();
-                let selection: Vec<PathBuf> = t.selection.clone();
-                let here = t.place.folder().map(PathBuf::from);
-                let trashed: Vec<_> = selection
-                    .iter()
-                    .filter_map(|p| t.folder.get(p)?.trashed.as_deref().cloned())
-                    .collect();
-                drop(t);
-                let work = match id.as_str() {
-                    "new-folder" => here.map(|into| Work::NewFolder { into, name: "untitled folder".into(), with: Vec::new() }),
-                    "new-folder-with-items" => here.map(|into| Work::NewFolder {
-                        into,
-                        name: "New Folder With Items".into(),
-                        with: selection.clone(),
-                    }),
-                    "duplicate" => Some(Work::Duplicate { items: selection.clone() }),
-                    "compress" => Some(Work::Compress { items: selection.clone() }),
-                    "expand" => selection.first().cloned().map(|archive| Work::Expand { archive }),
-                    "move-to-trash" => Some(Work::Trash { items: selection.clone() }),
-                    "put-back" => Some(Work::PutBack { items: trashed.clone() }),
-                    "make-alias" => {
-                        for item in &selection {
-                            make_alias(item);
-                        }
-                        None
-                    }
-                    "delete-now" => {
-                        alert.set(Some(Alert::delete(selection.clone())));
-                        None
-                    }
-                    "empty-trash" if shared.prefs().warn_empty_trash => {
-                        ask_empty_trash(alert);
-                        None
-                    }
-                    _ => {
-                        let shared = shared.clone();
-                        spawn(async move {
-                            if let Some(items) = off_thread(trash_items).await {
-                                let mut alert = alert;
-                                start_job(&shared, key, Work::EmptyTrash { items }, &mut alert);
+                "add-to-sidebar" => {
+                    let t = tab.peek();
+                    let folder = match t.selection.as_slice() {
+                        [one] if t.folder.get(one).is_some_and(|e| e.is_dir()) => Some(one.clone()),
+                        [] => t.place.folder().map(PathBuf::from),
+                        _ => None,
+                    };
+                    drop(t);
+                    let Some(folder) = folder else { break 'run };
+                    let mut places = places;
+                    spawn(async move {
+                        let read = off_thread(move || {
+                            if let Err(err) = places::add_bookmark(&folder) {
+                                tracing::warn!("{} was not added to the sidebar: {err}", folder.display());
                             }
+                            places::read()
                         });
-                        None
+                        if let Some(read) = read.await {
+                            places.set(read);
+                        }
+                    });
+                }
+                "eject" => {
+                    if let Some(volume) = ejectable(shared, &tab.peek()) {
+                        crate::ops::eject(shared, volume, false, alert);
                     }
-                };
-                if let Some(work) = work {
-                    start_job(&shared, key, work, &mut alert);
+                }
+                "open-terminal" => {
+                    let t = tab.peek();
+                    // The selected folder, or the folder shown.
+                    let folder = t
+                        .selection
+                        .first()
+                        .filter(|p| t.folder.get(p).is_some_and(|e| e.is_dir()))
+                        .cloned()
+                        .or_else(|| t.place.folder().map(PathBuf::from));
+                    drop(t);
+                    let command = match desktop.value("shortcuts.terminal-command") {
+                        Some(isle_settings::Value::Str(c)) if !c.is_empty() => c,
+                        _ => "kitty".to_owned(),
+                    };
+                    if let Some(folder) = folder {
+                        crate::open::terminal(&folder, &command);
+                    }
+                }
+                "set-wallpaper" => {
+                    if let Some(image) = tab.peek().selection.first() {
+                        desktop.set("wallpaper.source", isle_settings::Value::Str(image.to_string_lossy().into_owned()));
+                    }
+                }
+                "rename" => {
+                    let selection = tab.peek().selection.clone();
+                    start_rename(selection, renaming, rename_text, rename_error, rename_many);
+                }
+                "find" => find.request_focus(),
+                "settings" => shared.open_settings(None, None),
+                "get-info" | "summary" => {
+                    let t = tab.peek();
+                    let items = if t.selection.is_empty() {
+                        t.place.folder().map(PathBuf::from).into_iter().collect()
+                    } else {
+                        t.selection.clone()
+                    };
+                    drop(t);
+                    shared.get_info(items, id == "summary", None);
+                }
+                "inspector" => shared.toggle_inspector(),
+                "quick-look" => {
+                    let selection = tab.peek().selection.clone();
+                    shared.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));
+                }
+                "toggle-sidebar" => sidebar.toggle(),
+                "toggle-preview" => preview.toggle(),
+                "toggle-path-bar" => path_bar.toggle(),
+                "toggle-status-bar" => status_bar.toggle(),
+                "view-options" => options.toggle(),
+                "as-icons" | "as-list" | "as-columns" | "use-groups" | "group-kind" | "group-modified"
+                | "group-size" | "sort-name" | "sort-kind" | "sort-modified" | "sort-size" | "bigger"
+                | "smaller" => {
+                    let mut next = tab.peek().shown;
+                    match id.as_str() {
+                        "as-icons" => next.view = View::Icons,
+                        "as-list" => next.view = View::List,
+                        "as-columns" => next.view = View::Columns,
+                        "use-groups" => {
+                            next.group = if next.group.is_some() { None } else { Some(GroupBy::Kind) }
+                        }
+                        "group-kind" => next.group = Some(GroupBy::Kind),
+                        "group-modified" => next.group = Some(GroupBy::Modified),
+                        "group-size" => next.group = Some(GroupBy::Size),
+                        "sort-name" => next.sort = SortBy::Name,
+                        "sort-kind" => next.sort = SortBy::Kind,
+                        "sort-modified" => next.sort = SortBy::Modified,
+                        "sort-size" => next.sort = SortBy::Size,
+                        "bigger" => next.step_icons(true),
+                        _ => next.step_icons(false),
+                    }
+                    set_shown(&shared, tab, next);
+                }
+                "undo" => {
+                    let last = history.write().undo.pop();
+                    if let Some((label, steps)) = last {
+                        jobs.start_doing(&shared.app(), key, Work::Undo { steps }, format!("Undoing {label}"), label, crate::jobs::Doing::Undo);
+                    }
+                }
+                "redo" => {
+                    let last = history.write().redo.pop();
+                    if let Some((label, steps)) = last {
+                        jobs.start_doing(&shared.app(), key, Work::Undo { steps }, format!("Redoing {label}"), label, crate::jobs::Doing::Redo);
+                    }
+                }
+                id if id == "new-file" || id.starts_with("new-file:") => {
+                    let Some(into) = tab.peek().place.folder().map(PathBuf::from) else { break 'run };
+                    let template = id
+                        .strip_prefix("new-file:")
+                        .and_then(|i| i.parse::<usize>().ok())
+                        .and_then(|i| crate::places::templates().into_iter().nth(i));
+                    let name = template
+                        .as_deref()
+                        .and_then(|t| t.file_name())
+                        .map_or_else(|| "untitled".to_owned(), |n| n.to_string_lossy().into_owned());
+                    start_job(shared, key, Work::NewFile { into, name, template }, &mut alert);
+                }
+                "new-folder" | "new-folder-with-items" | "duplicate" | "make-alias" | "compress" | "expand"
+                | "move-to-trash" | "put-back" | "delete-now" | "empty-trash" | "empty-trash-now" => {
+                    let t = tab.peek();
+                    let selection: Vec<PathBuf> = t.selection.clone();
+                    let here = t.place.folder().map(PathBuf::from);
+                    let trashed: Vec<_> = selection
+                        .iter()
+                        .filter_map(|p| t.folder.get(p)?.trashed.as_deref().cloned())
+                        .collect();
+                    drop(t);
+                    let work = match id.as_str() {
+                        "new-folder" => here.map(|into| Work::NewFolder { into, name: "untitled folder".into(), with: Vec::new() }),
+                        "new-folder-with-items" => here.map(|into| Work::NewFolder {
+                            into,
+                            name: "New Folder With Items".into(),
+                            with: selection.clone(),
+                        }),
+                        "duplicate" => Some(Work::Duplicate { items: selection.clone() }),
+                        "compress" => Some(Work::Compress { items: selection.clone() }),
+                        "expand" => selection.first().cloned().map(|archive| Work::Expand { archive }),
+                        "move-to-trash" => Some(Work::Trash { items: selection.clone() }),
+                        "put-back" => Some(Work::PutBack { items: trashed.clone() }),
+                        "make-alias" => {
+                            for item in &selection {
+                                make_alias(item);
+                            }
+                            None
+                        }
+                        "delete-now" => {
+                            alert.set(Some(Alert::delete(selection.clone())));
+                            None
+                        }
+                        "empty-trash" if shared.prefs().warn_empty_trash => {
+                            ask_empty_trash(alert);
+                            None
+                        }
+                        _ => {
+                            let shared = shared.clone();
+                            spawn(async move {
+                                if let Some(items) = off_thread(trash_items).await {
+                                    let mut alert = alert;
+                                    start_job(&shared, key, Work::EmptyTrash { items }, &mut alert);
+                                }
+                            });
+                            None
+                        }
+                    };
+                    if let Some(work) = work {
+                        start_job(&shared, key, work, &mut alert);
+                    }
+                }
+                "toggle-hidden" => {
+                    let show = !*shared.hidden.peek();
+                    shared.set_hidden(show);
+                }
+                "back" => tab::back(tab, &live),
+                "forward" => tab::forward(tab, &live),
+                "enclosing" => {
+                    let from = tab.peek().place.folder().map(PathBuf::from);
+                    if let Some(from) = from
+                        && let Some(up) = from.parent()
+                    {
+                        tab::go(tab, &live, Place::Folder(up.to_owned()), Some(from));
+                    }
+                }
+                "go-recents" => go(Place::Recents),
+                "go-home" => {
+                    if let Some(home) = places::home() {
+                        go(Place::Folder(home));
+                    }
+                }
+                "go-computer" => go(Place::Computer),
+                other => {
+                    let label = match other {
+                        "go-documents" => "Documents",
+                        "go-desktop" => "Desktop",
+                        "go-downloads" => "Downloads",
+                        "go-applications" => "Applications",
+                        _ => break 'run,
+                    };
+                    if let Some(place) = fav(label) {
+                        go(place);
+                    }
                 }
             }
-            "toggle-hidden" => {
-                let show = !*shared.hidden.peek();
-                shared.set_hidden(show);
-            }
-            "back" => tab::back(tab, &live),
-            "forward" => tab::forward(tab, &live),
-            "enclosing" => {
-                let from = tab.peek().place.folder().map(PathBuf::from);
-                if let Some(from) = from
-                    && let Some(up) = from.parent()
-                {
-                    tab::go(tab, &live, Place::Folder(up.to_owned()), Some(from));
-                }
-            }
-            "go-recents" => go(Place::Recents),
-            "go-home" => {
-                if let Some(home) = places::home() {
-                    go(Place::Folder(home));
-                }
-            }
-            "go-computer" => go(Place::Computer),
-            other => {
-                let label = match other {
-                    "go-documents" => "Documents",
-                    "go-desktop" => "Desktop",
-                    "go-downloads" => "Downloads",
-                    "go-applications" => "Applications",
-                    _ => continue,
-                };
-                if let Some(place) = fav(label) {
-                    go(place);
-                }
-            }
+        }
+        if let Some((place, selection)) = kept
+            && menu_tab.peek().place == place
+        {
+            menu_tab.write().selection = selection;
         }
     }
     shared.remember(key, &tabs.peek(), *current.peek());

@@ -26,6 +26,8 @@ pub(crate) struct Sidebar {
     pub on_go: EventHandler<Place>,
     pub on_volume: EventHandler<isle_disks::Volume>,
     pub on_eject: EventHandler<isle_disks::Volume>,
+    /// A secondary click on a row, at a point in the window.
+    pub on_menu: EventHandler<(crate::menus::Side, (f32, f32))>,
     pub width: f32,
     /// Leaves the window's toolbar band clear at its top.
     pub under_toolbar: bool,
@@ -39,7 +41,8 @@ impl Component for Sidebar {
         let drop_target = self.drop_target;
         // A row: its glyph and label, selected while its place is shown, and under a drag the
         // folder (or the Trash) a drop goes into.
-        let row = |key: String, glyph: &'static str, label: String, selected: bool, dimmed: bool, target: Option<PathBuf>, on_press: Box<dyn Fn()>, trailing: Option<Element>| {
+        let row = |key: String, glyph: &'static str, label: String, selected: bool, dimmed: bool, target: Option<PathBuf>, on_press: Box<dyn Fn()>, trailing: Option<Element>, side: crate::menus::Side| {
+            let on_menu = self.on_menu.clone();
             let ink = if selected { t.colour_on_accent } else if dimmed { t.colour_text_3 } else { t.colour_text };
             let glyph_ink = if selected { t.colour_on_accent } else if dimmed { t.colour_text_3 } else { t.colour_accent_text };
             let ringed = dragging && target.is_some() && drop_target.peek().as_deref() == target.as_deref();
@@ -72,6 +75,14 @@ impl Component for Sidebar {
                     }
                 })
                 .on_press(move |_| on_press())
+                .on_mouse_down(move |e: Event<MouseEventData>| {
+                    let secondary = e.button == Some(MouseButton::Right)
+                        || (e.button == Some(MouseButton::Left) && e.modifiers.contains(Modifiers::CONTROL));
+                    if secondary {
+                        e.stop_propagation();
+                        on_menu.call((side.clone(), (e.global_location.x as f32, e.global_location.y as f32)));
+                    }
+                })
                 .child(Glyph::new(glyph, t.size_glyph, colour(glyph_ink)))
                 .child(rect().width(Size::flex(1.)).child(text::line(&theme, text::Style::Body, colour(ink), label)))
                 .maybe_child(trailing)
@@ -85,7 +96,8 @@ impl Component for Sidebar {
                 Place::Trash => Some(PathBuf::from(crate::interact::TRASH)),
                 _ => None,
             };
-            row(format!("{:?}", r.place), r.glyph, r.label.clone(), r.place == self.shown, false, target, Box::new(move || on_go.call(place.clone())), None)
+            let side = crate::menus::Side::Place(r.place.clone(), r.label.clone());
+            row(format!("{:?}", r.place), r.glyph, r.label.clone(), r.place == self.shown, false, target, Box::new(move || on_go.call(place.clone())), None, side)
         };
         let header = |title: &str| {
             rect()
@@ -148,12 +160,14 @@ impl Component for Sidebar {
                 mounted.clone(),
                 Box::new(move || on_volume.call(pressed.clone())),
                 trailing,
+                crate::menus::Side::Volume(v.clone()),
             )
         });
         let share_rows = self.shares.iter().map(|p| {
             let on_go = self.on_go.clone();
             let place = Place::Folder(p.clone());
-            row(p.display().to_string(), "network", crate::volumes::share_name(p), place == self.shown, false, Some(p.clone()), Box::new(move || on_go.call(place.clone())), None)
+            let side = crate::menus::Side::Place(place.clone(), crate::volumes::share_name(p));
+            row(p.display().to_string(), "network", crate::volumes::share_name(p), place == self.shown, false, Some(p.clone()), Box::new(move || on_go.call(place.clone())), None, side)
         });
         let (computer, trash) = (self.places.locations.first(), self.places.locations.get(1));
         rect()

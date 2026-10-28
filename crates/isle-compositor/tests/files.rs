@@ -1317,3 +1317,103 @@ async fn tabs_go_to_folder_typing_and_redo_by_keys() {
     wait_until(|| async { !isle.windows().await.into_iter().any(|w| w.app_id == APP) }).await;
     assert!(!app.printed_part("panicked"));
 }
+
+const MENU_KEY: u32 = 127;
+
+/// A secondary click at `at`.
+async fn secondary(isle: &Isle, at: (f64, f64)) {
+    let test = isle.test().await;
+    test.pointer_to(at.0, at.1).await.unwrap();
+    test.button(273, true).await.unwrap();
+    test.button(273, false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn context_menus_act_on_what_was_clicked() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-context").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let files = || async { isle.windows().await.into_iter().filter(|x| x.app_id == APP).count() };
+
+    // An item's menu: typing a row's name selects it, Return chooses. Get Info opens its window.
+    secondary(&isle, list_row(&w, 4.)).await;
+    isle.keep_shot("files-context-item").await;
+    type_text(&isle, "get").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { files().await == 2 }).await;
+    pause(400).await;
+    isle.chord(&[SUPER, KEY_W]).await;
+    wait_until(|| async { files().await == 1 }).await;
+    pause(300).await;
+
+    // With notes.md selected, todo.txt's menu acts on todo.txt alone, and the selection stays.
+    click(&isle, list_row(&w, 4.), &[], 1).await;
+    secondary(&isle, list_row(&w, 5.)).await;
+    isle.keep_shot("files-context-ring").await;
+    type_text(&isle, "copy").await;
+    isle.chord(&[ENTER]).await;
+    pause(300).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    pause(400).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async { home.join("Documents/todo.txt").exists() }).await;
+    assert!(!home.join("Documents/notes.md").exists(), "only the item clicked was copied");
+
+    // The background's menu: New Folder.
+    secondary(&isle, (w.x as f64 + 500., w.y as f64 + 500.)).await;
+    isle.keep_shot("files-context-background").await;
+    type_text(&isle, "new").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { home.join("Documents/untitled folder").exists() }).await;
+    isle.chord(&[ESC]).await;
+
+    // A sidebar row's menu: Open in New Tab on Pictures, where New Folder then lands.
+    let pictures = (w.x as f64 + 60., w.y as f64 + 52. + 8. + 28. + 12. + 24. + 28. * 3. + 14.);
+    secondary(&isle, pictures).await;
+    type_text(&isle, "open").await;
+    isle.chord(&[ENTER]).await;
+    pause(500).await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Pictures/untitled folder").exists() }).await;
+    isle.chord(&[ESC]).await;
+
+    // Escape closes a menu without choosing.
+    secondary(&isle, (w.x as f64 + 500., w.y as f64 + 500.)).await;
+    isle.chord(&[ESC]).await;
+    pause(200).await;
+
+    // A tab's menu: Close Other Tabs leaves one, which ⌘W then closes with the window.
+    secondary(&isle, (w.x as f64 + 300., w.y as f64 + 52. + 15.)).await;
+    isle.keep_shot("files-context-tab").await;
+    for _ in 0..3 {
+        isle.chord(&[DOWN]).await;
+    }
+    isle.chord(&[ENTER]).await;
+    pause(400).await;
+
+    // The Menu key opens the selection's menu from the keyboard: Duplicate.
+    isle.chord(&[SUPER, SHIFT, KEY_H]).await;
+    pause(500).await;
+    click(&isle, list_row(&w, 4.), &[], 1).await;
+    isle.chord(&[MENU_KEY]).await;
+    pause(400).await;
+    isle.keep_shot("files-context-key").await;
+    type_text(&isle, "dup").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async {
+        std::fs::read_dir(&home).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with("notes")).count() == 2
+    })
+    .await;
+
+    isle.chord(&[SUPER, KEY_W]).await;
+    wait_until(|| async { files().await == 0 }).await;
+    assert!(!app.printed_part("panicked"));
+}

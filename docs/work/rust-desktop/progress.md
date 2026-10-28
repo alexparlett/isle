@@ -2,6 +2,21 @@
 
 ## 2026-10-28
 
+- P15b 15b.6, context menus, as the board drew them: `isle_ui::ContextMenu`
+  (Menu at a point in the window, flipped to fit, closed by a press outside
+  or Escape) and Files' `menus.rs`, one builder per target whose rows run
+  the menu bar's commands on the clicked items. Secondary click and ⌃-click
+  on items, the background (an empty folder's too), tabs (Close Other
+  Tabs), sidebar rows (Open in New Tab or Window, Show in Enclosing Folder,
+  Remove from Sidebar, Eject, Empty Trash…) and List's header, which now
+  hides and shows Date Modified, Size and Kind per folder. An item outside
+  the selection is ringed and acted on alone, the selection kept. Open
+  With is a submenu of the type's apps. The Menu key and ⇧F10 open the
+  selection's menu under the cursor's item. While a menu is open the
+  window leaves the keys to it. Proved in the VM by real input. Not here:
+  the title's path menu and More (…) (15b.7), Right Size (no resizable
+  columns yet, 15b.10), Rename for volumes, Settings' row menu on
+  ContextMenu, menus in the Open and Save panels.
 - P15b 15b.5, keys and tabs: ⌘W closes the tab or, with one, the window;
   ⇧⌘W the window, ⌥⌘W all; ⌃Tab and ⌃⇧Tab; Show Tab Bar ⇧⌘T, kept; Move
   Tab to New Window. The tab bar keeps equal widths down to its minimum,

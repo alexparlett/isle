@@ -40,6 +40,19 @@ pub enum Pick {
     Open(PathBuf, Held),
     /// A click on no item.
     Nothing,
+    /// A secondary click or ⌃-click, on an item or the background, at a point in the window.
+    Menu(Option<PathBuf>, (f32, f32)),
+    /// A secondary click on List's column header.
+    Header((f32, f32)),
+}
+
+impl Pick {
+    /// The menu a press asks for: a secondary click, or ⌃ with the primary.
+    pub fn menu_of(e: &MouseEventData, path: Option<PathBuf>) -> Option<Pick> {
+        let secondary = e.button == Some(MouseButton::Right)
+            || (e.button == Some(MouseButton::Left) && e.modifiers.contains(Modifiers::CONTROL));
+        secondary.then(|| Pick::Menu(path, (e.global_location.x as f32, e.global_location.y as f32)))
+    }
 }
 
 const DATE: f32 = 168.;
@@ -73,6 +86,7 @@ struct Rows {
     interact: crate::interact::Interact,
     /// A search's results: each item's folder.
     found: bool,
+    hidden: crate::view::Hidden,
 }
 
 impl Component for ListView {
@@ -80,9 +94,9 @@ impl Component for ListView {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut tab = self.tab;
-        let (length, order, group, found) = {
+        let (length, order, group, found, hidden) = {
             let t = tab.peek();
-            (t.folder.len(), t.folder.order(), t.shown.group, matches!(t.place, crate::places::Place::Search(_)))
+            (t.folder.len(), t.folder.order(), t.shown.group, matches!(t.place, crate::places::Place::Search(_)), t.shown.hidden)
         };
         let lines = group.map(|by| {
             let now = jiff::Timestamp::now().as_second();
@@ -138,9 +152,18 @@ impl Component for ListView {
                     .width(BorderWidth { top: 0., right: 0., bottom: 1., left: 0. })
                     .alignment(BorderAlignment::Inner),
             )
+            .on_mouse_down({
+                let on_pick = self.on_pick.clone();
+                move |e: Event<MouseEventData>| {
+                    if e.button == Some(MouseButton::Right) {
+                        e.stop_propagation();
+                        on_pick.call(Pick::Header((e.global_location.x as f32, e.global_location.y as f32)));
+                    }
+                }
+            })
             .child(header_cell("Name", SortBy::Name, Size::flex(1.), false))
-            .child(header_cell("Date Modified", SortBy::Modified, Size::px(DATE), false))
-            .child(header_cell("Size", SortBy::Size, Size::px(SIZE), true))
+            .maybe_child((!hidden.modified).then(|| header_cell("Date Modified", SortBy::Modified, Size::px(DATE), false)))
+            .maybe_child((!hidden.size).then(|| header_cell("Size", SortBy::Size, Size::px(SIZE), true)))
             .maybe_child(found.then(|| {
                 rect()
                     .width(Size::px(WHERE))
@@ -150,7 +173,7 @@ impl Component for ListView {
                     .a11y_alt("Where")
                     .child(text::line(&theme, text::Style::Callout, colour(t.colour_text_2), "Where"))
             }))
-            .child(header_cell("Kind", SortBy::Kind, Size::px(KIND), false));
+            .maybe_child((!hidden.kind).then(|| header_cell("Kind", SortBy::Kind, Size::px(KIND), false)));
         let bander = crate::band::use_band(self.controller);
         // The cursor moved by a key stays in view.
         let cursor = tab.read().cursor.clone();
@@ -198,6 +221,7 @@ impl Component for ListView {
             dark: theme.appearance.mode == isle_tokens::Mode::Dark,
             interact: self.interact.clone(),
             found,
+            hidden,
         };
         rect()
             .expanded()
@@ -214,9 +238,14 @@ impl Component for ListView {
                         let page = (e.area.height() / row_height).floor().max(1.) as usize;
                         layout.set_if_modified(crate::keys::Layout { columns: 1, page });
                     })
-                    .on_mouse_down(move |e: Event<MouseEventData>| {
-                        if e.button == Some(MouseButton::Left) {
-                            bander.begin(tab, &e);
+                    .on_mouse_down({
+                        let on_pick = self.on_pick.clone();
+                        move |e: Event<MouseEventData>| {
+                            if let Some(menu) = Pick::menu_of(&e, None) {
+                                on_pick.call(menu);
+                            } else if e.button == Some(MouseButton::Left) {
+                                bander.begin(tab, &e);
+                            }
                         }
                     })
                     .on_global_pointer_move(move |e: Event<PointerEventData>| {
@@ -298,7 +327,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
     let ink = if on_accent { t.colour_on_accent } else { t.colour_text };
     let ink_2 = if on_accent { t.colour_on_accent } else { t.colour_text_2 };
     let dim = rows.interact.is_dimmed(entry);
-    let target = rows.interact.is_target(&entry.path);
+    let target = rows.interact.is_target(&entry.path) || rows.interact.ringed.contains(&entry.path);
     let interact = rows.interact.clone();
     let r = t.radius_row;
     // A run of selected rows joins into one shape, rounded only at its ends.
@@ -328,11 +357,17 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                 .map(fill, |el, fill| el.background(colour(fill)))
                 .maybe(target, |el| el.border(crate::interact::drop_ring(&theme)))
                 .a11y_role(AccessibilityRole::Row)
+                .maybe(tab.cursor.as_deref() == Some(entry.path.as_path()), |el| el.on_sized(rows.interact.cursor_sized()))
                 .a11y_alt(entry.name.clone())
                 .a11y_builder(move |node| node.set_selected(selected))
                 .on_pointer_enter(rows.interact.target_on_enter(&entry.path, entry.is_dir()))
                 .on_pointer_leave(rows.interact.target_on_leave(&entry.path))
                 .on_mouse_down(move |e: Event<MouseEventData>| {
+                    if let Some(menu) = Pick::menu_of(&e, Some(path.clone())) {
+                        e.stop_propagation();
+                        on_pick.call(menu);
+                        return;
+                    }
                     // A middle click opens a folder in a new tab.
                     if e.button == Some(MouseButton::Middle) && dir {
                         e.stop_propagation();
@@ -365,15 +400,15 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                             None => text::line(&theme, text::Style::Body, colour(ink), crate::prefs::display_name(entry).to_owned()).into_element(),
                         }),
                 )
-                .child(
+                .maybe_child((!rows.hidden.modified).then(|| {
                     rect().width(Size::px(DATE)).child(text::line(
                         &theme,
                         text::Style::Body,
                         colour(ink_2),
                         format::date(entry.modified, &now),
-                    )),
-                )
-                .child(
+                    ))
+                }))
+                .maybe_child((!rows.hidden.size).then(|| {
                     rect()
                         .width(Size::px(SIZE))
                         .main_align(Alignment::End)
@@ -383,8 +418,8 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                             text::Style::Body,
                             colour(ink_2),
                             if entry.is_dir() { "--".into() } else { format::size(entry.size) },
-                        )),
-                )
+                        ))
+                }))
                 .maybe_child(rows.found.then(|| {
                     let folder = entry.path.parent().map(|p| p.to_owned());
                     rect()
@@ -400,12 +435,9 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                             folder.as_deref().map(crate::places::folder_name).unwrap_or_default(),
                         ))
                 }))
-                .child(rect().width(Size::px(KIND)).child(text::line(
-                    &theme,
-                    text::Style::Body,
-                    colour(ink_2),
-                    kind(entry),
-                ))),
+                .maybe_child((!rows.hidden.kind).then(|| {
+                    rect().width(Size::px(KIND)).child(text::line(&theme, text::Style::Body, colour(ink_2), kind(entry)))
+                })),
         )
         .into_element()
 }

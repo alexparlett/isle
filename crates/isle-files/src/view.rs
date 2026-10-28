@@ -31,6 +31,38 @@ pub struct Shown {
     pub icon_size: u32,
     /// A line of facts under each icon's name.
     pub item_info: bool,
+    /// List's columns turned off from its header's menu.
+    #[serde(default)]
+    pub hidden: Hidden,
+}
+
+/// List's columns hidden, as the header's menu sets them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Hidden {
+    pub modified: bool,
+    pub size: bool,
+    pub kind: bool,
+}
+
+impl Hidden {
+    pub fn get(self, column: crate::menus::Column) -> bool {
+        use crate::menus::Column;
+        match column {
+            Column::Modified => self.modified,
+            Column::Size => self.size,
+            Column::Kind => self.kind,
+        }
+    }
+
+    pub fn toggle(&mut self, column: crate::menus::Column) {
+        use crate::menus::Column;
+        let flag = match column {
+            Column::Modified => &mut self.modified,
+            Column::Size => &mut self.size,
+            Column::Kind => &mut self.kind,
+        };
+        *flag = !*flag;
+    }
 }
 
 impl Default for Shown {
@@ -42,6 +74,7 @@ impl Default for Shown {
             group: None,
             icon_size: 64,
             item_info: false,
+            hidden: Hidden::default(),
         }
     }
 }

@@ -130,6 +130,7 @@ impl Component for ColumnsView {
                     return;
                 }
                 match pick {
+                    menu @ (Pick::Menu(..) | Pick::Header(_)) => on_pick.call(menu),
                     Pick::Open(path, held) if is_dir(&path) && (held.cmd || held.option) => on_pick.call(Pick::Open(path, held)),
                     Pick::Click(path, _) | Pick::Open(path, _) if is_dir(&path) => on_go.call((path, None)),
                     Pick::Click(path, _) => on_go.call((folder.clone(), Some(path))),
@@ -183,7 +184,7 @@ fn column(
             let on_pick = on_pick.clone();
             let pressing = interact.clone();
             let dir = entry.is_dir();
-            let target = interact.is_target(&entry.path);
+            let target = interact.is_target(&entry.path) || interact.ringed.contains(&entry.path);
             rect()
                 .key(entry.path.to_string_lossy().into_owned())
                 .width(Size::fill())
@@ -207,6 +208,11 @@ fn column(
                         .a11y_alt(entry.name.clone())
                         .a11y_builder(move |node| node.set_selected(selected))
                         .on_mouse_down(move |e: Event<MouseEventData>| {
+                            if let Some(menu) = Pick::menu_of(&e, Some(path.clone())) {
+                                e.stop_propagation();
+                                on_pick(menu);
+                                return;
+                            }
                             // A middle click opens a folder in a new tab.
                             if e.button == Some(MouseButton::Middle) && dir {
                                 e.stop_propagation();
@@ -249,7 +255,7 @@ fn column(
                 .width(BorderWidth { top: 0., right: 1., bottom: 0., left: 0. })
                 .alignment(BorderAlignment::Inner),
         )
-        .on_mouse_down(move |_| empty(Pick::Nothing))
+        .on_mouse_down(move |e: Event<MouseEventData>| empty(Pick::menu_of(&e, None).unwrap_or(Pick::Nothing)))
         .child(
             isle_ui::scroll_area(theme)
                 .width(Size::fill())

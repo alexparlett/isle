@@ -25,6 +25,7 @@ mod preview;
 mod toolbar;
 mod transfer;
 mod memory;
+mod menus;
 mod open;
 mod ops;
 mod panel;

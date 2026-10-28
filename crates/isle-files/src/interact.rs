@@ -36,6 +36,22 @@ pub struct Interact {
     pub chooses: Option<Choosable>,
     /// How the view lays items out, as it last measured.
     pub layout: State<crate::keys::Layout>,
+    /// Items a context menu acts on outside the selection, ringed while it is open.
+    pub ringed: Vec<PathBuf>,
+    /// The keyboard cursor's item: its leading edge and foot in the window, where a menu
+    /// opened from the keyboard hangs.
+    pub cursor_at: State<Option<(f32, f32)>>,
+}
+
+impl Interact {
+    /// Notes where the cursor's item is laid out.
+    pub fn cursor_sized(&self) -> impl Fn(Event<SizedEventData>) + 'static {
+        let at = self.cursor_at;
+        move |e: Event<SizedEventData>| {
+            let mut at = at;
+            at.set_if_modified(Some((e.area.min_x(), e.area.max_y())));
+        }
+    }
 }
 
 /// What a panel can choose.

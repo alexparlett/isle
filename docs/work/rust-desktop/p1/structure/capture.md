@@ -104,7 +104,8 @@ them.
 the bottom-trailing corner of the screen the shot was taken on (macOS
 §3.13; `shell.md` Capture 4):
 
-- **Click** opens it in Markup (below).
+- **Click** opens it in Markup (below), as a screenshot: focused, no tool
+  chosen, saved on close (`files.md` Quick Look; B122).
 - **Drag** carries the file out. Dropped on a folder in Files, the shot
   moves there, as macOS. Dropped into an app, the app gets the file and the
   shot stays in its folder too, so nothing is lost to an app that ignored

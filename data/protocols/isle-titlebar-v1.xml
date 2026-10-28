@@ -11,7 +11,7 @@
     names. The client draws everything else, its toolbar included, under them.
   </description>
 
-  <interface name="isle_titlebar_manager_v1" version="2">
+  <interface name="isle_titlebar_manager_v1" version="3">
     <request name="destroy" type="destructor"/>
 
     <request name="get_titlebar">
@@ -60,10 +60,11 @@
     </event>
   </interface>
 
-  <interface name="isle_float_v1" version="2">
+  <interface name="isle_float_v1" version="3">
     <description summary="a window that floats over another without taking its keyboard">
       As Quick Look does: the window stays above its caller, goes with the caller's desktop,
-      is no entry of its own in the switcher, and is never given the keyboard as it maps.
+      is no entry of its own in the switcher, has minimise disabled, and is not given the
+      keyboard as it maps unless set_keyboard asks for normal.
     </description>
 
     <request name="destroy" type="destructor"/>
@@ -80,6 +81,8 @@
     <enum name="keyboard">
       <entry name="none" value="0" summary="the keyboard only on a click into its top band"/>
       <entry name="on_request" value="1" summary="as none, and whenever the window activates itself"/>
+      <entry name="normal" value="2" since="3"
+             summary="as an ordinary window: as it maps and on a click anywhere in it"/>
     </enum>
 
     <request name="set_keyboard">

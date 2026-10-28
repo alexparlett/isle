@@ -45,6 +45,13 @@ pub struct MarkupView {
     pub on_end: EventHandler<bool>,
     /// The question was answered with Save or Don't Save.
     pub on_leave: EventHandler<Leave>,
+    /// A screenshot from its thumbnail: no tool chosen at first, Done and closing save and close
+    /// without asking, Escape with no tool is Done.
+    pub shot: bool,
+    /// ⌘C: the image with these edits to the clipboard.
+    pub on_copy: EventHandler<Edits>,
+    /// ⌘⌫, in a shot: the file to the Trash.
+    pub on_trash: Option<EventHandler<()>>,
 }
 
 impl Component for MarkupView {
@@ -69,7 +76,10 @@ impl Component for MarkupView {
         };
         let mut base = use_state(|| None::<Base>);
         let mut edits = use_state(Edits::default);
-        let mut tool = use_state(|| Tool::Arrow);
+        let shot = self.shot;
+        let mut tool = use_state(|| (!shot).then_some(Tool::Arrow));
+        // What undo took, for redo; any new change clears it.
+        let mut undone = use_state(Vec::<Edits>::new);
         let mut ink = use_state(|| palette[0].0);
         let mut picking = use_state(|| false);
         let mut drawing = use_state(|| None::<Mark>);
@@ -119,8 +129,9 @@ impl Component for MarkupView {
             }
             let Some(at) = to_image(e.global_location.x, e.global_location.y) else { return };
             let colour = *ink.peek();
-            let started = match *tool.peek() {
-                Tool::Pen | Tool::Highlighter => Some(Mark::Stroke { tool: *tool.peek(), colour, points: vec![at] }),
+            let Some(chosen) = *tool.peek() else { return };
+            let started = match chosen {
+                Tool::Pen | Tool::Highlighter => Some(Mark::Stroke { tool: chosen, colour, points: vec![at] }),
                 Tool::Text => {
                     let (ax, ay, _, _) = *area.peek();
                     placing.set(Some((at, (e.global_location.x as f32 - ax, e.global_location.y as f32 - ay))));
@@ -152,16 +163,17 @@ impl Component for MarkupView {
             let Some(done) = drawing.write().take() else { return };
             let mut next = edits.peek().clone();
             match (done, *tool.peek()) {
-                (Mark::Redact { from, to }, Tool::Crop) => next.crop = Some((from, to)),
+                (Mark::Redact { from, to }, Some(Tool::Crop)) => next.crop = Some((from, to)),
                 (mark, _) => next.marks.push(mark),
             }
             edits.set(next);
+            undone.set(Vec::new());
         };
 
         let preview = {
             let mut shown = edits.read().clone();
             match drawing.read().clone() {
-                Some(Mark::Redact { from, to }) if *tool.read() == Tool::Crop => shown.crop = Some((from, to)),
+                Some(Mark::Redact { from, to }) if *tool.read() == Some(Tool::Crop) => shown.crop = Some((from, to)),
                 Some(mark) => shown.marks.push(mark),
                 None => {}
             }
@@ -183,6 +195,7 @@ impl Component for MarkupView {
                     let mut next = edits.peek().clone();
                     next.rotate_left(width);
                     edits.set(next);
+                    undone.set(Vec::new());
                 }
             });
         };
@@ -193,6 +206,9 @@ impl Component for MarkupView {
                 let mut saving = saving;
                 if edits.peek().is_empty() {
                     on_end.call(false);
+                    if let Some(then) = then {
+                        on_leave.call(then);
+                    }
                     return;
                 }
                 // Done renders from the file, the turns with the marks.
@@ -221,22 +237,65 @@ impl Component for MarkupView {
         };
 
         let undo = move || {
-            let mut edits = edits;
+            let (mut edits, mut undone) = (edits, undone);
             let mut next = edits.peek().clone();
+            if next.is_empty() {
+                return;
+            }
+            undone.write().push(next.clone());
             if next.marks.pop().is_none() {
                 next.crop = None;
             }
             edits.set(next);
         };
-        let on_key = move |e: Event<KeyboardEventData>| {
-            let typing = writing.peek().is_some() || leaving.peek().is_some();
-            if !typing && e.modifiers == Modifiers::META && e.key == Key::Character("z".into()) {
-                undo();
+        let redo = move || {
+            let (mut edits, mut undone) = (edits, undone);
+            if let Some(next) = undone.write().pop() {
+                edits.set(next);
+            }
+        };
+        // A shot's Done also closes Quick Look.
+        let done = {
+            let save = save.clone();
+            move || save(shot.then_some(Leave::Close))
+        };
+        // A shot is saved, not asked about, when Quick Look closes or Files quits.
+        use_side_effect({
+            let save = save.clone();
+            move || {
+                let asked = *leaving.read();
+                if shot && !*saving.read() && let Some(then) = asked {
+                    leaving.set(None);
+                    save(Some(then));
+                }
+            }
+        });
+        let on_key = {
+            let (on_copy, on_trash, done) = (self.on_copy.clone(), self.on_trash.clone(), done.clone());
+            move |e: Event<KeyboardEventData>| {
+                if writing.peek().is_some() || leaving.peek().is_some() {
+                    return;
+                }
+                let command = e.modifiers == Modifiers::META;
+                match &e.key {
+                    Key::Character(c) if command && c == "z" => undo(),
+                    Key::Character(c) if e.modifiers == Modifiers::META | Modifiers::SHIFT && c.eq_ignore_ascii_case("z") => redo(),
+                    Key::Character(c) if command && c == "c" => on_copy.call(edits.peek().clone()),
+                    Key::Character(c) if command && c == "r" => rotate(),
+                    Key::Named(NamedKey::Backspace) if command => {
+                        if let Some(trash) = &on_trash {
+                            trash.call(());
+                        }
+                    }
+                    Key::Named(NamedKey::Escape) if tool.peek().is_some() => tool.set(None),
+                    Key::Named(NamedKey::Escape) if shot && !*saving.peek() => done(),
+                    _ => {}
+                }
             }
         };
 
         let tool_button = |(which, glyph, name): (Tool, &'static str, &'static str)| {
-            let chosen = *tool.read() == which;
+            let chosen = *tool.read() == Some(which);
             rect()
                 .key(name)
                 .width(Size::px(t.size_control_large))
@@ -247,7 +306,7 @@ impl Component for MarkupView {
                 .a11y_role(AccessibilityRole::Button)
                 .a11y_alt(name)
                 .a11y_builder(move |node| node.set_selected(chosen))
-                .on_press(move |_| tool.set(which))
+                .on_press(move |_| tool.set((!chosen).then_some(which)))
                 .child(Glyph::new(glyph, t.size_glyph_large, colour(if chosen { t.colour_text } else { t.colour_text_2 })))
                 .into_element()
         };
@@ -309,15 +368,15 @@ impl Component for MarkupView {
             .child(rect().width(Size::px(t.space_l)))
             .child(colour_picker)
             .child(rect().width(Size::flex(1.)))
-            .child(isle_ui::Button::new("Revert").enabled(!edits.read().is_empty()).on_press(move |_| edits.set(Edits::default())))
+            .child(isle_ui::Button::new("Revert").enabled(!edits.read().is_empty()).on_press(move |_| {
+                edits.set(Edits::default());
+                undone.set(Vec::new());
+            }))
             .child(
                 isle_ui::Button::new(if *saving.read() { "Saving…" } else { "Done" })
                     .kind(isle_ui::button::Kind::Default)
                     .enabled(!*saving.read())
-                    .on_press({
-                        let save = save.clone();
-                        move |_| save(None)
-                    }),
+                    .on_press(move |_| done()),
             );
 
         let canvas = base.read().clone().map(|current| {
@@ -371,6 +430,7 @@ impl Component for MarkupView {
                     let mut next = edits.peek().clone();
                     next.marks.push(Mark::Text { colour: *ink.peek(), at, text });
                     edits.set(next);
+                    undone.set(Vec::new());
                 }
                 writing.set(None);
                 let mut typed = typed;
@@ -393,7 +453,7 @@ impl Component for MarkupView {
                 )
                 .into_element()
         });
-        let asking = (*leaving.read()).map(|then| {
+        let asking = (*leaving.read()).filter(|_| !shot).map(|then| {
             let name = self.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
             let on_leave = self.on_leave.clone();
             isle_ui::alert(

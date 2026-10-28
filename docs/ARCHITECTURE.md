@@ -838,13 +838,15 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   capture thumbnail; it follows its caller's selection and tells a caller
   over the bus which item shows and when it closed.
 - **It floats over its caller without its keyboard** (B110). `isle-app`
-  asks for an `isle_float_v1` object (`isle_titlebar_v1` version 2) before
+  asks for an `isle_float_v1` object (`isle_titlebar_v1` version 3) before
   the window's first commit, naming the caller by an xdg-foreign handle or
   as `isle:` and a shell surface's name. The compositor parents it to the
   caller's window, raised with it and out of the switcher, never focuses it
   as it maps, and moves the keyboard to it only on a click into its top
   band; a float over a shell surface is drawn above the shell's overlays,
-  so Quick Look sits over Spotlight while Spotlight keeps typing.
+  so Quick Look sits over Spotlight while Spotlight keeps typing. A float
+  has minimise disabled. A screenshot from its thumbnail asks for the
+  `normal` keyboard instead, focused as it maps and by any click (B122).
 - **The renderers read off the window's thread:** images through Skia,
   text and code highlighted by syntect, PDF pages from the helper as they
   scroll in, audio and video through freya-video, archives by `bsdtar`,

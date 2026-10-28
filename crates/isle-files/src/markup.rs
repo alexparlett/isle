@@ -226,6 +226,15 @@ pub fn render(original: &DynamicImage, edits: &Edits) -> Option<RgbaImage> {
     Some(pixels)
 }
 
+/// The image at `path` as a PNG, with `edits` drawn in when there are any.
+pub fn png(path: &Path, edits: &Edits) -> std::io::Result<Vec<u8>> {
+    let image = image::open(path).map_err(std::io::Error::other)?;
+    let drawn = if edits.is_empty() { image.to_rgba8() } else { render(&image, edits).ok_or_else(|| std::io::Error::other("not drawn"))? };
+    let mut out = std::io::Cursor::new(Vec::new());
+    drawn.write_to(&mut out, ImageFormat::Png).map_err(std::io::Error::other)?;
+    Ok(out.into_inner())
+}
+
 /// Whether Markup edits this kind: PNG, JPEG and WebP.
 pub fn editable(mime: &str) -> bool {
     matches!(mime, "image/png" | "image/jpeg" | "image/webp")

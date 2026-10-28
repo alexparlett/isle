@@ -1156,6 +1156,83 @@ async fn markup_takes_the_keyboard_and_asks_before_closing_with_changes() {
     assert!(!app.printed_part("panicked"));
 }
 
+const KEY_M: u32 = 50;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_shot_from_its_thumbnail_takes_the_keyboard_and_draws_only_with_a_tool() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-markup-shot").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let shot = home.join("Pictures/tall.png");
+    let before = std::fs::read(&shot).unwrap();
+    let trashed = home.join(".local/share/Trash/files/tall.png");
+    let uri = format!("file://{}", shot.display());
+    let look = || async { isle.windows().await.into_iter().find(|w| w.title == "Quick Look") };
+    let show = || async {
+        isle.bus
+            .call_method(
+                Some(APP),
+                "/io/github/alexparlett/Isle/QuickLook1",
+                Some("io.github.alexparlett.Isle.QuickLook1"),
+                "Show",
+                &(vec![uri.as_str()], 0u32, "isle:capture-thumbnail", (0i32, 0i32, 0i32, 0i32), "shot", ""),
+            )
+            .await
+            .unwrap();
+        wait_until(|| async { look().await.is_some_and(|w| w.focused) }).await;
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        look().await.unwrap()
+    };
+    let test = isle.test().await;
+    let scribble = |w: isle_ipc::WindowInfo| {
+        let test = test.clone();
+        async move {
+            let (cx, cy) = (w.x as f64 + w.width as f64 / 2., w.y as f64 + w.height as f64 / 2. + 40.);
+            test.pointer_to(cx - 60., cy - 60.).await.unwrap();
+            test.button(272, true).await.unwrap();
+            for step in 1..=10 {
+                test.pointer_to(cx - 60. + 10. * step as f64, cy - 60. + 10. * step as f64).await.unwrap();
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+            test.button(272, false).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    };
+
+    // It takes the keyboard and cannot be minimised.
+    let w = show().await;
+    isle.chord(&[SUPER, KEY_M]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(!look().await.unwrap().minimised, "a float is not minimised");
+
+    // No tool is chosen, so a drag draws nothing; ⌘C copies the picture and Escape is Done.
+    scribble(w).await;
+    isle.keep_shot("files-markup-shot").await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    let index = isle.dir.join("state/isle/clipboard/index.json");
+    wait_until(|| async { std::fs::read_to_string(&index).is_ok_and(|t| t.contains("image/png")) }).await;
+    isle.chord(&[ESC]).await;
+    wait_until(|| async { look().await.is_none() }).await;
+    assert_eq!(std::fs::read(&shot).unwrap(), before, "nothing was drawn");
+    assert!(!trashed.exists());
+
+    // With the Pen chosen it draws, and ⌘W saves without asking.
+    let w = show().await;
+    click(&isle, (w.x as f64 + 16. + 15., w.y as f64 + 52. + 20.), &[], 1).await;
+    scribble(w).await;
+    isle.chord(&[SUPER, KEY_W]).await;
+    wait_until(|| async { look().await.is_none() }).await;
+    wait_until(|| async { trashed.exists() }).await;
+    assert_eq!(std::fs::read(&trashed).unwrap(), before, "the original is in the Trash");
+    assert_ne!(std::fs::read(&shot).unwrap(), before, "the marked-up shot took its place");
+    assert!(!app.printed_part("panicked"));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_band_selects_new_items_are_named_in_place_and_middle_and_option_clicks_open() {
     let Some(bin) = files_bin() else {

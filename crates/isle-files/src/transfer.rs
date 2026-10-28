@@ -24,6 +24,15 @@ pub fn contents(paths: &[PathBuf], cut: bool) -> Contents {
     ]
 }
 
+/// An image as the clipboard offers it: the PNG, and the file it is when it is one unchanged.
+pub fn image(png: Vec<u8>, file: Option<&std::path::Path>) -> Contents {
+    let mut out = vec![("image/png".into(), png)];
+    if let Some(file) = file {
+        out.extend(contents(&[file.to_owned()], false));
+    }
+    out
+}
+
 /// The files a paste or a drop carries, and whether they were cut.
 pub fn read(kind: &str, data: &[u8]) -> (Vec<PathBuf>, bool) {
     let text = String::from_utf8_lossy(data);

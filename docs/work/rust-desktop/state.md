@@ -540,4 +540,5 @@
   `window.rs` split first; closed by a walk of the sheet. Phases
   15b.0–15b.14, built and walked by 2026-10-28 (the walk in
   `docs/research/rust-desktop/p15-files.md`). The walk's declines
-  accepted (B120). Next: the user's day on the host, then P17.
+  accepted (B120). The screenshot window fixed after (B122). Next: the
+  user's day on the host, then P17.

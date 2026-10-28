@@ -25,7 +25,7 @@ pub struct Show {
     pub caller: String,
     /// The item's rectangle in the caller, for the zoom.
     pub origin: (i32, i32, i32, i32),
-    /// `none`, `markup` or `trim`.
+    /// `none`, `markup`, `trim`, or `shot` for a screenshot from its thumbnail.
     pub mode: String,
     pub token: String,
 }

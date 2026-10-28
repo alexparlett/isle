@@ -338,12 +338,12 @@ impl State {
         }
     }
 
-    /// Cmd+M on the focused window; refused for a dialog or a full-screen window.
+    /// Cmd+M on the focused window; refused for a dialog, a float or a full-screen window.
     pub fn minimise_focused(&mut self) {
         let Some(id) = self.focused_window() else {
             return;
         };
-        if self.isle.wm.get(id).is_some_and(|r| r.parent.is_none()) {
+        if self.isle.can_minimise(id) {
             self.minimise(id);
         }
     }
@@ -358,7 +358,7 @@ impl State {
             .wm
             .records
             .iter()
-            .filter(|r| r.app == app && r.parent.is_none() && self.isle.wm.is_shown(r.id))
+            .filter(|r| r.app == app && self.isle.can_minimise(r.id) && self.isle.wm.is_shown(r.id))
             .map(|r| r.id)
             .collect();
         for id in ids {

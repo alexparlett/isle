@@ -186,17 +186,22 @@ impl Extras {
             .ok()
             .zip(globals.bind::<WlSeat, _, _>(&qh, 1..=9, ()).ok())
             .map(|(shell, seat)| (shell.get_gtk_surface(&surface, &qh, ()), seat));
-        let manager = globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 1..=2, ()).ok();
+        let manager = globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 1..=3, ()).ok();
         let titlebar = lights.zip(manager.as_ref()).map(|(inset, manager)| {
             let titlebar = manager.get_titlebar(&surface, &qh, ());
             titlebar.set_overlay(inset.0.round() as i32, inset.1.round() as i32);
             titlebar
         });
-        // Before the first commit, so the compositor never gives the window the keyboard.
+        // Before the first commit, so the compositor knows whether to give the window the keyboard.
         let float = float.zip(manager.as_ref().filter(|m| m.version() >= 2)).map(|(want, manager)| {
             let float = manager.get_float(&surface, &qh, ());
             float.set_float_over(want.over.clone());
-            float.set_keyboard(if want.on_request { Keyboard::OnRequest } else { Keyboard::None });
+            let keyboard = match (want.normal && manager.version() >= 3, want.on_request) {
+                (true, _) => Keyboard::Normal,
+                (false, true) => Keyboard::OnRequest,
+                (false, false) => Keyboard::None,
+            };
+            float.set_keyboard(keyboard);
             if let Some((x, y, w, h)) = want.from {
                 float.open_from(x, y, w, h);
             }

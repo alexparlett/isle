@@ -458,9 +458,11 @@ impl Shared {
         self.show_quick_look_in(items, index, caller, over, "none");
     }
 
-    /// As `show_quick_look`, in Markup or Trim when `mode` names it.
+    /// As `show_quick_look`, in Markup or Trim when `mode` names it, or as a screenshot in
+    /// Markup for `shot`, which takes the keyboard.
     pub fn show_quick_look_in(&self, items: Vec<PathBuf>, index: usize, caller: quicklook::Caller, over: Option<String>, mode: &str) {
-        let (markup, trim) = (mode == "markup", mode == "trim");
+        let shot = mode == "shot";
+        let (markup, trim) = (mode == "markup" || shot, mode == "trim");
         if items.is_empty() {
             return;
         }
@@ -470,22 +472,24 @@ impl Shared {
             open.index.set(index);
             open.marking.set(markup);
             open.trimming.set(trim);
+            open.shot.set(shot);
             open.caller = caller;
             *self.quick_look.borrow_mut() = Some(open);
             return;
         }
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
         let (items, index) = (State::create_global(items), State::create_global(index));
-        let (marking, trimming) = (State::create_global(markup), State::create_global(trim));
+        let (marking, trimming, shot_state) = (State::create_global(markup), State::create_global(trim), State::create_global(shot));
         let (dirty, leaving) = (State::create_global(false), State::create_global(None));
         let float = over.filter(|o| !o.is_empty()).map(|o| isle_app::Float {
             over: o.strip_prefix("wayland:").map(str::to_owned).unwrap_or(o),
             on_request: false,
+            normal: shot,
             from: None,
         });
         let spec = WindowSpec::new("Quick Look", (900., 680.), (360., 280.)).lights((0., 10.)).float(float);
-        let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index, marking, trimming, dirty, leaving });
-        let open = quicklook::Open { key, items, index, marking, trimming, dirty, leaving, caller };
+        let key = self.app().open(spec, quicklook::QuickLookWindow { shared, items, index, marking, trimming, shot: shot_state, dirty, leaving });
+        let open = quicklook::Open { key, items, index, marking, trimming, shot: shot_state, dirty, leaving, caller };
         self.app().guard_close(key, move || open.may_leave(quicklook::Leave::Close));
         *self.quick_look.borrow_mut() = Some(open);
         ql1::VISIBLE.store(true, std::sync::atomic::Ordering::Relaxed);

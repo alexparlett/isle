@@ -57,7 +57,7 @@ impl Isle {
         Some(BarModel {
             title: record.names().1,
             active,
-            can_minimise: record.parent.is_none(),
+            can_minimise: self.can_minimise(id),
             can_zoom: !fixed,
             full_screen: matches!(record.mode, Mode::FullScreen { .. }),
             option: self.bar_option == Some(id),

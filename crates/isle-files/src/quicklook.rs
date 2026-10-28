@@ -36,6 +36,8 @@ pub struct Open {
     pub index: State<usize>,
     pub marking: State<bool>,
     pub trimming: State<bool>,
+    /// A screenshot opened from its thumbnail, in Markup.
+    pub shot: State<bool>,
     /// Markup has changes not yet saved.
     pub dirty: State<bool>,
     /// Asking whether to save them before this.
@@ -63,6 +65,7 @@ pub struct QuickLookWindow {
     pub marking: State<bool>,
     /// Trim is on.
     pub trimming: State<bool>,
+    pub shot: State<bool>,
     pub dirty: State<bool>,
     pub leaving: State<Option<Leave>>,
 }
@@ -73,7 +76,7 @@ impl App for QuickLookWindow {
         let t = &theme.tokens;
         let shared = self.shared.clone();
         let (items, mut index, mut marking) = (self.items, self.index, self.marking);
-        let (dirty, leaving) = (self.dirty, self.leaving);
+        let (dirty, leaving, shot) = (self.dirty, self.leaving, self.shot);
         // Counts the files Markup wrote, so what shows is read again.
         let mut written = use_state(|| 0u64);
         let mut indexing = use_state(|| false);
@@ -136,11 +139,49 @@ impl App for QuickLookWindow {
             let shared = shared.clone();
             move || shared.close_quick_look()
         };
+        // ⌘C: an image as a PNG, with Markup's edits drawn in, and as its file when unchanged;
+        // anything else as its file.
+        let copy = {
+            let shared = shared.clone();
+            let path = path.clone();
+            move |edits: crate::markup::Edits| {
+                let (Some(data), Some(path)) = (shared.app().data(), path.clone()) else { return };
+                if !*editable.peek() {
+                    data.set_selection(crate::transfer::contents(&[path], false));
+                    return;
+                }
+                spawn(async move {
+                    let read = path.clone();
+                    let unchanged = edits.is_empty();
+                    match off_thread(move || crate::markup::png(&read, &edits)).await {
+                        Some(Ok(png)) => data.set_selection(crate::transfer::image(png, unchanged.then_some(path.as_path()))),
+                        Some(Err(err)) => tracing::warn!("not copied: {err}"),
+                        None => {}
+                    }
+                });
+            }
+        };
+        let trash = {
+            let shared = shared.clone();
+            let path = path.clone();
+            move || {
+                let Some(path) = path.clone() else { return };
+                let shared = shared.clone();
+                spawn(async move {
+                    match off_thread(move || isle_fs::trash::trash(&path).map(drop)).await {
+                        Some(Ok(())) => shared.leave_quick_look(Leave::Close),
+                        Some(Err(err)) => tracing::warn!("not moved to the Trash: {err}"),
+                        None => {}
+                    }
+                });
+            }
+        };
         // Markup and Trim take the keyboard while on.
         let on_key = {
-            let close = close.clone();
+            let (close, copy) = (close.clone(), copy.clone());
             move |e: Event<KeyboardEventData>| match &e.key {
                 _ if *marking.peek() || *trimming.peek() => {}
+                Key::Character(c) if c == "c" && e.modifiers == Modifiers::META => copy(Default::default()),
                 Key::Named(NamedKey::Escape) => close(),
                 Key::Character(c) if c == " " => close(),
                 Key::Character(c) if c == "y" && e.modifiers.contains(Modifiers::META) => close(),
@@ -217,7 +258,11 @@ impl App for QuickLookWindow {
                     });
                 })
             }))
-            .child(icon_button(&theme, "pencil-simple", "Markup", *editable.read(), *marking.read(), {
+            .maybe_child(shot.read().then(|| {
+                let trash = trash.clone();
+                icon_button(&theme, "trash", "Move to Trash", true, false, move || trash())
+            }))
+            .maybe_child((!*shot.read()).then(|| icon_button(&theme, "pencil-simple", "Markup", *editable.read(), *marking.read(), {
                 let shared = shared.clone();
                 move || {
                     let mut marking = marking;
@@ -226,7 +271,7 @@ impl App for QuickLookWindow {
                         marking.toggle();
                     }
                 }
-            }))
+            })))
             .maybe_child(media.read().is_some().then(|| {
                 icon_button(&theme, "scissors", "Trim", true, *trimming.read(), move || {
                     let mut trimming = trimming;
@@ -265,6 +310,9 @@ impl App for QuickLookWindow {
                     let shared = shared.clone();
                     move |then: Leave| shared.leave_quick_look(then)
                 }),
+                shot: *shot.read(),
+                on_copy: EventHandler::new(copy),
+                on_trash: shot.read().then(|| EventHandler::new(move |_| trash())),
             }
             .into_element(),
             Some(path) if *trimming.read() && media.read().is_some() => crate::trim::TrimView {

@@ -1314,3 +1314,18 @@ and B46. Rejected: the keys going to a window holding the keys until
 Cmd+Escape (macOS keeps them on the Mac under Screen Sharing and
 Parallels), and every chord bound to a media action acting over a game (a
 bound F-key would take a game's key).
+
+**B122 · A screenshot opens in its own mode of Quick Look.** Decided by
+the user at its board (`Screenshot Window`, 2026-10-28), after the
+thumbnail's click opened Markup with the Arrow chosen, ⌘C going to the app
+behind and minimise live. The thumbnail asks QuickLook1 for `shot`:
+Markup's row with no tool chosen (a tool is chosen by a click and dropped
+by another or by Escape), Move to Trash in the toolbar, and the window
+takes the keyboard (`isle_float_v1` version 3's `normal`). Done, Escape
+with no tool, ⌘W and the close light save and close without asking; other
+images in Markup still ask. ⌘C copies an image in any Quick Look as a PNG
+with its marks drawn in, and as its file when unchanged; there is no
+island event, as an app has no way to post one. Every float has minimise
+disabled, as `files.md` set for Quick Look. Narrows B110. Rejected: close
+alone in the lights (no zoom for a wide shot), and asking before closing a
+marked shot.

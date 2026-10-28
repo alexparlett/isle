@@ -205,8 +205,8 @@ impl State {
                 let path = thumbnail.path.clone();
                 if d.x.abs().max(d.y.abs()) < SLOP {
                     self.dismiss_thumbnail();
-                    // A shot opens in Markup, a recording in Trim.
-                    let mode = if is_still(&path) { "markup" } else { "trim" };
+                    // A shot opens in Quick Look's screenshot Markup, a recording in Trim.
+                    let mode = if is_still(&path) { "shot" } else { "trim" };
                     self.quick_look_show(isle_fs::recents::uri(&path), "isle:capture-thumbnail", mode);
                 } else if flicked(d) {
                     self.dismiss_thumbnail();
@@ -342,7 +342,7 @@ impl State {
             }
             MENU_MARKUP => {
                 self.dismiss_thumbnail();
-                let mode = if is_still(&path) { "markup" } else { "trim" };
+                let mode = if is_still(&path) { "shot" } else { "trim" };
                 self.quick_look_show(isle_fs::recents::uri(&path), "isle:capture-thumbnail", mode);
             }
             MENU_TRASH => {
@@ -391,7 +391,7 @@ impl State {
     }
 }
 
-/// A still shot, which opens in Markup, rather than a recording, which opens in Trim.
+/// A still shot, which opens in Markup as a screenshot, rather than a recording, which opens in Trim.
 fn is_still(path: &std::path::Path) -> bool {
     path.extension().is_some_and(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "png" | "jpg" | "jpeg" | "webp"))
 }

@@ -94,7 +94,8 @@ edge; window roles, so its text and glyphs follow the window's.
   `highlighter`, line `line-segment`, arrow `arrow-up-right`,
   rectangle `rectangle`, ellipse `circle`, text `text-t`, redact
   `selection-slash`, crop `crop`; `space-l`; undo `arrow-counter-clockwise`.
-  The chosen tool `colour-control-pressed` with its glyph `colour-text`.
+  The chosen tool `colour-control-pressed` with its glyph `colour-text`;
+  a screenshot opens with none chosen.
 - **Colour**, `space-l` after the tools: a button holding a 16 circle of
   the current colour ringed in `colour-hairline-strong`, opening a popover
   (`colour-window-raised`, `radius-card`, padding `space-s`) of the eight

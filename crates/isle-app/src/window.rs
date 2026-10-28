@@ -41,6 +41,8 @@ pub struct Float {
     pub over: String,
     /// It takes the keyboard when it activates itself.
     pub on_request: bool,
+    /// It takes the keyboard as an ordinary window: as it maps and on any click into it.
+    pub normal: bool,
     /// The rectangle in the caller it opens from.
     pub from: Option<(i32, i32, i32, i32)>,
 }

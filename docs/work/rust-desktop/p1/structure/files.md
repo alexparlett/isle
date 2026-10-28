@@ -368,7 +368,8 @@ the capture thumbnail (`apps.md` Files 21; B26).
 - **It never takes the keyboard** from its caller: in Files the arrows
   keep moving the selection and the preview follows; in Spotlight the
   field keeps typing. Tab moves focus into its toolbar, and Escape there
-  hands it back.
+  hands it back. A screenshot from its thumbnail is the exception: no
+  caller is left to type into, so it takes the keyboard (B122).
 - **Several items**: ‹ and › with "{i} of {n}", and an index sheet of
   thumbnails (⌘Return).
 - **What it shows**: images; text and code, monospaced; PDF, scrolled by
@@ -382,7 +383,13 @@ the capture thumbnail (`apps.md` Files 21; B26).
   **Done** writes the file in place and moves the original to the Trash,
   so Put Back recovers it, keeping Files 5's rule that nothing is lost
   before what replaces it is in place. Closing with unsaved Markup asks:
-  Don't Save, Cancel, Save.
+  Don't Save, Cancel, Save. ⌘C copies an image as it shows, marks
+  included; ⇧⌘Z redoes.
+- **A screenshot** from its thumbnail opens in Markup with no tool chosen,
+  so it can be looked at and copied first; a tool is chosen by a click and
+  dropped by another or by Escape. Move to Trash (⌘⌫) joins the toolbar.
+  Done, Escape with no tool, ⌘W and the close light save and close without
+  asking (B122).
 - **The D-Bus service** (`apps.md` Open for its packet, the name is the
   packet's) carries: the files, which one to show first, the caller's
   surface as an exported handle so it can float above it, whether to open

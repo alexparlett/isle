@@ -37,7 +37,7 @@ use protocol::{
 };
 
 pub fn create_global(dh: &DisplayHandle) {
-    dh.create_global::<State, IsleTitlebarManagerV1, ()>(2, ());
+    dh.create_global::<State, IsleTitlebarManagerV1, ()>(3, ());
 }
 
 /// A window floating over its caller.
@@ -47,6 +47,8 @@ pub struct Float {
     pub over: String,
     /// It takes the keyboard when it activates itself, not only on a click into its top band.
     pub on_request: bool,
+    /// It takes the keyboard as an ordinary window does: as it maps and on any click into it.
+    pub normal: bool,
     /// Where in the caller it opens from.
     pub from: Option<(i32, i32, i32, i32)>,
 }
@@ -76,14 +78,15 @@ impl Isle {
     }
 
     /// The window a click on `window` at `at` focuses: a float takes the keyboard only from a
-    /// click into its top band and otherwise leaves it with its caller, raised with it.
+    /// click into its top band, unless it asked for the normal keyboard, and otherwise leaves it
+    /// with its caller, raised with it.
     pub fn click_focus(
         &mut self,
         window: Option<smithay::desktop::Window>,
         at: smithay::utils::Point<f64, smithay::utils::Logical>,
     ) -> Option<smithay::desktop::Window> {
         let id = crate::wm::window_id(window.as_ref()?);
-        if self.float_of(id).is_none() {
+        if self.float_of(id).is_none_or(|f| f.normal) {
             return window;
         }
         let frame = self.frame(id)?;
@@ -94,6 +97,11 @@ impl Isle {
         self.wm.raise(id);
         let caller = self.wm.get(id)?.parent?;
         self.window_by_id(caller)
+    }
+
+    /// Whether `id` can be minimised: not a dialog, which goes with its parent, nor a float.
+    pub fn can_minimise(&self, id: u64) -> bool {
+        self.wm.get(id).is_some_and(|r| r.parent.is_none()) && self.float_of(id).is_none()
     }
 
     /// The windows floating over a shell surface, drawn above the shell's overlays.
@@ -211,7 +219,9 @@ impl Dispatch<IsleFloatV1, WlSurface> for State {
         match request {
             isle_float_v1::Request::SetFloatOver { handle } => float.over = handle,
             isle_float_v1::Request::SetKeyboard { keyboard } => {
-                float.on_request = matches!(keyboard.into_result(), Ok(isle_float_v1::Keyboard::OnRequest));
+                let keyboard = keyboard.into_result();
+                float.on_request = matches!(keyboard, Ok(isle_float_v1::Keyboard::OnRequest | isle_float_v1::Keyboard::Normal));
+                float.normal = matches!(keyboard, Ok(isle_float_v1::Keyboard::Normal));
             }
             isle_float_v1::Request::OpenFrom { x, y, width, height } => float.from = Some((x, y, width, height)),
             isle_float_v1::Request::Destroy => {

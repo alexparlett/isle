@@ -17,6 +17,8 @@ pub struct TextField {
     leading: Option<Element>,
     auto_focus: bool,
     select_all: bool,
+    /// Chars selected as it appears, in place of all of them.
+    select_part: Option<std::ops::Range<usize>>,
     a11y_id: Option<AccessibilityId>,
 }
 
@@ -33,6 +35,7 @@ impl TextField {
             leading: None,
             auto_focus: false,
             select_all: false,
+            select_part: None,
             a11y_id: None,
         }
     }
@@ -42,6 +45,12 @@ impl TextField {
         self.auto_focus = true;
         self.select_all = true;
         self
+    }
+
+    /// As `editing`, with only the chars `part` selected: a file's name without its extension.
+    pub fn editing_part(mut self, part: std::ops::Range<usize>) -> Self {
+        self.select_part = Some(part);
+        self.editing()
     }
 
     /// Escape in the field.
@@ -127,6 +136,9 @@ impl Component for TextField {
         }
         if self.auto_focus {
             input = input.auto_focus(true).select_all_on_init(self.select_all);
+            if let Some(part) = self.select_part.clone() {
+                input = input.select_on_init(part);
+            }
         }
         if let Some(on_escape) = self.on_escape.clone() {
             input = input.on_pre_key_down(move |e: Event<KeyboardEventData>| {

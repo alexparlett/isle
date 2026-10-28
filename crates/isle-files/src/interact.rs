@@ -18,6 +18,8 @@ pub struct Rename {
     pub on_cancel: EventHandler<()>,
     /// "“{name}” is already taken. Choose a different name."
     pub error: Option<String>,
+    /// A folder: its whole name is selected, not all but the extension.
+    pub dir: bool,
 }
 
 #[derive(Clone, PartialEq)]
@@ -96,6 +98,15 @@ impl Interact {
     }
 }
 
+/// The chars of a name a rename selects: all of a folder's, a file's but its extension.
+pub fn name_part(name: &str, dir: bool) -> std::ops::Range<usize> {
+    let all = name.chars().count();
+    match name.rfind('.') {
+        Some(dot) if dot > 0 && !dir => 0..name[..dot].chars().count(),
+        _ => 0..all,
+    }
+}
+
 /// The name field over an item's name, with its refusal under it when there is one.
 pub fn rename_field(theme: &isle_tokens::Theme, rename: &Rename, width: Size) -> Element {
     let t = &theme.tokens;
@@ -104,7 +115,7 @@ pub fn rename_field(theme: &isle_tokens::Theme, rename: &Rename, width: Size) ->
         .child(
             TextField::new(rename.text, "Name")
                 .width(width)
-                .editing()
+                .editing_part(name_part(&rename.text.peek(), rename.dir))
                 .on_submit(rename.on_commit.clone())
                 .on_escape(rename.on_cancel.clone()),
         )
@@ -127,4 +138,18 @@ pub fn drop_ring(theme: &isle_tokens::Theme) -> Border {
         .fill(colour(t.colour_accent))
         .width(t.stroke_found)
         .alignment(BorderAlignment::Inner)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_rename_selects_the_name_but_not_its_extension() {
+        assert_eq!(name_part("café notes.md", false), 0..10);
+        assert_eq!(name_part("archive.tar.gz", false), 0..11);
+        assert_eq!(name_part(".bashrc", false), 0..7);
+        assert_eq!(name_part("my.folder", true), 0..9);
+        assert_eq!(name_part("README", false), 0..6);
+    }
 }

@@ -438,7 +438,7 @@ impl App for PanelWindow {
         let save_field = |width: f32| {
             let accept = accept.clone();
             isle_ui::TextField::new(name, "Save As")
-                .editing()
+                .editing_part(crate::interact::name_part(&name.peek(), false))
                 .width(Size::px(width))
                 .on_submit(move |_: String| accept())
                 .into_element()

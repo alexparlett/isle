@@ -2,15 +2,16 @@
 
 ## 2026-10-27
 
-- P15b 15b.4, selection and opening, most of it: a band from empty space in
+- P15b 15b.4, selection and opening: a band from empty space in
   List and Icons selects what it passes (⌘ or ⇧ adds to the selection); a
   middle click opens a folder in a new tab, in Columns too; ⌥-double-click
   opens and closes the window, a folder in a window of its own. New Folder
   and New file (⌥⇧⌘N, new) appear selected with their name open; with files
   in `~/Templates` New file is a submenu of Empty File and them, on a new
   `Command::under` submenu in `isle-app`. Proved in the VM by real input.
-  Rename selecting the name without its extension waits on the fork's
-  `Input::select_on_init` (5ea3ae57), not yet pushed.
+  Rename and Save's name field select the name without its extension (a
+  folder's whole name), on the fork's `Input::select_on_init`; Freya pinned
+  at 5ea3ae57 in every crate.
 - P15b 15b.3, Markup: it takes the keyboard while on, so Space and the
   arrows no longer close or step Quick Look under it, ⌘Z undoes a mark, and
   the Text tool's field opens where it is clicked and keeps its focus (it

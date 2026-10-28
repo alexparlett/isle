@@ -267,11 +267,11 @@ async fn rename_in_place_copy_paste_and_drag_onto_a_folder() {
     test.button(272, false).await.unwrap();
     wait_until(|| async { home.join("Downloads/todo.txt").exists() && !home.join("todo.txt").exists() }).await;
 
-    // Return opens the name; a new name with its extension renames at once.
+    // Return opens the name with the extension left out; typing keeps it.
     reveal(&isle, &app, &home.join("notes.md")).await;
     isle.chord(&[ENTER]).await;
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    type_text(&isle, "ideas.md").await;
+    type_text(&isle, "ideas").await;
     isle.keep_shot("files-renaming").await;
     isle.chord(&[ENTER]).await;
     wait_until(|| async { home.join("ideas.md").exists() && !home.join("notes.md").exists() }).await;
@@ -1188,6 +1188,14 @@ async fn a_band_selects_new_items_are_named_in_place_and_middle_and_option_click
     isle.chord(&[SUPER, KEY_V]).await;
     wait_until(|| async { home.join("Documents/notes.md").exists() && home.join("Documents/todo.txt").exists() }).await;
     assert!(!home.join("Documents/Pictures").exists(), "the band stopped at notes.md");
+
+    // Return on notes.md opens its name with the extension left out: typing keeps .md.
+    reveal(&isle, &app, &home.join("Documents/notes.md")).await;
+    isle.chord(&[ENTER]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    type_text(&isle, "plan").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { home.join("Documents/plan.md").exists() }).await;
 
     // New Folder opens its name: typed and Return names it.
     isle.chord(&[SUPER, SHIFT, KEY_N]).await;

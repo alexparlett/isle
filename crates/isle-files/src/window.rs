@@ -576,6 +576,7 @@ impl App for FilesWindow {
         });
         let interact = Interact {
             rename: renaming.read().clone().map(|path| Rename {
+                dir: tab.peek().folder.get(&path).is_some_and(|e| e.is_dir()),
                 path,
                 text: rename_text,
                 on_commit: on_commit.clone(),

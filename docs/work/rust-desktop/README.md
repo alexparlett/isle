@@ -29,4 +29,6 @@ one at a time.
 - `p15-files.md`: P15, Files.
 - `p16-mission-control.md`: P16, Mission Control, gestures, Split View and
   Stage Manager.
+- `p15b-files.md`: P15b, Files, finished.
+- `p17-widgets.md`: P17, widgets, providers and the gallery.
 - Evidence: `docs/research/rust-desktop/`.

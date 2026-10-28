@@ -543,3 +543,16 @@
   accepted (B120). The screenshot window fixed after (B122), and an
   app's quit question brought in front of the session's end (B123).
   Next: the user's day on the host, then P17.
+- P17 planned in `p17-widgets.md` (2026-10-28), reviewed: the user took
+  every recommendation but sources, which use gitoxide. One packet, Yours' author tools last and cuttable; no gate. The
+  dashboard's model and keys the compositor's, its backdrop the
+  compositor's pass as the lock's, one overlay at a time moved into one
+  function; the layout and each widget's settings in `settings.kdl` with an
+  open section for providers'; the registry's six QML widgets as built-ins;
+  `isle-sysinfo` shared with Monitor, Weather fetched by the host, a timer
+  service; `isle-providers` as the one runner for every kind, sandboxed by
+  bubblewrap with a bus proxy and a filtering network proxy; the permission
+  vocabulary as P1's five grant rows; providers display only; sources
+  through gitoxide (`gix`), Isle's index as `providers.json` beside v1's with
+  three example providers. Research in
+  `docs/research/rust-desktop/widgets-2026.md`. Phases 17.0–17.16.

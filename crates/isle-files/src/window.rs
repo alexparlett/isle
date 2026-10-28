@@ -136,6 +136,13 @@ impl App for FilesWindow {
         let layout = use_state(crate::keys::Layout::default);
         let typed = use_state(crate::keys::Typed::default);
         let mut drop_target = use_state(|| None::<PathBuf>);
+        // During a drag: the tab under the pointer, the Favourite a drop would go in before,
+        // the modifiers held, and the spring's blink.
+        let mut tab_over = use_state(|| None::<usize>);
+        let mut bookmark_at = use_state(|| None::<usize>);
+        let mut held = use_state(Modifiers::empty);
+        let mut blink = use_state(|| false);
+        let mut spring_turn = use_state(|| 0u64);
         let mut press = use_state(|| None::<(PathBuf, f64, f64)>);
         let mut drag_started = use_state(|| false);
         // The Return that commits a name is the field's alone.
@@ -350,6 +357,51 @@ impl App for FilesWindow {
             drag_started.set(false);
             press.set(None);
         });
+        // What a spring opens: the tab under the drag, else the folder under it in this tab.
+        let spring_open = move || {
+            let (mut current, mut drop_target) = (current, drop_target);
+            let tab_hit = *tab_over.peek();
+            if let Some(i) = tab_hit {
+                if i < tabs.peek().len() {
+                    current.set(i);
+                }
+                return;
+            }
+            let Some(folder) = drop_target.peek().clone().filter(|f| f.as_os_str() != TRASH && f.is_dir()) else { return };
+            let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+            drop_target.set(None);
+            tab::go(handle.tab, &handle.live, Place::Folder(folder), None);
+        };
+        // Spring-loading: a folder or tab under a drag for a moment blinks twice, then opens.
+        let (spring_ms, blink_ms) = (t.timing_spring_ms as u64, t.motion_blink_ms as u64);
+        // Whether a drag is on, not where: its motion must not restart the dwell.
+        let drag_on = use_memo(move || drag.over.read().is_some());
+        use_side_effect(move || {
+            let target = drop_target.read().clone();
+            let tab_hit = *tab_over.read();
+            let dragging = *drag_on.read();
+            let turn = *spring_turn.peek() + 1;
+            spring_turn.set(turn);
+            blink.set_if_modified(false);
+            if !dragging || (target.is_none() && tab_hit.is_none()) {
+                return;
+            }
+            spawn(async move {
+                let wait = |ms| crate::jobs::async_sleep(std::time::Duration::from_millis(ms));
+                wait(spring_ms).await;
+                for _ in 0..4 {
+                    if *spring_turn.peek() != turn {
+                        return;
+                    }
+                    blink.toggle();
+                    wait(blink_ms).await;
+                }
+                if *spring_turn.peek() == turn {
+                    spring_open();
+                }
+            });
+        });
+
         // Drops on the window: into the folder under the pointer, or the one shown.
         use_side_effect({
             let shared = shared.clone();
@@ -361,10 +413,33 @@ impl App for FilesWindow {
                 let drops = std::mem::take(&mut *dropped.write());
                 let target = drop_target.peek().clone();
                 drop_target.set(None);
+                tab_over.set(None);
+                let new_favourite = bookmark_at.write().take();
                 let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
                 let here = handle.tab.peek().place.folder().map(PathBuf::from);
+                let mods = *held.peek();
                 for drop in drops {
                     let (paths, _) = crate::transfer::read(crate::transfer::URIS, &drop.data);
+                    // Between two Favourites: the folders become bookmarks there.
+                    if let Some(at) = new_favourite {
+                        let before = places.peek().favourites.iter().skip(at).find(|r| r.glyph == "folder-simple").and_then(|r| r.place.folder().map(PathBuf::from));
+                        let folders: Vec<PathBuf> = paths.into_iter().filter(|p| p.is_dir()).collect();
+                        let mut places = places;
+                        spawn(async move {
+                            let read = off_thread(move || {
+                                for folder in &folders {
+                                    if let Err(err) = places::insert_bookmark(folder, before.as_deref()) {
+                                        tracing::warn!("{} was not added to the sidebar: {err}", folder.display());
+                                    }
+                                }
+                                places::read()
+                            });
+                            if let Some(read) = read.await {
+                                places.set(read);
+                            }
+                        });
+                        continue;
+                    }
                     let Some(into) = target.clone().or_else(|| here.clone()) else { continue };
                     let work = if into.as_os_str() == TRASH {
                         Work::Trash { items: paths }
@@ -376,9 +451,16 @@ impl App for FilesWindow {
                         if items.is_empty() {
                             continue;
                         }
-                        // Within one volume an item moves, as Finder's do; across volumes it copies.
-                        let same = drop.own && same_volume(&items[0], &into);
-                        if same { Work::Move { items, into } } else { Work::Copy { items, into } }
+                        // Within one volume an item moves, as Finder's do, across volumes it copies;
+                        // ⌥ forces a copy and ⌘ a move.
+                        let moves = if mods.contains(Modifiers::ALT) {
+                            false
+                        } else if mods.contains(Modifiers::META) {
+                            true
+                        } else {
+                            drop.own && same_volume(&items[0], &into)
+                        };
+                        if moves { Work::Move { items, into } } else { Work::Copy { items, into } }
                     };
                     start_job(&shared, key, work, &mut alert);
                 }
@@ -518,6 +600,12 @@ impl App for FilesWindow {
         let shared_keys = shared.clone();
         let menu_fallback = (t.size_sidebar + t.space_l, t.size_toolbar + t.space_l);
         let on_key = move |e: Event<KeyboardEventData>| {
+            held.set_if_modified(e.modifiers);
+            // Space over a folder during a drag opens it at once.
+            if drag.over.peek().is_some() && e.key == Key::Character(" ".into()) {
+                spring_open();
+                return;
+            }
             // An open context menu has the keys.
             if context.peek().is_some() {
                 return;
@@ -643,6 +731,7 @@ impl App for FilesWindow {
             chooses: None,
             layout,
             cursor_at,
+            blink: *blink.read(),
             ringed: context.read().as_ref().and_then(|o| o.items.clone()).filter(|items| *items != tab.peek().selection).unwrap_or_default(),
         };
         let body = content(&theme, &handle, rev, focused, on_pick, interact.clone());
@@ -825,6 +914,7 @@ impl App for FilesWindow {
                 wide.set_if_modified(is_wide);
             })
             .on_global_key_down(on_key)
+            .on_global_key_up(move |e: Event<KeyboardEventData>| held.set_if_modified(e.modifiers))
             .on_global_pointer_move({
                 let (data, tab) = (data.clone(), tab);
                 move |e: Event<PointerEventData>| {
@@ -877,6 +967,7 @@ impl App for FilesWindow {
                         let shared = shared.clone();
                         move |volume: isle_disks::Volume| open_volume(&shared, volume, unlocking, alert, tab_go(tabs, current))
                     }),
+                    bookmark_at,
                     on_hide: Some(EventHandler::new(move |_| {
                         let mut sidebar = sidebar;
                         sidebar.set(false);
@@ -935,6 +1026,14 @@ impl App for FilesWindow {
                             on_menu: EventHandler::new(move |(i, at): (usize, (f32, f32))| {
                                 context.set(Some(crate::menus::tab(i, tabs.peek().len(), at)));
                             }),
+                            dragging: drag.over.read().is_some(),
+                            drag_over: *tab_over.read(),
+                            on_drag: EventHandler::new(move |over: Option<usize>| {
+                                tab_over.set(over);
+                                // A drop on a tab goes into its folder.
+                                let folder = over.and_then(|i| tabs.peek().get(i).and_then(|h| h.tab.peek().place.folder().map(PathBuf::from)));
+                                drop_target.set(folder);
+                            }),
                             on_new: EventHandler::new({
                                 let (open_new_tab, shared) = (open_new_tab_here.clone(), shared.clone());
                                 move |_| open_new_tab(shared.new_window_place())
@@ -952,6 +1051,8 @@ impl App for FilesWindow {
                             .maybe_child(pane),
                     )
                     .maybe_child((*path_bar.read()).then(|| PathBar {
+                        dragging: drag.over.read().is_some(),
+                        drop_target,
                         folder: place.folder().map(PathBuf::from),
                         on_go: EventHandler::new({
                             let go = go.clone();

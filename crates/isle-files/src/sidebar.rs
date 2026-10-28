@@ -23,6 +23,8 @@ pub(crate) struct Sidebar {
     pub space: std::collections::HashMap<PathBuf, (u64, u64)>,
     pub dragging: bool,
     pub drop_target: State<Option<PathBuf>>,
+    /// The Favourite a drop would add a bookmark before, past the last for the end.
+    pub bookmark_at: State<Option<usize>>,
     pub on_go: EventHandler<Place>,
     pub on_volume: EventHandler<isle_disks::Volume>,
     pub on_eject: EventHandler<isle_disks::Volume>,
@@ -67,7 +69,7 @@ impl Component for Sidebar {
                 .on_pointer_enter(move |_| {
                     if dragging && enter.is_some() {
                         let mut drop_target = drop_target;
-                        drop_target.set(enter.clone());
+                        drop_target.set_if_modified(enter.clone());
                     }
                 })
                 .on_pointer_leave(move |_| {
@@ -208,13 +210,20 @@ impl Component for Sidebar {
                             .maybe_child(self.prefs.shows_row("recents").then(|| place_row(&recents)))
                             .child(rect().height(Size::px(t.space_m)))
                             .child(header("Favourites"))
-                            .children(
-                                self.places
-                                    .favourites
-                                    .iter()
-                                    .filter(|r| self.prefs.shows_row(&r.label.to_lowercase()))
-                                    .map(place_row),
-                            )
+                            .children({
+                                let shown: Vec<&Row> = self.places.favourites.iter().filter(|r| self.prefs.shows_row(&r.label.to_lowercase())).collect();
+                                let count = shown.len();
+                                shown
+                                    .into_iter()
+                                    .enumerate()
+                                    .map(|(i, r)| {
+                                        // The index in all Favourites, hidden ones included.
+                                        let at = self.places.favourites.iter().position(|f| f.place == r.place).unwrap_or(i);
+                                        let end = self.places.favourites.len();
+                                        favourite(&theme, place_row(r), at, i + 1 == count, end, dragging, self.bookmark_at, drop_target)
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
                             .children(self.saved.iter().map(|s| {
                                 place_row(&Row {
                                     place: Place::Search(Box::new(s.clone())),
@@ -231,4 +240,63 @@ impl Component for Sidebar {
                     ),
             )
     }
+}
+
+/// A Favourite's row with the gaps around it: a drag at its top edge, or the last one's foot,
+/// would add a bookmark there, shown by an insertion line.
+#[allow(clippy::too_many_arguments)]
+fn favourite(
+    theme: &isle_tokens::Theme,
+    row: Element,
+    at: usize,
+    last: bool,
+    end: usize,
+    dragging: bool,
+    bookmark_at: State<Option<usize>>,
+    drop_target: State<Option<PathBuf>>,
+) -> Element {
+    let t = &theme.tokens;
+    let (edge, height) = (6.0f64, t.size_row as f64);
+    let line = |el: Rect, top: bool| {
+        el.child(
+            rect()
+                .position(if top { Position::new_absolute().top(-1.) } else { Position::new_absolute().bottom(-1.) })
+                .layer(Layer::Overlay)
+                .width(Size::fill())
+                .height(Size::px(2.))
+                .corner_radius(1.)
+                .background(colour(t.colour_accent)),
+        )
+    };
+    let shown = *bookmark_at.read();
+    let el = rect()
+        .width(Size::fill())
+        .on_pointer_move(move |e: Event<PointerEventData>| {
+            if !dragging {
+                return;
+            }
+            let y = e.element_location().y;
+            let gap = if y < edge {
+                Some(at)
+            } else if last && y > height - edge {
+                Some(end)
+            } else {
+                None
+            };
+            let mut bookmark_at = bookmark_at;
+            bookmark_at.set_if_modified(gap);
+            if gap.is_some() {
+                let mut drop_target = drop_target;
+                drop_target.set_if_modified(None);
+            }
+        })
+        .on_pointer_leave(move |_| {
+            if bookmark_at.peek().is_some_and(|g| g == at || g == end) {
+                let mut bookmark_at = bookmark_at;
+                bookmark_at.set(None);
+            }
+        });
+    let el = if dragging && shown == Some(at) { line(el, true) } else { el };
+    let el = if dragging && last && shown == Some(end) { line(el, false) } else { el };
+    el.child(row).into_element()
 }

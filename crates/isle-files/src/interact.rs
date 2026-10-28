@@ -38,6 +38,8 @@ pub struct Interact {
     pub layout: State<crate::keys::Layout>,
     /// Items a context menu acts on outside the selection, ringed while it is open.
     pub ringed: Vec<PathBuf>,
+    /// A spring-load's blink: the drop ring is off for this beat.
+    pub blink: bool,
     /// The keyboard cursor's item: its leading edge and foot in the window, where a menu
     /// opened from the keyboard hangs.
     pub cursor_at: State<Option<(f32, f32)>>,
@@ -85,7 +87,7 @@ impl Interact {
     }
 
     pub fn is_target(&self, path: &Path) -> bool {
-        self.dragging && self.drop_target.peek().as_deref() == Some(path)
+        self.dragging && !self.blink && self.drop_target.peek().as_deref() == Some(path)
     }
 
     /// Takes the drop for a folder while the drag is over it.
@@ -94,7 +96,7 @@ impl Interact {
         move |_| {
             if dragging && folder {
                 let mut target = target;
-                target.set(Some(path.clone()));
+                target.set_if_modified(Some(path.clone()));
             }
         }
     }

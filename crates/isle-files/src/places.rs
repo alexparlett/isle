@@ -151,6 +151,31 @@ pub fn add_bookmark(folder: &Path) -> std::io::Result<()> {
     std::fs::write(file, out)
 }
 
+/// `text`, GTK's bookmarks, with `folder` added before the line for `before`, or last.
+pub fn bookmarks_with(text: &str, folder: &Path, before: Option<&Path>) -> String {
+    let mut lines: Vec<String> = text
+        .lines()
+        .filter(|l| !l.trim().is_empty() && bookmarks(l).first().is_none_or(|(p, _)| p != folder))
+        .map(str::to_owned)
+        .collect();
+    let at = before
+        .and_then(|b| lines.iter().position(|l| bookmarks(l).first().is_some_and(|(p, _)| p == b)))
+        .unwrap_or(lines.len());
+    lines.insert(at, isle_thumbnail::uri(folder));
+    lines.join("\n") + "\n"
+}
+
+/// Adds `folder` to GTK's bookmarks before `before`'s line, or last.
+pub fn insert_bookmark(folder: &Path, before: Option<&Path>) -> std::io::Result<()> {
+    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or(std::io::ErrorKind::NotFound)?;
+    let file = config_home().unwrap_or_else(|| home.join(".config")).join("gtk-3.0/bookmarks");
+    let text = std::fs::read_to_string(&file).unwrap_or_default();
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(file, bookmarks_with(&text, folder, before))
+}
+
 /// Takes `folder` out of GTK's bookmarks.
 pub fn remove_bookmark(folder: &Path) -> std::io::Result<()> {
     let home = std::env::var_os("HOME").map(PathBuf::from).ok_or(std::io::ErrorKind::NotFound)?;
@@ -285,7 +310,15 @@ mod tests {
     }
 
     #[test]
-    fn bookmarks_decode_and_keep_labels() {
+    fn a_bookmark_goes_in_before_another_or_last_and_only_once() {
+        let text = "file:///a\nfile:///b Bee\n";
+        assert_eq!(bookmarks_with(text, Path::new("/c"), Some(Path::new("/b"))), "file:///a\nfile:///c\nfile:///b Bee\n");
+        assert_eq!(bookmarks_with(text, Path::new("/c"), None), "file:///a\nfile:///b Bee\nfile:///c\n");
+        assert_eq!(bookmarks_with(text, Path::new("/b"), Some(Path::new("/a"))), "file:///b\nfile:///a\n");
+    }
+
+    #[test]
+        fn bookmarks_decode_and_keep_labels() {
         let text = "file:///home/me/Development\nfile:///home/me/My%20Games Games\nsftp://host/x\n";
         assert_eq!(
             bookmarks(text),

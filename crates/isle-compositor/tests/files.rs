@@ -1511,3 +1511,78 @@ async fn the_toolbar_more_path_menu_sidebar_toggle_and_fold() {
     isle.keep_shot("files-toolbar-narrow").await;
     assert!(!app.printed_part("panicked"));
 }
+
+/// A drag held at `from`, through `via` (resting there `rest` ms), to `to`, with `mods` held.
+async fn drag_via(isle: &Isle, from: (f64, f64), via: &[((f64, f64), u64)], to: (f64, f64), mods: &[u32]) {
+    let test = isle.test().await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    test.pointer_to(from.0, from.1).await.unwrap();
+    pause(150).await;
+    test.button(272, true).await.unwrap();
+    pause(150).await;
+    for m in mods {
+        test.key(*m, true).await.unwrap();
+    }
+    let mut at = from;
+    for &(point, rest) in via.iter().chain(std::iter::once(&(to, 300))) {
+        for step in 1..=6 {
+            let f = step as f64 / 6.;
+            test.pointer_to(at.0 + (point.0 - at.0) * f, at.1 + (point.1 - at.1) * f).await.unwrap();
+            pause(30).await;
+        }
+        at = point;
+        pause(rest).await;
+    }
+    test.button(272, false).await.unwrap();
+    for m in mods.iter().rev() {
+        test.key(*m, false).await.unwrap();
+    }
+    pause(400).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn drags_spring_folders_open_take_modifiers_tabs_and_new_favourites() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-drops").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let side = |i: f64| (w.x as f64 + 80., w.y as f64 + 52. + 8. + 28. + 12. + 24. + 28. * i + 14.);
+
+    // ⌥ held onto Downloads copies todo.txt, leaving it at home.
+    drag_via(&isle, list_row(&w, 5.), &[], list_row(&w, 2.), &[ALT]).await;
+    wait_until(|| async { home.join("Downloads/todo.txt").exists() }).await;
+    assert!(home.join("todo.txt").exists(), "⌥ copies");
+
+    // A folder under the drag for a moment opens; dropped in its space, notes.md moves in.
+    drag_via(&isle, list_row(&w, 4.), &[(list_row(&w, 1.), 1200)], (w.x as f64 + 600., w.y as f64 + 600.), &[]).await;
+    wait_until(|| async { home.join("Documents/notes.md").exists() }).await;
+    assert!(!home.join("notes.md").exists(), "within a volume it moves");
+    isle.keep_shot("files-drop-spring").await;
+
+    // A second tab on Pictures; back in the first, todo.txt dropped on that tab goes there.
+    isle.chord(&[SUPER, KEY_T]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    click(&isle, side(3.), &[], 1).await;
+    isle.chord(&[CTRL, SHIFT, TAB]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.chord(&[SUPER, SHIFT, KEY_H]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let tabs = |i: f64| (w.x as f64 + 220. + (w.width as f64 - 220. - 30.) * (i + 0.5) / 2., w.y as f64 + 52. + 15.);
+    isle.keep_shot("files-drop-tabs").await;
+    let rows_with_tabs = |i: f64| (list_row(&w, i).0, list_row(&w, i).1 + 30.);
+    drag_via(&isle, rows_with_tabs(4.), &[], tabs(1.), &[]).await;
+    wait_until(|| async { home.join("Pictures/todo.txt").exists() }).await;
+
+    // Development dropped at the top edge of Downloads in the sidebar becomes a Favourite there.
+    drag_via(&isle, rows_with_tabs(0.), &[], (side(2.).0, side(2.).1 - 12.), &[]).await;
+    let marks = home.join(".config/gtk-3.0/bookmarks");
+    wait_until(|| async { std::fs::read_to_string(&marks).is_ok_and(|t| t.contains("Development")) }).await;
+    assert!(home.join("Development").is_dir(), "a new Favourite moves nothing");
+    isle.keep_shot("files-drop-favourite").await;
+    assert!(!app.printed_part("panicked"));
+}

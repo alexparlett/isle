@@ -12,6 +12,12 @@ pub(crate) struct TabBar {
     pub(crate) on_new: EventHandler<()>,
     /// A secondary click on a tab, at a point in the window.
     pub(crate) on_menu: EventHandler<(usize, (f32, f32))>,
+    /// A drag is over the window: a tab under it is a drop target and springs open.
+    pub(crate) dragging: bool,
+    /// The tab under the drag, ringed.
+    pub(crate) drag_over: Option<usize>,
+    /// The drag entered a tab, or left them, with none.
+    pub(crate) on_drag: EventHandler<Option<usize>>,
 }
 
 impl Component for TabBar {
@@ -72,6 +78,8 @@ impl Component for TabBar {
                                 let (on_select, on_close) = (self.on_select.clone(), self.on_close.clone());
                                 let closing = self.on_close.clone();
                             let on_menu = self.on_menu.clone();
+                            let (drag_enter, drag_leave, dragging) = (self.on_drag.clone(), self.on_drag.clone(), self.dragging);
+                            let ringed = self.drag_over == Some(i);
                                 rect()
                                     .key(i)
                                     .width(Size::px(width))
@@ -81,8 +89,19 @@ impl Component for TabBar {
                                     .a11y_role(AccessibilityRole::Tab)
                                     .a11y_alt(title.clone())
                                     .a11y_builder(move |node| node.set_selected(selected))
-                                    .on_pointer_enter(move |_| hover.set(Some(i)))
-                                    .on_pointer_leave(move |_| hover.set_if_modified(None))
+                                    .maybe(ringed, |el| el.border(crate::interact::drop_ring(&theme)))
+                                    .on_pointer_enter(move |_| {
+                                        hover.set(Some(i));
+                                        if dragging {
+                                            drag_enter.call(Some(i));
+                                        }
+                                    })
+                                    .on_pointer_leave(move |_| {
+                                        hover.set_if_modified(None);
+                                        if dragging {
+                                            drag_leave.call(None);
+                                        }
+                                    })
                                     .on_press(move |_| on_select.call(i))
                                     .on_mouse_down(move |e: Event<MouseEventData>| {
                                         if e.button == Some(MouseButton::Middle) {

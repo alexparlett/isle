@@ -29,6 +29,9 @@ fn bar(theme: &isle_tokens::Theme) -> Rect {
 pub struct PathBar {
     pub folder: Option<PathBuf>,
     pub on_go: EventHandler<PathBuf>,
+    /// A drag is over the window: each segment takes a drop into its folder.
+    pub dragging: bool,
+    pub drop_target: State<Option<PathBuf>>,
 }
 
 impl Component for PathBar {
@@ -47,8 +50,25 @@ impl Component for PathBar {
             .children(chain.into_iter().enumerate().flat_map(|(i, path)| {
                 let on_go = self.on_go.clone();
                 let target = path.to_owned();
+                let (enter, leave, dragging, drop_target) = (target.clone(), target.clone(), self.dragging, self.drop_target);
+                let ringed = dragging && drop_target.read().as_deref() == Some(path);
                 let segment = rect()
                     .horizontal()
+                    .padding((0., t.space_xxs))
+                    .corner_radius(t.radius_small)
+                    .maybe(ringed, |el| el.border(crate::interact::drop_ring(&theme)))
+                    .on_pointer_enter(move |_| {
+                        if dragging {
+                            let mut drop_target = drop_target;
+                            drop_target.set(Some(enter.clone()));
+                        }
+                    })
+                    .on_pointer_leave(move |_| {
+                        if drop_target.peek().as_ref() == Some(&leave) {
+                            let mut drop_target = drop_target;
+                            drop_target.set(None);
+                        }
+                    })
                     .cross_align(Alignment::Center)
                     .spacing(t.space_xxs)
                     .a11y_role(AccessibilityRole::Link)

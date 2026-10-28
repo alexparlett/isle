@@ -298,6 +298,7 @@ impl App for PanelWindow {
 
         let layout = use_state(crate::keys::Layout::default);
         let cursor_at = use_state(|| None::<(f32, f32)>);
+        let bookmark_at = use_state(|| None::<usize>);
         let typed = use_state(crate::keys::Typed::default);
         let opening = ask.kind == Kind::Open;
         let on_key = {
@@ -322,6 +323,7 @@ impl App for PanelWindow {
             chooses: Some(chooses.clone()),
             layout,
             ringed: Vec::new(),
+            blink: false,
             cursor_at,
         };
         let focused = *Platform::get().is_app_focused.read();
@@ -600,6 +602,7 @@ impl App for PanelWindow {
                 on_eject: EventHandler::new(|_| {}),
                 on_menu: EventHandler::new(|_| {}),
                 on_hide: None,
+                bookmark_at,
                 width: t.size_sidebar_min,
                 under_toolbar: false,
             };

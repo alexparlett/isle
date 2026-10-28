@@ -2,6 +2,16 @@
 
 ## 2026-10-28
 
+- P15b 15b.8, spring-loading and drops: a folder (in a view or the
+  sidebar) or a tab under a drag for `timing-spring-ms` blinks its ring
+  twice at `motion-blink-ms`, then opens, the folder in place or the tab
+  chosen; Space opens it at once. A tab and each path bar segment take a
+  drop into their folder, ringed while over. Between two Favourites an
+  insertion line shows and the dropped folders become bookmarks there
+  (before the next bookmark: the XDG rows keep their order). ⌥ forces a
+  copy and ⌘ a move, held through the drag. Proved by real input in the
+  compositor tests and the VM (⌥ copied, a dwell opened a folder and the
+  drop went in).
 - P15b 15b.7, the toolbar: More (…) between the primary action and the
   preview toggle, its menu the selection's or the folder's; the sidebar
   toggle shown both ways, Hide Sidebar over the sidebar's top trailing

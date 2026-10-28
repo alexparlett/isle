@@ -2,6 +2,16 @@
 
 ## 2026-10-28
 
+- P15b 15b.9, the sidebar: Favourites move by drag, at an insertion line,
+  the order kept in Files' state and GTK's bookmarks rewritten in it
+  (D76); Favourites and Locations collapse from their headings, the caret
+  under hover, kept; Templates and Public, off by default, with their own
+  settings; Recents newest first, grouped by day; the Trash shows full or
+  empty (Isle's `isle-trash-full`), read again after each job; a volume's
+  free space is its tooltip and accessible description; network shares
+  have Eject (GIO, else `umount`); a volume mounting shows a spinner. The
+  insertion line now draws as a margin-pulled child, which the absolute
+  one never did. Proved in the compositor tests and the VM by real input.
 - P15b 15b.8, spring-loading and drops: a folder (in a view or the
   sidebar) or a tab under a drag for `timing-spring-ms` blinks its ring
   twice at `motion-blink-ms`, then opens, the folder in place or the tab

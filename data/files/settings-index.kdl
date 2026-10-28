@@ -12,6 +12,8 @@ row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="d
 row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="music" label="Music" pane-label="Sidebar"
 row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="pictures" label="Pictures" pane-label="Sidebar"
 row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="videos" label="Videos" pane-label="Sidebar"
+row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="templates" label="Templates" pane-label="Sidebar"
+row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="public" label="Public" pane-label="Sidebar"
 row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="computer" label="Computer" pane-label="Sidebar"
 row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="volumes" label="External disks and shares" pane-label="Sidebar" also="drives;usb;network"
 row app="io.github.alexparlett.Isle.Files" app-name="Files" pane="sidebar" id="trash" label="Trash" pane-label="Sidebar"

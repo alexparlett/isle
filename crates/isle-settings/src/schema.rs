@@ -1052,6 +1052,10 @@ pub struct FilesSidebar {
     pub pictures: bool,
     #[setting(default = true)]
     pub videos: bool,
+    #[setting(default = false)]
+    pub templates: bool,
+    #[setting(default = false)]
+    pub public: bool,
     #[setting(default = true)]
     pub computer: bool,
     /// External disks and network shares.

@@ -50,6 +50,31 @@ pub(crate) fn tab_go(tabs: State<Vec<TabHandle>>, current: State<usize>) -> impl
     }
 }
 
+/// Ejects a network share the system mounted: through GIO for its own mounts, else
+/// `umount`; a refusal is an alert.
+pub(crate) fn unmount_share(share: PathBuf, alert: State<Option<Alert>>) {
+    spawn(async move {
+        let name = crate::volumes::share_name(&share);
+        let done = off_thread(move || {
+            let run = |cmd: &str, args: &[&std::ffi::OsStr]| std::process::Command::new(cmd).args(args).output();
+            let gio = run("gio", &["mount".as_ref(), "-u".as_ref(), share.as_os_str()]);
+            match gio {
+                Ok(out) if out.status.success() => Ok(()),
+                _ => match run("umount", &[share.as_os_str()]) {
+                    Ok(out) if out.status.success() => Ok(()),
+                    Ok(out) => Err(String::from_utf8_lossy(&out.stderr).trim().to_owned()),
+                    Err(err) => Err(err.to_string()),
+                },
+            }
+        })
+        .await;
+        if let Some(Err(why)) = done {
+            let mut alert = alert;
+            alert.set(Some(Alert::message(format!("The disk “{name}” couldn't be ejected."), why)));
+        }
+    });
+}
+
 /// A volume's row clicked: shown when mounted, mounted first otherwise, unlocked first when
 /// encrypted, with the keyring's passphrase when it has one.
 pub(crate) fn open_volume(
@@ -64,6 +89,8 @@ pub(crate) fn open_volume(
         return;
     }
     let worker = shared.app().worker();
+    let mut mounting = shared.mounting;
+    mounting.write().push(volume.path.clone());
     spawn(async move {
         let job = worker.spawn({
             let volume = volume.clone();
@@ -77,7 +104,9 @@ pub(crate) fn open_volume(
             }
         });
         let (mut unlocking, mut alert) = (unlocking, alert);
-        match job.await.ok().flatten() {
+        let done = job.await.ok().flatten();
+        mounting.write().retain(|p| *p != volume.path);
+        match done {
             Some(Ok(point)) => go(PathBuf::from(point)),
             Some(Err(why)) => alert.set(Some(Alert::message(format!("The disk “{}” couldn't be opened.", volume.label), why))),
             None => unlocking.set(Some((volume, None))),

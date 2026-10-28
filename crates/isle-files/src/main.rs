@@ -94,6 +94,12 @@ pub struct Shared {
     /// Hidden files shown, in every window (`files.md` § The content: views).
     pub hidden: State<bool>,
     pub tab_bar: State<bool>,
+    /// The sidebar's groups collapsed, by heading.
+    pub collapsed: State<Vec<String>>,
+    /// Counts changes to the Favourites, which every window reads again.
+    pub places_rev: State<u64>,
+    /// Volumes being mounted, by object path: their rows show a spinner.
+    pub mounting: State<Vec<String>>,
     pub jobs: jobs::Jobs,
     /// Items cut and not yet pasted, drawn dimmed.
     pub cut: State<Vec<PathBuf>>,
@@ -561,6 +567,38 @@ impl Shared {
         self.save();
     }
 
+    /// Puts Favourites in `order`, kept in Files' state and written to GTK's bookmarks; every
+    /// window reads its sidebar again.
+    pub fn order_favourites(&self, order: Vec<PathBuf>) {
+        self.memory.borrow_mut().favourites = order.clone();
+        self.save();
+        places::set_order(order.clone());
+        let mut rev = self.places_rev;
+        self.app().spawn(async move {
+            let wrote = crate::window::off_thread(move || places::order_bookmarks(&order)).await;
+            if let Some(Err(err)) = wrote {
+                tracing::warn!("the bookmarks were not reordered: {err}");
+            }
+            let next = *rev.peek() + 1;
+            rev.set(next);
+        });
+    }
+
+    /// Collapses or opens the sidebar group under `heading`, kept across launches.
+    pub fn toggle_group(&self, heading: &str) {
+        let mut groups = self.collapsed;
+        let mut next = groups.peek().clone();
+        match next.iter().position(|g| g == heading) {
+            Some(i) => {
+                next.remove(i);
+            }
+            None => next.push(heading.to_owned()),
+        }
+        self.memory.borrow_mut().collapsed = next.clone();
+        groups.set(next);
+        self.save();
+    }
+
     pub fn recent_folders(&self) -> Vec<PathBuf> {
         self.memory.borrow().recent_folders.clone()
     }
@@ -807,6 +845,7 @@ fn main() {
         return;
     }
     let memory = memory::load();
+    places::set_order(memory.favourites.clone());
     let shared = Rc::new(Shared {
         app: RefCell::new(None),
         windows: RefCell::default(),
@@ -825,6 +864,9 @@ fn main() {
         quick_look: RefCell::default(),
         hidden: State::create_global(memory.hidden),
         tab_bar: State::create_global(memory.tab_bar),
+        collapsed: State::create_global(memory.collapsed.clone()),
+        places_rev: State::create_global(0),
+        mounting: State::create_global(Vec::new()),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         copy: Cell::new(None),

@@ -1586,3 +1586,58 @@ async fn drags_spring_folders_open_take_modifiers_tabs_and_new_favourites() {
     isle.keep_shot("files-drop-favourite").await;
     assert!(!app.printed_part("panicked"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_sidebar_collapses_its_groups_reorders_favourites_and_shows_the_trash_full() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-sidebar").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let test = isle.test().await;
+    let kept = isle.dir.join("files-state/isle/files.json");
+    let side = |i: f64| (w.x as f64 + 80., w.y as f64 + 52. + 8. + 28. + 12. + 24. + 28. * i + 14.);
+
+    // Pictures dragged to the top half of Documents goes before it, kept in Files' state.
+    test.pointer_to(side(3.).0, side(3.).1).await.unwrap();
+    pause(150).await;
+    test.button(272, true).await.unwrap();
+    for step in 1..=6 {
+        let y = side(3.).1 + (side(1.).1 - 6. - side(3.).1) * step as f64 / 6.;
+        test.pointer_to(side(3.).0, y).await.unwrap();
+        pause(40).await;
+    }
+    pause(200).await;
+    isle.keep_shot("files-sidebar-reorder").await;
+    test.button(272, false).await.unwrap();
+    wait_until(|| async {
+        std::fs::read_to_string(&kept).is_ok_and(|t| {
+            let (p, d) = (t.find("Pictures\""), t.find("Documents\""));
+            p.is_some() && d.is_some() && p < d
+        })
+    })
+    .await;
+
+    // Favourites' heading collapses its rows and the state is kept.
+    let heading = (w.x as f64 + 60., w.y as f64 + 52. + 8. + 28. + 12. + 12.);
+    test.pointer_to(heading.0, heading.1).await.unwrap();
+    pause(200).await;
+    click(&isle, heading, &[], 1).await;
+    wait_until(|| async { std::fs::read_to_string(&kept).is_ok_and(|t| t.split_whitespace().collect::<String>().contains("\"collapsed\":[\"Favourites\"]")) }).await;
+    isle.keep_shot("files-sidebar-collapsed").await;
+    click(&isle, heading, &[], 1).await;
+    wait_until(|| async { std::fs::read_to_string(&kept).is_ok_and(|t| t.split_whitespace().collect::<String>().contains("\"collapsed\":[]")) }).await;
+
+    // Moving todo.txt to the Trash fills the Trash's symbol.
+    reveal(&isle, &app, &home.join("todo.txt")).await;
+    isle.chord(&[SUPER, BACKSPACE]).await;
+    wait_until(|| async { !home.join("todo.txt").exists() }).await;
+    pause(600).await;
+    isle.keep_shot("files-sidebar-trash-full").await;
+    assert!(!app.printed_part("panicked"));
+}

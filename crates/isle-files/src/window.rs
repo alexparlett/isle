@@ -341,9 +341,20 @@ impl App for FilesWindow {
                 }
             }
         });
-        // The Trash and Recents are gatherings no watch follows; each job's end reads them again.
+        let shared_rev = shared.places_rev;
+        // The Trash and Recents are gatherings no watch follows; each job's end reads them again,
+        // and the sidebar, whose Trash shows full or empty.
         use_side_effect(move || {
             let _ = *jobs.ended.read();
+            let _ = *shared_rev.read();
+            spawn(async move {
+                if let Some(read) = off_thread(places::read).await
+                    && *places.peek() != read
+                {
+                    let mut places = places;
+                    places.set(read);
+                }
+            });
             for handle in tabs.peek().iter() {
                 if matches!(handle.tab.peek().place, Place::Trash | Place::Recents) {
                     tab::load(handle.tab, &handle.live, true);
@@ -968,6 +979,25 @@ impl App for FilesWindow {
                         move |volume: isle_disks::Volume| open_volume(&shared, volume, unlocking, alert, tab_go(tabs, current))
                     }),
                     bookmark_at,
+                    mounting: shared.mounting.read().clone(),
+                    on_unmount: EventHandler::new(move |share: PathBuf| crate::ops::unmount_share(share, alert)),
+                    on_reorder: Some(EventHandler::new({
+                        let shared = shared.clone();
+                        move |(from, to): (usize, usize)| {
+                            let mut order: Vec<PathBuf> =
+                                places.peek().favourites.iter().filter_map(|r| r.place.folder().map(PathBuf::from)).collect();
+                            if from < order.len() {
+                                let moved = order.remove(from);
+                                order.insert(if to > from { to - 1 } else { to }.min(order.len()), moved);
+                                shared.order_favourites(order);
+                            }
+                        }
+                    })),
+                    collapsed: shared.collapsed.read().clone(),
+                    on_heading: EventHandler::new({
+                        let shared = shared.clone();
+                        move |heading: String| shared.toggle_group(&heading)
+                    }),
                     on_hide: Some(EventHandler::new(move |_| {
                         let mut sidebar = sidebar;
                         sidebar.set(false);

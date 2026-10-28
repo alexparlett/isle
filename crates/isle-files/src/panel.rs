@@ -601,8 +601,16 @@ impl App for PanelWindow {
                 }),
                 on_eject: EventHandler::new(|_| {}),
                 on_menu: EventHandler::new(|_| {}),
+                on_unmount: EventHandler::new(|_| {}),
+                mounting: shared.mounting.read().clone(),
                 on_hide: None,
                 bookmark_at,
+                on_reorder: None,
+                collapsed: shared.collapsed.read().clone(),
+                on_heading: EventHandler::new({
+                    let shared = shared.clone();
+                    move |heading: String| shared.toggle_group(&heading)
+                }),
                 width: t.size_sidebar_min,
                 under_toolbar: false,
             };

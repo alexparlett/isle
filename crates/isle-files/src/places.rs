@@ -81,13 +81,15 @@ pub struct Places {
 }
 
 /// The xdg-user-dirs folders in macOS's order, with their glyphs.
-const USER_DIRS: [(&str, &str, &str); 6] = [
+const USER_DIRS: [(&str, &str, &str); 8] = [
     ("XDG_DESKTOP_DIR", "Desktop", "desktop"),
     ("XDG_DOCUMENTS_DIR", "Documents", "file-text"),
     ("XDG_DOWNLOAD_DIR", "Downloads", "download-simple"),
     ("XDG_MUSIC_DIR", "Music", "music-notes"),
     ("XDG_PICTURES_DIR", "Pictures", "image"),
     ("XDG_VIDEOS_DIR", "Videos", "film-strip"),
+    ("XDG_TEMPLATES_DIR", "Templates", "file-dashed"),
+    ("XDG_PUBLICSHARE_DIR", "Public", "users"),
 ];
 
 /// The templates folder: `XDG_TEMPLATES_DIR`, or `~/Templates`.
@@ -174,6 +176,37 @@ pub fn insert_bookmark(folder: &Path, before: Option<&Path>) -> std::io::Result<
         std::fs::create_dir_all(dir)?;
     }
     std::fs::write(file, bookmarks_with(&text, folder, before))
+}
+
+/// The Favourites' order the user set, by folder; others follow in their own order.
+static ORDER: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
+
+/// Sets the order `read` puts Favourites in.
+pub fn set_order(order: Vec<PathBuf>) {
+    *ORDER.lock().unwrap() = order;
+}
+
+/// `rows` in `order`'s order, those it doesn't name after them as they were.
+pub fn ordered(mut rows: Vec<Row>, order: &[PathBuf]) -> Vec<Row> {
+    let rank = |r: &Row| r.place.folder().and_then(|f| order.iter().position(|o| o == f)).unwrap_or(usize::MAX);
+    rows.sort_by_key(rank);
+    rows
+}
+
+/// `text`, GTK's bookmarks, its lines in `order`'s order, the others after, labels kept.
+pub fn bookmarks_in(text: &str, order: &[PathBuf]) -> String {
+    let mut lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    let rank = |l: &&str| bookmarks(l).first().and_then(|(p, _)| order.iter().position(|o| o == p)).unwrap_or(usize::MAX);
+    lines.sort_by_key(rank);
+    lines.join("\n") + "\n"
+}
+
+/// Writes GTK's bookmarks in `order`'s order.
+pub fn order_bookmarks(order: &[PathBuf]) -> std::io::Result<()> {
+    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or(std::io::ErrorKind::NotFound)?;
+    let file = config_home().unwrap_or_else(|| home.join(".config")).join("gtk-3.0/bookmarks");
+    let text = std::fs::read_to_string(&file).unwrap_or_default();
+    std::fs::write(file, bookmarks_in(&text, order))
 }
 
 /// Takes `folder` out of GTK's bookmarks.
@@ -267,6 +300,7 @@ pub fn read() -> Places {
             glyph: "folder-simple",
         });
     }
+    let favourites = ordered(favourites, &ORDER.lock().unwrap());
     let locations = vec![
         Row {
             place: Place::Computer,
@@ -276,10 +310,17 @@ pub fn read() -> Places {
         Row {
             place: Place::Trash,
             label: "Trash".into(),
-            glyph: "trash",
+            glyph: if trash_full() { "isle-trash-full" } else { "trash" },
         },
     ];
     Places { favourites, locations }
+}
+
+/// Whether any trash holds something.
+pub fn trash_full() -> bool {
+    isle_fs::trash::all_trashes()
+        .iter()
+        .any(|t| std::fs::read_dir(t.root.join("files")).is_ok_and(|mut d| d.next().is_some()))
 }
 
 /// The recently used files, newest first; blocks, so call it on a worker.
@@ -307,6 +348,15 @@ mod tests {
                 ("XDG_MUSIC_DIR".to_owned(), PathBuf::from("/mnt/music")),
             ]
         );
+    }
+
+    #[test]
+    fn favourites_and_bookmarks_take_the_users_order() {
+        let row = |p: &str| Row { place: Place::Folder(PathBuf::from(p)), label: p.into(), glyph: "folder-simple" };
+        let rows = ordered(vec![row("/home"), row("/docs"), row("/a"), row("/b")], &[PathBuf::from("/b"), PathBuf::from("/home")]);
+        let names: Vec<String> = rows.iter().map(|r| r.label.clone()).collect();
+        assert_eq!(names, ["/b", "/home", "/docs", "/a"]);
+        assert_eq!(bookmarks_in("file:///a Ay\nfile:///b\n", &[PathBuf::from("/b")]), "file:///b\nfile:///a Ay\n");
     }
 
     #[test]

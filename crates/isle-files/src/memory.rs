@@ -38,6 +38,12 @@ pub struct Memory {
     /// Folders gone to, the latest first (Go › Recent Folders).
     #[serde(default)]
     pub recent_folders: Vec<std::path::PathBuf>,
+    /// The sidebar's groups collapsed, by heading.
+    #[serde(default)]
+    pub collapsed: Vec<String>,
+    /// Favourites in the user's order, by folder (D76).
+    #[serde(default)]
+    pub favourites: Vec<std::path::PathBuf>,
 }
 
 /// What a panel keeps for one app.
@@ -53,8 +59,15 @@ impl Memory {
     pub fn shown(&self, place: &Place) -> Shown {
         let found = self.views.iter().rev().find(|(p, _)| p == place).map(|(_, s)| *s);
         found.unwrap_or_else(|| match place {
-            // Gatherings show where each item is, so List by default.
-            Place::Recents | Place::Trash | Place::Search(_) => Shown { view: crate::view::View::List, ..self.default_view },
+            // Gatherings show where each item is, so List by default; Recents newest first by day.
+            Place::Recents => Shown {
+                view: crate::view::View::List,
+                sort: isle_fs::SortBy::Modified,
+                reverse: false,
+                group: Some(crate::view::GroupBy::Modified),
+                ..self.default_view
+            },
+            Place::Trash | Place::Search(_) => Shown { view: crate::view::View::List, ..self.default_view },
             _ => self.default_view,
         })
     }

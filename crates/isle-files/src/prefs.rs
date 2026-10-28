@@ -54,6 +54,11 @@ const fn switch(id: &'static str, label: &'static str, key: &'static str, keywor
     RowDef { id, label, keywords, key, control: Control::Switch(true) }
 }
 
+/// A switch that starts off.
+const fn switch_off(id: &'static str, label: &'static str, key: &'static str, keywords: &'static [&'static str]) -> RowDef {
+    RowDef { id, label, keywords, key, control: Control::Switch(false) }
+}
+
 pub const NEW_WINDOW: &[(&str, &str)] = &[
     ("home", "Home"),
     ("desktop", "Desktop"),
@@ -102,6 +107,8 @@ pub static PANES: &[PaneDef] = &[
             switch("music", "Music", "sidebar.music", &[]),
             switch("pictures", "Pictures", "sidebar.pictures", &[]),
             switch("videos", "Videos", "sidebar.videos", &[]),
+            switch_off("templates", "Templates", "sidebar.templates", &[]),
+            switch_off("public", "Public", "sidebar.public", &[]),
             switch("computer", "Computer", "sidebar.computer", &[]),
             switch("volumes", "External disks and shares", "sidebar.volumes", &["drives", "usb", "network"]),
             switch("trash", "Trash", "sidebar.trash", &[]),
@@ -183,7 +190,7 @@ impl Default for Prefs {
         Self {
             new_window: "home".into(),
             open_folders_in_tabs: true,
-            hidden_rows: Vec::new(),
+            hidden_rows: vec!["templates".into(), "public".into()],
             show_extensions: true,
             warn_extension_change: true,
             warn_empty_trash: true,
@@ -209,7 +216,11 @@ impl Prefs {
         Self {
             new_window: word("new-window", d.new_window),
             open_folders_in_tabs: flag("open-folders-in-tabs", d.open_folders_in_tabs),
-            hidden_rows: sidebar.iter().filter(|r| !flag(r.key, true)).map(|r| r.id.to_owned()).collect(),
+            hidden_rows: sidebar
+                .iter()
+                .filter(|r| !flag(r.key, matches!(r.control, Control::Switch(true))))
+                .map(|r| r.id.to_owned())
+                .collect(),
             show_extensions: flag("show-extensions", d.show_extensions),
             warn_extension_change: flag("warn-extension-change", d.warn_extension_change),
             warn_empty_trash: flag("warn-empty-trash", d.warn_empty_trash),

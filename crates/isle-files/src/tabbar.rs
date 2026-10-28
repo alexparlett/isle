@@ -129,7 +129,8 @@ impl Component for TabBar {
                                         &theme,
                                         text::Style::Callout,
                                         colour(if selected { t.colour_text } else { t.colour_text_2 }),
-                                        title.clone(),
+                                        // Cut in the middle within the tab, clear of its close button.
+                                        text::cut_middle(title, ((width - 40.) / (text::metrics(&theme, text::Style::Callout).0 * 0.56)).max(4.) as usize),
                                     ))
                                     .into_element()
                             })),

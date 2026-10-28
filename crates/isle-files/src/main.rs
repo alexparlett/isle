@@ -376,6 +376,12 @@ impl Shared {
         self.memory.borrow().panels.get(app).cloned().unwrap_or_default()
     }
 
+    /// Keeps a panel's browser size for its app.
+    pub fn keep_panel_size(&self, app: &str, size: (f64, f64)) {
+        self.memory.borrow_mut().panels.entry(app.to_owned()).or_default().size = Some(size);
+        self.save();
+    }
+
     pub fn keep_panel(&self, app: &str, kept: memory::PanelMemory) {
         self.memory.borrow_mut().panels.insert(app.to_owned(), kept);
         self.save();
@@ -391,7 +397,8 @@ impl Shared {
         let Some(shared) = SHARED.with(|s| s.borrow().clone()) else { return };
         let sizes = panel::sizes();
         let save = ask.kind == chooser::Kind::Save && !self.panel_memory(&ask.app_id).expanded;
-        let size = if save { (sizes.save.0, panel::save_height(&ask)) } else { sizes.open };
+        let kept = self.panel_memory(&ask.app_id).size.map(|(w, h)| (w.max(sizes.min.0), h.max(sizes.min.1)));
+        let size = if save { (sizes.save.0, panel::save_height(&ask)) } else { kept.unwrap_or(sizes.open) };
         let title = match (ask.title.is_empty(), ask.kind) {
             (false, _) => ask.title.clone(),
             (true, chooser::Kind::Open) => "Open".into(),

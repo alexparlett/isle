@@ -171,7 +171,23 @@ impl App for PanelWindow {
         let chooses = Choosable { filter: filter.clone().filter(|_| !folders_only), folders_only };
         let folder = tab.read().place.folder().map(PathBuf::from);
 
+        // The browser's size, kept for the app as the panel is answered; collapsed Save's is not.
+        let keep_size = {
+            let (shared, app, platform, window) = (shared.clone(), ask.app_id.clone(), Platform::get(), Platform::window_id());
+            let collapsed_save = ask.kind == Kind::Save;
+            Rc::new(move || {
+                if collapsed_save && !*expanded.peek() {
+                    return;
+                }
+                let (shared, app) = (shared.clone(), app.clone());
+                platform.with_window(window, move |w| {
+                    let size = w.inner_size().to_logical::<f64>(w.scale_factor());
+                    shared.keep_panel_size(&app, (size.width, size.height));
+                });
+            })
+        };
         let finish = {
+            let keep_size = keep_size.clone();
             let (shared, ask, answered) = (shared.clone(), ask.clone(), answered.clone());
             let filter = filter.clone();
             move |paths: Vec<PathBuf>| {
@@ -180,7 +196,9 @@ impl App for PanelWindow {
                 }
                 let view = tab.peek().shown.view;
                 let here = tab.peek().place.folder().map(PathBuf::from);
-                shared.keep_panel(&ask.app_id, PanelMemory { folder: here, view: Some(view), expanded: *expanded.peek() });
+                let size = shared.panel_memory(&ask.app_id).size;
+                shared.keep_panel(&ask.app_id, PanelMemory { folder: here, view: Some(view), expanded: *expanded.peek(), size });
+                keep_size();
                 if ask.kind != Kind::SaveFiles && !ask.directory {
                     let (files, app) = (paths.clone(), ask.app_id.clone());
                     std::thread::spawn(move || {
@@ -202,8 +220,9 @@ impl App for PanelWindow {
             }
         };
         let cancel = {
-            let (shared, ask, answered) = (shared.clone(), ask.clone(), answered.clone());
+            let (shared, ask, answered, keep_size) = (shared.clone(), ask.clone(), answered.clone(), keep_size.clone());
             move || {
+                keep_size();
                 if !answered.replace(true) {
                     shared.answer_choose(ask.id, Answer::cancelled());
                 }

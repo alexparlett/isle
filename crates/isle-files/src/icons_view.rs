@@ -310,7 +310,11 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
                         .color(colour(ink))
                         .max_lines(2)
                         .text_overflow(TextOverflow::Ellipsis)
-                        .text(crate::prefs::display_name(entry).to_owned()),
+                        .text({
+                            // Two lines, then cut in the middle.
+                            let per_line = ((grid.cell - 4. * t.space_xs) / (body.0 * 0.56)).floor() as usize;
+                            text::cut_middle(crate::prefs::display_name(entry), per_line * 2)
+                        }),
                 )
                 .into_element(),
         })

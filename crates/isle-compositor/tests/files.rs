@@ -1943,3 +1943,44 @@ async fn a_failed_copy_offers_try_again() {
 
 /// Try Again's height under the toolbar in a one-failure alert.
 const TRY_AGAIN_Y: f64 = 150.;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn quick_look_rotates_a_picture_left() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-rotate").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    reveal(&isle, &app, &home.join("Pictures/red.png")).await;
+    isle.chord(&[SPACE]).await;
+    let look = loop {
+        if let Some(w) = isle.windows().await.into_iter().find(|w| w.title == "Quick Look") {
+            break w;
+        }
+        pause(50).await;
+    };
+    pause(1200).await;
+    isle.keep_shot("files-rotate-toolbar").await;
+    let rotate = (look.x as f64 + look.width as f64 - ROTATE_FROM_RIGHT, look.y as f64 + 26.);
+    let test = isle.test().await;
+    test.pointer_to(rotate.0, rotate.1).await.unwrap();
+    pause(200).await;
+    click(&isle, rotate, &[], 1).await;
+    // red.png was 400 by 300.
+    // A PNG's width and height are the IHDR's first eight bytes.
+    let size = |p: &std::path::Path| {
+        let b = std::fs::read(p).unwrap_or_default();
+        (b.len() > 24).then(|| (u32::from_be_bytes(b[16..20].try_into().unwrap()), u32::from_be_bytes(b[20..24].try_into().unwrap())))
+    };
+    let red = home.join("Pictures/red.png");
+    wait_until(|| async { size(&red) == Some((300, 400)) }).await;
+    assert!(home.join(".local/share/Trash/files/red.png").exists(), "the original is in the Trash");
+    assert!(!app.printed_part("panicked"));
+}
+
+/// Rotate Left's distance from Quick Look's trailing edge.
+const ROTATE_FROM_RIGHT: f64 = 240.;

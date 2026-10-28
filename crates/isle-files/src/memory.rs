@@ -56,6 +56,9 @@ pub struct PanelMemory {
     pub view: Option<crate::view::View>,
     /// Save shows the browser.
     pub expanded: bool,
+    /// The browser's size as last left.
+    #[serde(default)]
+    pub size: Option<(f64, f64)>,
 }
 
 impl Memory {

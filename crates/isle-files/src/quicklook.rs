@@ -86,6 +86,7 @@ impl App for QuickLookWindow {
         // Video or audio, which Trim cuts: whether it has pictures.
         let mut media = use_state(|| None::<bool>);
         let mut trimming = self.trimming;
+
         use_side_effect_with_deps(&path, move |path| {
             let Some(path) = path.clone() else { return };
             spawn(async move {
@@ -192,6 +193,27 @@ impl App for QuickLookWindow {
                 icon_button(&theme, "squares-four", "Index Sheet", !busy, *indexing.read(), move || {
                     let mut indexing = indexing;
                     indexing.toggle()
+                })
+            }))
+            .maybe_child((*editable.read() && !busy).then(|| {
+                let path = path.clone();
+                icon_button(&theme, "arrow-arc-left", "Rotate Left", true, false, move || {
+                    let Some(path) = path.clone() else { return };
+                    spawn(async move {
+                        let turned = off_thread(move || {
+                            let image = image::open(&path).map_err(std::io::Error::other)?;
+                            crate::markup::replace(&path, &image.rotate270().to_rgba8())
+                        })
+                        .await;
+                        match turned {
+                            Some(Ok(())) => {
+                                let n = *written.peek();
+                                written.set(n + 1);
+                            }
+                            Some(Err(err)) => tracing::warn!("not rotated: {err}"),
+                            None => {}
+                        }
+                    });
                 })
             }))
             .child(icon_button(&theme, "pencil-simple", "Markup", *editable.read(), *marking.read(), {

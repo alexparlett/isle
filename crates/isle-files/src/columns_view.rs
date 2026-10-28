@@ -299,7 +299,12 @@ fn column(
                         .child(list_view::icon(entry, dark, t.size_app_icon_small, t.colour_text_2))
                         .child(rect().width(Size::flex(1.)).child(match interact.renaming(&entry.path) {
                             Some(rename) => crate::interact::rename_field(theme, rename, Size::fill()),
-                            None => text::line(theme, text::Style::Body, colour(ink), crate::prefs::display_name(entry).to_owned()).into_element(),
+                            None => {
+                                let (size, _, _) = text::metrics(theme, text::Style::Body);
+                                let room = width - 16. - 3. * t.space_s - 2. * t.space_xs - 12.;
+                                let name = text::cut_middle(crate::prefs::display_name(entry), (room / (size * 0.56)).max(4.) as usize);
+                                text::line(theme, text::Style::Body, colour(ink), name).into_element()
+                            }
                         }))
                         .maybe_child(entry.is_dir().then(|| {
                             Glyph::new(

@@ -2,6 +2,16 @@
 
 ## 2026-10-28
 
+- P15b 15b.13, the low items: names cut in the middle (List measured,
+  `isle_ui::text::MiddleCut`; Icons two lines then cut; Columns and tabs by
+  their widths); Quick Look's Rotate Left on a picture, the original kept in
+  the Trash; the panel's size kept per app. Cut to P20: Quick Look full
+  screen (⌥⌘Y: the compositor refuses full screen to a window with a
+  parent, and Quick Look floats over its caller), Quick Look sized to its
+  content (a size asked for after opening leaves Freya's layout at the old
+  size), Quick Look's fonts and toolbar focus, Trim's play and playhead, a
+  pass over the copy strings, the Trash sound (no Sound setting carries
+  it), Spotlight's Trash.
 - P15b 15b.12, jobs, search and states: a copy or move ending while no
   Files window is in front tells so in a notification ("Copied 3 items to
   “Documents”", "Copied 2 of 3 items…", Show opening the folder); a

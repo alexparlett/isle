@@ -271,3 +271,47 @@ async fn a_drag_past_the_edge_is_refused_and_returns() {
     wait_until(|| async { line_of(&layout(&isle).await, "media#1") == "media#1 1 0 4 1" }).await;
     assert_eq!(line_of(&layout(&isle).await, "notifications#1"), "notifications#1 19 0 2 1");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_built_ins_show_what_the_desktop_has_or_their_empty_line() {
+    let mut isle = Isle::start_with(
+        "dashboard-builtins",
+        "widget \"clock#1\" {\n    zone \"Asia/Tokyo\"\n    face \"analogue\"\n}\n",
+    )
+    .await;
+    isle.test().await.transitions(false).await.unwrap();
+    let client = isle.client("isle.test.Notifier", "3366ff");
+    client.wait_for("keyboard-enter").await;
+    client.send("notify summary=One");
+    client.send("notify summary=Two");
+
+    chord(&isle).await;
+    wait_until(|| async { status(&isle).await["bodies"]["storage#1"] != "title" }).await;
+    let bodies = status(&isle).await["bodies"].clone();
+    assert_eq!(bodies["clock#1"]["clock"], "Tokyo");
+    assert_eq!(bodies["clock#1"]["dial"], true);
+    assert_eq!(bodies["media#1"]["empty"], "Not playing");
+    assert_eq!(bodies["devices#1"]["empty"], "No devices");
+    assert_eq!(bodies["storage#1"]["storage"][0][0], "System", "{bodies}");
+    wait_until(|| async {
+        status(&isle).await["bodies"]["notifications#1"]["notifications"][0][1] == 2
+    })
+    .await;
+
+    isle.keep_shot("dashboard-default").await;
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    shell.widgets("edit").await.unwrap();
+    wait_until(|| async { status(&isle).await["edit"] == true }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    isle.keep_shot("dashboard-edit").await;
+
+    // A notification's row opens Notification Centre with that app's stack.
+    let app = status(&isle).await["bodies"]["notifications#1"]["notifications"][0][0].clone();
+    assert!(app.is_string());
+    isle.test()
+        .await
+        .dashboard_act("close")
+        .await
+        .unwrap();
+    wait_until(|| async { status(&isle).await["open"] == false }).await;
+}

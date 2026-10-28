@@ -110,6 +110,12 @@ where
             *state.isle.services.applied.entry(name).or_default() += 1;
             apply(state, snapshot);
             state.refresh_lock_face();
+            if state.isle.dashboard.open.is_some() {
+                if name == "disks" {
+                    state.read_dashboard_storage();
+                }
+                state.put_dashboard_frame();
+            }
         });
         tokio::time::sleep(FRAME).await;
     }

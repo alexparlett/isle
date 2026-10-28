@@ -158,9 +158,13 @@ run nothing at all while closed.
     minutes. The place defaults to the time zone's city with its tzdata
     coordinates (`isle-sun`); another place is chosen through Open-Meteo's
     geocoding in the widget's settings.
-14. **Storage lists every mounted volume** with used and free:
-    `isle-disks` gains the system volume and `statvfs` figures, read when
-    the widget is shown.
+14. **Storage lists every mounted volume** with used and free: the
+    system's own filesystems (`/`, and `/home` where it is another disk)
+    and each volume UDisks has mounted, `statvfs` read on the worker when
+    the widget is shown; a filesystem mounted twice, or as btrfs
+    subvolumes, counts once. `isle-disks` is unchanged (changed in 17.5
+    from adding the system volume there, which every other reader of it
+    would then have shown).
 15. **A timer service in the compositor.** A timer's label, duration,
     state and end are kept in the `widgets` domain, so a running timer
     survives a shell rebuild and a compositor restart; it posts the

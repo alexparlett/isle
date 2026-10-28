@@ -94,6 +94,11 @@ impl Isle {
             .unwrap_or_else(|| player.identity.clone())
     }
 
+    /// The chosen player as the Now Playing module draws it.
+    pub fn now_playing_card(&self) -> Option<MediaCard> {
+        self.chosen_player().map(|p| self.card(p))
+    }
+
     pub fn now_playing_module(&self, size: TileSize) -> Option<Module> {
         let chosen = self.chosen_player();
         let card = chosen.map(|p| self.card(p));

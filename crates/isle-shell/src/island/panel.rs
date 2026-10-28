@@ -1039,6 +1039,63 @@ fn module_circle(theme: &Theme, module: &Module) -> Rect {
         })
 }
 
+/// Control Centre's modules as its tiles, the same component with the same actions, for
+/// the dashboard's Controls widget (`structure/widgets.md` Shared places).
+#[derive(PartialEq)]
+pub struct ModuleTiles {
+    pub modules: Vec<Module>,
+    pub width: f32,
+}
+
+impl Component for ModuleTiles {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let roving = use_state(|| 0usize);
+        let drag = use_state(|| None::<String>);
+        let tile_ids = use_hook(|| Rc::new(RefCell::new(Vec::<AccessibilityId>::new())));
+        let ids: Rc<Vec<AccessibilityId>> = {
+            let mut ids = tile_ids.borrow_mut();
+            while ids.len() < self.modules.len() {
+                ids.push(AccessibilityId::new_unique());
+            }
+            Rc::new(ids[..self.modules.len()].to_vec())
+        };
+        let sizes: Vec<TileSize> = self.modules.iter().map(|m| m.size).collect();
+        let (places, _) = grid::pack(&sizes);
+        let (sizes, places) = (Rc::new(sizes), Rc::new(places));
+        let gap = t.space_s;
+        let quarter = (self.width - 3.0 * gap) / 4.0;
+        let height = t.size_module_cell_height;
+        let active = (*roving.read()).min(self.modules.len().saturating_sub(1));
+        rect()
+            .width(Size::px(self.width))
+            .height(Size::fill())
+            .children(self.modules.iter().zip(places.iter().copied()).enumerate().map(
+                |(index, (module, (col, row)))| {
+                    let (w, h) = module.size.cells();
+                    Tile {
+                        module: module.clone(),
+                        x: col as f32 * (quarter + gap),
+                        y: row as f32 * (height + gap),
+                        width: w as f32 * quarter + (w as f32 - 1.0) * gap,
+                        height: h as f32 * height + (h as f32 - 1.0) * gap,
+                        index,
+                        ids: ids.clone(),
+                        sizes: sizes.clone(),
+                        places: places.clone(),
+                        active: index == active,
+                        roving,
+                        editing: false,
+                        autofocus: false,
+                        drag,
+                    }
+                    .into_element()
+                },
+            ))
+    }
+}
+
 #[derive(PartialEq)]
 struct Tile {
     module: Module,

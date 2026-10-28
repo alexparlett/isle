@@ -392,9 +392,11 @@ impl State {
 
     /// What a control in Control Centre asked for.
     pub fn panel_action(&mut self, action: PanelAction) {
-        let Some(panel) = self.isle.island.panel.clone() else {
+        let panel = self.isle.island.panel.clone();
+        // The widgets dashboard's Controls draw modules with no panel open.
+        if panel.is_none() && self.isle.dashboard.open.is_none() {
             return;
-        };
+        }
         match action {
             // The toolbar is a centre surface: opening it closes the panel too.
             PanelAction::Toggle(id) if id == "screenshot" => {
@@ -410,6 +412,9 @@ impl State {
                 );
             }
             PanelAction::Page(page) => {
+                let Some(panel) = panel else {
+                    return;
+                };
                 // Back from an item's menu is the grid; the tray has no page of its own.
                 let page = page.filter(|p| p != "tray");
                 let left_page = match (&page, &panel.page) {

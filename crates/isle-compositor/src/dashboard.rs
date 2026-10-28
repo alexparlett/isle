@@ -13,8 +13,9 @@ use isle_shell::{
         catalogue,
         grid::{Cells, Dir, Extent, History, Layout, Metrics, Sizes, default_layout, kind_of},
         surface::{
-            Body, ClockView, Control, DashboardAction, DashboardSurface, FormRow, FormValue,
-            FormView, Frame, Ghost, Lifted, MenuView, WidgetView,
+            BatteryRow, Body, ClockView, Control, DashboardAction, DashboardSurface, DesktopRow,
+            Dial, FormRow, FormValue, FormView, Frame, Ghost, Lifted, MenuView, NoteRow,
+            VolumeRow, WidgetView,
         },
     },
     prompts::session::Choice,
@@ -48,6 +49,8 @@ pub struct DashboardState {
     pub backdrop: Motion,
     last_step: Instant,
     tick: Option<RegistrationToken>,
+    /// Each mounted volume's use, read on the worker when the dashboard opens.
+    pub storage: Option<Vec<VolumeRow>>,
     floors: RefCell<HashMap<String, (SolidColorBuffer, SolidColorBuffer)>>,
 }
 
@@ -121,6 +124,7 @@ impl DashboardState {
             backdrop: Motion::at(0.0),
             last_step: Instant::now(),
             tick: None,
+            storage: None,
             floors: RefCell::default(),
         }
     }
@@ -221,6 +225,12 @@ impl Isle {
     }
 
     fn clock_view(&self, id: &str) -> ClockView {
+        let analogue = self
+            .settings
+            .widget
+            .get(id)
+            .and_then(|w| w.get("face"))
+            .is_some_and(|f| matches!(f, isle_settings::Value::Str(f) if f == "analogue"));
         let zone = self
             .settings
             .widget
@@ -237,12 +247,128 @@ impl Isle {
         } else {
             now.strftime("%-I:%M").to_string()
         };
+        let dial = analogue.then(|| {
+            let (h, m, sec) = (now.hour() as f32, now.minute() as f32, now.second() as f32);
+            Dial {
+                hour: ((h % 12.0) + m / 60.0) / 12.0,
+                minute: (m + sec / 60.0) / 60.0,
+                second: self.settings.island.clock_seconds.then_some(sec / 60.0),
+                night: !(6..18).contains(&now.hour()),
+            }
+        });
         ClockView {
             city: city_of(zone.iana_name().unwrap_or("UTC")),
             time,
             weekday: now.strftime("%A").to_string(),
             date: now.strftime("%-d %B").to_string(),
+            dial,
         }
+    }
+
+    fn battery_rows(&self) -> Vec<BatteryRow> {
+        let power = &self.services.power;
+        if !power.available {
+            return Vec::new();
+        }
+        power
+            .state
+            .batteries
+            .iter()
+            .map(|b| BatteryRow {
+                name: b.name.clone(),
+                glyph: b.kind.glyph().to_owned(),
+                level: b.level,
+                charging: b.charging,
+                low: b.level.is_some_and(|l| l <= 20) && !b.charging,
+            })
+            .collect()
+    }
+
+    fn desktop_rows(&self, output: &str) -> Vec<DesktopRow> {
+        use isle_shell::mission::model::DeskKind;
+        let (screens, _) = self.mission_screens();
+        let Some(screen) = screens.into_iter().find(|s| s.output == output) else {
+            return Vec::new();
+        };
+        let app_of = |id: u64| screen.window(id).map(|w| w.app.clone()).unwrap_or_default();
+        let mut normal = 0;
+        screen
+            .desks
+            .iter()
+            .enumerate()
+            .map(|(i, d)| {
+                let name = match d.kind {
+                    DeskKind::Normal => {
+                        normal += 1;
+                        format!("Desktop {normal}")
+                    }
+                    DeskKind::FullScreen(id) => self.app_name(&app_of(id)),
+                    DeskKind::Split(a, b) => {
+                        format!("{} and {}", self.app_name(&app_of(a)), self.app_name(&app_of(b)))
+                    }
+                };
+                // One icon per app, front first.
+                let mut apps: Vec<String> = Vec::new();
+                for id in d.windows.iter().rev() {
+                    let app = app_of(*id);
+                    if !app.is_empty() && !apps.contains(&app) {
+                        apps.push(app);
+                    }
+                }
+                DesktopRow {
+                    name,
+                    icons: apps.iter().map(|a| self.app_icon(a, 32)).collect(),
+                    more: 0,
+                    current: i == screen.current,
+                }
+            })
+            .collect()
+    }
+
+    fn note_rows(&self) -> Vec<NoteRow> {
+        let mut rows: Vec<NoteRow> = Vec::new();
+        // Newest first: each app's place is where its newest arrived.
+        for entry in self.notifications.entries.iter().rev() {
+            if !entry.live || entry.fate == crate::notifications::Fate::Transient {
+                continue;
+            }
+            let app = self.notification_app(&entry.n);
+            match rows.iter_mut().find(|r| r.app == app) {
+                Some(row) => row.count += 1,
+                None => {
+                    let name = self.app_name(&app);
+                    rows.push(NoteRow {
+                        name: if name.is_empty() { entry.n.app_name.clone() } else { name },
+                        icon: self.app_icon(&app, 32),
+                        app,
+                        count: 1,
+                    });
+                }
+            }
+        }
+        rows
+    }
+
+    /// The modules a Controls widget shows: its own list, else Sound and Display.
+    fn control_modules(&self, id: &str) -> Vec<isle_shell::island::panel::Module> {
+        use isle_shell::island::grid::TileSize;
+        let list: Vec<String> = match self.settings.widget.get(id).and_then(|w| w.get("modules")) {
+            Some(isle_settings::Value::List(l)) => l.clone(),
+            Some(isle_settings::Value::Str(one)) => vec![one.clone()],
+            _ => vec!["sound:w".into(), "display:w".into()],
+        };
+        list.iter()
+            .filter_map(|entry| {
+                let (id, size) = entry.split_once(':').unwrap_or((entry, "m"));
+                let size = match size {
+                    "s" => TileSize::Small,
+                    "l" => TileSize::Large,
+                    "w" => TileSize::Wide,
+                    _ => TileSize::Medium,
+                };
+                self.module_of(id, size)
+            })
+            .collect()
     }
 
     pub fn dashboard_frame(&self) -> Option<Frame> {
@@ -254,9 +380,22 @@ impl Isle {
             .map(|p| {
                 let kind = kind_of(&p.id);
                 let name = catalogue::builtin(kind).map_or(kind, |b| b.name).to_owned();
+                let empty = |line: &str| Body::Empty(line.to_owned());
                 let body = match kind {
                     "clock" => Body::Clock(self.clock_view(&p.id)),
                     "session" => Body::Session,
+                    "media" => self.now_playing_card().map_or_else(|| empty("Not playing"), Body::Media),
+                    "devices" => match self.battery_rows() {
+                        rows if rows.is_empty() => empty("No devices"),
+                        rows => Body::Devices(rows),
+                    },
+                    "storage" => self.dashboard.storage.clone().map_or(Body::Title, Body::Storage),
+                    "desktops" => Body::Desktops(self.desktop_rows(&open.output)),
+                    "notifications" => match self.note_rows() {
+                        rows if rows.is_empty() => empty("No notifications"),
+                        rows => Body::Notifications(rows),
+                    },
+                    "controls" => Body::Controls(self.control_modules(&p.id)),
                     _ => Body::Title,
                 };
                 WidgetView {
@@ -391,6 +530,12 @@ impl Isle {
             "ring": open.is_some_and(|o| o.ring),
             "grid": open.map(|o| [o.extent.cols, o.extent.rows]),
             "layout": open.map(|o| o.layout.to_lines()),
+            "bodies": self.dashboard_frame().map(|f| {
+                f.widgets
+                    .iter()
+                    .map(|w| (w.id.clone(), body_summary(&w.body)))
+                    .collect::<std::collections::BTreeMap<_, _>>()
+            }),
             "menu": open.and_then(|o| o.menu.as_ref()).map(|m| m.on.clone()),
             "form": open.and_then(|o| o.form.clone()),
             "dragging": open.and_then(|o| o.press.as_ref()).is_some_and(|p| p.moved),
@@ -408,6 +553,23 @@ fn widget_name(id: &str) -> String {
 
 fn sizes_of(id: &str) -> Sizes {
     catalogue::builtin(kind_of(id)).map_or_else(|| Sizes::new(&[(2, 2)], (2, 2)), |b| b.sizes())
+}
+
+/// What a widget shows, for the Test interface.
+fn body_summary(body: &Body) -> serde_json::Value {
+    use serde_json::json;
+    match body {
+        Body::Title => json!("title"),
+        Body::Empty(line) => json!({ "empty": line }),
+        Body::Clock(c) => json!({ "clock": c.city, "time": c.time, "dial": c.dial.is_some() }),
+        Body::Session => json!("session"),
+        Body::Media(card) => json!({ "media": card.title }),
+        Body::Devices(rows) => json!({ "devices": rows.iter().map(|r| &r.name).collect::<Vec<_>>() }),
+        Body::Storage(rows) => json!({ "storage": rows.iter().map(|r| (&r.name, &r.free)).collect::<Vec<_>>() }),
+        Body::Desktops(rows) => json!({ "desktops": rows.iter().map(|r| (&r.name, r.icons.len(), r.current)).collect::<Vec<_>>() }),
+        Body::Notifications(rows) => json!({ "notifications": rows.iter().map(|r| (&r.name, r.count)).collect::<Vec<_>>() }),
+        Body::Controls(modules) => json!({ "controls": modules.iter().map(|m| &m.id).collect::<Vec<_>>() }),
+    }
 }
 
 /// A zone's city as people write it: `America/New_York` is New York.
@@ -502,6 +664,7 @@ impl State {
         }
         self.isle.dashboard.last_step = Instant::now();
         self.arm_dashboard_tick();
+        self.read_dashboard_storage();
         self.isle.refresh_island();
         self.dispatch_shell();
         self.isle.queue_redraw_all();
@@ -606,6 +769,7 @@ impl State {
             DashboardAction::Gallery => {}
             DashboardAction::Open(id) => self.dashboard_open_widget(&id),
             DashboardAction::Menu(event) => self.dashboard_menu_event(event),
+            DashboardAction::Row { id, row } => self.dashboard_row(&id, &row),
             DashboardAction::Form { id, key, value } => self.dashboard_form_set(&id, &key, value),
             DashboardAction::FormClosed => {
                 if let Some(open) = self.isle.dashboard.open.as_mut() {
@@ -1197,5 +1361,172 @@ impl State {
             open.layout = plan;
         }
         self.dashboard_changed(press.base);
+    }
+}
+
+/// The volumes' use: the system's own filesystems, then each mounted volume UDisks lists.
+fn read_volumes(mounted: Vec<(String, String)>) -> Vec<VolumeRow> {
+    let mut seen: Vec<(u64, u64, u64)> = Vec::new();
+    let mut rows = Vec::new();
+    let system = [("/", "System"), ("/home", "Home")];
+    let all = system
+        .iter()
+        .map(|(p, n)| ((*p).to_owned(), (*n).to_owned()))
+        .chain(mounted);
+    for (path, name) in all {
+        let Ok(stat) = rustix::fs::statvfs(path.as_str()) else {
+            continue;
+        };
+        // The same filesystem mounted twice, or as btrfs subvolumes, is one volume.
+        let id = (stat.f_blocks, stat.f_bfree, stat.f_frsize);
+        if seen.contains(&id) {
+            continue;
+        }
+        seen.push(id);
+        let total = stat.f_blocks * stat.f_frsize;
+        if total == 0 {
+            continue;
+        }
+        let free = stat.f_bavail * stat.f_frsize;
+        let used = 1.0 - free as f32 / total as f32;
+        rows.push(VolumeRow {
+            name,
+            path,
+            used,
+            free: format!("{} free", bytes(free)),
+            nearly_full: used >= 0.9,
+        });
+    }
+    rows
+}
+
+/// A size in decimal units, as Files writes them.
+fn bytes(n: u64) -> String {
+    const UNITS: [&str; 5] = ["bytes", "KB", "MB", "GB", "TB"];
+    let mut v = n as f64;
+    let mut unit = 0;
+    while v >= 1000.0 && unit < UNITS.len() - 1 {
+        v /= 1000.0;
+        unit += 1;
+    }
+    if unit == 0 || v >= 100.0 {
+        format!("{v:.0} {}", UNITS[unit])
+    } else {
+        format!("{v:.1} {}", UNITS[unit])
+    }
+}
+
+impl State {
+    /// Reads every volume's use on the worker, for the Storage widget, while it shows.
+    pub fn read_dashboard_storage(&mut self) {
+        let showing = self
+            .isle
+            .dashboard
+            .open
+            .as_ref()
+            .is_some_and(|o| o.layout.widgets.iter().any(|p| p.kind() == "storage"));
+        let (Some(runtime), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone()) else {
+            return;
+        };
+        if !showing {
+            return;
+        }
+        let mounted: Vec<(String, String)> = self
+            .isle
+            .services
+            .disks
+            .state
+            .volumes
+            .iter()
+            .filter_map(|v| {
+                let at = v.mount_point.clone()?;
+                let name = if v.label.is_empty() {
+                    std::path::Path::new(&at).file_name()?.to_string_lossy().into_owned()
+                } else {
+                    v.label.clone()
+                };
+                Some((at, name))
+            })
+            .collect();
+        runtime.spawn_blocking(move || {
+            let rows = read_volumes(mounted);
+            to_loop.post(move |state| {
+                state.isle.dashboard.storage = Some(rows);
+                state.put_dashboard_frame();
+            });
+        });
+    }
+
+    /// A row inside a widget: where it goes, closing the dashboard first.
+    fn dashboard_row(&mut self, id: &str, row: &str) {
+        let output = self
+            .isle
+            .dashboard
+            .open
+            .as_ref()
+            .and_then(|o| self.isle.space.outputs().find(|out| out.name() == o.output).cloned());
+        match (kind_of(id), row) {
+            ("media", "raise") => {
+                self.close_dashboard();
+                self.media_action(isle_shell::island::panel::PanelAction::Choose {
+                    module: "now-playing".into(),
+                    row: "raise".into(),
+                });
+            }
+            ("media", key) => self.media_action(isle_shell::island::panel::PanelAction::Choose {
+                module: "now-playing".into(),
+                row: key.into(),
+            }),
+            ("storage", "more") => {
+                self.close_dashboard();
+                self.show_folder_in_files(std::path::Path::new("/"));
+            }
+            ("storage", path) => {
+                self.close_dashboard();
+                self.show_folder_in_files(std::path::Path::new(path));
+            }
+            ("desktops", index) => {
+                if let (Ok(index), Some(output)) = (index.parse::<usize>(), output) {
+                    self.close_dashboard();
+                    self.switch_desktop(&output, index);
+                }
+            }
+            ("notifications", app) => {
+                self.close_dashboard();
+                if let Some(output) = output.or_else(|| self.isle.main_output()) {
+                    self.open_centre_on(&output);
+                    if app != "more" {
+                        self.isle.notifications.expanded.insert(app.to_owned());
+                        self.isle.refresh_island();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// A module's action from the Controls widget: a page closes the dashboard and opens
+    /// Control Centre there.
+    pub fn dashboard_panel_action(&mut self, action: isle_shell::island::panel::PanelAction) {
+        use isle_shell::island::panel::PanelAction;
+        match action {
+            PanelAction::Page(Some(page)) => {
+                let output = self
+                    .isle
+                    .dashboard
+                    .open
+                    .as_ref()
+                    .and_then(|o| self.isle.space.outputs().find(|out| out.name() == o.output).cloned());
+                self.close_dashboard();
+                if let Some(output) = output {
+                    self.open_control_centre(&output, true, Some(page));
+                }
+            }
+            PanelAction::Page(None) => {}
+            other => {
+                self.panel_action(other);
+                self.put_dashboard_frame();
+            }
+        }
     }
 }

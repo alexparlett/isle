@@ -2,6 +2,22 @@
 
 ## 2026-10-28
 
+- P17 17.5, built-ins on data that exists: Clock with the analogue face
+  (an SVG of the tokens' colours, night in its zone, seconds when the
+  island shows them) and its zone's city; Media from the Now Playing
+  module's player, transport acting and the player's name raising it;
+  Devices from UPower's batteries; Storage (choice 14 amended: the system's
+  filesystems and UDisks' mounted volumes read on the worker, a btrfs
+  subvolume counted once); Desktops from Mission Control's model, a row a
+  desktop, its click switching there; Notifications as a glance by app,
+  its row opening Notification Centre with that app's stack; Controls
+  drawing Control Centre's own tiles (`ModuleTiles`, the panel's `Tile`)
+  with their actions running with no panel open, a page closing the
+  dashboard and opening Control Centre there; Session. Empty strips
+  ("Not playing", "No devices", "No notifications") and "{n} more" rows.
+  Snapshots reaching the loop refresh an open dashboard. A screenshot
+  pass found rows without `Content::flex()`, whose flex children took no
+  width. One compositor test.
 - P17 17.4, edit mode: cells, badges and handles drawn; the compositor
   hit-tests its own model for presses on a widget, its badge, edges and
   corner in edit mode (as the divider's), so the surface's controls still

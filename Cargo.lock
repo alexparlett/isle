@@ -3397,6 +3397,7 @@ dependencies = [
  "notify",
  "pipewire",
  "png 0.17.16",
+ "rustix 1.1.5",
  "serde",
  "serde_json",
  "smithay",

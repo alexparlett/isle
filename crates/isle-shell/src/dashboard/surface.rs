@@ -29,6 +29,12 @@ pub enum Body {
     Empty(String),
     Clock(ClockView),
     Session,
+    Media(crate::island::rows::MediaCard),
+    Devices(Vec<BatteryRow>),
+    Storage(Vec<VolumeRow>),
+    Desktops(Vec<DesktopRow>),
+    Notifications(Vec<NoteRow>),
+    Controls(Vec<crate::island::panel::Module>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,6 +43,52 @@ pub struct ClockView {
     pub time: String,
     pub weekday: String,
     pub date: String,
+    /// The analogue face: the hour and minute hands' turns from twelve, 0 to 1, the
+    /// seconds' when shown, and night in the clock's zone.
+    pub dial: Option<Dial>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Dial {
+    pub hour: f32,
+    pub minute: f32,
+    pub second: Option<f32>,
+    pub night: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BatteryRow {
+    pub name: String,
+    pub glyph: String,
+    pub level: Option<u8>,
+    pub charging: bool,
+    pub low: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VolumeRow {
+    pub name: String,
+    /// What it opens in Files.
+    pub path: String,
+    pub used: f32,
+    pub free: String,
+    pub nearly_full: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DesktopRow {
+    pub name: String,
+    pub icons: Vec<Option<std::path::PathBuf>>,
+    pub more: usize,
+    pub current: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct NoteRow {
+    pub app: String,
+    pub name: String,
+    pub icon: Option<std::path::PathBuf>,
+    pub count: usize,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -157,6 +209,9 @@ pub enum DashboardAction {
     Open(String),
     Session(Choice),
     Menu(MenuEvent),
+    /// A row inside a widget: a volume's path, a desktop's place, an app's id, a transport
+    /// key, or `more` for its list's place.
+    Row { id: String, row: String },
     Form { id: String, key: String, value: FormValue },
     /// The popover dismissed.
     FormClosed,
@@ -440,6 +495,7 @@ fn form_view(theme: &Theme, e: &Extent, at: Cells, form: &FormView, actions: &Ac
         rect()
             .width(Size::fill())
             .horizontal()
+            .content(Content::flex())
             .cross_align(Alignment::Center)
             .spacing(t.space_s)
             .child(
@@ -531,6 +587,7 @@ fn widget(
                         .height(Size::px(t.size_row_large))
                         .padding((0., t.space_m))
                         .horizontal()
+            .content(Content::flex())
                         .cross_align(Alignment::Center)
                         .child(text::line(theme, text::Style::Body, colour(t.colour_text_2), line.clone())),
                 ))
@@ -546,8 +603,17 @@ fn widget(
         .into_element(),
         Body::Clock(c) => clock(theme, w.at, c),
         Body::Session => session(theme, frame.solid, w.at, actions),
+        Body::Media(card) => media(theme, w, card, actions),
+        Body::Devices(rows) => devices(theme, w, rows, actions),
+        Body::Storage(rows) => storage(theme, w, rows, actions),
+        Body::Desktops(rows) => desktops(theme, w, rows, actions),
+        Body::Notifications(rows) => notifications(theme, w, rows, actions),
+        Body::Controls(modules) => {
+            let inner = width - 2.0 * t.space_s;
+            crate::island::panel::ModuleTiles { modules: modules.clone(), width: inner }.into_element()
+        }
     };
-    let inset = if matches!(w.body, Body::Session) { t.space_s } else { t.space_m };
+    let inset = if matches!(w.body, Body::Session | Body::Controls(_)) { t.space_s } else { t.space_m };
     place
         .child(ring(
             plate(theme, frame.solid, t.radius_panel)
@@ -620,10 +686,36 @@ fn clock(theme: &Theme, at: Cells, c: &ClockView) -> Element {
     let t = &theme.tokens;
     let ink = colour(t.colour_text);
     let ink_2 = colour(t.colour_text_2);
+    if let (Some(dial), true) = (c.dial, at.h >= 2) {
+        let size = (at.h as f32 * 88.0 - 16.0) - 2.0 * t.space_m - t.type_style_subheadline_line;
+        let face = dial_view(theme, dial, size, &format!("{}, {}", c.time, c.city));
+        if at.w >= 4 {
+            return rect()
+                .expanded()
+                .horizontal()
+            .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .spacing(t.space_m)
+                .child(face)
+                .child(
+                    rect()
+                        .child(text::line(theme, text::Style::Title3, ink, c.city.clone()))
+                        .child(text::line(theme, text::Style::Subheadline, ink_2, format!("{} {}", c.weekday, c.date))),
+                )
+                .into_element();
+        }
+        return rect()
+            .expanded()
+            .cross_align(Alignment::Center)
+            .child(face)
+            .child(text::line(theme, text::Style::Subheadline, ink_2, c.city.clone()))
+            .into_element();
+    }
     if at.h == 1 {
         return rect()
             .expanded()
             .horizontal()
+            .content(Content::flex())
             .cross_align(Alignment::Center)
             .child(
                 rect()
@@ -695,6 +787,7 @@ fn session(theme: &Theme, solid: bool, at: Cells, actions: &Actions) -> Element 
     rect()
         .expanded()
         .horizontal()
+            .content(Content::flex())
         .main_align(Alignment::SpaceAround)
         .children(
             [Choice::Lock, Choice::Sleep, Choice::Restart, Choice::ShutDown, Choice::LogOut]
@@ -726,6 +819,7 @@ fn controls(theme: &Theme, frame: &Frame, actions: &Actions) -> Element {
         .position(Position::new_absolute().bottom(foot).left(0.))
         .width(Size::fill())
         .horizontal()
+            .content(Content::flex())
         .main_align(Alignment::Center)
         .cross_align(Alignment::Center)
         .spacing(t.space_s);
@@ -754,4 +848,359 @@ fn controls(theme: &Theme, frame: &Frame, actions: &Actions) -> Element {
         )
     }
     .into_element()
+}
+
+/// The analogue face as an SVG of the tokens' colours (`p1/surfaces/widgets.md` Dial).
+fn dial_view(theme: &Theme, dial: Dial, size: f32, alt: &str) -> Element {
+    let t = &theme.tokens;
+    let css = |c: isle_tokens::Colour| format!("rgba({},{},{},{})", c.r, c.g, c.b, c.a);
+    let face = css(if dial.night { t.colour_fill_strong } else { t.colour_fill });
+    let (ink, ink_2) = (css(t.colour_text), css(t.colour_text_2));
+    let hand = |turn: f32, length: f32, width: f32, ink: &str| {
+        let a = turn * std::f32::consts::TAU;
+        format!(
+            r#"<line x1="50" y1="50" x2="{:.2}" y2="{:.2}" stroke="{ink}" stroke-width="{width}" stroke-linecap="round"/>"#,
+            50.0 + a.sin() * 50.0 * length,
+            50.0 - a.cos() * 50.0 * length,
+        )
+    };
+    let mut svg = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="{face}"/>"#);
+    let unit = 100.0 / size.max(1.0);
+    for i in 0..12 {
+        let quarter = i % 3 == 0;
+        let (len, w, ink) = if quarter { (6.0, 2.0, &ink) } else { (4.0, 1.0, &ink_2) };
+        let a = i as f32 / 12.0 * std::f32::consts::TAU;
+        let (r0, r1) = (50.0 - 4.0 * unit, 50.0 - (4.0 + len) * unit);
+        svg.push_str(&format!(
+            r#"<line x1="{:.2}" y1="{:.2}" x2="{:.2}" y2="{:.2}" stroke="{ink}" stroke-width="{:.2}"/>"#,
+            50.0 + a.sin() * r0, 50.0 - a.cos() * r0, 50.0 + a.sin() * r1, 50.0 - a.cos() * r1, w * unit,
+        ));
+    }
+    svg.push_str(&hand(dial.hour, 0.5, 4.0 * unit, &ink));
+    svg.push_str(&hand(dial.minute, 0.8, 3.0 * unit, &ink));
+    if let Some(second) = dial.second {
+        svg.push_str(&hand(second, 0.85, unit, &ink_2));
+    }
+    svg.push_str(&format!(r#"<circle cx="50" cy="50" r="{:.2}" fill="{ink}"/></svg>"#, 3.0 * unit));
+    let key = {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        svg.hash(&mut h);
+        h.finish()
+    };
+    SvgViewer::new((key, Bytes::from(svg.into_bytes())))
+        .show_loader(false)
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .a11y_alt(alt.to_owned())
+        .into_element()
+}
+
+fn row_press(actions: &Actions, id: &str, row: &str) -> impl FnMut(Event<PressEventData>) + 'static {
+    let (actions, id, row) = (actions.clone(), id.to_owned(), row.to_owned());
+    move |e: Event<PressEventData>| {
+        e.stop_propagation();
+        send(&actions, DashboardAction::Row { id: id.clone(), row: row.clone() });
+    }
+}
+
+/// How many rows of `row` points with `gap` between fit `height`.
+fn rows_in(height: f32, row: f32, gap: f32) -> usize {
+    (((height + gap) / (row + gap)).floor() as usize).max(1)
+}
+
+/// The rows a list widget shows, the last "{n} more" when the rest do not fit.
+fn list_rows<T>(items: &[T], fit: usize) -> (&[T], usize) {
+    if items.len() <= fit {
+        (items, 0)
+    } else {
+        let shown = fit.saturating_sub(1);
+        (&items[..shown], items.len() - shown)
+    }
+}
+
+fn more_line(theme: &Theme, w: &WidgetView, more: usize, actions: &Actions) -> Option<Element> {
+    let t = &theme.tokens;
+    (more > 0).then(|| {
+        rect()
+            .on_press(row_press(actions, &w.id, "more"))
+            .a11y_role(AccessibilityRole::Button)
+            .child(text::line(theme, text::Style::Callout, colour(t.colour_text_2), format!("{more} more")))
+            .into_element()
+    })
+}
+
+fn inner(theme: &Theme, w: &WidgetView) -> (f32, f32) {
+    let t = &theme.tokens;
+    (
+        w.at.w as f32 * 88.0 - 16.0 - 2.0 * t.space_m,
+        w.at.h as f32 * 88.0 - 16.0 - 2.0 * t.space_m,
+    )
+}
+
+fn transport(theme: &Theme, w: &WidgetView, card: &crate::island::rows::MediaCard, actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let button = |glyph: &'static str, size: f32, row: &str, alt: &'static str, enabled: bool| {
+        rect()
+            .width(Size::px(t.size_control_large))
+            .height(Size::px(t.size_control_large))
+            .center()
+            .a11y_role(AccessibilityRole::Button)
+            .a11y_alt(alt)
+            .maybe(enabled, |el| el.on_press(row_press(actions, &w.id, row)))
+            .child(Glyph::new(glyph, size, colour(if enabled { t.colour_text } else { t.colour_text_disabled })).fill(true))
+            .into_element()
+    };
+    rect()
+        .horizontal()
+            .content(Content::flex())
+        .cross_align(Alignment::Center)
+        .child(button("skip-back", 20., "previous", "Previous", card.can_previous))
+        .child(button(if card.playing { "pause" } else { "play" }, 24., "play-pause", if card.playing { "Pause" } else { "Play" }, true))
+        .child(button("skip-forward", 20., "next", "Next", card.can_next))
+        .into_element()
+}
+
+fn art(theme: &Theme, card: &crate::island::rows::MediaCard, size: f32) -> Element {
+    let t = &theme.tokens;
+    let frame = rect()
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .corner_radius(t.radius_control)
+        .overflow(Overflow::Clip)
+        .background(colour(t.colour_fill_strong))
+        .center();
+    match &card.art {
+        Some(path) => frame
+            .child(ImageViewer::new(path.clone()).width(Size::px(size)).height(Size::px(size)))
+            .into_element(),
+        None => frame.child(Glyph::new("music-notes", size / 2.0, colour(t.colour_text_2))).into_element(),
+    }
+}
+
+fn media(theme: &Theme, w: &WidgetView, card: &crate::island::rows::MediaCard, actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (ink, ink_2) = (colour(t.colour_text), colour(t.colour_text_2));
+    let titles = rect()
+        .width(Size::flex(1.))
+        .child(text::line(theme, text::Style::Headline, ink, card.title.clone()))
+        .child(text::line(theme, text::Style::Subheadline, ink_2, card.artist.clone()));
+    match (w.at.w, w.at.h) {
+        (4, 1) => rect()
+            .expanded()
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .spacing(t.space_m)
+            .child(art(theme, card, 48.))
+            .child(titles)
+            .child(transport(theme, w, card, actions))
+            .into_element(),
+        (2, 2) => rect()
+            .expanded()
+            .main_align(Alignment::SpaceBetween)
+            .child(art(theme, card, t.size_media_art))
+            .child(titles)
+            .child(transport(theme, w, card, actions))
+            .into_element(),
+        _ => {
+            let (_, h) = inner(theme, w);
+            rect()
+                .expanded()
+                .horizontal()
+            .content(Content::flex())
+                .spacing(t.space_m)
+                .child(art(theme, card, h))
+                .child(
+                    rect()
+                        .width(Size::flex(1.))
+                        .height(Size::fill())
+                        .main_align(Alignment::SpaceBetween)
+                        .child(text::line(theme, text::Style::Title3, ink, card.title.clone()))
+                        .child(text::line(theme, text::Style::Subheadline, ink_2, card.artist.clone()))
+                        .child(
+                            rect()
+                                .on_press(row_press(actions, &w.id, "raise"))
+                                .child(text::line(theme, text::Style::Callout, ink_2, card.player.clone())),
+                        )
+                        .maybe_child(card.position.map(|p| {
+                            rect()
+                                .width(Size::fill())
+                                .height(Size::px(4.))
+                                .corner_radius(2.)
+                                .background(colour(t.colour_fill_strong))
+                                .child(rect().width(Size::percent(p * 100.)).height(Size::fill()).corner_radius(2.).background(ink))
+                                .into_element()
+                        }))
+                        .child(transport(theme, w, card, actions)),
+                )
+                .into_element()
+        }
+    }
+}
+
+fn devices(theme: &Theme, w: &WidgetView, rows: &[BatteryRow], _actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (iw, ih) = inner(theme, w);
+    let per_column = rows_in(ih, 18., t.space_xs);
+    let columns = if w.at.w >= 4 { 2 } else { 1 };
+    let (shown, more) = list_rows(rows, per_column * columns);
+    let row = |b: &BatteryRow| {
+        let ink = colour(t.colour_text);
+        rect()
+            .height(Size::px(18.))
+            .width(Size::px(iw / columns as f32 - if columns > 1 { t.space_m / 2.0 } else { 0.0 }))
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .spacing(t.space_xs)
+            .child(Glyph::new(b.glyph.clone(), 12., colour(t.colour_text_2)))
+            .child(rect().width(Size::flex(1.)).child(text::line(theme, text::Style::Callout, ink, b.name.clone())))
+            .maybe_child(b.charging.then(|| Glyph::new("lightning", 12., ink).into_element()))
+            .maybe_child(b.low.then(|| Glyph::new("battery-warning", 12., ink).into_element()))
+            .child(
+                text::line(theme, text::Style::Callout, ink, b.level.map_or(String::new(), |l| format!("{l}%")))
+                    .font_weight(if b.low { 600 } else { 400 }),
+            )
+            .into_element()
+    };
+    let mut items: Vec<Element> = shown.iter().map(row).collect();
+    if let Some(more) = more_line(theme, w, more, _actions) {
+        items.push(more);
+    }
+    if columns == 1 {
+        return rect().expanded().spacing(t.space_xs).children(items).into_element();
+    }
+    let split = items.len().div_ceil(2);
+    let right = items.split_off(split);
+    rect()
+        .expanded()
+        .horizontal()
+            .content(Content::flex())
+        .spacing(t.space_m)
+        .child(rect().spacing(t.space_xs).children(items))
+        .child(rect().spacing(t.space_xs).children(right))
+        .into_element()
+}
+
+fn storage(theme: &Theme, w: &WidgetView, rows: &[VolumeRow], actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (_, ih) = inner(theme, w);
+    let (shown, more) = list_rows(rows, rows_in(ih, 16., t.space_s));
+    rect()
+        .expanded()
+        .spacing(t.space_s)
+        .children(shown.iter().map(|v| {
+            let ink = colour(t.colour_text);
+            rect()
+                .height(Size::px(16.))
+                .width(Size::fill())
+                .horizontal()
+            .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .spacing(t.space_s)
+                .on_press(row_press(actions, &w.id, &v.path))
+                .a11y_role(AccessibilityRole::Button)
+                .a11y_alt(format!("{}, {}", v.name, v.free))
+                .child(Glyph::new(if v.nearly_full { "warning" } else { "hard-drive" }, 12., colour(if v.nearly_full { t.colour_text } else { t.colour_text_2 })))
+                .child(rect().width(Size::px(96.)).child(text::line(theme, text::Style::Callout, ink, v.name.clone())))
+                .child(
+                    rect()
+                        .width(Size::flex(1.))
+                        .height(Size::px(6.))
+                        .corner_radius(3.)
+                        .background(colour(t.colour_fill_strong))
+                        .child(rect().width(Size::percent(v.used.clamp(0.0, 1.0) * 100.)).height(Size::fill()).corner_radius(3.).background(ink)),
+                )
+                .child(
+                    text::line(theme, text::Style::Subheadline, colour(if v.nearly_full { t.colour_text } else { t.colour_text_2 }), v.free.clone())
+                        .font_weight(if v.nearly_full { 600 } else { 400 }),
+                )
+                .into_element()
+        }))
+        .maybe_child(more_line(theme, w, more, actions))
+        .into_element()
+}
+
+fn desktops(theme: &Theme, w: &WidgetView, rows: &[DesktopRow], actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (iw, ih) = inner(theme, w);
+    let (shown, more) = list_rows(rows, rows_in(ih, 20., t.space_s));
+    let icon_room = iw - 72.0 - 3.0 * t.space_s - 24.0;
+    let per_row = ((icon_room + t.space_xs) / (t.size_app_icon_row + t.space_xs)).floor().max(1.0) as usize;
+    rect()
+        .expanded()
+        .spacing(t.space_s)
+        .children(shown.iter().enumerate().map(|(i, d)| {
+            let (icons, extra) = if d.icons.len() > per_row {
+                (&d.icons[..per_row], d.icons.len() - per_row + d.more)
+            } else {
+                (&d.icons[..], d.more)
+            };
+            rect()
+                .height(Size::px(if d.current { 24. } else { 20. }))
+                .width(Size::fill())
+                .corner_radius(t.radius_row)
+                .padding((0., t.space_xs))
+                .maybe(d.current, |el| el.background(colour(t.colour_fill_strong)))
+                .horizontal()
+            .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .spacing(t.space_xs)
+                .on_press(row_press(actions, &w.id, &i.to_string()))
+                .a11y_role(AccessibilityRole::Button)
+                .a11y_alt(d.name.clone())
+                .child(
+                    rect().width(Size::px(72.)).child(
+                        text::line(theme, text::Style::Subheadline, colour(if d.current { t.colour_text } else { t.colour_text_2 }), d.name.clone())
+                            .font_weight(if d.current { 600 } else { 400 }),
+                    ),
+                )
+                .children(icons.iter().map(|icon| match icon {
+                    Some(path) => isle_ui::AppIcon::new(path.clone(), t.size_app_icon_row).into_element(),
+                    None => rect().width(Size::px(t.size_app_icon_row)).height(Size::px(t.size_app_icon_row)).corner_radius(4.).background(colour(t.colour_fill_strong)).into_element(),
+                }))
+                .maybe_child((extra > 0).then(|| text::line(theme, text::Style::Subheadline, colour(t.colour_text_2), format!("+{extra}")).into_element()))
+                .into_element()
+        }))
+        .maybe_child(more_line(theme, w, more, actions))
+        .into_element()
+}
+
+fn notifications(theme: &Theme, w: &WidgetView, rows: &[NoteRow], actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (_, ih) = inner(theme, w);
+    let (shown, more) = list_rows(rows, rows_in(ih, t.size_row, t.space_xs));
+    rect()
+        .expanded()
+        .spacing(t.space_xs)
+        .children(shown.iter().map(|n| {
+            rect()
+                .height(Size::px(t.size_row))
+                .width(Size::fill())
+                .horizontal()
+            .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .spacing(t.space_s)
+                .on_press(row_press(actions, &w.id, &n.app))
+                .a11y_role(AccessibilityRole::Button)
+                .a11y_alt(format!("{}, {}", n.name, n.count))
+                .child(match &n.icon {
+                    Some(path) => isle_ui::AppIcon::new(path.clone(), 20.).into_element(),
+                    None => Glyph::new("bell", 16., colour(t.colour_text_2)).into_element(),
+                })
+                .child(rect().width(Size::flex(1.)).child(text::line(theme, text::Style::Body, colour(t.colour_text), n.name.clone())))
+                .child(
+                    rect()
+                        .padding((0., 6.))
+                        .height(Size::px(18.))
+                        .corner_radius(9.)
+                        .background(colour(t.colour_fill_strong))
+                        .center()
+                        .child(text::line(theme, text::Style::Footnote, colour(t.colour_text), n.count.to_string())),
+                )
+                .into_element()
+        }))
+        .maybe_child(more_line(theme, w, more, actions))
+        .into_element()
 }

@@ -974,6 +974,11 @@ impl State {
                     self.close_surface(&name);
                 }
                 isle_shell::Action::Zone(action) => self.zone_action(action),
+                isle_shell::Action::Island(isle_shell::island::IslandAction::Panel(action))
+                    if name == "dashboard" =>
+                {
+                    self.dashboard_panel_action(action)
+                }
                 isle_shell::Action::Island(action) => self.island_action(focus, action),
                 isle_shell::Action::MenuBar(action) => self.menu_bar_action(action),
                 isle_shell::Action::Menu(event) => self.window_menu_event(event),

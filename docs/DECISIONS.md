@@ -1345,3 +1345,66 @@ shut down, and an app left open (its Cancel) stops it with "Couldn't
 letting windows draw above the scrim with the dialog still up (two things
 asking at once), and stopping at once on the question with Show {app}
 (a click more than macOS, and the ending called off).
+
+**B124 · The widgets dashboard is the compositor's, drawn as the lock is.**
+P17 choices 5–8. The compositor holds the dashboard's model (layout per
+screen, edit mode, drags, menus, the form, the gallery, the consent panel)
+and its keys, as B73 and B113 do for Spotlight and Mission Control; the
+grid's arithmetic is a pure module in `isle-shell`. Two placed Overlay
+surfaces: `dashboard-plates` behind, holding the plates, their shadows and
+edit mode's cells, redrawn only as the layout changes, and `dashboard` in
+front with the content; the render pass draws the island over them, then
+the lock's wash and the softened wallpaper, and nothing beneath once that
+is opaque. Nothing samples, fetches or runs while it is closed but a
+running timer. One overlay at a time is one function, `close_overlays`.
+Rejected: one surface (a selection move redrew every shadow, over bar 5),
+and the dashboard as a layer of windows moved aside (`structure/widgets.md`
+answer 15).
+
+**B125 · Providers run in bubblewrap with two proxies.** P17 choice 18,
+settling B28's choice. Each run is `bwrap --unshare-all` with `/usr` read
+only, `/usr/bin` holding only `sh`, `env`, python3 for a script and the
+commands granted, the provider's folder read only and its own folder as
+HOME; granted paths bound; Isle's own config, state and data never
+granted and hidden inside any folder granted around them; bus names
+through `xdg-dbus-proxy --filter --talk`; hosts through a filtering HTTP
+and CONNECT proxy on a Unix socket, reached from the sandbox's loopback by
+`isle-provider-init`, refused hosts named. A run has a time limit, an
+answer cap and a data limit. Rejected: Landlock (it cannot name hosts, bus
+names or commands), and the host fetching for providers (v1 D31), which
+would make every provider speak a fetch protocol instead of using its own
+client.
+
+**B126 · The permissions are P1's five grant rows.** P17 choice 19. The
+manifest declares `connect` (hosts, on 80 and 443), `read` and `change`
+(paths from `/` or `~`, `~` being `ISLE_USER_HOME` inside), `bus` and
+`system-bus` (names) and `run` (commands); grants are
+`provider[<id>].granted` as `kind:target`, changed in Settings › Privacy &
+Security › Providers and shown read only elsewhere. v1's service
+permissions are gone: a provider reaches a service by its bus name.
+
+**B127 · Providers are display only.** P17 choice 20. A provider fills one
+of seven templates; a click on it does nothing, and its menu holds Try
+Again, its settings, sizes and Remove. The built-ins are interactive as P1
+drew them. Interactive providers wait for a packet that needs them.
+
+**B128 · Widget sources are read through gitoxide, Isle's index beside
+v1's.** P17 choices 22 and 23, gix the user's choice. A shallow bare clone
+under `~/.cache/isle/widget-sources/`, fetched each time Browse opens, with
+`providers.json` and each `widget.json` read from the fetched tree and an
+install written from it through staging; reqwest 0.13 is shared with gix.
+The registry keeps v1's `index.json` and QML widgets until P21, its six QML
+widgets made built-ins (P17 choice 4). Rejected: the `git` CLI (the plan's
+first choice), and replacing v1's index while v1 is the daily desktop.
+
+**B129 · The layout and a widget's settings are settings.** P17 choice 9.
+`dashboard-output[<identity>].widgets` holds a screen's layout (unset, the
+default block); `widget[<instance>]` is an open section of any keys, which
+the widget's manifest types and checks, for built-ins and providers alike;
+the last data, timers and sources' fetches are the `widgets` state domain.
+
+**B130 · Monitor's sampler is shared.** P17 choice 12. `isle-sysinfo`
+samples CPU, memory, network, uptime, temperatures and the GPU (NVML
+loaded at run time, or an amdgpu's sysfs) on the worker while something
+shows them; P19's Monitor builds on it.
+

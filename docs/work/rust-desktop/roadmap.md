@@ -220,7 +220,8 @@ the VM and a day of use on the host, closed by a walk of the sheet's
 Keyboard, Pointer, Acting, States and Copy sections. Before P17. Intent:
 apps.md.
 
-**P17 · Widgets.** Planned and reviewed 2026-10-28: `p17-widgets.md`.
+**P17 · Widgets.** Built 2026-10-28, host run pending: `p17-widgets.md`,
+B124–B130.
 The dashboard with its twelve built-ins (the registry's QML widgets among
 them), the grid editor and the gallery; `isle-providers`, one runner for
 every kind, sandboxed by bubblewrap with a bus proxy and a filtering network

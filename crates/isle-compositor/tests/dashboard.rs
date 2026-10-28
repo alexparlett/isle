@@ -675,3 +675,27 @@ async fn yours_checks_pictures_and_starts_a_widget_from_a_template() {
     assert!(made.join("widget.json").is_file());
     assert!(isle_providers::Manifest::load(&made).is_ok(), "the template passes its own check");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn return_on_a_browse_item_asks_to_install_and_places_nothing() {
+    let repo = std::env::temp_dir().join(format!("isle-dashboard-browse-return-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&repo);
+    std::fs::create_dir_all(&repo).unwrap();
+    git(&repo, &["init", "-q"]);
+    write_source(&repo, "1.0.0", r#""news.example.com""#);
+    git(&repo, &["add", "."]);
+    git(&repo, &["commit", "-qm", "one"]);
+    let url = format!("file://{}", repo.display());
+    let isle = Isle::start_with("dashboard-browse-return", &format!("widgets {{\n    sources \"{url}\"\n}}\n")).await;
+    isle.test().await.transitions(false).await.unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    assert!(shell.widgets("edit").await.unwrap());
+    let before = layout(&isle).await;
+    press(&isle, 15).await;
+    isle.chord(&[SUPER, 4]).await;
+    wait_until(|| async { status(&isle).await["gallery"]["items"][0][0] == format!("hn@{url}") }).await;
+    press(&isle, 28).await;
+    wait_until(|| async { status(&isle).await["consent"]["title"] == "Install “Hacker News”?" }).await;
+    assert_eq!(layout(&isle).await, before, "nothing placed");
+    let _ = std::fs::remove_dir_all(&repo);
+}

@@ -805,7 +805,7 @@ network.
 **Open for its packet.** Whether the shipped providers stay Python.
 Bubblewrap or Landlock, and the permission names.
 
-**Answered in P17's plan** (`p17-widgets.md`). Bubblewrap: `/usr/bin`
+**Settled in P17** (B125, B126, B128). Bubblewrap: `/usr/bin`
 holding only the interpreter and the commands granted, granted paths bound,
 bus names through `xdg-dbus-proxy`, hosts through a filtering proxy the
 runner serves; Isle's own config and state never writable (choice 18). The

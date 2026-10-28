@@ -2,6 +2,16 @@
 
 ## 2026-10-28
 
+- P17 17.15, the walk in the VM by real input, and the close's record:
+  the dashboard, edit mode with the push and undo, the gallery by keys,
+  Browse fetching a `file://` clone of the registry, the consent panel's
+  armed Install, Hacker News live through the sandbox's proxy, the timer
+  on the island, and Settings' provider page revoking a grant. Fixed from
+  it: Return on a Browse item placed an uninstalled provider (now it asks
+  to install; a test holds it), the consent panel's lost space, and Edit
+  widgets in edit mode's gap menu. B124–B130 recorded; `shell.md`'s and
+  `platform.md`'s points settled; the roadmap, state and plan's outcome
+  follow. The host run is the user's.
 - P17 17.15, measures: a release bench on a 3440×1440 headless output
   (`bench.rs` `dashboard_cost`): selection moves at p95 1.27 ms with the
   default layout and 1.98 ms with P1's full canvas, inside bar 5; 2.63 ms

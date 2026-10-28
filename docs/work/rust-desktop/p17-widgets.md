@@ -518,3 +518,29 @@ than the `git` CLI (choice 22), with nothing checked out and no package
 dependency on `git`.
 
 ## Outcome
+
+Built 2026-10-28 in phases 17.0–17.15; 17.16's host run, part of done, is
+the user's, with what the VM did not walk listed in
+`docs/research/rust-desktop/p17-widgets.md`. B124–B130 record the
+decisions; ARCHITECTURE gains How widgets and providers run; `shell.md`'s
+and `platform.md`'s open points are settled. Differences from the plan:
+
+- **Two surfaces, not one** (choice 6): the plates moved behind to meet
+  bar 5 (B124).
+- **The grid's model is in `isle-shell`**, beside Mission Control's, not in
+  the compositor (choice 5).
+- **Built-ins' settings use the open section too** (choice 9), from forms
+  in `catalogue.rs`; System's series are its form's four choices, not a
+  larger editor panel.
+- **Storage reads the system's filesystems itself** (choice 14), leaving
+  `isle-disks` unchanged.
+- **`isle-provider-init` is a binary of `isle-providers`**, and gix sits
+  behind its `sources` feature, so Settings does not build it.
+- **Browse fetches each time it opens**, as P1 says, not only when stale.
+- **Tag release… is not built** (17.14): the user's to keep or cut to P20.
+- **Not yet**: the neighbours' `motion-move` flow and the drop's ease in
+  edit mode (cuts); the plates' scale on opening (the surfaces fade).
+
+The registry's providers are on its `isle-2-providers` branch, committed and
+not pushed.
+

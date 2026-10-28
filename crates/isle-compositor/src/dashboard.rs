@@ -808,6 +808,9 @@ impl Isle {
             return entries;
         }
         let Some(placed) = on.and_then(|id| open.layout.get(id)) else {
+            if open.edit {
+                return vec![item(MENU_CLOSE, "Close widgets")];
+            }
             return vec![item(MENU_EDIT, "Edit widgets"), item(MENU_CLOSE, "Close widgets")];
         };
         let name = self.widget_name(&placed.id);
@@ -2585,6 +2588,14 @@ impl State {
     /// Adds `kind` at its default size where a click puts it: the free place nearest the top
     /// centre, selected.
     pub fn gallery_add(&mut self, kind: &str) {
+        // A source's widget is installed first, through its panel; it is not placed.
+        if let Some((id, url)) = kind.split_once('@') {
+            let (id, url) = (id.to_owned(), url.to_owned());
+            return self.ask_install(&url, &id);
+        }
+        if catalogue::builtin(kind).is_none() && !self.isle.dashboard.providers.contains_key(kind) {
+            return;
+        }
         let preview = format!("{kind}#preview");
         let size = self.isle.widget_sizes(&preview).default;
         let taken: Vec<String> = self.isle.settings.widget.keys().cloned().collect();

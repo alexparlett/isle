@@ -556,3 +556,17 @@
   through gitoxide (`gix`), Isle's index as `providers.json` beside v1's with
   three example providers. Research in
   `docs/research/rust-desktop/widgets-2026.md`. Phases 17.0–17.16.
+- P17 is built (2026-10-28), host run pending, the user's: the widgets
+  dashboard as the compositor's, drawn as the lock is on two surfaces
+  (B124); twelve built-ins, `isle-sysinfo` shared with Monitor (B130),
+  weather fetched by Isle, the timer service; the grid editor and the
+  gallery; providers in bubblewrap with a bus proxy and a filtering
+  network proxy (B125), P1's grant rows as the permissions (B126), display
+  only (B127); sources through gitoxide with `providers.json` beside v1's
+  index (B128); the layout and widgets' settings in `settings.kdl` (B129);
+  Settings › Privacy & Security › Providers. Bar 5 met with the default
+  layout and P1's full canvas on 3440×1440. Walked in the VM by real input
+  (`docs/research/rust-desktop/p17-widgets.md`). Open: Tag release… (keep
+  or cut to P20), pushing the registry's `isle-2-providers` branch, and the
+  host run. Next: the host run, then P18.
+

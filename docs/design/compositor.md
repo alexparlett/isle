@@ -341,8 +341,8 @@ macos-model.md §2).
 3. Bindings match physical modifiers before translation.
 4. A chord bound twice is refused with a message naming both actions; the last good set stays in force.
 5. The switcher opens on Cmd+Tab and commits when Cmd is released, whatever was pressed in between.
-6. Media, volume and brightness keys work while locked and while a game is in front, and volume and brightness repeat.
-7. While a game is in front, only the escape set of desktop chords is live: Cmd+Tab, Mission Control, lock, and the screenshot chords (Shift+Cmd+3, 4 and 5, with or without Ctrl, and Cmd+Ctrl+Escape to stop a recording; P1 `capture.md`); every other chord goes to the game (B30).
+6. The dedicated media, volume and brightness keys act wherever focus is: locked, over a game, over a window holding the keys, and with any modifiers held; they never reach a window, volume and brightness repeat, and Option+Shift moves a level a quarter step (B121).
+7. While a game is in front, only the escape set of desktop chords is live, besides the media keys of 6: Cmd+Tab, Mission Control, lock, and the screenshot chords (Shift+Cmd+3, 4 and 5, with or without Ctrl, and Cmd+Ctrl+Escape to stop a recording; P1 `capture.md`); every other chord goes to the game (B30).
 8. Escape closes an open shell overlay and is consumed only then.
 9. Bound actions run in the compositor; only app launches start a process.
 
@@ -355,7 +355,7 @@ macos-model.md §2).
 A VM or remote desktop with focus gets every key, including Cmd chords; keys
 Isle types on the user's behalf reach the right window untouched.
 
-1. While a focused surface holds a keyboard-shortcuts inhibitor (or an X11 client an xwayland-keyboard-grab), all keys pass untranslated and desktop chords are off, except one escape chord that is never inhibited; the user is shown that it is active, and it ends when focus leaves.
+1. While a focused surface holds a keyboard-shortcuts inhibitor (or an X11 client an xwayland-keyboard-grab), all keys pass untranslated and desktop chords are off, except one escape chord that is never inhibited and the media keys (B121); the user is shown that it is active, and it ends when focus leaves.
 2. Keys from Isle (on-screen keyboard, emoji typing, paste into the previous window) enter as their own source, untranslated, aimed at a named window; paste sends that window's own paste chord (Ctrl+Shift+V in a terminal).
 3. Third-party clients may inject through virtual-keyboard and wlr-virtual-pointer (wlrctl, wtype, an agent driving the desktop). A virtual keyboard is one of Isle's keyboards: its keys take the chords and reach Spotlight, in its own keymap while it types and Isle's after; one in the seat's keymap is translated like any keyboard, one with its own keymap is not. None reaches the lock and Slow Keys does not slow it. Modifiers it sets as masks rather than keys reach the app but no chord. A virtual pointer takes the same path as a device.
 

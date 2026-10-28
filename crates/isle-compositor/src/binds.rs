@@ -55,6 +55,8 @@ pub enum Action {
     NextLayout,
     Redetect,
     Media(Media),
+    /// A level key with Option+Shift: a quarter of its step.
+    FineLevel(Media),
     TakeKeysBack,
     ControlCentre,
     NotificationCentre,
@@ -273,6 +275,28 @@ impl Bindings {
             }
             return Some(bound(action_for(shortcut.id), Some(shortcut)));
         }
+        // A media key acts whatever is held; Option+Shift makes a level key's step fine (B121).
+        if isle_keys::chord::is_media_key(chord.sym)
+            && let Some(shortcut) = self.chords.get(&Chord::new(Mods::NONE, chord.sym))
+            && shortcut.media
+        {
+            let fine = chord.mods
+                == Mods {
+                    option: true,
+                    shift: true,
+                    ..Mods::NONE
+                };
+            let action = match action_for(shortcut.id) {
+                Action::Media(
+                    level @ (Media::VolumeUp
+                    | Media::VolumeDown
+                    | Media::BrightnessUp
+                    | Media::BrightnessDown),
+                ) if fine => Action::FineLevel(level),
+                action => action,
+            };
+            return Some(bound(action, Some(shortcut)));
+        }
         if !self.jump.is_empty() && chord.mods == self.jump {
             let digit = (keysyms::KEY_1..=keysyms::KEY_9).contains(&raw);
             if digit {
@@ -288,6 +312,17 @@ impl State {
     pub fn run_shortcut(&mut self, id: &str) {
         if let Some(shortcut) = isle_keys::shortcuts::find(id) {
             self.run_action(action_for(shortcut.id));
+        }
+    }
+
+    fn media_pressed(&mut self, media: Media, fine: bool) {
+        match media {
+            Media::VolumeUp | Media::VolumeDown | Media::Mute | Media::MicMute => {
+                self.audio_key(media, fine)
+            }
+            Media::BrightnessUp => self.brightness_key(true, fine),
+            Media::BrightnessDown => self.brightness_key(false, fine),
+            Media::PlayPause | Media::Next | Media::Previous => self.media_key(media),
         }
     }
 
@@ -361,14 +396,8 @@ impl State {
             Action::SwitchVt(vt) => self.switch_vt(vt),
             Action::NextLayout => self.next_layout(),
             Action::Redetect => self.redetect(),
-            Action::Media(
-                media @ (Media::VolumeUp | Media::VolumeDown | Media::Mute | Media::MicMute),
-            ) => self.audio_key(media),
-            Action::Media(Media::BrightnessUp) => self.brightness_key(true),
-            Action::Media(Media::BrightnessDown) => self.brightness_key(false),
-            Action::Media(media @ (Media::PlayPause | Media::Next | Media::Previous)) => {
-                self.media_key(media)
-            }
+            Action::Media(media) => self.media_pressed(media, false),
+            Action::FineLevel(media) => self.media_pressed(media, true),
             Action::TakeKeysBack => self.toggle_keys_back(),
             Action::ControlCentre => self.control_centre_chord(),
             Action::NotificationCentre => self.open_notification_centre(None),

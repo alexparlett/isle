@@ -249,6 +249,7 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   (B46), for a window holding the keys (keyboard-shortcuts-inhibit or an
   Xwayland grab, until Cmd+Escape) and for an untranslated app; over a game
   only the escape set acts, over a window holding the keys only Cmd+Escape.
+  The dedicated media keys act everywhere and whatever is held (B121).
 - **Focus.** Every change of keyboard focus goes through one function that
   releases what the old focus holds and sends the new one the modifiers
   still meant, so no modifier sticks across Cmd+Tab, Cmd+W or a dialog.

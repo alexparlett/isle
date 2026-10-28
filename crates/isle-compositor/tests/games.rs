@@ -17,6 +17,7 @@ const ESCAPE: u32 = 1;
 const C: u32 = 46;
 const H: u32 = 35;
 const K: u32 = 37;
+const VOLUME_UP: u32 = 115;
 
 async fn chord(isle: &Isle, mods: &[u32], key: u32) {
     let test = isle.test().await;
@@ -232,6 +233,52 @@ async fn a_window_holding_the_keys_gets_them_until_cmd_escape() {
         .await
         .unwrap();
     vm.wait_for("inhibitor active").await;
+}
+
+/// Volume up acts on its own, with Shift held and as Option+Shift's fine step, and `client`
+/// sees none of it but Shift (B121).
+async fn volume_acts(isle: &Isle, client: &Client) {
+    let runs = |log: &str, action: &str| log.matches(action).count();
+    let before = runs(&isle.log(), "Media(VolumeUp)");
+    let fine = runs(&isle.log(), "FineLevel(VolumeUp)");
+    client.clear();
+    chord(isle, &[], VOLUME_UP).await;
+    chord(isle, &[SHIFT], VOLUME_UP).await;
+    chord(isle, &[OPTION, SHIFT], VOLUME_UP).await;
+    chord(isle, &[], K).await;
+    client.wait_for(&format!("key {K} released")).await;
+    wait_until(|| async {
+        runs(&isle.log(), "Media(VolumeUp)") == before + 2
+            && runs(&isle.log(), "FineLevel(VolumeUp)") == fine + 1
+    })
+    .await;
+    assert!(
+        !client.printed_part(&format!("key {VOLUME_UP} ")),
+        "the key never reaches the window"
+    );
+    assert!(
+        client.printed(&format!("key {SHIFT} pressed")),
+        "Shift is still the window's"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_media_keys_act_over_a_game() {
+    let mut isle = Isle::start("games-media").await;
+    let game = isle.client("steam_app_1", "3366ff");
+    game.wait_for("keyboard-enter").await;
+    game_window(&isle, "steam_app_1").await;
+    volume_acts(&isle, &game).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_media_keys_act_over_a_window_holding_the_keys() {
+    let mut isle = Isle::start("inhibit-media").await;
+    let vm = isle.client("isle.test.Vm", "3366ff");
+    vm.wait_for("keyboard-enter").await;
+    vm.send("inhibit");
+    vm.wait_for("inhibitor active").await;
+    volume_acts(&isle, &vm).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

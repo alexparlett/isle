@@ -624,6 +624,10 @@ impl State {
                 return (!inhibited && !game || matches!(bound.action, Action::SwitchVt(_)))
                     .then_some(bound);
             };
+            // The media keys are not input: no game or inhibitor keeps them (B121).
+            if shortcut.media && isle_keys::chord::is_media_key(chord.sym) {
+                return Some(bound);
+            }
             let escape = shortcut.id == "take-keys-back";
             match (inhibited, game) {
                 (false, false) => Some(bound),

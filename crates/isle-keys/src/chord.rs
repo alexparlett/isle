@@ -94,6 +94,24 @@ const ALIASES: &[(&str, u32)] = &[
 /// Keys with no character and no plain keysym name, written in words of their own.
 const NAMED: &[(&str, u32)] = &[("Mission Control key", keysyms::KEY_XF86LaunchA)];
 
+/// The keyboard's dedicated media keys, which act wherever focus is (B121).
+const MEDIA: &[u32] = &[
+    keysyms::KEY_XF86AudioRaiseVolume,
+    keysyms::KEY_XF86AudioLowerVolume,
+    keysyms::KEY_XF86AudioMute,
+    keysyms::KEY_XF86AudioMicMute,
+    keysyms::KEY_XF86MonBrightnessUp,
+    keysyms::KEY_XF86MonBrightnessDown,
+    keysyms::KEY_XF86AudioPlay,
+    keysyms::KEY_XF86AudioPause,
+    keysyms::KEY_XF86AudioNext,
+    keysyms::KEY_XF86AudioPrev,
+];
+
+pub fn is_media_key(sym: Keysym) -> bool {
+    MEDIA.contains(&sym.raw())
+}
+
 fn key_from_name(name: &str) -> Option<Keysym> {
     if let Some((_, sym)) = NAMED.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)) {
         return Some(Keysym::from(*sym));

@@ -211,8 +211,9 @@ impl Isle {
 }
 
 impl State {
-    /// The brightness keys: the main screen's brightness by a step, with its OSD there.
-    pub fn brightness_key(&mut self, up: bool) {
+    /// The brightness keys: the main screen's brightness by a step, or a quarter of one when
+    /// `fine`, with its OSD there.
+    pub fn brightness_key(&mut self, up: bool, fine: bool) {
         let Some(output) = self.isle.main_output() else {
             return;
         };
@@ -226,7 +227,8 @@ impl State {
         else {
             return;
         };
-        let level = (level + if up { STEP } else { -STEP }).clamp(0.0, 1.0);
+        let step = if fine { STEP / 4.0 } else { STEP };
+        let level = (level + if up { step } else { -step }).clamp(0.0, 1.0);
         self.isle.set_brightness(&connector, level);
         let symbol = if level < 0.5 { "sun-dim" } else { "sun" };
         let name = monitor_name(&output);

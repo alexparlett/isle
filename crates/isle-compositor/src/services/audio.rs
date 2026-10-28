@@ -39,8 +39,8 @@ impl State {
         self.isle.services_changed();
     }
 
-    /// The volume, mute and microphone keys.
-    pub fn audio_key(&mut self, key: crate::binds::Media) {
+    /// The volume, mute and microphone keys; `fine` moves the volume a quarter step.
+    pub fn audio_key(&mut self, key: crate::binds::Media, fine: bool) {
         use crate::binds::Media;
         let audio = &self.isle.services.audio.state;
         let target = match key {
@@ -50,9 +50,10 @@ impl State {
         let Some(device) = target.cloned() else {
             return;
         };
+        let step = if fine { STEP / 4.0 } else { STEP };
         let (volume, mute) = match key {
-            Media::VolumeUp => (Some((device.volume + STEP).min(1.0)), Some(false)),
-            Media::VolumeDown => (Some((device.volume - STEP).max(0.0)), None),
+            Media::VolumeUp => (Some((device.volume + step).min(1.0)), Some(false)),
+            Media::VolumeDown => (Some((device.volume - step).max(0.0)), None),
             Media::Mute | Media::MicMute => (None, Some(!device.muted)),
             _ => return,
         };

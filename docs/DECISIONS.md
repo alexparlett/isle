@@ -1298,3 +1298,19 @@ All Applications, rather than on every app. v1's other keys are kept as
 second chords (`isle_app::Command::also`). Rejected: Alt arrows in Icons
 only (one key meaning two things by view), and Ctrl+digits taken back from
 the desktops while Files is in front.
+
+**B121 · The media keys are not input.** Decided by the user at its board
+(`Isle Media Keys`, 2026-10-28), after volume did nothing over a game.
+The dedicated volume, mute, microphone, brightness and play, next and
+previous keys act on Isle wherever focus is: over a game with or without
+its grab, over a window holding the keys, locked and with an overlay open.
+They act whatever modifiers are held, so Shift or Ctrl held in a game does
+not stop them, and never reach a window. Option+Shift moves a level a
+quarter step, as macOS; Option alone is ignored like the rest rather than
+opening Sound settings, which would take focus from a game. A chord bound to a media action is a chord and follows B30
+and B46; only the dedicated keys are exempt. The OSD shows over full
+screen as built, at the cost of direct scanout while it shows. Narrows B30
+and B46. Rejected: the keys going to a window holding the keys until
+Cmd+Escape (macOS keeps them on the Mac under Screen Sharing and
+Parallels), and every chord bound to a media action acting over a game (a
+bound F-key would take a game's key).

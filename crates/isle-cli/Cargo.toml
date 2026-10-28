@@ -13,6 +13,7 @@ path = "src/main.rs"
 clap.workspace = true
 humantime.workspace = true
 isle-ipc.workspace = true
+isle-providers.workspace = true
 isle-settings.workspace = true
 isle-state.workspace = true
 libc.workspace = true

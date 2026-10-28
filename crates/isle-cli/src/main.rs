@@ -441,6 +441,19 @@ enum Widgets {
         edit: bool,
     },
     Close,
+    /// Check a provider's widget.json and say what is wrong with it.
+    Check { folder: std::path::PathBuf },
+    /// Run a provider once, sandboxed, with every permission it declares, and print its
+    /// answer and any host it was refused.
+    Run {
+        folder: std::path::PathBuf,
+        /// The size to tell it, as `2x1`; its default when left out.
+        #[arg(long)]
+        size: Option<String>,
+        /// Grant nothing, to see what it does without its permissions.
+        #[arg(long)]
+        no_grants: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -490,6 +503,13 @@ async fn main() -> ExitCode {
     } = &cli.command
     {
         return setup::run(*check, *undo, as_root);
+    }
+    match &cli.command {
+        Command::Widgets(Widgets::Check { folder }) => return widget_check(folder, cli.json),
+        Command::Widgets(Widgets::Run { folder, size, no_grants }) => {
+            return widget_run(folder, size.as_deref(), *no_grants, cli.json).await;
+        }
+        _ => {}
     }
     match run(&cli).await {
         Ok(()) => ExitCode::SUCCESS,
@@ -1136,6 +1156,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
         Command::Widgets(Widgets::Close) => {
             ShellProxy::new(&bus).await?.widgets("close").await?;
         }
+        Command::Widgets(Widgets::Check { .. } | Widgets::Run { .. }) => {}
         Command::Spotlight { how } => {
             let open = ShellProxy::new(&bus).await?.spotlight(how).await?;
             if cli.json {
@@ -1418,4 +1439,83 @@ async fn mark_game(bus: &zbus::Connection, app: &str, mark: &str) -> zbus::Resul
         proxy.set(key, &zvariant::Value::from(apps)).await?;
     }
     Ok(())
+}
+
+/// `isle widgets check`: the manifest's problems, or that it has none.
+fn widget_check(folder: &std::path::Path, json: bool) -> ExitCode {
+    let problems = match isle_providers::Manifest::load(folder) {
+        Ok(_) => Vec::new(),
+        Err(problems) => problems,
+    };
+    if json {
+        print_json(&problems);
+    } else if problems.is_empty() {
+        println!("{} is ready.", folder.display());
+    } else {
+        for p in &problems {
+            println!("{p}");
+        }
+    }
+    if problems.is_empty() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+}
+
+/// `isle widgets run`: one run in the sandbox, as the dashboard would run it.
+async fn widget_run(folder: &std::path::Path, size: Option<&str>, no_grants: bool, json: bool) -> ExitCode {
+    let manifest = match isle_providers::Manifest::load(folder) {
+        Ok(m) => m,
+        Err(problems) => {
+            for p in problems {
+                eprintln!("{p}");
+            }
+            return ExitCode::FAILURE;
+        }
+    };
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, std::path::PathBuf::from);
+    let state = std::env::var_os("XDG_STATE_HOME").map_or_else(
+        || std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local/state"),
+        std::path::PathBuf::from,
+    );
+    let runner = isle_providers::run::Runner::new(
+        runtime.join("isle/providers"),
+        state.join("isle/providers"),
+    );
+    let granted = if no_grants { Vec::new() } else { manifest.declared() };
+    let input = serde_json::json!({
+        "size": size.unwrap_or(&manifest.default),
+        "settings": {},
+        "instance": format!("{}#1", manifest.id),
+    })
+    .to_string();
+    let outcome = if manifest.stream {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        let run = runner.stream(&manifest, folder, &granted, &input, tx);
+        tokio::pin!(run);
+        // A stream's first answer is what it shows; it is stopped after that.
+        tokio::select! {
+            outcome = &mut run => outcome,
+            first = rx.recv() => isle_providers::run::Outcome {
+                answer: first.unwrap_or(Err("It ended without answering".into())),
+                denied: Vec::new(),
+            },
+        }
+    } else {
+        runner.once(&manifest, folder, &granted, &input).await
+    };
+    for host in &outcome.denied {
+        eprintln!("refused: a connection to {host}, which it was not granted");
+    }
+    match outcome.answer {
+        Ok(data) => {
+            if json {
+                print_json(&data);
+            } else {
+                println!("{}", serde_json::to_string_pretty(&data).unwrap_or_default());
+            }
+            ExitCode::SUCCESS
+        }
+        Err(reason) => {
+            eprintln!("{reason}");
+            ExitCode::FAILURE
+        }
+    }
 }

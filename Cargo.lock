@@ -3386,6 +3386,7 @@ dependencies = [
  "clap",
  "humantime",
  "isle-ipc",
+ "isle-providers",
  "isle-settings",
  "isle-state",
  "libc",
@@ -3681,6 +3682,17 @@ dependencies = [
  "tracing",
  "zbus",
  "zeroize",
+]
+
+[[package]]
+name = "isle-providers"
+version = "0.1.0"
+dependencies = [
+ "rustix 1.1.5",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

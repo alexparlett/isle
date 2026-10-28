@@ -298,7 +298,8 @@ run nothing at all while closed.
 crates/
   isle-providers/         the manifest, templates, sandbox, runner, grants,
                           the network proxy (new)
-  isle-provider-init/     the sandbox's first process: relay, child (new)
+                          and `isle-provider-init`, its binary: the
+                          sandbox's first process, relay and child
   isle-sysinfo/           the sampler (new; Monitor's in P19)
   isle-compositor/src/
     dashboard/            the model, the grid, keys, drag, undo (new)

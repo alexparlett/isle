@@ -2,6 +2,26 @@
 
 ## 2026-10-28
 
+- P17 17.7, the runner and the sandbox: `isle-providers`. The manifest
+  (`widget.json`, v1's without QML: id, name, version, sizes in cells,
+  template, `exec` or `script`, an interval of five seconds or more or
+  `stream`, permissions, settings) with its problems in an author's words;
+  the seven templates' answers read from JSON, numbers as numbers or text;
+  grants as `kind:target` with their rows' words and glyphs. A run is
+  `bwrap --unshare-all` with `/usr` read only and `/usr/bin` holding `sh`,
+  `env`, python3 for a script and the commands granted; the folder read
+  only, its own state folder as HOME, granted paths bound, Isle's own
+  config, state and data hidden under a tmpfs inside any folder granted
+  around them and never granted themselves; buses through
+  `xdg-dbus-proxy --filter --talk`; hosts through a filtering HTTP and
+  CONNECT proxy on a Unix socket, reached from loopback by
+  `isle-provider-init` (a binary of the crate, the sandbox's first
+  process), refused hosts named. Settings, size and instance arrive on
+  stdin; a run's time limit (20 s), answer cap (64 KB) and a 1 GiB data
+  limit; failure is stderr's last line. Streams send an answer a line.
+  `isle widgets check` and `isle widgets run` (every declared permission,
+  or `--no-grants`); a Python provider runs end to end. Six sandbox tests
+  proving each grant allowed and denied, and unit tests.
 - P17 17.6, built-ins on new data: `isle-sysinfo` (CPU and cores from
   `/proc/stat`, memory, network without loopback, uptime, the CPU's
   hwmon temperature, the GPU through NVML loaded at run time or an

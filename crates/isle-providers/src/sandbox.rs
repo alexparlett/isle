@@ -147,6 +147,8 @@ pub fn args(plan: &Plan) -> Vec<String> {
     for (k, v) in [
         ("PATH", "/usr/bin".to_owned()),
         ("HOME", plan.state.to_string_lossy().into_owned()),
+        // Where `~` in its grants points, since HOME is its own folder.
+        ("ISLE_USER_HOME", plan.home.to_string_lossy().into_owned()),
         ("LANG", lang),
         ("TMPDIR", "/tmp".to_owned()),
     ] {

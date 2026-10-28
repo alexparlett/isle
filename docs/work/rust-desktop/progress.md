@@ -2,6 +2,17 @@
 
 ## 2026-10-28
 
+- P17 17.12, the registry: in `~/Development/isle-widgets`, on its
+  `isle-2-providers` branch (committed, not pushed): `providers.json`
+  beside v1's untouched `index.json`, and three providers under
+  `providers/`, each with README and CHANGELOG: Moon (a number, nothing
+  granted), Hacker News (a list through the proxy, `connect`
+  hacker-news.firebaseio.com, a Stories setting) and Repositories (a list
+  of `~/Development`'s repositories, `read` it and `run` git). The
+  README gains the provider contract for authors. All three run sandboxed
+  through `isle widgets run`, Hacker News against the real API. The
+  sandbox gains `ISLE_USER_HOME`, where `~` in a grant points, since HOME
+  is the provider's own folder. Phosphor's `git-branch` vendored.
 - P17 17.11, grants: Settings › Privacy & Security › Providers lists
   every provider on disk by name and kind, each a page with what it runs,
   its source and that source's allow switch, and a switch per declared

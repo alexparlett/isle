@@ -5,7 +5,7 @@ use std::{path::PathBuf, rc::Rc};
 
 use freya::prelude::*;
 use isle_app::{Desktop, use_commands};
-use isle_fs::jobs::{Step, Undo, Work};
+use isle_fs::jobs::{Undo, Work};
 use isle_ui::{colour, text, use_theme};
 
 use crate::{
@@ -113,13 +113,17 @@ impl App for FilesWindow {
         let path_bar = use_state(|| false);
         let status_bar = use_state(|| false);
         let options = use_state(|| false);
-        let mut undo_stack = use_state(Vec::<(String, Vec<Step>)>::new);
+        let mut history = use_state(crate::jobs::History::default);
         let mut alert = use_state(|| None::<Alert>);
         let jobs = shared.jobs;
         let mut renaming = use_state(|| None::<PathBuf>);
         let mut rename_text = use_state(String::new);
         let mut rename_error = use_state(|| None::<String>);
         let mut rename_many = use_state(|| None::<Vec<PathBuf>>);
+        // Go to Folder's sheet, with what its field starts with.
+        let mut going = use_state(|| None::<String>);
+        let layout = use_state(crate::keys::Layout::default);
+        let typed = use_state(crate::keys::Typed::default);
         let mut drop_target = use_state(|| None::<PathBuf>);
         let mut press = use_state(|| None::<(PathBuf, f64, f64)>);
         let mut drag_started = use_state(|| false);
@@ -167,7 +171,7 @@ impl App for FilesWindow {
         let Some(handle) = tabs.read().get(at).cloned() else {
             return rect().into_element();
         };
-        let mut tab = handle.tab;
+        let tab = handle.tab;
 
         // Hidden files follow the app's toggle in every tab.
         use_side_effect({
@@ -298,10 +302,10 @@ impl App for FilesWindow {
             for f in mine {
                 match &f.report.undo {
                     Some(Undo::Steps(steps)) if !steps.is_empty() => {
-                        undo_stack.write().push((f.undo_label.clone(), steps.clone()))
+                        history.write().record(f.doing, f.undo_label.clone(), steps.clone())
                     }
                     // A step that replaced something ends the stack there.
-                    Some(Undo::CantUndo) => undo_stack.write().clear(),
+                    Some(Undo::CantUndo) => history.write().clear(),
                     _ => {}
                 }
                 if !f.report.failed.is_empty() {
@@ -420,12 +424,13 @@ impl App for FilesWindow {
             path_bar,
             status_bar,
             options,
-            undo_stack,
+            history,
             alert,
             renaming,
             rename_text,
             rename_error,
             rename_many,
+            going,
             open_with,
             unlocking,
             saving,
@@ -495,7 +500,25 @@ impl App for FilesWindow {
         let shared_keys = shared.clone();
         let on_key = move |e: Event<KeyboardEventData>| {
             let m = e.modifiers;
-            if m.intersects(Modifiers::META | Modifiers::CONTROL | Modifiers::ALT) || renaming.peek().is_some() || find.is_focused() {
+            // Escape ends a rename whose field has lost the keys.
+            if e.key == Key::Named(NamedKey::Escape) && renaming.peek().is_some() {
+                renaming.set(None);
+                rename_error.set(None);
+                return;
+            }
+            if m.intersects(Modifiers::META | Modifiers::CONTROL) || renaming.peek().is_some() || find.is_focused() {
+                return;
+            }
+            if going.peek().is_some() {
+                return;
+            }
+            // / or ~ typed in a view opens Go to Folder with it.
+            if let Key::Character(c) = &e.key
+                && (c == "/" || c == "~")
+                && alert.peek().is_none()
+                && rename_many.peek().is_none()
+            {
+                going.set(Some(c.clone()));
                 return;
             }
             if e.key == Key::Named(NamedKey::Escape)
@@ -504,7 +527,7 @@ impl App for FilesWindow {
                 shared_keys.close_quick_look();
                 return;
             }
-            if e.key == Key::Character(" ".into()) {
+            if e.key == Key::Character(" ".into()) && !typed.peek().going(std::time::Instant::now()) {
                 let selection = tab.peek().selection.clone();
                 shared_keys.toggle_quick_look(selection, 0, crate::quicklook::Caller::Window(key));
                 return;
@@ -518,31 +541,29 @@ impl App for FilesWindow {
                 start_rename(selection, renaming, rename_text, rename_error, rename_many);
                 return;
             }
-            let step: isize = match e.key {
-                Key::Named(NamedKey::ArrowUp) => -1,
-                Key::Named(NamedKey::ArrowDown) => 1,
-                _ => return,
-            };
-            let mut t = tab.write();
-            let len = t.folder.len();
-            if len == 0 {
-                return;
-            }
-            let from = t.cursor.as_deref().and_then(|c| t.folder.position(c));
-            let to = match from {
-                Some(i) => (i as isize + step).clamp(0, len as isize - 1) as usize,
-                None if step > 0 => 0,
-                None => len - 1,
-            };
-            let path = t.folder.entries()[to].path.clone();
-            if m.contains(Modifiers::SHIFT) {
-                if !t.is_selected(&path) {
-                    t.selection.push(path.clone());
+            // In Columns ← goes back a column, the folder chosen, and → into the folder chosen.
+            if tab.peek().shown.view == View::Columns && !m.contains(Modifiers::SHIFT) {
+                let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+                let (place, chosen) = {
+                    let t = tab.peek();
+                    let chosen = (t.selection.len() == 1).then(|| t.folder.get(&t.selection[0]).cloned()).flatten();
+                    (t.place.folder().map(PathBuf::from), chosen)
+                };
+                match (&e.key, place, chosen) {
+                    (Key::Named(NamedKey::ArrowLeft), Some(folder), _) => {
+                        if let Some(up) = folder.parent() {
+                            tab::go(handle.tab, &handle.live, Place::Folder(up.to_owned()), Some(folder.clone()));
+                        }
+                        return;
+                    }
+                    (Key::Named(NamedKey::ArrowRight), _, Some(entry)) if entry.is_dir() => {
+                        tab::go(handle.tab, &handle.live, Place::Folder(entry.path), None);
+                        return;
+                    }
+                    _ => {}
                 }
-                t.cursor = Some(path);
-            } else {
-                t.select_only(path);
             }
+            crate::keys::act(tab, &e, *layout.peek(), typed);
         };
 
         // Made once, so the rows they reach stay equal while a name is typed: a new handler
@@ -588,6 +609,7 @@ impl App for FilesWindow {
             drop_target,
             press,
             chooses: None,
+            layout,
         };
         let body = content(&theme, &handle, rev, focused, on_pick, interact.clone());
         // A question goes to the window that started its job, or to the front one when that
@@ -831,7 +853,7 @@ impl App for FilesWindow {
                         proxy: tab.read().here.clone(),
                         on_act: EventHandler::new(on_act),
                     })
-                    .maybe_child((tabs.read().len() > 1).then(|| {
+                    .maybe_child((tabs.read().len() > 1 || *shared.tab_bar.read()).then(|| {
                         TabBar {
                             titles: tabs.read().iter().map(|h| h.tab.read().place.title()).collect(),
                             current: at,
@@ -924,6 +946,27 @@ impl App for FilesWindow {
                         }
                         if let Some(bus) = shared.app().bus() {
                             spawn(crate::open::launch(bus, app, vec![isle_thumbnail::uri(&path)]));
+                        }
+                    }),
+                }
+                .into_element()
+            }))
+            .maybe_child(going.read().clone().map(|start| {
+                let from = tab.peek().place.folder().map(PathBuf::from);
+                crate::go_to::GoToFolder {
+                    start,
+                    from,
+                    recent: shared.recent_folders(),
+                    on_done: EventHandler::new(move |to: Option<PathBuf>| {
+                        going.set(None);
+                        let Some(to) = to else { return };
+                        let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+                        match (to.is_dir(), to.parent()) {
+                            (true, _) => tab::go(handle.tab, &handle.live, Place::Folder(to), None),
+                            (false, Some(folder)) => {
+                                tab::go(handle.tab, &handle.live, Place::Folder(folder.to_owned()), Some(to.clone()))
+                            }
+                            (false, None) => {}
                         }
                     }),
                 }

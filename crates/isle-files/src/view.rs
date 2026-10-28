@@ -138,6 +138,20 @@ pub fn lines(entries: &[Entry], group: Option<GroupBy>, now: i64) -> Vec<Line> {
         .collect()
 }
 
+/// The folder's indexes in the order a view shows them, groups gathered.
+pub fn order(entries: &[Entry], group: Option<GroupBy>) -> Vec<usize> {
+    match group {
+        None => (0..entries.len()).collect(),
+        Some(_) => lines(entries, group, jiff::Timestamp::now().as_second())
+            .into_iter()
+            .filter_map(|l| match l {
+                Line::Item { index, .. } => Some(index),
+                Line::Heading(_) => None,
+            })
+            .collect(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

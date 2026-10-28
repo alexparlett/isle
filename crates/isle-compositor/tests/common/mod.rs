@@ -58,6 +58,11 @@ impl Client {
         self.lines.lock().unwrap().iter().any(|l| l.contains(part))
     }
 
+    /// The lines so far that hold `part`.
+    pub fn lines_with(&self, part: &str) -> Vec<String> {
+        self.lines.lock().unwrap().iter().filter(|l| l.contains(part)).cloned().collect()
+    }
+
     /// Forgets what the client printed so far, so a later wait sees only what follows.
     pub fn clear(&self) {
         self.lines.lock().unwrap().clear();

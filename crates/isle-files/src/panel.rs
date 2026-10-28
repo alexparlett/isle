@@ -295,11 +295,18 @@ impl App for PanelWindow {
             }
         });
 
+        let layout = use_state(crate::keys::Layout::default);
+        let typed = use_state(crate::keys::Typed::default);
+        let opening = ask.kind == Kind::Open;
         let on_key = {
             let (accept, cancel) = (accept.clone(), cancel.clone());
             move |e: Event<KeyboardEventData>| match e.key {
                 Key::Named(NamedKey::Escape) if replacing.peek().is_none() => cancel(),
                 Key::Named(NamedKey::Enter) if replacing.peek().is_none() => accept(),
+                // Save's name field has the keys; Open's list takes them.
+                _ if opening && replacing.peek().is_none() => {
+                    crate::keys::act(tab, &e, *layout.peek(), typed);
+                }
                 _ => {}
             }
         };
@@ -311,6 +318,7 @@ impl App for PanelWindow {
             drop_target,
             press,
             chooses: Some(chooses.clone()),
+            layout,
         };
         let focused = *Platform::get().is_app_focused.read();
         let rev = tab.read().rev;

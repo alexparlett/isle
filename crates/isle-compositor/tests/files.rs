@@ -1239,3 +1239,81 @@ async fn a_band_selects_new_items_are_named_in_place_and_middle_and_option_click
     wait_until(|| async { home.join("Documents/untitled folder").exists() }).await;
     assert!(!app.printed_part("panicked"));
 }
+
+const KEY_T: u32 = 20;
+const KEY_G: u32 = 34;
+const TAB: u32 = 15;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn tabs_go_to_folder_typing_and_redo_by_keys() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-keys").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+
+    // A second tab on Documents; ⌃Tab and ⌃⇧Tab move between them, New Folder in each.
+    isle.chord(&[SUPER, KEY_T]).await;
+    pause(400).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    pause(400).await;
+    isle.chord(&[CTRL, TAB]).await;
+    pause(300).await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("untitled folder").exists() }).await;
+    isle.chord(&[ESC]).await;
+    isle.chord(&[CTRL, SHIFT, TAB]).await;
+    pause(300).await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Documents/untitled folder").exists() }).await;
+    isle.chord(&[ESC]).await;
+
+    // ⌘W closes the Documents tab; Go to Folder completes "pic" with Tab and goes there.
+    isle.chord(&[SUPER, KEY_W]).await;
+    pause(400).await;
+    assert_eq!(isle.windows().await.into_iter().filter(|w| w.app_id == APP).count(), 1);
+    isle.chord(&[SUPER, SHIFT, KEY_G]).await;
+    pause(400).await;
+    type_text(&isle, "pic").await;
+    pause(400).await;
+    isle.chord(&[TAB]).await;
+    pause(200).await;
+    isle.keep_shot("files-go-to-folder").await;
+    isle.chord(&[ENTER]).await;
+    pause(400).await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    wait_until(|| async { home.join("Pictures/untitled folder").exists() }).await;
+    isle.chord(&[ESC]).await;
+
+    // Home: typing "to" selects todo.txt, ⌥↑ the first item; ⌘⌫, ⌘Z and ⇧⌘Z trash it again.
+    isle.chord(&[SUPER, SHIFT, KEY_H]).await;
+    pause(500).await;
+    type_text(&isle, "to").await;
+    pause(200).await;
+    isle.chord(&[SUPER, BACKSPACE]).await;
+    wait_until(|| async { !home.join("todo.txt").exists() }).await;
+    pause(300).await;
+    isle.chord(&[SUPER, KEY_Z]).await;
+    wait_until(|| async { home.join("todo.txt").exists() }).await;
+    pause(300).await;
+    isle.chord(&[SUPER, SHIFT, KEY_Z]).await;
+    wait_until(|| async { !home.join("todo.txt").exists() }).await;
+    pause(300).await;
+    isle.chord(&[ALT, UP]).await;
+    pause(200).await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    pause(400).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async { home.join("Documents/Development").is_dir() }).await;
+
+    // ⌘W with one tab closes the window.
+    isle.chord(&[SUPER, KEY_W]).await;
+    wait_until(|| async { !isle.windows().await.into_iter().any(|w| w.app_id == APP) }).await;
+    assert!(!app.printed_part("panicked"));
+}

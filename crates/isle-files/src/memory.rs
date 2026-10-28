@@ -32,6 +32,12 @@ pub struct Memory {
     /// Hidden files shown (View › Show Hidden Files).
     #[serde(default)]
     pub hidden: bool,
+    /// The tab bar shown with one tab (View › Show Tab Bar).
+    #[serde(default)]
+    pub tab_bar: bool,
+    /// Folders gone to, the latest first (Go › Recent Folders).
+    #[serde(default)]
+    pub recent_folders: Vec<std::path::PathBuf>,
 }
 
 /// What a panel keeps for one app.

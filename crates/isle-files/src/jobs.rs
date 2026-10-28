@@ -65,6 +65,41 @@ impl PartialEq for Question {
     }
 }
 
+/// Whether a job does something new or undoes or redoes an earlier one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Doing {
+    New,
+    Undo,
+    Redo,
+}
+
+/// A window's undo and redo, each with the name its menu item gives it.
+#[derive(Clone, Debug, Default)]
+pub struct History {
+    pub undo: Vec<(String, Vec<isle_fs::jobs::Step>)>,
+    pub redo: Vec<(String, Vec<isle_fs::jobs::Step>)>,
+}
+
+impl History {
+    /// A job's end: its steps go where they are taken back from next.
+    pub fn record(&mut self, doing: Doing, label: String, steps: Vec<isle_fs::jobs::Step>) {
+        match doing {
+            Doing::New => {
+                self.redo.clear();
+                self.undo.push((label, steps));
+            }
+            Doing::Undo => self.redo.push((label, steps)),
+            Doing::Redo => self.undo.push((label, steps)),
+        }
+    }
+
+    /// A step that replaced something ends both.
+    pub fn clear(&mut self) {
+        self.undo.clear();
+        self.redo.clear();
+    }
+}
+
 /// A job's end, for the window that started it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Finished {
@@ -73,6 +108,7 @@ pub struct Finished {
     pub verb: &'static str,
     /// The verb Undo names: "Move to Trash", "Copy of 3 Items".
     pub undo_label: String,
+    pub doing: Doing,
     pub report: Report,
 }
 
@@ -155,6 +191,11 @@ impl Jobs {
 
     /// Starts a job for `window`; it runs whatever windows close, holding the app open.
     pub fn start(self, app: &AppHandle, window: WindowKey, work: Work, title: String, undo_label: String) {
+        self.start_doing(app, window, work, title, undo_label, Doing::New);
+    }
+
+    /// As `start`, for a job that undoes or redoes `undo_label`.
+    pub fn start_doing(self, app: &AppHandle, window: WindowKey, work: Work, title: String, undo_label: String, doing: Doing) {
         let verb = verb(&work);
         let id = NEXT.with(|n| {
             n.set(n.get() + 1);
@@ -218,7 +259,7 @@ impl Jobs {
                         }
                         let undoable = matches!(&report.undo, Some(Undo::Steps(s)) if !s.is_empty());
                         if failed || undoable || report.undo == Some(Undo::CantUndo) {
-                            finished.write().push(Finished { window, verb, undo_label: undo_label.clone(), report });
+                            finished.write().push(Finished { window, verb, undo_label: undo_label.clone(), doing, report });
                         }
                         *ended.write() += 1;
                         if failed && let Some(shared) = crate::SHARED.with(|s| s.borrow().clone()) {

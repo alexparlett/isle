@@ -117,8 +117,10 @@ and shortcut. Polish comes after those, and is cuttable.
     folder before the last choice, the title and path bar follow, and a
     double-click in any column opens in that column's folder.
 11. **Close Tab ⌘W, Close Window ⇧⌘W** (`conventions.md:118`), Close All
-    ⌥⌘W, ⌃Tab and ⌃⇧Tab, Reopen Closed Tab ⇧⌘T; with one tab ⌘W closes the
-    window. `isle-app`'s default ⌘W becomes overridable by an app's table.
+    ⌥⌘W, ⌃Tab and ⌃⇧Tab, Show Tab Bar ⇧⌘T (the sheets' and Finder's; this
+    plan first had Reopen Closed Tab there, which no sheet asks for); with
+    one tab ⌘W closes the window. `isle-app`'s default ⌘W becomes
+    overridable by an app's table.
 12. **Go to Folder as a sheet** with a path field completing from the
     filesystem and Recent Folders under it, ⇧⌘G, and typing `/` or `~` in
     a view opening it with that character; the same sheet in the panels.

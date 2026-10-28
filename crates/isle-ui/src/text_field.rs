@@ -14,6 +14,7 @@ pub struct TextField {
     enabled: bool,
     on_submit: Option<EventHandler<String>>,
     on_escape: Option<EventHandler<()>>,
+    on_tab: Option<EventHandler<()>>,
     leading: Option<Element>,
     auto_focus: bool,
     select_all: bool,
@@ -32,6 +33,7 @@ impl TextField {
             enabled: true,
             on_submit: None,
             on_escape: None,
+            on_tab: None,
             leading: None,
             auto_focus: false,
             select_all: false,
@@ -56,6 +58,12 @@ impl TextField {
     /// Escape in the field.
     pub fn on_escape(mut self, f: impl Into<EventHandler<()>>) -> Self {
         self.on_escape = Some(f.into());
+        self
+    }
+
+    /// Tab in the field, which then keeps the focus: a path field completes.
+    pub fn on_tab(mut self, f: impl Into<EventHandler<()>>) -> Self {
+        self.on_tab = Some(f.into());
         self
     }
 
@@ -140,12 +148,20 @@ impl Component for TextField {
                 input = input.select_on_init(part);
             }
         }
-        if let Some(on_escape) = self.on_escape.clone() {
+        if self.on_escape.is_some() || self.on_tab.is_some() {
+            let (on_escape, on_tab) = (self.on_escape.clone(), self.on_tab.clone());
             input = input.on_pre_key_down(move |e: Event<KeyboardEventData>| {
-                if e.key == Key::Named(NamedKey::Escape) {
-                    on_escape.call(());
+                match (&e.key, &on_escape, &on_tab) {
+                    (Key::Named(NamedKey::Escape), Some(on_escape), _) => on_escape.call(()),
+                    (Key::Named(NamedKey::Tab), _, Some(on_tab)) => {
+                        e.stop_propagation();
+                        e.prevent_default();
+                        on_tab.call(());
+                        return false;
+                    }
+                    _ => {}
                 }
-                true
+                Input::key_down_default(e)
             });
         }
         rect().a11y_alt(self.alt.clone()).width(self.width.clone()).child(input)

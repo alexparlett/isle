@@ -6,7 +6,7 @@ use freya::prelude::*;
 use isle_app::{Chord, ChordKey, Command, Desktop, Menu};
 use isle_fs::{
     SortBy,
-    jobs::{Step, Work},
+    jobs::Work,
 };
 
 use crate::{
@@ -31,12 +31,13 @@ pub(crate) struct Win {
     pub path_bar: State<bool>,
     pub status_bar: State<bool>,
     pub options: State<bool>,
-    pub undo_stack: State<Vec<(String, Vec<Step>)>>,
+    pub history: State<crate::jobs::History>,
     pub alert: State<Option<Alert>>,
     pub renaming: State<Option<PathBuf>>,
     pub rename_text: State<String>,
     pub rename_error: State<Option<String>>,
     pub rename_many: State<Option<Vec<PathBuf>>>,
+    pub going: State<Option<String>>,
     pub open_with: State<Option<crate::open::Offer>>,
     pub unlocking: State<Option<(isle_disks::Volume, Option<String>)>>,
     pub saving: State<bool>,
@@ -46,7 +47,7 @@ pub(crate) struct Win {
 
 /// The commands as the window's state has them now: names, chords, enabled and checked.
 pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
-    let Win { tabs, current, places, sidebar, preview, path_bar, status_bar, undo_stack, renaming, find, .. } = win;
+    let Win { tabs, current, places, sidebar, preview, path_bar, status_bar, history, renaming, find, .. } = win;
     let at = (*current.read()).min(tabs.read().len().saturating_sub(1));
     let Some(handle) = tabs.read().get(at).cloned() else { return Vec::new() };
     let tab = handle.tab;
@@ -78,8 +79,27 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
             .flatten();
         (t.selection.len(), name)
     };
-    let undo_label = undo_stack.read().last().map(|(l, _)| format!("Undo {l}"));
+    let undo_label = history.read().undo.last().map(|(l, _)| format!("Undo {l}"));
+    let redo_label = history.read().redo.last().map(|(l, _)| format!("Redo {l}"));
     let can_make = place.folder().is_some() && !in_trash;
+    let tab_bar_shown = *shared.tab_bar.read() || tabs.read().len() > 1;
+    let (selected_alias, sidebar_target) = {
+        let t = tab.read();
+        let one = (t.selection.len() == 1).then(|| t.folder.get(&t.selection[0])).flatten();
+        let alias = one.is_some_and(|e| matches!(e.kind, isle_fs::Kind::Link { broken: false, .. }));
+        let folder = match one {
+            Some(e) if e.is_dir() => Some(e.path.clone()),
+            Some(_) => None,
+            None if t.selection.is_empty() => place.folder().map(PathBuf::from),
+            None => None,
+        };
+        (alias, folder)
+    };
+    let ejectable = ejectable(shared, &tab.read());
+    let eject_label = match &ejectable {
+        Some(v) => format!("Eject “{}”", v.label),
+        None => "Eject".to_owned(),
+    };
     let templates = if can_make { crate::places::templates() } else { Vec::new() };
     // With templates New file is a submenu: an empty file, then each template.
     let mut new_file = vec![
@@ -98,6 +118,9 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("undo", undo_label.clone().unwrap_or_else(|| "Undo".into()), Menu::Edit, 0)
             .chord(Chord::cmd('z'))
             .enabled(undo_label.is_some()),
+        Command::new("redo", redo_label.clone().unwrap_or_else(|| "Redo".into()), Menu::Edit, 0)
+            .chord(Chord::cmd('z').shift())
+            .enabled(redo_label.is_some()),
         Command::new("new-folder", "New Folder", Menu::File, 0)
             .chord(Chord::cmd('n').shift())
             .enabled(place.folder().is_some()),
@@ -144,6 +167,15 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         .enabled(has_selection),
         Command::new("open-with", "Open With…", Menu::File, 1).enabled(has_selection && !in_trash),
         Command::new("get-info", "Get Info", Menu::File, 2).chord(Chord::cmd('i')),
+        Command::new("show-original", "Show Original", Menu::File, 3)
+            .chord(Chord::cmd('r'))
+            .enabled(selected_alias),
+        Command::new("add-to-sidebar", "Add to Sidebar", Menu::File, 3)
+            .chord(Chord::cmd('t').ctrl())
+            .enabled(sidebar_target.is_some()),
+        Command::new("eject", eject_label, Menu::File, 3)
+            .chord(Chord::cmd('e'))
+            .enabled(ejectable.is_some()),
         Command::new("quick-look", "Quick Look", Menu::File, 2).chord(Chord::cmd('y')).enabled(has_selection),
         Command::new("summary", "Get Summary Info", Menu::File, 2)
             .chord(Chord::cmd('i').ctrl())
@@ -159,7 +191,20 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("open", "Open", Menu::File, 1)
             .chord(Chord::cmd('o'))
             .enabled(has_selection),
-        Command::new("close-tab", "Close Tab", Menu::File, 2).enabled(tabs.read().len() > 1),
+        // ⌘W closes the tab, or the window with one; the standard close is ⇧⌘W.
+        Command::new("close-tab", "Close Tab", Menu::File, 2).chord(Chord::cmd('w')),
+        Command::new("close", "Close Window", Menu::File, 2).chord(Chord::cmd('w').shift()),
+        Command::new("close-all", "Close All", Menu::File, 2).chord(Chord::cmd('w').option()),
+        Command::new("show-tab-bar", if tab_bar_shown { "Hide Tab Bar" } else { "Show Tab Bar" }, Menu::View, 3)
+            .chord(Chord::cmd('t').shift())
+            .enabled(tabs.read().len() == 1),
+        Command::new("previous-tab", "Show Previous Tab", Menu::Window, 2)
+            .chord(Chord::bare(ChordKey::Tab).ctrl().shift())
+            .enabled(tabs.read().len() > 1),
+        Command::new("next-tab", "Show Next Tab", Menu::Window, 2)
+            .chord(Chord::bare(ChordKey::Tab).ctrl())
+            .enabled(tabs.read().len() > 1),
+        Command::new("move-tab", "Move Tab to New Window", Menu::Window, 2).enabled(tabs.read().len() > 1),
         Command::new("deselect", "Deselect All", Menu::Edit, 2)
             .chord(Chord::cmd('a').option())
             .enabled(has_selection),
@@ -175,15 +220,35 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("use-groups", "Use Groups", Menu::View, 1)
             .chord(Chord::cmd('0').ctrl())
             .checked(shown.group.is_some()),
-        Command::new("group-kind", "Group By Kind", Menu::View, 1).checked(shown.group == Some(GroupBy::Kind)),
-        Command::new("group-modified", "Group By Date Modified", Menu::View, 1)
-            .checked(shown.group == Some(GroupBy::Modified)),
-        Command::new("group-size", "Group By Size", Menu::View, 1).checked(shown.group == Some(GroupBy::Size)),
-        Command::new("sort-name", "Sort By Name", Menu::View, 2).checked(shown.sort == SortBy::Name),
-        Command::new("sort-kind", "Sort By Kind", Menu::View, 2).checked(shown.sort == SortBy::Kind),
-        Command::new("sort-modified", "Sort By Date Modified", Menu::View, 2)
-            .checked(shown.sort == SortBy::Modified),
-        Command::new("sort-size", "Sort By Size", Menu::View, 2).checked(shown.sort == SortBy::Size),
+        // Group By and Sort By take ⌃⌘ and ⌃⌥⌘ with digits in their order, as Finder's.
+        Command::new("group-kind", "Kind", Menu::View, 1)
+            .chord(Chord::cmd('1').ctrl())
+            .checked(shown.group == Some(GroupBy::Kind))
+            .under("Group By"),
+        Command::new("group-modified", "Date Modified", Menu::View, 1)
+            .chord(Chord::cmd('2').ctrl())
+            .checked(shown.group == Some(GroupBy::Modified))
+            .under("Group By"),
+        Command::new("group-size", "Size", Menu::View, 1)
+            .chord(Chord::cmd('3').ctrl())
+            .checked(shown.group == Some(GroupBy::Size))
+            .under("Group By"),
+        Command::new("sort-name", "Name", Menu::View, 1)
+            .chord(Chord::cmd('1').ctrl().option())
+            .checked(shown.sort == SortBy::Name)
+            .under("Sort By"),
+        Command::new("sort-kind", "Kind", Menu::View, 1)
+            .chord(Chord::cmd('2').ctrl().option())
+            .checked(shown.sort == SortBy::Kind)
+            .under("Sort By"),
+        Command::new("sort-modified", "Date Modified", Menu::View, 1)
+            .chord(Chord::cmd('3').ctrl().option())
+            .checked(shown.sort == SortBy::Modified)
+            .under("Sort By"),
+        Command::new("sort-size", "Size", Menu::View, 1)
+            .chord(Chord::cmd('4').ctrl().option())
+            .checked(shown.sort == SortBy::Size)
+            .under("Sort By"),
         Command::new("view-options", "Show View Options", Menu::View, 5).chord(Chord::cmd('j')),
         Command::new("bigger", "Bigger Icons", Menu::View, 5)
             .chord(Chord::cmd('='))
@@ -219,6 +284,7 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("open-down", "Open Selection", Menu::Go, 0)
             .chord(Chord::cmd_key(ChordKey::Down))
             .enabled(has_selection),
+        Command::new("go-to-folder", "Go to Folder…", Menu::Go, 2).chord(Chord::cmd('g').shift()),
         Command::new("go-recents", "Recents", Menu::Go, 1).chord(Chord::cmd('f').shift()),
         Command::new("go-documents", "Documents", Menu::Go, 1)
             .chord(Chord::cmd('o').shift())
@@ -237,12 +303,31 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
     ];
     let at = table.iter().position(|c| c.id == "new-folder").map_or(0, |i| i + 1);
     table.splice(at..at, new_file);
+    for (i, folder) in shared.recent_folders().iter().enumerate() {
+        table.push(Command::new(format!("recent-folder:{i}"), places::folder_name(folder), Menu::Go, 2).under("Recent Folders"));
+    }
     table
+}
+
+/// The volume ⌘E ejects: the one selected, else the one the folder shown is on.
+fn ejectable(shared: &Shared, tab: &crate::tab::Tab) -> Option<isle_disks::Volume> {
+    let volumes = shared.locations.volumes.read();
+    let on = |path: &std::path::Path| {
+        volumes
+            .iter()
+            .filter(|v| v.removable || v.loop_device)
+            .find(|v| v.mount_point.as_deref().is_some_and(|m| path.starts_with(m)))
+            .cloned()
+    };
+    match tab.selection.as_slice() {
+        [one] => on(one),
+        _ => tab.place.folder().and_then(on),
+    }
 }
 
 /// Carries out the commands chosen since last, each on the tab current when it is taken.
 pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
-    let Win { key, tabs, current, places, mut sidebar, mut preview, mut path_bar, mut status_bar, mut options, mut undo_stack, mut alert, renaming, rename_text, rename_error, rename_many, open_with, unlocking, saving, find, desktop } = win;
+    let Win { key, tabs, current, places, mut sidebar, mut preview, mut path_bar, mut status_bar, mut options, mut history, mut alert, renaming, rename_text, rename_error, rename_many, mut going, open_with, unlocking, saving, find, desktop } = win;
     let jobs = shared.jobs;
     let chosen: Vec<String> = desktop.commands.read().clone();
     if chosen.is_empty() {
@@ -253,6 +338,7 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
     // A sheet holds the window: only what opens another window gets past it.
     let sheet_up = alert.peek().is_some()
         || rename_many.peek().is_some()
+        || going.peek().is_some()
         || open_with.peek().is_some()
         || unlocking.peek().is_some()
         || *saving.peek()
@@ -275,7 +361,38 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
         match id.as_str() {
             "new-window" => shared.open_window(vec![(shared.new_window_place(), None)], 0, None),
             "new-tab" => open_new_tab(&shared, tabs, current, key, shared.new_window_place()),
-            "close-tab" => close_tab(tabs, current, *current.peek()),
+            "close-tab" if tabs.peek().len() <= 1 => shared.app().request_close(key),
+            "close-tab" => {
+                let at = *current.peek();
+                close_tab(tabs, current, at);
+            }
+            "close-all" => {
+                let app = shared.app();
+                for window in shared.window_keys() {
+                    app.request_close(window);
+                }
+            }
+            "show-tab-bar" => {
+                let show = !*shared.tab_bar.peek();
+                shared.set_tab_bar(show);
+            }
+            "previous-tab" | "next-tab" => {
+                let n = tabs.peek().len();
+                if n > 1 {
+                    let by = if id == "next-tab" { 1 } else { n - 1 };
+                    let to = (*current.peek() + by) % n;
+                    let mut current = current;
+                    current.set(to);
+                    shared.remember(key, &tabs.peek(), to);
+                }
+            }
+            "move-tab" if tabs.peek().len() > 1 => {
+                let at = *current.peek();
+                let place = tab.peek().place.clone();
+                close_tab(tabs, current, at);
+                shared.remember(key, &tabs.peek(), *current.peek());
+                shared.open_window(vec![(place, None)], 0, None);
+            }
             "open" | "open-down" => {
                 let selection = tab.peek().selection.clone();
                 open_items(&shared, tabs, current, key, &handle, selection, false, open_with);
@@ -330,6 +447,49 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
             "open-with" => {
                 if let Some(first) = tab.peek().selection.first().cloned() {
                     ask_open_with(first, open_with);
+                }
+            }
+            "go-to-folder" => going.set(Some(String::new())),
+            id if id.starts_with("recent-folder:") => {
+                let at = id["recent-folder:".len()..].parse::<usize>().ok();
+                if let Some(folder) = at.and_then(|i| shared.recent_folders().into_iter().nth(i)) {
+                    go(Place::Folder(folder));
+                }
+            }
+            "show-original" => {
+                let one = tab.peek().selection.first().cloned();
+                let Some(alias) = one else { continue };
+                let Ok(to) = std::fs::read_link(&alias) else { continue };
+                let target = alias.parent().map_or(to.clone(), |dir| dir.join(&to));
+                if let Some(folder) = target.parent() {
+                    tab::go(tab, &live, Place::Folder(folder.to_owned()), Some(target.clone()));
+                }
+            }
+            "add-to-sidebar" => {
+                let t = tab.peek();
+                let folder = match t.selection.as_slice() {
+                    [one] if t.folder.get(one).is_some_and(|e| e.is_dir()) => Some(one.clone()),
+                    [] => t.place.folder().map(PathBuf::from),
+                    _ => None,
+                };
+                drop(t);
+                let Some(folder) = folder else { continue };
+                let mut places = places;
+                spawn(async move {
+                    let read = off_thread(move || {
+                        if let Err(err) = places::add_bookmark(&folder) {
+                            tracing::warn!("{} was not added to the sidebar: {err}", folder.display());
+                        }
+                        places::read()
+                    });
+                    if let Some(read) = read.await {
+                        places.set(read);
+                    }
+                });
+            }
+            "eject" => {
+                if let Some(volume) = ejectable(shared, &tab.peek()) {
+                    crate::ops::eject(shared, volume, false, alert);
                 }
             }
             "open-terminal" => {
@@ -405,8 +565,15 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                 set_shown(&shared, tab, next);
             }
             "undo" => {
-                if let Some((label, steps)) = undo_stack.write().pop() {
-                    jobs.start(&shared.app(), key, Work::Undo { steps }, format!("Undoing {label}"), String::new());
+                let last = history.write().undo.pop();
+                if let Some((label, steps)) = last {
+                    jobs.start_doing(&shared.app(), key, Work::Undo { steps }, format!("Undoing {label}"), label, crate::jobs::Doing::Undo);
+                }
+            }
+            "redo" => {
+                let last = history.write().redo.pop();
+                if let Some((label, steps)) = last {
+                    jobs.start_doing(&shared.app(), key, Work::Undo { steps }, format!("Redoing {label}"), label, crate::jobs::Doing::Redo);
                 }
             }
             id if id == "new-file" || id.starts_with("new-file:") => {

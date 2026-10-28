@@ -9,6 +9,7 @@ mod commands;
 mod files1;
 mod fm1;
 mod format;
+mod go_to;
 mod icons;
 mod icons_view;
 mod info;
@@ -16,6 +17,7 @@ mod look;
 mod markup;
 mod markup_view;
 mod interact;
+mod keys;
 mod jobs;
 mod list_view;
 mod sheets;
@@ -90,6 +92,7 @@ pub struct Shared {
     next_tab: Cell<u64>,
     /// Hidden files shown, in every window (`files.md` § The content: views).
     pub hidden: State<bool>,
+    pub tab_bar: State<bool>,
     pub jobs: jobs::Jobs,
     /// Items cut and not yet pasted, drawn dimmed.
     pub cut: State<Vec<PathBuf>>,
@@ -543,6 +546,31 @@ impl Shared {
         self.save();
     }
 
+    /// A folder gone to joins Recent Folders, the latest first.
+    pub fn note_folder(&self, folder: &std::path::Path) {
+        let mut memory = self.memory.borrow_mut();
+        let recent = &mut memory.recent_folders;
+        if recent.first().is_some_and(|f| f == folder) {
+            return;
+        }
+        recent.retain(|f| f != folder);
+        recent.insert(0, folder.to_owned());
+        recent.truncate(RECENT_FOLDERS);
+        drop(memory);
+        self.save();
+    }
+
+    pub fn recent_folders(&self) -> Vec<PathBuf> {
+        self.memory.borrow().recent_folders.clone()
+    }
+
+    pub fn set_tab_bar(&self, show: bool) {
+        let mut tab_bar = self.tab_bar;
+        tab_bar.set(show);
+        self.memory.borrow_mut().tab_bar = show;
+        self.save();
+    }
+
     fn save(&self) {
         let memory = self.memory.borrow().clone();
         std::thread::spawn(move || memory::save(&memory));
@@ -593,6 +621,9 @@ impl Shared {
         }
     }
 }
+
+/// How many folders Go › Recent Folders keeps.
+const RECENT_FOLDERS: usize = 10;
 
 thread_local! {
     pub(crate) static SHARED: RefCell<Option<Rc<Shared>>> = const { RefCell::new(None) };
@@ -792,6 +823,7 @@ fn main() {
         waiting: RefCell::default(),
         quick_look: RefCell::default(),
         hidden: State::create_global(memory.hidden),
+        tab_bar: State::create_global(memory.tab_bar),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         copy: Cell::new(None),

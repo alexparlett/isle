@@ -280,6 +280,11 @@ pub fn go(mut tab: State<Tab>, live: &Live, place: Place, reveal: Option<PathBuf
     {
         let mut t = tab.write();
         if t.place != place {
+            if let Some(folder) = place.folder()
+                && let Some(shared) = crate::SHARED.with(|s| s.borrow().clone())
+            {
+                shared.note_folder(folder);
+            }
             let from = std::mem::replace(&mut t.place, place);
             t.back.push(from);
             t.forward.clear();

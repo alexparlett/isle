@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-10-28
+
+- P15b 15b.5, keys and tabs: ⌘W closes the tab or, with one, the window;
+  ⇧⌘W the window, ⌥⌘W all; ⌃Tab and ⌃⇧Tab; Show Tab Bar ⇧⌘T, kept; Move
+  Tab to New Window. The tab bar keeps equal widths down to its minimum,
+  then scrolls with the current tab kept in view. Go to Folder ⇧⌘G, or `/`
+  or `~` typed in a view: a sheet whose path completes from the filesystem
+  (Tab takes the first), Recent Folders under it and in Go's submenu. One
+  key handler for List, Icons, Columns and the Open panel: arrows by the
+  grid, ⌥↑ ⌥↓, Home, End, Page Up and Down, ⇧ to extend, ← → between
+  Columns' columns, type-to-select with a one-second reset; the cursor is
+  kept in view. Redo ⇧⌘Z (an undo records its inverse), Show Original ⌘R,
+  Add to Sidebar ⌃⌘T (GTK bookmarks), Eject ⌘E, Group By ⌃⌘1–3 and Sort By
+  ⌃⌥⌘1–4 as submenus. Fixed on the way: Close Tab held a read of the
+  current tab while writing it and crashed; Escape now ends a rename whose
+  field has lost the keys; ⌥ no longer stops the window's keys; TextField
+  keeps Input's key rule when it has an Escape handler, so typed keys stop
+  at the field. Proved in the VM by real input. Not here: List's disclosure
+  keys (no disclosure rows yet, 15b.10), Go to Folder inside a panel, Close
+  Other Tabs (15b.6's tab menu), Merge All Windows, v1's alias keys.
+
 ## 2026-10-27
 
 - P15b 15b.4, selection and opening: a band from empty space in

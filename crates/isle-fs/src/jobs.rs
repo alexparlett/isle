@@ -639,23 +639,30 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                 }
             }
         }
+        // Each step undone records its inverse, so undoing the undo redoes it.
         Work::Undo { steps } => {
             for step in steps.into_iter().rev() {
                 let done = match &step {
-                    Step::Made(path) => trash::trash(path).map(|_| ()),
+                    Step::Made(path) => trash::trash(path).map(Step::Trashed),
                     // A merge removes the folder it emptied; undoing it makes the folder again.
-                    Step::Moved { now, was } => was.parent().map_or(Ok(()), fs::create_dir_all).and_then(|_| move_back(now, was)),
-                    Step::Trashed(t) => trash::put_back(t).map(|_| ()),
+                    Step::Moved { now, was } => was
+                        .parent()
+                        .map_or(Ok(()), fs::create_dir_all)
+                        .and_then(|_| move_back(now, was))
+                        .map(|_| Step::Moved { now: was.clone(), was: now.clone() }),
+                    Step::Trashed(t) => trash::put_back(t).map(Step::Made),
                 };
-                if let Err(e) = done {
-                    let item = match &step {
-                        Step::Made(p) | Step::Moved { now: p, .. } => p.clone(),
-                        Step::Trashed(t) => t.original.clone(),
-                    };
-                    run.fail(&item, why(&e, &item));
+                match done {
+                    Ok(inverse) => run.steps.push(inverse),
+                    Err(e) => {
+                        let item = match &step {
+                            Step::Made(p) | Step::Moved { now: p, .. } => p.clone(),
+                            Step::Trashed(t) => t.original.clone(),
+                        };
+                        run.fail(&item, why(&e, &item));
+                    }
                 }
             }
-            return run.report;
         }
     }
     run.report.undo = Some(if run.cant_undo { Undo::CantUndo } else { Undo::Steps(run.steps) });
@@ -782,6 +789,22 @@ mod tests {
         assert!(undone.failed.is_empty(), "{:?}", undone.failed);
         assert_eq!(fs::read_to_string(was.join("inner/b.txt")).unwrap(), "b");
         assert!(!there.path().join("folder").exists());
+    }
+
+    #[test]
+    fn undoing_an_undo_redoes_it() {
+        let base = tempfile::tempdir().unwrap();
+        let (here, there) = (base.path().join("here"), base.path().join("there"));
+        fs::create_dir_all(&here).unwrap();
+        fs::create_dir_all(&there).unwrap();
+        fs::write(here.join("a.txt"), "a").unwrap();
+        let moved = run(Work::Move { items: vec![here.join("a.txt")], into: there.clone() }, &Fixed::new(Choice::Stop));
+        let Some(Undo::Steps(steps)) = moved.undo else { panic!() };
+        let undone = run(Work::Undo { steps }, &Fixed::new(Choice::Stop));
+        assert!(here.join("a.txt").exists());
+        let Some(Undo::Steps(inverse)) = undone.undo else { panic!("an undo records its inverse") };
+        run(Work::Undo { steps: inverse }, &Fixed::new(Choice::Stop));
+        assert!(there.join("a.txt").exists() && !here.join("a.txt").exists());
     }
 
     #[test]

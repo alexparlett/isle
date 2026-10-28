@@ -34,6 +34,8 @@ pub struct Interact {
     pub press: State<Option<(PathBuf, f64, f64)>>,
     /// In a panel: what can be chosen; the rest is dimmed.
     pub chooses: Option<Choosable>,
+    /// How the view lays items out, as it last measured.
+    pub layout: State<crate::keys::Layout>,
 }
 
 /// What a panel can choose.

@@ -152,6 +152,24 @@ impl Component for ListView {
             }))
             .child(header_cell("Kind", SortBy::Kind, Size::px(KIND), false));
         let bander = crate::band::use_band(self.controller);
+        // The cursor moved by a key stays in view.
+        let cursor = tab.read().cursor.clone();
+        use_side_effect_with_deps(&cursor, {
+            let (lines, mut controller, row_height) = (lines.clone(), self.controller, t.size_row);
+            move |cursor: &Option<PathBuf>| {
+                let t = tab.peek();
+                let Some(at) = cursor.as_deref().and_then(|c| t.folder.position(c)) else { return };
+                let line = match &lines {
+                    None => Some(at),
+                    Some(lines) => lines.iter().position(|l| matches!(l, Line::Item { index, .. } if *index == at)),
+                };
+                if let Some(line) = line {
+                    controller.scroll_to_offset(line as f32 * row_height, row_height, Direction::Vertical);
+                }
+            }
+        });
+        let mut layout = self.interact.layout;
+        let row_height = t.size_row;
         let hits = {
             let (lines, row_height) = (lines.clone(), t.size_row);
             move |(_, top, _, bottom): (f32, f32, f32, f32)| -> Vec<PathBuf> {
@@ -191,7 +209,11 @@ impl Component for ListView {
                 rect()
                     .width(Size::fill())
                     .height(Size::flex(1.))
-                    .on_sized(move |e: Event<SizedEventData>| bander.sized(e.area))
+                    .on_sized(move |e: Event<SizedEventData>| {
+                        bander.sized(e.area);
+                        let page = (e.area.height() / row_height).floor().max(1.) as usize;
+                        layout.set_if_modified(crate::keys::Layout { columns: 1, page });
+                    })
                     .on_mouse_down(move |e: Event<MouseEventData>| {
                         if e.button == Some(MouseButton::Left) {
                             bander.begin(tab, &e);

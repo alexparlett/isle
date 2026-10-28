@@ -131,6 +131,26 @@ pub fn user_dirs(text: &str, home: &Path) -> Vec<(String, PathBuf)> {
         .collect()
 }
 
+/// Adds `folder` to GTK's bookmarks, which the sidebar's Favourites list, unless it is there.
+pub fn add_bookmark(folder: &Path) -> std::io::Result<()> {
+    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or(std::io::ErrorKind::NotFound)?;
+    let file = config_home().unwrap_or_else(|| home.join(".config")).join("gtk-3.0/bookmarks");
+    let text = std::fs::read_to_string(&file).unwrap_or_default();
+    if bookmarks(&text).iter().any(|(p, _)| p == folder) {
+        return Ok(());
+    }
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let mut out = text;
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str(&isle_thumbnail::uri(folder));
+    out.push('\n');
+    std::fs::write(file, out)
+}
+
 /// GTK's bookmarks: a `file://` URI and an optional label per line.
 pub fn bookmarks(text: &str) -> Vec<(PathBuf, Option<String>)> {
     text.lines()

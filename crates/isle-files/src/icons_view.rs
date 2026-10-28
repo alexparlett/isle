@@ -78,6 +78,7 @@ impl Component for IconsView {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut width = use_state(|| 0f32);
+        let mut height = use_state(|| 0f32);
         let (shown, lines) = {
             let tab = self.tab.peek();
             let now = jiff::Timestamp::now().as_second();
@@ -110,6 +111,31 @@ impl Component for IconsView {
         };
         let bander = crate::band::use_band(self.controller);
         let tab = self.tab;
+        let mut layout = self.interact.layout;
+        let rows = (*height.read() / row_height).floor().max(1.) as usize;
+        use_side_effect_with_deps(&(columns, rows), move |&(columns, rows)| {
+            layout.set_if_modified(crate::keys::Layout { columns, page: rows * columns });
+        });
+        // The cursor moved by a key stays in view.
+        let cursor = tab.read().cursor.clone();
+        use_side_effect_with_deps(&cursor, {
+            let (lines, mut controller) = (lines.clone(), self.controller);
+            move |cursor: &Option<std::path::PathBuf>| {
+                let t = tab.peek();
+                let Some(at) = cursor.as_deref().and_then(|c| t.folder.position(c)) else { return };
+                let mut top = 0.;
+                for line in lines.iter() {
+                    match line {
+                        GridLine::Heading(_) => top += heading,
+                        GridLine::Cells(cells) if cells.contains(&at) => {
+                            controller.scroll_to_offset(top, row_height, Direction::Vertical);
+                            return;
+                        }
+                        GridLine::Cells(_) => top += row_height,
+                    }
+                }
+            }
+        });
         // Each cell's span in the grid, as the lines lay them out.
         let hits = {
             let (lines, pad) = (lines.clone(), t.space_l);
@@ -142,6 +168,7 @@ impl Component for IconsView {
             .a11y_role(AccessibilityRole::Grid)
             .on_sized(move |e: Event<SizedEventData>| {
                 width.set_if_modified(e.area.width());
+                height.set_if_modified(e.area.height());
                 bander.sized(e.area);
             })
             .on_mouse_down(move |e: Event<MouseEventData>| {

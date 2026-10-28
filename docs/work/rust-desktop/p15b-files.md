@@ -314,3 +314,19 @@ answered with this review); modifiers on mouse events in the Freya fork;
 `window.rs` split first; proof by real input and a walk of the sheet.
 
 ## Outcome
+
+Built through 15b.13 and walked in 15b.14 (2026-10-28): the walk is in
+`docs/research/rust-desktop/p15-files.md` § The spec walk, every line
+built, cut to P20 or declined. Cut to P20, by the walk and the phases:
+Quick Look's full screen, sizing to content, fonts, toolbar and media
+focus; Markup's and Trim's keys and Trim's playhead; a panel's Tab stops
+and its clamp to a narrow parent; Escape and ⌘Tab during a drag; the band
+and the writing bar in Columns; volume rename; Increase Contrast's
+borders; rows growing at the largest text size; Reduce Motion's fades;
+the Trash sound; Spotlight's Trash; context menus past the window's edge.
+Declined, for the user to accept: v1's Ctrl+1, 2 and 3 (desktops), v1's
+Alt with the arrows (Finder's ⌥ arrows in the same table), Other…'s sheet
+opening on every app (Finder's recommended list, all one tick away).
+Still to come: the user's day on the host, and the Freya fork's
+`2cf6468f` (an app's event loop ending quietly at a session's end, where
+every Isle app panicked) pushed and pinned.

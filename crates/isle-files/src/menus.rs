@@ -221,11 +221,11 @@ pub fn items(tab: &Tab, items: Vec<PathBuf>, apps: &Apps, at: (f32, f32), keyboa
     // Isle's extras, where they apply.
     rows.separator();
     if folder.is_some() {
-        rows.command("Open in Terminal", "open-terminal");
+        rows.command("Open in terminal", "open-terminal");
     }
     let mime = |e: &&isle_fs::Entry| e.mime.clone().unwrap_or_default();
     if count == 1 && entries.first().map(mime).is_some_and(|m| m.starts_with("image/")) {
-        rows.command("Set as Wallpaper", "set-wallpaper");
+        rows.command("Set as wallpaper", "set-wallpaper");
     }
     if count == 1 && one.as_deref().is_some_and(is_archive) {
         rows.command("Expand", "expand");
@@ -245,9 +245,9 @@ pub fn background(tab: &Tab, templates: &[PathBuf], at: (f32, f32), keyboard: bo
     if tab.place.folder().is_some() {
         rows.command("New Folder", "new-folder");
         if templates.is_empty() {
-            rows.command("New File", "new-file");
+            rows.command("New file", "new-file");
         } else {
-            rows.sub("New File", |sub| {
+            rows.sub("New file", |sub| {
                 sub.command("Empty File", "new-file");
                 for (i, template) in templates.iter().enumerate() {
                     let label = template.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -259,7 +259,7 @@ pub fn background(tab: &Tab, templates: &[PathBuf], at: (f32, f32), keyboard: bo
     }
     view_rows(&mut rows, &shown, true);
     if tab.place.folder().is_some() {
-        rows.separator().command("Open in Terminal", "open-terminal");
+        rows.separator().command("Open in terminal", "open-terminal");
     }
     rows.done(at, Some(Vec::new()), keyboard)
 }
@@ -360,7 +360,7 @@ pub fn header(hidden: &[Column], at: (f32, f32)) -> Open {
 }
 
 /// A name Expand takes apart.
-fn is_archive(name: &str) -> bool {
+pub(crate) fn is_archive(name: &str) -> bool {
     let name = name.to_lowercase();
     [".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".tar.zst", ".7z", ".rar", ".gz", ".xz", ".bz2"]
         .iter()

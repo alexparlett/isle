@@ -360,19 +360,27 @@ pub(crate) fn open_items(
     // An item in the Trash is put back or dragged out to be opened.
     let files: Vec<PathBuf> = entries.iter().filter(|e| !e.is_dir() && e.trashed.is_none()).map(|e| e.path.clone()).collect();
     if !files.is_empty() {
-        open_files(shared, files, open_with);
+        open_files(shared, key, files, open_with);
     }
 }
 
-/// Opens files in their apps, asking with Open With for the first nothing opens by itself.
-pub(crate) fn open_files(shared: &Shared, files: Vec<PathBuf>, open_with: State<Option<crate::open::Offer>>) {
-    let bus = shared.app().bus();
+/// Opens files in their apps, expanding an archive with no default app and asking with Open
+/// With for the first other file nothing opens.
+pub(crate) fn open_files(shared: &Shared, key: isle_app::WindowKey, files: Vec<PathBuf>, open_with: State<Option<crate::open::Offer>>) {
+    let (app, jobs) = (shared.app(), shared.jobs);
+    let bus = app.bus();
     spawn(async move {
         let Some((launches, ask)) = off_thread(move || crate::open::decide(&files)).await else { return };
         if let Some(bus) = bus {
             for (app, uris) in launches {
                 crate::open::launch(bus.clone(), app, uris).await;
             }
+        }
+        let (archives, ask): (Vec<_>, Vec<_>) = ask.into_iter().partition(|p| crate::menus::is_archive(&p.to_string_lossy()));
+        for archive in archives {
+            let work = Work::Expand { archive };
+            let (title, undo_label) = crate::jobs::title(&work);
+            jobs.start(&app, key, work, title, undo_label);
         }
         if let Some(first) = ask.into_iter().next() {
             ask_open_with(first, open_with);

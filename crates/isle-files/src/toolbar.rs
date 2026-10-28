@@ -62,7 +62,7 @@ pub fn icon_button(
     on_press: impl Fn() + 'static,
 ) -> Element {
     let t = &theme.tokens;
-    rect()
+    let button = rect()
         .width(Size::px(t.size_control_large))
         .height(Size::px(t.size_control_large))
         .center()
@@ -80,8 +80,8 @@ pub fn icon_button(
             glyph,
             t.size_glyph_large,
             colour(if enabled { t.colour_text_2 } else { t.colour_text_disabled }),
-        ))
-        .into_element()
+        ));
+    TooltipContainer::new(Tooltip::new_text(alt)).child(button).into_element()
 }
 
 const SORTS: [(SortBy, &str); 5] = [

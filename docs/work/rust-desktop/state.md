@@ -538,4 +538,7 @@
   behind a board gate (`Files context menus`); every tab's State owned by
   the window; modifiers on Freya's mouse events in the user's fork;
   `window.rs` split first; closed by a walk of the sheet. Phases
-  15b.0–15b.14. Next: 15b.1, then the rest of P15b before P17.
+  15b.0–15b.14, built and walked by 2026-10-28 (the walk in
+  `docs/research/rust-desktop/p15-files.md`). Next: the user's word on
+  the walk's three declines, the fork's logout fix pushed and pinned, the
+  user's day on the host, then P17.

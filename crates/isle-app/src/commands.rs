@@ -216,6 +216,8 @@ pub struct Command {
     /// Commands in a menu are grouped by this number, with separators between groups.
     pub group: u8,
     pub chord: Option<Chord>,
+    /// Other chords that run it, not shown in the menu.
+    pub also: Vec<Chord>,
     pub enabled: bool,
     pub checked: Option<bool>,
     /// The focused field takes it as a key press: the edit commands.
@@ -232,6 +234,7 @@ impl Command {
             menu,
             group,
             chord: None,
+            also: Vec::new(),
             enabled: true,
             checked: None,
             for_field: false,
@@ -242,6 +245,17 @@ impl Command {
     pub fn chord(mut self, chord: Chord) -> Self {
         self.chord = Some(chord);
         self
+    }
+
+    /// Another chord that runs it, unshown: an older binding kept.
+    pub fn also(mut self, chord: Chord) -> Self {
+        self.also.push(chord);
+        self
+    }
+
+    /// Whether a key press runs it.
+    pub fn matches(&self, key: &Key, code: Code, modifiers: Modifiers) -> bool {
+        self.chord.iter().chain(&self.also).any(|c| c.matches(key, code, modifiers))
     }
 
     pub fn enabled(mut self, enabled: bool) -> Self {

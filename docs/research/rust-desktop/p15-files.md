@@ -108,3 +108,113 @@ code: about 110 gaps, 4 breaking (the crash, multi-select, Columns' Back,
 hidden files forgotten), ranked in the artifact `Files spec gaps`
 (https://claude.ai/artifact/BiXt1zTa2rvAVqCzqRaAVi). P15b's proof is by
 real input for that reason.
+
+## The spec walk, 2026-10-28
+
+P15b's close (choice 3): every line of `structure/files.md`'s Keyboard,
+Pointer, Acting on files, States and Copy against the build, by four
+read-only passes over the code and the interaction tests, then the gaps
+built in 15b.14 or named here. **Built** lines are proved by a compositor
+test driven by real input or a VM pass by real input, named where one
+phase carries it; **cut** names the packet; **declined** gives the reason
+for the user to accept.
+
+### Keyboard
+
+Built: every row of the table's Windows and tabs, Go (with the mouse's
+back and forward buttons and / or ~ typed), Views (⌘+ also as ⇧⌘=),
+Moving in a view, Selection, Acting, Trash and Search rows; Quick Look's
+Space, ⌘Y (and ⌘Y in its own window, 15b.14), Escape, arrows and
+⌘Return; Panels' Return, Escape, ⌘. (15b.14) and the Go, view, hidden-file,
+New Folder and Quick Look keys; Drag's ⌥ and ⌘ and Space. v1's keys
+(15b.14, `Command::also` in `isle-app` carries a second chord unshown):
+F2, Delete, ⇧Delete, Backspace, Ctrl+H, Ctrl+F, ⇧Ctrl+P, ⇧Ctrl+N,
+⇧Ctrl+F, Ctrl+L, Ctrl+I, Ctrl+plus and Ctrl+minus. F5 has nothing to do.
+
+Cut to P20: Quick Look's ⌥⌘Y full screen (the compositor refuses full
+screen to a window with a parent), Tab into its toolbar and media
+controls; Markup's keys (Tab through tools and colours, Return placing a
+shape, a mark moved, resized and removed by keys); Trim's handles by keys
+and Space playing; a panel's Tab through its sidebar and list (only its
+fields and buttons take focus); Escape cancelling a drag and ⌘Tab
+carrying one (the compositor's drag grab).
+
+Declined: v1's Ctrl+1, 2 and 3 (the compositor's Ctrl+1…9 go to
+desktops, as macOS's do); v1's Alt with the arrows (the same table gives
+⌥↑ and ⌥↓ to first and last and List's ⌥→ to opening every folder under
+it, as Finder; Backspace stands in for ⌘↑ and ⌘[ ⌘] stay).
+
+### Pointer
+
+Built: click, ⌘-click, ⇧-click; the band in List and Icons; a click on
+nothing clearing the selection and the cursor; double-click,
+⌘-double-click, ⌥-double-click, middle click on a folder and on a tab;
+secondary click on an item, the background, a tab, a sidebar row (Open in
+New Tab and Window, Show in Enclosing Folder, Get Info, Remove from
+Sidebar, Eject, Empty Trash), List's header and a divider (Right Size;
+Columns' also Right Size All Columns Individually and Equally, 15b.14);
+the menus as the board drew them, every row named, counts, New Folder
+with Selection, the extras, the trashed item's and the Trash's menus, the
+Menu key and ⇧F10; drags onto folders, tabs, the path bar, sidebar places,
+between Favourites, onto the Trash and out as `text/uri-list`; drops of
+files only, a drag of anything else marking nothing (15b.14); Favourites
+reordered, the sidebar's edge dragged and kept (15b.14), headings
+collapsing; the spring's dwell; symbol buttons' tooltips (15b.14); Quick
+Look's clicks kept from the caller and its media controls by pointer.
+
+Cut to P20: the band in Columns; Rename in a volume's sidebar menu;
+Quick Look's media controls by Tab (with its toolbar focus).
+
+### Acting on files
+
+Built: New Folder, New file (a submenu of `~/Templates` when there are
+any) and New Folder with Items, in place with the name open; Rename in
+place (the name selected, not the extension), the taken name under the
+field, the dot and extension questions; Rename many; Duplicate, Make
+Alias, Show Original, Compress ("Archive.zip" for several), Expand beside
+it, and an archive with no default app set expanding when opened (15b.14,
+so with Ark installed and no default an archive still expands); Copy as
+Pathname; ⌘C ⌘V, ⌥⌘V and ⌘X ⌘V; Open With (the default marked, the rest,
+Other…) and its sheet with Always Open With writing `mimeapps.list`; Open
+in terminal; Set as wallpaper; an AppImage in `~/Applications` installed
+and uninstalled by the compositor's watch, its kind "Application
+(AppImage)".
+
+Declined: Other…'s sheet opening on every app. It opens on the type's
+apps with every app one tick away, as Finder's Recommended and All
+Applications.
+
+### States
+
+Built: Rest, Loading (rows streamed in order, the mark after a wait),
+Many items (the first screen before the listing ends; no dropped frame is
+the host run's bar 9), Empty, No results, both errors, Slow volume, Work
+in flight (rows dimmed with bars in List and Icons, the jobs button, the
+switcher's progress, ⌘Q finishing the work), A job waiting, A job failed
+part way, No window job running and the Copy window, No window focused
+(the compositor's on-demand bar), Narrow window (the toolbar folding, the
+preview then the sidebar collapsing, 15b.14), Quick Look open, Second
+screen, Game in front (ordinary windows, Game Mode holding notifications,
+no transitions to stop), Locked (jobs on their own threads; the question
+waits behind the lock), Focus on, Configuration error, Reduce Motion's
+spring blink and cut, Reduce Transparency through the tokens, Largest
+text's middle cuts (15b.13).
+
+Cut to P20: the writing bar in Columns' rows; a panel clamped to a
+parent narrower than it (the compositor); a panel hanging from a
+full-screen X11 game (an Xwayland surface cannot be an xdg-foreign
+parent); Reduce Motion's fades (Quick Look and sheets have no growing to
+reduce, and a drag has no image to fade); Increase Contrast's borders;
+rows and the sidebar growing at the largest text size.
+
+### Copy
+
+Built: every string in the table, with three made right in 15b.14: the
+menu bar's "Compress “{name}”" and "Compress {n} Items", "Undo Copy of {n}
+Items" and "Can't Undo" (with "Can't Redo"). The context menu's own items
+now follow the Copy table's case ("Open in terminal", "Set as wallpaper",
+"New file"), and the spec's Pointer section with them. Where the spec's
+sections word one message two ways (Acting's taken name, States' errors),
+the build has the Copy table's.
+
+Declined in P1: "Tags".

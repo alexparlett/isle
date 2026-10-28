@@ -74,6 +74,8 @@ pub async fn off_thread<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'stati
 
 /// The window width under which the sidebar collapses on its own.
 const SIDEBAR_COLLAPSES: f32 = 700.;
+/// The preview collapses first, below this width.
+const PREVIEW_COLLAPSES: f32 = 960.;
 
 /// A tab owned by `scope`, the window's: a tab made in a view's handler would go with the view.
 pub(crate) fn new_tab(shared: &Shared, place: Place, reveal: Option<PathBuf>, scope: ScopeId) -> TabHandle {
@@ -129,10 +131,20 @@ impl App for FilesWindow {
         let mut context = use_state(|| None::<crate::menus::Open>);
         let acting = use_state(|| None::<Vec<PathBuf>>);
         let cursor_at = use_state(|| None::<(f32, f32)>);
+        let view_menu = use_state(|| false);
         // Below a width the sidebar collapses on its own, unless shown by hand.
         let mut wide = use_state(|| true);
         let mut sidebar_kept = use_state(|| false);
         let sidebar_shown = *sidebar.read() && (*wide.read() || *sidebar_kept.read());
+        let mut roomy = use_state(|| true);
+        let mut preview_kept = use_state(|| false);
+        // Shown by hand in a narrow window, the preview stays until it widens again.
+        use_side_effect(move || {
+            if *preview.read() && !*roomy.peek() {
+                preview_kept.set(true);
+            }
+        });
+        let preview_shown = *preview.read() && (*roomy.read() || *preview_kept.read());
         let layout = use_state(crate::keys::Layout::default);
         let typed = use_state(crate::keys::Typed::default);
         let mut drop_target = use_state(|| None::<PathBuf>);
@@ -339,6 +351,14 @@ impl App for FilesWindow {
                     rename_error.set(None);
                     renaming.set(Some(made.clone()));
                 }
+                // An item renamed in the folder shown stays chosen under its new name.
+                if let ("renamed", [made]) = (f.verb, f.report.made.as_slice())
+                    && let Some(handle) = tabs.peek().get(*current.peek()).cloned()
+                    && handle.tab.peek().place.folder() == made.parent()
+                {
+                    let mut tab = handle.tab;
+                    tab.write().reveal(made.clone());
+                }
             }
         });
         let shared_rev = shared.places_rev;
@@ -395,8 +415,9 @@ impl App for FilesWindow {
         };
         // Spring-loading: a folder or tab under a drag for a moment blinks twice, then opens.
         let (spring_ms, blink_ms) = (t.timing_spring_ms as u64, t.motion_blink_ms as u64);
-        // Whether a drag is on, not where: its motion must not restart the dwell.
-        let drag_on = use_memo(move || drag.over.read().is_some());
+        // Whether a drag of files is on, not where: its motion must not restart the dwell. A
+        // drag of anything else marks nothing, as it cannot drop.
+        let drag_on = use_memo(move || drag.over.read().as_ref().is_some_and(|o| o.types.iter().any(|t| t == "text/uri-list")));
         use_side_effect(move || {
             let target = drop_target.read().clone();
             let tab_hit = *tab_over.read();
@@ -642,12 +663,12 @@ impl App for FilesWindow {
         let on_key = move |e: Event<KeyboardEventData>| {
             held.set_if_modified(e.modifiers);
             // Space over a folder during a drag opens it at once.
-            if drag.over.peek().is_some() && e.key == Key::Character(" ".into()) {
+            if *drag_on.peek() && e.key == Key::Character(" ".into()) {
                 spring_open();
                 return;
             }
             // An open context menu has the keys.
-            if context.peek().is_some() {
+            if context.peek().is_some() || *view_menu.peek() {
                 return;
             }
             let m = e.modifiers;
@@ -687,9 +708,27 @@ impl App for FilesWindow {
                 committed.set(false);
                 return;
             }
-            if e.key == Key::Named(NamedKey::Enter) && rename_many.peek().is_none() && alert.peek().is_none() {
+            // Return renames, and F2 as v1 did.
+            let rename_key = matches!(e.key, Key::Named(NamedKey::Enter) | Key::Named(NamedKey::F2));
+            if rename_key && rename_many.peek().is_none() && alert.peek().is_none() {
                 let selection = tab.peek().selection.clone();
                 start_rename(selection, renaming, rename_text, rename_error, rename_many);
+                return;
+            }
+            // v1's keys: Delete for ⌘⌫, ⇧Delete for ⌥⌘⌫, Backspace for ⌘↑.
+            let v1 = match &e.key {
+                Key::Named(NamedKey::Delete) if m.contains(Modifiers::SHIFT) => Some("delete-now"),
+                Key::Named(NamedKey::Delete) if tab.peek().place == Place::Trash => Some("put-back"),
+                Key::Named(NamedKey::Delete) => Some("move-to-trash"),
+                Key::Named(NamedKey::Backspace) if !typed.peek().going(std::time::Instant::now()) => Some("enclosing"),
+                _ => None,
+            };
+            if let Some(id) = v1
+                && rename_many.peek().is_none()
+                && alert.peek().is_none()
+            {
+                let mut commands = desktop.commands;
+                commands.write().push(id.into());
                 return;
             }
             // The Menu key or ⇧F10: the selection's menu, or the folder's, under the cursor's item.
@@ -795,12 +834,13 @@ impl App for FilesWindow {
                 error: rename_error.read().clone(),
             }),
             cut: shared.cut.read().clone(),
-            dragging: drag.over.read().is_some(),
+            dragging: *drag_on.read(),
             drop_target,
             press,
             chooses: None,
             layout,
             cursor_at,
+            view_menu,
             blink: *blink.read(),
             writing: {
                 let list = shared.jobs.list.read();
@@ -812,7 +852,7 @@ impl App for FilesWindow {
             },
             ringed: context.read().as_ref().and_then(|o| o.items.clone()).filter(|items| *items != tab.peek().selection).unwrap_or_default(),
         };
-        let body = content(&theme, &handle, rev, focused, on_pick, interact.clone(), *preview.read());
+        let body = content(&theme, &handle, rev, focused, on_pick, interact.clone(), preview_shown);
         // A question goes to the window that started its job, or to the front one when that
         // has closed.
         let question = {
@@ -845,7 +885,7 @@ impl App for FilesWindow {
             }
             _ => None,
         };
-        let pane = (*preview.read() && shown.view != View::Columns).then(|| Preview {
+        let pane = (preview_shown && shown.view != View::Columns).then(|| Preview {
             items: selected_items.clone(),
             folder: tab.read().here.clone(),
             width: shared.preview_width.read().unwrap_or(t.size_inspector),
@@ -1001,6 +1041,11 @@ impl App for FilesWindow {
                     sidebar_kept.set(false);
                 }
                 wide.set_if_modified(is_wide);
+                let is_roomy = e.area.width() >= PREVIEW_COLLAPSES;
+                if is_roomy && !*roomy.peek() {
+                    preview_kept.set(false);
+                }
+                roomy.set_if_modified(is_roomy);
             })
             .on_global_key_down(on_key)
             .on_global_key_up(move |e: Event<KeyboardEventData>| held.set_if_modified(e.modifiers))
@@ -1040,13 +1085,17 @@ impl App for FilesWindow {
                     places: places.read().clone(),
                     saved: shared.saved.read().clone(),
                     prefs: shared.prefs(),
-                    width: t.size_sidebar,
+                    width: shared.sidebar_width.read().unwrap_or(t.size_sidebar),
+                    on_resize: Some(EventHandler::new({
+                        let shared = shared.clone();
+                        move |width: f32| shared.set_sidebar_width(width)
+                    })),
                     under_toolbar: true,
                     shown: place.clone(),
                     volumes: shared.locations.volumes.read().clone(),
                     shares: shared.locations.shares.read().clone(),
                     space: shared.locations.space.read().clone(),
-                    dragging: drag.over.read().is_some(),
+                    dragging: *drag_on.read(),
                     drop_target,
                     on_go: EventHandler::new({
                         let go = go.clone();
@@ -1102,7 +1151,7 @@ impl App for FilesWindow {
                         back,
                         forward,
                         sidebar: sidebar_shown,
-                        preview: *preview.read(),
+                        preview: preview_shown,
                         shown,
                         options,
                         jobs: jobs.list.read().clone(),
@@ -1134,7 +1183,7 @@ impl App for FilesWindow {
                             on_menu: EventHandler::new(move |(i, at): (usize, (f32, f32))| {
                                 context.set(Some(crate::menus::tab(i, tabs.peek().len(), at)));
                             }),
-                            dragging: drag.over.read().is_some(),
+                            dragging: *drag_on.read(),
                             drag_over: *tab_over.read(),
                             on_drag: EventHandler::new(move |over: Option<usize>| {
                                 tab_over.set(over);
@@ -1159,7 +1208,7 @@ impl App for FilesWindow {
                             .maybe_child(pane),
                     )
                     .maybe_child((*path_bar.read()).then(|| PathBar {
-                        dragging: drag.over.read().is_some(),
+                        dragging: *drag_on.read(),
                         drop_target,
                         folder: place.folder().map(PathBuf::from),
                         on_go: EventHandler::new({

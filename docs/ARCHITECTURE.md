@@ -851,6 +851,29 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   the image's pixels and renders them at full resolution on Done; Trim
   re-encodes the kept range with ffmpeg (B111).
 
+## How a context menu opens
+
+- **In the window, as a layer over it.** `isle_ui::ContextMenu` draws an
+  `isle_ui::Menu` on the window's material at a point in the window's
+  coordinates, in an overlay the window's size; `menu::place` puts its
+  top-leading corner on the point and flips it to whichever side fits.
+  A press on the overlay, or Escape, ends it with `MenuEvent::Back`. It
+  cannot pass the window's edge; a menu as a popup surface is P20's.
+- **The owner builds rows and acts together.** Files' `menus.rs` makes
+  each menu for what was pressed (items, the folder's background, a tab,
+  a sidebar row, the path bar, List's header) as `MenuEntry` rows whose ids
+  index a list of acts; the window holds the open one and runs the chosen
+  act. Most acts name a menu-bar command, so a context menu and the menu
+  bar run the same code, on the items the menu was opened for rather than
+  the selection when the pressed item was outside it. Those items are
+  ringed while the menu is open.
+- **What waits is filled in after.** Open With's apps are read off the
+  window's thread; the menu opens without them and is rebuilt when they
+  arrive, if it is still the same menu.
+- **From the keyboard** the Menu key and ⇧F10 open the selection's menu
+  under the cursor's item with its first row selected; while a menu is
+  open the window's own keys stand aside.
+
 ## How Isle is installed
 
 - **One package** (B100). `pkg/arch/PKGBUILD` builds `isle-git` from

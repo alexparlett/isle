@@ -82,6 +82,10 @@ impl Component for ColumnsView {
         let mut widths = use_state(std::collections::HashMap::<PathBuf, f32>::new);
         let mut all_width = use_state(|| t.size_column);
         let mut dragging = use_state(|| None::<(PathBuf, bool, f64, f32)>);
+        // The divider's menu: whose column, and where.
+        let mut divider_menu = use_state(|| None::<(PathBuf, (f32, f32))>);
+        let mut view_menu = self.interact.view_menu;
+        use_drop(move || view_menu.set(false));
         let min = t.size_column_min;
 
         // The tab's place is the last column; the columns before it run down from the first
@@ -140,7 +144,7 @@ impl Component for ColumnsView {
         let shown_widths = widths.read().clone();
         let every = *all_width.read();
         // A column's trailing divider: dragged its width, ⌥ every column's; double-clicked,
-        // fitted to its names.
+        // fitted to its names; its menu offers Right Size.
         let divider = move |folder: PathBuf, listing: State<Tab>, width: f32| {
             rect()
                 .width(Size::px(t.size_resize_band))
@@ -149,6 +153,13 @@ impl Component for ColumnsView {
                 .layer(Layer::Overlay)
                 .a11y_role(AccessibilityRole::Splitter)
                 .on_mouse_down(move |e: Event<MouseEventData>| {
+                    if e.button == Some(MouseButton::Right) {
+                        e.stop_propagation();
+                        let at = (e.global_location.x as f32, e.global_location.y as f32);
+                        divider_menu.set(Some((folder.clone(), at)));
+                        view_menu.set(true);
+                        return;
+                    }
                     if e.button != Some(MouseButton::Left) {
                         return;
                     }
@@ -191,7 +202,40 @@ impl Component for ColumnsView {
                 }
             })
         });
-        ScrollView::new()
+        let right_sizing = divider_menu.read().clone().map(|(folder, at)| {
+            let entries = std::rc::Rc::new(vec![
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(0, "Right Size This Column")),
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(1, "Right Size All Columns Individually")),
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(2, "Right Size All Columns Equally")),
+            ]);
+            let all = all.clone();
+            isle_ui::ContextMenu::new(entries, at, move |event: isle_ui::MenuEvent| match event {
+                isle_ui::MenuEvent::Chosen(id) => {
+                    divider_menu.set(None);
+                    view_menu.set(false);
+                    let fitted: Vec<(PathBuf, f32)> = all.iter().map(|(listing, f)| (f.clone(), right_size(&listing.peek(), min))).collect();
+                    match id {
+                        0 => {
+                            if let Some((f, w)) = fitted.into_iter().find(|(f, _)| *f == folder) {
+                                widths.write().insert(f, w);
+                            }
+                        }
+                        1 => widths.write().extend(fitted),
+                        _ => {
+                            let widest = fitted.iter().map(|(_, w)| *w).fold(min, f32::max);
+                            widths.write().clear();
+                            all_width.set(widest);
+                        }
+                    }
+                }
+                isle_ui::MenuEvent::Back => {
+                    divider_menu.set(None);
+                    view_menu.set(false);
+                }
+                _ => {}
+            })
+        });
+        let strip = ScrollView::new()
             .direction(Direction::Horizontal)
             .expanded()
             .child(
@@ -223,7 +267,8 @@ impl Component for ColumnsView {
                         action: None,
                         on_resize: None,
                     })),
-            )
+            );
+        rect().expanded().maybe_child(right_sizing).child(strip)
     }
 }
 

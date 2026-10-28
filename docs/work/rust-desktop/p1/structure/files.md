@@ -574,11 +574,11 @@ folder is read again each time it is shown.
   Info, Rename, Compress, Duplicate, Make Alias, Quick Look; Copy and Copy
   as Pathname; no Cut. Several items take counts in their labels ("Rename
   3 Items…", "Copy 3 Items") and add New Folder with Selection. Isle's
-  extras close the menu where they apply: Open in Terminal, Set as
-  Wallpaper, Expand. A trashed item's menu: Put Back, Delete
+  extras close the menu where they apply: Open in terminal, Set as
+  wallpaper, Expand. A trashed item's menu: Put Back, Delete
   Immediately…, Get Info, Quick Look, Copy. The background's: New Folder,
-  New File (a submenu with templates), Get Info, Paste Item, Use Groups,
-  Group By, Sort By, Show View Options, Open in Terminal; in the Trash,
+  New file (a submenu with templates), Get Info, Paste Item, Use Groups,
+  Group By, Sort By, Show View Options, Open in terminal; in the Trash,
   Empty Trash… and the view rows. The Menu key and ⇧F10 open the
   selection's menu under the cursor's item, its first row selected.
 - **Drag** carries the items under the pointer, or the selection they

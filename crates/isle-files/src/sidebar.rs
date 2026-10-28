@@ -40,6 +40,8 @@ pub(crate) struct Sidebar {
     /// A secondary click on a row, at a point in the window.
     pub on_menu: EventHandler<(crate::menus::Side, (f32, f32))>,
     pub width: f32,
+    /// The trailing edge dragged to a width, to keep.
+    pub on_resize: Option<EventHandler<f32>>,
     /// Leaves the window's toolbar band clear at its top.
     pub under_toolbar: bool,
     /// The toolbar's sidebar toggle, over the sidebar's top trailing corner.
@@ -120,6 +122,9 @@ impl Component for Sidebar {
         // A Favourite pressed: where from, the pointer's height then, and once it moves the gap
         // it would go to.
         let mut reorder = use_state(|| None::<(usize, f64, Option<usize>)>);
+        // The trailing edge being dragged: where from, the width then, and the width now.
+        let mut resizing = use_state(|| None::<(f64, f32)>);
+        let mut live = use_state(|| None::<f32>);
         // Each Favourite's top and bottom in the window, by index.
         let areas = use_state(std::collections::BTreeMap::<usize, (f32, f32)>::new);
         let can_reorder = self.on_reorder.is_some();
@@ -238,10 +243,32 @@ impl Component for Sidebar {
         });
         let (computer, trash) = (self.places.locations.first(), self.places.locations.get(1));
         let on_reorder = self.on_reorder.clone();
+        let on_resize = self.on_resize.clone();
+        let width = live.read().unwrap_or(self.width);
+        let (narrowest, widest) = (t.size_sidebar_min, t.size_sidebar_max);
+        let edge = on_resize.is_some().then(|| {
+            rect()
+                .position(Position::new_absolute().left(width - t.size_resize_band / 2.).top(0.))
+                .layer(Layer::Overlay)
+                .width(Size::px(t.size_resize_band))
+                .height(Size::fill())
+                .a11y_role(AccessibilityRole::Splitter)
+                .a11y_alt("Sidebar width")
+                .on_mouse_down(move |e: Event<MouseEventData>| {
+                    if e.button == Some(MouseButton::Left) {
+                        e.stop_propagation();
+                        resizing.set(Some((e.global_location.x, width)));
+                    }
+                })
+        });
         rect()
-            .width(Size::px(self.width))
+            .width(Size::px(width))
             .height(Size::fill())
             .on_global_pointer_move(move |e: Event<PointerEventData>| {
+                if let Some((x0, start)) = *resizing.peek() {
+                    live.set(Some((start + (e.global_location().x - x0) as f32).clamp(narrowest, widest)));
+                    return;
+                }
                 let Some((from, y0, to)) = *reorder.peek() else { return };
                 let y = e.global_location().y;
                 if to.is_none() && (y - y0).abs() <= 4. {
@@ -258,6 +285,13 @@ impl Component for Sidebar {
                 reorder.set_if_modified(Some((from, y0, Some(gap))));
             })
             .on_global_pointer_up(move |_: Event<PointerEventData>| {
+                if resizing.peek().is_some() {
+                    resizing.set(None);
+                    if let (Some(width), Some(on_resize)) = (live.write().take(), on_resize.as_ref()) {
+                        on_resize.call(width);
+                    }
+                    return;
+                }
                 let Some((from, _, to)) = *reorder.peek() else { return };
                 reorder.set(None);
                 if let (Some(to), Some(on_reorder)) = (to, on_reorder.as_ref())
@@ -274,6 +308,7 @@ impl Component for Sidebar {
                     .width(BorderWidth { top: 0., right: 1., bottom: 0., left: 0. })
                     .alignment(BorderAlignment::Inner),
             )
+            .maybe_child(edge)
             .maybe_child(self.under_toolbar.then(|| {
                 let on_hide = self.on_hide.clone();
                 rect()

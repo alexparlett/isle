@@ -45,6 +45,8 @@ pub struct Interact {
     /// The keyboard cursor's item: its leading edge and foot in the window, where a menu
     /// opened from the keyboard hangs.
     pub cursor_at: State<Option<(f32, f32)>>,
+    /// A menu a view draws itself is open, a divider's: the window's keys stand aside.
+    pub view_menu: State<bool>,
 }
 
 impl Interact {

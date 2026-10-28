@@ -375,7 +375,7 @@ pub fn title(work: &Work) -> (String, String) {
     let n = |items: &[PathBuf]| crate::format::items(items.len());
     let folder = |p: &PathBuf| crate::places::folder_name(p);
     match work {
-        Work::Copy { items, into } => (format!("Copying {} to “{}”", n(items), folder(into)), format!("Copy of {}", n(items))),
+        Work::Copy { items, into } => (format!("Copying {} to “{}”", n(items), folder(into)), format!("Copy of {}", if items.len() == 1 { "1 Item".to_owned() } else { format!("{} Items", items.len()) })),
         Work::Move { items, into } => (format!("Moving {} to “{}”", n(items), folder(into)), "Move".into()),
         Work::Duplicate { items } => (format!("Duplicating {}", n(items)), "Duplicate".into()),
         Work::Trash { items } => (format!("Moving {} to the Trash", n(items)), "Move to Trash".into()),

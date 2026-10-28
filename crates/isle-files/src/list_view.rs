@@ -122,6 +122,10 @@ impl Component for ListView {
         };
         // A divider being dragged: its column and width now, shown before it is kept.
         let mut resizing = use_state(|| None::<(Column, f32, f64, f32)>);
+        // The divider's menu: whose column, and where.
+        let mut divider_menu = use_state(|| None::<(Column, (f32, f32))>);
+        let mut view_menu = self.interact.view_menu;
+        use_drop(move || view_menu.set(false));
         let mut widths = shown.hidden;
         if let Some((column, width, _, _)) = *resizing.read() {
             widths.widths[column.index()] = width as u16;
@@ -170,7 +174,8 @@ impl Component for ListView {
                 .into_element()
         };
         // The divider at a column's leading edge, in the gap before it and taking no room:
-        // dragged, the column's width; double-clicked, fitted to its values.
+        // dragged, the column's width; double-clicked, fitted to its values; its menu offers
+        // Right Size.
         let gap = t.space_l;
         let divider = {
             let on_pick = self.on_pick.clone();
@@ -183,6 +188,13 @@ impl Component for ListView {
                     .a11y_role(AccessibilityRole::Splitter)
                     .a11y_alt(format!("{} width", column.name()))
                     .on_mouse_down(move |e: Event<MouseEventData>| {
+                        if e.button == Some(MouseButton::Right) {
+                            e.stop_propagation();
+                            let at = (e.global_location.x as f32, e.global_location.y as f32);
+                            divider_menu.set(Some((column, at)));
+                            view_menu.set(true);
+                            return;
+                        }
                         if e.button != Some(MouseButton::Left) {
                             return;
                         }
@@ -207,6 +219,7 @@ impl Component for ListView {
         let header = rect()
             .width(Size::fill())
             .height(Size::px(t.size_control))
+            .overflow(Overflow::Clip)
             .padding((0., t.space_s + t.space_s))
             .horizontal()
             .content(Content::flex())
@@ -302,11 +315,30 @@ impl Component for ListView {
             columns: std::rc::Rc::new(columns),
             widths,
         };
+        let right_sizing = (*divider_menu.read()).map(|(column, at)| {
+            let entries = std::rc::Rc::new(vec![isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(0, "Right Size"))]);
+            let on_pick = self.on_pick.clone();
+            isle_ui::ContextMenu::new(entries, at, move |event: isle_ui::MenuEvent| match event {
+                isle_ui::MenuEvent::Chosen(_) => {
+                    divider_menu.set(None);
+                    view_menu.set(false);
+                    let mut next = shown;
+                    next.hidden.widths[column.index()] = right_size(column, &tab.peek()) as u16;
+                    on_pick.call(Pick::Shown(next));
+                }
+                isle_ui::MenuEvent::Back => {
+                    divider_menu.set(None);
+                    view_menu.set(false);
+                }
+                _ => {}
+            })
+        });
         rect()
             .expanded()
             .content(Content::flex())
             .background(colour(t.colour_view))
             .a11y_role(AccessibilityRole::Table)
+            .maybe_child(right_sizing)
             .child(header)
             .child(
                 rect()

@@ -2,6 +2,26 @@
 
 ## 2026-10-28
 
+- P15b 15b.14, the walk: `structure/files.md`'s Keyboard, Pointer, Acting,
+  States and Copy walked line by line against the build, written in
+  `p15-files.md` § The spec walk. Built from its gaps: v1's keys as second
+  chords (`isle_app::Command::also`; F2, Delete, ⇧Delete and Backspace in
+  the window), ⌘. cancelling a panel, ⌘Y in Quick Look's own window, the
+  divider's Right Size menu (Columns' three), the sidebar's edge dragged
+  and kept, symbol buttons' tooltips, a drag of no files marking nothing,
+  the preview folding before the sidebar in a narrow window, an archive
+  with no default app expanding when opened, a renamed item staying
+  chosen, List's header clipped under the preview, the menu bar's
+  Compress names, "Undo Copy of {n} Items", "Can't Undo", and the context
+  menu's extras in the Copy table's case. ARCHITECTURE gains How a context
+  menu opens. The VM's journal had one panic, every Isle app's at a
+  session's end (freya-winit unwrapping the event loop's error when the
+  display goes): fixed in the fork's `2cf6468f`, for the user to push
+  before the pin moves. Declined, for the user: v1's Ctrl+1–3 and Alt
+  arrows, Other… on every app. Proved by a new compositor test,
+  `v1s_keys_right_size_the_sidebar_edge_and_archives_expanding`, the panel
+  test's ⌘., the preview test's narrow window, and a VM pass by real input (Right Size, the sidebar
+  kept at 280, a tooltip, F2, Delete, Backspace; no panic).
 - P15b 15b.13, the low items: names cut in the middle (List measured,
   `isle_ui::text::MiddleCut`; Icons two lines then cut; Columns and tabs by
   their widths); Quick Look's Rotate Left on a picture, the original kept in

@@ -143,6 +143,7 @@ impl App for QuickLookWindow {
                 _ if *marking.peek() || *trimming.peek() => {}
                 Key::Named(NamedKey::Escape) => close(),
                 Key::Character(c) if c == " " => close(),
+                Key::Character(c) if c == "y" && e.modifiers.contains(Modifiers::META) => close(),
                 Key::Named(NamedKey::ArrowLeft) | Key::Named(NamedKey::ArrowUp) => step(-1),
                 Key::Named(NamedKey::ArrowRight) | Key::Named(NamedKey::ArrowDown) => step(1),
                 Key::Named(NamedKey::Enter) if e.modifiers.contains(Modifiers::META) => indexing.toggle(),

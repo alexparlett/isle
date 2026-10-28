@@ -97,6 +97,11 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         };
         (alias, folder)
     };
+    let compress_label = match (&selection_name, selected_count) {
+        (Some(name), _) => format!("Compress “{name}”"),
+        (None, n) if n > 1 => format!("Compress {n} Items"),
+        _ => "Compress".to_owned(),
+    };
     let ejectable = ejectable(shared, &tab.read());
     let eject_label = match &ejectable {
         Some(v) => format!("Eject “{}”", v.label),
@@ -107,6 +112,7 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
     let mut new_file = vec![
         Command::new("new-file", if templates.is_empty() { "New file" } else { "Empty File" }, Menu::File, 0)
             .chord(Chord::cmd('n').option().shift())
+            .also(Chord::bare(ChordKey::Char('f')).ctrl().shift())
             .enabled(can_make),
     ];
     for (i, template) in templates.iter().enumerate() {
@@ -117,14 +123,15 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         new_file = new_file.into_iter().map(|c| c.under("New file")).collect();
     }
     let mut table = vec![
-        Command::new("undo", undo_label.clone().unwrap_or_else(|| "Undo".into()), Menu::Edit, 0)
+        Command::new("undo", undo_label.clone().unwrap_or_else(|| "Can't Undo".into()), Menu::Edit, 0)
             .chord(Chord::cmd('z'))
             .enabled(undo_label.is_some()),
-        Command::new("redo", redo_label.clone().unwrap_or_else(|| "Redo".into()), Menu::Edit, 0)
+        Command::new("redo", redo_label.clone().unwrap_or_else(|| "Can't Redo".into()), Menu::Edit, 0)
             .chord(Chord::cmd('z').shift())
             .enabled(redo_label.is_some()),
         Command::new("new-folder", "New Folder", Menu::File, 0)
             .chord(Chord::cmd('n').shift())
+            .also(Chord::bare(ChordKey::Char('n')).ctrl().shift())
             .enabled(place.folder().is_some()),
         Command::new("new-folder-with-items", "New Folder with Items", Menu::File, 0)
             .chord(Chord::cmd('n').ctrl())
@@ -135,7 +142,7 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("make-alias", "Make Alias", Menu::File, 3)
             .chord(Chord::cmd('a').ctrl())
             .enabled(has_selection && !in_trash),
-        Command::new("compress", "Compress", Menu::File, 3).enabled(has_selection && !in_trash),
+        Command::new("compress", compress_label, Menu::File, 3).enabled(has_selection && !in_trash),
         Command::new("expand", "Expand", Menu::File, 3).enabled(has_selection && !in_trash),
         Command::new(
             if in_trash { "put-back" } else { "move-to-trash" },
@@ -168,7 +175,7 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         .chord(Chord::cmd('c').option())
         .enabled(has_selection),
         Command::new("open-with", "Open With…", Menu::File, 1).enabled(has_selection && !in_trash),
-        Command::new("get-info", "Get Info", Menu::File, 2).chord(Chord::cmd('i')),
+        Command::new("get-info", "Get Info", Menu::File, 2).chord(Chord::cmd('i')).also(Chord::bare(ChordKey::Char('i')).ctrl()),
         Command::new("show-original", "Show Original", Menu::File, 3)
             .chord(Chord::cmd('r'))
             .enabled(selected_alias),
@@ -188,7 +195,7 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("rename", if selected_count > 1 { format!("Rename {selected_count} Items…") } else { "Rename".into() }, Menu::File, 3)
             .enabled(has_selection && !in_trash),
         Command::new("new-window", "New Window", Menu::File, 0).chord(Chord::cmd('n')),
-        Command::new("find", "Find", Menu::File, 5).chord(Chord::cmd('f')),
+        Command::new("find", "Find", Menu::File, 5).chord(Chord::cmd('f')).also(Chord::bare(ChordKey::Char('f')).ctrl()),
         Command::new("new-tab", "New Tab", Menu::File, 0).chord(Chord::cmd('t')),
         Command::new("open", "Open", Menu::File, 1)
             .chord(Chord::cmd('o'))
@@ -257,12 +264,17 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
             .enabled(shown.view == View::List),
         Command::new("bigger", "Bigger Icons", Menu::View, 5)
             .chord(Chord::cmd('='))
+            .also(Chord::cmd('+').shift())
+            .also(Chord::bare(ChordKey::Char('=')).ctrl())
+            .also(Chord::bare(ChordKey::Char('+')).ctrl().shift())
             .enabled(shown.view == View::Icons),
         Command::new("smaller", "Smaller Icons", Menu::View, 5)
             .chord(Chord::cmd('-'))
+            .also(Chord::bare(ChordKey::Char('-')).ctrl())
             .enabled(shown.view == View::Icons),
         Command::new("toggle-preview", if *preview.read() { "Hide Preview" } else { "Show Preview" }, Menu::View, 3)
-            .chord(Chord::cmd('p').shift()),
+            .chord(Chord::cmd('p').shift())
+            .also(Chord::bare(ChordKey::Char('p')).ctrl().shift()),
         Command::new("toggle-path-bar", if *path_bar.read() { "Hide Path Bar" } else { "Show Path Bar" }, Menu::View, 3)
             .chord(Chord::cmd('p').option()),
         Command::new(
@@ -278,7 +290,8 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
             Menu::View,
             4,
         )
-        .chord(Chord::cmd('.').shift()),
+        .chord(Chord::cmd('.').shift())
+        .also(Chord::bare(ChordKey::Char('h')).ctrl()),
         Command::new("toggle-sidebar", if *sidebar.read() { "Hide Sidebar" } else { "Show Sidebar" }, Menu::View, 3)
             .chord(Chord::cmd('s').ctrl()),
         Command::new("back", "Back", Menu::Go, 0).chord(Chord::cmd('[')).enabled(back),
@@ -289,7 +302,9 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
         Command::new("open-down", "Open Selection", Menu::Go, 0)
             .chord(Chord::cmd_key(ChordKey::Down))
             .enabled(has_selection),
-        Command::new("go-to-folder", "Go to Folder…", Menu::Go, 2).chord(Chord::cmd('g').shift()),
+        Command::new("go-to-folder", "Go to Folder…", Menu::Go, 2)
+            .chord(Chord::cmd('g').shift())
+            .also(Chord::bare(ChordKey::Char('l')).ctrl()),
         Command::new("go-recents", "Recents", Menu::Go, 1).chord(Chord::cmd('f').shift()),
         Command::new("go-documents", "Documents", Menu::Go, 1)
             .chord(Chord::cmd('o').shift())

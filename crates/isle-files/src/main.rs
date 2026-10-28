@@ -103,6 +103,7 @@ pub struct Shared {
     pub mounting: State<Vec<String>>,
     /// The preview pane's width as dragged.
     pub preview_width: State<Option<f32>>,
+    pub sidebar_width: State<Option<f32>>,
     /// The Files window in front, if one is: a job's end is its report then.
     pub focused: Cell<Option<WindowKey>>,
     pub jobs: jobs::Jobs,
@@ -623,6 +624,13 @@ impl Shared {
         self.save();
     }
 
+    pub fn set_sidebar_width(&self, width: f32) {
+        let mut kept = self.sidebar_width;
+        kept.set(Some(width));
+        self.memory.borrow_mut().sidebar_width = Some(width);
+        self.save();
+    }
+
     pub fn recent_folders(&self) -> Vec<PathBuf> {
         self.memory.borrow().recent_folders.clone()
     }
@@ -892,6 +900,7 @@ fn main() {
         places_rev: State::create_global(0),
         mounting: State::create_global(Vec::new()),
         preview_width: State::create_global(memory.preview_width),
+        sidebar_width: State::create_global(memory.sidebar_width),
         focused: Cell::new(None),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),

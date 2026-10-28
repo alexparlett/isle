@@ -337,6 +337,7 @@ impl App for PanelWindow {
 
         let layout = use_state(crate::keys::Layout::default);
         let cursor_at = use_state(|| None::<(f32, f32)>);
+        let view_menu = use_state(|| false);
         let bookmark_at = use_state(|| None::<usize>);
         let typed = use_state(crate::keys::Typed::default);
         let opening = ask.kind == Kind::Open;
@@ -345,7 +346,7 @@ impl App for PanelWindow {
             let live_keys = handle.live.clone();
             let shared = shared.clone();
             move |e: Event<KeyboardEventData>| {
-                if replacing.peek().is_some() || going.peek().is_some() {
+                if replacing.peek().is_some() || going.peek().is_some() || *view_menu.peek() {
                     return;
                 }
                 // The name field or the search field has the keys while focused.
@@ -362,6 +363,7 @@ impl App for PanelWindow {
                         }
                     }
                     Key::Named(NamedKey::Escape) => cancel(),
+                    Key::Character(c) if c == "." && e.modifiers.contains(Modifiers::META) => cancel(),
                     Key::Named(NamedKey::Enter) if !find.is_focused() => accept(),
                     Key::Character(c) if plain && !typing && c == " " && !typed.peek().going(std::time::Instant::now()) => {
                         let selection = tab.peek().selection.clone();
@@ -388,6 +390,7 @@ impl App for PanelWindow {
             blink: false,
             writing: 0.,
             cursor_at,
+            view_menu,
         };
         let focused = *Platform::get().is_app_focused.read();
         let rev = tab.read().rev;
@@ -781,6 +784,7 @@ impl App for PanelWindow {
                     move |heading: String| shared.toggle_group(&heading)
                 }),
                 width: t.size_sidebar_min,
+                on_resize: None,
                 under_toolbar: false,
             };
             let body = content(&theme, &handle, rev, focused, on_pick, interact, false);

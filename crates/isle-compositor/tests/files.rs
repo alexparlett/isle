@@ -1814,6 +1814,17 @@ async fn the_preview_widens_shows_more_and_aliases_carry_a_badge() {
     isle.chord(&[SUPER, SHIFT, KEY_H]).await;
     pause(600).await;
     isle.keep_shot("files-preview-alias").await;
+
+    // Narrowed, the window folds its preview before its sidebar; shown again by hand, it stays.
+    let boxes = isle.windows_proxy().await;
+    boxes.set_box(w.id, w.x, w.y, 900, 700).await.unwrap();
+    pause(800).await;
+    isle.keep_shot("files-preview-folded").await;
+    isle.chord(&[SUPER, SHIFT, KEY_P]).await;
+    pause(300).await;
+    isle.chord(&[SUPER, SHIFT, KEY_P]).await;
+    pause(600).await;
+    isle.keep_shot("files-preview-kept").await;
     assert!(!app.printed_part("panicked"));
 }
 
@@ -1895,6 +1906,16 @@ async fn an_open_panel_takes_files_keys_go_to_folder_quick_look_and_hidden_files
     assert_eq!(response, 0);
     let uris: Vec<String> = results["uris"].try_clone().unwrap().try_into().unwrap();
     assert!(uris[0].ends_with("/notes.md"), "{uris:?}");
+
+    // ⌘. cancels a panel, as Escape does.
+    let mut options = std::collections::HashMap::new();
+    options.insert("current_folder".to_owned(), owned(bytes_of(&home)));
+    let again = tokio::spawn(file_chooser(frontend.clone(), "OpenFile", "/org/freedesktop/portal/desktop/request/1_1/k2", options));
+    wait_until(|| async { isle.windows().await.iter().any(|x| x.app_id == APP && x.title == "Open") }).await;
+    pause(800).await;
+    isle.chord(&[SUPER, KEY_DOT_]).await;
+    let (response, _) = tokio::time::timeout(std::time::Duration::from_secs(10), again).await.expect("the panel answers").unwrap();
+    assert_eq!(response, 1);
     assert!(!app.printed_part("panicked"));
 }
 
@@ -1984,3 +2005,92 @@ async fn quick_look_rotates_a_picture_left() {
 
 /// Rotate Left's distance from Quick Look's trailing edge.
 const ROTATE_FROM_RIGHT: f64 = 240.;
+
+const F2: u32 = 60;
+const DELETE: u32 = 111;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn v1s_keys_right_size_the_sidebar_edge_and_archives_expanding() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-v1-keys").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let test = isle.test().await;
+    let kept = isle.dir.join("files-state/isle/files.json");
+    let flat = || std::fs::read_to_string(&kept).unwrap_or_default().split_whitespace().collect::<String>();
+
+    // Kind's divider's menu fits the column, and Return goes to the menu.
+    let right = w.x as f64 + w.width as f64 - 16.;
+    let header_y = w.y as f64 + 52. + 12.;
+    let divider = (right - 140. - 8., header_y);
+    secondary(&isle, divider).await;
+    isle.keep_shot("files-divider-menu").await;
+    isle.chord(&[DOWN]).await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async {
+        let f = flat();
+        f.find("\"widths\":[0,0,0,0,").is_some_and(|at| !f[at + 19..].starts_with('0'))
+    })
+    .await;
+    assert!(home.join("todo.txt").exists() && home.join("notes.md").exists(), "Return went to the menu, not a rename");
+
+    // The sidebar's trailing edge dragged right widens it, kept.
+    let edge = (w.x as f64 + 220., w.y as f64 + 400.);
+    test.pointer_to(edge.0, edge.1).await.unwrap();
+    pause(150).await;
+    test.button(272, true).await.unwrap();
+    for step in 1..=5 {
+        test.pointer_to(edge.0 + 12. * step as f64, edge.1).await.unwrap();
+        pause(40).await;
+    }
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { flat().contains("\"sidebar_width\":280") }).await;
+    isle.keep_shot("files-sidebar-wider").await;
+
+    // F2 renames; Delete moves to the Trash.
+    reveal(&isle, &app, &home.join("todo.txt")).await;
+    isle.chord(&[F2]).await;
+    pause(300).await;
+    type_text(&isle, "done").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async { home.join("done.txt").exists() }).await;
+    pause(300).await;
+    isle.chord(&[DELETE]).await;
+    wait_until(|| async { !home.join("done.txt").exists() }).await;
+
+    // Backspace goes to the enclosing folder with the one left chosen; Ctrl+H shows hidden files.
+    reveal(&isle, &app, &home.join("Pictures/red.png")).await;
+    pause(300).await;
+    isle.chord(&[BACKSPACE]).await;
+    pause(600).await;
+    isle.chord(&[DELETE]).await;
+    wait_until(|| async { !home.join("Pictures").exists() }).await;
+    isle.chord(&[CTRL, KEY_H]).await;
+    wait_until(|| async { flat().contains("\"hidden\":true") }).await;
+
+    // An archive with no default app expands beside itself when opened.
+    let packing = isle.dir.join("packing");
+    std::fs::create_dir_all(&packing).unwrap();
+    std::fs::write(packing.join("inside.txt"), "packed\n").unwrap();
+    let made = std::process::Command::new("bsdtar")
+        .arg("-a")
+        .arg("-cf")
+        .arg(home.join("bundle.zip"))
+        .arg("-C")
+        .arg(&packing)
+        .arg("inside.txt")
+        .status();
+    if made.is_ok_and(|s| s.success()) {
+        reveal(&isle, &app, &home.join("bundle.zip")).await;
+        pause(300).await;
+        isle.chord(&[SUPER, DOWN]).await;
+        wait_until(|| async { home.join("bundle/inside.txt").exists() }).await;
+    }
+    assert!(!app.printed_part("panicked"));
+}

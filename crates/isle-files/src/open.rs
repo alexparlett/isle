@@ -43,6 +43,16 @@ pub fn decide(paths: &[PathBuf]) -> (Vec<(String, Vec<String>)>, Vec<PathBuf>) {
     let mut launches: Vec<(String, Vec<String>)> = Vec::new();
     let mut ask = Vec::new();
     for path in paths {
+        // An archive with no default app set is expanded, so it is asked about.
+        let name = path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+        if crate::menus::is_archive(&name) {
+            let kind = mimeapps::kind_of(path);
+            let default = lists.iter().any(|l| l.defaults.get(&kind).is_some_and(|ids| ids.iter().any(|id| index.get(id).is_some())));
+            if !default {
+                ask.push(path.clone());
+                continue;
+            }
+        }
         match mimeapps::opening(path, &lists, &index) {
             Opening::App(app) => {
                 let uri = isle_thumbnail::uri(path);

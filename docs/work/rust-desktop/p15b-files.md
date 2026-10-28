@@ -327,6 +327,6 @@ the Trash sound; Spotlight's Trash; context menus past the window's edge.
 Declined, for the user to accept: v1's Ctrl+1, 2 and 3 (desktops), v1's
 Alt with the arrows (Finder's ⌥ arrows in the same table), Other…'s sheet
 opening on every app (Finder's recommended list, all one tick away).
-Still to come: the user's day on the host, and the Freya fork's
-`2cf6468f` (an app's event loop ending quietly at a session's end, where
-every Isle app panicked) pushed and pinned.
+The Freya fork's `2cf6468f` is pinned: an app's event loop ends quietly at
+a session's end, where every Isle app panicked. Still to come: the user's
+day on the host.

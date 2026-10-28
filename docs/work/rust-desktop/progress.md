@@ -16,8 +16,9 @@
   menu's extras in the Copy table's case. ARCHITECTURE gains How a context
   menu opens. The VM's journal had one panic, every Isle app's at a
   session's end (freya-winit unwrapping the event loop's error when the
-  display goes): fixed in the fork's `2cf6468f`, for the user to push
-  before the pin moves. Declined, for the user: v1's Ctrl+1–3 and Alt
+  display goes): fixed in the fork's `2cf6468f`, pushed by the user and
+  pinned; a session ended in the VM with Files open logs the loop's end
+  and no panic. Declined, for the user: v1's Ctrl+1–3 and Alt
   arrows, Other… on every app. Proved by a new compositor test,
   `v1s_keys_right_size_the_sidebar_edge_and_archives_expanding`, the panel
   test's ⌘., the preview test's narrow window, and a VM pass by real input (Right Size, the sidebar

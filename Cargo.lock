@@ -2008,7 +2008,7 @@ dependencies = [
 [[package]]
 name = "freya"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "cfg-if",
  "freya-android",
@@ -2027,7 +2027,7 @@ dependencies = [
 [[package]]
 name = "freya-android"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "freya-components",
  "freya-core",
@@ -2040,7 +2040,7 @@ dependencies = [
 [[package]]
 name = "freya-animation"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "easer",
  "freya-core",
@@ -2049,7 +2049,7 @@ dependencies = [
 [[package]]
 name = "freya-clipboard"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "arboard",
  "freya-core",
@@ -2058,7 +2058,7 @@ dependencies = [
 [[package]]
 name = "freya-components"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "accesskit",
  "anyhow",
@@ -2081,7 +2081,7 @@ dependencies = [
 [[package]]
 name = "freya-core"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "accesskit",
  "async-io",
@@ -2113,7 +2113,7 @@ dependencies = [
 [[package]]
 name = "freya-edit"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "bitflags 2.13.2",
  "freya-clipboard",
@@ -2127,7 +2127,7 @@ dependencies = [
 [[package]]
 name = "freya-embed"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "accesskit",
  "freya-clipboard",
@@ -2144,7 +2144,7 @@ dependencies = [
 [[package]]
 name = "freya-engine"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "freya-skia-safe",
 ]
@@ -2152,7 +2152,7 @@ dependencies = [
 [[package]]
 name = "freya-metrics-plugin"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "freya-core",
  "freya-engine",
@@ -2163,7 +2163,7 @@ dependencies = [
 [[package]]
 name = "freya-sdk"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "freya-core",
 ]
@@ -2212,7 +2212,7 @@ dependencies = [
 [[package]]
 name = "freya-testing"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "accesskit",
  "freya-clipboard",
@@ -2227,7 +2227,7 @@ dependencies = [
 [[package]]
 name = "freya-video"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -2243,7 +2243,7 @@ dependencies = [
 [[package]]
 name = "freya-winit"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -5263,7 +5263,7 @@ checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
 [[package]]
 name = "pathgraph"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 
 [[package]]
 name = "peniko"
@@ -5740,7 +5740,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 [[package]]
 name = "ragnarok"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "euclid",
  "hotpath",
@@ -7157,7 +7157,7 @@ checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 [[package]]
 name = "torin"
 version = "0.5.0-rc.8"
-source = "git+https://github.com/alexparlett/freya?rev=5ea3ae57e7a985589589d83056afe3eb8902ee4b#5ea3ae57e7a985589589d83056afe3eb8902ee4b"
+source = "git+https://github.com/alexparlett/freya?rev=2cf6468f62dde93bf427e55a93c523c72a8d0465#2cf6468f62dde93bf427e55a93c523c72a8d0465"
 dependencies = [
  "euclid",
  "itertools 0.14.0",

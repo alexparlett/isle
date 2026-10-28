@@ -16,4 +16,4 @@ zeroize.workspace = true
 
 [dev-dependencies]
 png.workspace = true
-freya-testing = { git = "https://github.com/alexparlett/freya", rev = "5ea3ae57e7a985589589d83056afe3eb8902ee4b" }
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }

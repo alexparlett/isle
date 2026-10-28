@@ -1263,6 +1263,8 @@ impl Test {
             ("done", _) => DashboardAction::Done,
             ("gallery", _) => DashboardAction::Gallery,
             ("open", id) => DashboardAction::Open(id.to_owned()),
+            ("gallery-press", key) => DashboardAction::GalleryPress(key.to_owned()),
+            ("gallery-details", key) => DashboardAction::GalleryDetails(Some(key.to_owned())),
             ("row", rest) => {
                 let (id, row) = rest.split_once(' ').ok_or_else(|| fdo::Error::InvalidArgs(action.clone()))?;
                 DashboardAction::Row { id: id.to_owned(), row: row.to_owned() }

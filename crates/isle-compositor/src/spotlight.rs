@@ -595,7 +595,7 @@ impl State {
     }
 
     /// The text `code` types under the seat's layout and modifiers, if any.
-    fn typed_text(&mut self, code: u32) -> Option<String> {
+    pub fn typed_text(&mut self, code: u32) -> Option<String> {
         let keyboard = self.isle.seat.get_keyboard()?;
         let text = keyboard.with_xkb_state(self, |context| {
             let xkb = context.xkb().lock().unwrap();

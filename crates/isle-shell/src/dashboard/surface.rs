@@ -231,6 +231,64 @@ pub enum FormValue {
     Text(String),
 }
 
+/// The gallery in edit mode (`p1/surfaces/widgets.md` The gallery).
+#[derive(Clone, Debug, PartialEq)]
+pub struct GalleryView {
+    /// Installed, Yours, Browse.
+    pub section: usize,
+    pub query: String,
+    /// It has the keyboard.
+    pub focused: bool,
+    pub groups: Vec<GroupView>,
+    pub details: Option<DetailsView>,
+    /// Updates waiting, on Installed's segment.
+    pub updates: usize,
+    /// Yours' and Browse's buttons at the top: "New widget…", "Sources…".
+    pub top: Option<(String, String)>,
+    /// A line in place of items: nothing found, or a source's failure.
+    pub note: Option<String>,
+    /// Faded while a widget is dragged from it.
+    pub faded: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GroupView {
+    pub heading: String,
+    pub items: Vec<ItemView>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ItemView {
+    pub key: String,
+    pub name: String,
+    /// Its sizes, "Added", "No room…", or a browse item's author and version.
+    pub line: String,
+    pub added: bool,
+    pub no_room: bool,
+    pub picture: WidgetView,
+    pub selected: bool,
+    /// Install or Update, trailing.
+    pub button: Option<(String, String)>,
+    /// A browse item's permissions: glyphs, the first in words.
+    pub permissions: Vec<(String, String)>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DetailsView {
+    pub key: String,
+    pub name: String,
+    pub description: String,
+    pub byline: String,
+    pub source: Option<String>,
+    pub sizes: String,
+    pub command: Option<String>,
+    /// Glyph, words, allowed.
+    pub permissions: Vec<(String, String, bool)>,
+    /// Label and the action it sends.
+    pub buttons: Vec<(String, String)>,
+    pub readme: Option<String>,
+}
+
 /// What the dashboard shows now.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Frame {
@@ -246,6 +304,7 @@ pub struct Frame {
     pub ghost: Option<Ghost>,
     pub menu: Option<MenuView>,
     pub form: Option<FormView>,
+    pub gallery: Option<GalleryView>,
 }
 
 impl Default for Frame {
@@ -268,6 +327,7 @@ impl Default for Frame {
             ghost: None,
             menu: None,
             form: None,
+            gallery: None,
         }
     }
 }
@@ -290,6 +350,13 @@ pub enum DashboardAction {
     Form { id: String, key: String, value: FormValue },
     /// The popover dismissed.
     FormClosed,
+    GallerySection(usize),
+    /// A press on an item: a click adds it, a drag places it.
+    GalleryPress(String),
+    GallerySecondary(String),
+    GalleryDetails(Option<String>),
+    /// A button in the gallery: Install, Update, Remove, Change…, New widget…, Sources….
+    GalleryButton { key: String, action: String },
 }
 
 #[derive(Default)]
@@ -376,7 +443,7 @@ impl App for DashboardApp {
     }
 }
 
-fn send(actions: &Actions, action: DashboardAction) {
+pub(super) fn send(actions: &Actions, action: DashboardAction) {
     actions.send(Action::Dashboard(action));
 }
 
@@ -453,6 +520,9 @@ impl Component for Root {
             );
         }
         root = root.child(controls(&theme, &frame, &actions));
+        if let Some(gallery) = &frame.gallery {
+            root = root.child(super::gallery::view(&theme, gallery, &actions));
+        }
         if let Some(form) = &frame.form
             && let Some(w) = frame.widgets.iter().find(|w| w.id == form.id)
         {
@@ -617,7 +687,7 @@ impl Component for TextFieldRow {
     }
 }
 
-fn widget(
+pub(super) fn widget(
     theme: &Theme,
     frame: &Frame,
     w: &WidgetView,
@@ -749,7 +819,6 @@ fn edit_chrome(theme: &Theme, width: f32, height: f32, selected: bool) -> Elemen
         .position(Position::new_absolute().left(0.).top(0.))
         .width(Size::px(width))
         .height(Size::px(height))
-        .layer(freya::prelude::Layer::Overlay)
         .child(
             rect()
                 .position(Position::new_absolute().left(5.).top(5.))

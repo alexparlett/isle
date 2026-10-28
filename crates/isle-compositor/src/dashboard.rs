@@ -82,6 +82,19 @@ pub struct Open {
     pub menu: Option<Menu>,
     /// The widget whose settings popover is open.
     pub form: Option<String>,
+    pub gallery: Option<Gallery>,
+}
+
+/// The gallery's state in edit mode.
+#[derive(Clone, Debug, Default)]
+pub struct Gallery {
+    /// Installed, Yours, Browse.
+    pub section: usize,
+    pub query: String,
+    /// It has the keyboard: typing searches, arrows choose.
+    pub focused: bool,
+    pub selected: usize,
+    pub details: Option<String>,
 }
 
 /// A press held on a widget in edit mode: a move or a resize once it travels.
@@ -101,6 +114,10 @@ pub struct Press {
     pub at: (f32, f32),
     /// The widget was selected when pressed.
     pub was_selected: bool,
+    /// A press on a gallery item: the widget it adds and its size.
+    pub adding: Option<(i32, i32)>,
+    /// The pointer is over the gallery.
+    pub over_gallery: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,6 +140,8 @@ const MENU_REMOVE: u64 = 2;
 const MENU_EDIT: u64 = 3;
 const MENU_CLOSE: u64 = 4;
 const MENU_TRY_AGAIN: u64 = 5;
+const MENU_ADD: u64 = 6;
+const MENU_DETAILS: u64 = 7;
 const MENU_SIZE: u64 = 100;
 
 /// How far a press travels before it is a drag, in points.
@@ -506,6 +525,33 @@ impl Isle {
         rows
     }
 
+    /// What a widget shows now: its data, or the line for why there is none.
+    pub fn widget_body(&self, id: &str, name: &str, output: &str) -> Body {
+        let empty = |line: &str| Body::Empty(line.to_owned());
+        match kind_of(id) {
+            "clock" => Body::Clock(self.clock_view(id)),
+            "session" => Body::Session,
+            "media" => self.now_playing_card().map_or_else(|| empty("Not playing"), Body::Media),
+            "devices" => match self.battery_rows() {
+                rows if rows.is_empty() => empty("No devices"),
+                rows => Body::Devices(rows),
+            },
+            "storage" => self.dashboard.storage.clone().map_or(Body::Title, Body::Storage),
+            "desktops" => Body::Desktops(self.desktop_rows(output)),
+            "notifications" => match self.note_rows() {
+                rows if rows.is_empty() => empty("No notifications"),
+                rows => Body::Notifications(rows),
+            },
+            "controls" => Body::Controls(self.control_modules(id)),
+            "weather" => self.weather_view(id).map_or(Body::Title, Body::Weather),
+            "calendar" => empty("No calendars"),
+            "timer" => Body::Timer(self.timer_view(id)),
+            "system" if self.dashboard.system.is_empty() => Body::Title,
+            "system" => Body::System(self.series_views(id)),
+            _ => self.provider_body(id, name),
+        }
+    }
+
     /// A provider widget's body: its answer, or the line for why there is none.
     fn provider_body(&self, id: &str, name: &str) -> Body {
         use crate::providers::Standing;
@@ -664,31 +710,8 @@ impl Isle {
             .widgets
             .iter()
             .map(|p| {
-                let kind = kind_of(&p.id);
                 let name = self.widget_name(&p.id);
-                let empty = |line: &str| Body::Empty(line.to_owned());
-                let body = match kind {
-                    "clock" => Body::Clock(self.clock_view(&p.id)),
-                    "session" => Body::Session,
-                    "media" => self.now_playing_card().map_or_else(|| empty("Not playing"), Body::Media),
-                    "devices" => match self.battery_rows() {
-                        rows if rows.is_empty() => empty("No devices"),
-                        rows => Body::Devices(rows),
-                    },
-                    "storage" => self.dashboard.storage.clone().map_or(Body::Title, Body::Storage),
-                    "desktops" => Body::Desktops(self.desktop_rows(&open.output)),
-                    "notifications" => match self.note_rows() {
-                        rows if rows.is_empty() => empty("No notifications"),
-                        rows => Body::Notifications(rows),
-                    },
-                    "controls" => Body::Controls(self.control_modules(&p.id)),
-                    "weather" => self.weather_view(&p.id).map_or(Body::Title, Body::Weather),
-                    "calendar" => empty("No calendars"),
-                    "timer" => Body::Timer(self.timer_view(&p.id)),
-                    "system" if self.dashboard.system.is_empty() => Body::Title,
-                    "system" => Body::System(self.series_views(&p.id)),
-                    _ => self.provider_body(&p.id, &name),
-                };
+                let body = self.widget_body(&p.id, &name, &open.output);
                 WidgetView {
                     id: p.id.clone(),
                     name,
@@ -714,6 +737,7 @@ impl Isle {
             by_key: m.by_key,
         });
         let form = open.form.as_ref().map(|id| self.dashboard_form(id));
+        let gallery = open.gallery.as_ref().map(|g| self.gallery_view(open, g));
         let mut frame = Frame {
             extent: open.extent,
             widgets,
@@ -725,7 +749,26 @@ impl Isle {
             ghost,
             menu,
             form,
+            gallery,
         };
+        // A widget dragged from the gallery is drawn under the pointer.
+        if let Some(p) = dragging.filter(|p| p.adding.is_some())
+            && let Some((w, h)) = p.adding
+        {
+            let name = self.widget_name(&p.id);
+            frame.widgets.push(WidgetView {
+                id: p.id.clone(),
+                body: self.widget_body(&p.id, &name, &open.output),
+                name,
+                at: Cells::new(p.ghost.x, p.ghost.y, w, h),
+            });
+        }
+        if dragging.is_some_and(|p| p.over_gallery) {
+            frame.ghost = None;
+        }
+        if let Some(g) = frame.gallery.as_mut() {
+            g.faded = dragging.is_some_and(|p| p.adding.is_some() && !p.over_gallery);
+        }
         // While a drag or resize is planned, the rest are drawn where it would put them.
         if let Some(plan) = dragging.and_then(|p| p.plan.as_ref()) {
             for w in &mut frame.widgets {
@@ -739,6 +782,9 @@ impl Isle {
 
     fn dashboard_menu_entries(&self, open: &Open, on: Option<&str>) -> Vec<MenuEntry> {
         let item = |id, label: &str| MenuEntry::Item(MenuItem::new(id, label));
+        if on.is_some_and(|o| o.starts_with("gallery:")) {
+            return vec![item(MENU_ADD, "Add"), item(MENU_DETAILS, "Details")];
+        }
         let Some(placed) = on.and_then(|id| open.layout.get(id)) else {
             return vec![item(MENU_EDIT, "Edit widgets"), item(MENU_CLOSE, "Close widgets")];
         };
@@ -843,6 +889,16 @@ impl Isle {
             "form": open.and_then(|o| o.form.clone()),
             "dragging": open.and_then(|o| o.press.as_ref()).is_some_and(|p| p.moved),
             "running": self.dashboard.running.len(),
+            "gallery": open.and_then(|o| o.gallery.as_ref()).map(|g| {
+                let view = self.gallery_view(open.unwrap(), g);
+                serde_json::json!({
+                    "section": g.section,
+                    "query": g.query,
+                    "focused": g.focused,
+                    "details": g.details,
+                    "items": view.groups.iter().flat_map(|gr| gr.items.iter().map(|i| (i.key.clone(), i.added, i.no_room))).collect::<Vec<_>>(),
+                })
+            }),
             "backdrop": self.dashboard.backdrop.value(),
             "shown_on": self.dashboard.shown_on.clone(),
         })
@@ -955,6 +1011,7 @@ impl State {
             press: None,
             menu: None,
             form: None,
+            gallery: edit.then(Gallery::default),
         });
         let screen = self.isle.space.output_geometry(output).unwrap_or_default();
         self.isle.dashboard.surface.set_size(screen.size);
@@ -1087,6 +1144,7 @@ impl State {
         open.press = None;
         open.menu = None;
         open.form = None;
+        open.gallery = on.then(Gallery::default);
         if !on {
             self.forget_removed_widgets();
         }
@@ -1098,7 +1156,12 @@ impl State {
             DashboardAction::Close => self.close_dashboard(),
             DashboardAction::Edit => self.dashboard_edit(true),
             DashboardAction::Done => self.dashboard_edit(false),
-            DashboardAction::Gallery => {}
+            DashboardAction::Gallery
+            | DashboardAction::GallerySection(_)
+            | DashboardAction::GalleryPress(_)
+            | DashboardAction::GallerySecondary(_)
+            | DashboardAction::GalleryDetails(_)
+            | DashboardAction::GalleryButton { .. } => self.gallery_action(action),
             DashboardAction::Open(id) => self.dashboard_open_widget(&id),
             DashboardAction::Menu(event) => self.dashboard_menu_event(event),
             DashboardAction::Row { id, row } => self.dashboard_row(&id, &row),
@@ -1163,7 +1226,37 @@ impl State {
         if mods.ctrl {
             return false;
         }
+        if !mods.cmd && !mods.option && self.gallery_key(sym, code) {
+            return true;
+        }
+        let open = self.isle.dashboard.open.as_ref().unwrap();
         let edit = open.edit;
+        if edit && mods.cmd && !mods.option {
+            let section = match sym {
+                keysyms::KEY_1 => Some(0),
+                keysyms::KEY_2 => Some(1),
+                keysyms::KEY_3 => Some(2),
+                _ => None,
+            };
+            if let Some(i) = section {
+                self.gallery_action(DashboardAction::GallerySection(i));
+                return true;
+            }
+            if sym == keysyms::KEY_f {
+                if let Some(open) = self.isle.dashboard.open.as_mut() {
+                    open.gallery.get_or_insert_with(Gallery::default).focused = true;
+                }
+                self.put_dashboard_frame();
+                return true;
+            }
+        }
+        if edit && !mods.cmd && !mods.option && sym == keysyms::KEY_Tab {
+            if let Some(open) = self.isle.dashboard.open.as_mut() {
+                open.gallery.get_or_insert_with(Gallery::default).focused = true;
+            }
+            self.put_dashboard_frame();
+            return true;
+        }
         let arrow = match sym {
             keysyms::KEY_Left => Some((-1, 0)),
             keysyms::KEY_Right => Some((1, 0)),
@@ -1486,6 +1579,15 @@ impl State {
         match event {
             MenuEvent::Chosen(item) => {
                 let on = open.menu.take().and_then(|m| m.on);
+                let gallery_key = on.as_ref().and_then(|o| o.strip_prefix("gallery:")).map(str::to_owned);
+                if let Some(key) = gallery_key {
+                    match item {
+                        MENU_ADD => self.gallery_add(&key),
+                        MENU_DETAILS => self.gallery_action(DashboardAction::GalleryDetails(Some(key))),
+                        _ => self.put_dashboard_frame(),
+                    }
+                    return;
+                }
                 match (item, on) {
                     (MENU_EDIT_ONE, Some(id)) => {
                         self.dashboard_edit(true);
@@ -1575,6 +1677,14 @@ impl State {
         let Some(point) = self.dashboard_point(location) else {
             return false;
         };
+        if let Some(g) = open.gallery.as_ref().map(|_| self.isle.gallery_rect(open))
+            && point.0 >= g.0
+            && point.0 < g.0 + g.2
+            && point.1 >= g.1
+            && point.1 < g.1 + g.3
+        {
+            return false;
+        }
         let hit = self.dashboard_hit(point);
         let on_grid = {
             let e = &open.extent;
@@ -1612,6 +1722,8 @@ impl State {
                     ghost: placed.at,
                     at: point,
                     was_selected,
+                    adding: None,
+                    over_gallery: false,
                 });
                 self.put_dashboard_frame();
                 true
@@ -1638,9 +1750,16 @@ impl State {
             let id = &self.isle.dashboard.open.as_ref().unwrap().press.as_ref().unwrap().id;
             self.isle.widget_sizes(id)
         };
+        let gallery = {
+            let open = self.isle.dashboard.open.as_ref().unwrap();
+            open.gallery.as_ref().map(|_| self.isle.gallery_rect(open))
+        };
         let open = self.isle.dashboard.open.as_mut().unwrap();
         let press = open.press.as_mut().unwrap();
         press.at = point;
+        press.over_gallery = gallery.is_some_and(|g| {
+            point.0 >= g.0 && point.0 < g.0 + g.2 && point.1 >= g.1 && point.1 < g.1 + g.3
+        });
         if !press.moved {
             let (dx, dy) = (point.0 - press.start.0, point.1 - press.start.1);
             if dx.hypot(dy) < DRAG_START {
@@ -1649,7 +1768,10 @@ impl State {
             press.moved = true;
         }
         let e = open.extent;
-        let from = press.base.get(&press.id).unwrap().at;
+        let from = match press.adding {
+            Some((w, h)) => Cells::new(press.ghost.x, press.ghost.y, w, h),
+            None => press.base.get(&press.id).unwrap().at,
+        };
         let pitch = e.pitch();
         let (to, dir) = match press.part {
             Part::Body | Part::Badge => {
@@ -1689,8 +1811,20 @@ impl State {
                 (Cells::new(x, y, w, h), dir)
             }
         };
+        if press.adding.is_some() {
+            // A new widget pushes the way the pointer last moved, once it lands on others.
+            let step = Dir::of(to.x - press.ghost.x, to.y - press.ghost.y).or(dir);
+            press.ghost = to;
+            press.plan = if press.over_gallery {
+                None
+            } else {
+                press.base.push(&press.id, to, None, &e).or_else(|| press.base.push(&press.id, to, step, &e))
+            };
+            self.put_dashboard_frame();
+            return true;
+        }
         press.ghost = to;
-        press.plan = press.base.push(&press.id, to, dir, &e);
+        press.plan = if press.over_gallery { None } else { press.base.push(&press.id, to, dir, &e) };
         self.put_dashboard_frame();
         true
     }
@@ -1702,6 +1836,22 @@ impl State {
         let Some(press) = open.press.take() else {
             return;
         };
+        if let Some(_size) = press.adding {
+            if !press.moved {
+                let kind = kind_of(&press.id).to_owned();
+                return self.gallery_add(&kind);
+            }
+            if let Some(plan) = press.plan.filter(|_| !press.over_gallery) {
+                open.layout = plan;
+                open.selected = Some(press.id.clone());
+                return self.dashboard_changed(press.base);
+            }
+            return self.put_dashboard_frame();
+        }
+        if press.moved && press.over_gallery && press.part == Part::Body {
+            let id = press.id.clone();
+            return self.dashboard_remove(&id);
+        }
         if !press.moved {
             if press.part == Part::Body && press.was_selected {
                 let id = press.id.clone();
@@ -2063,5 +2213,335 @@ impl State {
         if key != "title" {
             self.isle.dashboard.running.remove(id);
         }
+    }
+}
+
+const GROUPS: [&str; 6] = ["Time and calendar", "Weather", "Media", "System", "Devices", "Desktop"];
+
+impl Isle {
+    /// The items a gallery section lists, as (heading, keys).
+    fn gallery_groups(&self, open: &Open, g: &Gallery) -> Vec<(String, Vec<String>)> {
+        let query = g.query.to_lowercase();
+        let matches = |name: &str| query.is_empty() || name.to_lowercase().contains(&query);
+        let mut out: Vec<(String, Vec<String>)> = Vec::new();
+        match g.section {
+            0 => {
+                for group in GROUPS {
+                    let keys: Vec<String> = catalogue::BUILTINS
+                        .iter()
+                        .filter(|b| b.group == group && matches(b.name))
+                        .map(|b| b.kind.to_owned())
+                        .collect();
+                    if !keys.is_empty() {
+                        out.push((group.to_owned(), keys));
+                    }
+                }
+                let mut by_source: BTreeMap<String, Vec<String>> = BTreeMap::new();
+                for (id, p) in &self.dashboard.providers {
+                    if let Some(source) = &p.source
+                        && matches(&p.manifest.name)
+                    {
+                        by_source.entry(source_name(source)).or_default().push(id.clone());
+                    }
+                }
+                out.extend(by_source);
+            }
+            1 => {
+                let keys: Vec<String> = self
+                    .dashboard
+                    .providers
+                    .iter()
+                    .filter(|(_, p)| p.source.is_none() && matches(&p.manifest.name))
+                    .map(|(id, _)| id.clone())
+                    .collect();
+                if !keys.is_empty() {
+                    out.push(("Your widgets".to_owned(), keys));
+                }
+            }
+            _ => {}
+        }
+        let _ = open;
+        out
+    }
+
+    fn gallery_view(&self, open: &Open, g: &Gallery) -> isle_shell::dashboard::surface::GalleryView {
+        use isle_shell::dashboard::surface::{GalleryView, GroupView, ItemView};
+        let groups = self.gallery_groups(open, g);
+        let mut index = 0;
+        let groups: Vec<GroupView> = groups
+            .into_iter()
+            .map(|(heading, keys)| GroupView {
+                heading,
+                items: keys
+                    .into_iter()
+                    .map(|key| {
+                        let preview = format!("{key}#preview");
+                        let sizes = self.widget_sizes(&preview);
+                        let name = self.widget_name(&preview);
+                        let several = catalogue::builtin(&key).map_or_else(
+                            || self.dashboard.providers.get(&key).is_some_and(|p| p.manifest.multiple),
+                            |b| b.several,
+                        );
+                        let added = !several && open.layout.widgets.iter().any(|p| p.kind() == key);
+                        let no_room = !added && open.layout.place_for(sizes.default, &open.extent).is_none();
+                        let line = if no_room {
+                            format!("No room for “{name}”. Remove or resize a widget to make space.")
+                        } else {
+                            sizes.all.iter().map(|(w, h)| format!("{w} × {h}")).collect::<Vec<_>>().join(", ")
+                        };
+                        let item = ItemView {
+                            picture: WidgetView {
+                                id: preview.clone(),
+                                body: self.widget_body(&preview, &name, &open.output),
+                                name: name.clone(),
+                                at: Cells::new(0, 0, sizes.default.0, sizes.default.1),
+                            },
+                            key,
+                            name,
+                            line,
+                            added,
+                            no_room,
+                            selected: g.focused && index == g.selected,
+                            button: None,
+                            permissions: Vec::new(),
+                        };
+                        index += 1;
+                        item
+                    })
+                    .collect(),
+            })
+            .collect();
+        let note = (groups.is_empty()).then(|| match (g.section, g.query.is_empty()) {
+            (_, false) => format!("No widgets match “{}”", g.query),
+            (1, true) => "Your own widgets go in ~/.config/isle/widgets.".to_owned(),
+            _ => "Nothing here yet.".to_owned(),
+        });
+        GalleryView {
+            section: g.section,
+            query: g.query.clone(),
+            focused: g.focused,
+            details: g.details.as_ref().map(|key| self.details_view(key)),
+            groups,
+            updates: 0,
+            top: match g.section {
+                1 => Some(("New widget…".to_owned(), "new".to_owned())),
+                2 => Some(("Sources…".to_owned(), "sources".to_owned())),
+                _ => None,
+            },
+            note,
+            faded: false,
+        }
+    }
+
+    fn details_view(&self, key: &str) -> isle_shell::dashboard::surface::DetailsView {
+        use isle_shell::dashboard::surface::DetailsView;
+        let preview = format!("{key}#preview");
+        let sizes = self.widget_sizes(&preview).all.iter().map(|(w, h)| format!("{w} × {h}")).collect::<Vec<_>>().join(", ");
+        match self.dashboard.providers.get(key) {
+            Some(p) => {
+                let m = &p.manifest;
+                let granted = self.granted(&m.id);
+                let mut byline = vec![m.author.name.clone(), m.version.clone()];
+                if !m.license.is_empty() {
+                    byline.push(m.license.clone());
+                }
+                DetailsView {
+                    key: key.to_owned(),
+                    name: m.name.clone(),
+                    description: m.description.clone(),
+                    byline: byline.into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · "),
+                    source: Some(p.source.clone().unwrap_or_else(|| "Your own".to_owned())),
+                    sizes,
+                    command: Some(m.command()),
+                    permissions: m
+                        .declared()
+                        .iter()
+                        .map(|g| (g.glyph().to_owned(), g.words(), granted.contains(g)))
+                        .collect(),
+                    buttons: Vec::new(),
+                    readme: std::fs::read_to_string(p.folder.join("README.md")).ok(),
+                }
+            }
+            None => DetailsView {
+                key: key.to_owned(),
+                name: self.widget_name(&preview),
+                description: "Built into Isle.".to_owned(),
+                byline: String::new(),
+                source: None,
+                sizes,
+                command: None,
+                permissions: Vec::new(),
+                buttons: Vec::new(),
+                readme: None,
+            },
+        }
+    }
+
+    /// The gallery's box on the dashboard's screen, in points.
+    fn gallery_rect(&self, open: &Open) -> (f32, f32, f32, f32) {
+        let t = &self.shell.theme().tokens;
+        let height = self
+            .space
+            .outputs()
+            .find(|o| o.name() == open.output)
+            .and_then(|o| self.space.output_geometry(o))
+            .map_or(0.0, |g| g.size.h as f32);
+        let top = t.size_strip + t.space_l;
+        (t.space_l, top, t.size_panel, height - top - t.space_l)
+    }
+}
+
+/// A source's name as the gallery heads it: its repository's.
+pub fn source_name(url: &str) -> String {
+    url.trim_end_matches('/').trim_end_matches(".git").rsplit('/').next().unwrap_or(url).to_owned()
+}
+
+impl State {
+    fn gallery_keys(&self) -> Vec<String> {
+        let Some(open) = self.isle.dashboard.open.as_ref() else {
+            return Vec::new();
+        };
+        let Some(g) = open.gallery.as_ref() else {
+            return Vec::new();
+        };
+        self.isle.gallery_groups(open, g).into_iter().flat_map(|(_, keys)| keys).collect()
+    }
+
+    /// Adds `kind` at its default size where a click puts it: the free place nearest the top
+    /// centre, selected.
+    pub fn gallery_add(&mut self, kind: &str) {
+        let preview = format!("{kind}#preview");
+        let size = self.isle.widget_sizes(&preview).default;
+        let taken: Vec<String> = self.isle.settings.widget.keys().cloned().collect();
+        let Some(open) = self.isle.dashboard.open.as_mut() else {
+            return;
+        };
+        let Some(at) = open.layout.place_for(size, &open.extent) else {
+            return;
+        };
+        let id = open.layout.next_id(kind, |id| taken.iter().any(|t| t == id));
+        let before = open.layout.clone();
+        if let Some(after) = before.push(&id, at, None, &open.extent) {
+            open.layout = after;
+            open.selected = Some(id);
+            open.ring = true;
+        }
+        self.dashboard_changed(before);
+    }
+
+    pub fn gallery_action(&mut self, action: DashboardAction) {
+        let Some(open) = self.isle.dashboard.open.as_mut() else {
+            return;
+        };
+        match action {
+            DashboardAction::Gallery => {
+                open.gallery = match open.gallery.take() {
+                    Some(_) => None,
+                    None => Some(Gallery::default()),
+                };
+            }
+            DashboardAction::GallerySection(i) => {
+                if let Some(g) = open.gallery.as_mut() {
+                    g.section = i.min(2);
+                    g.selected = 0;
+                    g.details = None;
+                }
+            }
+            DashboardAction::GalleryDetails(key) => {
+                if let Some(g) = open.gallery.as_mut() {
+                    g.details = key;
+                }
+            }
+            DashboardAction::GallerySecondary(key) => {
+                let at = self.isle.seat.get_pointer().unwrap().current_location();
+                let point = self.dashboard_point(at);
+                if let Some(open) = self.isle.dashboard.open.as_mut() {
+                    open.menu = Some(Menu {
+                        on: Some(format!("gallery:{key}")),
+                        at: point.unwrap_or((0.0, 0.0)),
+                        by_key: false,
+                    });
+                }
+            }
+            DashboardAction::GalleryPress(key) => {
+                let preview = format!("{key}#preview");
+                let size = self.isle.widget_sizes(&preview).default;
+                let taken: Vec<String> = self.isle.settings.widget.keys().cloned().collect();
+                let location = self.isle.seat.get_pointer().unwrap().current_location();
+                let point = self.dashboard_point(location).unwrap_or((0.0, 0.0));
+                let Some(open) = self.isle.dashboard.open.as_mut() else {
+                    return;
+                };
+                let id = open.layout.next_id(&key, |id| taken.iter().any(|t| t == id));
+                let pitch = open.extent.pitch();
+                open.press = Some(Press {
+                    id,
+                    part: Part::Body,
+                    start: point,
+                    grab: ((size.0 as f32 * pitch - open.extent.gap) / 2.0, (size.1 as f32 * pitch - open.extent.gap) / 2.0),
+                    base: open.layout.clone(),
+                    moved: false,
+                    plan: None,
+                    ghost: Cells::new(0, 0, size.0, size.1),
+                    at: point,
+                    was_selected: false,
+                    adding: Some(size),
+                    over_gallery: true,
+                });
+            }
+            DashboardAction::GalleryButton { key, action } => {
+                tracing::info!(key, action, "a gallery button not built yet");
+            }
+            _ => {}
+        }
+        self.put_dashboard_frame();
+    }
+
+    /// Keys while the gallery has the keyboard; true when taken.
+    fn gallery_key(&mut self, sym: u32, code: u32) -> bool {
+        use smithay::input::keyboard::keysyms;
+        let count = self.gallery_keys().len();
+        let Some(g) = self.isle.dashboard.open.as_mut().and_then(|o| o.gallery.as_mut()) else {
+            return false;
+        };
+        if !g.focused {
+            return false;
+        }
+        match sym {
+            keysyms::KEY_Escape if g.details.is_some() => g.details = None,
+            keysyms::KEY_Escape => return false,
+            keysyms::KEY_Tab => g.focused = false,
+            keysyms::KEY_BackSpace => {
+                g.query.pop();
+                g.selected = 0;
+            }
+            keysyms::KEY_Left | keysyms::KEY_Up => g.selected = g.selected.saturating_sub(1),
+            keysyms::KEY_Right | keysyms::KEY_Down => g.selected = (g.selected + 1).min(count.saturating_sub(1)),
+            keysyms::KEY_Return | keysyms::KEY_KP_Enter => {
+                let selected = g.selected;
+                if let Some(key) = self.gallery_keys().get(selected).cloned() {
+                    self.gallery_add(&key);
+                }
+                return true;
+            }
+            keysyms::KEY_space if g.query.is_empty() => {
+                let selected = g.selected;
+                let key = self.gallery_keys().get(selected).cloned();
+                if let Some(g) = self.isle.dashboard.open.as_mut().and_then(|o| o.gallery.as_mut()) {
+                    g.details = key;
+                }
+            }
+            _ => match self.typed_text(code).filter(|t| !t.chars().any(char::is_control)) {
+                Some(text) => {
+                    if let Some(g) = self.isle.dashboard.open.as_mut().and_then(|o| o.gallery.as_mut()) {
+                        g.query.push_str(&text);
+                        g.selected = 0;
+                    }
+                }
+                None => return false,
+            },
+        }
+        self.put_dashboard_frame();
+        true
     }
 }

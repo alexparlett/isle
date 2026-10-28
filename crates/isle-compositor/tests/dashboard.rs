@@ -467,3 +467,73 @@ async fn providers_run_while_shown_and_say_why_when_they_cannot() {
     // The last answer is drawn first when it opens again.
     assert!(status(&isle).await["bodies"]["hello#1"]["provider"].as_str().is_some_and(|p| p.contains("hello")));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_gallery_searches_adds_by_key_and_click_and_takes_widgets_back() {
+    const LEFT_BUTTON: u32 = 0x110;
+    const TAB: u32 = 15;
+    const RETURN: u32 = 28;
+    const BACKSPACE: u32 = 14;
+    const T: u32 = 20;
+    const I: u32 = 23;
+    const M: u32 = 50;
+    const TWO: u32 = 3;
+    let isle = Isle::start("dashboard-gallery").await;
+    isle.test().await.transitions(false).await.unwrap();
+    let shell = ShellProxy::new(&isle.bus).await.unwrap();
+    assert!(shell.widgets("edit").await.unwrap());
+    wait_until(|| async { status(&isle).await["gallery"]["section"] == 0 }).await;
+    let items = status(&isle).await["gallery"]["items"].clone();
+    let media = items.as_array().unwrap().iter().find(|i| i[0] == "media").unwrap().clone();
+    assert_eq!(media[1], true, "a single widget already placed reads Added");
+    let clock = items.as_array().unwrap().iter().find(|i| i[0] == "clock").unwrap().clone();
+    assert_eq!(clock[1], false, "a clock may be placed again");
+
+    // Tab to the gallery, type, Return adds the first match.
+    press(&isle, TAB).await;
+    for key in [T, I, M] {
+        press(&isle, key).await;
+    }
+    wait_until(|| async { status(&isle).await["gallery"]["query"] == "tim" }).await;
+    let found = status(&isle).await["gallery"]["items"].clone();
+    assert_eq!(found.as_array().unwrap().len(), 1, "{found}");
+    press(&isle, RETURN).await;
+    wait_until(|| async { line_of(&layout(&isle).await, "timer#1").starts_with("timer#1 ") }).await;
+    assert_eq!(status(&isle).await["selected"], "timer#1");
+    for _ in 0..3 {
+        press(&isle, BACKSPACE).await;
+    }
+
+    // Cmd+2 is Yours, empty here; Details on an item.
+    isle.chord(&[SUPER, TWO]).await;
+    wait_until(|| async { status(&isle).await["gallery"]["section"] == 1 }).await;
+    isle.test().await.dashboard_act("gallery-details clock").await.unwrap();
+    wait_until(|| async { status(&isle).await["gallery"]["details"] == "clock" }).await;
+    press(&isle, ESCAPE).await;
+    wait_until(|| async { status(&isle).await["gallery"]["details"].is_null() }).await;
+
+    // A drag from the gallery places a widget where it is dropped.
+    let test = isle.test().await;
+    test.pointer_to(150.0, 300.0).await.unwrap();
+    isle.test().await.dashboard_act("gallery-press weather").await.unwrap();
+    let (x, y) = cell(12, 8);
+    for step in 1..=10 {
+        let p = step as f64 / 10.0;
+        test.pointer_to(150.0 + (x - 150.0) * p, 300.0 + (y - 300.0) * p).await.unwrap();
+    }
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { line_of(&layout(&isle).await, "weather#2").starts_with("weather#2 ") }).await;
+
+    // A widget dragged onto the gallery is removed.
+    let line = line_of(&layout(&isle).await, "weather#2").to_owned();
+    let n: Vec<f64> = line.split(' ').skip(1).map(|v| v.parse().unwrap()).collect();
+    let (x, y) = (44.0 + 88.0 * n[0] + 60.0, 97.0 + 88.0 * n[1] + 60.0);
+    test.pointer_to(x, y).await.unwrap();
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    for step in 1..=10 {
+        let p = step as f64 / 10.0;
+        test.pointer_to(x + (150.0 - x) * p, y + (300.0 - y) * p).await.unwrap();
+    }
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    wait_until(|| async { line_of(&layout(&isle).await, "weather#2").is_empty() }).await;
+}

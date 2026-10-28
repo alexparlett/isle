@@ -2,6 +2,20 @@
 
 ## 2026-10-28
 
+- P17 17.9, the gallery: opens with edit mode and Add widgets shows or
+  hides it, a solid sidebar over the grid's leading columns. Search typed
+  into the compositor's model while the gallery has the keyboard (Tab,
+  Cmd+F), Installed, Yours and Browse by the segmented control or Cmd+1–3;
+  Installed's built-ins in P1's groups then each source's providers,
+  Yours the user's own. Items are their widgets drawn live at their
+  default size, with sizes, "Added" for a single one placed, or "No room
+  for “{widget}”…". A click or Return adds at the free place nearest the
+  top centre, selected; a press that travels lifts the widget out (the
+  gallery fading) and drops it with the push; a widget dragged onto the
+  gallery is removed. Details (Space, or its menu) with the description,
+  byline, source, sizes, what it runs, permissions read only with
+  Change… and the README. Browse, Sources, Install, Update and New
+  widget… are 17.10's and 17.14's. One compositor test.
 - P17 17.8, providers' widgets: installed providers (from sources, under
   `~/.local/share/isle/widgets/`, with `.isle-install.json`) and the
   user's own (`~/.config/isle/widgets/`) read as the dashboard opens, the

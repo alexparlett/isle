@@ -48,6 +48,9 @@ pub struct Ending {
     pub from_lock: bool,
     /// Every app is gone and logind was asked.
     pub finishing: bool,
+    /// A window an app opened while quitting, its question, which the dialog stepped aside
+    /// for.
+    pub asking: Option<u64>,
 }
 
 pub struct SessionState {
@@ -141,6 +144,7 @@ impl Isle {
                 Stop::NotResponding(app) => format!("not responding {}", app.app),
                 Stop::Refused(why) => format!("refused {why}"),
             }),
+            "asking": ending.and_then(|e| e.asking),
             "lock_power": format!("{:?}", self.session.lock_power),
         })
         .to_string()
@@ -213,14 +217,8 @@ impl State {
 
     /// Closes the dialog; an ending not yet past its apps is called off.
     pub fn close_session_dialog(&mut self) {
-        if self.isle.session.dialog.take().is_none() {
+        if !self.hide_session_dialog() {
             return;
-        }
-        for token in [self.isle.session.tick.take(), self.isle.session.arm.take()]
-            .into_iter()
-            .flatten()
-        {
-            self.isle.loop_handle.remove(token);
         }
         if self
             .isle
@@ -231,8 +229,41 @@ impl State {
         {
             self.call_off_ending();
         }
+    }
+
+    /// Takes the dialog down and leaves any ending going; false when none was open.
+    fn hide_session_dialog(&mut self) -> bool {
+        if self.isle.session.dialog.take().is_none() {
+            return false;
+        }
+        for token in [self.isle.session.tick.take(), self.isle.session.arm.take()]
+            .into_iter()
+            .flatten()
+        {
+            self.isle.loop_handle.remove(token);
+        }
         self.close_surface("session");
         self.isle.queue_redraw_all();
+        true
+    }
+
+    /// A window mapped while the apps quit is an app's question, as "Save changes?": the
+    /// dialog steps aside for it and the session ends once it is answered (B123).
+    pub fn session_window_mapped(&mut self, id: u64) {
+        let Some(ending) = &mut self.isle.session.ending else {
+            return;
+        };
+        if ending.finishing
+            || ending.from_lock
+            || matches!(ending.stop, Some(Stop::NotResponding(_)))
+        {
+            return;
+        }
+        info!(id, "an app asks while quitting");
+        ending.asking = Some(id);
+        ending.stop = None;
+        self.hide_session_dialog();
+        self.watch_quitting();
     }
 
     fn call_off_ending(&mut self) {
@@ -429,6 +460,7 @@ impl State {
             stop: None,
             from_lock,
             finishing: false,
+            asking: None,
         });
         if from_lock {
             self.isle.session.lock_power = Power::Quitting;
@@ -482,7 +514,18 @@ impl State {
         if ending.finishing || ending.stop.is_some() {
             return;
         }
-        let (choice, started) = (ending.choice, ending.started);
+        // The wait for the apps starts again once the question is answered.
+        if let Some(id) = ending.asking
+            && !self.isle.wm.get(id).is_some_and(|r| r.mapped)
+        {
+            let ending = self.isle.session.ending.as_mut().unwrap();
+            ending.asking = None;
+            ending.started = Instant::now();
+        }
+        let Some(ending) = &self.isle.session.ending else {
+            return;
+        };
+        let (choice, started, asking) = (ending.choice, ending.started, ending.asking.is_some());
         // An app holding off the session's end through the portal is named at once.
         let held = self
             .isle
@@ -498,7 +541,7 @@ impl State {
                     format!("{app} is keeping the session open: {reason}")
                 }
             });
-        if let Some(why) = held {
+        if let Some(why) = held.filter(|_| !asking) {
             return self.session_stopped(Stop::Refused(why));
         }
         let open = self.isle.open_apps();
@@ -506,7 +549,7 @@ impl State {
             None
         } else if let Some(app) = open.iter().find(|a| a.not_responding) {
             Some(Stop::NotResponding(app.clone()))
-        } else if started.elapsed() >= QUIT_WAIT {
+        } else if !asking && started.elapsed() >= QUIT_WAIT {
             Some(Stop::Open(open[0].clone()))
         } else {
             self.put_session_frame();

@@ -146,6 +146,60 @@ async fn an_app_that_keeps_its_window_stops_the_restart_and_show_brings_it_forwa
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn an_apps_question_takes_the_dialogs_place_and_its_answer_ends_the_session() {
+    let mut isle = Isle::start("session-asked").await;
+    let logind = Logind::start(&isle.system_address()).await.unwrap();
+    let asker = isle.client("isle.test.Asker", "3366ff");
+    asker.wait_for("keyboard-enter").await;
+    asker.send("keep-open");
+
+    press(&isle, POWER).await;
+    armed(&isle).await;
+    asker.clear();
+    press(&isle, R).await;
+    asker.wait_for("closed").await;
+    asker.send("modal");
+    wait_until(|| async { session(&isle).await["open"] == false }).await;
+    asker.wait_for("w1 keyboard-enter").await;
+    let s = session(&isle).await;
+    assert_eq!(s["ending"], "Restart", "still ending");
+    assert!(!s["asking"].is_null());
+    isle.keep_shot("session-asked").await;
+
+    // Don't Save: the app quits and the restart goes on.
+    asker.send("quit");
+    wait_until(|| async { logind.ended() == ["Reboot"] }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_app_whose_question_is_cancelled_stops_the_session_once_answered() {
+    let mut isle = Isle::start("session-asked-cancel").await;
+    let logind = Logind::start(&isle.system_address()).await.unwrap();
+    let asker = isle.client("isle.test.Asker", "3366ff");
+    asker.wait_for("keyboard-enter").await;
+    asker.send("keep-open");
+
+    press(&isle, POWER).await;
+    armed(&isle).await;
+    asker.clear();
+    press(&isle, R).await;
+    asker.wait_for("closed").await;
+    asker.send("modal");
+    asker.wait_for("w1 keyboard-enter").await;
+    // Longer than the wait: an unanswered question never stops the session.
+    tokio::time::sleep(Duration::from_secs(6)).await;
+    assert!(session(&isle).await["stop"].is_null());
+
+    asker.send("w1 destroy");
+    // The wait starts again from the answer.
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert!(session(&isle).await["stop"].is_null());
+    wait_until(|| async { session(&isle).await["stop"] == "open isle.test.Asker" }).await;
+    assert_eq!(session(&isle).await["open"], true);
+    assert!(logind.ended().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn an_app_that_does_not_answer_is_force_quit_and_the_restart_goes_on() {
     let mut isle = Isle::start("session-frozen").await;
     let logind = Logind::start(&isle.system_address()).await.unwrap();

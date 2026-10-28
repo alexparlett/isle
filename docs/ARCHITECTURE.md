@@ -471,7 +471,10 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   gone, it logs out (the loop stops, which ends the session) or calls
   logind's `Reboot` or `PowerOff`; an app that missed its ping stops it as
   not responding, one still open after the wait stops it as asking to save,
-  and another program's block inhibitor on shutdown stops it named.
+  and another program's block inhibitor on shutdown stops it named. A
+  window mapped while the apps quit is an app's question: the dialog steps
+  aside for it with the ending still going, and the wait starts again once
+  it closes (B123).
 - **It serves the chooser, the confirmation, log out with no confirmation
   and the lock's power row.** The session dialog is a `Prompt` layer
   surface over the scrim, in the centre group; on the lock the power row

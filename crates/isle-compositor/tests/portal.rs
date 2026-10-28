@@ -815,3 +815,37 @@ async fn inhibit_holds_idle_until_released_and_names_itself_at_log_out() {
     .await;
     assert!(isle.compositor_exit().is_none());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_apps_question_comes_in_front_of_its_logout_hold() {
+    let mut isle = Isle::start("portal-inhibit-asks").await;
+    let frontend = frontend(&isle).await;
+    let asker = isle.client("isle.test.Asker", "3366ff");
+    asker.wait_for("keyboard-enter").await;
+    let session = || async {
+        serde_json::from_str::<serde_json::Value>(&isle.test().await.session().await.unwrap())
+            .unwrap()
+    };
+    asker.send("keep-open");
+    inhibit(
+        &frontend,
+        "/org/freedesktop/portal/desktop/request/1_1/unsaved",
+        1,
+    )
+    .await;
+    asker.clear();
+    isle.chord(&[56, 42, 125, 16]).await;
+    wait_until(|| async {
+        session().await["stop"]
+            .as_str()
+            .is_some_and(|s| s.starts_with("refused"))
+    })
+    .await;
+    asker.wait_for("closed").await;
+    asker.send("modal");
+    wait_until(|| async { session().await["open"] == false }).await;
+    asker.wait_for("w1 keyboard-enter").await;
+    let s = session().await;
+    assert!(s["stop"].is_null(), "{s}");
+    assert_eq!(s["ending"], "Log Out");
+}

@@ -231,10 +231,12 @@ Out {user}… (Shift+Cmd+Q), and from "Restart to finish updating…"
 
 **Quitting.** After either form, apps are asked to quit as by Cmd+Q
 (`compositor.md` Session 8), and the dialog shows the icons of those not
-yet gone, each leaving as its app quits. An app that asks to save stops
-the action: the dialog says "Couldn't restart because {app} didn't quit."
-with "Show {app}", which closes the dialog and brings the app forward with
-its question (macOS's interrupted restart). An app that does not answer
+yet gone, each leaving as its app quits. An app that asks to save comes
+forward with its question and the dialog steps aside, as macOS: an answer
+that quits the app lets the action go on, and an app still open after the
+wait once its question closes stops it, the dialog saying "Couldn't
+restart because {app} didn't quit." with "Show {app}", which closes the
+dialog and brings the app forward (macOS's interrupted restart; B123). An app that does not answer
 within the wait is marked "Not responding" and offered "Force Quit {app}",
 after which the action goes on.
 

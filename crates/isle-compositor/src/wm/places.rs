@@ -510,6 +510,7 @@ impl State {
         self.desktop_touched(id);
         self.stage_mapped(id);
         self.isle.sync_space();
+        self.session_window_mapped(id);
         // A float leaves the keyboard with its caller unless it asked for it.
         if self.isle.float_of(id).is_none_or(|f| f.normal) {
             self.set_focus(Some(&window));

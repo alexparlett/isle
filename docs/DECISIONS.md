@@ -1329,3 +1329,19 @@ island event, as an app has no way to post one. Every float has minimise
 disabled, as `files.md` set for Quick Look. Narrows B110. Rejected: close
 alone in the lights (no zoom for a wide shot), and asking before closing a
 marked shot.
+
+**B123 · An app's question during the session's end comes in front.**
+Decided by the user (2026-10-28, "follow macOS"), after Claude's quit
+question opened under the log out dialog's scrim, where no click reached
+it and the keyboard went to it unseen. A window an app maps while the apps
+quit is taken as its question: the session dialog closes without calling
+the ending off, and the window takes focus as any new window; a portal
+logout hold that already stopped the ending, as GTK sets with unsaved work,
+gives way to it. While it is open nothing stops the ending for time or for
+a portal hold; once it
+closes the wait starts again, so Don't Save goes on to log out, restart or
+shut down, and an app left open (its Cancel) stops it with "Couldn't
+{action} because {app} didn't quit." as before. Narrows B72. Rejected:
+letting windows draw above the scrim with the dialog still up (two things
+asking at once), and stopping at once on the question with Show {app}
+(a click more than macOS, and the ending called off).

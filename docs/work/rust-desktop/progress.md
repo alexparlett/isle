@@ -2,6 +2,31 @@
 
 ## 2026-10-28
 
+- P17 17.6, built-ins on new data: `isle-sysinfo` (CPU and cores from
+  `/proc/stat`, memory, network without loopback, uptime, the CPU's
+  hwmon temperature, the GPU through NVML loaded at run time or an
+  amdgpu's sysfs; a minute kept for graphs; NVML reads the 5070 Ti on the
+  host), sampled every two seconds on the worker while a System widget
+  shows. System's four series chosen in its form from nine (CPU, memory,
+  GPU, GPU memory, the temperatures, down, up, uptime), drawn as P1's
+  sizes say: one, numbers in quarters or across, rings, graphs with their
+  areas, series colours a to d in order; the form's popovers stand in for
+  a larger editor panel, since the series are all there is to edit.
+  Weather: Open-Meteo's forecast and geocoding on the worker through
+  `reqwest` (now the compositor's too), parsed into a forecast kept in the
+  `widgets` domain and drawn first next time, fetched while shown when
+  older than fifteen minutes or for another place; the place defaults to
+  the zone's city at `isle-sun`'s coordinates, Fahrenheit by region; the
+  four sizes as P1 drew them. Tests' compositors get `ISLE_NO_NETWORK`
+  and fetch nothing. The timer service (`timer.rs`): timers in the
+  `widgets` domain, so one runs on closed and across a restart; the
+  island's Timer activity with the time left while one runs; its end as
+  the island's urgent timer-end event, "{label} done", also for one that
+  ended while Isle was away. The Timer widget: label, length and presets
+  (1, 5, 10, 25 minutes), Start, then the accent ring with Pause and
+  Reset. Calendar shows "No calendars" until P20. Choices gained their own
+  defaults in the catalogue. One compositor test of the feeds and a kept
+  picture; weather's parser and the clock's rounding unit-tested.
 - P17 17.5, built-ins on data that exists: Clock with the analogue face
   (an SVG of the tokens' colours, night in its zone, seconds when the
   island shows them) and its zone's city; Media from the Now Playing

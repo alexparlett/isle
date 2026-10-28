@@ -35,6 +35,51 @@ pub enum Body {
     Desktops(Vec<DesktopRow>),
     Notifications(Vec<NoteRow>),
     Controls(Vec<crate::island::panel::Module>),
+    System(Vec<SeriesView>),
+    Weather(WeatherView),
+    Timer(TimerView),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimerState {
+    Idle,
+    Running,
+    Paused,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TimerView {
+    pub label: String,
+    pub time: String,
+    pub state: TimerState,
+    /// What is left of it, 1 to 0.
+    pub left: f32,
+    /// Lengths in minutes.
+    pub presets: Vec<i64>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WeatherView {
+    pub place: String,
+    pub now: String,
+    pub glyph: String,
+    pub condition: String,
+    pub high_low: String,
+    /// Hour, glyph, temperature.
+    pub hours: Vec<(String, String, String)>,
+    /// Weekday, glyph, low, high, and where low and high sit in the week's span, 0 to 1.
+    pub days: Vec<(String, String, String, String, f32, f32)>,
+}
+
+/// One of System's series as drawn.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SeriesView {
+    pub label: String,
+    pub value: String,
+    /// Its share of the whole, for a ring.
+    pub fraction: Option<f32>,
+    /// The last minute, 0 to 1, oldest first, for a graph.
+    pub history: Vec<f32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -608,6 +653,9 @@ fn widget(
         Body::Storage(rows) => storage(theme, w, rows, actions),
         Body::Desktops(rows) => desktops(theme, w, rows, actions),
         Body::Notifications(rows) => notifications(theme, w, rows, actions),
+        Body::System(series) => system(theme, w, series),
+        Body::Weather(view) => weather(theme, w, view),
+        Body::Timer(view) => timer(theme, w, view, actions),
         Body::Controls(modules) => {
             let inner = width - 2.0 * t.space_s;
             crate::island::panel::ModuleTiles { modules: modules.clone(), width: inner }.into_element()
@@ -1202,5 +1250,358 @@ fn notifications(theme: &Theme, w: &WidgetView, rows: &[NoteRow], actions: &Acti
                 .into_element()
         }))
         .maybe_child(more_line(theme, w, more, actions))
+        .into_element()
+}
+
+fn series_colour(theme: &Theme, i: usize) -> isle_tokens::Colour {
+    let t = &theme.tokens;
+    [t.series_a, t.series_b, t.series_c, t.series_d][i % 4]
+}
+
+fn css(c: isle_tokens::Colour, alpha: f32) -> String {
+    format!("rgba({},{},{},{})", c.r, c.g, c.b, c.a * alpha)
+}
+
+fn svg_view(svg: String, width: f32, height: f32, alt: String) -> Element {
+    let key = {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        svg.hash(&mut h);
+        h.finish()
+    };
+    SvgViewer::new((key, Bytes::from(svg.into_bytes())))
+        .show_loader(false)
+        .width(Size::px(width))
+        .height(Size::px(height))
+        .a11y_alt(alt)
+        .into_element()
+}
+
+fn system(theme: &Theme, w: &WidgetView, series: &[SeriesView]) -> Element {
+    let t = &theme.tokens;
+    let (ink, ink_2) = (colour(t.colour_text), colour(t.colour_text_2));
+    let number = |s: &SeriesView| {
+        rect()
+            .a11y_alt(format!("{} {}", s.label, s.value))
+            .child(text::line(theme, text::Style::Subheadline, ink_2, s.label.clone()))
+            .child(text::line(theme, text::Style::Title3, ink, s.value.clone()))
+            .into_element()
+    };
+    let (iw, ih) = inner(theme, w);
+    match (w.at.w, w.at.h) {
+        (2, 1) => series.first().map_or_else(|| rect().into_element(), |s| {
+            rect()
+                .expanded()
+                .horizontal()
+                .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .child(rect().width(Size::flex(1.)).child(text::line(theme, text::Style::Headline, ink, s.label.clone())))
+                .child(text::line(theme, text::Style::Title, ink, s.value.clone()))
+                .into_element()
+        }),
+        (2, 2) => rect()
+            .expanded()
+            .spacing(t.space_s)
+            .children(series.chunks(2).map(|pair| {
+                rect()
+                    .width(Size::fill())
+                    .height(Size::flex(1.))
+                    .horizontal()
+                    .content(Content::flex())
+                    .children(pair.iter().map(|s| rect().width(Size::flex(1.)).child(number(s)).into_element()))
+                    .into_element()
+            }))
+            .content(Content::flex())
+            .into_element(),
+        (4, 1) => rect()
+            .expanded()
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .children(series.iter().map(|s| rect().width(Size::flex(1.)).child(number(s)).into_element()))
+            .into_element(),
+        (4, 2) => rect()
+            .expanded()
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .children(series.iter().enumerate().map(|(i, s)| {
+                let c = series_colour(theme, i);
+                let p = s.fraction.unwrap_or(0.0).clamp(0.0, 1.0);
+                // A circle of radius r whose stroke runs p of the way round from twelve.
+                let r = 22.0;
+                let around = std::f32::consts::TAU * r;
+                let svg = format!(
+                    r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="24" cy="24" r="{r}" fill="none" stroke="{}" stroke-width="4"/><circle cx="24" cy="24" r="{r}" fill="none" stroke="{}" stroke-width="4" stroke-linecap="round" stroke-dasharray="{:.2} {:.2}" transform="rotate(-90 24 24)"/></svg>"#,
+                    css(t.colour_fill_strong, 1.0),
+                    css(c, 1.0),
+                    around * p,
+                    around,
+                );
+                rect()
+                    .width(Size::flex(1.))
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_xs)
+                    .child(
+                        rect()
+                            .width(Size::px(48.))
+                            .height(Size::px(48.))
+                            .child(svg_view(svg, 48., 48., format!("{} {}", s.label, s.value)))
+                            .child(
+                                rect()
+                                    .position(Position::new_absolute().left(0.).top(0.))
+                                    .width(Size::px(48.))
+                                    .height(Size::px(48.))
+                                    .center()
+                                    .child(text::line(theme, text::Style::Callout, ink, s.value.clone())),
+                            ),
+                    )
+                    .child(text::line(theme, text::Style::Subheadline, ink_2, s.label.clone()))
+                    .into_element()
+            }))
+            .into_element(),
+        _ => {
+            let gap = t.space_m;
+            let gw = (iw - gap * (series.len().max(1) as f32 - 1.0)) / series.len().max(1) as f32;
+            let gh = ih - t.type_style_subheadline_line - t.type_style_title_3_line - t.space_xs;
+            rect()
+                .expanded()
+                .horizontal()
+                .spacing(gap)
+                .children(series.iter().enumerate().map(|(i, s)| {
+                    let c = series_colour(theme, i);
+                    let n = s.history.len().max(2);
+                    let points: Vec<(f32, f32)> = s
+                        .history
+                        .iter()
+                        .enumerate()
+                        .map(|(j, v)| (j as f32 / (n - 1) as f32 * gw, gh - v.clamp(0.0, 1.0) * (gh - 2.0) - 1.0))
+                        .collect();
+                    let line: String = points.iter().map(|(x, y)| format!("{x:.1},{y:.1}")).collect::<Vec<_>>().join(" ");
+                    let area = match (points.first(), points.last()) {
+                        (Some(first), Some(last)) => format!("{line} {:.1},{gh:.1} {:.1},{gh:.1}", last.0, first.0),
+                        _ => String::new(),
+                    };
+                    let svg = format!(
+                        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {gw:.1} {gh:.1}"><polygon points="{area}" fill="{}"/><polyline points="{line}" fill="none" stroke="{}" stroke-width="1.5" stroke-linejoin="round"/></svg>"#,
+                        css(c, t.series_area_opacity),
+                        css(c, 1.0),
+                    );
+                    rect()
+                        .width(Size::px(gw))
+                        .spacing(t.space_xs)
+                        .child(number(s))
+                        .child(svg_view(svg, gw, gh, format!("{} {}", s.label, s.value)))
+                        .into_element()
+                }))
+                .into_element()
+        }
+    }
+}
+
+fn weather(theme: &Theme, w: &WidgetView, v: &WeatherView) -> Element {
+    let t = &theme.tokens;
+    let (ink, ink_2) = (colour(t.colour_text), colour(t.colour_text_2));
+    let alt = format!("{}, {}, {}", v.place, v.now, v.condition);
+    if w.at.h == 1 {
+        return rect()
+            .expanded()
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .spacing(t.space_s)
+            .a11y_alt(alt)
+            .child(Glyph::new(v.glyph.clone(), 24., ink))
+            .child(text::line(theme, text::Style::Title, ink, v.now.clone()))
+            .child(rect().width(Size::flex(1.)).child(text::line(theme, text::Style::Subheadline, ink_2, v.place.clone())))
+            .into_element();
+    }
+    let now = rect()
+        .width(Size::px(if w.at.w >= 4 { 120. } else { 136. }))
+        .height(if w.at.h >= 4 { Size::px(136.) } else { Size::fill() })
+        .main_align(Alignment::SpaceBetween)
+        .child(text::line(theme, text::Style::Subheadline, ink_2, v.place.clone()).font_weight(600))
+        .child(text::line(theme, text::Style::Figure, ink, v.now.clone()))
+        .child(
+            rect()
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .spacing(t.space_xs)
+                .child(Glyph::new(v.glyph.clone(), 16., ink).alt(v.condition.clone()))
+                .child(text::line(theme, text::Style::Callout, ink, v.condition.clone())),
+        )
+        .child(text::line(theme, text::Style::Subheadline, ink_2, v.high_low.clone()))
+        .a11y_alt(alt);
+    if w.at.w < 4 {
+        return now.into_element();
+    }
+    let hours = rect()
+        .width(Size::flex(1.))
+        .height(Size::px(136.))
+        .horizontal()
+        .content(Content::flex())
+        .children(v.hours.iter().map(|(h, g, temp)| {
+            rect()
+                .width(Size::flex(1.))
+                .height(Size::fill())
+                .cross_align(Alignment::Center)
+                .main_align(Alignment::SpaceEvenly)
+                .child(text::line(theme, text::Style::Subheadline, ink_2, h.clone()))
+                .child(Glyph::new(g.clone(), 20., ink))
+                .child(text::line(theme, text::Style::Callout, ink, temp.clone()))
+                .into_element()
+        }));
+    let top = rect()
+        .width(Size::fill())
+        .horizontal()
+        .content(Content::flex())
+        .spacing(t.space_m)
+        .child(now)
+        .child(hours);
+    if w.at.h < 4 {
+        return rect().expanded().child(top).into_element();
+    }
+    rect()
+        .expanded()
+        .spacing(t.space_s)
+        .child(top)
+        .children(v.days.iter().map(|(d, g, lo, hi, from, to)| {
+            rect()
+                .height(Size::px(t.size_row))
+                .width(Size::fill())
+                .horizontal()
+                .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .spacing(t.space_s)
+                .child(rect().width(Size::px(48.)).child(text::line(theme, text::Style::Body, ink, d.clone())))
+                .child(Glyph::new(g.clone(), 16., ink))
+                .child(rect().width(Size::px(36.)).child(text::line(theme, text::Style::Callout, ink_2, lo.clone())))
+                .child(
+                    rect()
+                        .width(Size::flex(1.))
+                        .height(Size::px(4.))
+                        .corner_radius(2.)
+                        .background(colour(t.colour_fill_strong))
+                        .child(
+                            rect()
+                                .position(Position::new_absolute().left(0.).top(0.))
+                                .width(Size::fill())
+                                .height(Size::fill())
+                                .padding((0., 0., 0., 0.))
+                                .horizontal()
+                                .content(Content::flex())
+                                .child(rect().width(Size::flex(from.max(0.0001))))
+                                .child(rect().width(Size::flex((to - from).max(0.05))).height(Size::fill()).corner_radius(2.).background(ink))
+                                .child(rect().width(Size::flex((1.0 - to).max(0.0001)))),
+                        ),
+                )
+                .child(rect().width(Size::px(36.)).child(text::line(theme, text::Style::Callout, ink, hi.clone())))
+                .into_element()
+        }))
+        .into_element()
+}
+
+fn timer(theme: &Theme, w: &WidgetView, v: &TimerView, actions: &Actions) -> Element {
+    let t = &theme.tokens;
+    let (ink, ink_2) = (colour(t.colour_text), colour(t.colour_text_2));
+    let icon = |glyph: &'static str, row: &str, alt: &'static str| {
+        rect()
+            .width(Size::px(30.))
+            .height(Size::px(30.))
+            .center()
+            .a11y_role(AccessibilityRole::Button)
+            .a11y_alt(alt)
+            .on_press(row_press(actions, &w.id, row))
+            .child(Glyph::new(glyph, 20., ink).fill(glyph != "arrow-counter-clockwise"))
+            .into_element()
+    };
+    let start_pause = match v.state {
+        TimerState::Running => icon("pause", "pause", "Pause"),
+        _ => icon("play", "start", "Start"),
+    };
+    if w.at.h == 1 {
+        return rect()
+            .expanded()
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .spacing(t.space_s)
+            .child(Glyph::new("timer", 16., ink_2))
+            .child(
+                rect()
+                    .width(Size::flex(1.))
+                    .child(text::line(theme, text::Style::Subheadline, ink_2, v.label.clone()))
+                    .child(text::line(theme, text::Style::Title, ink, v.time.clone())),
+            )
+            .child(start_pause)
+            .into_element();
+    }
+    if v.state == TimerState::Idle {
+        let (actions_p, id) = (actions.clone(), w.id.clone());
+        return rect()
+            .expanded()
+            .main_align(Alignment::SpaceBetween)
+            .child(text::line(theme, text::Style::Subheadline, ink_2, v.label.clone()))
+            .child(text::line(theme, text::Style::Figure, ink, v.time.clone()))
+            .child(
+                rect()
+                    .horizontal()
+                    .spacing(t.space_xs)
+                    .children(v.presets.iter().map(|&m| {
+                        let (actions, id) = (actions_p.clone(), id.clone());
+                        Button::new(format!("{m}"))
+                            .small()
+                            .alt(format!("{m} minutes"))
+                            .on_press(move |_| {
+                                send(&actions, DashboardAction::Row { id: id.clone(), row: format!("preset:{m}") })
+                            })
+                            .into_element()
+                    })),
+            )
+            .child({
+                let (actions, id) = (actions.clone(), w.id.clone());
+                Button::new("Start").small().on_press(move |_| {
+                    send(&actions, DashboardAction::Row { id: id.clone(), row: "start".into() })
+                })
+            })
+            .into_element();
+    }
+    let (_, ih) = inner(theme, w);
+    let size = (ih - 40.0).max(40.0);
+    let arc = if v.state == TimerState::Running { t.colour_accent } else { t.colour_text_2 };
+    let r = 48.0;
+    let around = std::f32::consts::TAU * r;
+    let svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="{r}" fill="none" stroke="{}" stroke-width="{sw:.2}"/><circle cx="50" cy="50" r="{r}" fill="none" stroke="{}" stroke-width="{sw:.2}" stroke-linecap="round" stroke-dasharray="{:.2} {:.2}" transform="rotate(-90 50 50)"/></svg>"#,
+        css(t.colour_fill_strong, 1.0),
+        css(arc, 1.0),
+        around * v.left.clamp(0.0, 1.0),
+        around,
+        sw = 4.0 * 100.0 / size,
+    );
+    rect()
+        .expanded()
+        .cross_align(Alignment::Center)
+        .child(
+            rect()
+                .width(Size::px(size))
+                .height(Size::px(size))
+                .child(svg_view(svg, size, size, format!("{} left, {}", v.time, v.label)))
+                .child(
+                    rect()
+                        .position(Position::new_absolute().left(0.).top(0.))
+                        .width(Size::px(size))
+                        .height(Size::px(size))
+                        .center()
+                        .child(text::line(theme, text::Style::Title3, ink, v.time.clone())),
+                ),
+        )
+        .child(
+            rect()
+                .horizontal()
+                .spacing(t.space_s)
+                .child(start_pause)
+                .child(icon("arrow-counter-clockwise", "reset", "Reset")),
+        )
         .into_element()
 }

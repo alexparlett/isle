@@ -315,3 +315,95 @@ async fn the_built_ins_show_what_the_desktop_has_or_their_empty_line() {
         .unwrap();
     wait_until(|| async { status(&isle).await["open"] == false }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn system_samples_timers_run_on_the_island_and_calendar_waits_for_calendars() {
+    let ended = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+        - 1000;
+    let isle = Isle::start_prepared(
+        "dashboard-feeds",
+        "dashboard-output \"Isle Headless 1\" {\n    widgets \"system#1 0 0 4 2\" \"timer#1 4 0 2 2\" \"calendar#1 6 0 4 2\"\n}\nwidget \"timer#1\" {\n    label \"Tea\"\n}\n",
+        |dir| {
+            let state = dir.join("state/isle");
+            std::fs::create_dir_all(&state).unwrap();
+            std::fs::write(
+                state.join("widgets.json"),
+                format!(
+                    r#"{{"version":1,"data":{{"data":{{}},"timers":{{"timer#9":{{"label":"Eggs","duration_ms":60000,"ends_at":{ended},"left_ms":null}}}},"sources":{{}}}}}}"#
+                ),
+            )
+            .unwrap();
+        },
+    )
+    .await;
+    isle.test().await.transitions(false).await.unwrap();
+    // A timer that ended while Isle was away says so as it starts.
+    wait_until(|| async { isle.island_output().await["text"] == "Eggs done" }).await;
+    // It holds until clicked.
+    let test = isle.test().await;
+    test.pointer_to(960.0, 20.0).await.unwrap();
+    test.button(0x110, true).await.unwrap();
+    test.button(0x110, false).await.unwrap();
+    wait_until(|| async { isle.island_output().await["text"] != "Eggs done" }).await;
+
+    chord(&isle).await;
+    wait_until(|| async { status(&isle).await["bodies"]["system#1"]["system"].is_array() }).await;
+    let bodies = status(&isle).await["bodies"].clone();
+    let labels: Vec<&str> = bodies["system#1"]["system"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s[0].as_str().unwrap())
+        .collect();
+    assert_eq!(labels, ["CPU", "Memory", "GPU", "Temperature"]);
+    assert_eq!(bodies["calendar#1"]["empty"], "No calendars");
+    assert_eq!(bodies["timer#1"]["state"], "Idle");
+    assert_eq!(bodies["timer#1"]["timer"], "5:00");
+
+    test.dashboard_act("row timer#1 start").await.unwrap();
+    wait_until(|| async { status(&isle).await["bodies"]["timer#1"]["state"] == "Running" }).await;
+    test.dashboard_act("close").await.unwrap();
+    // Closed, it runs on as the island's activity.
+    wait_until(|| async {
+        let text = isle.island_output().await["text"].as_str().unwrap_or("").to_owned();
+        text.starts_with("4:5") || text == "5:00"
+    })
+    .await;
+    chord(&isle).await;
+    wait_until(|| async { status(&isle).await["open"] == true }).await;
+    test.dashboard_act("row timer#1 pause").await.unwrap();
+    wait_until(|| async { status(&isle).await["bodies"]["timer#1"]["state"] == "Paused" }).await;
+    test.dashboard_act("row timer#1 reset").await.unwrap();
+    wait_until(|| async { status(&isle).await["bodies"]["timer#1"]["state"] == "Idle" }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn picture_of_the_feeds() {
+    let forecast = r#"{"place":"London","asked":"","now":12.4,"code":2,"day":true,"high":13.0,"low":6.0,"hours":[["15",3,12.1],["16",61,11.5],["17",61,10.2],["18",3,9.0],["19",0,8.1],["20",0,7.7]],"days":[["Thu",61,5.5,11.0],["Fri",3,4.0,10.5],["Sat",0,3.3,12.2],["Sun",71,-1.0,4.0],["Mon",95,2.0,9.0]],"fahrenheit":false,"at":4102444800}"#;
+    let isle = Isle::start_prepared(
+        "dashboard-picture",
+        "dashboard-output \"Isle Headless 1\" {\n    widgets \"system#1 0 0 4 2\" \"timer#1 4 0 2 2\" \"weather#1 6 0 4 4\" \"system#2 10 0 6 2\" \"weather#2 10 2 2 2\" \"timer#2 12 2 2 1\" \"system#3 14 2 2 2\"\n}\n",
+        |dir| {
+            let state = dir.join("state/isle");
+            std::fs::create_dir_all(&state).unwrap();
+            std::fs::write(
+                state.join("widgets.json"),
+                format!(r#"{{"version":1,"data":{{"data":{{"weather#1":{{"value":{forecast},"at":4102444800}},"weather#2":{{"value":{forecast},"at":4102444800}}}},"timers":{{}},"sources":{{}}}}}}"#),
+            )
+            .unwrap();
+        },
+    )
+    .await;
+    isle.test().await.transitions(false).await.unwrap();
+    chord(&isle).await;
+    let test = isle.test().await;
+    test.dashboard_act("row timer#1 start").await.unwrap();
+    for _ in 0..4 {
+        tokio::time::sleep(std::time::Duration::from_millis(2100)).await;
+    }
+    wait_until(|| async { status(&isle).await["bodies"]["weather#1"]["weather"] == "London" }).await;
+    isle.keep_shot("dashboard-feeds").await;
+}

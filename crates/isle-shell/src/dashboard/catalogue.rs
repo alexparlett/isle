@@ -14,8 +14,8 @@ pub struct Setting {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SettingKind {
     Toggle(bool),
-    /// Values and their labels, the first the default.
-    Choice(&'static [(&'static str, &'static str)]),
+    /// Values and their labels, and the default's value.
+    Choice(&'static [(&'static str, &'static str)], &'static str),
     Number { min: i64, max: i64, default: i64 },
     /// Empty by default; what it means empty is the widget's.
     Text,
@@ -42,10 +42,10 @@ impl Builtin {
 pub const BUILTINS: &[Builtin] = &[
     Builtin { kind: "clock", name: "Clock", sizes: &[(2, 1), (2, 2), (4, 2)], default: (2, 2), several: true, group: "Time and calendar", settings: CLOCK },
     Builtin { kind: "calendar", name: "Calendar", sizes: &[(2, 2), (4, 2), (4, 4)], default: (4, 2), several: true, group: "Time and calendar", settings: &[] },
-    Builtin { kind: "timer", name: "Timer", sizes: &[(2, 1), (2, 2)], default: (2, 2), several: true, group: "Time and calendar", settings: &[] },
-    Builtin { kind: "weather", name: "Weather", sizes: &[(2, 1), (2, 2), (4, 2), (4, 4)], default: (2, 2), several: true, group: "Weather", settings: &[] },
+    Builtin { kind: "timer", name: "Timer", sizes: &[(2, 1), (2, 2)], default: (2, 2), several: true, group: "Time and calendar", settings: TIMER },
+    Builtin { kind: "weather", name: "Weather", sizes: &[(2, 1), (2, 2), (4, 2), (4, 4)], default: (2, 2), several: true, group: "Weather", settings: WEATHER },
     Builtin { kind: "media", name: "Media", sizes: &[(2, 2), (4, 1), (4, 2)], default: (4, 1), several: false, group: "Media", settings: &[] },
-    Builtin { kind: "system", name: "System", sizes: &[(2, 1), (2, 2), (4, 1), (4, 2), (6, 2)], default: (2, 2), several: true, group: "System", settings: &[] },
+    Builtin { kind: "system", name: "System", sizes: &[(2, 1), (2, 2), (4, 1), (4, 2), (6, 2)], default: (2, 2), several: true, group: "System", settings: SYSTEM },
     Builtin { kind: "storage", name: "Storage", sizes: &[(4, 1), (4, 2)], default: (4, 1), several: false, group: "System", settings: &[] },
     Builtin { kind: "devices", name: "Devices", sizes: &[(2, 1), (2, 2), (4, 2)], default: (2, 1), several: false, group: "Devices", settings: &[] },
     Builtin { kind: "desktops", name: "Desktops", sizes: &[(4, 1), (4, 2), (6, 2)], default: (4, 1), several: false, group: "Desktop", settings: &[] },
@@ -59,8 +59,36 @@ const CLOCK: &[Setting] = &[
     Setting {
         key: "face",
         label: "Face",
-        kind: SettingKind::Choice(&[("digital", "Digital"), ("analogue", "Analogue")]),
+        kind: SettingKind::Choice(&[("digital", "Digital"), ("analogue", "Analogue")], "digital"),
     },
+];
+
+const TIMER: &[Setting] = &[
+    Setting { key: "label", label: "Label", kind: SettingKind::Text },
+    Setting { key: "minutes", label: "Minutes", kind: SettingKind::Number { min: 1, max: 180, default: 5 } },
+];
+
+/// Empty, the place is the time zone's city.
+const WEATHER: &[Setting] = &[Setting { key: "place", label: "Place", kind: SettingKind::Text }];
+
+/// System's series: what each of its four places shows (`structure/widgets.md`, v1 D36).
+pub const SERIES: &[(&str, &str)] = &[
+    ("cpu", "CPU"),
+    ("memory", "Memory"),
+    ("gpu", "GPU"),
+    ("gpu-memory", "GPU memory"),
+    ("cpu-temp", "CPU temperature"),
+    ("gpu-temp", "GPU temperature"),
+    ("down", "Download"),
+    ("up", "Upload"),
+    ("uptime", "Uptime"),
+];
+
+const SYSTEM: &[Setting] = &[
+    Setting { key: "series-1", label: "First", kind: SettingKind::Choice(SERIES, "cpu") },
+    Setting { key: "series-2", label: "Second", kind: SettingKind::Choice(SERIES, "memory") },
+    Setting { key: "series-3", label: "Third", kind: SettingKind::Choice(SERIES, "gpu") },
+    Setting { key: "series-4", label: "Fourth", kind: SettingKind::Choice(SERIES, "cpu-temp") },
 ];
 
 pub fn builtin(kind: &str) -> Option<&'static Builtin> {

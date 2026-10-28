@@ -45,6 +45,8 @@ mod network_secrets;
 mod notifications;
 mod spotlight;
 mod dashboard;
+mod weather;
+mod timer;
 mod overlays;
 mod night_light;
 mod steam;
@@ -202,6 +204,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.settings_store = Some(store);
     isle.load_places(&runtime);
     isle.load_usage(&runtime);
+    isle.load_widgets(&runtime);
     isle.load_capture_state(&runtime);
     isle.load_desktops(&runtime);
     isle.wallpapers.load(&runtime);
@@ -221,6 +224,8 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     state.arm_idle();
     state.pace_hidden_windows();
     state.start_night_light();
+    state.timers_due();
+    state.arm_timer_tick();
 
     // Children connect to Isle, not to the compositor this one may be nested in.
     child_env::set(

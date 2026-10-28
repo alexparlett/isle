@@ -15,7 +15,7 @@ use isle_shell::{
         surface::{
             BatteryRow, Body, ClockView, Control, DashboardAction, DashboardSurface, DesktopRow,
             Dial, FormRow, FormValue, FormView, Frame, Ghost, Lifted, MenuView, NoteRow,
-            VolumeRow, WidgetView,
+            SeriesView, VolumeRow, WidgetView,
         },
     },
     prompts::session::Choice,
@@ -51,6 +51,14 @@ pub struct DashboardState {
     tick: Option<RegistrationToken>,
     /// Each mounted volume's use, read on the worker when the dashboard opens.
     pub storage: Option<Vec<VolumeRow>>,
+    /// The last minute of samples, newest last, while a System widget shows.
+    pub system: Vec<isle_sysinfo::Sample>,
+    sampler: std::sync::Arc<std::sync::Mutex<Option<isle_sysinfo::Sampler>>>,
+    sample_tick: Option<RegistrationToken>,
+    pub timer_tick: Option<RegistrationToken>,
+    /// The `widgets` domain: last data, timers, sources.
+    pub memory: isle_state::domains::Widgets,
+    saver: Option<crate::state_writer::Saver<isle_state::domains::Widgets>>,
     floors: RefCell<HashMap<String, (SolidColorBuffer, SolidColorBuffer)>>,
 }
 
@@ -125,12 +133,78 @@ impl DashboardState {
             last_step: Instant::now(),
             tick: None,
             storage: None,
+            system: Vec::new(),
+            sampler: Default::default(),
+            sample_tick: None,
+            timer_tick: None,
+            memory: Default::default(),
+            saver: None,
             floors: RefCell::default(),
         }
     }
 }
 
 impl Isle {
+    pub fn load_widgets(&mut self, runtime: &tokio::runtime::Handle) {
+        let dir = isle_state::StateDir::new(isle_state::StateDir::default_dir());
+        let (memory, loaded) = dir.load::<isle_state::domains::Widgets>();
+        if !matches!(loaded, isle_state::Loaded::Read | isle_state::Loaded::Missing) {
+            tracing::warn!(?loaded, "the widgets' memory");
+        }
+        self.dashboard.memory = memory;
+        self.dashboard.saver = Some(crate::state_writer::Saver::spawn(runtime, dir));
+    }
+
+    pub fn save_widgets(&self) {
+        if let Some(saver) = &self.dashboard.saver {
+            saver.save(self.dashboard.memory.clone());
+        }
+    }
+
+    /// A Weather widget's last forecast.
+    fn forecast(&self, id: &str) -> Option<crate::weather::Forecast> {
+        let data = self.dashboard.memory.data.get(id)?;
+        serde_json::from_value(data.value.clone()).ok()
+    }
+
+    fn weather_view(&self, id: &str) -> Option<isle_shell::dashboard::surface::WeatherView> {
+        use isle_shell::dashboard::surface::WeatherView;
+        let f = self.forecast(id)?;
+        let degrees = |t: f64| format!("{:.0}°", t.round());
+        let (glyph, words) = crate::weather::condition(f.code, f.day);
+        let (week_low, week_high) = f
+            .days
+            .iter()
+            .fold((f64::MAX, f64::MIN), |(lo, hi), d| (lo.min(d.2), hi.max(d.3)));
+        let span = (week_high - week_low).max(1.0);
+        Some(WeatherView {
+            place: f.place.clone(),
+            now: degrees(f.now),
+            glyph: glyph.to_owned(),
+            condition: words.to_owned(),
+            high_low: format!("H:{} L:{}", degrees(f.high), degrees(f.low)),
+            hours: f
+                .hours
+                .iter()
+                .map(|(h, code, t)| (h.clone(), crate::weather::condition(*code, true).0.to_owned(), degrees(*t)))
+                .collect(),
+            days: f
+                .days
+                .iter()
+                .map(|(d, code, lo, hi)| {
+                    (
+                        d.clone(),
+                        crate::weather::condition(*code, true).0.to_owned(),
+                        degrees(*lo),
+                        degrees(*hi),
+                        ((lo - week_low) / span) as f32,
+                        ((hi - week_low) / span) as f32,
+                    )
+                })
+                .collect(),
+        })
+    }
+
     /// The grid on `output`, from the tokens.
     pub fn dashboard_extent(&self, output: &Output) -> Extent {
         let size = self.space.output_geometry(output).unwrap_or_default().size;
@@ -265,6 +339,24 @@ impl Isle {
         }
     }
 
+    fn timer_view(&self, id: &str) -> isle_shell::dashboard::surface::TimerView {
+        use isle_shell::dashboard::surface::{TimerState, TimerView};
+        let length = self.timer_length(id);
+        let (left, state) = match self.timer_left(id) {
+            Some((left, true)) => (left, TimerState::Running),
+            Some((left, false)) => (left, TimerState::Paused),
+            None => (length, TimerState::Idle),
+        };
+        let total = self.dashboard.memory.timers.get(id).map_or(length, |t| t.duration_ms).max(1);
+        TimerView {
+            label: self.timer_label(id),
+            time: crate::timer::clock(left),
+            state,
+            left: left as f32 / total as f32,
+            presets: vec![1, 5, 10, 25],
+        }
+    }
+
     fn battery_rows(&self) -> Vec<BatteryRow> {
         let power = &self.services.power;
         if !power.available {
@@ -349,6 +441,72 @@ impl Isle {
         rows
     }
 
+    /// A System widget's four series from the samples so far.
+    fn series_views(&self, id: &str) -> Vec<SeriesView> {
+        use isle_shell::dashboard::catalogue::{SERIES, SettingKind, builtin};
+        let Some(now) = self.dashboard.system.last() else {
+            return Vec::new();
+        };
+        let history = &self.dashboard.system;
+        let net_peak = history.iter().map(|s| s.down.max(s.up)).max().unwrap_or(1).max(1) as f32;
+        builtin("system")
+            .map_or(&[][..], |b| b.settings)
+            .iter()
+            .map(|setting| {
+                let default = match setting.kind {
+                    SettingKind::Choice(_, d) => d,
+                    _ => "cpu",
+                };
+                let kind = match self.settings.widget.get(id).and_then(|w| w.get(setting.key)) {
+                    Some(isle_settings::Value::Str(v)) if SERIES.iter().any(|(k, _)| k == v) => v.as_str(),
+                    _ => default,
+                };
+                // Short where the form's name would be cut.
+                let label = match kind {
+                    "cpu-temp" => "Temperature",
+                    "gpu-temp" => "GPU temp",
+                    "gpu-memory" => "GPU memory",
+                    _ => SERIES.iter().find(|(k, _)| *k == kind).map_or(kind, |(_, l)| l),
+                };
+                let of = |s: &isle_sysinfo::Sample| -> Option<f32> {
+                    match kind {
+                        "cpu" => Some(s.cpu),
+                        "memory" => Some(s.memory()),
+                        "gpu" => s.gpu,
+                        "gpu-memory" => s.gpu_memory.map(|(u, t)| u as f32 / t.max(1) as f32),
+                        "cpu-temp" => s.cpu_temp.map(|c| c / 100.0),
+                        "gpu-temp" => s.gpu_temp.map(|c| c / 100.0),
+                        "down" => Some(s.down as f32 / net_peak),
+                        "up" => Some(s.up as f32 / net_peak),
+                        _ => None,
+                    }
+                };
+                let percent = |v: Option<f32>| v.map_or("—".to_owned(), |v| format!("{:.0}%", v * 100.0));
+                let degrees = |v: Option<f32>| v.map_or("—".to_owned(), |v| format!("{v:.0}°"));
+                let value = match kind {
+                    "cpu" => percent(Some(now.cpu)),
+                    "memory" => percent(Some(now.memory())),
+                    "gpu" => percent(now.gpu),
+                    "gpu-memory" => percent(now.gpu_memory.map(|(u, t)| u as f32 / t.max(1) as f32)),
+                    "cpu-temp" => degrees(now.cpu_temp),
+                    "gpu-temp" => degrees(now.gpu_temp),
+                    "down" => format!("{}/s", bytes(now.down)),
+                    "up" => format!("{}/s", bytes(now.up)),
+                    _ => {
+                        let (d, h, m) = (now.uptime / 86400, now.uptime / 3600 % 24, now.uptime / 60 % 60);
+                        if d > 0 { format!("{d} d {h} h") } else { format!("{h} h {m} m") }
+                    }
+                };
+                SeriesView {
+                    label: (*label).to_owned(),
+                    value,
+                    fraction: of(now),
+                    history: history.iter().map(|s| of(s).unwrap_or(0.0)).collect(),
+                }
+            })
+            .collect()
+    }
+
     /// The modules a Controls widget shows: its own list, else Sound and Display.
     fn control_modules(&self, id: &str) -> Vec<isle_shell::island::panel::Module> {
         use isle_shell::island::grid::TileSize;
@@ -396,6 +554,11 @@ impl Isle {
                         rows => Body::Notifications(rows),
                     },
                     "controls" => Body::Controls(self.control_modules(&p.id)),
+                    "weather" => self.weather_view(&p.id).map_or(Body::Title, Body::Weather),
+                    "calendar" => empty("No calendars"),
+                    "timer" => Body::Timer(self.timer_view(&p.id)),
+                    "system" if self.dashboard.system.is_empty() => Body::Title,
+                    "system" => Body::System(self.series_views(&p.id)),
                     _ => Body::Title,
                 };
                 WidgetView {
@@ -483,11 +646,14 @@ impl Isle {
                         Some(Value::Bool(b)) => *b,
                         _ => default,
                     }),
-                    SettingKind::Choice(options) => Control::Choice {
+                    SettingKind::Choice(options, default) => Control::Choice {
                         options: options.iter().map(|(_, l)| (*l).to_owned()).collect(),
-                        selected: match value {
-                            Some(Value::Str(v)) => options.iter().position(|(k, _)| k == v).unwrap_or(0),
-                            _ => 0,
+                        selected: {
+                            let chosen = match value {
+                                Some(Value::Str(v)) => v.as_str(),
+                                _ => default,
+                            };
+                            options.iter().position(|(k, _)| *k == chosen).unwrap_or(0)
                         },
                     },
                     SettingKind::Number { min, max, default } => Control::Number {
@@ -569,6 +735,9 @@ fn body_summary(body: &Body) -> serde_json::Value {
         Body::Desktops(rows) => json!({ "desktops": rows.iter().map(|r| (&r.name, r.icons.len(), r.current)).collect::<Vec<_>>() }),
         Body::Notifications(rows) => json!({ "notifications": rows.iter().map(|r| (&r.name, r.count)).collect::<Vec<_>>() }),
         Body::Controls(modules) => json!({ "controls": modules.iter().map(|m| &m.id).collect::<Vec<_>>() }),
+        Body::Weather(w) => json!({ "weather": w.place, "now": w.now }),
+        Body::Timer(t) => json!({ "timer": t.time, "state": format!("{:?}", t.state) }),
+        Body::System(series) => json!({ "system": series.iter().map(|s| (&s.label, &s.value)).collect::<Vec<_>>() }),
     }
 }
 
@@ -664,7 +833,7 @@ impl State {
         }
         self.isle.dashboard.last_step = Instant::now();
         self.arm_dashboard_tick();
-        self.read_dashboard_storage();
+        self.dashboard_feeds();
         self.isle.refresh_island();
         self.dispatch_shell();
         self.isle.queue_redraw_all();
@@ -675,6 +844,9 @@ impl State {
             return;
         };
         if let Some(token) = self.isle.dashboard.tick.take() {
+            self.isle.loop_handle.remove(token);
+        }
+        if let Some(token) = self.isle.dashboard.sample_tick.take() {
             self.isle.loop_handle.remove(token);
         }
         let theme = self.isle.shell.theme().clone();
@@ -953,6 +1125,10 @@ impl State {
             return self.put_dashboard_frame();
         }
         open.history.did(before);
+        self.dashboard_feeds();
+        let Some(open) = self.isle.dashboard.open.as_ref() else {
+            return;
+        };
         let key = format!("dashboard-output[{}].widgets", open.identity);
         let lines = open.layout.to_lines();
         self.isle.write_setting(&key, isle_settings::Value::List(lines));
@@ -1092,7 +1268,7 @@ impl State {
         };
         let value = match (setting.kind, value) {
             (SettingKind::Toggle(_), FormValue::Bool(b)) => Value::Bool(b),
-            (SettingKind::Choice(options), FormValue::Index(i)) => match options.get(i) {
+            (SettingKind::Choice(options, _), FormValue::Index(i)) => match options.get(i) {
                 Some((k, _)) => Value::Str((*k).to_owned()),
                 None => return,
             },
@@ -1491,6 +1667,14 @@ impl State {
                     self.switch_desktop(&output, index);
                 }
             }
+            ("timer", "start") => self.timer_start(id),
+            ("timer", "pause") => self.timer_pause(id),
+            ("timer", "reset") => self.timer_reset(id),
+            ("timer", preset) => {
+                if let Some(minutes) = preset.strip_prefix("preset:").and_then(|m| m.parse().ok()) {
+                    self.timer_preset(id, minutes);
+                }
+            }
             ("notifications", app) => {
                 self.close_dashboard();
                 if let Some(output) = output.or_else(|| self.isle.main_output()) {
@@ -1528,5 +1712,138 @@ impl State {
                 self.put_dashboard_frame();
             }
         }
+    }
+}
+
+/// How often System samples while it shows.
+const SAMPLE_EVERY: Duration = Duration::from_secs(2);
+
+impl State {
+    /// Samples every two seconds on the worker while a System widget shows; the first at once.
+    fn arm_dashboard_sampling(&mut self) {
+        let showing = self
+            .isle
+            .dashboard
+            .open
+            .as_ref()
+            .is_some_and(|o| o.layout.widgets.iter().any(|p| p.kind() == "system"));
+        if !showing || self.isle.dashboard.sample_tick.is_some() {
+            return;
+        }
+        self.take_dashboard_sample();
+        self.isle.dashboard.sample_tick = self
+            .isle
+            .loop_handle
+            .insert_source(Timer::from_duration(SAMPLE_EVERY), |_, _, state| {
+                if state.isle.dashboard.open.is_none() {
+                    state.isle.dashboard.sample_tick = None;
+                    return TimeoutAction::Drop;
+                }
+                state.take_dashboard_sample();
+                TimeoutAction::ToDuration(SAMPLE_EVERY)
+            })
+            .ok();
+    }
+
+    fn take_dashboard_sample(&mut self) {
+        let (Some(runtime), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone()) else {
+            return;
+        };
+        let sampler = self.isle.dashboard.sampler.clone();
+        runtime.spawn_blocking(move || {
+            let mut sampler = sampler.lock().unwrap();
+            let sampler = sampler.get_or_insert_with(|| isle_sysinfo::Sampler::new(30));
+            sampler.sample();
+            let history: Vec<_> = sampler.history().iter().cloned().collect();
+            to_loop.post(move |state| {
+                state.isle.dashboard.system = history;
+                state.put_dashboard_frame();
+            });
+        });
+    }
+}
+
+/// How long a forecast stays fresh while shown.
+const WEATHER_FRESH: u64 = 15 * 60;
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+impl State {
+    /// Fetches a forecast for each Weather widget shown whose last is stale or for another
+    /// place.
+    pub fn refresh_weather(&mut self) {
+        let Some(open) = self.isle.dashboard.open.as_ref() else {
+            return;
+        };
+        let (Some(runtime), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone()) else {
+            return;
+        };
+        // The tests' compositors fetch nothing.
+        if std::env::var_os("ISLE_NO_NETWORK").is_some() {
+            return;
+        }
+        let ids: Vec<String> = open
+            .layout
+            .widgets
+            .iter()
+            .filter(|p| p.kind() == "weather")
+            .map(|p| p.id.clone())
+            .collect();
+        let zone = jiff::tz::TimeZone::system();
+        let zone = zone.iana_name().unwrap_or("UTC").to_owned();
+        let hours_24 = crate::island::clock_24_hour(&self.isle.settings.island);
+        let fahrenheit = crate::weather::fahrenheit();
+        for id in ids {
+            let asked = match self.isle.settings.widget.get(&id).and_then(|w| w.get("place")) {
+                Some(isle_settings::Value::Str(p)) => p.trim().to_owned(),
+                _ => String::new(),
+            };
+            let cached = self.isle.forecast(&id);
+            if cached.as_ref().is_some_and(|f| f.asked == asked && now_secs().saturating_sub(f.at) < WEATHER_FRESH) {
+                continue;
+            }
+            let (to_loop, zone) = (to_loop.clone(), zone.clone());
+            runtime.spawn(async move {
+                let place = if asked.is_empty() {
+                    isle_sun::coordinates(&zone)
+                        .map(|(lat, lon)| (city_of(&zone), lat, lon))
+                        .ok_or_else(|| format!("No place for {zone}"))
+                } else {
+                    crate::weather::find(&asked).await
+                };
+                let forecast = match place {
+                    Ok((name, lat, lon)) => crate::weather::fetch(lat, lon, fahrenheit).await.and_then(|json| {
+                        crate::weather::parse(&json, &name, &asked, fahrenheit, now_secs(), hours_24)
+                            .ok_or_else(|| "Open-Meteo's answer did not read".to_owned())
+                    }),
+                    Err(e) => Err(e),
+                };
+                to_loop.post(move |state| match forecast {
+                    Ok(forecast) => {
+                        let value = serde_json::to_value(&forecast).unwrap_or_default();
+                        state.isle.dashboard.memory.data.insert(
+                            id,
+                            isle_state::domains::WidgetData { value, at: forecast.at },
+                        );
+                        state.isle.save_widgets();
+                        state.put_dashboard_frame();
+                    }
+                    Err(err) => tracing::warn!(id, "weather: {err}"),
+                });
+            });
+        }
+    }
+}
+
+impl State {
+    /// Starts what the widgets shown read: volumes, samples, forecasts.
+    pub fn dashboard_feeds(&mut self) {
+        self.read_dashboard_storage();
+        self.arm_dashboard_sampling();
+        self.refresh_weather();
     }
 }

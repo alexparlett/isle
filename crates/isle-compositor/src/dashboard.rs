@@ -43,6 +43,8 @@ use crate::{
 
 pub struct DashboardState {
     pub surface: Rc<DashboardSurface>,
+    /// The plates under the widgets, redrawn only as the layout changes.
+    pub plates: Rc<isle_shell::dashboard::surface::PlatesSurface>,
     pub open: Option<Open>,
     /// The output its backdrop is drawn on, until it has faded out.
     pub shown_on: Option<String>,
@@ -160,6 +162,7 @@ impl DashboardState {
     pub fn new() -> Self {
         Self {
             surface: DashboardSurface::new(),
+            plates: isle_shell::dashboard::surface::PlatesSurface::new(),
             open: None,
             shown_on: None,
             backdrop: Motion::at(0.0),
@@ -763,6 +766,7 @@ impl Isle {
             form,
             gallery,
             consent,
+            plates_behind: true,
         };
         // A widget dragged from the gallery is drawn under the pointer.
         if let Some(p) = dragging.filter(|p| p.adding.is_some())
@@ -1042,12 +1046,16 @@ impl State {
         });
         let screen = self.isle.space.output_geometry(output).unwrap_or_default();
         self.isle.dashboard.surface.set_size(screen.size);
+        self.isle.dashboard.plates.set_size(screen.size);
         self.put_dashboard_frame();
         let place = isle_shell::OutputPlace {
             output: output.clone(),
             geometry: screen,
             scale: output.current_scale().fractional_scale(),
         };
+        self.isle
+            .shell
+            .open_placed("dashboard-plates", &place, Rectangle::from_size(screen.size));
         self.isle
             .shell
             .open_placed("dashboard", &place, Rectangle::from_size(screen.size));
@@ -1108,6 +1116,7 @@ impl State {
         }
         self.isle.dashboard.last_step = Instant::now();
         self.close_surface("dashboard");
+        self.isle.shell.close("dashboard-plates");
         self.isle.refresh_island();
         self.isle.queue_redraw_all();
     }
@@ -1131,8 +1140,11 @@ impl State {
 
     pub fn put_dashboard_frame(&mut self) {
         if let Some(frame) = self.isle.dashboard_frame() {
+            let plates = isle_shell::dashboard::surface::plates_of(&frame);
             self.isle.dashboard.surface.set(frame);
+            self.isle.dashboard.plates.set(plates);
             self.isle.shell.with_root("dashboard", || {});
+            self.isle.shell.with_root("dashboard-plates", || {});
             self.isle.queue_redraw_all();
         }
     }

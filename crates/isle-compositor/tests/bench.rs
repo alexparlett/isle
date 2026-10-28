@@ -1220,3 +1220,69 @@ async fn mission_control_cost() {
     eprintln!("frames: {frames} in {elapsed:.1} s, over their refresh (logged at most once a second): {slow}");
     assert!(!isle.log().contains("panicked"), "a surface panicked");
 }
+
+/// P17's measure on a 3440 by 1440 output: the dashboard's draw with the default layout and
+/// with every cell filled, the frame after the chord, memory open, and nothing left running
+/// once it closes.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn dashboard_cost() {
+    const RIGHT: u32 = 106;
+    const LEFT: u32 = 105;
+    const ESC: u32 = 1;
+    // P1's full canvas: the default block with the outer columns in use.
+    let mut outer = String::from("dashboard-output \"Isle Bench 1\" {\n    widgets \"clock#1 11 6 2 2\" \"calendar#1 13 6 4 2\" \"weather#1 17 6 2 2\" \"media#1 19 6 4 1\" \"storage#1 19 7 4 1\" \"system#1 23 6 2 2\" \"devices#1 25 6 2 1\" \"notifications#1 25 7 2 1\"");
+    for (i, (x, y)) in [(0, 0), (0, 2), (0, 4), (0, 8), (0, 10), (34, 0), (34, 2), (34, 4), (34, 8), (34, 10), (2, 0), (32, 0)].iter().enumerate() {
+        let kind = ["clock", "system", "timer", "weather"][i % 4];
+        outer.push_str(&format!(" \"{kind}#{} {x} {y} 2 2\"", i + 10));
+    }
+    outer.push_str("\n}\nwallpaper {\n    source \"frost\"\n}\n");
+    let mut full = String::from("dashboard-output \"Isle Bench 1\" {\n    widgets");
+    let mut n = 0;
+    for row in 0..7 {
+        for col in 0..19 {
+            n += 1;
+            let kind = ["clock", "system", "timer", "weather"][n % 4];
+            full.push_str(&format!(" \"{kind}#{n} {} {} 2 2\"", col * 2, row * 2));
+        }
+    }
+    full.push_str("\n}\nwallpaper {\n    source \"frost\"\n}\n");
+    for (what, settings) in [
+        ("default layout", "wallpaper {\n    source \"frost\"\n}\n".to_owned()),
+        ("full canvas, 20 widgets", outer),
+        ("every cell, 133 widgets", full),
+    ] {
+        let isle = Isle::start_with("cost-dashboard", &settings).await;
+        let pid = VersionProxy::new(&isle.bus).await.unwrap().pid().await.unwrap();
+        let test = isle.test().await;
+        ultrawide(&isle).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let (rss_before, _) = memory(pid);
+        let started = Instant::now();
+        isle.chord(&[29, 56, 125, 17]).await;
+        wait_until(|| async { surface(&isle, "dashboard").await.draws > 0 }).await;
+        let first = started.elapsed();
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        test.measure(true).await.unwrap();
+        for i in 0..80 {
+            tap(&isle, if i % 2 == 0 { RIGHT } else { LEFT }).await;
+            tokio::time::sleep(Duration::from_millis(60)).await;
+        }
+        let s = surface(&isle, "dashboard").await;
+        report(&format!("dashboard, {what}, moving the selection"), &s);
+        let (rss, own) = memory(pid);
+        eprintln!(
+            "{what}: chord to first draw {:.1} ms; RSS {rss_before:.0} MB closed, {rss:.0} MB open (own {own:.0} MB)",
+            first.as_secs_f64() * 1000.0
+        );
+        test.measure(false).await.unwrap();
+        tap(&isle, ESC).await;
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let left: Vec<String> = children(pid).into_iter().filter(|c| c == "bwrap" || c.starts_with("xdg-dbus")).collect();
+        eprintln!("{what}: running after closing: {left:?}");
+        assert!(left.is_empty());
+        if !what.starts_with("every cell") {
+            assert!(s.draw_p95 < 2000, "bar 5: p95 under 2 ms");
+        }
+    }
+}

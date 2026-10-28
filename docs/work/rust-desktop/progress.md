@@ -2,6 +2,15 @@
 
 ## 2026-10-28
 
+- P17 17.15, measures: a release bench on a 3440×1440 headless output
+  (`bench.rs` `dashboard_cost`): selection moves at p95 1.27 ms with the
+  default layout and 1.98 ms with P1's full canvas, inside bar 5; 2.63 ms
+  with every cell filled, reported only. First draw 11 ms after the chord;
+  RSS 196 MB open. Nothing left running after closing. Getting there split
+  the dashboard into two surfaces: `dashboard-plates` behind, holding the
+  plates, their shadows and edit mode's cells, redrawn only as the layout
+  changes, and `dashboard` in front with the content. Written in
+  `docs/research/rust-desktop/p17-widgets.md`.
 - P17 17.14, Yours, in part: New widget… writes a text widget from a
   template (Python answering once a minute, README, CHANGELOG) into
   `~/.config/isle/widgets/my-widget[-n]/`, closes the dashboard and opens

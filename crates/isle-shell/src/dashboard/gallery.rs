@@ -162,6 +162,7 @@ fn item_view(theme: &Theme, item: &ItemView, inner: f32, actions: &Actions) -> E
         form: None,
         gallery: None,
         consent: None,
+        plates_behind: true,
     };
     let picture = rect()
         .width(Size::px(width))

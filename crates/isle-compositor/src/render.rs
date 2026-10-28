@@ -304,6 +304,8 @@ impl Isle {
                 if !leave.contains(&"dashboard") {
                     self.shell
                         .elements_of(output, "dashboard", &mut |e| push(IsleElement::Shell(e)));
+                    self.shell
+                        .elements_of(output, "dashboard-plates", &mut |e| push(IsleElement::Shell(e)));
                 }
             }
             if from <= Stage::LayerOverlay {
@@ -335,7 +337,7 @@ impl Isle {
         }
         if from <= Stage::ShellOverlay {
             if prompting || dashboard.is_some() {
-                let mut without = vec!["island", "dashboard"];
+                let mut without = vec!["island", "dashboard", "dashboard-plates"];
                 without.extend_from_slice(leave);
                 self.shell.elements_without(
                     output,

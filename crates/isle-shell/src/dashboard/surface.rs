@@ -341,6 +341,8 @@ pub struct Frame {
     pub form: Option<FormView>,
     pub gallery: Option<GalleryView>,
     pub consent: Option<ConsentView>,
+    /// The plates are the back surface's, so widgets draw their content alone.
+    pub plates_behind: bool,
 }
 
 impl Default for Frame {
@@ -365,6 +367,7 @@ impl Default for Frame {
             form: None,
             gallery: None,
             consent: None,
+            plates_behind: false,
         }
     }
 }
@@ -526,7 +529,7 @@ impl Component for Root {
         let frame = self.frame.read().clone();
         let actions = Actions::get();
         let mut root = rect().expanded().a11y_role(AccessibilityRole::Grid).a11y_alt("Widgets");
-        if frame.edit {
+        if frame.edit && !frame.plates_behind {
             root = root.child(cells(&theme, &frame));
         }
         if let Some(ghost) = frame.ghost {
@@ -764,6 +767,15 @@ pub(super) fn widget(
             el.corner_radius(t.radius_panel).background(colour(t.colour_fill))
         });
     let chrome = frame.edit.then(|| edit_chrome(theme, width, height, selected));
+    // Over the back surface's plate the widget draws its content alone; lifted, it carries
+    // its own.
+    let bare = frame.plates_behind && lifted.is_none();
+    let plate = |theme: &Theme, solid: bool, radius: f32| {
+        if bare { rect().corner_radius(radius) } else { plate(theme, solid, radius) }
+    };
+    let place = place.maybe(bare && frame.edit && matches!(w.body, Body::Empty(_) | Body::Strip { .. }), |el| {
+        el.background(Color::TRANSPARENT)
+    });
     let body: Element = match &w.body {
         Body::Strip { glyph, line, button } => {
             return place
@@ -1925,4 +1937,177 @@ fn line_graph(values: &[f64], width: f32, height: f32, c: isle_tokens::Colour, l
         css(c, 1.0),
     );
     svg_view(svg, width, height, label.cloned().unwrap_or_default())
+}
+
+/// What the back surface draws: each widget's plate, collapsed widgets' extents in edit mode,
+/// and the free cells, all of which change only with the layout.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PlatesFrame {
+    pub plates: Vec<(f32, f32, f32, f32)>,
+    /// A one-line widget's plate is a strip at the top of its place.
+    pub strips: Vec<(f32, f32, f32)>,
+    pub fills: Vec<(f32, f32, f32, f32)>,
+    pub cells: Vec<(f32, f32, f32)>,
+    pub solid: bool,
+}
+
+/// The back surface's frame for `frame`, the lifted widget left to the front.
+pub fn plates_of(frame: &Frame) -> PlatesFrame {
+    let lifted = frame.lifted.as_ref().map(|l| l.id.as_str());
+    let mut out = PlatesFrame {
+        solid: frame.solid,
+        ..Default::default()
+    };
+    for w in &frame.widgets {
+        if Some(w.id.as_str()) == lifted {
+            continue;
+        }
+        let (x, y, width, height) = frame.extent.rect(w.at);
+        match w.body {
+            Body::Empty(_) | Body::Strip { .. } => {
+                out.strips.push((x, y, width));
+                if frame.edit {
+                    out.fills.push((x, y, width, height));
+                }
+            }
+            _ => out.plates.push((x, y, width, height)),
+        }
+    }
+    if frame.edit {
+        let e = &frame.extent;
+        for y in 0..e.rows {
+            for x in 0..e.cols {
+                if frame.widgets.iter().any(|w| w.at.contains(x, y)) {
+                    continue;
+                }
+                let (px, py, w, _) = e.rect(Cells::new(x, y, 1, 1));
+                out.cells.push((px, py, w));
+            }
+        }
+    }
+    out
+}
+
+/// The dashboard's back surface: the plates under the widgets (`p17` 17.15).
+#[derive(Default)]
+pub struct PlatesSurface {
+    frame: Rc<RefCell<PlatesFrame>>,
+    state: Rc<RefCell<Option<State<PlatesFrame>>>>,
+    size: Cell<SSize<i32, Logical>>,
+}
+
+impl PlatesSurface {
+    pub fn new() -> Rc<Self> {
+        Rc::new(Self::default())
+    }
+
+    pub fn set(&self, frame: PlatesFrame) {
+        *self.frame.borrow_mut() = frame.clone();
+        if let Some(mut state) = *self.state.borrow() {
+            state.set_if_modified(frame);
+        }
+    }
+
+    pub fn set_size(&self, size: SSize<i32, Logical>) {
+        self.size.set(size);
+    }
+}
+
+impl SurfaceDef for PlatesSurface {
+    fn name(&self) -> &'static str {
+        "dashboard-plates"
+    }
+
+    fn layer(&self) -> Layer {
+        Layer::Overlay
+    }
+
+    fn scope(&self) -> Scope {
+        Scope::Placed
+    }
+
+    fn takes_keyboard(&self) -> bool {
+        false
+    }
+
+    fn geometry(&self, _output: SSize<i32, Logical>) -> Rectangle<i32, Logical> {
+        Rectangle::from_size(self.size.get())
+    }
+
+    fn app(&self) -> AppComponent {
+        AppComponent::new(PlatesApp {
+            frame: self.frame.clone(),
+            state: self.state.clone(),
+        })
+    }
+
+    fn fades(&self) -> bool {
+        true
+    }
+
+    /// The front surface takes every press.
+    fn hit_shapes(&self) -> bool {
+        true
+    }
+}
+
+#[derive(Clone)]
+struct PlatesApp {
+    frame: Rc<RefCell<PlatesFrame>>,
+    state: Rc<RefCell<Option<State<PlatesFrame>>>>,
+}
+
+impl App for PlatesApp {
+    fn render(&self) -> impl IntoElement {
+        use_drop({
+            let slot = self.state.clone();
+            move || {
+                *slot.borrow_mut() = None;
+            }
+        });
+        let state = use_hook(|| {
+            let state = State::create(self.frame.borrow().clone());
+            *self.state.borrow_mut() = Some(state);
+            state
+        });
+        PlatesRoot { frame: state }
+    }
+}
+
+#[derive(PartialEq)]
+struct PlatesRoot {
+    frame: State<PlatesFrame>,
+}
+
+impl Component for PlatesRoot {
+    fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
+        let f = self.frame.read().clone();
+        let at = |x: f32, y: f32, w: f32, h: f32| {
+            rect()
+                .position(Position::new_absolute().left(x).top(y))
+                .width(Size::px(w))
+                .height(Size::px(h))
+        };
+        let mut root = rect().expanded();
+        for (x, y, w) in &f.cells {
+            root = root.child(at(*x, *y, *w, *w).corner_radius(t.radius_control).background(colour(t.colour_fill)));
+        }
+        for (x, y, w, h) in &f.fills {
+            root = root.child(at(*x, *y, *w, *h).corner_radius(t.radius_panel).background(colour(t.colour_fill)));
+        }
+        for (x, y, w, h) in &f.plates {
+            root = root.child(plate(&theme, f.solid, t.radius_panel).position(Position::new_absolute().left(*x).top(*y)).width(Size::px(*w)).height(Size::px(*h)));
+        }
+        for (x, y, w) in &f.strips {
+            root = root.child(
+                plate(&theme, f.solid, t.radius_panel)
+                    .position(Position::new_absolute().left(*x).top(*y))
+                    .width(Size::px(*w))
+                    .height(Size::px(t.size_row_large)),
+            );
+        }
+        root
+    }
 }

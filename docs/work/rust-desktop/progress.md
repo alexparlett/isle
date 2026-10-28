@@ -2,6 +2,10 @@
 
 ## 2026-10-28
 
+- P15b 15b.10, second part, List's disclosure: a folder's triangle opens it
+  in place, indented, ⌥ opening every folder under it to four levels; →
+  and ← open and close the folder at the cursor, ← from inside going to
+  its folder; arrows, typing and the band walk the open folders' items.
 - P15b 15b.10, first part, List's columns: one column list drives the
   header and the rows. Date Created and Date Last Opened come from the
   header's menu; the Trash shows Original Location and Date Deleted, a

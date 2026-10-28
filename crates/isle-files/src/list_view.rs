@@ -47,6 +47,8 @@ pub enum Pick {
     Header((f32, f32)),
     /// The folder's view changed from the view itself: a sort, a column's width.
     Shown(crate::view::Shown),
+    /// A folder's disclosure: opened or closed in place, with every folder under it with ⌥.
+    Disclose(PathBuf, bool),
 }
 
 impl Pick {
@@ -83,6 +85,8 @@ struct Rows {
     rev: u64,
     /// Group headings and items, when the view is grouped; the folder's order otherwise.
     lines: Option<std::rc::Rc<Vec<Line>>>,
+    /// Folders open in place: each row's item and depth, in place of the folder's order.
+    tree: Option<std::rc::Rc<Vec<(Entry, usize)>>>,
     tab: State<Tab>,
     focused: bool,
     on_pick: EventHandler<Pick>,
@@ -106,7 +110,13 @@ impl Component for ListView {
             let now = jiff::Timestamp::now().as_second();
             std::rc::Rc::new(view::lines(tab.peek().folder.entries(), Some(by), now))
         });
-        let length = lines.as_ref().map_or(length, |l| l.len());
+        // Folders open in place: every row with its depth.
+        let tree = tab.peek().tree().map(std::rc::Rc::new);
+        let length = match (&tree, &lines) {
+            (Some(tree), _) => tree.len(),
+            (None, Some(lines)) => lines.len(),
+            (None, None) => length,
+        };
         // A divider being dragged: its column and width now, shown before it is kept.
         let mut resizing = use_state(|| None::<(Column, f32, f64, f32)>);
         let mut widths = shown.hidden;
@@ -232,8 +242,14 @@ impl Component for ListView {
         // The cursor moved by a key stays in view.
         let cursor = tab.read().cursor.clone();
         use_side_effect_with_deps(&cursor, {
-            let (lines, mut controller, row_height) = (lines.clone(), self.controller, t.size_row);
+            let (lines, mut controller, row_height, tree) = (lines.clone(), self.controller, t.size_row, tree.clone());
             move |cursor: &Option<PathBuf>| {
+                if let (Some(tree), Some(cursor)) = (&tree, cursor) {
+                    if let Some(line) = tree.iter().position(|(e, _)| e.path == *cursor) {
+                        controller.scroll_to_offset(line as f32 * row_height, row_height, Direction::Vertical);
+                    }
+                    return;
+                }
                 let t = tab.peek();
                 let Some(at) = cursor.as_deref().and_then(|c| t.folder.position(c)) else { return };
                 let line = match &lines {
@@ -248,11 +264,14 @@ impl Component for ListView {
         let mut layout = self.interact.layout;
         let row_height = t.size_row;
         let hits = {
-            let (lines, row_height) = (lines.clone(), t.size_row);
+            let (lines, row_height, tree) = (lines.clone(), t.size_row, tree.clone());
             move |(_, top, _, bottom): (f32, f32, f32, f32)| -> Vec<PathBuf> {
                 let t = tab.peek();
                 let first = (top / row_height).floor().max(0.) as usize;
                 let last = ((bottom / row_height).floor().max(0.) as usize).min(length.saturating_sub(1));
+                if let Some(tree) = &tree {
+                    return (first..=last).filter(|_| length > 0).filter_map(|l| tree.get(l).map(|(e, _)| e.path.clone())).collect();
+                }
                 (first..=last)
                     .filter(|_| length > 0)
                     .filter_map(|line| match &lines {
@@ -269,6 +288,7 @@ impl Component for ListView {
         let rows = Rows {
             rev: self.rev,
             lines,
+            tree: tree.clone(),
             tab: self.tab,
             focused: self.focused,
             on_pick: self.on_pick.clone(),
@@ -356,16 +376,27 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
         return heading(&theme, name);
     }
     let tab = rows.tab.peek();
-    let Some((index, odd)) = item_at(rows, item.index) else {
-        return rect().into_element();
+    let (entry, depth, odd) = match &rows.tree {
+        Some(tree) => match tree.get(item.index) {
+            Some((entry, depth)) => (entry, *depth, item.index % 2 == 1),
+            None => return rect().into_element(),
+        },
+        None => {
+            let Some((index, odd)) = item_at(rows, item.index) else {
+                return rect().into_element();
+            };
+            let Some(entry) = tab.folder.entries().get(index) else {
+                return rect().into_element();
+            };
+            (entry, 0, odd)
+        }
     };
-    let Some(entry) = tab.folder.entries().get(index) else {
-        return rect().into_element();
-    };
-    let selected_line = |line: Option<usize>| {
-        line.and_then(|l| item_at(rows, l))
+    let selected_line = |line: Option<usize>| match &rows.tree {
+        Some(tree) => line.and_then(|l| tree.get(l)).is_some_and(|(e, _)| tab.is_selected(&e.path)),
+        None => line
+            .and_then(|l| item_at(rows, l))
             .and_then(|(i, _)| tab.folder.entries().get(i))
-            .is_some_and(|e| tab.is_selected(&e.path))
+            .is_some_and(|e| tab.is_selected(&e.path)),
     };
     let selected = tab.is_selected(&entry.path);
     let joined_above = selected_line(item.index.checked_sub(1));
@@ -447,6 +478,8 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                         .horizontal()
                         .cross_align(Alignment::Center)
                         .spacing(t.space_s)
+                        .padding((0., 0., 0., depth as f32 * t.space_l))
+                        .child(disclosure(&theme, entry, tab.expanded.contains(&entry.path), rows.on_pick.clone(), ink_2))
                         .opacity(if dim { 0.5 } else { 1. })
                         .child(icon(entry, rows.dark, t.size_app_icon_small, ink_2))
                         .child(match rows.interact.renaming(&entry.path) {
@@ -456,6 +489,30 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                 )
                 .children(rows.columns.iter().map(|column| cell(&theme, *column, entry, rows.widths.width(*column), ink_2, &now))),
         )
+        .into_element()
+}
+
+/// A folder's disclosure triangle, or its room for anything else; a press opens or closes
+/// the folder in place.
+fn disclosure(theme: &isle_tokens::Theme, entry: &Entry, open: bool, on_pick: EventHandler<Pick>, ink: isle_tokens::Colour) -> Element {
+    let t = &theme.tokens;
+    let path = entry.path.clone();
+    rect()
+        .width(Size::px(16.))
+        .height(Size::px(16.))
+        .center()
+        .margin((0., -t.space_s + t.space_xxs, 0., 0.))
+        .maybe(entry.is_dir(), |el| {
+            el.a11y_role(AccessibilityRole::Button)
+                .a11y_alt(if open { "Collapse" } else { "Expand" })
+                .on_mouse_down(move |e: Event<MouseEventData>| {
+                    if e.button == Some(MouseButton::Left) {
+                        e.stop_propagation();
+                        on_pick.call(Pick::Disclose(path.clone(), e.modifiers.contains(Modifiers::ALT)));
+                    }
+                })
+                .child(Glyph::new(if open { "caret-down" } else { "caret-right" }, 12., colour(ink)))
+        })
         .into_element()
 }
 

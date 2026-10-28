@@ -56,6 +56,9 @@ pub struct Tab {
     pub here: Option<Entry>,
     /// The place is on a remote mount: no thumbnails, no counts.
     pub remote: bool,
+    /// Folders opened in place in List by their disclosure, and what each holds, sorted.
+    pub expanded: Vec<PathBuf>,
+    pub children: std::collections::HashMap<PathBuf, Vec<Entry>>,
 }
 
 impl Tab {
@@ -75,7 +78,46 @@ impl Tab {
             shown: Shown::default(),
             here: None,
             remote: false,
+            expanded: Vec::new(),
+            children: std::collections::HashMap::new(),
         }
+    }
+
+    /// List's rows when folders are open in place: each item with its depth, an open folder's
+    /// items under it; `None` while none is open, the folder's own order then standing.
+    pub fn tree(&self) -> Option<Vec<(Entry, usize)>> {
+        if self.expanded.is_empty() || self.shown.group.is_some() {
+            return None;
+        }
+        fn walk(tab: &Tab, entries: &[Entry], depth: usize, out: &mut Vec<(Entry, usize)>) {
+            for entry in entries {
+                out.push((entry.clone(), depth));
+                if tab.expanded.contains(&entry.path)
+                    && let Some(children) = tab.children.get(&entry.path)
+                {
+                    walk(tab, children, depth + 1, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(self, self.folder.entries(), 0, &mut out);
+        Some(out)
+    }
+
+    /// The items as the view lists them, open folders' items included.
+    pub fn listed_paths(&self) -> Vec<PathBuf> {
+        match self.tree() {
+            Some(tree) => tree.into_iter().map(|(e, _)| e.path).collect(),
+            None => crate::view::order(self.folder.entries(), self.shown.group)
+                .into_iter()
+                .filter_map(|i| self.folder.entries().get(i).map(|e| e.path.clone()))
+                .collect(),
+        }
+    }
+
+    /// An item listed anywhere, open folders included.
+    pub fn entry(&self, path: &Path) -> Option<&Entry> {
+        self.folder.get(path).or_else(|| self.children.values().flatten().find(|e| e.path == path))
     }
 
     pub fn is_selected(&self, path: &Path) -> bool {
@@ -354,6 +396,8 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             t.folder.set_show_hidden(hidden);
             t.selection.clear();
             t.cursor = None;
+            t.expanded.clear();
+            t.children.clear();
         }
         t.status = Status::Loading;
         t.slow = false;
@@ -512,4 +556,54 @@ fn watch(live: &Live, dir: &Path, generation: u64) {
         });
     });
     live.0.borrow_mut().watch = watch;
+}
+
+/// Opens `folder` in place in List, with every folder under it when `all` (to a few levels).
+pub fn expand(mut tab: State<Tab>, folder: PathBuf, all: bool) {
+    let (order, hidden) = {
+        let t = tab.peek();
+        (t.folder.order(), t.folder.shows_hidden())
+    };
+    spawn(async move {
+        let read = crate::window::off_thread(move || {
+            let mut found = Vec::new();
+            let mut queue = vec![(folder, 0usize)];
+            while let Some((dir, depth)) = queue.pop() {
+                let mut entries: Vec<Entry> = std::fs::read_dir(&dir)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .filter_map(|e| Entry::at(&e.path()).ok())
+                    .filter(|e| hidden || !e.hidden())
+                    .collect();
+                entries.sort_by(|a, b| order.compare(a, b));
+                warm(&entries);
+                if all && depth < 4 {
+                    queue.extend(entries.iter().filter(|e| e.is_dir()).map(|e| (e.path.clone(), depth + 1)));
+                }
+                found.push((dir, entries));
+                if found.len() > 200 {
+                    break;
+                }
+            }
+            found
+        });
+        let Some(found) = read.await else { return };
+        let mut t = tab.write();
+        for (dir, entries) in found {
+            if !t.expanded.contains(&dir) {
+                t.expanded.push(dir.clone());
+            }
+            t.children.insert(dir, entries);
+        }
+        t.rev += 1;
+    });
+}
+
+/// Closes `folder` in List, and every folder open under it.
+pub fn collapse(mut tab: State<Tab>, folder: &Path) {
+    let mut t = tab.write();
+    t.expanded.retain(|p| !p.starts_with(folder));
+    t.children.retain(|p, _| !p.starts_with(folder));
+    t.rev += 1;
 }

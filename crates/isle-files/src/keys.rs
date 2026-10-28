@@ -131,13 +131,12 @@ pub fn act(mut tab: State<crate::tab::Tab>, e: &KeyboardEventData, layout: Layou
     if m.intersects(Modifiers::META | Modifiers::CONTROL) {
         return false;
     }
-    let pick = |t: &crate::tab::Tab, to: usize, order: &[usize]| t.folder.entries()[order[to]].path.clone();
     if let Some(by) = Move::of(&e.key, m, layout) {
         let mut t = tab.write();
-        let order = crate::view::order(t.folder.entries(), t.shown.group);
-        let from = t.cursor.as_deref().and_then(|c| t.folder.position(c)).and_then(|p| order.iter().position(|&i| i == p));
+        let order = t.listed_paths();
+        let from = t.cursor.as_deref().and_then(|c| order.iter().position(|p| p == c));
         let Some(to) = target(order.len(), from, by, layout) else { return true };
-        let path = pick(&t, to, &order);
+        let path = order[to].clone();
         if m.contains(Modifiers::SHIFT) {
             if !t.is_selected(&path) {
                 t.selection.push(path.clone());
@@ -155,11 +154,10 @@ pub fn act(mut tab: State<crate::tab::Tab>, e: &KeyboardEventData, layout: Layou
     }
     let text = typed.write().push(c, now);
     let mut t = tab.write();
-    let order = crate::view::order(t.folder.entries(), t.shown.group);
-    let found = by_name(order.iter().map(|&i| t.folder.entries()[i].name.as_str()), &text);
-    if let Some(to) = found {
-        let path = pick(&t, to, &order);
-        t.select_only(path);
+    let order = t.listed_paths();
+    let names: Vec<String> = order.iter().map(|p| t.entry(p).map(|e| e.name.clone()).unwrap_or_default()).collect();
+    if let Some(to) = by_name(names.iter().map(String::as_str), &text) {
+        t.select_only(order[to].clone());
     }
     true
 }

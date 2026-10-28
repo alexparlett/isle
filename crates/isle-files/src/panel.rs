@@ -293,6 +293,13 @@ impl App for PanelWindow {
                 }
                 Pick::Nothing => tab.write().deselect(),
                 Pick::Menu(..) | Pick::Header(_) => {}
+                Pick::Disclose(folder, all) => {
+                    if tab.peek().expanded.contains(&folder) {
+                        tab::collapse(tab, &folder);
+                    } else {
+                        tab::expand(tab, folder, all);
+                    }
+                }
                 Pick::Shown(next) => {
                     let mut t = tab.write();
                     let order = isle_fs::Order { by: next.sort, reverse: next.reverse, ..t.folder.order() };

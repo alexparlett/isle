@@ -600,6 +600,13 @@ impl App for FilesWindow {
                         }
                         Pick::Menu(target, at) => crate::menus::open_for(tab, target, at, false, context),
                         Pick::Shown(next) => set_shown(&shared, tab, next),
+                        Pick::Disclose(folder, all) => {
+                            if tab.peek().expanded.contains(&folder) {
+                                tab::collapse(tab, &folder);
+                            } else {
+                                tab::expand(tab, folder, all);
+                            }
+                        }
                         Pick::Header(at) => {
                             let hidden = tab.peek().shown.hidden;
                             let columns: Vec<_> = crate::menus::Column::ALL.into_iter().filter(|c| hidden.get(*c)).collect();
@@ -672,6 +679,36 @@ impl App for FilesWindow {
                 let target = tab.peek().cursor.clone().filter(|c| tab.peek().is_selected(c));
                 crate::menus::open_for(tab, target, at, true, context);
                 return;
+            }
+            // In List → opens the folder at the cursor in place (⌥ every folder under it) and ←
+            // closes it, or goes to the folder it is in.
+            if tab.peek().shown.view == View::List && !m.contains(Modifiers::SHIFT) {
+                let cursor = tab.peek().cursor.clone();
+                if let Some(cursor) = cursor {
+                    let (dir, open) = {
+                        let t = tab.peek();
+                        (t.entry(&cursor).is_some_and(|e| e.is_dir()), t.expanded.contains(&cursor))
+                    };
+                    match &e.key {
+                        Key::Named(NamedKey::ArrowRight) if dir && !open => {
+                            tab::expand(tab, cursor, m.contains(Modifiers::ALT));
+                            return;
+                        }
+                        Key::Named(NamedKey::ArrowLeft) if open => {
+                            tab::collapse(tab, &cursor);
+                            return;
+                        }
+                        Key::Named(NamedKey::ArrowLeft) => {
+                            let parent = cursor.parent().map(PathBuf::from).filter(|p| tab.peek().expanded.contains(p));
+                            if let Some(parent) = parent {
+                                let mut tab = tab;
+                                tab.write().select_only(parent);
+                            }
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
             }
             // In Columns ← goes back a column, the folder chosen, and → into the folder chosen.
             if tab.peek().shown.view == View::Columns && !m.contains(Modifiers::SHIFT) {

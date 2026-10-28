@@ -130,7 +130,7 @@ impl Component for ColumnsView {
                     return;
                 }
                 match pick {
-                    menu @ (Pick::Menu(..) | Pick::Header(_) | Pick::Shown(_)) => on_pick.call(menu),
+                    menu @ (Pick::Menu(..) | Pick::Header(_) | Pick::Shown(_) | Pick::Disclose(..)) => on_pick.call(menu),
                     Pick::Open(path, held) if is_dir(&path) && (held.cmd || held.option) => on_pick.call(Pick::Open(path, held)),
                     Pick::Click(path, _) | Pick::Open(path, _) if is_dir(&path) => on_go.call((path, None)),
                     Pick::Click(path, _) => on_go.call((folder.clone(), Some(path))),

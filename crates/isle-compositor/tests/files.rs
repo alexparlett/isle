@@ -1692,3 +1692,40 @@ async fn list_columns_sort_resize_are_kept_and_the_trash_has_its_own() {
     isle.keep_shot("files-list-trash").await;
     assert!(!app.printed_part("panicked"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn list_opens_folders_in_place_by_disclosure_and_keys() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-disclosure").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+
+    // Pictures' triangle opens it in place.
+    let triangle = (w.x as f64 + 220. + 16. + 8. + 2., list_row(&w, 3.).1);
+    let test = isle.test().await;
+    test.pointer_to(triangle.0, triangle.1).await.unwrap();
+    pause(150).await;
+    click(&isle, triangle, &[], 1).await;
+    pause(500).await;
+    isle.keep_shot("files-disclosure-click").await;
+
+    // Development selected, → opens it, ↓ reaches isle inside it, which ⌘C copies.
+    click(&isle, list_row(&w, 0.), &[], 1).await;
+    isle.chord(&[RIGHT]).await;
+    pause(500).await;
+    isle.chord(&[DOWN]).await;
+    pause(200).await;
+    isle.keep_shot("files-disclosure-keys").await;
+    isle.chord(&[SUPER, KEY_C]).await;
+    isle.chord(&[SUPER, SHIFT, KEY_O]).await;
+    pause(400).await;
+    isle.chord(&[SUPER, KEY_V]).await;
+    wait_until(|| async { home.join("Documents/isle/Cargo.toml").exists() }).await;
+    assert!(!app.printed_part("panicked"));
+}

@@ -805,6 +805,14 @@ network.
 **Open for its packet.** Whether the shipped providers stay Python.
 Bubblewrap or Landlock, and the permission names.
 
+**Answered in P17's plan** (`p17-widgets.md`). Bubblewrap: `/usr/bin`
+holding only the interpreter and the commands granted, granted paths bound,
+bus names through `xdg-dbus-proxy`, hosts through a filtering proxy the
+runner serves; Isle's own config and state never writable (choice 18). The
+manifest's names are `connect`, `read`, `change`, `bus`, `system-bus` and
+`run` (choice 19). One runner, `isle-providers`, for every kind (choice
+17). Whether the shipped providers stay Python is P20's.
+
 ### Focus
 
 Do Not Disturb and named Focus modes decide what interrupts, by hand, on a

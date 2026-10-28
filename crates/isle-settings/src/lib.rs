@@ -3,6 +3,7 @@
 // The derive names paths through `::isle_settings`, including here.
 extern crate self as isle_settings;
 
+mod open;
 mod path;
 pub mod schema;
 mod shortcuts;
@@ -14,6 +15,7 @@ use std::collections::BTreeMap;
 
 pub use isle_settings_derive::{Choice, Section};
 pub use kdl;
+pub use open::Open;
 pub use path::{Seg, format_path, parse_path};
 pub use store::{FileError, Reload, SetError, Store};
 pub use value::{Field, Value, choice_from_node, quote};

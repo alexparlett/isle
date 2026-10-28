@@ -125,11 +125,12 @@ run nothing at all while closed.
    says, so a hand edit, Reset and the store's refusals apply to them:
    `dashboard-output["<identity>"] { widgets "clock#1 11 6 2 2" … }` keyed
    by the monitor's identity as `wallpaper-output`, and
-   `widget["clock#1"] { … }` for an instance's settings. A built-in's
-   settings are typed sections; a provider's are known only from its
-   manifest, so `isle-settings` gains an open section: a keyed map whose
-   values are any `Value`, checked against the manifest when the dashboard
-   reads them, with a value that fails shown as its default and written
+   `widget["clock#1"] { … }` for an instance's settings. A provider's
+   settings are known only from its manifest, so `isle-settings` gains an
+   open section: a keyed map whose values are any `Value`, checked against
+   the manifest when the dashboard reads them; the built-ins declare theirs
+   in manifests too (`data/widgets/`), so one form and one section serve
+   both (changed in 17.1 from typed sections per built-in), with a value that fails shown as its default and written
    back only by an edit. Last data, grants' history and source pulls are
    state, not settings.
 10. **A panic rebuilds the surface open**, in edit mode if it was

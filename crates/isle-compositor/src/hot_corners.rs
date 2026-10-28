@@ -165,6 +165,7 @@ impl State {
             Corner::Apps => self.toggle_spotlight(isle_search::Scope::Apps),
             Corner::LockScreen => self.lock("hot corner"),
             Corner::DisplaySleep => self.displays_sleep(),
+            Corner::Widgets => {}
         }
     }
 }

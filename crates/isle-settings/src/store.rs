@@ -244,6 +244,12 @@ impl<S: Section> Store<S> {
                 || k.key
                     .strip_prefix(&pattern)
                     .is_some_and(|rest| rest.starts_with('.'))
+                || k.key.strip_suffix(".*").is_some_and(|base| {
+                    pattern
+                        .strip_prefix(base)
+                        .and_then(|rest| rest.strip_prefix('.'))
+                        .is_some_and(|name| !name.is_empty() && !name.contains(['.', '[']))
+                })
         })
     }
 

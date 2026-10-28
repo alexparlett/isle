@@ -334,6 +334,8 @@ Open for its packet
 - Which of the registry's QML widgets (analog-clock, system-rings, transport, battery, focus-timer, uptime) become built-ins and which providers (inventory §6 Registry).
 - Interactive widgets (macOS 27 live widgets) beyond buttons and toggles.
 
+**Answered in P17's plan** (`p17-widgets.md`, settled at its close). The sandbox is bubblewrap, with `xdg-dbus-proxy` for bus names and a filtering proxy for hosts; the permissions are P1's five grant rows: connect to a host, read a path, read and change a path, use a bus name, run a command (choices 18, 19). The registry's six QML widgets become built-ins or parts of them and the registry carries providers only (choice 4). Providers are display only; the built-ins are interactive as P1 drew them (choice 20).
+
 ### OSDs
 
 Feedback for volume, brightness, keyboard backlight, mute and the like; where it shows is P1's (B24).

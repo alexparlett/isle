@@ -174,3 +174,47 @@ impl Domain for Capture {
     const NAME: &'static str = "capture";
     const VERSION: u32 = 1;
 }
+
+/// The widgets dashboard's memory (`p17-widgets.md` choices 8, 15, 22): each widget's last
+/// data, the timers, and each source's last fetch.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Widgets {
+    /// By instance, as `weather#1`.
+    pub data: BTreeMap<String, WidgetData>,
+    /// By instance, as `timer#1`.
+    pub timers: BTreeMap<String, Timer>,
+    /// By the source's address.
+    pub sources: BTreeMap<String, SourceFetch>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct WidgetData {
+    pub value: serde_json::Value,
+    /// Unix seconds it arrived.
+    pub at: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Timer {
+    pub label: String,
+    pub duration_ms: u64,
+    /// Unix milliseconds it ends while running; none while paused or idle.
+    pub ends_at: Option<u64>,
+    /// What was left when it was paused; none while running or idle.
+    pub left_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SourceFetch {
+    /// Unix seconds of the last fetch that worked.
+    pub fetched_at: Option<u64>,
+    /// The commit its index was read from.
+    pub commit: Option<String>,
+    /// Why the last fetch failed, while it does.
+    pub error: Option<String>,
+}
+
+impl Domain for Widgets {
+    const NAME: &'static str = "widgets";
+    const VERSION: u32 = 1;
+}

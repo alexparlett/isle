@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::{Choice, Section};
+use crate::{Choice, Open, Section};
 
 #[derive(Clone, Debug, PartialEq, Section)]
 #[setting(retired = "binds", check = crate::shortcuts::check)]
@@ -43,6 +43,21 @@ pub struct Settings {
     /// A screen's own wallpaper, by make, model and serial, in place of `wallpaper`.
     #[setting(keyed)]
     pub wallpaper_output: BTreeMap<String, Wallpaper>,
+    #[setting(section)]
+    pub widgets: Widgets,
+    /// The widgets dashboard's layout on a screen, by make, model and serial.
+    #[setting(keyed)]
+    pub dashboard_output: BTreeMap<String, DashboardOutput>,
+    /// A placed widget's own settings, by its instance, as `clock#1`; their keys are its
+    /// manifest's.
+    #[setting(keyed)]
+    pub widget: BTreeMap<String, Open>,
+    /// What a provider may reach, by its id.
+    #[setting(keyed)]
+    pub provider: BTreeMap<String, Provider>,
+    /// A widget source's trust, by its address.
+    #[setting(keyed)]
+    pub widget_source: BTreeMap<String, WidgetSource>,
     #[setting(section)]
     pub focus: Focus,
     /// A Focus mode's rules, by its name; Do Not Disturb and Game Mode are always there.
@@ -744,6 +759,7 @@ pub enum Corner {
     Apps,
     LockScreen,
     DisplaySleep,
+    Widgets,
 }
 
 /// Mission Control's own settings (`p1/structure/settings.md`, Desktop).
@@ -856,6 +872,36 @@ pub struct Wallpaper {
     /// A folder's pictures in random order rather than by name.
     #[setting(default = false)]
     pub shuffle: bool,
+}
+
+/// The widgets dashboard (`p1/structure/widgets.md`).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Widgets {
+    /// Git addresses whose index lists widgets to install, the registry first.
+    #[setting(default = vec!["https://github.com/alexparlett/isle-widgets".to_owned()])]
+    pub sources: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct DashboardOutput {
+    /// Each placed widget as `instance column row width height` in cells, as
+    /// `clock#1 11 6 2 2`; unset, the default layout.
+    pub widgets: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Provider {
+    /// The permissions granted, each as `kind:target`: `connect:api.open-meteo.com`,
+    /// `read:~/Documents`, `change:~/Notes`, `bus:org.kde.kdeconnect`,
+    /// `system-bus:org.freedesktop.NetworkManager`, `run:nmcli`.
+    pub granted: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct WidgetSource {
+    /// Its providers may run (`structure/widgets.md`, Installing and trust).
+    #[setting(default = false)]
+    pub allowed: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]

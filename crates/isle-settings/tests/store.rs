@@ -339,3 +339,81 @@ fn a_reset_is_refused_while_a_hand_edit_is_broken() {
     assert!(matches!(store.reset("keyboard.repeat-rate"), Err(SetError::Refused(_))));
     assert!(matches!(store.remove("output[A]"), Err(SetError::Refused(_))));
 }
+
+#[test]
+fn a_widgets_own_settings_take_any_key_and_round_trip() {
+    let dir = Dir::new("open");
+    let mut store: Store<Settings> = Store::open(dir.file());
+    store.set("widget[clock#2].zone", Value::Str("Asia/Tokyo".into())).unwrap();
+    store.set("widget[clock#2].analogue", Value::Bool(true)).unwrap();
+    store.set("widget[hn#1].count", Value::Int(5)).unwrap();
+    store.set("widget[hn#1].scale", Value::Float(1.5)).unwrap();
+    store
+        .set("widget[hn#1].feeds", Value::List(vec!["top".into(), "new".into()]))
+        .unwrap();
+    store.set("widget[hn#1].one", Value::List(vec!["top".into()])).unwrap();
+    store.set("widget[hn#1].none", Value::List(vec![])).unwrap();
+    assert_eq!(
+        fs::read_to_string(dir.file()).unwrap(),
+        "widget \"clock#2\" {\n    zone \"Asia/Tokyo\"\n    analogue #true\n}\n\
+         widget \"hn#1\" {\n    count 5\n    scale 1.5\n    feeds \"top\" \"new\"\n    one \"top\"\n    none\n}\n"
+    );
+    assert_eq!(
+        store.get("widget[hn#1].one"),
+        Ok(Value::Str("top".into())),
+        "a one-item list reads back as the string the file holds"
+    );
+    let again: Store<Settings> = Store::open(dir.file());
+    assert_eq!(again.current(), store.current());
+    assert_eq!(
+        again.current().widget["clock#2"].get("zone"),
+        Some(&Value::Str("Asia/Tokyo".into()))
+    );
+
+    assert_eq!(store.reset("widget[clock#2].zone").unwrap(), vec!["widget[clock#2].zone".to_owned()]);
+    assert!(store.get("widget[clock#2].zone").is_err());
+    store.remove("widget[hn#1]").unwrap();
+    assert!(!store.values().keys().any(|k| k.starts_with("widget[hn#1]")));
+    assert!(matches!(store.set("widget[hn#1].a.b", Value::Int(1)), Err(SetError::Invalid(_))));
+}
+
+#[test]
+fn a_widgets_settings_refuse_blocks_and_repeats() {
+    let dir = Dir::new("open-bad");
+    fs::write(dir.file(), "widget \"clock#1\" {\n    zone \"UTC\"\n    zone \"GMT\"\n}\n").unwrap();
+    let store: Store<Settings> = Store::open(dir.file());
+    assert!(store.error().unwrap().message.contains("set twice"));
+    fs::write(dir.file(), "widget \"clock#1\" {\n    face {\n    }\n}\n").unwrap();
+    let store: Store<Settings> = Store::open(dir.file());
+    assert!(store.error().unwrap().message.contains("not a block"));
+}
+
+#[test]
+fn a_dashboard_layout_unset_is_the_default_and_empty_is_kept() {
+    let dir = Dir::new("dashboard");
+    let mut store: Store<Settings> = Store::open(dir.file());
+    store
+        .set(
+            "dashboard-output[AOC U34 1].widgets",
+            Value::List(vec!["clock#1 11 6 2 2".into(), "media#1 17 6 4 1".into()]),
+        )
+        .unwrap();
+    store.set("dashboard-output[Dell 1].widgets", Value::List(vec![])).unwrap();
+    let again: Store<Settings> = Store::open(dir.file());
+    assert_eq!(again.current().dashboard_output["AOC U34 1"].widgets.as_ref().unwrap().len(), 2);
+    assert_eq!(again.current().dashboard_output["Dell 1"].widgets, Some(vec![]));
+    assert_eq!(Settings::default().dashboard_output.get("AOC U34 1"), None);
+    assert_eq!(
+        store.get("widgets.sources"),
+        Ok(Value::List(vec!["https://github.com/alexparlett/isle-widgets".into()]))
+    );
+    store.set("hot-corners.top-right", Value::Str("widgets".into())).unwrap();
+    store
+        .set("provider[hn].granted", Value::List(vec!["connect:hacker-news.firebaseio.com".into()]))
+        .unwrap();
+    store
+        .set("widget-source[https://github.com/alexparlett/isle-widgets].allowed", Value::Bool(true))
+        .unwrap();
+    let again: Store<Settings> = Store::open(dir.file());
+    assert_eq!(again.current(), store.current());
+}

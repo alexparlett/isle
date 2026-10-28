@@ -220,7 +220,13 @@ the VM and a day of use on the host, closed by a walk of the sheet's
 Keyboard, Pointer, Acting, States and Copy sections. Before P17. Intent:
 apps.md.
 
-**P17 · Widgets.** Notification Centre moved to P8 at its review. Widgets
+**P17 · Widgets.** Planned and reviewed 2026-10-28: `p17-widgets.md`.
+The dashboard with its twelve built-ins (the registry's QML widgets among
+them), the grid editor and the gallery; `isle-providers`, one runner for
+every kind, sandboxed by bubblewrap with a bus proxy and a filtering network
+proxy; sources through gitoxide, Isle's index (`providers.json`) beside
+v1's until P21; `isle-sysinfo`, which Monitor reuses in P19. Calendar's data
+waits for P20 and System's click for P19. Brief: Notification Centre moved to P8 at its review. Widgets
 where P1 places them, with the grid editor and the gallery (B24); the provider contract (B14), sandboxed with granted
 permissions (B28); the isle-widgets registry as providers. Intent:
 shell.md, platform.md.

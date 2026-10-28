@@ -2,6 +2,18 @@
 
 ## 2026-10-28
 
+- P17 17.1, settings and state: `isle_settings::Open`, a section of any
+  keys and values checked by its reader, so a provider's manifest names its
+  own settings (a one-item list reads back as a string, since the file
+  cannot tell them apart); `widgets.sources` with the registry,
+  `dashboard-output[*].widgets` (unset is the default layout, empty is
+  kept), `widget[*]`, `provider[*].granted` as `kind:target`,
+  `widget-source[*].allowed`, `Corner::Widgets`; the `widgets` state domain
+  (last data, timers, source fetches). Built-ins' settings use the open
+  section too, from manifests (choice 9 amended). Three store tests.
+- P17 17.0, the record: `widgets-2026.md`; the roadmap's P17 entry;
+  `shell.md`'s and `platform.md`'s open points answered by the plan's
+  choices 4 and 17–20.
 - P15b 15b.14, the walk: `structure/files.md`'s Keyboard, Pointer, Acting,
   States and Copy walked line by line against the build, written in
   `p15-files.md` § The spec walk. Built from its gaps: v1's keys as second

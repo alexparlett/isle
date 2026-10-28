@@ -129,6 +129,8 @@ pub enum Act {
     Identify,
     ToggleNightLight,
     EditControls,
+    /// The widgets dashboard, open in edit mode.
+    EditWidgets,
     Revoke(Permission),
     Hostname(String),
     /// The user's tokens file at `path` in the text editor, or with `shipped` a read-only
@@ -770,6 +772,12 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
                 .await
                 .map(|_| ())
                 .map_err(|e| err(&e))
+        }
+        Act::EditWidgets => {
+            let proxy = isle_ipc::shell::ShellProxy::new(&session()?)
+                .await
+                .map_err(|e| err(&e))?;
+            proxy.widgets("edit").await.map(|_| ()).map_err(|e| err(&e))
         }
         Act::EditControls => {
             let proxy = isle_ipc::island::IslandProxy::new(&session()?)

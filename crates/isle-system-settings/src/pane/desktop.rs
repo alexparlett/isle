@@ -37,7 +37,7 @@ const CORNERS: [(&str, &str, &str); 4] = [
 ];
 
 /// What a corner can do, and the item each reads as.
-const ACTIONS: [(&str, &str); 8] = [
+const ACTIONS: [(&str, &str); 9] = [
     ("mission-control", "Mission Control"),
     ("app-windows", "Application Windows"),
     ("desktop", "Desktop"),
@@ -45,6 +45,7 @@ const ACTIONS: [(&str, &str); 8] = [
     ("apps", "Apps"),
     ("lock-screen", "Lock Screen"),
     ("display-sleep", "Put Display to Sleep"),
+    ("widgets", "Widgets"),
     ("none", "—"),
 ];
 
@@ -158,6 +159,61 @@ impl Component for Desktop {
                     .into_element(),
                 ],
             ))
+            .child(form::group(
+                Some("Widgets".into()),
+                vec![r.row("widgets", "Widgets", None)
+                    .description("Ctrl+Option+Cmd+W shows them over everything, on the screen you are using.")
+                    .into_element()],
+            ))
+            .child(crate::ui::foot(vec![
+                (
+                    "Edit widgets…".into(),
+                    EventHandler::new(move |_| services.act(Act::EditWidgets)),
+                ),
+                (
+                    "Reset to default…".into(),
+                    EventHandler::new({
+                        let at = at.clone();
+                        move |_| super::open(nav, &at, "Reset Widgets…")
+                    }),
+                ),
+            ]))
+            .maybe(self.at.sub.as_deref() == Some("Reset Widgets…"), |el| {
+                let desktop = r.desktop;
+                let screens: Vec<String> = desktop
+                    .values
+                    .read()
+                    .keys()
+                    .filter_map(|k| k.strip_prefix("dashboard-output[").and_then(|k| k.split_once(']')).map(|(id, _)| id.to_owned()))
+                    .collect();
+                el.child(crate::ui::alert(
+                    "Are you sure you want to reset your widgets?",
+                    "Every screen's widgets go back to how they first were.",
+                    Vec::new(),
+                    vec![
+                        isle_ui::AlertButton::destructive(
+                            "Reset",
+                            EventHandler::new({
+                                let at = at.clone();
+                                move |_| {
+                                    for id in &screens {
+                                        desktop.reset(format!("dashboard-output[{id}]"));
+                                    }
+                                    super::close(nav, &at)
+                                }
+                            }),
+                        ),
+                        (
+                            "Cancel".to_owned(),
+                            EventHandler::new({
+                                let at = at.clone();
+                                move |_| super::close(nav, &at)
+                            }),
+                        )
+                            .into(),
+                    ],
+                ))
+            })
             .maybe(self.at.sub.as_deref() == Some("Hot Corners…"), |el| {
                 el.child(HotCorners { at: at.clone() })
             })

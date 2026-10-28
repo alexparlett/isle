@@ -54,6 +54,7 @@ row pane="desktop" id="hot-corners" label="Hot Corners" pane-label="Desktop" als
 row pane="desktop" id="stage" label="Stage Manager" pane-label="Desktop" also="stage;recent apps"
 row pane="desktop" id="recent-apps" label="Show recent apps" pane-label="Desktop" also="stage manager;strip"
 row pane="desktop" id="stage-windows" label="Show windows from an application" pane-label="Desktop" also="stage manager"
+row pane="desktop" id="widgets" label="Widgets" pane-label="Desktop" also="dashboard;widget gallery;reset widgets"
 row pane="displays" id="" label="Displays" pane-label="Displays" also="monitor;screen;resolution;refresh rate;night light"
 row pane="displays" id="main-display" label="Main display" pane-label="Displays" also="primary"
 row pane="displays" id="resolution" label="Resolution" pane-label="Displays" also="size"

@@ -14,6 +14,7 @@ depends=(
   libpipewire libxkbcommon mesa pam seatd sqlite systemd systemd-libs wayland
   accountsservice dbus gnome-keyring libarchive pipewire-pulse polkit xdg-desktop-portal
   xdg-desktop-portal-gtk xdg-utils xkeyboard-config xorg-xwayland
+  bubblewrap xdg-dbus-proxy
 )
 makedepends=(cargo clang git ninja python)
 optdepends=(
@@ -73,14 +74,14 @@ build() {
   # Two builds, so the apps' features are their own and no GPU renderer is linked into them
   # (B26).
   cargo build --frozen --release \
-    -p isle-compositor -p isle-session -p isle-cli -p isle-auth -p isle-record
+    -p isle-compositor -p isle-session -p isle-cli -p isle-auth -p isle-record -p isle-providers
   cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail
 }
 
 package() {
   cd isle
   local target="${ISLE_TARGET_DIR:-$srcdir/target}/release"
-  for bin in isle-compositor isle-session isle isle-auth isle-record isle-settings isle-files isle-thumbnail; do
+  for bin in isle-compositor isle-session isle isle-auth isle-record isle-provider-init isle-settings isle-files isle-thumbnail; do
     install -Dm755 "$target/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm644 data/session/isle.desktop "$pkgdir/usr/share/wayland-sessions/isle.desktop"

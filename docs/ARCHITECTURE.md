@@ -880,6 +880,48 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   under the cursor's item with its first row selected; while a menu is
   open the window's own keys stand aside.
 
+## How widgets and providers run
+
+- **The dashboard is the compositor's** (P17, as Spotlight and Mission
+  Control are). `isle-compositor/src/dashboard.rs` holds the open state:
+  the screen, its layout read from `dashboard-output[<identity>]`, edit
+  mode, the selection, a press being dragged, the menu, the form, the
+  gallery and the consent panel. The pure grid is
+  `isle_shell::dashboard::grid`: the extent from the tokens, packing, the
+  soft push worked out from the layout before the drag, sizes, undo.
+  `dashboard` is a placed Overlay surface drawing a `Frame`; keys reach
+  the model first, through the compositor's key chain, and presses in edit
+  mode are hit-tested against the model as the divider's are, leaving the
+  surface's own controls to Freya.
+- **Drawn as the lock is.** The render pass puts the island and the
+  surface over `material-lock-wash` and the softened wallpaper; once the
+  backdrop is opaque nothing under it is drawn. The island is covered on
+  that screen, so events wait. One overlay at a time is `close_overlays`.
+- **Nothing runs closed.** Opening starts what the placed widgets read:
+  volumes' use read on the worker, `isle-sysinfo` sampled every two
+  seconds while a System widget shows, Open-Meteo fetched when a forecast
+  is stale, and each provider; closing stops them. Timers alone run on,
+  in the `widgets` state domain with the last data and the sources'
+  fetches, posting the island's Timer activity and timer-end event.
+- **A provider is a folder and a sandboxed program.** `isle-providers`
+  reads `widget.json`, runs it under `bwrap --unshare-all` with `/usr`
+  read only, `/usr/bin` holding only `sh`, `env`, python3 and the commands
+  granted, granted paths bound, Isle's own config and state hidden, buses
+  through `xdg-dbus-proxy --filter`, and hosts through a filtering HTTP
+  and CONNECT proxy on a Unix socket, reached from the sandbox's loopback
+  by `isle-provider-init`. Settings, size and instance go in on stdin; one
+  JSON answer comes out, or a line at a time from a stream, read for its
+  template. Grants are `provider[<id>].granted`; changing one restarts its
+  runs.
+- **Sources are git repositories read through gitoxide.** A shallow bare
+  clone under `~/.cache/isle/widget-sources/` is fetched when Browse
+  opens; `providers.json` and each `widget.json` are read from the fetched
+  tree, and an install writes the provider's folder from the tree into
+  `~/.local/share/isle/widgets/` through staging with
+  `.isle-install.json`. Installing goes through the consent panel, which
+  grants what it declares and allows its source; Settings › Privacy &
+  Security › Providers is the one place grants change after.
+
 ## How Isle is installed
 
 - **One package** (B100). `pkg/arch/PKGBUILD` builds `isle-git` from

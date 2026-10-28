@@ -2,6 +2,14 @@
 
 ## 2026-10-28
 
+- P17 17.13, Settings and the record: Settings › Desktop gains Widgets
+  with Edit widgets… (`Shell1.Widgets("edit")`) and Reset to default…
+  (an alert, then every screen's `dashboard-output` entry taken out); the
+  Hot Corners… sheet offers Widgets; Keyboard Shortcuts lists the
+  dashboard's chord under Menus and panels; Spotlight's index gains the
+  Widgets row. The package depends on bubblewrap and xdg-dbus-proxy and
+  installs `isle-provider-init` beside the compositor. ARCHITECTURE gains
+  How widgets and providers run.
 - P17 17.12, the registry: in `~/Development/isle-widgets`, on its
   `isle-2-providers` branch (committed, not pushed): `providers.json`
   beside v1's untouched `index.json`, and three providers under

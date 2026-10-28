@@ -92,6 +92,7 @@ pub const SHORTCUTS: &[(&str, &[(&str, &str)])] = &[
             ("notification-centre", "Notification Centre"),
             ("menu-bar", "Menu bar"),
             ("help-search", "Search menus"),
+            ("dashboard", "Widgets"),
         ],
     ),
     (

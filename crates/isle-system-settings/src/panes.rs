@@ -208,6 +208,7 @@ pub static PANES: &[Pane] = &[
             RowDef::new("stage", "Stage Manager").keywords(&["stage", "recent apps"]),
             RowDef::new("recent-apps", "Show recent apps").key("stage-manager.recent-apps").keywords(&["stage manager", "strip"]),
             RowDef::new("stage-windows", "Show windows from an application").key("stage-manager.windows").keywords(&["stage manager"]),
+            RowDef::new("widgets", "Widgets").keywords(&["dashboard", "widget gallery", "reset widgets"]),
         ],
         ..pane("desktop", "Desktop", "app-window", Hue::Graphite, 2, "Set how windows tile and fill, and what the screen corners do.")
     },

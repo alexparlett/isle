@@ -1641,3 +1641,54 @@ async fn the_sidebar_collapses_its_groups_reorders_favourites_and_shows_the_tras
     isle.keep_shot("files-sidebar-trash-full").await;
     assert!(!app.printed_part("panicked"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn list_columns_sort_resize_are_kept_and_the_trash_has_its_own() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-columns-list").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let test = isle.test().await;
+    let kept = isle.dir.join("files-state/isle/files.json");
+    let flat = || std::fs::read_to_string(&kept).unwrap_or_default().split_whitespace().collect::<String>();
+    isle.keep_shot("files-list-columns").await;
+
+    // Size's heading sorts by size, kept for the folder.
+    let right = w.x as f64 + w.width as f64 - 16.;
+    let header_y = w.y as f64 + 52. + 12.;
+    let kind_left = right - 140.;
+    let size_mid = kind_left - 16. - 40.;
+    click(&isle, (size_mid, header_y), &[], 1).await;
+    wait_until(|| async { flat().contains("\"sort\":\"Size\"") }).await;
+
+    // Kind's leading divider dragged left widens it, kept too.
+    let divider = (kind_left - 8., header_y);
+    test.pointer_to(divider.0, divider.1).await.unwrap();
+    pause(150).await;
+    test.button(272, true).await.unwrap();
+    for step in 1..=5 {
+        test.pointer_to(divider.0 - 12. * step as f64, divider.1).await.unwrap();
+        pause(40).await;
+    }
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { flat().contains("\"widths\":[0,0,0,0,200") }).await;
+
+    // The Trash shows Original Location and Date Deleted.
+    reveal(&isle, &app, &home.join("todo.txt")).await;
+    isle.chord(&[SUPER, BACKSPACE]).await;
+    wait_until(|| async { !home.join("todo.txt").exists() }).await;
+    let trash = (w.x as f64 + 60., w.y as f64 + 52. + 8. + 28. + 12. + 24. + 28. * 4. + 12. + 24. + 28. + 14.);
+    pause(600).await;
+    test.pointer_to(trash.0, trash.1).await.unwrap();
+    pause(200).await;
+    click(&isle, trash, &[], 1).await;
+    pause(800).await;
+    isle.keep_shot("files-list-trash").await;
+    assert!(!app.printed_part("panicked"));
+}

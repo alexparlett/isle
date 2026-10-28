@@ -36,12 +36,19 @@ pub struct Shown {
     pub hidden: Hidden,
 }
 
-/// List's columns hidden, as the header's menu sets them.
+/// List's columns hidden, as the header's menu sets them; Date Created and Date Last Opened
+/// start hidden. Widths dragged, by column index, 0 for its own.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hidden {
     pub modified: bool,
     pub size: bool,
     pub kind: bool,
+    #[serde(default)]
+    pub created_shown: bool,
+    #[serde(default)]
+    pub opened_shown: bool,
+    #[serde(default)]
+    pub widths: [u16; 8],
 }
 
 impl Hidden {
@@ -49,8 +56,11 @@ impl Hidden {
         use crate::menus::Column;
         match column {
             Column::Modified => self.modified,
+            Column::Created => !self.created_shown,
+            Column::Opened => !self.opened_shown,
             Column::Size => self.size,
             Column::Kind => self.kind,
+            Column::Deleted | Column::Original | Column::Where => false,
         }
     }
 
@@ -58,10 +68,38 @@ impl Hidden {
         use crate::menus::Column;
         let flag = match column {
             Column::Modified => &mut self.modified,
+            Column::Created => &mut self.created_shown,
+            Column::Opened => &mut self.opened_shown,
             Column::Size => &mut self.size,
             Column::Kind => &mut self.kind,
+            Column::Deleted | Column::Original | Column::Where => return,
         };
         *flag = !*flag;
+    }
+
+    /// A column's width, dragged or its own.
+    pub fn width(self, column: crate::menus::Column) -> f32 {
+        match self.widths[column.index()] {
+            0 => column.width(),
+            w => w as f32,
+        }
+    }
+
+    /// The columns List shows for `place`, in order.
+    pub fn columns(self, place: &crate::places::Place) -> Vec<crate::menus::Column> {
+        use crate::{menus::Column, places::Place};
+        let mut out = Vec::new();
+        if *place == Place::Trash {
+            out.extend([Column::Original, Column::Deleted]);
+        }
+        out.extend([Column::Modified, Column::Created, Column::Opened, Column::Size].into_iter().filter(|c| !self.get(*c)));
+        if matches!(place, Place::Search(_)) {
+            out.push(Column::Where);
+        }
+        if !self.kind {
+            out.push(Column::Kind);
+        }
+        out
     }
 }
 

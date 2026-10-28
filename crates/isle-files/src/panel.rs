@@ -293,6 +293,13 @@ impl App for PanelWindow {
                 }
                 Pick::Nothing => tab.write().deselect(),
                 Pick::Menu(..) | Pick::Header(_) => {}
+                Pick::Shown(next) => {
+                    let mut t = tab.write();
+                    let order = isle_fs::Order { by: next.sort, reverse: next.reverse, ..t.folder.order() };
+                    t.folder.set_order(order);
+                    t.shown = next;
+                    t.rev += 1;
+                }
             }
         });
 

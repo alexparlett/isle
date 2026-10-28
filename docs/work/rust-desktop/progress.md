@@ -2,6 +2,12 @@
 
 ## 2026-10-28
 
+- P15b 15b.10, first part, List's columns: one column list drives the
+  header and the rows. Date Created and Date Last Opened come from the
+  header's menu; the Trash shows Original Location and Date Deleted, a
+  search Where. A heading's sort is kept for the folder. A column's leading
+  divider drags its width, double-click fits it (Right Size), kept for the
+  folder.
 - P15b 15b.9, the sidebar: Favourites move by drag, at an insertion line,
   the order kept in Files' state and GTK's bookmarks rewritten in it
   (D76); Favourites and Locations collapse from their headings, the caret

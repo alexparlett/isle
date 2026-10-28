@@ -34,22 +34,63 @@ pub enum Act {
     GoTo(PathBuf),
 }
 
-/// List's columns that can be hidden; Name always shows.
+/// List's columns besides Name: those the header's menu shows and hides, then the Trash's
+/// and a search's own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Column {
     Modified,
+    Created,
+    Opened,
     Size,
     Kind,
+    Deleted,
+    Original,
+    Where,
 }
 
 impl Column {
-    pub const ALL: [Column; 3] = [Column::Modified, Column::Size, Column::Kind];
+    /// The columns the header's menu lists.
+    pub const ALL: [Column; 5] = [Column::Modified, Column::Created, Column::Opened, Column::Size, Column::Kind];
+    /// Every column, in its index's order.
+    pub const EVERY: [Column; 8] =
+        [Column::Modified, Column::Created, Column::Opened, Column::Size, Column::Kind, Column::Deleted, Column::Original, Column::Where];
 
     pub fn name(self) -> &'static str {
         match self {
             Column::Modified => "Date Modified",
+            Column::Created => "Date Created",
+            Column::Opened => "Date Last Opened",
             Column::Size => "Size",
             Column::Kind => "Kind",
+            Column::Deleted => "Date Deleted",
+            Column::Original => "Original Location",
+            Column::Where => "Where",
+        }
+    }
+
+    pub fn index(self) -> usize {
+        Column::EVERY.iter().position(|c| *c == self).unwrap_or(0)
+    }
+
+    /// Its width until dragged.
+    pub fn width(self) -> f32 {
+        match self {
+            Column::Modified | Column::Created | Column::Opened | Column::Deleted => 168.,
+            Column::Size => 80.,
+            Column::Kind => 140.,
+            Column::Original | Column::Where => 160.,
+        }
+    }
+
+    /// The sort a click on its heading picks.
+    pub fn sort(self) -> Option<isle_fs::SortBy> {
+        use isle_fs::SortBy;
+        match self {
+            Column::Modified => Some(SortBy::Modified),
+            Column::Created => Some(SortBy::Created),
+            Column::Size => Some(SortBy::Size),
+            Column::Kind => Some(SortBy::Kind),
+            _ => None,
         }
     }
 }
@@ -376,9 +417,9 @@ mod tests {
     #[test]
     fn the_header_lists_the_columns_shown_checked() {
         let open = header(&[Column::Size], (0., 0.));
-        assert_eq!(labels(&open), ["[Columns]", "Date Modified", "Size", "Kind"]);
+        assert_eq!(labels(&open), ["[Columns]", "Date Modified", "Date Created", "Date Last Opened", "Size", "Kind"]);
         let marks: Vec<bool> = open.entries.iter().filter_map(|e| e.item()).map(|i| i.mark == Mark::Check).collect();
-        assert_eq!(marks, [true, false, true]);
+        assert_eq!(marks, [true, true, true, false, true]);
     }
 }
 

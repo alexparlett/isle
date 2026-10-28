@@ -599,6 +599,7 @@ impl App for FilesWindow {
                             open_items(&shared, tabs, current, key, &handle, vec![path], held.cmd, open_with);
                         }
                         Pick::Menu(target, at) => crate::menus::open_for(tab, target, at, false, context),
+                        Pick::Shown(next) => set_shown(&shared, tab, next),
                         Pick::Header(at) => {
                             let hidden = tab.peek().shown.hidden;
                             let columns: Vec<_> = crate::menus::Column::ALL.into_iter().filter(|c| hidden.get(*c)).collect();

@@ -5,11 +5,12 @@
 use std::path::PathBuf;
 
 use freya::prelude::*;
-use isle_fs::{Entry, Order, SortBy};
+use isle_fs::{Entry, SortBy};
 use isle_ui::{AppIcon, Glyph, colour, text, use_theme};
 
 use crate::{
     format, icons,
+    menus::Column,
     tab::Tab,
     view::{self, Line},
 };
@@ -44,6 +45,8 @@ pub enum Pick {
     Menu(Option<PathBuf>, (f32, f32)),
     /// A secondary click on List's column header.
     Header((f32, f32)),
+    /// The folder's view changed from the view itself: a sort, a column's width.
+    Shown(crate::view::Shown),
 }
 
 impl Pick {
@@ -55,13 +58,14 @@ impl Pick {
     }
 }
 
-const DATE: f32 = 168.;
-const SIZE: f32 = 80.;
-const KIND: f32 = 140.;
-const WHERE: f32 = 160.;
+/// The hit band over a column's trailing edge that drags its width.
+const DIVIDER: f32 = 8.;
 
 #[derive(Clone, Copy, PartialEq)]
 struct RowClick;
+
+#[derive(Clone, Copy, PartialEq)]
+struct Divider;
 
 #[derive(PartialEq)]
 pub struct ListView {
@@ -84,61 +88,107 @@ struct Rows {
     on_pick: EventHandler<Pick>,
     dark: bool,
     interact: crate::interact::Interact,
-    /// A search's results: each item's folder.
-    found: bool,
-    hidden: crate::view::Hidden,
+    /// The columns after Name, and their widths.
+    columns: std::rc::Rc<Vec<Column>>,
+    widths: crate::view::Hidden,
 }
 
 impl Component for ListView {
     fn render(&self) -> impl IntoElement {
         let theme = use_theme();
         let t = &theme.tokens;
-        let mut tab = self.tab;
-        let (length, order, group, found, hidden) = {
+        let tab = self.tab;
+        let (length, order, group, shown, place) = {
             let t = tab.peek();
-            (t.folder.len(), t.folder.order(), t.shown.group, matches!(t.place, crate::places::Place::Search(_)), t.shown.hidden)
+            (t.folder.len(), t.folder.order(), t.shown.group, t.shown, t.place.clone())
         };
         let lines = group.map(|by| {
             let now = jiff::Timestamp::now().as_second();
             std::rc::Rc::new(view::lines(tab.peek().folder.entries(), Some(by), now))
         });
         let length = lines.as_ref().map_or(length, |l| l.len());
+        // A divider being dragged: its column and width now, shown before it is kept.
+        let mut resizing = use_state(|| None::<(Column, f32, f64, f32)>);
+        let mut widths = shown.hidden;
+        if let Some((column, width, _, _)) = *resizing.read() {
+            widths.widths[column.index()] = width as u16;
+        }
+        let columns = shown.hidden.columns(&place);
+        let on_pick_sort = self.on_pick.clone();
         let cells = theme.clone();
-        let header_cell = move |title: &'static str, by: SortBy, width: Size, right: bool| {
+        let header_cell = move |title: &'static str, sort: Option<SortBy>, width: Size, right: bool, divider: Option<Element>| {
             let theme = &cells;
             let t = &theme.tokens;
-            let sorted = order.by == by;
+            let sorted = sort == Some(order.by);
             let ink = if sorted { t.colour_text } else { t.colour_text_2 };
+            let on_pick = on_pick_sort.clone();
             rect()
                 .width(width)
                 .height(Size::fill())
                 .horizontal()
-                .cross_align(Alignment::Center)
-                .main_align(if right { Alignment::End } else { Alignment::Start })
-                .spacing(t.space_xs)
-                .a11y_role(AccessibilityRole::ColumnHeader)
-                .a11y_alt(title)
-                .on_press(move |_| {
-                    let next = if sorted {
-                        Order { reverse: !order.reverse, ..order }
-                    } else {
-                        Order { by, reverse: false, ..order }
-                    };
-                    let mut t = tab.write();
-                    t.folder.set_order(next);
-                    t.shown.sort = next.by;
-                    t.shown.reverse = next.reverse;
-                    t.rev += 1;
-                })
-                .child(text::line(theme, text::Style::Callout, colour(ink), title))
-                .maybe_child(sorted.then(|| {
-                    Glyph::new(
-                        if order.reverse { "caret-up" } else { "caret-down" },
-                        t.size_glyph_small,
-                        colour(t.colour_text),
-                    )
-                }))
+                .content(Content::flex())
+                .maybe_child(divider)
+                .child(
+                    rect()
+                        .width(Size::flex(1.))
+                        .height(Size::fill())
+                        .horizontal()
+                        .cross_align(Alignment::Center)
+                        .main_align(if right { Alignment::End } else { Alignment::Start })
+                        .spacing(t.space_xs)
+                        .a11y_role(AccessibilityRole::ColumnHeader)
+                        .a11y_alt(title)
+                        .on_press(move |_| {
+                            let Some(by) = sort else { return };
+                            let reverse = sorted && !order.reverse;
+                            on_pick.call(Pick::Shown(crate::view::Shown { sort: by, reverse, ..shown }));
+                        })
+                        .child(text::line(theme, text::Style::Callout, colour(ink), title))
+                        .maybe_child(sorted.then(|| {
+                            Glyph::new(
+                                if order.reverse { "caret-up" } else { "caret-down" },
+                                t.size_glyph_small,
+                                colour(t.colour_text),
+                            )
+                        })),
+                )
+                .into_element()
         };
+        // The divider at a column's leading edge, in the gap before it and taking no room:
+        // dragged, the column's width; double-clicked, fitted to its values.
+        let gap = t.space_l;
+        let divider = {
+            let on_pick = self.on_pick.clone();
+            move |column: Column, width: f32| {
+                let on_pick = on_pick.clone();
+                rect()
+                    .width(Size::px(DIVIDER))
+                    .height(Size::fill())
+                    .margin((0., -DIVIDER + (gap + DIVIDER) / 2., 0., -(gap + DIVIDER) / 2.))
+                    .a11y_role(AccessibilityRole::Splitter)
+                    .a11y_alt(format!("{} width", column.name()))
+                    .on_mouse_down(move |e: Event<MouseEventData>| {
+                        if e.button != Some(MouseButton::Left) {
+                            return;
+                        }
+                        e.stop_propagation();
+                        if EventsCombos::<Divider>::pressed(e.global_location).is_double() {
+                            let fitted = right_size(column, &tab.peek());
+                            let mut next = shown;
+                            next.hidden.widths[column.index()] = fitted as u16;
+                            on_pick.call(Pick::Shown(next));
+                            return;
+                        }
+                        resizing.set(Some((column, width, e.global_location.x, width)));
+                    })
+                    .into_element()
+            }
+        };
+        let mut header_cells = vec![header_cell("Name", Some(SortBy::Name), Size::flex(1.), false, None)];
+        for column in &columns {
+            let width = widths.width(*column);
+            header_cells.push(header_cell(column.name(), column.sort(), Size::px(width), *column == Column::Size, Some(divider(*column, width))));
+        }
         let header = rect()
             .width(Size::fill())
             .height(Size::px(t.size_control))
@@ -152,6 +202,22 @@ impl Component for ListView {
                     .width(BorderWidth { top: 0., right: 0., bottom: 1., left: 0. })
                     .alignment(BorderAlignment::Inner),
             )
+            .on_global_pointer_move(move |e: Event<PointerEventData>| {
+                let Some((column, _, x0, start)) = *resizing.peek() else { return };
+                // The leading edge moved right narrows the column.
+                let width = (start - (e.global_location().x - x0) as f32).max(48.);
+                resizing.set(Some((column, width, x0, start)));
+            })
+            .on_global_pointer_up({
+                let on_pick = self.on_pick.clone();
+                move |_: Event<PointerEventData>| {
+                    let Some((column, width, _, _)) = *resizing.peek() else { return };
+                    resizing.set(None);
+                    let mut next = shown;
+                    next.hidden.widths[column.index()] = width as u16;
+                    on_pick.call(Pick::Shown(next));
+                }
+            })
             .on_mouse_down({
                 let on_pick = self.on_pick.clone();
                 move |e: Event<MouseEventData>| {
@@ -161,19 +227,7 @@ impl Component for ListView {
                     }
                 }
             })
-            .child(header_cell("Name", SortBy::Name, Size::flex(1.), false))
-            .maybe_child((!hidden.modified).then(|| header_cell("Date Modified", SortBy::Modified, Size::px(DATE), false)))
-            .maybe_child((!hidden.size).then(|| header_cell("Size", SortBy::Size, Size::px(SIZE), true)))
-            .maybe_child(found.then(|| {
-                rect()
-                    .width(Size::px(WHERE))
-                    .height(Size::fill())
-                    .main_align(Alignment::Center)
-                    .a11y_role(AccessibilityRole::ColumnHeader)
-                    .a11y_alt("Where")
-                    .child(text::line(&theme, text::Style::Callout, colour(t.colour_text_2), "Where"))
-            }))
-            .maybe_child((!hidden.kind).then(|| header_cell("Kind", SortBy::Kind, Size::px(KIND), false)));
+            .children(header_cells);
         let bander = crate::band::use_band(self.controller);
         // The cursor moved by a key stays in view.
         let cursor = tab.read().cursor.clone();
@@ -220,8 +274,8 @@ impl Component for ListView {
             on_pick: self.on_pick.clone(),
             dark: theme.appearance.mode == isle_tokens::Mode::Dark,
             interact: self.interact.clone(),
-            found,
-            hidden,
+            columns: std::rc::Rc::new(columns),
+            widths,
         };
         rect()
             .expanded()
@@ -400,46 +454,75 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                             None => text::line(&theme, text::Style::Body, colour(ink), crate::prefs::display_name(entry).to_owned()).into_element(),
                         }),
                 )
-                .maybe_child((!rows.hidden.modified).then(|| {
-                    rect().width(Size::px(DATE)).child(text::line(
-                        &theme,
-                        text::Style::Body,
-                        colour(ink_2),
-                        format::date(entry.modified, &now),
-                    ))
-                }))
-                .maybe_child((!rows.hidden.size).then(|| {
-                    rect()
-                        .width(Size::px(SIZE))
-                        .main_align(Alignment::End)
-                        .horizontal()
-                        .child(text::line(
-                            &theme,
-                            text::Style::Body,
-                            colour(ink_2),
-                            if entry.is_dir() { "--".into() } else { format::size(entry.size) },
-                        ))
-                }))
-                .maybe_child(rows.found.then(|| {
-                    let folder = entry.path.parent().map(|p| p.to_owned());
-                    rect()
-                        .width(Size::px(WHERE))
-                        .horizontal()
-                        .cross_align(Alignment::Center)
-                        .spacing(t.space_xs)
-                        .child(Glyph::new("folder-simple", t.size_glyph_small, colour(ink_2)))
-                        .child(text::line(
-                            &theme,
-                            text::Style::Body,
-                            colour(ink_2),
-                            folder.as_deref().map(crate::places::folder_name).unwrap_or_default(),
-                        ))
-                }))
-                .maybe_child((!rows.hidden.kind).then(|| {
-                    rect().width(Size::px(KIND)).child(text::line(&theme, text::Style::Body, colour(ink_2), kind(entry)))
-                })),
+                .children(rows.columns.iter().map(|column| cell(&theme, *column, entry, rows.widths.width(*column), ink_2, &now))),
         )
         .into_element()
+}
+
+/// One column's cell for `entry`.
+fn cell(theme: &isle_tokens::Theme, column: Column, entry: &Entry, width: f32, ink: isle_tokens::Colour, now: &jiff::Zoned) -> Element {
+    let t = &theme.tokens;
+    let words = |s: String| text::line(theme, text::Style::Body, colour(ink), s).max_lines(1).text_overflow(TextOverflow::Ellipsis);
+    let deleted = || entry.trashed.as_deref().and_then(|t| deleted_at(&t.deleted));
+    let folder = |p: Option<&std::path::Path>| {
+        rect()
+            .width(Size::px(width))
+            .horizontal()
+            .cross_align(Alignment::Center)
+            .spacing(t.space_xs)
+            .child(Glyph::new("folder-simple", t.size_glyph_small, colour(ink)))
+            .child(words(p.map(crate::places::folder_name).unwrap_or_default()))
+            .into_element()
+    };
+    match column {
+        Column::Where => folder(entry.path.parent()),
+        Column::Original => folder(entry.trashed.as_deref().and_then(|t| t.original.parent())),
+        Column::Size => rect()
+            .width(Size::px(width))
+            .main_align(Alignment::End)
+            .horizontal()
+            .child(words(if entry.is_dir() { "--".into() } else { format::size(entry.size) }))
+            .into_element(),
+        other => {
+            let value = match other {
+                Column::Modified => format::date(entry.modified, now),
+                Column::Created => entry.created.map_or_else(|| "--".into(), |c| format::date(c, now)),
+                Column::Opened => format::date(entry.accessed, now),
+                Column::Deleted => deleted().map_or_else(|| "--".into(), |d| format::date(d, now)),
+                _ => kind(entry),
+            };
+            rect().width(Size::px(width)).child(words(value)).into_element()
+        }
+    }
+}
+
+/// A trash's deletion time, `YYYY-MM-DDThh:mm:ss` in local time, as seconds.
+fn deleted_at(text: &str) -> Option<i64> {
+    let civil: jiff::civil::DateTime = text.parse().ok()?;
+    Some(civil.to_zoned(jiff::tz::TimeZone::system()).ok()?.timestamp().as_second())
+}
+
+/// The width that fits `column`'s widest value in `tab`, as Right Size gives it.
+fn right_size(column: Column, tab: &Tab) -> f32 {
+    let now = format::now();
+    let widest = tab
+        .folder
+        .entries()
+        .iter()
+        .map(|e| match column {
+            Column::Modified => format::date(e.modified, &now),
+            Column::Created => e.created.map_or_else(|| "--".into(), |c| format::date(c, &now)),
+            Column::Opened => format::date(e.accessed, &now),
+            Column::Size => format::size(e.size),
+            Column::Kind => kind(e),
+            Column::Deleted => e.trashed.as_deref().and_then(|t| deleted_at(&t.deleted)).map_or_else(String::new, |d| format::date(d, &now)),
+            Column::Original => e.trashed.as_deref().and_then(|t| t.original.parent().map(crate::places::folder_name)).unwrap_or_default(),
+            Column::Where => e.path.parent().map(crate::places::folder_name).unwrap_or_default(),
+        })
+        .map(|s| s.chars().count())
+        .max()
+        .unwrap_or(4);
+    (widest.max(column.name().chars().count()) as f32 * 7.2 + 24.).clamp(48., 480.)
 }
 
 /// The words Kind shows.

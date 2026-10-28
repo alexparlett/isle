@@ -1417,3 +1417,97 @@ async fn context_menus_act_on_what_was_clicked() {
     wait_until(|| async { files().await == 0 }).await;
     assert!(!app.printed_part("panicked"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_toolbar_more_path_menu_sidebar_toggle_and_fold() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-toolbar").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let test = isle.test().await;
+
+    // More (…), left of the preview toggle and the search field: the selection's menu.
+    click(&isle, list_row(&w, 4.), &[], 1).await;
+    let right = w.x as f64 + w.width as f64 - 16.;
+    let more = (right - 180. - 4. - 30. - 4. - 15., w.y as f64 + 26.);
+    click(&isle, more, &[], 1).await;
+    pause(300).await;
+    isle.keep_shot("files-toolbar-more").await;
+    type_text(&isle, "dup").await;
+    isle.chord(&[ENTER]).await;
+    wait_until(|| async {
+        std::fs::read_dir(&home).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with("notes")).count() == 2
+    })
+    .await;
+
+    // A secondary click on the title: the path menu, not the window's.
+    secondary(&isle, (w.x as f64 + 220. + 16. + 64. + 8. + 30., w.y as f64 + 20.)).await;
+    isle.keep_shot("files-toolbar-path-secondary").await;
+    isle.chord(&[ESC]).await;
+    pause(300).await;
+    // ⌘-click on the title: the path menu; its second row is the folder above.
+    let title = (w.x as f64 + 220. + 16. + 64. + 8. + 30., w.y as f64 + 20.);
+    click(&isle, title, &[SUPER], 1).await;
+    pause(300).await;
+    isle.keep_shot("files-toolbar-path").await;
+    isle.chord(&[DOWN]).await;
+    isle.chord(&[DOWN]).await;
+    isle.chord(&[ENTER]).await;
+    pause(400).await;
+    isle.chord(&[SUPER, SHIFT, KEY_N]).await;
+    let above = home.parent().unwrap().join("untitled folder");
+    wait_until(|| async { above.exists() }).await;
+    isle.chord(&[ESC]).await;
+
+    // Hide Sidebar at the sidebar's top trailing corner, then Show Sidebar in the toolbar.
+    let hide = (w.x as f64 + 220. - 8. - 15., w.y as f64 + 26.);
+    test.pointer_to(hide.0, hide.1).await.unwrap();
+    pause(200).await;
+    click(&isle, hide, &[], 1).await;
+    pause(300).await;
+    isle.keep_shot("files-toolbar-no-sidebar").await;
+    let show = (w.x as f64 + 16. + 52. + 15., w.y as f64 + 26.);
+    test.pointer_to(show.0, show.1).await.unwrap();
+    pause(200).await;
+    click(&isle, show, &[], 1).await;
+    pause(300).await;
+    isle.keep_shot("files-toolbar-sidebar-back").await;
+
+    // The title's icon dragged onto Documents in the sidebar carries the folder shown there.
+    reveal(&isle, &app, &home.join("Development/isle")).await;
+    pause(300).await;
+    let icon = (w.x as f64 + 220. + 16. + 64. + 8. + 4. + 8., w.y as f64 + 18.);
+    let documents = (w.x as f64 + 80., w.y as f64 + 52. + 8. + 28. + 12. + 24. + 28. + 14.);
+    test.pointer_to(icon.0, icon.1).await.unwrap();
+    pause(200).await;
+    test.button(272, true).await.unwrap();
+    pause(150).await;
+    for step in 1..=8 {
+        let f = step as f64 / 8.;
+        test.pointer_to(icon.0 + (documents.0 - icon.0) * f, icon.1 + (documents.1 - icon.1) * f).await.unwrap();
+        pause(40).await;
+    }
+    pause(300).await;
+    isle.keep_shot("files-toolbar-proxy-drag").await;
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { home.join("Documents/Development/isle").is_dir() }).await;
+
+    // Narrowed by its trailing edge, the toolbar folds.
+    let edge = (w.x as f64 + w.width as f64 - 2., w.y as f64 + w.height as f64 / 2.);
+    test.pointer_to(edge.0, edge.1).await.unwrap();
+    test.button(272, true).await.unwrap();
+    for step in 1..=8 {
+        test.pointer_to(edge.0 - 100. * step as f64, edge.1).await.unwrap();
+        pause(30).await;
+    }
+    test.button(272, false).await.unwrap();
+    pause(500).await;
+    isle.keep_shot("files-toolbar-narrow").await;
+    assert!(!app.printed_part("panicked"));
+}

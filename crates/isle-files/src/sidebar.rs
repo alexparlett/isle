@@ -31,6 +31,8 @@ pub(crate) struct Sidebar {
     pub width: f32,
     /// Leaves the window's toolbar band clear at its top.
     pub under_toolbar: bool,
+    /// The toolbar's sidebar toggle, over the sidebar's top trailing corner.
+    pub on_hide: Option<EventHandler<()>>,
 }
 
 impl Component for Sidebar {
@@ -180,7 +182,20 @@ impl Component for Sidebar {
                     .width(BorderWidth { top: 0., right: 1., bottom: 0., left: 0. })
                     .alignment(BorderAlignment::Inner),
             )
-            .maybe_child(self.under_toolbar.then(|| rect().width(Size::fill()).height(Size::px(t.size_toolbar)).toolbar()))
+            .maybe_child(self.under_toolbar.then(|| {
+                let on_hide = self.on_hide.clone();
+                rect()
+                    .width(Size::fill())
+                    .height(Size::px(t.size_toolbar))
+                    .padding((0., t.space_s))
+                    .horizontal()
+                    .main_align(Alignment::End)
+                    .cross_align(Alignment::Center)
+                    .toolbar()
+                    .maybe_child(on_hide.map(|on_hide| {
+                        crate::toolbar::icon_button(&theme, "sidebar-simple", "Hide Sidebar", true, false, move || on_hide.call(()))
+                    }))
+            }))
             .child(
                 isle_ui::scroll_area(&theme)
                     .width(Size::fill())

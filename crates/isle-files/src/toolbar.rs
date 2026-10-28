@@ -34,6 +34,21 @@ pub enum Act {
     Search(String),
     /// Escape in the search field.
     EndSearch,
+    /// More (…): the selection's menu, or the folder's, hung at this point.
+    More((f32, f32)),
+    /// ⌘-click or a secondary click on the title: the path menu, hung at this point.
+    PathMenu((f32, f32)),
+    /// A press on the title's icon, which a drag carries off as the folder.
+    Proxy(f64, f64),
+}
+
+/// Toolbar widths under which it folds: the centre into », then search into a button.
+fn folds(width: f32, title: &str, trailing: f32, leading: f32) -> (bool, bool) {
+    let title = 24. + title.chars().count() as f32 * 7.5;
+    let centre = 112. + 48. + 8.;
+    let centre_folds = width < leading + title + centre + trailing;
+    let search_folds = width < leading + 80. + 30. + trailing;
+    (centre_folds, search_folds)
 }
 
 pub fn icon_button(
@@ -138,6 +153,13 @@ impl Component for Toolbar {
         let theme = use_theme();
         let t = &theme.tokens;
         let mut sorting = use_state(|| false);
+        let mut width = use_state(|| f32::MAX);
+        let mut title_at = use_state(|| (0f32, 0f32));
+        let mut more_at = use_state(|| (0f32, 0f32));
+        let mut title_hover = use_state(|| false);
+        let mut search_open = use_state(|| false);
+        let find_focus = use_focus(self.find);
+        let gap = theme.tokens.space_xs;
         let mut jobs_open = use_state(|| false);
         let mut options = self.options;
         let act = self.on_act.clone();
@@ -145,6 +167,62 @@ impl Component for Toolbar {
         let shown = self.shown;
 
         let searching = self.searching;
+        // The trailing group's room, which never folds, and the leading group's.
+        let pad = 2. * t.space_l;
+        let trailing = t.size_toolbar_search
+            + 3. * t.size_control_large
+            + if self.jobs.is_empty() { 0. } else { t.size_control_large }
+            + if self.in_trash.is_some() { 120. } else { 0. }
+            + 6. * t.space_xs;
+        let leading = pad + 2. * t.size_control_large + if self.sidebar { 0. } else { t.size_control_large + t.space_xxxl + t.space_xl };
+        let (centre_folded, search_folded) = folds(*width.read(), &self.title, trailing, leading);
+        let search_shown = !search_folded || *search_open.read() || !self.query.read().is_empty() || find_focus().is_focused();
+        // The centre folded into »: its menu the views, then Group and Sort.
+        let fold_button = {
+            let send = send.clone();
+            let mut entries = vec![
+                MenuEntry::Item(MenuItem::new(2, "as Icons").mark(if shown.view == View::Icons { Mark::Check } else { Mark::None })),
+                MenuEntry::Item(MenuItem::new(3, "as List").mark(if shown.view == View::List { Mark::Check } else { Mark::None })),
+                MenuEntry::Item(MenuItem::new(4, "as Columns").mark(if shown.view == View::Columns { Mark::Check } else { Mark::None })),
+                MenuEntry::Separator,
+            ];
+            entries.extend(group_sort_entries(&shown).iter().cloned());
+            let entries = Rc::new(entries);
+            Attached::new(
+                rect()
+                    .width(Size::px(t.size_control_large))
+                    .height(Size::px(t.size_control_large))
+                    .center()
+                    .corner_radius(t.radius_control)
+                    .maybe(*sorting.read(), |el| el.background(colour(t.colour_control_pressed)))
+                    .a11y_role(AccessibilityRole::Button)
+                    .a11y_alt("More toolbar items")
+                    .on_press(move |e: Event<PressEventData>| {
+                        e.stop_propagation();
+                        sorting.toggle();
+                    })
+                    .child(Glyph::new("caret-double-right", t.size_glyph_large, colour(t.colour_text_2))),
+            )
+            .bottom()
+            .offset(t.space_xs)
+            .maybe_child((*sorting.read() && centre_folded).then(|| {
+                Menu::new(entries, move |event| match event {
+                    MenuEvent::Chosen(id @ 2..=4) => {
+                        sorting.set(false);
+                        let view = [View::Icons, View::List, View::Columns][(id - 2) as usize];
+                        send(Act::Shown(Shown { view, ..shown }));
+                    }
+                    MenuEvent::Chosen(id) => {
+                        sorting.set(false);
+                        send(Act::Shown(chosen(&shown, id)));
+                    }
+                    MenuEvent::Back => sorting.set(false),
+                    _ => {}
+                })
+                .material(isle_ui::menu::Material::Window)
+            }))
+            .into_element()
+        };
         let segment = |glyph: &'static str, alt: &'static str, view: View| {
             let chosen = shown.view == view;
             let enabled = !(searching && view == View::Columns);
@@ -220,7 +298,8 @@ impl Component for Toolbar {
                     .child(control)
                     .into_element()
             };
-            Popover::new(switcher, *options.read(), move |_| options.set(false))
+            let anchor = if centre_folded { fold_button.clone() } else { switcher.into_element() };
+            Popover::new(anchor, *options.read(), move |_| options.set(false))
                 .alt("View Options")
                 .child(row(
                     "Group By",
@@ -317,11 +396,15 @@ impl Component for Toolbar {
                 .width(Size::px(t.size_toolbar_search))
                 .leading(Glyph::new("magnifying-glass", t.size_glyph_small, colour(t.colour_text_2)))
                 .on_submit(move |text: String| submit(Act::Search(text)))
-                .on_escape(move |_| escape(Act::EndSearch))
+                .on_escape(move |_| {
+                    search_open.set(false);
+                    escape(Act::EndSearch)
+                })
         };
         rect()
             .width(Size::fill())
             .height(Size::px(t.size_toolbar))
+            .on_sized(move |e: Event<SizedEventData>| width.set_if_modified(e.area.width()))
             .padding((0., t.space_l))
             .horizontal()
             .content(Content::flex())
@@ -350,32 +433,70 @@ impl Component for Toolbar {
                 rect()
                     .width(Size::flex(1.))
                     .padding((0., 0., 0., t.space_s))
-                    .child(
+                    .child({
+                        let (path_send, proxy_send) = (send.clone(), send.clone());
+                        let proxy = self.proxy.is_some() && self.glyph.is_none();
+                        // The title: a plate under hover, the path menu on ⌘-click or a secondary
+                        // click, its icon dragged as the folder.
                         rect()
-                            .horizontal()
-                            .cross_align(Alignment::Center)
-                            .spacing(t.space_xs)
-                            .maybe_child(match (self.glyph, &self.proxy) {
-                                (Some(g), _) => Some(Glyph::new(g, t.size_glyph, colour(t.colour_text_2)).into_element()),
-                                (None, Some(folder)) => Some(crate::list_view::icon(
-                                    folder,
-                                    theme.appearance.mode == isle_tokens::Mode::Dark,
-                                    t.size_app_icon_small,
-                                    t.colour_text_2,
-                                )),
-                                (None, None) => None,
+                            .max_width(Size::fill())
+                            .padding((t.space_xxs, t.space_xs))
+                            .corner_radius(t.radius_control)
+                            .maybe(*title_hover.read() && self.proxy.is_some(), |el| el.background(colour(t.colour_control_hover)))
+                            .on_pointer_enter(move |_| title_hover.set(true))
+                            .on_pointer_leave(move |_| title_hover.set(false))
+                            .on_sized(move |e: Event<SizedEventData>| title_at.set_if_modified((e.area.min_x(), e.area.max_y() + gap)))
+                            // The toolbar would take these for the window's menu and its move.
+                            .on_pointer_down(move |e: Event<PointerEventData>| {
+                                let claimed = match e.button() {
+                                    Some(MouseButton::Right) => true,
+                                    Some(MouseButton::Left) => proxy,
+                                    _ => false,
+                                };
+                                if claimed {
+                                    e.stop_propagation();
+                                }
                             })
-                            .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), self.title.clone())),
-                    )
-                    .child(text::line(
-                        &theme,
-                        text::Style::Subheadline,
-                        colour(t.colour_text_2),
-                        format::items(self.count),
-                    )),
+                            .on_mouse_down(move |e: Event<MouseEventData>| {
+                                let menu = e.button == Some(MouseButton::Right)
+                                    || (e.button == Some(MouseButton::Left) && e.modifiers.contains(Modifiers::META));
+                                if menu {
+                                    e.stop_propagation();
+                                    path_send(Act::PathMenu(*title_at.peek()));
+                                } else if e.button == Some(MouseButton::Left) && proxy {
+                                    proxy_send(Act::Proxy(e.global_location.x, e.global_location.y));
+                                }
+                            })
+                            .child(
+                                rect()
+                                    .horizontal()
+                                    .cross_align(Alignment::Center)
+                                    .spacing(t.space_xs)
+                                    .maybe_child(match (self.glyph, &self.proxy) {
+                                        (Some(g), _) => Some(Glyph::new(g, t.size_glyph, colour(t.colour_text_2)).into_element()),
+                                        (None, Some(folder)) => Some(crate::list_view::icon(
+                                            folder,
+                                            theme.appearance.mode == isle_tokens::Mode::Dark,
+                                            t.size_app_icon_small,
+                                            t.colour_text_2,
+                                        )),
+                                        (None, None) => None,
+                                    })
+                                    .child(
+                                        text::line(&theme, text::Style::Headline, colour(t.colour_text), self.title.clone())
+                                            .max_lines(1)
+                                            .text_overflow(TextOverflow::Ellipsis),
+                                    ),
+                            )
+                            .child(
+                                text::line(&theme, text::Style::Subheadline, colour(t.colour_text_2), format::items(self.count))
+                                    .max_lines(1)
+                                    .text_overflow(TextOverflow::Ellipsis),
+                            )
+                    }),
             )
             .child(view_options)
-            .child(group_sort)
+            .maybe_child((!centre_folded).then_some(group_sort))
             .child(rect().width(Size::flex(1.)))
             .maybe_child((!self.jobs.is_empty()).then(|| {
                 let open = *jobs_open.read();
@@ -398,10 +519,25 @@ impl Component for Toolbar {
                     .on_press(move |_| send(Act::EmptyTrash))
                     .into_element()
             }))
+            .child({
+                let send = send.clone();
+                rect()
+                    .on_sized(move |e: Event<SizedEventData>| more_at.set_if_modified((e.area.min_x(), e.area.max_y() + gap)))
+                    .child(icon_button(&theme, "dots-three-circle", "More", true, false, move || send(Act::More(*more_at.peek()))))
+            })
             .child(icon_button(&theme, "sidebar-simple", "Show Preview", true, self.preview, move || {
                 preview_send(Act::TogglePreview)
             }))
-            .child(search_field)
+            .maybe_child((!search_shown).then(|| {
+                let find = self.find;
+                icon_button(&theme, "magnifying-glass", "Search", true, false, move || {
+                    let mut search_open = search_open;
+                    search_open.set(true);
+                    find.request_focus();
+                })
+            }))
+            // Folded, the field stays at no width so ⌘F can still focus it, which opens it.
+            .child(rect().width(if search_shown { Size::Inner } else { Size::px(0.) }).overflow(Overflow::Clip).child(search_field))
     }
 }
 

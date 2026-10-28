@@ -2,6 +2,19 @@
 
 ## 2026-10-28
 
+- P15b 15b.7, the toolbar: More (…) between the primary action and the
+  preview toggle, its menu the selection's or the folder's; the sidebar
+  toggle shown both ways, Hide Sidebar over the sidebar's top trailing
+  corner; the title takes a plate on hover, opens the path menu on
+  ⌘-click or a secondary click (each folder up to the computer's name, the
+  current one checked) and its icon drags off as the folder. Narrowing
+  folds the centre into » (the views, Group By and Sort By), cuts the title
+  and its subtitle, turns search into a button that opens the field (⌘F
+  still focuses it), and below 700 points collapses the sidebar until it
+  is shown by hand or the window widens. The title claims its presses from
+  the toolbar, which would otherwise open the window's menu or move it.
+  Proved by real input in the compositor tests and the VM; the VM's drag
+  helper misses the sidebar, so the proxy drag is proved in the tests only.
 - P15b 15b.6, context menus, as the board drew them: `isle_ui::ContextMenu`
   (Menu at a point in the window, flipped to fit, closed by a press outside
   or Escape) and Files' `menus.rs`, one builder per target whose rows run

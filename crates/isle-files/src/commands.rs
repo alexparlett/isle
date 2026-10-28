@@ -375,6 +375,10 @@ pub(crate) fn run_menu(win: Win, shared: &Rc<Shared>, open: &crate::menus::Open,
             current.set(*i);
             desktop.commands.write().push("move-tab".into());
         }
+        Act::GoTo(folder) => {
+            let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
+            tab::go(handle.tab, &handle.live, Place::Folder(folder.clone()), None);
+        }
         Act::Column(column) => {
             let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
             let mut next = handle.tab.peek().shown;

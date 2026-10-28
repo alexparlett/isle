@@ -31,6 +31,7 @@ pub enum Act {
     CloseOtherTabs(usize),
     MoveTab(usize),
     Column(Column),
+    GoTo(PathBuf),
 }
 
 /// List's columns that can be hidden; Name always shows.
@@ -296,6 +297,17 @@ pub fn sidebar(side: &Side, at: (f32, f32)) -> Open {
     rows.done(at, None, false)
 }
 
+/// The title's path menu: `folder` and each folder above it, up to the computer, named
+/// `computer`; the current one checked.
+pub fn path(folder: &Path, computer: &str, at: (f32, f32)) -> Open {
+    let mut rows = Rows::default();
+    for (i, up) in folder.ancestors().enumerate() {
+        let label = if up.parent().is_none() { computer.to_owned() } else { name(up) };
+        rows.checked(label, Act::GoTo(up.to_owned()), i == 0);
+    }
+    rows.done(at, None, false)
+}
+
 /// The menu for List's column header: which columns show.
 pub fn header(hidden: &[Column], at: (f32, f32)) -> Open {
     let mut rows = Rows::default();
@@ -352,6 +364,13 @@ mod tests {
         let ids: Vec<u64> = sub.iter().filter_map(|e| e.item().map(|i| i.id)).collect();
         assert_eq!(ids, [1, 2]);
         assert_eq!(open.acts[2], Act::Command("open-with".into()));
+    }
+
+    #[test]
+    fn the_path_menu_climbs_to_the_computer() {
+        let open = path(Path::new("/home/me/Documents"), "hypr", (0., 0.));
+        assert_eq!(labels(&open), ["Documents", "me", "home", "hypr"]);
+        assert_eq!(open.acts[3], Act::GoTo(PathBuf::from("/")));
     }
 
     #[test]

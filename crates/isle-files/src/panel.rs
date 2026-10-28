@@ -599,6 +599,7 @@ impl App for PanelWindow {
                 }),
                 on_eject: EventHandler::new(|_| {}),
                 on_menu: EventHandler::new(|_| {}),
+                on_hide: None,
                 width: t.size_sidebar_min,
                 under_toolbar: false,
             };

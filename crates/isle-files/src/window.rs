@@ -72,6 +72,9 @@ pub async fn off_thread<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'stati
     rx.await.ok()
 }
 
+/// The window width under which the sidebar collapses on its own.
+const SIDEBAR_COLLAPSES: f32 = 700.;
+
 /// A tab owned by `scope`, the window's: a tab made in a view's handler would go with the view.
 pub(crate) fn new_tab(shared: &Shared, place: Place, reveal: Option<PathBuf>, scope: ScopeId) -> TabHandle {
     let mut t = Tab::new(shared.next_tab(), place);
@@ -126,6 +129,10 @@ impl App for FilesWindow {
         let mut context = use_state(|| None::<crate::menus::Open>);
         let acting = use_state(|| None::<Vec<PathBuf>>);
         let cursor_at = use_state(|| None::<(f32, f32)>);
+        // Below a width the sidebar collapses on its own, unless shown by hand.
+        let mut wide = use_state(|| true);
+        let mut sidebar_kept = use_state(|| false);
+        let sidebar_shown = *sidebar.read() && (*wide.read() || *sidebar_kept.read());
         let layout = use_state(crate::keys::Layout::default);
         let typed = use_state(crate::keys::Typed::default);
         let mut drop_target = use_state(|| None::<PathBuf>);
@@ -683,15 +690,33 @@ impl App for FilesWindow {
             move |act: Act| match act {
                 Act::Back => tab::back(tab, &live),
                 Act::Forward => tab::forward(tab, &live),
+                // In a narrow window the sidebar shown by hand stays until it widens again.
                 Act::ShowSidebar => {
-                    let mut sidebar = sidebar;
+                    let (mut sidebar, mut sidebar_kept) = (sidebar, sidebar_kept);
                     sidebar.set(true);
+                    sidebar_kept.set(true);
                 }
                 Act::TogglePreview => {
                     let mut preview = preview;
                     preview.toggle();
                 }
                 Act::Shown(next) => set_shown(next),
+                Act::More(at) => {
+                    let first = tab.peek().selection.first().cloned();
+                    crate::menus::open_for(tab, first, at, false, context);
+                }
+                Act::PathMenu(at) => {
+                    let folder = tab.peek().place.folder().map(PathBuf::from);
+                    let computer = places.peek().locations.first().map(|r| r.label.clone()).unwrap_or_else(|| "Computer".into());
+                    if let Some(folder) = folder {
+                        context.set(Some(crate::menus::path(&folder, &computer, at)));
+                    }
+                }
+                Act::Proxy(x, y) => {
+                    if let Some(folder) = tab.peek().place.folder() {
+                        press.set(Some((folder.to_owned(), x, y)));
+                    }
+                }
                 Act::UseAsDefaults => shared.set_default_shown(tab.peek().shown),
                 Act::StopJob(id) => {
                     if let Some(job) = shared.jobs.list.peek().iter().find(|j| j.id == id) {
@@ -792,6 +817,13 @@ impl App for FilesWindow {
             .expanded()
             .horizontal()
             .content(Content::flex())
+            .on_sized(move |e: Event<SizedEventData>| {
+                let is_wide = e.area.width() >= SIDEBAR_COLLAPSES;
+                if is_wide && !*wide.peek() {
+                    sidebar_kept.set(false);
+                }
+                wide.set_if_modified(is_wide);
+            })
             .on_global_key_down(on_key)
             .on_global_pointer_move({
                 let (data, tab) = (data.clone(), tab);
@@ -824,7 +856,7 @@ impl App for FilesWindow {
                     _ => {}
                 }
             })
-            .maybe_child((*sidebar.read()).then(|| {
+            .maybe_child(sidebar_shown.then(|| {
                 Sidebar {
                     places: places.read().clone(),
                     saved: shared.saved.read().clone(),
@@ -845,6 +877,11 @@ impl App for FilesWindow {
                         let shared = shared.clone();
                         move |volume: isle_disks::Volume| open_volume(&shared, volume, unlocking, alert, tab_go(tabs, current))
                     }),
+                    on_hide: Some(EventHandler::new(move |_| {
+                        let mut sidebar = sidebar;
+                        sidebar.set(false);
+                        sidebar_kept.set(false);
+                    })),
                     on_menu: EventHandler::new(move |(side, at): (crate::menus::Side, (f32, f32))| {
                         context.set(Some(crate::menus::sidebar(&side, at)));
                     }),
@@ -865,7 +902,7 @@ impl App for FilesWindow {
                         count,
                         back,
                         forward,
-                        sidebar: *sidebar.read(),
+                        sidebar: sidebar_shown,
                         preview: *preview.read(),
                         shown,
                         options,

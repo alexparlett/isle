@@ -628,7 +628,7 @@ impl App for PanelWindow {
                 width: t.size_sidebar_min,
                 under_toolbar: false,
             };
-            let body = content(&theme, &handle, rev, focused, on_pick, interact);
+            let body = content(&theme, &handle, rev, focused, on_pick, interact, false);
             let foot = rect()
                 .width(Size::fill())
                 .padding((t.space_m, t.space_l))

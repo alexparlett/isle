@@ -368,6 +368,16 @@ impl App for FilesWindow {
             drag_started.set(false);
             press.set(None);
         });
+        // Calculate all sizes: once the folder is listed, each folder's size is counted.
+        let counting = {
+            let t = tab.read();
+            (t.place.clone(), t.shown.all_sizes && t.shown.view == View::List && t.status == tab::Status::Ready)
+        };
+        use_side_effect_with_deps(&counting, move |(_, on)| {
+            if *on {
+                tab::calculate_sizes(tab);
+            }
+        });
         // What a spring opens: the tab under the drag, else the folder under it in this tab.
         let spring_open = move || {
             let (mut current, mut drop_target) = (current, drop_target);
@@ -783,7 +793,7 @@ impl App for FilesWindow {
             blink: *blink.read(),
             ringed: context.read().as_ref().and_then(|o| o.items.clone()).filter(|items| *items != tab.peek().selection).unwrap_or_default(),
         };
-        let body = content(&theme, &handle, rev, focused, on_pick, interact.clone());
+        let body = content(&theme, &handle, rev, focused, on_pick, interact.clone(), *preview.read());
         // A question goes to the window that started its job, or to the front one when that
         // has closed.
         let question = {
@@ -1264,6 +1274,7 @@ pub(crate) fn content(
     focused: bool,
     on_pick: EventHandler<Pick>,
     interact: Interact,
+    shows_preview: bool,
 ) -> Element {
     let t = &theme.tokens;
     let tab = handle.tab.read();
@@ -1358,6 +1369,7 @@ pub(crate) fn content(
                     move |(folder, reveal): (PathBuf, Option<PathBuf>)| tab::go(tab, &live, Place::Folder(folder), reveal)
                 }),
                 interact,
+                preview: shows_preview,
             }
             .into_element(),
         },

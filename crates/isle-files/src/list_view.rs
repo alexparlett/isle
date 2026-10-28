@@ -487,7 +487,10 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                             None => text::line(&theme, text::Style::Body, colour(ink), crate::prefs::display_name(entry).to_owned()).into_element(),
                         }),
                 )
-                .children(rows.columns.iter().map(|column| cell(&theme, *column, entry, rows.widths.width(*column), ink_2, &now))),
+                .children(rows.columns.iter().map(|column| {
+                    let counted = tab.sizes.get(&entry.path).copied();
+                    cell(&theme, *column, entry, counted, rows.widths.width(*column), ink_2, &now)
+                })),
         )
         .into_element()
 }
@@ -517,7 +520,8 @@ fn disclosure(theme: &isle_tokens::Theme, entry: &Entry, open: bool, on_pick: Ev
 }
 
 /// One column's cell for `entry`.
-fn cell(theme: &isle_tokens::Theme, column: Column, entry: &Entry, width: f32, ink: isle_tokens::Colour, now: &jiff::Zoned) -> Element {
+/// `counted` is a folder's size as Calculate all sizes found it.
+fn cell(theme: &isle_tokens::Theme, column: Column, entry: &Entry, counted: Option<u64>, width: f32, ink: isle_tokens::Colour, now: &jiff::Zoned) -> Element {
     let t = &theme.tokens;
     let words = |s: String| text::line(theme, text::Style::Body, colour(ink), s).max_lines(1).text_overflow(TextOverflow::Ellipsis);
     let deleted = || entry.trashed.as_deref().and_then(|t| deleted_at(&t.deleted));
@@ -538,7 +542,11 @@ fn cell(theme: &isle_tokens::Theme, column: Column, entry: &Entry, width: f32, i
             .width(Size::px(width))
             .main_align(Alignment::End)
             .horizontal()
-            .child(words(if entry.is_dir() { "--".into() } else { format::size(entry.size) }))
+            .child(words(match (entry.is_dir(), counted) {
+                (true, Some(bytes)) => format::size(bytes),
+                (true, None) => "--".into(),
+                (false, _) => format::size(entry.size),
+            }))
             .into_element(),
         other => {
             let value = match other {

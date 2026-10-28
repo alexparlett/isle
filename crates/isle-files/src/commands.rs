@@ -252,6 +252,9 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
             .checked(shown.sort == SortBy::Size)
             .under("Sort By"),
         Command::new("view-options", "Show View Options", Menu::View, 5).chord(Chord::cmd('j')),
+        Command::new("calculate-sizes", "Calculate all sizes", Menu::View, 5)
+            .checked(shown.all_sizes)
+            .enabled(shown.view == View::List),
         Command::new("bigger", "Bigger Icons", Menu::View, 5)
             .chord(Chord::cmd('='))
             .enabled(shown.view == View::Icons),
@@ -628,6 +631,10 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                 "toggle-path-bar" => path_bar.toggle(),
                 "toggle-status-bar" => status_bar.toggle(),
                 "view-options" => options.toggle(),
+            "calculate-sizes" => {
+                let next = crate::view::Shown { all_sizes: !tab.peek().shown.all_sizes, ..tab.peek().shown };
+                set_shown(shared, tab, next);
+            }
                 "as-icons" | "as-list" | "as-columns" | "use-groups" | "group-kind" | "group-modified"
                 | "group-size" | "sort-name" | "sort-kind" | "sort-modified" | "sort-size" | "bigger"
                 | "smaller" => {

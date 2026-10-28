@@ -34,6 +34,9 @@ pub struct Shown {
     /// List's columns turned off from its header's menu.
     #[serde(default)]
     pub hidden: Hidden,
+    /// List counts each folder's size (View › Calculate all sizes).
+    #[serde(default)]
+    pub all_sizes: bool,
 }
 
 /// List's columns hidden, as the header's menu sets them; Date Created and Date Last Opened
@@ -113,6 +116,7 @@ impl Default for Shown {
             icon_size: 64,
             item_info: false,
             hidden: Hidden::default(),
+            all_sizes: false,
         }
     }
 }

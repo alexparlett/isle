@@ -2,6 +2,11 @@
 
 ## 2026-10-28
 
+- P15b 15b.10, third part: Columns' dividers drag a column's width (⌥
+  every column's), a double-click fits it to its names (Right Size); the
+  preview column shows only while Show Preview is on. Calculate all sizes
+  (View menu and View Options, kept per folder) counts each folder's size
+  on a worker for List's Size column.
 - P15b 15b.10, second part, List's disclosure: a folder's triangle opens it
   in place, indented, ⌥ opening every folder under it to four levels; →
   and ← open and close the folder at the cursor, ← from inside going to

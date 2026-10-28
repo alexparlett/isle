@@ -1729,3 +1729,51 @@ async fn list_opens_folders_in_place_by_disclosure_and_keys() {
     wait_until(|| async { home.join("Documents/isle/Cargo.toml").exists() }).await;
     assert!(!app.printed_part("panicked"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn columns_resize_fit_and_show_the_preview_only_while_it_is_on() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-columns-resize").await;
+    let (app, _home) = start_files(&mut isle, &bin, &[]);
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    isle.chord(&[SUPER, KEY_3]).await;
+    app.wait_for_part("id=\"as-columns\"").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let test = isle.test().await;
+    let column_row = |i: f64| (w.x as f64 + 220. + 120., w.y as f64 + 52. + 4. + 28. * i + 14.);
+
+    // Pictures chosen, then red.png in its column: the preview column shows while Show
+    // Preview is on (⇧⌘P), not after.
+    click(&isle, column_row(3.), &[], 1).await;
+    click(&isle, (column_row(0.).0 + 240., column_row(0.).1), &[], 1).await;
+    pause(400).await;
+    isle.keep_shot("files-columns-preview-on").await;
+    isle.chord(&[SUPER, SHIFT, KEY_P]).await;
+    pause(400).await;
+    isle.keep_shot("files-columns-preview-off").await;
+
+    // The first column's divider dragged right widens it; a double-click fits it.
+    let edge = (w.x as f64 + 220. + 240., w.y as f64 + 300.);
+    test.pointer_to(edge.0, edge.1).await.unwrap();
+    pause(150).await;
+    test.button(272, true).await.unwrap();
+    for step in 1..=5 {
+        test.pointer_to(edge.0 + 20. * step as f64, edge.1).await.unwrap();
+        pause(40).await;
+    }
+    test.button(272, false).await.unwrap();
+    pause(300).await;
+    isle.keep_shot("files-columns-wider").await;
+    let wider = (edge.0 + 100., edge.1);
+    test.pointer_to(wider.0, wider.1).await.unwrap();
+    pause(150).await;
+    click(&isle, wider, &[], 2).await;
+    pause(300).await;
+    isle.keep_shot("files-columns-fitted").await;
+    assert!(!app.printed_part("panicked"));
+}

@@ -25,6 +25,22 @@ pub struct ColumnsView {
     /// Moves the tab to a folder, revealing an item in it.
     pub on_go: EventHandler<(PathBuf, Option<PathBuf>)>,
     pub interact: crate::interact::Interact,
+    /// Show Preview: the preview column is last only while it is on.
+    pub preview: bool,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+struct DividerClick;
+
+/// A column's width: its own once dragged or fitted, else every column's.
+fn width_of(widths: &std::collections::HashMap<PathBuf, f32>, all: f32, folder: &Path) -> f32 {
+    widths.get(folder).copied().unwrap_or(all)
+}
+
+/// The width that fits the longest name in `tab`, as Right Size gives it.
+fn right_size(tab: &Tab, min: f32) -> f32 {
+    let longest = tab.folder.entries().iter().map(|e| e.name.chars().count()).max().unwrap_or(8);
+    (longest as f32 * 7.2 + 16. + 8. + 12. + 32.).clamp(min, 640.)
 }
 
 /// A column before the last: a folder on the way from the first column to the tab's.
@@ -61,6 +77,12 @@ impl Component for ColumnsView {
         let place = tab.read().place.folder().map(PathBuf::from);
         let mut root = use_state(|| place.clone());
         let mut columns = use_state(Vec::<Column>::new);
+        // Columns dragged or fitted, by folder, and a divider being dragged: the folder, ⌥
+        // held (every column), where it started and the width then.
+        let mut widths = use_state(std::collections::HashMap::<PathBuf, f32>::new);
+        let mut all_width = use_state(|| t.size_column);
+        let mut dragging = use_state(|| None::<(PathBuf, bool, f64, f32)>);
+        let min = t.size_column_min;
 
         // The tab's place is the last column; the columns before it run down from the first
         // column's folder, which moves to the place when the place leaves it.
@@ -113,13 +135,40 @@ impl Component for ColumnsView {
         let preview = {
             let t = tab.read();
             let items: Vec<_> = t.selection.iter().filter_map(|p| t.folder.get(p).cloned()).collect();
-            (!items.is_empty() && items.iter().all(|e| !e.is_dir())).then_some(items)
+            (self.preview && !items.is_empty() && items.iter().all(|e| !e.is_dir())).then_some(items)
+        };
+        let shown_widths = widths.read().clone();
+        let every = *all_width.read();
+        // A column's trailing divider: dragged its width, ⌥ every column's; double-clicked,
+        // fitted to its names.
+        let divider = move |folder: PathBuf, listing: State<Tab>, width: f32| {
+            rect()
+                .width(Size::px(t.size_resize_band))
+                .height(Size::fill())
+                .margin((0., -t.size_resize_band / 2.))
+                .layer(Layer::Overlay)
+                .a11y_role(AccessibilityRole::Splitter)
+                .on_mouse_down(move |e: Event<MouseEventData>| {
+                    if e.button != Some(MouseButton::Left) {
+                        return;
+                    }
+                    e.stop_propagation();
+                    if EventsCombos::<DividerClick>::pressed(e.global_location).is_double() {
+                        let fitted = right_size(&listing.peek(), min);
+                        widths.write().insert(folder.clone(), fitted);
+                        return;
+                    }
+                    dragging.set(Some((folder.clone(), e.modifiers.contains(Modifiers::ALT), e.global_location.x, width)));
+                })
+                .into_element()
         };
 
         let dark = theme.appearance.mode == isle_tokens::Mode::Dark;
         let column_views = all.iter().enumerate().map(|(n, (listing, folder))| {
             let (on_pick, on_go, listing, folder) = (self.on_pick.clone(), self.on_go.clone(), *listing, folder.clone());
-            column(&theme, listing, n == active && self.focused, dark, &self.interact, move |pick: Pick| {
+            let width = width_of(&shown_widths, every, &folder);
+            let edge = divider(folder.clone(), listing, width);
+            column(&theme, listing, width, edge, n == active && self.focused, dark, &self.interact, move |pick: Pick| {
                 let is_dir = |path: &Path| listing.peek().folder.get(path).is_some_and(|e| e.is_dir());
                 if n == last {
                     match pick {
@@ -150,6 +199,21 @@ impl Component for ColumnsView {
                     .height(Size::fill())
                     .horizontal()
                     .background(colour(t.colour_view))
+                    .on_global_pointer_move(move |e: Event<PointerEventData>| {
+                        let Some((folder, every, x0, start)) = dragging.peek().clone() else { return };
+                        let width = (start + (e.global_location().x - x0) as f32).max(min);
+                        if every {
+                            widths.write().clear();
+                            all_width.set(width);
+                        } else {
+                            widths.write().insert(folder, width);
+                        }
+                    })
+                    .on_global_pointer_up(move |_: Event<PointerEventData>| {
+                        if dragging.peek().is_some() {
+                            dragging.set(None);
+                        }
+                    })
                     .children(column_views)
                     .maybe_child(preview.map(|items| Preview {
                         items,
@@ -162,9 +226,12 @@ impl Component for ColumnsView {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn column(
     theme: &isle_tokens::Theme,
     tab: State<Tab>,
+    width: f32,
+    divider: Element,
     active: bool,
     dark: bool,
     interact: &crate::interact::Interact,
@@ -246,8 +313,8 @@ fn column(
         .collect();
     drop(snapshot);
     let empty = on_pick.clone();
-    rect()
-        .width(Size::px(t.size_column))
+    let body = rect()
+        .width(Size::px(width))
         .height(Size::fill())
         .border(
             Border::new()
@@ -262,5 +329,6 @@ fn column(
                 .height(Size::fill())
                 .child(rect().width(Size::fill()).padding((t.space_xs, 0.)).children(rows)),
         )
-        .into_element()
+        .into_element();
+    rect().height(Size::fill()).horizontal().child(body).child(divider).into_element()
 }

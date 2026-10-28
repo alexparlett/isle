@@ -337,6 +337,12 @@ impl Component for Toolbar {
                             .into_element(),
                     )
                 }))
+                .maybe_child((shown.view == View::List).then(|| {
+                    let send = send_info.clone();
+                    CheckRow::new("Calculate all sizes", shown.all_sizes)
+                        .on_toggle(move |on: bool| send(Act::Shown(Shown { all_sizes: on, ..shown })))
+                        .into_element()
+                }))
                 .maybe_child((shown.view == View::Icons).then(|| {
                     CheckRow::new("Show item info", shown.item_info)
                         .on_toggle(move |on: bool| send_info(Act::Shown(Shown { item_info: on, ..shown })))

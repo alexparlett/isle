@@ -59,6 +59,8 @@ pub struct Tab {
     /// Folders opened in place in List by their disclosure, and what each holds, sorted.
     pub expanded: Vec<PathBuf>,
     pub children: std::collections::HashMap<PathBuf, Vec<Entry>>,
+    /// Folders' sizes as Calculate all sizes counted them.
+    pub sizes: std::collections::HashMap<PathBuf, u64>,
 }
 
 impl Tab {
@@ -80,6 +82,7 @@ impl Tab {
             remote: false,
             expanded: Vec::new(),
             children: std::collections::HashMap::new(),
+            sizes: std::collections::HashMap::new(),
         }
     }
 
@@ -398,6 +401,7 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             t.cursor = None;
             t.expanded.clear();
             t.children.clear();
+            t.sizes.clear();
         }
         t.status = Status::Loading;
         t.slow = false;
@@ -606,4 +610,26 @@ pub fn collapse(mut tab: State<Tab>, folder: &Path) {
     t.expanded.retain(|p| !p.starts_with(folder));
     t.children.retain(|p, _| !p.starts_with(folder));
     t.rev += 1;
+}
+
+/// Counts the size of each folder `tab` lists that has none yet, one after another on a
+/// worker, until the tab moves elsewhere.
+pub fn calculate_sizes(mut tab: State<Tab>) {
+    let (place, folders): (Place, Vec<PathBuf>) = {
+        let t = tab.peek();
+        let folders = t.folder.entries().iter().filter(|e| e.is_dir() && !t.sizes.contains_key(&e.path)).map(|e| e.path.clone()).collect();
+        (t.place.clone(), folders)
+    };
+    spawn(async move {
+        for folder in folders {
+            let path = folder.clone();
+            let Some(counted) = crate::window::off_thread(move || crate::preview::count(path)).await else { return };
+            let mut t = tab.write();
+            if t.place != place || !t.shown.all_sizes {
+                return;
+            }
+            t.sizes.insert(folder, counted.bytes);
+            t.rev += 1;
+        }
+    });
 }

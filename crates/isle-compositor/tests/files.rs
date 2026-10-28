@@ -1777,3 +1777,42 @@ async fn columns_resize_fit_and_show_the_preview_only_while_it_is_on() {
     isle.keep_shot("files-columns-fitted").await;
     assert!(!app.printed_part("panicked"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_preview_widens_shows_more_and_aliases_carry_a_badge() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-preview").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    std::os::unix::fs::symlink(home.join("notes.md"), home.join("notes alias")).unwrap();
+    let w = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let test = isle.test().await;
+    let kept = isle.dir.join("files-state/isle/files.json");
+
+    reveal(&isle, &app, &home.join("Pictures/red.png")).await;
+    isle.chord(&[SUPER, SHIFT, KEY_P]).await;
+    pause(800).await;
+    isle.keep_shot("files-preview-facts").await;
+
+    // The pane's leading edge dragged left widens it, kept.
+    let edge = (w.x as f64 + w.width as f64 - 260., w.y as f64 + 400.);
+    test.pointer_to(edge.0, edge.1).await.unwrap();
+    pause(150).await;
+    test.button(272, true).await.unwrap();
+    for step in 1..=5 {
+        test.pointer_to(edge.0 - 16. * step as f64, edge.1).await.unwrap();
+        pause(40).await;
+    }
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { std::fs::read_to_string(&kept).is_ok_and(|t| t.contains("\"preview_width\": 340")) }).await;
+
+    isle.chord(&[SUPER, SHIFT, KEY_H]).await;
+    pause(600).await;
+    isle.keep_shot("files-preview-alias").await;
+    assert!(!app.printed_part("panicked"));
+}

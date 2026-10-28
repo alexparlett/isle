@@ -338,6 +338,7 @@ impl App for PanelWindow {
             layout,
             ringed: Vec::new(),
             blink: false,
+            writing: 0.,
             cursor_at,
         };
         let focused = *Platform::get().is_app_focused.read();

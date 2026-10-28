@@ -488,8 +488,12 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                         }),
                 )
                 .children(rows.columns.iter().map(|column| {
+                    let width = rows.widths.width(*column);
+                    if entry.writing && *column == Column::Modified {
+                        return rect().width(Size::px(width)).center().child(writing_bar(&theme, 96., rows.interact.writing)).into_element();
+                    }
                     let counted = tab.sizes.get(&entry.path).copied();
-                    cell(&theme, *column, entry, counted, rows.widths.width(*column), ink_2, &now)
+                    cell(&theme, *column, entry, counted, width, ink_2, &now)
                 })),
         )
         .into_element()
@@ -609,9 +613,54 @@ pub fn icon(entry: &Entry, dark: bool, size: f32, ink: isle_tokens::Colour) -> E
         .mime
         .as_deref()
         .and_then(|m| icons::cached(m, dark, if size > 32. { icons::LARGE } else { icons::SMALL }));
-    match found {
+    let image = match found {
         Some(path) => AppIcon::new(path, size).into_element(),
         None => Glyph::new(if entry.is_dir() { "folder-simple" } else { "file" }, size, colour(ink))
             .into_element(),
-    }
+    };
+    badged(entry, image, size)
+}
+
+/// `image`, an item's icon at `size`, with an alias's badge on its bottom leading corner; a
+/// broken alias at half strength.
+pub fn badged(entry: &Entry, image: Element, size: f32) -> Element {
+    let isle_fs::Kind::Link { broken, .. } = entry.kind else { return image };
+    let theme = isle_ui::theme();
+    let t = &theme.tokens;
+    let badge = (size / 4.).max(10.);
+    rect()
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .opacity(if broken { 0.5 } else { 1. })
+        .child(image)
+        .child(
+            rect()
+                .position(Position::new_absolute().left(0.).top(size - badge))
+                .width(Size::px(badge))
+                .height(Size::px(badge))
+                .center()
+                .corner_radius(t.radius_small)
+                .background(colour(t.colour_window_raised))
+                .maybe(true, |el| isle_ui::shadows(&t.shadow_control).into_iter().fold(el, |el, s| el.shadow(s)))
+                .child(Glyph::new("arrow-bend-up-right", badge * 0.75, colour(t.colour_text))),
+        )
+        .into_element()
+}
+
+/// The bar under an item being written: `share` of it done.
+pub fn writing_bar(theme: &isle_tokens::Theme, width: f32, share: f32) -> Element {
+    let t = &theme.tokens;
+    rect()
+        .width(Size::px(width))
+        .height(Size::px(t.size_item_progress))
+        .corner_radius(2.)
+        .background(colour(t.colour_fill_strong))
+        .child(
+            rect()
+                .width(Size::percent(share.clamp(0., 1.) * 100.))
+                .height(Size::fill())
+                .corner_radius(2.)
+                .background(colour(t.colour_accent)),
+        )
+        .into_element()
 }

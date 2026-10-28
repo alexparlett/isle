@@ -2,6 +2,14 @@
 
 ## 2026-10-28
 
+- P15b 15b.10, last part: the preview's leading edge drags its width, kept;
+  past three facts it shows Show More; the kind's facts are read on a
+  worker (an image's dimensions, a recording's duration by `ffprobe`, a
+  PDF's pages). A copy being written lists under the name it will take,
+  dimmed, with a bar of the jobs' progress (in List's Date Modified, under
+  Icons' icon): `isle-fs` reads a part file's name as its own. Aliases carry
+  their badge, a broken one at half strength. Not here: the bar in
+  Columns' rows.
 - P15b 15b.10, third part: Columns' dividers drag a column's width (⌥
   every column's), a double-click fits it to its names (Right Size); the
   preview column shows only while Show Preview is on. Calculate all sizes

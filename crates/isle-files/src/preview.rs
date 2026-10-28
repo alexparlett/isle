@@ -21,7 +21,42 @@ pub struct Preview {
     pub pane: bool,
     /// The button under one item's facts: Markup for an image, Put Back in the Trash.
     pub action: Option<(&'static str, EventHandler<()>)>,
+    /// The pane's leading edge dragged to a width, to keep.
+    pub on_resize: Option<EventHandler<f32>>,
 }
+
+/// The facts of an item's kind: an image's dimensions, a recording's duration, a PDF's
+/// pages; reads the file, so call it on a worker.
+pub fn kind_facts(path: &std::path::Path, mime: &str) -> Vec<(&'static str, String)> {
+    let mut facts = Vec::new();
+    if mime.starts_with("image/")
+        && let Ok(size) = imagesize::size(path)
+    {
+        facts.push(("Dimensions", format!("{} × {}", size.width, size.height)));
+    }
+    if mime.starts_with("video/") || mime.starts_with("audio/") {
+        let probed = std::process::Command::new("ffprobe")
+            .args(["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0"])
+            .arg(path)
+            .output();
+        if let Some(seconds) = probed.ok().and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().ok()) {
+            let s = seconds.round() as u64;
+            facts.push(("Duration", if s >= 3600 { format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60) } else { format!("{}:{:02}", s / 60, s % 60) }));
+        }
+    }
+    if mime == "application/pdf"
+        && let Ok(bytes) = std::fs::read(path)
+    {
+        let pages = bytes.windows(10).filter(|w| *w == b"/Type/Page" || w.starts_with(b"/Type /Pag") && !w.ends_with(b"s")).count();
+        if pages > 0 {
+            facts.push(("Pages", pages.to_string()));
+        }
+    }
+    facts
+}
+
+/// How many facts show before Show More.
+const FACTS_SHOWN: usize = 3;
 
 /// A folder's size and count, counted on a thread of its own.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -80,6 +115,12 @@ impl Component for Preview {
         let t = &theme.tokens;
         let dark = theme.appearance.mode == isle_tokens::Mode::Dark;
         let mut counted = use_state(|| None::<Counted>);
+        let mut facts = use_state(|| None::<(PathBuf, Vec<(&'static str, String)>)>);
+        let mut more = use_state(|| false);
+        // The pane's edge being dragged: where it started and the width then, and the width now.
+        let mut resizing = use_state(|| None::<(f64, f32)>);
+        let mut live = use_state(|| None::<f32>);
+        let width = live.read().unwrap_or(self.width);
         let shown = match self.items.as_slice() {
             [] => self.folder.clone(),
             [one] => Some(one.clone()),
@@ -95,6 +136,19 @@ impl Component for Preview {
             spawn(async move {
                 if let Some(found) = off_thread(move || count(path)).await {
                     counted.set(Some(found));
+                }
+            });
+        });
+        let reading = shown.as_ref().filter(|e| !e.is_dir()).map(|e| (e.path.clone(), e.mime.as_deref().unwrap_or("").to_owned()));
+        use_side_effect_with_deps(&reading, move |reading| {
+            let Some((path, mime)) = reading.clone() else { return };
+            if facts.peek().as_ref().is_some_and(|(p, _)| *p == path) {
+                return;
+            }
+            spawn(async move {
+                let read = path.clone();
+                if let Some(found) = off_thread(move || kind_facts(&read, &mime)).await {
+                    facts.set(Some((path, found)));
                 }
             });
         });
@@ -154,10 +208,52 @@ impl Component for Preview {
                                     .font_weight(600),
                             ),
                     )
-                    .maybe_child(entry.created.map(|c| fact(&theme, "Created", format::date(c, &now))))
-                    .child(fact(&theme, "Modified", format::date(entry.modified, &now)))
-                    .child(fact(&theme, "Last opened", format::date(entry.accessed, &now)))
-                    .maybe_child(entry.is_dir().then(|| fact(&theme, "Size", size)))
+                    .children({
+                        // Created, Modified, Last opened, then the kind's facts; Show More past three.
+                        let mut rows: Vec<(&str, String)> = Vec::new();
+                        if let Some(c) = entry.created {
+                            rows.push(("Created", format::date(c, &now)));
+                        }
+                        rows.push(("Modified", format::date(entry.modified, &now)));
+                        rows.push(("Last opened", format::date(entry.accessed, &now)));
+                        if entry.is_dir() {
+                            rows.push(("Size", size.clone()));
+                        }
+                        if let Some((path, found)) = facts.read().as_ref()
+                            && *path == entry.path
+                        {
+                            rows.extend(found.iter().map(|(l, v)| (*l, v.clone())));
+                        }
+                        let open = *more.read();
+                        let hidden = rows.len().saturating_sub(FACTS_SHOWN);
+                        let mut out: Vec<Element> = rows
+                            .into_iter()
+                            .take(if open { usize::MAX } else { FACTS_SHOWN })
+                            .map(|(label, value)| fact(&theme, label, value))
+                            .collect();
+                        if hidden > 0 {
+                            out.push(
+                                rect()
+                                    .width(Size::fill())
+                                    .padding((t.space_xs, 0., 0., 0.))
+                                    .horizontal()
+                                    .main_align(Alignment::End)
+                                    .child(
+                                        rect()
+                                            .a11y_role(AccessibilityRole::Button)
+                                            .on_press(move |_| more.toggle())
+                                            .child(text::line(
+                                                &theme,
+                                                text::Style::Callout,
+                                                colour(t.colour_accent_text),
+                                                if open { "Show Less" } else { "Show More" },
+                                            )),
+                                    )
+                                    .into_element(),
+                            );
+                        }
+                        out
+                    })
                     .maybe_child(self.action.clone().map(|(label, on_press)| {
                         rect()
                             .width(Size::fill())
@@ -186,9 +282,40 @@ impl Component for Preview {
                 .child(text::line(&theme, text::Style::Callout, colour(t.colour_text_2), format::size(total)))
             }
         };
+        let on_resize = self.on_resize.clone();
+        let edge = on_resize.is_some().then(|| {
+            rect()
+                .position(Position::new_absolute().left(-t.size_resize_band / 2.).top(0.))
+                .layer(Layer::Overlay)
+                .width(Size::px(t.size_resize_band))
+                .height(Size::fill())
+                .a11y_role(AccessibilityRole::Splitter)
+                .a11y_alt("Preview width")
+                .on_mouse_down(move |e: Event<MouseEventData>| {
+                    if e.button == Some(MouseButton::Left) {
+                        e.stop_propagation();
+                        resizing.set(Some((e.global_location.x, width)));
+                    }
+                })
+        });
+        let (min, max) = (t.size_inspector_min, t.size_inspector_max);
         rect()
-            .width(Size::px(self.width))
+            .width(Size::px(width))
             .height(Size::fill())
+            .on_global_pointer_move(move |e: Event<PointerEventData>| {
+                let Some((x0, start)) = *resizing.peek() else { return };
+                // The leading edge moved left widens the pane.
+                live.set(Some((start - (e.global_location().x - x0) as f32).clamp(min, max)));
+            })
+            .on_global_pointer_up(move |_: Event<PointerEventData>| {
+                if resizing.peek().is_some() {
+                    resizing.set(None);
+                    if let (Some(width), Some(on_resize)) = (*live.peek(), on_resize.as_ref()) {
+                        on_resize.call(width);
+                    }
+                }
+            })
+            .maybe_child(edge)
             .maybe(self.pane, |pane| {
                 pane.background(colour(t.colour_window)).border(
                     Border::new()

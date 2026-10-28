@@ -40,6 +40,8 @@ pub struct Interact {
     pub ringed: Vec<PathBuf>,
     /// A spring-load's blink: the drop ring is off for this beat.
     pub blink: bool,
+    /// The share of the jobs running that is done, for items being written.
+    pub writing: f32,
     /// The keyboard cursor's item: its leading edge and foot in the window, where a menu
     /// opened from the keyboard hangs.
     pub cursor_at: State<Option<(f32, f32)>>,
@@ -79,7 +81,7 @@ impl Interact {
 
     /// Drawn dimmed: hidden, cut, or not what the panel can choose.
     pub fn is_dimmed(&self, entry: &isle_fs::Entry) -> bool {
-        entry.hidden() || self.is_cut(&entry.path) || self.chooses.as_ref().is_some_and(|c| !c.allows(entry))
+        entry.hidden() || entry.writing || self.is_cut(&entry.path) || self.chooses.as_ref().is_some_and(|c| !c.allows(entry))
     }
 
     pub fn renaming(&self, path: &Path) -> Option<&Rename> {

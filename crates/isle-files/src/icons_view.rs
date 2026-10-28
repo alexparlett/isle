@@ -283,12 +283,17 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
                 .corner_radius(t.radius_card)
                 .maybe(selected || target, |el| el.background(colour(t.colour_fill_strong)))
                 .maybe(target, |el| el.border(crate::interact::drop_ring(theme)))
-                .child(crate::thumbnail::Thumbnail {
-                    entry: entry.clone(),
-                    size: grid.icon,
-                    dark: grid.dark,
-                    remote: tab.remote,
-                }),
+                .child(list_view::badged(
+                    entry,
+                    crate::thumbnail::Thumbnail { entry: entry.clone(), size: grid.icon, dark: grid.dark, remote: tab.remote }.into_element(),
+                    grid.icon,
+                ))
+                .maybe_child(entry.writing.then(|| {
+                    rect()
+                        .width(Size::px(grid.icon))
+                        .padding((t.space_xxs, grid.icon / 8.))
+                        .child(list_view::writing_bar(theme, grid.icon * 0.75, grid.interact.writing))
+                })),
         )
         .child(match grid.interact.renaming(&entry.path) {
             Some(rename) => crate::interact::rename_field(theme, rename, Size::px(grid.cell)),

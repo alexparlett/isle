@@ -100,6 +100,8 @@ pub struct Shared {
     pub places_rev: State<u64>,
     /// Volumes being mounted, by object path: their rows show a spinner.
     pub mounting: State<Vec<String>>,
+    /// The preview pane's width as dragged.
+    pub preview_width: State<Option<f32>>,
     pub jobs: jobs::Jobs,
     /// Items cut and not yet pasted, drawn dimmed.
     pub cut: State<Vec<PathBuf>>,
@@ -599,6 +601,14 @@ impl Shared {
         self.save();
     }
 
+    /// Keeps the preview pane's width.
+    pub fn set_preview_width(&self, width: f32) {
+        let mut kept = self.preview_width;
+        kept.set(Some(width));
+        self.memory.borrow_mut().preview_width = Some(width);
+        self.save();
+    }
+
     pub fn recent_folders(&self) -> Vec<PathBuf> {
         self.memory.borrow().recent_folders.clone()
     }
@@ -867,6 +877,7 @@ fn main() {
         collapsed: State::create_global(memory.collapsed.clone()),
         places_rev: State::create_global(0),
         mounting: State::create_global(Vec::new()),
+        preview_width: State::create_global(memory.preview_width),
         memory: RefCell::new(memory),
         next_tab: Cell::new(0),
         copy: Cell::new(None),

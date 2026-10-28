@@ -245,6 +245,7 @@ mod tests {
             mime: None,
             key: natural_key(name),
             trashed: None,
+            writing: false,
         }
     }
 

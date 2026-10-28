@@ -221,6 +221,7 @@ impl Component for ColumnsView {
                         width: t.size_inspector,
                         pane: true,
                         action: None,
+                        on_resize: None,
                     })),
             )
     }

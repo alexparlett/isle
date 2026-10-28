@@ -791,6 +791,14 @@ impl App for FilesWindow {
             layout,
             cursor_at,
             blink: *blink.read(),
+            writing: {
+                let list = shared.jobs.list.read();
+                let (done, total) = list
+                    .iter()
+                    .filter(|j| matches!(j.state, crate::jobs::JobState::Running))
+                    .fold((0u64, 0u64), |(d, n), j| (d + j.progress.bytes, n + j.progress.total_bytes));
+                if total == 0 { 0. } else { done as f32 / total as f32 }
+            },
             ringed: context.read().as_ref().and_then(|o| o.items.clone()).filter(|items| *items != tab.peek().selection).unwrap_or_default(),
         };
         let body = content(&theme, &handle, rev, focused, on_pick, interact.clone(), *preview.read());
@@ -829,9 +837,13 @@ impl App for FilesWindow {
         let pane = (*preview.read() && shown.view != View::Columns).then(|| Preview {
             items: selected_items.clone(),
             folder: tab.read().here.clone(),
-            width: t.size_inspector,
+            width: shared.preview_width.read().unwrap_or(t.size_inspector),
             pane: true,
             action,
+            on_resize: Some(EventHandler::new({
+                let shared = shared.clone();
+                move |width: f32| shared.set_preview_width(width)
+            })),
         });
         let on_act = {
             let (live, set_shown, shared) = (live.clone(), set_shown_here.clone(), shared.clone());

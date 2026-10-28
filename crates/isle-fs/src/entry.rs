@@ -39,6 +39,15 @@ pub struct Entry {
     pub key: Box<[u8]>,
     /// For an item in the Trash: where it came from and when.
     pub trashed: Option<Arc<crate::trash::Trashed>>,
+    /// A copy still being written to its part file, named as it will be.
+    pub writing: bool,
+}
+
+/// The name a job's part file will take, for a part file's name.
+pub fn part_of(name: &str) -> Option<&str> {
+    let rest = name.strip_prefix('.')?;
+    let (final_name, pid) = rest.rsplit_once(".isle-part-")?;
+    pid.chars().all(|c| c.is_ascii_digit()).then_some(final_name)
 }
 
 /// What `statx` is asked for: the type and the columns.
@@ -59,7 +68,7 @@ impl Entry {
     }
 
     pub fn hidden(&self) -> bool {
-        self.name.starts_with('.')
+        self.name.starts_with('.') && !self.writing
     }
 
     /// The type to sort and group by: the folder or file type, empty while unknown.
@@ -100,6 +109,10 @@ impl Entry {
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| path.to_string_lossy().into_owned());
+        let (name, writing) = match part_of(&name) {
+            Some(final_name) => (final_name.to_owned(), true),
+            None => (name, false),
+        };
         let mime = match kind {
             Kind::Dir | Kind::Link { to_dir: true, .. } => Some(Arc::from(isle_apps::mime::DIRECTORY)),
             _ => isle_apps::mime::types().by_name(&name).map(Arc::from),
@@ -118,6 +131,7 @@ impl Entry {
             uid: st.stx_uid,
             mime,
             trashed: None,
+            writing,
         }
     }
 }
@@ -128,5 +142,17 @@ fn kind_of(st: &Statx) -> Kind {
         FileType::RegularFile => Kind::File,
         FileType::Symlink => Kind::Link { to_dir: false, broken: false },
         _ => Kind::Other,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_part_file_is_named_as_it_will_be() {
+        assert_eq!(part_of(".notes.md.isle-part-4242"), Some("notes.md"));
+        assert_eq!(part_of(".hidden"), None);
+        assert_eq!(part_of(".x.isle-part-abc"), None);
     }
 }

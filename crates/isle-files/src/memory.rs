@@ -41,6 +41,9 @@ pub struct Memory {
     /// The sidebar's groups collapsed, by heading.
     #[serde(default)]
     pub collapsed: Vec<String>,
+    /// The preview pane's width as dragged; none for its own.
+    #[serde(default)]
+    pub preview_width: Option<f32>,
     /// Favourites in the user's order, by folder (D76).
     #[serde(default)]
     pub favourites: Vec<std::path::PathBuf>,

@@ -29,6 +29,8 @@ pub struct Full {
     /// Bytes and packets received, then sent, since boot.
     pub interfaces: [u64; 4],
     pub sensors: Vec<sensors::Sensor>,
+    /// The CPU fan's speed, revolutions a minute.
+    pub cpu_fan: Option<f32>,
     pub cpu_power: Option<(f32, power::Source)>,
     pub uid: u32,
     /// The time the sample took, and each reader's part of it.
@@ -96,6 +98,7 @@ impl MonitorSampler {
         mark("network");
         let cpu_power = self.power.sample(&gpus);
         let sensors = self.sensors.read();
+        let cpu_fan = self.sensors.cpu_fan(&sensors).map(|s| s.value);
         mark("sensors");
         let cpu = self.cpu();
         let memory = memory::read(&self.root);
@@ -110,6 +113,7 @@ impl MonitorSampler {
             net_uses,
             interfaces: net::interfaces(&self.root),
             sensors,
+            cpu_fan,
             cpu_power,
             uid: self.uid,
             processes,

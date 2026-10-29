@@ -122,7 +122,7 @@ pub struct Drag {
 }
 
 #[derive(Clone, Copy)]
-struct Shown(State<bool>);
+pub(crate) struct Shown(pub State<bool>);
 
 /// Whether the window can be seen: false while it is minimised, hidden, on a desktop not
 /// shown, wholly covered or under the lock. True where the compositor does not say.

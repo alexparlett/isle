@@ -2,6 +2,20 @@
 
 ## 2026-10-29
 
+- 19a.9: `isle-monitor`, the window: the toolbar (the filter's name, the
+  six-segment resource switch, Quit Process, search), the table from a pure
+  model (each resource's columns, the five filters, the hierarchy with its
+  totals and widened columns, search by name, pid or user, sorting by the
+  column then name), and the footer per resource (figures with series keys,
+  one graph, the sensors where wide; a block a GPU; the unavailable lines;
+  Disk's and Network's choosing groups), fixed at `size-monitor-footer`.
+  Sampling runs on the worker only while shown, with gaps for time unseen;
+  the window list names windowed processes, and logind's and the
+  compositor's holds fill Preventing sleep. View holds ⌘1–⌘6, the filters,
+  Columns and Update Frequency; remembered in the `monitor` state domain.
+  `isle_app::Menu::Process` added for 19a.10. A headless test renders the
+  window on the machine's own `/proc`. The entry with `cpu` and `gpu`
+  actions, the service file and the package.
 - 19a.8: `isle_ui::graph`: series as lines over areas, stacked or mirrored
   about the centre, gaps unsampled, one sample every `size-graph-step`
   newest at the trailing edge, a 1-2-5 scale for rates and watts, the

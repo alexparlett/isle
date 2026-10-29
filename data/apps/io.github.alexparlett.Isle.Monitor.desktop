@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Name=Monitor
+Comment=See what each process uses, and quit one
+Icon=utilities-system-monitor
+Exec=isle-monitor
+DBusActivatable=true
+StartupNotify=true
+Categories=System;Monitor;
+Keywords=Activity Monitor;Task Manager;Processes;CPU;GPU;Memory;Energy;
+OnlyShowIn=Isle;
+Actions=cpu;gpu;
+
+[Desktop Action cpu]
+Name=CPU
+Exec=isle-monitor
+
+[Desktop Action gpu]
+Name=GPU
+Exec=isle-monitor

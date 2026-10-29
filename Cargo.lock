@@ -4581,6 +4581,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-monitor"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "freya",
+ "freya-testing",
+ "futures-channel",
+ "futures-util",
+ "isle-app",
+ "isle-apps",
+ "isle-ipc",
+ "isle-state",
+ "isle-sysinfo",
+ "isle-tokens",
+ "isle-ui",
+ "jiff",
+ "serde",
+ "tokio",
+ "tracing",
+ "zbus",
+]
+
+[[package]]
 name = "isle-network"
 version = "0.1.0"
 dependencies = [
@@ -4775,6 +4798,7 @@ dependencies = [
  "libc",
  "nvml-wrapper",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

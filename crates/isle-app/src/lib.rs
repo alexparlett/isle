@@ -241,6 +241,7 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
         AppHandle::new(spec, worker.clone(), None, unbounded().0, desktop, theme).0
     });
     use_provide_context(|| WindowKey(1));
+    use_provide_context(|| window::Shown(State::create(true)));
     use_provide_context(|| window::Drag {
         over: State::create(None),
         dropped: State::create(Vec::new()),

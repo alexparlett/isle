@@ -1,0 +1,28 @@
+[package]
+name = "isle-monitor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+accesskit.workspace = true
+freya = { workspace = true, features = ["winit"] }
+futures-channel = "0.3"
+futures-util = { workspace = true, features = ["std"] }
+isle-app.workspace = true
+isle-apps.workspace = true
+isle-ipc.workspace = true
+isle-state.workspace = true
+isle-sysinfo.workspace = true
+isle-tokens.workspace = true
+isle-ui.workspace = true
+jiff.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zbus.workspace = true
+
+[dev-dependencies]
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
+isle-app = { workspace = true, features = ["testing"] }

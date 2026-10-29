@@ -12,6 +12,8 @@ pub enum Menu {
     File,
     Edit,
     View,
+    /// Monitor's: what acts on the selected process.
+    Process,
     Go,
     Window,
     Help,
@@ -24,6 +26,7 @@ impl Menu {
             Menu::File => "File".into(),
             Menu::Edit => "Edit".into(),
             Menu::View => "View".into(),
+            Menu::Process => "Process".into(),
             Menu::Go => "Go".into(),
             Menu::Window => "Window".into(),
             Menu::Help => "Help".into(),

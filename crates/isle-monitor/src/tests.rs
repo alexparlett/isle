@@ -21,6 +21,20 @@ fn settle_until(test: &mut TestingRunner, wanted: &str) {
     panic!("never read {wanted:?}: {:?}", labels(test));
 }
 
+/// Starts a copy of `sleep` under `bin`'s name, retrying while another test's fork still
+/// holds the copy open for writing (ETXTBSY).
+fn sleeper(bin: &std::path::Path) -> std::process::Child {
+    std::fs::copy("/usr/bin/sleep", bin).unwrap();
+    for _ in 0..50 {
+        match std::process::Command::new(bin).arg("60").spawn() {
+            Ok(child) => return child,
+            Err(e) if e.raw_os_error() == Some(libc::ETXTBSY) => std::thread::sleep(std::time::Duration::from_millis(20)),
+            Err(e) => panic!("{e}"),
+        }
+    }
+    panic!("{} stayed busy", bin.display());
+}
+
 fn click(test: &mut TestingRunner, caption: &str) {
     let at = test
         .find(|node, element| Label::try_downcast(element).filter(|l| l.text == caption).map(|_| node.layout().area.center()))
@@ -87,8 +101,7 @@ fn a_process_found_by_search_is_quit_through_the_alert() {
     unsafe { std::env::set_var("XDG_STATE_HOME", &state) };
     let bin = state.join("isle-test-sleeper");
     std::fs::create_dir_all(&state).unwrap();
-    std::fs::copy("/usr/bin/sleep", &bin).unwrap();
-    let mut child = std::process::Command::new(&bin).arg("60").spawn().unwrap();
+    let mut child = sleeper(&bin);
     let (mut test, _) = TestingRunner::new(
         || {
             isle_app::provide_for_tests(BTreeMap::new());
@@ -131,8 +144,7 @@ fn inspect_reads_a_process_and_says_when_it_has_ended() {
     let dir = std::env::temp_dir().join(format!("isle-monitor-inspect-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let bin = dir.join("isle-test-inspected");
-    std::fs::copy("/usr/bin/sleep", &bin).unwrap();
-    let mut child = std::process::Command::new(&bin).arg("60").spawn().unwrap();
+    let mut child = sleeper(&bin);
     let pid = child.id() as i32;
     let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
     let start = stat.rsplit_once(')').unwrap().1.split_whitespace().nth(19).unwrap().parse().unwrap();

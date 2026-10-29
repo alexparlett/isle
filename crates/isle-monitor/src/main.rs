@@ -7,6 +7,7 @@ mod history;
 mod inspect;
 mod model;
 mod sampler;
+mod sensors;
 mod state;
 #[cfg(test)]
 mod tests;

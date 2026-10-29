@@ -70,6 +70,9 @@ fn shot() {
         1.,
     );
     settle_until(&mut test, "CPU load");
+    if let Ok(caption) = std::env::var("MONITOR_CLICK") {
+        click(&mut test, &caption);
+    }
     for _ in 0..150 {
         test.sync_and_update();
         std::thread::sleep(std::time::Duration::from_millis(20));

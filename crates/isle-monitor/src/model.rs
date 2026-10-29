@@ -303,6 +303,7 @@ pub fn rows(procs: &[Proc], columns: &[&'static str], filter: Filter, uid: u32, 
         name: p.name.clone(),
         note: p.stopped.then(|| "Stopped".to_owned()),
         cells: cells(p, totals),
+        heading: false,
     };
     if filter != Filter::Hierarchy || !query.trim().is_empty() {
         let mut flat = kept;

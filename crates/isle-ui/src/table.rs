@@ -68,6 +68,8 @@ pub struct Row {
     pub note: Option<String>,
     /// The other columns' cells, in the columns' order.
     pub cells: Vec<Cell>,
+    /// A section's heading over the rows under it: its name alone, not selectable.
+    pub heading: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -441,6 +443,17 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
     let Some(row) = rows.rows.iter().find(|r| r.key == key) else {
         return rect().into_element();
     };
+    if row.heading {
+        return rect()
+            .width(Size::fill())
+            .height(Size::px(t.size_row))
+            .padding((0., t.space_s + t.space_s))
+            .main_align(Alignment::End)
+            .a11y_role(AccessibilityRole::RowHeader)
+            .a11y_alt(row.name.clone())
+            .child(text::line(&theme, text::Style::Subheadline, colour(t.colour_text_2), row.name.clone()).font_weight(600))
+            .into_element();
+    }
     let is_selected = |line: Option<usize>| line.and_then(|l| rows.order.get(l)).is_some_and(|k| rows.selected.contains(k));
     let selected = rows.selected.contains(&key);
     let (above, below) = (is_selected(item.index.checked_sub(1)), is_selected(Some(item.index + 1)));

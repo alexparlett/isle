@@ -100,6 +100,7 @@ fn commands(remembered: &Remembered, gpus: usize, targets: &[Target]) -> Vec<Com
         out.push(c);
     }
     out.push(Command::new("search", "Search", Menu::Edit, 9).chord(Chord::cmd('f')));
+    out.push(Command::new("sensors", "Sensors", Menu::Window, 5));
     out
 }
 
@@ -217,6 +218,10 @@ impl App for Monitor {
                         signal_sheet.set(Some((aimed, 6)));
                         continue;
                     }
+                    "sensors" => {
+                        crate::sensors::open(&commands_app);
+                        continue;
+                    }
                     "inspect" => {
                         if let Some(t) = aimed.first() {
                             crate::inspect::open(&commands_app, t.key, &t.name);
@@ -327,15 +332,15 @@ impl App for Monitor {
             .cross_align(Alignment::Center)
             .spacing(t.space_l)
             .toolbar()
-            .child(rect().width(Size::flex(1.)).child(text::line(&theme, text::Style::Headline, colour(t.colour_text), r.filter.title())))
+            .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), r.filter.title()))
+            .child(rect().width(Size::flex(1.)))
             .child(Segmented::new(segments, resource.index(), "Resource", move |i: usize| remembered.write().resource = Resource::ALL[i]))
+            .child(rect().width(Size::flex(1.)))
             .child(
                 rect()
-                    .width(Size::flex(1.))
                     .horizontal()
-                    .main_align(Alignment::End)
                     .cross_align(Alignment::Center)
-                    .spacing(t.space_l)
+                    .spacing(t.space_s)
                     .child(Button::new("Quit Process").enabled(actions::quittable(&targets)).on_press({
                         let targets = targets.clone();
                         move |_| alert.set(Some(targets.clone()))
@@ -348,13 +353,18 @@ impl App for Monitor {
                             })
                             .child(Button::icon("dots-three-circle", "More")),
                     )
-                    .child(SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 160. }),
+                    .child(SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 140. }),
             );
         let _ = search_focus;
 
         let mut footer_width = use_state(|| 0f32);
+        let lact = use_hook(|| crate::sensors::installed(crate::sensors::LACT));
+        let on_lact = lact.then(|| {
+            let bus = isle_app::session_bus();
+            EventHandler::new(move |_| crate::sensors::launch(bus.clone(), crate::sensors::LACT))
+        });
         let (footer, notes) = match latest.read().as_ref() {
-            Some(sample) => footer_view(&theme, resource, sample, &history.read(), &r, *footer_width.read(), remembered),
+            Some(sample) => footer_view(&theme, resource, sample, &history.read(), &r, *footer_width.read(), remembered, on_lact),
             None => (rect().into_element(), 0),
         };
 
@@ -479,7 +489,7 @@ impl App for Monitor {
 
 /// The footer for `resource`: figures, graph, figures and sensors; for GPU a block a GPU.
 /// With the number of note lines, each of which grows the footer by a row.
-fn footer_view(theme: &isle_tokens::Theme, resource: Resource, sample: &Sample, history: &History, r: &Remembered, width: f32, mut remembered: State<Remembered>) -> (Element, usize) {
+fn footer_view(theme: &isle_tokens::Theme, resource: Resource, sample: &Sample, history: &History, r: &Remembered, width: f32, mut remembered: State<Remembered>, on_lact: Option<EventHandler<()>>) -> (Element, usize) {
     let t = &theme.tokens;
     let inner = (width - 2. * t.space_l).max(0.);
     let c = footer::content(resource, &sample.full, history, theme, r.disk_data, r.network_data);
@@ -493,6 +503,12 @@ fn footer_view(theme: &isle_tokens::Theme, resource: Resource, sample: &Sample, 
             .width(Size::fill())
             .spacing(t.space_s)
             .maybe_child(notes)
+            .maybe_child(on_lact.map(|on| {
+                rect()
+                    .position(Position::new_absolute().right(0.).top(0.))
+                    .child(Button::new("Open LACT").small().on_press(move |_| on.call(())))
+                    .into_element()
+            }))
             .child(
                 rect().horizontal().spacing(t.space_xxl).children(gpus.into_iter().map(|(i, g)| {
                     let values = history.series(|p| p.gpu_busy.get(i).copied().flatten());

@@ -2,6 +2,12 @@
 
 ## 2026-10-29
 
+- 19a.12: the Sensors window (Window › Sensors): every hwmon reading under
+  its device's heading, value, low and high since it opened, sampled while
+  shown, Open CoolerControl when installed; Open LACT on the GPU footer's
+  title line when installed, both launched through the compositor.
+  `isle_ui::table` rows gain section headings. The toolbar now places the
+  switch between flexible spaces, so the trailing group never runs into it.
 - 19a.11: Inspect. `isle_sysinfo::inspect` reads one process (parent,
   user, start, state, nice, threads, command line, and for the user's own
   the executable, working folder, PSS, open files and sockets); the

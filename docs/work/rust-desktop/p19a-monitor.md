@@ -153,8 +153,11 @@ a pid the kernel has since given to something else.
       The Sensors window lists them last.
 11. **CPU package power, where it can be read without root.**
     - RAPL's `energy_uj` when readable, which on the host it is not.
-    - Else the iGPU's PPT, if 19a.0's probe shows it tracks RAPL on the
-      host's APU: then it is the socket's power, not the iGPU's alone.
+    - Else the iGPU's PPT, which on the host's APU is the socket's power,
+      not the iGPU's alone: the probe (2026-10-29) put it within 4% of
+      RAPL at idle and 2% under a game. The host's driver reports it in
+      milliwatts, not hwmon's microwatts, so a PPT reading that would be
+      under a watt is taken as milliwatts, with a test for each scale.
     - Else no CPU row, and the Power graph is the GPUs'.
     - Each GPU's board power comes from NVML, or from amdgpu's PPT on a
       discrete card. A battery comes from UPower (`isle-power`) where
@@ -336,8 +339,7 @@ Each phase ends with its tests passing headless and a line in
 `apps-2026.md` (written with this plan); the roadmap's P19a, P19b and P19c
 entries; `apps.md`'s open points answered by choices 7–9; the two lines
 into `p1/structure/monitor.md` (choice 2). The PPT probe (choice 11) is
-the user's: RAPL's `energy_uj` read as root twice a second apart beside
-`power1_input` under a game and at idle, written into the note.
+done (2026-10-29, `apps-2026.md` §3): PPT tracks RAPL, in milliwatts.
 
 ### 19a.1 · Shown
 
@@ -488,8 +490,8 @@ Then the record:
   last sample, and short bursts may be missed. They are shown as no figure,
   not as zero.
 - **PPT as package power** may not hold on another APU, or under a
-  discrete-only load. Choice 11 shows it only when the probe agrees, and
-  names it "CPU package" only then.
+  discrete-only load. It agreed on the host at idle and under a game;
+  elsewhere it is named "CPU package" only on an APU's amdgpu.
 - **`CPUWeight` on an app's scope** is a step beyond Activity Monitor's
   nice. If it surprises on the host, Priority falls back to nice alone and
   the decision records why.

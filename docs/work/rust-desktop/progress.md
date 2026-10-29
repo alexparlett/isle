@@ -2,6 +2,9 @@
 
 ## 2026-10-29
 
+- The PPT probe on the host: the iGPU's PPT tracks RAPL's package power
+  (+4% idle, +1.6% under a game) and is reported in milliwatts; P19a's
+  choice 11 and `apps-2026.md` §3 follow.
 - P19c planned in `p19c-keychain.md`, for review; the roadmap's entry
   follows.
 - P19b planned in `p19b-cleaner.md`, for review; the roadmap's entry

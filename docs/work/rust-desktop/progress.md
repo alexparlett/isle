@@ -2,6 +2,14 @@
 
 ## 2026-10-29
 
+- 19a.3–19a.4: `isle-sysinfo`'s `gpus` (NVML by PCI slot for NVIDIA, with
+  per-process memory and samples; DRM fdinfo once per client for amdgpu,
+  i915 and xe, busy by nanoseconds or cycles; names from `pci.ids`; an
+  integrated GPU's PPT left to power) and `net` (a hand-rolled
+  `NETLINK_SOCK_DIAG` dump with `tcp_info`'s offsets checked against the
+  host's headers, sockets to the user's processes by fd and to another
+  user's by a cgroup of one, running totals by socket cookie; the footer
+  from `/proc/net/dev`).
 - 19a.2: `isle-sysinfo` gains `procs` (keyed by pid and start time, names
   from `comm` completed when cut, footprint, disk for the user's own),
   `memory` (the footer's split, zram, pressure) and `disks` (whole disks,

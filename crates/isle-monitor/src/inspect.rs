@@ -201,11 +201,9 @@ impl App for Inspect {
             .child(Segmented::new(vec!["General".into(), "Open Files and Ports".into()], *tab.read(), "View", move |i: usize| tab.set(i)))
             .child(
                 rect()
-                    .width(Size::flex(1.))
                     .horizontal()
-                    .main_align(Alignment::End)
                     .cross_align(Alignment::Center)
-                    .spacing(t.space_l)
+                    .spacing(t.space_s)
                     .child(Button::new("Quit Process").enabled(quit_ok).on_press(move |_| alert.set(true)))
                     .maybe_child((*tab.read() == 1).then(|| SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 140. }.into_element())),
             );

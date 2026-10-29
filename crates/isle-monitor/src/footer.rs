@@ -137,7 +137,8 @@ pub fn content(resource: Resource, full: &Full, history: &History, theme: &isle_
                 .collect();
             Shown {
                 notes,
-                leading: vec![figure("Power", Unit::Watts.format(total))],
+                // Nothing readable is left out rather than shown as nought.
+                leading: if trailing.is_empty() { Vec::new() } else { vec![figure("Power", Unit::Watts.format(total))] },
                 leading_choice: None,
                 trailing,
                 trailing_choice: None,

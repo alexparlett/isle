@@ -241,7 +241,13 @@ impl Component for Table {
         let mut shown = use_state(Vec::<u64>::new);
         let anchor = use_state(|| None::<u64>);
         let next: Vec<u64> = self.rows.iter().map(|r| r.key).collect();
-        let held = self.hold || *over.peek() || typed.peek().fresh(Instant::now(), reset);
+        // A sort the user asked for takes effect at once; only a sample's re-sort waits.
+        let mut sorted_by = use_state(|| self.sort);
+        let resorted = *sorted_by.peek() != self.sort;
+        if resorted {
+            sorted_by.set(self.sort);
+        }
+        let held = !resorted && (self.hold || *over.peek() || typed.peek().fresh(Instant::now(), reset));
         let order = if held { held_order(&shown.peek(), &next) } else { next };
         if *shown.peek() != order {
             shown.set(order.clone());

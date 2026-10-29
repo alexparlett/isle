@@ -2,6 +2,22 @@
 
 ## 2026-10-29
 
+- 19a.14, the walk in the VM by real input (QMP pointer and keys), on the
+  session's own compositor: the six resources and their footers; sorting
+  by a header and reversing it; search; a row selected, Quit Process, the
+  alert's Quit, and the process gone; another user's (root's) process
+  bringing Isle's polkit dialog with Monitor's icon and the policy's
+  message, and Cancel leaving it running; the context menu; Inspect by
+  double-click; minimised, Monitor took 0 clock ticks in 30 s against 16
+  in 10 s shown (debug build), and the graph showed the gap on return;
+  ⌘Q quit it. No panics in the journal. Fixed from the walk: a header
+  click while the pointer was over the table did not re-sort (a user's
+  sort now applies at once, only a sample's re-sort waits); Inspect's
+  Quit Process was cut by its toolbar; Energy showed "Power 0 W" where
+  nothing is readable (now left out); the info glyph was not vendored.
+  The shared alert stacks its three buttons, where P1 draws them in a row:
+  the alert component's form, left as it is. The bars that need the host
+  (cold start, idle memory, running cost beside a game) wait for 19a.15.
 - 19a.13: motion and states. The graph's stepped glide and the table's
   re-sort slide (each row from its old place, the selection riding with
   it), both cut under Reduce Motion; a header drag moves a column, its

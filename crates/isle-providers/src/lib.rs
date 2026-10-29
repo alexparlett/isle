@@ -5,6 +5,8 @@ pub mod grant;
 pub mod installed;
 pub mod manifest;
 pub mod proxy;
+#[cfg(feature = "sources")]
+pub mod release;
 pub mod run;
 pub mod sandbox;
 #[cfg(feature = "sources")]

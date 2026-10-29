@@ -669,6 +669,24 @@ async fn yours_checks_pictures_and_starts_a_widget_from_a_template() {
     let info = decoder.read_info().unwrap().info().clone();
     assert_eq!((info.width, info.height), (160, 72), "the 2 × 1 widget, at scale 1");
 
+    // Tag release… from the item's menu by keys: the folder committed and tagged.
+    press(&isle, 15).await;
+    isle.chord(&[42, 68]).await;
+    wait_until(|| async { status(&isle).await["menu"] == "gallery:hello" }).await;
+    press(&isle, 108).await;
+    press(&isle, 108).await;
+    press(&isle, 28).await;
+    wait_until(|| async { status(&isle).await["consent"]["title"] == "Tag “hello widget” v1.0.0?" }).await;
+    press(&isle, 28).await;
+    wait_until(|| async {
+        status(&isle).await["gallery"]["told"]["hello"]
+            == "Tagged v1.0.0. Give it a remote and push the tag, then list it in a source."
+    })
+    .await;
+    let repo = own.join("hello/.git");
+    assert!(repo.join("refs/tags/v1.0.0").is_file() || std::fs::read_to_string(repo.join("packed-refs")).is_ok_and(|r| r.contains("v1.0.0")));
+    assert!(!std::fs::read_dir(repo.join("objects")).unwrap().next().is_none());
+
     test.dashboard_act("gallery-button x new").await.unwrap();
     wait_until(|| async { status(&isle).await["open"] == false }).await;
     let made = own.join("my-widget");

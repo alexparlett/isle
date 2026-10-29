@@ -425,7 +425,7 @@ pub(super) fn consent(theme: &Theme, c: &ConsentView, actions: &Actions) -> Elem
         .cross_align(Alignment::Center)
         .a11y_role(AccessibilityRole::AlertDialog)
         .a11y_alt(c.title.clone())
-        .child(Glyph::new("plug", 48., ink))
+        .child(Glyph::new(c.glyph.clone(), 48., ink))
         .child(text::line(theme, text::Style::Title3, ink, c.title.clone()))
         .maybe_child(c.command.clone().map(|cmd| {
             rect()

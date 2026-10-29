@@ -88,6 +88,14 @@ pub trait SurfaceDef: 'static {
     fn fades(&self) -> bool {
         false
     }
+    /// How it opens and closes.
+    fn style(&self, theme: &isle_tokens::Theme, animated: bool) -> crate::transition::Style {
+        if self.fades() {
+            crate::transition::Style::fading(theme, animated)
+        } else {
+            crate::transition::Style::new(theme, animated)
+        }
+    }
 }
 
 /// The output a surface's instance is on, by name, for a tree drawn on every output.
@@ -254,4 +262,6 @@ pub(crate) struct Instance {
     pub disabled: bool,
     /// The compositor's key for an attached instance.
     pub attached: Option<u64>,
+    /// Each piece's element id while it is drawn in pieces.
+    pub piece_ids: RefCell<Vec<smithay::backend::renderer::element::Id>>,
 }

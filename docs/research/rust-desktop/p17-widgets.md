@@ -69,6 +69,45 @@ Not walked here, for the host run: resizing by an edge or the corner with
 the pointer, Option+Cmd+arrows and Delete by hand, the widget settings
 popover's text field, the Widgets hot corner and the wallpaper's menu by
 pointer (each has a headless test), Reduce Motion, Increase Contrast and the
-largest text size, a second screen, and Update from a source with a new
-commit. The guest's installed package is from 19 October, so Settings must
+largest text size, a second screen, Update from a source with a new
+commit, the motion at full speed, and edit mode's draws on a quiet host. The guest's installed package is from 19 October, so Settings must
 be run from the checkout, or the package rebuilt, to see P17's pages.
+
+## The motion (2026-10-29)
+
+B131. The same bench gains a case on the default layout: edit mode, the
+clock pushed into its row by Cmd+Right and undone by Cmd+Z, twenty times,
+each left 400 ms to settle. Neither surface draws for the flow: the front
+drew about 111 times and the plates 22, one each per push or undo, against
+about 500 front draws when Freya redrew each frame. The surfaces' p95s were
+not taken as a measure. The host was busy throughout (other builds, and the
+running desktop's compositor at 25–98% of a core). In that state the
+selection-move case read 0.79–2.68 ms p95 on unchanged code. The edit-mode
+draws per push read 1.2–4.1 ms p95, and the plates' 1.3–3.8 ms. Edit mode's
+layout-change draws (the gallery's live pictures, every cell) are
+re-measured on a quiet host in the host run.
+
+Tried and dropped on the way:
+
+- **Freya redrawing the moving layout each frame**: the plates' p95 was
+  2.27 ms while flowing.
+- **The moving widgets' plates drawn on the front while they move**: the
+  front's p95 was 2.8 ms, each plate redrawing its shadow's blur.
+- **The pieces with edit mode's cells on the plates surface**: each moving
+  piece carried fragments of the free cells, and left a hole where it had
+  been. This is why the cells have their own surface.
+
+Watched in the VM with the springs slowed through the user's `tokens.kdl`:
+
+- Opening, the plates start from the backdrop's halfway point and scale
+  about their own centres. A first version left one-pixel seams between
+  the pieces as they shrank; each piece now takes in more of the texture
+  round it, and no seam shows.
+- A nudge glides cell to cell.
+- Calendar pushed into the clock: both flow, with the cells showing
+  through the glass and nothing carried.
+- A drag shows the ghost under the lifted widget and drops into place.
+- Closing, the plates shrink and fade, then the backdrop goes.
+
+Not caught in a frame here, for the host run: the drop's landing in flight,
+with its shadow easing out.

@@ -525,8 +525,9 @@ the user's, with what the VM did not walk listed in
 decisions; ARCHITECTURE gains How widgets and providers run; `shell.md`'s
 and `platform.md`'s open points are settled. Differences from the plan:
 
-- **Two surfaces, not one** (choice 6): the plates moved behind to meet
-  bar 5 (B124).
+- **Three surfaces, not one** (choice 6): the plates moved behind to meet
+  bar 5 (B124), and edit mode's cells behind those so the motion's pieces
+  carry none (B131).
 - **The grid's model is in `isle-shell`**, beside Mission Control's, not in
   the compositor (choice 5).
 - **Built-ins' settings use the open section too** (choice 9), from forms
@@ -537,9 +538,15 @@ and `platform.md`'s open points are settled. Differences from the plan:
 - **`isle-provider-init` is a binary of `isle-providers`**, and gix sits
   behind its `sources` feature, so Settings does not build it.
 - **Browse fetches each time it opens**, as P1 says, not only when stale.
-- **Tag release… is not built** (17.14): the user's to keep or cut to P20.
-- **Not yet**: the neighbours' `motion-move` flow and the drop's ease in
-  edit mode (cuts); the plates' scale on opening (the surfaces fade).
+- **Tag release… built after the close** (2026-10-29, the user kept it):
+  from a Yours item's menu, which Shift+F10 or the menu key now opens from
+  the gallery too, through a confirming panel; `isle_providers::release`
+  commits the folder when it changed and tags `v<version>`, and the item's
+  line says what happened and how to push.
+- **The motion by the compositor** (2026-10-29, B131): the plates' scale on
+  opening and closing, the neighbours' flow, the ghost's moves and the
+  drop's landing, by pieces of the surfaces' textures. Opening straight
+  into edit mode fades without the scale.
 
 The registry's providers are on its `isle-2-providers` branch, committed and
 not pushed.

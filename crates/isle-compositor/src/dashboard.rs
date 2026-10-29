@@ -45,10 +45,19 @@ pub struct DashboardState {
     pub surface: Rc<DashboardSurface>,
     /// The plates under the widgets, redrawn only as the layout changes.
     pub plates: Rc<isle_shell::dashboard::surface::PlatesSurface>,
+    /// Edit mode's free cells, under the plates.
+    pub cells: Rc<isle_shell::dashboard::surface::PlatesSurface>,
     pub open: Option<Open>,
     /// The output its backdrop is drawn on, until it has faded out.
     pub shown_on: Option<String>,
     pub backdrop: Motion,
+    /// Closing, the backdrop waits for the plates' halfway point.
+    backdrop_waits: bool,
+    /// What the surfaces open and close in, kept from the last frame for the close.
+    pub pieces: Vec<isle_shell::Piece>,
+    flow: crate::dashboard_flow::Flow,
+    /// What the surfaces are drawn in while widgets flow to their places.
+    pub flowing: Vec<isle_shell::Piece>,
     last_step: Instant,
     tick: Option<RegistrationToken>,
     /// Each mounted volume's use, read on the worker when the dashboard opens.
@@ -153,6 +162,7 @@ const MENU_TRY_AGAIN: u64 = 5;
 const MENU_ADD: u64 = 6;
 const MENU_DETAILS: u64 = 7;
 const MENU_SHOW: u64 = 8;
+const MENU_TAG: u64 = 9;
 const MENU_SIZE: u64 = 100;
 
 /// How far a press travels before it is a drag, in points.
@@ -162,10 +172,15 @@ impl DashboardState {
     pub fn new() -> Self {
         Self {
             surface: DashboardSurface::new(),
-            plates: isle_shell::dashboard::surface::PlatesSurface::new(),
+            plates: isle_shell::dashboard::surface::PlatesSurface::new("dashboard-plates"),
+            cells: isle_shell::dashboard::surface::PlatesSurface::new("dashboard-cells"),
             open: None,
             shown_on: None,
             backdrop: Motion::at(0.0),
+            backdrop_waits: false,
+            pieces: Vec::new(),
+            flow: Default::default(),
+            flowing: Vec::new(),
             last_step: Instant::now(),
             tick: None,
             storage: None,
@@ -286,6 +301,12 @@ impl Isle {
     pub fn dashboard_backdrop(&self, output: &Output) -> Option<f32> {
         (self.dashboard.shown_on.as_deref() == Some(&output.name()))
             .then(|| self.dashboard.backdrop.value().clamp(0.0, 1.0) as f32)
+    }
+
+    /// Its backdrop or its widgets still move.
+    pub fn dashboard_moving(&self) -> bool {
+        let d = &self.dashboard;
+        d.shown_on.is_some() && (d.flow.moving() || !d.backdrop.settled() || d.backdrop_waits)
     }
 
     pub fn dashboard_open_on(&self, output: &Output) -> bool {
@@ -739,10 +760,12 @@ impl Isle {
             id: p.id.clone(),
             x: p.at.0 - p.grab.0,
             y: p.at.1 - p.grab.1,
+            lift: 1.0,
         });
         let ghost = dragging.map(|p| Ghost {
             at: p.ghost,
             refused: p.plan.is_none(),
+            drawn: None,
         });
         let menu = open.menu.as_ref().map(|m| MenuView {
             entries: std::rc::Rc::new(self.dashboard_menu_entries(open, m.on.as_deref())),
@@ -803,6 +826,7 @@ impl Isle {
             let mut entries = vec![item(MENU_ADD, "Add"), item(MENU_DETAILS, "Details")];
             if self.dashboard.providers.get(key).is_some_and(|p| p.source.is_none()) {
                 entries.push(MenuEntry::Separator);
+                entries.push(item(MENU_TAG, "Tag release…"));
                 entries.push(item(MENU_SHOW, "Show in Files"));
             }
             return entries;
@@ -1027,6 +1051,7 @@ impl State {
             self.close_control_centre();
         }
         self.isle.dashboard.providers = crate::providers::scan();
+        self.isle.dashboard.flow.clear();
         let identity = Isle::output_identity(output);
         let extent = self.isle.dashboard_extent(output);
         let layout = self.isle.dashboard_layout(&identity, &extent);
@@ -1050,6 +1075,7 @@ impl State {
         let screen = self.isle.space.output_geometry(output).unwrap_or_default();
         self.isle.dashboard.surface.set_size(screen.size);
         self.isle.dashboard.plates.set_size(screen.size);
+        self.isle.dashboard.cells.set_size(screen.size);
         self.put_dashboard_frame();
         let place = isle_shell::OutputPlace {
             output: output.clone(),
@@ -1070,20 +1096,21 @@ impl State {
             self.focus_keyboard(Some(Focus::Shell(focus)), serial);
         }
         let theme = self.isle.shell.theme().clone();
-        let still = !self.isle.shell.animated()
-            || theme.appearance.reduce_motion
-            || self.isle.game_mode_active();
+        let still = !self.isle.shell.animated() || self.isle.game_mode_active();
         if self.isle.dashboard.shown_on.as_deref() != Some(&output.name()) {
             self.isle.dashboard.backdrop = Motion::at(0.0);
         }
         self.isle.dashboard.shown_on = Some(output.name());
+        self.isle.dashboard.backdrop_waits = false;
         if still {
             self.isle.dashboard.backdrop = Motion::at(1.0);
         } else {
-            self.isle
-                .dashboard
-                .backdrop
-                .fade_to(1.0, Duration::from_millis(theme.tokens.motion_fade_ms as u64));
+            let ms = if theme.appearance.reduce_motion {
+                theme.tokens.motion_reduced_fade_ms
+            } else {
+                theme.tokens.motion_fade_ms
+            };
+            self.isle.dashboard.backdrop.fade_to(1.0, Duration::from_millis(ms as u64));
         }
         self.isle.dashboard.last_step = Instant::now();
         self.arm_dashboard_tick();
@@ -1105,50 +1132,137 @@ impl State {
         }
         self.isle.dashboard.running.clear();
         let theme = self.isle.shell.theme().clone();
-        let still = !self.isle.shell.animated()
-            || theme.appearance.reduce_motion
-            || self.isle.game_mode_active();
+        let still = !self.isle.shell.animated() || self.isle.game_mode_active();
         if still {
             self.isle.dashboard.backdrop = Motion::at(0.0);
             self.isle.dashboard.shown_on = None;
-        } else {
+        } else if theme.appearance.reduce_motion {
+            // Together with the plates.
             self.isle.dashboard.backdrop.fade_to(
                 0.0,
-                Duration::from_millis(theme.tokens.motion_exit_fade_ms as u64),
+                Duration::from_millis(theme.tokens.motion_reduced_fade_ms as u64),
             );
+        } else {
+            self.isle.dashboard.backdrop_waits = true;
         }
         self.isle.dashboard.last_step = Instant::now();
         self.close_surface("dashboard");
         self.isle.shell.close("dashboard-plates");
+        self.isle.shell.close("dashboard-cells");
         self.isle.refresh_island();
         self.isle.queue_redraw_all();
     }
 
     /// Moves the backdrop's fade on; its end on closing stops drawing it.
     pub fn step_dashboard(&mut self, now: Instant) {
+        if self.isle.dashboard.open.is_some() && self.isle.dashboard.flow.moving() {
+            self.isle.dashboard.flow.step(now);
+            if self.isle.dashboard.flow.redraws() {
+                self.put_dashboard_frame();
+            } else {
+                let frame = self.isle.dashboard.surface.frame();
+                self.put_flowing(&frame);
+            }
+        }
         let d = &mut self.isle.dashboard;
         if d.shown_on.is_none() {
             return;
         }
         let dt = now.duration_since(d.last_step).as_secs_f64().min(0.1);
         d.last_step = now;
+        if d.backdrop_waits && self.isle.shell.progress_of("dashboard").is_none_or(|p| p < 0.5) {
+            d.backdrop_waits = false;
+            let ms = self.isle.shell.theme().tokens.motion_exit_fade_ms;
+            d.backdrop.fade_to(0.0, Duration::from_millis(ms as u64));
+        }
         d.backdrop.step(now, dt);
-        if d.open.is_none() && d.backdrop.settled() {
+        if d.open.is_none() && d.backdrop.settled() && !d.backdrop_waits {
             d.shown_on = None;
         }
-        if !d.backdrop.settled() {
+        if !d.backdrop.settled() || d.backdrop_waits {
             self.isle.queue_redraw_all();
         }
     }
 
     pub fn put_dashboard_frame(&mut self) {
-        if let Some(frame) = self.isle.dashboard_frame() {
+        if let Some(mut frame) = self.isle.dashboard_frame() {
+            let theme = self.isle.shell.theme();
+            let animated =
+                self.isle.shell.animated() && !theme.appearance.reduce_motion && !self.isle.game_mode_active();
+            let spring = theme.spring_move();
+            self.isle.dashboard.flow.apply(&mut frame, animated, spring);
+            self.put_flowing(&frame);
             let plates = isle_shell::dashboard::surface::plates_of(&frame);
+            let size = self.isle.dashboard.open.as_ref().and_then(|o| {
+                let output = self.isle.space.outputs().find(|out| out.name() == o.output)?;
+                self.isle.space.output_geometry(output)
+            });
+            if let Some(size) = size.map(|g| g.size) {
+                self.isle.dashboard.pieces = isle_shell::dashboard::surface::pieces(
+                    self.isle.shell.theme(),
+                    &frame,
+                    size.w as f32,
+                    size.h as f32,
+                );
+            }
             self.isle.dashboard.surface.set(frame);
-            self.isle.dashboard.plates.set(plates);
+            let plates_changed = self.isle.dashboard.plates.set(plates);
             self.isle.shell.with_root("dashboard", || {});
-            self.isle.shell.with_root("dashboard-plates", || {});
+            if plates_changed {
+                self.isle.shell.with_root("dashboard-plates", || {});
+            }
             self.isle.queue_redraw_all();
+        }
+    }
+
+    fn put_flowing(&mut self, frame: &Frame) {
+        let offsets = self.isle.dashboard.flow.offsets();
+        let moving: Vec<String> = offsets.iter().map(|(id, _, _)| id.clone()).collect();
+        if self.isle.dashboard.cells.set(isle_shell::dashboard::surface::cells_of(frame, &moving)) {
+            self.isle.shell.with_root("dashboard-cells", || {});
+        }
+        self.put_cells_surface(frame.edit);
+        let size = self.isle.dashboard.open.as_ref().and_then(|o| {
+            let output = self.isle.space.outputs().find(|out| out.name() == o.output)?;
+            self.isle.space.output_geometry(output)
+        });
+        self.isle.dashboard.flowing = match size.map(|g| g.size) {
+            Some(size) if !offsets.is_empty() => isle_shell::dashboard::surface::flow_pieces(
+                self.isle.shell.theme(),
+                frame,
+                size.w as f32,
+                size.h as f32,
+                &offsets,
+            ),
+            _ => Vec::new(),
+        };
+        self.isle.queue_redraw_all();
+    }
+
+    /// The cells' surface is open in edit mode only.
+    fn put_cells_surface(&mut self, edit: bool) {
+        let shown = self.isle.shell.is_open("dashboard-cells");
+        if edit && !shown {
+            let Some(output) = self
+                .isle
+                .dashboard
+                .open
+                .as_ref()
+                .and_then(|o| self.isle.space.outputs().find(|out| out.name() == o.output).cloned())
+            else {
+                return;
+            };
+            let screen = self.isle.space.output_geometry(&output).unwrap_or_default();
+            let place = isle_shell::OutputPlace {
+                scale: output.current_scale().fractional_scale(),
+                output,
+                geometry: screen,
+            };
+            self.isle
+                .shell
+                .open_placed("dashboard-cells", &place, Rectangle::from_size(screen.size));
+        } else if !edit && shown {
+            self.isle.shell.close("dashboard-cells");
         }
     }
 
@@ -1280,7 +1394,7 @@ impl State {
         if mods.ctrl {
             return false;
         }
-        if !mods.cmd && !mods.option && self.gallery_key(sym, code) {
+        if !mods.cmd && !mods.option && self.gallery_key(sym, code, mods.shift) {
             return true;
         }
         let open = self.isle.dashboard.open.as_ref().unwrap();
@@ -1638,6 +1752,7 @@ impl State {
                     match item {
                         MENU_ADD => self.gallery_add(&key),
                         MENU_DETAILS => self.gallery_action(DashboardAction::GalleryDetails(Some(key))),
+                        MENU_TAG => self.ask_tag(&key),
                         MENU_SHOW => {
                             if let Some(folder) = self.isle.dashboard.providers.get(&key).map(|p| p.folder.clone()) {
                                 self.close_dashboard();
@@ -2694,7 +2809,7 @@ impl State {
     }
 
     /// Keys while the gallery has the keyboard; true when taken.
-    fn gallery_key(&mut self, sym: u32, code: u32) -> bool {
+    fn gallery_key(&mut self, sym: u32, code: u32, shift: bool) -> bool {
         use smithay::input::keyboard::keysyms;
         let count = self.gallery_keys().len();
         let Some(g) = self.isle.dashboard.open.as_mut().and_then(|o| o.gallery.as_mut()) else {
@@ -2719,6 +2834,16 @@ impl State {
                     self.gallery_add(&key);
                 }
                 return true;
+            }
+            keysyms::KEY_Menu | keysyms::KEY_F10 if sym == keysyms::KEY_Menu || shift => {
+                let selected = g.selected;
+                let Some(key) = self.gallery_keys().get(selected).cloned() else {
+                    return true;
+                };
+                let open = self.isle.dashboard.open.as_ref().unwrap();
+                let (x, y, w, _) = self.isle.gallery_rect(open);
+                self.isle.dashboard.open.as_mut().unwrap().menu =
+                    Some(Menu { on: Some(format!("gallery:{key}")), at: (x + w / 2.0, y + 48.0), by_key: true });
             }
             keysyms::KEY_space if g.query.is_empty() => {
                 let selected = g.selected;

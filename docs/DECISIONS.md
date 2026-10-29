@@ -1351,8 +1351,9 @@ P17 choices 5–8. The compositor holds the dashboard's model (layout per
 screen, edit mode, drags, menus, the form, the gallery, the consent panel)
 and its keys, as B73 and B113 do for Spotlight and Mission Control; the
 grid's arithmetic is a pure module in `isle-shell`. Two placed Overlay
-surfaces: `dashboard-plates` behind, holding the plates, their shadows and
-edit mode's cells, redrawn only as the layout changes, and `dashboard` in
+surfaces: `dashboard-plates` behind, holding the plates and their shadows
+(edit mode's cells under them on a third, B131), redrawn only as the
+layout changes, and `dashboard` in
 front with the content; the render pass draws the island over them, then
 the lock's wash and the softened wallpaper, and nothing beneath once that
 is opaque. Nothing samples, fetches or runs while it is closed but a
@@ -1394,8 +1395,10 @@ under `~/.cache/isle/widget-sources/`, fetched each time Browse opens, with
 `providers.json` and each `widget.json` read from the fetched tree and an
 install written from it through staging; reqwest 0.13 is shared with gix.
 The registry keeps v1's `index.json` and QML widgets until P21, its six QML
-widgets made built-ins (P17 choice 4). Rejected: the `git` CLI (the plan's
-first choice), and replacing v1's index while v1 is the daily desktop.
+widgets made built-ins (P17 choice 4). Yours' Tag release… commits and
+tags an author's folder through gix as well, so Isle needs no `git`.
+Rejected: the `git` CLI (the plan's first choice), and replacing v1's index
+while v1 is the daily desktop.
 
 **B129 · The layout and a widget's settings are settings.** P17 choice 9.
 `dashboard-output[<identity>].widgets` holds a screen's layout (unset, the
@@ -1407,4 +1410,24 @@ the last data, timers and sources' fetches are the `widgets` state domain.
 samples CPU, memory, network, uptime, temperatures and the GPU (NVML
 loaded at run time, or an amdgpu's sysfs) on the worker while something
 shows them; P19's Monitor builds on it.
+
+**B131 · The dashboard moves by the compositor's pieces of its textures.**
+P1's Motion asks each plate to scale about its own centre on opening and
+closing, and the soft push's neighbours to flow on `motion-move`. The
+surfaces are drawn once at where things land; the compositor draws each
+texture as pieces, one per widget with room for its shadow short of half
+the way to a neighbour, plus the controls' row. Opening and closing, each
+piece scales about its centre, taking in more of the texture as it
+shrinks so no seam opens; the plates wait for the backdrop's halfway
+point and are opaque by their own (`Style::plates`), and closing, the
+backdrop waits for theirs. Flowing, a moving widget's piece is drawn away
+from its place by its spring's offset and the rest of the screen in the
+rectangles left. Edit mode's cells are a third surface, `dashboard-cells`,
+under the plates, which draws the cells under moving widgets too while
+they move, so a piece carries no cells and leaves no hole. The ghost and
+a dropped widget landing, its lifted shadow easing out, are the front
+surface's, which a drag redraws anyway. Rejected: Freya redrawing a
+moving layout each frame (the plates' p95 2.27 ms flowing, over bar 5),
+and moving widgets' plates to the front while they flow (the front's p95
+2.8 ms, each carrying its shadow's blur).
 

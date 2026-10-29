@@ -45,6 +45,7 @@ mod network_secrets;
 mod notifications;
 mod spotlight;
 mod dashboard;
+mod dashboard_flow;
 mod weather;
 mod timer;
 mod providers;

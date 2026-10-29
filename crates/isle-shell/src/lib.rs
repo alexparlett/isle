@@ -70,6 +70,16 @@ smithay::backend::renderer::element::render_elements! {
     Glass = RescaleRenderElement<blur::GlassElement>,
 }
 
+/// A piece of a surface drawn on its own: its rectangle in points from the surface's origin,
+/// whether it scales about its centre as the surface opens and closes, and how far from its
+/// place it is drawn.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Piece {
+    pub rect: Rectangle<f64, Logical>,
+    pub scales: bool,
+    pub offset: (f64, f64),
+}
+
 /// A glass shape of a visible surface, for the compositor to gather what lies behind it.
 #[derive(Clone, Debug)]
 pub struct GlassRegion {
@@ -1112,6 +1122,84 @@ impl Shell {
         self.elements_where(output, &|def| def.name() == name, push);
     }
 
+    /// The surface `name` on `output` in `pieces`, each moved by its offset and, while the
+    /// surface opens or closes, scaled about its own centre if it scales; whole and unscaled
+    /// with no pieces. What lies outside every piece is not drawn. Its glass is not drawn.
+    pub fn pieces_of(&self, output: &Output, name: &str, pieces: &[Piece], push: &mut dyn FnMut(ShellElement)) {
+        let Some(instance) = self
+            .instances
+            .iter()
+            .find(|i| i.visible() && i.attached.is_none() && &i.output == output && i.def.name() == name)
+        else {
+            return;
+        };
+        let Some(target) = &instance.gl else {
+            return;
+        };
+        let alpha = instance.transition.opacity();
+        let location = instance.geometry.loc.to_f64().to_physical(instance.scale);
+        if pieces.is_empty() {
+            let element = element::SurfaceElement::new(
+                location,
+                &target.buffer,
+                target.texture.clone(),
+                instance.geometry.size,
+                alpha,
+                None,
+            );
+            push(ShellElement::Surface(RescaleRenderElement::from_element(
+                element,
+                location.to_i32_round(),
+                1.0,
+            )));
+            return;
+        }
+        let mut ids = instance.piece_ids.borrow_mut();
+        while ids.len() < pieces.len() {
+            ids.push(smithay::backend::renderer::element::Id::new());
+        }
+        let moving = if instance.transition.moving() { instance.transition.scale() } else { 1.0 };
+        let bounds = Rectangle::<f64, Logical>::from_size(instance.geometry.size.to_f64());
+        for (piece, id) in pieces.iter().zip(ids.iter()) {
+            let location = location + Point::<f64, Logical>::from(piece.offset).to_physical(instance.scale);
+            let scale = if piece.scales { moving } else { 1.0 };
+            let centre = piece.rect.loc + piece.rect.size.downscale(2.0).to_point();
+            // Shrinking, a piece takes in more of the texture round it, so its edges stay
+            // where they were and no seam opens between neighbours.
+            let rect = if scale < 1.0 {
+                let grow = piece.rect.size.to_point().downscale(2.0).upscale((1.0 - scale) / scale);
+                Rectangle::new(piece.rect.loc - grow, piece.rect.size + grow.upscale(2.0).to_size())
+                    .intersection(bounds)
+                    .unwrap_or(piece.rect)
+            } else {
+                piece.rect
+            };
+            let element = element::SurfaceElement::piece(
+                location + rect.loc.to_physical(instance.scale),
+                &target.buffer,
+                target.texture.clone(),
+                rect,
+                alpha,
+                id.clone(),
+            );
+            let origin = (location + centre.to_physical(instance.scale)).to_i32_round();
+            push(ShellElement::Surface(RescaleRenderElement::from_element(element, origin, scale)));
+        }
+    }
+
+    /// The surface `name` is opening or closing somewhere.
+    pub fn is_moving(&self, name: &str) -> bool {
+        self.instances.iter().any(|i| i.def.name() == name && i.transition.moving())
+    }
+
+    /// How far the surface `name` is open, 0 to 1, while it is shown anywhere.
+    pub fn progress_of(&self, name: &str) -> Option<f64> {
+        self.instances
+            .iter()
+            .find(|i| i.visible() && i.def.name() == name)
+            .map(|i| i.transition.progress())
+    }
+
     fn elements_where(
         &self,
         output: &Output,
@@ -1474,11 +1562,7 @@ impl Shell {
             instance.opening = open;
             instance.held_keys.clear();
             let animated = self.animated && instance.def.transitions();
-            let style = if instance.def.fades() {
-                transition::Style::fading(&self.theme, animated)
-            } else {
-                transition::Style::new(&self.theme, animated)
-            };
+            let style = instance.def.style(&self.theme, animated);
             if open {
                 instance.transition.open(&style);
             } else {
@@ -1773,6 +1857,7 @@ impl Shell {
             origin: place.geometry.loc,
             disabled: false,
             attached: None,
+            piece_ids: Default::default(),
         };
         self.build(&mut instance);
         instance

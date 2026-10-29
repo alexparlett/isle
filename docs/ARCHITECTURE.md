@@ -894,8 +894,15 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   mode are hit-tested against the model as the divider's are, leaving the
   surface's own controls to Freya.
 - **Drawn as the lock is.** The render pass puts the island and the
-  surface over `material-lock-wash` and the softened wallpaper; once the
-  backdrop is opaque nothing under it is drawn. The island is covered on
+  surfaces (`dashboard`, then `dashboard-plates`, then edit mode's
+  `dashboard-cells`) over `material-lock-wash` and the softened wallpaper;
+  once the backdrop is opaque nothing under it is drawn.
+- **Moved by pieces** (B131). The surfaces are drawn at where things
+  land. Opening and closing, and while the soft push's neighbours flow,
+  the compositor draws each texture as pieces (`Shell::pieces_of`): one
+  per widget, scaled about its own centre or moved by its spring's offset
+  (`dashboard_flow.rs`), so neither Freya surface is redrawn for it. The
+  ghost and a dropped widget landing are the front surface's. The island is covered on
   that screen, so events wait. One overlay at a time is `close_overlays`.
 - **Nothing runs closed.** Opening starts what the placed widgets read:
   volumes' use read on the worker, `isle-sysinfo` sampled every two
@@ -920,7 +927,11 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   `~/.local/share/isle/widgets/` through staging with
   `.isle-install.json`. Installing goes through the consent panel, which
   grants what it declares and allows its source; Settings › Privacy &
-  Security › Providers is the one place grants change after.
+  Security › Providers is the one place grants change after. Yours' Tag
+  release… goes the other way through gitoxide too
+  (`isle_providers::release`): the folder written as a tree, committed
+  when it changed, the index left matching, and the commit tagged
+  `v<version>`.
 
 ## How Isle is installed
 

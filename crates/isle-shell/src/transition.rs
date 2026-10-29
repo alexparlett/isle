@@ -112,6 +112,10 @@ pub struct Transition {
     opacity: Motion,
     scale: Motion,
     last: Instant,
+    /// An opening holds still until then.
+    held: Option<Instant>,
+    /// Alpha reaches 1 at the halfway point: min(1, 2p).
+    quick_alpha: bool,
 }
 
 impl Default for Transition {
@@ -121,6 +125,8 @@ impl Default for Transition {
             opacity: Motion::at(0.0),
             scale: Motion::at(1.0),
             last: Instant::now(),
+            held: None,
+            quick_alpha: false,
         }
     }
 }
@@ -134,6 +140,9 @@ pub struct Style {
     fade: Option<Duration>,
     exit_fade: Option<Duration>,
     animated: bool,
+    /// How long an opening from closed waits before it moves.
+    delay: Duration,
+    quick_alpha: bool,
 }
 
 impl Style {
@@ -148,6 +157,19 @@ impl Style {
                 .then(|| Theme::millis(theme.tokens.motion_reduced_fade_ms)),
             exit_fade: None,
             animated,
+            delay: Duration::ZERO,
+            quick_alpha: false,
+        }
+    }
+
+    /// The dashboard's plates: they start from the backdrop's halfway point and are opaque
+    /// by their own (`surfaces/widgets.md` Motion).
+    pub fn plates(theme: &Theme, animated: bool) -> Self {
+        let full = !theme.appearance.reduce_motion;
+        Self {
+            delay: if full { Theme::millis(theme.tokens.motion_fade_ms) / 2 } else { Duration::ZERO },
+            quick_alpha: full,
+            ..Self::new(theme, animated)
         }
     }
 
@@ -166,15 +188,18 @@ impl Style {
 
 impl Transition {
     pub fn open(&mut self, style: &Style) {
+        self.quick_alpha = style.quick_alpha;
         if matches!(self.phase, Phase::Closed) {
             self.opacity = Motion::at(0.0);
             self.scale = Motion::at(style.from_scale);
+            self.held = (style.animated && !style.delay.is_zero()).then(|| Instant::now() + style.delay);
         }
         self.phase = Phase::Opening;
         self.aim(style, 1.0, 1.0, style.open);
     }
 
     pub fn close(&mut self, style: &Style) {
+        self.held = None;
         self.phase = Phase::Closing;
         let style = Style {
             fade: style.exit_fade.or(style.fade),
@@ -212,6 +237,17 @@ impl Transition {
 
     /// Advances to `now`; true while it still moves.
     pub fn step(&mut self, now: Instant) -> bool {
+        if let Some(held) = self.held {
+            if now < held {
+                self.last = now;
+                return true;
+            }
+            self.held = None;
+            // A fade's clock starts once the hold ends.
+            if let Drive::Fade { start, .. } = &mut self.opacity.drive {
+                *start = now;
+            }
+        }
         let dt = now.duration_since(self.last).as_secs_f64().min(0.1);
         self.last = now;
         if matches!(self.phase, Phase::Opening | Phase::Closing) {
@@ -237,7 +273,13 @@ impl Transition {
     }
 
     pub fn opacity(&self) -> f32 {
-        self.opacity.value.clamp(0.0, 1.0) as f32
+        let p = self.progress();
+        (if self.quick_alpha { (2.0 * p).min(1.0) } else { p }) as f32
+    }
+
+    /// How far it is open, 0 to 1.
+    pub fn progress(&self) -> f64 {
+        self.opacity.value.clamp(0.0, 1.0)
     }
 
     pub fn scale(&self) -> f64 {
@@ -283,6 +325,30 @@ mod tests {
         assert_eq!(t.phase, Phase::Closed);
         assert!(closing < opening, "{closing:?} < {opening:?}");
         assert!(opening < Duration::from_millis(600), "{opening:?}");
+    }
+
+    #[test]
+    fn plates_wait_for_the_backdrop_and_are_opaque_at_their_half() {
+        let theme = theme(false);
+        let style = Style::plates(&theme, true);
+        let mut t = Transition::default();
+        t.open(&style);
+        let start = Instant::now();
+        t.step(start + Theme::millis(theme.tokens.motion_fade_ms) / 4);
+        assert_eq!(t.opacity(), 0.0, "held");
+        let mut now = start + Theme::millis(theme.tokens.motion_fade_ms);
+        while t.progress() < 0.5 {
+            now += Duration::from_millis(7);
+            t.step(now);
+        }
+        assert!(t.opacity() >= 0.99 && t.scale() < 1.0, "{} {}", t.opacity(), t.scale());
+        run(&mut t);
+        assert_eq!((t.opacity(), t.scale()), (1.0, 1.0));
+
+        let mut t = Transition::default();
+        t.open(&Style::plates(&self::theme(true), true));
+        assert_eq!(t.scale(), 1.0);
+        assert!(t.step(Instant::now() + Duration::from_millis(30)) && t.opacity() > 0.0, "no hold");
     }
 
     #[test]

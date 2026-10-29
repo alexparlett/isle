@@ -566,7 +566,10 @@
   index (B128); the layout and widgets' settings in `settings.kdl` (B129);
   Settings › Privacy & Security › Providers. Bar 5 met with the default
   layout and P1's full canvas on 3440×1440. Walked in the VM by real input
-  (`docs/research/rust-desktop/p17-widgets.md`). Open: Tag release… (keep
-  or cut to P20), pushing the registry's `isle-2-providers` branch, and the
-  host run. Next: the host run, then P18.
+  (`docs/research/rust-desktop/p17-widgets.md`). The motion followed
+  (2026-10-29, B131): plates scaling about their own centres, the
+  neighbours' flow and the drop's landing, by the compositor's pieces of
+  the textures; Tag release… through gix. Open: pushing the registry's
+  `isle-2-providers` branch and the host run. Next: the host run, then
+  P18.
 

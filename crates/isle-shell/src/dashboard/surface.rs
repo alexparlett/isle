@@ -181,6 +181,8 @@ pub struct Lifted {
     /// Its top left in points.
     pub x: f32,
     pub y: f32,
+    /// 1 held, toward 0 as it lands: how much of its lifted shadow shows.
+    pub lift: f32,
 }
 
 /// Where a drag or resize will land.
@@ -188,6 +190,8 @@ pub struct Lifted {
 pub struct Ghost {
     pub at: Cells,
     pub refused: bool,
+    /// Its rectangle in points while it moves cell to cell.
+    pub drawn: Option<(f32, f32, f32, f32)>,
 }
 
 /// A menu open on the dashboard: a widget's, a gap's.
@@ -296,6 +300,7 @@ pub struct DetailsView {
 /// (`p1/surfaces/widgets.md` The consent panel).
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConsentView {
+    pub glyph: String,
     pub title: String,
     pub command: Option<String>,
     pub ask: String,
@@ -457,8 +462,8 @@ impl SurfaceDef for DashboardSurface {
         })
     }
 
-    fn fades(&self) -> bool {
-        true
+    fn style(&self, theme: &Theme, animated: bool) -> crate::transition::Style {
+        crate::transition::Style::plates(theme, animated)
     }
 }
 
@@ -545,7 +550,7 @@ impl Component for Root {
         if let Some(l) = &frame.lifted
             && let Some(w) = frame.widgets.iter().find(|w| w.id == l.id)
         {
-            root = root.child(widget(&theme, &frame, w, Some((l.x, l.y)), &actions));
+            root = root.child(widget(&theme, &frame, w, Some((l.x, l.y, l.lift)), &actions));
         }
         if frame.widgets.is_empty() {
             root = root.child(
@@ -618,7 +623,7 @@ fn cells(theme: &Theme, frame: &Frame) -> Element {
 
 fn ghost_view(theme: &Theme, e: &Extent, ghost: Ghost) -> Element {
     let t = &theme.tokens;
-    let (x, y, w, h) = e.rect(ghost.at);
+    let (x, y, w, h) = ghost.drawn.unwrap_or_else(|| e.rect(ghost.at));
     let edge = if ghost.refused { t.colour_danger } else { t.colour_hairline_strong };
     rect()
         .position(Position::new_absolute().left(x).top(y))
@@ -736,12 +741,12 @@ pub(super) fn widget(
     theme: &Theme,
     frame: &Frame,
     w: &WidgetView,
-    lifted: Option<(f32, f32)>,
+    lifted: Option<(f32, f32, f32)>,
     actions: &Actions,
 ) -> Element {
     let t = &theme.tokens;
     let (x, y, width, height) = frame.extent.rect(w.at);
-    let (x, y) = lifted.unwrap_or((x, y));
+    let (x, y) = lifted.map_or((x, y), |(x, y, _)| (x, y));
     let selected = frame.selected.as_deref() == Some(w.id.as_str());
     let place = rect()
         .position(Position::new_absolute().left(x).top(y))
@@ -758,10 +763,16 @@ pub(super) fn widget(
         }
     };
     let place = place
-        .maybe(lifted.is_some(), |el| {
-            el.map(Some(shadows(&t.shadow_panel)), |el, list| {
-                list.into_iter().fold(el, |el, s| el.shadow(s))
-            })
+        .map(lifted.map(|(_, _, lift)| lift), |el, lift| {
+            let list: Vec<_> = t
+                .shadow_panel
+                .iter()
+                .map(|s| isle_tokens::Shadow {
+                    colour: isle_tokens::Colour { a: s.colour.a * lift, ..s.colour },
+                    ..*s
+                })
+                .collect();
+            shadows(&list).into_iter().fold(el, |el, s| el.shadow(s))
         })
         .maybe(frame.edit && matches!(w.body, Body::Empty(_)), |el| {
             el.corner_radius(t.radius_panel).background(colour(t.colour_fill))
@@ -1939,8 +1950,100 @@ fn line_graph(values: &[f64], width: f32, height: f32, c: isle_tokens::Colour, l
     svg_view(svg, width, height, label.cloned().unwrap_or_default())
 }
 
-/// What the back surface draws: each widget's plate, collapsed widgets' extents in edit mode,
-/// and the free cells, all of which change only with the layout.
+/// Each widget's place with room for its shadow, short of half the way to a neighbour or the
+/// gallery, then the controls' row: the pieces the surfaces are drawn in while they open,
+/// close or flow.
+fn places(theme: &Theme, frame: &Frame, width: f32, height: f32) -> Vec<Rectangle<f64, Logical>> {
+    let t = &theme.tokens;
+    let reach = isle_ui::shadow_reach(&t.shadow_menu);
+    let controls_top = height - t.space_xxxl - t.size_control_large;
+    let mut rects: Vec<(f32, f32, f32, f32)> = frame.widgets.iter().map(|w| frame.extent.rect(w.at)).collect();
+    rects.push((0.0, controls_top, width, t.size_control_large));
+    let shown = rects.len();
+    if frame.gallery.is_some() {
+        let top = t.size_strip + t.space_l;
+        rects.push((t.space_l, top, t.size_panel, height - top - t.space_l));
+    }
+    let overlaps = |a: f32, a_len: f32, b: f32, b_len: f32| a < b + b_len + reach && b < a + a_len + reach;
+    rects[..shown]
+        .iter()
+        .enumerate()
+        .map(|(i, &(x, y, w, h))| {
+            let (mut left, mut top, mut right, mut bottom) = (reach, reach, reach, reach);
+            for (j, &(ox, oy, ow, oh)) in rects.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+                if overlaps(y, h, oy, oh) {
+                    if ox >= x + w {
+                        right = right.min((ox - x - w) / 2.0);
+                    } else if ox + ow <= x {
+                        left = left.min((x - ox - ow) / 2.0);
+                    }
+                }
+                if overlaps(x, w, ox, ow) {
+                    if oy >= y + h {
+                        bottom = bottom.min((oy - y - h) / 2.0);
+                    } else if oy + oh <= y {
+                        top = top.min((y - oy - oh) / 2.0);
+                    }
+                }
+            }
+            let (x0, y0) = ((x - left).max(0.0), (y - top).max(0.0));
+            let (x1, y1) = ((x + w + right).min(width), (y + h + bottom).min(height));
+            Rectangle::new((x0 as f64, y0 as f64).into(), ((x1 - x0) as f64, (y1 - y0) as f64).into())
+        })
+        .collect()
+}
+
+/// The pieces both surfaces open and close in (`surfaces/widgets.md` Motion: each plate
+/// scales about its own centre); the controls' row does not scale. None in edit mode or with
+/// no widgets, which open whole.
+pub fn pieces(theme: &Theme, frame: &Frame, width: f32, height: f32) -> Vec<crate::Piece> {
+    if frame.edit || frame.widgets.is_empty() {
+        return Vec::new();
+    }
+    let places = places(theme, frame, width, height);
+    let controls = places.len() - 1;
+    places
+        .into_iter()
+        .enumerate()
+        .map(|(i, rect)| crate::Piece { rect, scales: i != controls, offset: (0.0, 0.0) })
+        .collect()
+}
+
+/// The pieces both surfaces are drawn in while widgets flow to their places, which the
+/// textures already show them at: each moving widget's piece away from its place by its
+/// offset, and the rest of the screen where it is.
+pub fn flow_pieces(
+    theme: &Theme,
+    frame: &Frame,
+    width: f32,
+    height: f32,
+    offsets: &[(String, f64, f64)],
+) -> Vec<crate::Piece> {
+    let places = places(theme, frame, width, height);
+    let moving: Vec<_> = offsets
+        .iter()
+        .filter_map(|(id, dx, dy)| {
+            let i = frame.widgets.iter().position(|w| &w.id == id)?;
+            Some(crate::Piece { rect: places[i], scales: false, offset: (*dx, *dy) })
+        })
+        .collect();
+    if moving.is_empty() {
+        return Vec::new();
+    }
+    let screen = Rectangle::<f64, Logical>::from_size((width as f64, height as f64).into());
+    screen
+        .subtract_rects(moving.iter().map(|p| p.rect))
+        .into_iter()
+        .map(|rect| crate::Piece { rect, scales: false, offset: (0.0, 0.0) })
+        .chain(moving)
+        .collect()
+}
+
+/// What a back surface draws: each widget's plate and collapsed widgets' extents in edit mode,
+/// or edit mode's free cells, all of which change only with the layout.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlatesFrame {
     pub plates: Vec<(f32, f32, f32, f32)>,
@@ -1951,7 +2054,7 @@ pub struct PlatesFrame {
     pub solid: bool,
 }
 
-/// The back surface's frame for `frame`, the lifted widget left to the front.
+/// The plates' frame for `frame`, the lifted widget left to the front.
 pub fn plates_of(frame: &Frame) -> PlatesFrame {
     let lifted = frame.lifted.as_ref().map(|l| l.id.as_str());
     let mut out = PlatesFrame {
@@ -1973,39 +2076,59 @@ pub fn plates_of(frame: &Frame) -> PlatesFrame {
             _ => out.plates.push((x, y, width, height)),
         }
     }
-    if frame.edit {
-        let e = &frame.extent;
-        for y in 0..e.rows {
-            for x in 0..e.cols {
-                if frame.widgets.iter().any(|w| w.at.contains(x, y)) {
-                    continue;
-                }
-                let (px, py, w, _) = e.rect(Cells::new(x, y, 1, 1));
-                out.cells.push((px, py, w));
+    out
+}
+
+/// Edit mode's free cells for `frame`; while widgets in `moving` flow, the cells under them
+/// too, which their pieces leave uncovered.
+pub fn cells_of(frame: &Frame, moving: &[String]) -> PlatesFrame {
+    let mut out = PlatesFrame::default();
+    if !frame.edit {
+        return out;
+    }
+    let e = &frame.extent;
+    for y in 0..e.rows {
+        for x in 0..e.cols {
+            if frame.widgets.iter().any(|w| w.at.contains(x, y) && !moving.contains(&w.id)) {
+                continue;
             }
+            let (px, py, w, _) = e.rect(Cells::new(x, y, 1, 1));
+            out.cells.push((px, py, w));
         }
     }
     out
 }
 
-/// The dashboard's back surface: the plates under the widgets (`p17` 17.15).
-#[derive(Default)]
+/// A back surface of the dashboard: the plates under the widgets (`p17` 17.15), or edit mode's
+/// cells under those.
 pub struct PlatesSurface {
+    name: &'static str,
     frame: Rc<RefCell<PlatesFrame>>,
     state: Rc<RefCell<Option<State<PlatesFrame>>>>,
     size: Cell<SSize<i32, Logical>>,
 }
 
 impl PlatesSurface {
-    pub fn new() -> Rc<Self> {
-        Rc::new(Self::default())
+    /// `dashboard-plates` or `dashboard-cells`.
+    pub fn new(name: &'static str) -> Rc<Self> {
+        Rc::new(Self {
+            name,
+            frame: Default::default(),
+            state: Default::default(),
+            size: Default::default(),
+        })
     }
 
-    pub fn set(&self, frame: PlatesFrame) {
+    /// True when it changed.
+    pub fn set(&self, frame: PlatesFrame) -> bool {
+        if *self.frame.borrow() == frame {
+            return false;
+        }
         *self.frame.borrow_mut() = frame.clone();
         if let Some(mut state) = *self.state.borrow() {
             state.set_if_modified(frame);
         }
+        true
     }
 
     pub fn set_size(&self, size: SSize<i32, Logical>) {
@@ -2015,7 +2138,7 @@ impl PlatesSurface {
 
 impl SurfaceDef for PlatesSurface {
     fn name(&self) -> &'static str {
-        "dashboard-plates"
+        self.name
     }
 
     fn layer(&self) -> Layer {
@@ -2041,8 +2164,13 @@ impl SurfaceDef for PlatesSurface {
         })
     }
 
-    fn fades(&self) -> bool {
-        true
+    fn style(&self, theme: &Theme, animated: bool) -> crate::transition::Style {
+        // The cells come and go with edit mode, in place.
+        if self.name == "dashboard-cells" {
+            crate::transition::Style::fading(theme, animated)
+        } else {
+            crate::transition::Style::plates(theme, animated)
+        }
     }
 
     /// The front surface takes every press.
@@ -2109,5 +2237,52 @@ impl Component for PlatesRoot {
             );
         }
         root
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pieces_hold_their_widgets_and_never_overlap() {
+        let theme = isle_tokens::Source::shipped().theme(&Default::default()).unwrap();
+        let extent = Extent { cols: 20, rows: 10, x: 64.0, y: 60.0, cell: 72.0, gap: 16.0 };
+        let view = |id: &str, at: Cells| WidgetView { id: id.into(), name: id.into(), at, body: Body::Title };
+        let frame = Frame {
+            extent,
+            widgets: vec![
+                view("a", Cells::new(0, 0, 2, 2)),
+                view("b", Cells::new(2, 0, 2, 2)),
+                view("c", Cells::new(4, 2, 2, 2)),
+                view("d", Cells::new(10, 8, 4, 2)),
+            ],
+            ..Default::default()
+        };
+        let all = pieces(&theme, &frame, 1920.0, 1080.0);
+        assert!(pieces(&theme, &Frame { edit: true, ..frame.clone() }, 1920.0, 1080.0).is_empty());
+        let flowing = flow_pieces(&theme, &frame, 1920.0, 1080.0, &[("b".into(), -40.0, 0.0)]);
+        let area: f64 = flowing.iter().filter(|p| p.offset == (0.0, 0.0)).map(|p| p.rect.size.w * p.rect.size.h).sum();
+        let moved = flowing.iter().find(|p| p.offset != (0.0, 0.0)).unwrap();
+        assert_eq!(moved.rect, all[1].rect);
+        assert!((area + moved.rect.size.w * moved.rect.size.h - 1920.0 * 1080.0).abs() < 1e-6, "the rest drawn once");
+        let pieces = all;
+        assert_eq!(pieces.len(), 5);
+        assert_eq!(pieces.iter().filter(|p| !p.scales).count(), 1, "the controls' row stays");
+        for (i, w) in frame.widgets.iter().enumerate() {
+            let (x, y, width, height) = extent.rect(w.at);
+            let r = pieces[i].rect;
+            assert!(r.loc.x <= x as f64 && r.loc.y <= y as f64, "{}", w.id);
+            assert!(r.loc.x + r.size.w >= (x + width) as f64 && r.loc.y + r.size.h >= (y + height) as f64, "{}", w.id);
+        }
+        for (i, a) in pieces.iter().enumerate() {
+            for b in &pieces[i + 1..] {
+                assert!(!a.rect.overlaps(b.rect), "{a:?} {b:?}");
+            }
+        }
+        // Away from neighbours a piece takes the plate's whole shadow.
+        let reach = isle_ui::shadow_reach(&theme.tokens.shadow_menu) as f64;
+        let (dx, _, _, _) = extent.rect(Cells::new(10, 8, 4, 2));
+        assert_eq!(pieces[3].rect.loc.x, dx as f64 - reach);
     }
 }

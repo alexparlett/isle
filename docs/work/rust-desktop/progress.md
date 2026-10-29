@@ -1,5 +1,28 @@
 # Progress
 
+## 2026-10-29
+
+- P17's motion (B131): opening, each plate scales from
+  `motion-panel-scale` about its own centre from the backdrop's halfway
+  point, opaque at its own halfway; closing, the backdrop waits for the
+  plates'. The soft push's neighbours, nudges and undo flow on
+  `motion-move`, the ghost moves cell to cell, and a dropped widget lands
+  from the pointer with its lifted shadow easing out; Reduce Motion and
+  Game Mode cut them. The compositor draws the surfaces' textures as
+  pieces (`Shell::pieces_of`, `dashboard_flow.rs`), so no Freya surface
+  redraws as things move; edit mode's cells are a third surface,
+  `dashboard-cells`. Watched in the VM with the springs slowed through the
+  user's tokens: no seams between scaling pieces, no cells carried. The
+  bench gains the soft push.
+- P17's Tag release…, kept by the user: a Yours item's menu (now opened
+  by Shift+F10 or the menu key from the gallery too) asks with a panel,
+  then `isle_providers::release` writes the folder as a tree through gix
+  (`.git`, `__pycache__`, `.isle-install.json` and the folder's
+  `.gitignore` names left out), commits it when it changed, writes the
+  index to match and tags `v<version>`; a tag already there commits
+  nothing. The item's line says Tagged and how to push. A unit test reads
+  the result back with `git`; the Yours test walks it by keys.
+
 ## 2026-10-28
 
 - P17 17.15, the walk in the VM by real input, and the close's record:

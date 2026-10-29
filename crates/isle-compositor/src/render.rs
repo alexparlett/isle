@@ -302,10 +302,19 @@ impl Isle {
                         .elements_of(output, "island", &mut |e| push(IsleElement::Shell(e)));
                 }
                 if !leave.contains(&"dashboard") {
+                    let pieces: &[isle_shell::Piece] = if !self.dashboard.flowing.is_empty() {
+                        &self.dashboard.flowing
+                    } else if self.shell.is_moving("dashboard") {
+                        &self.dashboard.pieces
+                    } else {
+                        &[]
+                    };
                     self.shell
-                        .elements_of(output, "dashboard", &mut |e| push(IsleElement::Shell(e)));
+                        .pieces_of(output, "dashboard", pieces, &mut |e| push(IsleElement::Shell(e)));
                     self.shell
-                        .elements_of(output, "dashboard-plates", &mut |e| push(IsleElement::Shell(e)));
+                        .pieces_of(output, "dashboard-plates", pieces, &mut |e| push(IsleElement::Shell(e)));
+                    self.shell
+                        .elements_of(output, "dashboard-cells", &mut |e| push(IsleElement::Shell(e)));
                 }
             }
             if from <= Stage::LayerOverlay {
@@ -337,7 +346,7 @@ impl Isle {
         }
         if from <= Stage::ShellOverlay {
             if prompting || dashboard.is_some() {
-                let mut without = vec!["island", "dashboard", "dashboard-plates"];
+                let mut without = vec!["island", "dashboard", "dashboard-plates", "dashboard-cells"];
                 without.extend_from_slice(leave);
                 self.shell.elements_without(
                     output,

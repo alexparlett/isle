@@ -1230,6 +1230,9 @@ async fn dashboard_cost() {
     const RIGHT: u32 = 106;
     const LEFT: u32 = 105;
     const ESC: u32 = 1;
+    const E: u32 = 18;
+    const CMD: u32 = 125;
+    const Z: u32 = 44;
     // P1's full canvas: the default block with the outer columns in use.
     let mut outer = String::from("dashboard-output \"Isle Bench 1\" {\n    widgets \"clock#1 11 6 2 2\" \"calendar#1 13 6 4 2\" \"weather#1 17 6 2 2\" \"media#1 19 6 4 1\" \"storage#1 19 7 4 1\" \"system#1 23 6 2 2\" \"devices#1 25 6 2 1\" \"notifications#1 25 7 2 1\"");
     for (i, (x, y)) in [(0, 0), (0, 2), (0, 4), (0, 8), (0, 10), (34, 0), (34, 2), (34, 4), (34, 8), (34, 10), (2, 0), (32, 0)].iter().enumerate() {
@@ -1276,6 +1279,27 @@ async fn dashboard_cost() {
             first.as_secs_f64() * 1000.0
         );
         test.measure(false).await.unwrap();
+        if what == "default layout" {
+            // Edit mode, the clock pushed into its row and undone: the neighbours flow.
+            tap(&isle, E).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            tap(&isle, RIGHT).await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            test.measure(true).await.unwrap();
+            for i in 0..20 {
+                isle.chord(if i % 2 == 0 { &[CMD, RIGHT] } else { &[CMD, Z] }).await;
+                tokio::time::sleep(Duration::from_millis(400)).await;
+            }
+            let front = surface(&isle, "dashboard").await;
+            report("dashboard, the soft push flowing", &front);
+            let plates = surface(&isle, "dashboard-plates").await;
+            report("dashboard-plates, the soft push flowing", &plates);
+            test.measure(false).await.unwrap();
+            // The compositor moves the neighbours' pieces: each push and undo redraws once.
+            assert!(front.draws < 160 && plates.draws < 60, "the surfaces are not redrawn as they move");
+            tap(&isle, ESC).await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
         tap(&isle, ESC).await;
         tokio::time::sleep(Duration::from_secs(3)).await;
         let left: Vec<String> = children(pid).into_iter().filter(|c| c == "bwrap" || c.starts_with("xdg-dbus")).collect();

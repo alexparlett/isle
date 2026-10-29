@@ -47,6 +47,8 @@ pub enum Asking {
     AllowSource { url: String, id: String },
     /// The user's own provider's declared permissions.
     AllowOwn { id: String },
+    /// Yours' Tag release…: the provider's folder committed and tagged.
+    Tag { id: String },
 }
 
 #[derive(Clone, Debug)]
@@ -116,6 +118,7 @@ impl Isle {
         let source_line = |url: &str| Some(format!("From {}", crate::dashboard::source_name(url)));
         match &c.asking {
             Asking::Install { url, listing, new_source } => ConsentView {
+                glyph: "plug".into(),
                 title: format!("Install “{}”?", listing.manifest.name),
                 command: Some(listing.manifest.command()),
                 ask: "It asks to:".into(),
@@ -128,6 +131,7 @@ impl Isle {
                 armed: c.armed,
             },
             Asking::Update { url, listing } => ConsentView {
+                glyph: "plug".into(),
                 title: format!("Update “{}”?", listing.manifest.name),
                 command: Some(listing.manifest.command()),
                 ask: format!("“{}” now asks to:", listing.manifest.name),
@@ -140,6 +144,7 @@ impl Isle {
             Asking::AllowSource { url, id } => {
                 let name = self.provider_of(id).map_or(id.clone(), |p| p.manifest.name.clone());
                 ConsentView {
+                    glyph: "plug".into(),
                     title: format!("Allow “{name}” to run?"),
                     command: self.provider_of(id).map(|p| p.manifest.command()),
                     ask: "It asks to:".into(),
@@ -156,6 +161,7 @@ impl Isle {
             Asking::AllowOwn { id } => {
                 let name = self.provider_of(id).map_or(id.clone(), |p| p.manifest.name.clone());
                 ConsentView {
+                    glyph: "plug".into(),
                     title: format!("Allow “{name}” to:"),
                     command: self.provider_of(id).map(|p| p.manifest.command()),
                     ask: String::new(),
@@ -163,6 +169,24 @@ impl Isle {
                     source: None,
                     also: None,
                     confirm: "Allow".into(),
+                    armed: c.armed,
+                }
+            }
+            Asking::Tag { id } => {
+                let (name, version) = self
+                    .provider_of(id)
+                    .map_or((id.clone(), String::new()), |p| (p.manifest.name.clone(), p.manifest.version.clone()));
+                ConsentView {
+                    glyph: "tag".into(),
+                    title: format!("Tag “{name}” v{version}?"),
+                    command: None,
+                    ask: String::new(),
+                    permissions: Vec::new(),
+                    source: None,
+                    also: Some(format!(
+                        "Everything in its folder is committed, and the commit tagged v{version} for a source to list."
+                    )),
+                    confirm: "Tag".into(),
                     armed: c.armed,
                 }
             }
@@ -264,10 +288,12 @@ impl State {
         let Some(open) = self.isle.dashboard.open.as_mut() else {
             return;
         };
+        // Tagging grants nothing, so it need not wait to arm.
+        let armed = matches!(asking, Asking::Tag { .. });
         open.consent = Some(Consent {
             asking,
             permissions,
-            armed: false,
+            armed,
         });
         let arm = Duration::from_millis(self.isle.shell.theme().tokens.timing_prompt_arm_ms as u64);
         let _ = self.isle.loop_handle.insert_source(
@@ -373,6 +399,52 @@ impl State {
         });
     }
 
+    /// Asks before tagging the user's own provider `id`; one with no release version is told so.
+    pub fn ask_tag(&mut self, id: &str) {
+        let Some(p) = self.isle.provider_of(id).filter(|p| p.source.is_none()) else {
+            return;
+        };
+        if !isle_providers::release::is_release_version(&p.manifest.version) {
+            self.tell(id, "Set a version like 1.0.0 first".into());
+            return;
+        }
+        self.consent(Asking::Tag { id: id.to_owned() }, Vec::new());
+    }
+
+    fn tag_release(&mut self, id: &str) {
+        let (Some(runtime), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone()) else {
+            return;
+        };
+        let Some(p) = self.isle.provider_of(id).cloned() else {
+            return;
+        };
+        let id = id.to_owned();
+        runtime.spawn_blocking(move || {
+            let said = match isle_providers::release::tag_release(&p.folder, &p.manifest.version) {
+                Ok(isle_providers::release::Tagged::New { tag, remote: Some(_) }) => {
+                    format!("Tagged {tag}. Push it: git push origin {tag}")
+                }
+                Ok(isle_providers::release::Tagged::New { tag, remote: None }) => {
+                    format!("Tagged {tag}. Give it a remote and push the tag, then list it in a source.")
+                }
+                Ok(isle_providers::release::Tagged::Already { tag }) => {
+                    format!("{tag} is already tagged. Change its version for a new release.")
+                }
+                Err(e) => e,
+            };
+            tracing::info!(id, said, "tag release");
+            to_loop.post(move |state| state.tell(&id, said));
+        });
+    }
+
+    /// What Yours' tools last said of `id`, on its item.
+    pub fn tell(&mut self, id: &str, said: String) {
+        if let Some(g) = self.isle.dashboard.open.as_mut().and_then(|o| o.gallery.as_mut()) {
+            g.told.insert(id.to_owned(), said);
+        }
+        self.put_dashboard_frame();
+    }
+
     pub fn remove_provider(&mut self, id: &str) {
         let root = crate::providers::installed_folder();
         if let Err(e) = sources::remove(&root, id) {
@@ -406,6 +478,7 @@ impl State {
                     self.grant(&id, &c.permissions);
                 }
                 Asking::AllowOwn { id } => self.grant(&id, &c.permissions),
+                Asking::Tag { id } => self.tag_release(&id),
             }
         }
         self.put_dashboard_frame();

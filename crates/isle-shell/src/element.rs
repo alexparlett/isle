@@ -52,6 +52,8 @@ pub struct SurfaceElement {
     inner: TextureRenderElement<GlesTexture>,
     texture: GlesTexture,
     clip: Option<(GlesTexProgram, [f32; 4])>,
+    /// A piece of the texture is its own element to the damage tracker.
+    id: Option<Id>,
 }
 
 impl SurfaceElement {
@@ -76,13 +78,39 @@ impl SurfaceElement {
             inner,
             texture,
             clip: clip.filter(|(_, radii)| radii.iter().any(|r| *r > 0.0)),
+            id: None,
+        }
+    }
+
+    /// The part `src` of a surface's texture, in points from its origin, unclipped.
+    pub fn piece(
+        location: Point<f64, Physical>,
+        buffer: &TextureRenderBuffer<GlesTexture>,
+        texture: GlesTexture,
+        src: Rectangle<f64, Logical>,
+        alpha: f32,
+        id: Id,
+    ) -> Self {
+        let inner = TextureRenderElement::from_texture_render_buffer(
+            location,
+            buffer,
+            Some(alpha),
+            Some(src),
+            Some(src.size.to_i32_round()),
+            Kind::Unspecified,
+        );
+        Self {
+            inner,
+            texture,
+            clip: None,
+            id: Some(id),
         }
     }
 }
 
 impl Element for SurfaceElement {
     fn id(&self) -> &Id {
-        self.inner.id()
+        self.id.as_ref().unwrap_or_else(|| self.inner.id())
     }
 
     fn current_commit(&self) -> CommitCounter {

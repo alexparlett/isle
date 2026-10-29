@@ -472,6 +472,7 @@ impl Isle {
         let dashboard = crate::dashboard::DashboardState::new();
         shell.register(dashboard.surface.clone());
         shell.register(dashboard.plates.clone());
+        shell.register(dashboard.cells.clone());
         let identify = isle_shell::identify::IdentifySurface::new();
         shell.register(identify.clone());
         let capture_readout = isle_shell::capture::readout::ReadoutSurface::new();

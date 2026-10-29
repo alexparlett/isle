@@ -4597,6 +4597,7 @@ dependencies = [
  "isle-tokens",
  "isle-ui",
  "jiff",
+ "libc",
  "serde",
  "tokio",
  "tracing",
@@ -4674,6 +4675,14 @@ dependencies = [
  "notify",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "isle-process-helper"
+version = "0.1.0"
+dependencies = [
+ "isle-sysinfo",
+ "libc",
 ]
 
 [[package]]

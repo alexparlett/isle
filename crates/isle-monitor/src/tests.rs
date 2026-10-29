@@ -76,3 +76,49 @@ fn shot() {
     }
     test.render_to_file(std::path::PathBuf::from(path));
 }
+
+#[test]
+fn a_process_found_by_search_is_quit_through_the_alert() {
+    let state = std::env::temp_dir().join(format!("isle-monitor-quit-{}", std::process::id()));
+    // SAFETY: set before any thread of this test reads the environment.
+    unsafe { std::env::set_var("XDG_STATE_HOME", &state) };
+    let bin = state.join("isle-test-sleeper");
+    std::fs::create_dir_all(&state).unwrap();
+    std::fs::copy("/usr/bin/sleep", &bin).unwrap();
+    let mut child = std::process::Command::new(&bin).arg("60").spawn().unwrap();
+    let (mut test, _) = TestingRunner::new(
+        || {
+            isle_app::provide_for_tests(BTreeMap::new());
+            crate::window::Monitor.render().into_element()
+        },
+        (1040., 680.).into(),
+        |_| {},
+        1.,
+    );
+    settle_until(&mut test, "CPU load");
+    // The search field sits at the toolbar's trailing end.
+    test.click_cursor((950., 26.));
+    test.write_text("isle-test-sleeper");
+    settle_until(&mut test, "isle-test-sleeper");
+    click(&mut test, "isle-test-sleeper");
+    for _ in 0..4 {
+        test.sync_and_update();
+    }
+    click(&mut test, "Quit Process");
+    settle_until(&mut test, "Quit “isle-test-sleeper”?");
+    click(&mut test, "Quit");
+    for _ in 0..100 {
+        test.sync_and_update();
+        if child.try_wait().unwrap().is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    use std::os::unix::process::ExitStatusExt;
+    let status = child.try_wait().unwrap();
+    if status.is_none() {
+        let _ = child.kill();
+    }
+    assert_eq!(status.and_then(|s| s.signal()), Some(libc::SIGTERM));
+    let _ = std::fs::remove_dir_all(&state);
+}

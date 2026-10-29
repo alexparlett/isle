@@ -1,5 +1,7 @@
 //! Monitor: Activity Monitor for Isle (`docs/design/apps.md` Monitor).
 
+mod act;
+mod actions;
 mod footer;
 mod history;
 mod model;

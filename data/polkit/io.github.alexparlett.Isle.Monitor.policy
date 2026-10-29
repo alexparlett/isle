@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Monitor acting on another user's process, or raising a priority (p19a-monitor.md choice 19). -->
+<policyconfig>
+  <vendor>Isle</vendor>
+  <icon_name>utilities-system-monitor</icon_name>
+
+  <action id="io.github.alexparlett.Isle.Monitor.signal">
+    <description>Quit, stop or signal another user's process</description>
+    <message>Monitor wants to quit, stop or signal a process that belongs to another user.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/isle/isle-process-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">signal</annotate>
+  </action>
+
+  <action id="io.github.alexparlett.Isle.Monitor.priority">
+    <description>Change a process's priority</description>
+    <message>Monitor wants to change the priority of a process.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/isle/isle-process-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">nice</annotate>
+  </action>
+</policyconfig>

@@ -19,6 +19,8 @@ use isle_ui::{
 };
 
 use crate::{
+    act::{Act, Priority},
+    actions::{self, Target},
     footer,
     history::History,
     model::{self, Filter, Resource},
@@ -59,8 +61,21 @@ fn sort_of(remembered: &Remembered, resource: Resource, columns: &[&'static str]
         .unwrap_or(fallback)
 }
 
-fn commands(remembered: &Remembered, gpus: usize) -> Vec<Command> {
+fn commands(remembered: &Remembered, gpus: usize, targets: &[Target]) -> Vec<Command> {
     let mut out = Vec::new();
+    let quittable = actions::quittable(targets);
+    let stopped = !targets.is_empty() && targets.iter().all(|t| t.stopped);
+    out.push(Command::new("quit-process", "Quit Process", Menu::Process, 1).chord(Chord::cmd('q').option()).enabled(quittable));
+    out.push(match stopped {
+        true => Command::new("continue", "Continue", Menu::Process, 2).enabled(quittable),
+        false => Command::new("stop", "Stop", Menu::Process, 2).enabled(quittable),
+    });
+    for (i, p) in Priority::ALL.iter().enumerate() {
+        let mut c = Command::new(format!("priority:{i}"), p.label(), Menu::Process, 2).enabled(quittable);
+        c.submenu = Some("Priority".into());
+        out.push(c);
+    }
+    out.push(Command::new("send-signal", "Send Signal to Process…", Menu::Process, 2).enabled(quittable));
     for (i, r) in Resource::ALL.iter().enumerate() {
         let digit = char::from(b'1' + i as u8);
         out.push(
@@ -143,17 +158,56 @@ impl App for Monitor {
         });
 
         let gpus = latest.read().as_ref().map_or(0, |s| s.full.gpus.len());
-        isle_app::use_commands(commands(&remembered.read(), gpus));
         let query = use_state(String::new);
         let mut selected = use_state(Vec::<u64>::new);
+        let targets = actions::targets(latest.read().as_ref(), &selected.read());
+        isle_app::use_commands(commands(&remembered.read(), gpus, &targets));
+        let mut alert = use_state(|| None::<Vec<Target>>);
+        let mut signal_sheet = use_state(|| None::<(Vec<Target>, usize)>);
+        let mut menu = use_state(|| None::<((f32, f32), bool)>);
+        let app = use_consume::<isle_app::AppHandle>();
+        let act_on = {
+            let (worker, bus) = (isle_app::worker(), isle_app::session_bus());
+            Rc::new(move |targets: Vec<Target>, act: Act| {
+                for t in targets {
+                    worker.spawn(crate::act::run(bus.clone(), t.key, t.cgroup.clone(), act));
+                }
+            })
+        };
         let mut open = use_state(BTreeSet::<u64>::new);
         let mut search_focus = use_state(|| 0u64);
-        use_side_effect(move || {
+        use_side_effect({
+            let act_on = act_on.clone();
+            move || {
             if desktop.commands.read().is_empty() {
                 return;
             }
             let mut queue = desktop.commands;
             for id in std::mem::take(&mut *queue.write()) {
+                let aimed = actions::targets(latest.peek().as_ref(), &selected.peek());
+                match id.as_str() {
+                    "quit-process" if actions::quittable(&aimed) => {
+                        alert.set(Some(aimed));
+                        continue;
+                    }
+                    "stop" => {
+                        act_on(aimed, Act::Signal(libc::SIGSTOP));
+                        continue;
+                    }
+                    "continue" => {
+                        act_on(aimed, Act::Signal(libc::SIGCONT));
+                        continue;
+                    }
+                    "send-signal" if actions::quittable(&aimed) => {
+                        signal_sheet.set(Some((aimed, 6)));
+                        continue;
+                    }
+                    _ => {}
+                }
+                if let Some(i) = id.strip_prefix("priority:").and_then(|i| i.parse::<usize>().ok()) {
+                    act_on(aimed, Act::Priority(Priority::ALL[i.min(4)]));
+                    continue;
+                }
                 let mut r = remembered.write();
                 if let Some(i) = id.strip_prefix("resource:").and_then(|i| i.parse::<usize>().ok()) {
                     r.resource = Resource::ALL[i.min(5)];
@@ -177,6 +231,7 @@ impl App for Monitor {
                     drop(r);
                     *search_focus.write() += 1;
                 }
+            }
             }
         });
 
@@ -212,7 +267,7 @@ impl App for Monitor {
             sort,
             selected: Rc::new(selected.read().clone()),
             focused: true,
-            hold: false,
+            hold: alert.read().is_some() || menu.read().is_some() || signal_sheet.read().is_some(),
             on_event: EventHandler::new(move |e: TableEvent| match e {
                 TableEvent::Selected(keys) => selected.set(keys),
                 TableEvent::Sort(s) => {
@@ -229,6 +284,7 @@ impl App for Monitor {
                         o.remove(&key);
                     }
                 }
+                TableEvent::Menu(Some(_), at) => menu.set(Some((at, true))),
                 _ => {}
             }),
             controller,
@@ -253,7 +309,18 @@ impl App for Monitor {
                     .main_align(Alignment::End)
                     .cross_align(Alignment::Center)
                     .spacing(t.space_l)
-                    .child(Button::new("Quit Process").enabled(false))
+                    .child(Button::new("Quit Process").enabled(actions::quittable(&targets)).on_press({
+                        let targets = targets.clone();
+                        move |_| alert.set(Some(targets.clone()))
+                    }))
+                    .child(
+                        rect()
+                            .on_mouse_down(move |e: Event<MouseEventData>| {
+                                e.stop_propagation();
+                                menu.set(Some(((e.global_location.x as f32, e.global_location.y as f32 + 12.), false)));
+                            })
+                            .child(Button::icon("dots-three-circle", "More")),
+                    )
                     .child(SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 160. }),
             );
         let _ = search_focus;
@@ -263,6 +330,82 @@ impl App for Monitor {
             Some(sample) => footer_view(&theme, resource, sample, &history.read(), &r, *footer_width.read(), remembered),
             None => (rect().into_element(), 0),
         };
+
+        let overlay_menu = (*menu.read()).map(|(at, with_quit)| {
+            let aimed = targets.clone();
+            let act_on = act_on.clone();
+            let app = app.clone();
+            isle_ui::ContextMenu::new(actions::entries(&aimed, with_quit), at, move |event: isle_ui::MenuEvent| match event {
+                isle_ui::MenuEvent::Chosen(id) => {
+                    menu.set(None);
+                    match id {
+                        actions::QUIT => act_on(aimed.clone(), Act::Signal(libc::SIGTERM)),
+                        actions::FORCE_QUIT => act_on(aimed.clone(), Act::Signal(libc::SIGKILL)),
+                        actions::STOP => act_on(aimed.clone(), Act::Signal(libc::SIGSTOP)),
+                        actions::CONTINUE => act_on(aimed.clone(), Act::Signal(libc::SIGCONT)),
+                        actions::SEND_SIGNAL => signal_sheet.set(Some((aimed.clone(), 6))),
+                        actions::COPY => {
+                            if let Some(data) = app.data() {
+                                let bytes = actions::copied(&aimed).into_bytes();
+                                data.set_selection(vec![("text/plain;charset=utf-8".into(), bytes.clone()), ("text/plain".into(), bytes)]);
+                            }
+                        }
+                        p if p >= actions::PRIORITY => act_on(aimed.clone(), Act::Priority(Priority::ALL[((p - actions::PRIORITY) as usize).min(4)])),
+                        _ => {}
+                    }
+                }
+                isle_ui::MenuEvent::Back => menu.set(None),
+                _ => {}
+            })
+            .into_element()
+        });
+        let overlay_alert = alert.read().clone().map(|aimed| {
+            let (quit, force, cancel) = (act_on.clone(), act_on.clone(), aimed.clone());
+            let _ = cancel;
+            let (a1, a2) = (aimed.clone(), aimed.clone());
+            isle_ui::alert(
+                &actions::quit_title(&aimed),
+                "",
+                Vec::new(),
+                vec![
+                    isle_ui::AlertButton::destructive("Force Quit", EventHandler::new(move |_| {
+                        alert.set(None);
+                        force(a1.clone(), Act::Signal(libc::SIGKILL));
+                    })),
+                    isle_ui::AlertButton::from(("Cancel".to_owned(), EventHandler::new(move |_| alert.set(None)))),
+                    isle_ui::AlertButton::from(("Quit".to_owned(), EventHandler::new(move |_| {
+                        alert.set(None);
+                        quit(a2.clone(), Act::Signal(libc::SIGTERM));
+                    }))),
+                ],
+            )
+        });
+        let overlay_sheet = signal_sheet.read().clone().map(|(aimed, chosen)| {
+            let send = act_on.clone();
+            let names: Vec<String> = isle_sysinfo::act::SIGNALS.iter().map(|(n, _)| (*n).to_owned()).collect();
+            let picked = aimed.clone();
+            isle_ui::sheet(
+                360.,
+                vec![
+                    text::line(&theme, text::Style::Headline, colour(t.colour_text), "Send Signal to Process").into_element(),
+                    isle_ui::form::PopUp::new(names, chosen, "Signal", move |i: usize| {
+                        let mut s = signal_sheet.write();
+                        if let Some((_, c)) = s.as_mut() {
+                            *c = i;
+                        }
+                    })
+                    .into_element(),
+                ],
+                vec![
+                    ("Cancel".into(), EventHandler::new(move |_| signal_sheet.set(None))),
+                    ("Send".into(), EventHandler::new(move |_| {
+                        let signal = isle_sysinfo::act::SIGNALS[chosen.min(9)].1;
+                        signal_sheet.set(None);
+                        send(picked.clone(), Act::Signal(signal));
+                    })),
+                ],
+            )
+        });
 
         rect()
             .expanded()
@@ -296,6 +439,9 @@ impl App for Monitor {
                     .on_sized(move |e: Event<SizedEventData>| footer_width.set_if_modified(e.area.width()))
                     .child(footer),
             )
+            .maybe_child(overlay_menu)
+            .maybe_child(overlay_alert)
+            .maybe_child(overlay_sheet)
     }
 }
 

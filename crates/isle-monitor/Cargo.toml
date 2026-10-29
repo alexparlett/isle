@@ -18,6 +18,7 @@ isle-sysinfo.workspace = true
 isle-tokens.workspace = true
 isle-ui.workspace = true
 jiff.workspace = true
+libc.workspace = true
 serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true

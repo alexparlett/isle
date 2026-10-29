@@ -2,6 +2,18 @@
 
 ## 2026-10-29
 
+- 19a.10: acting. `isle_sysinfo::act` signals through a pidfd opened
+  before the start time is checked and renices every thread; Monitor acts
+  directly, and on EPERM runs `isle-process-helper` through pkexec under
+  `io.github.alexparlett.Isle.Monitor.policy` (signal and priority,
+  `auth_admin_keep`, told apart by `exec.argv1`). The helper refuses pid 1,
+  Isle's compositor and session, a user's systemd manager and its own
+  callers. Priority sets the app scope's `CPUWeight` when the process leads
+  it. The Quit alert (Force Quit, Cancel, Quit), the Process menu with
+  ⌥⌘Q, More, the row's context menu with Copy, the Send Signal sheet; the
+  table holds its order while any is open; Quit is disabled for the
+  session's own. Tests signal and renice a child, refuse a changed start
+  time, and quit a process found by search through the alert headless.
 - 19a.9: `isle-monitor`, the window: the toolbar (the filter's name, the
   six-segment resource switch, Quit Process, search), the table from a pure
   model (each resource's columns, the five filters, the hierarchy with its

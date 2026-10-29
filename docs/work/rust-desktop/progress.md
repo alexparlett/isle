@@ -2,6 +2,14 @@
 
 ## 2026-10-29
 
+- P19c planned in `p19c-keychain.md`, for review; the roadmap's entry
+  follows.
+- P19b planned in `p19b-cleaner.md`, for review; the roadmap's entry
+  follows.
+- P19 split into P19a Monitor, P19b Cleaner and P19c Keychain at the
+  user's choice; P18 skipped. Research for all three in
+  `docs/research/rust-desktop/apps-2026.md`; P19a planned in
+  `p19a-monitor.md`, for review; the roadmap gains the three briefs.
 - P17's motion (B131): opening, each plate scales from
   `motion-panel-scale` about its own centre from the backdrop's halfway
   point, opaque at its own halfway; closing, the backdrop waits for the

@@ -244,7 +244,50 @@ shown. Brief: pad detection and naming, batteries in Control Centre,
 Settings › Controllers, idle held off by pad play (a hold on P9's idle
 policy). Intent: gaming.md, apps.md.
 
-**P19 · Monitor, Keychain, Cleaner.** Intent: apps.md.
+**P19 · Monitor, Keychain, Cleaner.** Split 2026-10-29 at the user's
+choice into three packets, each planned, walked and closed before the
+next: Monitor first, on `isle-sysinfo`; Cleaner on `isle-fs`; Keychain
+last. Research for all three in `apps-2026.md`. P18 was set aside before
+it.
+
+**P19a · Monitor.** Planned 2026-10-29, for review: `p19a-monitor.md`.
+Activity Monitor's table by six resources over `isle-sysinfo`'s new
+readers: processes keyed by pid and start time, memory as footprint,
+disks, both GPUs (NVML, and DRM fdinfo with sysfs), TCP per process
+through sock_diag with UDP's absence said, hwmon sensors, power without
+root, Energy impact as a relative number, sleep holds from logind and the
+compositor. Sampling only while shown, the compositor marking a covered or
+locked window suspended and `isle_titlebar_v1` telling the app. Signals
+through pidfds, another user's process through a pkexec helper under
+Isle's own policy, priority with the app scope's `CPUWeight`. Inspect, the
+Sensors window (cuttable), a table and a graph shared in `isle-ui`; the
+`monitor` shortcut and the System widget's click. Intent: apps.md
+Monitor.
+
+**P19b · Cleaner.** Planned 2026-10-29, for review: `p19b-cleaner.md`.
+`isle-scan`, a crate P20's Storage page reuses: a walk hand-rolled on
+`rustix` (folders kept, allocated blocks, links once, mounts crossed by the
+mount table, never `.snapshots`), v1's kinds, the rules as KDL with v1's
+groups recut to P1's cards and Steam's libraries from `isle-games`,
+duplicates by size, ends and BLAKE3 on idle I/O with FIEMAP's sharing.
+The basket through `isle-fs`'s jobs, checked again before moving, with
+one undo; the system's share through `isle-clean-helper`'s four fixed
+subcommands under Isle's own policy; Untouched honest on `noatime`
+disks; P19a's table, the treemap Cleaner's own. Intent: apps.md Cleaner.
+
+**P19c · Keychain.** Planned 2026-10-29, for review: `p19c-keychain.md`.
+`isle-secrets`, a crate P20's vault and Spotlight's `*` scope reuse: the
+Secret Service through `oo7::dbus` on an encrypted session, lists without
+secrets and one fetch per click, kinds by schema in code, Wi-Fi from
+NetworkManager's saved networks by where each keeps its password, SSH keys
+by `ssh-key` with the agent read past gcr's proxy and keys added in
+process, the generator. The reveal gate is Isle's own polkit action at
+`auth_self`, its grant held by Keychain and ended by idle and the lock.
+Copies are marked, withdrawn and kept alive past ⌘Q until withdrawn;
+Shell1 gains `Copied` for the island. A Secret Service fake with tests
+that nothing is fetched and no canary leaks. Logins built as P1 draws
+them though the host's keyring holds app secrets only. Intent: apps.md
+Keychain.
 
 **P20 · The rest of v1.** Settings' remaining pages (General's Software
 Update, Storage, Passwords, Date & Time, Language & Region, Login Items and

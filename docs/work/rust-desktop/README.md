@@ -31,5 +31,8 @@ one at a time.
   Stage Manager.
 - `p15b-files.md`: P15b, Files, finished.
 - `p17-widgets.md`: P17, widgets, providers and the gallery.
-- `p18-controllers.md`: P18, controllers.
+- `p18-controllers.md`: P18, controllers, set aside.
+- `p19a-monitor.md`: P19a, Monitor.
+- `p19b-cleaner.md`: P19b, Cleaner.
+- `p19c-keychain.md`: P19c, Keychain.
 - Evidence: `docs/research/rust-desktop/`.

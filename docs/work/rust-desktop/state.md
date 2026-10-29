@@ -582,3 +582,27 @@
   joystick nodes, the keyboard's receiver is tagged a joystick, and the
   host's Steam Controller is seen only as Steam Input's pad, with no
   battery outside Steam. Phases 18.0–18.9.
+- P18 skipped (2026-10-29, the user's choice): not useful now; its plan
+  stays as written.
+- P19 split into three packets (2026-10-29, the user's choice): P19a
+  Monitor, P19b Cleaner, P19c Keychain, in that order. Research for all
+  three in `docs/research/rust-desktop/apps-2026.md`. P19a planned in
+  `p19a-monitor.md`, for review: `isle-sysinfo`'s new readers, both GPUs
+  by NVML and fdinfo, TCP per process by sock_diag with UDP said, sampling
+  only while shown (covered and locked windows suspended, `shown` on
+  `isle_titlebar_v1` v3), signals through pidfds and a pkexec helper,
+  priority with `CPUWeight`, a shared table and graph in `isle-ui`; no
+  gate. Phases 19a.0–19a.15. Open: the PPT-against-RAPL probe on the host,
+  the user's.
+- P19b planned in `p19b-cleaner.md` (2026-10-29), for review: `isle-scan`
+  (walk, kinds, rules, duplicates) shared with P20's Storage page, the walk
+  hand-rolled on `rustix`, rules as KDL, the basket through `isle-fs` with
+  a check before moving, `isle-clean-helper` for the system's share,
+  Untouched by the later of access and change on `noatime` disks; no gate.
+  Phases 19b.0–19b.13.
+- P19c planned in `p19c-keychain.md` (2026-10-29), for review:
+  `isle-secrets` (Secret Service, kinds, Wi-Fi, SSH and the agent, the
+  generator, the gate) shared with P20's vault and `*` scope; the gate at
+  `auth_self` with Keychain holding the grant, not `auth_self_keep`;
+  copies withdrawn with the process kept until then; Logins built though
+  the host has none; no gate, three copy lines. Phases 19c.0–19c.13.

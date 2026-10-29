@@ -2,6 +2,15 @@
 
 ## 2026-10-29
 
+- 19a.7: `isle_ui::table`: columns sorted and resized from the header,
+  figures in JetBrains Mono, stripes and joined selection runs, ⌘ and ⇧
+  clicks, arrows, Home and End, Return, type-select by
+  `timing-type-select-ms`, disclosure by caret and Left/Right, menus, rows
+  built only where they show, and the order held while the pointer is over
+  the table, a key is fresh or the owner holds it, new rows placed after
+  their neighbour so a child stays under its parent. Pure parts unit
+  tested; headless tests for 500 rows, selection and the held order.
+  Dragging a column to a new place comes with its motion in 19a.13.
 - 19a.6: `WindowInfo.pid`; `Session1.Holds()` and `HoldsChanged` list the
   idle-inhibit surfaces, ScreenSaver Inhibits (their pid from the bus) and
   portal Inhibits (no pid, their app); the `monitor` shortcut and the

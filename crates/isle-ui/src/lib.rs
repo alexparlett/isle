@@ -9,6 +9,7 @@ pub mod menu;
 pub mod search;
 pub mod sheet;
 pub mod slider;
+pub mod table;
 pub mod text;
 mod text_field;
 
@@ -26,6 +27,7 @@ pub use menu::{ContextMenu, Menu, MenuEntry, MenuEvent, MenuItem};
 pub use search::SearchField;
 pub use sheet::{AlertButton, Popover, alert, alert_text, alert_under, set_alert_icon, sheet};
 pub use slider::Slider;
+pub use table::{Table, TableEvent};
 pub use text_field::TextField;
 
 /// The theme every tree reads; a change re-renders whoever read it.

@@ -1,5 +1,5 @@
-//! Whole disks' reads and writes from `/proc/diskstats`, with each drive's temperature where
-//! its hwmon has one (`p19a-monitor.md` choice 6).
+//! Whole disks' reads and writes from `/proc/diskstats`, with each drive's temperature from
+//! its hwmon's reading (`p19a-monitor.md` choice 6).
 
 use std::{collections::HashMap, fs, path::PathBuf, time::Instant};
 
@@ -29,6 +29,8 @@ pub struct Disks {
     /// Reads, sectors read, writes and sectors written by disk, and when.
     last: HashMap<String, [u64; 4]>,
     at: Option<Instant>,
+    /// Each disk's model and hwmon folder, read once.
+    known: HashMap<String, (String, Option<String>)>,
 }
 
 impl Disks {
@@ -37,10 +39,12 @@ impl Disks {
             root: root.to_owned(),
             last: HashMap::new(),
             at: None,
+            known: HashMap::new(),
         }
     }
 
-    pub fn sample(&mut self) -> Vec<Disk> {
+    /// `sensors` are this sample's hwmon readings, which hold each drive's temperature.
+    pub fn sample(&mut self, sensors: &[crate::sensors::Sensor]) -> Vec<Disk> {
         let now = Instant::now();
         let secs = self.at.map(|at| now.duration_since(at).as_secs_f64()).filter(|s| *s > 0.0);
         let stats = fs::read_to_string(self.root.join("proc/diskstats")).unwrap_or_default();
@@ -55,12 +59,21 @@ impl Disks {
             }
             let num = |i: usize| f.get(i).and_then(|v| v.parse::<u64>().ok()).unwrap_or(0);
             let now_counts = [num(3), num(5), num(7), num(9)];
+            let root = self.root.clone();
+            let (model, hwmon) = self.known.entry(name.to_owned()).or_insert_with(|| {
+                let model = fs::read_to_string(root.join(format!("sys/block/{name}/device/model")))
+                    .map(|m| m.trim().to_owned())
+                    .unwrap_or_default();
+                (model, hwmon(&root, name))
+            });
+            let temperature = hwmon.as_ref().and_then(|h| {
+                let id = format!("{h}/temp1");
+                sensors.iter().find(|s| s.id == id).map(|s| s.value)
+            });
             let mut disk = Disk {
                 name: name.to_owned(),
-                model: fs::read_to_string(self.root.join(format!("sys/block/{name}/device/model")))
-                    .map(|m| m.trim().to_owned())
-                    .unwrap_or_default(),
-                temperature: self.temperature(name),
+                model: model.clone(),
+                temperature,
                 ..Default::default()
             };
             if let (Some(secs), Some(last)) = (secs, self.last.get(name)) {
@@ -78,16 +91,15 @@ impl Disks {
         out
     }
 
-    fn temperature(&self, name: &str) -> Option<f32> {
-        let device = self.root.join(format!("sys/block/{name}/device"));
-        fs::read_dir(&device)
-            .ok()?
-            .flatten()
-            .filter(|e| e.file_name().to_string_lossy().starts_with("hwmon"))
-            .find_map(|e| fs::read_to_string(e.path().join("temp1_input")).ok())
-            .and_then(|t| t.trim().parse::<f32>().ok())
-            .map(|m| m / 1000.0)
-    }
+}
+
+/// The hwmon folder of a disk's device, as `hwmon0`.
+fn hwmon(root: &std::path::Path, name: &str) -> Option<String> {
+    fs::read_dir(root.join(format!("sys/block/{name}/device")))
+        .ok()?
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .find(|n| n.starts_with("hwmon"))
 }
 
 #[cfg(test)]
@@ -109,18 +121,26 @@ mod tests {
     fn whole_disks_only_with_rates_and_temperature() {
         let tree = Tree::new("disks");
         tree.write("sys/block/nvme0n1/device/model", "WD_BLACK SN850X 1000GB\n")
-            .write("sys/block/nvme0n1/device/hwmon0/temp1_input", "41850\n")
+            .write("sys/block/nvme0n1/device/hwmon0/name", "nvme\n")
             .write("sys/block/zram0/size", "1\n");
+        let sensors = [crate::sensors::Sensor {
+            id: "hwmon0/temp1".into(),
+            chip: "nvme".into(),
+            group: "Storage".into(),
+            label: "Composite".into(),
+            kind: crate::sensors::Kind::Temperature,
+            value: 41.85,
+        }];
         stats(&tree, 100, 1000);
         let mut disks = super::Disks::new(tree.path());
-        let first = disks.sample();
+        let first = disks.sample(&sensors);
         assert_eq!(first.len(), 1, "{first:?}");
         assert_eq!(first[0].model, "WD_BLACK SN850X 1000GB");
         assert_eq!(first[0].temperature, Some(41.85));
         assert_eq!(first[0].reads, 0.0);
         std::thread::sleep(std::time::Duration::from_millis(100));
         stats(&tree, 200, 3000);
-        let second = &disks.sample()[0];
+        let second = &disks.sample(&sensors)[0];
         assert!(second.reads > 0.0 && second.read_bytes > 0);
         assert_eq!(second.writes, 0.0);
     }

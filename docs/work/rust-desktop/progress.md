@@ -2,6 +2,17 @@
 
 ## 2026-10-29
 
+- 19a.5: `sensors` (every hwmon reading, labelled by a small table; chips
+  slow to read, the NVMe drives at 11 ms, the SPD hubs at 2 ms and the
+  Super I/O's once-a-second refresh at 7 ms, are read on a helper thread
+  only when a sample finds them old), `power` (RAPL when readable, else the
+  APU's PPT in either unit; energy impact) and `monitor`, the whole sample
+  with its cost by reader. logind's inhibitors move to the app (19a.9),
+  which has the bus. The host's full sample of 553 processes went from 78
+  to 11–12 ms at p50, 12–16 ms at p95 with NVML the tail: one fd scan
+  shared by GPUs and network, stale scans spread over samples, a process's
+  name, arguments and cgroup read once, no `status` for kernel threads and
+  no `io` for others' processes.
 - 19a.3–19a.4: `isle-sysinfo`'s `gpus` (NVML by PCI slot for NVIDIA, with
   per-process memory and samples; DRM fdinfo once per client for amdgpu,
   i915 and xe, busy by nanoseconds or cycles; names from `pci.ids`; an

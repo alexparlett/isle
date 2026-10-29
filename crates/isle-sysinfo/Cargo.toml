@@ -11,4 +11,5 @@ nvml-wrapper = "0.13"
 serde.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 isle-fakes.workspace = true

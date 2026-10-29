@@ -83,8 +83,8 @@ impl Gpus {
         }
     }
 
-    /// The GPUs and each process's use; `own` are the pids whose fdinfo can be read.
-    pub fn sample(&mut self, own: &[i32]) -> (Vec<Gpu>, Vec<GpuUse>) {
+    /// The GPUs and each process's use; `drm` are the user's processes' DRM descriptors.
+    pub fn sample(&mut self, drm: &[(i32, String)]) -> (Vec<Gpu>, Vec<GpuUse>) {
         let now = Instant::now();
         let secs = self.at.map(|at| now.duration_since(at).as_secs_f64()).filter(|s| *s > 0.0);
         let mut gpus = self.devices();
@@ -97,7 +97,7 @@ impl Gpus {
                 self.sysfs(gpu);
             }
         }
-        let clients = self.clients(own);
+        let clients = self.clients(drm);
         let mut seen = HashMap::new();
         for ((slot, id), (pid, client)) in clients {
             let Some(index) = gpus.iter().position(|g| g.slot == slot && g.backend == Backend::Fdinfo) else {
@@ -219,26 +219,17 @@ impl Gpus {
         // An integrated GPU has no fan of its own and its hwmon's PPT is the package's.
         gpu.integrated = gpu.fan.is_none() && fs::metadata(hwmon.join("fan1_input")).is_err();
         if !gpu.integrated {
-            gpu.power = read("power1_average").or_else(|| read("power1_input")).map(|uw| uw as f32 / 1e6);
+            gpu.power = read("power1_average").or_else(|| read("power1_input")).map(|raw| crate::sensors::power_watts(raw as f64));
         }
     }
 
-    /// Every DRM client of `own`'s processes, once per device and client id.
-    fn clients(&self, own: &[i32]) -> HashMap<(String, u64), (i32, Client)> {
+    /// Every DRM client of the descriptors, once per device and client id.
+    fn clients(&self, drm: &[(i32, String)]) -> HashMap<(String, u64), (i32, Client)> {
         let mut out = HashMap::new();
-        for pid in own {
-            let fds = self.root.join(format!("proc/{pid}/fd"));
-            let Ok(dir) = fs::read_dir(&fds) else { continue };
-            for entry in dir.flatten() {
-                let Ok(target) = fs::read_link(entry.path()) else { continue };
-                if !target.starts_with("/dev/dri/") {
-                    continue;
-                }
-                let info = self.root.join(format!("proc/{pid}/fdinfo")).join(entry.file_name());
-                let Ok(text) = fs::read_to_string(info) else { continue };
-                if let Some((slot, id, client)) = parse_fdinfo(&text) {
-                    out.entry((slot, id)).or_insert((*pid, client));
-                }
+        for (pid, fd) in drm {
+            let Ok(text) = fs::read_to_string(self.root.join(format!("proc/{pid}/fdinfo/{fd}"))) else { continue };
+            if let Some((slot, id, client)) = parse_fdinfo(&text) {
+                out.entry((slot, id)).or_insert((*pid, client));
             }
         }
         out
@@ -402,7 +393,7 @@ mod tests {
             .write("proc/500/fdinfo/8", &fdinfo(77, 1_000_000_000))
             .write("proc/500/fdinfo/9", "pos:\t0\n");
         let mut gpus = Gpus::new(tree.path(), None);
-        let (found, uses) = gpus.sample(&[500]);
+        let (found, uses) = gpus.sample(&crate::fds::scan(tree.path(), &[500]).drm);
         let names: Vec<&str> = found.iter().map(|g| g.name.as_str()).collect();
         assert_eq!(names, ["GPU 1af4:1050", "Radeon 610M"]);
         assert_eq!(found[0].backend, Backend::None);
@@ -419,7 +410,7 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(100));
         tree.write("proc/500/fdinfo/7", &fdinfo(77, 1_050_000_000))
             .write("proc/500/fdinfo/8", &fdinfo(77, 1_050_000_000));
-        let (_, uses) = gpus.sample(&[500]);
+        let (_, uses) = gpus.sample(&crate::fds::scan(tree.path(), &[500]).drm);
         let busy = uses[0].busy.unwrap();
         assert!(busy > 0.1 && busy <= 0.5, "{busy}");
     }

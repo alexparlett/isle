@@ -51,12 +51,23 @@ struct Last {
     ticks: u64,
     disk: Option<(u64, u64)>,
     switches: u64,
+    /// Its name, arguments and cgroup, read once.
+    fixed: Fixed,
+}
+
+#[derive(Clone)]
+struct Fixed {
+    name: String,
+    cmdline: Vec<String>,
+    cgroup: String,
 }
 
 /// Reads every process, keeping each one's counters for the next sample's rates.
 pub struct Procs {
     root: PathBuf,
     ticks: f64,
+    /// The user's id: only their processes' `io` can be read.
+    uid: u32,
     last: HashMap<Key, Last>,
     at: Option<Instant>,
 }
@@ -66,6 +77,8 @@ impl Procs {
         Self {
             root: root.to_owned(),
             ticks: clock_ticks(),
+            // SAFETY: getuid cannot fail.
+            uid: unsafe { libc::getuid() },
             last: HashMap::new(),
             at: None,
         }
@@ -84,7 +97,7 @@ impl Procs {
             let Some(pid) = entry.file_name().to_str().and_then(|n| n.parse::<i32>().ok()) else {
                 continue;
             };
-            let Some((mut process, ticks, switches)) = read(&entry.path(), pid, self.ticks) else {
+            let Some((mut process, ticks, switches, fixed)) = read(&entry.path(), pid, self.ticks, self.uid, &self.last) else {
                 continue;
             };
             let key = process.key.unwrap();
@@ -104,6 +117,7 @@ impl Procs {
                     ticks,
                     disk: process.disk,
                     switches,
+                    fixed,
                 },
             );
             out.push(process);
@@ -115,8 +129,9 @@ impl Procs {
     }
 }
 
-/// One process, with its CPU ticks and context switches for the rates; none once it is gone.
-fn read(dir: &std::path::Path, pid: i32, hz: f64) -> Option<(Process, u64, u64)> {
+/// One process, with its CPU ticks and context switches for the rates and what does not
+/// change; none once it is gone. `known` holds what an earlier sample read.
+fn read(dir: &std::path::Path, pid: i32, hz: f64, own: u32, known: &HashMap<Key, Last>) -> Option<(Process, u64, u64, Fixed)> {
     let stat = fs::read_to_string(dir.join("stat")).ok()?;
     // `comm` may hold spaces and brackets, so the fields start after its last bracket.
     let (head, rest) = stat.rsplit_once(')')?;
@@ -126,7 +141,8 @@ fn read(dir: &std::path::Path, pid: i32, hz: f64) -> Option<(Process, u64, u64)>
     let state = f.first()?.chars().next().unwrap_or('?');
     let kernel_thread = num(6) & 0x0020_0000 != 0;
     let ticks = num(11) + num(12);
-    let status = fs::read_to_string(dir.join("status")).unwrap_or_default();
+    // A kernel thread has no memory or user to read, so its `status` is skipped.
+    let status = if kernel_thread { String::new() } else { fs::read_to_string(dir.join("status")).unwrap_or_default() };
     let field = |name: &str| {
         status
             .lines()
@@ -135,13 +151,32 @@ fn read(dir: &std::path::Path, pid: i32, hz: f64) -> Option<(Process, u64, u64)>
             .and_then(|v| v.parse::<u64>().ok())
     };
     let kb = |name: &str| field(name).unwrap_or(0) * 1024;
-    let cmdline: Vec<String> = fs::read(dir.join("cmdline"))
-        .unwrap_or_default()
-        .split(|b| *b == 0)
-        .filter(|a| !a.is_empty())
-        .map(|a| String::from_utf8_lossy(a).into_owned())
-        .collect();
-    let disk = fs::read_to_string(dir.join("io")).ok().map(|io| {
+    let key = Key { pid, start: num(19) };
+    let fixed = match known.get(&key) {
+        Some(last) => last.fixed.clone(),
+        None => {
+            let cmdline: Vec<String> = fs::read(dir.join("cmdline"))
+                .unwrap_or_default()
+                .split(|b| *b == 0)
+                .filter(|a| !a.is_empty())
+                .map(|a| String::from_utf8_lossy(a).into_owned())
+                .collect();
+            let cgroup = fs::read_to_string(dir.join("cgroup"))
+                .unwrap_or_default()
+                .lines()
+                .find_map(|l| l.strip_prefix("0::"))
+                .unwrap_or_default()
+                .to_owned();
+            Fixed {
+                name: name(&comm, &cmdline, kernel_thread),
+                cmdline,
+                cgroup,
+            }
+        }
+    };
+    let uid = field("Uid:").unwrap_or(0) as u32;
+    // `io` needs ptrace access: only the user's own processes are tried.
+    let disk = (uid == own && !kernel_thread).then(|| fs::read_to_string(dir.join("io")).ok()).flatten().map(|io| {
         let get = |name: &str| {
             io.lines()
                 .find_map(|l| l.strip_prefix(name))
@@ -150,17 +185,11 @@ fn read(dir: &std::path::Path, pid: i32, hz: f64) -> Option<(Process, u64, u64)>
         };
         (get("read_bytes:"), get("write_bytes:"))
     });
-    let cgroup = fs::read_to_string(dir.join("cgroup"))
-        .unwrap_or_default()
-        .lines()
-        .find_map(|l| l.strip_prefix("0::"))
-        .unwrap_or_default()
-        .to_owned();
     let process = Process {
-        key: Some(Key { pid, start: num(19) }),
+        key: Some(key),
         ppid: num(1) as i32,
-        name: name(&comm, &cmdline, kernel_thread),
-        uid: field("Uid:").unwrap_or(0) as u32,
+        name: fixed.name.clone(),
+        uid,
         state,
         threads: num(17) as u32,
         kernel_thread,
@@ -170,11 +199,11 @@ fn read(dir: &std::path::Path, pid: i32, hz: f64) -> Option<(Process, u64, u64)>
         disk,
         disk_rate: None,
         switches: 0.0,
-        cgroup,
-        cmdline,
+        cgroup: fixed.cgroup.clone(),
+        cmdline: fixed.cmdline.clone(),
     };
     let switches = field("voluntary_ctxt_switches:").unwrap_or(0) + field("nonvoluntary_ctxt_switches:").unwrap_or(0);
-    Some((process, ticks, switches))
+    Some((process, ticks, switches, fixed))
 }
 
 /// `comm`, which the kernel cuts at 15 bytes: a cut one is completed from the first
@@ -222,6 +251,7 @@ mod tests {
         };
         tree.process(&p);
         let mut procs = Procs::new(tree.path());
+        procs.uid = 1000;
         let first = procs.sample();
         assert_eq!(first.len(), 1);
         let one = &first[0];

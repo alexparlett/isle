@@ -206,10 +206,9 @@ impl Net {
         }
     }
 
-    /// Each process's totals. `own` are the user's processes, whose fds name their sockets;
-    /// `cgroups` is every process's cgroup path, for another user's sockets.
-    pub fn sample(&mut self, sockets: &[Socket], own: &[i32], cgroups: &[(i32, String)]) -> Vec<NetUse> {
-        let owners = self.owners(own);
+    /// Each process's totals. `owners` are the user's processes' sockets by inode; `cgroups`
+    /// is every process's cgroup path, for another user's sockets.
+    pub fn sample(&mut self, sockets: &[Socket], owners: &HashMap<u32, i32>, cgroups: &[(i32, String)]) -> Vec<NetUse> {
         let by_cgroup = self.sole_by_cgroup(cgroups);
         let mut seen = HashMap::new();
         for s in sockets {
@@ -231,22 +230,6 @@ impl Net {
         self.totals.retain(|pid, _| alive.contains(pid));
         let mut out: Vec<NetUse> = self.totals.values().cloned().collect();
         out.sort_by_key(|u| u.pid);
-        out
-    }
-
-    /// Socket inodes to the user's processes holding them.
-    fn owners(&self, own: &[i32]) -> HashMap<u32, i32> {
-        let mut out = HashMap::new();
-        for pid in own {
-            let Ok(dir) = fs::read_dir(self.root.join(format!("proc/{pid}/fd"))) else { continue };
-            for entry in dir.flatten() {
-                let Ok(target) = fs::read_link(entry.path()) else { continue };
-                let target = target.to_string_lossy();
-                if let Some(inode) = target.strip_prefix("socket:[").and_then(|t| t.strip_suffix(']')).and_then(|t| t.parse().ok()) {
-                    out.entry(inode).or_insert(*pid);
-                }
-            }
-        }
         out
     }
 
@@ -291,7 +274,7 @@ mod tests {
             (702, "/system.slice/shared.service".to_owned()),
         ];
         let mut net = Net::new(tree.path());
-        let uses = net.sample(&[socket(1, 1, 0, sole, 900), socket(2, 2, 0, shared, 50)], &[], &cgroups);
+        let uses = net.sample(&[socket(1, 1, 0, sole, 900), socket(2, 2, 0, shared, 50)], &HashMap::new(), &cgroups);
         assert_eq!(uses.len(), 1, "{uses:?}");
         assert_eq!((uses[0].pid, uses[0].received), (700, 900));
     }
@@ -328,13 +311,14 @@ mod tests {
 
         let pid = std::process::id() as i32;
         let mut net = Net::new(std::path::Path::new("/"));
-        let uses = net.sample(&sockets, &[pid], &[(pid, String::new())]);
+        let owners = crate::fds::scan(std::path::Path::new("/"), &[pid]).sockets;
+        let uses = net.sample(&sockets, &owners, &[(pid, String::new())]);
         let me = uses.iter().find(|u| u.pid == pid).expect("this process's use");
         assert!(me.sent >= 5000 && me.received >= 5000, "{me:?}");
 
         client.write_all(&[1u8; 1000]).unwrap();
         server.read_exact(&mut got[..1000]).unwrap();
-        let again = net.sample(&tcp_sockets().unwrap(), &[pid], &[(pid, String::new())]);
+        let again = net.sample(&tcp_sockets().unwrap(), &owners, &[(pid, String::new())]);
         let me2 = again.iter().find(|u| u.pid == pid).unwrap();
         assert_eq!(me2.sent - me.sent, 1000, "only what moved since the last sample is added");
     }

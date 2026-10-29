@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use freya::prelude::*;
+use freya::{animation::*, prelude::*};
 
 use crate::{Glyph, colour, text, use_theme};
 
@@ -225,6 +225,10 @@ struct Rows {
     focused: bool,
     on_event: EventHandler<TableEvent>,
     anchor: State<Option<u64>>,
+    /// Each moving row's distance from its old place, and how much of it is left, 1 to 0.
+    moves: Rc<std::collections::HashMap<u64, f32>>,
+    slide: f32,
+    contrast: bool,
 }
 
 impl Component for Table {
@@ -242,11 +246,39 @@ impl Component for Table {
         if *shown.peek() != order {
             shown.set(order.clone());
         }
+        // A re-sort slides each row from its old place to its new one; held, or under
+        // Reduce Motion, rows take their places at once.
+        let reduced = theme.appearance.reduce_motion;
+        let mut last = use_state(Vec::<u64>::new);
+        let mut moves = use_state(|| Rc::new(std::collections::HashMap::<u64, f32>::new()));
+        let mut slide = use_animation(|_| AnimNum::new(1.0, 0.0).time(240).function(Function::Cubic));
+        let row_height = t.size_row;
+        use_side_effect_with_deps(&order, move |order: &Vec<u64>| {
+            let old = last.peek().clone();
+            last.set(order.clone());
+            if reduced || old.is_empty() {
+                return;
+            }
+            let at: std::collections::HashMap<u64, usize> = old.iter().enumerate().map(|(i, k)| (*k, i)).collect();
+            let from: std::collections::HashMap<u64, f32> = order
+                .iter()
+                .enumerate()
+                .filter_map(|(i, k)| Some((*k, (*at.get(k)? as f32 - i as f32) * row_height)))
+                .filter(|(_, d)| *d != 0.0)
+                .collect();
+            if !from.is_empty() {
+                moves.set(Rc::new(from));
+                slide.start();
+            }
+        });
         let order = Rc::new(order);
 
         let on_event = self.on_event.clone();
         let sort = self.sort;
         let mut resizing = use_state(|| None::<(&'static str, f32, f64, f32)>);
+        // A title dragged to a new place: its column, where the press began, whether it moved.
+        let mut dragging = use_state(|| None::<(&'static str, f64, bool)>);
+        let mut areas = use_state(Vec::<(&'static str, f32, f32)>::new);
         let gap = t.space_l;
         let header_cells = self.columns.iter().enumerate().map(|(i, column)| {
             let sorted = column.id == sort.column;
@@ -256,6 +288,7 @@ impl Component for Table {
                 _ => column.width,
             };
             let (id, on_sort) = (column.id, on_event.clone());
+            let lifted = matches!(*dragging.read(), Some((d, _, true)) if d == id);
             let divider = (i > 0).then(|| {
                 rect()
                     .width(Size::px(DIVIDER))
@@ -278,6 +311,22 @@ impl Component for Table {
                 .height(Size::fill())
                 .horizontal()
                 .content(Content::flex())
+                .opacity(if lifted { 0.5 } else { 1. })
+                .on_sized(move |e: Event<SizedEventData>| {
+                    let (lo, hi) = (e.area.min_x(), e.area.max_x());
+                    let mut a = areas.write();
+                    match a.iter_mut().find(|(c, _, _)| *c == id) {
+                        Some(found) => *found = (id, lo, hi),
+                        None => a.push((id, lo, hi)),
+                    }
+                })
+                .maybe(i > 0, |el| {
+                    el.on_mouse_down(move |e: Event<MouseEventData>| {
+                        if e.button == Some(MouseButton::Left) {
+                            dragging.set(Some((id, e.global_location.x, false)));
+                        }
+                    })
+                })
                 .maybe_child(divider)
                 .child(
                     rect()
@@ -290,6 +339,10 @@ impl Component for Table {
                         .a11y_role(AccessibilityRole::ColumnHeader)
                         .a11y_alt(column.title.clone())
                         .on_press(move |_| {
+                            // A drag that moved is a reorder, not a click.
+                            if matches!(*dragging.peek(), Some((_, _, true))) {
+                                return;
+                            }
                             let descending = if sorted { !sort.descending } else { true };
                             on_sort.call(TableEvent::Sort(Sort { column: id, descending }));
                         })
@@ -319,6 +372,13 @@ impl Component for Table {
                     .alignment(BorderAlignment::Inner),
             )
             .on_global_pointer_move(move |e: Event<PointerEventData>| {
+                let held = *dragging.peek();
+                if let Some((id, x0, moved)) = held
+                    && !moved
+                    && (e.global_location().x - x0).abs() > 4.
+                {
+                    dragging.set(Some((id, x0, true)));
+                }
                 let Some((id, _, x0, start)) = *resizing.peek() else { return };
                 // The leading edge moved right narrows the column.
                 let width = (start - (e.global_location().x - x0) as f32).max(48.);
@@ -326,7 +386,16 @@ impl Component for Table {
             })
             .on_global_pointer_up({
                 let on_event = on_event.clone();
-                move |_: Event<PointerEventData>| {
+                move |e: Event<PointerEventData>| {
+                    let held = *dragging.peek();
+                    if let Some((id, _, moved)) = held {
+                        dragging.set(None);
+                        let x = e.global_location().x as f32;
+                        let rest: Vec<(&'static str, f32, f32)> = areas.peek().iter().skip(1).copied().collect();
+                        if moved && let Some(to) = rest.iter().position(|(_, lo, hi)| x >= *lo && x < *hi) {
+                            on_event.call(TableEvent::Move(id, to));
+                        }
+                    }
                     let Some((id, width, _, _)) = *resizing.peek() else { return };
                     resizing.set(None);
                     on_event.call(TableEvent::Resize(id, width));
@@ -400,6 +469,9 @@ impl Component for Table {
             focused: self.focused,
             on_event: on_event.clone(),
             anchor,
+            moves: moves.read().clone(),
+            slide: if reduced { 0.0 } else { slide.get().value() },
+            contrast: theme.appearance.increase_contrast,
         };
         rect()
             .expanded()
@@ -513,15 +585,26 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
         };
         rect()
             .width(Size::px(column.width))
+            .height(Size::fill())
             .horizontal()
             .cross_align(Alignment::Center)
             .main_align(if trailing { Alignment::End } else { Alignment::Start })
+            // Increase Contrast draws the columns' dividers through the table.
+            .maybe(rows.contrast, |el| {
+                el.border(
+                    Border::new()
+                        .fill(colour(t.colour_hairline_strong))
+                        .width(BorderWidth { top: 0., right: 0., bottom: 0., left: 1. })
+                        .alignment(BorderAlignment::Outer),
+                )
+            })
             .spacing(t.space_s)
             .overflow(Overflow::Clip)
             .child(figure(cell.text.clone(), ink))
             .maybe_child(cell.total.clone().map(|total| figure(total, ink_2)))
             .into_element()
     });
+    let shift = rows.moves.get(&key).copied().unwrap_or(0.0) * rows.slide;
     rect()
         .key(key.to_string())
         .width(Size::fill())
@@ -529,7 +612,9 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
         .padding((0., t.space_s))
         .child(
             rect()
-                .expanded()
+                .width(Size::fill())
+                .height(Size::px(t.size_row))
+                .margin((shift, 0., -shift, 0.))
                 .padding((0., t.space_s))
                 .horizontal()
                 .content(Content::flex())

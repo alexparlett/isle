@@ -79,7 +79,7 @@ fn shot() {
             isle_app::provide_for_tests(BTreeMap::new());
             crate::window::Monitor.render().into_element()
         },
-        (1040., 680.).into(),
+        (std::env::var("MONITOR_WIDTH").ok().and_then(|w| w.parse().ok()).unwrap_or(1040.), 680.).into(),
         |_| {},
         1.,
     );
@@ -88,7 +88,7 @@ fn shot() {
         click(&mut test, &caption);
     }
     for _ in 0..150 {
-        test.sync_and_update();
+        test.poll(std::time::Duration::from_millis(16), std::time::Duration::from_millis(20));
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     test.render_to_file(std::path::PathBuf::from(path));

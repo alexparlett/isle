@@ -145,3 +145,47 @@ fn the_order_holds_while_the_pointer_is_over_the_table() {
     settle(&mut test);
     assert_eq!(names(&test), ["proc-003", "proc-002", "proc-001"], "caught up once the pointer left");
 }
+
+#[test]
+fn a_title_dragged_onto_another_moves_its_column() {
+    let events: Events = Rc::default();
+    let sink = events.clone();
+    let (mut test, _) = TestingRunner::new(
+        move || {
+            use_provide_context(|| {
+                ThemeContext(State::create(Rc::new(Source::shipped().theme(&Appearance::default()).unwrap())))
+            });
+            use_provide_context(GlassShapes::default);
+            let sink = sink.clone();
+            Table {
+                columns: Rc::new(vec![
+                    Column::text("name", "Process name", 240.),
+                    Column::figures("cpu", "% CPU", 80.),
+                    Column::figures("mem", "Memory", 80.),
+                ]),
+                rows: rows(&[1, 2]),
+                sort: Sort { column: "cpu", descending: true },
+                selected: Rc::new(Vec::new()),
+                focused: true,
+                hold: false,
+                on_event: EventHandler::new(move |e: TableEvent| sink.borrow_mut().push(e)),
+                controller: use_scroll_controller(ScrollConfig::default),
+            }
+            .into_element()
+        },
+        (600., 400.).into(),
+        |_| {},
+        1.,
+    );
+    settle(&mut test);
+    let from = centre_of(&test, "% CPU");
+    let to = centre_of(&test, "Memory");
+    test.press_cursor(from);
+    test.move_cursor((from.0 + 20., from.1));
+    test.move_cursor(to);
+    test.release_cursor(to);
+    settle(&mut test);
+    let got = events.borrow().clone();
+    assert!(got.contains(&TableEvent::Move("cpu", 1)), "{got:?}");
+    assert!(!got.iter().any(|e| matches!(e, TableEvent::Sort(_))), "a drag is not a click: {got:?}");
+}

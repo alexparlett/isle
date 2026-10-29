@@ -38,7 +38,7 @@ pub struct Monitor;
 fn columns_of(remembered: &Remembered, resource: Resource, gpus: usize) -> Vec<&'static str> {
     let defaults = resource.columns(gpus);
     match remembered.columns.get(&resource) {
-        Some(ids) => ALL_COLUMNS.iter().copied().filter(|c| ids.iter().any(|i| i == c)).collect(),
+        Some(ids) => ids.iter().filter_map(|i| ALL_COLUMNS.iter().copied().find(|c| c == i)).collect(),
         None => defaults,
     }
 }
@@ -303,6 +303,15 @@ impl App for Monitor {
                 TableEvent::Resize(id, width) => {
                     remembered.write().widths.insert(id.to_owned(), width);
                 }
+                TableEvent::Move(id, to) => {
+                    let mut r = remembered.write();
+                    let mut now: Vec<String> = columns_of(&r, resource, gpus).iter().map(|s| s.to_string()).collect();
+                    if let Some(from) = now.iter().position(|c| c == id) {
+                        let c = now.remove(from);
+                        now.insert(to.min(now.len()), c);
+                        r.columns.insert(resource, now);
+                    }
+                }
                 TableEvent::Disclose(key, is_open) => {
                     let mut o = open.write();
                     if is_open {
@@ -323,6 +332,21 @@ impl App for Monitor {
         };
 
         let segments: Vec<String> = Resource::ALL.iter().map(|r| r.title().to_owned()).collect();
+        let mut toolbar_width = use_state(|| 1040f32);
+        // Narrow, the switch folds into a pop-up before the title is cut (`surfaces/monitor.md`).
+        let narrow = *toolbar_width.read() < 940.;
+        let mut switch_menu = use_state(|| None::<(f32, f32)>);
+        let switch = if narrow {
+            rect()
+                .on_mouse_down(move |e: Event<MouseEventData>| {
+                    e.stop_propagation();
+                    switch_menu.set(Some((e.global_location.x as f32, e.global_location.y as f32 + 12.)));
+                })
+                .child(Button::new(format!("{} »", resource.title())))
+                .into_element()
+        } else {
+            Segmented::new(segments, resource.index(), "Resource", move |i: usize| remembered.write().resource = Resource::ALL[i]).into_element()
+        };
         let toolbar = rect()
             .width(Size::fill())
             .height(Size::px(t.size_toolbar))
@@ -332,9 +356,10 @@ impl App for Monitor {
             .cross_align(Alignment::Center)
             .spacing(t.space_l)
             .toolbar()
+            .on_sized(move |e: Event<SizedEventData>| toolbar_width.set_if_modified(e.area.width()))
             .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), r.filter.title()))
             .child(rect().width(Size::flex(1.)))
-            .child(Segmented::new(segments, resource.index(), "Resource", move |i: usize| remembered.write().resource = Resource::ALL[i]))
+            .child(switch)
             .child(rect().width(Size::flex(1.)))
             .child(
                 rect()
@@ -397,6 +422,25 @@ impl App for Monitor {
                     }
                 }
                 isle_ui::MenuEvent::Back => menu.set(None),
+                _ => {}
+            })
+            .into_element()
+        });
+        let overlay_switch = (*switch_menu.read()).map(|at| {
+            let entries = Resource::ALL
+                .iter()
+                .enumerate()
+                .map(|(i, r)| {
+                    let item = isle_ui::MenuItem::new(i as u64, r.title());
+                    isle_ui::MenuEntry::Item(if *r == resource { item.mark(isle_ui::menu::Mark::Check) } else { item })
+                })
+                .collect();
+            isle_ui::ContextMenu::new(Rc::new(entries), at, move |event: isle_ui::MenuEvent| match event {
+                isle_ui::MenuEvent::Chosen(i) => {
+                    switch_menu.set(None);
+                    remembered.write().resource = Resource::ALL[(i as usize).min(5)];
+                }
+                isle_ui::MenuEvent::Back => switch_menu.set(None),
                 _ => {}
             })
             .into_element()
@@ -474,7 +518,7 @@ impl App for Monitor {
                     .background(colour(t.colour_window))
                     .border(
                         Border::new()
-                            .fill(colour(t.colour_hairline))
+                            .fill(colour(if theme.appearance.increase_contrast { t.colour_hairline_strong } else { t.colour_hairline }))
                             .width(BorderWidth { top: 1., right: 0., bottom: 0., left: 0. })
                             .alignment(BorderAlignment::Inner),
                     )
@@ -482,6 +526,7 @@ impl App for Monitor {
                     .child(footer),
             )
             .maybe_child(overlay_menu)
+            .maybe_child(overlay_switch)
             .maybe_child(overlay_alert)
             .maybe_child(overlay_sheet)
     }
@@ -530,6 +575,8 @@ fn footer_view(theme: &isle_tokens::Theme, resource: Resource, sample: &Sample, 
             .into_element(), count);
     }
     let wide = inner >= 3. * t.size_monitor_figures + 2. * t.space_xxl + 240. + t.space_xxl;
+    // Narrower still, the trailing figures go, but for Energy's, which key its graph.
+    let trailing = resource == Resource::Energy || inner >= 2. * t.size_monitor_figures + 2. * t.space_xxl + 240.;
     let graph_w = (inner - 2. * t.size_monitor_figures - 2. * t.space_xxl - if wide && !c.sensors.is_empty() { t.size_monitor_figures + t.space_xxl } else { 0. }).clamp(160., 520.);
     let toggle = |data: bool| -> EventHandler<()> {
         EventHandler::new(move |_| {
@@ -552,7 +599,7 @@ fn footer_view(theme: &isle_tokens::Theme, resource: Resource, sample: &Sample, 
                 .spacing(t.space_xxl)
                 .child(footer::figures(theme, &c.leading, c.leading_choice, c.leading_choice.map(|_| toggle(false))))
                 .child(rect().width(Size::flex(1.)).cross_align(Alignment::Center).child(footer::titled(theme, &c.title, c.data, graph_w, c.summary)))
-                .child(footer::figures(theme, &c.trailing, c.trailing_choice, c.trailing_choice.map(|_| toggle(true))))
+                .maybe_child(trailing.then(|| footer::figures(theme, &c.trailing, c.trailing_choice, c.trailing_choice.map(|_| toggle(true)))))
                 .maybe_child((wide && !c.sensors.is_empty()).then(|| footer::figures(theme, &c.sensors, None, None))),
         )
         .into_element(), count)

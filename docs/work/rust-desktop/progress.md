@@ -2,6 +2,17 @@
 
 ## 2026-10-29
 
+- 19a.13: motion and states. The graph's stepped glide and the table's
+  re-sort slide (each row from its old place, the selection riding with
+  it), both cut under Reduce Motion; a header drag moves a column, its
+  title lifted while dragged; Increase Contrast draws the columns'
+  dividers, the footer's edge and the wells in the strong hairline;
+  narrow, the switch folds into a "{resource} »" button and menu and the
+  footer drops its sensors, then its trailing figures but Energy's. Left
+  for the walk to judge: a leaving row's fade, the disclosure's motion,
+  sideways scrolling of columns past a narrow window's edge (they clip),
+  and Game Mode, which apps do not hear. Headless renders must advance the
+  animation clock (`poll`), or a slide stays frozen at its start.
 - 19a.12: the Sensors window (Window › Sensors): every hwmon reading under
   its device's heading, value, low and high since it opened, sampled while
   shown, Open CoolerControl when installed; Open LACT on the GPU footer's

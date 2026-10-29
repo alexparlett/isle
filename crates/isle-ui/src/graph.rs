@@ -5,7 +5,7 @@
 use std::rc::Rc;
 
 use bytes::Bytes;
-use freya::prelude::*;
+use freya::{animation::*, prelude::*};
 use isle_tokens::Colour;
 
 use crate::{colour, text, use_theme};
@@ -190,6 +190,16 @@ impl Component for Graph {
         let mut hover = use_state(|| None::<usize>);
         let (width, height, step) = (self.width, t.size_graph, t.size_graph_step);
         let len = self.data.series.iter().map(|s| s.values.len()).max().unwrap_or(0);
+        // Each sample moves the trace one step toward the leading edge and then it stands
+        // still; under Reduce Motion it jumps.
+        let reduced = theme.appearance.reduce_motion;
+        let mut glide = use_animation(move |_| AnimNum::new(step, 0.0).time(240).function(Function::Cubic));
+        use_side_effect_with_deps(&len, move |_| {
+            if !reduced {
+                glide.start();
+            }
+        });
+        let dx = if reduced { 0.0 } else { glide.get().value() };
         let drawing = svg(&self.data, width, height, step, &theme);
         let key = {
             use std::hash::{Hash, Hasher};
@@ -249,7 +259,12 @@ impl Component for Graph {
             .corner_radius(t.radius_control)
             .overflow(Overflow::Clip)
             .background(colour(t.colour_window_sunken))
-            .border(Border::new().fill(colour(t.colour_hairline)).width(1.).alignment(BorderAlignment::Inner))
+            .border(
+                Border::new()
+                    .fill(colour(if theme.appearance.increase_contrast { t.colour_hairline_strong } else { t.colour_hairline }))
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
             .a11y_id(a11y)
             .a11y_focusable(true)
             .a11y_role(AccessibilityRole::Figure)
@@ -261,10 +276,12 @@ impl Component for Graph {
             .on_pointer_move(move |e: Event<PointerEventData>| hover.set_if_modified(nearest(e.element_location().x as f32)))
             .on_pointer_leave(move |_| hover.set_if_modified(None))
             .child(
-                SvgViewer::new((key, Bytes::from(drawing.into_bytes())))
-                    .show_loader(false)
-                    .width(Size::px(width))
-                    .height(Size::px(height)),
+                rect().margin((0., 0., 0., dx)).child(
+                    SvgViewer::new((key, Bytes::from(drawing.into_bytes())))
+                        .show_loader(false)
+                        .width(Size::px(width))
+                        .height(Size::px(height)),
+                ),
             )
             .maybe_child(scale.map(|s| {
                 rect()

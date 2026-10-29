@@ -1343,6 +1343,8 @@ impl State {
     }
 
     /// What a widget's body opens, where it has one; until each widget has its place, none.
+    /// A widget's body was pressed: in Edit it is selected; a System widget opens Monitor, on
+    /// GPU when every series it shows is a GPU's (`p17-widgets.md` choice 3).
     fn dashboard_open_widget(&mut self, id: &str) {
         let Some(open) = self.isle.dashboard.open.as_mut() else {
             return;
@@ -1351,6 +1353,13 @@ impl State {
             open.selected = Some(id.to_owned());
             open.ring = false;
             self.put_dashboard_frame();
+            return;
+        }
+        if kind_of(id) == "system" {
+            let series = self.isle.series_views(id);
+            let gpu = !series.is_empty() && series.iter().all(|s| s.label.starts_with("GPU"));
+            self.close_dashboard();
+            self.open_monitor(Some(if gpu { "gpu" } else { "cpu" }));
         }
     }
 

@@ -25,6 +25,8 @@ pub enum Event {
     FocusChanged,
     /// The session was locked or unlocked.
     LockChanged,
+    /// A hold on idle or sleep was taken or let go.
+    HoldsChanged,
     /// The keys whose values changed.
     SettingsChanged(Vec<String>),
     /// A hand edit was rejected, or a rejected one was fixed.

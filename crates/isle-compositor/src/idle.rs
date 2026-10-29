@@ -224,6 +224,41 @@ impl Isle {
         holders
     }
 
+    /// The holds taken for clients, each with the bus name to read its pid from where the
+    /// compositor has no client of its own to ask.
+    pub fn client_holds(&self) -> Vec<(isle_ipc::Hold, Option<String>)> {
+        let mut out = Vec::new();
+        for surface in &self.idle.inhibitors {
+            let record = self.wm.for_surface(surface);
+            let pid = record
+                .and_then(|r| r.pid)
+                .or_else(|| {
+                    let client = surface.client()?;
+                    client.get_credentials(&self.display_handle).ok().map(|c| c.pid)
+                })
+                .unwrap_or(0);
+            let app = record.map(|r| r.app.clone()).unwrap_or_default();
+            let hold = isle_ipc::Hold { pid, app, what: "idle".into(), why: String::new() };
+            out.push((hold, None));
+        }
+        for (sender, app) in self.idle.cookies.values() {
+            let hold = isle_ipc::Hold { pid: 0, app: app.clone(), what: "idle".into(), why: String::new() };
+            out.push((hold, Some(sender.clone())));
+        }
+        for (app, flags, why) in self.portal_holds.values() {
+            use isle_portal::inhibit::{IDLE, SUSPEND};
+            let what = match (flags & IDLE != 0, flags & SUSPEND != 0) {
+                (true, true) => "idle:sleep",
+                (true, false) => "idle",
+                (false, true) => "sleep",
+                (false, false) => continue,
+            };
+            let hold = isle_ipc::Hold { pid: 0, app: app.clone(), what: what.into(), why: why.clone() };
+            out.push((hold, None));
+        }
+        out
+    }
+
     /// A surface counts while it is shown on a lit output: its window neither hidden nor
     /// minimised, or a layer surface mapped.
     fn surface_shown(&self, surface: &WlSurface) -> bool {
@@ -382,6 +417,7 @@ impl State {
     /// What holds idle changed: a hold that ends counts as input, so a video that stops
     /// leaves the whole timeout before the screen dims.
     pub fn idle_holds_changed(&mut self) {
+        self.isle.notify(crate::worker::Event::HoldsChanged);
         let held = !self.isle.idle_holders().is_empty();
         if !held && self.isle.idle_notifier_state.is_inhibited() {
             self.isle.idle.last_activity = Instant::now();

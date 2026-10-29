@@ -178,7 +178,7 @@ a pid the kernel has since given to something else.
     - **Holds Isle takes for a client:** the portal's Inhibit, the
       ScreenSaver interface and idle-inhibit surfaces, which logind would
       show under the compositor's pid. The compositor lists them with the
-      client's pid on `Shell1.Holds()` (choice 16).
+      client's pid on `Session1.Holds()` (choice 16).
     - **What a row shows:** suspend becomes "Sleep", idle "Idle", and
       shutdown or logout "Shut down".
 
@@ -203,14 +203,15 @@ a pid the kernel has since given to something else.
     that app's name and icon from the app index (`apps.md` Monitor 2). Its
     other processes keep their own names, as Activity Monitor's helpers
     do. Windowed Processes is the processes holding a window.
-16. **`Shell1.Holds()`** lists the compositor's idle and sleep holds with
+16. **`Session1.Holds()`** lists the compositor's idle and sleep holds with
     the client pid and kind (choice 13), with a change signal.
 17. **The ties that waited.**
     - The `monitor` shortcut (P5, `packet: Some("P19")`) gets its action,
-      launching Monitor as `Action::Files` launches Files, and Spotlight's
-      actions list it.
+      launching Monitor as `Action::Files` launches Files. Spotlight finds
+      Monitor by its desktop entry, as it finds Files.
     - The System widget's body opens Monitor (P17 choice 3), on CPU, or on
-      GPU from a GPU series.
+      GPU when every series it shows is a GPU's, through the entry's `cpu`
+      and `gpu` actions.
 
 ### Acting on processes
 
@@ -327,7 +328,6 @@ crates/
 data/
   apps/                   Monitor's desktop entry and service file
   polkit/                 io.github.alexparlett.Isle.Monitor.policy
-  spotlight/actions.kdl   Open Monitor
 pkg/arch/PKGBUILD         the app, the helper, the policy
 ```
 
@@ -374,7 +374,7 @@ hwmon with the label table, the CPU fan, power by choice 11, Energy impact
 
 ### 19a.6 · The compositor's side
 
-`WindowInfo.pid`, `Shell1.Holds()`, the shortcut's action and the System
+`WindowInfo.pid`, `Session1.Holds()`, the shortcut's action and the System
 widget's click (choices 15–17), with compositor tests.
 
 ### 19a.7 · The table

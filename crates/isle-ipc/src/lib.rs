@@ -101,6 +101,21 @@ pub struct WindowInfo {
     pub desktop: u32,
     /// It is a game: its keys go raw and only the escape set acts over it.
     pub game: bool,
+    /// Its client's process: the Wayland client's, or an X11 window's `_NET_WM_PID`; 0 if
+    /// unknown.
+    pub pid: i32,
+}
+
+/// Something holding idle or sleep off that the compositor took for a client: an
+/// idle-inhibit surface, a ScreenSaver Inhibit or a portal Inhibit.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct Hold {
+    /// The client's process, or 0 where it is not known: a portal Inhibit names only its app.
+    pub pid: i32,
+    pub app: String,
+    /// What it holds off, as logind writes it: `idle`, `sleep` or `idle:sleep`.
+    pub what: String,
+    pub why: String,
 }
 
 /// One desktop of an output's row.
@@ -384,10 +399,14 @@ pub mod session {
         fn lock(&self) -> zbus::Result<()>;
         /// Idle as JSON.
         fn idle(&self) -> zbus::Result<String>;
+        /// The holds the compositor took for its clients.
+        fn holds(&self) -> zbus::Result<Vec<Hold>>;
         #[zbus(property)]
         fn locked(&self) -> zbus::Result<bool>;
         #[zbus(signal)]
         fn lock_changed(&self) -> zbus::Result<()>;
+        #[zbus(signal)]
+        fn holds_changed(&self) -> zbus::Result<()>;
     }
 }
 

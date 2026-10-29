@@ -552,6 +552,7 @@ impl Isle {
                     not_responding: record.not_responding,
                     desktop: self.desktop_index(record.id),
                     game: record.game,
+                    pid: record.pid.unwrap_or(0),
                 }
             })
             .collect()

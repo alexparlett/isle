@@ -79,6 +79,20 @@ impl Session {
         Ok(self.to_loop.call(|state| state.isle.idle_status()).await?)
     }
 
+    /// The holds taken for clients, a ScreenSaver Inhibit's pid read from its bus name.
+    async fn holds(&self, #[zbus(connection)] conn: &zbus::Connection) -> fdo::Result<Vec<isle_ipc::Hold>> {
+        let holds = self.to_loop.call(|state| state.isle.client_holds()).await?;
+        let dbus = fdo::DBusProxy::new(conn).await?;
+        let mut out = Vec::new();
+        for (mut hold, sender) in holds {
+            if let Some(name) = sender.and_then(|s| zbus::names::BusName::try_from(s).ok()) {
+                hold.pid = dbus.get_connection_unix_process_id(name).await.map_or(0, |p| p as i32);
+            }
+            out.push(hold);
+        }
+        Ok(out)
+    }
+
     #[zbus(property)]
     async fn locked(&self) -> fdo::Result<bool> {
         Ok(self.to_loop.call(|state| state.isle.lock.locked).await?)
@@ -87,6 +101,9 @@ impl Session {
     /// The session was locked or unlocked; `Locked` says which.
     #[zbus(signal)]
     async fn lock_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn holds_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
 struct Windows {
@@ -2267,6 +2284,10 @@ pub async fn serve(
             Ok(Event::LockChanged) => {
                 let iface = server.interface::<_, Session>(SESSION_PATH).await?;
                 Session::lock_changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::HoldsChanged) => {
+                let iface = server.interface::<_, Session>(SESSION_PATH).await?;
+                Session::holds_changed(iface.signal_emitter()).await?;
             }
             Ok(Event::ThemeChanged) => {
                 let iface = server.interface::<_, Shell>(isle_ipc::SHELL_PATH).await?;

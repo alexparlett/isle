@@ -19,6 +19,8 @@ pub enum Action {
     Settings,
     /// A new Files window with its search field focused.
     Files,
+    /// Monitor, where it was last.
+    Monitor,
     CloseWindow,
     Quit,
     /// A zone for the focused window; a repeat moves along the zone's cycle.
@@ -148,6 +150,7 @@ fn action_for(id: &'static str) -> Action {
         "force-quit" => Action::ForceQuit,
         "settings" => Action::Settings,
         "files" => Action::Files,
+        "monitor" => Action::Monitor,
         "lock" => Action::Lock,
         "redetect-displays" => Action::Redetect,
         "next-layout" => Action::NextLayout,
@@ -343,6 +346,7 @@ impl State {
             Action::Settings => {
                 self.open_settings(None, None);
             }
+            Action::Monitor => self.open_monitor(None),
             Action::CloseWindow => match self.delegate(false) {
                 Some(strokes) => self.send_strokes(&strokes),
                 None => {

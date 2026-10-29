@@ -6,6 +6,19 @@ use tracing::{info, warn};
 
 use crate::state::State;
 
+pub const MONITOR: &str = "io.github.alexparlett.Isle.Monitor";
+
+impl State {
+    /// Monitor, raised if it runs, on `resource` (its entry's `cpu` or `gpu` action) if given.
+    pub fn open_monitor(&mut self, resource: Option<&str>) {
+        self.launch(Launch::App {
+            app: MONITOR.into(),
+            action: resource.map(str::to_owned),
+            uris: Vec::new(),
+        });
+    }
+}
+
 /// What to start.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Launch {

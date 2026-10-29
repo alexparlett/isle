@@ -66,7 +66,7 @@ pub const SHORTCUTS: &[Shortcut] = &[
     Shortcut { id: "force-quit", packet: None, escape: false, locked: false, repeats: false, holds: false, media: false },
     Shortcut { id: "terminal", packet: None, escape: false, locked: false, repeats: false, holds: false, media: false },
     Shortcut { id: "settings", packet: None, escape: false, locked: false, repeats: false, holds: false, media: false },
-    Shortcut { id: "monitor", packet: Some("P19"), escape: false, locked: false, repeats: false, holds: false, media: false },
+    Shortcut { id: "monitor", packet: None, escape: false, locked: false, repeats: false, holds: false, media: false },
     Shortcut { id: "files", packet: None, escape: false, locked: false, repeats: false, holds: false, media: false },
     Shortcut { id: "menu-bar", packet: Some("P6"), escape: false, locked: false, repeats: false, holds: false, media: false },
     Shortcut { id: "help-search", packet: Some("P6"), escape: false, locked: false, repeats: false, holds: false, media: false },

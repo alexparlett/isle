@@ -2,6 +2,11 @@
 
 ## 2026-10-29
 
+- 19a.6: `WindowInfo.pid`; `Session1.Holds()` and `HoldsChanged` list the
+  idle-inhibit surfaces, ScreenSaver Inhibits (their pid from the bus) and
+  portal Inhibits (no pid, their app); the `monitor` shortcut and the
+  System widget's body open Monitor, on GPU when the widget shows only GPU
+  series. Spotlight finds Monitor by its entry, so no action was added.
 - 19a.5: `sensors` (every hwmon reading, labelled by a small table; chips
   slow to read, the NVMe drives at 11 ms, the SPD hubs at 2 ms and the
   Super I/O's once-a-second refresh at 7 ms, are read on a helper thread

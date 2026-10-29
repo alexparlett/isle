@@ -2,6 +2,12 @@
 
 ## 2026-10-29
 
+- 19a.8: `isle_ui::graph`: series as lines over areas, stacked or mirrored
+  about the centre, gaps unsampled, one sample every `size-graph-step`
+  newest at the trailing edge, a 1-2-5 scale for rates and watts, the
+  hover line and its reading by pointer or Left and Right, and an
+  accessible summary. Drawn as one SVG a sample, as the dashboard draws.
+  The stepped glide comes with 19a.13's motion.
 - 19a.7: `isle_ui::table`: columns sorted and resized from the header,
   figures in JetBrains Mono, stripes and joined selection runs, ⌘ and ⇧
   clicks, arrows, Home and End, Return, type-select by

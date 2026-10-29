@@ -2,6 +2,17 @@
 
 ## 2026-10-29
 
+- 19a.11: Inspect. `isle_sysinfo::inspect` reads one process (parent,
+  user, start, state, nice, threads, command line, and for the user's own
+  the executable, working folder, PSS, open files and sockets); the
+  sock_diag dump now also gives UDP and Unix sockets, a Unix socket naming
+  the process at its other end. The window: General's three groups, the
+  command line in a well with Copy, Open Files and Ports as a table with
+  ⌘F's search, Quit Process with the alert, the ended form; sampled every
+  two seconds while shown. ⌘I, Return, a double-click and the menus open
+  it; inspecting again focuses the open one through the window list; the
+  main window closing closes them. A headless test inspects a child and
+  sees it end.
 - 19a.10: acting. `isle_sysinfo::act` signals through a pidfd opened
   before the start time is checked and renices every thread; Monitor acts
   directly, and on EPERM runs `isle-process-helper` through pkexec under

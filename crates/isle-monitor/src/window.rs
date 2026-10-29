@@ -76,6 +76,7 @@ fn commands(remembered: &Remembered, gpus: usize, targets: &[Target]) -> Vec<Com
         out.push(c);
     }
     out.push(Command::new("send-signal", "Send Signal to Process…", Menu::Process, 2).enabled(quittable));
+    out.push(Command::new("inspect", "Inspect Process", Menu::Process, 3).chord(Chord::cmd('i')).enabled(targets.len() == 1));
     for (i, r) in Resource::ALL.iter().enumerate() {
         let digit = char::from(b'1' + i as u8);
         out.push(
@@ -130,6 +131,9 @@ impl App for Monitor {
             spawn(async move {
                 use futures_util::StreamExt;
                 while let Some(sample) = rx.next().await {
+                    if let Ok(mut gpu) = crate::inspect::GPU_MEMORY.lock() {
+                        *gpu = Some(sample.full.gpu_uses.iter().map(|u| (u.pid, u.memory)).collect());
+                    }
                     let every = Duration::from_secs(remembered.peek().every.max(1));
                     history.write().push(&sample, every);
                     latest.set(Some(sample));
@@ -166,6 +170,16 @@ impl App for Monitor {
         let mut signal_sheet = use_state(|| None::<(Vec<Target>, usize)>);
         let mut menu = use_state(|| None::<((f32, f32), bool)>);
         let app = use_consume::<isle_app::AppHandle>();
+        // The main window closing closes the Inspect windows, and the app ends with them.
+        use_drop({
+            let app = app.clone();
+            let me = isle_app::this_window();
+            move || {
+                for window in app.windows().into_iter().filter(|w| *w != me) {
+                    app.close(window);
+                }
+            }
+        });
         let act_on = {
             let (worker, bus) = (isle_app::worker(), isle_app::session_bus());
             Rc::new(move |targets: Vec<Target>, act: Act| {
@@ -178,6 +192,7 @@ impl App for Monitor {
         let mut search_focus = use_state(|| 0u64);
         use_side_effect({
             let act_on = act_on.clone();
+            let commands_app = app.clone();
             move || {
             if desktop.commands.read().is_empty() {
                 return;
@@ -200,6 +215,12 @@ impl App for Monitor {
                     }
                     "send-signal" if actions::quittable(&aimed) => {
                         signal_sheet.set(Some((aimed, 6)));
+                        continue;
+                    }
+                    "inspect" => {
+                        if let Some(t) = aimed.first() {
+                            crate::inspect::open(&commands_app, t.key, &t.name);
+                        }
                         continue;
                     }
                     _ => {}
@@ -261,6 +282,7 @@ impl App for Monitor {
         }));
         let empty = rows.is_empty() && latest.read().is_some() && !query.read().trim().is_empty();
         let controller = use_scroll_controller(ScrollConfig::default);
+        let inspect_app = app.clone();
         let table = Table {
             columns: Rc::new(table_columns),
             rows: Rc::new(rows),
@@ -285,6 +307,11 @@ impl App for Monitor {
                     }
                 }
                 TableEvent::Menu(Some(_), at) => menu.set(Some((at, true))),
+                TableEvent::Open(key) => {
+                    if let Some(t) = actions::targets(latest.peek().as_ref(), &[key]).into_iter().next() {
+                        crate::inspect::open(&inspect_app, t.key, &t.name);
+                    }
+                }
                 _ => {}
             }),
             controller,
@@ -344,6 +371,11 @@ impl App for Monitor {
                         actions::STOP => act_on(aimed.clone(), Act::Signal(libc::SIGSTOP)),
                         actions::CONTINUE => act_on(aimed.clone(), Act::Signal(libc::SIGCONT)),
                         actions::SEND_SIGNAL => signal_sheet.set(Some((aimed.clone(), 6))),
+                        actions::INSPECT => {
+                            if let Some(t) = aimed.first() {
+                                crate::inspect::open(&app, t.key, &t.name);
+                            }
+                        }
                         actions::COPY => {
                             if let Some(data) = app.data() {
                                 let bytes = actions::copied(&aimed).into_bytes();

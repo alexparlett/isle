@@ -4,6 +4,7 @@ mod act;
 mod actions;
 mod footer;
 mod history;
+mod inspect;
 mod model;
 mod sampler;
 mod state;
@@ -27,4 +28,14 @@ const SPEC: Spec = Spec {
 fn main() {
     isle_app::init_logging("isle_monitor");
     isle_app::run(SPEC, window::Monitor);
+}
+
+/// A sleep on the event loop, from a timer thread.
+pub async fn sleep(duration: std::time::Duration) {
+    let (tx, rx) = futures_channel::oneshot::channel::<()>();
+    std::thread::spawn(move || {
+        std::thread::sleep(duration);
+        let _ = tx.send(());
+    });
+    let _ = rx.await;
 }

@@ -31,6 +31,8 @@ const DIAG_MSG_LEN: usize = 72;
 /// One TCP socket as the kernel reports it.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Socket {
+    /// `IPPROTO_TCP` or `IPPROTO_UDP`.
+    pub protocol: u8,
     pub inode: u32,
     pub cookie: u64,
     pub uid: u32,
@@ -47,12 +49,29 @@ pub struct Socket {
 
 /// Every TCP socket, IPv4 and IPv6.
 pub fn tcp_sockets() -> io::Result<Vec<Socket>> {
-    let mut out = dump(libc::AF_INET as u8)?;
-    out.extend(dump(libc::AF_INET6 as u8)?);
+    let mut out = dump(libc::AF_INET as u8, libc::IPPROTO_TCP as u8)?;
+    out.extend(dump(libc::AF_INET6 as u8, libc::IPPROTO_TCP as u8)?);
     Ok(out)
 }
 
-fn dump(family: u8) -> io::Result<Vec<Socket>> {
+/// Every UDP socket, IPv4 and IPv6, for Inspect's ports; UDP carries no counters.
+pub fn udp_sockets() -> io::Result<Vec<Socket>> {
+    let mut out = dump(libc::AF_INET as u8, libc::IPPROTO_UDP as u8)?;
+    out.extend(dump(libc::AF_INET6 as u8, libc::IPPROTO_UDP as u8)?);
+    Ok(out)
+}
+
+fn dump(family: u8, protocol: u8) -> io::Result<Vec<Socket>> {
+    // inet_diag_req_v2: family, protocol, the extensions asked for, padding, every state,
+    // and an empty socket id.
+    let mut body = vec![family, protocol, 1 << (INET_DIAG_INFO - 1), 0];
+    body.extend_from_slice(&u32::MAX.to_ne_bytes());
+    body.extend_from_slice(&[0u8; 48]);
+    Ok(query(&body)?.iter().filter_map(|m| parse(m)).map(|s| Socket { protocol, ..s }).collect())
+}
+
+/// One sock_diag dump: each message's payload.
+fn query(body: &[u8]) -> io::Result<Vec<Vec<u8>>> {
     use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
     // SAFETY: socket(2) has no preconditions; a descriptor it returns is this function's.
     let fd = unsafe { libc::socket(libc::AF_NETLINK, libc::SOCK_DGRAM | libc::SOCK_CLOEXEC, libc::NETLINK_SOCK_DIAG) };
@@ -60,17 +79,13 @@ fn dump(family: u8) -> io::Result<Vec<Socket>> {
         return Err(io::Error::last_os_error());
     }
     let fd = unsafe { OwnedFd::from_raw_fd(fd) };
-    let mut req = Vec::with_capacity(72);
-    req.extend_from_slice(&72u32.to_ne_bytes());
+    let mut req = Vec::with_capacity(16 + body.len());
+    req.extend_from_slice(&((16 + body.len()) as u32).to_ne_bytes());
     req.extend_from_slice(&SOCK_DIAG_BY_FAMILY.to_ne_bytes());
     req.extend_from_slice(&(NLM_F_REQUEST | NLM_F_DUMP).to_ne_bytes());
     req.extend_from_slice(&1u32.to_ne_bytes());
     req.extend_from_slice(&0u32.to_ne_bytes());
-    // inet_diag_req_v2: family, protocol, the extensions asked for, padding, every state,
-    // and an empty socket id.
-    req.extend_from_slice(&[family, libc::IPPROTO_TCP as u8, 1 << (INET_DIAG_INFO - 1), 0]);
-    req.extend_from_slice(&u32::MAX.to_ne_bytes());
-    req.extend_from_slice(&[0u8; 48]);
+    req.extend_from_slice(body);
     let sent = unsafe { libc::send(fd.as_raw_fd(), req.as_ptr().cast(), req.len(), 0) };
     if sent < 0 {
         return Err(io::Error::last_os_error());
@@ -95,15 +110,62 @@ fn dump(family: u8) -> io::Result<Vec<Socket>> {
                     let errno = i32::from_ne_bytes(data[16..20].try_into().unwrap_or_default());
                     return Err(io::Error::from_raw_os_error(-errno));
                 }
-                _ => {
-                    if let Some(socket) = parse(&data[16..len]) {
-                        out.push(socket);
-                    }
-                }
+                _ => out.push(data[16..len].to_vec()),
             }
-            data = &data[(len + 3) & !3..];
+            data = &data[((len + 3) & !3).min(data.len())..];
         }
     }
+}
+
+/// A Unix socket: its inode, its peer's inode where it is connected, and its path or
+/// abstract name.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct UnixSocket {
+    pub inode: u32,
+    pub peer: Option<u32>,
+    pub name: Option<String>,
+}
+
+/// Every Unix socket with its name and peer.
+pub fn unix_sockets() -> io::Result<Vec<UnixSocket>> {
+    const UDIAG_SHOW_NAME: u32 = 0x1;
+    const UDIAG_SHOW_PEER: u32 = 0x4;
+    const UNIX_DIAG_NAME: u16 = 0;
+    const UNIX_DIAG_PEER: u16 = 2;
+    // unix_diag_req: family, protocol, padding, every state, any inode, what to show, cookie.
+    let mut body = vec![libc::AF_UNIX as u8, 0, 0, 0];
+    body.extend_from_slice(&u32::MAX.to_ne_bytes());
+    body.extend_from_slice(&0u32.to_ne_bytes());
+    body.extend_from_slice(&(UDIAG_SHOW_NAME | UDIAG_SHOW_PEER).to_ne_bytes());
+    body.extend_from_slice(&[0u8; 8]);
+    Ok(query(&body)?
+        .iter()
+        .filter_map(|m| {
+            // unix_diag_msg: family, type, state, padding, inode, cookie; then attributes.
+            let inode = u32::from_ne_bytes(m.get(4..8)?.try_into().ok()?);
+            let mut socket = UnixSocket { inode, peer: None, name: None };
+            let mut attrs = m.get(16..)?;
+            while attrs.len() >= 4 {
+                let len = u16::from_ne_bytes([attrs[0], attrs[1]]) as usize;
+                let kind = u16::from_ne_bytes([attrs[2], attrs[3]]);
+                if len < 4 || len > attrs.len() {
+                    break;
+                }
+                let value = &attrs[4..len];
+                match kind {
+                    UNIX_DIAG_PEER if value.len() >= 4 => socket.peer = Some(u32::from_ne_bytes(value[..4].try_into().unwrap())),
+                    UNIX_DIAG_NAME => {
+                        // An abstract name starts with a NUL, written as '@'.
+                        let name = String::from_utf8_lossy(value).trim_end_matches('\0').to_owned();
+                        socket.name = Some(name.strip_prefix('\0').map_or(name.clone(), |n| format!("@{n}")));
+                    }
+                    _ => {}
+                }
+                attrs = &attrs[((len + 3) & !3).min(attrs.len())..];
+            }
+            Some(socket)
+        })
+        .collect())
 }
 
 /// One `inet_diag_msg` and its attributes.
@@ -125,6 +187,7 @@ fn parse(msg: &[u8]) -> Option<Socket> {
     let sport = u16::from_be_bytes([msg[4], msg[5]]);
     let dport = u16::from_be_bytes([msg[6], msg[7]]);
     let mut socket = Socket {
+        protocol: 0,
         inode: u32_at(msg, 68)?,
         cookie: u64_at(msg, 44)?,
         uid: u32_at(msg, 64)?,
@@ -257,7 +320,7 @@ mod tests {
 
     fn socket(inode: u32, cookie: u64, uid: u32, cgroup: u64, received: u64) -> Socket {
         let any = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 1);
-        Socket { inode, cookie, uid, cgroup, state: 1, local: any, remote: any, received, sent: 0, segments_in: 1, segments_out: 1 }
+        Socket { protocol: libc::IPPROTO_TCP as u8, inode, cookie, uid, cgroup, state: 1, local: any, remote: any, received, sent: 0, segments_in: 1, segments_out: 1 }
     }
 
     #[test]

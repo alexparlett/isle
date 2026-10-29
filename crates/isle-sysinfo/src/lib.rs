@@ -5,6 +5,7 @@ pub mod act;
 pub mod disks;
 pub mod fds;
 pub mod gpus;
+pub mod inspect;
 pub mod memory;
 pub mod monitor;
 pub mod net;

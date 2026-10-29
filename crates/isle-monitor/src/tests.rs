@@ -122,3 +122,33 @@ fn a_process_found_by_search_is_quit_through_the_alert() {
     assert_eq!(status.and_then(|s| s.signal()), Some(libc::SIGTERM));
     let _ = std::fs::remove_dir_all(&state);
 }
+
+#[test]
+fn inspect_reads_a_process_and_says_when_it_has_ended() {
+    let dir = std::env::temp_dir().join(format!("isle-monitor-inspect-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let bin = dir.join("isle-test-inspected");
+    std::fs::copy("/usr/bin/sleep", &bin).unwrap();
+    let mut child = std::process::Command::new(&bin).arg("60").spawn().unwrap();
+    let pid = child.id() as i32;
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
+    let start = stat.rsplit_once(')').unwrap().1.split_whitespace().nth(19).unwrap().parse().unwrap();
+    let key = isle_sysinfo::procs::Key { pid, start };
+    let (mut test, _) = TestingRunner::new(
+        move || {
+            isle_app::provide_for_tests(BTreeMap::new());
+            crate::inspect::Inspect { key, name: "isle-test-inspected".into() }.render().into_element()
+        },
+        (520., 600.).into(),
+        |_| {},
+        1.,
+    );
+    settle_until(&mut test, "Parent process");
+    let cmdline = format!("{} 60", bin.display());
+    settle_until(&mut test, &cmdline);
+    assert!(labels(&test).iter().any(|l| l == "Sleeping"), "{:?}", labels(&test));
+    let _ = child.kill();
+    let _ = child.wait();
+    settle_until(&mut test, "This process has ended.");
+    let _ = std::fs::remove_dir_all(&dir);
+}

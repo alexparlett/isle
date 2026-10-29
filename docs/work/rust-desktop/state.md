@@ -572,4 +572,13 @@
   the textures; Tag release… through gix. Open: pushing the registry's
   `isle-2-providers` branch and the host run. Next: the host run, then
   P18.
-
+- P18 planned in `p18-controllers.md` (2026-10-29), set aside unreviewed. One
+  packet, read-only; `isle-pads` on `evdev`, shared by the compositor's
+  worker and Settings; presence by udev; pad input as activity sampled at
+  once a second, drift and the lock excluded; pad names on UPower's
+  batteries; a pad's touchpad no pointer; the Puck's battery through hidraw
+  if a probe allows; Settings › Game Controllers behind gate 18.1. Research
+  in `docs/research/rust-desktop/controllers-2026.md`: uaccess covers
+  joystick nodes, the keyboard's receiver is tagged a joystick, and the
+  host's Steam Controller is seen only as Steam Input's pad, with no
+  battery outside Steam. Phases 18.0–18.9.

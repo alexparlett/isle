@@ -232,10 +232,17 @@ where P1 places them, with the grid editor and the gallery (B24); the provider c
 permissions (B28); the isle-widgets registry as providers. Intent:
 shell.md, platform.md.
 
-**P18 · Controllers.** Pad detection and naming, batteries in Control
-Centre, Settings › Controllers, idle held off by pad play (a hold on P9's
-idle policy). Intent:
-gaming.md, apps.md.
+**P18 · Controllers.** Planned 2026-10-29, set aside unreviewed:
+`p18-controllers.md`. `isle-pads` on `evdev`, read on the service worker:
+a pad is `BTN_GAMEPAD` and an axis, grouped by its HID parent, named by
+BlueZ's alias or the kernel's name, virtual pads by P1's names; presence
+by udev; pad input as activity at most once a second, drift and the lock
+excluded; pad names on UPower's batteries, the Puck's battery through
+hidraw if a probe allows (cuttable); a pad's touchpad no pointer;
+Settings › Game Controllers behind a board gate, read-only, live only while
+shown. Brief: pad detection and naming, batteries in Control Centre,
+Settings › Controllers, idle held off by pad play (a hold on P9's idle
+policy). Intent: gaming.md, apps.md.
 
 **P19 · Monitor, Keychain, Cleaner.** Intent: apps.md.
 

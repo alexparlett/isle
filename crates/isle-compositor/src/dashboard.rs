@@ -1809,7 +1809,8 @@ impl State {
                 return inside.then(|| (p.id.clone(), Part::Body));
             }
             // The badge's box reaches past the plate's corner.
-            if (px - (x + 15.0)).abs() <= 12.0 && (py - (y + 15.0)).abs() <= 12.0 {
+            let badge = isle_shell::dashboard::surface::BADGE_CENTRE;
+            if (px - (x + badge)).abs() <= 12.0 && (py - (y + badge)).abs() <= 12.0 {
                 return Some((p.id.clone(), Part::Badge));
             }
             if !inside {

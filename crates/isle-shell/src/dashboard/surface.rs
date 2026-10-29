@@ -790,7 +790,6 @@ pub(super) fn widget(
     let body: Element = match &w.body {
         Body::Strip { glyph, line, button } => {
             return place
-                .maybe_child(chrome)
                 .child(ring(
                     plate(theme, frame.solid, t.radius_panel)
                         .width(Size::fill())
@@ -811,11 +810,11 @@ pub(super) fn widget(
                                 .into_element()
                         })),
                 ))
+                .maybe_child(chrome)
                 .into_element();
         }
         Body::Empty(line) => {
             return place
-                .maybe_child(chrome)
                 .child(ring(
                     plate(theme, frame.solid, t.radius_panel)
                         .width(Size::fill())
@@ -826,6 +825,7 @@ pub(super) fn widget(
                         .cross_align(Alignment::Center)
                         .child(text::line(theme, text::Style::Body, colour(t.colour_text_2), line.clone())),
                 ))
+                .maybe_child(chrome)
                 .into_element();
         }
         Body::Title => text::line(
@@ -865,6 +865,9 @@ pub(super) fn widget(
         .into_element()
 }
 
+/// The remove badge's centre from a widget's top and leading edges, in points.
+pub const BADGE_CENTRE: f32 = 5.0;
+
 /// The remove badge and the resize handles over a widget in edit mode; the compositor reads
 /// presses on them by their places.
 fn edit_chrome(theme: &Theme, width: f32, height: f32, selected: bool) -> Element {
@@ -885,8 +888,9 @@ fn edit_chrome(theme: &Theme, width: f32, height: f32, selected: bool) -> Elemen
         .width(Size::px(width))
         .height(Size::px(height))
         .child(
+            // Centred on the top leading corner's curve, overhanging the plate.
             rect()
-                .position(Position::new_absolute().left(5.).top(5.))
+                .position(Position::new_absolute().left(BADGE_CENTRE - 10.).top(BADGE_CENTRE - 10.))
                 .width(Size::px(20.))
                 .height(Size::px(20.))
                 .corner_radius(10.)

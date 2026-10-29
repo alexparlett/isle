@@ -235,7 +235,7 @@ async fn edit_mode_moves_pushes_resizes_removes_and_undoes() {
     wait_until(|| async { line_of(&layout(&isle).await, "clock#1").is_empty() }).await;
     let weather = line_of(&layout(&isle).await, "weather#1").to_owned();
     let parts: Vec<i32> = weather.split(' ').skip(1).map(|n| n.parse().unwrap()).collect();
-    test.pointer_to(44.0 + 88.0 * parts[0] as f64 + 15.0, 97.0 + 88.0 * parts[1] as f64 + 15.0)
+    test.pointer_to(44.0 + 88.0 * parts[0] as f64 + 5.0, 97.0 + 88.0 * parts[1] as f64 + 5.0)
         .await
         .unwrap();
     test.button(LEFT_BUTTON, true).await.unwrap();

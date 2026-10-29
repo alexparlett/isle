@@ -157,7 +157,7 @@ compositor; inspecting the same process again raises it.
 | Rest | The table sorted by the resource's first column, the footer live |
 | Loading | The frame and the table's names at once; rate columns and graphs empty until the second sample; no spinner |
 | No results | "No results for “{query}”" in the table's place, the footer still live |
-| A figure not available | Its column shows no value and the footer says why in one line: "Per-process network traffic isn't available.", "GPU figures aren't available for {gpu}." (`apps.md` Monitor Open). A sensor not found is left out, not shown as zero |
+| A figure not available | Its column shows no value and the footer says why in one line: "Per-process network traffic isn't available.", "GPU figures aren't available for {gpu}.", "UDP traffic isn't counted per process." (`apps.md` Monitor Open; P19a). A sensor not found is left out, not shown as zero |
 | A refused action | The polkit dialog said no: nothing changes |
 | Process ended while selected | Its row goes; the selection clears; its inspect window says so |
 | Many processes | The table scrolls under the toolbar; the footer stays |
@@ -253,7 +253,8 @@ standard map is `conventions.md`'s.
 | Quit alert | "Quit “{process}”?", "Quit {n} processes?"; "Force Quit", "Cancel", "Quit" |
 | Row state | "Stopped"; Preventing sleep's "Sleep", "Idle", "Shut down" |
 | Inspect | "{process} ({pid})", "General", "Open Files and Ports", "This process has ended." |
-| Unavailable | "Per-process network traffic isn't available.", "GPU figures aren't available for {gpu}." |
+| Unavailable | "Per-process network traffic isn't available.", "GPU figures aren't available for {gpu}.", "UDP traffic isn't counted per process." (P19a) |
+| Inspect, another user's process | "Open files are shown only for your own processes." (P19a) |
 | Launchers | "Open LACT", "Open CoolerControl" |
 
 ## For the user

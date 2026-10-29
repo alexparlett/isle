@@ -2,6 +2,8 @@
 
 ## 2026-10-29
 
+- P19a reviewed, every recommendation taken. 19a.0: the record; the two
+  lines into `p1/structure/monitor.md`; `apps.md`'s open points answered.
 - The PPT probe on the host: the iGPU's PPT tracks RAPL's package power
   (+4% idle, +1.6% under a game) and is reported in milliwatts; P19a's
   choice 11 and `apps-2026.md` §3 follow.

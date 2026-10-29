@@ -344,8 +344,10 @@ inspection, Quit and Force Quit, plus the sensors and GPU figures a gaming machi
 **v1 lessons kept.** Inventory §5 Monitor: the five resources, the tree with totals, sensors, signals and
 renice. Inventory §6 Polling: nothing samples unseen. D13: memory is measured on the host, never the VM.
 
-**Open for its packet.** Per-process network without a capability-granted nethogs. How GPU figures are
-read for both vendors.
+**Answered in P19a** (`docs/work/rust-desktop/p19a-monitor.md` choices 7–9). Per-process network is
+TCP's per-socket counters through sock_diag, which any user may read, with UDP said to be uncounted; a
+privileged BPF helper for every protocol waits for a packet after cut-over. GPU figures come from NVML
+for NVIDIA (whose open module has no DRM fdinfo) and from DRM fdinfo with sysfs for amdgpu and Intel.
 
 ### Keychain
 

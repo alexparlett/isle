@@ -1,6 +1,7 @@
 # P19a · Monitor
 
-Planned 2026-10-29, for review.
+Planned 2026-10-29. Reviewed by the user the same day: every
+recommendation taken.
 
 P19 is three packets at the user's choice (2026-10-29): P19a Monitor,
 P19b Cleaner, P19c Keychain, each planned, walked and closed before the
@@ -442,6 +443,11 @@ Then the record:
 - `apps.md`'s open points closed;
 - the roadmap and `state.md` follow;
 - this file ends with its outcome.
+
+## Reviewed
+
+The user reviewed the plan on 2026-10-29 and took every recommendation.
+The PPT probe ran the same day (choice 11).
 
 ## Not in P19a
 

@@ -594,6 +594,8 @@
   priority with `CPUWeight`, a shared table and graph in `isle-ui`; no
   gate. Phases 19a.0–19a.15. The PPT probe ran 2026-10-29: PPT tracks
   RAPL (+4% idle, +1.6% in a game), reported in milliwatts.
+- P19a reviewed 2026-10-29, every recommendation taken; building. 19a.0
+  done.
 - P19b planned in `p19b-cleaner.md` (2026-10-29), for review: `isle-scan`
   (walk, kinds, rules, duplicates) shared with P20's Storage page, the walk
   hand-rolled on `rustix`, rules as KDL, the basket through `isle-fs` with

@@ -250,7 +250,7 @@ next: Monitor first, on `isle-sysinfo`; Cleaner on `isle-fs`; Keychain
 last. Research for all three in `apps-2026.md`. P18 was set aside before
 it.
 
-**P19a · Monitor.** Planned 2026-10-29, for review: `p19a-monitor.md`.
+**P19a · Monitor.** Planned and reviewed 2026-10-29: `p19a-monitor.md`.
 Activity Monitor's table by six resources over `isle-sysinfo`'s new
 readers: processes keyed by pid and start time, memory as footprint,
 disks, both GPUs (NVML, and DRM fdinfo with sysfs), TCP per process

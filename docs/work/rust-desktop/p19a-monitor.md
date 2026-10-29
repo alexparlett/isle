@@ -191,9 +191,10 @@ a pid the kernel has since given to something else.
       wholly covered by opaque windows on every output it touches, and
       while the session is locked. Coverage is worked out when the layout
       changes, not each frame.
-    - **How the app learns it.** winit drops the state, so
-      `isle_titlebar_v1` version 3 sends `shown` beside it, and
-      `isle_app::use_shown()` exposes it.
+    - **How the app learns it.** winit drops the state, so the titlebar
+      manager's version 4 adds `isle_visibility_v1`, whose `shown` event
+      follows it (version 3 was the float's keyboard). `isle-app`'s data
+      thread binds one per window, and `isle_app::use_shown()` exposes it.
     - **What Monitor does with it.** Its sampler runs only while one of
       its windows is shown. Other apps may follow; none has to.
 15. **A pid on every window.** `Windows1.List`'s `WindowInfo` gains `pid`:
@@ -314,10 +315,10 @@ crates/
   isle-ui/src/
     table.rs              the shared table (new)
     graph.rs              the shared graph (new)
-  isle-app/               use_shown, isle_titlebar_v1 v3
+  isle-app/               use_shown, isle_visibility_v1
   isle-compositor/src/
     wm/                   suspended when covered or locked
-    titlebar.rs           shown
+    titlebar_overlay.rs   isle_visibility_v1
     dbus.rs               WindowInfo.pid, Shell1.Holds
     idle.rs               holds with client pids
     binds.rs, dashboard.rs  the shortcut, System's click
@@ -344,8 +345,8 @@ done (2026-10-29, `apps-2026.md` §3): PPT tracks RAPL, in milliwatts.
 
 ### 19a.1 · Shown
 
-Suspended when wholly covered or locked; `isle_titlebar_v1` version 3's
-`shown`; `isle_app::use_shown()`. Compositor tests: a window covered by
+Suspended when wholly covered or locked; `isle_visibility_v1`'s `shown`
+on the titlebar manager's version 4; `isle_app::use_shown()`. Compositor tests: a window covered by
 another, minimised, on a hidden desktop and under the lock reads not
 shown, and shown again on return.
 

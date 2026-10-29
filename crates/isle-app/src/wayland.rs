@@ -49,7 +49,7 @@ mod gtk_shell {
 }
 
 #[allow(missing_docs, clippy::all, non_upper_case_globals, non_camel_case_types, unused_imports)]
-mod isle_titlebar {
+pub(crate) mod isle_titlebar {
     use wayland_client;
     use wayland_client::protocol::*;
 
@@ -243,6 +243,11 @@ impl Extras {
         };
         extras.set_backdrop(backdrop);
         Some(extras)
+    }
+
+    /// The window's surface, for objects bound on another queue.
+    pub fn surface(&self) -> WlSurface {
+        self.surface.clone()
     }
 
     /// The window's xdg-foreign handle, for another app's dialog on it, as a portal's

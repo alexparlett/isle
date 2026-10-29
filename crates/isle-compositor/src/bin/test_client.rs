@@ -134,7 +134,7 @@ mod isle_titlebar {
 
     wayland_scanner::generate_client_code!("../../data/protocols/isle-titlebar-v1.xml");
 }
-use isle_titlebar::{isle_titlebar_manager_v1, isle_titlebar_v1};
+use isle_titlebar::{isle_titlebar_manager_v1, isle_titlebar_v1, isle_visibility_v1};
 
 struct Win {
     surface: wl_surface::WlSurface,
@@ -857,6 +857,26 @@ impl Client {
                 self.draw(index, qh);
                 return;
             }
+            ("visibility", _) => {
+                let Some(manager) = self.titlebars.as_ref().filter(|m| wayland_client::Proxy::version(*m) >= 4) else {
+                    say(index, "no visibility".into());
+                    return;
+                };
+                manager.get_visibility(&self.wins[index].surface, qh, index);
+                return;
+            }
+            ("opaque", _) => {
+                let Some(compositor) = self.compositor.as_ref() else {
+                    return;
+                };
+                let (w, h) = self.wins[index].size;
+                let region = compositor.create_region(qh, ());
+                region.add(0, 0, w, h);
+                self.wins[index].surface.set_opaque_region(Some(&region));
+                region.destroy();
+                self.draw(index, qh);
+                return;
+            }
             ("titlebar-overlay", _) => {
                 let Some(manager) = self.titlebars.as_ref() else {
                     say(index, "no titlebar manager".into());
@@ -1257,7 +1277,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 "ext_idle_notifier_v1" => state.idle_notifier = Some(registry.bind(name, 1, qh, ())),
                 "org_kde_kwin_appmenu_manager" => state.appmenus = Some(registry.bind(name, 2, qh, ())),
                 "gtk_shell1" => state.gtk_shell = Some(registry.bind(name, 5, qh, ())),
-                "isle_titlebar_manager_v1" => state.titlebars = Some(registry.bind(name, 1, qh, ())),
+                "isle_titlebar_manager_v1" => state.titlebars = Some(registry.bind(name, version.min(4), qh, ())),
                 "ext_background_effect_manager_v1" => {
                     state.backdrops = Some(registry.bind(name, 1, qh, ()))
                 }
@@ -2484,6 +2504,20 @@ impl Dispatch<isle_titlebar_v1::IsleTitlebarV1, usize> for Client {
     ) {
         let isle_titlebar_v1::Event::Controls { width, height } = event;
         say(*index, format!("controls {width} {height}"));
+    }
+}
+
+impl Dispatch<isle_visibility_v1::IsleVisibilityV1, usize> for Client {
+    fn event(
+        _: &mut Self,
+        _: &isle_visibility_v1::IsleVisibilityV1,
+        event: isle_visibility_v1::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        let isle_visibility_v1::Event::Shown { shown } = event;
+        say(*index, format!("shown {shown}"));
     }
 }
 

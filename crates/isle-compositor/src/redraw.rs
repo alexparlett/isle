@@ -241,6 +241,9 @@ impl Isle {
 impl State {
     /// Runs at the end of every loop iteration: draws each output with a queued redraw.
     pub fn redraw_queued(&mut self) {
+        if self.isle.shown_dirty {
+            self.isle.update_shown();
+        }
         let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
         for output in outputs {
             if matches!(

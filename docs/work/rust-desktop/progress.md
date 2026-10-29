@@ -2,6 +2,17 @@
 
 ## 2026-10-29
 
+- 19a.2: `isle-sysinfo` gains `procs` (keyed by pid and start time, names
+  from `comm` completed when cut, footprint, disk for the user's own),
+  `memory` (the footer's split, zram, pressure) and `disks` (whole disks,
+  rates, NVMe temperature); `isle-fakes` gains `tree`, a fake `/proc` and
+  `/sys`.
+- 19a.1: a window wholly behind opaque regions on every output, or under
+  the lock, is suspended, worked out when a redraw is queued; the titlebar
+  manager's version 4 adds `isle_visibility_v1` (version 3 was taken), and
+  `isle_app::use_shown()` hears it on the data thread. Compositor suite
+  420 passed; `shell.rs`'s open-frames test failed once under load and
+  passes alone.
 - P19a reviewed, every recommendation taken. 19a.0: the record; the two
   lines into `p1/structure/monitor.md`; `apps.md`'s open points answered.
 - The PPT probe on the host: the iGPU's PPT tracks RAPL's package power

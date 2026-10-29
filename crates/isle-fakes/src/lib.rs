@@ -1,11 +1,13 @@
 //! Fake system daemons for tests, served on a private bus. Each answers the calls Isle's
 //! proxies make, can change its state as the daemon would, and can leave the bus and return.
+//! `tree` is a fake `/proc` and `/sys` for readers that take a root.
 
 pub mod bluez;
 pub mod logind;
 pub mod mpris;
 pub mod network;
 pub mod polkit;
+pub mod tree;
 pub mod udisks;
 pub mod upower;
 

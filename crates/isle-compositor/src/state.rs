@@ -152,6 +152,13 @@ pub struct Isle {
         smithay::reexports::wayland_server::backend::ObjectId,
         (i32, i32),
     >,
+    /// Each surface's `isle_visibility_v1` objects.
+    pub visibility: std::collections::HashMap<
+        smithay::reexports::wayland_server::backend::ObjectId,
+        Vec<crate::titlebar_overlay::protocol::isle_visibility_v1::IsleVisibilityV1>,
+    >,
+    /// A window may have been covered or uncovered since `update_shown` last ran.
+    pub shown_dirty: bool,
     /// Windows floating over a caller, by their surface (`isle_float_v1`).
     pub floats: std::collections::HashMap<
         smithay::reexports::wayland_server::backend::ObjectId,
@@ -557,6 +564,8 @@ impl Isle {
             display_change: None,
             next_display_change: 0,
             titlebar_overlays: Default::default(),
+            visibility: Default::default(),
+            shown_dirty: false,
             floats: Default::default(),
             zoom: Default::default(),
             zoom_menu,
@@ -893,6 +902,7 @@ impl Isle {
     }
 
     pub fn queue_redraw_all(&mut self) {
+        self.shown_dirty = true;
         let outputs: Vec<_> = self.space.outputs().cloned().collect();
         for output in &outputs {
             self.queue_redraw(output);
@@ -900,6 +910,7 @@ impl Isle {
     }
 
     pub fn queue_redraw_for_window(&mut self, window: &Window) {
+        self.shown_dirty = true;
         let outputs = self.space.outputs_for_element(window);
         for output in &outputs {
             self.queue_redraw(output);

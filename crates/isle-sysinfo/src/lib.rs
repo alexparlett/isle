@@ -1,5 +1,9 @@
 //! The machine's load: CPU, memory, GPU, temperatures, network and uptime, sampled while
-//! something shows them (the System widget; Monitor in P19).
+//! something shows them (the System widget), and the readers Monitor adds beside it.
+
+pub mod disks;
+pub mod memory;
+pub mod procs;
 
 use std::{collections::VecDeque, fs, path::Path, time::Instant};
 

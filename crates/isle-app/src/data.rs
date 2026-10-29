@@ -1,7 +1,8 @@
 //! The app's `wl_data_device`, on a thread and queue of its own beside winit's: the selection
 //! in any type an app offers (files as `text/uri-list` and `x-special/gnome-copied-files`,
 //! text as `text/plain`), and drags out of and onto the app's windows (`p15-files.md`
-//! choice 5). winit reports neither; smithay-clipboard carried text alone.
+//! choice 5). winit reports neither; smithay-clipboard carried text alone. Its thread also
+//! hears whether each window is shown (`isle_visibility_v1`), which winit drops.
 
 use std::{
     io::{Read, Write},
@@ -27,6 +28,11 @@ use smithay_client_toolkit::{
     },
 };
 use wayland_backend::client::Backend;
+
+use crate::wayland::isle_titlebar::{
+    isle_titlebar_manager_v1::IsleTitlebarManagerV1,
+    isle_visibility_v1::{self, IsleVisibilityV1},
+};
 use wayland_client::{
     Connection, Dispatch, EventQueue, Proxy, QueueHandle,
     globals::registry_queue_init,
@@ -68,7 +74,12 @@ enum Ask {
     StartDrag { surface: u32, contents: Contents },
     /// The drop target's type of choice for drags onto the app.
     Accept(Vec<String>),
+    /// Tells the app whether the window of this surface is shown.
+    WatchShown(WlSurface),
 }
+
+/// A window's surface by its protocol id, and whether it is shown.
+pub type ShownEvent = (u32, bool);
 
 struct Inner {
     asks: mpsc::Sender<Ask>,
@@ -84,14 +95,20 @@ impl Data {
     ///
     /// # Safety
     /// `display` is a live `wl_display` that outlives the app.
-    pub unsafe fn start(display: *mut std::ffi::c_void) -> Option<(Data, UnboundedReceiver<DragEvent>)> {
+    pub unsafe fn start(
+        display: *mut std::ffi::c_void,
+    ) -> Option<(Data, UnboundedReceiver<DragEvent>, UnboundedReceiver<ShownEvent>)> {
         let backend = unsafe { Backend::from_foreign_display(display.cast()) };
         let conn = Connection::from_backend(backend);
         let (globals, queue): (_, EventQueue<State>) = registry_queue_init(&conn).ok()?;
         let qh = queue.handle();
         let manager = DataDeviceManagerState::bind(&globals, &qh).ok()?;
         let (events, rx) = unbounded();
+        let (shown, shown_rx) = unbounded();
+        let titlebars = globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 4..=4, ()).ok();
         let state = State {
+            titlebars,
+            shown,
             registry: RegistryState::new(&globals),
             seats: SeatState::new(&globals, &qh),
             manager,
@@ -113,7 +130,12 @@ impl Data {
             .name("isle-app-data".into())
             .spawn(move || run(conn, queue, state, asked, wake_read))
             .ok()?;
-        Some((Data(Arc::new(Inner { asks, wake })), rx))
+        Some((Data(Arc::new(Inner { asks, wake })), rx, shown_rx))
+    }
+
+    /// Reports whether `surface`'s window is shown, on the receiver `start` gave.
+    pub fn watch_shown(&self, surface: WlSurface) {
+        self.ask(Ask::WatchShown(surface));
     }
 
     fn ask(&self, ask: Ask) {
@@ -145,6 +167,9 @@ impl Data {
 }
 
 struct State {
+    /// The compositor's manager, at the version with visibility; none on another compositor.
+    titlebars: Option<IsleTitlebarManagerV1>,
+    shown: UnboundedSender<ShownEvent>,
     registry: RegistryState,
     seats: SeatState,
     manager: DataDeviceManagerState,
@@ -210,6 +235,12 @@ fn read_pipe(mut pipe: impl Read + Send + 'static) -> Option<Vec<u8>> {
 
 impl State {
     fn handle(&mut self, conn: &Connection, qh: &QueueHandle<Self>, ask: Ask) {
+        if let Ask::WatchShown(surface) = ask {
+            if let Some(manager) = &self.titlebars {
+                manager.get_visibility(&surface, qh, surface.id().protocol_id());
+            }
+            return;
+        }
         let Some(device) = &self.device else { return };
         match ask {
             Ask::SetSelection(contents) => {
@@ -255,6 +286,7 @@ impl State {
                 self.drag = Some((source, contents));
             }
             Ask::Accept(types) => self.accepts = types,
+            Ask::WatchShown(_) => {}
         }
     }
 
@@ -445,6 +477,15 @@ impl ProvidesRegistryState for State {
     }
     registry_handlers![SeatState];
 }
+
+impl Dispatch<IsleVisibilityV1, u32> for State {
+    fn event(state: &mut Self, _: &IsleVisibilityV1, event: isle_visibility_v1::Event, surface: &u32, _: &Connection, _: &QueueHandle<Self>) {
+        let isle_visibility_v1::Event::Shown { shown } = event;
+        let _ = state.shown.unbounded_send((*surface, shown != 0));
+    }
+}
+
+wayland_client::delegate_noop!(State: ignore IsleTitlebarManagerV1);
 
 delegate_registry!(State);
 delegate_seat!(State);

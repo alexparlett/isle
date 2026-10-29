@@ -4771,6 +4771,8 @@ version = "0.1.0"
 name = "isle-sysinfo"
 version = "0.1.0"
 dependencies = [
+ "isle-fakes",
+ "libc",
  "nvml-wrapper",
  "serde",
 ]

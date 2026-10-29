@@ -121,6 +121,15 @@ pub struct Drag {
     pub ended: State<u64>,
 }
 
+#[derive(Clone, Copy)]
+struct Shown(State<bool>);
+
+/// Whether the window can be seen: false while it is minimised, hidden, on a desktop not
+/// shown, wholly covered or under the lock. True where the compositor does not say.
+pub fn use_shown() -> State<bool> {
+    use_consume::<Shown>().0
+}
+
 /// The window's drags.
 pub fn use_drag() -> Drag {
     use_consume::<Drag>()
@@ -338,6 +347,7 @@ impl<A: App + 'static> App for Frame<A> {
             ended: State::create(0),
         });
         use_provide_context(|| ThisSurface(self.extras.borrow().as_ref().map(|e| e.surface_id())));
+        let shown = use_provide_context(|| Shown(State::create(true))).0;
         use_hook(|| {
             let (window, platform) = (run.window, run.platform.clone());
             let run = run.clone();
@@ -354,9 +364,13 @@ impl<A: App + 'static> App for Frame<A> {
                     }
                 }),
                 drags,
+                shown,
             );
             if let Some(extras) = self.extras.borrow().as_ref() {
                 app.start_data(extras.display);
+                if let Some(data) = app.data() {
+                    data.watch_shown(extras.surface());
+                }
             }
             spawn(async move {
                 use futures_util::StreamExt;

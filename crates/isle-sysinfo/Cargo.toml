@@ -6,5 +6,9 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+libc.workspace = true
 nvml-wrapper = "0.13"
 serde.workspace = true
+
+[dev-dependencies]
+isle-fakes.workspace = true

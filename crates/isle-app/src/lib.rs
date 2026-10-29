@@ -28,7 +28,7 @@ pub use desktop::{Write, from_owned};
 pub use instance::{Request, SERVICE};
 pub use toolbar::ToolbarExt;
 pub use hub::{AppHandle, Hold, Requester, WindowKey, app};
-pub use window::{Drag, Float, WindowSpec, this_surface, this_window, use_drag};
+pub use window::{Drag, Float, WindowSpec, this_surface, this_window, use_drag, use_shown};
 pub use worker::Worker;
 
 /// A future serving one of the app's objects on its bus.

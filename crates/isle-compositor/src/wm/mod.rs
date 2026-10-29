@@ -114,6 +114,8 @@ pub struct Record {
     /// Its box in the global space: where it is while shown, where it returns to while not.
     pub rect: Rectangle<i32, Logical>,
     suspended: bool,
+    /// The registry shows it; `update_shown` decides whether it can be seen.
+    in_space: bool,
     /// It is a game: translation, the swap and all but the escape set are off over it.
     pub game: bool,
     /// Its process carries Steam's game label.
@@ -193,9 +195,14 @@ impl Record {
         }
     }
 
-    fn set_suspended(&mut self, suspended: bool) {
+    pub fn suspended(&self) -> bool {
+        self.suspended
+    }
+
+    /// Whether it changed.
+    fn set_suspended(&mut self, suspended: bool) -> bool {
         if self.suspended == suspended {
-            return;
+            return false;
         }
         self.suspended = suspended;
         if let Some(toplevel) = self.window.toplevel() {
@@ -210,6 +217,7 @@ impl Record {
                 toplevel.send_pending_configure();
             }
         }
+        true
     }
 }
 
@@ -368,6 +376,7 @@ impl Isle {
             bar: None,
             rect: Rectangle::default(),
             suspended: false,
+            in_space: false,
             game: false,
             steam: false,
             ancestors: Vec::new(),
@@ -422,7 +431,7 @@ impl Isle {
                 self.space.unmap_elem(&record.window);
                 changed = true;
             }
-            record.set_suspended(record.mapped && !shown);
+            record.in_space = shown;
         }
         let in_space: Vec<Window> = self.space.elements().cloned().collect();
         // Records run back to front; windows kept on top go after the rest.
@@ -442,9 +451,59 @@ impl Isle {
         }
         self.restack_x11();
         self.sync_bars();
+        self.update_shown();
         if changed {
             self.queue_redraw_all();
             self.notify(Event::WindowsChanged);
+        }
+    }
+
+    /// Suspends each window that cannot be seen: not in the space, wholly behind the opaque
+    /// regions of windows above it on every output, or under the lock. While Mission Control
+    /// shows every window, none counts as covered.
+    pub fn update_shown(&mut self) {
+        self.shown_dirty = false;
+        let locked = self.lock.locked;
+        let spread = self.mission.is_some();
+        let outputs: Vec<Rectangle<i32, Logical>> = self
+            .space
+            .outputs()
+            .filter_map(|o| self.space.output_geometry(o))
+            .collect();
+        let mut opaque: Vec<Rectangle<i32, Logical>> = Vec::new();
+        let mut covered: Vec<Window> = Vec::new();
+        let front_first: Vec<Window> = self.space.elements().rev().cloned().collect();
+        for window in front_first {
+            let Some(geometry) = self.space.element_geometry(&window) else {
+                continue;
+            };
+            let on_screen: Vec<_> = outputs.iter().filter_map(|o| o.intersection(geometry)).collect();
+            if !spread && Rectangle::subtract_rects_many(on_screen, opaque.iter().copied()).is_empty() {
+                covered.push(window.clone());
+            }
+            if let (Some(surface), Some(loc)) = (
+                smithay::wayland::seat::WaylandFocus::wl_surface(&window),
+                self.space.element_location(&window),
+            ) {
+                let origin = loc - window.geometry().loc;
+                let regions = smithay::backend::renderer::utils::with_renderer_surface_state(&surface, |s| {
+                    s.opaque_regions().map(|r| r.to_vec()).unwrap_or_default()
+                })
+                .unwrap_or_default();
+                opaque.extend(regions.into_iter().map(|r| Rectangle::new(r.loc + origin, r.size)));
+            }
+        }
+        let mut changed = Vec::new();
+        for record in &mut self.wm.records {
+            let hidden = !record.in_space || locked || covered.contains(&record.window);
+            if record.set_suspended(record.mapped && hidden)
+                && let Some(surface) = record.surface()
+            {
+                changed.push((surface, !record.suspended));
+            }
+        }
+        for (surface, shown) in changed {
+            self.send_shown(&surface, shown);
         }
     }
 

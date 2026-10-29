@@ -11,7 +11,7 @@
     names. The client draws everything else, its toolbar included, under them.
   </description>
 
-  <interface name="isle_titlebar_manager_v1" version="3">
+  <interface name="isle_titlebar_manager_v1" version="4">
     <request name="destroy" type="destructor"/>
 
     <request name="get_titlebar">
@@ -27,6 +27,14 @@
         One per surface, sent before its first commit; the surface must be an xdg_toplevel's.
       </description>
       <arg name="id" type="new_id" interface="isle_float_v1"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+
+    <request name="get_visibility" since="4">
+      <description summary="the visibility object for a toplevel's surface">
+        Any number per surface; the surface must be an xdg_toplevel's or an X11 window's.
+      </description>
+      <arg name="id" type="new_id" interface="isle_visibility_v1"/>
       <arg name="surface" type="object" interface="wl_surface"/>
     </request>
   </interface>
@@ -98,5 +106,22 @@
       <arg name="width" type="int"/>
       <arg name="height" type="int"/>
     </request>
+  </interface>
+
+  <interface name="isle_visibility_v1" version="4">
+    <description summary="whether a window can be seen">
+      What xdg_toplevel's suspended state says, for clients whose toolkit drops it: a window
+      is not shown while it is minimised, hidden, on a desktop not shown, wholly covered by
+      opaque windows, or under the lock.
+    </description>
+
+    <request name="destroy" type="destructor"/>
+
+    <event name="shown">
+      <description summary="the window is or is not shown">
+        Sent once as the object is made and whenever it changes.
+      </description>
+      <arg name="shown" type="uint" summary="1 when shown, 0 when not"/>
+    </event>
   </interface>
 </protocol>

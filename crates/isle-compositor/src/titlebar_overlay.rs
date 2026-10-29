@@ -1,7 +1,8 @@
 //! `isle_titlebar_v1`: a window that takes server-side decorations asks for its bar to be
 //! transparent, as on macOS, and Isle draws only the traffic lights over the window's own
 //! toolbar at the inset it names (`p13-settings.md` choice 14); and a window floats over its
-//! caller without its keyboard, as Quick Look does (`p15-files.md` choice 27).
+//! caller without its keyboard, as Quick Look does (`p15-files.md` choice 27); and a window
+//! is told whether it is shown, which winit drops from xdg-shell (`p19a-monitor.md` choice 14).
 
 use smithay::reexports::wayland_server::{
     Client, DataInit, Dispatch, DisplayHandle, GlobalDispatch, New, Resource,
@@ -34,10 +35,11 @@ use protocol::{
     isle_float_v1::{self, IsleFloatV1},
     isle_titlebar_manager_v1::{self, IsleTitlebarManagerV1},
     isle_titlebar_v1::{self, IsleTitlebarV1},
+    isle_visibility_v1::{self, IsleVisibilityV1},
 };
 
 pub fn create_global(dh: &DisplayHandle) {
-    dh.create_global::<State, IsleTitlebarManagerV1, ()>(3, ());
+    dh.create_global::<State, IsleTitlebarManagerV1, ()>(4, ());
 }
 
 /// A window floating over its caller.
@@ -166,6 +168,12 @@ impl Dispatch<IsleTitlebarManagerV1, ()> for State {
                 state.isle.floats.insert(surface.id(), Float::default());
                 init.init(id, surface);
             }
+            isle_titlebar_manager_v1::Request::GetVisibility { id, surface } => {
+                let visibility = init.init(id, surface.clone());
+                let suspended = state.isle.wm.for_surface(&surface).is_some_and(|r| r.suspended());
+                visibility.shown(u32::from(!suspended));
+                state.isle.visibility.entry(surface.id()).or_default().push(visibility);
+            }
             isle_titlebar_manager_v1::Request::Destroy => {}
         }
     }
@@ -237,5 +245,48 @@ impl Dispatch<IsleFloatV1, WlSurface> for State {
         surface: &WlSurface,
     ) {
         state.isle.floats.remove(&surface.id());
+    }
+}
+
+impl Dispatch<IsleVisibilityV1, WlSurface> for State {
+    fn request(
+        state: &mut Self,
+        _client: &Client,
+        resource: &IsleVisibilityV1,
+        request: isle_visibility_v1::Request,
+        surface: &WlSurface,
+        _dh: &DisplayHandle,
+        _init: &mut DataInit<'_, Self>,
+    ) {
+        match request {
+            isle_visibility_v1::Request::Destroy => state.isle.forget_visibility(surface, resource),
+        }
+    }
+
+    fn destroyed(
+        state: &mut Self,
+        _client: smithay::reexports::wayland_server::backend::ClientId,
+        resource: &IsleVisibilityV1,
+        surface: &WlSurface,
+    ) {
+        state.isle.forget_visibility(surface, resource);
+    }
+}
+
+impl Isle {
+    fn forget_visibility(&mut self, surface: &WlSurface, resource: &IsleVisibilityV1) {
+        if let Some(list) = self.visibility.get_mut(&surface.id()) {
+            list.retain(|r| r != resource);
+            if list.is_empty() {
+                self.visibility.remove(&surface.id());
+            }
+        }
+    }
+
+    /// Tells `surface`'s visibility objects whether it is shown.
+    pub fn send_shown(&self, surface: &WlSurface, shown: bool) {
+        for resource in self.visibility.get(&surface.id()).into_iter().flatten() {
+            resource.shown(u32::from(shown));
+        }
     }
 }

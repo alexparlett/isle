@@ -72,6 +72,8 @@ pub(crate) struct Open {
     pub id: Option<WindowId>,
     /// Drags over the window, from the data device.
     pub drags: Option<UnboundedSender<crate::data::DragEvent>>,
+    /// Whether the window is shown, as the compositor says.
+    pub shown: Option<freya::prelude::State<bool>>,
     pub extras: Rc<RefCell<Option<Extras>>>,
     /// Runs a chosen menu item in the window.
     pub choose: Option<Rc<dyn Fn(i32)>>,
@@ -176,6 +178,7 @@ impl AppHandle {
             Open {
                 id: None,
                 drags: None,
+                shown: None,
                 extras: extras.clone(),
                 choose: None,
                 closing: false,
@@ -318,12 +321,14 @@ impl AppHandle {
         id: WindowId,
         choose: Rc<dyn Fn(i32)>,
         drags: UnboundedSender<crate::data::DragEvent>,
+        shown: freya::prelude::State<bool>,
     ) {
         let closing = match self.0.windows.borrow_mut().get_mut(&key) {
             Some(open) => {
                 open.id = Some(id);
                 open.choose = Some(choose);
                 open.drags = Some(drags);
+                open.shown = Some(shown);
                 open.closing
             }
             None => false,
@@ -345,7 +350,7 @@ impl AppHandle {
             return;
         }
         // The display is winit's, alive as long as the app.
-        let Some((data, mut events)) = (unsafe { crate::data::Data::start(display) }) else {
+        let Some((data, mut events, mut shown)) = (unsafe { crate::data::Data::start(display) }) else {
             warn!("no data device: no clipboard of files and no drags");
             return;
         };
@@ -353,6 +358,19 @@ impl AppHandle {
         GlobalContexts::get().insert_context(freya::clipboard::Clipboard::create(Some(Box::new(
             crate::data::Clipboard(data),
         ))));
+        let app = self.clone();
+        self.spawn(async move {
+            while let Some((surface, is_shown)) = shown.next().await {
+                for open in app.0.windows.borrow().values() {
+                    let mine = open.extras.borrow().as_ref().map(|e| e.surface_id());
+                    if let (Some(mut state), true) = (open.shown, mine == Some(surface))
+                        && *state.peek() != is_shown
+                    {
+                        state.set(is_shown);
+                    }
+                }
+            }
+        });
         let app = self.clone();
         self.spawn(async move {
             // The window a drag was last over, for its end.

@@ -264,6 +264,17 @@ Sensors window (cuttable), a table and a graph shared in `isle-ui`; the
 `monitor` shortcut and the System widget's click. Intent: apps.md
 Monitor.
 
+**P19p · Compositor performance.** Planned and reviewed 2026-10-30:
+`p19p-performance.md`, evidence in `p19p-performance.md` under research.
+Before P19b. The file index's watch stops rescanning itself on its own
+opens; one element list per frame, with glass blurred only when its
+footprint is damaged; island refreshes that redraw only on a change; the
+session and its apps out of greetd's nice 16, with an ananicy rule for the
+compositor; glibc's arenas capped and trimmed, Mesa's EGL vendor kept out,
+the shell's image caches bounded. `Displays1.Perf` and `isle perf` keep it
+measured, with bars for idle, a client at 144 Hz and an hour's memory.
+Intent: compositor.md, platform.md.
+
 **P19b · Cleaner.** Planned 2026-10-29, for review: `p19b-cleaner.md`.
 `isle-scan`, a crate P20's Storage page reuses: a walk hand-rolled on
 `rustix` (folders kept, allocated blocks, links once, mounts crossed by the

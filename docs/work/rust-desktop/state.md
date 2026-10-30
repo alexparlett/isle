@@ -608,3 +608,11 @@
   `auth_self` with Keychain holding the grant, not `auth_self_keep`;
   copies withdrawn with the process kept until then; Logins built though
   the host has none; no gate, three copy lines. Phases 19c.0–19c.13.
+- P19p (compositor performance) planned and reviewed 2026-10-30, building:
+  `p19p-performance.md`, evidence in
+  `docs/research/rust-desktop/p19p-performance.md`. On the host, after 25
+  minutes the compositor used 75% of a core: the file index rescanning
+  itself on its own opens took 64%, and full redraw passes at 144 Hz took
+  8%. RSS was 440 MB, with a 662 MB peak, mostly glibc arenas with THP. The
+  session and every app inherit greetd's nice 16 from ananicy. Runs before
+  P19b. Phases 19p.0–19p.7.

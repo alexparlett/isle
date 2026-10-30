@@ -123,6 +123,9 @@ pub struct Isle {
     pub night_fading: bool,
     pub frame_phases: crate::redraw::FramePhases,
     pub perf: crate::perf::Perf,
+    /// The windows and what lies under them, built for the glass and kept for the frame on
+    /// that output; taken or dropped within the redraw.
+    pub frame_lower: std::cell::RefCell<Option<(String, Vec<crate::render::IsleElement>)>>,
     /// The surface whose pointer lock or confinement is active.
     pub constrained: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     /// Explicit sync, once a device that can wait on sync points is open.
@@ -560,6 +563,7 @@ impl Isle {
             night_fading: false,
             frame_phases: Default::default(),
             perf: Default::default(),
+            frame_lower: Default::default(),
             paced: Default::default(),
             commit_timers: Default::default(),
             bar_option: None,

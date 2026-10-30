@@ -319,13 +319,21 @@ impl Isle {
         self.island
             .morphs
             .retain(|name, _| outputs.iter().any(|o| &o.name() == name));
+        let before: Vec<_> = outputs
+            .iter()
+            .map(|o| (self.island.surface.frame(&o.name()), self.shell.is_open_on("island", o)))
+            .collect();
         self.push_island_frames();
         self.arm_island_timer();
         if !self.banners.model.idle() || self.shell.is_open("banners") {
             self.refresh_banners();
         }
-        for output in &outputs {
-            self.queue_redraw(output);
+        // A spring just aimed elsewhere has not moved yet, so its frame is the same.
+        for (output, before) in outputs.iter().zip(before) {
+            let now = (self.island.surface.frame(&output.name()), self.shell.is_open_on("island", output));
+            if now != before || self.island_moving(output) {
+                self.queue_redraw(output);
+            }
         }
     }
 

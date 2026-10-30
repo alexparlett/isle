@@ -287,6 +287,7 @@ impl State {
         let glass = self.draw_shell(output, pointer_only);
         let shell_drawn = started.elapsed();
         let rendered = self.backend.render(&mut self.isle, output);
+        self.isle.frame_lower.borrow_mut().take();
         let total = started.elapsed();
         let drawing = shell_drawn - dispatched;
         let phases = [stepped, dispatched - stepped, drawing.saturating_sub(glass), glass, total - shell_drawn];
@@ -451,20 +452,39 @@ impl State {
         }
         let started = std::time::Instant::now();
         let regions = self.isle.shell.glass_regions(output);
+        let backdrops = self.isle.window_backdrops(output);
         self.isle.shell.begin_glass(output);
         let size = output
             .current_mode()
             .map(|m| m.size)
             .unwrap_or_default();
+        // Glass over the windows sees the frame's own lower half, built once for both; not
+        // while a window's backdrop, drawn among the windows, is still to be blurred.
+        let share = backdrops.is_empty()
+            && !self.isle.lock.locked
+            && self.isle.dashboard_backdrop(output).is_none();
+        let mut lower = None;
         for region in regions {
+            if share && !region.surface.starts_with("mission-") {
+                let mut upper = Vec::new();
+                if self.isle.upper_elements_below(renderer, output, region.layer, &mut |e| upper.push(e)) {
+                    let lower = lower.get_or_insert_with(|| self.isle.lower_elements_of(renderer, output));
+                    let below = upper.iter().chain(lower.iter()).collect();
+                    self.isle.shell.prepare_glass(renderer, &region, size, below);
+                    continue;
+                }
+            }
             let mut below = Vec::new();
             self.isle.render_elements_below_surface(renderer, output, region.layer, region.surface, &mut |e| {
                 below.push(e)
             });
             self.isle.shell.prepare_glass(renderer, &region, size, below);
         }
+        if let Some(lower) = lower {
+            *self.isle.frame_lower.borrow_mut() = Some((output.name(), lower));
+        }
         let scale = output.current_scale().fractional_scale();
-        for (id, rect) in self.isle.window_backdrops(output) {
+        for (id, rect) in backdrops {
             let mut below = Vec::new();
             self.isle
                 .render_elements_below_window(renderer, output, id, &mut |e| below.push(e));

@@ -137,7 +137,7 @@ impl Isle {
         if self.lock.locked {
             self.render_locked(output, renderer, cursor, true, push);
         } else {
-            self.render_elements_from(renderer, output, cursor, Stage::Cursor, &[], None, push);
+            self.render_elements_from(renderer, output, cursor, Stage::Cursor, &[], None, true, push);
         }
         #[cfg(feature = "test-hooks")]
         self.lock.frame_kinds.borrow_mut().insert(output.name(), kinds);
@@ -161,7 +161,7 @@ impl Isle {
             isle_shell::Layer::Top => Stage::Windows,
             isle_shell::Layer::Background => return,
         };
-        self.render_elements_from(renderer, output, None, from, &[], None, push);
+        self.render_elements_from(renderer, output, None, from, &[], None, true, push);
     }
 
     /// What lies behind the glass of surface `name` in `layer`: Mission Control's surfaces
@@ -179,7 +179,7 @@ impl Isle {
             "mission-back" if !self.lock.locked => Stage::MissionVeil,
             _ => return self.render_elements_below(renderer, output, layer, push),
         };
-        self.render_elements_from(renderer, output, None, from, &[], None, push);
+        self.render_elements_from(renderer, output, None, from, &[], None, true, push);
     }
 
     /// What lies behind window `id`, front to back, for its backdrop.
@@ -190,7 +190,7 @@ impl Isle {
         id: u64,
         push: &mut dyn FnMut(IsleElement),
     ) {
-        self.render_elements_from(renderer, output, None, Stage::Windows, &[], Some(id), push);
+        self.render_elements_from(renderer, output, None, Stage::Windows, &[], Some(id), true, push);
     }
 
     /// What a picture of `output` holds, front to back: what it shows but the idle dim and
@@ -209,7 +209,7 @@ impl Isle {
             self.render_locked(output, renderer, cursor, true, push);
         } else {
             let from = if pointer { Stage::Cursor } else { Stage::Prompt };
-            self.render_elements_from(renderer, output, cursor, from, CAPTURE_SURFACES, None, push);
+            self.render_elements_from(renderer, output, cursor, from, CAPTURE_SURFACES, None, true, push);
         }
     }
 
@@ -221,12 +221,12 @@ impl Isle {
         from: Stage,
         leave: &[&str],
         under: Option<u64>,
+        with_lower: bool,
         push: &mut dyn FnMut(IsleElement),
     ) {
         let Some(geometry) = self.space.output_geometry(output) else {
             return;
         };
-        self.perf.element_builds.set(self.perf.element_builds.get() + 1);
         let scale = Scale::from(output.current_scale().fractional_scale());
         let pointer = self
             .seat
@@ -396,13 +396,76 @@ impl Isle {
             if from <= Stage::MissionVeil {
                 self.mission_veil(output, push);
             }
-        } else {
+        }
+        drop(layers);
+        if !with_lower {
+            return;
+        }
+        let shared = (leave.is_empty() && under.is_none())
+            .then(|| self.frame_lower.borrow_mut().take_if(|(name, _)| *name == output.name()))
+            .flatten();
+        match shared {
+            Some((_, lower)) => lower.into_iter().for_each(push),
+            None => self.lower_elements(renderer, output, geometry, scale, leave, under, mission, push),
+        }
+    }
+
+    /// What lies behind shell surfaces of `layer` down to the windows, for glass whose
+    /// windows and below are [`Isle::lower_elements_of`]; false for a layer this cannot serve.
+    pub fn upper_elements_below(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        layer: isle_shell::Layer,
+        push: &mut dyn FnMut(IsleElement),
+    ) -> bool {
+        let from = match layer {
+            isle_shell::Layer::Overlay => Stage::LayerOverlay,
+            isle_shell::Layer::Prompt => Stage::Scrim,
+            isle_shell::Layer::Top => Stage::Windows,
+            isle_shell::Layer::Lock | isle_shell::Layer::Background => return false,
+        };
+        self.render_elements_from(renderer, output, None, from, &[], None, false, push);
+        true
+    }
+
+    /// The windows and what lies under them, built once for the frame and the glass over
+    /// them: [`Isle::frame_lower`] keeps it until the frame takes it.
+    pub fn lower_elements_of(&self, renderer: &mut GlesRenderer, output: &Output) -> Vec<IsleElement> {
+        let mut lower = Vec::new();
+        let Some(geometry) = self.space.output_geometry(output) else {
+            return lower;
+        };
+        let scale = Scale::from(output.current_scale().fractional_scale());
+        let mission = self.mission_on(output);
+        self.lower_elements(renderer, output, geometry, scale, &[], None, mission, &mut |e| lower.push(e));
+        lower
+    }
+
+    /// The windows, unless Mission Control shows in their place, then the bottom and
+    /// background layers, the shell's background and the wallpaper.
+    #[allow(clippy::too_many_arguments)]
+    fn lower_elements(
+        &self,
+        renderer: &mut GlesRenderer,
+        output: &Output,
+        geometry: Rectangle<i32, Logical>,
+        scale: Scale<f64>,
+        leave: &[&str],
+        under: Option<u64>,
+        mission: bool,
+        push: &mut dyn FnMut(IsleElement),
+    ) {
+        self.perf.element_builds.set(self.perf.element_builds.get() + 1);
+        if !mission {
             self.render_windows(renderer, output, geometry, scale, leave, under, push);
         }
-
+        let layers = layer_map_for_output(output);
         push_layers(&layers, Layer::Bottom, renderer, scale, push);
         push_layers(&layers, Layer::Background, renderer, scale, push);
-        shell(isle_shell::Layer::Background, push);
+        drop(layers);
+        self.shell
+            .elements_without(output, isle_shell::Layer::Background, leave, &mut |e| push(IsleElement::Shell(e)));
         self.wallpaper_elements(output, &mut |e| push(IsleElement::Wallpaper(e)));
     }
 

@@ -189,3 +189,78 @@ fn a_title_dragged_onto_another_moves_its_column() {
     assert!(got.contains(&TableEvent::Move("cpu", 1)), "{got:?}");
     assert!(!got.iter().any(|e| matches!(e, TableEvent::Sort(_))), "a drag is not a click: {got:?}");
 }
+
+#[test]
+fn rows_with_icons_survive_a_switch_of_columns_and_back() {
+    let handle: Rc<RefCell<Option<State<bool>>>> = Rc::default();
+    let handle_in = handle.clone();
+    let icons: Vec<std::path::PathBuf> = std::fs::read_dir("/usr/share/icons/hicolor/48x48/apps")
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .take(8)
+        .collect();
+    let (mut test, _) = TestingRunner::new(
+        move || {
+            use_provide_context(|| {
+                ThemeContext(State::create(Rc::new(Source::shipped().theme(&Appearance::default()).unwrap())))
+            });
+            use_provide_context(GlassShapes::default);
+            let memory = use_state(|| false);
+            *handle_in.borrow_mut() = Some(memory);
+            let memory_now = *memory.read();
+            let mut keys: Vec<u64> = (1..40).collect();
+            if memory_now {
+                keys.sort_by_key(|k| (k * 7919) % 41);
+            }
+            let rows = keys
+                .iter()
+                .map(|k| Row {
+                    key: *k,
+                    name: format!("proc-{k:03}"),
+                    icon: (k % 3 == 0).then(|| icons.get(*k as usize % icons.len().max(1)).cloned()).flatten(),
+                    cells: if memory_now {
+                        vec![Cell::from(format!("{k} MB")), Cell::from("4".to_owned())]
+                    } else {
+                        vec![Cell::from(format!("{k}.0")), Cell::from("0:01".to_owned()), Cell::from("4".to_owned())]
+                    },
+                    ..Default::default()
+                })
+                .collect();
+            let columns = if memory_now {
+                vec![Column::text("name", "Process name", 240.), Column::figures("memory", "Memory", 80.), Column::figures("threads", "Threads", 64.)]
+            } else {
+                vec![
+                    Column::text("name", "Process name", 240.),
+                    Column::figures("cpu", "% CPU", 64.),
+                    Column::figures("cpu_time", "CPU time", 80.),
+                    Column::figures("threads", "Threads", 64.),
+                ]
+            };
+            Table {
+                columns: Rc::new(columns),
+                rows: Rc::new(rows),
+                sort: Sort { column: if memory_now { "memory" } else { "cpu" }, descending: true },
+                selected: Rc::new(vec![3]),
+                focused: true,
+                hold: false,
+                on_event: EventHandler::new(|_| {}),
+                controller: use_scroll_controller(ScrollConfig::default),
+            }
+            .into_element()
+        },
+        (600., 400.).into(),
+        |_| {},
+        1.,
+    );
+    settle(&mut test);
+    let mut memory = handle.borrow().unwrap();
+    for on in [true, false, true, false] {
+        test.run_in(|| memory.set(on));
+        for _ in 0..20 {
+            test.poll(std::time::Duration::from_millis(16), std::time::Duration::from_millis(20));
+        }
+    }
+    assert!(!names(&test).is_empty());
+}

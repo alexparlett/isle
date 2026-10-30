@@ -611,8 +611,8 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
             .into_element()
     });
     let shift = rows.moves.get(&key).copied().unwrap_or(0.0) * rows.slide;
+    // Unkeyed: Freya loses a component's scope inside a keyed element that moves far.
     rect()
-        .key(key.to_string())
         .width(Size::fill())
         .height(Size::px(t.size_row))
         .padding((0., t.space_s))

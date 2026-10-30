@@ -454,7 +454,11 @@ pub fn spawn(command: &str) {
     let result = std::thread::Builder::new()
         .name("spawn".into())
         .spawn(move || {
-            match std::process::Command::new("/bin/sh")
+            use std::os::unix::process::CommandExt;
+            let mut shell = std::process::Command::new("/bin/sh");
+            // SAFETY: `default_nice` only calls setpriority.
+            unsafe { shell.pre_exec(crate::child_env::default_nice) };
+            match shell
                 .arg("-c")
                 .arg(&command)
                 .envs(crate::child_env::vars())

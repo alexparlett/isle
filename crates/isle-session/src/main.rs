@@ -360,6 +360,13 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    // ananicy gives greetd its Launcher type, nice 16, which the session would pass to
+    // everything; back to 0 where `RLIMIT_NICE` allows.
+    unsafe {
+        if libc::getpriority(libc::PRIO_PROCESS, 0) > 0 {
+            libc::setpriority(libc::PRIO_PROCESS, 0, 0);
+        }
+    }
     unsafe {
         let handler = on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t;
         libc::signal(libc::SIGTERM, handler);

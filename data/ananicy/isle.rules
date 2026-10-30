@@ -1,0 +1,4 @@
+# Isle's compositor at the stock rules' compositor type; the session and what it starts at
+# the default nice, not greetd's Launcher type.
+{ "name": "isle-compositor", "type": "LowLatency_RT" }
+{ "name": "isle-session", "nice": 0 }

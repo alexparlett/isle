@@ -232,7 +232,10 @@ impl State {
                 ("XDG_ACTIVATION_TOKEN", token.clone()),
                 ("DESKTOP_STARTUP_ID", token),
             ];
-            let scoped = tokio::process::Command::new("systemd-run")
+            let mut scoped = tokio::process::Command::new("systemd-run");
+            // SAFETY: `default_nice` only calls setpriority.
+            unsafe { scoped.pre_exec(crate::child_env::default_nice) };
+            let scoped = scoped
                 .args([
                     "--user",
                     "--scope",
@@ -278,7 +281,10 @@ impl State {
             };
             if let Some(err) = failed {
                 warn!("systemd-run failed, starting directly: {err}");
-                let direct = tokio::process::Command::new(&argv[0])
+                let mut direct = tokio::process::Command::new(&argv[0]);
+                // SAFETY: `default_nice` only calls setpriority.
+                unsafe { direct.pre_exec(crate::child_env::default_nice) };
+                let direct = direct
                     .args(&argv[1..])
                     .envs(crate::child_env::vars())
                     .envs(envs)

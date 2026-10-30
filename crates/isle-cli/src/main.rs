@@ -1465,7 +1465,7 @@ fn print_perf(before: &serde_json::Value, after: &serde_json::Value, secs: f64) 
         .filter(|(_, pct)| *pct >= 0.1)
         .collect();
     threads.sort_by(|a, b| b.1.total_cmp(&a.1));
-    let total: f64 = threads.iter().map(|t| t.1).sum();
+    let total = threads.iter().fold(0.0, |sum, t| sum + t.1);
     println!("CPU {total:.1}% of a core");
     for (name, pct) in threads {
         println!("  {pct:5.1}%  {name}");

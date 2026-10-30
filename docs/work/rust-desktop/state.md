@@ -616,3 +616,11 @@
   8%. RSS was 440 MB, with a 662 MB peak, mostly glibc arenas with THP. The
   session and every app inherit greetd's nice 16 from ananicy. Runs before
   P19b. Phases 19p.0–19p.7.
+- P19p built 2026-10-30 (phases 19p.0–19p.5, B132–B136): the index hears
+  only names, `isle perf` and `Displays1.Perf`, the session and apps at nice
+  0 with an ananicy rule for the compositor, one list of the windows and
+  below a frame, glass skipping its bind when nothing behind it changed,
+  island redraws only on change, two malloc arenas with trims, bounded
+  image caches, notification pictures pruned. 19p.6 cut. Host run pending:
+  the user packages and installs with `tools/package.sh`, then an hour idle
+  and an hour with a game read with `isle perf --watch` against the bars.

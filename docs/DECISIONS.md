@@ -1431,3 +1431,46 @@ moving layout each frame (the plates' p95 2.27 ms flowing, over bar 5),
 and moving widgets' plates to the front while they flow (the front's p95
 2.8 ms, each carrying its shadow's blur).
 
+
+**B132 · The file index hears only names.** P19p. The index watches its
+folders through `isle-fs`'s rustix inotify with `CREATE`, `DELETE`,
+`MOVED_FROM`, `MOVED_TO` and the folder's own removal, in an instance of
+its own, so no read, open, write or attribute change is a change to it.
+A hidden name is not read again; a `.gitignore` or `.ignore` changing
+builds the index afresh. A folder is read under the read lock and applied
+under the write lock. Rejected: notify with `Access` filtered out (its mask
+keeps `IN_OPEN`, about 14,000 wakes a second on the host), and sharing the
+process's Files watcher (its mask hears writes, and a second mask on the
+same folder replaces the first).
+
+**B133 · One list of the windows and below per frame.** P19p. The redraw
+pass builds the windows and what lies under them once; glass over them
+takes that list by reference with the few elements above the windows, and
+the frame takes it after. While a window's backdrop is to be blurred, the
+lock is up or the dashboard covers the screen, each builds its own as
+before. Rejected: building the whole frame's list first and slicing it for
+the glass (the shell's glass elements would carry their blur's state from
+before it ran), and trimming the pass's other allocations (6 µs of a
+190 µs frame in release).
+
+**B134 · The session at nice 0, the compositor at ananicy's compositor
+type.** P19p. `isle-session` sets itself back to nice 0 from greetd's 16;
+apps and shortcut commands are put at 0 before exec. The package ships an
+ananicy-cpp rule giving `isle-compositor` `LowLatency_RT` (nice −12), as
+the stock rules give niri, kwin_wayland and sway. Rejected: real-time
+scheduling through rtkit.
+
+**B135 · Two malloc arenas, trimmed after large transient work.** P19p.
+The compositor sets `M_ARENA_MAX` to 2 before any thread starts and trims
+after the file index's build and a wallpaper's decode. mimalloc waits on
+an hour's numbers on the host. Rejected: `PR_SET_THP_DISABLE` (children
+inherit it, and games want huge pages), and restricting libglvnd to one
+EGL vendor (the render device is chosen after libglvnd loads, and the
+pages are clean and shared).
+
+**B136 · `isle perf` in every build.** P19p. `Displays1.Perf` reports, since
+the start: frames, redraw passes and those with no damage, element lists,
+glass blurred and skipped, commits by app, the file index's builds and
+syncs, CPU by thread and memory, and the redraw phases' p50, p95 and
+longest over the last frames. `isle perf` prints them as rates over a few
+seconds.

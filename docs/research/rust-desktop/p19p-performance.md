@@ -102,3 +102,28 @@ Electron show NI 16).
   - shell render targets, which exist only while open.
 - **The NVIDIA driver's own share:** 36 MB of `/dev/nvidiactl` mappings and
   about 40 MB of its libraries. This is not Isle's to change.
+
+## After, headless (release, 2026-10-30)
+
+One window drawing at 60 Hz, clear of the island's pill, on the headless
+backend (EGL on the 5070 Ti, the client's buffer in shared memory).
+
+| | Before | After |
+|---|---|---|
+| Element lists of the windows and below per frame | 2 | 1 |
+| Frame p50 / p95 | 190 / 372 µs | 180 / 313 µs |
+| Glass step p50 | 88 µs | 84 µs |
+
+- **The first list of a frame pays for the buffer upload.** Building the
+  windows and below costs about 57 µs, and most of that is uploading the
+  client's shared-memory buffer. A second list cost little, so sharing it
+  saves less here than it would with real clients.
+- **The host would not pay for the upload.** Chromium and Electron hand
+  over GPU buffers (dmabufs), so there is nothing to upload.
+- **Binding the backdrop.** A blur update with nothing to draw bound its
+  framebuffer for about 17 µs. It now returns before binding.
+- **Idle:**
+  - no redraw passes, glass runs, index syncs or commits over 2 s;
+  - an island post that changes nothing draws nothing.
+- **The index.** Reading, writing and listing an indexed folder cause no
+  sync. A create, a rename and a delete cause one each.

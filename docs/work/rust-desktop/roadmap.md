@@ -264,7 +264,7 @@ Sensors window (cuttable), a table and a graph shared in `isle-ui`; the
 `monitor` shortcut and the System widget's click. Intent: apps.md
 Monitor.
 
-**P19p · Compositor performance.** Planned and reviewed 2026-10-30:
+**P19p · Compositor performance.** Built 2026-10-30, host run pending:
 `p19p-performance.md`, evidence in `p19p-performance.md` under research.
 Before P19b. The file index's watch stops rescanning itself on its own
 opens; one element list per frame, with glass blurred only when its

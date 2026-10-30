@@ -258,3 +258,38 @@ arenas capped before mimalloc is considered.
 - **The arena cap costing throughput.** Two arenas across the worker's
   threads may contend. The index fix removes most of that allocation, and the
   hour's numbers decide.
+
+## Outcome
+
+Built 2026-10-30 in phases 19p.0–19p.5; 19p.7's hour on the host, part of
+done, is the user's, on a package made from this branch with
+`tools/package.sh`. B132–B136 record the decisions; ARCHITECTURE's How the
+core runs and Spotlight's file index follow. Release numbers from the
+headless tests are in the evidence note. Differences from the plan:
+
+- **The index keeps its walk.** A folder is still read with
+  `ignore::WalkBuilder` at depth one: with only names heard, a sync runs
+  for a real change, and caching the matchers would buy little. Hidden
+  names are not read again, and an ignore file changing builds afresh.
+- **The glass already blurred by its footprint.** Each blur tracks damage
+  over its shape and margin, and its tint readback was already a frame
+  late. What each frame paid was binding the backdrop to find no damage:
+  the blur now compares what is behind it with the last update and
+  returns before binding (B133).
+- **One list of the windows and below, not one list.** The frame's list is
+  built after the glass, whose elements carry the blur's state, so the
+  part shared is the windows and below; the few elements above the
+  windows are built per glass region.
+- **Per-frame allocations left as they are.** In release they are 6 µs of
+  a 190 µs frame.
+- **Not done, and why:**
+  - the EGL vendor variable: the render device is chosen after libglvnd
+    loads, and Mesa's pages are clean and shared;
+  - one `FontMgr`: the extra managers are in the Freya fork, and
+    Spotlight's is made once;
+  - dropping the switcher's previews on close: they are GPU textures, and
+    clearing them blanks the cards as the switcher fades out;
+  - 19p.6, opaque interiors (cuttable): GPU time only.
+- **A suite note.** `shell.rs`'s probe test, which wants six frames in
+  250 ms, fails under the full suite with the host's old compositor taking
+  a core; it passes alone and with six test threads.

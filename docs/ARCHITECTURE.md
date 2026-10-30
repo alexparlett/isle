@@ -73,7 +73,12 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   after the space has refreshed which windows overlap which output. A
   frame with no damage is not presented, and clients asking for frame
   callbacks get them at the estimated vblank, so a still desktop
-  presents nothing. Render elements are collected through a push closure.
+  presents nothing. Render elements are collected through a push closure;
+  the windows and what lies under them are built once a frame, for the
+  glass over them and then the frame (B133). `isle perf` reads what the
+  passes cost (B136). The session and its apps run at nice 0, the
+  compositor at ananicy's compositor type (B134), with two malloc arenas
+  (B135).
 - **The worker reaches the loop by jobs.** A job is a closure run on the
   loop with the state; a request waits for its answer for one second,
   then fails, so a stuck loop never hangs a client. Changes reach the
@@ -511,8 +516,10 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 - **File names come from Isle's own index** (B76): a walk of home and
   `spotlight.files-include` with the `ignore` crate, without hidden folders,
   what `.gitignore` files exclude and `spotlight.files-exclude`, kept live by
-  one inotify watch per folder and walked again on an overflow. Contents
-  are searched on demand with ripgrep's engine, plain text only.
+  one inotify watch per folder that hears only names created, removed and
+  renamed (B132), and walked again on an overflow or an ignore file's
+  change. Contents are searched on demand with ripgrep's engine, plain
+  text only.
 - **Games start through their launchers' entries** (B77): the launcher's
   desktop entry given the game's link, so a game has a token and a scope as
   an app does.

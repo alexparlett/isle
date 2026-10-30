@@ -190,8 +190,15 @@ struct State {
 
 fn run(conn: Connection, mut queue: EventQueue<State>, mut state: State, asked: mpsc::Receiver<Ask>, wake: OwnedFd) {
     let qh = queue.handle();
+    serve(&conn, &mut queue, &qh, &mut state, &asked, &wake);
+    // The connection failed because winit has closed the display it borrows; destroying the
+    // proxies now would write through the freed `wl_display`.
+    std::mem::forget((state, qh, queue, conn));
+}
+
+fn serve(conn: &Connection, queue: &mut EventQueue<State>, qh: &QueueHandle<State>, state: &mut State, asked: &mpsc::Receiver<Ask>, wake: &OwnedFd) {
     loop {
-        if queue.dispatch_pending(&mut state).is_err() {
+        if queue.dispatch_pending(state).is_err() {
             return;
         }
         let _ = conn.flush();
@@ -199,7 +206,7 @@ fn run(conn: Connection, mut queue: EventQueue<State>, mut state: State, asked: 
         let fd = guard.connection_fd();
         let mut fds = [
             rustix::event::PollFd::new(&fd, rustix::event::PollFlags::IN),
-            rustix::event::PollFd::new(&wake, rustix::event::PollFlags::IN),
+            rustix::event::PollFd::new(wake, rustix::event::PollFlags::IN),
         ];
         if rustix::event::poll(&mut fds, None).is_err() {
             continue;
@@ -215,9 +222,9 @@ fn run(conn: Connection, mut queue: EventQueue<State>, mut state: State, asked: 
         }
         if woken {
             let mut buf = [0u8; 8];
-            let _ = rustix::io::read(&wake, &mut buf);
+            let _ = rustix::io::read(wake, &mut buf);
             while let Ok(ask) = asked.try_recv() {
-                state.handle(&conn, &qh, ask);
+                state.handle(conn, qh, ask);
             }
         }
     }

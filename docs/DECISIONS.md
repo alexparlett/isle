@@ -1448,7 +1448,9 @@ pass builds the windows and what lies under them once; glass over them
 takes that list by reference with the few elements above the windows, and
 the frame takes it after. While a window's backdrop is to be blurred, the
 lock is up or the dashboard covers the screen, each builds its own as
-before. Rejected: building the whole frame's list first and slicing it for
+before. A blur whose elements behind it have the same ids, commits,
+geometry, source and alpha as at its last update returns before binding
+its backdrop. Rejected: building the whole frame's list first and slicing it for
 the glass (the shell's glass elements would carry their blur's state from
 before it ran), and trimming the pass's other allocations (6 µs of a
 190 µs frame in release).

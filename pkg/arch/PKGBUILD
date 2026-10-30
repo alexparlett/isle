@@ -96,7 +96,7 @@ package() {
     "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Files.desktop"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Files.service \
     "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Files.service"
-  install -Dm755 target/release/isle-process-helper "$pkgdir/usr/lib/isle/isle-process-helper"
+  install -Dm755 "$target/isle-process-helper" "$pkgdir/usr/lib/isle/isle-process-helper"
   install -Dm644 data/polkit/io.github.alexparlett.Isle.Monitor.policy \
     "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Monitor.policy"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Monitor.desktop \

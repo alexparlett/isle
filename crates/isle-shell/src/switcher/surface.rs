@@ -625,6 +625,7 @@ fn plate_of(
                     )
                     .child(
                         ImageViewer::new(path)
+                            .asset_age(crate::images::AGE)
                             .width(Size::px(icon_w))
                             .height(Size::px(icon_h)),
                     )

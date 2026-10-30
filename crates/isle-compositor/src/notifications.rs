@@ -139,6 +139,21 @@ pub struct NotificationsState {
     pub clear_armed: bool,
 }
 
+/// Removes the pictures in `cache` from before `before` that no kept record shows.
+fn prune_pictures(
+    cache: &std::path::Path,
+    kept: &std::collections::HashSet<std::path::PathBuf>,
+    before: std::time::SystemTime,
+) {
+    let Ok(entries) = std::fs::read_dir(cache) else { return };
+    for entry in entries.flatten() {
+        let old = entry.metadata().and_then(|m| m.modified()).is_ok_and(|t| t < before);
+        if old && !kept.contains(&entry.path()) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
 impl Isle {
     /// Loads the records, every entry of a past session one.
     pub fn load_notifications(&mut self, runtime: &tokio::runtime::Handle) -> u32 {
@@ -157,6 +172,10 @@ impl Isle {
             .max()
             .unwrap_or(1)
             .max(saved.next_id);
+        let kept: std::collections::HashSet<std::path::PathBuf> =
+            saved.entries.iter().filter_map(|e| e.n.image.clone()).collect();
+        let before = std::time::SystemTime::now();
+        runtime.spawn_blocking(move || prune_pictures(&isle_notifications::cache_dir(), &kept, before));
         self.notifications.entries = saved.entries;
         self.notifications.next_id = next;
         self.notifications.last_crash = saved.last_crash;
@@ -342,7 +361,11 @@ impl State {
         }
         let records = isle.notifications.entries.len();
         if records > RECORDS {
-            isle.notifications.entries.drain(..records - RECORDS);
+            for gone in isle.notifications.entries.drain(..records - RECORDS) {
+                if let Some(image) = gone.n.image {
+                    let _ = std::fs::remove_file(image);
+                }
+            }
         }
         self.notification_shown(id, fate);
         self.notifications_changed();
@@ -501,6 +524,24 @@ mod tests {
             urgency,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn pictures_no_record_shows_are_pruned_and_new_ones_kept() {
+        let cache = std::env::temp_dir().join(format!("isle-notification-pictures-{}", std::process::id()));
+        std::fs::create_dir_all(&cache).unwrap();
+        for name in ["1.png", "2.png"] {
+            std::fs::write(cache.join(name), "").unwrap();
+        }
+        let before = std::time::SystemTime::now() + std::time::Duration::from_secs(1);
+        let kept = [cache.join("2.png")].into_iter().collect();
+        prune_pictures(&cache, &kept, before);
+        assert!(!cache.join("1.png").exists() && cache.join("2.png").exists());
+
+        std::fs::write(cache.join("3.png"), "").unwrap();
+        prune_pictures(&cache, &kept, std::time::SystemTime::UNIX_EPOCH);
+        assert!(cache.join("3.png").exists(), "one arriving after the load is kept");
+        let _ = std::fs::remove_dir_all(&cache);
     }
 
     #[test]

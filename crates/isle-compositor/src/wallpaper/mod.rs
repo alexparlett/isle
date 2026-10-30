@@ -457,7 +457,11 @@ impl Isle {
         };
         let target = output.clone();
         runtime.spawn(async move {
-            let decoded = tokio::task::spawn_blocking(move || decode::load(&request))
+            let decoded = tokio::task::spawn_blocking(move || {
+                let decoded = decode::load(&request);
+                crate::capture::trim();
+                decoded
+            })
                 .await
                 .unwrap_or_else(|_| Err("the picture could not be read".into()));
             to_loop.post(move |state| {

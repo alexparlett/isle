@@ -59,7 +59,11 @@ pub async fn watch(
         let started = Instant::now();
         let index = tokio::task::spawn_blocking({
             let wanted = wanted.clone();
-            move || FileIndex::build(wanted)
+            move || {
+                let index = FileIndex::build(wanted);
+                crate::capture::trim();
+                index
+            }
         })
         .await?;
         info!(entries = index.len(), folders = index.folders().count(), took = ?started.elapsed(), "file index built");

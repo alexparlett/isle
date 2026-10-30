@@ -590,7 +590,9 @@ impl Component for ListPanel {
                     ImageViewer::new(path.clone())
                         .width(Size::fill())
                         .height(Size::fill())
-                        .aspect_ratio(AspectRatio::Min),
+                        .aspect_ratio(AspectRatio::Min)
+                        .decode_mode(crate::images::PREVIEW)
+                        .asset_age(crate::images::AGE),
                 )
                 .into_element(),
             (None, empty) => match empty {
@@ -723,6 +725,7 @@ impl Component for Leading {
         let inner: Element = match &self.slot {
             Slot::Icon(path) => AppIcon::new(path.clone(), self.size).into_element(),
             Slot::Picture(path) => ImageViewer::new(path.clone())
+                .asset_age(crate::images::AGE)
                 .height(Size::px(self.size))
                 .width(Size::px(self.size))
                 .aspect_ratio(AspectRatio::Min)

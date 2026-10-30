@@ -3,6 +3,12 @@ use std::io::IsTerminal;
 use isle_compositor::backend::Kind;
 
 fn main() {
+    // Two malloc arenas, set before any thread starts, so what one thread frees another
+    // reuses rather than each keeping its own.
+    // SAFETY: mallopt only sets allocator parameters.
+    unsafe {
+        libc::mallopt(libc::M_ARENA_MAX, 2);
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

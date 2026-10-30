@@ -6,6 +6,7 @@ pub mod boundary;
 mod blur;
 mod element;
 mod gl;
+mod images;
 mod keys;
 #[cfg(feature = "probe")]
 pub mod gallery;

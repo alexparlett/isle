@@ -1214,7 +1214,12 @@ fn art(theme: &Theme, card: &crate::island::rows::MediaCard, size: f32) -> Eleme
         .center();
     match &card.art {
         Some(path) => frame
-            .child(ImageViewer::new(path.clone()).width(Size::px(size)).height(Size::px(size)))
+            .child(
+                ImageViewer::new(path.clone())
+                    .asset_age(crate::images::AGE)
+                    .width(Size::px(size))
+                    .height(Size::px(size)),
+            )
             .into_element(),
         None => frame.child(Glyph::new("music-notes", size / 2.0, colour(t.colour_text_2))).into_element(),
     }
@@ -1913,7 +1918,12 @@ fn provider(theme: &Theme, w: &WidgetView, v: &ProviderView) -> Element {
                     .height(Size::px(room.min(96.)))
                     .corner_radius(t.radius_control)
                     .overflow(Overflow::Clip)
-                    .child(ImageViewer::new(path).width(Size::px(room.min(96.))).height(Size::px(room.min(96.))))
+                    .child(
+                        ImageViewer::new(path)
+                            .asset_age(crate::images::AGE)
+                            .width(Size::px(room.min(96.)))
+                            .height(Size::px(room.min(96.))),
+                    )
                     .into_element()
             }))
             .child(

@@ -263,6 +263,7 @@ impl State {
             OutputState::of(output).borrow_mut().redraw = RedrawState::Idle;
             return;
         }
+        self.isle.perf.redraws += 1;
         let target = crate::sync::frame_target(
             OutputState::of(output).borrow().last_shown,
             self.isle.clock.now().into(),
@@ -288,11 +289,9 @@ impl State {
         let rendered = self.backend.render(&mut self.isle, output);
         let total = started.elapsed();
         let drawing = shell_drawn - dispatched;
-        self.isle.frame_phases.note(
-            output,
-            total,
-            [stepped, dispatched - stepped, drawing.saturating_sub(glass), glass, total - shell_drawn],
-        );
+        let phases = [stepped, dispatched - stepped, drawing.saturating_sub(glass), glass, total - shell_drawn];
+        self.isle.frame_phases.note(output, total, phases);
+        self.isle.perf.frame(total, phases);
         let rendered = match rendered {
             Ok(rendered) => rendered,
             Err(err) => {
@@ -358,6 +357,7 @@ impl State {
             return;
         }
 
+        self.isle.perf.undamaged += 1;
         // Nothing changed on screen; clients that asked for a frame get one at the
         // estimated vblank rather than at once, or they would spin.
         self.isle.send_frame_callbacks(output);

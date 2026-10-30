@@ -226,6 +226,7 @@ impl Isle {
         let Some(geometry) = self.space.output_geometry(output) else {
             return;
         };
+        self.perf.element_builds.set(self.perf.element_builds.get() + 1);
         let scale = Scale::from(output.current_scale().fractional_scale());
         let pointer = self
             .seat

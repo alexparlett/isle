@@ -122,6 +122,7 @@ pub struct Isle {
     pub night_applied: f64,
     pub night_fading: bool,
     pub frame_phases: crate::redraw::FramePhases,
+    pub perf: crate::perf::Perf,
     /// The surface whose pointer lock or confinement is active.
     pub constrained: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
     /// Explicit sync, once a device that can wait on sync points is open.
@@ -558,6 +559,7 @@ impl Isle {
             night_applied: crate::night_light::NEUTRAL,
             night_fading: false,
             frame_phases: Default::default(),
+            perf: Default::default(),
             paced: Default::default(),
             commit_timers: Default::default(),
             bar_option: None,

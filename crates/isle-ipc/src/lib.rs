@@ -600,6 +600,8 @@ pub mod displays {
         fn trace(&self, output: &str, since: u64) -> zbus::Result<PlaneTrace>;
         /// Clears the output's trace counters.
         fn reset_trace(&self, output: &str) -> zbus::Result<()>;
+        /// What the compositor has spent since it started, as JSON.
+        fn perf(&self) -> zbus::Result<String>;
         /// Night light's state, as JSON.
         fn night_light(&self) -> zbus::Result<String>;
         /// Turns night light the other way until its schedule's next change; its state after.

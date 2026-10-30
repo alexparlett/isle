@@ -37,6 +37,16 @@ enum Command {
     Lock,
     /// How long the session has been idle, and what keeps it awake.
     Idle,
+    /// What the compositor spends: frames, redraw passes, glass, commits by app, the file
+    /// index, CPU by thread and memory, as rates over a few seconds.
+    Perf {
+        /// Seconds between the two samples.
+        #[arg(long, default_value_t = 5)]
+        every: u64,
+        /// Print again every interval until interrupted.
+        #[arg(long)]
+        watch: bool,
+    },
     #[command(subcommand)]
     Windows(Windows),
     #[command(subcommand)]
@@ -877,6 +887,27 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 }
             }
         }
+        Command::Perf { every, watch } => {
+            let displays = DisplaysProxy::new(&bus).await?;
+            let read = async || -> zbus::Result<serde_json::Value> {
+                Ok(serde_json::from_str(&displays.perf().await?).unwrap_or_default())
+            };
+            let every = std::time::Duration::from_secs((*every).max(1));
+            let mut before = read().await?;
+            loop {
+                tokio::time::sleep(every).await;
+                let after = read().await?;
+                if cli.json {
+                    println!("{after}");
+                } else {
+                    print_perf(&before, &after, every.as_secs_f64());
+                }
+                if !*watch {
+                    break;
+                }
+                before = after;
+            }
+        }
         Command::Idle => {
             let status: serde_json::Value =
                 serde_json::from_str(&SessionProxy::new(&bus).await?.idle().await?).unwrap_or_default();
@@ -1390,6 +1421,65 @@ fn surface_found(found: bool, name: &str) -> zbus::Result<()> {
 
 fn print_json<T: Serialize>(value: &T) {
     println!("{}", serde_json::to_string_pretty(value).expect("JSON"));
+}
+
+/// Rates between two `Perf` samples `secs` apart, then the phase times and memory as they stand.
+fn print_perf(before: &serde_json::Value, after: &serde_json::Value, secs: f64) {
+    let rate = |a: &serde_json::Value, b: &serde_json::Value| {
+        (b.as_u64().unwrap_or(0).saturating_sub(a.as_u64().unwrap_or(0))) as f64 / secs
+    };
+    let at = |key: &str| rate(&before[key], &after[key]);
+    for (i, output) in after["outputs"].as_array().into_iter().flatten().enumerate() {
+        let frames = rate(&before["outputs"][i]["frames"], &output["frames"]);
+        println!("{}: {frames:.1} frames/s", output["name"].as_str().unwrap_or(""));
+    }
+    println!(
+        "redraws {:.1}/s, undamaged {:.1}/s, element lists {:.1}/s, glass {:.1} blurred and {:.1} skipped /s",
+        at("redraws"),
+        at("undamaged"),
+        at("element_builds"),
+        at("glass_runs"),
+        at("glass_skips"),
+    );
+    let mut commits: Vec<(String, f64)> = after["commits"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(app, n)| (app.clone(), rate(&before["commits"][app], n)))
+        .filter(|(_, r)| *r > 0.0)
+        .collect();
+    commits.sort_by(|a, b| b.1.total_cmp(&a.1));
+    for (app, r) in commits {
+        println!("  commits {r:.1}/s  {app}");
+    }
+    println!(
+        "file index: {:.1} folders read again /s, {} builds",
+        rate(&before["index"]["syncs"], &after["index"]["syncs"]),
+        after["index"]["builds"]
+    );
+    let mut threads: Vec<(String, f64)> = after["threads_ms"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(name, ms)| (name.clone(), rate(&before["threads_ms"][name], ms) / 10.0))
+        .filter(|(_, pct)| *pct >= 0.1)
+        .collect();
+    threads.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let total: f64 = threads.iter().map(|t| t.1).sum();
+    println!("CPU {total:.1}% of a core");
+    for (name, pct) in threads {
+        println!("  {pct:5.1}%  {name}");
+    }
+    println!("phases over the last frames, µs (p50 / p95 / longest):");
+    for phase in ["total", "steps", "shell_dispatch", "shell_draw", "glass", "render"] {
+        let us = &after["phases_us"][phase];
+        println!("  {phase:<15} {} / {} / {}", us[0], us[1], us[2]);
+    }
+    println!(
+        "memory: {} MiB resident, {} MiB anonymous",
+        after["memory_kib"]["rss"].as_u64().unwrap_or(0) / 1024,
+        after["memory_kib"]["anon"].as_u64().unwrap_or(0) / 1024
+    );
 }
 
 fn print_frame(frame: &isle_ipc::FrameTrace, json: bool) {

@@ -2,7 +2,7 @@
 //! choices 12 and 13).
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
     time::Duration,
@@ -58,7 +58,7 @@ pub struct FileIndex {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Entry {
+pub struct Entry {
     dir: bool,
     /// The name lower-cased, for a cheap test before the matcher.
     folded: String,
@@ -106,39 +106,28 @@ impl FileIndex {
     }
 
     fn walk(&mut self, from: &Path) {
-        self.folders.entry(from.to_owned()).or_default();
-        for entry in self.reach.walker(from, None).flatten() {
-            let path = entry.path();
-            if path == from {
-                continue;
-            }
-            let dir = entry.file_type().is_some_and(|t| t.is_dir());
-            if dir {
-                self.folders.entry(path.to_owned()).or_default();
-            }
-            if let (Some(parent), Some(name)) = (path.parent(), path.file_name()) {
-                let name = name.to_string_lossy().into_owned();
-                let entry = Entry::new(&name, dir);
-                self.folders
-                    .entry(parent.to_owned())
-                    .or_default()
-                    .insert(name, entry);
-            }
-        }
+        walk_into(&self.reach, from, &mut self.folders);
     }
 
     /// Reads `folder` again after a change in it: new entries join, new folders are walked,
     /// gone ones leave with all they held. The folders added, to be watched.
     pub fn sync(&mut self, folder: &Path) -> Vec<PathBuf> {
-        if !self.reach.covers(folder) && !self.reach.roots.iter().any(|r| r == folder) {
-            return Vec::new();
+        let plan = self.plan(folder);
+        self.apply(plan).added
+    }
+
+    /// What `sync` would change, read from disk without changing the index, so the reading
+    /// is done under a read lock.
+    pub fn plan(&self, folder: &Path) -> Plan {
+        let folder = folder.to_owned();
+        if !self.reach.covers(&folder) && !self.reach.roots.iter().any(|r| *r == folder) {
+            return Plan::Nothing;
         }
         if !folder.is_dir() {
-            self.forget(folder);
-            return Vec::new();
+            return Plan::Forget(folder);
         }
         let mut now: BTreeMap<String, Entry> = BTreeMap::new();
-        for entry in self.reach.walker(folder, Some(1)).flatten() {
+        for entry in self.reach.walker(&folder, Some(1)).flatten() {
             if entry.path() == folder {
                 continue;
             }
@@ -148,43 +137,63 @@ impl FileIndex {
                 now.insert(name.clone(), Entry::new(&name, dir));
             }
         }
-        let before = self.folders.get(folder).cloned().unwrap_or_default();
-        let is_dir =
-            |map: &BTreeMap<String, Entry>, name: &str| map.get(name).is_some_and(|e| e.dir);
-        for (name, entry) in &before {
-            if entry.dir && !is_dir(&now, name) {
-                self.forget(&folder.join(name));
-            }
-        }
-        let mut added = Vec::new();
+        let before = self.folders.get(&folder);
+        let was_dir = |name: &str| before.and_then(|b| b.get(name)).is_some_and(|e| e.dir);
+        let mut walked = BTreeMap::new();
         for (name, entry) in &now {
-            if entry.dir && !is_dir(&before, name) {
-                let path = folder.join(name);
-                let had: BTreeSet<PathBuf> = self.folders.keys().cloned().collect();
-                self.walk(&path);
-                added.extend(self.folders.keys().filter(|k| !had.contains(*k)).cloned());
+            if entry.dir && !was_dir(name) {
+                walk_into(&self.reach, &folder.join(name), &mut walked);
             }
         }
-        self.folders.insert(folder.to_owned(), now);
-        added
+        Plan::Read { folder, now, walked }
     }
 
-    /// Drops `folder` and everything under it.
-    fn forget(&mut self, folder: &Path) {
+    /// Applies a plan made against this index.
+    pub fn apply(&mut self, plan: Plan) -> Synced {
+        let mut synced = Synced::default();
+        match plan {
+            Plan::Nothing => {}
+            Plan::Forget(folder) => synced.removed = self.forget(&folder),
+            Plan::Read { folder, now, walked } => {
+                let gone: Vec<String> = self
+                    .folders
+                    .get(&folder)
+                    .into_iter()
+                    .flatten()
+                    .filter(|(name, e)| e.dir && !now.get(*name).is_some_and(|n| n.dir))
+                    .map(|(name, _)| name.clone())
+                    .collect();
+                for name in gone {
+                    synced.removed.extend(self.forget(&folder.join(name)));
+                }
+                for (path, entries) in walked {
+                    if self.folders.insert(path.clone(), entries).is_none() {
+                        synced.added.push(path);
+                    }
+                }
+                self.folders.insert(folder, now);
+            }
+        }
+        synced
+    }
+
+    /// Drops `folder` and everything under it; the folders dropped.
+    fn forget(&mut self, folder: &Path) -> Vec<PathBuf> {
         let gone: Vec<PathBuf> = self
             .folders
             .range(folder.to_owned()..)
             .take_while(|(k, _)| k.starts_with(folder))
             .map(|(k, _)| k.clone())
             .collect();
-        for k in gone {
-            self.folders.remove(&k);
+        for k in &gone {
+            self.folders.remove(k);
         }
         if let (Some(parent), Some(name)) = (folder.parent(), folder.file_name())
             && let Some(entries) = self.folders.get_mut(parent)
         {
             entries.remove(&*name.to_string_lossy());
         }
+        gone
     }
 
     /// Every entry: its folder, name and whether it is a folder.
@@ -204,6 +213,48 @@ impl FileIndex {
                 .filter(move |(_, e)| e.folded.contains(folded))
                 .map(move |(n, e)| (dir.as_path(), n.as_str(), e.dir))
         })
+    }
+}
+
+/// A folder read again, waiting to be applied.
+#[derive(Debug)]
+pub enum Plan {
+    /// Out of reach.
+    Nothing,
+    /// No longer a folder.
+    Forget(PathBuf),
+    /// Its entries now, and the folders new in it walked whole.
+    Read {
+        folder: PathBuf,
+        now: BTreeMap<String, Entry>,
+        walked: BTreeMap<PathBuf, BTreeMap<String, Entry>>,
+    },
+}
+
+/// The folders a sync added, to be watched, and removed, to be let go.
+#[derive(Debug, Default)]
+pub struct Synced {
+    pub added: Vec<PathBuf>,
+    pub removed: Vec<PathBuf>,
+}
+
+/// Walks `from` whole into `folders`.
+fn walk_into(reach: &Reach, from: &Path, folders: &mut BTreeMap<PathBuf, BTreeMap<String, Entry>>) {
+    folders.entry(from.to_owned()).or_default();
+    for entry in reach.walker(from, None).flatten() {
+        let path = entry.path();
+        if path == from {
+            continue;
+        }
+        let dir = entry.file_type().is_some_and(|t| t.is_dir());
+        if dir {
+            folders.entry(path.to_owned()).or_default();
+        }
+        if let (Some(parent), Some(name)) = (path.parent(), path.file_name()) {
+            let name = name.to_string_lossy().into_owned();
+            let entry = Entry::new(&name, dir);
+            folders.entry(parent.to_owned()).or_default().insert(name, entry);
+        }
     }
 }
 
@@ -532,7 +583,7 @@ fn regex_escape(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{collections::BTreeSet, fs};
 
     use super::*;
     use crate::{Matcher, Usage};

@@ -67,6 +67,7 @@ mod prompts;
 mod screensaver;
 mod services;
 mod session_end;
+mod perf;
 mod pointer;
 pub mod present;
 pub mod redraw;

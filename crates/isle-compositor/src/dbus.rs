@@ -956,6 +956,21 @@ impl Displays {
             .await?)
     }
 
+    /// What the compositor has spent since it started, as JSON, for `isle perf`.
+    async fn perf(&self) -> fdo::Result<String> {
+        let mut status = self.to_loop.call(|state| state.isle.perf_status()).await?;
+        let (builds, syncs) = crate::files::counts();
+        let (rss, anon) = crate::perf::memory();
+        status["index"] = serde_json::json!({ "builds": builds, "syncs": syncs });
+        status["threads_ms"] = crate::perf::threads()
+            .into_iter()
+            .map(|(name, ms)| (name, serde_json::Value::from(ms)))
+            .collect::<serde_json::Map<_, _>>()
+            .into();
+        status["memory_kib"] = serde_json::json!({ "rss": rss, "anon": anon });
+        Ok(status.to_string())
+    }
+
     /// Clears the output's trace counters.
     async fn reset_trace(&self, output: String) -> fdo::Result<()> {
         self.to_loop

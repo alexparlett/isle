@@ -192,6 +192,9 @@ pub struct Shell {
     backdrops: std::collections::HashMap<u64, (Output, blur::Blur)>,
     /// Waits for the GPU after each draw and times it; for measuring, never in use.
     measure: bool,
+    /// Glass and backdrop updates that blurred, and those that found nothing changed behind
+    /// them, since the start.
+    glass_counts: (u64, u64),
     /// Surfaces rebuilt or turned off since the last dispatch, once for each panic.
     panicked: Vec<String>,
 }
@@ -214,6 +217,7 @@ impl Shell {
             clip: None,
             glass_programs: None,
             backdrops: std::collections::HashMap::new(),
+            glass_counts: (0, 0),
             measure: false,
             panicked: Vec::new(),
             a11y: a11y::Requests::new(ping.clone()),
@@ -1391,6 +1395,11 @@ impl Shell {
         if let Err(err) = blur.update(renderer, programs, below, &theme) {
             warn!(surface = instance.def.name(), "glass failed: {err}");
         }
+        if blur.runs > runs {
+            self.glass_counts.0 += 1;
+        } else {
+            self.glass_counts.1 += 1;
+        }
         if self.measure && blur.runs > runs {
             finish(renderer);
             instance
@@ -1473,9 +1482,20 @@ impl Shell {
         }
         let programs = self.glass_programs.as_ref().unwrap();
         let (_, blur) = self.backdrops.get_mut(&key).unwrap();
+        let runs = blur.runs;
         if let Err(err) = blur.update(renderer, programs, below, &self.theme) {
             warn!(window = key, "backdrop failed: {err}");
         }
+        if blur.runs > runs {
+            self.glass_counts.0 += 1;
+        } else {
+            self.glass_counts.1 += 1;
+        }
+    }
+
+    /// Glass updates that blurred, and those that skipped, since the start.
+    pub fn glass_counts(&self) -> (u64, u64) {
+        self.glass_counts
     }
 
     /// The blur behind window `key`, untinted: the client draws its own material over it.

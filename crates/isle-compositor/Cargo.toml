@@ -36,7 +36,7 @@ required-features = ["test-hooks"]
 humantime.workspace = true
 image.workspace = true
 pipewire = { version = "0.10", features = ["v0_3_33"] }
-rustix = { version = "1.1", features = ["fs"] }
+rustix = { version = "1.1", features = ["fs", "param"] }
 isle-sysinfo.workspace = true
 isle-providers = { workspace = true, features = ["sources"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "query"] }

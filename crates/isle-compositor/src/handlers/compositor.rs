@@ -51,6 +51,7 @@ impl CompositorHandler for State {
                     self.unmap_window(id);
                 }
                 Some((id, true)) => {
+                    *self.isle.perf.commits.entry(id).or_default() += 1;
                     let window = self.isle.window_by_id(id).unwrap();
                     window.on_commit();
                     self.isle.queue_redraw_for_window(&window);
@@ -70,6 +71,7 @@ impl CompositorHandler for State {
                     self.check_content_type(id, &root);
                 }
                 None => {
+                    self.isle.perf.other_commits += 1;
                     if self.isle.unmanaged.iter().any(|w| {
                         use smithay::wayland::seat::WaylandFocus;
                         w.wl_surface().is_some_and(|s| *s == root)

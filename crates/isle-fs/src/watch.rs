@@ -47,6 +47,7 @@ struct Table {
 /// The process's watcher.
 pub struct Watcher {
     fd: rustix::fd::OwnedFd,
+    events: WatchFlags,
     table: Mutex<Table>,
 }
 
@@ -81,12 +82,22 @@ const EVENTS: WatchFlags = WatchFlags::CREATE
     .union(WatchFlags::ONLYDIR)
     .union(WatchFlags::DONT_FOLLOW);
 
+/// Names created, removed and renamed, and the folder itself gone; no writes or attributes.
+const NAMES: WatchFlags = WatchFlags::CREATE
+    .union(WatchFlags::DELETE)
+    .union(WatchFlags::MOVED_FROM)
+    .union(WatchFlags::MOVED_TO)
+    .union(WatchFlags::DELETE_SELF)
+    .union(WatchFlags::MOVE_SELF)
+    .union(WatchFlags::ONLYDIR)
+    .union(WatchFlags::DONT_FOLLOW);
+
 impl Watcher {
     /// The process's watcher, started on first use.
     pub fn get() -> Option<Arc<Watcher>> {
         static WATCHER: OnceLock<Option<Arc<Watcher>>> = OnceLock::new();
         WATCHER
-            .get_or_init(|| match Watcher::start() {
+            .get_or_init(|| match Watcher::start(EVENTS) {
                 Ok(w) => Some(w),
                 Err(e) => {
                     warn!("no folder is watched, inotify refused: {e}");
@@ -96,10 +107,17 @@ impl Watcher {
             .clone()
     }
 
-    fn start() -> rustix::io::Result<Arc<Watcher>> {
+    /// A watcher of its own that hears only names created, removed and renamed, for a caller
+    /// keeping a list of names over many folders. It stops when the last `Arc` is dropped.
+    pub fn for_names() -> rustix::io::Result<Arc<Watcher>> {
+        Watcher::start(NAMES)
+    }
+
+    fn start(events: WatchFlags) -> rustix::io::Result<Arc<Watcher>> {
         let fd = inotify::init(CreateFlags::CLOEXEC | CreateFlags::NONBLOCK)?;
         let watcher = Arc::new(Watcher {
             fd,
+            events,
             table: Mutex::default(),
         });
         let weak = Arc::downgrade(&watcher);
@@ -116,7 +134,7 @@ impl Watcher {
         let mut table = self.table.lock().unwrap();
         let wd = match table.by_dir.get(dir) {
             Some(&wd) => wd,
-            None => match inotify::add_watch(&self.fd, dir, EVENTS) {
+            None => match inotify::add_watch(&self.fd, dir, self.events) {
                 Ok(wd) => {
                     table.by_dir.insert(dir.to_owned(), wd);
                     table.by_wd.insert(
@@ -279,6 +297,26 @@ mod tests {
 
         drop(second);
         assert!(watcher.table.lock().unwrap().by_dir.is_empty());
+    }
+
+    #[test]
+    fn a_names_watcher_hears_no_reads_or_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a"), "one").unwrap();
+        std::fs::create_dir(dir.path().join("sub")).unwrap();
+        let watcher = Watcher::for_names().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let tx = Mutex::new(tx);
+        let _watch = watcher.watch(dir.path(), move |c| tx.lock().unwrap().send(c).unwrap()).unwrap();
+
+        std::fs::read(dir.path().join("a")).unwrap();
+        std::fs::write(dir.path().join("a"), "two").unwrap();
+        std::fs::read_dir(dir.path()).unwrap().for_each(drop);
+        std::fs::read_dir(dir.path().join("sub")).unwrap().for_each(drop);
+        assert!(rx.recv_timeout(Duration::from_millis(400)).is_err(), "reads and writes are not heard");
+
+        std::fs::rename(dir.path().join("a"), dir.path().join("b")).unwrap();
+        assert_eq!(next(&rx), Change::Touched(["a".into(), "b".into()].into()));
     }
 
     #[test]

@@ -177,6 +177,7 @@ impl Isle {
             )
             .stdout(log.try_clone().unwrap())
             .stderr(log)
+            .dies_with_test()
             .spawn()
             .expect("isle-compositor");
 
@@ -422,21 +423,36 @@ impl Drop for Isle {
 
 /// A private message bus, as its address and the daemon's pid.
 fn private_bus() -> (String, i32) {
-    let out = Command::new("dbus-daemon")
-        .args([
-            "--session",
-            "--fork",
-            "--nopidfile",
-            "--print-address=1",
-            "--print-pid=1",
-        ])
-        .output()
+    let mut daemon = Command::new("dbus-daemon")
+        .args(["--session", "--nofork", "--nopidfile", "--print-address=1"])
+        .stdout(Stdio::piped())
+        .dies_with_test()
+        .spawn()
         .expect("dbus-daemon");
-    let text = String::from_utf8(out.stdout).unwrap();
-    let mut lines = text.lines();
-    let address = lines.next().unwrap().to_owned();
-    let pid = lines.next().unwrap().trim().parse().unwrap();
-    (address, pid)
+    let mut address = String::new();
+    BufReader::new(daemon.stdout.take().unwrap()).read_line(&mut address).unwrap();
+    (address.trim().to_owned(), daemon.id() as i32)
+}
+
+trait DiesWithTest {
+    fn dies_with_test(&mut self) -> &mut Self;
+}
+
+impl DiesWithTest for Command {
+    /// Kills the process when the thread that started it ends, so a test killed before its
+    /// `Drop` runs leaves nothing behind.
+    fn dies_with_test(&mut self) -> &mut Self {
+        use std::os::unix::process::CommandExt;
+        // SAFETY: prctl is async-signal-safe.
+        unsafe {
+            self.pre_exec(|| {
+                if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            })
+        }
+    }
 }
 
 pub async fn wait_until<F, Fut>(mut check: F)
@@ -634,6 +650,7 @@ impl Isle {
                 .env_remove("PULSE_SERVER")
                 .stdout(log.try_clone().unwrap())
                 .stderr(log)
+                .dies_with_test()
                 .spawn()
                 .expect(program);
             let child = Arc::new(Mutex::new(child));

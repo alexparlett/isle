@@ -78,3 +78,36 @@ async fn a_drawing_window_costs_one_pass_and_one_element_list_a_frame() {
     assert!(redraws <= frames + 2, "no pass beyond the frames: {redraws} for {frames}");
     assert!(builds <= redraws + 2, "one element list a pass: {builds} for {redraws}");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn glass_blurs_again_only_for_what_changes_behind_it() {
+    let mut isle = Isle::start("perf-glass").await;
+    let behind = isle.client_with(&["--app-id", "isle.test.Behind", "--colour", "3366ff", "--size", "1900x1000"]);
+    isle.wait_for_window("isle.test.Behind").await;
+    let small = isle.client_with(&["--app-id", "isle.test.Small", "--colour", "ff3366", "--size", "300x200"]);
+    isle.wait_for_window("isle.test.Small").await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    // The small window opens centred, clear of the island's pill at the top.
+    small.send("animate");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let before = perf(&isle).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let after = perf(&isle).await;
+    let frames = moved(&before, &after, "/outputs/0/frames");
+    assert!(frames >= 30, "{after}");
+    assert_eq!(moved(&before, &after, "/glass_runs"), 0, "nothing behind the pill changed: {after}");
+    assert!(moved(&before, &after, "/glass_skips") >= frames - 2, "{after}");
+    small.send("animate");
+
+    behind.send("animate");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let before = perf(&isle).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let after = perf(&isle).await;
+    let frames = moved(&before, &after, "/outputs/0/frames");
+    assert!(
+        moved(&before, &after, "/glass_runs") >= frames - 2,
+        "the window behind the pill changed each frame: {frames} frames, {after}"
+    );
+}

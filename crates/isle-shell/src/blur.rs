@@ -157,7 +157,12 @@ pub struct Blur {
     scale: f64,
     id: Id,
     commit: CommitCounter,
+    /// What was behind the glass at the last update; the same again is not drawn.
+    seen: Vec<Seen>,
 }
+
+/// An element behind the glass as the damage tracker would compare it.
+type Seen = (Id, CommitCounter, Rectangle<i32, Physical>, Rectangle<f64, Buffer>, f32);
 
 impl Blur {
     /// `sigma` is the blur's standard deviation in physical pixels.
@@ -197,6 +202,7 @@ impl Blur {
             scale,
             id: Id::new(),
             commit: CommitCounter::default(),
+            seen: Vec::new(),
         })
     }
 
@@ -205,6 +211,7 @@ impl Blur {
         self.region.loc = loc;
         let size = self.region.size;
         self.tracker = OutputDamageTracker::new(size, self.scale, Transform::Normal);
+        self.seen.clear();
         self.used = true;
     }
 
@@ -249,6 +256,16 @@ impl Blur {
             .into_iter()
             .map(|e| RelocateRenderElement::from_element(e, offset, Relocate::Relative))
             .collect();
+        // Binding the backdrop costs more than comparing; nothing changed, nothing to draw.
+        let scale = Scale::from(self.scale);
+        let seen: Vec<Seen> = below
+            .iter()
+            .map(|e| (e.id().clone(), e.current_commit(), e.geometry(scale), e.src(), e.alpha()))
+            .collect();
+        if self.runs > 0 && seen == self.seen {
+            return Ok(());
+        }
+        self.seen = seen;
         let damaged = {
             let mut fb = renderer.bind(&mut self.backdrop)?;
             let result = self

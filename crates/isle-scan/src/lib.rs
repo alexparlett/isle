@@ -3,6 +3,7 @@
 pub mod duplicates;
 pub mod kinds;
 pub mod rules;
+pub mod system;
 pub mod tree;
 pub mod walk;
 

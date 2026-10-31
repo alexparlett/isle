@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Cleaner clearing the system's share, one action each (p19b-cleaner.md choice 18). -->
+<policyconfig>
+  <vendor>Isle</vendor>
+  <icon_name>edit-clear</icon_name>
+
+  <action id="io.github.alexparlett.Isle.Cleaner.package-cache">
+    <description>Clear old package versions</description>
+    <message>Cleaner wants to remove old package versions from pacman's cache, keeping the last two of each.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/isle/isle-clean-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">package-cache</annotate>
+  </action>
+
+  <action id="io.github.alexparlett.Isle.Cleaner.orphans">
+    <description>Remove orphaned packages</description>
+    <message>Cleaner wants to remove packages that were installed for something since removed.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/isle/isle-clean-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">orphans</annotate>
+  </action>
+
+  <action id="io.github.alexparlett.Isle.Cleaner.journal">
+    <description>Clear the system log</description>
+    <message>Cleaner wants to cut the system's log down to its last 100 MB.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/isle/isle-clean-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">journal</annotate>
+  </action>
+
+  <action id="io.github.alexparlett.Isle.Cleaner.coredumps">
+    <description>Clear crash dumps</description>
+    <message>Cleaner wants to remove the memory saved when programs crashed.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/isle/isle-clean-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">coredumps</annotate>
+  </action>
+</policyconfig>

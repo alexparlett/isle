@@ -1,0 +1,10 @@
+[package]
+name = "isle-clean-helper"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "isle-clean-helper"
+path = "src/main.rs"

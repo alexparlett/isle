@@ -2,6 +2,18 @@
 
 ## 2026-10-31
 
+- 19b.5: the system's share. `isle_scan::system` sizes it as the user:
+  paccache's dry runs (`-dk2`, `-duk0`), `pacman -Qdtq` with `-Qi`'s
+  installed sizes, the journal over its 100 MB keep, and the crash dumps'
+  blocks. `isle-clean-helper`, run by pkexec, takes exactly one of
+  `package-cache`, `orphans`, `journal`, `coredumps` and runs each tool by
+  its full path, reading the orphans again itself; each has its own action
+  in `io.github.alexparlett.Isle.Cleaner.policy` at `auth_admin_keep`. In
+  the package. On the host: package cache 2.26 GB (paccache: 2.1 GiB and
+  3.56 MiB), one orphan, the journal under its keep, crash dumps 0.89 GB,
+  read in 0.24 s. The helper's run against real pacman as root waits for
+  19b.12's walk in the VM.
+
 - 19b.4: duplicates and sharing. The walk's candidates less any a rule
   found, grouped by size, then xxh3 over both 16 KiB ends, then BLAKE3
   over the whole file where the ends agree; read with `O_NOATIME` so

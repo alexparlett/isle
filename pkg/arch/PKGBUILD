@@ -75,7 +75,7 @@ build() {
   # (B26).
   cargo build --frozen --release \
     -p isle-compositor -p isle-session -p isle-cli -p isle-auth -p isle-record -p isle-providers
-  cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail -p isle-monitor -p isle-process-helper
+  cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail -p isle-monitor -p isle-process-helper -p isle-clean-helper
 }
 
 package() {
@@ -97,6 +97,9 @@ package() {
   install -Dm644 data/apps/io.github.alexparlett.Isle.Files.service \
     "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Files.service"
   install -Dm755 "$target/isle-process-helper" "$pkgdir/usr/lib/isle/isle-process-helper"
+  install -Dm755 "$target/isle-clean-helper" "$pkgdir/usr/lib/isle/isle-clean-helper"
+  install -Dm644 data/polkit/io.github.alexparlett.Isle.Cleaner.policy \
+    "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Cleaner.policy"
   install -Dm644 data/polkit/io.github.alexparlett.Isle.Monitor.policy \
     "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Monitor.policy"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Monitor.desktop \

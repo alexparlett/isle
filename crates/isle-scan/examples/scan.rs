@@ -21,6 +21,19 @@ fn status_kb(field: &str) -> u64 {
 }
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--system") {
+        let start = Instant::now();
+        for share in isle_scan::system::read() {
+            println!(
+                "{:<18} {:>10}  {}",
+                share.item.name(),
+                gb(share.bytes),
+                share.note
+            );
+        }
+        println!("read in {:.2?}", start.elapsed());
+        return;
+    }
     let roots: Vec<PathBuf> = match std::env::args().nth(1) {
         Some(p) => vec![PathBuf::from(p)],
         None => isle_scan::all_disks(&isle_fs::mounts::read())

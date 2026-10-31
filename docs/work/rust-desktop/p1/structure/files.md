@@ -308,8 +308,8 @@ step one job, Redo after it, and a step that replaced something reads
   returns items, even after their volume has mounted somewhere else.
 - **Empty** (the toolbar's primary action, File › Empty Trash ⇧⌘⌫) asks
   in an alert while Settings › Advanced's warning is on: "Permanently erase
-  {n} items in the Trash?", "You can't undo this.", Cancel (the default)
-  and Empty Trash; ⌥⇧⌘⌫ empties without asking, as Finder. Delete
+  {n} items in the Trash?", "You can't undo this.", Cancel and Empty
+  Trash, the action trailing as the default (B138); ⌥⇧⌘⌫ empties without asking, as Finder. Delete
   Immediately… (⌥⌘⌫) asks the same way for the selection, anywhere.
 - **Remove items from the Trash after 30 days**, Finder's setting, in
   Settings › Advanced, off by default.

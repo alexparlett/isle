@@ -140,7 +140,8 @@ The passphrase sheet: "Enter the passphrase for “{key}”" in
 sign-in is `window-chrome.md`'s sheet of the fields it declares, Cancel
 and its action as the default. Deleting a login or an Apps item is the
 alert form with the `warning` glyph (it cannot be undone), the Apps line
-as its informative text, Cancel default, Delete in `colour-danger-text`.
+as its informative text, Cancel, then Delete trailing as the default
+(B138).
 Deleting an SSH key asks nothing: both files go to the Trash, with Undo,
 as Files. Leaving Edit with changes is `window-chrome.md`'s alert:
 Discard (`colour-danger-text`), Keep Editing, Save the default.

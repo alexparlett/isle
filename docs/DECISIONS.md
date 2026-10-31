@@ -1489,3 +1489,14 @@ without huge pages. Rejected: mimalloc first (it reaches Rust's share of
 the heap, not Skia's or the driver's), and starting apps as transient
 user services so nothing is inherited (it changes how Isle tracks an
 app's scope, for a later packet).
+
+**B138 · An alert's action trails as its default, even one that cannot be
+undone.** P19b's host run, the user's choice. Cancel leads and the action
+(Empty Trash, Delete, Clear, Remove) trails as the blue default, as
+Finder's Empty Trash does: Return confirms, Escape cancels. P1 had made
+Cancel the default for actions that cannot be undone, which put Cancel at
+the trailing edge and the action leading, as macOS's Delete Immediately
+does; the user found the action on the left odd. Applies to Files' Empty
+Trash and Delete Immediately, Cleaner's Empty Trash and System card, and
+Keychain's Delete when it is built. Rejected: Cancel leading but still the
+default, which no macOS alert does.

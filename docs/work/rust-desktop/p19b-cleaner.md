@@ -212,7 +212,8 @@ in under a second, as D87 measured v1's.
     - **Undo:** ⌘Z puts the last move back through its undo steps. An
       item moved can also be put back from Files, since the Trash is
       shared.
-    - **Empty Trash…** asks with Files' alert, Cancel the default, and
+    - **Empty Trash…** asks with Files' alert, Empty Trash the default
+      (B138), and
       runs `EmptyTrash` over the scope's disks' Trashes.
     - **The process stays** while a job runs, with progress on the
       switcher card (Conventions 4, B119).

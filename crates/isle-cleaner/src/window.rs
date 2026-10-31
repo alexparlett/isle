@@ -1219,6 +1219,10 @@ impl App for Cleaner {
                 "You can't undo this.",
                 Vec::new(),
                 vec![
+                    isle_ui::AlertButton::from((
+                        "Cancel".to_owned(),
+                        EventHandler::new(move |_| empty_alert.set(None)),
+                    )),
                     isle_ui::AlertButton::destructive(
                         "Empty Trash",
                         EventHandler::new(move |_| {
@@ -1229,10 +1233,6 @@ impl App for Cleaner {
                             let _ = empty_jobs.unbounded_send(Job::Empty { rx });
                         }),
                     ),
-                    isle_ui::AlertButton::from((
-                        "Cancel".to_owned(),
-                        EventHandler::new(move |_| empty_alert.set(None)),
-                    )),
                 ],
             )
         });
@@ -1251,8 +1251,11 @@ impl App for Cleaner {
                 ),
                 "This can't be put back.",
                 Vec::new(),
-                // The last button is the default: Cancel, as before anything that can't be put back.
                 vec![
+                    isle_ui::AlertButton::from((
+                        "Cancel".to_owned(),
+                        EventHandler::new(move |_| clearing.set(None)),
+                    )),
                     isle_ui::AlertButton::destructive(
                         item.action().trim_end_matches('…'),
                         EventHandler::new(move |_| {
@@ -1267,10 +1270,6 @@ impl App for Cleaner {
                             });
                         }),
                     ),
-                    isle_ui::AlertButton::from((
-                        "Cancel".to_owned(),
-                        EventHandler::new(move |_| clearing.set(None)),
-                    )),
                 ],
             )
         });

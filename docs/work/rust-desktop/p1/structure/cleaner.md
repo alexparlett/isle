@@ -114,7 +114,8 @@ bar uses the same colours and order (For the user 1).
   (⌘Z, one undo puts all of it back), and, for items on a disk whose Trash
   is on the same volume, "Nothing is freed until the Trash is emptied"
   with Empty Trash…. It stays until the next change.
-- **Empty Trash…** asks, as Files' does (`files.md`): Cancel default.
+- **Empty Trash…** asks, as Files' does (`files.md`): Cancel, then Empty
+  Trash trailing as the default (B138).
 - A part that failed is listed with the job's result, not one alert per
   item (`conventions.md`).
 

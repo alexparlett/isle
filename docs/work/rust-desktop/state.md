@@ -635,8 +635,8 @@
   scope inside a keyed element that moves far; the table's rows are now
   unkeyed). An app's panic also ended in a segfault from `isle-app`'s data
   thread destroying its proxies on the freed display; fixed. 19a.15's host
-  run still pending; its decisions are recorded from B138, since P19p took
-  B132–B137.
+  run still pending; its decisions are recorded from B139, since P19p took
+  B132–B137 and the alert order took B138.
 - P19b reviewed 2026-10-31, every recommendation taken; building. 19b.0
   done.
 - P19b built 2026-10-31 through 19b.12: `isle-scan` (the walk, kinds,

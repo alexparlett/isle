@@ -68,7 +68,7 @@ impl Alert {
             title,
             message: message.into(),
             items: Vec::new(),
-            buttons: vec![("Delete".into(), Some(Then::Job(Work::Delete { items }))), ("Cancel".into(), None)],
+            buttons: vec![("Cancel".into(), None), ("Delete".into(), Some(Then::Job(Work::Delete { items })))],
         }
     }
 
@@ -78,7 +78,7 @@ impl Alert {
             title: "Are you sure you want to permanently erase the items in the Trash?".into(),
             message: "You can't undo this action.".into(),
             items: Vec::new(),
-            buttons: vec![("Empty Trash".into(), Some(Then::Job(Work::EmptyTrash { items }))), ("Cancel".into(), None)],
+            buttons: vec![("Cancel".into(), None), ("Empty Trash".into(), Some(Then::Job(Work::EmptyTrash { items })))],
         }
     }
 

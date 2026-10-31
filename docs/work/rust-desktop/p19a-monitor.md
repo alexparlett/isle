@@ -439,7 +439,7 @@ The host run on the installed package:
 - a game's TCP downloads in Network, and the UDP line;
 - the running and hidden bars beside a game on the other screen.
 Then the record:
-- decisions recorded from B132;
+- decisions recorded from B139 (P19p took B132–B137, the alert order B138);
 - ARCHITECTURE gains How Monitor samples;
 - `apps.md`'s open points closed;
 - the roadmap and `state.md` follow;

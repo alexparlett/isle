@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc, Condvar, Mutex,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
 };
 
@@ -109,6 +109,8 @@ struct Shared {
     scanned: AtomicU64,
     used: Option<u64>,
     done: AtomicBool,
+    /// Workers not yet returned.
+    live: AtomicUsize,
     /// The disk-backed mounts by id.
     mounts: HashMap<u64, Mount>,
     /// Mount points the walk stays out of, so a stalled network share is never asked.
@@ -253,6 +255,7 @@ impl Scan {
             scanned: AtomicU64::new(scanned),
             used,
             done: AtomicBool::new(false),
+            live: AtomicUsize::new(workers.max(1)),
             mounts: by_id,
             fences,
             fenced_in,
@@ -292,6 +295,11 @@ impl Scan {
     }
 
     /// Ends the walk, keeping what it found.
+    /// Whether any worker is still reading; after Stop, the tree stops changing once none is.
+    pub fn running(&self) -> bool {
+        self.shared.live.load(Ordering::Acquire) > 0
+    }
+
     pub fn stop(&self) {
         self.shared.stop.store(true, Ordering::Release);
         self.shared.ready.notify_all();
@@ -318,6 +326,11 @@ impl Drop for Scan {
 }
 
 fn work(shared: &Shared) {
+    read_until_done(shared);
+    shared.live.fetch_sub(1, Ordering::AcqRel);
+}
+
+fn read_until_done(shared: &Shared) {
     loop {
         let job = {
             let mut q = shared.queue.lock().unwrap();

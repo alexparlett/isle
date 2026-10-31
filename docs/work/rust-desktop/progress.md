@@ -2,6 +2,25 @@
 
 ## 2026-10-31
 
+- 19b.6: `isle-cleaner`, its window, Overview and Cleanup. The scan runs
+  on a thread of its own, published at most once a second with the rules
+  run over each publication, duplicates compared at idle I/O once the
+  walk ends, and the system's share read beside it; a scan starts only
+  while the window is shown. The toolbar: back and forward over views,
+  the view's title over the scope and scan state with the progress bar,
+  the scope pop-up (All disks, each disk, recent folders, Choose
+  folder…), Rescan or Stop, the basket toggle, search. The sidebar's views
+  with the scope's disks and the Trash at its foot, read through
+  `isle-disks`' new `usage`, which the dashboard's Storage widget now
+  reads too. Overview: the scope's figures, the bar and legend by kind
+  with Not scanned and Free, Safe to clear with Review, the disks with
+  the unreadable count, the largest folders (hotspots, past folders that
+  are only the way to one child) and files. Cleanup: Safe to clear with
+  its head's on, off or mixed tick, Worth a look with reasons, "{n} more",
+  and the System card with Clear… and Remove… behind an alert and pkexec.
+  Safe to clear goes into the basket when a scan finishes. `isle-cleaner
+  <folder>` starts on a folder. Tested headless on a temporary home.
+
 - 19b.5: the system's share. `isle_scan::system` sizes it as the user:
   paccache's dry runs (`-dk2`, `-duk0`), `pacman -Qdtq` with `-Qi`'s
   installed sizes, the journal over its 100 MB keep, and the crash dumps'

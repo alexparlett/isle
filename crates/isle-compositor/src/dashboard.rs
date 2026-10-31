@@ -2053,38 +2053,16 @@ impl State {
 
 /// The volumes' use: the system's own filesystems, then each mounted volume UDisks lists.
 fn read_volumes(mounted: Vec<(String, String)>) -> Vec<VolumeRow> {
-    let mut seen: Vec<(u64, u64, u64)> = Vec::new();
-    let mut rows = Vec::new();
-    let system = [("/", "System"), ("/home", "Home")];
-    let all = system
-        .iter()
-        .map(|(p, n)| ((*p).to_owned(), (*n).to_owned()))
-        .chain(mounted);
-    for (path, name) in all {
-        let Ok(stat) = rustix::fs::statvfs(path.as_str()) else {
-            continue;
-        };
-        // The same filesystem mounted twice, or as btrfs subvolumes, is one volume.
-        let id = (stat.f_blocks, stat.f_bfree, stat.f_frsize);
-        if seen.contains(&id) {
-            continue;
-        }
-        seen.push(id);
-        let total = stat.f_blocks * stat.f_frsize;
-        if total == 0 {
-            continue;
-        }
-        let free = stat.f_bavail * stat.f_frsize;
-        let used = 1.0 - free as f32 / total as f32;
-        rows.push(VolumeRow {
-            name,
-            path,
-            used,
-            free: format!("{} free", bytes(free)),
-            nearly_full: used >= 0.9,
-        });
-    }
-    rows
+    isle_disks::usage::with_system(mounted)
+        .into_iter()
+        .map(|u| VolumeRow {
+            used: u.used(),
+            free: format!("{} free", bytes(u.free)),
+            nearly_full: u.nearly_full(),
+            name: u.name,
+            path: u.path,
+        })
+        .collect()
 }
 
 /// A size in decimal units, as Files writes them.

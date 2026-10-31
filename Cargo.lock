@@ -4389,6 +4389,29 @@ name = "isle-clean-helper"
 version = "0.1.0"
 
 [[package]]
+name = "isle-cleaner"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "freya",
+ "freya-testing",
+ "futures-channel",
+ "futures-util",
+ "isle-app",
+ "isle-disks",
+ "isle-fs",
+ "isle-games",
+ "isle-scan",
+ "isle-state",
+ "isle-tokens",
+ "isle-ui",
+ "serde",
+ "tokio",
+ "tracing",
+ "zbus",
+]
+
+[[package]]
 name = "isle-cli"
 version = "0.1.0"
 dependencies = [
@@ -4479,6 +4502,7 @@ version = "0.1.0"
 dependencies = [
  "isle-bus",
  "libc",
+ "rustix 1.1.5",
  "serde",
  "zbus",
 ]

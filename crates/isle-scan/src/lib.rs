@@ -1,5 +1,6 @@
 //! Where a disk's space went, for Cleaner and Settings' Storage (`p19b-cleaner.md`).
 
+pub mod duplicates;
 pub mod kinds;
 pub mod rules;
 pub mod tree;

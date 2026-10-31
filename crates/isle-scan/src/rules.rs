@@ -134,15 +134,13 @@ fn glob(pattern: &[u8], name: &[u8]) -> bool {
 }
 
 fn pattern(text: &str) -> Option<Pattern> {
-    let (start, rest) = if let Some(r) = text.strip_prefix("~/") {
-        (Start::Home, r)
-    } else if let Some(r) = text.strip_prefix("{steam}/") {
-        (Start::Steam, r)
-    } else if let Some(r) = text.strip_prefix("**/") {
-        (Start::Anywhere, r)
-    } else {
-        return None;
-    };
+    let (start, rest) = [
+        ("~/", Start::Home),
+        ("{steam}/", Start::Steam),
+        ("**/", Start::Anywhere),
+    ]
+    .into_iter()
+    .find_map(|(prefix, start)| text.strip_prefix(prefix).map(|r| (start, r)))?;
     let parts: Vec<String> = rest
         .split('/')
         .filter(|p| !p.is_empty())
@@ -319,7 +317,7 @@ impl Rules {
                 hits.push((find.path.components().count(), rank, find));
             }
         }
-        hits.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
+        hits.sort_by_key(|h| (h.0, h.1));
         let mut kept: HashSet<PathBuf> = HashSet::new();
         let mut out = Vec::new();
         for (_, _, find) in hits {

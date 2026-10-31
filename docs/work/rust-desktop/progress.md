@@ -2,6 +2,18 @@
 
 ## 2026-10-31
 
+- 19b.4: duplicates and sharing. The walk's candidates less any a rule
+  found, grouped by size, then xxh3 over both 16 KiB ends, then BLAKE3
+  over the whole file where the ends agree; read with `O_NOATIME` so
+  comparing never makes a file look opened, on a thread the caller puts
+  in the idle I/O class (`idle_io`), giving up when told to stop. FIEMAP
+  reads a file's extents and which are shared: a copy sharing all of them
+  is marked as sharing storage. Tested on real files: equal content
+  grouped, equal size or equal ends alone not, a rule's find no
+  candidate, and a `cp --reflink=always` copy sharing every extent (on the
+  host's btrfs, so the reflink case runs there and not only in the VM).
+  On the host's All disks: 178 candidates, 13 groups, 184 ms warm.
+
 - 19b.3: the rules. `data/cleaner/rules.kdl` (version 1): flat `rule`
   nodes with an id, name, kind, `safe`, `why`, and paths from `~`,
   `{steam}` (each Steam library, from `isle-games`' new

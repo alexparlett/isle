@@ -67,6 +67,36 @@ fn main() {
     let libraries = isle_games::Roots::find().steam_libraries();
     let finds = isle_scan::Rules::load().find(&tree, &isle_scan::Context::here(libraries));
     println!("rules     {:.2?}, {} finds", start.elapsed(), finds.len());
+    let start = Instant::now();
+    let candidates = isle_scan::duplicates::candidates(&tree, &finds);
+    let count = candidates.len();
+    let groups =
+        isle_scan::duplicates::compare(candidates, &std::sync::atomic::AtomicBool::new(false));
+    let frees: u64 = groups
+        .iter()
+        .map(|g| {
+            g.copies
+                .iter()
+                .skip(1)
+                .filter(|c| !c.shares_storage)
+                .map(|c| c.bytes)
+                .sum::<u64>()
+        })
+        .sum();
+    println!(
+        "duplicates {:.2?} over {count} candidates: {} groups, {} freed by keeping one",
+        start.elapsed(),
+        groups.len(),
+        gb(frees)
+    );
+    for g in groups.iter().take(5) {
+        println!(
+            "  {} x{}  {}",
+            gb(g.size),
+            g.copies.len(),
+            g.copies[0].path.display()
+        );
+    }
     for safe in [true, false] {
         let mut rows: Vec<_> = finds.iter().filter(|f| f.safe == safe).collect();
         rows.sort_by_key(|f| std::cmp::Reverse(f.bytes));

@@ -395,6 +395,7 @@ impl App for Cleaner {
                             basket_hidden.set(!hidden);
                         }
                         "move-to-trash" => asked.write().push("move"),
+                        "scan-folder" => asked.write().push("choose"),
                         "empty-trash" => asked.write().push("empty"),
                         "undo" => asked.write().push("undo"),
                         "up" => {
@@ -473,15 +474,15 @@ impl App for Cleaner {
                 choices.iter().map(|(n, _)| n.clone()).collect(),
                 current,
                 "Scope",
-                move |i: usize| {
-                    if let Some(Some(next)) = choices.get(i).map(|(_, s)| s.clone()) {
-                        if next != *scope.peek() {
-                            scope.set(next);
-                            snapshot.set(None);
-                            groups.set(None);
-                            *wanted.write() += 1;
-                        }
+                move |i: usize| match choices.get(i).map(|(_, s)| s.clone()) {
+                    Some(Some(next)) if next != *scope.peek() => {
+                        scope.set(next);
+                        snapshot.set(None);
+                        groups.set(None);
+                        *wanted.write() += 1;
                     }
+                    Some(None) => asked.write().push("choose"),
+                    _ => {}
                 },
             )
         };
@@ -956,6 +957,38 @@ impl App for Cleaner {
                 }
             }
         };
+        // A folder chosen or dropped becomes the scope, and a recent folder.
+        let mut scan_folder = move |path: PathBuf| {
+            remembered.write().scanned_folder(path.clone());
+            scope.set(Scope::Folder(path));
+            snapshot.set(None);
+            groups.set(None);
+            *wanted.write() += 1;
+        };
+        let drag = isle_app::use_drag();
+        use_side_effect(move || {
+            let dropped = drag.dropped.read().clone();
+            if dropped.is_empty() {
+                return;
+            }
+            let mut queue = drag.dropped;
+            queue.write().clear();
+            let folder = dropped
+                .iter()
+                .filter(|d| !d.own)
+                .flat_map(|d| {
+                    String::from_utf8_lossy(&d.data)
+                        .lines()
+                        .map(str::to_owned)
+                        .collect::<Vec<_>>()
+                })
+                .filter_map(|uri| isle_fs::recents::path_of(uri.trim()))
+                .find(|p| p.is_dir());
+            if let Some(folder) = folder {
+                scan_folder(folder);
+            }
+        });
+        let chooser_app = app.clone();
         use_side_effect({
             let (mut go_move, mut go_undo, mut go_empty) =
                 (start_move.clone(), undo_move.clone(), ask_empty.clone());
@@ -967,6 +1000,28 @@ impl App for Cleaner {
                     match a {
                         "move" => go_move(),
                         "undo" => go_undo(),
+                        "choose" => {
+                            let Some(bus) = chooser_app.bus() else {
+                                continue;
+                            };
+                            let parent = chooser_app
+                                .export(isle_app::this_window())
+                                .unwrap_or_default();
+                            spawn(async move {
+                                let wanted_folder = isle_app::portal::Wanted {
+                                    title: "Choose a folder to scan".into(),
+                                    directory: true,
+                                    ..Default::default()
+                                };
+                                match isle_app::portal::choose_file(&bus, &parent, wanted_folder)
+                                    .await
+                                {
+                                    Ok(Some(path)) => scan_folder(path),
+                                    Ok(None) => {}
+                                    Err(err) => tracing::warn!("no file chooser: {err}"),
+                                }
+                            });
+                        }
                         _ => go_empty(),
                     }
                 }
@@ -1050,6 +1105,9 @@ impl App for Cleaner {
             isle_ui::ContextMenu::new(entries, at, move |event: isle_ui::MenuEvent| match event {
                 isle_ui::MenuEvent::Chosen(id) => {
                     more_menu.set(None);
+                    if id == 2 {
+                        asked.write().push("choose");
+                    }
                     if id == 1
                         && let (Some((g, found)), Some(s)) = (&found, &s)
                         && *g == s.generation
@@ -1163,7 +1221,24 @@ impl App for Cleaner {
                             .width(Size::flex(1.))
                             .height(Size::fill())
                             .background(colour(t.colour_window))
-                            .child(content),
+                            .child(content)
+                            .maybe_child(drag.over.read().is_some().then(|| {
+                                let inset = t.space_xs;
+                                rect()
+                                    .position(
+                                        Position::new_absolute().left(t.space_xs).top(t.space_xs),
+                                    )
+                                    .width(Size::func(move |c| Some(c.parent - 2. * inset)))
+                                    .height(Size::func(move |c| Some(c.parent - 2. * inset)))
+                                    .corner_radius(t.radius_card)
+                                    .border(
+                                        Border::new()
+                                            .fill(colour(t.colour_accent))
+                                            .width(t.stroke_found)
+                                            .alignment(BorderAlignment::Inner),
+                                    )
+                                    .into_element()
+                            })),
                     )
                     .maybe_child(basket_view),
             )

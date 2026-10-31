@@ -29,6 +29,29 @@ pub fn uri(path: &Path) -> String {
     out
 }
 
+/// A `file://` URI's path, its escapes undone; a host before the path names this machine.
+pub fn path_of(uri: &str) -> Option<PathBuf> {
+    use std::os::unix::ffi::OsStringExt;
+    let rest = uri.strip_prefix("file://")?;
+    let path = &rest[rest.find('/')?..];
+    let bytes = path.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = |b: u8| (b as char).to_digit(16);
+        if bytes[i] == b'%'
+            && let (Some(h), Some(l)) = (bytes.get(i + 1).and_then(|b| hex(*b)), bytes.get(i + 2).and_then(|b| hex(*b)))
+        {
+            out.push((h * 16 + l) as u8);
+            i += 3;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    Some(PathBuf::from(std::ffi::OsString::from_vec(out)))
+}
+
 /// `text` with the bookmark for `path` added or brought to now, used by `app`.
 pub fn with_item(text: &str, path: &Path, mime: &str, app: &str, exec: &str, now: &str) -> String {
     let href = escape(&uri(path));
@@ -88,5 +111,18 @@ mod tests {
         assert_eq!(again.matches("a%20b.txt").count(), 1);
         assert!(again.find("c.png").unwrap() < again.find("a%20b.txt").unwrap());
         assert!(again.trim_end().ends_with("</xbel>"));
+    }
+}
+
+#[cfg(test)]
+mod uri_tests {
+    use super::*;
+
+    #[test]
+    fn a_path_goes_to_a_uri_and_back() {
+        let p = Path::new("/home/u/My Files/100% done/é");
+        assert_eq!(path_of(&uri(p)).as_deref(), Some(p));
+        assert_eq!(path_of("file://localhost/tmp/a%20b").as_deref(), Some(Path::new("/tmp/a b")));
+        assert_eq!(path_of("https://x/y"), None);
     }
 }

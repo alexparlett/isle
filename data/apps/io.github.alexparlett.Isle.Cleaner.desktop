@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Cleaner
+Comment=See where your disks' space went, and clear what can go
+Icon=org.gnome.baobab
+Exec=isle-cleaner
+DBusActivatable=true
+StartupNotify=true
+Categories=System;Utility;
+Keywords=Disk Space;Storage;Disk Usage;Clean;Duplicates;Large Files;Trash;Cache;
+OnlyShowIn=Isle;

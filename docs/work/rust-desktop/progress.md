@@ -2,6 +2,15 @@
 
 ## 2026-10-31
 
+- 19b.10: ties. Choose folder… (the scope pop-up, More, ⌘O) through the
+  FileChooser portal for a folder, which becomes the scope and the first
+  of the recent folders; a folder dropped on the window scans it, the
+  content ringed in the accent while a drag is over it; `isle_fs::recents`
+  gains `path_of`, the reverse of `uri`. Quick Look, Show in Files and
+  Copy path came with 19b.7's item menu. The desktop entry (Spotlight
+  finds it by it), the D-Bus service and the package. Cut: dragging rows
+  and tiles out as files (choice 1 allowed it).
+
 - 19b.9: the basket and the Trash. Move to Trash (the button or ⌘⌫)
   checks each item again (still there, the device and inode the scan
   saw, not now a link) and runs one `isle-fs` Trash job on a thread, its

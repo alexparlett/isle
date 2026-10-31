@@ -639,3 +639,15 @@
   B132–B137.
 - P19b reviewed 2026-10-31, every recommendation taken; building. 19b.0
   done.
+- P19b built 2026-10-31 through 19b.12: `isle-scan` (the walk, kinds,
+  rules in KDL, duplicates with FIEMAP's sharing, the system's share),
+  `isle-clean-helper` and its policy, and `isle-cleaner` (Overview,
+  Cleanup, Space's map and list, Large files, Untouched, Duplicates, the
+  basket with one undo, Empty Trash…, Choose folder…, drop to scan, the
+  narrow window), packaged. Walked in the VM. Cut: dragging rows and tiles
+  out; not built: the basket's and rows' height and width motion, Map and
+  List's crossfade, the inactive window's grey progress. Next: 19b.13, the
+  host run with the user (package and install, the home's scan and memory,
+  Cleanup's rows read through before anything moves, the System card
+  against `paccache` and `du`, a small basket moved and undone), then the
+  close's record.

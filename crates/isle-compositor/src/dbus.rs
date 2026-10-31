@@ -968,6 +968,7 @@ impl Displays {
             .collect::<serde_json::Map<_, _>>()
             .into();
         status["memory_kib"] = serde_json::json!({ "rss": rss, "anon": anon });
+        status["without_huge_pages"] = crate::perf::without_huge_pages().into();
         Ok(status.to_string())
     }
 

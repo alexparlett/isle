@@ -206,3 +206,37 @@ async fn an_appimage_dropped_in_applications_becomes_an_app() {
     wait_until(|| async { !entry.exists() }).await;
     wait_until(|| async { !windows.launch("isle-appimage-tool", "", &[]).await.unwrap() }).await;
 }
+
+fn thp_enabled(pid: i32) -> String {
+    fs::read_to_string(format!("/proc/{pid}/status"))
+        .unwrap()
+        .lines()
+        .find_map(|l| l.strip_prefix("THP_enabled:"))
+        .unwrap()
+        .trim()
+        .to_owned()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_launched_app_has_huge_pages_the_compositor_goes_without() {
+    let isle = Isle::start("launch-thp").await;
+    let client = env!("CARGO_BIN_EXE_isle-test-client");
+    fs::write(
+        isle.dir.join("data/applications/isle.test.Pages.desktop"),
+        format!("[Desktop Entry]\nType=Application\nName=Pages\nExec={client} --app-id isle.test.Pages\n"),
+    )
+    .unwrap();
+    let windows = isle.windows_proxy().await;
+    wait_until(|| async { windows.launch("isle.test.Pages", "", &[]).await.unwrap() }).await;
+    let launched = isle.wait_for_window("isle.test.Pages").await;
+    assert!(launched.pid > 0);
+    assert_eq!(thp_enabled(isle.compositor_pid()), "0");
+    assert_eq!(thp_enabled(launched.pid), "1");
+
+    let perf: serde_json::Value = serde_json::from_str(
+        &isle_ipc::displays::DisplaysProxy::new(&isle.bus).await.unwrap().perf().await.unwrap(),
+    )
+    .unwrap();
+    let without = perf["without_huge_pages"].to_string();
+    assert!(!without.contains("isle-test-clie"), "{without}");
+}

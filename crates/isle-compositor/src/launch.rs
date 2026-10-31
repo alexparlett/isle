@@ -233,8 +233,8 @@ impl State {
                 ("DESKTOP_STARTUP_ID", token),
             ];
             let mut scoped = tokio::process::Command::new("systemd-run");
-            // SAFETY: `default_nice` only calls setpriority.
-            unsafe { scoped.pre_exec(crate::child_env::default_nice) };
+            // SAFETY: `as_an_app` only calls setpriority and prctl.
+            unsafe { scoped.pre_exec(crate::child_env::as_an_app) };
             let scoped = scoped
                 .args([
                     "--user",
@@ -282,8 +282,8 @@ impl State {
             if let Some(err) = failed {
                 warn!("systemd-run failed, starting directly: {err}");
                 let mut direct = tokio::process::Command::new(&argv[0]);
-                // SAFETY: `default_nice` only calls setpriority.
-                unsafe { direct.pre_exec(crate::child_env::default_nice) };
+                // SAFETY: `as_an_app` only calls setpriority and prctl.
+                unsafe { direct.pre_exec(crate::child_env::as_an_app) };
                 let direct = direct
                     .args(&argv[1..])
                     .envs(crate::child_env::vars())

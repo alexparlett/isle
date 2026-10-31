@@ -87,6 +87,41 @@ pub fn memory() -> (u64, u64) {
     (field("VmRSS:"), field("RssAnon:"))
 }
 
+/// The compositor's descendants running without transparent huge pages, by name: its
+/// helpers, never an app (B137).
+pub fn without_huge_pages() -> Vec<String> {
+    let mut procs: HashMap<i32, (i32, String, bool)> = HashMap::new();
+    let Ok(dirs) = std::fs::read_dir("/proc") else {
+        return Vec::new();
+    };
+    for dir in dirs.flatten() {
+        let Some(pid) = dir.file_name().to_str().and_then(|n| n.parse::<i32>().ok()) else { continue };
+        let Ok(status) = std::fs::read_to_string(dir.path().join("status")) else { continue };
+        let field = |key: &str| status.lines().find_map(|l| l.strip_prefix(key)).map(str::trim);
+        let parent = field("PPid:").and_then(|p| p.parse().ok()).unwrap_or(0);
+        let off = field("THP_enabled:") == Some("0");
+        procs.insert(pid, (parent, field("Name:").unwrap_or("").to_owned(), off));
+    }
+    let me = std::process::id() as i32;
+    let below = |mut pid: i32| {
+        while pid > 1 {
+            pid = procs.get(&pid).map_or(0, |p| p.0);
+            if pid == me {
+                return true;
+            }
+        }
+        false
+    };
+    let mut names: Vec<String> = procs
+        .iter()
+        .filter(|(pid, (_, _, off))| *off && below(**pid))
+        .map(|(_, (_, name, _))| name.clone())
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
 impl crate::state::Isle {
     /// The loop's side of `isle perf`, as JSON: counts since the start and the phase times.
     pub fn perf_status(&self) -> serde_json::Value {

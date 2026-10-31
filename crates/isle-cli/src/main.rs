@@ -1480,6 +1480,15 @@ fn print_perf(before: &serde_json::Value, after: &serde_json::Value, secs: f64) 
         after["memory_kib"]["rss"].as_u64().unwrap_or(0) / 1024,
         after["memory_kib"]["anon"].as_u64().unwrap_or(0) / 1024
     );
+    let without: Vec<&str> = after["without_huge_pages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|n| n.as_str())
+        .collect();
+    if !without.is_empty() {
+        println!("without huge pages, below the compositor: {}", without.join(", "));
+    }
 }
 
 fn print_frame(frame: &isle_ipc::FrameTrace, json: bool) {

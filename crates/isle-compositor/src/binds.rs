@@ -456,8 +456,8 @@ pub fn spawn(command: &str) {
         .spawn(move || {
             use std::os::unix::process::CommandExt;
             let mut shell = std::process::Command::new("/bin/sh");
-            // SAFETY: `default_nice` only calls setpriority.
-            unsafe { shell.pre_exec(crate::child_env::default_nice) };
+            // SAFETY: `as_an_app` only calls setpriority and prctl.
+            unsafe { shell.pre_exec(crate::child_env::as_an_app) };
             match shell
                 .arg("-c")
                 .arg(&command)

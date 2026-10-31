@@ -9,6 +9,12 @@ fn main() {
     unsafe {
         libc::mallopt(libc::M_ARENA_MAX, 2);
     }
+    // No transparent huge pages for the compositor, whose sparse arenas they make resident;
+    // children inherit it, and apps are given them back in `child_env::as_an_app` (B137).
+    // SAFETY: the prctl only sets this process's flag.
+    unsafe {
+        libc::prctl(libc::PR_SET_THP_DISABLE, 1, 0, 0, 0);
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

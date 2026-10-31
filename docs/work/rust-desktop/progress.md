@@ -2,6 +2,24 @@
 
 ## 2026-10-31
 
+- 19b.1 and 19b.2: `isle-scan`'s walk and kinds. Up to eight workers
+  each read one folder at a time with `getdents64` and `statx`, never
+  following a link; a walk crosses only into a mount of the filesystem it
+  is on (and of every other mount, only by its path, so a stalled share is
+  never asked), never into `.snapshots`; a file with several names counts
+  once. Folders keep own and total bytes and files, own bytes by kind
+  (totals by kind are added up as a view asks: keeping them doubled the
+  tree), the 500 largest files, the 500 largest unused for six months, and
+  the duplicate candidates. On the host, warm: the home (2.1 M files,
+  172 k folders) in 0.43 s, equal to `du` to the byte; All disks (`/` with
+  its subvolumes, `/boot`, `/media/d`; `/home` dropped as `/` reaches it)
+  in 0.5 s, 2.67 M files, 54 MB resident after, 70 MB at the peak. `/`
+  counts 1.8 TB against 945 GB used (btrfs compression and reflinks), so
+  the progress share reaches its 99% cap halfway. v1's kinds ported and
+  tested by path. Tests on real trees against `du`: hard links, a sparse
+  file, link loops, `.snapshots`, an unreadable folder, the candidates'
+  conditions, Stop.
+
 - 19b.0: the record. The plan reviewed with every recommendation taken;
   `apps-2026.md` §8 gains the host's `noatime` mounts; `apps.md`'s open
   point answered (KDL rules); the roadmap follows; P1's Cleaner copy gains

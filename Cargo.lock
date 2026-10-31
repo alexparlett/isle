@@ -4725,6 +4725,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-scan"
+version = "0.1.0"
+dependencies = [
+ "isle-fs",
+ "rustix 1.1.5",
+]
+
+[[package]]
 name = "isle-search"
 version = "0.1.0"
 dependencies = [

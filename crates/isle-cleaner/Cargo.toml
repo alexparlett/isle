@@ -18,6 +18,7 @@ isle-scan.workspace = true
 isle-state.workspace = true
 isle-tokens.workspace = true
 isle-ui.workspace = true
+jiff.workspace = true
 serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true

@@ -4,7 +4,7 @@
 
 use std::{
     cell::RefCell,
-    path::PathBuf,
+    path::{Path, PathBuf},
     rc::Rc,
     sync::{Arc, mpsc},
     time::Duration,
@@ -21,7 +21,7 @@ use crate::{
     cleanup,
     model::{Scope, Snapshot, View, disk_name, size},
     overview,
-    scanner::{self, Ask, Event},
+    scanner::{self, Ask},
     state::{self, Remembered},
     ui::{kind_tile, mono},
 };
@@ -169,6 +169,12 @@ impl App for Cleaner {
         let mut folder = use_state(|| None::<PathBuf>);
         let mut clearing = use_state(|| None::<isle_scan::system::Item>);
         let query = use_state(String::new);
+        let mut space_selected = use_state(|| None::<PathBuf>);
+        let mut zoom = use_state(|| None::<(crate::treemap::Rect, bool)>);
+        let mut item_menu = use_state(|| None::<(crate::space::Entry, (f32, f32))>);
+        let mut kind_filter = use_state(|| None::<isle_scan::Kind>);
+        let mut more_menu = use_state(|| None::<(f32, f32)>);
+        let app = use_consume::<isle_app::AppHandle>();
 
         let (ask, incoming) = use_hook(|| {
             let (ask, rx) = scanner::start(Duration::from_millis(t.timing_scan_layout_ms as u64));
@@ -182,7 +188,7 @@ impl App for Cleaner {
                 use futures_util::StreamExt;
                 while let Some(event) = rx.next().await {
                     match event {
-                        Event::Snapshot(snap) => {
+                        scanner::Event::Snapshot(snap) => {
                             // Safe to clear goes into the basket when a scan finishes (`apps.md`
                             // Cleaner 7).
                             if snap.finished() && *filled.peek() != snap.generation {
@@ -194,8 +200,8 @@ impl App for Cleaner {
                             }
                             snapshot.set(Some(snap));
                         }
-                        Event::Duplicates(g, found) => groups.set(Some((g, found))),
-                        Event::System(shares) => system.set(shares),
+                        scanner::Event::Duplicates(g, found) => groups.set(Some((g, found))),
+                        scanner::Event::System(shares) => system.set(shares),
                     }
                 }
             });
@@ -275,6 +281,23 @@ impl App for Cleaner {
                         "basket" => {
                             let hidden = *basket_hidden.peek();
                             basket_hidden.set(!hidden);
+                        }
+                        "up" => {
+                            let at = folder.peek().clone();
+                            let roots = snapshot
+                                .peek()
+                                .as_ref()
+                                .map(|s| s.roots.clone())
+                                .unwrap_or_default();
+                            if let Some(at) = at {
+                                let up = at
+                                    .parent()
+                                    .map(Path::to_path_buf)
+                                    .filter(|p| roots.iter().any(|r| p.starts_with(r)));
+                                zoom.set(None);
+                                space_selected.set(Some(at));
+                                go(View::Space, up);
+                            }
                         }
                         _ => {}
                     }
@@ -375,6 +398,44 @@ impl App for Cleaner {
             )
             .child(rect().width(Size::flex(1.)))
             .child(rect().min_width(Size::px(140.)).child(scope_popup))
+            .maybe_child(
+                matches!(
+                    r.view,
+                    View::Duplicates | View::LargeFiles | View::Untouched
+                )
+                .then(|| {
+                    let mut options = vec!["All kinds".to_owned()];
+                    options.extend(isle_scan::Kind::ALL.iter().map(|k| k.name().to_owned()));
+                    let at = kind_filter.read().map_or(0, |k| k.index() + 1);
+                    PopUp::new(options, at, "Kind", move |i: usize| {
+                        kind_filter.set(i.checked_sub(1).map(|i| isle_scan::Kind::ALL[i.min(9)]))
+                    })
+                    .into_element()
+                }),
+            )
+            .maybe_child((r.view == View::Untouched).then(|| {
+                let options = crate::state::Period::ALL
+                    .iter()
+                    .map(|p| p.title().to_owned())
+                    .collect();
+                let at = crate::state::Period::ALL
+                    .iter()
+                    .position(|p| *p == r.period)
+                    .unwrap_or(0);
+                PopUp::new(options, at, "Period", move |i: usize| {
+                    remembered.write().period = crate::state::Period::ALL[i.min(2)]
+                })
+                .into_element()
+            }))
+            .maybe_child((r.view == View::Space).then(|| {
+                isle_ui::form::Segmented::new(
+                    vec!["Map".into(), "List".into()],
+                    usize::from(r.list),
+                    "Space",
+                    move |i: usize| remembered.write().list = i == 1,
+                )
+                .into_element()
+            }))
             .child(rect().width(Size::flex(1.)))
             .child(match scanning {
                 true => Button::new("Stop").on_press(move |_| {
@@ -382,6 +443,17 @@ impl App for Cleaner {
                 }),
                 false => Button::new("Rescan").on_press(move |_| *wanted.write() += 1),
             })
+            .child(
+                rect()
+                    .on_mouse_down(move |e: Event<MouseEventData>| {
+                        e.stop_propagation();
+                        more_menu.set(Some((
+                            e.global_location.x as f32,
+                            e.global_location.y as f32 + 12.,
+                        )));
+                    })
+                    .child(Button::icon("dots-three-circle", "More")),
+            )
             .child(
                 Button::icon(
                     if *basket_hidden.read() || basket.read().is_empty() {
@@ -557,6 +629,33 @@ impl App for Cleaner {
                     .collect()
             })
             .unwrap_or_default();
+        // A tick or a menu from Space or a table.
+        let on_pick = EventHandler::new(move |a: crate::space::Act| match a {
+            crate::space::Act::Basket(e, on) => {
+                if on {
+                    let (dev, ino) = if e.dev == 0 && e.ino == 0 {
+                        std::fs::symlink_metadata(&e.path).map_or((0, 0), |m| {
+                            use std::os::unix::fs::MetadataExt;
+                            (m.dev(), m.ino())
+                        })
+                    } else {
+                        (e.dev, e.ino)
+                    };
+                    basket.write().add(Item {
+                        path: e.path,
+                        name: e.name,
+                        bytes: e.bytes,
+                        kind: e.kind,
+                        dev,
+                        ino,
+                    });
+                } else {
+                    basket.write().remove(&e.path);
+                }
+            }
+            crate::space::Act::Menu(e, at) => item_menu.set(Some((e, at))),
+            _ => {}
+        });
         let content = match r.view {
             View::Overview => {
                 let safe = snap.as_ref().map_or(0, |s| {
@@ -611,6 +710,89 @@ impl App for Cleaner {
                 );
                 column_view(&theme, column)
             }
+            View::LargeFiles | View::Untouched => match snap.as_ref() {
+                Some(s) => {
+                    let untouched = r.view == View::Untouched;
+                    let kind = *kind_filter.read();
+                    let cutoff = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map_or(0, |d| d.as_secs() as i64)
+                        - r.period.secs();
+                    let records = crate::tables::records_access(&s.roots);
+                    let files: Vec<crate::model::FileRow> =
+                        (if untouched { &s.untouched } else { &s.largest })
+                            .iter()
+                            .filter(|f| !untouched || f.used < cutoff)
+                            .filter(|f| kind.is_none_or(|k| k == f.kind))
+                            .filter(|f| {
+                                search.is_empty()
+                                    || f.path.file_name().is_some_and(|n| {
+                                        n.to_string_lossy().to_lowercase().contains(&search)
+                                    })
+                            })
+                            .cloned()
+                            .collect();
+                    let empty = match (untouched, search.is_empty()) {
+                        (_, false) => format!("No results for “{}”", query.read().trim()),
+                        (true, true) => format!("No files untouched in {}", r.period.title()),
+                        (false, true) => "No large files".into(),
+                    };
+                    crate::tables::Files {
+                        files: Rc::new(files),
+                        basket: basket.read().clone(),
+                        used_title: if records {
+                            "Last opened"
+                        } else {
+                            "Last changed"
+                        },
+                        empty,
+                        on_act: on_pick.clone(),
+                    }
+                    .into_element()
+                }
+                None => rect().into_element(),
+            },
+            View::Duplicates => crate::tables::duplicates(
+                &theme,
+                groups
+                    .read()
+                    .as_ref()
+                    .filter(|(g, _)| snap.as_ref().is_some_and(|s| s.generation == *g))
+                    .map(|(_, found)| found.as_slice()),
+                *kind_filter.read(),
+                &search,
+                &basket.read(),
+                on_pick.clone(),
+            ),
+            View::Space => match snap.clone() {
+                Some(s) => {
+                    let space_snap = s.clone();
+                    let on_pick = on_pick.clone();
+                    crate::space::Space {
+                        snapshot: s.clone(),
+                        folder: folder.read().clone(),
+                        scope_title: scope.read().title(),
+                        basket: basket.read().clone(),
+                        selected: space_selected.read().clone(),
+                        list: r.list,
+                        zoom: *zoom.read(),
+                        on_act: EventHandler::new(move |act: crate::space::Act| match act {
+                            crate::space::Act::Open(to, from) => {
+                                zoom.set(from);
+                                space_selected.set(None);
+                                go(View::Space, to);
+                            }
+                            crate::space::Act::Select(p) => space_selected.set(p),
+                            other => {
+                                let _ = &space_snap;
+                                on_pick.call(other);
+                            }
+                        }),
+                    }
+                    .into_element()
+                }
+                None => rect().into_element(),
+            },
             other => rect()
                 .width(Size::fill())
                 .height(Size::fill())
@@ -623,11 +805,101 @@ impl App for Cleaner {
                 ))
                 .into_element(),
         };
-        let _ = (&groups, &folder);
 
         let basket_view = (!basket.read().is_empty() && !*basket_hidden.read())
             .then(|| basket_panel(&theme, &basket.read(), basket));
 
+        let menu_app = app.clone();
+        let overlay_menu = item_menu.read().clone().map(|(e, at)| {
+            let covered = basket.read().covers(&e.path);
+            let entries = Rc::new(vec![
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(
+                    1,
+                    if covered {
+                        "Remove from basket"
+                    } else {
+                        "Add to basket"
+                    },
+                )),
+                isle_ui::MenuEntry::Separator,
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(2, "Show in Files")),
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(3, "Quick Look")),
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(4, "Copy path")),
+            ]);
+            let app = menu_app.clone();
+            isle_ui::ContextMenu::new(entries, at, move |event: isle_ui::MenuEvent| match event {
+                isle_ui::MenuEvent::Chosen(id) => {
+                    item_menu.set(None);
+                    match id {
+                        1 if covered => basket.write().remove(&e.path),
+                        1 => basket.write().add(Item {
+                            path: e.path.clone(),
+                            name: e.name.clone(),
+                            bytes: e.bytes,
+                            kind: e.kind,
+                            dev: e.dev,
+                            ino: e.ino,
+                        }),
+                        2 => crate::ties::show_in_files(vec![e.path.clone()]),
+                        3 => crate::ties::quick_look(&e.path),
+                        4 => crate::ties::copy_path(&app, &e.path),
+                        _ => {}
+                    }
+                }
+                isle_ui::MenuEvent::Back => item_menu.set(None),
+                _ => {}
+            })
+            .into_element()
+        });
+        let more_groups = groups.read().clone();
+        let more_snap = snap.clone();
+        let overlay_more = (*more_menu.read()).map(|at| {
+            let is_dups = r.view == View::Duplicates;
+            let entries = Rc::new(vec![
+                isle_ui::MenuEntry::Item(
+                    isle_ui::MenuItem::new(1, "Select all but the newest").enabled(is_dups),
+                ),
+                isle_ui::MenuEntry::Separator,
+                isle_ui::MenuEntry::Item(isle_ui::MenuItem::new(2, "Scan Folder…")),
+            ]);
+            let (found, s) = (more_groups.clone(), more_snap.clone());
+            isle_ui::ContextMenu::new(entries, at, move |event: isle_ui::MenuEvent| match event {
+                isle_ui::MenuEvent::Chosen(id) => {
+                    more_menu.set(None);
+                    if id == 1
+                        && let (Some((g, found)), Some(s)) = (&found, &s)
+                        && *g == s.generation
+                    {
+                        // Copies are newest first; every copy after the first goes in.
+                        let mut b = basket.write();
+                        for group in found.iter() {
+                            for c in group.copies.iter().skip(1) {
+                                let (dev, ino) =
+                                    std::fs::symlink_metadata(&c.path).map_or((0, 0), |m| {
+                                        use std::os::unix::fs::MetadataExt;
+                                        (m.dev(), m.ino())
+                                    });
+                                let name = c
+                                    .path
+                                    .file_name()
+                                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                                b.add(Item {
+                                    path: c.path.clone(),
+                                    name,
+                                    bytes: c.bytes,
+                                    kind: isle_scan::kinds::of_path(&c.path),
+                                    dev,
+                                    ino,
+                                });
+                            }
+                        }
+                    }
+                }
+                isle_ui::MenuEvent::Back => more_menu.set(None),
+                _ => {}
+            })
+            .into_element()
+        });
         let overlay = (*clearing.read()).map(|item| {
             let ask = ask.clone();
             isle_ui::alert(
@@ -686,6 +958,8 @@ impl App for Cleaner {
                     )
                     .maybe_child(basket_view),
             )
+            .maybe_child(overlay_menu)
+            .maybe_child(overlay_more)
             .maybe_child(overlay)
     }
 }

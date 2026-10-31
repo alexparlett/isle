@@ -62,6 +62,15 @@ pub fn home(name: &str) -> PathBuf {
     put(&d, "Videos/trip.mkv", 8_000_000);
     put(&d, "Pictures/a.jpg", 1_500_000);
     put(&d, "Documents/notes.txt", 20_000);
+    put(&d, "Backup/a.jpg", 1_500_000);
+    put(&d, "Documents/old-report.pdf", 2_000_000);
+    let then = std::time::SystemTime::now() - std::time::Duration::from_secs(400 * 24 * 3600);
+    fs::File::options()
+        .write(true)
+        .open(d.join("Documents/old-report.pdf"))
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_accessed(then).set_modified(then))
+        .unwrap();
     d
 }
 
@@ -104,8 +113,18 @@ fn shot() {
             .unwrap_or(1200.),
     );
     settle_until(&mut test, "scanned");
-    if let Ok(caption) = std::env::var("CLEANER_CLICK") {
-        click(&mut test, &caption);
+    for caption in std::env::var("CLEANER_CLICK")
+        .unwrap_or_default()
+        .split('|')
+        .filter(|c| !c.is_empty())
+    {
+        click(&mut test, caption);
+        for _ in 0..10 {
+            test.poll(
+                std::time::Duration::from_millis(16),
+                std::time::Duration::from_millis(20),
+            );
+        }
     }
     for _ in 0..60 {
         test.poll(

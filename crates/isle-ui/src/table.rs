@@ -45,12 +45,22 @@ pub struct Cell {
     pub text: String,
     /// A subtree's total, shown after the row's own figure in the second ink.
     pub total: Option<String>,
+    /// A share drawn as a bar in place of the text: 0 to 1, in its colour.
+    pub bar: Option<(f32, isle_tokens::Colour)>,
 }
 
 impl From<String> for Cell {
     fn from(text: String) -> Self {
-        Self { text, total: None }
+        Self { text, total: None, bar: None }
     }
+}
+
+/// A tile beside the name in place of an icon: a glyph on a fill.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Mark {
+    pub fill: isle_tokens::Colour,
+    pub glyph: String,
+    pub alt: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -70,6 +80,12 @@ pub struct Row {
     pub cells: Vec<Cell>,
     /// A section's heading over the rows under it: its name alone, not selectable.
     pub heading: bool,
+    /// A tile before the name, where the row has no icon.
+    pub mark: Option<Mark>,
+    /// A leading checkbox and its state; none leaves its room empty in a table with any.
+    pub check: Option<bool>,
+    /// A second line under the name in the second ink.
+    pub detail: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,6 +110,8 @@ pub enum TableEvent {
     /// A column dragged to a new place among the columns after the first.
     Move(&'static str, usize),
     Disclose(u64, bool),
+    /// A row's checkbox clicked, or Space on the selection: the state it asks for.
+    Check(u64, bool),
 }
 
 /// The order to show `next` in while the order is held: `prev`'s, without the rows gone, and
@@ -448,6 +466,20 @@ impl Component for Table {
                         }
                         return;
                     }
+                    // Space ticks the selection where rows have checkboxes, unless it is part of a
+                    // name being typed.
+                    Key::Character(c) if c == " " && !typed.peek().fresh(Instant::now(), reset) => {
+                        let picked: Vec<&Row> = selected.iter().filter_map(|k| rows.iter().find(|r| r.key == *k && r.check.is_some())).collect();
+                        if picked.is_empty() {
+                            return;
+                        }
+                        e.stop_propagation();
+                        let on = !picked.iter().all(|r| r.check == Some(true));
+                        for r in picked {
+                            on_event.call(TableEvent::Check(r.key, on));
+                        }
+                        return;
+                    }
                     Key::Character(c) if !c.trim().is_empty() => {
                         let typed = typed.write().push(c, Instant::now(), reset);
                         let names = order.iter().filter_map(|k| rows.iter().find(|r| r.key == *k)).map(|r| r.name.as_str());
@@ -565,6 +597,54 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
             .into_element()
     });
     let any_disclosure = rows.rows.iter().any(|r| r.disclosure.is_some() || r.depth > 0);
+    let any_check = rows.rows.iter().any(|r| r.check.is_some());
+    let check = any_check.then(|| {
+        let on_event = rows.on_event.clone();
+        let state = row.check;
+        rect()
+            .width(Size::px(16.))
+            .height(Size::fill())
+            .center()
+            .maybe(state.is_some(), |el| {
+                let on = state == Some(true);
+                el.a11y_role(AccessibilityRole::CheckBox)
+                    .a11y_alt(row.name.clone())
+                    .a11y_builder(move |node| node.set_toggled(if on { accesskit::Toggled::True } else { accesskit::Toggled::False }))
+                    .on_mouse_down(move |e: Event<MouseEventData>| {
+                        if e.button == Some(MouseButton::Left) {
+                            e.stop_propagation();
+                            on_event.call(TableEvent::Check(key, !on));
+                        }
+                    })
+                    .child(
+                        rect()
+                            .width(Size::px(14.))
+                            .height(Size::px(14.))
+                            .corner_radius(4.)
+                            .background(colour(if on { t.colour_accent } else { t.colour_control }))
+                            .border(Border::new().fill(colour(t.colour_hairline_strong)).width(t.stroke_hairline).alignment(BorderAlignment::Inner))
+                            .center()
+                            .maybe_child(on.then(|| Glyph::new("check", 11., colour(t.colour_on_accent)))),
+                    )
+            })
+            .into_element()
+    });
+    let lead = match (&row.icon, &row.mark) {
+        (Some(path), _) => crate::AppIcon::new(path.clone(), t.size_app_icon_small).into_element(),
+        (None, Some(mark)) => rect()
+            .width(Size::px(t.size_pane_tile))
+            .height(Size::px(t.size_pane_tile))
+            .corner_radius(t.radius_row)
+            .background(colour(mark.fill))
+            .maybe(rows.contrast, |el| {
+                el.border(Border::new().fill(colour(t.colour_hairline_strong)).width(t.stroke_hairline).alignment(BorderAlignment::Inner))
+            })
+            .center()
+            .a11y_alt(mark.alt.clone())
+            .child(Glyph::new(mark.glyph.clone(), 16., colour(t.colour_view)))
+            .into_element(),
+        (None, None) => rect().width(Size::px(t.size_app_icon_small)).into_element(),
+    };
     let first = rows.columns.first().cloned();
     let name_cell = rect()
         .width(Size::flex(1.))
@@ -573,12 +653,15 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
         .cross_align(Alignment::Center)
         .spacing(t.space_s)
         .padding((0., 0., 0., row.depth as f32 * t.space_l))
+        .maybe_child(check)
         .maybe_child(any_disclosure.then(|| disclose.unwrap_or_else(|| rect().width(Size::px(16.)).into_element())))
-        .child(match &row.icon {
-            Some(path) => crate::AppIcon::new(path.clone(), t.size_app_icon_small).into_element(),
-            None => rect().width(Size::px(t.size_app_icon_small)).into_element(),
-        })
-        .child(rect().width(Size::flex(1.)).child(text::line(&theme, text::Style::Body, colour(ink), row.name.clone())))
+        .child(lead)
+        .child(
+            rect()
+                .width(Size::flex(1.))
+                .child(text::line(&theme, text::Style::Body, colour(ink), row.name.clone()))
+                .maybe_child(row.detail.clone().map(|d| text::line(&theme, text::Style::Subheadline, colour(ink_2), d))),
+        )
         .maybe_child(row.note.clone().map(|n| text::line(&theme, text::Style::Callout, colour(ink_2), n)));
     let cells = rows.columns.iter().skip(1).zip(row.cells.iter()).map(|(column, cell)| {
         let trailing = column.align == Align::Trailing;
@@ -606,7 +689,18 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
             })
             .spacing(t.space_s)
             .overflow(Overflow::Clip)
-            .child(figure(cell.text.clone(), ink))
+            .child(match cell.bar {
+                Some((share, fill)) => rect()
+                    .width(Size::px(64.))
+                    .height(Size::px(6.))
+                    .corner_radius(t.radius_small)
+                    .background(colour(t.colour_fill_strong))
+                    .overflow(Overflow::Clip)
+                    .a11y_alt(cell.text.clone())
+                    .child(rect().width(Size::percent(share.clamp(0., 1.) * 100.)).height(Size::fill()).background(colour(fill)))
+                    .into_element(),
+                None => figure(cell.text.clone(), ink),
+            })
             .maybe_child(cell.total.clone().map(|total| figure(total, ink_2)))
             .into_element()
     });

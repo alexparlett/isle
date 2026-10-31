@@ -5,9 +5,13 @@ mod cleanup;
 mod model;
 mod overview;
 mod scanner;
+mod space;
 mod state;
+mod tables;
 #[cfg(test)]
 mod tests;
+mod ties;
+mod treemap;
 mod ui;
 mod window;
 

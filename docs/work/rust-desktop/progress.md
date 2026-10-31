@@ -2,6 +2,25 @@
 
 ## 2026-10-31
 
+- 19b.7 and 19b.8: Space and the tables. Space: the path's crumbs to the
+  folder and its size; the map, squarified, children too small for 8
+  points on a side sharing a "{n} smaller items" tile (found by halving,
+  not one re-layout per child), tiles in the kind's mix with its band,
+  symbol and label as their size allows, hover and selection rings, the
+  basket's check; a double-click or Return opens a folder growing from
+  its tile, the path's crumbs go up; arrows move to the nearest tile and
+  Space ticks it; the list with disclosure in place, a share bar and the
+  kind. The item menu: Add to or Remove from basket, Show in Files
+  (`FileManager1`), Quick Look (Files' `QuickLook1`), Copy path. Large
+  files and Untouched on the shared table, sortable, with a Kind pop-up
+  and Untouched's period; "Last changed" where a root is `noatime` (the
+  host's are). Duplicates as groups with "Shares storage", "Comparing
+  files…" until compared, and More › Select all but the newest.
+  `isle_ui::table` gains a mark tile, a checkbox column with Space to tick
+  the selection, a second line and a bar in a cell; Monitor unchanged.
+  Left for the walk: the zoom's look by eye, a folder column cut at its
+  end where the sheet cuts paths in the middle.
+
 - 19b.6: `isle-cleaner`, its window, Overview and Cleanup. The scan runs
   on a thread of its own, published at most once a second with the rules
   run over each publication, duplicates compared at idle I/O once the

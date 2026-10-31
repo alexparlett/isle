@@ -1,8 +1,10 @@
 //! Cleaner: where the space went and what can go (`docs/design/apps.md` Cleaner).
 
 mod basket;
+mod basket_view;
 mod cleanup;
 mod model;
+mod mover;
 mod overview;
 mod scanner;
 mod space;

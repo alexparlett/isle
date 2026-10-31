@@ -51,10 +51,6 @@ impl View {
             View::Untouched => "clock-counter-clockwise",
         }
     }
-
-    pub fn index(self) -> usize {
-        Self::ALL.iter().position(|v| *v == self).unwrap_or(0)
-    }
 }
 
 /// What a scan covers.
@@ -201,7 +197,7 @@ fn file_rows(tree: &Tree, files: Vec<isle_scan::File>) -> Vec<FileRow> {
 
 /// Where the space is: from inside the roots down, a folder most of whose space is in one child
 /// is only the way to that child, so the search goes on past it.
-pub fn hotspots(tree: &Tree, limit: usize) -> Vec<Id> {
+pub fn hotspots(tree: &Tree, limit: usize, trashes: &[PathBuf]) -> Vec<Id> {
     let mut heap: BinaryHeap<(u64, Id)> = tree
         .children(TOP)
         .flat_map(|root| tree.children(root))
@@ -211,6 +207,9 @@ pub fn hotspots(tree: &Tree, limit: usize) -> Vec<Id> {
     while let Some((bytes, id)) = heap.pop() {
         if out.len() == limit || bytes == 0 {
             break;
+        }
+        if trashes.iter().any(|t| tree.path(id).starts_with(t)) {
+            continue;
         }
         let biggest = tree
             .children(id)
@@ -235,9 +234,15 @@ pub fn snapshot(
     ctx: &isle_scan::Context,
 ) -> Snapshot {
     let progress = scan.progress();
+    // The Trash has its own row; its contents are not the user's files any more.
+    let trashes: Vec<PathBuf> = isle_fs::trash::all_trashes()
+        .into_iter()
+        .map(|t| t.root)
+        .collect();
+    let kept = |f: &FileRow| !trashes.iter().any(|t| f.path.starts_with(t));
     scan.read(|tree| {
         let top = tree.node(TOP);
-        let folders = hotspots(tree, 5)
+        let folders = hotspots(tree, 5, &trashes)
             .into_iter()
             .map(|id| FolderRow {
                 path: tree.path(id),
@@ -255,8 +260,14 @@ pub fn snapshot(
             kinds: tree.kinds(TOP),
             unreadable: tree.unreadable().map(|id| tree.path(id)).collect(),
             folders,
-            largest: file_rows(tree, tree.largest.sorted()),
-            untouched: file_rows(tree, tree.untouched.sorted()),
+            largest: file_rows(tree, tree.largest.sorted())
+                .into_iter()
+                .filter(kept)
+                .collect(),
+            untouched: file_rows(tree, tree.untouched.sorted())
+                .into_iter()
+                .filter(kept)
+                .collect(),
             finds: rules.find(tree, ctx),
             scan: scan.clone(),
         }

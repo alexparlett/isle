@@ -2,6 +2,26 @@
 
 ## 2026-10-31
 
+- 19b.9: the basket and the Trash. Move to Trash (the button or ⌘⌫)
+  checks each item again (still there, the device and inode the scan
+  saw, not now a link) and runs one `isle-fs` Trash job on a thread, its
+  progress in the basket and on the switcher card, the process held until
+  it ends; then "Moved {n} items to the Trash" with Undo (⌘Z, one undo of
+  the job's steps, the items back in the basket), "Nothing is freed until
+  the Trash is emptied" and Empty Trash…, and any failures listed with
+  their reason. Empty Trash… (the sidebar, the moved form, ⇧⌘⌫) asks with
+  Files' alert and empties the scope's disks' Trashes. The basket's
+  frees per disk leave out extents FIEMAP says other files share, for
+  files of a megabyte or more, and say so. The Trash's contents stay out of
+  the largest folders and files. Jobs are taken by one task the window
+  starts, since a task spawned from a button's handler was never polled.
+  The scanner now waits for every worker before its last publication and
+  keeps publishing until a finished one has gone out (two races that left
+  a finished scan reading "Scanning…"). Tested: nothing in a scanned,
+  ruled, compared and filled home changes until the move, and after Undo
+  every file is back with its inode; an item changed, linked or gone since
+  the scan is refused; the window moves the basket and Undo puts it back.
+
 - 19b.7 and 19b.8: Space and the tables. Space: the path's crumbs to the
   folder and its size; the map, squarified, children too small for 8
   points on a side sharing a "{n} smaller items" tile (found by halving,

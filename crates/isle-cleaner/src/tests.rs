@@ -74,11 +74,18 @@ pub fn home(name: &str) -> PathBuf {
     d
 }
 
+/// The window's tests set `HOME` and the XDG folders for the process, so they take turns.
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn runner(folder: PathBuf, width: f32) -> TestingRunner {
     let state = folder.join(".state");
     // SAFETY: set before any thread of this test reads the environment.
     unsafe {
         std::env::set_var("XDG_STATE_HOME", &state);
+        std::env::set_var("XDG_DATA_HOME", folder.join(".local/share"));
         std::env::set_var("HOME", &folder);
     }
     let (test, _) = TestingRunner::new(
@@ -101,6 +108,7 @@ fn runner(folder: PathBuf, width: f32) -> TestingRunner {
 #[test]
 #[ignore]
 fn shot() {
+    let _turn = serial();
     let Some(path) = std::env::var_os("CLEANER_SHOT") else {
         return;
     };
@@ -137,6 +145,7 @@ fn shot() {
 
 #[test]
 fn a_scan_fills_overview_and_cleanup_and_the_basket() {
+    let _turn = serial();
     let home = home("fill");
     let mut test = runner(home.clone(), 1200.);
     settle_until(&mut test, "scanned");
@@ -159,5 +168,166 @@ fn a_scan_fills_overview_and_cleanup_and_the_basket() {
         "the build folder, named for its project: {seen:?}"
     );
     assert!(seen.iter().any(|l| l == "These can't be put back."));
+    let _ = fs::remove_dir_all(&home);
+}
+
+/// Every file under `root` with its inode and content, the Trash left out.
+fn fingerprint(root: &Path) -> Vec<(PathBuf, u64, Vec<u8>)> {
+    use std::os::unix::fs::MetadataExt;
+    let mut out = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for e in fs::read_dir(&dir).unwrap().flatten() {
+            let p = e.path();
+            if p.starts_with(root.join(".local/share/Trash")) || p.starts_with(root.join(".state"))
+            {
+                continue;
+            }
+            let m = fs::symlink_metadata(&p).unwrap();
+            if m.is_dir() {
+                stack.push(p);
+            } else {
+                out.push((p.clone(), m.ino(), fs::read(&p).unwrap()));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+#[test]
+fn nothing_moves_until_move_to_trash_and_undo_puts_it_all_back() {
+    let _turn = serial();
+    let home = home("unmoved");
+    // SAFETY: set before any thread of this test reads the environment.
+    unsafe { std::env::set_var("XDG_DATA_HOME", home.join(".local/share")) };
+    let before = fingerprint(&home);
+    let (tree, _) = isle_scan::Scan::start(vec![home.clone()]).finish();
+    let ctx = isle_scan::Context {
+        home: home.clone(),
+        libraries: Vec::new(),
+        now: isle_scan::Context::here(Vec::new()).now,
+    };
+    let finds = isle_scan::Rules::shipped().find(&tree, &ctx);
+    let groups = isle_scan::duplicates::compare(
+        isle_scan::duplicates::candidates(&tree, &finds),
+        &std::sync::atomic::AtomicBool::new(false),
+    );
+    assert!(!finds.is_empty() && !groups.is_empty());
+    let mut basket = crate::basket::Basket::default();
+    for f in &finds {
+        let m = fs::symlink_metadata(&f.path).unwrap();
+        use std::os::unix::fs::MetadataExt;
+        basket.add(crate::basket::Item {
+            path: f.path.clone(),
+            name: f.name.clone(),
+            bytes: f.bytes,
+            kind: f.kind,
+            dev: m.dev(),
+            ino: m.ino(),
+        });
+    }
+    for c in groups.iter().flat_map(|g| g.copies.iter().skip(1)) {
+        basket.add(crate::basket::Item {
+            path: c.path.clone(),
+            name: String::new(),
+            bytes: c.bytes,
+            kind: isle_scan::Kind::Other,
+            dev: 0,
+            ino: 0,
+        });
+    }
+    assert_eq!(
+        fingerprint(&home),
+        before,
+        "scanning, rules, comparing and filling the basket move nothing"
+    );
+
+    let (ok, refused) = crate::mover::check(basket.items());
+    assert!(refused.is_empty(), "{refused:?}");
+    struct Quiet;
+    impl isle_fs::jobs::Control for Quiet {
+        fn progress(&self, _: isle_fs::jobs::Progress) {}
+        fn ask(&self, _: isle_fs::jobs::Conflict) -> isle_fs::jobs::Answer {
+            isle_fs::jobs::Answer {
+                choice: isle_fs::jobs::Choice::KeepBoth,
+                all: true,
+            }
+        }
+        fn stopped(&self) -> bool {
+            false
+        }
+    }
+    let report = isle_fs::jobs::run(isle_fs::jobs::Work::Trash { items: ok.clone() }, &Quiet);
+    assert!(report.failed.is_empty(), "{:?}", report.failed);
+    assert!(ok.iter().all(|p| !p.exists()), "moved");
+    assert_ne!(fingerprint(&home), before);
+    let Some(isle_fs::jobs::Undo::Steps(steps)) = report.undo else {
+        panic!("no undo")
+    };
+    let back = isle_fs::jobs::run(isle_fs::jobs::Work::Undo { steps }, &Quiet);
+    assert!(back.failed.is_empty(), "{:?}", back.failed);
+    assert_eq!(
+        fingerprint(&home),
+        before,
+        "one undo puts every file back as it was, inode and all"
+    );
+    let _ = fs::remove_dir_all(&home);
+}
+
+#[test]
+fn an_item_changed_since_the_scan_is_not_moved() {
+    let home = home("changed");
+    let path = home.join("Videos/trip.mkv");
+    use std::os::unix::fs::MetadataExt;
+    let m = fs::symlink_metadata(&path).unwrap();
+    let item = crate::basket::Item {
+        path: path.clone(),
+        name: "trip.mkv".into(),
+        bytes: 1,
+        kind: isle_scan::Kind::Video,
+        dev: m.dev(),
+        ino: m.ino(),
+    };
+    fs::remove_file(&path).unwrap();
+    put(&home, "Videos/trip.mkv", 10);
+    assert_eq!(
+        crate::mover::refused(&item),
+        Some("It changed since the scan.")
+    );
+    fs::remove_file(&path).unwrap();
+    std::os::unix::fs::symlink("/etc/hostname", &path).unwrap();
+    assert_eq!(crate::mover::refused(&item), Some("It's now a link."));
+    fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mover::refused(&item), Some("It's no longer there."));
+    let _ = fs::remove_dir_all(&home);
+}
+
+#[test]
+fn the_basket_moves_to_the_trash_and_undo_brings_it_back() {
+    let _turn = serial();
+    let home = home("move");
+    let mut test = runner(home.clone(), 1200.);
+    settle_until(&mut test, "scanned");
+    click(&mut test, "Move to Trash");
+    settle_until(&mut test, "Moved 3 items to the Trash");
+    assert!(!home.join(".cache/spotify").exists());
+    assert!(
+        labels(&test)
+            .iter()
+            .any(|l| l == "Nothing is freed until the Trash is emptied")
+    );
+    click(&mut test, "Undo");
+    settle_until(&mut test, "Basket");
+    for _ in 0..50 {
+        test.poll(
+            std::time::Duration::from_millis(16),
+            std::time::Duration::from_millis(20),
+        );
+        if home.join(".cache/spotify").exists() {
+            break;
+        }
+    }
+    assert!(home.join(".cache/spotify/data.bin").exists(), "put back");
     let _ = fs::remove_dir_all(&home);
 }

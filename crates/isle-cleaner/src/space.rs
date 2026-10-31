@@ -147,8 +147,6 @@ impl PartialEq for Space {
     }
 }
 
-const SMALLER: &str = "smaller";
-
 fn tile(
     theme: &Theme,
     e: Option<&Entry>,
@@ -636,25 +634,6 @@ impl Component for Space {
 
 #[derive(Clone, Copy, PartialEq)]
 struct MapClick;
-
-/// The tile of `path` in a map of `area` for the folder above it, for the zoom.
-pub fn tile_of(
-    snapshot: &Snapshot,
-    parent: Option<&Path>,
-    path: &Path,
-    area: Rect,
-    min: f32,
-) -> Option<Rect> {
-    let (entries, _) = entries(snapshot, parent);
-    let sizes: Vec<u64> = entries.iter().map(|e| e.bytes).collect();
-    let kept = treemap::kept(&sizes, area, min);
-    let mut shown = sizes[..kept].to_vec();
-    if kept < sizes.len() {
-        shown.push(sizes[kept..].iter().sum());
-    }
-    let i = entries.iter().take(kept).position(|e| e.path == path)?;
-    treemap::layout(&shown, area).get(i).copied()
-}
 
 /// The nearest entry from `from` in a direction, for the arrows.
 pub fn nearest(rects: &[(PathBuf, Rect)], from: &Path, dx: f32, dy: f32) -> Option<PathBuf> {

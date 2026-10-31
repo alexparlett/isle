@@ -23,8 +23,23 @@ use crate::{
     overview,
     scanner::{self, Ask},
     state::{self, Remembered},
-    ui::{kind_tile, mono},
 };
+
+/// A job on the basket or the Trash, and where its progress comes back.
+enum Job {
+    Move {
+        rx: futures_channel::mpsc::UnboundedReceiver<crate::mover::Moving>,
+        items: Vec<Item>,
+        refused: Vec<(PathBuf, String)>,
+    },
+    Undo {
+        rx: futures_channel::mpsc::UnboundedReceiver<crate::mover::Moving>,
+        items: Vec<Item>,
+    },
+    Empty {
+        rx: futures_channel::mpsc::UnboundedReceiver<crate::mover::Moving>,
+    },
+}
 
 /// The compositor's lights over the toolbar's leading end (`isle_shell::chrome::LIGHTS_END`).
 const LIGHTS: f32 = 68.;
@@ -41,6 +56,7 @@ fn commands(
     scanning: bool,
     can_back: bool,
     can_forward: bool,
+    can_undo: bool,
 ) -> Vec<Command> {
     let mut out = Vec::new();
     for (i, v) in View::ALL.iter().enumerate() {
@@ -83,6 +99,11 @@ fn commands(
     out.push(
         Command::new("empty-trash", "Empty Trash…", Menu::File, 2)
             .chord(Chord::cmd_key(ChordKey::Backspace).shift()),
+    );
+    out.push(
+        Command::new("undo", "Undo Move to Trash", Menu::Edit, 1)
+            .chord(Chord::cmd('z'))
+            .enabled(can_undo),
     );
     out.push(Command::new("search", "Search", Menu::Edit, 9).chord(Chord::cmd('f')));
     out
@@ -175,6 +196,90 @@ impl App for Cleaner {
         let mut kind_filter = use_state(|| None::<isle_scan::Kind>);
         let mut more_menu = use_state(|| None::<(f32, f32)>);
         let app = use_consume::<isle_app::AppHandle>();
+        let mut moving = use_state(|| None::<f64>);
+        let mut moved = use_state(|| None::<crate::basket_view::Moved>);
+        let mut skip_fill = use_state(|| false);
+        let mut empty_alert = use_state(|| None::<Vec<isle_fs::trash::Trashed>>);
+        let hold = use_hook(|| Rc::new(RefCell::new(None::<isle_app::Hold>)));
+        let mut asked = use_state(Vec::<&'static str>::new);
+        let jobs = use_hook({
+            let (app, hold) = (app.clone(), hold.clone());
+            move || {
+                let (tx, mut rx) = futures_channel::mpsc::unbounded::<Job>();
+                spawn(async move {
+                    use futures_util::StreamExt;
+                    while let Some(job) = rx.next().await {
+                        let (mut progress, kind) = match job {
+                            Job::Move { rx, items, refused } => (rx, Some((items, refused))),
+                            Job::Undo { rx, items } => {
+                                let mut rx = rx;
+                                while let Some(m) = rx.next().await {
+                                    if let crate::mover::Moving::Done(_) = m {
+                                        let mut b = basket.write();
+                                        for i in &items {
+                                            b.add(i.clone());
+                                        }
+                                    }
+                                }
+                                skip_fill.set(true);
+                                *wanted.write() += 1;
+                                continue;
+                            }
+                            Job::Empty { rx } => (rx, None),
+                        };
+                        while let Some(m) = progress.next().await {
+                            match m {
+                                crate::mover::Moving::Progress(share) if kind.is_some() => {
+                                    moving.set(Some(share));
+                                    app.progress(Some(share));
+                                }
+                                crate::mover::Moving::Progress(_) => {}
+                                crate::mover::Moving::Done(report) => {
+                                    let Some((items, refused)) = &kind else {
+                                        moved.set(None);
+                                        continue;
+                                    };
+                                    moving.set(None);
+                                    app.progress(None);
+                                    hold.borrow_mut().take();
+                                    let reason =
+                                        |p: &PathBuf| items.iter().find(|i| &i.path == p).cloned();
+                                    let mut failed: Vec<(Item, String)> = refused
+                                        .iter()
+                                        .filter_map(|(p, why)| Some((reason(p)?, why.clone())))
+                                        .collect();
+                                    failed.extend(
+                                        report
+                                            .failed
+                                            .iter()
+                                            .filter_map(|(p, why)| Some((reason(p)?, why.clone()))),
+                                    );
+                                    let gone: Vec<Item> = items
+                                        .iter()
+                                        .filter(|i| !failed.iter().any(|(f, _)| f.path == i.path))
+                                        .cloned()
+                                        .collect();
+                                    let undo = match report.undo {
+                                        Some(isle_fs::jobs::Undo::Steps(steps)) => Some(steps),
+                                        _ => None,
+                                    };
+                                    basket.write().clear();
+                                    moved.set(Some(crate::basket_view::Moved {
+                                        count: gone.len(),
+                                        failed,
+                                        undo,
+                                        items: gone,
+                                    }));
+                                }
+                            }
+                        }
+                        skip_fill.set(true);
+                        *wanted.write() += 1;
+                    }
+                });
+                tx
+            }
+        });
 
         let (ask, incoming) = use_hook(|| {
             let (ask, rx) = scanner::start(Duration::from_millis(t.timing_scan_layout_ms as u64));
@@ -193,9 +298,14 @@ impl App for Cleaner {
                             // Cleaner 7).
                             if snap.finished() && *filled.peek() != snap.generation {
                                 filled.set(snap.generation);
-                                let mut b = basket.write();
-                                for f in snap.finds.iter().filter(|f| f.safe) {
-                                    b.add(item_of(&snap, f));
+                                // A rescan after a move leaves the basket as the move left it.
+                                if *skip_fill.peek() {
+                                    skip_fill.set(false);
+                                } else {
+                                    let mut b = basket.write();
+                                    for f in snap.finds.iter().filter(|f| f.safe) {
+                                        b.add(item_of(&snap, f));
+                                    }
                                 }
                             }
                             snapshot.set(Some(snap));
@@ -224,12 +334,14 @@ impl App for Cleaner {
         let (stack, at) = history.read().clone();
         let can_back = at > 0;
         let can_forward = at + 1 < stack.len();
+        let can_undo = moved.read().as_ref().is_some_and(|m| m.undo.is_some());
         isle_app::use_commands(commands(
             &r,
             &basket.read(),
             scanning,
             can_back,
             can_forward,
+            can_undo,
         ));
 
         let mut go = move |view: View, to: Option<PathBuf>| {
@@ -282,6 +394,9 @@ impl App for Cleaner {
                             let hidden = *basket_hidden.peek();
                             basket_hidden.set(!hidden);
                         }
+                        "move-to-trash" => asked.write().push("move"),
+                        "empty-trash" => asked.write().push("empty"),
+                        "undo" => asked.write().push("undo"),
                         "up" => {
                             let at = folder.peek().clone();
                             let roots = snapshot
@@ -613,7 +728,11 @@ impl App for Cleaner {
                                         size(trash_bytes),
                                     )),
                             )
-                            .child(Button::new("Empty Trash…").small()),
+                            .child(
+                                Button::new("Empty Trash…")
+                                    .small()
+                                    .on_press(move |_| asked.write().push("empty")),
+                            ),
                     ),
             );
 
@@ -793,21 +912,86 @@ impl App for Cleaner {
                 }
                 None => rect().into_element(),
             },
-            other => rect()
-                .width(Size::fill())
-                .height(Size::fill())
-                .center()
-                .child(text::line(
-                    &theme,
-                    text::Style::Body,
-                    colour(t.colour_text_2),
-                    other.title(),
-                ))
-                .into_element(),
         };
 
-        let basket_view = (!basket.read().is_empty() && !*basket_hidden.read())
-            .then(|| basket_panel(&theme, &basket.read(), basket));
+        // Moving: one job for the whole basket, held open until it ends.
+        let start_move = {
+            let (app, hold, jobs) = (app.clone(), hold.clone(), jobs.clone());
+            move || {
+                if moving.peek().is_some() || basket.peek().is_empty() {
+                    return;
+                }
+                let items: Vec<Item> = basket.peek().items().to_vec();
+                let (ok, refused) = crate::mover::check(&items);
+                moving.set(Some(0.));
+                *hold.borrow_mut() = Some(app.hold());
+                app.progress(Some(0.));
+                let rx = crate::mover::run(isle_fs::jobs::Work::Trash { items: ok });
+                let _ = jobs.unbounded_send(Job::Move { rx, items, refused });
+            }
+        };
+        let undo_move = {
+            let jobs = jobs.clone();
+            move || {
+                let Some(m) = moved.peek().clone() else {
+                    return;
+                };
+                let Some(steps) = m.undo.clone() else { return };
+                moved.set(None);
+                let rx = crate::mover::run(isle_fs::jobs::Work::Undo { steps });
+                let _ = jobs.unbounded_send(Job::Undo { rx, items: m.items });
+            }
+        };
+        let ask_empty = {
+            let roots = snap.as_ref().map(|s| s.roots.clone()).unwrap_or_default();
+            move || {
+                let roots = roots.clone();
+                let items: Vec<isle_fs::trash::Trashed> = isle_fs::trash::all_trashes()
+                    .iter()
+                    .filter(|d| roots.iter().any(|r| d.root.starts_with(r)))
+                    .flat_map(isle_fs::trash::list)
+                    .collect();
+                if !items.is_empty() {
+                    empty_alert.set(Some(items));
+                }
+            }
+        };
+        use_side_effect({
+            let (mut go_move, mut go_undo, mut go_empty) =
+                (start_move.clone(), undo_move.clone(), ask_empty.clone());
+            move || {
+                if asked.read().is_empty() {
+                    return;
+                }
+                for a in std::mem::take(&mut *asked.write()) {
+                    match a {
+                        "move" => go_move(),
+                        "undo" => go_undo(),
+                        _ => go_empty(),
+                    }
+                }
+            }
+        });
+        let frees_of = use_memo(move || crate::basket_view::frees(basket.read().items()));
+        let basket_view = ((!basket.read().is_empty() || moved.read().is_some())
+            && !*basket_hidden.read())
+        .then(|| {
+            let (mut go_move, mut go_undo, mut go_empty) =
+                (start_move.clone(), undo_move.clone(), ask_empty.clone());
+            crate::basket_view::view(
+                &theme,
+                crate::basket_view::Panel {
+                    basket: &basket.read(),
+                    frees: &frees_of.read(),
+                    moving: *moving.read(),
+                    moved: moved.read().as_ref(),
+                    on_remove: EventHandler::new(move |p: PathBuf| basket.write().remove(&p)),
+                    on_move: EventHandler::new(move |_| go_move()),
+                    on_undo: EventHandler::new(move |_| go_undo()),
+                    on_empty: EventHandler::new(move |_| go_empty()),
+                },
+            )
+        });
 
         let menu_app = app.clone();
         let overlay_menu = item_menu.read().clone().map(|(e, at)| {
@@ -900,6 +1084,31 @@ impl App for Cleaner {
             })
             .into_element()
         });
+        let overlay_empty = empty_alert.read().clone().map(|items| {
+            let empty_jobs = jobs.clone();
+            let count = items.len();
+            isle_ui::alert(
+                &format!("Permanently erase {count} items in the Trash?"),
+                "You can't undo this.",
+                Vec::new(),
+                vec![
+                    isle_ui::AlertButton::destructive(
+                        "Empty Trash",
+                        EventHandler::new(move |_| {
+                            empty_alert.set(None);
+                            let rx = crate::mover::run(isle_fs::jobs::Work::EmptyTrash {
+                                items: items.clone(),
+                            });
+                            let _ = empty_jobs.unbounded_send(Job::Empty { rx });
+                        }),
+                    ),
+                    isle_ui::AlertButton::from((
+                        "Cancel".to_owned(),
+                        EventHandler::new(move |_| empty_alert.set(None)),
+                    )),
+                ],
+            )
+        });
         let overlay = (*clearing.read()).map(|item| {
             let ask = ask.clone();
             isle_ui::alert(
@@ -960,6 +1169,7 @@ impl App for Cleaner {
             )
             .maybe_child(overlay_menu)
             .maybe_child(overlay_more)
+            .maybe_child(overlay_empty)
             .maybe_child(overlay)
     }
 }
@@ -983,143 +1193,4 @@ fn column_view(theme: &isle_tokens::Theme, column: Element) -> Element {
                 ),
         )
         .into_element()
-}
-
-/// The basket as the inspector (`p1/surfaces/cleaner.md` The basket).
-fn basket_panel(theme: &isle_tokens::Theme, b: &Basket, mut basket: State<Basket>) -> Element {
-    let t = &theme.tokens;
-    let rows: Vec<Element> = b
-        .items()
-        .iter()
-        .map(|i| {
-            let path = i.path.clone();
-            rect()
-                .width(Size::fill())
-                .height(Size::px(t.size_row))
-                .padding((0., t.space_s))
-                .horizontal()
-                .content(Content::flex())
-                .cross_align(Alignment::Center)
-                .spacing(t.space_s)
-                .child(kind_tile(theme, i.kind))
-                .child(rect().width(Size::flex(1.)).child(text::line(
-                    theme,
-                    text::Style::Body,
-                    colour(t.colour_text),
-                    text::cut_middle(&i.name, 24),
-                )))
-                .child(mono(theme, t.colour_text_2, size(i.bytes)))
-                .child(
-                    rect()
-                        .width(Size::px(20.))
-                        .height(Size::px(20.))
-                        .center()
-                        .a11y_role(AccessibilityRole::Button)
-                        .a11y_alt(format!("Remove {} from basket", i.name))
-                        .on_press(move |_| basket.write().remove(&path))
-                        .child(Glyph::new("x-circle-fill", 16., colour(t.colour_text_2))),
-                )
-                .into_element()
-        })
-        .collect();
-    let by_disk = frees(b.items());
-    rect()
-        .width(Size::px(260.))
-        .height(Size::fill())
-        .content(Content::flex())
-        .background(colour(t.colour_window))
-        .border(
-            Border::new()
-                .fill(colour(t.colour_hairline))
-                .width(BorderWidth {
-                    top: 0.,
-                    right: 0.,
-                    bottom: 0.,
-                    left: t.stroke_hairline,
-                })
-                .alignment(BorderAlignment::Inner),
-        )
-        .child(
-            rect()
-                .width(Size::fill())
-                .padding(t.space_l)
-                .spacing(t.space_xs)
-                .child(text::line(
-                    theme,
-                    text::Style::Headline,
-                    colour(t.colour_text),
-                    "Basket",
-                ))
-                .child(text::line(
-                    theme,
-                    text::Style::Title2,
-                    colour(t.colour_text),
-                    size(b.total()),
-                ))
-                .child(text::line(
-                    theme,
-                    text::Style::Subheadline,
-                    colour(t.colour_text_2),
-                    format!("{} items", b.items().len()),
-                )),
-        )
-        .child(
-            scroll_area(theme)
-                .width(Size::fill())
-                .height(Size::flex(1.))
-                .child(
-                    rect()
-                        .width(Size::fill())
-                        .padding((0., t.space_s))
-                        .children(rows),
-                ),
-        )
-        .child(
-            rect()
-                .width(Size::fill())
-                .height(Size::px(t.stroke_hairline))
-                .background(colour(t.colour_hairline)),
-        )
-        .child(
-            rect()
-                .width(Size::fill())
-                .padding(t.space_l)
-                .spacing(t.space_m)
-                .children(
-                    by_disk
-                        .into_iter()
-                        .map(|(disk, bytes)| {
-                            text::line(
-                                theme,
-                                text::Style::Callout,
-                                colour(t.colour_text_2),
-                                format!(
-                                    "Frees {} on {disk} once the Trash is emptied",
-                                    size(bytes)
-                                ),
-                            )
-                            .max_lines(3)
-                            .width(Size::fill())
-                            .into_element()
-                        })
-                        .collect::<Vec<_>>(),
-                )
-                .child(Button::new("Move to Trash").wide()),
-        )
-        .into_element()
-}
-
-/// What the basket frees on each disk.
-fn frees(items: &[Item]) -> Vec<(String, u64)> {
-    let mounts = isle_fs::mounts::read();
-    let mut out: Vec<(String, u64)> = Vec::new();
-    for i in items {
-        let disk = isle_fs::mounts::of(&mounts, &i.path)
-            .map_or_else(|| "this disk".to_owned(), |m| disk_name(&m.point));
-        match out.iter_mut().find(|(d, _)| *d == disk) {
-            Some((_, b)) => *b += i.bytes,
-            None => out.push((disk, i.bytes)),
-        }
-    }
-    out
 }

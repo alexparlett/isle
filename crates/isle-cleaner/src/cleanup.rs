@@ -1,8 +1,6 @@
 //! Cleanup (`p1/surfaces/cleaner.md` Cleanup): Safe to clear, ticked; Worth a look, ticked one
 //! at a time; and the System card, cleared by its own tools.
 
-use std::path::PathBuf;
-
 use freya::prelude::*;
 use isle_scan::{
     Find,
@@ -365,13 +363,4 @@ pub fn view(theme: &Theme, c: Cleanup) -> Element {
         .spacing(t.space_xl)
         .children(cards)
         .into_element()
-}
-
-/// The basket's paths a card's finds put in: every safe find, for the head's tick.
-pub fn safe_paths(finds: &[Find]) -> Vec<PathBuf> {
-    finds
-        .iter()
-        .filter(|f| f.safe)
-        .map(|f| f.path.clone())
-        .collect()
 }

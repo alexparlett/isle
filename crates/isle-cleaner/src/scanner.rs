@@ -57,16 +57,20 @@ fn run(asked: mpsc::Receiver<Ask>, tx: UnboundedSender<Event>, every: Duration) 
     let mut generation = 0u64;
     let mut comparing: Option<Arc<AtomicBool>> = None;
     loop {
-        let scanning = current.as_ref().is_some_and(|(_, s, _)| {
+        // A scan is published until its finished snapshot has gone out, at once when it has ended.
+        let wait = current.as_ref().map(|(_, s, _)| {
             let p = s.progress();
-            !p.done && !p.partial
+            if p.done || p.partial {
+                Duration::ZERO
+            } else {
+                every
+            }
         });
-        let ask = if scanning {
-            asked.recv_timeout(every)
-        } else {
-            asked
+        let ask = match wait {
+            Some(wait) => asked.recv_timeout(wait),
+            None => asked
                 .recv()
-                .map_err(|_| mpsc::RecvTimeoutError::Disconnected)
+                .map_err(|_| mpsc::RecvTimeoutError::Disconnected),
         };
         match ask {
             Ok(Ask::Scan(roots)) => {
@@ -91,8 +95,13 @@ fn run(asked: mpsc::Receiver<Ask>, tx: UnboundedSender<Event>, every: Duration) 
         let Some((g, scan, roots)) = &current else {
             continue;
         };
-        // The workers end soon after Stop; the last publication waits for them.
-        if scan.progress().partial {
+        // The workers end soon after the walk does, or after Stop; the last publication waits
+        // for them.
+        let ended = {
+            let p = scan.progress();
+            p.done || p.partial
+        };
+        if ended {
             while scan.running() {
                 std::thread::sleep(Duration::from_millis(5));
             }

@@ -197,6 +197,14 @@ The arena cap and trims, the EGL vendor variable, and the caches. Then an
 hour on the host measured against the bar. mimalloc is decided here, on those
 numbers.
 
+### 19p.8 · Huge pages (added 2026-10-31)
+
+Added after the overnight run: anonymous memory levelled at 169 MB, 112 MB
+of it huge pages. The compositor runs without them; the app launch paths
+turn them back on with the nice reset; a headless test checks a launched
+app has them, and `isle perf` names any descendant without them. Then one
+more overnight run.
+
 ### 19p.6 · Opaque interiors (cuttable)
 
 Rounded windows report their interior as opaque.
@@ -290,6 +298,8 @@ headless tests are in the evidence note. Differences from the plan:
   - dropping the switcher's previews on close: they are GPU textures, and
     clearing them blanks the cards as the switcher fades out;
   - 19p.6, opaque interiors (cuttable): GPU time only.
+- **19p.8 added** (2026-10-31, the user's choice): huge pages off for the
+  compositor and back on for apps (B137), after the overnight run.
 - **A suite note.** `shell.rs`'s probe test, which wants six frames in
   250 ms, fails under the full suite with the host's old compositor taking
   a core; it passes alone and with six test threads.

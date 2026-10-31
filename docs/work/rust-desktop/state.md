@@ -624,3 +624,8 @@
   image caches, notification pictures pruned. 19p.6 cut. Host run pending:
   the user packages and installs with `tools/package.sh`, then an hour idle
   and an hour with a game read with `isle perf --watch` against the bars.
+- P19p host run (2026-10-30 and 31): idle 0 frames and 0.0–0.2% CPU, the
+  index quiet overnight, a game at 2.4–4.6%; anonymous memory levelled at
+  169 MB, 112 MB of it huge pages. 19p.8 added at the user's choice (B137):
+  no huge pages for the compositor, back on for every app it starts. Next:
+  package it and run one more night.

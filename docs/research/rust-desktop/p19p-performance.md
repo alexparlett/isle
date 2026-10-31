@@ -127,3 +127,29 @@ backend (EGL on the 5070 Ti, the client's buffer in shared memory).
   - an island post that changes nothing draws nothing.
 - **The index.** Reading, writing and listing an indexed folder cause no
   sync. A create, a rename and a delete cause one each.
+
+## On the host, build `79a9687` (2026-10-30 and 31)
+
+| | Before P19p | After |
+|---|---|---|
+| Idle CPU | 75% of a core at 25 min, growing | 0.0–0.2%; 0 frames a second at rest |
+| Claude streaming at 144 Hz | about 8% of the main thread, plus the index | 6–10% of a core; frame p50 270–410 µs |
+| A game in front (`steam_app_2420110`, 90–144 fps) | not measured | 2.4–4.6% of a core; frame p50 85–160 µs, no glass |
+| Overnight (9 h) | not measured | main thread 39 s of CPU (0.12%), worker 5 s, 0 index syncs |
+| Anonymous memory | 257 MB at 25 min | 94 MB at start, 124 MB at 13 min, 169 MB overnight, flat through the game |
+| Huge pages in it | 155–164 MB | 112 MB overnight |
+| Priority | nice 16 everywhere | compositor −12; session and apps 0 |
+
+- **Frames follow their sources.** `isle perf` names them: Claude's
+  window committing 144 times a second while it streams, the game at its
+  own rate.
+- **Every frame is composited.** Overlay planes are off on NVIDIA by P2's
+  default, so even the game's frames are drawn by Isle rather than scanned
+  out directly.
+- **Passes with nothing to draw.** In the game there were up to 72 a second
+  beyond its frames, probably pointer motion under a hidden cursor.
+- **Memory levels off.** Anonymous memory stops growing but sits over the
+  150 MB bar, most of it huge pages. That led to 19p.8 (B137).
+- **The game's helpers have huge pages.** Proton's `xalia.exe` and
+  `crs-handler.exe` read `THP_enabled: 1` with huge pages in use. That is
+  the state 19p.8 keeps for apps.

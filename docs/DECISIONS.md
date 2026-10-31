@@ -1465,9 +1465,8 @@ scheduling through rtkit.
 **B135 · Two malloc arenas, trimmed after large transient work.** P19p.
 The compositor sets `M_ARENA_MAX` to 2 before any thread starts and trims
 after the file index's build and a wallpaper's decode. mimalloc waits on
-an hour's numbers on the host. Rejected: `PR_SET_THP_DISABLE` (children
-inherit it, and games want huge pages), and restricting libglvnd to one
-EGL vendor (the render device is chosen after libglvnd loads, and the
+an hour's numbers on the host; huge pages are B137. Rejected: restricting
+libglvnd to one EGL vendor (the render device is chosen after libglvnd loads, and the
 pages are clean and shared).
 
 **B136 · `isle perf` in every build.** P19p. `Displays1.Perf` reports, since
@@ -1476,3 +1475,17 @@ glass blurred and skipped, commits by app, the file index's builds and
 syncs, CPU by thread and memory, and the redraw phases' p50, p95 and
 longest over the last frames. `isle perf` prints them as rates over a few
 seconds.
+
+**B137 · No transparent huge pages for the compositor; apps get them
+back.** P19p 19p.8. Overnight on the host, 112 MB of the compositor's
+169 MB of anonymous memory was huge pages filling sparse arenas. The
+compositor sets `PR_SET_THP_DISABLE` at start. Every path that starts an
+app (`launch.rs`, shortcut commands) clears it again before exec in
+`child_env::as_an_app`, with the nice reset (B134). Apps that D-Bus or
+systemd start are not the compositor's children. Helpers keep it off:
+Xwayland, provider sandboxes, `isle-record`, `isle-auth`. A test checks a
+launched app reads `THP_enabled: 1`; `isle perf` names any descendant
+without huge pages. Rejected: mimalloc first (it reaches Rust's share of
+the heap, not Skia's or the driver's), and starting apps as transient
+user services so nothing is inherited (it changes how Isle tracks an
+app's scope, for a later packet).

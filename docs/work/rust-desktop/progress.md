@@ -2,6 +2,22 @@
 
 ## 2026-10-31
 
+- 19b.11: states and accessibility. Narrow, the basket folds into its
+  toggle below 1000 points with a quiet badge of its count, the sidebar
+  goes below 820, each brought back by its toggle (a sidebar toggle now
+  leads the toolbar); below 760 Rescan and Stop keep their symbols alone
+  and the search field narrows. Cleanup says "No results for “{query}”".
+  Already in place from the phases before: every empty view's line,
+  Partial scan, the unreadable count, the moving and moved forms, a
+  refused System clear changing nothing, Increase Contrast's rings on
+  tiles, segments and kind tiles, the map's thresholds and the legend's
+  single column at large text, Space's zoom cut to a crossfade under
+  Reduce Motion. Not built: the basket's width motion, an item's row
+  height going in and out, a card's "more" height, Map and List's
+  crossfade (each a cut, which Reduce Motion asks for anyway); the
+  inactive window's grey progress fill, since no app hears its window's
+  active state; Game Mode, which apps do not hear (as in P19a).
+
 - 19b.10: ties. Choose folder… (the scope pop-up, More, ⌘O) through the
   FileChooser portal for a folder, which becomes the scope and the first
   of the recent folders; a folder dropped on the window scans it, the

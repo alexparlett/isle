@@ -182,6 +182,8 @@ impl App for Cleaner {
         let mut system = use_state(Vec::<Share>::new);
         let mut basket = use_state(Basket::default);
         let mut basket_hidden = use_state(|| false);
+        let mut sidebar_hidden = use_state(|| false);
+        let mut width = use_state(|| 1200f32);
         let mut filled = use_state(|| 0u64);
         let mut wanted = use_state(|| 1u64);
         let mut started = use_state(|| 0u64);
@@ -487,6 +489,12 @@ impl App for Cleaner {
             )
         };
         let ask_stop = ask.clone();
+        // Narrow, the basket folds into its toggle first, then the sidebar goes (`surfaces/cleaner.md`
+        // States); either toggle brings it back.
+        let narrow = *width.read();
+        let basket_shown = (!basket.read().is_empty() || moved.read().is_some())
+            && ((narrow >= 1000.) != *basket_hidden.read());
+        let sidebar_shown = (narrow >= 820.) != *sidebar_hidden.read();
         let toolbar = rect()
             .width(Size::fill())
             .height(Size::px(t.size_toolbar))
@@ -496,6 +504,12 @@ impl App for Cleaner {
             .cross_align(Alignment::Center)
             .spacing(t.space_s)
             .toolbar()
+            .child(
+                Button::icon("sidebar-simple", "Sidebar").on_press(move |_| {
+                    let hidden = *sidebar_hidden.peek();
+                    sidebar_hidden.set(!hidden);
+                }),
+            )
             .child(
                 Button::icon("caret-left", "Back")
                     .enabled(can_back)
@@ -508,12 +522,16 @@ impl App for Cleaner {
             )
             .child(
                 rect()
-                    .min_width(Size::px(160.))
+                    .width(Size::flex(1.))
+                    .min_width(Size::px(80.))
                     .max_width(Size::px(320.))
                     .child(title_block),
             )
-            .child(rect().width(Size::flex(1.)))
-            .child(rect().min_width(Size::px(140.)).child(scope_popup))
+            .child(
+                rect()
+                    .min_width(Size::px(if narrow < 760. { 100. } else { 120. }))
+                    .child(scope_popup),
+            )
             .maybe_child(
                 matches!(
                     r.view,
@@ -553,12 +571,22 @@ impl App for Cleaner {
                 .into_element()
             }))
             .child(rect().width(Size::flex(1.)))
-            .child(match scanning {
-                true => Button::new("Stop").on_press(move |_| {
-                    let _ = ask_stop.send(Ask::Stop);
+            // Narrow, the primary action keeps its symbol alone.
+            .child(
+                match (scanning, narrow < 760.) {
+                    (true, false) => Button::new("Stop"),
+                    (true, true) => Button::icon("stop-circle", "Stop"),
+                    (false, false) => Button::new("Rescan"),
+                    (false, true) => Button::icon("arrow-clockwise", "Rescan"),
+                }
+                .on_press(move |_| {
+                    if scanning {
+                        let _ = ask_stop.send(Ask::Stop);
+                    } else {
+                        *wanted.write() += 1;
+                    }
                 }),
-                false => Button::new("Rescan").on_press(move |_| *wanted.write() += 1),
-            })
+            )
             .child(
                 rect()
                     .on_mouse_down(move |e: Event<MouseEventData>| {
@@ -571,24 +599,53 @@ impl App for Cleaner {
                     .child(Button::icon("dots-three-circle", "More")),
             )
             .child(
-                Button::icon(
-                    if *basket_hidden.read() || basket.read().is_empty() {
-                        "sidebar-simple"
-                    } else {
-                        "sidebar-simple-fill"
-                    },
-                    "Basket",
-                )
-                .enabled(!basket.read().is_empty())
-                .on_press(move |_| {
-                    let hidden = *basket_hidden.peek();
-                    basket_hidden.set(!hidden);
-                }),
+                rect()
+                    .width(Size::px(t.size_control))
+                    .height(Size::px(t.size_control))
+                    .child(
+                        Button::icon(
+                            if basket_shown {
+                                "sidebar-simple-fill"
+                            } else {
+                                "sidebar-simple"
+                            },
+                            "Basket",
+                        )
+                        .enabled(!basket.read().is_empty())
+                        .on_press(move |_| {
+                            let hidden = *basket_hidden.peek();
+                            basket_hidden.set(!hidden);
+                        }),
+                    )
+                    // Folded, the toggle carries the basket's count.
+                    .maybe_child((!basket_shown && !basket.read().is_empty()).then(|| {
+                        rect()
+                            .position(Position::new_absolute().right(-4.).top(-4.))
+                            .min_width(Size::px(16.))
+                            .height(Size::px(16.))
+                            .padding((0., 4.))
+                            .corner_radius(8.)
+                            .background(colour(t.colour_fill_strong))
+                            .center()
+                            .child(text::line(
+                                &theme,
+                                text::Style::Footnote,
+                                colour(t.colour_text),
+                                basket.read().items().len().to_string(),
+                            ))
+                            .into_element()
+                    })),
             )
             .child(SearchField {
                 value: query.into_writable(),
                 placeholder: "Search".into(),
-                width: 140.,
+                width: if narrow < 760. {
+                    64.
+                } else if narrow < 820. {
+                    96.
+                } else {
+                    140.
+                },
             });
 
         // The sidebar.
@@ -802,6 +859,7 @@ impl App for Cleaner {
                     &theme,
                     cleanup::Cleanup {
                         finds: &finds,
+                        query: query.read().trim().to_owned(),
                         system: &system.read(),
                         basket: &basket.read(),
                         open: *cards_open.read(),
@@ -1028,9 +1086,7 @@ impl App for Cleaner {
             }
         });
         let frees_of = use_memo(move || crate::basket_view::frees(basket.read().items()));
-        let basket_view = ((!basket.read().is_empty() || moved.read().is_some())
-            && !*basket_hidden.read())
-        .then(|| {
+        let basket_view = basket_shown.then(|| {
             let (mut go_move, mut go_undo, mut go_empty) =
                 (start_move.clone(), undo_move.clone(), ask_empty.clone());
             crate::basket_view::view(
@@ -1208,6 +1264,7 @@ impl App for Cleaner {
             .width(Size::fill())
             .height(Size::fill())
             .background(colour(t.colour_window))
+            .on_sized(move |e: Event<SizedEventData>| width.set_if_modified(e.area.width()))
             .child(toolbar)
             .child(
                 rect()
@@ -1215,7 +1272,7 @@ impl App for Cleaner {
                     .height(Size::flex(1.))
                     .horizontal()
                     .content(Content::flex())
-                    .child(sidebar)
+                    .maybe_child(sidebar_shown.then_some(sidebar))
                     .child(
                         rect()
                             .width(Size::flex(1.))

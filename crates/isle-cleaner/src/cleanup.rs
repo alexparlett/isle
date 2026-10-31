@@ -78,6 +78,8 @@ pub fn checkbox(theme: &Theme, tick: Tick, alt: String, on_toggle: EventHandler<
 
 pub struct Cleanup<'a> {
     pub finds: &'a [Find],
+    /// The search, for its no-results line.
+    pub query: String,
     pub system: &'a [Share],
     pub basket: &'a Basket,
     /// Which cards show every row: Safe to clear, Worth a look.
@@ -278,10 +280,10 @@ pub fn view(theme: &Theme, c: Cleanup) -> Element {
                         theme,
                         text::Style::Body,
                         colour(t.colour_text_2),
-                        if safe {
-                            "Nothing safe to clear"
-                        } else {
-                            "Nothing to look at"
+                        match (c.query.is_empty(), safe) {
+                            (false, _) => format!("No results for “{}”", c.query),
+                            (true, true) => "Nothing safe to clear".to_owned(),
+                            (true, false) => "Nothing to look at".to_owned(),
                         },
                     ))
                     .into_element(),

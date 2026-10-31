@@ -39,9 +39,12 @@
   single column at large text, Space's zoom cut to a crossfade under
   Reduce Motion. Not built: the basket's width motion, an item's row
   height going in and out, a card's "more" height, Map and List's
-  crossfade (each a cut, which Reduce Motion asks for anyway); the
-  inactive window's grey progress fill, since no app hears its window's
-  active state; Game Mode, which apps do not hear (as in P19a).
+  crossfade (each a cut, which Reduce Motion asks for anyway); Game Mode,
+  which apps do not hear (as in P19a). Unfocused (Freya's
+  `Platform::is_app_focused`, which winit's focus event sets), the scan's
+  and the move's progress fill turn `colour-text-2`, the tables show their
+  unfocused selection and the map's selected ring takes the strong
+  hairline.
 
 - 19b.10: ties. Choose folder… (the scope pop-up, More, ⌘O) through the
   FileChooser portal for a folder, which becomes the scope and the first

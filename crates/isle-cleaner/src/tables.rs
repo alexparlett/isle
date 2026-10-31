@@ -63,6 +63,8 @@ pub struct Files {
     /// The last column's title: "Last opened" or "Last changed".
     pub used_title: &'static str,
     pub empty: String,
+    /// The window has focus, for the selection's colour.
+    pub active: bool,
     pub on_act: EventHandler<Act>,
 }
 
@@ -152,7 +154,7 @@ impl Component for Files {
             rows: Rc::new(rows),
             sort: s,
             selected: Rc::new(selected.read().clone()),
-            focused: true,
+            focused: self.active,
             hold: false,
             on_event: EventHandler::new(move |ev: TableEvent| {
                 let at = |k: u64| files.get(k as usize).map(entry_of);

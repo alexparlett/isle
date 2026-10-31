@@ -199,6 +199,8 @@ impl App for Cleaner {
         let mut more_menu = use_state(|| None::<(f32, f32)>);
         let app = use_consume::<isle_app::AppHandle>();
         let ties = crate::ties::Ties::get();
+        // Unfocused, the window takes `conventions.md`'s inactive form.
+        let active = *Platform::get().is_app_focused.read();
         let this_window = isle_app::this_window();
         let mut moving = use_state(|| None::<f64>);
         let mut moved = use_state(|| None::<crate::basket_view::Moved>);
@@ -464,7 +466,11 @@ impl App for Cleaner {
                     &theme,
                     share.unwrap_or(0.) as f32,
                     Size::fill(),
-                    t.colour_accent,
+                    if active {
+                        t.colour_accent
+                    } else {
+                        t.colour_text_2
+                    },
                 )
             }));
         let choices = scope_choices(&r, &scope.read());
@@ -926,6 +932,7 @@ impl App for Cleaner {
                             "Last changed"
                         },
                         empty,
+                        active,
                         on_act: on_pick.clone(),
                     }
                     .into_element()
@@ -955,6 +962,7 @@ impl App for Cleaner {
                         basket: basket.read().clone(),
                         selected: space_selected.read().clone(),
                         list: r.list,
+                        active,
                         zoom: *zoom.read(),
                         on_act: EventHandler::new(move |act: crate::space::Act| match act {
                             crate::space::Act::Open(to, from) => {
@@ -1098,6 +1106,7 @@ impl App for Cleaner {
                     basket: &basket.read(),
                     frees: &frees_of.read(),
                     moving: *moving.read(),
+                    active,
                     moved: moved.read().as_ref(),
                     on_remove: EventHandler::new(move |p: PathBuf| basket.write().remove(&p)),
                     on_move: EventHandler::new(move |_| go_move()),

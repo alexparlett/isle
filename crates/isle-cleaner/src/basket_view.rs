@@ -46,6 +46,7 @@ pub struct Panel<'a> {
     pub basket: &'a Basket,
     pub frees: &'a (Vec<(String, u64)>, bool),
     pub moving: Option<f64>,
+    pub active: bool,
     pub moved: Option<&'a Moved>,
     pub on_remove: EventHandler<PathBuf>,
     pub on_move: EventHandler<()>,
@@ -265,7 +266,16 @@ pub fn view(theme: &Theme, p: Panel) -> Element {
             }
             let on_move = p.on_move.clone();
             let action = match p.moving {
-                Some(share) => progress_bar(theme, share as f32, Size::fill(), t.colour_accent),
+                Some(share) => progress_bar(
+                    theme,
+                    share as f32,
+                    Size::fill(),
+                    if p.active {
+                        t.colour_accent
+                    } else {
+                        t.colour_text_2
+                    },
+                ),
                 None => Button::new("Move to Trash")
                     .wide()
                     .on_press(move |_| on_move.call(()))

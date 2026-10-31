@@ -646,7 +646,7 @@
   basket with one undo, Empty Trash…, Choose folder…, drop to scan, the
   narrow window), packaged. Walked in the VM. Cut: dragging rows and tiles
   out; not built: the basket's and rows' height and width motion, Map and
-  List's crossfade, the inactive window's grey progress. Next: 19b.13, the
+  List's crossfade. Next: 19b.13, the
   host run with the user (package and install, the home's scan and memory,
   Cleanup's rows read through before anything moves, the System card
   against `paccache` and `du`, a small basket moved and undone), then the

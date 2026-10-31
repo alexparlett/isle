@@ -136,6 +136,8 @@ pub struct Space {
     pub basket: Basket,
     pub selected: Option<PathBuf>,
     pub list: bool,
+    /// The window has focus, for the selection's colour.
+    pub active: bool,
     /// The tile a folder opened from, or went up into, for the zoom.
     pub zoom: Option<(Rect, bool)>,
     pub on_act: EventHandler<Act>,
@@ -147,6 +149,7 @@ impl PartialEq for Space {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn tile(
     theme: &Theme,
     e: Option<&Entry>,
@@ -156,6 +159,7 @@ fn tile(
     selected: bool,
     hovered: bool,
     in_basket: bool,
+    active: bool,
 ) -> Element {
     let t = &theme.tokens;
     let fill = match e {
@@ -195,7 +199,14 @@ fn tile(
             el.border(ring(t.colour_hairline_strong, t.stroke_hairline))
         })
         .maybe(selected, |el| {
-            el.border(ring(t.colour_accent, t.stroke_found))
+            el.border(ring(
+                if active {
+                    t.colour_accent
+                } else {
+                    t.colour_hairline_strong
+                },
+                t.stroke_found,
+            ))
         })
         .a11y_alt(match e {
             Some(e) => format!("{}, {}, {}", e.name, size(e.bytes), e.kind.name()),
@@ -413,7 +424,7 @@ impl Component for Space {
                     descending: true,
                 },
                 selected: Rc::new(selected),
-                focused: true,
+                focused: self.active,
                 hold: false,
                 on_event: EventHandler::new(move |ev: TableEvent| {
                     let at = |k: u64| list_entries.get(k as usize).cloned();
@@ -499,7 +510,17 @@ impl Component for Space {
                     let selected = path.is_some() && path == self.selected;
                     let in_basket = e.is_some_and(|e| self.basket.covers(&e.path));
                     let is_hovered = path.is_some() && path == hovered;
-                    tile(&theme, e, rest, r, labels, selected, is_hovered, in_basket)
+                    tile(
+                        &theme,
+                        e,
+                        rest,
+                        r,
+                        labels,
+                        selected,
+                        is_hovered,
+                        in_basket,
+                        self.active,
+                    )
                 })
                 .collect();
             let (hit_entries, hit_rects, on, kept_n) =

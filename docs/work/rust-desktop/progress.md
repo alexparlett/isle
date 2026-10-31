@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-31
+
+- 19b.0: the record. The plan reviewed with every recommendation taken;
+  `apps-2026.md` §8 gains the host's `noatime` mounts; `apps.md`'s open
+  point answered (KDL rules); the roadmap follows; P1's Cleaner copy gains
+  "Comparing files…", Untouched's "Not changed in" and "Last changed", and
+  "Some of this is shared with other files.".
+
+## 2026-10-30
+
+- P19a on the host: the package installs the process helper from the
+  build's target folder. Monitor panicked going CPU → Memory → CPU with app
+  icons in the rows: Freya loses a component's scope inside a keyed
+  element that moves far, so the table's rows are unkeyed, with a test of
+  icon rows re-sorted across a column change. An app's panic ended in a
+  segfault: `isle-app`'s data thread destroyed its proxies after winit had
+  freed the display; it now leaves them once the connection fails. The
+  compositor's tests leaked a headless compositor, its buses and audio
+  when killed before their `Drop`; each now dies with its test.
+
 ## 2026-10-29
 
 - 19a.14, the walk in the VM by real input (QMP pointer and keys), on the

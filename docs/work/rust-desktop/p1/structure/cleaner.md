@@ -220,9 +220,9 @@ trailing edge as `conventions.md` has the inspector.
 | Scope | "All disks", "Choose folder…" |
 | Subtitle | "{scope} · {size} scanned", "Scanning… {n}%", "Partial scan" |
 | Space | "Map", "List" |
-| Untouched | "Not opened in", "6 months", "1 year", "2 years" |
-| Duplicates | "Shares storage", "Select all but the newest" |
-| Basket | "Basket", "{size}", "{n} items", "Couldn't move {n} items", a remove target's name "Remove {name} from basket", "Frees {size} on {disk} once the Trash is emptied", "Move to Trash", "Moved {n} items to the Trash", "Undo", "Nothing is freed until the Trash is emptied", "Empty Trash…" |
+| Untouched | "Not opened in", "6 months", "1 year", "2 years"; on a disk that does not record access, "Not changed in" and the column "Last changed" (P19b) |
+| Duplicates | "Shares storage", "Select all but the newest", "Comparing files…" while content is read (P19b) |
+| Basket | "Basket", "{size}", "{n} items", "Couldn't move {n} items", a remove target's name "Remove {name} from basket", "Frees {size} on {disk} once the Trash is emptied", "Move to Trash", "Moved {n} items to the Trash", "Undo", "Nothing is freed until the Trash is emptied", "Empty Trash…", "Some of this is shared with other files." under Frees when shared storage was left out of it (P19b) |
 | Item menu | "Add to basket", "Remove from basket", "Show in Files", "Quick Look", "Copy path" |
 | Empty | "Nothing safe to clear", "No duplicates found", "No files untouched in {period}" |
 

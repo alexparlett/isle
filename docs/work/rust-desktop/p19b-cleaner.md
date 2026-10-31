@@ -1,7 +1,8 @@
 # P19b · Cleaner
 
-Planned 2026-10-29, for review. The second of P19's three packets (the
-user's choice, 2026-10-29), after P19a Monitor and before P19c Keychain.
+Planned 2026-10-29. Reviewed by the user on 2026-10-31: every
+recommendation taken. The second of P19's three packets (the user's
+choice, 2026-10-29), after P19a Monitor and before P19c Keychain.
 
 `apps.md` Cleaner 1–12 says what Cleaner gives: what Broom and DaisyDisk
 give a Mac. That means where the space went by kind, what can go safely,
@@ -408,6 +409,10 @@ Then the record:
 - `apps.md`'s open point closed;
 - the roadmap and `state.md` follow;
 - this file ends with its outcome.
+
+## Reviewed
+
+The user reviewed the plan on 2026-10-31 and took every recommendation.
 
 ## Not in P19b
 

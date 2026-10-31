@@ -427,7 +427,9 @@ safely, duplicates, large and untouched files, removed through a basket with one
 **v1 lessons kept.** D87: scan once, keep folders, never `.snapshots`. D88: by kind, through a basket.
 D89: rules as data, XDG cache first, root's share by its own tools. D90: own files only, all disks.
 
-**Open for its packet.** The rules file's format (inventory §5 `rules.json`, or KDL as B10 uses).
+**Answered in P19b.** The rules file is KDL, as the settings are: the shipped
+`data/cleaner/rules.kdl` and the user's `~/.config/isle/cleaner/rules.kdl` beside it, a user rule
+replacing a shipped one of the same id (`p19b-cleaner.md` choice 11).
 
 ## For the design process
 

@@ -629,3 +629,13 @@
   169 MB, 112 MB of it huge pages. 19p.8 added at the user's choice (B137):
   no huge pages for the compositor, back on for every app it starts. Next:
   package it and run one more night.
+- P19a on the host (2026-10-30): the package missed the process helper
+  (installed from the wrong folder) and Monitor panicked switching CPU to
+  Memory and back with app icons in the rows (Freya loses a component's
+  scope inside a keyed element that moves far; the table's rows are now
+  unkeyed). An app's panic also ended in a segfault from `isle-app`'s data
+  thread destroying its proxies on the freed display; fixed. 19a.15's host
+  run still pending; its decisions are recorded from B138, since P19p took
+  B132–B137.
+- P19b reviewed 2026-10-31, every recommendation taken; building. 19b.0
+  done.

@@ -2,6 +2,24 @@
 
 ## 2026-10-31
 
+- 19b.3: the rules. `data/cleaner/rules.kdl` (version 1): flat `rule`
+  nodes with an id, name, kind, `safe`, `why`, and paths from `~`,
+  `{steam}` (each Steam library, from `isle-games`' new
+  `steam_libraries`) or `**`, with `beside`, `except`, `unless`,
+  `endings`, `names`, `replace`, `files`, `older-than` and `numeric`; the
+  user's `~/.config/isle/cleaner/rules.kdl` replaces by id, adds, and
+  `disable`s, and one that does not parse is logged and left out. v1's
+  groups recut to P1's cards: package downloads, Electron caches, crash
+  reports, Steam's web pages, Flatpak caches and the general `~/.cache`
+  rule safe; build folders, Steam leftovers, Proton and Wine versions,
+  shader caches, AI models, agent worktrees, old downloads and virtual
+  machines worth a look. Matched over the tree in memory, outer before
+  inner, a named rule before the general one; a rule taking files reads
+  only its last folder. Every rule is tested on a home that has it and one
+  that lacks it. On the host's All disks the rules take 27 ms: 8.4 GB safe
+  to clear, 1.43 TB worth a look (this repo's `target` alone 1.0 TB as
+  counted).
+
 - 19b.1 and 19b.2: `isle-scan`'s walk and kinds. Up to eight workers
   each read one folder at a time with `getdents64` and `statx`, never
   following a link; a walk crosses only into a mount of the filesystem it

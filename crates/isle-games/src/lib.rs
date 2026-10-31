@@ -173,6 +173,19 @@ impl Roots {
         }
     }
 
+    /// Every Steam library folder, other disks' included.
+    pub fn steam_libraries(&self) -> Vec<PathBuf> {
+        let mut out = Vec::new();
+        for (root, _) in &self.steam {
+            for folder in steam::library_folders(root) {
+                if !out.contains(&folder) {
+                    out.push(folder);
+                }
+            }
+        }
+        out
+    }
+
     /// The folders whose change means the library should be read again.
     pub fn watched(&self) -> Vec<PathBuf> {
         let mut out = Vec::new();

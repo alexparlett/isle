@@ -1,0 +1,239 @@
+// Cleaner's rules: what Cleanup lists as safe to clear or worth a look.
+//
+// ~/.config/isle/cleaner/rules.kdl is read beside this file. A rule there with
+// the same id replaces the one here, and `disable "<id>"` drops one.
+//
+// A rule:
+//   rule "<id>" name="<shown name>" kind="<kind>" safe=#true why="<reason>" {
+//       path "~/a/b" "{steam}/steamapps/x/*" "**/target"
+//       beside "Cargo.toml"          the project file that must sit beside the match
+//       except "name" "*.lock"        names the last part never matches
+//       unless "{library}/steamapps/appmanifest_{name}.acf"   skipped when this exists
+//       endings ".iso" ".zip"         a file's ending, for files=#true rules
+//       names { spotify "Spotify" }   {name}'s shown form
+//       replace "models--" ""         applied to {1} in order
+//   }
+// Paths start at "~" (the home), "{steam}" (each Steam library) or "**" (any
+// folder). A part may hold "*". Attributes: files=#true matches files too;
+// older-than=<days> keeps files unused that long; numeric=#true wants the last
+// part to be digits; general=#true marks the general rule, which a named rule
+// beats where both match. In a name: {project} is the folder "**" stood for,
+// {1} and {2} what each "*" matched, {name} the last part. In why: {beside}.
+//
+// Kinds: games video images audio documents archives developer system caches other.
+
+version 1
+
+// Safe to clear.
+
+rule "npm" name="npm" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.npm/_cacache"
+}
+rule "pnpm" name="pnpm" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.local/share/pnpm/store"
+}
+rule "bun" name="Bun" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.bun/install/cache"
+}
+rule "cargo" name="Cargo" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.cargo/registry/cache" "~/.cargo/registry/src" "~/.cargo/git/checkouts"
+}
+rule "gradle-cache" name="Gradle" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.gradle/caches"
+}
+rule "maven" name="Maven" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.m2/repository"
+}
+rule "nuget" name="NuGet" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.nuget/packages"
+}
+rule "yarn" name="Yarn" kind="developer" safe=#true why="Downloaded again the next time a build needs it" {
+    path "~/.yarn/berry/cache"
+}
+
+rule "electron" name="{1}" kind="caches" safe=#true why="Made again by the app" {
+    path "~/.config/*/Cache" "~/.config/*/Code Cache" "~/.config/*/GPUCache" "~/.config/*/DawnGraphiteCache" "~/.config/*/DawnWebGPUCache" "~/.config/*/Service Worker/CacheStorage"
+}
+rule "crash-reports" name="{1} crash reports" kind="caches" safe=#true why="Reports the app has kept after a crash" {
+    path "~/.config/*/Crashpad/completed" "~/.config/*/Crashpad/pending" "~/.config/*/Crash Reports"
+}
+rule "steam-web" name="Steam web pages" kind="caches" safe=#true why="Made again by Steam" {
+    path "{steam}/config/htmlcache" "{steam}/appcache/httpcache"
+}
+rule "flatpak-cache" name="{1}" kind="caches" safe=#true why="Made again by the app" {
+    path "~/.var/app/*/cache"
+}
+
+// The general rule: everything in ~/.cache, less what the rules below look at
+// and what is never listed (the clipboard's history, a password manager's).
+rule "cache" name="{name}" kind="caches" safe=#true general=#true files=#true why="Made again by the app" {
+    path "~/.cache/*"
+    except "huggingface" "torch" "whisper" "lm-studio" "mesa_shader_cache" "mesa_shader_cache_db" "nvidia" "dxvk" "vkd3d-proton" "cliphist" "keepassxc" "isle" "*.lock"
+    names {
+        mozilla "Firefox"
+        zen "Zen"
+        librewolf "LibreWolf"
+        chromium "Chromium"
+        google-chrome "Google Chrome"
+        BraveSoftware "Brave"
+        vivaldi "Vivaldi"
+        microsoft-edge "Microsoft Edge"
+        thumbnails "Thumbnails"
+        spotify "Spotify"
+        JetBrains "JetBrains"
+        fontconfig "Font cache"
+        pip "pip"
+        uv "uv"
+        yarn "Yarn"
+        go-build "Go builds"
+        deno "Deno"
+        paru "paru"
+        yay "yay"
+        pnpm "pnpm"
+        electron "Electron"
+        node-gyp "node-gyp"
+        pre-commit "pre-commit"
+        ms-playwright "Playwright browsers"
+        flatpak "Flatpak"
+        winetricks "Winetricks"
+        lutris "Lutris"
+        heroic "Heroic"
+        Steam "Steam"
+        vscode-cpptools "VS Code C++"
+        typescript "TypeScript"
+        bazel "Bazel"
+        ccache "ccache"
+        sccache "sccache"
+        nix "Nix"
+        pypoetry "Poetry"
+    }
+}
+
+// Worth a look.
+
+rule "node-modules" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/node_modules"
+    beside "package.json"
+}
+rule "rust-target" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/target"
+    beside "Cargo.toml"
+}
+rule "python-env" name="{project}" kind="developer" why="Python environment, {beside} beside it" {
+    path "**/.venv" "**/venv"
+    beside "pyproject.toml" "requirements.txt" "setup.py" "Pipfile"
+}
+rule "cmake" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/build" "**/cmake-build-*"
+    beside "CMakeLists.txt"
+}
+rule "meson" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/builddir"
+    beside "meson.build"
+}
+rule "gradle-build" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/build" "**/.gradle"
+    beside "build.gradle" "build.gradle.kts" "settings.gradle" "settings.gradle.kts"
+}
+rule "web-build" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/.next" "**/.nuxt" "**/.svelte-kit" "**/.turbo" "**/.parcel-cache" "**/.angular"
+    beside "package.json"
+}
+rule "zig" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/zig-cache" "**/.zig-cache" "**/zig-out"
+    beside "build.zig"
+}
+rule "dart" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/.dart_tool"
+    beside "pubspec.yaml"
+}
+rule "elixir" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/_build" "**/deps"
+    beside "mix.exs"
+}
+rule "haskell" name="{project}" kind="developer" why="Build folder, {beside} beside it" {
+    path "**/.stack-work" "**/dist-newstyle"
+    beside "stack.yaml" "cabal.project"
+}
+
+rule "steam-prefix" name="Proton prefix · app {name}" kind="games" numeric=#true why="Left by an uninstalled Steam game; it can hold saves Steam Cloud does not" {
+    path "{steam}/steamapps/compatdata/*"
+    unless "{library}/steamapps/appmanifest_{name}.acf"
+}
+rule "steam-shaders" name="Shader cache · app {name}" kind="games" numeric=#true why="Left by an uninstalled Steam game" {
+    path "{steam}/steamapps/shadercache/*"
+    unless "{library}/steamapps/appmanifest_{name}.acf"
+}
+rule "steam-workshop" name="Workshop items · app {name}" kind="games" numeric=#true why="Left by an uninstalled Steam game" {
+    path "{steam}/steamapps/workshop/content/*"
+    unless "{library}/steamapps/appmanifest_{name}.acf"
+}
+rule "steam-download" name="Unfinished download · app {name}" kind="games" numeric=#true why="Left by an uninstalled Steam game" {
+    path "{steam}/steamapps/downloading/*"
+    unless "{library}/steamapps/appmanifest_{name}.acf"
+}
+
+rule "steam-runners" name="{name}" kind="games" why="A Proton or Wine version; a game set to it needs it" {
+    path "{steam}/compatibilitytools.d/*"
+}
+rule "lutris-runners" name="{name}" kind="games" why="A Wine version; a game set to it needs it" {
+    path "~/.local/share/lutris/runners/wine/*"
+}
+rule "heroic-runners" name="{name}" kind="games" why="A Proton or Wine version; a game set to it needs it" {
+    path "~/.config/heroic/tools/proton/*" "~/.config/heroic/tools/wine/*"
+}
+rule "bottles-runners" name="{name}" kind="games" why="A Wine version; a bottle set to it needs it" {
+    path "~/.local/share/bottles/runners/*"
+}
+
+rule "shaders" name="{name}" kind="caches" why="Made again as games run, which stutters while it happens" {
+    path "~/.cache/mesa_shader_cache" "~/.cache/mesa_shader_cache_db" "~/.cache/nvidia" "~/.cache/dxvk" "~/.cache/vkd3d-proton"
+    names {
+        mesa_shader_cache "Mesa shaders"
+        mesa_shader_cache_db "Mesa shaders"
+        nvidia "NVIDIA shaders"
+        dxvk "DXVK shaders"
+        vkd3d-proton "VKD3D shaders"
+    }
+}
+
+rule "huggingface" name="{1}" kind="developer" why="An AI model, downloaded again on next use, which can take a while" {
+    path "~/.cache/huggingface/hub/models--*" "~/.cache/huggingface/hub/datasets--*"
+    replace "models--" ""
+    replace "datasets--" ""
+    replace "--" "/"
+}
+rule "ollama" name="Ollama models" kind="developer" why="AI models, downloaded again on next use, which can take a while" {
+    path "~/.ollama/models"
+}
+rule "lm-studio" name="{1}/{2}" kind="developer" why="An AI model, downloaded again on next use, which can take a while" {
+    path "~/.lmstudio/models/*/*" "~/.cache/lm-studio/models/*/*"
+}
+rule "torch" name="PyTorch hub" kind="developer" why="AI models, downloaded again on next use, which can take a while" {
+    path "~/.cache/torch"
+}
+rule "whisper" name="Whisper" kind="developer" why="AI models, downloaded again on next use, which can take a while" {
+    path "~/.cache/whisper"
+}
+
+rule "worktrees" name="{project} · {1}" kind="developer" why="A checkout an agent worked in; anything not merged or pushed goes with it" {
+    path "**/.claude/worktrees/*" "**/.worktrees/*"
+}
+
+rule "old-installers" name="{name}" kind="archives" files=#true older-than=30 why="An installer or archive downloaded more than a month ago" {
+    path "~/Downloads/*"
+    endings ".iso" ".img" ".appimage" ".deb" ".rpm" ".exe" ".msi" ".dmg" ".zip" ".tar.gz" ".tgz" ".tar.xz" ".tar.zst" ".7z" ".rar"
+}
+rule "old-downloads" name="{name}" kind="archives" files=#true older-than=365 why="In Downloads, unused for a year" {
+    path "~/Downloads/*"
+}
+
+rule "libvirt" name="{name}" kind="archives" files=#true why="A virtual machine's disk" {
+    path "~/.local/share/libvirt/images/*"
+}
+rule "gnome-boxes" name="{name}" kind="archives" files=#true why="A virtual machine's disk" {
+    path "~/.local/share/gnome-boxes/images/*"
+}
+rule "virtualbox" name="{name}" kind="archives" why="A virtual machine" {
+    path "~/VirtualBox VMs/*"
+}

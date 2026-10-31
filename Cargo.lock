@@ -4729,7 +4729,10 @@ name = "isle-scan"
 version = "0.1.0"
 dependencies = [
  "isle-fs",
+ "isle-games",
+ "kdl",
  "rustix 1.1.5",
+ "tracing",
 ]
 
 [[package]]

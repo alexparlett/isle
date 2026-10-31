@@ -63,4 +63,31 @@ fn main() {
         tree.untouched.sorted().len(),
         tree.candidates.len()
     );
+    let start = Instant::now();
+    let libraries = isle_games::Roots::find().steam_libraries();
+    let finds = isle_scan::Rules::load().find(&tree, &isle_scan::Context::here(libraries));
+    println!("rules     {:.2?}, {} finds", start.elapsed(), finds.len());
+    for safe in [true, false] {
+        let mut rows: Vec<_> = finds.iter().filter(|f| f.safe == safe).collect();
+        rows.sort_by_key(|f| std::cmp::Reverse(f.bytes));
+        let total: u64 = rows.iter().map(|f| f.bytes).sum();
+        println!(
+            "{} {}",
+            if safe {
+                "Safe to clear"
+            } else {
+                "Worth a look"
+            },
+            gb(total)
+        );
+        for f in rows.iter().take(12) {
+            println!(
+                "  {:>9}  {:<34} {}  ({})",
+                gb(f.bytes),
+                f.name,
+                f.path.display(),
+                f.why
+            );
+        }
+    }
 }

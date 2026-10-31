@@ -63,7 +63,7 @@ pub fn watched(root: &Path) -> Vec<PathBuf> {
 }
 
 /// The library folders `libraryfolders.vdf` lists, the root's own first.
-fn library_folders(root: &Path) -> Vec<PathBuf> {
+pub fn library_folders(root: &Path) -> Vec<PathBuf> {
     let mut folders = vec![root.to_owned()];
     let text = fs::read_to_string(root.join("steamapps/libraryfolders.vdf")).unwrap_or_default();
     if let Some(list) = vdf::parse(&text).and_then(|v| v.get("libraryfolders").cloned()) {

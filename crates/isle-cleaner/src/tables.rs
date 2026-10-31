@@ -82,6 +82,7 @@ impl Component for Files {
         });
         let mut selected = use_state(Vec::<u64>::new);
         let controller = use_scroll_controller(ScrollConfig::default);
+        let ties = crate::ties::Ties::get();
         if self.files.is_empty() {
             return rect()
                 .width(Size::fill())
@@ -165,7 +166,7 @@ impl Component for Files {
                     }
                     TableEvent::Open(k) => {
                         if let Some(e) = at(k) {
-                            crate::ties::show_in_files(vec![e.path]);
+                            crate::ties::show_in_files(&ties, vec![e.path]);
                         }
                     }
                     TableEvent::Menu(Some(k), point) => {

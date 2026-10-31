@@ -198,6 +198,8 @@ impl App for Cleaner {
         let mut kind_filter = use_state(|| None::<isle_scan::Kind>);
         let mut more_menu = use_state(|| None::<(f32, f32)>);
         let app = use_consume::<isle_app::AppHandle>();
+        let ties = crate::ties::Ties::get();
+        let this_window = isle_app::this_window();
         let mut moving = use_state(|| None::<f64>);
         let mut moved = use_state(|| None::<crate::basket_view::Moved>);
         let mut skip_fill = use_state(|| false);
@@ -1002,9 +1004,12 @@ impl App for Cleaner {
             }
         };
         let ask_empty = {
-            let roots = snap.as_ref().map(|s| s.roots.clone()).unwrap_or_default();
             move || {
-                let roots = roots.clone();
+                let roots = snapshot
+                    .peek()
+                    .as_ref()
+                    .map(|s| s.roots.clone())
+                    .unwrap_or_default();
                 let items: Vec<isle_fs::trash::Trashed> = isle_fs::trash::all_trashes()
                     .iter()
                     .filter(|d| roots.iter().any(|r| d.root.starts_with(r)))
@@ -1062,9 +1067,7 @@ impl App for Cleaner {
                             let Some(bus) = chooser_app.bus() else {
                                 continue;
                             };
-                            let parent = chooser_app
-                                .export(isle_app::this_window())
-                                .unwrap_or_default();
+                            let parent = chooser_app.export(this_window).unwrap_or_default();
                             spawn(async move {
                                 let wanted_folder = isle_app::portal::Wanted {
                                     title: "Choose a folder to scan".into(),
@@ -1105,6 +1108,7 @@ impl App for Cleaner {
         });
 
         let menu_app = app.clone();
+        let menu_ties = ties.clone();
         let overlay_menu = item_menu.read().clone().map(|(e, at)| {
             let covered = basket.read().covers(&e.path);
             let entries = Rc::new(vec![
@@ -1135,8 +1139,8 @@ impl App for Cleaner {
                             dev: e.dev,
                             ino: e.ino,
                         }),
-                        2 => crate::ties::show_in_files(vec![e.path.clone()]),
-                        3 => crate::ties::quick_look(&e.path),
+                        2 => crate::ties::show_in_files(&menu_ties, vec![e.path.clone()]),
+                        3 => crate::ties::quick_look(&menu_ties, &e.path),
                         4 => crate::ties::copy_path(&app, &e.path),
                         _ => {}
                     }
@@ -1225,6 +1229,7 @@ impl App for Cleaner {
         });
         let overlay = (*clearing.read()).map(|item| {
             let ask = ask.clone();
+            let clear_worker = ties.worker.clone();
             isle_ui::alert(
                 &format!(
                     "{} {}?",
@@ -1237,11 +1242,8 @@ impl App for Cleaner {
                 ),
                 "This can't be put back.",
                 Vec::new(),
+                // The last button is the default: Cancel, as before anything that can't be put back.
                 vec![
-                    isle_ui::AlertButton::from((
-                        "Cancel".to_owned(),
-                        EventHandler::new(move |_| clearing.set(None)),
-                    )),
                     isle_ui::AlertButton::destructive(
                         item.action().trim_end_matches('…'),
                         EventHandler::new(move |_| {
@@ -1250,12 +1252,16 @@ impl App for Cleaner {
                             let mut command = item.command();
                             // pkexec asks through the polkit agent; refused, nothing changes, and the
                             // sizes are read again either way.
-                            isle_app::worker().spawn(async move {
+                            clear_worker.spawn(async move {
                                 let _ = tokio::task::spawn_blocking(move || command.status()).await;
                                 let _ = ask.send(Ask::System);
                             });
                         }),
                     ),
+                    isle_ui::AlertButton::from((
+                        "Cancel".to_owned(),
+                        EventHandler::new(move |_| clearing.set(None)),
+                    )),
                 ],
             )
         });

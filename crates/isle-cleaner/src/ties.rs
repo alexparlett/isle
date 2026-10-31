@@ -5,11 +5,28 @@ use std::path::{Path, PathBuf};
 
 const FILES: &str = "io.github.alexparlett.Isle.Files";
 
-pub fn show_in_files(paths: Vec<PathBuf>) {
-    let Some(bus) = isle_app::session_bus() else {
+/// The bus and the worker, read at a component's top since both are context; handlers take
+/// this.
+#[derive(Clone)]
+pub struct Ties {
+    pub bus: Option<zbus::Connection>,
+    pub worker: isle_app::Worker,
+}
+
+impl Ties {
+    pub fn get() -> Self {
+        Self {
+            bus: isle_app::session_bus(),
+            worker: isle_app::worker(),
+        }
+    }
+}
+
+pub fn show_in_files(ties: &Ties, paths: Vec<PathBuf>) {
+    let Some(bus) = ties.bus.clone() else {
         return;
     };
-    isle_app::worker().spawn(async move {
+    ties.worker.spawn(async move {
         let uris: Vec<String> = paths.iter().map(|p| isle_fs::recents::uri(p)).collect();
         let _ = bus
             .call_method(
@@ -23,12 +40,12 @@ pub fn show_in_files(paths: Vec<PathBuf>) {
     });
 }
 
-pub fn quick_look(path: &Path) {
-    let Some(bus) = isle_app::session_bus() else {
+pub fn quick_look(ties: &Ties, path: &Path) {
+    let Some(bus) = ties.bus.clone() else {
         return;
     };
     let uri = isle_fs::recents::uri(path);
-    isle_app::worker().spawn(async move {
+    ties.worker.spawn(async move {
         let body = (vec![uri], 0u32, "", (0i32, 0i32, 0i32, 0i32), "none", "");
         let _ = bus
             .call_method(

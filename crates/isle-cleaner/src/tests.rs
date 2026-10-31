@@ -331,3 +331,84 @@ fn the_basket_moves_to_the_trash_and_undo_brings_it_back() {
     assert!(home.join(".cache/spotify/data.bin").exists(), "put back");
     let _ = fs::remove_dir_all(&home);
 }
+
+/// Times a frame of Overview and of Space's map, in software, while `$CLEANER_BENCH` (a large
+/// folder) scans and once it has: `cargo test --release -p isle-cleaner bench -- --ignored`.
+#[test]
+#[ignore]
+fn bench() {
+    let Some(folder) = std::env::var_os("CLEANER_BENCH").map(PathBuf::from) else {
+        return;
+    };
+    let _turn = serial();
+    let state =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/tmp/cleaner-bench-state");
+    // SAFETY: set before any thread of this test reads the environment.
+    unsafe { std::env::set_var("XDG_STATE_HOME", &state) };
+    let (mut test, _) = TestingRunner::new(
+        move || {
+            isle_app::provide_for_tests(BTreeMap::new());
+            crate::window::Cleaner {
+                folder: Some(folder.clone()),
+            }
+            .render()
+            .into_element()
+        },
+        (1200., 760.).into(),
+        |_| {},
+        1.,
+    );
+    // The test runner encodes each frame as a PNG; a plain window's render at the same size
+    // stands for that and the surface, and is taken off.
+    let (mut plain, _) = TestingRunner::new(
+        || {
+            rect()
+                .width(Size::fill())
+                .height(Size::fill())
+                .background((30, 30, 34))
+                .into_element()
+        },
+        (1200., 760.).into(),
+        |_| {},
+        1.,
+    );
+    let mut base: Vec<f64> = (0..20)
+        .map(|_| {
+            let t = std::time::Instant::now();
+            let _ = plain.render();
+            t.elapsed().as_secs_f64() * 1000.
+        })
+        .collect();
+    base.sort_by(f64::total_cmp);
+    let base = base[10];
+    let mut time = |test: &mut TestingRunner, n: usize| {
+        let mut frames: Vec<(f64, f64)> = (0..n)
+            .map(|_| {
+                let t = std::time::Instant::now();
+                test.sync_and_update();
+                let update = t.elapsed().as_secs_f64() * 1000.;
+                let _ = test.render();
+                (update, t.elapsed().as_secs_f64() * 1000. - update)
+            })
+            .collect();
+        frames.sort_by(|a, b| (a.0 + a.1).total_cmp(&(b.0 + b.1)));
+        let at = |i: usize| (frames[i].0, frames[i].0 + (frames[i].1 - base).max(0.));
+        (at(n / 2), at(n * 95 / 100))
+    };
+    eprintln!("a plain frame's render and encode: {base:.1} ms");
+    let scanning = time(&mut test, 40);
+    settle_until(&mut test, "scanned");
+    let overview = time(&mut test, 40);
+    click(&mut test, "Space");
+    for _ in 0..20 {
+        test.poll(
+            std::time::Duration::from_millis(16),
+            std::time::Duration::from_millis(20),
+        );
+    }
+    let map = time(&mut test, 40);
+    eprintln!(
+        "(update, update and draw) ms at p50 and p95: scanning {scanning:.1?}, overview {overview:.1?}, map {map:.1?}"
+    );
+    let _ = fs::remove_dir_all(&state);
+}

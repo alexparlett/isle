@@ -2,6 +2,31 @@
 
 ## 2026-10-31
 
+- 19b.12: the measures and the walk. On the host (release): the home warm
+  in 0.43 s (bar 10, under a second); All disks warm in 0.5 s; the tree
+  54 MB resident after All disks (under 64 MB), the window's PSS 120 MB
+  after that scan. Drawing, headless in software at 1200 by 760 over this
+  repo's `target`, update and draw at p95: 1.8 ms scanning, 4.2 ms
+  Overview, 1.8 ms the map (under 8 ms; the test runner encodes each
+  frame as a PNG, so a plain frame's render and encode, 15.6 ms, is taken
+  off: an estimate). Walked in the VM by real input: All disks scanned
+  with 33 unreadable folders named; every view by ⌘1 to ⌘6; ticks in
+  Large files and Duplicates landing in the one basket; Space opened by
+  Return, moved by arrows, up by ⌘↑ with the folder selected; Move to
+  Trash (⌘⌫) moved 19 items and Undo (⌘Z) put all back; the Trash records
+  as Files reads them; Empty Trash… asked with Files' alert and emptied;
+  the scope changed to a disk; Crash dumps' Clear… refused at Isle's
+  polkit dialog ("Cleaner needs your password", the policy's message)
+  changing nothing, then allowed (a rule for the walk only) and the dumps
+  gone, the row re-read to 0 bytes. No panics, no cores. Fixed from the
+  walk: Empty Trash… read the scan's roots from the first render and found
+  no Trash; the bus and the worker were read inside the Clear handler, a
+  hook outside render, which panicked; Cancel is now the System alert's
+  default. Not walked: Stop (the guest's scan ends before it can be
+  pressed; the headless test covers it) and ⌘Q while moving (a move on one
+  disk is a rename, over at once). Put Back from Files was not driven: its
+  Go to Folder takes no `trash:///`; the records it reads were checked.
+
 - 19b.11: states and accessibility. Narrow, the basket folds into its
   toggle below 1000 points with a quiet badge of its count, the sidebar
   goes below 820, each brought back by its toggle (a sidebar toggle now

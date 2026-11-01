@@ -160,6 +160,14 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                 .spacing(t.space_s)
                 .corner_radius(t.radius_row)
                 .map(fill, |el, f| el.background(colour(f)))
+                .maybe(theme.appearance.increase_contrast, |el| {
+                    el.border(
+                        Border::new()
+                            .fill(colour(t.colour_hairline_strong))
+                            .width(t.stroke_hairline)
+                            .alignment(BorderAlignment::Inner),
+                    )
+                })
                 .a11y_role(AccessibilityRole::ListItem)
                 .a11y_alt(it.title.clone())
                 .a11y_builder(move |node| node.set_selected(selected))

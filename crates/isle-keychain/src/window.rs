@@ -170,6 +170,8 @@ impl App for KeychainWindow {
         let query = use_state(String::new);
         let mut shown = use_state(|| None::<Shown>);
         let mut sidebar_hidden = use_state(|| false);
+        // Narrow, the list and the detail stack: the detail over the list, with Back.
+        let mut detail_open = use_state(|| false);
         let mut width = use_state(|| 1000f32);
         let mut item_menu = use_state(|| None::<(ItemId, (f32, f32))>);
         let mut source_menu = use_state(|| None::<(String, (f32, f32))>);
@@ -605,7 +607,10 @@ impl App for KeychainWindow {
         let on_list = {
             let store = store.clone();
             EventHandler::new(move |act: list::Act| match act {
-                list::Act::Select(id) => leave(Leave::Select(id)),
+                list::Act::Select(id) => {
+                    detail_open.set(true);
+                    leave(Leave::Select(id));
+                }
                 list::Act::Menu(id, at) => {
                     selected.set(Some(id.clone()));
                     item_menu.set(Some((id, at)));
@@ -666,6 +671,8 @@ impl App for KeychainWindow {
         // The toolbar.
         let narrow = *width.read();
         let sidebar_shown = (narrow >= 760.) != *sidebar_hidden.read();
+        let stacked = narrow < 680.;
+        let over = stacked && *detail_open.read();
         let list_width = r
             .list_width
             .clamp(t.size_list_pane_min, t.size_list_pane_max);
@@ -676,7 +683,7 @@ impl App for KeychainWindow {
         };
         let count = items.len();
         let title_block = rect()
-            .width(Size::px(list_width))
+            .width(if stacked { Size::flex(1.) } else { Size::px(list_width) })
             .padding((0., 0., 0., t.space_l))
             .main_align(Alignment::Center)
             .spacing(t.space_xxs)
@@ -748,12 +755,14 @@ impl App for KeychainWindow {
                     .main_align(Alignment::End)
                     .cross_align(Alignment::Center)
                     .maybe(sidebar_shown, |el| el.background(colour(t.colour_sidebar)))
-                    .child(
+                    .child(if over {
+                        Button::icon("caret-left", "Back").on_press(move |_| detail_open.set(false))
+                    } else {
                         Button::icon("sidebar-simple", "Sidebar").on_press(move |_| {
                             let hidden = *sidebar_hidden.peek();
                             sidebar_hidden.set(!hidden);
-                        }),
-                    ),
+                        })
+                    }),
             )
             .child(title_block)
             .child(trailing);
@@ -810,7 +819,7 @@ impl App for KeychainWindow {
                 )));
             });
         let list_pane = rect()
-            .width(Size::px(list_width))
+            .width(if stacked { Size::flex(1.) } else { Size::px(list_width) })
             .height(Size::fill())
             .background(colour(t.colour_view))
             .border(
@@ -1268,13 +1277,14 @@ impl App for KeychainWindow {
                     .horizontal()
                     .content(Content::flex())
                     .maybe_child(sidebar_view)
-                    .child(list_pane)
-                    .child(
+                    .maybe_child((!over).then_some(list_pane))
+                    .maybe_child((!stacked || over).then(|| {
                         rect()
                             .width(Size::flex(1.))
                             .height(Size::fill())
-                            .child(detail_view),
-                    ),
+                            .child(detail_view)
+                            .into_element()
+                    })),
             )
             .maybe_child(overlay_item)
             .maybe_child(overlay_source)

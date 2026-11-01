@@ -22,6 +22,10 @@
   (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
   `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
   proxy.
+- 19c.11: the narrow window: the sidebar collapses under 760, and under 680 the list and
+  the detail stack, the detail over the list with Back; Increase Contrast rings the list's
+  rows; the largest text size puts the detail's labels above their values; unfocused, the
+  selections take the inactive form. Not built: Edit's crossfade and height motion.
 - 19c.10: a locked keyring heads every list that spans it and unlocks through the service's
   prompt (the fake's, completed by the test) without blocking the store; no Secret Service
   leaves its line in Logins, Apps and All while Wi-Fi and SSH keys list on; a frozen service

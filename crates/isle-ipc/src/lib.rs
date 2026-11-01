@@ -631,6 +631,8 @@ pub mod test {
         fn banners(&self) -> zbus::Result<String>;
         /// Ends the lock with no password.
         fn unlock(&self) -> zbus::Result<()>;
+        /// The face's greeter actions: `choose-user`, `session-menu`, `choose-session`.
+        fn greeter_act(&self, action: &str, index: u32) -> zbus::Result<()>;
         /// Makes the lock's face panic once.
         fn panic_lock(&self) -> zbus::Result<()>;
         /// Queues a prompt from JSON; its id.

@@ -83,7 +83,7 @@ fn percent_decode(text: &str) -> String {
 
 /// The line's words: spaces separate them, double quotes group them with `\"`, `\``, `\$`
 /// and `\\` escaped inside.
-fn split(exec: &str) -> Option<Vec<String>> {
+pub(crate) fn split(exec: &str) -> Option<Vec<String>> {
     let mut words = Vec::new();
     let mut word = String::new();
     let mut in_word = false;

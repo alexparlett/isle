@@ -1432,6 +1432,19 @@ impl Test {
             .await?)
     }
 
+    /// What the face's greeter part asks: `choose-user`, `session-menu` (1 open, 0 closed)
+    /// or `choose-session`, with its index.
+    async fn greeter_act(&self, action: String, index: u32) -> fdo::Result<()> {
+        use isle_shell::lock::LockAction;
+        let action = match action.as_str() {
+            "choose-user" => LockAction::ChooseUser(index as usize),
+            "session-menu" => LockAction::SessionMenu(index == 1),
+            "choose-session" => LockAction::ChooseSession(index as usize),
+            other => return Err(fdo::Error::InvalidArgs(format!("no greeter action {other}"))),
+        };
+        Ok(self.to_loop.call(move |state| state.lock_action(action)).await?)
+    }
+
     /// Ends the lock with no password, as only a test may.
     async fn unlock(&self) -> fdo::Result<()> {
         Ok(self.to_loop.call(|state| state.unlock("the Test interface")).await?)

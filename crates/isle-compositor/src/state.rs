@@ -180,6 +180,8 @@ pub struct Isle {
     pub wallpapers: crate::wallpaper::Wallpapers,
     pub island: crate::island::IslandState,
     pub lock: crate::lock::LockState,
+    /// The greeter's users, sessions and conversation; empty outside the greeter.
+    pub greeter: crate::greeter::Greeter,
     pub idle: crate::idle::IdleState,
     pub prompts: crate::prompts::PromptsState,
     pub session: crate::session_end::SessionState,
@@ -589,6 +591,7 @@ impl Isle {
             wallpapers: Default::default(),
             island,
             lock,
+            greeter: Default::default(),
             idle: Default::default(),
             prompts,
             session,

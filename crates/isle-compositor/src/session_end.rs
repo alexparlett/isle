@@ -618,6 +618,10 @@ impl State {
             (LockAction::Restart, Power::Row) => *power = Power::Confirm { restart: true },
             (LockAction::ShutDown, Power::Row) => *power = Power::Confirm { restart: false },
             (LockAction::PowerCancel, Power::Confirm { .. }) => *power = Power::Row,
+            (LockAction::PowerConfirm, Power::Confirm { restart }) if crate::greeter::on() => {
+                *power = Power::Row;
+                self.greeter_power(restart);
+            }
             (LockAction::PowerConfirm, Power::Confirm { restart }) => {
                 let choice = if restart {
                     Choice::Restart

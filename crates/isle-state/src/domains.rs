@@ -218,3 +218,17 @@ impl Domain for Widgets {
     const NAME: &'static str = "widgets";
     const VERSION: u32 = 1;
 }
+
+/// The greeter's memory: who signed in last and into what (`p14b-greeter.md` choice 4).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Greeter {
+    /// The login name of the last user signed in.
+    pub last_user: Option<String>,
+    /// Each user's last session, by its entry's id.
+    pub sessions: BTreeMap<String, String>,
+}
+
+impl Domain for Greeter {
+    const NAME: &'static str = "greeter";
+    const VERSION: u32 = 1;
+}

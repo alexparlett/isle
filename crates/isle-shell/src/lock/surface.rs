@@ -238,6 +238,26 @@ impl Component for FaceView {
         let name_line = t.type_style_title_3_line;
         let name_top = field_top - t.space_m - name_line;
         let picture_top = name_top - t.space_s - t.size_avatar;
+        // The greeter's list of users stands in the user's place until one is chosen.
+        if let Some(greeter) = face.greeter.as_ref().filter(|g| g.users.len() >= 2 && !g.chosen) {
+            return root
+                .child(user_list(&theme, face, greeter, picture_top, lower, &actions))
+                .child(
+                    rect()
+                        .position(
+                            Position::new_absolute().top(field_top + field_h + t.space_s).left(0.),
+                        )
+                        .width(Size::fill())
+                        .cross_align(Alignment::Center)
+                        .opacity(lower)
+                        .child(status_line(&theme, &face.line, ink, ink_2)),
+                )
+                .child(power_row(&theme, face, frame.height, lower, &actions))
+                .child(utilities(&theme, face, frame.width, frame.height, lower, &actions))
+                .maybe_child(session_menu(&theme, greeter, frame.height, &actions))
+                .into_element();
+        }
+        let greeter = face.greeter.as_ref();
         root = root.child(
             rect()
                 .position(Position::new_absolute().top(picture_top).left(0.))
@@ -268,6 +288,9 @@ impl Component for FaceView {
                                 )
                                 .child(Field {
                                     dots: face.dots,
+                                    placeholder: greeter.and_then(|g| g.placeholder.clone()),
+                                    clear: greeter.and_then(|g| g.clear.clone()),
+                                    menu_open: greeter.is_some_and(|g| g.menu_open),
                                     selected: face.selected,
                                     held: face.held,
                                     locked_out: face.locked_out,
@@ -288,6 +311,7 @@ impl Component for FaceView {
                 lower,
                 &actions,
             ))
+            .maybe_child(greeter.and_then(|g| session_menu(&theme, g, frame.height, &actions)))
             .into_element()
     }
 }
@@ -523,6 +547,12 @@ fn picture(theme: &Theme, face: &Face) -> freya::prelude::Rect {
 #[derive(PartialEq)]
 struct Field {
     dots: usize,
+    /// PAM's question at the greeter, in place of "Enter password".
+    placeholder: Option<String>,
+    /// A question shown in clear: what is typed, in place of the dots.
+    clear: Option<String>,
+    /// The session menu has the keyboard; the field takes it back as the menu closes.
+    menu_open: bool,
     selected: bool,
     held: bool,
     locked_out: bool,
@@ -538,6 +568,10 @@ impl Component for Field {
         let a11y = use_a11y();
         let focus = use_focus(a11y);
         let focused = focus() != Focus::Not;
+        let menu_was = use_hook(|| Rc::new(Cell::new(self.menu_open)));
+        if menu_was.replace(self.menu_open) && !self.menu_open {
+            a11y.request_focus();
+        }
         let reported = use_hook(|| Rc::new(Cell::new(None::<bool>)));
         {
             let actions = actions.clone();
@@ -578,8 +612,14 @@ impl Component for Field {
                     &theme,
                     text::Style::Body,
                     placeholder,
-                    "Enter password",
+                    self.placeholder.clone().unwrap_or_else(|| "Enter password".into()),
                 ))
+        } else if let Some(typed) = &self.clear {
+            rect()
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .child(text::line(&theme, text::Style::Body, colour(t.colour_text), typed.clone()))
+                .maybe_child(caret)
         } else {
             let dots = rect()
                 .horizontal()
@@ -769,6 +809,9 @@ fn utilities(
         .horizontal()
         .spacing(t.space_s);
     let _ = width;
+    if let Some(greeter) = face.greeter.as_ref().filter(|g| g.sessions.len() >= 2) {
+        row = row.child(session_capsule(theme, face, greeter, capsule_h, actions));
+    }
     if let Some(layout) = &face.layout {
         let actions = actions.clone();
         let alt = if face.layout_marked {
@@ -849,4 +892,135 @@ fn utilities(
         );
     }
     row
+}
+
+/// The greeter's users in a row, each picture over its name; the selected name is the
+/// stronger colour.
+fn user_list(
+    theme: &Theme,
+    face: &Face,
+    greeter: &super::Greeter,
+    top: f32,
+    lower: f32,
+    actions: &Actions,
+) -> freya::prelude::Rect {
+    let t = &theme.tokens;
+    let users = greeter.users.iter().enumerate().map(|(i, user)| {
+        let actions = actions.clone();
+        let shown = Face {
+            picture: user.picture.clone(),
+            ..Default::default()
+        };
+        let ink = if i == greeter.selected {
+            colour(t.colour_text)
+        } else {
+            colour(t.colour_text_2)
+        };
+        rect()
+            .cross_align(Alignment::Center)
+            .spacing(t.space_s)
+            .a11y_focusable(true)
+            .a11y_role(AccessibilityRole::Button)
+            .a11y_alt(user.name.clone())
+            .on_press(move |e: Event<PressEventData>| {
+                e.stop_propagation();
+                send(&actions, LockAction::ChooseUser(i));
+            })
+            .child(picture(theme, &shown))
+            .child(text::line(theme, text::Style::Body, ink, user.name.clone()))
+            .into_element()
+    });
+    let _ = face;
+    rect()
+        .position(Position::new_absolute().top(top).left(0.))
+        .width(Size::fill())
+        .opacity(lower)
+        .horizontal()
+        .main_align(Alignment::Center)
+        .spacing(t.space_xxxl)
+        .children(users)
+}
+
+/// The session's name with its menu, which opens upward over the capsule.
+fn session_capsule(
+    theme: &Theme,
+    face: &Face,
+    greeter: &super::Greeter,
+    capsule_h: f32,
+    actions: &Actions,
+) -> freya::prelude::Rect {
+    let t = &theme.tokens;
+    let name = greeter.sessions.get(greeter.session).cloned().unwrap_or_default();
+    let open = greeter.menu_open;
+    let toggle = actions.clone();
+    rect().child(
+        plate(theme, face.solid, capsule_h / 2.0)
+            .height(Size::px(capsule_h))
+            .padding((0., t.space_m))
+            .horizontal()
+            .cross_align(Alignment::Center)
+            .spacing(t.space_xs)
+            .a11y_focusable(true)
+            .a11y_role(AccessibilityRole::Button)
+            .a11y_alt(format!("Session: {name}"))
+            .on_press(move |e: Event<PressEventData>| {
+                e.stop_propagation();
+                send(&toggle, LockAction::SessionMenu(!open));
+            })
+            .child(text::line(theme, text::Style::Headline, colour(t.colour_text), name))
+            .child(Glyph::new("caret-up", 12., colour(t.colour_text))),
+    )
+}
+
+/// The session menu, open upward from the utilities' row, its right edge on the row's.
+fn session_menu(
+    theme: &Theme,
+    greeter: &super::Greeter,
+    height: f32,
+    actions: &Actions,
+) -> Option<freya::prelude::Rect> {
+    let t = &theme.tokens;
+    if !greeter.menu_open || greeter.sessions.len() < 2 {
+        return None;
+    }
+    let callout = t.type_style_callout_line;
+    let row_top = height - t.space_xxxl - callout - t.space_xs - t.size_lock_button / 2.0
+        - t.size_control_large / 2.0;
+    let entries: Vec<isle_ui::MenuEntry> = greeter
+        .sessions
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            isle_ui::MenuEntry::Item(isle_ui::menu::MenuItem::new(i as u64 + 1, name.clone()).mark(
+                if i == greeter.session {
+                    isle_ui::menu::Mark::Check
+                } else {
+                    isle_ui::menu::Mark::None
+                },
+            ))
+        })
+        .collect();
+    let menu_h = isle_ui::menu::height(theme, &entries);
+    let actions = actions.clone();
+    Some(
+        rect()
+            .position(
+                Position::new_absolute()
+                    .top(row_top - menu_h - t.space_xs)
+                    .right(t.space_xxxl),
+            )
+            .layer(freya::prelude::Layer::Overlay)
+            .child(
+                isle_ui::Menu::new(Rc::new(entries), move |event| match event {
+                    isle_ui::menu::MenuEvent::Chosen(n) => {
+                        send(&actions, LockAction::ChooseSession(n as usize - 1))
+                    }
+                    isle_ui::menu::MenuEvent::Back => {
+                        send(&actions, LockAction::SessionMenu(false))
+                    }
+                    _ => {}
+                })
+                .material(isle_ui::menu::Material::Solid),
+            ),
+    )
 }

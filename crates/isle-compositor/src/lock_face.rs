@@ -268,7 +268,12 @@ impl State {
         } else {
             now.strftime("%-I:%M").to_string()
         };
-        let (login, user) = user_name();
+        let (login, user) = match self.greeter_user() {
+            Some(u) => (u.login.clone(), u.name.clone()),
+            None if crate::greeter::on() => (String::new(), String::new()),
+            None => user_name(),
+        };
+        let greeter_picture = self.greeter_user().map(|u| u.picture.clone());
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         let caps = keyboard.modifier_state().caps_lock;
         let (layouts, layout) = keyboard.with_xkb_state(self, |context| {
@@ -307,6 +312,8 @@ impl State {
             Line::Error
         } else if let Some(words) = self.isle.lock_session_line() {
             Line::Stopped(words)
+        } else if let Some(line) = self.greeter_line() {
+            line
         } else if caps {
             Line::CapsLock
         } else {
@@ -326,7 +333,11 @@ impl State {
             notes: self.lock_notes().0,
             more: self.lock_notes().1,
             user,
-            picture: picture(&login),
+            picture: match greeter_picture {
+                Some(picture) => picture,
+                None if crate::greeter::on() => None,
+                None => picture(&login),
+            },
             dots: lock.field.chars().count(),
             selected: lock.selected,
             line,
@@ -347,6 +358,7 @@ impl State {
             power: self.isle.session.lock_power,
             solid: game || theme.appearance.reduce_transparency,
             still: game || theme.appearance.reduce_motion,
+            greeter: self.greeter_face(),
         }
     }
 
@@ -530,6 +542,9 @@ impl State {
                 self.next_layout();
                 self.refresh_lock_face();
             }
+            LockAction::ChooseUser(i) => self.greeter_choose(i),
+            LockAction::SessionMenu(open) => self.greeter_session_menu(open),
+            LockAction::ChooseSession(i) => self.greeter_choose_session(i),
         }
     }
 

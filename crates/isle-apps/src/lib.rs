@@ -9,6 +9,7 @@ pub mod icons;
 pub mod metainfo;
 pub mod mime;
 pub mod mimeapps;
+pub mod sessions;
 
 use std::{
     collections::HashMap,
@@ -345,7 +346,7 @@ pub(crate) fn installed(program: &str) -> bool {
 }
 
 /// A string value with the spec's escapes undone.
-fn unescape(value: &str) -> String {
+pub(crate) fn unescape(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     let mut chars = value.chars();
     while let Some(c) = chars.next() {

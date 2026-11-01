@@ -28,8 +28,11 @@ pub enum Line {
         minutes: u32,
     },
     Error,
-    /// The session's end was stopped, or refused.
+    /// The session's end was stopped, or refused; at the greeter, a session that did not
+    /// start.
     Stopped(String),
+    /// What PAM said on the way to its question, at the greeter.
+    Said(String),
 }
 
 impl Line {
@@ -58,6 +61,7 @@ impl Line {
             ),
             Line::Error => (warning, "Couldn't check the password. Try again.".into()),
             Line::Stopped(words) => (warning, words.clone()),
+            Line::Said(words) => (Some("info"), words.clone()),
         })
     }
 
@@ -120,6 +124,33 @@ pub struct Face {
     pub power: Power,
     pub solid: bool,
     pub still: bool,
+    /// At the greeter: its users, sessions and PAM's question.
+    pub greeter: Option<Greeter>,
+}
+
+/// The greeter's part of the face (`p1/surfaces/lock.md`, Greeter).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Greeter {
+    /// Every user, for the list when there are two or more.
+    pub users: Vec<GreeterUser>,
+    /// A user is chosen: the face shows them and the field, not the list.
+    pub chosen: bool,
+    /// The list's keyboard selection.
+    pub selected: usize,
+    /// Every session's name, and the one chosen; the capsule shows with two or more.
+    pub sessions: Vec<String>,
+    pub session: usize,
+    pub menu_open: bool,
+    /// PAM's question as the field's placeholder.
+    pub placeholder: Option<String>,
+    /// PAM's question is shown in clear, and this is what is typed.
+    pub clear: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct GreeterUser {
+    pub name: String,
+    pub picture: Option<PathBuf>,
 }
 
 /// The power row: its circles, Restart or Shut Down asked once in place, then the apps
@@ -162,4 +193,8 @@ pub enum LockAction {
     Next,
     Previous,
     NextLayout,
+    /// At the greeter: a user chosen from the list, and a session from the menu.
+    ChooseUser(usize),
+    SessionMenu(bool),
+    ChooseSession(usize),
 }

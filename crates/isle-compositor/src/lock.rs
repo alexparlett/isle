@@ -163,6 +163,14 @@ impl Isle {
             "locked": self.lock.locked,
             "dots": self.lock.field.chars().count(),
             "selected": self.lock.selected,
+            "greeter": {
+                "users": self.greeter.users.iter().map(|u| u.login.clone()).collect::<Vec<_>>(),
+                "chosen": self.greeter.chosen,
+                "selected": self.greeter.selected,
+                "session": self.greeter.sessions.get(self.greeter.session).map(|s| s.id.clone()),
+                "prompt": self.greeter.prompt.as_ref().map(|(p, _)| p.clone()),
+                "menu_open": self.greeter.menu_open,
+            },
             "session_line": self.lock_session_line(),
             "status": self.lock.status.name(),
             "failures": self.lock.failures,
@@ -426,8 +434,14 @@ impl State {
             }
             return true;
         }
+        if crate::greeter::on() && self.greeter_list_key(sym) {
+            return true;
+        }
         match sym.raw() {
             k::KEY_Return | k::KEY_KP_Enter => self.submit_password(),
+            k::KEY_Escape if crate::greeter::on() && self.isle.lock.field.is_empty() => {
+                self.greeter_back();
+            }
             k::KEY_BackSpace if !held => {
                 if std::mem::take(&mut self.isle.lock.selected) {
                     self.isle.lock.field.zeroize();
@@ -549,6 +563,15 @@ impl State {
             return;
         }
         let password = Zeroizing::new(self.isle.lock.field.as_str().to_owned());
+        if crate::greeter::on() {
+            if self.greeter_submit(password) {
+                self.isle.lock.pending = true;
+                self.isle.lock.status = Status::Checking;
+                self.arm_check_long();
+                self.field_changed();
+            }
+            return;
+        }
         if self.isle.lock.helper.is_none() {
             self.isle.lock.helper = self.start_auth();
         }

@@ -231,6 +231,7 @@ pub fn run(kind: backend::Kind, greeter: bool) -> Result<(), Box<dyn std::error:
         }
         state.locked_at_start();
         state.arm_idle();
+        state.greeter_start();
         return run_loop(event_loop, state, None);
     }
     isle.load_places(&runtime);

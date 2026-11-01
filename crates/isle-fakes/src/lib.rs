@@ -3,6 +3,7 @@
 //! `tree` is a fake `/proc` and `/sys` for readers that take a root; `greetd` a fake greetd on
 //! a socket.
 
+pub mod accounts;
 pub mod bluez;
 pub mod greetd;
 pub mod logind;

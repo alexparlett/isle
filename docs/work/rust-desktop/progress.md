@@ -25,6 +25,20 @@
   the Test interface in test builds). `XDG_CACHE_HOME` and `XDG_STATE_HOME` default to
   `/var/cache/isle-greeter` and `/var/lib/isle-greeter`. The test harness starts it with
   `start_greeter`.
+- 14b.4: the greeter signs people in. Users from AccountsService (listed again when it comes
+  onto the bus; passwd in `login.defs`' range with a login shell when it does not answer in a
+  second); sessions from `wayland-sessions` (`isle_apps::sessions`: Name, Exec split by its
+  quoting, DesktopNames into `XDG_CURRENT_DESKTOP` and `XDG_SESSION_DESKTOP`, hidden and
+  uninstalled ones left out). One user is the lock's face; two or more are P1's row of
+  pictures, Left, Right and Return to choose, Escape back. The conversation runs on the
+  worker one request at a time, each answer tagged with the choice it was asked in so a late
+  one is dropped: PAM's question is the placeholder (its plain "Password:" reads as "Enter
+  password"), its info lines the status line, a refusal the lock's wrong-password shake and
+  a fresh session, faillock's lines a lockout. Signed in, greetd starts the chosen session,
+  the greeter remembers the user and their session (`greeter` state domain) and exits. The
+  session capsule leads the utilities with two or more sessions, its menu opening upward;
+  the field takes the keyboard back as it closes. Restart and Shut Down go to logind.
+  `isle-fakes` gains AccountsService; the Test interface gains `GreeterAct`.
 
 ## 2026-11-01 (P19c)
 

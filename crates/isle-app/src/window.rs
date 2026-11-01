@@ -257,6 +257,10 @@ impl<A: App + 'static> App for Frame<A> {
             ..Default::default()
         });
         use_provide_context(|| app.0.theme);
+        // Freya's tooltip takes Isle's colours, dark or light as the desktop is.
+        let isle = app.0.theme;
+        let mut freya_theme = use_provide_theme(|| freya_theme_of(&isle.0.peek()));
+        use_side_effect(move || freya_theme.set(freya_theme_of(&isle.0.read())));
         // A window's commands are its own; the rest of the desktop's state is the app's.
         let desktop = use_provide_context(|| crate::Desktop {
             commands: State::create(Vec::new()),
@@ -482,4 +486,23 @@ impl Run {
             }
         }
     }
+}
+
+/// Freya's default component theme with the tooltip as `surfaces/conventions.md` draws it.
+pub(crate) fn freya_theme_of(theme: &isle_tokens::Theme) -> freya::prelude::Theme {
+    use freya::prelude::{Preference, TooltipThemePreference};
+    let t = &theme.tokens;
+    let mut out = freya::prelude::Theme::default();
+    out.set(
+        "tooltip",
+        TooltipThemePreference {
+            background: Preference::Specific(isle_ui::colour(t.colour_window_raised)),
+            color: Preference::Specific(isle_ui::colour(t.colour_text)),
+            border_fill: Preference::Specific(isle_ui::colour(t.colour_hairline)),
+            font_family: Preference::Specific(String::new()),
+            font_size: Preference::Specific(t.type_style_callout_size),
+            font_weight: Preference::Specific(t.type_style_callout_weight as i32),
+        },
+    );
+    out
 }

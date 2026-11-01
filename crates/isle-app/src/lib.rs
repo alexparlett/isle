@@ -213,6 +213,7 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
     use_provide_context(|| TargetPlatform::MacOs);
     use_provide_context(isle_ui::GlassShapes::default);
     let theme = use_provide_context(|| ThemeContext(State::create(shipped_theme())));
+    use_provide_theme(|| window::freya_theme_of(&theme.0.peek()));
     use_provide_context(|| Table {
         app: State::create(Vec::new()),
     });

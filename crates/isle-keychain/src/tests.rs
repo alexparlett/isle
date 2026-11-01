@@ -509,3 +509,155 @@ fn a_frozen_service_says_so_in_time() {
     assert!(start.elapsed() < Duration::from_secs(12));
     settle_until(&mut test, "Home");
 }
+
+fn many(n: usize, secret: &str) -> Vec<CollectionSpec> {
+    let mut items: Vec<ItemSpec> = (0..n)
+        .map(|i| {
+            if i % 2 == 0 {
+                ItemSpec::new(&format!("Item {i:04}"), "org.gnome.keyring.NetworkPassword", &[("user", "u"), ("server", &format!("s{i}.example"))], secret)
+            } else {
+                ItemSpec::new(&format!("Item {i:04}"), "org.freedesktop.Secret.Generic", &[("application", "tool")], secret)
+            }
+        })
+        .collect();
+    items.sort_by(|a, b| a.label.cmp(&b.label));
+    vec![CollectionSpec { id: "login".into(), label: "Login".into(), locked: false, alias: Some("default".into()), items }]
+}
+
+fn press(test: &mut TestingRunner, key: Key, times: usize) {
+    for _ in 0..times {
+        test.press_key(key.clone());
+    }
+    poll(test, 2);
+}
+
+/// Choice 26: listing, searching, selecting and scrolling every kind of two thousand items
+/// fetches nothing; Show then fetches one.
+#[test]
+fn nothing_is_fetched_across_two_thousand_items() {
+    let _turn = serial();
+    let fakes = fakes("many", many(2000, "s"));
+    let start = std::time::Instant::now();
+    let mut test = runner(1000.);
+    settle_until(&mut test, "Item 0000");
+    eprintln!("listed 2,000 items in {:?} (debug build)", start.elapsed());
+    for row in ["Logins", "Apps", "Wi-Fi", "SSH keys", "Login", "All"] {
+        click(&mut test, row);
+        poll(&mut test, 3);
+    }
+    press(&mut test, Key::Named(NamedKey::ArrowDown), 60);
+    click(&mut test, "Item 0002");
+    poll(&mut test, 3);
+    assert_eq!(fakes.secrets().fetched(), 0, "nothing is fetched to list, select or scroll");
+    click(&mut test, "Show");
+    for _ in 0..100 {
+        poll(&mut test, 1);
+        if fakes.secrets().fetched() > 0 {
+            break;
+        }
+    }
+    poll(&mut test, 5);
+    assert_eq!(fakes.secrets().fetched(), 1, "Show fetches exactly one");
+}
+
+static LOGS: std::sync::Mutex<Vec<u8>> = std::sync::Mutex::new(Vec::new());
+
+struct Captured;
+
+impl std::io::Write for Captured {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        LOGS.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn files_holding(root: &std::path::Path, needle: &[u8]) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let Ok(entries) = std::fs::read_dir(root) else { return out };
+    for e in entries.flatten() {
+        let path = e.path();
+        if path.is_dir() {
+            out.extend(files_holding(&path, needle));
+        } else if std::fs::read(&path).is_ok_and(|b| b.windows(needle.len()).any(|w| w == needle)) {
+            out.push(path);
+        }
+    }
+    out
+}
+
+/// Choice 26's canary: shown, copied, edited and generated beside, it reaches no log and no
+/// file Keychain writes.
+#[test]
+fn the_canary_leaves_no_trace() {
+    let _turn = serial();
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_writer(|| Captured)
+        .try_init();
+    const CANARY: &str = "CANARY-7f3a91";
+    let fakes = fakes("canary", many(4, CANARY));
+    let mut test = runner(1000.);
+    settle_until(&mut test, "Item 0000");
+    click(&mut test, "Item 0000");
+    poll(&mut test, 3);
+    click(&mut test, "Show");
+    settle_until(&mut test, CANARY);
+    click(&mut test, "Copy");
+    poll(&mut test, 10);
+    click(&mut test, "Edit");
+    settle_until(&mut test, "Done");
+    command(&mut test, "generate");
+    poll(&mut test, 10);
+    click(&mut test, "Done");
+    poll(&mut test, 10);
+    click(&mut test, "Done");
+    poll(&mut test, 20);
+    drop(test);
+    let logs = String::from_utf8_lossy(&LOGS.lock().unwrap()).into_owned();
+    assert!(!logs.contains(CANARY), "the canary is in the logs");
+    let found = files_holding(&fakes.home, CANARY.as_bytes());
+    assert!(found.is_empty(), "the canary is in {found:?}");
+}
+
+/// Choice 29's bars, on a release build: the list of 2,000 items drawn, and a Show drawn once
+/// the grant is held. `cargo test --release -p isle-keychain -- --ignored bars --nocapture`.
+#[test]
+#[ignore]
+fn bars() {
+    let _turn = serial();
+    let _fakes = fakes("bars", many(2000, "bar-secret"));
+    let mut runs = Vec::new();
+    for _ in 0..5 {
+        let start = std::time::Instant::now();
+        let mut test = runner(1000.);
+        settle_until(&mut test, "Item 0000");
+        runs.push(start.elapsed());
+        drop(test);
+    }
+    runs.sort();
+    eprintln!("opening, 2,000 items: median {:?}, worst {:?}", runs[2], runs[4]);
+    let mut test = runner(1000.);
+    settle_until(&mut test, "Item 0000");
+    click(&mut test, "Item 0000");
+    poll(&mut test, 3);
+    click(&mut test, "Show");
+    settle_until(&mut test, "bar-secret");
+    click(&mut test, "Hide");
+    poll(&mut test, 3);
+    let mut reveals = Vec::new();
+    for _ in 0..5 {
+        let start = std::time::Instant::now();
+        click(&mut test, "Show");
+        while !labels(&test).iter().any(|l| l == "bar-secret") {
+            test.poll(Duration::from_millis(1), Duration::from_millis(1));
+        }
+        reveals.push(start.elapsed());
+        click(&mut test, "Hide");
+        poll(&mut test, 3);
+    }
+    reveals.sort();
+    eprintln!("reveal with the grant held: median {:?}, worst {:?}", reveals[2], reveals[4]);
+}

@@ -34,3 +34,4 @@ freya-core = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dd
 freya-testing = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
 isle-app = { workspace = true, features = ["testing"] }
 isle-fakes.workspace = true
+tracing-subscriber.workspace = true

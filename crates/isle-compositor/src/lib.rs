@@ -20,6 +20,7 @@ pub mod freeze;
 mod force_quit;
 mod games;
 mod grabs;
+mod greeter;
 mod handlers;
 mod helpers;
 mod hot_corners;
@@ -109,7 +110,9 @@ use crate::{
 /// A main-loop dispatch stuck this long ends the process (choice 7).
 const HANG_LIMIT: Duration = Duration::from_secs(10);
 
-pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
+/// Runs the compositor; `greeter` for greetd's greeter (`p14b-greeter.md`).
+pub fn run(kind: backend::Kind, greeter: bool) -> Result<(), Box<dyn std::error::Error>> {
+    greeter::start(greeter);
     // The supervisor reads the ready pipe to its end; no child may hold it open.
     if let Some(fd) = std::env::var("ISLE_READY_FD")
         .ok()
@@ -136,7 +139,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     helpers::pin();
 
     let safe_start = std::env::var("ISLE_SAFE_START").as_deref() == Ok("1");
-    let store: isle_settings::Store<isle_settings::schema::Settings> = if safe_start {
+    let store: isle_settings::Store<isle_settings::schema::Settings> = if safe_start || greeter {
         isle_settings::Store::defaults(settings::settings_path())
     } else {
         isle_settings::Store::open(settings::settings_path())
@@ -148,7 +151,7 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     heartbeat.set_abort(initial.debug.watchdog_abort);
     heartbeat.spawn_watchdog(HANG_LIMIT);
 
-    let mut event_loop: EventLoop<'static, State> = EventLoop::try_new()?;
+    let event_loop: EventLoop<'static, State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;
     let mut winit_events = None;
     let mut session_events = None;
@@ -179,9 +182,19 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     let (events, _) = broadcast::channel(64);
     let store = std::sync::Arc::new(tokio::sync::Mutex::new(store));
     let to_loop = worker::ToLoop::new(jobs);
-    let runtime = worker::spawn(to_loop.clone(), events.clone(), store.clone());
+    let runtime = if greeter {
+        worker::spawn_greeter(to_loop.clone(), events.clone(), store.clone())
+    } else {
+        worker::spawn(to_loop.clone(), events.clone(), store.clone())
+    };
 
-    let (token_source, token_text, token_error) = match tokens::load(&tokens::tokens_path()) {
+    // The greeter never reads a user's file (choice 11).
+    let tokens_loaded = if greeter {
+        Ok((isle_tokens::Source::shipped(), String::new()))
+    } else {
+        tokens::load(&tokens::tokens_path())
+    };
+    let (token_source, token_text, token_error) = match tokens_loaded {
         Ok((source, text)) => (source, text, None),
         Err(err) => {
             warn!("tokens.kdl rejected, the shipped tokens stand: {err}");
@@ -207,6 +220,19 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     isle.worker = Some(runtime.clone());
     isle.to_loop = Some(to_loop.clone());
     isle.settings_store = Some(store);
+    if greeter {
+        isle.start_locked();
+        let mut state = State { backend, isle };
+        state.apply_settings(initial, None);
+        match (winit_events, session_events) {
+            (Some(events), _) => backend::winit::setup(&mut state, events)?,
+            (_, Some(notifier)) => backend::udev::setup(&mut state, notifier)?,
+            _ => backend::headless::setup(&mut state)?,
+        }
+        state.locked_at_start();
+        state.arm_idle();
+        return run_loop(event_loop, state, None);
+    }
     isle.load_places(&runtime);
     isle.load_usage(&runtime);
     isle.load_widgets(&runtime);
@@ -333,7 +359,14 @@ pub fn run(kind: backend::Kind) -> Result<(), Box<dyn std::error::Error>> {
     if !start_clients(&mut state, &mut ready_fd) {
         info!("Xwayland and the session's apps wait for the GPU");
     }
+    run_loop(event_loop, state, ready_fd)
+}
 
+fn run_loop(
+    mut event_loop: EventLoop<'static, State>,
+    mut state: State,
+    mut ready_fd: Option<i32>,
+) -> Result<(), Box<dyn std::error::Error>> {
     event_loop.run(None, &mut state, |state| {
         if !state.isle.clients_started {
             start_clients(state, &mut ready_fd);
@@ -374,6 +407,9 @@ fn start_clients(state: &mut State, ready_fd: &mut Option<i32>) -> bool {
     }
     state.isle.clients_started = true;
     state.warm_up();
+    if greeter::on() {
+        return true;
+    }
     let display = xwayland::start(state, None);
     state.isle.xdisplay = display;
     if let Some(display) = display {

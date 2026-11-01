@@ -24,18 +24,25 @@ fn main() {
         .init();
     let nested =
         std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some();
-    let kind = match std::env::args().nth(1).as_deref() {
-        Some("--headless") => Kind::Headless,
-        Some("--winit") => Kind::Winit,
-        Some("--udev") => Kind::Udev,
-        None if nested => Kind::Winit,
-        None => Kind::Udev,
-        Some(other) => {
-            eprintln!("isle-compositor: unknown option {other}; use --udev, --winit or --headless");
-            std::process::exit(2);
+    let mut kind = None;
+    let mut greeter = false;
+    for arg in std::env::args().skip(1) {
+        match arg.as_str() {
+            "--headless" => kind = Some(Kind::Headless),
+            "--winit" => kind = Some(Kind::Winit),
+            "--udev" => kind = Some(Kind::Udev),
+            "--greeter" => greeter = true,
+            other => {
+                eprintln!(
+                    "isle-compositor: unknown option {other}; use --udev, --winit or --headless, \
+                     and --greeter under greetd"
+                );
+                std::process::exit(2);
+            }
         }
-    };
-    if let Err(err) = isle_compositor::run(kind) {
+    }
+    let kind = kind.unwrap_or(if nested { Kind::Winit } else { Kind::Udev });
+    if let Err(err) = isle_compositor::run(kind, greeter) {
         tracing::error!("{err}");
         std::process::exit(1);
     }

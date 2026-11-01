@@ -19,6 +19,12 @@
   starts afresh; faillock's lines read as a lockout) or Broken. `isle-fakes` gains a greetd
   that parses the wire format itself, scripts each user's messages and records the sessions
   started.
+- 14b.3: `isle-compositor --greeter`: starts locked and never unlocks, on the default
+  settings and the shipped tokens, with no Wayland socket, no Xwayland, no state loaded,
+  none of a session's bus names and no island; its worker runs logind and UPower alone (and
+  the Test interface in test builds). `XDG_CACHE_HOME` and `XDG_STATE_HOME` default to
+  `/var/cache/isle-greeter` and `/var/lib/isle-greeter`. The test harness starts it with
+  `start_greeter`.
 
 ## 2026-11-01 (P19c)
 

@@ -213,8 +213,10 @@ impl Isle {
             {
                 push(IsleElement::Memory(element));
             }
-            self.shell
-                .elements_of(output, "island", &mut |e| push(IsleElement::Shell(e)));
+            if !crate::greeter::on() {
+                self.shell
+                    .elements_of(output, "island", &mut |e| push(IsleElement::Shell(e)));
+            }
             self.shell
                 .elements(output, isle_shell::Layer::Lock, &mut |e| {
                     push(IsleElement::Shell(e))
@@ -306,7 +308,8 @@ impl State {
 
     /// Ends the lock and gives the keyboard back to the window that had it.
     pub fn unlock(&mut self, why: &'static str) {
-        if !self.isle.lock.locked {
+        // The greeter's lock ends only with the process.
+        if !self.isle.lock.locked || crate::greeter::on() {
             return;
         }
         info!(why, "unlocked");

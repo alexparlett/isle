@@ -173,6 +173,41 @@ pub fn spawn(
     handle_rx.recv().expect("the worker's runtime handle")
 }
 
+/// The greeter's worker: only the system-bus services its face reads, and the Test
+/// interface in test builds; nothing on a session bus, which the greeter has none of.
+pub fn spawn_greeter(
+    to_loop: ToLoop,
+    events: broadcast::Sender<Event>,
+    store: SharedStore,
+) -> tokio::runtime::Handle {
+    let (handle_tx, handle_rx) = std::sync::mpsc::channel();
+    thread::Builder::new()
+        .name("worker".into())
+        .spawn(move || {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .thread_name("worker-task")
+                .enable_all()
+                .build()
+                .expect("the worker's runtime");
+            let _ = handle_tx.send(runtime.handle().clone());
+            use crate::services::start;
+            start(&runtime, &to_loop, "login", crate::services::login::watch, State::login_changed);
+            start(&runtime, &to_loop, "power", isle_power::watch_batteries, State::power_changed);
+            #[cfg(feature = "test-hooks")]
+            runtime.block_on(supervise("dbus", move || {
+                crate::dbus::serve(to_loop.clone(), events.clone(), store.clone())
+            }));
+            #[cfg(not(feature = "test-hooks"))]
+            {
+                let _ = (events, store);
+                runtime.block_on(std::future::pending::<()>());
+            }
+        })
+        .expect("the worker thread");
+    handle_rx.recv().expect("the worker's runtime handle")
+}
+
 /// Runs a service, restarting it with a backoff when it fails or panics.
 pub async fn supervise<F, Fut>(name: &'static str, mut start: F)
 where

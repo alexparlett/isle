@@ -363,20 +363,26 @@ impl Isle {
         let dh = display.handle();
         let clock = Clock::new();
 
-        let socket = ListeningSocketSource::new_auto().expect("a Wayland socket");
-        let socket_name = socket.socket_name().to_os_string();
-        loop_handle
-            .insert_source(socket, |stream, _, state| {
-                let _beat = state.isle.heartbeat.beat("wayland-accept");
-                if let Err(err) = state
-                    .isle
-                    .display_handle
-                    .insert_client(stream, Arc::new(ClientState::default()))
-                {
-                    warn!(?err, "could not add a Wayland client");
-                }
-            })
-            .expect("the Wayland socket source");
+        // The greeter takes no clients.
+        let socket_name = if crate::greeter::on() {
+            OsString::new()
+        } else {
+            let socket = ListeningSocketSource::new_auto().expect("a Wayland socket");
+            let socket_name = socket.socket_name().to_os_string();
+            loop_handle
+                .insert_source(socket, |stream, _, state| {
+                    let _beat = state.isle.heartbeat.beat("wayland-accept");
+                    if let Err(err) = state
+                        .isle
+                        .display_handle
+                        .insert_client(stream, Arc::new(ClientState::default()))
+                    {
+                        warn!(?err, "could not add a Wayland client");
+                    }
+                })
+                .expect("the Wayland socket source");
+            socket_name
+        };
         loop_handle
             .insert_source(
                 Generic::new(display, Interest::READ, Mode::Level),

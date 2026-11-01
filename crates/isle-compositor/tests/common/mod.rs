@@ -125,6 +125,26 @@ impl Isle {
         prepare: impl FnOnce(&std::path::Path),
         env: impl FnOnce(&std::path::Path) -> Vec<(String, String)>,
     ) -> Self {
+        Self::start_args(name, settings, prepare, env, &[]).await
+    }
+
+    /// The compositor in its greeter mode, with variables from the test's directory.
+    pub async fn start_greeter(
+        name: &str,
+        prepare: impl FnOnce(&std::path::Path),
+        env: impl FnOnce(&std::path::Path) -> Vec<(String, String)>,
+    ) -> Self {
+        Self::start_args(name, "", prepare, env, &["--greeter"]).await
+    }
+
+    /// As `start_env`, with `args` after `--headless`.
+    pub async fn start_args(
+        name: &str,
+        settings: &str,
+        prepare: impl FnOnce(&std::path::Path),
+        env: impl FnOnce(&std::path::Path) -> Vec<(String, String)>,
+        args: &[&str],
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!("isle-headless-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         for sub in [
@@ -153,6 +173,7 @@ impl Isle {
         let compositor = Command::new(env!("CARGO_BIN_EXE_isle-compositor"))
             .envs(extra)
             .arg("--headless")
+            .args(args)
             .env_remove("WAYLAND_DISPLAY")
             .env_remove("DISPLAY")
             .env("XDG_RUNTIME_DIR", dir.join("runtime"))

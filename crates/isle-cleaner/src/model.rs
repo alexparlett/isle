@@ -172,6 +172,8 @@ pub struct Snapshot {
     pub finds: Vec<Find>,
     /// The scan itself, for Space's folders.
     pub scan: Arc<Scan>,
+    /// Counted at each file's bytes on disk, not before compression.
+    pub measured: bool,
 }
 
 impl Snapshot {
@@ -270,6 +272,7 @@ pub fn snapshot(
                 .collect(),
             finds: rules.find(tree, ctx),
             scan: scan.clone(),
+            measured: false,
         }
     })
 }

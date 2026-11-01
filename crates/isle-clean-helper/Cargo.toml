@@ -8,3 +8,7 @@ publish.workspace = true
 [[bin]]
 name = "isle-clean-helper"
 path = "src/main.rs"
+
+[dependencies]
+isle-scan.workspace = true
+libc.workspace = true

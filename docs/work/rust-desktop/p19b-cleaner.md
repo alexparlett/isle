@@ -195,6 +195,12 @@ in under a second, as D87 measured v1's.
     - **Folders** in the basket are summed from the tree without that
       read, since reading extents for every file is a second walk.
 
+28. **Bytes on disk on btrfs** (B139, added at the host run). After a walk
+    over a btrfs disk, `isle-clean-helper extents` reads each inode's
+    compressed bytes as root, an extent counted once, mounted subvolumes
+    first; the walk is made again with them and the views settle on real
+    sizes.
+
 ### Removing
 
 16. **Nothing leaves except through the basket.** No rule, view or

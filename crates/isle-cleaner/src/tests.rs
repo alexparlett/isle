@@ -74,10 +74,14 @@ pub fn home(name: &str) -> PathBuf {
     d
 }
 
-/// The window's tests set `HOME` and the XDG folders for the process, so they take turns.
+/// The window's tests set `HOME` and the XDG folders for the process, so they take turns;
+/// measuring on disk runs a helper that fails at once, never pkexec.
 fn serial() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    let turn = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // SAFETY: set while holding the lock, before the window's threads read it.
+    unsafe { std::env::set_var("ISLE_CLEAN_HELPER", "/bin/false") };
+    turn
 }
 
 fn runner(folder: PathBuf, width: f32) -> TestingRunner {
@@ -86,6 +90,7 @@ fn runner(folder: PathBuf, width: f32) -> TestingRunner {
     unsafe {
         std::env::set_var("XDG_STATE_HOME", &state);
         std::env::set_var("XDG_DATA_HOME", folder.join(".local/share"));
+        std::env::set_var("ISLE_CLEAN_HELPER", "/bin/false");
         std::env::set_var("HOME", &folder);
     }
     let (test, _) = TestingRunner::new(

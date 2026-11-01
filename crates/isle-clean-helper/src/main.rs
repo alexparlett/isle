@@ -1,6 +1,8 @@
 //! Clears the system's share as root for Cleaner, run by pkexec under Isle's own policy
-//! (`p19b-cleaner.md` choice 18). It takes one fixed subcommand and nothing else: no path or
-//! package from its caller reaches a tool.
+//! (`p19b-cleaner.md` choice 18), and reads btrfs's bytes on disk (B139). It takes one fixed
+//! subcommand and nothing else: no path or package from its caller reaches a tool.
+
+mod extents;
 
 use std::{
     path::Path,
@@ -65,9 +67,18 @@ fn clear(what: &str) -> Result<(), String> {
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let [what] = args.as_slice() else {
-        eprintln!("usage: isle-clean-helper package-cache|orphans|journal|coredumps");
+        eprintln!("usage: isle-clean-helper package-cache|orphans|journal|coredumps|extents");
         return ExitCode::from(2);
     };
+    if what == "extents" {
+        return match extents::run() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("isle-clean-helper: {e}");
+                ExitCode::from(3)
+            }
+        };
+    }
     if !matches!(
         what.as_str(),
         "package-cache" | "orphans" | "journal" | "coredumps"

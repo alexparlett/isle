@@ -14,7 +14,7 @@ use std::{
 };
 
 use isle_fs::mounts::{Class, Mount};
-use rustix::fs::{AtFlags, Dir, FileType, Mode, OFlags, StatxFlags};
+use rustix::fs::{Dir, FileType, Mode, OFlags, StatxFlags};
 
 use crate::{
     kinds::{self, Kind},
@@ -119,6 +119,8 @@ struct Shared {
     /// Inodes with several names already counted, by device and inode.
     links: Mutex<HashSet<(u64, u64)>>,
     now: i64,
+    /// Bytes on disk where the helper read them (`ondisk`).
+    sizes: Option<Arc<crate::ondisk::OnDisk>>,
 }
 
 impl Shared {
@@ -150,16 +152,21 @@ const MASK: StatxFlags = StatxFlags::TYPE
     .union(StatxFlags::MTIME)
     .union(StatxFlags::MNT_ID);
 
-fn statx(
-    dir: impl rustix::fd::AsFd,
-    name: &std::ffi::CStr,
-) -> rustix::io::Result<rustix::fs::Statx> {
-    rustix::fs::statx(
-        dir,
-        name,
-        AtFlags::SYMLINK_NOFOLLOW | AtFlags::NO_AUTOMOUNT,
-        MASK,
-    )
+/// libc's `statx`, for the subvolume (`STATX_SUBVOL`), which rustix's leaves out.
+fn statx(dir: impl rustix::fd::AsFd, name: &std::ffi::CStr) -> std::io::Result<libc::statx> {
+    use rustix::fd::AsRawFd;
+    let mut st: libc::statx = unsafe { std::mem::zeroed() };
+    // SAFETY: `name` is a C string and `st` a statx buffer the call fills.
+    let r = unsafe {
+        libc::statx(
+            dir.as_fd().as_raw_fd(),
+            name.as_ptr(),
+            libc::AT_SYMLINK_NOFOLLOW | libc::AT_NO_AUTOMOUNT,
+            MASK.bits() | libc::STATX_SUBVOL,
+            &mut st,
+        )
+    };
+    if r == 0 { Ok(st) } else { Err(std::io::Error::last_os_error()) }
 }
 
 impl Scan {
@@ -168,10 +175,16 @@ impl Scan {
         let workers = std::thread::available_parallelism()
             .map_or(4, |n| n.get())
             .min(8);
-        Self::start_with(roots, isle_fs::mounts::read(), workers)
+        Self::start_with(roots, isle_fs::mounts::read(), workers, None)
     }
 
-    pub fn start_with(roots: Vec<PathBuf>, mounts: Vec<Mount>, workers: usize) -> Self {
+    /// Starts walking `roots`, counting files at their bytes on disk where `sizes` has them.
+    pub fn start_sized(roots: Vec<PathBuf>, sizes: Arc<crate::ondisk::OnDisk>) -> Self {
+        let workers = std::thread::available_parallelism().map_or(4, |n| n.get()).min(8);
+        Self::start_with(roots, isle_fs::mounts::read(), workers, Some(sizes))
+    }
+
+    pub fn start_with(roots: Vec<PathBuf>, mounts: Vec<Mount>, workers: usize, sizes: Option<Arc<crate::ondisk::OnDisk>>) -> Self {
         let mut tree = Tree::new();
         let mut jobs = Vec::new();
         let mut scanned = 0;
@@ -260,6 +273,7 @@ impl Scan {
             fences,
             fenced_in,
             links: Mutex::new(HashSet::new()),
+            sizes,
             now: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |d| d.as_secs() as i64),
@@ -425,7 +439,11 @@ fn read_folder(shared: &Shared, job: &Job) -> Vec<Job> {
         let Ok(st) = statx(&fd, &name) else { continue };
         let ftype = FileType::from_raw_mode(st.stx_mode.into());
         let dev = makedev(st.stx_dev_major, st.stx_dev_minor);
-        let bytes = st.stx_blocks * 512;
+        let measured = shared.sizes.as_ref().filter(|_| st.stx_mask & libc::STATX_SUBVOL != 0).and_then(|sizes| {
+            let source = &shared.mounts.get(&st.stx_mnt_id)?.source;
+            sizes.bytes(source, st.stx_subvol, st.stx_ino)
+        });
+        let bytes = measured.unwrap_or(st.stx_blocks * 512);
         if ftype == FileType::Directory {
             if bytes_name == b".snapshots" {
                 continue;

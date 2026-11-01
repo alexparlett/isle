@@ -179,6 +179,7 @@ impl App for Cleaner {
         let mut scope = use_state(move || start.map_or(Scope::All, Scope::Folder));
         let mut snapshot = use_state(|| None::<Arc<Snapshot>>);
         let mut groups = use_state(|| None::<(u64, Arc<Vec<Group>>)>);
+        let mut measuring = use_state(|| None::<u64>);
         let mut system = use_state(Vec::<Share>::new);
         let mut basket = use_state(Basket::default);
         let mut basket_hidden = use_state(|| false);
@@ -314,7 +315,30 @@ impl App for Cleaner {
                                     }
                                 }
                             }
+                            if snap.measured {
+                                measuring.set(None);
+                                // The basket's items take their bytes on disk: a folder's from
+                                // the tree, a file's from the files the scan kept.
+                                let mut b = basket.write();
+                                b.resize(|path| {
+                                    snap.scan
+                                        .read(|t| t.find(path).map(|id| t.node(id).bytes))
+                                        .or_else(|| {
+                                            snap.largest
+                                                .iter()
+                                                .chain(&snap.untouched)
+                                                .find(|f| f.path == path)
+                                                .map(|f| f.bytes)
+                                        })
+                                });
+                            }
                             snapshot.set(Some(snap));
+                        }
+                        scanner::Event::Measuring(g) => measuring.set(Some(g)),
+                        scanner::Event::Measured(g) => {
+                            if *measuring.peek() == Some(g) {
+                                measuring.set(None);
+                            }
                         }
                         scanner::Event::Duplicates(g, found) => groups.set(Some((g, found))),
                         scanner::Event::System(shares) => system.set(shares),
@@ -441,6 +465,7 @@ impl App for Cleaner {
                 Some(share) => format!("Scanning… {}%", (share * 100.).floor() as u32),
                 None => "Scanning…".into(),
             },
+            Some(s) if *measuring.read() == Some(s.generation) => "Measuring on disk…".into(),
             Some(s) => format!("{} · {} scanned", scope.read().title(), size(s.bytes)),
         };
         let share = snap

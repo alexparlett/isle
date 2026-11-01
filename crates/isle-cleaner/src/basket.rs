@@ -56,6 +56,15 @@ impl Basket {
         self.items.iter().map(|i| i.bytes).sum()
     }
 
+    /// Each item's bytes as `bytes_of` gives them, where it does.
+    pub fn resize(&mut self, bytes_of: impl Fn(&Path) -> Option<u64>) {
+        for i in &mut self.items {
+            if let Some(b) = bytes_of(&i.path) {
+                i.bytes = b;
+            }
+        }
+    }
+
     pub fn clear(&mut self) {
         self.items.clear();
     }

@@ -43,7 +43,16 @@ fn main() {
     };
     let base = status_kb("VmRSS:");
     let start = Instant::now();
-    let scan = Scan::start(roots.clone());
+    // `ISLE_ONDISK` names a file of `isle-clean-helper extents`' output to count bytes on disk.
+    let scan = match std::env::var_os("ISLE_ONDISK") {
+        Some(f) => Scan::start_sized(
+            roots.clone(),
+            std::sync::Arc::new(
+                isle_scan::ondisk::OnDisk::read(std::fs::File::open(f).unwrap()).unwrap(),
+            ),
+        ),
+        None => Scan::start(roots.clone()),
+    };
     let (tree, progress) = scan.finish();
     let took = start.elapsed();
     let top = tree.node(TOP);

@@ -62,6 +62,23 @@ impl Item {
     }
 }
 
+/// The helper's read of every btrfs file's bytes on disk (`ondisk`), through pkexec; a helper
+/// named by `ISLE_CLEAN_HELPER` runs as it is, so a test never asks for a password.
+pub fn measure_command() -> Command {
+    match std::env::var_os("ISLE_CLEAN_HELPER") {
+        Some(helper) => {
+            let mut c = Command::new(helper);
+            c.arg("extents");
+            c
+        }
+        None => {
+            let mut c = Command::new("pkexec");
+            c.arg(HELPER).arg("extents");
+            c
+        }
+    }
+}
+
 /// One row of the System card.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Share {

@@ -2,6 +2,7 @@
 
 pub mod duplicates;
 pub mod kinds;
+pub mod ondisk;
 pub mod rules;
 pub mod system;
 pub mod tree;

@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-11-01
+
+- P19b, bytes on disk (B139). On the host the build folders showed 1.4 TB
+  on a 1 TB disk and freed about 605 GB: `st_blocks` counts btrfs's bytes
+  before compression and reflinked copies in full. `isle-clean-helper
+  extents` (no arguments, `allow_active` yes) searches each btrfs
+  filesystem's subvolumes with `BTRFS_IOC_TREE_SEARCH_V2`, mounted ones
+  first, each extent counted once; `isle_scan::ondisk` reads its output and
+  the walk takes `statx`'s subvolume through libc to look each file up.
+  Cleaner measures after a walk over btrfs and walks again with the
+  figures, "Measuring on disk…" meanwhile, the basket's items resized. On a
+  compressed loop disk in the VM: the helper equals compsize to the byte
+  (200 MB of text as 6.55 MB, its reflinked copy 0, a snapshot 0); the
+  walk 0.06 GB against 0.50 GB before; Cleaner end to end through pkexec
+  without a dialog, 60.0 MB scanned. The window's tests run the helper as
+  `/bin/false`: two of their runs had put polkit dialogs on the host.
+- B138: an alert's action trails as its default (the user's choice);
+  Files' Empty Trash and Delete Immediately and Cleaner's alerts follow.
+
 ## 2026-10-31
 
 - 19b.12: the measures and the walk. On the host (release): the home warm

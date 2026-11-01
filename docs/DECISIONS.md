@@ -1500,3 +1500,21 @@ does; the user found the action on the left odd. Applies to Files' Empty
 Trash and Delete Immediately, Cleaner's Empty Trash and System card, and
 Keychain's Delete when it is built. Rejected: Cancel leading but still the
 default, which no macOS alert does.
+
+**B139 · Cleaner counts btrfs files at their bytes on disk.** P19b's host
+run, the user's choice. `st_blocks`, and so `du`, counts a compressed
+file's bytes before compression and a reflinked copy in full: on the host
+the build folders showed 1.4 TB on a 1 TB disk and freed about 605 GB.
+After a walk over a btrfs disk, Cleaner runs `isle-clean-helper extents`
+through pkexec (its own action, `allow_active` yes: it reads extent sizes
+and writes numbers by inode, no names or data). The helper searches every
+subvolume's file extents with `BTRFS_IOC_TREE_SEARCH_V2`, as compsize does,
+mounted subvolumes first, and gives each inode its compressed bytes, an
+extent counted once for the first file met, so a snapshot or a reflinked
+copy adds nothing. Cleaner walks again with those figures, keyed by the
+mount's source, the subvolume (`statx`'s `STATX_SUBVOL`) and the inode,
+and the views settle on them; "Measuring on disk…" shows meanwhile.
+Checked against compsize on a compressed loop disk: equal to the byte.
+Rejected: scaling each disk's figures by its used share (wrong per folder,
+since build output and video compress differently) and labelling the
+larger figures honestly (still larger than the disk).

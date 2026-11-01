@@ -1,12 +1,13 @@
 //! The scan on threads of its own (`p19b-cleaner.md` choices 8, 9 and 14): the walk published at
 //! most once a `timing-scan-layout-ms`, the rules run over each publication, duplicates compared
-//! at idle I/O priority once the walk ends, and the system's share read beside it.
+//! at idle I/O priority once the walk ends, and the system's share read beside it. On a btrfs
+//! disk the walk is then made again with each file's bytes on disk (B139).
 
 use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc,
     },
     time::Duration,
@@ -26,6 +27,10 @@ pub enum Ask {
 
 pub enum Event {
     Snapshot(Arc<Snapshot>),
+    /// The scan's generation is being measured on disk.
+    Measuring(u64),
+    /// Measuring that generation gave nothing: the figures stand as the walk read them.
+    Measured(u64),
     /// The scan's generation, and its duplicate groups.
     Duplicates(u64, Arc<Vec<duplicates::Group>>),
     System(Vec<system::Share>),
@@ -49,9 +54,66 @@ fn read_system(tx: &UnboundedSender<Event>) {
     });
 }
 
+/// Whether any of `roots`, or a mount under one, is btrfs, whose `st_blocks` count bytes before
+/// compression.
+fn on_btrfs(roots: &[PathBuf]) -> bool {
+    let mounts = isle_fs::mounts::read();
+    roots.iter().any(|r| {
+        isle_fs::mounts::of(&mounts, r).is_some_and(|m| m.fstype == "btrfs")
+            || mounts
+                .iter()
+                .any(|m| m.fstype == "btrfs" && m.point.starts_with(r))
+    })
+}
+
+/// Reads every file's bytes on disk through the helper, then walks `roots` again with them and
+/// publishes that as the scan's last word, unless another scan has begun.
+fn measure(
+    g: u64,
+    roots: Vec<PathBuf>,
+    latest: Arc<AtomicU64>,
+    rules: Arc<Rules>,
+    ctx: Arc<Context>,
+    tx: UnboundedSender<Event>,
+) {
+    let _ = tx.unbounded_send(Event::Measuring(g));
+    let out = system::measure_command().output();
+    let sizes = match out {
+        Ok(o) if o.status.success() => isle_scan::ondisk::OnDisk::read(&o.stdout[..]).ok(),
+        Ok(o) => {
+            tracing::warn!(status = ?o.status, error = %String::from_utf8_lossy(&o.stderr).trim(), "no bytes on disk");
+            None
+        }
+        Err(e) => {
+            tracing::warn!("no bytes on disk: {e}");
+            None
+        }
+    };
+    if latest.load(Ordering::Acquire) != g {
+        return;
+    }
+    let Some(sizes) = sizes.filter(|s| !s.is_empty()) else {
+        let _ = tx.unbounded_send(Event::Measured(g));
+        return;
+    };
+    let scan = Arc::new(Scan::start_sized(roots.clone(), Arc::new(sizes)));
+    while !scan.progress().done || scan.running() {
+        if latest.load(Ordering::Acquire) != g {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let mut snap = model::snapshot(g, &scan, &roots, &rules, &ctx);
+    snap.measured = true;
+    if latest.load(Ordering::Acquire) == g {
+        let _ = tx.unbounded_send(Event::Snapshot(Arc::new(snap)));
+    }
+}
+
 fn run(asked: mpsc::Receiver<Ask>, tx: UnboundedSender<Event>, every: Duration) {
-    let rules = Rules::load();
-    let ctx = Context::here(isle_games::Roots::find().steam_libraries());
+    let rules = Arc::new(Rules::load());
+    let ctx = Arc::new(Context::here(isle_games::Roots::find().steam_libraries()));
+    let latest = Arc::new(AtomicU64::new(0));
     read_system(&tx);
     let mut current: Option<(u64, Arc<Scan>, Vec<PathBuf>)> = None;
     let mut generation = 0u64;
@@ -78,6 +140,7 @@ fn run(asked: mpsc::Receiver<Ask>, tx: UnboundedSender<Event>, every: Duration) 
                     stop.store(true, Ordering::Relaxed);
                 }
                 generation += 1;
+                latest.store(generation, Ordering::Release);
                 current = Some((generation, Arc::new(Scan::start(roots.clone())), roots));
             }
             Ok(Ask::Stop) => {
@@ -116,17 +179,31 @@ fn run(asked: mpsc::Receiver<Ask>, tx: UnboundedSender<Event>, every: Duration) 
         if let Some(candidates) = candidates {
             let stop = Arc::new(AtomicBool::new(false));
             comparing = Some(stop.clone());
-            let (tx, g) = (tx.clone(), *g);
+            let (dups_tx, dups_g) = (tx.clone(), *g);
             std::thread::Builder::new()
                 .name("cleaner-dups".into())
                 .spawn(move || {
                     duplicates::idle_io();
                     let groups = duplicates::compare(candidates, &stop);
                     if !stop.load(Ordering::Relaxed) {
-                        let _ = tx.unbounded_send(Event::Duplicates(g, Arc::new(groups)));
+                        let _ = dups_tx.unbounded_send(Event::Duplicates(dups_g, Arc::new(groups)));
                     }
                 })
                 .expect("the duplicates' thread");
+            if on_btrfs(roots) && !scan.progress().partial {
+                let (roots, latest, rules, ctx, tx, g) = (
+                    roots.clone(),
+                    latest.clone(),
+                    rules.clone(),
+                    ctx.clone(),
+                    tx.clone(),
+                    *g,
+                );
+                std::thread::Builder::new()
+                    .name("cleaner-measure".into())
+                    .spawn(move || measure(g, roots, latest, rules, ctx, tx))
+                    .expect("the measuring thread");
+            }
             current = None;
         }
     }

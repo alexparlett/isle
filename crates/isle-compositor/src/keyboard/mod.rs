@@ -566,6 +566,16 @@ impl State {
                 self.isle.swallowed.insert(key);
                 return;
             }
+            KeyState::Pressed if self.isle.lock.locked && self.isle.lock.field_focused && {
+                let sym = self.isle.keyboards.with_engine(false, &[], |_, ctx| ctx.keys.sym(code));
+                let mods = self.held_mods();
+                sym.is_some_and(|sym| self.lock_chord(sym, mods))
+            } =>
+            {
+                self.isle.swallowed.insert(key);
+                self.lock_activity();
+                return;
+            }
             // logind leaves the power key to Isle, which holds its inhibitor.
             KeyState::Pressed if named == KEY_POWER => {
                 self.isle.swallowed.insert(key);

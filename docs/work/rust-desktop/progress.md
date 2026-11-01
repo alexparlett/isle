@@ -5,6 +5,14 @@
 - 14b.0: the record. P14 split again at the user's choice: P14b the greeter, P14c the rest
   of the switch. The plan reviewed with every recommendation taken; the console keys
   (Ctrl+Option+F1–F12, already Isle's) are the way out of a misbehaving greeter.
+- 14b.1: the lock's field takes a password field's chords, read from the physical keys
+  before translation (which had turned Cmd+A into Ctrl+A, and Cmd+Backspace into
+  Shift+Home and Backspace, for a field that dropped both): Cmd+A selects the dots (drawn on
+  the accent's selection tint, the caret hidden) for the next character or Backspace to
+  replace; Cmd+Backspace and Option+Backspace clear; Cmd+V pastes the clipboard's text with
+  its line breaks dropped; Cmd+C and Cmd+X do nothing. Option still types its characters
+  (`#` on `gb(mac)`). Tested on a Mac and a PC keyboard; the test client gains
+  `copy-lines`.
 
 ## 2026-11-01 (P19c)
 

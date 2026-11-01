@@ -328,6 +328,7 @@ impl State {
             user,
             picture: picture(&login),
             dots: lock.field.chars().count(),
+            selected: lock.selected,
             line,
             held: lock.pending || locked_out,
             locked_out,

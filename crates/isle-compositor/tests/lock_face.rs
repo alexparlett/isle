@@ -124,3 +124,103 @@ async fn a_quiet_face_dozes_and_a_key_wakes_it_and_types() {
     assert_eq!(now["awake"], true, "{now}");
     assert_eq!(now["dots"], 1, "the waking key is typed");
 }
+
+async fn tap_on(isle: &Isle, id: &str, code: u32) {
+    let test = isle.test().await;
+    test.key_on(id, code, true).await.unwrap();
+    test.key_on(id, code, false).await.unwrap();
+}
+
+/// `held` down, `code` tapped, `held` up, on keyboard `id`.
+async fn chord_on(isle: &Isle, id: &str, held: u32, code: u32) {
+    let test = isle.test().await;
+    test.key_on(id, held, true).await.unwrap();
+    tap_on(isle, id, code).await;
+    test.key_on(id, held, false).await.unwrap();
+}
+
+const KEY_3: u32 = 4;
+const C: u32 = 46;
+const V: u32 = 47;
+const X: u32 = 45;
+const BACKSPACE: u32 = 14;
+const LEFTALT: u32 = 56;
+const LEFTMETA: u32 = 125;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_field_takes_a_password_fields_chords() {
+    let isle = Isle::start("lock-chords").await;
+    isle_ipc::settings::SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("keyboard.layouts", &zvariant::Value::from(vec!["gb"]))
+        .await
+        .unwrap();
+    let test = isle.test().await;
+    let mac = test.add_keyboard("Keychron Q6 Max").await.unwrap();
+    let pc = test
+        .add_keyboard("AT Translated Set 2 keyboard")
+        .await
+        .unwrap();
+    lock(&isle).await;
+    wait_until(|| async { status(&isle).await["field_focused"] == true }).await;
+    let dots = || async { status(&isle).await["dots"].as_u64().unwrap() };
+
+    // Cmd+A selects what is typed; the next character replaces it.
+    tap_on(&isle, &mac, A).await;
+    tap_on(&isle, &mac, B).await;
+    chord_on(&isle, &mac, LEFTMETA, A).await;
+    assert_eq!(status(&isle).await["selected"], true);
+    assert_eq!(dots().await, 2);
+    tap_on(&isle, &mac, A).await;
+    assert_eq!(dots().await, 1);
+    assert_eq!(status(&isle).await["selected"], false);
+
+    // Selected, Backspace clears it all.
+    tap_on(&isle, &mac, B).await;
+    chord_on(&isle, &mac, LEFTMETA, A).await;
+    tap_on(&isle, &mac, BACKSPACE).await;
+    assert_eq!(dots().await, 0);
+
+    // Cmd+C and Cmd+X leave the field as it is and copy nothing.
+    for code in [A, B, A] {
+        tap_on(&isle, &mac, code).await;
+    }
+    chord_on(&isle, &mac, LEFTMETA, C).await;
+    chord_on(&isle, &mac, LEFTMETA, X).await;
+    assert_eq!(dots().await, 3);
+    assert_eq!(test.clipboard().await.unwrap(), "");
+
+    // Cmd+Backspace and Option+Backspace clear the field.
+    chord_on(&isle, &mac, LEFTMETA, BACKSPACE).await;
+    assert_eq!(dots().await, 0);
+    tap_on(&isle, &mac, A).await;
+    chord_on(&isle, &mac, LEFTALT, BACKSPACE).await;
+    assert_eq!(dots().await, 0);
+
+    // A character typed with Option is a character: # on gb(mac).
+    chord_on(&isle, &mac, LEFTALT, KEY_3).await;
+    assert_eq!(dots().await, 1);
+
+    // On a PC keyboard Cmd is the left Alt.
+    chord_on(&isle, &pc, LEFTALT, A).await;
+    assert_eq!(status(&isle).await["selected"], true);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cmd_v_pastes_the_clipboard_without_its_line_breaks() {
+    let mut isle = Isle::start("lock-paste").await;
+    let test = isle.test().await;
+    let mac = test.add_keyboard("Keychron Q6 Max").await.unwrap();
+    let app = isle.client("isle.test.Copier", "3366ff");
+    app.wait_for("keyboard-enter").await;
+    app.send("copy-lines pa ss\\nword");
+    app.wait_for("copied").await;
+    lock(&isle).await;
+    wait_until(|| async { status(&isle).await["field_focused"] == true }).await;
+    tap_on(&isle, &mac, A).await;
+    chord_on(&isle, &mac, LEFTMETA, A).await;
+    chord_on(&isle, &mac, LEFTMETA, V).await;
+    wait_until(|| async { status(&isle).await["dots"] == 9 }).await;
+    assert_eq!(status(&isle).await["selected"], false);
+}

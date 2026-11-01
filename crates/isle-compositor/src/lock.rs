@@ -61,6 +61,8 @@ pub struct LockState {
     pub field: Zeroizing<String>,
     /// The field has the face's keyboard focus, so typing goes into it.
     pub field_focused: bool,
+    /// Cmd+A selected everything typed: the next character replaces it.
+    pub selected: bool,
     pub status: Status,
     /// Wrong passwords since the lock came.
     pub failures: u32,
@@ -92,6 +94,7 @@ impl Default for LockState {
             shown_after: None,
             field: Default::default(),
             field_focused: true,
+            selected: false,
             status: Status::None,
             failures: 0,
             locked_out_until: None,
@@ -159,6 +162,7 @@ impl Isle {
         serde_json::json!({
             "locked": self.lock.locked,
             "dots": self.lock.field.chars().count(),
+            "selected": self.lock.selected,
             "session_line": self.lock_session_line(),
             "status": self.lock.status.name(),
             "failures": self.lock.failures,
@@ -422,14 +426,21 @@ impl State {
         match sym.raw() {
             k::KEY_Return | k::KEY_KP_Enter => self.submit_password(),
             k::KEY_BackSpace if !held => {
-                self.isle.lock.field.pop();
+                if std::mem::take(&mut self.isle.lock.selected) {
+                    self.isle.lock.field.zeroize();
+                } else {
+                    self.isle.lock.field.pop();
+                }
                 self.field_changed();
             }
-            k::KEY_Escape if !held => {
-                self.isle.lock.field.zeroize();
-                self.field_changed();
+            k::KEY_Delete if !held => {
+                if std::mem::take(&mut self.isle.lock.selected) {
+                    self.isle.lock.field.zeroize();
+                    self.field_changed();
+                }
             }
-            k::KEY_BackSpace | k::KEY_Escape => {}
+            k::KEY_Escape if !held => self.clear_field(),
+            k::KEY_BackSpace | k::KEY_Delete | k::KEY_Escape => {}
             _ => {
                 let Some(c) = sym.key_char().filter(|c| !c.is_control()) else {
                     return false;
@@ -437,14 +448,91 @@ impl State {
                 if mods.ctrl || mods.alt || mods.logo {
                     return false;
                 }
-                if !held && self.isle.lock.field.len() < FIELD_LIMIT {
-                    self.isle.lock.face.error_edge = false;
-                    self.isle.lock.field.push(c);
-                    self.field_changed();
-                }
+                self.type_into_field(std::iter::once(c));
             }
         }
         true
+    }
+
+    /// Cmd+A, Cmd+V, Cmd+C, Cmd+X, and Cmd or Option with Backspace in the field, read from
+    /// the physical chord before translation turns it into an app's keys; whether it was one.
+    pub fn lock_chord(
+        &mut self,
+        sym: smithay::input::keyboard::Keysym,
+        mods: isle_keys::chord::Mods,
+    ) -> bool {
+        use smithay::input::keyboard::keysyms as k;
+        if !mods.cmd && !mods.option
+            || matches!(
+                self.isle.session.lock_power,
+                isle_shell::lock::Power::Confirm { .. }
+            )
+        {
+            return false;
+        }
+        let held = self.isle.lock.pending || self.isle.locked_out();
+        match (sym.raw(), mods.cmd) {
+            (k::KEY_BackSpace, _) => {
+                if !held {
+                    self.clear_field();
+                }
+            }
+            (k::KEY_a, true) => {
+                if !held && !self.isle.lock.field.is_empty() {
+                    self.isle.lock.selected = true;
+                    self.field_changed();
+                }
+            }
+            (k::KEY_v, true) => {
+                if !held {
+                    self.read_clipboard_text(|state, text| {
+                        let text = Zeroizing::new(text.unwrap_or_default());
+                        state.lock_paste(&text);
+                    });
+                }
+            }
+            // A password is never copied out of the field.
+            (k::KEY_c | k::KEY_x, true) => {}
+            _ => return false,
+        }
+        true
+    }
+
+    /// The clipboard's text into the field, line breaks dropped, cut at the field's limit.
+    fn lock_paste(&mut self, text: &str) {
+        if !self.isle.lock.locked || self.isle.lock.pending || self.isle.locked_out() {
+            return;
+        }
+        self.type_into_field(text.chars().filter(|c| !c.is_control()));
+    }
+
+    /// Characters typed or pasted, replacing a selection.
+    fn type_into_field(&mut self, chars: impl Iterator<Item = char>) {
+        if self.isle.lock.pending || self.isle.locked_out() {
+            return;
+        }
+        let lock = &mut self.isle.lock;
+        if std::mem::take(&mut lock.selected) {
+            lock.field.zeroize();
+        }
+        let mut took = false;
+        for c in chars {
+            if lock.field.len() >= FIELD_LIMIT {
+                break;
+            }
+            lock.field.push(c);
+            took = true;
+        }
+        if took {
+            lock.face.error_edge = false;
+        }
+        self.field_changed();
+    }
+
+    fn clear_field(&mut self) {
+        self.isle.lock.selected = false;
+        self.isle.lock.field.zeroize();
+        self.field_changed();
     }
 
     fn field_changed(&mut self) {
@@ -528,6 +616,7 @@ impl State {
         let lock = &mut self.isle.lock;
         lock.pending = false;
         lock.field.zeroize();
+        lock.selected = false;
         match outcome {
             Ok(isle_auth::Outcome {
                 result: isle_auth::Result::Ok,
@@ -575,6 +664,7 @@ impl State {
             task.abort();
         }
         lock.field.zeroize();
+        lock.selected = false;
         lock.pending = false;
         lock.status = Status::None;
         lock.failures = 0;

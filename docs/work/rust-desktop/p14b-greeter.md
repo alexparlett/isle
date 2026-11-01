@@ -210,8 +210,9 @@ it also falls back to tuigreet on its own.
 ### The field
 
 18. **The field takes a macOS password field's chords, on the lock and the
-    greeter.** By the chord as the typing keyboard's profile names it, so
-    Cmd on a Mac keyboard and Ctrl on a PC one:
+    greeter.** By the physical chord as the typing keyboard's profile names
+    it, read before translation: Cmd is a Mac keyboard's Cmd and a PC
+    keyboard's left Alt (P5):
     - Cmd+A selects everything typed: the dots take `selection`; the next
       character replaces them, Backspace or Delete clears them.
     - Cmd+Backspace and Option+Backspace clear the field (macOS's secure

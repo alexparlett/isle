@@ -100,6 +100,8 @@ pub struct Face {
     pub user: String,
     pub picture: Option<PathBuf>,
     pub dots: usize,
+    /// Cmd+A selected the dots.
+    pub selected: bool,
     pub line: Line,
     /// The field takes no keys: checking, or locked out.
     pub held: bool,

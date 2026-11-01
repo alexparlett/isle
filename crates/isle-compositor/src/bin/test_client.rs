@@ -970,6 +970,8 @@ impl Client {
             ("linger", _) => self.linger = true,
             ("copy", _) => self.copy(rest.join(" "), false, qh),
             ("copy-secret", _) => self.copy(rest.join(" "), true, qh),
+            // `\n` in the text is a line break.
+            ("copy-lines", _) => self.copy(rest.join(" ").replace("\\n", "\n"), false, qh),
             ("withdraw", _) => {
                 if let Some(source) = self.copy_source.take() {
                     source.destroy();

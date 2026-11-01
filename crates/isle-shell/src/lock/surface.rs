@@ -268,6 +268,7 @@ impl Component for FaceView {
                                 )
                                 .child(Field {
                                     dots: face.dots,
+                                    selected: face.selected,
                                     held: face.held,
                                     locked_out: face.locked_out,
                                     error_edge: face.error_edge,
@@ -522,6 +523,7 @@ fn picture(theme: &Theme, face: &Face) -> freya::prelude::Rect {
 #[derive(PartialEq)]
 struct Field {
     dots: usize,
+    selected: bool,
     held: bool,
     locked_out: bool,
     error_edge: bool,
@@ -579,10 +581,15 @@ impl Component for Field {
                     "Enter password",
                 ))
         } else {
-            rect()
+            let dots = rect()
                 .horizontal()
                 .cross_align(Alignment::Center)
                 .spacing(t.space_xs)
+                .maybe(self.selected, |el| {
+                    el.padding((3., t.space_xxs))
+                        .corner_radius(3.)
+                        .background(colour(t.colour_accent).with_a((t.selection_mix * 255.) as u8))
+                })
                 .children((0..shown).map(|_| {
                     rect()
                         .width(Size::px(dot))
@@ -590,8 +597,12 @@ impl Component for Field {
                         .corner_radius(dot / 2.0)
                         .background(colour(t.colour_text))
                         .into_element()
-                }))
-                .maybe_child(caret)
+                }));
+            rect()
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .child(dots)
+                .maybe_child((!self.selected).then_some(caret).flatten())
         };
         plate(&theme, self.solid, height / 2.0)
             .a11y_id(a11y)

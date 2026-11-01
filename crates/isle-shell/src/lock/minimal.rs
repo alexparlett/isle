@@ -137,6 +137,11 @@ impl Component for Minimal {
         let dots = rect()
             .horizontal()
             .spacing(t.space_xs)
+            .maybe(face.selected, |el| {
+                el.padding((3., t.space_xxs))
+                    .corner_radius(3.)
+                    .background(colour(t.colour_accent).with_a((t.selection_mix * 255.) as u8))
+            })
             .children((0..face.dots.min(24)).map(|_| {
                 rect()
                     .width(Size::px(6.))

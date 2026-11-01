@@ -1,5 +1,11 @@
 # Progress
 
+## 2026-11-01 (P14b)
+
+- 14b.0: the record. P14 split again at the user's choice: P14b the greeter, P14c the rest
+  of the switch. The plan reviewed with every recommendation taken; the console keys
+  (Ctrl+Option+F1–F12, already Isle's) are the way out of a misbehaving greeter.
+
 ## 2026-11-01 (P19c)
 
 - 19c.0: the record. The plan reviewed with every recommendation taken; P1's Keychain gains

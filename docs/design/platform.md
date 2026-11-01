@@ -100,7 +100,7 @@ loaded.
 **Settled in P2.** `kdl` 6.7 parses; `knus` reads only KDL v1. A Set is
 written into the file's own text at its value's span, never by printing
 the document, which loses whitespace (B36). No `include`. How v1's keys map
-onto the new schema is P14b's import.
+onto the new schema is P14c's import.
 
 ### State
 
@@ -188,7 +188,7 @@ source for both Qt versions. Chromium themes on Wayland only with
 `--qt-version=6` (inventory §16). D73: removing xdg-desktop-portal-gtk would
 take dark mode from every GTK app. Under the GTK 3 platform theme Qt opens
 GTK's own file chooser rather than the portal's, so Qt apps would miss
-Isle's Open and Save panels; P14b tests the alternatives (P1,
+Isle's Open and Save panels; P14c tests the alternatives (P1,
 `system/theming.md`).
 
 **Open for its packet.** The template engine, and targets beyond the floor
@@ -651,7 +651,7 @@ half-finished change. D22: no installer image. D77, D79: one authorisation.
 D83: what Isle calls arrives with Isle.
 
 **Answered in P14a.** One package, `isle-git`, its version the commit
-(B100). The bootstrap command, autologin and the PAM lines are P14b's.
+(B100). The bootstrap command, autologin and the PAM lines are P14c's.
 
 ### Updates
 

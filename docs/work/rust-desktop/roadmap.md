@@ -168,7 +168,8 @@ P12. Intent: apps.md.
 **P14a · Installed, beside Hyprland.** Built 2026-10-19, host run pending:
 `p14a-session.md`, B100–B103.
 P14 split at the user's choice: Isle installed and chosen at sign-in before
-the parity packets, the switch after them (P14b). The package (`isle-git`,
+the parity packets, the switch after them (P14b, then split into the
+greeter, P14b, and the switch, P14c). The package (`isle-git`,
 a PKGBUILD from git, B29) with the six binaries, Settings in software
 (B26), the session entry, `isle.portal` and `isle-portals.conf`, Settings'
 desktop entry and D-Bus service file, `/usr/lib/pam.d/isle`, the NVIDIA
@@ -186,6 +187,15 @@ The dev loop that replaces `isle-dev-sync` for the new Isle: the checkout's
 HEAD packaged and installed. Ends with the host signing into Isle from
 tuigreet, and P12's and P13's host runs made on the installed build.
 Intent: platform.md, compositor.md.
+
+**P14b · The greeter.** Split from the switch at the user's choice
+(2026-11-01) and built before the parity packets end. The compositor's
+greeter mode under greetd (B26): the lock's face with its user list and
+session menu, drawing the look the user's session publishes for it (where:
+`session-2026.md` §1), replacing tuigreet, Hyprland still on the session
+menu; greetd's PAM service as Isle's own file. The lock's field takes the
+editing chords a password field takes on macOS. Intent: platform.md
+Session start and greeter, compositor.md.
 
 ## Parity
 
@@ -315,18 +325,16 @@ Intent: all.
 
 ## Milestone M2: Isle replaces v1 on the host
 
-**P14b · The switch.** The compositor's greeter mode under greetd (B26),
-the lock's face with its user list and session menu, drawing the look the
-user's session publishes for it (where: `session-2026.md` §1), replacing
-tuigreet; greetd's PAM service as Isle's own file. The one-time import of
-v1's preferences, window places and launch counts (B27). Theming installed
-apps from tokens as P1's `system/theming.md` maps them (`session-2026.md`
-§7 and §8), with Qt apps reaching Isle's file panels (§6). The rest of
-`isle setup`: keyring and fingerprint PAM lines, autologin, groups, the
-bootstrap command. The update path through paru and pacman, and restart
-owed. Scan-out of a second GPU's connectors (moved from P2; §2), if a
-screen is on the iGPU by then. v1's user units disabled. Ends with the host
-booting into the new Isle. Intent: platform.md, compositor.md.
+**P14c · The switch.** Split from P14b at the user's choice (2026-11-01).
+The one-time import of v1's preferences, window places and launch counts
+(B27). Theming installed apps from tokens as P1's `system/theming.md` maps
+them (`session-2026.md` §7 and §8), with Qt apps reaching Isle's file
+panels (§6). The rest of `isle setup`: keyring and fingerprint PAM lines,
+autologin, groups, the bootstrap command. The update path through paru and
+pacman, and restart owed. Scan-out of a second GPU's connectors (moved from
+P2; §2), if a screen is on the iGPU by then. v1's user units disabled. Ends
+with the host booting into the new Isle. Intent: platform.md,
+compositor.md.
 
 **P21 · Cut-over.** Remove v1's tree (`shell/`, `hypr/`, `plugins/`,
 `native/`, `theme/`) and its tooling; this branch becomes `main`.

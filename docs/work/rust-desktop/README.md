@@ -26,6 +26,7 @@ one at a time.
 - `p12-gaming.md`: P12, gaming and night light.
 - `p13-settings.md`: P13, Settings, core; its gates in `p13/`.
 - `p14a-session.md`: P14a, installed beside Hyprland.
+- `p14b-greeter.md`: P14b, the greeter.
 - `p15-files.md`: P15, Files.
 - `p16-mission-control.md`: P16, Mission Control, gestures, Split View and
   Stage Manager.

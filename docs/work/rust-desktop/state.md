@@ -668,3 +668,9 @@
   1024-bit, gcr's is 1536; no `password-strength` for a new keyring). Next: 19c.13, the host run with the user
   (package and install, the keyring's items read through, a Wi-Fi password, `id_ed25519` in
   the agent, a login made and deleted, bars 1 and 2), then the close's record.
+- P14 split again (2026-11-01, the user's choice): P14b is the greeter
+  alone, built now, and the rest of the switch (the v1 import, theming,
+  the rest of `isle setup`, updates, a second GPU, v1's units) is P14c.
+  P14b planned in `p14b-greeter.md`, reviewed: every recommendation
+  taken; it includes the lock's field taking Cmd+A, Cmd+V and
+  Cmd+Backspace. Building.

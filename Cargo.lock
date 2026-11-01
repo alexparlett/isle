@@ -4856,6 +4856,7 @@ dependencies = [
  "isle-apps",
  "isle-bus",
  "isle-fakes",
+ "isle-fs",
  "isle-ipc",
  "isle-network",
  "isle-secrets",
@@ -4868,6 +4869,7 @@ dependencies = [
  "ssh-key",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "zbus",
  "zeroize",
 ]

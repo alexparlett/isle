@@ -651,3 +651,7 @@
   Cleanup's rows read through before anything moves, the System card
   against `paccache` and `du`, a small basket moved and undone), then the
   close's record.
+- P19b done 2026-11-01: the user passed the host run. B138 (an alert's
+  action trails as its default) and B139 (btrfs bytes on disk through
+  `isle-clean-helper extents`) came of it. P19a's 19a.15 host run is still
+  owed. Next: P19c.

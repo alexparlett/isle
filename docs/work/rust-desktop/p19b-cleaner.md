@@ -472,3 +472,17 @@ The user reviewed the plan on 2026-10-31 and took every recommendation.
 - **`noatime` everywhere.** Untouched is weaker on the host than on a Mac:
   "Not changed in" is the honest reading, and the view is no help for
   files only read.
+
+## Outcome
+
+Built 2026-10-31 to 11-01; the user passed the host run on 2026-11-01.
+Every phase landed but the drag out of rows and tiles, cut as choice 1
+allowed. The host run changed three things: an alert's action trails as its
+default (B138); on btrfs every file counts at its bytes on disk, through
+`isle-clean-helper extents` and a second walk (B139, choice 28), after the
+build folders showed 1.4 TB on a 1 TB disk; Space's map gained the tooltip
+it lacked, and Freya's tooltip takes Isle's colours in every app. Bars: the
+home warm in 0.43 s, All disks in 0.5 s, the tree 54 MB, frames under 8 ms
+by estimate. Not built: the basket's and rows' motion, Map and List's
+crossfade, Game Mode, the Used figure taken from free rather than available
+blocks. Left for P20: the Storage page on `isle-scan`.

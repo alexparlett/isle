@@ -793,6 +793,34 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   a restart of the helper (B105). The helper also renders PDF pages and
   video frames for Quick Look.
 
+## How Cleaner scans
+
+- **The engine is `isle-scan`,** with no UI, shared with P20's Storage
+  page. Up to eight workers each read one folder at a time with
+  `getdents64` and `statx`, never following a link. A walk crosses only into
+  a mount of the filesystem it is on, never into `.snapshots`, and counts a
+  file with several names once. It keeps folders, not files: each folder's
+  own and total bytes and files and its own bytes by kind, plus the 500
+  largest files, the 500 largest unused for six months and the duplicate
+  candidates. Totals by kind are added up for the folders a view shows.
+- **On btrfs the second walk counts bytes on disk** (B139). `st_blocks`
+  counts bytes before compression, so after the walk `isle-clean-helper
+  extents` reads each inode's compressed bytes through
+  `BTRFS_IOC_TREE_SEARCH_V2` as root, each extent once, and the walk is
+  made again with them, keyed by mount source, subvolume and inode.
+- **Kinds and rules are data over the tree.** Ten kinds from folder names
+  first, then endings. Cleanup's rules are KDL (`data/cleaner/rules.kdl`,
+  the user's file beside it), matched over the tree in memory, outer before
+  inner, a named rule before the general one; Steam's paths expand to every
+  library `isle-games` reads.
+- **Duplicates come after the walk,** at idle I/O priority: the candidates
+  grouped by size, both ends' xxh3, then BLAKE3, read with `O_NOATIME`;
+  FIEMAP says which copies share every extent.
+- **Nothing moves but the basket.** One `isle-fs` Trash job, each item
+  checked again for its device, inode and kind of file, with one undo; the
+  system's share through the helper's fixed subcommands under Isle's own
+  polkit actions.
+
 ## How a file job runs
 
 - **A job is a `Work` run on a thread of its own** (B106): copy, move,

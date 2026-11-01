@@ -275,8 +275,8 @@ the shell's image caches bounded. `Displays1.Perf` and `isle perf` keep it
 measured, with bars for idle, a client at 144 Hz and an hour's memory.
 Intent: compositor.md, platform.md.
 
-**P19b · Cleaner.** Planned 2026-10-29, reviewed 2026-10-31 with every
-recommendation taken, building: `p19b-cleaner.md`.
+**P19b · Cleaner.** Built 2026-10-31 to 11-01, the host run done:
+`p19b-cleaner.md`.
 `isle-scan`, a crate P20's Storage page reuses: a walk hand-rolled on
 `rustix` (folders kept, allocated blocks, links once, mounts crossed by the
 mount table, never `.snapshots`), v1's kinds, the rules as KDL with v1's

@@ -417,3 +417,32 @@ fn bench() {
     );
     let _ = fs::remove_dir_all(&state);
 }
+
+#[test]
+fn a_map_tile_says_what_it_is_after_a_rest() {
+    let _turn = serial();
+    let home = home("tooltip");
+    let mut test = runner(home.clone(), 1200.);
+    settle_until(&mut test, "scanned");
+    click(&mut test, "Space");
+    for _ in 0..20 {
+        test.poll(
+            std::time::Duration::from_millis(16),
+            std::time::Duration::from_millis(20),
+        );
+    }
+    let at = test
+        .find(|node, element| {
+            Label::try_downcast(element)
+                .filter(|l| l.text == "Videos")
+                .map(|_| node.layout().area.center())
+        })
+        .expect("the Videos tile");
+    test.move_cursor((f64::from(at.x), f64::from(at.y) + 40.));
+    assert!(
+        !labels(&test).iter().any(|l| l.contains(" · Video")),
+        "not before the rest"
+    );
+    settle_until(&mut test, "8.0 MB · Video");
+    let _ = fs::remove_dir_all(&home);
+}

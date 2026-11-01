@@ -2,6 +2,11 @@
 
 ## 2026-11-01
 
+- P19b: Space's map tooltip (the host run found none). After
+  `timing-tooltip-ms` resting on a tile, `conventions.md`'s tooltip by the
+  pointer: the name, then size and kind; at once under a selected tile too
+  small for its label; gone on a press. Tested headless.
+
 - P19b, bytes on disk (B139). On the host the build folders showed 1.4 TB
   on a 1 TB disk and freed about 605 GB: `st_blocks` counts btrfs's bytes
   before compression and reflinked copies in full. `isle-clean-helper

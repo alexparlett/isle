@@ -38,3 +38,13 @@ fn main() {
         .filter(|p| p.is_dir());
     isle_app::run(SPEC, window::Cleaner { folder });
 }
+
+/// A sleep on the event loop, from a timer thread.
+pub async fn sleep(duration: std::time::Duration) {
+    let (tx, rx) = futures_channel::oneshot::channel::<()>();
+    std::thread::spawn(move || {
+        std::thread::sleep(duration);
+        let _ = tx.send(());
+    });
+    let _ = rx.await;
+}

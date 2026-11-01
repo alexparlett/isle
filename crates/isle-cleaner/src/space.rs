@@ -264,6 +264,22 @@ impl Component for Space {
         let (entries, total) = entries(&self.snapshot, self.folder.as_deref());
         let mut map_size = use_state(|| (0f32, 0f32));
         let mut hover = use_state(|| None::<PathBuf>);
+        let mut pointer = use_state(|| (0f32, 0f32));
+        // The tile the pointer has rested on for `timing-tooltip-ms`.
+        let mut tip = use_state(|| None::<PathBuf>);
+        let dwell = theme.tokens.timing_tooltip_ms as u64;
+        use_side_effect(move || {
+            let over = hover.read().clone();
+            tip.set(None);
+            if let Some(path) = over {
+                spawn(async move {
+                    crate::sleep(std::time::Duration::from_millis(dwell)).await;
+                    if hover.peek().as_ref() == Some(&path) {
+                        tip.set(Some(path));
+                    }
+                });
+            }
+        });
         let controller = use_scroll_controller(ScrollConfig::default);
         let open = use_state(std::collections::BTreeSet::<PathBuf>::new);
         let reduced = theme.appearance.reduce_motion;
@@ -500,6 +516,62 @@ impl Component for Space {
                 1.
             };
             let hovered = hover.read().clone();
+            // `conventions.md`'s tooltip: the name, then size and kind. After a rest on a tile,
+            // by the pointer; at once for a selected tile too small for its label, under it.
+            let scale = theme.appearance.text_scale.max(1.);
+            let unlabelled = |r: &Rect| {
+                r.w < t.size_tile_label_width * scale || r.h < t.size_tile_label_height * scale
+            };
+            let placed = |path: &PathBuf| {
+                entries
+                    .iter()
+                    .zip(&rects)
+                    .take(kept)
+                    .find(|(e, _)| &e.path == path)
+                    .map(|(e, r)| (e.clone(), *r))
+            };
+            let tooltip = match (tip.read().clone(), self.selected.clone()) {
+                (Some(path), _) => placed(&path).map(|(e, _)| {
+                    let (x, y) = *pointer.read();
+                    (e, (x + 12., y + 18.))
+                }),
+                (None, Some(path)) => placed(&path)
+                    .filter(|(_, r)| unlabelled(r))
+                    .map(|(e, r)| (e, (r.x, r.y + r.h + t.space_xs))),
+                _ => None,
+            }
+            .map(|(e, (x, y))| {
+                let (w, h) = *map_size.read();
+                rect()
+                    .position(
+                        Position::new_absolute()
+                            .left(x.min(w - 240.).max(0.))
+                            .top(y.min(h - 28.).max(0.)),
+                    )
+                    .padding((3., t.space_s))
+                    .corner_radius(t.radius_small)
+                    .background(colour(t.colour_window_raised))
+                    .maybe(true, |el| {
+                        isle_ui::shadows(&t.shadow_menu)
+                            .into_iter()
+                            .fold(el, |el, s| el.shadow(s))
+                    })
+                    .horizontal()
+                    .spacing(t.space_s)
+                    .child(text::line(
+                        &theme,
+                        text::Style::Callout,
+                        colour(t.colour_text),
+                        e.name.clone(),
+                    ))
+                    .child(text::line(
+                        &theme,
+                        text::Style::Callout,
+                        colour(t.colour_text_2),
+                        format!("{} · {}", size(e.bytes), e.kind.name()),
+                    ))
+                    .into_element()
+            });
             let tiles: Vec<Element> = rects
                 .iter()
                 .enumerate()
@@ -610,12 +682,14 @@ impl Component for Space {
                         })
                         .on_mouse_move(move |e: Event<MouseEventData>| {
                             let (x, y) = (e.element_location.x as f32, e.element_location.y as f32);
+                            pointer.set((x, y));
                             hover.set_if_modified(at_move(x, y).map(|(e, _)| e.path));
                         })
                         .on_pointer_leave(move |_| hover.set_if_modified(None))
                         .on_global_key_down(on_key)
                         .on_mouse_down(move |e: Event<MouseEventData>| {
                             let (x, y) = (e.element_location.x as f32, e.element_location.y as f32);
+                            tip.set(None);
                             let hit = at_press(x, y);
                             if e.button == Some(MouseButton::Right) {
                                 if let Some((hit, _)) = at_menu(x, y) {
@@ -634,7 +708,8 @@ impl Component for Space {
                             }
                             on.call(Act::Select(hit.map(|(h, _)| h.path)));
                         })
-                        .children(tiles),
+                        .children(tiles)
+                        .maybe_child(tooltip),
                 )
                 .into_element()
         };

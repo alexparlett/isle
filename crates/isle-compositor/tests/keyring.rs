@@ -175,10 +175,16 @@ async fn a_new_keyring_prompt_returns_the_chosen_password() {
         test.key(key, true).await.unwrap();
         test.key(key, false).await.unwrap();
     }
-    let Some(Called::Ready(reply, _, closing)) = called.recv().await else {
+    let Some(Called::Ready(reply, properties, closing)) = called.recv().await else {
         panic!("no answer");
     };
     assert_eq!(reply, "yes");
+    // gnome-keyring takes a new password whose strength is not above 0 as blank.
+    let strength = properties.get("password-strength").expect("a strength");
+    assert!(
+        matches!(&**strength, Value::Value(v) if matches!(**v, Value::I32(n) if n > 0)),
+        "{strength:?}"
+    );
     let key = mine.key(&opening).unwrap();
     let secret = receive(&closing, &key).unwrap();
     assert_eq!(secret.as_slice(), b"sec");

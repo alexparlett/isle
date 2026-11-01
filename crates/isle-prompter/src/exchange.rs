@@ -1,4 +1,4 @@
-//! Gcr's `sx-aes-1` secret exchange: Diffie–Hellman over the 1024-bit IKE group, a key by
+//! Gcr's `sx-aes-1` secret exchange: Diffie–Hellman over the 1536-bit IKE group, a key by
 //! HKDF-SHA256, the secret in AES-128-CBC; written as a key file of base64 values. oo7's
 //! `server/src/gnome/secret_exchange.rs` is the reference.
 
@@ -11,7 +11,7 @@ use zeroize::Zeroizing;
 
 const PROTOCOL: &str = "[sx-aes-1]";
 
-/// RFC 2409's second Oakley group.
+/// RFC 3526's 1536-bit MODP group, gcr's `ietf-ike-grp-modp-1536`.
 static PRIME: LazyLock<BigUint> = LazyLock::new(|| {
     BigUint::from_bytes_be(&[
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xC9, 0x0F, 0xDA, 0xA2, 0x21, 0x68, 0xC2,
@@ -21,13 +21,17 @@ static PRIME: LazyLock<BigUint> = LazyLock::new(|| {
         0xF2, 0x5F, 0x14, 0x37, 0x4F, 0xE1, 0x35, 0x6D, 0x6D, 0x51, 0xC2, 0x45, 0xE4, 0x85, 0xB5,
         0x76, 0x62, 0x5E, 0x7E, 0xC6, 0xF4, 0x4C, 0x42, 0xE9, 0xA6, 0x37, 0xED, 0x6B, 0x0B, 0xFF,
         0x5C, 0xB6, 0xF4, 0x06, 0xB7, 0xED, 0xEE, 0x38, 0x6B, 0xFB, 0x5A, 0x89, 0x9F, 0xA5, 0xAE,
-        0x9F, 0x24, 0x11, 0x7C, 0x4B, 0x1F, 0xE6, 0x49, 0x28, 0x66, 0x51, 0xEC, 0xE6, 0x53, 0x81,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0x9F, 0x24, 0x11, 0x7C, 0x4B, 0x1F, 0xE6, 0x49, 0x28, 0x66, 0x51, 0xEC, 0xE4, 0x5B, 0x3D,
+        0xC2, 0x00, 0x7C, 0xB8, 0xA1, 0x63, 0xBF, 0x05, 0x98, 0xDA, 0x48, 0x36, 0x1C, 0x55, 0xD3,
+        0x9A, 0x69, 0x16, 0x3F, 0xA8, 0xFD, 0x24, 0xCF, 0x5F, 0x83, 0x65, 0x5D, 0x23, 0xDC, 0xA3,
+        0xAD, 0x96, 0x1C, 0x62, 0xF3, 0x56, 0x20, 0x85, 0x52, 0xBB, 0x9E, 0xD5, 0x29, 0x07, 0x70,
+        0x96, 0x96, 0x6D, 0x67, 0x0C, 0x35, 0x4E, 0x4A, 0xBC, 0x98, 0x04, 0xF1, 0x74, 0x6C, 0x08,
+        0xCA, 0x23, 0x73, 0x27, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     ])
 });
 
 /// The prime's length in bytes, to which the shared secret is padded.
-const PRIME_BYTES: usize = 128;
+const PRIME_BYTES: usize = 192;
 
 /// One side of an exchange: a private key and its public half.
 pub struct Exchange {
@@ -37,12 +41,16 @@ pub struct Exchange {
 
 impl Exchange {
     pub fn new() -> Result<Self, getrandom::Error> {
-        let mut private = Zeroizing::new(vec![0u8; 16]);
+        let mut private = Zeroizing::new(vec![0u8; 32]);
         getrandom::fill(&mut private)?;
+        Ok(Self::with_private(private))
+    }
+
+    fn with_private(private: Zeroizing<Vec<u8>>) -> Self {
         let public = BigUint::from(2u32)
             .modpow(&BigUint::from_bytes_be(&private), &PRIME)
             .to_bytes_be();
-        Ok(Self { private, public })
+        Self { private, public }
     }
 
     /// The opening: this side's public key.
@@ -135,6 +143,31 @@ iv=8e3N+gx553PgQlfTKRK3JA==";
             204, 53, 139, 40, 55, 167, 183, 240, 191, 252, 186, 174, 28, 36, 229, 26,
         ];
         assert_eq!(receive(closing, &key).unwrap().as_slice(), b"password");
+    }
+
+    /// libgcr 4.4.1 (`Gcr.SecretExchange`) received this side's opening for the private key
+    /// below and sent "sec": gnome-keyring's half of a prompt, recorded.
+    #[test]
+    fn gcrs_own_exchange_opens() {
+        let mine = Exchange::with_private(Zeroizing::new(
+            (0..32)
+                .map(|i| {
+                    u8::from_str_radix(
+                        &"6b3a1f0c9e2d4b5a7c8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e"
+                            [2 * i..2 * i + 2],
+                        16,
+                    )
+                    .unwrap()
+                })
+                .collect(),
+        ));
+        let gcr = "[sx-aes-1]
+public=AKU2q/7q0NeMEtQZfrsJ2JhFARd/HM01YR0ZyrYxzW/ZDDEsX0F1DxIVaulnOcu/YKkkBbGYtJwmpEtS2eXT/1aiRsiXAQvzQ3jU3+w422hw7ppyw8XpH+li3PGEd/kdV/rR4bAcGRUifB/jcZLr/30a6IfzMz3D9Z7WdylISGNJodlt79w5mo4+ZOqe3DnVFRZzflaoLCqqjloNJX+pJjxAxBEbCza6PsiWPd63AT0aaP4nVX7UCe0IYwcCZoQlbg==
+secret=xYYgJa9p9lQe9+HOPfP3MQ==
+iv=SCFid1LhCJxKRRudVc22dQ==
+";
+        let key = mine.key(gcr).unwrap();
+        assert_eq!(receive(gcr, &key).unwrap().as_slice(), b"sec");
     }
 
     #[test]

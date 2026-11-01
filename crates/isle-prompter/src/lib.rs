@@ -238,8 +238,11 @@ impl Prompter {
         let callback: OwnedObjectPath = callback.into();
         tokio::spawn(async move {
             let reply = (prompter.handler)(request, dismissed).await;
+            let mut strength = None;
             let (answer, choice, closing) = match reply {
                 Reply::Secret { secret, choice } => {
+                    // gnome-keyring takes a new password with no strength above 0 as blank.
+                    strength = Some(i32::from(!secret.is_empty()));
                     let closing = key.as_ref().and_then(|k| {
                         prompter
                             .turns
@@ -263,6 +266,9 @@ impl Prompter {
             // gcr wraps each value twice, and its callers unwrap twice.
             let mut props: HashMap<&str, Value<'_>> = HashMap::new();
             props.insert("choice-chosen", Value::Value(Box::new(Value::from(choice))));
+            if let Some(strength) = strength {
+                props.insert("password-strength", Value::Value(Box::new(Value::from(strength))));
+            }
             if let Err(err) = prompter
                 .conn
                 .call_method(

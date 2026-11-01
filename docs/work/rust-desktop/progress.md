@@ -22,6 +22,17 @@
   (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
   `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
   proxy.
+- The keyring prompter against gnome-keyring 51 (found in 19c.12's walk). Two faults, both
+  there since P9: the secret exchange used the 1024-bit IKE group where gcr's `sx-aes-1` uses
+  the 1536-bit one (`ietf-ike-grp-modp-1536`), so gnome-keyring could not open the password
+  and dismissed an unlock; and a new keyring's password reads as blank to gnome-keyring
+  unless the prompter's reply carries `password-strength` above 0, which it never sent, so
+  every new keyring was offered unencrypted. The exchange's tests had checked AES against
+  oo7's vector and the key against Isle's own other half, never gcr's. Fixed, with a test
+  opening an exchange recorded from libgcr 4.4.1 and the strength asserted in the
+  compositor's new-keyring test. Walked in the VM: the login keyring unlocked through the
+  prompt, a new keyring "Walk" made with a password, a wrong password refused with
+  gnome-keyring's warning, the right one unlocking it.
 - 19c.12: the measures and the walk. Release, headless: opening with 2,000 items 111 ms
   (bar 300), a reveal with the grant held 3.6 ms (bar 100). Choice 26's tests: 2,000 items
   listed, searched, selected and scrolled with no secret fetched, Show fetching one; a
@@ -41,10 +52,8 @@
   "Keyring"; the empty line crowded out New SSH key…; a wiped field took no keys in an app
   window and no focus from a click (it now takes keys while focused, for the compositor's
   prompts too). Seen once and not reproduced: ⌘⌫ on a just-made key moved nothing.
-  Not walked: Unlock… through the keyring prompt — the compositor's prompter answers
-  gnome-keyring 51 and the unlock is dismissed though the same password unlocks it from the
-  command line (creating a keyring fails alike); a regression since P9's walk, left to its
-  own session. Nor oo7-daemon (not installed in the guest), idle ending the grant (unit
+  Not walked then: Unlock… through the keyring prompt, which the compositor's prompter
+  failed (fixed after; the entry above). Nor oo7-daemon (not installed in the guest), idle ending the grant (unit
   tested), an RSA key, editing an Apps item.
 - 19c.11: the narrow window: the sidebar collapses under 760, and under 680 the list and
   the detail stack, the detail over the list with Back; Increase Contrast rings the list's

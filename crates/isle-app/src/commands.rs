@@ -14,6 +14,8 @@ pub enum Menu {
     View,
     /// Monitor's: what acts on the selected process.
     Process,
+    /// Keychain's: what acts on the selected item.
+    Item,
     Go,
     Window,
     Help,
@@ -27,6 +29,7 @@ impl Menu {
             Menu::Edit => "Edit".into(),
             Menu::View => "View".into(),
             Menu::Process => "Process".into(),
+            Menu::Item => "Item".into(),
             Menu::Go => "Go".into(),
             Menu::Window => "Window".into(),
             Menu::Help => "Help".into(),

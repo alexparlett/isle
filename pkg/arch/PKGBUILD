@@ -75,13 +75,13 @@ build() {
   # (B26).
   cargo build --frozen --release \
     -p isle-compositor -p isle-session -p isle-cli -p isle-auth -p isle-record -p isle-providers
-  cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail -p isle-monitor -p isle-process-helper -p isle-cleaner -p isle-clean-helper
+  cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail -p isle-monitor -p isle-process-helper -p isle-cleaner -p isle-clean-helper -p isle-keychain
 }
 
 package() {
   cd isle
   local target="${ISLE_TARGET_DIR:-$srcdir/target}/release"
-  for bin in isle-compositor isle-session isle isle-auth isle-record isle-provider-init isle-settings isle-files isle-thumbnail isle-monitor isle-cleaner; do
+  for bin in isle-compositor isle-session isle isle-auth isle-record isle-provider-init isle-settings isle-files isle-thumbnail isle-monitor isle-cleaner isle-keychain; do
     install -Dm755 "$target/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm644 data/session/isle.desktop "$pkgdir/usr/share/wayland-sessions/isle.desktop"
@@ -100,6 +100,8 @@ package() {
   install -Dm755 "$target/isle-clean-helper" "$pkgdir/usr/lib/isle/isle-clean-helper"
   install -Dm644 data/polkit/io.github.alexparlett.Isle.Cleaner.policy \
     "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Cleaner.policy"
+  install -Dm644 data/polkit/io.github.alexparlett.Isle.Keychain.policy \
+    "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Keychain.policy"
   install -Dm644 data/polkit/io.github.alexparlett.Isle.Monitor.policy \
     "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Monitor.policy"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Monitor.desktop \
@@ -110,6 +112,10 @@ package() {
     "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Cleaner.desktop"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Cleaner.service \
     "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Cleaner.service"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Keychain.desktop \
+    "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Keychain.desktop"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Keychain.service \
+    "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Keychain.service"
   install -Dm644 data/apps/org.freedesktop.FileManager1.service \
     "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.FileManager1.service"
   install -Dm644 data/pam/isle "$pkgdir/usr/lib/pam.d/isle"

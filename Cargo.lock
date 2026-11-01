@@ -4843,6 +4843,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-keychain"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "freya",
+ "freya-core",
+ "freya-testing",
+ "futures-channel",
+ "futures-util",
+ "isle-app",
+ "isle-apps",
+ "isle-bus",
+ "isle-fakes",
+ "isle-ipc",
+ "isle-network",
+ "isle-secrets",
+ "isle-settings",
+ "isle-state",
+ "isle-tokens",
+ "isle-ui",
+ "jiff",
+ "serde",
+ "ssh-key",
+ "tokio",
+ "tracing",
+ "zbus",
+ "zeroize",
+]
+
+[[package]]
 name = "isle-keys"
 version = "0.1.0"
 dependencies = [

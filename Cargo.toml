@@ -23,6 +23,7 @@ isle-disks = { path = "crates/isle-disks" }
 isle-focus = { path = "crates/isle-focus" }
 isle-fs = { path = "crates/isle-fs" }
 isle-scan = { path = "crates/isle-scan" }
+isle-secrets = { path = "crates/isle-secrets" }
 isle-files = { path = "crates/isle-files" }
 isle-thumbnail = { path = "crates/isle-thumbnail" }
 isle-games = { path = "crates/isle-games" }

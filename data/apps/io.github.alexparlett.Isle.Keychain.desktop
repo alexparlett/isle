@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Keychain
+Comment=Find and copy your saved passwords, Wi-Fi networks and SSH keys
+Icon=security-high
+Exec=isle-keychain
+DBusActivatable=true
+StartupNotify=true
+Categories=System;Security;Utility;
+Keywords=Passwords;Keyring;Secrets;Logins;Wi-Fi;SSH;Keys;Generate Password;
+OnlyShowIn=Isle;

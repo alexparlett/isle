@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Keychain's reveal gate, asked for its own process (p19c-keychain.md choice 16). -->
+<policyconfig>
+  <vendor>Isle</vendor>
+  <icon_name>security-high</icon_name>
+
+  <action id="io.github.alexparlett.Isle.Keychain.reveal">
+    <description>Show or copy a saved password</description>
+    <message>Keychain wants to show or copy a saved password.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_self</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

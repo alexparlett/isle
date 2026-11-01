@@ -22,6 +22,14 @@
   (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
   `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
   proxy.
+- 19c.6: `isle-keychain`: the store on the worker (its own Secret Service connection, the
+  system bus for NetworkManager and polkit, `~/.ssh` and the agent), the toolbar with its
+  title and count, the sidebar of kinds and keyrings with tiles, counts and locks, the list's
+  two-line rows with the locked and missing rows at its head, the detail for logins, app
+  secrets, Wi-Fi and SSH keys, search by word starts, Show and Copy behind the gate with the
+  shown value hidden by time, by the window going unseen and at lock, the item, keyring and
+  More menus, the command table, the policy, entry, service and package. Headless: every kind
+  listed with no fetch, Show fetching once and the grant covering the next click.
 - 19c.5 in part: the gate (`CheckAuthorization` for Keychain's own process, idle and lock),
   the generator, `isle-app`'s secret selection (zeroed, withdrawn, replaced) and
   `Shell1.Copied`; the compositor clears a withdrawn secret and leaves a later copy alone.

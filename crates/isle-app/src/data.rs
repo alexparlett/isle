@@ -68,8 +68,21 @@ pub enum Action {
     Move,
 }
 
+/// How a secret selection ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SecretEnd {
+    /// Another copy, this app's or another's, took the selection.
+    Replaced,
+    /// The app withdrew it.
+    Withdrawn,
+}
+
 enum Ask {
     SetSelection(Contents),
+    /// A selection whose contents are zeroed when it ends, and which says how it ended.
+    SetSecret(Contents, futures_channel::oneshot::Sender<SecretEnd>),
+    /// Ends the secret selection, if it is still the selection.
+    WithdrawSecret,
     ReadSelection(Vec<String>, mpsc::Sender<Option<(String, Vec<u8>)>>),
     StartDrag { surface: u32, contents: Contents },
     /// The drop target's type of choice for drags onto the app.
@@ -118,6 +131,7 @@ impl Data {
             serial: 0,
             press: None,
             selection: None,
+            secret: None,
             drag: None,
             accepts: vec!["text/uri-list".into()],
             events,
@@ -146,6 +160,19 @@ impl Data {
     /// Makes `contents` the selection, as the last key or click allows.
     pub fn set_selection(&self, contents: Contents) {
         self.ask(Ask::SetSelection(contents));
+    }
+
+    /// Makes `contents` the selection as a secret: zeroed when it ends, and the receiver
+    /// says whether it was replaced or withdrawn.
+    pub fn set_secret_selection(&self, contents: Contents) -> futures_channel::oneshot::Receiver<SecretEnd> {
+        let (tx, rx) = futures_channel::oneshot::channel();
+        self.ask(Ask::SetSecret(contents, tx));
+        rx
+    }
+
+    /// Withdraws the secret selection; the compositor then clears the selection.
+    pub fn withdraw_secret(&self) {
+        self.ask(Ask::WithdrawSecret);
     }
 
     /// The selection in the first of `types` it is offered as; waits at most a second.
@@ -181,6 +208,8 @@ struct State {
     /// The last button press: its serial and surface, for starting a drag.
     press: Option<(u32, WlSurface)>,
     selection: Option<(CopyPasteSource, Contents)>,
+    /// Set while the selection is a secret.
+    secret: Option<futures_channel::oneshot::Sender<SecretEnd>>,
     drag: Option<(DragSource, Contents)>,
     accepts: Vec<String>,
     events: UnboundedSender<DragEvent>,
@@ -248,6 +277,14 @@ impl State {
             }
             return;
         }
+        if let Ask::WithdrawSecret = ask {
+            self.end_secret(SecretEnd::Withdrawn);
+            let _ = conn.flush();
+            return;
+        }
+        if matches!(ask, Ask::SetSelection(_) | Ask::SetSecret(..)) {
+            self.end_secret(SecretEnd::Replaced);
+        }
         let Some(device) = &self.device else { return };
         match ask {
             Ask::SetSelection(contents) => {
@@ -255,6 +292,13 @@ impl State {
                 source.set_selection(device, self.serial);
                 self.selection = Some((source, contents));
             }
+            Ask::SetSecret(contents, ended) => {
+                let source = self.manager.create_copy_paste_source(qh, contents.iter().map(|(t, _)| t.clone()));
+                source.set_selection(device, self.serial);
+                self.selection = Some((source, contents));
+                self.secret = Some(ended);
+            }
+            Ask::WithdrawSecret => {}
             Ask::ReadSelection(types, reply) => {
                 if let Some((_, contents)) = &self.selection {
                     let found = types.iter().find_map(|t| contents.iter().find(|(c, _)| c == t).cloned());
@@ -295,6 +339,17 @@ impl State {
             Ask::Accept(types) => self.accepts = types,
             Ask::WatchShown(_) => {}
         }
+    }
+
+    /// Zeroes and drops a secret selection, which destroys its source, and says how it ended.
+    fn end_secret(&mut self, end: SecretEnd) {
+        let Some(ended) = self.secret.take() else { return };
+        if let Some((_, mut contents)) = self.selection.take() {
+            for (_, data) in &mut contents {
+                zeroize::Zeroize::zeroize(data);
+            }
+        }
+        let _ = ended.send(end);
     }
 
     fn send(&self, event: DragEvent) {
@@ -393,15 +448,19 @@ impl DataSourceHandler for State {
             .flatten()
             .find(|(s, _)| s == source)
             .and_then(|(_, c)| c.iter().find(|(t, _)| *t == mime).map(|(_, d)| d.clone()));
-        if let Some(data) = contents {
+        if let Some(mut data) = contents {
             std::thread::spawn(move || {
                 let _ = pipe.write_all(&data);
+                zeroize::Zeroize::zeroize(&mut data);
             });
         }
     }
 
     fn cancelled(&mut self, _: &Connection, _: &QueueHandle<Self>, source: &WlDataSource) {
         if self.selection.as_ref().is_some_and(|(s, _)| s.inner() == source) {
+            if self.secret.is_some() {
+                self.end_secret(SecretEnd::Replaced);
+            }
             self.selection = None;
         }
         if self.drag.as_ref().is_some_and(|(s, _)| s.inner() == source) {

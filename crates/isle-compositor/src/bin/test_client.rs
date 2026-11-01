@@ -226,6 +226,8 @@ struct Client {
     /// A drag over this client's window.
     dnd_offer: Option<wl_data_offer::WlDataOffer>,
     copied: Option<String>,
+    /// The source of this client's last copy, kept to withdraw it.
+    copy_source: Option<wl_data_source::WlDataSource>,
     /// The latest serial from the keyboard, for setting the clipboard.
     key_serial: u32,
     /// The bus `badge` sends on, kept so the sender stays until the client exits.
@@ -503,6 +505,7 @@ impl Client {
         }
         device.set_selection(Some(&source), self.key_serial);
         self.copied = Some(text);
+        self.copy_source = Some(source);
         say(0, "copied".into());
     }
 
@@ -967,6 +970,12 @@ impl Client {
             ("linger", _) => self.linger = true,
             ("copy", _) => self.copy(rest.join(" "), false, qh),
             ("copy-secret", _) => self.copy(rest.join(" "), true, qh),
+            ("withdraw", _) => {
+                if let Some(source) = self.copy_source.take() {
+                    source.destroy();
+                }
+                say(0, "withdrawn".into());
+            }
             ("badge", _) => self.badge(&rest),
             ("notify", _) => self.notify(&rest),
             ("tray", _) => self.tray = Some(tray(&rest)),
@@ -1703,7 +1712,12 @@ impl Dispatch<wl_data_device::WlDataDevice, ()> for Client {
                     });
                 }
             }
-            wl_data_device::Event::Selection { id } => state.selection = id,
+            wl_data_device::Event::Selection { id } => {
+                if id.is_none() {
+                    say(0, "selection none".into());
+                }
+                state.selection = id;
+            }
             _ => {}
         }
     }
@@ -2165,6 +2179,7 @@ fn main() {
         selection: None,
         dnd_offer: None,
         copied: None,
+        copy_source: None,
         key_serial: 0,
         launcher: None,
         tray: None,
@@ -2288,7 +2303,13 @@ fn main() {
             }
             while let Some(at) = pending.iter().position(|b| *b == b'\n') {
                 let line: Vec<u8> = pending.drain(..=at).collect();
-                client.command(String::from_utf8_lossy(&line).trim(), &qh);
+                let line = String::from_utf8_lossy(&line);
+                // Reads the clipboard as Ctrl+V does.
+                if line.trim() == "paste" {
+                    client.paste(&connection);
+                } else {
+                    client.command(line.trim(), &qh);
+                }
             }
         }
     }

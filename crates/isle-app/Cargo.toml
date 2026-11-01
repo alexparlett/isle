@@ -17,6 +17,7 @@ freya = { workspace = true, features = ["winit", "accessibility"] }
 freya-core = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
 freya-winit = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
 futures-channel = "0.3"
+zeroize.workspace = true
 futures-util.workspace = true
 isle-ipc.workspace = true
 isle-menus.workspace = true

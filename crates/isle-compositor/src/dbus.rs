@@ -666,6 +666,13 @@ impl Shell {
             .await?)
     }
 
+    async fn copied(&self, kind: String) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| state.island_copied_kind(kind == "password"))
+            .await?;
+        Ok(())
+    }
+
     /// Opens the widgets dashboard as `how` says: `open`, `edit`; `close` closes it.
     async fn widgets(&self, how: String) -> fdo::Result<bool> {
         if !matches!(how.as_str(), "open" | "edit" | "close") {

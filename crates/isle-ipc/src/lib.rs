@@ -484,6 +484,8 @@ pub mod shell {
         /// The theme or the tokens' status changed.
         #[zbus(signal)]
         fn theme_changed(&self) -> zbus::Result<()>;
+        /// Posts the island's line for a copy an app made: `password`, or empty for any other.
+        fn copied(&self, kind: &str) -> zbus::Result<()>;
         /// Turns a surface that panicked too often back on, closed.
         fn restart(&self, name: &str) -> zbus::Result<bool>;
         /// The surface's accessibility tree as JSON: each node's id, role, label, value,

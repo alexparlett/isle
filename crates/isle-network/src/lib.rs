@@ -443,6 +443,150 @@ pub async fn set_auto_join(saved: &str, on: bool) -> Result<(), Error> {
     Ok(())
 }
 
+/// Where a saved network keeps its password, by its secret's flags.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum Keeps {
+    /// NetworkManager keeps it.
+    System,
+    /// The user's secret agent keeps it, in the keyring.
+    Agent,
+    /// Asked for every time.
+    NotSaved,
+    /// The network has none.
+    Nothing,
+}
+
+/// A saved Wi-Fi profile as Keychain shows it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct SavedWifi {
+    /// Its settings path.
+    pub path: String,
+    pub id: String,
+    pub uuid: String,
+    pub ssid: String,
+    /// `key-mgmt`; empty for an open network.
+    pub security: String,
+    pub keeps: Keeps,
+    /// The setting and key that hold the password: `802-11-wireless-security` and `psk`, say.
+    pub setting: String,
+    pub key: String,
+    /// WPA-Enterprise's identity.
+    pub identity: Option<String>,
+}
+
+fn wifi_profile(path: String, settings: &HashMap<String, HashMap<String, OwnedValue>>) -> Option<SavedWifi> {
+    let section = |name: &str| settings.get(name).cloned().map(Props).unwrap_or_default();
+    let connection = section("connection");
+    if connection.str("type").as_deref() != Some("802-11-wireless") {
+        return None;
+    }
+    let ssid = section("802-11-wireless")
+        .bytes("ssid")
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
+        .unwrap_or_default();
+    let security = section("802-11-wireless-security");
+    let key_mgmt = security.str("key-mgmt").unwrap_or_default();
+    let x = section("802-1x");
+    let (setting, key, flags, identity) = match key_mgmt.as_str() {
+        "" | "owe" => ("", "", None, None),
+        "wpa-eap" | "wpa-eap-suite-b-192" | "ieee8021x" => (
+            "802-1x",
+            "password",
+            Some(x.i64("password-flags").unwrap_or(0)),
+            x.str("identity"),
+        ),
+        "none" => (
+            "802-11-wireless-security",
+            "wep-key0",
+            Some(security.i64("wep-key-flags").unwrap_or(0)),
+            None,
+        ),
+        _ => (
+            "802-11-wireless-security",
+            "psk",
+            Some(security.i64("psk-flags").unwrap_or(0)),
+            None,
+        ),
+    };
+    let keeps = match flags {
+        None => Keeps::Nothing,
+        Some(f) if f & 2 != 0 => Keeps::NotSaved,
+        Some(f) if f & 4 != 0 => Keeps::Nothing,
+        Some(f) if f & 1 != 0 => Keeps::Agent,
+        Some(_) => Keeps::System,
+    };
+    Some(SavedWifi {
+        path,
+        id: connection.str("id").unwrap_or_default(),
+        uuid: connection.str("uuid").unwrap_or_default(),
+        ssid,
+        security: key_mgmt,
+        keeps,
+        setting: setting.to_owned(),
+        key: key.to_owned(),
+        identity,
+    })
+}
+
+/// Every saved Wi-Fi profile, by name, without a password.
+pub async fn saved_wifi() -> Result<Vec<SavedWifi>, Error> {
+    saved_wifi_on(&isle_bus::system().await?).await
+}
+
+pub async fn saved_wifi_on(conn: &Connection) -> Result<Vec<SavedWifi>, Error> {
+    let paths: Vec<OwnedObjectPath> = conn
+        .call_method(
+            Some(NM),
+            SETTINGS_PATH,
+            Some("org.freedesktop.NetworkManager.Settings"),
+            "ListConnections",
+            &(),
+        )
+        .await?
+        .body()
+        .deserialize()?;
+    let mut out = Vec::new();
+    for path in paths {
+        let Ok(reply) = conn
+            .call_method(Some(NM), path.as_str(), Some(SAVED), "GetSettings", &())
+            .await
+        else {
+            continue;
+        };
+        let Ok(settings) = reply
+            .body()
+            .deserialize::<HashMap<String, HashMap<String, OwnedValue>>>()
+        else {
+            continue;
+        };
+        out.extend(wifi_profile(path.to_string(), &settings));
+    }
+    out.sort_by_key(|w| w.id.to_lowercase());
+    Ok(out)
+}
+
+/// The password NetworkManager keeps for a system-owned profile, through its own polkit
+/// check; `None` when it holds none.
+pub async fn wifi_password(
+    conn: &Connection,
+    wifi: &SavedWifi,
+) -> Result<Option<zeroize::Zeroizing<String>>, Error> {
+    type Sections = HashMap<String, HashMap<String, OwnedValue>>;
+    let secrets: Sections = conn
+        .call_method(Some(NM), wifi.path.as_str(), Some(SAVED), "GetSecrets", &(wifi.setting.as_str(),))
+        .await?
+        .body()
+        .deserialize()?;
+    Ok(secrets
+        .get(&wifi.setting)
+        .and_then(|s| s.get(&wifi.key))
+        .and_then(|v| match &**v {
+            Value::Str(s) => Some(zeroize::Zeroizing::new(s.as_str().to_owned())),
+            _ => None,
+        })
+        .filter(|s| !s.is_empty()))
+}
+
 /// Joins a network that does not broadcast its name; its password, if it has one, comes
 /// from the secret agent.
 pub async fn join_hidden(device: &str, ssid: &str, secured: bool) -> Result<(), Error> {

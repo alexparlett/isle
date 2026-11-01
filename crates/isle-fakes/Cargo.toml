@@ -8,5 +8,10 @@ publish.workspace = true
 [dependencies]
 serde.workspace = true
 libc.workspace = true
+oo7 = { version = "=0.6.0", default-features = false, features = ["tokio", "native_crypto", "unstable"] }
 zbus.workspace = true
 zvariant.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+tokio.workspace = true

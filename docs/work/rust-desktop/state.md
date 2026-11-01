@@ -655,3 +655,8 @@
   action trails as its default) and B139 (btrfs bytes on disk through
   `isle-clean-helper extents`) came of it. P19a's 19a.15 host run is still
   owed. Next: P19c.
+- P19c reviewed 2026-11-01, every recommendation taken; building. 19c.0–19c.4 done and 19c.5
+  in part: `isle-secrets` (Secret Service on its own calls with oo7's crypto, kinds, Wi-Fi,
+  SSH and the agent, the gate, the generator), the fakes, `isle-app`'s secret selection,
+  `Shell1.Copied`. polkit's `_keep` outlives ten minutes in the VM, which choice 16 already
+  does not rely on. Next: the policy file, then the window (19c.6).

@@ -287,7 +287,8 @@ one undo; the system's share through `isle-clean-helper`'s four fixed
 subcommands under Isle's own policy; Untouched honest on `noatime`
 disks; P19a's table, the treemap Cleaner's own. Intent: apps.md Cleaner.
 
-**P19c · Keychain.** Planned 2026-10-29, for review: `p19c-keychain.md`.
+**P19c · Keychain.** Planned 2026-10-29, reviewed 2026-11-01 with every
+recommendation taken, building: `p19c-keychain.md`.
 `isle-secrets`, a crate P20's vault and Spotlight's `*` scope reuse: the
 Secret Service through `oo7::dbus` on an encrypted session, lists without
 secrets and one fetch per click, kinds by schema in code, Wi-Fi from

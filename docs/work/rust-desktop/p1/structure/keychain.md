@@ -96,7 +96,8 @@ item says what will stop working ("{app} will ask you to sign in again.").
 - **What gates a reveal** beyond an unlocked source: the user's password
   or fingerprint, asked in the desktop's polkit dialog once when Keychain
   opens and again after it has sat idle (For the user 1). It gates Show,
-  Copy and Spotlight's `*` scope alike.
+  Copy and Spotlight's `*` scope alike. The dialog's message under the
+  title is "Keychain wants to show or copy a saved password."
 - **Shown values hide again** after Keychain's idle period, when the
   window closes or is minimised, and when the session locks (`apps.md`
   Keychain 11). Only one field shows at a time; showing another hides the
@@ -114,7 +115,10 @@ Edit turns the detail's fields into text fields in place, with Cancel and
 Done, as Passwords; the password field has a generator button (Generator,
 below). Delete is in Edit mode, the Item menu (⌘Delete) and the context
 menu, and asks: "Delete “{title}”?", "You can't undo this.", Cancel
-(default) and Delete (`apps.md` Keychain 6; `conventions.md`); an SSH key
+(default) and Delete (`apps.md` Keychain 6; `conventions.md`). A
+browser's or Electron app's storage key says "{app} will lose the
+passwords and sign-ins it keeps." in place of the Apps line, since what it
+encrypted can no longer be read. An SSH key
 is not asked about, since it goes to the Trash with Undo (SSH keys, below).
 Wi-Fi items are read-only here, with no Edit: forgetting a network and its
 settings are Settings › Wi-Fi's, reached by "Wi-Fi Settings…" in the
@@ -193,7 +197,7 @@ own (For the user 1).
 | Provider failed | Its state sentence and error in the content (`copy.md` rule 7); other sources unaffected |
 | Shown value | The field's value in place of the dots, until hidden as above |
 | Editing | The detail's fields as text fields; the list and sidebar still work, and leaving asks to keep or discard changes |
-| Generating a key | Progress in the sheet and on the switcher card; quitting asks (`conventions.md`) |
+| Generating a key | `conventions.md`'s indeterminate bar in the sheet and on the switcher card, since generating gives no progress; quitting asks |
 | Narrow window | The sidebar collapses first, then the list and detail stack, the detail opening over the list with Back |
 | Second screen | No difference |
 | Game in front | An ordinary window |
@@ -284,7 +288,8 @@ The standard map is `conventions.md`'s.
 | Item menu | "Copy Password", "Copy User Name", "Copy Verification Code", "Show Password", "Hide Password", "Edit", "Delete…", "Generate password…", "Lock", "Unlock…", "Change password…" |
 | Generator | "Length", "Upper case", "Lower case", "Digits", "Symbols" |
 | New Login | "Save in" |
-| Delete alert | "Delete “{title}”?", "You can't undo this.", "Cancel", "Delete"; for an Apps item, "{app} will ask you to sign in again." |
+| Delete alert | "Delete “{title}”?", "You can't undo this.", "Cancel", "Delete"; for an Apps item, "{app} will ask you to sign in again."; for a storage key, "{app} will lose the passwords and sign-ins it keeps." |
+| Gate | "Keychain wants to show or copy a saved password." |
 | Leaving Edit | "Discard", "Keep Editing", "Save" |
 | Locked | "{source} is locked" |
 | Empty | "No saved logins", "No saved Wi-Fi networks", "No SSH keys", "No app secrets", "No item selected" |

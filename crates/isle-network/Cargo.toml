@@ -16,3 +16,4 @@ tokio.workspace = true
 tracing.workspace = true
 serde.workspace = true
 zbus.workspace = true
+zeroize.workspace = true

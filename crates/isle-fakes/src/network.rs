@@ -24,11 +24,26 @@ pub struct Ap {
     pub secured: bool,
 }
 
-/// A saved connection: Wi-Fi by its SSID, or a VPN.
+/// A saved connection: Wi-Fi by its SSID, a Wi-Fi profile in full, or a VPN.
 #[derive(Clone, Debug)]
 pub enum Saved {
     Wifi(String),
+    Profile(Profile),
     Vpn(String),
+}
+
+/// A saved Wi-Fi profile with where it keeps its password.
+#[derive(Clone, Debug)]
+pub struct Profile {
+    pub id: String,
+    pub uuid: String,
+    pub ssid: String,
+    /// `key-mgmt`: `wpa-psk`, `sae`, `wpa-eap`, `none` for WEP; empty for an open network.
+    pub key_mgmt: String,
+    /// The password's secret flags: 0 kept by NetworkManager, 1 by the agent, 2 not saved.
+    pub flags: u32,
+    pub password: String,
+    pub identity: Option<String>,
 }
 
 #[derive(Default)]
@@ -52,6 +67,9 @@ struct Model {
     manual: Vec<usize>,
     /// The settings each Update carried, by index, secrets included.
     updates: Vec<(usize, HashMap<String, HashMap<String, OwnedValue>>)>,
+    /// `GetSecrets` refuses, as NetworkManager's polkit check does when the user says no.
+    refuse_secrets: bool,
+    secrets_asked: u32,
 }
 
 /// The settings a secured network's request carries, as NetworkManager sends them.
@@ -193,7 +211,7 @@ impl Manager {
                 m.active.push(i);
                 drop(m);
             }
-            Some(Saved::Vpn(_)) => self.0.lock().unwrap().active.push(i),
+            Some(Saved::Vpn(_) | Saved::Profile(_)) => self.0.lock().unwrap().active.push(i),
             None => return Err(zbus::fdo::Error::InvalidArgs("no such".into())),
         }
         server
@@ -316,6 +334,45 @@ impl Settings {
     }
 }
 
+fn profile_settings(p: &Profile) -> HashMap<String, HashMap<String, OwnedValue>> {
+    let value = |v: Value<'_>| OwnedValue::try_from(v).unwrap();
+    let mut out = HashMap::from([
+        (
+            "connection".to_owned(),
+            HashMap::from([
+                ("type".to_owned(), value(Value::from("802-11-wireless"))),
+                ("id".to_owned(), value(Value::from(p.id.clone()))),
+                ("uuid".to_owned(), value(Value::from(p.uuid.clone()))),
+            ]),
+        ),
+        (
+            "802-11-wireless".to_owned(),
+            HashMap::from([("ssid".to_owned(), value(Value::from(p.ssid.clone().into_bytes())))]),
+        ),
+    ]);
+    if p.key_mgmt.is_empty() {
+        return out;
+    }
+    let mut security = HashMap::from([("key-mgmt".to_owned(), value(Value::from(p.key_mgmt.clone())))]);
+    match p.key_mgmt.as_str() {
+        "wpa-eap" | "ieee8021x" => {
+            let mut x = HashMap::from([("password-flags".to_owned(), OwnedValue::from(p.flags))]);
+            if let Some(identity) = &p.identity {
+                x.insert("identity".to_owned(), value(Value::from(identity.clone())));
+            }
+            out.insert("802-1x".to_owned(), x);
+        }
+        "none" => {
+            security.insert("wep-key-flags".to_owned(), OwnedValue::from(p.flags));
+        }
+        _ => {
+            security.insert("psk-flags".to_owned(), OwnedValue::from(p.flags));
+        }
+    }
+    out.insert("802-11-wireless-security".to_owned(), security);
+    out
+}
+
 struct SavedIface(Shared, usize);
 
 #[zbus::interface(name = "org.freedesktop.NetworkManager.Settings.Connection")]
@@ -333,6 +390,7 @@ impl SavedIface {
                 )])),
             ),
             Saved::Vpn(name) => ("vpn", name, None),
+            Saved::Profile(p) => return profile_settings(&p),
         };
         let manual = self.0.lock().unwrap().manual.contains(&self.1);
         let mut out = HashMap::from([(
@@ -353,12 +411,32 @@ impl SavedIface {
         out
     }
 
-    fn get_secrets(&self, setting: String) -> HashMap<String, HashMap<String, OwnedValue>> {
-        let password = self.0.lock().unwrap().password.clone();
-        HashMap::from([(
-            setting,
-            HashMap::from([("psk".to_owned(), OwnedValue::try_from(Value::from(password)).unwrap())]),
-        )])
+    fn get_secrets(&self, setting: String) -> zbus::fdo::Result<HashMap<String, HashMap<String, OwnedValue>>> {
+        let mut m = self.0.lock().unwrap();
+        m.secrets_asked += 1;
+        if m.refuse_secrets {
+            return Err(zbus::fdo::Error::AccessDenied("not authorized".into()));
+        }
+        let value = |s: String| OwnedValue::try_from(Value::from(s)).unwrap();
+        Ok(match m.saved[self.1].clone() {
+            Saved::Profile(p) => {
+                let key = match p.key_mgmt.as_str() {
+                    "wpa-eap" | "ieee8021x" => "password",
+                    "none" => "wep-key0",
+                    _ => "psk",
+                };
+                let held = if p.flags == 0 { p.password } else { String::new() };
+                let mut out = HashMap::new();
+                if !held.is_empty() {
+                    out.insert(setting, HashMap::from([(key.to_owned(), value(held))]));
+                }
+                out
+            }
+            _ => HashMap::from([(
+                setting,
+                HashMap::from([("psk".to_owned(), value(m.password.clone()))]),
+            )]),
+        })
     }
 
     fn update(&mut self, settings: HashMap<String, HashMap<String, OwnedValue>>) {
@@ -550,6 +628,8 @@ impl NetworkManager {
             deleted: Vec::new(),
             manual: Vec::new(),
             updates: Vec::new(),
+            refuse_secrets: false,
+            secrets_asked: 0,
         }));
         let m = model.lock().unwrap();
         let mut builder = zbus::connection::Builder::address(address)?
@@ -625,6 +705,16 @@ impl NetworkManager {
     pub fn updated(&self, i: usize) -> Option<HashMap<String, HashMap<String, OwnedValue>>> {
         let m = self.model.lock().unwrap();
         m.updates.iter().rev().find(|(at, _)| *at == i).map(|(_, s)| s.clone())
+    }
+
+    /// Whether `GetSecrets` refuses from now on.
+    pub fn refuse_secrets(&self, refuse: bool) {
+        self.model.lock().unwrap().refuse_secrets = refuse;
+    }
+
+    /// `GetSecrets` calls so far.
+    pub fn secrets_asked(&self) -> u32 {
+        self.model.lock().unwrap().secrets_asked
     }
 
     pub fn scans(&self) -> u32 {

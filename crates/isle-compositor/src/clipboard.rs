@@ -141,14 +141,20 @@ impl State {
     }
 
     pub fn island_copied(&mut self) {
+        self.island_copied_kind(false);
+    }
+
+    /// The island's line for a copy: "Password copied" for a password, else "Copied".
+    pub fn island_copied_kind(&mut self, password: bool) {
         use isle_shell::island::model::{Event, EventKind, Form};
+        let (symbol, text) = if password { ("key", "Password copied") } else { ("copy", "Copied") };
         self.isle.island.model.post(
             Event {
                 kind: EventKind::Copied,
                 form: Form::Line {
-                    symbol: "copy".into(),
+                    symbol: symbol.into(),
                     fill: false,
-                    text: "Copied".into(),
+                    text: text.into(),
                 },
                 output: None,
                 app: None,

@@ -1,7 +1,8 @@
 # P19c · Keychain
 
-Planned 2026-10-29, for review. The last of P19's three packets (the
-user's choice, 2026-10-29), after P19a Monitor and P19b Cleaner.
+Planned 2026-10-29. Reviewed by the user on 2026-11-01: every
+recommendation taken. The last of P19's three packets (the user's choice,
+2026-10-29), after P19a Monitor and P19b Cleaner.
 
 `apps.md` Keychain 1–12 says what Keychain gives: the Passwords app with
 Keychain Access's reach. That is saved logins, Wi-Fi passwords, app

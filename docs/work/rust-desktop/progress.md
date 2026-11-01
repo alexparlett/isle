@@ -1,5 +1,31 @@
 # Progress
 
+## 2026-11-01 (P19c)
+
+- 19c.0: the record. The plan reviewed with every recommendation taken; P1's Keychain gains
+  the storage-key delete line, the indeterminate key bar and the gate's message; vault and
+  dice-five vendored; `oo7` pinned at 0.6.0 and `ssh-agent-lib` at 0.6.0, one zbus and one
+  `ssh-key` in the tree. polkit's `_keep` checked in the VM: a grant outlived ten minutes with
+  or without use, so it cannot be the idle timeout (`apps-2026.md` §7). oo7 0.6 refuses
+  go-keyring's content type, so `isle-secrets` makes its own Secret Service calls and takes
+  only oo7's key exchange and AES (§6).
+- 19c.1: `isle-fakes` gains a Secret Service (collections, items, both session algorithms,
+  prompts the test completes, the signals, a count of secrets handed out, plain-only and
+  frozen modes) tested against `oo7::dbus` itself, `CheckAuthorization` on the polkit fake,
+  Wi-Fi profiles with their secret flags on the NetworkManager fake, and a private bus that
+  activates nothing. A test had reached the host's gnome-keyring through the session bus's
+  activation file (it answered "already initialized" and changed nothing); every test now
+  runs on that bus.
+- 19c.2–19c.4: `isle-secrets`: the listing without a secret, one fetch per ask, writes,
+  lock and unlock through the prompt, the signals, a missing or frozen service within three
+  seconds; the kinds over the host's shapes; saved Wi-Fi by where each keeps its password
+  (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
+  `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
+  proxy.
+- 19c.5 in part: the gate (`CheckAuthorization` for Keychain's own process, idle and lock),
+  the generator, `isle-app`'s secret selection (zeroed, withdrawn, replaced) and
+  `Shell1.Copied`; the compositor clears a withdrawn secret and leaves a later copy alone.
+
 ## 2026-11-01
 
 - P19b: Space's map tooltip (the host run found none). After

@@ -660,3 +660,11 @@
   SSH and the agent, the gate, the generator), the fakes, `isle-app`'s secret selection,
   `Shell1.Copied`. polkit's `_keep` outlives ten minutes in the VM, which choice 16 already
   does not rely on. Next: the policy file, then the window (19c.6).
+- P19c built 2026-11-01 through 19c.12: `isle-keychain` with Edit, New login, the delete
+  alerts, the generator, Wi-Fi and SSH details, the SSH sheets and keys to the Trash, the
+  settings window and section, locks, a missing and a frozen keyring, the narrow form;
+  choice 26's tests and the bars; walked in the VM. Found in the walk and left open: the
+  compositor's keyring prompter no longer satisfies gnome-keyring 51 (unlock dismissed, a new
+  keyring treated as blank), a regression since P9. Next: 19c.13, the host run with the user
+  (package and install, the keyring's items read through, a Wi-Fi password, `id_ed25519` in
+  the agent, a login made and deleted, bars 1 and 2), then the close's record.

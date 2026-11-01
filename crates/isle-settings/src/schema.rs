@@ -82,6 +82,8 @@ pub struct Settings {
     pub debug: Debug,
     #[setting(app = "io.github.alexparlett.Isle.Files")]
     pub files: Files,
+    #[setting(app = "io.github.alexparlett.Isle.Keychain")]
+    pub keychain: Keychain,
 }
 
 #[derive(Clone, Debug, PartialEq, Section)]
@@ -1026,6 +1028,17 @@ pub struct Debug {
     /// GTK apps are told the desktop shows their menubar, and hide their own.
     #[setting(default = true)]
     pub gtk_global_menu: bool,
+}
+
+/// Keychain's settings (`p1/structure/keychain.md` § Keychain's settings).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Keychain {
+    /// Seconds a copied password stays on the clipboard before it is withdrawn.
+    #[setting(default = 60, range = 30..=300)]
+    pub clear_copied_after: i32,
+    /// Seconds a shown password stays shown.
+    #[setting(default = 60, range = 30..=300)]
+    pub hide_shown_after: i32,
 }
 
 /// Files' preferences (`p1/structure/files.md` § Files' settings).

@@ -22,6 +22,9 @@
   (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
   `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
   proxy.
+- 19c.9: the generator's sheet (with 19c.7); Keychain's settings window of two pop-ups
+  and its section in `settings.kdl`'s schema, `app[io.github.alexparlett.Isle.Keychain]`, with
+  "clear-copied-after" and "hide-shown-after" in seconds, 30 to 300, 60 by default.
 - 19c.8: Wi-Fi's detail with Wi-Fi Settings…; an SSH key's detail with the public key's
   well; Add to agent, through the passphrase sheet for an encrypted key, a wrong passphrase
   clearing the field; New SSH key with its indeterminate bar, the app held while generating;

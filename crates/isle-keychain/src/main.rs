@@ -3,9 +3,12 @@
 
 mod copy;
 mod detail;
+mod edit;
+mod generator_view;
 mod list;
 mod model;
 mod settings;
+mod sheets;
 mod sidebar;
 mod state;
 mod store;

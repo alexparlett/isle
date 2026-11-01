@@ -14,9 +14,10 @@ use zeroize::Zeroizing;
 use crate::{
     Shared, copy, detail,
     list::{self, List},
+    edit::{self, Editing, Fields},
     model::{self, Detail, Item, ItemId, Keyring, Row, Snapshot},
-    settings, sidebar, state,
-    store::{self, Ask},
+    settings, sheets, sidebar, state,
+    store::{self, Ask, LoginFields},
 };
 
 /// The compositor's lights over the toolbar's leading end (`isle_shell::chrome::LIGHTS_END`).
@@ -37,10 +38,35 @@ impl PartialEq for Shown {
     }
 }
 
+/// What a fetched secret is for.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Then {
+    Show,
+    Copy,
+    Edit,
+}
+
 /// Work the window does off its handlers, in order.
 enum Job {
-    /// Fetches the item's secret, behind the gate, to show it or copy it.
-    Reveal { id: ItemId, copy: bool },
+    /// Fetches the item's secret, behind the gate.
+    Reveal { id: ItemId, then: Then },
+    Save { id: ItemId, login: bool, fields: LoginFields, secret: Option<Zeroizing<String>> },
+    Create { collection: String, fields: LoginFields, password: Zeroizing<String> },
+    Delete(ItemId),
+}
+
+/// Where the generator's popover is open.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GeneratorAt {
+    Edit,
+    NewLogin,
+}
+
+/// What leaving Edit with changes was on its way to.
+#[derive(Clone, PartialEq)]
+enum Leave {
+    Select(ItemId),
+    Row(Row),
 }
 
 #[derive(Clone)]
@@ -141,6 +167,28 @@ impl App for KeychainWindow {
         let mut more_menu = use_state(|| None::<(f32, f32)>);
         let mut dragging = use_state(|| None::<(f32, f32)>);
         let gate = use_hook(|| Rc::new(RefCell::new(Gate::default())));
+        let mut editing = use_state(|| None::<Editing>);
+        let mut fields = Fields {
+            title: use_state(String::new),
+            user: use_state(String::new),
+            website: use_state(String::new),
+            notes: use_state(String::new),
+            password: use_state(String::new),
+        };
+        let mut new_fields = Fields {
+            title: use_state(String::new),
+            user: use_state(String::new),
+            website: use_state(String::new),
+            notes: use_state(String::new),
+            password: use_state(String::new),
+        };
+        let mut new_open = use_state(|| false);
+        let mut save_in = use_state(|| 0usize);
+        let mut generator_at = use_state(|| None::<GeneratorAt>);
+        let mut generator_sheet = use_state(|| false);
+        let mut generated = use_state(|| Rc::new(Zeroizing::new(String::new())));
+        let mut delete_ask = use_state(|| None::<ItemId>);
+        let mut leave_ask = use_state(|| None::<Leave>);
         let shared = self.shared.clone();
 
         let (store, incoming) = use_hook(move || {
@@ -181,7 +229,42 @@ impl App for KeychainWindow {
                     use futures_util::StreamExt;
                     let mut count = 0u64;
                     while let Some(job) = rx.next().await {
-                        let Job::Reveal { id, copy } = job;
+                        let (id, then) = match job {
+                            Job::Reveal { id, then } => (id, then),
+                            Job::Save { id, login, fields: f, secret } => {
+                                let (tx, rx) = oneshot::channel();
+                                store.ask(Ask::Update { id, fields: f, login, secret, reply: tx });
+                                match rx.await {
+                                    Ok(Ok(())) => editing.set(None),
+                                    Ok(Err(failure)) => tracing::warn!(?failure, "the item was not saved"),
+                                    Err(_) => {}
+                                }
+                                continue;
+                            }
+                            Job::Create { collection, fields: f, password } => {
+                                let (tx, rx) = oneshot::channel();
+                                store.ask(Ask::CreateLogin { collection, fields: f, password, reply: tx });
+                                match rx.await {
+                                    Ok(Ok(id)) => {
+                                        new_open.set(false);
+                                        selected.set(Some(id));
+                                    }
+                                    Ok(Err(failure)) => tracing::warn!(?failure, "the login was not saved"),
+                                    Err(_) => {}
+                                }
+                                continue;
+                            }
+                            Job::Delete(id) => {
+                                let (tx, rx) = oneshot::channel();
+                                store.ask(Ask::Delete(id, tx));
+                                match rx.await {
+                                    Ok(Ok(())) => editing.set(None),
+                                    Ok(Err(failure)) => tracing::warn!(?failure, "the item was not deleted"),
+                                    Err(_) => {}
+                                }
+                                continue;
+                            }
+                        };
                         if !gate.borrow().held(Instant::now()) {
                             let (tx, rx) = oneshot::channel();
                             store.ask(Ask::Authorize(tx));
@@ -193,8 +276,31 @@ impl App for KeychainWindow {
                         let (tx, rx) = oneshot::channel();
                         store.ask(Ask::Reveal(id.clone(), tx));
                         match rx.await {
-                            Ok(Ok(Some(value))) if copy => {
+                            Ok(Ok(Some(value))) if then == Then::Copy => {
                                 copy::secret(&app, &copies, value, settings::clear_after(&desktop));
+                            }
+                            Ok(Ok(value)) if then == Then::Edit => {
+                                let snap = snapshot.peek().clone();
+                                let Some(item) = snap.items.iter().find(|i| i.id == id) else { continue };
+                                let (user, website, notes) = match &item.detail {
+                                    Detail::Secret { user, website, notes, .. } => (user.clone(), website.clone(), notes.clone()),
+                                    _ => continue,
+                                };
+                                let original = LoginFields {
+                                    title: item.title.clone(),
+                                    user: user.unwrap_or_default(),
+                                    website: website.unwrap_or_default(),
+                                    notes: notes.unwrap_or_default(),
+                                };
+                                let password = Rc::new(value.unwrap_or_default());
+                                fields.fill(&original, &password);
+                                generator_at.set(None);
+                                editing.set(Some(Editing {
+                                    id: id.clone(),
+                                    login: item.kind == Kind::Login,
+                                    original,
+                                    password,
+                                }));
                             }
                             Ok(Ok(Some(value))) => {
                                 count += 1;
@@ -271,13 +377,13 @@ impl App for KeychainWindow {
             &row,
             &snap,
             shown_now.is_some(),
-            false,
+            editing.read().is_some(),
         ));
 
         let reveal = {
             let jobs = jobs.clone();
-            move |id: ItemId, copy: bool| {
-                let _ = jobs.unbounded_send(Job::Reveal { id, copy });
+            move |id: ItemId, then: Then| {
+                let _ = jobs.unbounded_send(Job::Reveal { id, then });
             }
         };
         let act_on_source = {
@@ -289,6 +395,41 @@ impl App for KeychainWindow {
             }
         };
 
+        let mut regenerate = move || {
+            let recipe = remembered.peek().recipe;
+            generated.set(Rc::new(isle_secrets::generator::generate(&recipe)));
+        };
+        let mut open_new_login = move || {
+            new_fields.fill(&LoginFields::default(), "");
+            save_in.set(0);
+            generator_at.set(None);
+            new_open.set(true);
+        };
+        // Leaving Edit with changes asks first; without, it just ends.
+        let mut leave = move |to: Leave| {
+            let changed = editing.peek().as_ref().is_some_and(|e| fields.changed(e));
+            if changed {
+                leave_ask.set(Some(to));
+                return;
+            }
+            editing.set(None);
+            match to {
+                Leave::Select(id) => selected.set(Some(id)),
+                Leave::Row(row) => {
+                    remembered.write().row = row;
+                    selected.set(None);
+                }
+            }
+        };
+        let save_edit = {
+            let jobs = jobs.clone();
+            move || {
+                let Some(e) = editing.peek().clone() else { return };
+                let password = fields.password();
+                let secret = (password.as_str() != e.password.as_str()).then_some(password);
+                let _ = jobs.unbounded_send(Job::Save { id: e.id, login: e.login, fields: fields.read(), secret });
+            }
+        };
         use_side_effect({
             let (app, shared, store, reveal, act_on_source) = (
                 app.clone(),
@@ -314,7 +455,7 @@ impl App for KeychainWindow {
                         "settings" => shared.open_settings(&app),
                         "copy" => {
                             if let Some(id) = id.clone() {
-                                reveal(id, true);
+                                reveal(id, Then::Copy);
                             }
                         }
                         "copy-user" => {
@@ -326,13 +467,28 @@ impl App for KeychainWindow {
                             let showing = shown.peek().is_some();
                             match (showing, id.clone()) {
                                 (true, _) => shown.set(None),
-                                (false, Some(id)) => reveal(id, false),
+                                (false, Some(id)) => reveal(id, Then::Show),
                                 _ => {}
                             }
                         }
                         "sidebar" => {
                             let hidden = *sidebar_hidden.peek();
                             sidebar_hidden.set(!hidden);
+                        }
+                        "edit" => {
+                            if item.as_ref().is_some_and(Item::editable) && let Some(id) = id.clone() {
+                                reveal(id, Then::Edit);
+                            }
+                        }
+                        "delete" => {
+                            if item.as_ref().is_some_and(Item::editable) {
+                                delete_ask.set(id.clone());
+                            }
+                        }
+                        "new-login" => open_new_login(),
+                        "generate" => {
+                            regenerate();
+                            generator_sheet.set(true);
                         }
                         "lock" | "unlock" | "change-password" => {
                             if let Some(s) = selected_source(&row, item.as_ref(), &snap) {
@@ -349,7 +505,7 @@ impl App for KeychainWindow {
         let on_list = {
             let store = store.clone();
             EventHandler::new(move |act: list::Act| match act {
-                list::Act::Select(id) => selected.set(Some(id)),
+                list::Act::Select(id) => leave(Leave::Select(id)),
                 list::Act::Menu(id, at) => {
                     selected.set(Some(id.clone()));
                     item_menu.set(Some((id, at)));
@@ -364,9 +520,9 @@ impl App for KeychainWindow {
             EventHandler::new(move |act: detail::Act| {
                 let Some(item) = item.clone() else { return };
                 match act {
-                    detail::Act::Show => reveal(item.id.clone(), false),
+                    detail::Act::Show => reveal(item.id.clone(), Then::Show),
                     detail::Act::Hide => shown.set(None),
-                    detail::Act::CopySecret => reveal(item.id.clone(), true),
+                    detail::Act::CopySecret => reveal(item.id.clone(), Then::Copy),
                     detail::Act::CopyUser => {
                         if let Some(u) = item.user() {
                             copy::plain(&app, u);
@@ -390,7 +546,8 @@ impl App for KeychainWindow {
                             store.ask(Ask::RemoveFromAgent(name.clone()));
                         }
                     }
-                    detail::Act::AddToAgent | detail::Act::Edit => {}
+                    detail::Act::Edit => reveal(item.id.clone(), Then::Edit),
+                    detail::Act::AddToAgent => {}
                 }
             })
         };
@@ -442,7 +599,11 @@ impl App for KeychainWindow {
             .main_align(Alignment::End)
             .cross_align(Alignment::Center)
             .spacing(t.space_l)
-            .child(Button::new(new_label).enabled(creates.is_some()))
+            .child(Button::new(new_label).enabled(creates.is_some()).on_press(move |_| match creates {
+                Some(Kind::Login) => open_new_login(),
+                Some(Kind::SshKey) => desktop.commands.clone().write().push("new-key".into()),
+                _ => {}
+            }))
             .child(
                 rect()
                     .on_mouse_down(move |e: Event<MouseEventData>| {
@@ -494,10 +655,7 @@ impl App for KeychainWindow {
                     snapshot: &snap,
                     selected: &row,
                     active,
-                    on_select: EventHandler::new(move |next: Row| {
-                        remembered.write().row = next;
-                        selected.set(None);
-                    }),
+                    on_select: EventHandler::new(move |next: Row| leave(Leave::Row(next))),
                     on_menu: EventHandler::new(move |(row, at): (Row, (f32, f32))| {
                         if let Row::Source(path) = row {
                             source_menu.set(Some((path, at)));
@@ -558,15 +716,199 @@ impl App for KeychainWindow {
             .child(list_view)
             .child(edge);
         let can_edit = item.as_ref().is_some_and(Item::editable);
-        let detail_view = detail::view(
-            &theme,
-            detail::View {
-                item: item.as_ref(),
-                shown: shown_now.as_ref().map(|s| s.value.as_str()),
-                can_edit,
-                on_act: on_detail,
-            },
-        );
+        let editing_now = editing.read().clone().filter(|e| Some(&e.id) == current.as_ref());
+        let detail_view = match (&editing_now, item.as_ref()) {
+            (Some(e), Some(it)) => {
+                let save = save_edit.clone();
+                edit::view(
+                    &theme,
+                    edit::View {
+                        item: it,
+                        fields,
+                        login: e.login,
+                        generator: (*generator_at.read() == Some(GeneratorAt::Edit))
+                            .then(|| (r.recipe, generated.read().as_str().to_owned())),
+                        on_act: EventHandler::new(move |act: edit::Act| match act {
+                            edit::Act::Cancel => {
+                                editing.set(None);
+                                fields.password.set(String::new());
+                            }
+                            edit::Act::Done => save(),
+                            edit::Act::Delete => {
+                                let id = editing.peek().as_ref().map(|e| e.id.clone());
+                                delete_ask.set(id);
+                            }
+                            edit::Act::Generator(open) => {
+                                if open {
+                                    regenerate();
+                                }
+                                generator_at.set(open.then_some(GeneratorAt::Edit));
+                            }
+                            edit::Act::Recipe(next) => {
+                                remembered.write().recipe = next;
+                                regenerate();
+                            }
+                            edit::Act::Again => regenerate(),
+                            edit::Act::Use => {
+                                let value = generated.peek().as_str().to_owned();
+                                fields.password.set(value);
+                                generator_at.set(None);
+                            }
+                        }),
+                    },
+                )
+            }
+            _ => detail::view(
+                &theme,
+                detail::View {
+                    item: item.as_ref(),
+                    shown: shown_now.as_ref().map(|s| s.value.as_str()),
+                    can_edit,
+                    on_act: on_detail,
+                },
+            ),
+        };
+
+        // Sheets and alerts.
+        let unlocked: Vec<model::Source> = {
+            let mut list: Vec<model::Source> = snap.sources.iter().filter(|s| !s.locked).cloned().collect();
+            list.sort_by_key(|s| !s.default);
+            list
+        };
+        let overlay_new = new_open.read().then(|| {
+            let jobs = jobs.clone();
+            let targets = unlocked.clone();
+            sheets::new_login(
+                &theme,
+                sheets::NewLogin {
+                    fields: new_fields,
+                    sources: &unlocked,
+                    save_in: *save_in.read(),
+                    generator: (*generator_at.read() == Some(GeneratorAt::NewLogin))
+                        .then(|| (r.recipe, generated.read().as_str().to_owned())),
+                    on_save_in: EventHandler::new(move |i| save_in.set(i)),
+                    on_generator: EventHandler::new(move |act: edit::Act| match act {
+                        edit::Act::Generator(open) => {
+                            if open {
+                                regenerate();
+                            }
+                            generator_at.set(open.then_some(GeneratorAt::NewLogin));
+                        }
+                        edit::Act::Recipe(next) => {
+                            remembered.write().recipe = next;
+                            regenerate();
+                        }
+                        edit::Act::Again => regenerate(),
+                        edit::Act::Use => {
+                            let value = generated.peek().as_str().to_owned();
+                            new_fields.password.set(value);
+                            generator_at.set(None);
+                        }
+                        _ => {}
+                    }),
+                    on_cancel: EventHandler::new(move |_| {
+                        new_open.set(false);
+                        new_fields.fill(&LoginFields::default(), "");
+                    }),
+                    on_save: EventHandler::new(move |_| {
+                        let Some(target) = targets.get(*save_in.peek()) else { return };
+                        let _ = jobs.unbounded_send(Job::Create {
+                            collection: target.path.clone(),
+                            fields: new_fields.read(),
+                            password: new_fields.password(),
+                        });
+                    }),
+                },
+            )
+        });
+        let overlay_delete = delete_ask.read().clone().and_then(|id| {
+            let it = snap.items.iter().find(|i| i.id == id)?.clone();
+            let jobs = jobs.clone();
+            Some(isle_ui::alert(
+                &format!("Delete “{}”?", it.title),
+                &sheets::delete_words(&it),
+                Vec::new(),
+                vec![
+                    isle_ui::AlertButton::from(("Cancel".to_owned(), EventHandler::new(move |_| delete_ask.set(None)))),
+                    isle_ui::AlertButton::destructive(
+                        "Delete",
+                        EventHandler::new(move |_| {
+                            delete_ask.set(None);
+                            let _ = jobs.unbounded_send(Job::Delete(id.clone()));
+                        }),
+                    ),
+                ],
+            ))
+        });
+        let overlay_leave = leave_ask.read().clone().map(|to| {
+            let (to_discard, to_save) = (to.clone(), to);
+            let save = save_edit.clone();
+            let mut go = move |to: Leave| match to {
+                Leave::Select(id) => selected.set(Some(id)),
+                Leave::Row(row) => {
+                    remembered.write().row = row;
+                    selected.set(None);
+                }
+            };
+            isle_ui::alert(
+                "Save changes to this item?",
+                "Your changes will be lost if you don't save them.",
+                Vec::new(),
+                vec![
+                    isle_ui::AlertButton::destructive(
+                        "Discard",
+                        EventHandler::new(move |_| {
+                            leave_ask.set(None);
+                            editing.set(None);
+                            go(to_discard.clone());
+                        }),
+                    ),
+                    isle_ui::AlertButton::from(("Keep Editing".to_owned(), EventHandler::new(move |_| leave_ask.set(None)))),
+                    isle_ui::AlertButton::from((
+                        "Save".to_owned(),
+                        EventHandler::new(move |_| {
+                            leave_ask.set(None);
+                            save();
+                            go(to_save.clone());
+                        }),
+                    )),
+                ],
+            )
+        });
+        let overlay_generator = generator_sheet.read().then(|| {
+            let (app, copies) = (app.clone(), shared.copies.clone());
+            let password = generated.read().as_str().to_owned();
+            let mut body = vec![text::line(&theme, text::Style::Headline, colour(t.colour_text), "Generate Password").into_element()];
+            body.extend(crate::generator_view::controls(
+                &theme,
+                r.recipe,
+                &password,
+                true,
+                EventHandler::new(move |next| {
+                    remembered.write().recipe = next;
+                    regenerate();
+                }),
+            ));
+            body.push(
+                rect()
+                    .child(Button::new("Generate again").on_press(move |_| regenerate()))
+                    .into_element(),
+            );
+            isle_ui::sheet(
+                400.,
+                body,
+                vec![
+                    (
+                        "Copy".into(),
+                        EventHandler::new(move |_| {
+                            let value = Zeroizing::new(generated.peek().as_str().to_owned());
+                            copy::secret(&app, &copies, value, settings::clear_after(&desktop));
+                        }),
+                    ),
+                    ("Done".into(), EventHandler::new(move |_| generator_sheet.set(false))),
+                ],
+            )
+        });
 
         // Menus.
         let overlay_item = item_menu.read().clone().and_then(|(id, at)| {
@@ -617,7 +959,7 @@ impl App for KeychainWindow {
                         isle_ui::MenuEvent::Chosen(choice) => {
                             item_menu.set(None);
                             match choice {
-                                1 => reveal(it.id.clone(), true),
+                                1 => reveal(it.id.clone(), Then::Copy),
                                 2 => {
                                     if let Some(u) = it.user() {
                                         copy::plain(&app, u);
@@ -772,5 +1114,9 @@ impl App for KeychainWindow {
             .maybe_child(overlay_item)
             .maybe_child(overlay_source)
             .maybe_child(overlay_more)
+            .maybe_child(overlay_new)
+            .maybe_child(overlay_generator)
+            .maybe_child(overlay_delete)
+            .maybe_child(overlay_leave)
     }
 }

@@ -22,6 +22,12 @@
   (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
   `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
   proxy.
+- 19c.7: Edit in place behind the gate (title, user, website and notes for a login; title
+  and secret for an Apps item), leaving with changes asked; New login with Save in over the
+  unlocked keyrings, the default first; the delete alert with the Apps and storage-key lines;
+  the generator's popover in the password field, and its sheet (19c.9's) from the Item menu.
+  Password fields are the window's text fields, which take paste; Freya's editor keeps its own
+  copy, as the plan's first risk says of any drawn value.
 - 19c.6: `isle-keychain`: the store on the worker (its own Secret Service connection, the
   system bus for NetworkManager and polkit, `~/.ssh` and the agent), the toolbar with its
   title and count, the sidebar of kinds and keyrings with tiles, counts and locks, the list's

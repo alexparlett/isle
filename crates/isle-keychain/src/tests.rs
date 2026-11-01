@@ -170,10 +170,23 @@ pub fn fakes(name: &str, collections: Vec<CollectionSpec>) -> Fakes {
     }
 }
 
+thread_local! {
+    static DESKTOP: std::cell::Cell<Option<isle_app::Desktop>> = const { std::cell::Cell::new(None) };
+}
+
+/// Chooses a command as its menu or key would.
+fn command(test: &mut TestingRunner, id: &str) {
+    let desktop = DESKTOP.with(|d| d.get()).expect("the window has drawn");
+    let mut queue = desktop.commands;
+    queue.write().push(id.to_owned());
+    poll(test, 5);
+}
+
 fn runner(width: f32) -> TestingRunner {
     let (test, _) = TestingRunner::new(
         move || {
-            isle_app::provide_for_tests(BTreeMap::new());
+            let desktop = isle_app::provide_for_tests(BTreeMap::new());
+            DESKTOP.with(|d| d.set(Some(desktop)));
             crate::window::KeychainWindow {
                 shared: crate::Shared::default(),
             }
@@ -204,6 +217,11 @@ fn shot() {
             .unwrap_or(1000.),
     );
     settle_until(&mut test, "github.com");
+    for id in std::env::var("KEYCHAIN_COMMAND").unwrap_or_default().split('|').filter(|c| !c.is_empty()) {
+        poll(&mut test, 10);
+        command(&mut test, id);
+        poll(&mut test, 20);
+    }
     for caption in std::env::var("KEYCHAIN_CLICK")
         .unwrap_or_default()
         .split('|')
@@ -280,4 +298,56 @@ fn every_kind_lists_without_a_secret_and_show_fetches_one() {
         "the grant covers the next click"
     );
     assert_eq!(fakes.secrets.fetched(), 2);
+}
+
+#[test]
+fn a_login_is_edited_made_and_deleted() {
+    let _turn = serial();
+    let fakes = fakes("edit", keyring());
+    let mut test = runner(1000.);
+    settle_until(&mut test, "github.com");
+    click(&mut test, "github.com");
+    poll(&mut test, 5);
+    click(&mut test, "Edit");
+    settle_until(&mut test, "Done");
+    assert_eq!(fakes.secrets.fetched(), 1, "Edit fetches the password, behind the gate");
+    click(&mut test, "Done");
+    poll(&mut test, 20);
+    assert!(labels(&test).iter().any(|l| l == "Edit"), "Done with nothing changed ends Edit");
+    assert_eq!(fakes.secrets.item("login", 0).unwrap().label, "github.com");
+
+    command(&mut test, "delete");
+    settle_until(&mut test, "Delete “github.com”?");
+    assert!(labels(&test).iter().any(|l| l == "You can't undo this."));
+    click(&mut test, "Delete");
+    for _ in 0..100 {
+        poll(&mut test, 1);
+        if fakes.secrets.item("login", 0).is_none() {
+            break;
+        }
+    }
+    assert!(fakes.secrets.item("login", 0).is_none(), "the item is deleted");
+    settle_until(&mut test, "Grafana");
+    assert!(!labels(&test).iter().any(|l| l == "github.com"));
+
+    click(&mut test, "Chrome Safe Storage");
+    poll(&mut test, 5);
+    command(&mut test, "delete");
+    settle_until(&mut test, "Chrome will lose the passwords and sign-ins it keeps.");
+    click(&mut test, "Cancel");
+    poll(&mut test, 5);
+    assert!(fakes.secrets.item("login", 2).is_some());
+
+    command(&mut test, "new-login");
+    settle_until(&mut test, "New Login");
+    click(&mut test, "Save");
+    for _ in 0..100 {
+        poll(&mut test, 1);
+        if fakes.secrets.len("login") > 4 {
+            break;
+        }
+    }
+    let made = fakes.secrets.item("login", 4).expect("a login is made");
+    assert_eq!(made.attributes["xdg:schema"], "org.gnome.keyring.NetworkPassword");
+    assert_eq!(fakes.secrets.fetched(), 1, "nothing more is fetched");
 }

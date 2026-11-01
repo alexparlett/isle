@@ -151,7 +151,9 @@ fn set_marker(locked: bool) {
 impl Isle {
     /// Started from a marker the last compositor left: locked before any output is lit.
     pub fn start_locked(&mut self) {
-        info!("the session was locked when the compositor last ran; starting locked");
+        if !crate::greeter::on() {
+            info!("the session was locked when the compositor last ran; starting locked");
+        }
         self.lock.locked = true;
         self.lock.since = Some(Instant::now());
         self.lock.field_focused = true;
@@ -170,6 +172,9 @@ impl Isle {
                 "session": self.greeter.sessions.get(self.greeter.session).map(|s| s.id.clone()),
                 "prompt": self.greeter.prompt.as_ref().map(|(p, _)| p.clone()),
                 "menu_open": self.greeter.menu_open,
+                "dark": self.shell.theme().appearance.mode == isle_tokens::Mode::Dark,
+                "layouts": self.settings.keyboard.layouts.clone(),
+                "wallpaper": self.settings.wallpaper.source.clone(),
             },
             "session_line": self.lock_session_line(),
             "status": self.lock.status.name(),

@@ -133,7 +133,12 @@ impl State {
         if !self.isle.lock.locked {
             return;
         }
-        let pointer_output = self.isle.active_output().map(|o| o.name());
+        // The greeter's face goes to the main screen the session published.
+        let pointer_output = if crate::greeter::on() {
+            self.isle.main_output().map(|o| o.name())
+        } else {
+            self.isle.active_output().map(|o| o.name())
+        };
         let face = &mut self.isle.lock.face;
         if face.output.is_none()
             || !self

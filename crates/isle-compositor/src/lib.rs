@@ -21,6 +21,7 @@ mod force_quit;
 mod games;
 mod grabs;
 mod greeter;
+mod greeter_look;
 mod handlers;
 mod helpers;
 mod hot_corners;
@@ -139,7 +140,10 @@ pub fn run(kind: backend::Kind, greeter: bool) -> Result<(), Box<dyn std::error:
     helpers::pin();
 
     let safe_start = std::env::var("ISLE_SAFE_START").as_deref() == Ok("1");
-    let store: isle_settings::Store<isle_settings::schema::Settings> = if safe_start || greeter {
+    let store: isle_settings::Store<isle_settings::schema::Settings> = if greeter {
+        // The greeter's settings are the look it is given, never a file of its own.
+        isle_settings::Store::open(std::path::PathBuf::new())
+    } else if safe_start {
         isle_settings::Store::defaults(settings::settings_path())
     } else {
         isle_settings::Store::open(settings::settings_path())

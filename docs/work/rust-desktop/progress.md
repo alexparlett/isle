@@ -39,6 +39,15 @@
   session capsule leads the utilities with two or more sessions, its menu opening upward;
   the field takes the keyboard back as it closes. Restart and Shut Down go to logind.
   `isle-fakes` gains AccountsService; the Test interface gains `GreeterAct`.
+- 14b.5: the look. A session writes `/var/lib/isle/greeter/<user>/look.kdl` (`ISLE_GREETER_LOOKS`
+  in tests) half a second after the last change to what it holds, when `isle setup` has made
+  the directory: a settings file in `settings.kdl`'s own form (`isle_settings::text_of`) with
+  appearance but the glass, the clock's hours, the keyboard and keyboards, the displays'
+  enabled, mode, scale, place and turn, the main screen and the wallpaper; a picture shown
+  on the main screen goes beside it as `wallpaper.png`, fitted to that screen. The greeter
+  reads the selected user's file, takes only those keys, and applies them as settings that
+  changed (theme, keyboard profiles, outputs, wallpaper); a file that does not parse gives
+  the shipped look. Its face starts on the main screen.
 
 ## 2026-11-01 (P19c)
 

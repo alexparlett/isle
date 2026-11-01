@@ -85,6 +85,10 @@ pub struct Greeter {
     talk: Option<UnboundedSender<(u64, Talk)>>,
     /// Counts each user chosen, so an answer about an earlier one is dropped.
     generation: u64,
+    /// In a session: the look's write waiting for changes to settle.
+    pub look_timer: Option<smithay::reexports::calloop::RegistrationToken>,
+    /// In a session: there is no directory to publish the look to, and that was said.
+    pub look_unpublished: bool,
 }
 
 /// `/etc/login.defs`' range of user ids, and passwd's users in it with a login shell.
@@ -248,6 +252,9 @@ impl State {
         };
         let greeter = &mut self.isle.greeter;
         greeter.memory = StateDir::new(StateDir::default_dir()).load().0;
+        let last = greeter.memory.last_user.clone();
+        self.greeter_take_look(last.as_deref());
+        let greeter = &mut self.isle.greeter;
         greeter.sessions = isle_apps::sessions::sessions(&isle_apps::sessions::dirs());
         if greeter.sessions.is_empty() {
             warn!("no session entries in wayland-sessions");
@@ -279,6 +286,9 @@ impl State {
             .unwrap_or(0);
         greeter.users = users;
         greeter.chosen = None;
+        let shown = greeter.users.get(greeter.selected).map(|u| u.login.clone());
+        self.greeter_take_look(shown.as_deref());
+        let greeter = &mut self.isle.greeter;
         greeter.prompt = None;
         greeter.said = None;
         greeter.generation += 1;
@@ -297,6 +307,8 @@ impl State {
             return;
         };
         let login = user.login.clone();
+        self.greeter_take_look(Some(&login));
+        let greeter = &mut self.isle.greeter;
         let last = greeter.memory.sessions.get(&login).cloned();
         greeter.session = greeter
             .sessions
@@ -340,8 +352,15 @@ impl State {
         }
         let last = greeter.users.len() - 1;
         match sym.raw() {
-            k::KEY_Left => greeter.selected = greeter.selected.saturating_sub(1),
-            k::KEY_Right => greeter.selected = (greeter.selected + 1).min(last),
+            k::KEY_Left | k::KEY_Right => {
+                greeter.selected = if sym.raw() == k::KEY_Left {
+                    greeter.selected.saturating_sub(1)
+                } else {
+                    (greeter.selected + 1).min(last)
+                };
+                let shown = greeter.users[greeter.selected].login.clone();
+                self.greeter_take_look(Some(&shown));
+            }
             k::KEY_Return | k::KEY_KP_Enter | k::KEY_space => {
                 let selected = greeter.selected;
                 self.greeter_choose(selected);

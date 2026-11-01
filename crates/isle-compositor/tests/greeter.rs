@@ -222,3 +222,129 @@ async fn several_users_are_a_list_and_each_keeps_their_session() {
     let memory = std::fs::read_to_string(isle.dir.join("state/isle/greeter.json")).unwrap();
     assert!(memory.contains("\"sam\": \"hyprland\""), "{memory}");
 }
+
+fn login() -> String {
+    String::from_utf8(
+        std::process::Command::new("id")
+            .arg("-un")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap()
+    .trim()
+    .to_owned()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_session_publishes_what_the_greeter_draws_and_nothing_else() {
+    let looks = std::env::temp_dir().join(format!("isle-looks-{}", std::process::id()));
+    let mine = looks.join(login());
+    std::fs::create_dir_all(&mine).unwrap();
+    let picture = looks.join("picture.png");
+    image::RgbaImage::from_pixel(64, 48, image::Rgba([200, 40, 40, 255]))
+        .save(&picture)
+        .unwrap();
+    let settings = format!(
+        "appearance {{\n    mode \"light\"\n    glass 0.5\n}}\nkeyboard {{\n    layouts \"gb\" \"us\"\n}}\n\
+         windows {{\n    edge-tiling #false\n}}\nwallpaper {{\n    source \"{}\"\n}}\n",
+        picture.display()
+    );
+    let looks_env = looks.clone();
+    let isle = Isle::start_env(
+        "greeter-publish",
+        &settings,
+        |_| {},
+        move |_| {
+            vec![(
+                "ISLE_GREETER_LOOKS".into(),
+                looks_env.to_string_lossy().into_owned(),
+            )]
+        },
+    )
+    .await;
+    let look = mine.join("look.kdl");
+    wait_until(|| async {
+        std::fs::read_to_string(&look).is_ok_and(|t| t.contains("wallpaper.png"))
+    })
+    .await;
+    let text = std::fs::read_to_string(&look).unwrap();
+    assert!(text.contains("mode \"light\""), "{text}");
+    assert!(text.contains("layouts \"gb\" \"us\""), "{text}");
+    assert!(
+        !text.contains("glass") && !text.contains("windows"),
+        "{text}"
+    );
+    let published = image::open(mine.join("wallpaper.png")).unwrap();
+    assert_eq!((published.width(), published.height()), (1920, 1080));
+    drop(isle);
+    let _ = std::fs::remove_dir_all(&looks);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_greeter_draws_each_users_look_and_the_shipped_one_for_a_broken_file() {
+    let looks = std::env::temp_dir().join(format!("isle-looks-greeter-{}", std::process::id()));
+    let picture = looks.join("alex/wallpaper.png");
+    std::fs::create_dir_all(looks.join("alex")).unwrap();
+    image::RgbaImage::from_pixel(64, 48, image::Rgba([40, 120, 200, 255]))
+        .save(&picture)
+        .unwrap();
+    let alex = format!(
+        "appearance {{\n    mode \"light\"\n}}\nkeyboard {{\n    layouts \"gb\"\n}}\n\
+         wallpaper {{\n    source \"{}\"\n}}\n",
+        picture.display()
+    );
+    for (user, text) in [
+        ("alex", alex.as_str()),
+        ("sam", "appearance {\n    mode \"light\"\n"),
+    ] {
+        std::fs::create_dir_all(looks.join(user)).unwrap();
+        std::fs::write(looks.join(user).join("look.kdl"), text).unwrap();
+    }
+    let socket = std::env::temp_dir().join(format!("isle-greetd-look-{}.sock", std::process::id()));
+    let _fake = isle_fakes::greetd::Greetd::start(
+        &socket,
+        vec![
+            isle_fakes::greetd::User::new("alex", "a"),
+            isle_fakes::greetd::User::new("sam", "s"),
+        ],
+    );
+    let looks_env = looks.clone();
+    let isle = Isle::start_greeter(
+        "greeter-look",
+        |_| {},
+        move |_| {
+            vec![
+                ("GREETD_SOCK".into(), socket.to_string_lossy().into_owned()),
+                (
+                    "ISLE_GREETER_LOOKS".into(),
+                    looks_env.to_string_lossy().into_owned(),
+                ),
+            ]
+        },
+    )
+    .await;
+    let _accounts = isle_fakes::accounts::Accounts::start(
+        &isle.system_address(),
+        vec![
+            isle_fakes::accounts::User::new(1000, "alex", "Alex Example"),
+            isle_fakes::accounts::User::new(1001, "sam", "Sam Example"),
+        ],
+    )
+    .await
+    .unwrap();
+    let greeter = || async { status(&isle).await["greeter"].clone() };
+    wait_until(|| async { greeter().await["users"] == serde_json::json!(["alex", "sam"]) }).await;
+    wait_until(|| async { greeter().await["dark"] == false }).await;
+    assert_eq!(greeter().await["layouts"], serde_json::json!(["gb"]));
+    wait_until(|| async { isle.log().contains("alex/wallpaper.png") }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    isle.keep_shot("greeter-look").await;
+
+    // Sam's file does not parse: the shipped look, dark, no layouts.
+    press(&isle, RIGHT).await;
+    wait_until(|| async { greeter().await["dark"] == true }).await;
+    assert_eq!(greeter().await["layouts"], serde_json::json!([]));
+    drop(isle);
+    let _ = std::fs::remove_dir_all(&looks);
+}

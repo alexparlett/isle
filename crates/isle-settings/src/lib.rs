@@ -157,3 +157,24 @@ pub fn node_key(node: &kdl::KdlNode, ctx: &mut Ctx) -> Option<String> {
         }
     }
 }
+
+/// A settings file holding the keys `keep` names whose values differ from their defaults,
+/// as `settings` has them: the greeter's look is one.
+pub fn text_of<S: Section>(settings: &S, keep: impl Fn(&str) -> bool) -> String {
+    let (mut values, mut defaults) = (BTreeMap::new(), BTreeMap::new());
+    settings.flatten("", &mut values);
+    S::default().flatten("", &mut defaults);
+    let mut text = String::new();
+    for (key, value) in values {
+        if !keep(&key) || defaults.get(&key) == Some(&value) {
+            continue;
+        }
+        let (Ok(path), Ok(doc)) = (parse_path(&key), text.parse::<kdl::KdlDocument>()) else {
+            continue;
+        };
+        if let Some(Leaf::Args(args)) = settings.kdl_args(&path) {
+            text = text::set_leaf(&text, &doc, &path, &args);
+        }
+    }
+    text
+}

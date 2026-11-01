@@ -207,6 +207,7 @@ impl State {
                 .heartbeat
                 .set_abort(self.isle.settings.debug.watchdog_abort);
         }
+        self.isle.publish_look_soon();
     }
 }
 

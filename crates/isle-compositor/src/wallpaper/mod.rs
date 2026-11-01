@@ -683,6 +683,7 @@ impl Isle {
                 Ok(picture) => {
                     info!(output = output.name(), file = %decoded.file.display(), "wallpaper");
                     screen.file = Some(decoded.file);
+                    self.publish_look_soon();
                     self.show_wallpaper(&identity, Layer::Picture(picture), cut || arrived_cut);
                     if let Some(screen) = self.wallpapers.screens.get_mut(&identity) {
                         match softened {

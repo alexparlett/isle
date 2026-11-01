@@ -114,6 +114,9 @@ const HANG_LIMIT: Duration = Duration::from_secs(10);
 /// Runs the compositor; `greeter` for greetd's greeter (`p14b-greeter.md`).
 pub fn run(kind: backend::Kind, greeter: bool) -> Result<(), Box<dyn std::error::Error>> {
     greeter::start(greeter);
+    if greeter {
+        greeter::count_start();
+    }
     // The supervisor reads the ready pipe to its end; no child may hold it open.
     if let Some(fd) = std::env::var("ISLE_READY_FD")
         .ok()

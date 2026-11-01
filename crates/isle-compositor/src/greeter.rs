@@ -18,6 +18,67 @@ use crate::{state::State, worker::ToLoop};
 
 static ON: OnceLock<bool> = OnceLock::new();
 
+/// This many starts within `FALLBACK_WINDOW` seconds, none of them drawing a face, and the
+/// greeter gives way to tuigreet.
+const FALLBACK_STARTS: usize = 3;
+const FALLBACK_WINDOW: u64 = 60;
+
+/// A greeter started this soon after handing greetd a session finds that it failed.
+const FAILED_WITHIN: u64 = 10;
+
+/// tuigreet as P14a runs it (`p14a-session.md` choice 2).
+const TUIGREET: &[&str] = &[
+    "--time",
+    "--remember",
+    "--remember-session",
+    "--sessions",
+    "/usr/share/wayland-sessions",
+];
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+fn memory_dir() -> StateDir {
+    StateDir::new(StateDir::default_dir())
+}
+
+/// Counts this start; after `FALLBACK_STARTS` faceless ones in a row, runs tuigreet in the
+/// greeter's place, so a greeter that cannot draw never keeps anyone out.
+pub fn count_start() {
+    let dir = memory_dir();
+    let mut memory: isle_state::domains::Greeter = dir.load().0;
+    let now = unix_now();
+    memory
+        .faceless_starts
+        .retain(|t| now.saturating_sub(*t) < FALLBACK_WINDOW);
+    if memory.faceless_starts.len() >= FALLBACK_STARTS {
+        memory.faceless_starts.clear();
+        let _ = dir.save(&memory);
+        fall_back();
+    }
+    memory.faceless_starts.push(now);
+    if let Err(err) = dir.save(&memory) {
+        warn!("the greeter's start was not counted: {err}");
+    }
+}
+
+fn fall_back() -> ! {
+    use std::os::unix::process::CommandExt;
+    #[cfg(feature = "test-hooks")]
+    let program = std::env::var("ISLE_GREETER_FALLBACK").unwrap_or_else(|_| "tuigreet".into());
+    #[cfg(not(feature = "test-hooks"))]
+    let program = "tuigreet".to_owned();
+    tracing::error!(
+        "the greeter started {FALLBACK_STARTS} times without drawing its face; tuigreet stands in"
+    );
+    let err = std::process::Command::new(&program).args(TUIGREET).exec();
+    tracing::error!("{program} did not start: {err}");
+    std::process::exit(1);
+}
+
 /// Whether this process is the greeter; fixed at start.
 pub fn on() -> bool {
     ON.get().copied().unwrap_or(false)
@@ -85,6 +146,8 @@ pub struct Greeter {
     talk: Option<UnboundedSender<(u64, Talk)>>,
     /// Counts each user chosen, so an answer about an earlier one is dropped.
     generation: u64,
+    /// The face has been drawn since this start.
+    drew: bool,
     /// In a session: the look's write waiting for changes to settle.
     pub look_timer: Option<smithay::reexports::calloop::RegistrationToken>,
     /// In a session: there is no directory to publish the look to, and that was said.
@@ -251,7 +314,14 @@ impl State {
             return;
         };
         let greeter = &mut self.isle.greeter;
-        greeter.memory = StateDir::new(StateDir::default_dir()).load().0;
+        greeter.memory = memory_dir().load().0;
+        if let Some((at, name)) = greeter.memory.started.take() {
+            if unix_now().saturating_sub(at) <= FAILED_WITHIN {
+                warn!(session = name, "the session ended as it started");
+                greeter.failed = Some(name);
+            }
+            let _ = memory_dir().save(&greeter.memory);
+        }
         let last = greeter.memory.last_user.clone();
         self.greeter_take_look(last.as_deref());
         let greeter = &mut self.isle.greeter;
@@ -499,14 +569,30 @@ impl State {
             }
             Heard::Started(Ok(())) => {
                 let greeter = &mut self.isle.greeter;
-                let session = greeter.sessions[greeter.session].id.clone();
-                greeter.memory.last_user = Some(login.clone());
-                greeter.memory.sessions.insert(login, session);
-                if let Err(err) = StateDir::new(StateDir::default_dir()).save(&greeter.memory) {
+                let session = &greeter.sessions[greeter.session];
+                greeter.memory.started = Some((unix_now(), session.name.clone()));
+                greeter
+                    .memory
+                    .sessions
+                    .insert(login.clone(), session.id.clone());
+                greeter.memory.last_user = Some(login);
+                if let Err(err) = memory_dir().save(&greeter.memory) {
                     warn!("the greeter's memory was not kept: {err}");
                 }
                 info!("greetd starts the session once the greeter exits");
-                self.isle.loop_signal.stop();
+                // The face goes, the backdrop stays for its last frame, and the greeter ends.
+                self.hide_lock_face();
+                self.isle.queue_redraw_all();
+                let wait = Duration::from_millis(
+                    self.isle.shell.theme().tokens.motion_exit_fade_ms as u64,
+                );
+                let _ = self.isle.loop_handle.insert_source(
+                    smithay::reexports::calloop::timer::Timer::from_duration(wait),
+                    |_, _, state| {
+                        state.isle.loop_signal.stop();
+                        smithay::reexports::calloop::timer::TimeoutAction::Drop
+                    },
+                );
                 return;
             }
             Heard::Started(Err(why)) => {
@@ -522,6 +608,21 @@ impl State {
             Heard::Lost(_) => {}
         }
         self.refresh_lock_face();
+    }
+
+    /// A frame drawn on the face's screen: this start counts as one that worked.
+    pub fn greeter_drew(&mut self, output: &smithay::output::Output) {
+        if self.isle.greeter.drew || self.isle.lock.face.output.as_ref() != Some(&output.name()) {
+            return;
+        }
+        self.isle.greeter.drew = true;
+        let dir = memory_dir();
+        let mut memory: isle_state::domains::Greeter = dir.load().0;
+        memory.faceless_starts.clear();
+        if let Err(err) = dir.save(&memory) {
+            warn!("the greeter's start was not cleared: {err}");
+        }
+        self.isle.greeter.memory.faceless_starts.clear();
     }
 
     /// The face's greeter part.

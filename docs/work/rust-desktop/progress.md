@@ -48,6 +48,14 @@
   reads the selected user's file, takes only those keys, and applies them as settings that
   changed (theme, keyboard profiles, outputs, wallpaper); a file that does not parse gives
   the shipped look. Its face starts on the main screen.
+- 14b.6: the handoff and the fallback. Signed in, the greeter hides its face, leaves the
+  backdrop for its last frame and exits after `motion-exit-fade-ms`. Each start that has not
+  yet drawn its face is counted in the greeter's state; the third within a minute runs
+  tuigreet in its place with P14a's arguments (`ISLE_GREETER_FALLBACK` in test builds), and a
+  drawn face clears the count. A greeter started within ten seconds of handing greetd a
+  session says "Couldn't start {session}. Choose another session and try again." Not built:
+  `ISLE_FROM_GREETER` and the session's softened first frame, since the lock's own unlock is a
+  cut rather than P1's dissolve, so signing in and unlocking already look alike.
 
 ## 2026-11-01 (P19c)
 

@@ -52,6 +52,13 @@ async fn the_greeter_is_the_lock_and_nothing_else() {
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     assert_eq!(status(&isle).await["locked"], true);
 
+    // A start that drew its face is not counted towards the fallback.
+    let memory = isle.dir.join("state/isle/greeter.json");
+    wait_until(|| async {
+        std::fs::read_to_string(&memory).is_ok_and(|t| t.contains("\"faceless_starts\": []"))
+    })
+    .await;
+
     // Nothing written in the home or the user's configuration.
     for dir in ["home", "config"] {
         let left: Vec<_> = std::fs::read_dir(isle.dir.join(dir)).unwrap().collect();
@@ -347,4 +354,75 @@ async fn the_greeter_draws_each_users_look_and_the_shipped_one_for_a_broken_file
     assert_eq!(greeter().await["layouts"], serde_json::json!([]));
     drop(isle);
     let _ = std::fs::remove_dir_all(&looks);
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn three_faceless_starts_give_way_to_tuigreet() {
+    let dir = std::env::temp_dir().join(format!("isle-greeter-fallback-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("state/isle")).unwrap();
+    let now = unix_now();
+    std::fs::write(
+        dir.join("state/isle/greeter.json"),
+        format!(
+            "{{\"version\": 1, \"data\": {{\"faceless_starts\": [{}, {}, {}]}}}}",
+            now - 20,
+            now - 10,
+            now - 5
+        ),
+    )
+    .unwrap();
+    let marker = dir.join("tuigreet-ran");
+    let script = dir.join("tuigreet");
+    std::fs::write(
+        &script,
+        format!("#!/bin/sh\necho \"$@\" > {}\n", marker.display()),
+    )
+    .unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let status = std::process::Command::new(env!("CARGO_BIN_EXE_isle-compositor"))
+        .args(["--headless", "--greeter"])
+        .env("XDG_STATE_HOME", dir.join("state"))
+        .env("XDG_RUNTIME_DIR", &dir)
+        .env("ISLE_GREETER_FALLBACK", &script)
+        .env("DBUS_SESSION_BUS_ADDRESS", "disabled:")
+        .env("DBUS_SYSTEM_BUS_ADDRESS", "disabled:")
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let args = std::fs::read_to_string(&marker).unwrap();
+    assert!(
+        args.contains("--sessions /usr/share/wayland-sessions"),
+        "{args}"
+    );
+    let memory = std::fs::read_to_string(dir.join("state/isle/greeter.json")).unwrap();
+    assert!(memory.contains("\"faceless_starts\": []"), "{memory}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_session_that_ends_as_it_starts_is_said_at_the_next_greeter() {
+    let now = unix_now();
+    let isle = Isle::start_greeter(
+        "greeter-failed",
+        move |dir| {
+            std::fs::create_dir_all(dir.join("state/isle")).unwrap();
+            std::fs::write(
+                dir.join("state/isle/greeter.json"),
+                format!("{{\"version\": 1, \"data\": {{\"started\": [{now}, \"Hyprland\"]}}}}"),
+            )
+            .unwrap();
+        },
+        |_| Vec::new(),
+    )
+    .await;
+    assert_eq!(status(&isle).await["greeter"]["failed"], "Hyprland");
 }

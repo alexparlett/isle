@@ -219,13 +219,19 @@ impl Domain for Widgets {
     const VERSION: u32 = 1;
 }
 
-/// The greeter's memory: who signed in last and into what (`p14b-greeter.md` choice 4).
+/// The greeter's memory: who signed in last and into what, and its own starts
+/// (`p14b-greeter.md` choices 4 and 15).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Greeter {
     /// The login name of the last user signed in.
     pub last_user: Option<String>,
     /// Each user's last session, by its entry's id.
     pub sessions: BTreeMap<String, String>,
+    /// Unix seconds of each recent start that has not yet drawn a face.
+    pub faceless_starts: Vec<u64>,
+    /// The session last handed to greetd: Unix seconds and its name.
+    pub started: Option<(u64, String)>,
 }
 
 impl Domain for Greeter {

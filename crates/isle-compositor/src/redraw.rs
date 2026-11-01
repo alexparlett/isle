@@ -301,6 +301,9 @@ impl State {
                 return;
             }
         };
+        if crate::greeter::on() {
+            self.greeter_drew(output);
+        }
         self.isle
             .update_primary_scanout_output(output, &rendered.states);
         self.backend

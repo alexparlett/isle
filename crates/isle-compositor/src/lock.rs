@@ -172,6 +172,7 @@ impl Isle {
                 "session": self.greeter.sessions.get(self.greeter.session).map(|s| s.id.clone()),
                 "prompt": self.greeter.prompt.as_ref().map(|(p, _)| p.clone()),
                 "menu_open": self.greeter.menu_open,
+                "failed": self.greeter.failed.clone(),
                 "dark": self.shell.theme().appearance.mode == isle_tokens::Mode::Dark,
                 "layouts": self.settings.keyboard.layouts.clone(),
                 "wallpaper": self.settings.wallpaper.source.clone(),

@@ -403,6 +403,7 @@ impl Component for Segmented {
             .a11y_focusable(enabled)
             .a11y_role(AccessibilityRole::RadioGroup)
             .a11y_alt(self.alt.clone())
+            .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
             .horizontal()
             .height(Size::px(t.size_control))
             .padding(2.)
@@ -510,6 +511,7 @@ impl Component for PopUp {
         let button = rect()
             .a11y_id(a11y)
             .a11y_focusable(enabled)
+            .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
             .a11y_role(AccessibilityRole::ComboBox)
             .a11y_alt(self.alt.clone())
             .height(Size::px(t.size_control))
@@ -631,6 +633,7 @@ impl Component for Stepper {
             .horizontal()
             .cross_align(Alignment::Center)
             .spacing(t.space_xs)
+            .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
             .child(
                 rect()
                     .width(Size::px(64.))

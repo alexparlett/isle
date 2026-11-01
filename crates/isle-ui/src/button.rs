@@ -156,7 +156,11 @@ impl Component for Button {
                 hover.set_if_modified(false);
                 pressed.set_if_modified(false);
             })
-            .on_pointer_down(move |_| pressed.set_if_modified(enabled))
+            // A press on a control is its own: never a title bar's drag or double click.
+            .on_pointer_down(move |e: Event<PointerEventData>| {
+                e.stop_propagation();
+                pressed.set_if_modified(enabled)
+            })
             .on_mouse_up(move |_| pressed.set_if_modified(false))
             .on_press(move |e: Event<PressEventData>| {
                 e.stop_propagation();

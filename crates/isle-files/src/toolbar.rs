@@ -70,6 +70,7 @@ pub fn icon_button(
         .maybe(pressed, |el| el.background(colour(t.colour_control_pressed)))
         .a11y_role(AccessibilityRole::Button)
         .a11y_alt(alt)
+        .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
         .on_press(move |e: Event<PressEventData>| {
             e.stop_propagation();
             if enabled {
@@ -219,6 +220,7 @@ impl Component for Toolbar {
                     .maybe(*sorting.read(), |el| el.background(colour(t.colour_control_pressed)))
                     .a11y_role(AccessibilityRole::Button)
                     .a11y_alt("More toolbar items")
+                    .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
                     .on_press(move |e: Event<PressEventData>| {
                         e.stop_propagation();
                         sorting.toggle();
@@ -262,6 +264,7 @@ impl Component for Toolbar {
                 .a11y_role(AccessibilityRole::RadioButton)
                 .a11y_alt(alt)
                 .a11y_builder(move |node| node.set_selected(chosen))
+                .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
                 .on_press(move |e: Event<PressEventData>| {
                     e.stop_propagation();
                     if enabled {
@@ -393,6 +396,7 @@ impl Component for Toolbar {
                     .maybe(*sorting.read(), |el| el.background(colour(t.colour_control_pressed)))
                     .a11y_role(AccessibilityRole::Button)
                     .a11y_alt("Group and Sort")
+                    .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
                     .on_press(move |e: Event<PressEventData>| {
                         e.stop_propagation();
                         sorting.toggle();
@@ -626,6 +630,7 @@ fn jobs_button(theme: &isle_tokens::Theme, jobs: &[JobView], open: bool, on_pres
         .maybe(open, |el| el.background(colour(t.colour_control_pressed)))
         .a11y_role(AccessibilityRole::Button)
         .a11y_alt(alt)
+        .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
         .on_press(move |e: Event<PressEventData>| {
             e.stop_propagation();
             on_press();

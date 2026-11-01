@@ -164,6 +164,10 @@ impl Component for TextField {
                 Input::key_down_default(e)
             });
         }
-        rect().a11y_alt(self.alt.clone()).width(self.width.clone()).child(input)
+        rect()
+            .a11y_alt(self.alt.clone())
+            .width(self.width.clone())
+            .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
+            .child(input)
     }
 }

@@ -21,6 +21,7 @@ impl Component for SearchField {
         rect()
             .width(Size::px(self.width))
             .height(Size::px(t.size_control))
+            .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
             .corner_radius(t.radius_row)
             .background(colour(t.colour_fill))
             .horizontal()

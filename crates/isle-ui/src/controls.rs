@@ -77,6 +77,7 @@ impl Component for Switch {
             .maybe(focus() == Focus::Keyboard, |el| {
                 el.border(focus_ring(&theme))
             })
+            .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
             .a11y_id(a11y)
             .a11y_focusable(enabled)
             .a11y_role(AccessibilityRole::Switch)
